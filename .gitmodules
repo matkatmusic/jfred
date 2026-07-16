@@ -10,3 +10,6 @@
 	path = external/claude_plugin_lib
 	url = https://github.com/matkatmusic/claude_plugin_lib.git
 	branch = develop
+[submodule "jfredToolsPlugin"]
+	path = jfredToolsPlugin
+	url = https://github.com/matkatmusic/jfredToolsPlugin.git
