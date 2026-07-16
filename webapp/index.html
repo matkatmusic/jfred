@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>JFRED - JSONL File Reverse Engineer Debugger</title>
+    <link rel="stylesheet" href="/app/styles.css">
+</head>
+<body>
+    <header class="toolbar">
+        <span id="toolbar-title"><a href="#/" title="JSONL File Reverse Engineer Debugger">JFRED</a></span>
+        <span id="breadcrumb" class="breadcrumb"></span>
+        <button id="projects-btn" class="toolbar-btn">Projects ▾</button>
+        <button id="paths-btn" class="toolbar-btn">Paths…</button>
+        <div id="projects-menu" class="popover" hidden></div>
+        <div id="paths-popover" class="popover" hidden>
+            <label class="dir-label" for="projects-dir-input">Projects folder</label>
+            <input id="projects-dir-input" class="dir-input" type="text" spellcheck="false">
+            <button id="projects-dir-open" class="toolbar-btn">Open…</button>
+            <label class="dir-label" for="file-history-dir-input">File history</label>
+            <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
+            <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+            <button id="projects-dir-change" class="toolbar-btn">Change folder…</button>
+        </div>
+    </header>
+    <main class="layout">
+        <nav id="drawer" class="sidebar hidden"></nav>
+        <div id="rightcol">
+            <section id="timeline-pane">
+                <div id="timeline-pane-header">
+                    <span class="pane-title">Timeline</span>
+                    <span id="timeline-summary" class="muted"></span>
+                    <button id="files-prev" title="Jump to the previous message that touched files">◀ Prev</button>
+                    <button id="files-next" title="Jump to the next message that touched files">Next ▶</button>
+                    <button id="toggle-all">Expand All</button>
+                </div>
+                <section id="view" class="view-pane"></section>
+                <div id="timeline-selectbar" hidden></div>
+            </section>
+            <div id="split-td" class="splitter-h"></div>
+            <aside id="inspector" class="details-pane hidden">
+                <div id="details-header">No selection</div>
+                <div id="details-body">
+                    <div id="details-left"></div>
+                    <div id="split-lr" class="splitter-v"></div>
+                    <div id="details-right">
+                        <div id="details-right-header">
+                            <span id="details-right-label">JSON</span>
+                            <span id="diff-mode-toggle" hidden>
+                                <button id="dm-full">Show full contents</button><button id="dm-columns">Columns</button><button id="dm-inline">Inline</button>
+                            </span>
+                        </div>
+                        <div id="details-right-body"></div>
+                    </div>
+                </div>
+            </aside>
+            <div id="split-dc" class="splitter-h"></div>
+            <div id="console-row">
+                <div id="console-header">
+                    <span>Console</span>
+                    <span>
+                        <button id="console-cancel" class="toolbar-btn" title="Abort the in-flight project load" hidden>cancel</button>
+                        <button id="progress-copy" class="toolbar-btn" title="Copy all console text">copy</button>
+                        <button id="console-hide" class="toolbar-btn">Hide console</button>
+                    </span>
+                </div>
+                <section id="progress-console" class="progress-console"></section>
+            </div>
+            <div id="console-bar" hidden>
+                <span id="console-last"></span>
+                <button id="console-show" class="toolbar-btn">Show console</button>
+            </div>
+        </div>
+    </main>
+    <link rel="stylesheet" href="/app/vendor/xterm.css">
+    <link rel="stylesheet" href="/app/vendor/highlight-github.min.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="/app/vendor/highlight-github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <script src="/app/vendor/xterm.js"></script>
+    <script src="/app/vendor/addon-fit.js"></script>
+    <script src="/app/vendor/highlight.min.js"></script>
+    <script type="module" src="/app/app.js"></script>
+</body>
+</html>
