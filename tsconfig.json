@@ -14,6 +14,6 @@
         "forceConsistentCasingInFileNames": true,
         "noEmit": true
     },
-    "include": ["src", "webapp"],
+    "include": ["src", "webapp", "tests", "scripts"],
     "exclude": ["webapp/vendor", "webapp/dist", "webapp/archive"]
 }

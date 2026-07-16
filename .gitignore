@@ -141,3 +141,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# JFRED runtime data (seeded by scripts/run_scenario_dispatcher.py)
+.plugin_data/
+
+# Python bytecode
+__pycache__/
+*.pyc
+.pytest_cache/
