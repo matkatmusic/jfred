@@ -28,6 +28,7 @@ import {
     resolveChipLineLocations,
     resolveLineLabels,
 } from "./timeline-render-inspectors.ts";
+import { renderTimelineFilterBar } from "./timeline-render-filterbar.ts";
 import { buildTimelineRows } from "./timeline-render-rows.ts";
 import { fetchRangePatch, renderSelectbarButtons, updateSelectbar } from "./timeline-render-selectbar.ts";
 import {
@@ -179,6 +180,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
     await resolveLineLabels(context);
     await resolveChipLineLocations(context);
     await buildTimelineRows(context, container);
+    renderTimelineFilterBar(context, document.getElementById("timeline-filter-bar")!);
     wireToggleAllButton(context);
     wireFileNavButtons(context);
 

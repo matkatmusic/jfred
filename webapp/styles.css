@@ -990,3 +990,12 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     0% { transform: translateX(-110%); }
     100% { transform: translateX(330%); }
 }
+
+/* Timeline event-type filter (task 114) */
+#timeline-filter-bar { margin: 4px 8px 0; }
+#timeline-filter-bar .toolbar-btn.active {
+    background: var(--sel);
+    border-color: var(--accent);
+    color: #fff;
+}
+.tl-row.tl-filtered-out { display: none; }

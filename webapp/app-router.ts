@@ -38,6 +38,9 @@ export async function renderRoute(): Promise<void> {
     // item 73: the consent dialog hides #toggle-all while its header owns Expand All; every
     // navigation restores the skeleton button before the next view wires or ignores it.
     (document.getElementById("toggle-all") as HTMLButtonElement).hidden = false;
+    // task 114: the event-type filter bar is timeline-only; every navigation re-hides it and
+    // renderTimelineFilterBar unhides it (reset back to "All") when a timeline renders.
+    document.getElementById("timeline-filter-bar")!.hidden = true;
     // item 66: was — emptied the whole inspector pane on every route change:
     // const inspector = document.getElementById("inspector")!;
     // inspector.classList.add("hidden");
