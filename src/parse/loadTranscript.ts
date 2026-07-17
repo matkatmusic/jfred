@@ -73,6 +73,8 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
         ...OBSERVED_SESSION_METADATA_KEYS,
         // subagent identity/attribution; API-error markers (audit 2026-07-05).
         "agentId", "attributionAgent", "isApiErrorMessage", "error", "apiErrorStatus",
+        // reasoning-effort level on assistant turns (s87 capture, 2026-07-17).
+        "effort",
     ),
     [RecordType.attachment]: keys(
         ENVELOPE_KEYS, "attachment",
@@ -83,6 +85,10 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     [RecordType.bridgeSession]: keys(META_KEYS, "bridgeSessionId", "lastSequenceNum"),
     [RecordType.fileHistorySnapshot]: keys(
         ["type"], "messageId", "snapshot", "isSnapshotUpdate",
+    ),
+    // Like file-history-snapshot, no sessionId (s87 capture, 2026-07-17).
+    [RecordType.fileHistoryDelta]: keys(
+        ["type"], "messageId", "snapshotMessageId", "trackingPath", "backup", "timestamp",
     ),
     // Opens real subagents/agent-*.jsonl transcripts: the forked agent and its parent
     // session (audit 2026-07-05). Carries agentId, not sessionId — META_KEYS doesn't apply.

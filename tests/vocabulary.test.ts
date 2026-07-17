@@ -19,6 +19,7 @@ test("test_record_type_enum_holds_the_s1_wire_strings", () => {
     // ~/.claude/projects sessions the viewer opens (discriminant-only session meta),
     // and fork-context-ref observed opening real subagents/agent-*.jsonl transcripts
     // (2026-07-05 corpus audit of ~/Programming/jot-recovery/claude-data/projects).
+    // file-history-delta added by the s87 capture (newer CC per-file backup pointer).
     assert.deepEqual(Object.values(RecordType).sort(), [
         "agent-name",
         "ai-title",
@@ -26,6 +27,7 @@ test("test_record_type_enum_holds_the_s1_wire_strings", () => {
         "attachment",
         "bridge-session",
         "custom-title",
+        "file-history-delta",
         "file-history-snapshot",
         "fork-context-ref",
         "last-prompt",

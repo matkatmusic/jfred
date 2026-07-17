@@ -2,9 +2,7 @@
 """Run scenario.txt files through /run-scenario in a Claude tmux session.
 
 Usage:
-    python3 run-all-scenarios.py <pane_target>
-    python3 run-all-scenarios.py <pane_target> --only s24-script-rename-functions
-    python3 run-all-scenarios.py <pane_target> --skip-existing
+    python3 run-all-scenarios.py <pane_target> [--only <scenario>] [--skip-existing]
 
 Fires the selected scenarios with 30s spacing, then polls until all finish.
 --only <file> runs just that one; --skip-existing drops scenarios that already
@@ -12,16 +10,15 @@ have a captured run in executed/<stem>/.
 """
 
 import argparse
-import json
-import shutil
+import re
 import sys
 import time
 from pathlib import Path
 
+from scenario_capture_lib import EXECUTED_DIR, captureCompletedScenario
 from external.tmux_lib.tmux_lib import tmux_sendAndSubmit, tmux_waitForClaudeReadiness
 
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
-EXECUTED_DIR = SCENARIOS_DIR / "executed"
 LAUNCH_SPACING_S = 30
 POLL_INTERVAL_S = 15
 POLL_TIMEOUT_S = 1800
@@ -58,75 +55,6 @@ def executedFileHasResult(executed_file):
         return False
     text = executed_file.read_text()
     return "result:" in text
-
-
-def extractTmpdirFromResultText(text):
-    """Return the tmpdir path from a result text's 'tmpdir: <path>' line."""
-    for line in text.splitlines():
-        if line.startswith("tmpdir: "):
-            return line[len("tmpdir: "):]
-    return ""
-
-
-def extractJsonlPathsFromResultText(text):
-    """Return all jsonl paths to capture: the 'jsonl_paths' list, or [jsonl_path] fallback."""
-    for line in text.splitlines():
-        if line.startswith("result: "):
-            payload = json.loads(line[len("result: "):])
-            paths = payload.get("jsonl_paths") or []
-            single = payload.get("jsonl_path")
-            return paths if paths else ([single] if single else [])
-    return []
-
-
-def copyFilesInDir(src_dir, dest_dir):
-    """Copy every regular file directly under src_dir into dest_dir; return count."""
-    copied = 0
-    for f in Path(src_dir).iterdir():
-        if f.is_file():
-            shutil.copy2(str(f), str(Path(dest_dir) / f.name))
-            copied += 1
-    return copied
-
-
-def copyScenarioOutputsToExecutedDir(tmpdir, stem, executed_dir=EXECUTED_DIR):
-    """Copy tmpdir's files and every subdir (tests/, .git, pkg/, ...) into executed/<stem>/."""
-    output_dir = executed_dir / stem
-    if output_dir.is_dir():
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    copied = copyFilesInDir(tmpdir, output_dir)
-    for sub in Path(tmpdir).iterdir():
-        if sub.is_dir():
-            shutil.copytree(sub, output_dir / sub.name)
-            copied += sum(1 for p in (output_dir / sub.name).rglob("*") if p.is_file())
-    return copied
-
-
-def copyScenarioJsonlToExecutedDir(jsonl_path, stem, executed_dir=EXECUTED_DIR):
-    """Copy the session JSONL into executed/<stem>/ keeping its filename."""
-    output_dir = executed_dir / stem
-    output_dir.mkdir(parents=True, exist_ok=True)
-    src = Path(jsonl_path)
-    dest = output_dir / src.name
-    shutil.copy2(str(src), str(dest))
-    return dest
-
-
-def captureCompletedScenario(result_text, stem, executed_dir=EXECUTED_DIR):
-    """Copy the tmpdir tree and every session JSONL into executed/<stem>/."""
-    tmpdir = extractTmpdirFromResultText(result_text)
-    if tmpdir:
-        copyScenarioOutputsToExecutedDir(tmpdir, stem, executed_dir)
-    # Copy ALL JSONLs from the Claude project directory, not just the ones
-    # the Record step captured — /clear and /compact create new sessions
-    # whose JSONLs aren't in the result's jsonl_paths.
-    known = extractJsonlPathsFromResultText(result_text)
-    if known:
-        project_dir = Path(known[0]).parent
-        for jsonl in sorted(project_dir.glob("*.jsonl")):
-            copyScenarioJsonlToExecutedDir(str(jsonl), stem, executed_dir)
 
 
 def resolveOnlyScenario(only):
@@ -190,6 +118,32 @@ def launchScenario(pane_target, scenario_file, index, total, model=""):
     return stem
 
 
+def parseStepProgress(text):
+    """Return (first unchecked step number, its text, total steps) from a progress copy, or None."""
+    steps = re.findall(r"^- \[( |x)\] (\d+)\. (.*)$", text, re.MULTILINE)
+    unchecked = [(int(num), body) for mark, num, body in steps if mark == " "]
+    if not unchecked:
+        return None
+    num, body = unchecked[0]
+    return num, body, len(steps)
+
+
+def reportStepProgress(stem, last_reported):
+    """Print which step a running scenario is on, once per advance; True if it advanced."""
+    executed_file = findLatestExecutedFile(stem)
+    if executed_file is None:
+        return False
+    progress = parseStepProgress(executed_file.read_text())
+    if progress is None:
+        return False
+    num, body, total = progress
+    if last_reported.get(stem) == num:
+        return False
+    last_reported[stem] = num
+    print(f"  sending step {num}/{total}: {' '.join(body.split()[:10])}", flush=True)
+    return True
+
+
 def recordScenarioOutcome(stem, completed, failed):
     """Capture a finished scenario into its bucket; return True once it has a result."""
     executed_file = findLatestExecutedFile(stem)
@@ -218,6 +172,13 @@ def reapFinishedSessions(running, completed, failed):
             del running[stem]
 
 
+def bumpDeadlinesOnProgress(running, last_reported):
+    """Reset the stall deadline of every scenario that advanced a step since last poll."""
+    for stem in running:
+        if reportStepProgress(stem, last_reported):
+            running[stem] = time.time() + POLL_TIMEOUT_S
+
+
 def fillOpenSlots(pane_target, queue, running, next_index, max_concurrent, model=""):
     """Launch queued scenarios into open slots (spacing the burst); return new index."""
     total = len(queue)
@@ -234,17 +195,20 @@ def runScenariosWithLimit(pane_target, scenario_files, max_concurrent=MAX_CONCUR
     """Run scenarios keeping at most max_concurrent sessions in flight at once.
 
     Fills open slots from the queue, polls the running sessions, and frees each slot
-    the moment its scenario finishes or exceeds POLL_TIMEOUT_S. Returns (completed,
-    failed) stems.
+    the moment its scenario finishes or stalls: the POLL_TIMEOUT_S deadline is
+    reset every time a scenario advances a step, so only a session with no step
+    progress for POLL_TIMEOUT_S is reaped as TIMEOUT. Returns (completed, failed) stems.
     """
     queue = list(scenario_files)
     running = {}          # stem -> per-session timeout deadline
     completed = []
     failed = []
     next_index = 0
+    last_reported = {}    # stem -> last step number printed
 
     while next_index < len(queue) or running:
         next_index = fillOpenSlots(pane_target, queue, running, next_index, max_concurrent, model)
+        bumpDeadlinesOnProgress(running, last_reported)
         reapFinishedSessions(running, completed, failed)
         if running:
             time.sleep(POLL_INTERVAL_S)
@@ -256,10 +220,10 @@ def main():
     parser.add_argument("pane_target", help="tmux pane where Claude is running")
     parser.add_argument("--only", metavar="FILE", help="run a single scenario (path, name, or stem)")
     parser.add_argument("--skip-existing", action="store_true", help="skip scenarios already captured in executed/<stem>/")
-    parser.add_argument("--model", default=DEFAULT_AGENT_MODEL,
-                        help=f"model each spawned agent runs on via /model (default: {DEFAULT_AGENT_MODEL}; pass '' to skip)")
-    parser.add_argument("--maxSessions", type=int, default=MAX_CONCURRENT_SESSIONS,
-                        help=f"max scenarios running simultaneously (default: {MAX_CONCURRENT_SESSIONS})")
+    model_help = f"model each spawned agent runs on via /model (default: {DEFAULT_AGENT_MODEL}; pass '' to skip)"
+    parser.add_argument("--model", default=DEFAULT_AGENT_MODEL, help=model_help)
+    sessions_help = f"max scenarios running simultaneously (default: {MAX_CONCURRENT_SESSIONS})"
+    parser.add_argument("--maxSessions", type=int, default=MAX_CONCURRENT_SESSIONS, help=sessions_help)
     args = parser.parse_args()
 
     pane_target = args.pane_target

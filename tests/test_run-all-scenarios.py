@@ -1,6 +1,7 @@
 """Tests for run-all-scenarios.py pure helpers (no tmux side effects)."""
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,9 @@ MODULE_PATH = Path(__file__).resolve().parent.parent / "run-all-scenarios.py"
 
 def loadModule():
     """Import the hyphenated run-all-scenarios.py as a module object."""
+    # repo root on sys.path so the module's own imports (scenario_capture_lib,
+    # tmux_lib) resolve regardless of pytest's cwd
+    sys.path.insert(0, str(MODULE_PATH.parent))
     spec = importlib.util.spec_from_file_location("run_all_scenarios", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -66,35 +70,39 @@ def test_selectScenarioFiles_unknown_exits():
         mod.selectScenarioFiles("does-not-exist-xyz")
 
 
-def test_copyFilesInDir_copies_only_regular_files(tmp_path):
-    """copyFilesInDir copies regular files (not subdirs) and returns the count."""
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "a.txt").write_text("a")
-    (src / "b.txt").write_text("b")
-    (src / "sub").mkdir()
-    dest = tmp_path / "dest"
-    dest.mkdir()
-
-    count = mod.copyFilesInDir(src, dest)
-
-    assert count == 2
-    assert (dest / "a.txt").read_text() == "a"
-    assert not (dest / "sub").exists()
+def test_parseStepProgress_reports_first_unchecked_step():
+    """The first unchecked checkbox is the in-flight step; total counts all steps."""
+    text = "tmpdir: /tmp/x\n- [x] 1. Say: `hello`\n- [ ] 2. Edit: foo.py\n- [ ] 3. Say: `bye`\n"
+    assert mod.parseStepProgress(text) == (2, "Edit: foo.py", 3)
+    assert mod.parseStepProgress("- [x] 1. Say: `done`\n") is None
+    assert mod.parseStepProgress("no checkboxes here") is None
 
 
-def test_extractTmpdirFromResultText():
-    """The tmpdir line is parsed out of result text."""
-    text = "header\ntmpdir: /tmp/scn-123\nresult: {}"
-    assert mod.extractTmpdirFromResultText(text) == "/tmp/scn-123"
+def test_reportStepProgress_prints_once_and_signals_advance(tmp_path, monkeypatch, capsys):
+    """Each step advance prints once and returns True; repeats return False."""
+    progress = tmp_path / "s9-run-20260717-120000.txt"
+    progress.write_text("- [ ] 1. Say: `hello world`\n- [ ] 2. Say: `bye`\n")
+    monkeypatch.setattr(mod, "findLatestExecutedFile", lambda stem: progress)
+    last = {}
+
+    assert mod.reportStepProgress("s9", last) is True
+    assert "sending step 1/2: Say: `hello world`" in capsys.readouterr().out
+    assert mod.reportStepProgress("s9", last) is False
+
+    progress.write_text("- [x] 1. Say: `hello world`\n- [ ] 2. Say: `bye`\n")
+    assert mod.reportStepProgress("s9", last) is True
+    assert "sending step 2/2" in capsys.readouterr().out
 
 
-def test_extractJsonlPathsFromResultText_list_and_fallback():
-    """jsonl_paths is preferred; falls back to [jsonl_path] when only the single key is present."""
-    multi = 'result: {"jsonl_paths": ["/a.jsonl", "/b.jsonl"], "completed": true}'
-    assert mod.extractJsonlPathsFromResultText(multi) == ["/a.jsonl", "/b.jsonl"]
-    single = 'tmpdir: /tmp/x\nresult: {"jsonl_path": "/tmp/x/sess.jsonl", "completed": true}'
-    assert mod.extractJsonlPathsFromResultText(single) == ["/tmp/x/sess.jsonl"]
+def test_bumpDeadlinesOnProgress_resets_only_advancing_deadlines(monkeypatch):
+    """A scenario that advanced gets a fresh deadline; a stalled one keeps its old deadline."""
+    monkeypatch.setattr(mod, "reportStepProgress", lambda stem, last: stem == "alive")
+    running = {"alive": 1.0, "stalled": 1.0}
+
+    mod.bumpDeadlinesOnProgress(running, {})
+
+    assert running["alive"] > 1.0
+    assert running["stalled"] == 1.0
 
 
 def test_hasCapturedRun_true_when_step_states_present(tmp_path, monkeypatch):
@@ -112,30 +120,6 @@ def test_hasCapturedRun_false_without_step_states(tmp_path, monkeypatch):
     d.mkdir()
     (d / "session.jsonl").write_text("{}")   # jsonl alone no longer counts
     assert mod.hasCapturedRun("s98-demo") is False
-
-
-def test_copyScenarioOutputsToExecutedDir_captures_repo_subdir(tmp_path):
-    """Subdirectories (e.g. .git) are captured recursively, not just top-level files."""
-    src = tmp_path / "src"
-    (src / ".git").mkdir(parents=True)
-    (src / ".git" / "HEAD").write_text("ref: refs/heads/main")
-    (src / "mod.py").write_text("x = 1")
-    dest_root = tmp_path / "executed"
-    mod.copyScenarioOutputsToExecutedDir(str(src), "s99", executed_dir=dest_root)
-    out = dest_root / "s99"
-    assert (out / "mod.py").is_file()
-    assert (out / ".git" / "HEAD").read_text() == "ref: refs/heads/main"
-
-
-def test_copyScenarioOutputs_captures_step_states(tmp_path):
-    """The .step_states/ snapshot tree is captured into executed/<stem>/ for the engine."""
-    src = tmp_path / "src"
-    (src / ".step_states" / "step-001").mkdir(parents=True)
-    (src / ".step_states" / "step-001" / "mod.py").write_text("x = 1")
-    dest_root = tmp_path / "executed"
-    mod.copyScenarioOutputsToExecutedDir(str(src), "s99", executed_dir=dest_root)
-    out = dest_root / "s99"
-    assert (out / ".step_states" / "step-001" / "mod.py").read_text() == "x = 1"
 
 
 def test_selectScenarioFiles_skip_existing_drops_captured(tmp_path, monkeypatch):

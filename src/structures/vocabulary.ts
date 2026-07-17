@@ -28,6 +28,10 @@ export enum RecordType {
     // corpus audit of ~/Programming/jot-recovery/claude-data/projects): names the forked agent
     // and its parent session. Carries agentId instead of sessionId, so META_KEYS doesn't apply.
     forkContextRef = "fork-context-ref",
+    // Per-file backup pointer written by newer CC alongside file-history-snapshot
+    // (s87 capture, 2026-07-17). Discriminant-only: sidecar backups on disk remain
+    // the content source.
+    fileHistoryDelta = "file-history-delta",
 }
 
 export const KNOWN_RECORD_TYPES: RecordType[] = Object.values(RecordType);

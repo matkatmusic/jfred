@@ -31,6 +31,8 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         error: "unknown",
         // 55ff70b5-9957-409a-a682-46152538e9b2.jsonl:689
         apiErrorStatus: 429,
+        // scenarios/executed/s87-demo-composite/1b61dfe4….jsonl:24 (reasoning-effort level)
+        effort: "high",
     },
     [RecordType.user]: {
         // cb96ea5f…/subagents/agent-ad5fe73d9db452bf5.jsonl:1
