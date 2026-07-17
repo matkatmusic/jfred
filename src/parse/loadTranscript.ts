@@ -163,6 +163,29 @@ export function parseTranscriptLine(line: string): TranscriptRecord {
 // that carry fields the scenarios never modeled), an unmodeled field is reported through
 // `onProgress` — once per (type, field) per file — instead of thrown. An unknown record *type*
 // still throws either way: its whole shape is unknown, not just one extra field.
+function reportUnmodeledTopLevelFields(
+    record: TranscriptRecord,
+    reportedUnmodeled: Set<string>,
+    onProgress: ProgressSink | undefined,
+): void {
+    for (const key of findUnmodeledTopLevelKeys(record)) {
+        reportUnmodeledFieldOnce(record, key, reportedUnmodeled, onProgress);
+    }
+}
+
+function reportUnmodeledFieldOnce(
+    record: TranscriptRecord,
+    key: string,
+    reportedUnmodeled: Set<string>,
+    onProgress: ProgressSink | undefined,
+): void {
+    const reportId = `${record.type}::${key}`;
+    if (!reportedUnmodeled.has(reportId)) {
+        reportedUnmodeled.add(reportId);
+        onProgress?.({ kind: DocumentResponseKind.progress, label: `unmodeled field "${key}" on ${record.type} record` });
+    }
+}
+
 export function loadTranscript(
     filePath: string,
     onProgress?: ProgressSink,
@@ -184,13 +207,7 @@ export function loadTranscript(
         const record = parseRecord(text);
         recordSources.set(record, { filePath, lineNumber });
         if (tolerateUnmodeledFields) {
-            for (const key of findUnmodeledTopLevelKeys(record)) {
-                const reportId = `${record.type}::${key}`;
-                if (!reportedUnmodeled.has(reportId)) {
-                    reportedUnmodeled.add(reportId);
-                    onProgress?.({ kind: DocumentResponseKind.progress, label: `unmodeled field "${key}" on ${record.type} record` });
-                }
-            }
+            reportUnmodeledTopLevelFields(record, reportedUnmodeled, onProgress);
         } else {
             assertOnlyKnownTopLevelKeys(record);
         }

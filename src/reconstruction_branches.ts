@@ -193,35 +193,44 @@ function computeSeededText(revisionBefore: FileRevision | undefined): string | u
     return linesTextOf(revisionBefore).join("\n") + "\n";
 }
 
+// Replay the target's own reconstruction up to `before` — the callback body of
+// getLineageContentBefore, extracted to module scope.
+function replayLineageContentBefore(
+    records: TranscriptRecord[],
+    reader: BackupReader,
+    target: Path,
+    before: Date,
+): string | undefined {
+    const cycleKey = `${target.toString()}|${before.getTime()}`;
+    if (seedingLineages.has(cycleKey)) return undefined;
+    const enteredWithCleanStack = seedingLineages.size === 0;
+    // corpus: moved to reconstruction_corpus.ts (item 14)
+    // const cache = getLineageSeedCache(records, reader);
+    const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
+    if (enteredWithCleanStack) {
+        if (seedsByKey.has(cycleKey)) {
+            return seedsByKey.get(cycleKey);
+        }
+    }
+    const previousCutoff = enterLineageReplayWindow(before);
+    seedingLineages.add(cycleKey);
+    try {
+        reportReconstructionProgress(`replaying lineage of ${target}`);
+        const revisions = reconstructFileOver(records, target, new Set(), reader);
+        const revisionBefore = lastRevisionStrictlyBefore(revisions, before);
+        const seededText = computeSeededText(revisionBefore);
+        if (enteredWithCleanStack) {
+            seedsByKey.set(cycleKey, seededText);
+        }
+        return seededText;
+    } finally {
+        seedingLineages.delete(cycleKey);
+        restoreLineageReplayWindow(previousCutoff);
+    }
+}
+
 // A LineageContentBefore that replays the target's own reconstruction up to `before`.
 export function getLineageContentBefore(records: TranscriptRecord[], reader: BackupReader): LineageContentBefore {
-    return (target, before) => {
-        const cycleKey = `${target.toString()}|${before.getTime()}`;
-        if (seedingLineages.has(cycleKey)) return undefined;
-        const enteredWithCleanStack = seedingLineages.size === 0;
-        // corpus: moved to reconstruction_corpus.ts (item 14)
-        // const cache = getLineageSeedCache(records, reader);
-        const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
-        if (enteredWithCleanStack) {
-            if (seedsByKey.has(cycleKey)) {
-                return seedsByKey.get(cycleKey);
-            }
-        }
-        const previousCutoff = enterLineageReplayWindow(before);
-        seedingLineages.add(cycleKey);
-        try {
-            reportReconstructionProgress(`replaying lineage of ${target}`);
-            const revisions = reconstructFileOver(records, target, new Set(), reader);
-            const revisionBefore = lastRevisionStrictlyBefore(revisions, before);
-            const seededText = computeSeededText(revisionBefore);
-            if (enteredWithCleanStack) {
-                seedsByKey.set(cycleKey, seededText);
-            }
-            return seededText;
-        } finally {
-            seedingLineages.delete(cycleKey);
-            restoreLineageReplayWindow(previousCutoff);
-        }
-    };
+    return (target, before) => replayLineageContentBefore(records, reader, target, before);
 }
 

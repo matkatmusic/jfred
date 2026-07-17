@@ -45,22 +45,26 @@ export function computeGitBaselineText(snapshot: WireStepSnapshot): string {
 // so a step's changeIds resolve to displayable file chips and orphan detection in one lookup.
 // Surviving histories are indexed first and win duplicates (a changeId present in both branches
 // counts as surviving).
+function recordHistoryRevisions(index: RevisionIndex, history: WireFileHistory, isRewound: boolean): void {
+    history.revisions.forEach((revision, position) => {
+        if (index.has(revision.changeId)) {
+            return;
+        }
+        index.set(revision.changeId, {
+            path: revision.rename !== undefined ? revision.rename.to : history.target,
+            eventKind: revision.kind,
+            renamedFrom: revision.rename !== undefined ? revision.rename.from : undefined,
+            isFirstRevision: position === 0,
+            isRewound,
+        });
+    });
+}
+
 export function indexRevisionsByChangeId(document: WireTimelineDocument): RevisionIndex {
     const index: RevisionIndex = new Map();
     const addHistories = (histories: WireFileHistory[], isRewound: boolean): void => {
         for (const history of histories) {
-            history.revisions.forEach((revision, position) => {
-                if (index.has(revision.changeId)) {
-                    return;
-                }
-                index.set(revision.changeId, {
-                    path: revision.rename !== undefined ? revision.rename.to : history.target,
-                    eventKind: revision.kind,
-                    renamedFrom: revision.rename !== undefined ? revision.rename.from : undefined,
-                    isFirstRevision: position === 0,
-                    isRewound,
-                });
-            });
+            recordHistoryRevisions(index, history, isRewound);
         }
     };
     addHistories(document.filesTouched, false);
@@ -147,15 +151,19 @@ export function computeSnapshotJumpRoute(project: string, filesTouched: WireFile
 
 // Split a multi-file range patch on its `diff --git ` headers into per-file blocks, each keyed by
 // its patch-relative b/ path (the range-diff inspector shows one file's block at a time).
+function startNextPatchBlock(line: string, current: { path: string; lines: string[] } | null, blocks: { path: string; lines: string[] }[]): { path: string; lines: string[] } {
+    if (current !== null) {
+        blocks.push(current);
+    }
+    return { path: line.slice(line.lastIndexOf(" b/") + 3), lines: [line] };
+}
+
 export function splitPatchByFile(patchText: string): { path: string; block: string }[] {
     const blocks: { path: string; lines: string[] }[] = [];
     let current: { path: string; lines: string[] } | null = null;
     for (const line of patchText.split("\n")) {
         if (line.startsWith("diff --git ")) {
-            if (current !== null) {
-                blocks.push(current);
-            }
-            current = { path: line.slice(line.lastIndexOf(" b/") + 3), lines: [line] };
+            current = startNextPatchBlock(line, current, blocks);
             continue;
         }
         if (current !== null) {
@@ -170,17 +178,21 @@ export function splitPatchByFile(patchText: string): { path: string; block: stri
 
 // A turn's file chips: deriveFileChanges merged over its snapshots, deduped by path (first kind
 // wins, matching deriveFileChanges' own seenPaths convention).
+function mergeSnapshotFileChanges(snapshot: WireStepSnapshot, revisionIndex: RevisionIndex, seenPaths: Set<unknown>, changes: FileChange[]): void {
+    for (const change of deriveFileChanges(snapshot, revisionIndex)) {
+        if (seenPaths.has(change.path)) {
+            continue;
+        }
+        seenPaths.add(change.path);
+        changes.push(change);
+    }
+}
+
 function deriveMergedFileChanges(snapshots: WireStepSnapshot[], revisionIndex: RevisionIndex): FileChange[] {
     const changes: FileChange[] = [];
     const seenPaths = new Set();
     for (const snapshot of snapshots) {
-        for (const change of deriveFileChanges(snapshot, revisionIndex)) {
-            if (seenPaths.has(change.path)) {
-                continue;
-            }
-            seenPaths.add(change.path);
-            changes.push(change);
-        }
+        mergeSnapshotFileChanges(snapshot, revisionIndex, seenPaths, changes);
     }
     return changes;
 }

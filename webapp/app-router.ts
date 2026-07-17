@@ -30,6 +30,20 @@ export function checkNavigationStartsNewProjectLoad(previousProject: string | un
     return nextProject !== previousProject;
 }
 
+// The project-route arm of renderRoute's dispatch, extracted so its anchor ternaries sit one
+// indent level shallower (deep-nesting flag at the old depth).
+async function renderProjectRoute(view: HTMLElement, segments: string[]): Promise<void> {
+    const project = segments[1]!;
+    setToolbarTitle(project);   // item 66: was setBreadcrumb(project)
+    // The timeline is ALWAYS a loaded project's base view (user decision 2026-07-06):
+    // jsonl and file sub-routes keep their URLs but render as a drawer over it.
+    const anchorJsonl = segments[2] === "timeline" && segments[3] === "session" ? segments[4]
+        : segments[2] === "jsonl" ? segments[3] : undefined;
+    const anchorLine = segments[2] === "timeline" && segments[5] === "at" ? segments[6] : undefined;
+    await renderTimelineView(view, project, anchorJsonl, anchorLine);
+    await renderSubRouteDrawer(project, segments);
+}
+
 export async function renderRoute(): Promise<void> {
     inflightLoadController?.abort();   // navigation tears down any in-flight load
     const view = document.getElementById("view")!;
@@ -93,15 +107,7 @@ export async function renderRoute(): Promise<void> {
             setToolbarTitle(undefined);   // item 66: was setBreadcrumb("")
             await renderProjectsView(view);
         } else if (segments[0] === "project") {
-            const project = segments[1]!;
-            setToolbarTitle(project);   // item 66: was setBreadcrumb(project)
-            // The timeline is ALWAYS a loaded project's base view (user decision 2026-07-06):
-            // jsonl and file sub-routes keep their URLs but render as a drawer over it.
-            const anchorJsonl = segments[2] === "timeline" && segments[3] === "session" ? segments[4]
-                : segments[2] === "jsonl" ? segments[3] : undefined;
-            const anchorLine = segments[2] === "timeline" && segments[5] === "at" ? segments[6] : undefined;
-            await renderTimelineView(view, project, anchorJsonl, anchorLine);
-            await renderSubRouteDrawer(project, segments);
+            await renderProjectRoute(view, segments);
         } else {
             view.append(el("div", { class: "error-box", text: `unknown route: ${location.hash}` }));
         }

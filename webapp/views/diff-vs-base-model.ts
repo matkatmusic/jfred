@@ -39,6 +39,16 @@ function buildSplitCell(text: string, lineClass: string, lineNumber: number | un
     return cell;
 }
 
+// Pushes one zipped deletion/addition pair row; either side may be undefined when the runs
+// have unequal lengths.
+function pushPendingPairRow(rows: SplitRow[], pendingDeletions: SplitCell[], pendingAdditions: SplitCell[], pairIndex: number): void {
+    rows.push({
+        kind: SplitRowKind.pair,
+        left: pendingDeletions[pairIndex],
+        right: pendingAdditions[pairIndex],
+    });
+}
+
 // Unified diff text -> rows for the two-column split view. Deletion/addition runs are zipped
 // row-by-row; the one-char unified prefix is stripped inside hunk cells; "@@ -a,b +c,d @@"
 // headers seed the per-side line-number counters shown in the gutters.
@@ -64,11 +74,7 @@ export function computeSplitRows(diffText: string): SplitRow[] {
     const flushPendingChanges = () => {
         const pairCount = Math.max(pendingDeletions.length, pendingAdditions.length);
         for (let pairIndex = 0; pairIndex < pairCount; pairIndex++) {
-            rows.push({
-                kind: SplitRowKind.pair,
-                left: pendingDeletions[pairIndex],
-                right: pendingAdditions[pairIndex],
-            });
+            pushPendingPairRow(rows, pendingDeletions, pendingAdditions, pairIndex);
         }
         pendingDeletions = [];
         pendingAdditions = [];
@@ -111,6 +117,18 @@ export function computeSplitRows(diffText: string): SplitRow[] {
 // seeded that side's counter (item 40).
 export type InlineRow = { text: string; lineClass: string; oldLineNumber?: number; newLineNumber?: number };
 
+// Assigns both gutter numbers to a context line inside a hunk (each side only when its counter
+// is seeded) and returns the advanced counters.
+function assignContextLineNumbers(row: InlineRow, oldLineCounter: number | undefined, newLineCounter: number | undefined): { oldLineCounter: number | undefined; newLineCounter: number | undefined } {
+    if (oldLineCounter !== undefined) {
+        row.oldLineNumber = oldLineCounter++;
+    }
+    if (newLineCounter !== undefined) {
+        row.newLineNumber = newLineCounter++;
+    }
+    return { oldLineCounter, newLineCounter };
+}
+
 // Unified diff text -> inline rows in original line order, raw prefixes kept. "@@ -a,b +c,d @@"
 // headers seed the per-side counters; "-" advances old only, "+" advances new only, context
 // inside a hunk advances both; preamble lines and headers carry no numbers.
@@ -136,12 +154,9 @@ export function computeInlineRows(diffText: string): InlineRow[] {
             row.newLineNumber = newLineCounter++;
         }
         if (insideHunk && !line.startsWith("-") && !line.startsWith("+")) {
-            if (oldLineCounter !== undefined) {
-                row.oldLineNumber = oldLineCounter++;
-            }
-            if (newLineCounter !== undefined) {
-                row.newLineNumber = newLineCounter++;
-            }
+            const advancedCounters = assignContextLineNumbers(row, oldLineCounter, newLineCounter);
+            oldLineCounter = advancedCounters.oldLineCounter;
+            newLineCounter = advancedCounters.newLineCounter;
         }
         rows.push(row);
     }

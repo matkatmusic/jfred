@@ -55,6 +55,12 @@ export function classifyLoadPhase(label: string): number | undefined {
     return undefined;
 }
 
+function updateElapsedLabel(): void {
+    if (loadingProgressElements !== null) {
+        loadingProgressElements.elapsed.textContent = `${((Date.now() - loadingProgressStartMs) / 1000).toFixed(1)}s`;
+    }
+}
+
 // Show or update the always-visible loading indicator: a phase header (name · phase N of M) with a
 // ticking elapsed clock, a phase bar, the current stage label, and a stage bar. A finite `fraction`
 // fills the stage bar determinately; a non-finite one (a countless/blocking stage) shimmers instead,
@@ -73,11 +79,7 @@ export function showLoadingProgress(label: string, fraction: number): void {
         const overlay = el("div", { class: "timeline-progress-overlay" }, [box]);
         loadingProgressStartMs = Date.now();
         loadingProgressCurrentPhase = 0;
-        const timerId = window.setInterval(() => {
-            if (loadingProgressElements !== null) {
-                loadingProgressElements.elapsed.textContent = `${((Date.now() - loadingProgressStartMs) / 1000).toFixed(1)}s`;
-            }
-        }, 100);
+        const timerId = window.setInterval(updateElapsedLabel, 100);
         loadingProgressElements = { overlay, phaseLabel, elapsed, phaseFill, label: stageLabel, stageTrack, fill, timerId };
     }
     const elements = loadingProgressElements;

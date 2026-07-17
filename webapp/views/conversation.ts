@@ -88,6 +88,35 @@ function renderBranchStrip(branches: WireBranch[]): HTMLElement {
     return strip;
 }
 
+// One ✎ edit-marker link for a single revised path, appended to the conversation column.
+function appendEditMarkerLink(conversation: HTMLElement, project: string, path: string): void {
+    conversation.append(el("a", {
+        class: "edit-marker",
+        href: routeToFileHistory(project, path),
+        text: `✎ ${path.slice(path.lastIndexOf("/") + 1)}`,
+    }));
+}
+
+// The chat bubble node for a genuine conversation message.
+function buildMessageBubbleNode(message: WireConversationMessage, entryLine: number, inspectLine: (line: number) => void): HTMLElement {
+    return el("div", {
+        class: `bubble ${message.role}`,
+        onclick: () => inspectLine(entryLine),
+    }, [
+        el("div", { class: "bubble-meta", text: `${message.role} · ${message.timestamp === undefined ? "" : new Date(message.timestamp).toLocaleString()}` }),
+        el("div", { text: message.text }),
+    ]);
+}
+
+// The collapsed one-line stub node for a non-message record.
+function buildStubRowNode(entry: Extract<ConversationEntry, { kind: "stub" }>, inspectLine: (line: number) => void): HTMLElement {
+    return el("div", {
+        class: "stub-row",
+        text: `line ${entry.line} · ${entry.type} · ${entry.verdict}`,
+        onclick: () => inspectLine(entry.line),
+    });
+}
+
 export async function renderConversationView(container: HTMLElement, project: string, jsonl: string, anchorLine: string | undefined): Promise<void> {
     const result = await fetchDocument<WireConversationDocument>(project, jsonl);
     if (result.consentRequired !== undefined) {
@@ -142,11 +171,7 @@ export async function renderConversationView(container: HTMLElement, project: st
     let anchorNode: HTMLElement | undefined;
     const appendEditMarker = (line: number): void => {
         for (const path of targetsByLine.get(line) ?? []) {
-            conversation.append(el("a", {
-                class: "edit-marker",
-                href: routeToFileHistory(project, path),
-                text: `✎ ${path.slice(path.lastIndexOf("/") + 1)}`,
-            }));
+            appendEditMarkerLink(conversation, project, path);
         }
     };
     for (const entry of buildConversationViewModel(documentJson).entries) {
@@ -154,19 +179,9 @@ export async function renderConversationView(container: HTMLElement, project: st
         let node: HTMLElement;
         if (entry.kind === "message") {
             const message = entry.message;
-            node = el("div", {
-                class: `bubble ${message.role}`,
-                onclick: () => inspectLine(entryLine),
-            }, [
-                el("div", { class: "bubble-meta", text: `${message.role} · ${message.timestamp === undefined ? "" : new Date(message.timestamp).toLocaleString()}` }),
-                el("div", { text: message.text }),
-            ]);
+            node = buildMessageBubbleNode(message, entryLine, inspectLine);
         } else {
-            node = el("div", {
-                class: "stub-row",
-                text: `line ${entry.line} · ${entry.type} · ${entry.verdict}`,
-                onclick: () => inspectLine(entry.line),
-            });
+            node = buildStubRowNode(entry, inspectLine);
         }
         conversation.append(node);
         nodeByLine.set(entryLine, node);

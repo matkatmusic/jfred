@@ -61,6 +61,13 @@ test("test_getContentBlocks_throws_on_unknown_block_type", () => {
     );
 });
 
+function buildBase64ImageBlock() {
+    return {
+        type: "image",
+        source: { type: "base64", data: "aGk=", media_type: "image/png" },
+    };
+}
+
 test("test_getContentBlocks_accepts_image_block", () => {
     // Scenario: a real transcript user turn carrying a pasted image parses
     // without throwing, and the block comes back typed BlockType.image.
@@ -69,12 +76,7 @@ test("test_getContentBlocks_accepts_image_block", () => {
     const line = JSON.stringify({
         type: "user",
         message: {
-            content: [
-                {
-                    type: "image",
-                    source: { type: "base64", data: "aGk=", media_type: "image/png" },
-                },
-            ],
+            content: [buildBase64ImageBlock()],
         },
     });
     const record = parseRecord(line);

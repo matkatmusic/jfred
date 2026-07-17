@@ -36,6 +36,19 @@ export function renderDiffVsBase(document: ReconstructionDocument, filePath: Pat
     return renderDiffWithContext([first, selected]);
 }
 
+// Counts how many leading directory segments two segment lists share.
+function countSharedLeadingSegments(prefix: string[], segments: string[]): number {
+    let shared = 0;
+    const limit = Math.min(prefix.length, segments.length);
+    while (shared < limit) {
+        if (prefix[shared] !== segments[shared]) {
+            break;
+        }
+        shared += 1;
+    }
+    return shared;
+}
+
 // The directory every range-patch path is relativized against: the longest common directory
 // prefix across every file the reconstruction ever tracked — in practice the session's cwd,
 // since every tracked file lives under it. Stable for a given reconstruction regardless of the range.
@@ -51,15 +64,7 @@ export function computePatchRoot(stepFileHistories: FileHistory[]): string {
     }
     let prefix = directorySegmentLists[0]!;
     for (const segments of directorySegmentLists.slice(1)) {
-        let shared = 0;
-        const limit = Math.min(prefix.length, segments.length);
-        while (shared < limit) {
-            if (prefix[shared] !== segments[shared]) {
-                break;
-            }
-            shared += 1;
-        }
-        prefix = prefix.slice(0, shared);
+        prefix = prefix.slice(0, countSharedLeadingSegments(prefix, segments));
     }
     return prefix.join(sep) || sep;
 }

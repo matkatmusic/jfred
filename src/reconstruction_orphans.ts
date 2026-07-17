@@ -3,6 +3,7 @@
 // (PreToolUse-hook command rewrites) skipped.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
+import type { Uuid } from "./structures/domain.ts";
 import {
     collectAncestorUuids,
     indexRecordsByUuid,
@@ -22,6 +23,21 @@ import {
 // records resolve to the trunk and are NOT orphaned. Empty when there are no rewound branches.
 // A hook command-rewrite (e.g. rtk PreToolUse) forks the tree mid-tool-call; the dead
 // side is pure tool plumbing, not a /rewind the user should see dimmed. Skip it.
+// The tip's ancestor-chain uuids that are not on the surviving trunk.
+function collectBranchExclusiveUuids(
+    records: TranscriptRecord[],
+    tip: Uuid,
+    surviving: Set<string>,
+): Set<string> {
+    const exclusive = new Set<string>();
+    for (const uuid of collectAncestorUuids(records, tip)) {
+        if (!surviving.has(uuid)) {
+            exclusive.add(uuid);
+        }
+    }
+    return exclusive;
+}
+
 export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
     const rewoundTips = findConversationBranches(records).filter((branch) => !branch.isSurviving);
     if (rewoundTips.length === 0) {
@@ -31,12 +47,7 @@ export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
     const byUuid = indexRecordsByUuid(records);
     const abandoned = new Set<string>();
     for (const branch of rewoundTips) {
-        const exclusive = new Set<string>();
-        for (const uuid of collectAncestorUuids(records, branch.tip)) {
-            if (!surviving.has(uuid)) {
-                exclusive.add(uuid);
-            }
-        }
+        const exclusive = collectBranchExclusiveUuids(records, branch.tip, surviving);
         if (checkBranchIsToolPlumbing(records, byUuid, surviving, exclusive)) {
             continue;
         }

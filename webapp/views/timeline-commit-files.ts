@@ -20,6 +20,17 @@ function checkChangeIsGitBaseline(change: FileChange): boolean {
 // instant is at-or-before the commit — pre-commit work whose owning reply bubble sorts after the
 // commit row (task 87: the first commit otherwise shows "No files changed"). Baseline (gitBase)
 // chips are never a commit's delta and are skipped in both directions.
+// Feeds a forward-walk row's chips into the collector, skipping chips whose change instant is
+// after the commit (task 87's at-or-before gate).
+function collectChangesAtOrBeforeCommit(node: TimelineNode, commitWhen: string, collectChange: (change: FileChange) => void): void {
+    for (const change of node.fileChanges ?? []) {
+        if (change.when > commitWhen) {
+            continue;
+        }
+        collectChange(change);
+    }
+}
+
 export function deriveCommitChangedFiles(nodes: TimelineNode[], commitIndex: number): FileChange[] {
     const commitWhen = nodes[commitIndex]!.when;
     const changes: FileChange[] = [];
@@ -54,12 +65,7 @@ export function deriveCommitChangedFiles(nodes: TimelineNode[], commitIndex: num
         if (node.isOrphaned === true) {
             continue;
         }
-        for (const change of node.fileChanges ?? []) {
-            if (change.when > commitWhen) {
-                continue;
-            }
-            collectChange(change);
-        }
+        collectChangesAtOrBeforeCommit(node, commitWhen, collectChange);
     }
     return changes;
 }

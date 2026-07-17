@@ -28,14 +28,14 @@ export type DerivedCaches = {
 
 export type CorpusState = {
     branchSelectionsByTip: Map<string, TranscriptRecord[]>;
-    liveBranch: TranscriptRecord[] | undefined; // undefined = not cached (preserves the
-                                                // no-surviving-head early-out semantics)
-    scriptRuns: ScriptRun[] | undefined; // pure function of the records alone — never
-                                         // invalidates (undefined = not cached)
-    fileEvents: FileEvent[] | undefined; // pure function of the records alone — never
-                                         // invalidates; callers filter/map, never mutate
-    backupTimelinesByCwd: Map<string, Map<string, BackupPoint[]>>; // pure: the snapshots live in
-                                                                   // the records; keyed by cwd string
+    // undefined = not cached (preserves the no-surviving-head early-out semantics)
+    liveBranch: TranscriptRecord[] | undefined;
+    // pure function of the records alone — never invalidates (undefined = not cached)
+    scriptRuns: ScriptRun[] | undefined;
+    // pure function of the records alone — never invalidates; callers filter/map, never mutate
+    fileEvents: FileEvent[] | undefined;
+    // pure: the snapshots live in the records; keyed by cwd string
+    backupTimelinesByCwd: Map<string, Map<string, BackupPoint[]>>;
     gitCommitEvents: GitCommitEvent[] | undefined; // pure function of the records alone
     derived: DerivedCaches;
 };

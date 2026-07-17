@@ -12,10 +12,12 @@ import {
     COMMIT_NODE_KIND,
     SESSION_END_NODE_KIND,
     TOOL_CALL_NODE_KIND,
+    type FileChange,
     type TimelineNode,
     type ToolCallNode,
     type TranscriptLocation,
     type TurnNode,
+    type WireStepSnapshot,
 } from "./timeline-types.ts";
 
 // The transcript line carrying a changeId, probed across the project's JSONLs (raw text is
@@ -67,15 +69,25 @@ export function openTranscriptInspectorSynced(context: TimelineRenderContext, op
     });
 }
 
+// Extracted per-snapshot loop body of openStepInspector: probe each of the snapshot's
+// changeIds until one resolves to a transcript line; true when the inspector was opened.
+async function tryOpenInspectorForSnapshot(context: TimelineRenderContext, snapshot: WireStepSnapshot): Promise<boolean> {
+    for (const changeId of snapshot.changeIds) {
+        const located = await findTranscriptLineForChangeId(context, changeId);
+        if (located !== undefined) {
+            openTranscriptInspectorSynced(context, located);
+            return true;
+        }
+    }
+    return false;
+}
+
 // ── inspector jump (requirement 6): turn -> first resolvable changeId -> (jsonl, line) ──
 export async function openStepInspector(context: TimelineRenderContext, node: TurnNode, previewPane: HTMLElement): Promise<void> {
     for (const snapshot of node.snapshots) {
-        for (const changeId of snapshot.changeIds) {
-            const located = await findTranscriptLineForChangeId(context, changeId);
-            if (located !== undefined) {
-                openTranscriptInspectorSynced(context, located);
-                return;
-            }
+        const opened = await tryOpenInspectorForSnapshot(context, snapshot);
+        if (opened) {
+            return;
         }
     }
     // Synthetic changeIds (user-edit / evidence splices) match no JSONL line — say so instead
@@ -188,6 +200,19 @@ export async function resolveLineLabels(context: TimelineRenderContext): Promise
     }
 }
 
+// Extracted per-change loop body of resolveChipLineLocations: locate one chip's causing
+// record and store it under its `${nodeIndex}:${path}` key (no-op when unresolvable).
+async function resolveChipLineLocationForChange(context: TimelineRenderContext, index: number, change: FileChange): Promise<void> {
+    if (change.changeId === undefined) {
+        return;
+    }
+    const located = await findTranscriptLineForChangeId(context, change.changeId);
+    if (located === undefined) {
+        return;
+    }
+    context.chipLineLocations.set(`${index}:${change.path}`, located);
+}
+
 // Per-chip causing-line locations (item 55): each chip's { } opens its file's OWN causing
 // record (the Write/Edit tool_use line — reverting item 47b, user-decided) and its row shows
 // that line's L:n label. Synthetic changeIds resolve to no entry; their chips fall back to
@@ -195,14 +220,7 @@ export async function resolveLineLabels(context: TimelineRenderContext): Promise
 export async function resolveChipLineLocations(context: TimelineRenderContext): Promise<void> {
     for (const [index, node] of context.nodes.entries()) {
         for (const change of node.fileChanges ?? []) {
-            if (change.changeId === undefined) {
-                continue;
-            }
-            const located = await findTranscriptLineForChangeId(context, change.changeId);
-            if (located === undefined) {
-                continue;
-            }
-            context.chipLineLocations.set(`${index}:${change.path}`, located);
+            await resolveChipLineLocationForChange(context, index, change);
         }
     }
 }

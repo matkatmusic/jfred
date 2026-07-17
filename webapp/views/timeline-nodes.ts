@@ -64,6 +64,25 @@ function checkNodeCanOwnSnapshot(node: TurnNode, snapshot: SnapshotInstant): boo
     return node.when >= snapshot.when;
 }
 
+// (task 86) attach a gitBase-only snapshot to the dedicated baseline node, creating it on first
+// use; returns the (possibly just-created) baseline turn.
+function recordGitBaselineSnapshot(turnNodes: TurnNode[], snapshot: WireStepSnapshot, baselineTurn: TurnNode | undefined): TurnNode {
+    if (baselineTurn === undefined) {
+        baselineTurn = {
+            kind: AGENT_TURN_NODE_KIND,
+            when: snapshot.when,
+            sessionId: snapshot.sessionId,
+            text: computeGitBaselineText(snapshot),
+            isGitBaseline: true,
+            snapshots: [],
+            gitOperations: [],
+        };
+        turnNodes.push(baselineTurn);
+    }
+    baselineTurn.snapshots.push(snapshot);
+    return baselineTurn;
+}
+
 // Per snapshot: the FIRST agent-turn node of its own session at or after it (turnNodes are in
 // message order, chronological per session). Ownerless snapshots are always a trailing suffix of
 // their session (steps are chronological), so they collect into ONE synthetic empty-text agent
@@ -76,19 +95,7 @@ function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], steps: WireStepSnaps
         // (task 86) gitBase-only steps get their own baseline node — they must not mingle with
         // the generic unattributed synthetic turn below.
         if (checkSnapshotIsGitBaseline(snapshot)) {
-            if (baselineTurn === undefined) {
-                baselineTurn = {
-                    kind: AGENT_TURN_NODE_KIND,
-                    when: snapshot.when,
-                    sessionId: snapshot.sessionId,
-                    text: computeGitBaselineText(snapshot),
-                    isGitBaseline: true,
-                    snapshots: [],
-                    gitOperations: [],
-                };
-                turnNodes.push(baselineTurn);
-            }
-            baselineTurn.snapshots.push(snapshot);
+            baselineTurn = recordGitBaselineSnapshot(turnNodes, snapshot, baselineTurn);
             continue;
         }
         const owner = turnNodes.find((node) => checkNodeCanOwnSnapshot(node, snapshot));

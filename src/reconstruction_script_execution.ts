@@ -5,7 +5,7 @@
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getContentBlocks, type ToolUseBlock } from "./structures/content-blocks.ts";
+import { getContentBlocks, type ContentBlock, type ToolUseBlock } from "./structures/content-blocks.ts";
 import { singleWhitespace } from "./regex_expressions.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
@@ -104,24 +104,28 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
 // The authored Write body for every file basename, first Write wins (same first-match
 // semantics as the retired per-basename scan, including a matching Write with an absent
 // content). One pass over the records — previously every resolved run re-scanned them all.
+function recordWrittenContentOfBlock(block: ContentBlock, writtenBodyByBasename: Map<string, string | undefined>): void {
+    if (block.type !== BlockType.tool_use) {
+        return;
+    }
+    if (block.name !== ToolName.Write) {
+        return;
+    }
+    const input = block.input as { file_path?: string; content?: string };
+    if (input.file_path === undefined) {
+        return;
+    }
+    const basename = pathBasename(input.file_path);
+    if (!writtenBodyByBasename.has(basename)) {
+        writtenBodyByBasename.set(basename, input.content);
+    }
+}
+
 function indexWrittenContentByBasename(records: TranscriptRecord[]): Map<string, string | undefined> {
     const writtenBodyByBasename = new Map<string, string | undefined>();
     for (const record of records) {
         for (const block of getContentBlocks(record)) {
-            if (block.type !== BlockType.tool_use) {
-                continue;
-            }
-            if (block.name !== ToolName.Write) {
-                continue;
-            }
-            const input = block.input as { file_path?: string; content?: string };
-            if (input.file_path === undefined) {
-                continue;
-            }
-            const basename = pathBasename(input.file_path);
-            if (!writtenBodyByBasename.has(basename)) {
-                writtenBodyByBasename.set(basename, input.content);
-            }
+            recordWrittenContentOfBlock(block, writtenBodyByBasename);
         }
     }
     return writtenBodyByBasename;

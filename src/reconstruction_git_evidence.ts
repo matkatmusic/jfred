@@ -44,6 +44,18 @@ function resolveCommitByTimestamp(repoCwd: Path, commitTimestamp: Date): string 
 // files after ~3 days), each of `fallbackRepoDirs` — mirrors of the recorded repo's layout at
 // other disk locations (configured overrides, the transcript-sibling preserved clone) — is
 // consulted in order with the SAME cwd-relative path (item 46).
+// The bytes of `cwdRelativePath` at commit `hash` in `repoDir`, or undefined when `git show` fails.
+function readFileContentAtCommit(repoDir: Path, hash: string, cwdRelativePath: string): string | undefined {
+    try {
+        return execSync(`git show ${hash}:${JSON.stringify(cwdRelativePath)}`, {
+            cwd: repoDir.toString(),
+            stdio: "pipe",
+        }).toString();
+    } catch {
+        return undefined;
+    }
+}
+
 export function readCommittedFileContent(
     repoCwd: Path,
     commitTimestamp: Date,
@@ -58,14 +70,8 @@ export function readCommittedFileContent(
     for (const repoDir of repoDirs) {
         const hash = resolveCommitByTimestamp(repoDir, commitTimestamp);
         if (hash === undefined) continue;
-        try {
-            return execSync(`git show ${hash}:${JSON.stringify(cwdRelativePath)}`, {
-                cwd: repoDir.toString(),
-                stdio: "pipe",
-            }).toString();
-        } catch {
-            continue;
-        }
+        const content = readFileContentAtCommit(repoDir, hash, cwdRelativePath);
+        if (content !== undefined) return content;
     }
     return undefined;
 }

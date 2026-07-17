@@ -54,6 +54,18 @@ export function buildRawLinesViewModel(
     return { entries };
 }
 
+function appendRawLineRow(listPane: HTMLElement, entry: RawLineEntry, inspectLine: (line: number) => void): void {
+    listPane.append(el("div", {
+        class: "raw-line",
+        "data-line": String(entry.line),
+        onclick: () => inspectLine(entry.line),
+    }, [
+        el("span", { class: "raw-line-num", text: String(entry.line) }),
+        el("span", { class: "raw-line-verdict", text: entry.verdict }),
+        el("span", { class: "raw-line-text", text: entry.text }),
+    ]));
+}
+
 export async function renderRawLinesView(container: HTMLElement, project: string, jsonl: string): Promise<void> {
     const result = await fetchDocument<WireDocument>(project, jsonl);
     if (result.consentRequired !== undefined) {
@@ -88,15 +100,7 @@ export async function renderRawLinesView(container: HTMLElement, project: string
         countLabel.textContent = `${viewModel.entries.length} / ${rawLines.length} lines`;
         listPane.replaceChildren();
         for (const entry of viewModel.entries) {
-            listPane.append(el("div", {
-                class: "raw-line",
-                "data-line": String(entry.line),
-                onclick: () => inspectLine(entry.line),
-            }, [
-                el("span", { class: "raw-line-num", text: String(entry.line) }),
-                el("span", { class: "raw-line-verdict", text: entry.verdict }),
-                el("span", { class: "raw-line-text", text: entry.text }),
-            ]));
+            appendRawLineRow(listPane, entry, inspectLine);
         }
     };
     modeSelect.addEventListener("change", renderList);

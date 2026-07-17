@@ -13,6 +13,7 @@ import {
     computeLinkMaps,
     computeRevisionLinkRoute,
     findToolNavigationTargets,
+    type LinkMaps,
     type WireBlobResponse,
     type WireFileHistory,
     type WireRecord,
@@ -82,6 +83,94 @@ function findCurrentProject(): string | undefined {
     return segments[0] === "project" ? segments[1] : undefined;
 }
 
+// Tear down the snapshot drawer: remove its element and drop the pane's split modifier.
+function closeSnapshotDrawer(pane: HTMLElement, drawer: HTMLElement): void {
+    drawer.remove();
+    pane.classList.remove("snapshot-drawer");
+}
+
+// Assemble the snapshot drawer element (header with close button + the rendered blob text).
+function buildSnapshotDrawer(pane: HTMLElement, entry: WireTrackedBackup, blobName: string, snapshotText: HTMLElement): HTMLElement {
+    const drawer = el("div", { class: "snapshot-pane" }, [
+        el("div", { class: "snapshot-pane-header" }, [
+            el("span", { class: "muted", text: `${entry.relativePath} — ${blobName}` }),
+            el("button", { class: "row-btn", text: "Close", onclick: () => closeSnapshotDrawer(pane, drawer) }),
+        ]),
+        // el("pre", { class: "inspector-text", text: result.content ?? "" }), // (item 49)
+        snapshotText,
+    ]);
+    return drawer;
+}
+
+// Fetch each named blob's presence, record it, and re-show the SAME line once every probe
+// settles — but only when the pane still shows the line the probes were started for.
+function fetchBlobPresenceAndRerenderLine(unprobedNames: string[], sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
+    Promise.all(unprobedNames.map(async (name) => {
+        const probed = await fetchJson(computeBlobRequestUrl(sessionId, name)) as WireBlobResponse;
+        blobPresenceByKey.set(`${sessionId}|${name}`, probed.exists);
+    })).then(() => {
+        if (showLineRenderCount === renderCountAtStart) {
+            showLine(clamped);
+        }
+    }).catch(() => { /* a failed probe leaves presence unknown — tokens stay plain */ });
+}
+
+// Probe the on-disk presence of a record's tracked backups (unknowns only).
+function probeTrackedBackupPresence(trackedBackups: NonNullable<NonNullable<WireRecord["snapshot"]>["trackedFileBackups"]>, sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
+    const unprobedNames = Object.values(trackedBackups)
+        .map((entry) => entry.backupFileName)
+        .filter((name): name is string => name !== undefined && !blobPresenceByKey.has(`${sessionId}|${name}`));
+    if (unprobedNames.length > 0) {
+        fetchBlobPresenceAndRerenderLine(unprobedNames, sessionId, renderCountAtStart, showLine, clamped);
+    }
+}
+
+// Append the hook/result jump buttons for the shown tool call (each only when its line exists).
+function appendToolNavigationButtons(toolTargets: { hookLine: number; resultLine: number }, toolButtons: HTMLElement[], showLine: (line: number) => void): void {
+    if (toolTargets.hookLine >= 0) {
+        toolButtons.push(el("button", { class: "row-btn", text: "Go to PreToolUse hook", onclick: () => showLine(toolTargets.hookLine) }));
+    }
+    if (toolTargets.resultLine >= 0) {
+        toolButtons.push(el("button", { class: "row-btn", text: "Go to Tool Result", onclick: () => showLine(toolTargets.resultLine) }));
+    }
+}
+
+// Append the raw-JSON/formatted-text toggle button; flipping it re-shows the same line.
+function appendFormattedTextToggleButton(toolButtons: HTMLElement[], showLine: (line: number) => void, clamped: number): void {
+    toolButtons.push(el("button", {
+        class: "row-btn",
+        text: inspectorShowsFormattedText ? "Show raw JSON" : "Show as formatted text",
+        onclick: () => {
+            inspectorShowsFormattedText = !inspectorShowsFormattedText;
+            showLine(clamped);
+        },
+    }));
+}
+
+// Render the line's highlighted-JSON body (the non-formatted-text presentation).
+function buildHighlightedJsonBody(
+    value: WireValue, clamped: number, maps: LinkMaps, showLine: (line: number) => void,
+    filesTouched: WireFileHistory[], openRevision: (link: WireRevisionLink) => void,
+    sessionId: string, project: string | undefined,
+    openSnapshotDrawer: (blobName: string, entry: WireTrackedBackup) => void,
+): HTMLElement {
+    // (item 23) old call: body = renderHighlightedJson(JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision);
+    return renderHighlightedJson(
+        JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision,
+        { sessionId, presenceByKey: blobPresenceByKey, project, openSnapshotDrawer },
+    );
+}
+
+// Assemble the Prev / line-counter / Next navigation row plus any tool-flow buttons.
+function buildInspectorNavigationRow(clamped: number, rawLines: string[], showLine: (line: number) => void, toolButtons: HTMLElement[]): HTMLElement {
+    return el("div", { class: "inspector-nav" }, [
+        el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }),
+        el("span", { class: "muted", text: `line ${clamped} / ${rawLines.length - 1}` }),
+        el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) }),
+        ...toolButtons,
+    ]);
+}
+
 // Open the inspector on `line` of a transcript. onJumpToLine (optional) is called with every
 // shown line so the calling view can scroll/highlight in step; it must not reopen the inspector.
 export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLine }: {
@@ -120,21 +209,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
         pane.classList.add("snapshot-drawer");
         const snapshotText = el("pre", { class: "inspector-text" });
         renderCodeInto(snapshotText, result.content ?? "", entry.relativePath);
-        const drawer = el("div", { class: "snapshot-pane" }, [
-            el("div", { class: "snapshot-pane-header" }, [
-                el("span", { class: "muted", text: `${entry.relativePath} — ${blobName}` }),
-                el("button", {
-                    class: "row-btn",
-                    text: "Close",
-                    onclick: () => {
-                        drawer.remove();
-                        pane.classList.remove("snapshot-drawer");
-                    },
-                }),
-            ]),
-            // el("pre", { class: "inspector-text", text: result.content ?? "" }), // (item 49)
-            snapshotText,
-        ]);
+        const drawer = buildSnapshotDrawer(pane, entry, blobName, snapshotText);
         content.append(drawer);
     };
     const showLine = (index: number) => {
@@ -152,59 +227,26 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
         // first paint shows those tokens plain, never a flicker loop.
         const trackedBackups = (value as WireRecord | null)?.snapshot?.trackedFileBackups;
         if (trackedBackups !== undefined) {
-            const unprobedNames = Object.values(trackedBackups)
-                .map((entry) => entry.backupFileName)
-                .filter((name): name is string => name !== undefined && !blobPresenceByKey.has(`${sessionId}|${name}`));
-            if (unprobedNames.length > 0) {
-                Promise.all(unprobedNames.map(async (name) => {
-                    const probed = await fetchJson(computeBlobRequestUrl(sessionId, name)) as WireBlobResponse;
-                    blobPresenceByKey.set(`${sessionId}|${name}`, probed.exists);
-                })).then(() => {
-                    if (showLineRenderCount === renderCountAtStart) {
-                        showLine(clamped);
-                    }
-                }).catch(() => { /* a failed probe leaves presence unknown — tokens stay plain */ });
-            }
+            probeTrackedBackupPresence(trackedBackups, sessionId, renderCountAtStart, showLine, clamped);
         }
         // Tool-flow jumps (shown only on assistant tool_use lines): hook + result of THIS call.
         const toolTargets = findToolNavigationTargets(rawLines, value);
         const toolButtons: HTMLElement[] = [];
         if (toolTargets !== undefined) {
-            if (toolTargets.hookLine >= 0) {
-                toolButtons.push(el("button", { class: "row-btn", text: "Go to PreToolUse hook", onclick: () => showLine(toolTargets.hookLine) }));
-            }
-            if (toolTargets.resultLine >= 0) {
-                toolButtons.push(el("button", { class: "row-btn", text: "Go to Tool Result", onclick: () => showLine(toolTargets.resultLine) }));
-            }
+            appendToolNavigationButtons(toolTargets, toolButtons, showLine);
         }
         const readableText = extractReadableText(value);
         if (readableText !== undefined) {
-            toolButtons.push(el("button", {
-                class: "row-btn",
-                text: inspectorShowsFormattedText ? "Show raw JSON" : "Show as formatted text",
-                onclick: () => {
-                    inspectorShowsFormattedText = !inspectorShowsFormattedText;
-                    showLine(clamped);
-                },
-            }));
+            appendFormattedTextToggleButton(toolButtons, showLine, clamped);
         }
         let body: HTMLElement;
         if (inspectorShowsFormattedText && readableText !== undefined) {
             body = el("pre", { class: "inspector-text", text: readableText });
         } else {
-            // (item 23) old call: body = renderHighlightedJson(JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision);
-            body = renderHighlightedJson(
-                JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision,
-                { sessionId, presenceByKey: blobPresenceByKey, project, openSnapshotDrawer },
-            );
+            body = buildHighlightedJsonBody(value, clamped, maps, showLine, filesTouched, openRevision, sessionId, project, openSnapshotDrawer);
         }
         openInspectorPane().append(
-            el("div", { class: "inspector-nav" }, [
-                el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }),
-                el("span", { class: "muted", text: `line ${clamped} / ${rawLines.length - 1}` }),
-                el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) }),
-                ...toolButtons,
-            ]),
+            buildInspectorNavigationRow(clamped, rawLines, showLine, toolButtons),
             el("h2", { text: jsonlName }),
             body,
         );

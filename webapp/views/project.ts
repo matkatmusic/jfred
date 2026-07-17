@@ -44,6 +44,20 @@ function groupTargetsByDirectory(fileTargets: readonly string[]): Map<string, st
     return groups;
 }
 
+// Append one touched-file link to the drawer's tree pane.
+function appendTouchedFileLink(
+    drawer: HTMLElement,
+    project: string,
+    target: string,
+    activeTarget: string | undefined,
+): void {
+    drawer.append(el("a", {
+        class: `drawer-item drawer-file${target === activeTarget ? " active" : ""}`,
+        href: routeToFileHistory(project, target),
+        text: target.slice(target.lastIndexOf("/") + 1),
+    }));
+}
+
 // The left drawer: JSONL files always (cheap listing); touched files only once the project's
 // unified document is already cached (never forces a whole-project build just for navigation).
 export async function renderProjectDrawer(
@@ -88,11 +102,7 @@ export async function renderProjectDrawer(
     for (const [directory, targets] of groupTargetsByDirectory(viewModel.fileTargets)) {
         drawer.append(el("div", { class: "tree-dir", text: directory === "" ? "/" : directory }));
         for (const target of targets) {
-            drawer.append(el("a", {
-                class: `drawer-item drawer-file${target === activeTarget ? " active" : ""}`,
-                href: routeToFileHistory(project, target),
-                text: target.slice(target.lastIndexOf("/") + 1),
-            }));
+            appendTouchedFileLink(drawer, project, target, activeTarget);
         }
     }
 }

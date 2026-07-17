@@ -29,6 +29,14 @@ export type StepSnapshot = {
 // own uuid (a user-edit evidence splice carries a file-history-snapshot RECORD uuid as its changeId —
 // s40 step 5). The namespaces are disjoint (toolu_… / cse_… vs RFC-4122), so adding record uuids never
 // shadows a tool_use id. Synthetic changeIds that match neither (e.g. a `<blob>@vN` ref) resolve to nothing.
+function indexToolUseBlockIdsToSessionId(record: TranscriptRecord, sessionId: Uuid, byChangeId: Map<string, Uuid>): void {
+    for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_use) {
+            byChangeId.set(block.id.toString(), sessionId);
+        }
+    }
+}
+
 function indexChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uuid> {
     const byChangeId = new Map<string, Uuid>();
     for (const record of records) {
@@ -38,11 +46,7 @@ function indexChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uu
         if (record.uuid !== undefined) {
             byChangeId.set(record.uuid.toString(), record.sessionId);
         }
-        for (const block of getContentBlocks(record)) {
-            if (block.type === BlockType.tool_use) {
-                byChangeId.set(block.id.toString(), record.sessionId);
-            }
-        }
+        indexToolUseBlockIdsToSessionId(record, record.sessionId, byChangeId);
     }
     return byChangeId;
 }
@@ -79,6 +83,12 @@ function indexChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
 // together so a reader can resolve any one step's file text on demand (resolveFilesAtStep) without the
 // document ever carrying per-step file contents. `surviving` lets a caller that already reconstructed
 // the surviving branch (the document builder's BranchedReconstruction) share it; absent, it is derived.
+function findSessionIdForChangeIds(changeIds: Uuid[], sessionOf: Map<string, Uuid>): Uuid | undefined {
+    return changeIds
+        .map((id) => sessionOf.get(resolveSyntheticChangeIdToSourceId(id.toString())))
+        .find((sessionId) => sessionId !== undefined);
+}
+
 export function buildStepSnapshots(
     records: TranscriptRecord[],
     reader: BackupReader | undefined,
@@ -103,9 +113,7 @@ export function buildStepSnapshots(
             when: change.when,
             changeIds,
             changedPaths,
-            sessionId: changeIds
-                .map((id) => sessionOf.get(resolveSyntheticChangeIdToSourceId(id.toString())))
-                .find((sessionId) => sessionId !== undefined),
+            sessionId: findSessionIdForChangeIds(changeIds, sessionOf),
         };
     });
     return { steps, stepFileHistories: histories };

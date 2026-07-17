@@ -82,6 +82,27 @@ function parseHookToolName(hookName: unknown): string {
     return hookName.slice(separatorIndex + 1);
 }
 
+// Appends the tool_use block's timeline row to calls.
+function appendToolUseRow(
+    calls: ToolCall[],
+    block: { name: string; id: Uuid },
+    summary: string,
+    timestamp: Date,
+    sessionId: Uuid | undefined,
+    recordUuid: Uuid,
+    orphanedUuids: Set<string>,
+): void {
+    calls.push({
+        toolName: block.name,
+        summary,
+        timestamp,
+        sessionId,
+        uuid: recordUuid,
+        toolUseId: block.id,
+        isOrphaned: orphanedUuids.has(recordUuid.toString()),
+    });
+}
+
 // Every non-file-edit tool call in the transcript, in record order: pass 1 emits tool_use rows
 // and indexes every block's summary by toolUseId; pass 2 emits one extra row per PreToolUse
 // command rewrite whose command differs from the tool_use's own.
@@ -100,15 +121,7 @@ export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
             const summary = computeToolCallSummary(block);
             summaryByToolUseId.set(block.id.toString(), summary);
             if (FILE_EDIT_TOOL_NAMES.has(block.name)) continue;
-            calls.push({
-                toolName: block.name,
-                summary,
-                timestamp,
-                sessionId: record.sessionId,
-                uuid: recordUuid,
-                toolUseId: block.id,
-                isOrphaned: orphanedUuids.has(recordUuid.toString()),
-            });
+            appendToolUseRow(calls, block, summary, timestamp, record.sessionId, recordUuid, orphanedUuids);
         }
     }
     // ponytail: only command rewrites get extra rows; input rewrites of non-command tools stay

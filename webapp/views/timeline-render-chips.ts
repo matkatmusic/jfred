@@ -7,7 +7,7 @@ import { renderDetailsFileMode } from "./details-revision-view.ts";
 import { computeSnapshotJumpRoute } from "./timeline-changes.ts";
 import { openTurnInspector } from "./timeline-render-inspectors.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import type { FileChange, TurnNode } from "./timeline-types.ts";
+import type { FileChange, TranscriptLocation, TurnNode } from "./timeline-types.ts";
 // (item 84) old: splitDiffBlocks (./file-history.ts), renderDiffText (./diff-vs-base.ts) and
 // renderCodeInto (../highlight.ts) were imported for showFilePreview / showRevisionDiff. Both
 // renderers are retired — the Revision View (details.ts) does this rendering now, and still
@@ -124,6 +124,50 @@ export function markChipActive(context: TimelineRenderContext, chipElement: HTML
 //     );
 // };
 
+// The { } button's click body (extracted from renderFileButtonRow).
+function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
+    event.stopPropagation();
+    // (item 55, closing item 53) old: openTurnInspector(node, previewPane); —
+    // reverted item 47b: the chip opens its file's OWN causing line (e.g. the
+    // Write tool_use), user-decided; synthetic changeIds keep the turn fallback.
+    // (item 84) old: openTranscriptInspectorSynced(causingLocation); — the record
+    // now paints inside the Revision View, rev cards standing. The fallback stays
+    // HERE: it needs `node`, which the Revision View has no notion of.
+    if (causingLocation === undefined) {
+        openTurnInspector(context, node, previewPane);
+        return;
+    }
+    markChipActive(context, event.currentTarget as HTMLElement);
+    renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.record });
+}
+
+// The +/- button's click body (extracted from renderFileButtonRow).
+function showRevisionDiffForChip(event: Event, context: TimelineRenderContext, change: FileChange, changeId: string): void {
+    event.stopPropagation();
+    markChipActive(context, event.currentTarget as HTMLElement);
+    // (item 84) old: showRevisionDiff(change, event.currentTarget as HTMLElement);
+    // Clicking a card IS how you view its diff — diff is the card's own default.
+    renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.diff });
+}
+
+// The 📷 button (extracted from renderFileButtonRow's jumpRoute arm).
+function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRenderContext, change: FileChange, changeId: string): void {
+    buttons.push(el("span", {
+        class: "timeline-chip timeline-chip-action",
+        title: "Show this specific File History Snapshot in File Revisions view",
+        text: "📷",
+        onclick: (event: Event) => {
+            event.stopPropagation();
+            markChipActive(context, event.currentTarget as HTMLElement);
+            // (item 84 follow-up) old: location.hash = jumpRoute; — navigating to the
+            // File History route reloaded the whole page (progress bar and all) just to
+            // show a revision the bottom pane can already show. Same destination as the
+            // chip name, in the pane, no page load.
+            renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.content });
+        },
+    }));
+}
+
 // One file's button row: [ name ] [{ }] [+/-] [📷] <TS> L:n — revision state, the file's OWN
 // causing line, the revision's computed diff, the snapshot jump, and the causing line's
 // timestamp + label (item 55). The action buttons need a resolvable changeId.
@@ -154,33 +198,13 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
             class: "timeline-chip timeline-chip-action",
             title: "Show this file's causing record in inspector",
             text: "{ }",
-            onclick: (event: Event) => {
-                event.stopPropagation();
-                // (item 55, closing item 53) old: openTurnInspector(node, previewPane); —
-                // reverted item 47b: the chip opens its file's OWN causing line (e.g. the
-                // Write tool_use), user-decided; synthetic changeIds keep the turn fallback.
-                // (item 84) old: openTranscriptInspectorSynced(causingLocation); — the record
-                // now paints inside the Revision View, rev cards standing. The fallback stays
-                // HERE: it needs `node`, which the Revision View has no notion of.
-                if (causingLocation === undefined) {
-                    openTurnInspector(context, node, previewPane);
-                    return;
-                }
-                markChipActive(context, event.currentTarget as HTMLElement);
-                renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.record });
-            },
+            onclick: (event: Event) => showCausingRecordForChip(event, context, node, previewPane, causingLocation, change, changeId),
         }));
         buttons.push(el("span", {
             class: "timeline-chip timeline-chip-action",
             title: "Show Diff in Inspector",
             text: "+/-",
-            onclick: (event: Event) => {
-                event.stopPropagation();
-                markChipActive(context, event.currentTarget as HTMLElement);
-                // (item 84) old: showRevisionDiff(change, event.currentTarget as HTMLElement);
-                // Clicking a card IS how you view its diff — diff is the card's own default.
-                renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.diff });
-            },
+            onclick: (event: Event) => showRevisionDiffForChip(event, context, change, changeId),
         }));
         // The route is computed as a PRESENCE TEST, not to navigate: it resolves to undefined
         // when this revision has no File History Snapshot (task 94: non-blob changeIds are
@@ -188,20 +212,7 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
         // says so (user-decided). Not every revision has one.
         const jumpRoute = computeSnapshotJumpRoute(context.project, context.reconstructionDocument.filesTouched, change);
         if (jumpRoute !== undefined) {
-            buttons.push(el("span", {
-                class: "timeline-chip timeline-chip-action",
-                title: "Show this specific File History Snapshot in File Revisions view",
-                text: "📷",
-                onclick: (event: Event) => {
-                    event.stopPropagation();
-                    markChipActive(context, event.currentTarget as HTMLElement);
-                    // (item 84 follow-up) old: location.hash = jumpRoute; — navigating to the
-                    // File History route reloaded the whole page (progress bar and all) just to
-                    // show a revision the bottom pane can already show. Same destination as the
-                    // chip name, in the pane, no page load.
-                    renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.content });
-                },
-            }));
+            appendSnapshotJumpButton(buttons, context, change, changeId);
         }
     }
     // The chip row's meta (item 55): the snapshot's timestamp, plus the causing line's

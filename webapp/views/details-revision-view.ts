@@ -33,6 +33,48 @@ import {
 } from "./details-diff.ts";
 import { downloadText } from "./download.ts";
 
+function jumpToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
+    const ownerIndex = context.nodes.findIndex(
+        (candidate) => (candidate.fileChanges ?? []).some((change) => change.changeId === card.changeId),
+    );
+    // No owning row (rewound / synthetic revisions): the button is a no-op.
+    if (ownerIndex >= 0) {
+        context.selectTimelineRow(ownerIndex);
+    }
+}
+
+function buildRevisionHeadElement(rangeToggle: HTMLElement, card: RevisionCard): HTMLElement {
+    return el("div", { class: "rev-head" }, [
+        rangeToggle,
+        el("span", { text: `#${card.revisionNumber}` }),
+        el("span", { class: `op-badge op-${card.opLabel}`, text: card.opLabel }),
+        el("span", { class: "rev-ts", text: new Date(card.timestamp).toLocaleString() }),
+    ]);
+}
+
+function buildRevisionActionsElement(
+    buildActionButton: (text: string, onActivate: () => unknown) => HTMLElement,
+    context: DetailsContext,
+    target: string,
+    baseName: string,
+    card: RevisionCard,
+    index: number,
+    revisionContents: ReturnType<typeof buildFileHistoryViewModel>["revisions"],
+    getDiffBlocks: (full: boolean) => Promise<string[]>,
+): HTMLElement {
+    return el("div", { class: "rev-actions" }, [
+        buildActionButton("Show content", () => showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content)),
+        buildActionButton("Export this version", () => downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "")),
+        buildActionButton("Copy patch", async () => navigator.clipboard.writeText((await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
+        buildActionButton("Export .patch", async () => downloadText(`${baseName}.rev${card.revisionNumber}.patch`, (await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
+        buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
+        // item 84: the ONLY route to a file-modifying event's JSON. The timeline chip's
+        // { } delegates here, so this is load-bearing for the unification rule, not a
+        // nicety — without it the Revision View has no JSON route at all.
+        buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+    ]);
+}
+
 export function renderDetailsFileMode(target: string, context: DetailsContext, focus?: RevisionFocus): void {
     revealDetailsPane();
     setDetailsHeader(`File Revisions — ${target}`);
@@ -173,31 +215,8 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         const rangeToggle = buildActionButton("☐", () => toggleRangeCard(index));
         rangeToggles.push(rangeToggle);
         const cardElement = el("div", { class: "rev-card" }, [
-            el("div", { class: "rev-head" }, [
-                rangeToggle,
-                el("span", { text: `#${card.revisionNumber}` }),
-                el("span", { class: `op-badge op-${card.opLabel}`, text: card.opLabel }),
-                el("span", { class: "rev-ts", text: new Date(card.timestamp).toLocaleString() }),
-            ]),
-            el("div", { class: "rev-actions" }, [
-                buildActionButton("Show content", () => showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content)),
-                buildActionButton("Export this version", () => downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "")),
-                buildActionButton("Copy patch", async () => navigator.clipboard.writeText((await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
-                buildActionButton("Export .patch", async () => downloadText(`${baseName}.rev${card.revisionNumber}.patch`, (await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
-                buildActionButton("Jump to timeline step", () => {
-                    const ownerIndex = context.nodes.findIndex(
-                        (candidate) => (candidate.fileChanges ?? []).some((change) => change.changeId === card.changeId),
-                    );
-                    // No owning row (rewound / synthetic revisions): the button is a no-op.
-                    if (ownerIndex >= 0) {
-                        context.selectTimelineRow(ownerIndex);
-                    }
-                }),
-                // item 84: the ONLY route to a file-modifying event's JSON. The timeline chip's
-                // { } delegates here, so this is load-bearing for the unification rule, not a
-                // nicety — without it the Revision View has no JSON route at all.
-                buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
-            ]),
+            buildRevisionHeadElement(rangeToggle, card),
+            buildRevisionActionsElement(buildActionButton, context, target, baseName, card, index, revisionContents, getDiffBlocks),
         ]);
         cardElement.onclick = () => {
             selectCard(cardElement);

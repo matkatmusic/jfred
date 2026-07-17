@@ -112,6 +112,23 @@ function mapSplitCellClass(lineClass: string): string {
     return "";
 }
 
+// One side's ln+body cell pair in the two-column grid (empty cells keep alignment).
+function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineNumber?: number; text: string } | undefined, side: number): void {
+    const sideClass = side === 1 ? " dc-right" : "";
+    if (cell === undefined) {
+        grid.append(
+            el("span", { class: `dc-ln${sideClass}` }),
+            el("span", { class: "dc-body" }),
+        );
+        return;
+    }
+    const cellClass = mapSplitCellClass(cell.lineClass);
+    grid.append(
+        el("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
+        el("span", { class: `dc-body ${cellClass}`.trim(), text: cell.text }),
+    );
+}
+
 // The mockup's two-column diff grid, driven by diff-vs-base's computeSplitRows: full rows span
 // the grid as hunk headers; pair rows emit ln+body cells per side (empty cells keep alignment).
 // Exported for the script-run mode's stacked per-file diffs (task 67).
@@ -123,19 +140,7 @@ export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
             continue;
         }
         [row.left, row.right].forEach((cell, side) => {
-            const sideClass = side === 1 ? " dc-right" : "";
-            if (cell === undefined) {
-                grid.append(
-                    el("span", { class: `dc-ln${sideClass}` }),
-                    el("span", { class: "dc-body" }),
-                );
-                return;
-            }
-            const cellClass = mapSplitCellClass(cell.lineClass);
-            grid.append(
-                el("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
-                el("span", { class: `dc-body ${cellClass}`.trim(), text: cell.text }),
-            );
+            appendSplitCellPair(grid, cell, side);
         });
     }
     body.append(grid);

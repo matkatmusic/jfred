@@ -56,6 +56,32 @@ import type { DetailsContext } from "./details-model.ts";
 // renderSubRouteDrawer (app-router.ts), so this is set whenever that route fires.
 export let activeDetailsContext: DetailsContext | undefined;
 
+function selectTimelineRowAndFlash(context: TimelineRenderContext, nodeIndex: number): void {
+    void selectTimelineRow(context, nodeIndex).then(() => {
+        const row = context.nodeRows.get(nodeIndex);
+        if (row !== undefined) {
+            flashRowElement(row);
+        }
+    });
+}
+
+async function openRecordInspectorForChangeId(context: TimelineRenderContext, changeId: string): Promise<void> {
+    const located = await findTranscriptLineForChangeId(context, changeId);
+    // Synthetic changeIds (user-edit / evidence splices) match no JSONL line. Say so
+    // in the right column rather than opening the inspector on nothing.
+    if (located === undefined) {
+        openInspectorPane().append(
+            el("div", { class: "muted", text: "no transcript line for this revision (synthetic change id)" }),
+        );
+        return;
+    }
+    openTranscriptInspectorSynced(context, located);
+}
+
+function renderFileDetails(target: string, detailsContext: DetailsContext): void {
+    void renderDetailsFileMode(target, detailsContext);
+}
+
 // The project-wide revision timeline (#/project/<name>/timeline[/session/<jsonl>]) — the default
 // view a drawer JSONL link opens. anchorJsonl scrolls to that session's first node.
 // anchorLine (optional, 0-based raw line of anchorJsonl): scroll to the owning step, open the
@@ -145,31 +171,11 @@ export async function renderTimelineView(container: HTMLElement, project: string
             document: reconstructionDocument,
             nodes,
             openNodeInspector: (nodeIndex: number) => openNodeInspector(context, nodeIndex),
-            selectTimelineRow: (nodeIndex: number) => {
-                void selectTimelineRow(context, nodeIndex).then(() => {
-                    const row = context.nodeRows.get(nodeIndex);
-                    if (row !== undefined) {
-                        flashRowElement(row);
-                    }
-                });
-            },
+            selectTimelineRow: (nodeIndex: number) => selectTimelineRowAndFlash(context, nodeIndex),
             // item 84: a rev card's { } opens its revision's causing record. openInspectorPane fills
             // the right column ONLY, so the rev cards on the left stay standing — that is exactly
             // the "revision cards still shown" the item asks for, at no cost.
-            openRecordForChangeId: (changeId: string) => {
-                void (async () => {
-                    const located = await findTranscriptLineForChangeId(context, changeId);
-                    // Synthetic changeIds (user-edit / evidence splices) match no JSONL line. Say so
-                    // in the right column rather than opening the inspector on nothing.
-                    if (located === undefined) {
-                        openInspectorPane().append(
-                            el("div", { class: "muted", text: "no transcript line for this revision (synthetic change id)" }),
-                        );
-                        return;
-                    }
-                    openTranscriptInspectorSynced(context, located);
-                })();
-            },
+            openRecordForChangeId: (changeId: string) => void openRecordInspectorForChangeId(context, changeId),
             fetchRangePatch: (fromStep: number, toStep: number) => fetchRangePatch(context, fromStep, toStep),
         },
     };
@@ -191,9 +197,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
         buildFileTree(buildFilesSidebarViewModel(reconstructionDocument)),
         {
             onSessionClick: context.jumpToTimelineRow,
-            onFileClick: (target: string) => {
-                void renderDetailsFileMode(target, context.detailsContext);
-            },
+            onFileClick: (target: string) => renderFileDetails(target, context.detailsContext),
         },
     );
 

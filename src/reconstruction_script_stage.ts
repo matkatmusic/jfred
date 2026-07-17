@@ -55,6 +55,22 @@ function getImmediatePostExecutionState(beaconContent: string): string {
     return beaconContent;
 }
 
+// The synthetic script-execution event for a validated beacon: the beacon's identity with the
+// computed content and the run's timestamp.
+function createScriptExecutionEvent(
+    beacon: UserEditEvent,
+    resultContent: string,
+    run: ScriptRun,
+): ScriptExecutionEvent {
+    return {
+        kind: EventKind.scriptExecution,
+        changeId: beacon.changeId,
+        target: beacon.target,
+        content: resultContent,
+        timestamp: run.timestamp,
+    };
+}
+
 // The VALIDATE pipeline from Script-execution-algorithm.md (lines 33-47): for a user-edit beacon that
 // is the echo of a script run, execute the script against the pre-execution state and compare to the
 // expected post-execution state. On match, return a ScriptExecutionEvent carrying the computed content.
@@ -89,13 +105,7 @@ function scriptExecutionForBeacon(
     if (beaconContent !== undefined) {
         const expectedState = getImmediatePostExecutionState(beaconContent);
         if (resultContent === expectedState) {
-            return {
-                kind: EventKind.scriptExecution,
-                changeId: beacon.changeId,
-                target: beacon.target,
-                content: resultContent,
-                timestamp: run.timestamp,
-            };
+            return createScriptExecutionEvent(beacon, resultContent, run);
         }
     }
     // Fallback: windowed comparison (handles out-of-band changes between script and beacon)

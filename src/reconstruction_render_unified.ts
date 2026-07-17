@@ -57,24 +57,36 @@ function computeAlignedDiffLines(
     return alignedLines;
 }
 
+// One aligned line's contribution to the hunk ranges: context lines contribute nothing;
+// a changed line's context window merges into the last range when overlapping or adjacent,
+// otherwise opens a new range.
+function mergeOrAppendHunkRange(
+    ranges: Array<{ start: number; end: number }>,
+    alignedLines: AlignedDiffLine[],
+    line: AlignedDiffLine,
+    index: number,
+): void {
+    if (line.sign === " ") {
+        return;
+    }
+    const start = Math.max(0, index - DIFF_CONTEXT_LINE_COUNT);
+    const end = Math.min(alignedLines.length - 1, index + DIFF_CONTEXT_LINE_COUNT);
+    const lastRange = ranges[ranges.length - 1];
+    if (lastRange !== undefined) {
+        if (start <= lastRange.end + 1) {
+            lastRange.end = Math.max(lastRange.end, end);
+            return;
+        }
+    }
+    ranges.push({ start, end });
+}
+
 // Which aligned-line index ranges become hunks: each change expanded by the context window,
 // overlapping or adjacent windows merged.
 function computeHunkRanges(alignedLines: AlignedDiffLine[]): Array<{ start: number; end: number }> {
     const ranges: Array<{ start: number; end: number }> = [];
     alignedLines.forEach((line, index) => {
-        if (line.sign === " ") {
-            return;
-        }
-        const start = Math.max(0, index - DIFF_CONTEXT_LINE_COUNT);
-        const end = Math.min(alignedLines.length - 1, index + DIFF_CONTEXT_LINE_COUNT);
-        const lastRange = ranges[ranges.length - 1];
-        if (lastRange !== undefined) {
-            if (start <= lastRange.end + 1) {
-                lastRange.end = Math.max(lastRange.end, end);
-                return;
-            }
-        }
-        ranges.push({ start, end });
+        mergeOrAppendHunkRange(ranges, alignedLines, line, index);
     });
     return ranges;
 }
@@ -91,6 +103,27 @@ function renderHunk(hunkLines: AlignedDiffLine[]): string {
     return [header, ...body].join("\n");
 }
 
+// One non-rename revision's hunks: git-diff the previous revision's text against this one
+// and append the result to the block when non-empty.
+function appendGitHunksForRevision(
+    blockLines: string[],
+    previous: FileRevision | undefined,
+    revision: FileRevision,
+    contextLines: number,
+): void {
+    // item 51: pure-TS hunk generation, replaced by real git below (function context).
+    // const alignedLines = computeAlignedDiffLines(previous, revision);
+    // for (const range of computeHunkRanges(alignedLines)) {
+    //     blockLines.push(renderHunk(alignedLines.slice(range.start, range.end + 1)));
+    // }
+    const beforeLines = previous === undefined ? [] : previous.lines.map(currentText);
+    const afterLines = revision.lines.map(currentText);
+    const hunks = runGitUnifiedDiff(beforeLines, afterLines, contextLines);
+    if (hunks !== "") {
+        blockLines.push(hunks);
+    }
+}
+
 // The webapp's diff text: renderDiff's per-revision kind headers, but each block carries
 // standard unified hunks with context lines around every change — enough for the client to
 // render surrounding lines and line-number gutters. renderDiff (the CLI's human-oriented
@@ -104,17 +137,7 @@ export function renderDiffWithContext(revisions: FileRevision[], fullContext: bo
     for (const revision of revisions) {
         const blockLines = [computeDiffBlockHeader(previous, revision)];
         if (!isRenameRevision(revision)) {
-            // item 51: pure-TS hunk generation, replaced by real git below (function context).
-            // const alignedLines = computeAlignedDiffLines(previous, revision);
-            // for (const range of computeHunkRanges(alignedLines)) {
-            //     blockLines.push(renderHunk(alignedLines.slice(range.start, range.end + 1)));
-            // }
-            const beforeLines = previous === undefined ? [] : previous.lines.map(currentText);
-            const afterLines = revision.lines.map(currentText);
-            const hunks = runGitUnifiedDiff(beforeLines, afterLines, contextLines);
-            if (hunks !== "") {
-                blockLines.push(hunks);
-            }
+            appendGitHunksForRevision(blockLines, previous, revision, contextLines);
         }
         blocks.push(blockLines.join("\n"));
         previous = revision;

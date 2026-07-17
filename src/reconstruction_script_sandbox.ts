@@ -92,6 +92,13 @@ export function resetSandboxMemoOnDisk(filePath: Path): void {
     rmSync(filePath.toString(), { force: true });
 }
 
+// Rehydrate one persisted entry into the in-memory memo (`post: null` = memoized failure).
+function restorePersistedOutcomeIntoMemo(inputKey: string, outcome: PersistedSandboxOutcome): void {
+    sandboxOutcomesByInput.set(inputKey, {
+        post: outcome.post === null ? undefined : new Map(Object.entries(outcome.post)),
+    });
+}
+
 // Seed the (just-cleared) memo from a previously persisted file; absent file = start empty.
 function loadSandboxMemoFromDisk(filePath: Path): void {
     if (!existsSync(filePath.toString())) {
@@ -103,9 +110,7 @@ function loadSandboxMemoFromDisk(filePath: Path): void {
             PersistedSandboxOutcome
         >;
         for (const [inputKey, outcome] of Object.entries(persisted)) {
-            sandboxOutcomesByInput.set(inputKey, {
-                post: outcome.post === null ? undefined : new Map(Object.entries(outcome.post)),
-            });
+            restorePersistedOutcomeIntoMemo(inputKey, outcome);
         }
     } catch (error) {
         // A corrupt cache file must not kill the server — log once and continue empty.

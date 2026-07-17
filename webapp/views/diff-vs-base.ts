@@ -78,6 +78,17 @@ function renderInlineDiffLines(pane: HTMLElement, diffText: string): void {
 // The split grid: 4 columns (old number | old text | new number | new text). Full rows span
 // all columns; pair rows emit a gutter + text cell per side (empty divs keep the grid aligned
 // when one side is absent).
+function appendSplitCell(grid: HTMLElement, cell: { lineNumber?: number; lineClass: string; text: string } | undefined): void {
+    if (cell === undefined) {
+        grid.append(el("div", { class: "diff-line-num" }), el("div", {}));
+        return;
+    }
+    grid.append(
+        el("div", { class: "diff-line-num", text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
+        el("div", { class: cell.lineClass, text: cell.text }),
+    );
+}
+
 function renderSplitDiffGrid(pane: HTMLElement, diffText: string): void {
     const grid = el("div", { class: "diff-split" });
     for (const row of computeSplitRows(diffText)) {
@@ -86,14 +97,7 @@ function renderSplitDiffGrid(pane: HTMLElement, diffText: string): void {
             continue;
         }
         for (const cell of [row.left, row.right]) {
-            if (cell === undefined) {
-                grid.append(el("div", { class: "diff-line-num" }), el("div", {}));
-                continue;
-            }
-            grid.append(
-                el("div", { class: "diff-line-num", text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
-                el("div", { class: cell.lineClass, text: cell.text }),
-            );
+            appendSplitCell(grid, cell);
         }
     }
     pane.append(grid);

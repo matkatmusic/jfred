@@ -172,29 +172,49 @@ test("test_resolveProjectFile_resolves_root_project_files", () => {
 // file-history-snapshot records for trackedFileBackups entries and return the first whose blob
 // file exists under the real ~/.claude/file-history root (reader-dependent, like the sidecar
 // tests — there is no root override in this repo). undefined when none is on disk.
+// One transcript line of findExistingS43Backup's scan: parse a file-history-snapshot line's
+// trackedFileBackups and return the first backup whose blob file is on disk, else undefined.
+function findBackupInSnapshotLine(root: string, session: string, line: string): { session: Uuid; blobName: Path } | undefined {
+    if (!line.includes("file-history-snapshot")) {
+        return undefined;
+    }
+    let parsed: { snapshot?: { trackedFileBackups?: Record<string, { backupFileName?: string }> } };
+    try {
+        parsed = JSON.parse(line);
+    } catch {
+        return undefined;
+    }
+    const backups = parsed.snapshot?.trackedFileBackups;
+    if (backups === undefined) {
+        return undefined;
+    }
+    for (const entry of Object.values(backups)) {
+        if (entry.backupFileName !== undefined && existsSync(join(root, session, entry.backupFileName))) {
+            return { session: new Uuid(session), blobName: new Path(entry.backupFileName) };
+        }
+    }
+    return undefined;
+}
+
+// One transcript of findExistingS43Backup's scan: check every line of the JSONL for an
+// on-disk tracked backup, else undefined.
+function findBackupInTranscript(root: string, session: string, jsonlPath: Path): { session: Uuid; blobName: Path } | undefined {
+    for (const line of readFileSync(jsonlPath.toString(), "utf8").split("\n")) {
+        const pair = findBackupInSnapshotLine(root, session, line);
+        if (pair !== undefined) {
+            return pair;
+        }
+    }
+    return undefined;
+}
+
 function findExistingS43Backup(): { session: Uuid; blobName: Path } | undefined {
     const root = getDefaultFileHistoryRoot().toString();
     for (const jsonlPath of S43_JSONL_PATHS) {
         const session = basename(jsonlPath.toString(), ".jsonl");
-        for (const line of readFileSync(jsonlPath.toString(), "utf8").split("\n")) {
-            if (!line.includes("file-history-snapshot")) {
-                continue;
-            }
-            let parsed: { snapshot?: { trackedFileBackups?: Record<string, { backupFileName?: string }> } };
-            try {
-                parsed = JSON.parse(line);
-            } catch {
-                continue;
-            }
-            const backups = parsed.snapshot?.trackedFileBackups;
-            if (backups === undefined) {
-                continue;
-            }
-            for (const entry of Object.values(backups)) {
-                if (entry.backupFileName !== undefined && existsSync(join(root, session, entry.backupFileName))) {
-                    return { session: new Uuid(session), blobName: new Path(entry.backupFileName) };
-                }
-            }
+        const pair = findBackupInTranscript(root, session, jsonlPath);
+        if (pair !== undefined) {
+            return pair;
         }
     }
     return undefined;

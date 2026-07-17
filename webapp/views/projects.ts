@@ -21,6 +21,18 @@ export function filterProjectsByName<ProjectType extends { name: string }>(proje
     return projects.filter((project) => project.name.toLowerCase().includes(loweredFilterText));
 }
 
+function appendProjectRow(listPane: HTMLElement, project: WireProject): void {
+    const latest = project.jsonlFiles[0];
+    listPane.append(el("div", {
+        class: "project-row",
+        onclick: () => { location.hash = routeToProject(project.name); },
+    }, [
+        el("a", { href: routeToProject(project.name), text: project.name }),
+        el("span", { class: "project-count", text: `${project.jsonlFiles.length} jsonl` }),
+        el("span", { class: "muted", text: latest === undefined ? "" : new Date(latest.modifiedAt).toLocaleString() }),
+    ]));
+}
+
 export async function renderProjectsView(container: HTMLElement): Promise<void> {
     const projects: WireProject[] = await fetchJson("/api/projects");
     const filterInput = el("input", { type: "text", placeholder: "filter projects…", spellcheck: "false" }) as HTMLInputElement;
@@ -31,15 +43,7 @@ export async function renderProjectsView(container: HTMLElement): Promise<void> 
         countLabel.textContent = `${visibleProjects.length} / ${projects.length} project(s)`;
         listPane.replaceChildren();
         for (const project of visibleProjects) {
-            const latest = project.jsonlFiles[0];
-            listPane.append(el("div", {
-                class: "project-row",
-                onclick: () => { location.hash = routeToProject(project.name); },
-            }, [
-                el("a", { href: routeToProject(project.name), text: project.name }),
-                el("span", { class: "project-count", text: `${project.jsonlFiles.length} jsonl` }),
-                el("span", { class: "muted", text: latest === undefined ? "" : new Date(latest.modifiedAt).toLocaleString() }),
-            ]));
+            appendProjectRow(listPane, project);
         }
     };
     filterInput.addEventListener("input", renderList);

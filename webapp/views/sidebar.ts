@@ -59,6 +59,20 @@ export function clearFileSelectionIn(root: HTMLElement): void {
     }
 }
 
+// One Sessions-pane row appended to the drawer: `<short8>….jsonl` + `<short8> · N rows` meta,
+// click flash-scrolls the session's first timeline row.
+function appendSessionItem(drawer: HTMLElement, session: SessionSidebarEntry, callbacks: ForkSidebarCallbacks): void {
+    const item = el("div", { class: "session-item", title: session.jsonlFileName ?? session.sessionId }, [
+        el("div", { class: "sess-file", text: `${session.shortLabel}….jsonl` }),
+        el("div", { class: "sess-meta" }, [
+            el("span", { class: "sess-uuid", text: session.shortLabel }),
+            ` · ${session.rowCount} rows`,
+        ]),
+    ]);
+    item.addEventListener("click", () => callbacks.onSessionClick(session.firstNodeIndex));
+    drawer.append(item);
+}
+
 // Rebuild the drawer: a "Sessions" pane (`<short8>….jsonl` + `<short8> · N rows` meta, click
 // flash-scrolls the session's first timeline row) and a "Files" pane (path + revision count,
 // click enters the details pane's File Revisions mode and marks the item selected).
@@ -66,15 +80,7 @@ export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarE
     drawer.replaceChildren();
     drawer.append(el("div", { class: "pane-title", text: "Sessions" }));
     for (const session of sessions) {
-        const item = el("div", { class: "session-item", title: session.jsonlFileName ?? session.sessionId }, [
-            el("div", { class: "sess-file", text: `${session.shortLabel}….jsonl` }),
-            el("div", { class: "sess-meta" }, [
-                el("span", { class: "sess-uuid", text: session.shortLabel }),
-                ` · ${session.rowCount} rows`,
-            ]),
-        ]);
-        item.addEventListener("click", () => callbacks.onSessionClick(session.firstNodeIndex));
-        drawer.append(item);
+        appendSessionItem(drawer, session, callbacks);
     }
     drawer.append(el("div", { class: "pane-title", text: "Files" }));
     for (const node of files) {

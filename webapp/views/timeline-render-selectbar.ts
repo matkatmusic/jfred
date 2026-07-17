@@ -114,6 +114,13 @@ export function updateSelectbar(context: TimelineRenderContext): void {
     }
 }
 
+function clearAllPickBoxes(context: TimelineRenderContext): void {
+    for (const box of context.pickBoxes.values()) {
+        box.checked = false;
+    }
+    updateSelectbar(context);
+}
+
 // replaceChildren (not append): the selectbar is static, re-renders must not stack contents.
 export function renderSelectbarButtons(context: TimelineRenderContext): void {
     context.selectbar.replaceChildren(context.barText, context.ruleHint, el("button", {
@@ -127,13 +134,17 @@ export function renderSelectbarButtons(context: TimelineRenderContext): void {
     }), el("button", {
         class: "toolbar-btn",
         text: "Clear",
-        onclick: () => {
-            for (const box of context.pickBoxes.values()) {
-                box.checked = false;
-            }
-            updateSelectbar(context);
-        },
+        onclick: () => clearAllPickBoxes(context),
     }));
+}
+
+function handlePickChange(context: TimelineRenderContext, pick: HTMLInputElement): void {
+    const candidate = [...context.pickBoxes.entries()].filter(([, box]) => box.checked).map(([i]) => i);
+    if (!checkPickIsLegal(context.nodes, candidate)) {
+        pick.checked = !pick.checked;
+        flashRule(context);
+    }
+    updateSelectbar(context);
 }
 
 // Pick cell (existing pick model: only surviving agent turns with snapshots).
@@ -143,14 +154,7 @@ export function buildPickCell(context: TimelineRenderContext, node: TimelineNode
         const pick = el("input", { type: "checkbox" }) as HTMLInputElement;
         context.pickBoxes.set(index, pick);
         pick.addEventListener("click", (event) => event.stopPropagation()); // picking must not change selection
-        pick.addEventListener("change", () => {
-            const candidate = [...context.pickBoxes.entries()].filter(([, box]) => box.checked).map(([i]) => i);
-            if (!checkPickIsLegal(context.nodes, candidate)) {
-                pick.checked = !pick.checked;
-                flashRule(context);
-            }
-            updateSelectbar(context);
-        });
+        pick.addEventListener("change", () => handlePickChange(context, pick));
         pickCell.append(pick);
     }
     return pickCell;

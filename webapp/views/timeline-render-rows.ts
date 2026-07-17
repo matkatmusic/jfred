@@ -87,6 +87,63 @@ function buildGraphCell(kind: TimelineNode["kind"], index: number, laneRuns: { s
     return cell;
 }
 
+// The tinted session-start marker row (extracted from buildTimelineRows).
+function appendSessionStartMarker(context: TimelineRenderContext, rowFragment: DocumentFragment, sessionColor: string, startedSessionId: string): void {
+    const marker = el("div", { class: "tl-session-start" });
+    marker.style.color = sessionColor;
+    marker.append(el("span", {
+        class: "tl-session-start-label",
+        text: computeSessionStartLabel(context.reconstructionDocument.sessionTitles, startedSessionId),
+    }));
+    rowFragment.append(marker);
+}
+
+// The commit row's spacer, label, and (when a hash exists) hash pill (extracted from buildTimelineRows).
+function appendCommitCells(line: HTMLElement, node: TimelineNode): void {
+    line.append(el("span", { class: "tl-tri", text: "" }));   // spacer keeps columns aligned
+    line.append(el("span", { class: "commit-label", text: "git commit" }));
+    if (node.resultHash !== undefined) {                       // no hash → no pill (a blank "—" reads broken)
+        line.append(el("span", { class: "commit-pill", text: node.resultHash }));
+    }
+}
+
+// The ▸ triangle that toggles a row's expanded state (extracted from buildTimelineRows).
+function appendExpansionTriangle(context: TimelineRenderContext, line: HTMLElement, row: HTMLElement): void {
+    const tri = el("span", { class: "tl-tri", text: "▸" });
+    tri.addEventListener("click", (event) => {
+        event.stopPropagation();                   // expansion must not change selection
+        row.classList.toggle("expanded");
+        context.updateToggleLabel();
+    });
+    line.append(tri);
+}
+
+// The { } button that opens the row's JSONL record in the details pane (extracted from buildTimelineRows).
+function appendJsonRecordButton(context: TimelineRenderContext, line: HTMLElement, index: number): void {
+    line.append(el("button", {
+        class: "tl-json",
+        text: "{ }",
+        title: "Show this row's JSONL record in the details pane",
+        onclick: async (event: Event) => {
+            event.stopPropagation();
+            await context.selectTimelineRow(index);
+            context.openNodeInspector(index);
+        },
+    }));
+}
+
+// The expanded row's bubble: full text plus agent-turn file chips (extracted from buildTimelineRows).
+function appendExpandedBubble(context: TimelineRenderContext, node: TimelineNode, index: number, previewPane: HTMLElement, main: HTMLElement, row: HTMLElement): void {
+    const bubble = el("div", { class: `tl-bubble ${computeRoleClass(node.kind)}` });
+    bubble.append(node.kind === TOOL_CALL_NODE_KIND ? `${node.toolName}(${node.summary})` : node.text ?? "");
+    if (node.kind === AGENT_TURN_NODE_KIND) {
+        bubble.append(el("div", { class: "timeline-chips" },
+            node.fileChanges!.map((change) => renderFileButtonRow(context, node, index, change, previewPane))));
+    }
+    main.append(bubble);
+    context.expandableRows.push(row);
+}
+
 // ── rows: one .tl-row per node (mockup renderTimeline) ──
 export async function buildTimelineRows(context: TimelineRenderContext, container: HTMLElement): Promise<void> {
     // Session-start markers: an interleaved multi-JSONL project otherwise never shows where
@@ -115,13 +172,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
 
         const startedSessionId = sessionStartsByIndex.get(index);
         if (startedSessionId !== undefined) {
-            const marker = el("div", { class: "tl-session-start" });
-            marker.style.color = sessionColor;
-            marker.append(el("span", {
-                class: "tl-session-start-label",
-                text: computeSessionStartLabel(context.reconstructionDocument.sessionTitles, startedSessionId),
-            }));
-            rowFragment.append(marker);
+            appendSessionStartMarker(context, rowFragment, sessionColor, startedSessionId);
         }
 
         const previewPane = el("div", { class: "hidden" });
@@ -135,19 +186,9 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         line.append(buildPickCell(context, node, index));
 
         if (node.kind === COMMIT_NODE_KIND) {
-            line.append(el("span", { class: "tl-tri", text: "" }));   // spacer keeps columns aligned
-            line.append(el("span", { class: "commit-label", text: "git commit" }));
-            if (node.resultHash !== undefined) {                       // no hash → no pill (a blank "—" reads broken)
-                line.append(el("span", { class: "commit-pill", text: node.resultHash }));
-            }
+            appendCommitCells(line, node);
         } else if (checkRowIsExpandable(node)) {
-            const tri = el("span", { class: "tl-tri", text: "▸" });
-            tri.addEventListener("click", (event) => {
-                event.stopPropagation();                   // expansion must not change selection
-                row.classList.toggle("expanded");
-                context.updateToggleLabel();
-            });
-            line.append(tri);
+            appendExpansionTriangle(context, line, row);
         } else {
             line.append(el("span", { class: "tl-tri", text: "" }));   // session ends stay thin
         }
@@ -172,16 +213,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         line.append(el("span", { class: "tl-pos", text: context.lineLabels.get(index) ?? "" }));
         line.append(el("span", { class: "tl-uuid", text: node.sessionId === undefined ? "" : computeSessionShortLabel(node.sessionId) }));
         if (node.kind !== COMMIT_NODE_KIND) {              // commits are repo events: no JSONL record
-            line.append(el("button", {
-                class: "tl-json",
-                text: "{ }",
-                title: "Show this row's JSONL record in the details pane",
-                onclick: async (event: Event) => {
-                    event.stopPropagation();
-                    await context.selectTimelineRow(index);
-                    context.openNodeInspector(index);
-                },
-            }));
+            appendJsonRecordButton(context, line, index);
         }
         line.addEventListener("click", () => {
             void context.selectTimelineRow(index);
@@ -191,14 +223,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         // Expandable rows carry the mockup bubble: the full text, plus the file-chips block on
         // agent turns (the kept renderFileButtonRow machinery).
         if (checkRowIsExpandable(node)) {
-            const bubble = el("div", { class: `tl-bubble ${computeRoleClass(node.kind)}` });
-            bubble.append(node.kind === TOOL_CALL_NODE_KIND ? `${node.toolName}(${node.summary})` : node.text ?? "");
-            if (node.kind === AGENT_TURN_NODE_KIND) {
-                bubble.append(el("div", { class: "timeline-chips" },
-                    node.fileChanges!.map((change) => renderFileButtonRow(context, node, index, change, previewPane))));
-            }
-            main.append(bubble);
-            context.expandableRows.push(row);
+            appendExpandedBubble(context, node, index, previewPane, main, row);
         }
         main.append(previewPane);
         row.append(main);

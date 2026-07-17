@@ -140,6 +140,26 @@ export function formatMegabytes(byteLength: number): string {
     return `${(byteLength / 1_000_000).toFixed(1)} MB`;
 }
 
+// One decoded NDJSON chunk's complete lines: progress lines land in the console; each
+// non-progress line replaces the running terminal-payload candidate, which is returned.
+async function parseDocumentStreamLines(lines: string[], finalPayload: WireDocumentStreamLine): Promise<WireDocumentStreamLine> {
+    for (const line of lines) {
+        if (line.length > LARGE_PAYLOAD_BYTES) {
+            // The terminal document line; its JSON.parse blocks the tab for seconds. Show a
+            // label and yield so the browser paints it (and the shimmer) before parsing. (item 82)
+            showLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        const parsed = JSON.parse(line) as WireDocumentStreamLine;
+        if (parsed.kind === "progress") {
+            reportStreamProgress(parsed);
+        } else {
+            finalPayload = parsed;
+        }
+    }
+    return finalPayload;
+}
+
 // DocumentType lets each view name the wire fields it reads (its own Wire* type); the cache and
 // stream handling below stay shape-agnostic.
 export async function fetchDocument<DocumentType = WireDocument>(project: string, jsonl?: string): Promise<{ document?: DocumentType; consentRequired?: WireConsentScript[] }> {
@@ -173,20 +193,7 @@ export async function fetchDocument<DocumentType = WireDocument>(project: string
             if (done) break;
             let lines: string[];
             ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
-            for (const line of lines) {
-                if (line.length > LARGE_PAYLOAD_BYTES) {
-                    // The terminal document line; its JSON.parse blocks the tab for seconds. Show a
-                    // label and yield so the browser paints it (and the shimmer) before parsing. (item 82)
-                    showLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
-                    await new Promise((resolve) => setTimeout(resolve, 0));
-                }
-                const parsed = JSON.parse(line) as WireDocumentStreamLine;
-                if (parsed.kind === "progress") {
-                    reportStreamProgress(parsed);
-                } else {
-                    finalPayload = parsed;
-                }
-            }
+            finalPayload = await parseDocumentStreamLines(lines, finalPayload);
         }
         // A real document has no `kind` field; consent/error ride the kind discriminant.
         if (finalPayload.kind === "error") throw new Error(finalPayload.label);

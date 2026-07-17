@@ -46,6 +46,33 @@ function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     return row;
 }
 
+// Expand-all/collapse-all over the SAME per-block <details> state the triangles use:
+// if any block is closed the click opens all, otherwise it closes all.
+function toggleReadOnlyBlocksVisibility(box: HTMLElement): void {
+    const detailsBlocks = [...box.querySelectorAll<HTMLDetailsElement>("details.consent-readonly-block")];
+    const shouldOpen = detailsBlocks.some((block) => !block.open);
+    for (const block of detailsBlocks) block.open = shouldOpen;
+}
+
+function appendReadOnlyScriptsBlock(box: HTMLElement, scripts: WireConsentScript[]): void {
+    const firstTimestamp = new Date(scripts[0]!.timestamp).toLocaleString();
+    box.append(el("details", { class: "consent-readonly-block" }, [
+        el("summary", { class: "muted", text: `----- ${firstTimestamp} ${scripts.length} readonly script(s) -----` }),
+        ...scripts.map(buildConsentScriptRow),
+    ]));
+}
+
+// Keep each row's own Expand/Collapse button label in step with the global toggle.
+function updateRowExpandButtonLabel(pre: HTMLPreElement, shouldExpand: boolean): void {
+    const row = pre.parentElement;
+    if (row !== null) {
+        const rowButton = row.querySelector("button");
+        if (rowButton !== null) {
+            rowButton.textContent = shouldExpand ? "Collapse" : "Expand";
+        }
+    }
+}
+
 // The consent dialog (plan 3.2): every script's code shown verbatim; running is opt-in;
 // declining still yields a (degraded) document. The choice is remembered per project for
 // this browser session only. Read-only scripts (item 69) collapse into per-run <details>
@@ -83,27 +110,17 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
         el("div", { class: "muted", text: "Re-running them reproduces script-made file states. Nothing runs without your say-so." }),
     ]);
     if (readOnlyCount > 0) {
-        // Expand-all/collapse-all over the SAME per-block <details> state the triangles use:
-        // if any block is closed the click opens all, otherwise it closes all.
         box.append(el("button", {
             class: "toolbar-btn",
             text: "Show/hide Read-only scripts",
-            onclick: () => {
-                const detailsBlocks = [...box.querySelectorAll<HTMLDetailsElement>("details.consent-readonly-block")];
-                const shouldOpen = detailsBlocks.some((block) => !block.open);
-                for (const block of detailsBlocks) block.open = shouldOpen;
-            },
+            onclick: () => toggleReadOnlyBlocksVisibility(box),
         }));
     }
     for (const block of groupConsentScriptsIntoBlocks(scripts)) {
         if (block.kind === ConsentBlockKind.modifying) {
             box.append(buildConsentScriptRow(block.script));
         } else {
-            const firstTimestamp = new Date(block.scripts[0]!.timestamp).toLocaleString();
-            box.append(el("details", { class: "consent-readonly-block" }, [
-                el("summary", { class: "muted", text: `----- ${firstTimestamp} ${block.scripts.length} readonly script(s) -----` }),
-                ...block.scripts.map(buildConsentScriptRow),
-            ]));
+            appendReadOnlyScriptsBlock(box, block.scripts);
         }
     }
     // item 73: was — decide + the decision buttons rendered at the BOTTOM of the script list
@@ -190,14 +207,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
         for (const pre of previews) pre.classList.toggle("expanded", shouldExpand);
         for (const block of readOnlyBlocks) block.open = shouldExpand;
         for (const pre of previews) {
-            // Keep each row's own Expand/Collapse button label in step with the global toggle.
-            const row = pre.parentElement;
-            if (row !== null) {
-                const rowButton = row.querySelector("button");
-                if (rowButton !== null) {
-                    rowButton.textContent = shouldExpand ? "Collapse" : "Expand";
-                }
-            }
+            updateRowExpandButtonLabel(pre, shouldExpand);
         }
         updateToggleAllLabel();
     };

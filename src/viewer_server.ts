@@ -99,23 +99,27 @@ function serveStaticFile(response: ServerResponse, urlPath: string): void {
 // validation only: these are typed/pasted paths from the UI of a localhost app on the user's
 // own machine. Order matters: the projects switch clears the file-history override (item 46's
 // re-derive-on-switch), so an explicit fileHistoryDir in the SAME body is applied after it.
+function applyConfigUpdate(response: ServerResponse, body: string): void {
+    const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
+    if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
+        sendJson(response, 400, { error: "body must carry projectsDir and/or fileHistoryDir" });
+        return;
+    }
+    if (requested.projectsDir !== undefined) {
+        setProjectsDir(requested.projectsDir);
+    }
+    if (requested.fileHistoryDir !== undefined) {
+        setFileHistoryDir(requested.fileHistoryDir);
+    }
+    sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+}
+
 function handleConfigUpdate(request: IncomingMessage, response: ServerResponse): void {
     let body = "";
     request.on("data", (chunk: Buffer) => { body += chunk.toString(); });
     request.on("end", () => {
         try {
-            const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
-            if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
-                sendJson(response, 400, { error: "body must carry projectsDir and/or fileHistoryDir" });
-                return;
-            }
-            if (requested.projectsDir !== undefined) {
-                setProjectsDir(requested.projectsDir);
-            }
-            if (requested.fileHistoryDir !== undefined) {
-                setFileHistoryDir(requested.fileHistoryDir);
-            }
-            sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+            applyConfigUpdate(response, body);
         } catch (error) {
             sendJson(response, 400, { error: String(error) });
         }
@@ -143,6 +147,12 @@ function handleFolderPickRequest(response: ServerResponse, query: URLSearchParam
     sendJson(response, 200, { path: picked });
 }
 
+function serveRawTranscript(response: ServerResponse, query: URLSearchParams): void {
+    const jsonlPath = resolveProjectFile(
+        getProjectsDir(), requireParam(query, "project"), requireParam(query, "jsonl"));
+    sendText(response, 200, readFileSync(jsonlPath.toString(), "utf8"));
+}
+
 function handleRequest(request: IncomingMessage, response: ServerResponse): void {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     try {
@@ -158,9 +168,7 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
         } else if (url.pathname === "/api/document") {
             handleDocumentRequest(response, url.searchParams);
         } else if (url.pathname === "/api/raw") {
-            const jsonlPath = resolveProjectFile(
-                getProjectsDir(), requireParam(url.searchParams, "project"), requireParam(url.searchParams, "jsonl"));
-            sendText(response, 200, readFileSync(jsonlPath.toString(), "utf8"));
+            serveRawTranscript(response, url.searchParams);
         } else if (url.pathname === "/api/blob") {
             // Always 200 + { exists, content } — the client branches on `exists`; a malformed
             // name throws into the outer catch (400) like every other trust-boundary refusal.

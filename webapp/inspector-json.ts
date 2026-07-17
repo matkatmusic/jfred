@@ -63,6 +63,18 @@ function checkValueIsLong(tokenClass: string, token: string): boolean {
     return token.length > LONG_VALUE_CHAR_LIMIT;
 }
 
+// The [View in File Revisions] button for a resolved snapshot anchor (task 93: the route
+// now opens THE Revision View).
+function appendViewInRevisionsButton(pre: HTMLElement, snapshotContext: SnapshotContext, anchor: WireRevisionLink) {
+    pre.append(el("button", {
+        class: "row-btn snapshot-history-btn",
+        text: "View in File Revisions",
+        onclick: () => {
+            location.hash = computeRevisionLinkRoute(snapshotContext.project!, anchor);
+        },
+    }));
+}
+
 // A backupFileName token of the CURRENT record, rendered by on-disk presence: a "view
 // snapshot" link + [View in File Revisions] button when the blob exists, a dimmed
 // "(missing from disk)" suffix when it does not, a plain token while the probe is in flight.
@@ -88,14 +100,81 @@ function appendSnapshotToken(
     // The button is decided at render time: no resolvable anchor, no button.
     const anchor = computeSnapshotHistoryAnchor(filesTouched, entry.relativePath, entry.backupTime);
     if (anchor !== undefined) {
-        pre.append(el("button", {
-            class: "row-btn snapshot-history-btn",
-            text: "View in File Revisions",   // task 93: the route now opens THE Revision View
-            onclick: () => {
-                location.hash = computeRevisionLinkRoute(snapshotContext.project!, anchor);
-            },
-        }));
+        appendViewInRevisionsButton(pre, snapshotContext, anchor);
     }
+}
+
+// Resolves what a string token links to: renders the snapshot treatment itself (handled =
+// true), or reports the jump target / revision link for the caller's span rendering.
+function resolveStringTokenLink(
+    pre: HTMLElement, tokenClass: string, token: string, record: WireValue,
+    currentLine: number, maps: LinkMaps, filesTouched: WireFileHistory[],
+    snapshotContext: SnapshotContext | undefined,
+): { handled: boolean; jumpTarget: number | undefined; revisionLink: WireRevisionLink | undefined } {
+    let jumpTarget: number | undefined;
+    let revisionLink: WireRevisionLink | undefined;
+    try {
+        const value = JSON.parse(token) as string;
+        // A backupFileName the CURRENT record tracks gets the snapshot treatment
+        // instead of the generic revision link.
+        const trackedEntry = snapshotContext === undefined ? undefined : findTrackedBackupEntry(record, value);
+        if (trackedEntry !== undefined) {
+            // trackedEntry !== undefined implies snapshotContext was passed (see the ternary above).
+            appendSnapshotToken(pre, tokenClass, token, value, trackedEntry, filesTouched, snapshotContext!);
+            return { handled: true, jumpTarget, revisionLink };
+        }
+        jumpTarget = findJumpTarget(value, currentLine, maps);
+        if (jumpTarget === undefined) {
+            // A value that IS a revision changeId (e.g. a backupFileName blob name)
+            // links to that file's revision list, anchored on that revision. A blob
+            // version without its own revision anchors via the snapshot's backupTime.
+            revisionLink = findRevisionForChangeId(filesTouched, value, findBackupTimeForBlob(record, value));
+        }
+    } catch { /* not a lone string literal — no link */ }
+    return { handled: false, jumpTarget, revisionLink };
+}
+
+// The clickable jump-to-line span for a token whose value names a transcript line.
+function appendJumpLinkSpan(
+    pre: HTMLElement, tokenClass: string, token: string, jumpTarget: number,
+    showLine: (line: number) => void,
+) {
+    pre.append(el("span", {
+        class: `${tokenClass} jump-link`,
+        title: `Jump to line ${jumpTarget}`,
+        onclick: () => showLine(jumpTarget),
+        text: token,
+    }));
+}
+
+// The clickable revision-link span for a token whose value is a revision changeId.
+function appendRevisionLinkSpan(
+    pre: HTMLElement, tokenClass: string, token: string, revisionLink: WireRevisionLink,
+    openRevision: (link: WireRevisionLink) => void,
+) {
+    pre.append(el("span", {
+        class: `${tokenClass} jump-link`,
+        title: revisionLink.revisionNumber === undefined
+            ? `Open ${revisionLink.target} revisions`
+            : `Open ${revisionLink.target} at revision #${revisionLink.revisionNumber}`,
+        onclick: () => openRevision(revisionLink),
+        text: token,
+    }));
+}
+
+// Long value: first 7 wrapped lines only (CSS line-clamp), […] toggles the rest.
+function appendCollapsibleLongValue(pre: HTMLElement, tokenClass: string, token: string) {
+    const valueSpan = el("span", { class: `${tokenClass} json-collapsed`, text: token });
+    const expandToggle = el("button", {
+        class: "row-btn json-expand",
+        text: "[…]",
+        title: "Show the full value",
+        onclick: () => {
+            const collapsed = valueSpan.classList.toggle("json-collapsed");
+            expandToggle.textContent = collapsed ? "[…]" : "[hide]";
+        },
+    });
+    pre.append(valueSpan, expandToggle);
 }
 
 // Pretty JSON text -> a <pre> of text nodes and highlight spans; linkable string values
@@ -116,56 +195,23 @@ export function renderHighlightedJson(
         const tokenClass = classifyToken(token);
         let jumpTarget: number | undefined;
         let revisionLink: WireRevisionLink | undefined;
+        let handledAsSnapshot = false;
         if (tokenClass === "json-string") {
-            try {
-                const value = JSON.parse(token) as string;
-                // A backupFileName the CURRENT record tracks gets the snapshot treatment
-                // instead of the generic revision link.
-                const trackedEntry = snapshotContext === undefined ? undefined : findTrackedBackupEntry(record, value);
-                if (trackedEntry !== undefined) {
-                    // trackedEntry !== undefined implies snapshotContext was passed (see the ternary above).
-                    appendSnapshotToken(pre, tokenClass, token, value, trackedEntry, filesTouched, snapshotContext!);
-                    lastIndex = match.index + token.length;
-                    continue;
-                }
-                jumpTarget = findJumpTarget(value, currentLine, maps);
-                if (jumpTarget === undefined) {
-                    // A value that IS a revision changeId (e.g. a backupFileName blob name)
-                    // links to that file's revision list, anchored on that revision. A blob
-                    // version without its own revision anchors via the snapshot's backupTime.
-                    revisionLink = findRevisionForChangeId(filesTouched, value, findBackupTimeForBlob(record, value));
-                }
-            } catch { /* not a lone string literal — no link */ }
+            const resolution = resolveStringTokenLink(pre, tokenClass, token, record, currentLine, maps, filesTouched, snapshotContext);
+            handledAsSnapshot = resolution.handled;
+            jumpTarget = resolution.jumpTarget;
+            revisionLink = resolution.revisionLink;
+        }
+        if (handledAsSnapshot) {
+            lastIndex = match.index + token.length;
+            continue;
         }
         if (jumpTarget !== undefined) {
-            pre.append(el("span", {
-                class: `${tokenClass} jump-link`,
-                title: `Jump to line ${jumpTarget}`,
-                onclick: () => showLine(jumpTarget),
-                text: token,
-            }));
+            appendJumpLinkSpan(pre, tokenClass, token, jumpTarget, showLine);
         } else if (revisionLink !== undefined) {
-            pre.append(el("span", {
-                class: `${tokenClass} jump-link`,
-                title: revisionLink.revisionNumber === undefined
-                    ? `Open ${revisionLink.target} revisions`
-                    : `Open ${revisionLink.target} at revision #${revisionLink.revisionNumber}`,
-                onclick: () => openRevision(revisionLink),
-                text: token,
-            }));
+            appendRevisionLinkSpan(pre, tokenClass, token, revisionLink, openRevision);
         } else if (checkValueIsLong(tokenClass, token)) {
-            // Long value: first 7 wrapped lines only (CSS line-clamp), […] toggles the rest.
-            const valueSpan = el("span", { class: `${tokenClass} json-collapsed`, text: token });
-            const expandToggle = el("button", {
-                class: "row-btn json-expand",
-                text: "[…]",
-                title: "Show the full value",
-                onclick: () => {
-                    const collapsed = valueSpan.classList.toggle("json-collapsed");
-                    expandToggle.textContent = collapsed ? "[…]" : "[hide]";
-                },
-            });
-            pre.append(valueSpan, expandToggle);
+            appendCollapsibleLongValue(pre, tokenClass, token);
         } else {
             pre.append(el("span", { class: tokenClass, text: token }));
         }

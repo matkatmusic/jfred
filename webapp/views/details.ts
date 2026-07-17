@@ -89,6 +89,19 @@ function buildTouchedFileEntries(changes: FileChange[], wireDocument: WireTimeli
 //         return item;
 //     });
 // }
+// Extracted onFileClick body: resolve the clicked path to its FileChange and show its diff.
+function showClickedFileDiff(
+    target: string,
+    changeByPath: Map<string, FileChange>,
+    showFileDiff: (change: FileChange) => Promise<void>,
+): void {
+    const change = changeByPath.get(target);
+    if (change === undefined) {
+        return;
+    }
+    void showFileDiff(change);
+}
+
 function appendFileList(left: HTMLElement, changes: FileChange[], context: DetailsContext): HTMLElement[] {
     // A leaf click knows only its path; the diff needs the FileChange (its changeId resolves the
     // revision, its eventKind picks the rename/no-hunk fallback text). Last change per path wins,
@@ -102,11 +115,7 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
     };
     const callbacks: FileTreeCallbacks = {
         onFileClick: (target: string) => {
-            const change = changeByPath.get(target);
-            if (change === undefined) {
-                return;
-            }
-            void showFileDiff(change);
+            showClickedFileDiff(target, changeByPath, showFileDiff);
         },
     };
     for (const node of buildFileTree(buildTouchedFileEntries(changes, context.document))) {

@@ -1,6 +1,6 @@
 // ─── loading console (xterm.js, lazily created) ──────────────────────────────
 
-import type { Terminal as XtermTerminal } from "@xterm/xterm";
+import type { ILink, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
 import { parseRouteSegments, routeToTimeline } from "./app-routes.ts";
 
@@ -23,6 +23,32 @@ const CONSOLE_ROWS = 15;
 // (#progress-console in index.html), exactly CONSOLE_ROWS text rows tall. It is created once and reused for
 // every load, so it survives route re-renders (which wipe #view) — progress lines accumulate and
 // the last load's output stays visible until the next. The theme reads the app's live CSS vars.
+function navigateToSourceLink(sourceLink: NonNullable<ReturnType<typeof matchJsonlSourceLink>>): void {
+    const segments = parseRouteSegments();
+    if (segments[0] !== "project") {
+        return;
+    }
+    location.hash = routeToTimeline(segments[1]!, sourceLink.jsonlFileName, String(sourceLink.rawLineIndex));
+}
+
+function provideConsoleSourceLinks(bufferLineNumber: number, callback: (links: ILink[] | undefined) => void): void {
+    const lineText = progressTerminal!.buffer.active.getLine(bufferLineNumber - 1)?.translateToString(true) ?? "";
+    const sourceLink = matchJsonlSourceLink(lineText);
+    if (sourceLink === undefined) {
+        callback(undefined);
+        return;
+    }
+    callback([{
+        text: sourceLink.tokenText,
+        range: {
+            // xterm buffer coordinates are 1-based; the end cell is inclusive.
+            start: { x: sourceLink.tokenStartIndex + 1, y: bufferLineNumber },
+            end: { x: sourceLink.tokenStartIndex + sourceLink.tokenText.length, y: bufferLineNumber },
+        },
+        activate: () => navigateToSourceLink(sourceLink),
+    }]);
+}
+
 export function ensureProgressTerminal(): void {
     if (progressTerminal !== null) return;
     const rootStyles = getComputedStyle(document.documentElement);
@@ -64,27 +90,7 @@ export function ensureProgressTerminal(): void {
     // ponytail: not worth guarding — xterm draws hover underline + pointer itself.
     progressTerminal.registerLinkProvider({
         provideLinks(bufferLineNumber, callback) {
-            const lineText = progressTerminal!.buffer.active.getLine(bufferLineNumber - 1)?.translateToString(true) ?? "";
-            const sourceLink = matchJsonlSourceLink(lineText);
-            if (sourceLink === undefined) {
-                callback(undefined);
-                return;
-            }
-            callback([{
-                text: sourceLink.tokenText,
-                range: {
-                    // xterm buffer coordinates are 1-based; the end cell is inclusive.
-                    start: { x: sourceLink.tokenStartIndex + 1, y: bufferLineNumber },
-                    end: { x: sourceLink.tokenStartIndex + sourceLink.tokenText.length, y: bufferLineNumber },
-                },
-                activate: () => {
-                    const segments = parseRouteSegments();
-                    if (segments[0] !== "project") {
-                        return;
-                    }
-                    location.hash = routeToTimeline(segments[1]!, sourceLink.jsonlFileName, String(sourceLink.rawLineIndex));
-                },
-            }]);
+            provideConsoleSourceLinks(bufferLineNumber, callback);
         },
     });
     document.getElementById("progress-copy")!.onclick = copyConsoleText;

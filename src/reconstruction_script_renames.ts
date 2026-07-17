@@ -3,7 +3,7 @@
 // `old -> new` mapping the script prints. This module parses that printed stdout into
 // rename events. Extraction proper (records -> events) lives in reconstruction_extract.ts.
 
-import { getContentBlocks } from "./structures/content-blocks.ts";
+import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
@@ -42,6 +42,48 @@ function basenameOf(value: string): string {
 // written/edited earlier (drops coincidental `x.y -> z.y` prose), and `renameArrowLine` only accepts
 // dot-extension filenames on BOTH sides — so a function-rename print (`f_one -> alpha`) and the echoed
 // f-string code (`{name}.py -> …`) never match.
+// One tool_use block's contribution to the pre-scan: Write/Edit targets feed the written-basename
+// guard set; executor runs register their run instant and cwd under the block's tool_use id.
+function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date | undefined, recordCwd: Path | undefined, executors: Map<string, { timestamp: Date; cwd: Path | undefined }>, writtenBasenames: Set<string>): void {
+    if (block.type !== BlockType.tool_use) {
+        return;
+    }
+    if (block.name === ToolName.Write || block.name === ToolName.Edit) {
+        const filePath = (block.input as { file_path?: string }).file_path;
+        if (filePath !== undefined) {
+            writtenBasenames.add(basenameOf(filePath));
+        }
+    }
+    if (EXECUTOR_TOOL_NAMES.has(block.name) && timestamp instanceof Date) {
+        const cwd = (block.input as { cwd?: string }).cwd;
+        executors.set(block.id.toString(), { timestamp, cwd: cwd !== undefined ? new Path(cwd) : recordCwd });
+    }
+}
+
+// One tool_result block: parse the printed `old -> new` lines of a known executor run into rename events.
+function parseRenamesFromToolResult(block: ContentBlock, record: TranscriptRecord, executors: Map<string, { timestamp: Date; cwd: Path | undefined }>, writtenBasenames: Set<string>, events: FileEvent[]): void {
+    if (block.type !== BlockType.tool_result) {
+        return;
+    }
+    const executor = executors.get(block.tool_use_id.toString());
+    if (executor === undefined) {
+        return;
+    }
+    for (const match of toolResultText(record).matchAll(renameArrowLine)) {
+        const [, from, to] = match;
+        if (!writtenBasenames.has(basenameOf(from!))) {
+            continue;
+        }
+        events.push({
+            kind: EventKind.rename,
+            changeId: block.tool_use_id,
+            from: new Path(resolveAgainstCwd(executor.cwd, new Path(from!))),
+            to: new Path(resolveAgainstCwd(executor.cwd, new Path(to!))),
+            timestamp: executor.timestamp,
+        });
+    }
+}
+
 export function extractScriptRenameEvents(records: TranscriptRecord[]): FileEvent[] {
     // executor tool_use id -> its run instant and cwd (MCP carries input.cwd; Bash uses the record cwd).
     const executors = new Map<string, { timestamp: Date; cwd: Path | undefined }>();
@@ -51,44 +93,13 @@ export function extractScriptRenameEvents(records: TranscriptRecord[]): FileEven
         const timestamp = record.timestamp;
         const recordCwd = (record as { cwd?: Path }).cwd;
         for (const block of getContentBlocks(record)) {
-            if (block.type !== BlockType.tool_use) {
-                continue;
-            }
-            if (block.name === ToolName.Write || block.name === ToolName.Edit) {
-                const filePath = (block.input as { file_path?: string }).file_path;
-                if (filePath !== undefined) {
-                    writtenBasenames.add(basenameOf(filePath));
-                }
-            }
-            if (EXECUTOR_TOOL_NAMES.has(block.name) && timestamp instanceof Date) {
-                const cwd = (block.input as { cwd?: string }).cwd;
-                executors.set(block.id.toString(), { timestamp, cwd: cwd !== undefined ? new Path(cwd) : recordCwd });
-            }
+            collectExecutorAndWrittenBasename(block, timestamp, recordCwd, executors, writtenBasenames);
         }
     }
     const events: FileEvent[] = [];
     for (const record of records) {
         for (const block of getContentBlocks(record)) {
-            if (block.type !== BlockType.tool_result) {
-                continue;
-            }
-            const executor = executors.get(block.tool_use_id.toString());
-            if (executor === undefined) {
-                continue;
-            }
-            for (const match of toolResultText(record).matchAll(renameArrowLine)) {
-                const [, from, to] = match;
-                if (!writtenBasenames.has(basenameOf(from!))) {
-                    continue;
-                }
-                events.push({
-                    kind: EventKind.rename,
-                    changeId: block.tool_use_id,
-                    from: new Path(resolveAgainstCwd(executor.cwd, new Path(from!))),
-                    to: new Path(resolveAgainstCwd(executor.cwd, new Path(to!))),
-                    timestamp: executor.timestamp,
-                });
-            }
+            parseRenamesFromToolResult(block, record, executors, writtenBasenames, events);
         }
     }
     return events;
