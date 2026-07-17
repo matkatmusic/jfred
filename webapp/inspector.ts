@@ -22,16 +22,14 @@ import {
     type WireValue,
 } from "./inspector-links.ts";
 import { el, renderHighlightedJson } from "./inspector-json.ts";
+import {
+    blobPresenceByKey,
+    buildSnapshotDrawer,
+    bumpShowLineRenderCount,
+    probeTrackedBackupPresence,
+} from "./inspector-snapshots.ts";
 import { extractReadableText } from "./inspector-text.ts";
 import { renderCodeInto } from "./highlight.ts";
-
-// Whether each probed blob is on disk, keyed "<session>|<blobName>" — fetched once per
-// browser session (a blob file never changes once written).
-const blobPresenceByKey = new Map<string, boolean | undefined>();
-
-// Bumped at every showLine render; a settled presence probe re-renders ONLY when the pane
-// still shows the line it probed for (its captured count is still the current one).
-let showLineRenderCount = 0;
 
 // Whether the inspector body renders formatted text instead of highlighted JSON. Module-level
 // so the choice sticks across lines and re-opens for the browser session (same pattern as
@@ -81,48 +79,6 @@ export function openInspectorPane(): HTMLElement {
 function findCurrentProject(): string | undefined {
     const segments = parseRouteSegments();
     return segments[0] === "project" ? segments[1] : undefined;
-}
-
-// Tear down the snapshot drawer: remove its element and drop the pane's split modifier.
-function closeSnapshotDrawer(pane: HTMLElement, drawer: HTMLElement): void {
-    drawer.remove();
-    pane.classList.remove("snapshot-drawer");
-}
-
-// Assemble the snapshot drawer element (header with close button + the rendered blob text).
-function buildSnapshotDrawer(pane: HTMLElement, entry: WireTrackedBackup, blobName: string, snapshotText: HTMLElement): HTMLElement {
-    const drawer = el("div", { class: "snapshot-pane" }, [
-        el("div", { class: "snapshot-pane-header" }, [
-            el("span", { class: "muted", text: `${entry.relativePath} — ${blobName}` }),
-            el("button", { class: "row-btn", text: "Close", onclick: () => closeSnapshotDrawer(pane, drawer) }),
-        ]),
-        // el("pre", { class: "inspector-text", text: result.content ?? "" }), // (item 49)
-        snapshotText,
-    ]);
-    return drawer;
-}
-
-// Fetch each named blob's presence, record it, and re-show the SAME line once every probe
-// settles — but only when the pane still shows the line the probes were started for.
-function fetchBlobPresenceAndRerenderLine(unprobedNames: string[], sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
-    Promise.all(unprobedNames.map(async (name) => {
-        const probed = await fetchJson(computeBlobRequestUrl(sessionId, name)) as WireBlobResponse;
-        blobPresenceByKey.set(`${sessionId}|${name}`, probed.exists);
-    })).then(() => {
-        if (showLineRenderCount === renderCountAtStart) {
-            showLine(clamped);
-        }
-    }).catch(() => { /* a failed probe leaves presence unknown — tokens stay plain */ });
-}
-
-// Probe the on-disk presence of a record's tracked backups (unknowns only).
-function probeTrackedBackupPresence(trackedBackups: NonNullable<NonNullable<WireRecord["snapshot"]>["trackedFileBackups"]>, sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
-    const unprobedNames = Object.values(trackedBackups)
-        .map((entry) => entry.backupFileName)
-        .filter((name): name is string => name !== undefined && !blobPresenceByKey.has(`${sessionId}|${name}`));
-    if (unprobedNames.length > 0) {
-        fetchBlobPresenceAndRerenderLine(unprobedNames, sessionId, renderCountAtStart, showLine, clamped);
-    }
 }
 
 // Append the hook/result jump buttons for the shown tool call (each only when its line exists).
@@ -214,8 +170,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
     };
     const showLine = (index: number) => {
         const clamped = Math.min(Math.max(index, 0), rawLines.length - 1);
-        showLineRenderCount += 1;
-        const renderCountAtStart = showLineRenderCount;
+        const renderCountAtStart = bumpShowLineRenderCount();
         let value: WireValue;
         try {
             value = JSON.parse(rawLines[clamped]!) as WireValue;

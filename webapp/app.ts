@@ -6,7 +6,8 @@
 
 import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole } from "./app-console.ts";
 import { inflightLoadController } from "./app-fetch.ts";
-import { initializeHeader, renderRoute } from "./app-router.ts";
+import { initializeHeader } from "./app-header.ts";
+import { renderRoute } from "./app-router.ts";
 
 // Item 10a: dead code, commented out — a hidden inspector is display:none on EVERY route
 // (styles.css has no .inspector-pane.hidden rail override), so this handler could never fire.
