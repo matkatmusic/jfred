@@ -58,7 +58,7 @@ function runOutcomeForTarget(
     const { pre: preState } = executeRunOnce(run, records, reader, seedContent);
     const augmentedPre = new Map(preState);
     augmentedPre.set(rolling.key, rolling.content);
-    const postState = runScriptAgainstState(run.code, augmentedPre, formatRunSource(run));
+    const postState = runScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd);
     if (postState === undefined) return undefined;
     const content = postState.get(rolling.key);
     if (content === undefined || content === rolling.content) return undefined;

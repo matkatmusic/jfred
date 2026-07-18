@@ -76,6 +76,41 @@ export function readCommittedFileContent(
     return undefined;
 }
 
+// The INDEX (staged) blob of `cwdRelativePath` in `repoDir`, or undefined when the path is not
+// staged or the repo is absent. `git ls-files --stage` yields "<mode> <hash> <stage>\t<path>".
+function readIndexBlob(repoDir: Path, cwdRelativePath: string): string | undefined {
+    try {
+        const stageLine = execSync(`git ls-files --stage -- ${JSON.stringify(cwdRelativePath)}`, {
+            cwd: repoDir.toString(),
+            stdio: "pipe",
+        }).toString();
+        const hash = stageLine.split(/\s+/)[1];
+        if (hash === undefined) return undefined;
+        if (hash === "") return undefined;
+        return execSync(`git cat-file -p ${hash}`, { cwd: repoDir.toString(), stdio: "pipe" }).toString();
+    } catch {
+        return undefined;
+    }
+}
+
+// The STAGED bytes of `filePath` — the blob a recorded `git add` put in the repo's index. A
+// `git add` with no later commit leaves content nowhere else (s87: the driver's external edit
+// exists ONLY in the staged blob), so the index is its own evidence channel. Same repo-decay
+// fallback chain as readCommittedFileContent.
+export function readStagedFileContent(
+    repoCwd: Path,
+    filePath: Path,
+    fallbackRepoDirs: Path[] = [],
+): string | undefined {
+    const cwdRelativePath = relative(repoCwd.toString(), filePath.toString());
+    if (cwdRelativePath === "" || cwdRelativePath.startsWith("..")) return undefined;
+    for (const repoDir of [repoCwd, ...fallbackRepoDirs]) {
+        const content = readIndexBlob(repoDir, cwdRelativePath);
+        if (content !== undefined) return content;
+    }
+    return undefined;
+}
+
 // The directory the records' transcript was loaded from, when it carries a git repo — scenario
 // captures preserve a clone of the recorded repo next to the transcript, which outlives the
 // recorded temp cwd. Undefined for records without a source or a repo (live viewer transcripts

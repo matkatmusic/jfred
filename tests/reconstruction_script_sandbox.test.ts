@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { runScriptAgainstState } from "../src/reconstruction_script_sandbox.ts";
+import { Path } from "../src/structures/domain.ts";
 import { collectSandboxSpawnLabels } from "./script-execution-test-helpers.ts";
 
 test("test_runScriptAgainstState_returns_files_the_script_creates", () => {
@@ -13,6 +17,34 @@ test("test_runScriptAgainstState_returns_files_the_script_creates", () => {
     // assert the result map contains "out.txt" with the written content.
     assert.ok(result !== undefined);
     assert.equal(result!.get("out.txt"), "created\n");
+});
+
+test("test_runScriptAgainstState_remaps_recorded_cwd_into_sandbox", () => {
+    // Scenario: a script hardcodes its RECORDED cwd as an absolute path literal (s87 step 57);
+    // with the recorded cwd passed in, the sandbox must rewrite that literal to the sandbox dir
+    // so the transform applies to the SANDBOX copy and the real recorded directory is untouched.
+    // Steps:
+    // create a real directory standing in for the recorded cwd, holding the same file the pre-state seeds.
+    const recordedDir = mkdtempSync(join(tmpdir(), "reveng-recorded-"));
+    try {
+        writeFileSync(join(recordedDir, "demo.py"), "def add():\n    add()\n");
+        // run a script that reads and rewrites the file VIA the absolute recorded path.
+        const script =
+            `import re\n` +
+            `base = "${recordedDir}"\n` +
+            `text = open(base + "/demo.py").read()\n` +
+            `text = re.sub(r"\\badd\\b", "record", text)\n` +
+            `open(base + "/demo.py", "w").write(text)\n`;
+        const preState = new Map([["demo.py", "def add():\n    add()\n"]]);
+        const result = runScriptAgainstState(script, preState, "", new Path(recordedDir));
+        // assert the transform landed on the sandbox copy of the file.
+        assert.ok(result !== undefined);
+        assert.equal(result!.get("demo.py"), "def record():\n    record()\n");
+        // assert the real recorded directory still holds the original content (no sandbox escape).
+        assert.equal(readFileSync(join(recordedDir, "demo.py"), "utf8"), "def add():\n    add()\n");
+    } finally {
+        rmSync(recordedDir, { recursive: true, force: true });
+    }
 });
 
 // runScriptAgainstState executes a script in a temp dir and returns modified file content.

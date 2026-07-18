@@ -10,7 +10,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BackupPoint } from "./reconstruction_backup_timeline.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import type { GitCommitEvent } from "./reconstruction_git_commit_events.ts";
+import type { GitAddEvent, GitCommitEvent } from "./reconstruction_git_commit_events.ts";
 import type { FileEvent, FileRevision } from "./reconstruction_engine.ts";
 import type { RunExecution } from "./reconstruction_script_runs.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
@@ -37,6 +37,7 @@ export type CorpusState = {
     // pure: the snapshots live in the records; keyed by cwd string
     backupTimelinesByCwd: Map<string, Map<string, BackupPoint[]>>;
     gitCommitEvents: GitCommitEvent[] | undefined; // pure function of the records alone
+    gitAddEvents: GitAddEvent[] | undefined; // pure function of the records alone
     derived: DerivedCaches;
 };
 
@@ -64,6 +65,7 @@ export function getCorpusState(records: TranscriptRecord[]): CorpusState {
             fileEvents: undefined,
             backupTimelinesByCwd: new Map<string, Map<string, BackupPoint[]>>(),
             gitCommitEvents: undefined,
+            gitAddEvents: undefined,
             derived: buildDerivedCaches(undefined),
         };
         corpusStates.set(records, state);

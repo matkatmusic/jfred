@@ -7,8 +7,9 @@ import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
-import { gitCommitCommand } from "./regex_expressions.ts";
+import { gitAddCommand, gitCommitCommand } from "./regex_expressions.ts";
 import { splitCompoundCommandSegments } from "./reconstruction_git_operations.ts";
+import { resolveAgainstCwd } from "./structures/path-resolve.ts";
 
 // A recorded `git commit`: the repo it committed in (the -C dir, else the record cwd), when, and
 // the session whose Bash call ran it (for timeline attribution).
@@ -34,6 +35,54 @@ function parseCommitEventsFromCommand(
         });
     }
     return events;
+}
+
+// A recorded `git add <path>`: one explicitly named path (resolved against the -C dir, else the
+// record cwd) and when it was staged. Path-less forms (`git add -A`, `git add .`) name no explicit
+// file and yield NO events — the staged-blob evidence channel only trusts an add that names its
+// file. ponytail: explicit paths only; widen to `-A`/`.` via `git ls-files` if a scenario needs it.
+export type GitAddEvent = { path: Path; cwd?: Path; timestamp: Date };
+
+// One Bash command's add events: one per explicit path argument in each `&&` segment matching
+// `gitAddCommand`.
+function parseAddEventsFromCommand(command: string, recordCwd: Path | undefined, timestamp: Date): GitAddEvent[] {
+    const events: GitAddEvent[] = [];
+    for (const segment of splitCompoundCommandSegments(command)) {
+        const match = segment.match(gitAddCommand);
+        if (match === null) continue;
+        const dashCDir = match[1];
+        const cwd = dashCDir !== undefined ? new Path(dashCDir) : recordCwd;
+        for (const argument of (match[2] ?? "").trim().split(/\s+/)) {
+            if (argument === "") continue;
+            if (argument.startsWith("-")) continue;
+            if (argument === ".") continue;
+            events.push({ path: new Path(resolveAgainstCwd(cwd, new Path(argument))), cwd, timestamp });
+        }
+    }
+    return events;
+}
+
+// Every explicit-path `git add` Bash command in the transcript, in record order. Memoized like
+// findGitCommitEvents — the per-file repair chain re-enters here for every reconstructed file.
+export function findGitAddEvents(records: TranscriptRecord[]): GitAddEvent[] {
+    const state = getCorpusState(records);
+    if (state.gitAddEvents !== undefined) {
+        return state.gitAddEvents;
+    }
+    const adds: GitAddEvent[] = [];
+    for (const record of records) {
+        const timestamp = record.timestamp;
+        if (!(timestamp instanceof Date)) continue;
+        const recordCwd = (record as { cwd?: Path }).cwd;
+        for (const block of getContentBlocks(record)) {
+            if (block.type !== BlockType.tool_use || block.name !== ToolName.Bash) continue;
+            const command = (block.input as { command?: string }).command;
+            if (command === undefined) continue;
+            adds.push(...parseAddEventsFromCommand(command, recordCwd, timestamp));
+        }
+    }
+    state.gitAddEvents = adds;
+    return adds;
 }
 
 // Every `git commit` Bash command in the transcript, in record order. Memoized per records

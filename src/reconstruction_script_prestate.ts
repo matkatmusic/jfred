@@ -20,7 +20,8 @@ import {
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
-import { formatRunSource, pathBasename, type ScriptRun } from "./reconstruction_script_execution.ts";
+import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
+import { pathBasename } from "./reconstruction_script_indirection.ts";
 
 // --- static read-only detection (TASKS.md item 68) --------------------------------------------------
 

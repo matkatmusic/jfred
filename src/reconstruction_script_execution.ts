@@ -6,8 +6,8 @@ import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structure
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ContentBlock, type ToolUseBlock } from "./structures/content-blocks.ts";
-import { singleWhitespace } from "./regex_expressions.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
+import { indexWrittenContentByBasename, resolveScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 
 // The proven post-execution state of a script run for one target file: the forward transform already
@@ -101,98 +101,6 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
     return runs;
 }
 
-// The authored Write body for every file basename, first Write wins (same first-match
-// semantics as the retired per-basename scan, including a matching Write with an absent
-// content). One pass over the records — previously every resolved run re-scanned them all.
-function recordWrittenContentOfBlock(block: ContentBlock, writtenBodyByBasename: Map<string, string | undefined>): void {
-    if (block.type !== BlockType.tool_use) {
-        return;
-    }
-    if (block.name !== ToolName.Write) {
-        return;
-    }
-    const input = block.input as { file_path?: string; content?: string };
-    if (input.file_path === undefined) {
-        return;
-    }
-    const basename = pathBasename(input.file_path);
-    if (!writtenBodyByBasename.has(basename)) {
-        writtenBodyByBasename.set(basename, input.content);
-    }
-}
-
-function indexWrittenContentByBasename(records: TranscriptRecord[]): Map<string, string | undefined> {
-    const writtenBodyByBasename = new Map<string, string | undefined>();
-    for (const record of records) {
-        for (const block of getContentBlocks(record)) {
-            recordWrittenContentOfBlock(block, writtenBodyByBasename);
-        }
-    }
-    return writtenBodyByBasename;
-}
-
-// Resolve script-file indirection: when a run merely invokes a written script file, replace
-// the run's code with the invoked file's authored Write body. Handles two forms:
-//   1. Direct invocation: `python3 script.py`, `bash script.sh`, `node script.js`, `npx tsx script.ts`
-//   2. exec(open()) indirection: MCP ctx_execute wraps a script as `exec(open("file.py").read())`
-// A run that already inlines its code, or whose invoked file has no Write, is returned unchanged.
-// The script file extensions we resolve through indirection.
-const SCRIPT_EXTENSIONS = [".py", ".sh", ".js", ".ts"];
-
-// Whether a filename ends with a known script extension.
-function isScriptFile(name: string): boolean {
-    return SCRIPT_EXTENSIONS.some((ext) => name.endsWith(ext));
-}
-
-// Extract the invoked script filename from a direct-invocation command like
-// `python3 script.py`, `bash script.sh`, `node script.js`, `npx tsx script.ts`.
-function parseDirectInvocation(code: string): string | undefined {
-    const runners = ["python3", "python", "bash", "sh", "node", "npx tsx"];
-    for (const runner of runners) {
-        if (!code.includes(runner)) {
-            continue;
-        }
-        const after = code.slice(code.indexOf(runner) + runner.length).trimStart();
-        // first word after the runner, e.g. "apply.py --dry-run" -> "apply.py".
-        const filename = after.split(singleWhitespace)[0] ?? "";
-        if (isScriptFile(filename)) {
-            return filename;
-        }
-    }
-    return undefined;
-}
-
-// Extract the script filename from an exec(open()) wrapper like
-// `exec(open("rename_inv.py").read())` — the MCP ctx_execute form.
-function parseExecOpenIndirection(code: string): string | undefined {
-    const marker = 'exec(open("';
-    let start = code.indexOf(marker);
-    if (start < 0) {
-        start = code.indexOf("exec(open('");
-        if (start < 0) {
-            return undefined;
-        }
-        start += "exec(open('".length;
-    } else {
-        start += marker.length;
-    }
-    const end = code.indexOf('"', start) !== -1 ? code.indexOf('"', start) : code.indexOf("'", start);
-    if (end < 0) {
-        return undefined;
-    }
-    const filename = code.slice(start, end);
-    return isScriptFile(filename) ? filename : undefined;
-}
-
-function resolveScriptIndirection(run: ScriptRun, writtenBodyByBasename: Map<string, string | undefined>): ScriptRun {
-    const filename = parseDirectInvocation(run.code) ?? parseExecOpenIndirection(run.code);
-    if (filename === undefined) {
-        return run;
-    }
-    const body = writtenBodyByBasename.get(pathBasename(filename));
-    return body === undefined ? run : { ...run, code: body };
-}
-
 // Every script-execution run in the transcript, in record order, each with its source and timestamp.
 // A run that invokes a written script file is resolved to that file's body (resolveScriptIndirection).
 // Memoized per records identity in the corpus (pure group): the result depends on the records alone,
@@ -202,13 +110,7 @@ export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[
     if (state.scriptRuns !== undefined) {
         return state.scriptRuns;
     }
-    const writtenBodyByBasename = indexWrittenContentByBasename(records);
-    state.scriptRuns = records.flatMap(runsInRecord).map((run) => resolveScriptIndirection(run, writtenBodyByBasename));
+    const writtenBodiesByBasename = indexWrittenContentByBasename(records);
+    state.scriptRuns = records.flatMap(runsInRecord).map((run) => resolveScriptIndirection(run, writtenBodiesByBasename));
     return state.scriptRuns;
-}
-
-// The final path segment of a "/"-separated path string.
-export function pathBasename(value: string): string {
-    const slash = value.lastIndexOf("/");
-    return slash >= 0 ? value.slice(slash + 1) : value;
 }

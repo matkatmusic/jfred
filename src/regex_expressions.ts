@@ -213,3 +213,28 @@ export const renameArrowLine = new RegExp(
     globalFlag,
 );
 
+// A recorded `git add` command, with or without a `git -C <dir>` repo override. group 1 = the -C
+// directory when present; group 2 = everything after "add" (the argument tail, parsed by the
+// caller into explicit paths). Same shape as gitCommitCommand. Equivalent to the literal
+// /^git(?:\s+-C\s+(\S+))?\s+add(?!\w)(.*)/.
+export const gitAddCommand = new RegExp(
+    startAnchor + "git" + optionalGroup(oneOrMoreWhitespace + "-C" + oneOrMoreWhitespace + capturedWord) +
+        oneOrMoreWhitespace + "add" + negativeLookahead(wordChar) + capture(".*"),
+);
+
+// A two-string-literal move call in script CODE: `shutil.move("a.py", "b.py")` or
+// `os.rename("a.py", "b.py")`. group 1 = source, group 2 = destination. `g` finds every such call
+// in a run's code. Only LITERAL string arguments match — the variable form `shutil.move(src, dst)`
+// has no quotes, so a loop over computed pairs never fabricates a rename (s87 step 89's code names
+// its destinations literally; its loop body does not).
+// Equivalent to the literal /(?:shutil\.move|os\.rename)\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)/g.
+export const codeLiteralMoveCall = new RegExp(
+    anyOf("shutil" + literalDot + "move", "os" + literalDot + "rename")
+    + "\\(" + zeroOrMoreWhitespace
+    + '"' + capture(noneOf('"') + oneOrMore) + '"'
+    + zeroOrMoreWhitespace + "," + zeroOrMoreWhitespace
+    + '"' + capture(noneOf('"') + oneOrMore) + '"'
+    + zeroOrMoreWhitespace + "\\)",
+    globalFlag,
+);
+

@@ -137,10 +137,16 @@ function persistSandboxMemoToDisk(): void {
 }
 
 // One collision-safe key per distinct sandbox input: the script plus every seeded (path,
-// content) pair in sorted-path order, NUL-separated, hashed.
-function computeSandboxInputKey(script: string, preState: Map<string, string>): string {
+// content) pair in sorted-path order, NUL-separated, hashed. The recorded cwd participates
+// because it changes the effective script (its literal gets remapped to the sandbox dir) —
+// and its inclusion invalidates memoized failures persisted before the remap existed.
+function computeSandboxInputKey(script: string, preState: Map<string, string>, recordedCwd?: Path): string {
     const hash = createHash("sha256");
     hash.update(script);
+    if (recordedCwd !== undefined) {
+        hash.update("\0cwd\0");
+        hash.update(recordedCwd.toString());
+    }
     const sortedPaths = [...preState.keys()].sort();
     for (const path of sortedPaths) {
         hash.update("\0");
@@ -155,8 +161,9 @@ export function runScriptAgainstState(
     script: string,
     preState: Map<string, string>,
     sourceLabel = "",
+    recordedCwd?: Path,
 ): Map<string, string> | undefined {
-    const inputKey = computeSandboxInputKey(script, preState);
+    const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
     const memoizedOutcome = getCachedValueRefreshingRecency(sandboxOutcomesByInput, inputKey);
     if (memoizedOutcome !== undefined) {
         reportReconstructionProgress(
@@ -167,7 +174,7 @@ export function runScriptAgainstState(
     reportReconstructionProgress(
         `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${summarizeScriptForProgress(script)}`,
     );
-    const post = spawnSandboxRun(script, preState);
+    const post = spawnSandboxRun(script, preState, recordedCwd);
     sandboxOutcomesByInput.set(inputKey, { post });
     evictLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
     // Persist per batch, not per spawn: the whole-memo rewrite is O(N²) if done every time.
@@ -182,7 +189,14 @@ export function runScriptAgainstState(
 
 // The sandbox execution itself, extracted verbatim from the pre-memo body: seed a temp dir,
 // run python3, read back the resulting tree (undefined on any script failure).
-function spawnSandboxRun(script: string, preState: Map<string, string>): Map<string, string> | undefined {
+// A script that hardcodes its RECORDED cwd as an absolute literal would escape the sandbox and
+// touch (or mutate!) the real directory — so the recorded cwd, when known, is remapped to the
+// sandbox dir in the script text before it is written.
+function spawnSandboxRun(
+    script: string,
+    preState: Map<string, string>,
+    recordedCwd?: Path,
+): Map<string, string> | undefined {
     const tempDir = mkdtempSync(join(tmpdir(), "reveng-"));
     try {
         for (const [relativePath, content] of preState) {
@@ -190,7 +204,9 @@ function spawnSandboxRun(script: string, preState: Map<string, string>): Map<str
             mkdirSync(dirname(dest), { recursive: true });
             writeFileSync(dest, content);
         }
-        writeFileSync(join(tempDir, "__script__.py"), script);
+        const remappedScript =
+            recordedCwd === undefined ? script : script.replaceAll(recordedCwd.toString(), tempDir);
+        writeFileSync(join(tempDir, "__script__.py"), remappedScript);
         execSync("python3 __script__.py", { cwd: tempDir, timeout: 5000, stdio: "pipe" });
         const result = new Map<string, string>();
         for (const [relativePath, content] of readAllFiles(tempDir)) {

@@ -95,7 +95,7 @@ export function executeRunOnce(
     }
     reportReconstructionProgress(`executing script run @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const pre = getPreExecutionState(run, records, reader, seedContent);
-    const post = pre.size === 0 ? undefined : runScriptAgainstState(run.code, pre, formatRunSource(run));
+    const post = pre.size === 0 ? undefined : runScriptAgainstState(run.code, pre, formatRunSource(run), run.cwd);
     const execution: RunExecution = { pre, post };
     byRun.set(key, execution);
     return execution;

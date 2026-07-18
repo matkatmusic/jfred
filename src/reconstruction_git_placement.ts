@@ -18,53 +18,19 @@ import {
 } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
 import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
-import type { FileEvent, UserEditEvent, WriteEvent } from "./reconstruction_engine.ts";
-import { findGitCommitEvents, type GitCommitEvent } from "./reconstruction_git_commit_events.ts";
-import { findFallbackRepoDirs, readCommittedFileContent } from "./reconstruction_git_evidence.ts";
+import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_engine.ts";
+import { findGitAddEvents, findGitCommitEvents, type GitCommitEvent } from "./reconstruction_git_commit_events.ts";
+import { findFallbackRepoDirs, readCommittedFileContent, readStagedFileContent } from "./reconstruction_git_evidence.ts";
+import { applyAdditions, pureAdditionsFrom, type LineAddition } from "./reconstruction_git_additions.ts";
 
 // A lineage event carrying the file's FULL content at its instant (not a hunk-based edit).
-type FullContentEvent = WriteEvent | UserEditEvent | ScriptExecutionEvent;
+type FullContentEvent = WriteEvent | OverwriteEvent | UserEditEvent | ScriptExecutionEvent;
 
 function isFullContentEvent(event: FileEvent): event is FullContentEvent {
     return event.kind === EventKind.write
+        || event.kind === EventKind.overwrite
         || event.kind === EventKind.userEdit
         || event.kind === EventKind.scriptExecution;
-}
-
-// One line the blob carries beyond the base, anchored to the base line it follows (undefined =
-// inserted at the start of the file).
-type LineAddition = { anchor: string | undefined; line: string };
-
-// The blob as the base plus pure line insertions, or undefined when the blob deletes or changes
-// any base line (then the diff is not "unexplained additions" and the stage must stay silent).
-function pureAdditionsFrom(baseLines: string[], blobLines: string[]): LineAddition[] | undefined {
-    const additions: LineAddition[] = [];
-    let baseIndex = 0;
-    for (const line of blobLines) {
-        if (baseIndex < baseLines.length && line === baseLines[baseIndex]) {
-            baseIndex += 1;
-            continue;
-        }
-        additions.push({ anchor: baseIndex > 0 ? baseLines[baseIndex - 1] : undefined, line });
-    }
-    if (baseIndex !== baseLines.length || additions.length === 0) return undefined;
-    return additions;
-}
-
-// `lines` with each addition inserted after the LAST occurrence of its anchor (or at the start),
-// or undefined when an anchor line is absent — the addition cannot be re-anchored onto this base.
-function applyAdditions(lines: string[], additions: LineAddition[]): string[] | undefined {
-    const result = [...lines];
-    for (const { anchor, line } of additions) {
-        if (anchor === undefined) {
-            result.unshift(line);
-            continue;
-        }
-        const at = result.lastIndexOf(anchor);
-        if (at < 0) return undefined;
-        result.splice(at + 1, 0, line);
-    }
-    return result;
 }
 
 // The recorded run whose instant stamps `event`, or undefined (a script-execution event is always
@@ -95,7 +61,7 @@ function replayRunsOver(
         const key = computeScriptStateKey(target, run.cwd);
         const preState = new Map(executeRunOnce(run, records, reader).pre);
         preState.set(key, rolling);
-        const postState = runScriptAgainstState(run.code, preState);
+        const postState = runScriptAgainstState(run.code, preState, "", run.cwd);
         const post = postState?.get(key);
         if (post === undefined) return undefined;
         rewrites.set(index, post);
@@ -155,8 +121,45 @@ function placementAfter(
     return result;
 }
 
-// Place one commit's unexplained diff onto the lineage, or undefined when the blob is absent,
-// already explained, not a pure addition, or no placement survives forward re-execution.
+// Place one evidence blob's unexplained diff onto the lineage, or undefined when the blob is
+// absent, already explained, not a pure addition, or no placement survives forward re-execution.
+function placeOneBlobDiff(
+    blob: string,
+    evidenceInstant: Date,
+    events: FileEvent[],
+    runs: ScriptRun[],
+    target: Path,
+    records: TranscriptRecord[],
+    reader: BackupReader,
+): FileEvent[] | undefined {
+    const indexedEvents = events.map((event, index) => ({ event, index }));
+    const atOrBeforeEvidence = indexedEvents.filter(({ event }) => event.timestamp.getTime() <= evidenceInstant.getTime());
+    const fullContentEvents = atOrBeforeEvidence.filter(({ event }) => isFullContentEvent(event));
+    const beforeEvidence = fullContentEvents.map(({ index }) => index);
+    if (beforeEvidence.length === 0) return undefined;
+    const atEvidence = events[beforeEvidence[beforeEvidence.length - 1]!] as FullContentEvent;
+    if (atEvidence.content === blob) return undefined;
+    const additions = pureAdditionsFrom(splitLines(atEvidence.content), splitLines(blob));
+    if (additions === undefined) return undefined;
+    for (let position = 0; position < beforeEvidence.length; position += 1) {
+        const placed = placementAfter(
+            beforeEvidence[position]!,
+            additions,
+            beforeEvidence.slice(position + 1),
+            blob,
+            events,
+            runs,
+            target,
+            records,
+            reader,
+            evidenceInstant,
+        );
+        if (placed !== undefined) return placed;
+    }
+    return undefined;
+}
+
+// One commit's blob for `target`, resolved from the recorded repo (with decay fallbacks).
 function placeOneCommitDiff(
     commit: GitCommitEvent,
     events: FileEvent[],
@@ -169,39 +172,34 @@ function placeOneCommitDiff(
     // item 46: const blob = readCommittedFileContent(commit.cwd, commit.timestamp, target, findPreservedRepoDir(records));
     const blob = readCommittedFileContent(commit.cwd, commit.timestamp, target, findFallbackRepoDirs(records));
     if (blob === undefined) return undefined;
-    const indexedEvents = events.map((event, index) => ({ event, index }));
-    const atOrBeforeCommit = indexedEvents.filter(({ event }) => event.timestamp.getTime() <= commit.timestamp.getTime());
-    const fullContentEvents = atOrBeforeCommit.filter(({ event }) => isFullContentEvent(event));
-    const beforeCommit = fullContentEvents.map(({ index }) => index);
-    if (beforeCommit.length === 0) return undefined;
-    const atCommit = events[beforeCommit[beforeCommit.length - 1]!] as FullContentEvent;
-    if (atCommit.content === blob) return undefined;
-    const additions = pureAdditionsFrom(splitLines(atCommit.content), splitLines(blob));
-    if (additions === undefined) return undefined;
-    for (let position = 0; position < beforeCommit.length; position += 1) {
-        const placed = placementAfter(
-            beforeCommit[position]!,
-            additions,
-            beforeCommit.slice(position + 1),
-            blob,
-            events,
-            runs,
-            target,
-            records,
-            reader,
-            commit.timestamp,
-        );
-        if (placed !== undefined) return placed;
-    }
-    return undefined;
+    return placeOneBlobDiff(blob, commit.timestamp, events, runs, target, records, reader);
 }
 
-// Reconstruction stage: when a recorded `git commit`'s blob for `target` differs from the lineage
-// content at the commit instant by pure line additions no event explains, splice those additions
-// as a synthetic user edit at the earliest point from which forward re-execution of the remaining
-// runs reproduces the blob byte-exactly (s85: the out-of-band comment lands between the move and
-// the rename runs). Every absence — no commits, no repo, no blob, no valid placement — is a
-// silent no-op.
+// The staged (index) blob behind the LAST recorded `git add <target>`, when one exists. Only the
+// last add is trusted: the index holds one blob per path — whatever the most recent add staged.
+function placeStagedBlobDiff(
+    records: TranscriptRecord[],
+    events: FileEvent[],
+    runs: ScriptRun[],
+    target: Path,
+    reader: BackupReader,
+): FileEvent[] | undefined {
+    const addsOfTarget = findGitAddEvents(records).filter((add) => add.path.equals(target));
+    if (addsOfTarget.length === 0) return undefined;
+    const lastAdd = addsOfTarget.reduce((a, b) => (b.timestamp.getTime() >= a.timestamp.getTime() ? b : a));
+    if (lastAdd.cwd === undefined) return undefined;
+    const blob = readStagedFileContent(lastAdd.cwd, target, findFallbackRepoDirs(records));
+    if (blob === undefined) return undefined;
+    return placeOneBlobDiff(blob, lastAdd.timestamp, events, runs, target, records, reader);
+}
+
+// Reconstruction stage: when a recorded `git commit`'s (or, failing that, a recorded
+// `git add`'s STAGED) blob for `target` differs from the lineage content at the evidence instant
+// by pure line additions no event explains, splice those additions as a synthetic user edit at
+// the earliest point from which forward re-execution of the remaining runs reproduces the blob
+// byte-exactly (s85: the out-of-band comment lands between the move and the rename runs; s87:
+// the driver's duplicate comment exists ONLY in the staged blob — `git add` with no commit).
+// Every absence — no commits/adds, no repo, no blob, no valid placement — is a silent no-op.
 export function placeGitCommitEvidence(
     records: TranscriptRecord[],
     events: FileEvent[],
@@ -209,12 +207,12 @@ export function placeGitCommitEvidence(
     target: Path,
 ): FileEvent[] {
     if (!isImpureExecutionAllowed()) return events;
-    const commits = findGitCommitEvents(records);
-    if (commits.length === 0) return events;
     const runs = findScriptExecutionRuns(records);
-    for (const commit of commits) {
+    for (const commit of findGitCommitEvents(records)) {
         const placed = placeOneCommitDiff(commit, events, runs, target, records, reader);
         if (placed !== undefined) return placed;
     }
+    const placedFromStage = placeStagedBlobDiff(records, events, runs, target, reader);
+    if (placedFromStage !== undefined) return placedFromStage;
     return events;
 }

@@ -64,6 +64,40 @@ test("test_findScriptExecutionRuns_carries_the_records_cwd_on_each_run", () => {
     assert.equal(runs[0]!.cwd?.toString(), "/tmp/proj");
 });
 
+test("test_findScriptExecutionRuns_resolves_indirection_to_the_body_current_at_each_run_instant", () => {
+    // Scenario: a script file is Written, run, REWRITTEN, and run again (s87's apply_renames.py,
+    // written 5×). Each `python3 <file>` run must resolve to the body current at ITS instant —
+    // never to whichever Write happened to load last in readdir order.
+    // Steps:
+    // write version 1 of the script, run it, write version 2, run it again.
+    const records = [
+        buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v1')\n" }, "2026-01-01T00:00:01Z", "/w"),
+        buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:02Z", "/w"),
+        buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v2')\n" }, "2026-01-01T00:00:03Z", "/w"),
+        buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:04Z", "/w"),
+    ];
+    const runs = findScriptExecutionRuns(records);
+    // assert both runs resolved, the first to version 1's body and the second to version 2's.
+    assert.equal(runs.length, 2);
+    assert.equal(runs[0]!.code, "print('v1')\n");
+    assert.equal(runs[1]!.code, "print('v2')\n");
+});
+
+test("test_findScriptExecutionRuns_resolves_indirection_time_aware_across_record_order", () => {
+    // Scenario: the same two-write history, but the records arrive in readdir order with the
+    // EARLIER write loaded LAST — resolution must still be by timestamp, not load order.
+    const records = [
+        buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v2')\n" }, "2026-01-01T00:00:03Z", "/w"),
+        buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:04Z", "/w"),
+        buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v1')\n" }, "2026-01-01T00:00:01Z", "/w"),
+        buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:02Z", "/w"),
+    ];
+    const runs = findScriptExecutionRuns(records);
+    const sortedRuns = [...runs].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    assert.equal(sortedRuns[0]!.code, "print('v1')\n");
+    assert.equal(sortedRuns[1]!.code, "print('v2')\n");
+});
+
 // --- item 34: deterministic synthetic changeIds -----------------------------------------------------
 
 test("test_computeScriptExecutionChangeId_is_deterministic_for_same_run_and_target", () => {
