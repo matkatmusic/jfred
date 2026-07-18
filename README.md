@@ -8,12 +8,10 @@ invisible to checkpoints. JFRED reconstructs a session's full file-change histor
 anyway — from the session's JSONL transcript and the file-history sidecar backups
 Claude Code already keeps on your machine.
 
-<!-- screenshots: task 62 -->
 ![JFRED timeline](assets/hero-timeline.png)
 
 ## What it looks like
 
-<!-- screenshots: task 62 -->
 ![Timeline with event-type filter bar](assets/timeline-filterbar.png)
 
 ![Transcript inspector](assets/inspector.png)
@@ -56,6 +54,10 @@ npm run app          # builds the webapp, serves it against ~/.claude/projects
 
 Then open <http://localhost:7343>. Everything runs on your machine; your transcripts
 never leave it.
+
+No sessions of your own yet? Run `npm run demo` instead — it serves a bundled,
+sanitized real session (a 16-session composite capture with script runs, renames,
+git operations, and external edits) so the timeline is populated out of the box.
 
 To point the viewer at a different projects folder (or a copied one), run the server
 directly — `--projects-dir` is required, the rest are optional:
