@@ -74,11 +74,28 @@ test("test_buildRevisionCards_numbers_revisions_and_carries_kinds", () => {
             { kind: EventKind.userEdit as string, changeId: "toolu_B2", timestamp: "2026-07-01T10:05:00Z" },
         ],
     };
-    // Step 2: cards are 1-based, and each carries its revision's kind, timestamp, and changeId.
+    // Step 2: cards are 1-based, and each carries its revision's kind, timestamp, and changeId
+    // (both revisions recovered, so no unrecoverable reason).
     assert.deepEqual(buildRevisionCards(history), [
-        { revisionNumber: 1, opLabel: EventKind.write, timestamp: "2026-07-01T10:00:00Z", changeId: "toolu_A1" },
-        { revisionNumber: 2, opLabel: EventKind.userEdit, timestamp: "2026-07-01T10:05:00Z", changeId: "toolu_B2" },
+        { revisionNumber: 1, opLabel: EventKind.write, timestamp: "2026-07-01T10:00:00Z", changeId: "toolu_A1", unrecoverableReason: undefined },
+        { revisionNumber: 2, opLabel: EventKind.userEdit, timestamp: "2026-07-01T10:05:00Z", changeId: "toolu_B2", unrecoverableReason: undefined },
     ]);
+});
+
+test("test_buildRevisionCards_flags_unrecoverable_revision", () => {
+    // Step 1: a history whose second revision the engine could not replay (task 119) — its
+    // wire revision carries the unrecoverable placeholder marker.
+    const history = {
+        target: "src/orders.py",
+        revisions: [
+            { kind: EventKind.write as string, changeId: "toolu_A1", timestamp: "2026-07-01T10:00:00Z" },
+            { kind: EventKind.edit as string, changeId: "toolu_B2", timestamp: "2026-07-01T10:05:00Z", unrecoverable: { reason: "sidecar backup missing" } },
+        ],
+    };
+    // Step 2: the placeholder's card carries the reason; the recovered card carries none.
+    const cards = buildRevisionCards(history);
+    assert.equal(cards[0]!.unrecoverableReason, undefined);
+    assert.equal(cards[1]!.unrecoverableReason, "sidecar backup missing");
 });
 
 test("test_mapStoredDiffModeToToggle_maps_split_to_columns", () => {

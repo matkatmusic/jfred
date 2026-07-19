@@ -50,6 +50,9 @@ export type FileRevision = {
     lines: LineEntry[];
     rename?: RenameInfo;
     copy?: CopyInfo;
+    // Present when this revision could not be reconstructed: the replay of its event threw and
+    // its lines are the previous revision's carried forward, not real content.
+    unrecoverable?: { reason: string };
 };
 
 // One file's reconstructed history.

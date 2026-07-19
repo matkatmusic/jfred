@@ -210,3 +210,11 @@ export enum GitOperationKind {
 
 export const KNOWN_GIT_OPERATION_KINDS: GitOperationKind[] = Object.values(GitOperationKind);
 
+// Where a partial-reconstruction failure was caught: one stage of one file's chain, a whole
+// file's reconstruction, or one sub-phase of the document build.
+export enum FailureScope {
+    fileStage = "file-stage",
+    file = "file",
+    documentPhase = "document-phase",
+}
+

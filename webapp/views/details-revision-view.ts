@@ -75,6 +75,19 @@ function buildRevisionActionsElement(
     ]);
 }
 
+// task 119: an unrecoverable placeholder's card — dashed "rev N ✗" head plus the reason where
+// the action row would sit: the placeholder's lines are the prior revision carried forward, so
+// content/export/patch actions would lie.
+function buildMissingRevisionCard(card: RevisionCard): HTMLElement {
+    return el("div", { class: "rev-card missing" }, [
+        el("div", { class: "rev-head" }, [
+            el("span", { text: `rev ${card.revisionNumber} ✗` }),
+            el("span", { class: "rev-ts", text: new Date(card.timestamp).toLocaleString() }),
+        ]),
+        el("div", { class: "why", text: card.unrecoverableReason! }),
+    ]);
+}
+
 export function renderDetailsFileMode(target: string, context: DetailsContext, focus?: RevisionFocus): void {
     revealDetailsPane();
     setDetailsHeader(`File Revisions — ${target}`);
@@ -210,14 +223,18 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         }) as EventListener,
     });
     cards.forEach((card, index) => {
-        // item 84: the range toggle. buildActionButton stops propagation for us — toggling a card
-        // into the range must not also fire the card's own diff swap.
+        // item 84: range toggle — buildActionButton stops propagation so toggling never fires the card's diff swap.
         const rangeToggle = buildActionButton("☐", () => toggleRangeCard(index));
+        // Pushed even for missing cards (unrendered there) so rangeToggles[i] stays card i's toggle.
         rangeToggles.push(rangeToggle);
-        const cardElement = el("div", { class: "rev-card" }, [
+        // Built for missing cards too (like the toggle) but only attached on healthy ones.
+        const healthyCardRows = [
             buildRevisionHeadElement(rangeToggle, card),
             buildRevisionActionsElement(buildActionButton, context, target, baseName, card, index, revisionContents, getDiffBlocks),
-        ]);
+        ];
+        const cardElement = card.unrecoverableReason === undefined
+            ? el("div", { class: "rev-card" }, healthyCardRows)
+            : buildMissingRevisionCard(card);
         cardElement.onclick = () => {
             selectCard(cardElement);
             void showCardDiff(card, index);

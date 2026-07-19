@@ -53,7 +53,7 @@ test("test_selectBranchRecords_returns_the_input_array_when_the_tip_covers_every
 test("test_selectLiveBranch_still_filters_when_records_are_dropped", () => {
     // Scenario: a rewound session (S19) has abandoned-branch records — the live selection must
     // remain a strict subset, NOT the input array; the identity collapse is content-equal only.
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const live = selectLiveBranch(records);
     assert.notEqual(live, records);
     assert.ok(live.length < records.length);
@@ -62,14 +62,14 @@ test("test_selectLiveBranch_still_filters_when_records_are_dropped", () => {
 test("test_selectLiveBranch_returns_the_same_array_instance_for_the_same_records", () => {
     // Scenario: branch selection is memoized per records-array identity, so downstream
     // identity-keyed caches (script executions, file histories) hit across document passes.
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     assert.equal(selectLiveBranch(records), selectLiveBranch(records));
 });
 
 test("test_reconstructAll_reuses_memoized_histories_across_passes", () => {
     // Scenario: two reconstructAll passes over the same records (the document build's pass 1
     // and pass 5) share the memoized per-file revisions instead of recomputing them.
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const first = reconstructAll(records);
     const second = reconstructAll(records);
     assert.ok(first.length > 0);
@@ -82,7 +82,7 @@ test("test_reconstruction_memo_is_invalidated_when_the_exec_gate_flips", () => {
     // Scenario: histories reconstructed with the gate on must not be served after it turns off
     // (and vice versa) — the gate changes what injectScriptExecutions may produce.
     assert.equal(isImpureExecutionAllowed(), true);
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const gateOn = reconstructAll(records);
     try {
         setImpureExecutionAllowed(false);
@@ -148,7 +148,7 @@ test("test_branch_selections_survive_an_exec_gate_flip", () => {
     // Scenario: branch selections are pure functions of the records alone — the exec gate must
     // NOT invalidate them (pins the corpus's two-group validity split: records-pure selections
     // vs reader/gate-validated derived caches).
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const before = selectLiveBranch(records);
     try {
         setImpureExecutionAllowed(false);
@@ -161,7 +161,7 @@ test("test_branch_selections_survive_an_exec_gate_flip", () => {
 test("test_derived_caches_are_invalidated_when_the_reader_identity_changes", () => {
     // Scenario: two distinct reader closures — even behaviorally identical ones — must not share
     // memoized histories: the derived-cache group is keyed on the reader's IDENTITY.
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const readerA: BackupReader = () => "";
     const readerB: BackupReader = () => "";
     const withReaderA = reconstructAll(records, readerA);

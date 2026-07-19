@@ -40,7 +40,7 @@ test("test_cached_record_replay_is_throttled_counted_and_token_bearing", () => {
     // Prime both caches, then re-run the cache-hit replay through a spy sink and assert the per-record
     // events are bounded, monotonic, reach 100%, and still carry the clickable source token.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
-    const recordCount = loadTranscript(jsonlPath.toString()).length;
+    const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     loadProjectRecords([jsonlPath]);
     const events: ProgressEvent[] = [];
     loadProjectRecords([jsonlPath], (event) => events.push(event));

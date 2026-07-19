@@ -11,6 +11,7 @@ import {
     type BuiltReconstruction,
 } from "./reconstruction_json.ts";
 import { reconstructBranches } from "./reconstruction_engine.ts";
+import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { serializePathOverrides } from "./reconstruction_overrides.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -54,13 +55,16 @@ export function formatSendingDocumentLabel(byteLength: number): string {
 export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink): BuiltReconstruction {
     // The per-record walk belongs to the caller's own loadProjectRecords call (the /api/document
     // route always pre-walks); the build emits stages and deep-engine progress only.
-    const records = loadProjectRecords(jsonlPaths);
+    // skippedLines rides to the wire document (the webapp's partial-reconstruction gaps).
+    const { records, skippedLines } = loadProjectRecords(jsonlPaths);
+    // task 119: a previous build's aborted leftovers must not leak into this document's failures.
+    clearReconstructionFailures();
     reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
     const reader = buildSidecarReader(records);
     reportStage(onProgress, PROGRESS_LABEL_CONSTRUCTING_BRANCHES);
     const branched = reconstructBranches(records, reader);
     reportStage(onProgress, PROGRESS_LABEL_BUILDING_DOCUMENT);
-    return buildReconstructionDocument(records, branched, reader, target);
+    return buildReconstructionDocument(records, branched, reader, target, skippedLines);
 }
 
 // The wire document alone — the back-compat surface every non-range-patch caller uses (the histories

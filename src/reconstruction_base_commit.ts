@@ -17,10 +17,11 @@
 import { execSync } from "node:child_process";
 import { relative } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
-import { EventKind } from "./structures/vocabulary.ts";
+import { EventKind, FailureScope } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_engine.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
+import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 
 export const BASE_COMMIT_CHANGE_ID_PREFIX = "gitBase:";
@@ -101,6 +102,10 @@ export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEv
     }
     const timestamp = readCommitTimestamp(repoDir, baseCommit);
     if (timestamp === undefined) {
+        // A baseline IS recorded but its commit cannot be read — the configured repo moved or was
+        // cleaned. Unlike the benign guards above (normal no-baseline sessions), this is missing
+        // evidence, so it is noted for the wire document before the usual silent degradation.
+        noteReconstructionFailure({ scope: FailureScope.fileStage, stage: "seedBaseCommitBeacon", target, reason: "git baseline commit unreadable (recorded repo missing)" });
         return events;
     }
     const content = readCommitFileContent(repoDir, baseCommit, relativePath);

@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { parseRecord } from "./parseRecord.ts";
+import { parseRecord, UnknownRecordTypeError } from "./parseRecord.ts";
+import { findUnmodeledTopLevelKeys, UnmodeledFieldError } from "./recordKeys.ts";
 import type { TranscriptRecord } from "../structures/envelope.ts";
-import { DocumentResponseKind, ENVELOPE_KEYS, RecordType } from "../structures/vocabulary.ts";
+import { Path } from "../structures/domain.ts";
+import { DocumentResponseKind } from "../structures/vocabulary.ts";
 
 // One announcement emitted while a document builds. `current`/`total` ride only on the
 // counted per-record parse events. Lives in the lowest module in the import chain
@@ -36,115 +38,8 @@ export function formatRecordSourceToken(source: RecordSource | undefined): strin
     return ` [${basename(source.filePath)}:${source.lineNumber}]`;
 }
 
-// The keys every session-meta record carries (file-history-snapshot excepted —
-// it has `type` but no `sessionId`). ENVELOPE_KEYS (the conversational-record
-// field list) is imported from envelope.ts as the single source.
-const META_KEYS = ["type", "sessionId"] as const;
-
-// Union a base key group with a record's extra keys into an allow-set.
-function keys(
-    base: readonly string[],
-    ...extra: string[]
-): ReadonlySet<string> {
-    return new Set([...base, ...extra]);
-}
-
-// Session metadata observed on every conversational record type in real transcripts
-// (2026-07-05 corpus audit of ~/Programming/jot-recovery/claude-data/projects):
-// session_id is a snake_case sessionId duplicate (CC 2.1.198+); sessionKind marks
-// background sessions ("bg", CC 2.1.154/2.1.173 only — unreproducible today).
-const OBSERVED_SESSION_METADATA_KEYS = ["session_id", "sessionKind"] as const;
-
-// The exact set of top-level keys each record type carries in s1
-// (recon/07-s1-field-inventory.md, union across per-record variants), extended by
-// the 2026-07-05 corpus audit of real transcripts (fields the scenario captures never
-// produced: subagent runs, API retries, Esc-interrupts, permission denials, queued
-// prompts, image pastes, web-bridge sessions, version-transient spellings — evidence
-// cited per field in tests/loadTranscript.test.ts). This is the runtime expression of
-// the field-level fog-of-war boundary: a record may carry a subset of these keys, but
-// never a key outside its set.
-export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
-    [RecordType.aiTitle]: keys(META_KEYS, "aiTitle"),
-    [RecordType.agentName]: keys(META_KEYS, "agentName"),
-    [RecordType.customTitle]: keys(META_KEYS, "customTitle"),
-    [RecordType.assistant]: keys(
-        ENVELOPE_KEYS, "message", "requestId", "attributionMcpServer", "attributionMcpTool",
-        "attributionPlugin", "attributionSkill",
-        ...OBSERVED_SESSION_METADATA_KEYS,
-        // subagent identity/attribution; API-error markers (audit 2026-07-05).
-        "agentId", "attributionAgent", "isApiErrorMessage", "error", "apiErrorStatus",
-        // reasoning-effort level on assistant turns (s87 capture, 2026-07-17).
-        "effort",
-    ),
-    [RecordType.attachment]: keys(
-        ENVELOPE_KEYS, "attachment",
-        ...OBSERVED_SESSION_METADATA_KEYS,
-        // subagent identity (audit 2026-07-05).
-        "agentId",
-    ),
-    [RecordType.bridgeSession]: keys(META_KEYS, "bridgeSessionId", "lastSequenceNum"),
-    [RecordType.fileHistorySnapshot]: keys(
-        ["type"], "messageId", "snapshot", "isSnapshotUpdate",
-    ),
-    // Like file-history-snapshot, no sessionId (s87 capture, 2026-07-17).
-    [RecordType.fileHistoryDelta]: keys(
-        ["type"], "messageId", "snapshotMessageId", "trackingPath", "backup", "timestamp",
-    ),
-    // Opens real subagents/agent-*.jsonl transcripts: the forked agent and its parent
-    // session (audit 2026-07-05). Carries agentId, not sessionId — META_KEYS doesn't apply.
-    [RecordType.forkContextRef]: keys(
-        ["type"], "agentId", "parentSessionId", "parentLastUuid", "contextLength",
-    ),
-    [RecordType.lastPrompt]: keys(META_KEYS, "leafUuid", "lastPrompt"),
-    [RecordType.mode]: keys(META_KEYS, "mode"),
-    [RecordType.permissionMode]: keys(META_KEYS, "permissionMode"),
-    [RecordType.queueOperation]: keys(META_KEYS, "operation", "timestamp", "content"),
-    [RecordType.system]: keys(
-        ENVELOPE_KEYS,
-        "subtype", "level", "content", "isMeta", "durationMs", "messageCount",
-        "hasOutput", "hookAdditionalContext", "hookCount", "hookErrors",
-        "hookInfos", "preventedContinuation", "stopReason", "toolUseID",
-        "logicalParentUuid", "compactMetadata",
-        ...OBSERVED_SESSION_METADATA_KEYS,
-        // bridge_status url; turn_duration background-agent count; preventContinuation is
-        // the CC 2.1.181-197 spelling of preventedContinuation; api_error retry group
-        // (CC ≤2.1.179) (audit 2026-07-05).
-        "url", "pendingBackgroundAgentCount", "preventContinuation",
-        "error", "retryInMs", "retryAttempt", "maxRetries", "cause",
-    ),
-    [RecordType.user]: keys(
-        ENVELOPE_KEYS,
-        "message", "promptId", "origin", "permissionMode", "promptSource",
-        "sourceToolAssistantUUID", "toolUseResult", "isMeta",
-        "isVisibleInTranscriptOnly", "isCompactSummary",
-        ...OBSERVED_SESSION_METADATA_KEYS,
-        // subagent identity; Esc-interrupt marker; tool-result back-reference; denied
-        // permission prompt; pasted images; queued-prompt priority (audit 2026-07-05).
-        "agentId", "interruptedMessageId", "sourceToolUseID", "toolDenialKind",
-        "imagePasteIds", "queuePriority",
-    ),
-};
-
-// Thrown when a record carries a top-level key not modeled for its type, so a
-// fog-of-war violation (a field we have not accounted for) cannot pass silently.
-export class UnmodeledFieldError extends Error {
-    readonly recordType: string;
-    readonly fieldName: string;
-
-    constructor(recordType: string, fieldName: string) {
-        super(`Unmodeled top-level key "${fieldName}" on ${recordType} record`);
-        this.name = "UnmodeledFieldError";
-        this.recordType = recordType;
-        this.fieldName = fieldName;
-    }
-}
-
-// The top-level keys a record carries that are not modeled for its type (empty when all known).
-// Exported for scripts/audit_unmodeled_fields.ts, the batch corpus auditor.
-export function findUnmodeledTopLevelKeys(record: TranscriptRecord): string[] {
-    const allowed = ALLOWED_TOP_LEVEL_KEYS[record.type];
-    return Object.keys(record).filter((key) => !allowed.has(key));
-}
+// The field allow-set and its guard machinery (ALLOWED_TOP_LEVEL_KEYS, UnmodeledFieldError,
+// findUnmodeledTopLevelKeys) live in recordKeys.ts (250-line cap split).
 
 function assertOnlyKnownTopLevelKeys(record: TranscriptRecord): void {
     const unmodeled = findUnmodeledTopLevelKeys(record);
@@ -161,14 +56,13 @@ export function parseTranscriptLine(line: string): TranscriptRecord {
     return record;
 }
 
-// Load a whole transcript file into typed records. Throws on the first unknown
-// record type or unmodeled top-level key.
 // Load a whole transcript file into typed records. Strict by default: throws on the first unknown
 // record type or unmodeled top-level key (the engine's fog-of-war guard — kept for the CLI and the
 // tests). When `tolerateUnmodeledFields` is set (the viewer, which opens arbitrary real sessions
 // that carry fields the scenarios never modeled), an unmodeled field is reported through
-// `onProgress` — once per (type, field) per file — instead of thrown. An unknown record *type*
-// still throws either way: its whole shape is unknown, not just one extra field.
+// `onProgress` — once per (type, field) per file — instead of thrown, and a line that cannot
+// parse at all (malformed JSON, an unknown record type, a hydration throw) is skipped, reported
+// through `onProgress`, and captured as a SkippedLine; only strict mode still throws on those.
 function reportUnmodeledTopLevelFields(
     record: TranscriptRecord,
     reportedUnmodeled: Set<string>,
@@ -192,11 +86,72 @@ function reportUnmodeledFieldOnce(
     }
 }
 
+// One line the tolerant loader could not parse: where it was, why, and (when the raw JSON
+// still carried one) its timestamp — the webapp uses it to place the gap in the timeline.
+export type SkippedLine = {
+    filePath: Path;
+    lineNumber: number;
+    timestamp?: Date;
+    reason: string;
+};
+
+// A loaded transcript: the parsed records plus every line tolerant mode skipped (always
+// empty in strict mode, which throws instead).
+export type LoadedTranscript = {
+    records: TranscriptRecord[];
+    skippedLines: SkippedLine[];
+};
+
+// The `timestamp` wire string of a line, hydrated to a Date — best-effort: undefined when the
+// re-parse fails, the field is absent, or it is not a string. Called only for lines whose JSON
+// already parsed once (the guard covers the theoretical re-parse throw anyway).
+function readLineTimestamp(text: string): Date | undefined {
+    try {
+        const raw = (JSON.parse(text) as { timestamp?: unknown }).timestamp;
+        return typeof raw === "string" ? new Date(raw) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+// Turn one tolerant-mode parse throw into its SkippedLine: an unknown record type keeps its
+// message (and the line's timestamp, readable because the JSON parsed); malformed JSON gets a
+// "malformed JSON" reason; anything else (a hydration throw) is stringified as-is.
+function describeSkippedLine(filePath: string, lineNumber: number, text: string, error: unknown): SkippedLine {
+    if (error instanceof UnknownRecordTypeError) {
+        return { filePath: new Path(filePath), lineNumber, timestamp: readLineTimestamp(text), reason: error.message };
+    }
+    if (error instanceof SyntaxError) {
+        return { filePath: new Path(filePath), lineNumber, reason: `malformed JSON: ${String(error)}` };
+    }
+    return { filePath: new Path(filePath), lineNumber, reason: String(error) };
+}
+
+// Capture one unparseable line as a SkippedLine, reporting it through `onProgress` — tolerant
+// mode only; strict mode rethrows the parse error unchanged (the fog-of-war guard). The skipped
+// line keeps its slot in the current/total arithmetic via its loop index (total stays
+// numberedLines.length).
+function captureSkippedLineOrRethrow(
+    error: unknown,
+    tolerateUnmodeledFields: boolean,
+    source: RecordSource,
+    text: string,
+    skippedLines: SkippedLine[],
+    onProgress: ProgressSink | undefined,
+): void {
+    if (!tolerateUnmodeledFields) {
+        throw error;
+    }
+    const skipped = describeSkippedLine(source.filePath, source.lineNumber, text, error);
+    skippedLines.push(skipped);
+    onProgress?.({ kind: DocumentResponseKind.progress, label: `skipped line ${source.lineNumber}: ${skipped.reason}` });
+}
+
 export function loadTranscript(
     filePath: string,
     onProgress?: ProgressSink,
     tolerateUnmodeledFields = false,
-): TranscriptRecord[] {
+): LoadedTranscript {
     console.log(`   Loading transcript from ${filePath}`);   // pre-existing CLI line — keep
     onProgress?.({ kind: DocumentResponseKind.progress, label: `loading ${basename(filePath)}` });
     const fileText = readFileSync(filePath, "utf8");
@@ -208,9 +163,16 @@ export function loadTranscript(
         .filter((entry) => entry.text.trim().length > 0);
     onProgress?.({ kind: DocumentResponseKind.progress, label: PROGRESS_LABEL_PARSING_RECORDS });
     const records: TranscriptRecord[] = [];
+    const skippedLines: SkippedLine[] = [];
     const reportedUnmodeled = new Set<string>();
     for (const [lineIndex, { lineNumber, text }] of numberedLines.entries()) {
-        const record = parseRecord(text);
+        let record: TranscriptRecord;
+        try {
+            record = parseRecord(text);
+        } catch (error) {
+            captureSkippedLineOrRethrow(error, tolerateUnmodeledFields, { filePath, lineNumber }, text, skippedLines, onProgress);
+            continue;
+        }
         recordSources.set(record, { filePath, lineNumber });
         if (tolerateUnmodeledFields) {
             reportUnmodeledTopLevelFields(record, reportedUnmodeled, onProgress);
@@ -227,6 +189,6 @@ export function loadTranscript(
             total: numberedLines.length,
         });
     }
-    return records;
+    return { records, skippedLines };
 }
 

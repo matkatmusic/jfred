@@ -25,7 +25,9 @@ export type WireRename = { from: string; to: string };
 // A revision's per-line model (the engine's LineEntry); carried on the wire so the file-history view can
 // render each revision's text from its own lines (no per-step file snapshot needed).
 export type WireLineEntry = { values: { line: string }[] };
-export type WireRevision = { kind: string; changeId: string; timestamp: string; rename?: WireRename; lines?: WireLineEntry[] };
+// unrecoverable (task 119): present when the engine could not replay this revision — its lines
+// are the previous revision's carried forward, flagged with the failure reason.
+export type WireRevision = { kind: string; changeId: string; timestamp: string; rename?: WireRename; lines?: WireLineEntry[]; unrecoverable?: { reason: string } };
 export type WireFileHistory = { target: string; revisions: WireRevision[] };
 // isOrphaned is the engine's per-record branch-membership stamp (true = rewound/abandoned
 // branch); optional because an older cached document lacks the field (gitOperations convention).
@@ -88,6 +90,12 @@ export type WireTimelineDocument = {
     scriptRuns?: WireScriptRun[];
     // Optional (same convention): user-given session names from `custom-title` records.
     sessionTitles?: Record<string, string>;
+    // Optional (same convention): lines the tolerant parse skipped (task 119) — the timeline's
+    // dashed gap rows group them by contiguous run.
+    skippedLines?: { filePath: string; lineNumber: number; timestamp?: string; reason: string }[];
+    // Optional (same convention): every failure the engine survived (task 119) — the partial-
+    // reconstruction banner's counts and tooltip reasons.
+    failures?: { scope: string; stage: string; target?: string; reason: string }[];
 };
 export type WireJsonlFile = { fileName: string };
 export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };

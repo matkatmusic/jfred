@@ -11,6 +11,7 @@ import {
     computeSessionStartLabel,
     findSessionStartIndexes,
 } from "./timeline-labels.ts";
+import { appendGapRows, computeGapRowBuckets } from "./reconstruction-render.ts";
 import { renderFileButtonRow } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import { buildPickCell } from "./timeline-render-selectbar.ts";
@@ -151,6 +152,9 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
     const sessionStartsByIndex = new Map(
         findSessionStartIndexes(context.nodes).map((start) => [start.nodeIndex, start.sessionId]),
     );
+    // task 119: dashed gap rows for skipped transcript lines, bucketed by the node index each
+    // renders before (bucket nodes.length lands after the loop).
+    const gapRowBuckets = computeGapRowBuckets(context.reconstructionDocument, context.nodes);
     // Large timelines build in yielding batches behind a centered progress overlay so the
     // multi-second synchronous DOM build (500+ rows) no longer looks frozen (item 78). Small
     // timelines take neither overlay nor yield — the loop stays a straight synchronous pass.
@@ -170,6 +174,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
             ? ORPHAN_LANE_COLOR
             : context.sessionColors.get(node.sessionId) ?? ORPHAN_LANE_COLOR;
 
+        appendGapRows(rowFragment, gapRowBuckets.get(index));
         const startedSessionId = sessionStartsByIndex.get(index);
         if (startedSessionId !== undefined) {
             appendSessionStartMarker(context, rowFragment, sessionColor, startedSessionId);
@@ -234,6 +239,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
             await waitForNextAnimationFrame();
         }
     }
+    appendGapRows(rowFragment, gapRowBuckets.get(context.nodes.length));   // gaps past the last node
     // Reveal the finished timeline in one append — the first moment any row hits the live DOM.
     container.append(rowFragment);
     } finally {

@@ -27,6 +27,7 @@ import type { ScriptExecutionEvent } from "./reconstruction_script_execution.ts"
 
 // Thrown when replay meets an event kind it cannot apply, so an unmodeled kind
 // cannot pass silently (fog-of-war guard; mirrors UnknownToolNameError).
+// replayEvents catches it into a visible unrecoverable placeholder revision.
 export class UnsupportedEventKindError extends Error {
     readonly kind: string;
 
@@ -193,12 +194,31 @@ function appendRevisionsForEvent(
     throw new UnsupportedEventKindError((event as { kind: string }).kind);
 }
 
+// A survived per-event failure: the revision slot exists (so steppers and coverage strips can
+// show the gap) but its lines are the prior state carried forward, flagged with the reason.
+function unrecoverableRevision(event: FileEvent, revisions: FileRevision[], reason: string): FileRevision {
+    return {
+        kind: event.kind,
+        changeId: event.changeId,
+        timestamp: event.timestamp,
+        lines: lastLinesOf(revisions).map(carryAt),
+        unrecoverable: { reason },
+    };
+}
+
 // Replay events in order into revisions; an event may append more than one
 // (an Edit emits a removal then an addition) and may read the previous one.
+// An event whose replay throws (an UnsupportedEventKindError included) becomes an
+// unrecoverable placeholder revision instead of killing the file, so every later
+// event still replays against the believed state.
 export function replayEvents(events: FileEvent[]): FileRevision[] {
     const revisions: FileRevision[] = [];
     for (const event of events) {
-        appendRevisionsForEvent(event, revisions);
+        try {
+            appendRevisionsForEvent(event, revisions);
+        } catch (error) {
+            revisions.push(unrecoverableRevision(event, revisions, String(error)));
+        }
     }
     return revisions;
 }

@@ -229,3 +229,6 @@ test("test_buildReconstructionDocument_includes_line_verdicts_for_every_record",
     assert.equal(document.lineVerdicts.length, records.length);
 });
 
+// The task-119 skippedLines/failures document tests live in tests/reconstruction_json_health.test.ts
+// (250-line cap split).
+

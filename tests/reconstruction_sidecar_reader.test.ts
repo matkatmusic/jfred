@@ -51,7 +51,7 @@ function loadMinimalTranscript(projectDir: string, name: string): TranscriptReco
     const jsonlPath = join(projectDir, name);
     const minimalRecord = { type: RecordType.aiTitle, sessionId: "11111111-2222-3333-4444-555555555555", aiTitle: "t" };
     writeFileSync(jsonlPath, `${JSON.stringify(minimalRecord)}\n`);
-    return loadTranscript(jsonlPath);
+    return loadTranscript(jsonlPath).records;
 }
 
 test("test_derive_sibling_file_history_root_finds_existing_sibling", () => {
@@ -98,7 +98,7 @@ test("test_resolve_file_history_root_falls_back_to_default_without_source_or_ove
 // files under the live default file-history root, with one blob name to copy.
 function findTranscriptWithBlobs(): { jsonlPath: Path; sessionId: Uuid; blobName: string } | undefined {
     for (const jsonlPath of S43_JSONL_PATHS) {
-        const records = loadTranscript(jsonlPath.toString());
+        const { records } = loadTranscript(jsonlPath.toString());
         const sessionId = findSessionId(records);
         if (!sessionId) {
             continue;
@@ -134,7 +134,7 @@ test("test_build_sidecar_reader_reads_blob_from_derived_sibling_root", () => {
     mkdirSync(copiedBlobDir, { recursive: true });
     copyFileSync(originalBlobPath, join(copiedBlobDir, fixture.blobName));
     // Step: load records from the COPY so their source points into the temp tree.
-    const records = loadTranscript(copiedJsonlPath);
+    const { records } = loadTranscript(copiedJsonlPath);
     // Step: derivation from those records lands on the temp tree's sibling file-history dir.
     assert.equal(deriveFileHistoryRootFromRecords(records)?.toString(), join(treeRoot, "file-history"));
     // Step: the reader built from these records resolves the SIBLING root and reads the blob.

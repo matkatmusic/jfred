@@ -139,7 +139,7 @@ function buildStepMismatch(
 // reproduces it) or a mismatch.
 export function checkScenario(scenario: CoveredScenario): ScenarioResult {
     console.log(`\n=== scenario ${scenario.scenarioId} (${scenario.dirName}) ===`);
-    const records = scenario.jsonlPaths.flatMap((path) => loadTranscript(path.toString()));
+    const records = scenario.jsonlPaths.flatMap((path) => loadTranscript(path.toString()).records);
     console.log(`   Loaded ${records.length} transcript records from ${scenario.jsonlPaths.length} JSONL files`);
     const reader = buildSidecarReader(records);
     const uuidLineIndex = buildUuidLineIndex(scenario.jsonlPaths);

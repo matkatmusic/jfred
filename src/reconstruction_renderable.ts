@@ -4,7 +4,8 @@
 // renderable filters let every view agree on which user edits actually changed a file.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { EventKind } from "./structures/vocabulary.ts";
+import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findConversationBranches, selectBranchRecords } from "./reconstruction_branch.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
@@ -41,10 +42,15 @@ export function reconstructFilesOver(
     }
     return targets.map((target, index) => {
         reportReconstructionProgress(`reconstructing ${target}`, index + 1, targets.length);
-        return {
-            target,
-            revisions: reconstructFileOver(records, target, new Set<string>(), reader),
-        };
+        // task 119: per-file backstop — anything the per-stage/per-event nets missed degrades to
+        // an empty history for THIS file only, noted for the wire document.
+        try {
+            const revisions = reconstructFileOver(records, target, new Set<string>(), reader);
+            return { target, revisions };
+        } catch (error) {
+            noteReconstructionFailure({ scope: FailureScope.file, stage: "reconstructFilesOver", target, reason: String(error) });
+            return { target, revisions: [] };
+        }
     });
 }
 

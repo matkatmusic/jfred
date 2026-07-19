@@ -38,8 +38,9 @@ export type DetailsContext = {
 };
 
 // One File-Revisions card: 1-based number, the revision kind as its op badge label, and the
-// changeId the card's diff/jump actions resolve through.
-export type RevisionCard = { revisionNumber: number; opLabel: string; timestamp: string; changeId: string };
+// changeId the card's diff/jump actions resolve through. unrecoverableReason (task 119) is the
+// engine's placeholder marker — set, the card renders dashed with the reason and no actions.
+export type RevisionCard = { revisionNumber: number; opLabel: string; timestamp: string; changeId: string; unrecoverableReason?: string };
 
 // item 84: which right-column render the Revision View opens with. Local to the view layer —
 // this is no wire vocabulary, so it lives beside its view (the same precedent DiffDisplayMode
@@ -100,6 +101,7 @@ export function buildRevisionCards(history: WireFileHistory): RevisionCard[] {
         opLabel: revision.kind,
         timestamp: revision.timestamp,
         changeId: revision.changeId,
+        unrecoverableReason: revision.unrecoverable?.reason,
     }));
 }
 

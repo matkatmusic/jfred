@@ -4,7 +4,13 @@
 
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { RecordType, BlockType, Verdict } from "./structures/vocabulary.ts";
+import type { SkippedLine } from "./parse/loadTranscript.ts";
+import { RecordType, BlockType, Verdict, FailureScope } from "./structures/vocabulary.ts";
+import {
+    drainReconstructionFailures,
+    noteReconstructionFailure,
+    type ReconstructionFailure,
+} from "./reconstruction_health.ts";
 import { getContentBlocks, type TextBlock } from "./structures/content-blocks.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { recordVerdict } from "./reconstruction_parse_lines.ts";
@@ -151,6 +157,14 @@ export type ReconstructionDocument = {
     gitOperations: GitOperation[];
     toolCalls: ToolCall[];
     scriptRuns: ScriptRunFileChanges[];
+    // Every line the tolerant parse skipped — the webapp's timeline gap rows.
+    skippedLines: SkippedLine[];
+    // Every failure the engine survived while building THIS document. Known limitation: per-file
+    // revision memos are cached per records-array, so a warm rebuild over cached revisions
+    // re-reports only per-revision `unrecoverable` flags (cached inside the revision objects),
+    // not stage notes; the viewer also caches the whole document per stamp, so in practice the
+    // first (real) build's failures are what users see.
+    failures: ReconstructionFailure[];
 };
 
 // The wire document AND the compact step-file histories, returned as SEPARATE values: the histories are
@@ -158,11 +172,23 @@ export type ReconstructionDocument = {
 // caches both; the histories resolve any one step's file text on demand (resolveFilesAtStep).
 export type BuiltReconstruction = { document: ReconstructionDocument; stepFileHistories: FileHistory[] };
 
+// Run one document sub-phase, degrading to a fallback value when it throws so every file
+// state already computed still ships.
+function buildPhaseTolerantly<T>(phase: string, fallback: T, run: () => T): T {
+    try {
+        return run();
+    } catch (error) {
+        noteReconstructionFailure({ scope: FailureScope.documentPhase, stage: phase, reason: String(error) });
+        return fallback;
+    }
+}
+
 export function buildReconstructionDocument(
     records: TranscriptRecord[],
     branched: BranchedReconstruction,
     reader: BackupReader | undefined,
     target: Path | undefined,
+    skippedLines: SkippedLine[] = [],
 ): BuiltReconstruction {
     const filesTouched =
         target === undefined
@@ -177,22 +203,36 @@ export function buildReconstructionDocument(
             : rewoundHistories.filter((history) => history.target.equals(target));
     // Sequenced (not an inline object literal) so each sub-phase announces before it runs and the
     // console's line timestamps attribute the build time to the right phase.
+    // task 119: each sub-phase runs through buildPhaseTolerantly — a throwing phase degrades to
+    // its empty fallback instead of killing the whole document.
     reportReconstructionProgress("extracting conversation messages");
-    const messages = extractConversationMessages(records);
+    // task 119: const messages = extractConversationMessages(records);
+    const messages = buildPhaseTolerantly("extractConversationMessages", [], () => extractConversationMessages(records));
     reportReconstructionProgress("summarizing branches");
-    const branches = summarizeBranches(records);
+    // task 119: const branches = summarizeBranches(records);
+    const branches = buildPhaseTolerantly("summarizeBranches", [], () => summarizeBranches(records));
     reportReconstructionProgress("building step snapshots");
-    const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);
+    // task 119: const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);
+    const { steps, stepFileHistories } = buildPhaseTolerantly(
+        "buildStepSnapshots",
+        { steps: [], stepFileHistories: [] },
+        () => buildStepSnapshots(records, reader, branched.surviving),
+    );
     reportReconstructionProgress("building line verdicts");
-    const lineVerdicts = buildLineVerdicts(records);
-    const commitMarkers = findGitCommitEvents(records).map((event) => ({
+    // task 119: const lineVerdicts = buildLineVerdicts(records);
+    const lineVerdicts = buildPhaseTolerantly("buildLineVerdicts", [], () => buildLineVerdicts(records));
+    // task 119: const commitMarkers = findGitCommitEvents(records).map(...);
+    const commitMarkers = buildPhaseTolerantly("findGitCommitEvents", [], () => findGitCommitEvents(records).map((event) => ({
         timestamp: event.timestamp,
         sessionId: event.sessionId,
-    }));
-    const gitOperations = findGitOperations(records);
-    const toolCalls = findToolCalls(records);
+    })));
+    // task 119: const gitOperations = findGitOperations(records);
+    const gitOperations = buildPhaseTolerantly("findGitOperations", [], () => findGitOperations(records));
+    // task 119: const toolCalls = findToolCalls(records);
+    const toolCalls = buildPhaseTolerantly("findToolCalls", [], () => findToolCalls(records));
     reportReconstructionProgress("summarizing script-run file changes");
-    const scriptRuns = summarizeScriptRunFileChanges(records, reader);
+    // task 119: const scriptRuns = summarizeScriptRunFileChanges(records, reader);
+    const scriptRuns = buildPhaseTolerantly("summarizeScriptRunFileChanges", [], () => summarizeScriptRunFileChanges(records, reader));
     const document: ReconstructionDocument = {
         sessionId: findSessionId(records),
         sessionTitles: findSessionTitles(records),
@@ -206,6 +246,10 @@ export function buildReconstructionDocument(
         gitOperations,
         toolCalls,
         scriptRuns,
+        skippedLines,
+        // Drained LAST so stage/file notes accumulated during reconstructBranches (earlier in the
+        // build) ride along with the phase notes above.
+        failures: drainReconstructionFailures(),
     };
     return { document, stepFileHistories };
 }

@@ -13,6 +13,7 @@ import { showLoadingProgress } from "../app-progress.ts";
 import { openInspectorPane } from "../inspector.ts";
 import { renderDetailsFileMode } from "./details-revision-view.ts";
 import { renderForkSidebar } from "./sidebar.ts";
+import { buildCoverageSegmentsByTarget, renderReconstructionBanner } from "./reconstruction-render.ts";
 import {
     buildFileTree,
     buildFilesSidebarViewModel,
@@ -124,6 +125,8 @@ export async function renderTimelineView(container: HTMLElement, project: string
     const touchedCount = new Set(nodes.flatMap((node) => (node.fileChanges ?? []).map((change) => change.path))).size;
     document.getElementById("timeline-summary")!.textContent =
         `${sessionColors.size} session${sessionColors.size === 1 ? "" : "s"} · ${numberedNodes.length} steps · ${touchedCount} files`;
+    // task 119: the partial-reconstruction banner beside the summary (mounted only when partial).
+    renderReconstructionBanner(reconstructionDocument);
 
     // ── selection state + bar ──
     const barText = el("span", {});
@@ -199,6 +202,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
             onSessionClick: context.jumpToTimelineRow,
             onFileClick: (target: string) => renderFileDetails(target, context.detailsContext),
         },
+        buildCoverageSegmentsByTarget(reconstructionDocument),
     );
 
     // (item 66) GONE with the fork port (see webapp/archive/timeline-pre-item66.ts): the

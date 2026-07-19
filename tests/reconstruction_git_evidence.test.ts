@@ -216,7 +216,7 @@ test("test_find_fallback_repo_dirs_orders_override_before_preserved", () => {
         const jsonlPath = join(transcriptDir, "session.jsonl");
         writeFileSync(jsonlPath, JSON.stringify({ type: RecordType.aiTitle, aiTitle: "t" }) + "\n");
         // load the records from the file so each carries its source (findPreservedRepoDir reads it).
-        const records = loadTranscript(jsonlPath);
+        const { records } = loadTranscript(jsonlPath);
         // set both path overrides.
         setPathOverrides({ repoDir: new Path("/override/repo"), projectCwd: new Path("/override/cwd") });
         // the fallback list is most-explicit first: repoDir, projectCwd, preserved clone.

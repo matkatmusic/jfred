@@ -7,7 +7,8 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
-import { EventKind } from "./structures/vocabulary.ts";
+import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { replayEvents } from "./reconstruction_replay.ts";
 import { fillRedirectContent, seedEditBaseFromBackup } from "./reconstruction_sidecar.ts";
@@ -87,6 +88,22 @@ export function reconstructFileOver(
     return revisions;
 }
 
+// Run one chain stage, falling back to its unmodified input when it throws — the file keeps
+// every state computed so far and the failure is noted for the wire document.
+function runStageTolerantly(
+    stage: string,
+    target: Path,
+    input: FileEvent[],
+    run: () => FileEvent[],
+): FileEvent[] {
+    try {
+        return run();
+    } catch (error) {
+        noteReconstructionFailure({ scope: FailureScope.fileStage, stage, target, reason: String(error) });
+        return input;
+    }
+}
+
 function computeFileRevisionsOver(
     records: TranscriptRecord[],
     target: Path,
@@ -99,18 +116,33 @@ function computeFileRevisionsOver(
     const lineage = events.filter((event) =>
         eventBelongsToLineage(event, finalTarget, renameChain),
     );
-    const baselined = seedBaseCommitBeacon(records, lineage, finalTarget);
+    // task 119: every chain stage runs through runStageTolerantly — a throwing stage (a dead
+    // sidecar blob, an unreadable repo) degrades to its input events instead of killing the file.
+    // The pre-chain steps above are pure record/event walks (the per-file backstop covers them);
+    // replayEvents has its own per-event net.
+    // task 119: const baselined = seedBaseCommitBeacon(records, lineage, finalTarget);
+    const baselined = runStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, () => seedBaseCommitBeacon(records, lineage, finalTarget));
     // item 46: const seeded = seedCopyEvents(records, lineage, resolving, reader);
-    const seeded = seedCopyEvents(records, baselined, resolving, reader);
-    const filled = reader ? fillRedirectContent(records, seeded, reader) : seeded;
-    const based = reader ? seedEditBaseFromBackup(records, filled, reader) : filled;
+    // task 119: const seeded = seedCopyEvents(records, baselined, resolving, reader);
+    const seeded = runStageTolerantly("seedCopyEvents", finalTarget, baselined, () => seedCopyEvents(records, baselined, resolving, reader));
+    // task 119: const filled = reader ? fillRedirectContent(records, seeded, reader) : seeded;
+    const filled = reader ? runStageTolerantly("fillRedirectContent", finalTarget, seeded, () => fillRedirectContent(records, seeded, reader)) : seeded;
+    // task 119: const based = reader ? seedEditBaseFromBackup(records, filled, reader) : filled;
+    const based = reader ? runStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, () => seedEditBaseFromBackup(records, filled, reader)) : filled;
+    // task 119: const scripted = reader
+    // task 119:     ? injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader))
+    // task 119:     : based;
     const scripted = reader
-        ? injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader))
+        ? runStageTolerantly("injectScriptExecutions", finalTarget, based, () => injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader)))
         : based;
-    const evidenced = reader ? placeGitCommitEvidence(records, scripted, reader, finalTarget) : scripted;
-    const unelided = reader ? completeElidedBeacons(records, evidenced, reader) : evidenced;
-    const restaged = reader ? seedStaleEditBases(records, unelided, reader) : unelided;
-    const completed = reader ? completeTruncatedBeacon(records, restaged, reader) : restaged;
+    // task 119: const evidenced = reader ? placeGitCommitEvidence(records, scripted, reader, finalTarget) : scripted;
+    const evidenced = reader ? runStageTolerantly("placeGitCommitEvidence", finalTarget, scripted, () => placeGitCommitEvidence(records, scripted, reader, finalTarget)) : scripted;
+    // task 119: const unelided = reader ? completeElidedBeacons(records, evidenced, reader) : evidenced;
+    const unelided = reader ? runStageTolerantly("completeElidedBeacons", finalTarget, evidenced, () => completeElidedBeacons(records, evidenced, reader)) : evidenced;
+    // task 119: const restaged = reader ? seedStaleEditBases(records, unelided, reader) : unelided;
+    const restaged = reader ? runStageTolerantly("seedStaleEditBases", finalTarget, unelided, () => seedStaleEditBases(records, unelided, reader)) : unelided;
+    // task 119: const completed = reader ? completeTruncatedBeacon(records, restaged, reader) : restaged;
+    const completed = reader ? runStageTolerantly("completeTruncatedBeacon", finalTarget, restaged, () => completeTruncatedBeacon(records, restaged, reader)) : restaged;
     return replayEvents(completed);
 }
 

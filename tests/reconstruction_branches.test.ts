@@ -4,9 +4,15 @@ import {
     collectAcceptedUserEditIds,
     extractRenderableEvents,
 } from "../src/reconstruction_renderable.ts";
-import { EventKind } from "../src/structures/vocabulary.ts";
+import { reconstructAll, reconstructFile } from "../src/reconstruction_engine.ts";
+import type { BackupReader } from "../src/reconstruction_sidecar.ts";
+import {
+    clearReconstructionFailures,
+    drainReconstructionFailures,
+} from "../src/reconstruction_health.ts";
+import { EventKind, FailureScope } from "../src/structures/vocabulary.ts";
 import { loadRecords } from "./utilities.ts";
-import { S13_JSONL, S15_JSONL } from "./fixtures.ts";
+import { S13_JSONL, S15_JSONL, S19_JSONL } from "./fixtures.ts";
 
 // The accepted set is the engine's single source of truth for "which user edits are real changes":
 // an `edited_text_file` snapshot becomes a change only when its content differs from the file's current
@@ -38,6 +44,30 @@ test("test_extractRenderableEvents_drops_the_S13_disk_echo_turn", () => {
     const renderable = extractRenderableEvents(records, accepted);
     // No user-edit turn survives (the only edited_text_file was a no-op echo).
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 0);
+});
+
+// A reader-gated chain stage that throws (a dead sidecar blob) must not kill the file:
+// runStageTolerantly falls back to the stage's unmodified input events, so the revisions equal
+// the reader-less reconstruction of the same records, and the survived failure is noted for the
+// wire document. S19 is reader-DEPENDENT (its surviving edit-first file seeds its base from a
+// backup blob), so the throwing reader is guaranteed to be touched.
+test("test_reconstructFile_survives_a_throwing_reader_stage", () => {
+    clearReconstructionFailures();
+    const records = loadRecords(S19_JSONL);
+    // The reader-less reconstruction is the expected fallback shape (every reader-gated stage skipped).
+    const expected = reconstructAll(records);
+    assert.ok(expected.length > 0);
+    // A reader whose every read throws — the sidecar backup blob is gone.
+    const throwingReader: BackupReader = () => {
+        throw new Error("ENOENT: blob gone");
+    };
+    for (const history of expected) {
+        const revisions = reconstructFile(records, history.target, throwingReader);
+        assert.deepStrictEqual(revisions, history.revisions);
+    }
+    // The stage that touched the dead blob was noted as a survived per-stage failure.
+    const failures = drainReconstructionFailures();
+    assert.ok(failures.some((failure) => failure.scope === FailureScope.fileStage));
 });
 
 // extractRenderableEvents keeps the genuine S15 user edit as exactly one renderable turn.

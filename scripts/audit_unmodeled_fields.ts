@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import {
     ALLOWED_TOP_LEVEL_KEYS,
     findUnmodeledTopLevelKeys,
-} from "../src/parse/loadTranscript.ts";
+} from "../src/parse/recordKeys.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
 // Records written by the jot-recovery reconstruction tooling (not Claude Code) carry

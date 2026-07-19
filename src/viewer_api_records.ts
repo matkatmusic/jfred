@@ -1,9 +1,9 @@
 // The viewer's transcript-record layer: a freshness stamp per transcript set, the parsed-records
 // LRU cache with throttled per-record progress replay, and the chronological multi-session merge —
-// everything between JSONL paths and a merged TranscriptRecord[].
+// everything between JSONL paths and a merged record stream (plus its tolerant-parse skips).
 
 import { statSync } from "node:fs";
-import { formatRecordSourceToken, getRecordSource, loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
+import { formatRecordSourceToken, getRecordSource, loadTranscript, type ProgressSink, type SkippedLine } from "./parse/loadTranscript.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { DocumentResponseKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
@@ -34,9 +34,13 @@ export const PROGRESS_LABEL_RECORDS_CACHE_HIT = "reusing cached transcript recor
 // recency). ponytail: raise if hit/miss thrash ever shows in the loading console.
 export const ARTIFACT_CACHE_CAPACITY = 8;
 
+// The parsed record stream for a transcript set plus every line the tolerant parse skipped —
+// cached together so a warm rebuild still reports its gaps.
+export type ProjectRecords = { records: TranscriptRecord[]; skippedLines: SkippedLine[] };
+
 // Parsed records per transcript-set stamp. Entries never go stale silently: a file touch
 // changes the stamp, so a stale entry is simply never keyed again and ages out via LRU.
-const parsedRecordsCache = new Map<string, TranscriptRecord[]>();
+const parsedRecordsCache = new Map<string, ProjectRecords>();
 
 // A cache hit must still show counted per-record progress (never silence the console), but one
 // line per record floods the stream with 20k+ lines for a large project (item 82 — the captured
@@ -69,25 +73,28 @@ function replayRecordProgress(records: TranscriptRecord[], onProgress: ProgressS
     });
 }
 
-// The parsed, merged record stream for a transcript set — parsed at most once per on-disk
-// state. Returning the SAME array object also keeps the engine's per-records WeakMap memos
-// (reconstruction_branches.ts) warm across requests.
-export function loadProjectRecords(jsonlPaths: Path[], onProgress?: ProgressSink): TranscriptRecord[] {
+// The parsed, merged record stream for a transcript set (with its tolerant-parse skips) —
+// parsed at most once per on-disk state. Returning the SAME records array object also keeps
+// the engine's per-records WeakMap memos (reconstruction_branches.ts) warm across requests.
+export function loadProjectRecords(jsonlPaths: Path[], onProgress?: ProgressSink): ProjectRecords {
     const stamp = computeTranscriptSetStamp(jsonlPaths);
-    const cachedRecords = getCachedValueRefreshingRecency(parsedRecordsCache, stamp);
-    if (cachedRecords !== undefined) {
+    const cached = getCachedValueRefreshingRecency(parsedRecordsCache, stamp);
+    if (cached !== undefined) {
         reportStage(onProgress, PROGRESS_LABEL_RECORDS_CACHE_HIT);
-        replayRecordProgress(cachedRecords, onProgress);
-        return cachedRecords;
+        replayRecordProgress(cached.records, onProgress);
+        return cached;
     }
     // The viewer opens arbitrary real sessions: tolerate (and log) fields the scenarios never
-    // modeled instead of hard-failing the whole document. Unknown record types still throw.
+    // modeled instead of hard-failing the whole document; unknown record types and malformed
+    // lines are skipped and captured (the SkippedLine gaps the webapp renders).
     const transcripts = jsonlPaths.map((path) => loadTranscript(path.toString(), onProgress, true));
-    sortTranscriptsChronologically(transcripts);
-    const records = transcripts.flat();
-    parsedRecordsCache.set(stamp, records);
+    const skippedLines = transcripts.flatMap((loaded) => loaded.skippedLines);
+    const recordLists = transcripts.map((loaded) => loaded.records);
+    sortTranscriptsChronologically(recordLists);
+    const loaded = { records: recordLists.flat(), skippedLines };
+    parsedRecordsCache.set(stamp, loaded);
     evictLeastRecentlyUsedEntries(parsedRecordsCache, ARTIFACT_CACHE_CAPACITY);
-    return records;
+    return loaded;
 }
 
 // The first stamped record's timestamp, for ordering whole transcripts; a transcript with no

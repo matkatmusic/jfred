@@ -65,8 +65,8 @@ test("test_load_project_records_returns_same_array_for_unchanged_files", () => {
     // call parsed nothing (and the engine's per-records WeakMap memos stay warm across requests).
     // Steps:
     // load the s85 set once (parse) and again (must be a cache hit).
-    const firstRecords = loadProjectRecords(S85_JSONL_PATHS);
-    const secondRecords = loadProjectRecords(S85_JSONL_PATHS);
+    const firstRecords = loadProjectRecords(S85_JSONL_PATHS).records;
+    const secondRecords = loadProjectRecords(S85_JSONL_PATHS).records;
     // same object, not merely equal content.
     assert.equal(secondRecords, firstRecords);
 });
@@ -76,11 +76,11 @@ test("test_load_project_records_reparses_after_file_touch", () => {
     // Steps:
     // load a private temp copy once.
     const copyPath = copyFixtureIntoTempDir(S1_JSONL);
-    const staleRecords = loadProjectRecords([copyPath]);
+    const staleRecords = loadProjectRecords([copyPath]).records;
     // touch the copy.
     advanceFileMtimeByOneSecond(copyPath);
     // the reload returns a NEW array, not the stale cached one.
-    const freshRecords = loadProjectRecords([copyPath]);
+    const freshRecords = loadProjectRecords([copyPath]).records;
     assert.notEqual(freshRecords, staleRecords);
 });
 
@@ -184,12 +184,12 @@ test("test_records_cache_evicts_least_recently_used_entry_beyond_capacity", () =
     // Steps:
     // prime with one temp copy, then load CAPACITY more distinct sets to push it out.
     const firstCopy = copyFixtureIntoTempDir(S1_JSONL);
-    const firstRecords = loadProjectRecords([firstCopy]);
+    const firstRecords = loadProjectRecords([firstCopy]).records;
     for (let extraIndex = 0; extraIndex < ARTIFACT_CACHE_CAPACITY; extraIndex += 1) {
         loadProjectRecords([copyFixtureIntoTempDir(S1_JSONL)]);
     }
     // the evicted set re-parses into a fresh array.
-    assert.notEqual(loadProjectRecords([firstCopy]), firstRecords);
+    assert.notEqual(loadProjectRecords([firstCopy]).records, firstRecords);
 });
 
 test("test_revision_diff_from_untargeted_document_matches_targeted_build", () => {

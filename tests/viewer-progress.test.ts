@@ -49,7 +49,7 @@ test("test_loadTranscript_reports_file_then_parsing_then_per_record_classificati
     // counted event per non-empty line classifying that record with a running 1..N count.
     // Steps: collect every event while loading the s19 fixture.
     const progressEvents: ProgressEvent[] = [];
-    const records = loadTranscript(S19_JSONL, (event) => progressEvents.push(event));
+    const { records } = loadTranscript(S19_JSONL, (event) => progressEvents.push(event));
 
     // event[0] announces the file, with no counts.
     assert.equal(progressEvents[0]!.label, `loading ${basename(S19_JSONL)}`);
@@ -78,7 +78,7 @@ test("test_document_request_sequence_walks_records_once_when_cold", () => {
     // Steps:
     // run the route's sequence cold (fresh temp copy) with one collecting sink.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
-    const recordCount = loadTranscript(jsonlPath.toString()).length;
+    const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     const requestEvents: ProgressEvent[] = [];
     const sink = (event: ProgressEvent) => requestEvents.push(event);
     loadProjectRecords([jsonlPath], sink);
@@ -94,7 +94,7 @@ test("test_document_request_sequence_walks_records_once_when_cached", () => {
     // Steps:
     // prime both caches, then re-run the route's sequence with a collecting sink.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
-    const recordCount = loadTranscript(jsonlPath.toString()).length;
+    const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     loadProjectRecords([jsonlPath]);
     buildDocumentWithConsent([jsonlPath], undefined, false);
     const requestEvents: ProgressEvent[] = [];
@@ -118,7 +118,7 @@ test("test_per_record_progress_labels_carry_source_tokens_cold_and_cached", () =
     // load twice (cold parse, then cached replay); assert every counted label in both streams
     // carries the token.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
-    const recordCount = loadTranscript(jsonlPath.toString()).length;
+    const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     const coldEvents: ProgressEvent[] = [];
     loadProjectRecords([jsonlPath], (event) => coldEvents.push(event));
     const warmEvents: ProgressEvent[] = [];
@@ -140,7 +140,7 @@ test("test_loadTranscript_stamps_each_record_with_its_source_file_and_line", () 
     // the stamp rides beside the record — its own top-level shape is untouched.
     // Steps: load the s19 fixture, check the first record's source, and that line numbers
     // strictly increase in file order.
-    const records = loadTranscript(S19_JSONL);
+    const { records } = loadTranscript(S19_JSONL);
     const firstSource = getRecordSource(records[0]!);
     assert.equal(firstSource?.filePath, S19_JSONL);
     assert.equal(firstSource?.lineNumber, 1);
@@ -153,7 +153,7 @@ test("test_loadTranscript_stamps_each_record_with_its_source_file_and_line", () 
 test("test_loadTranscript_without_sink_returns_identical_records", () => {
     // Scenario: the sink is observation-only — the records returned are identical with or
     // without it, so no caller behaviour changes when it starts passing a sink.
-    // Steps: load the fixture both ways and deep-equal the two arrays.
+    // Steps: load the fixture both ways and deep-equal the two results.
     const withoutSink = loadTranscript(S19_JSONL);
     const withSink = loadTranscript(S19_JSONL, () => {});
     assert.deepEqual(withSink, withoutSink);

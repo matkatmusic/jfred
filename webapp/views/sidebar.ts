@@ -5,6 +5,12 @@
 // Item 77: the Files pane is a nested tree of <details>/basenames, not a flat list of full paths.
 
 import { el } from "../app-dom.ts";
+import type { CoverageSegment } from "./reconstruction-coverage.ts";
+
+// task 119: the segments of each partially-recovered file's coverage strip, keyed by target.
+// Built by reconstruction-render.ts's buildCoverageSegmentsByTarget — files with full coverage
+// are absent (their rows keep the plain revision count).
+type CoverageByTarget = Map<string, CoverageSegment[]>;
 
 // One Sessions-pane entry (buildSessionsSidebarViewModel's shape).
 type SessionSidebarEntry = {
@@ -76,7 +82,7 @@ function appendSessionItem(drawer: HTMLElement, session: SessionSidebarEntry, ca
 // Rebuild the drawer: a "Sessions" pane (`<short8>….jsonl` + `<short8> · N rows` meta, click
 // flash-scrolls the session's first timeline row) and a "Files" pane (path + revision count,
 // click enters the details pane's File Revisions mode and marks the item selected).
-export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarEntry[], files: FileTreeNode[], callbacks: ForkSidebarCallbacks): void {
+export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarEntry[], files: FileTreeNode[], callbacks: ForkSidebarCallbacks, coverage: CoverageByTarget): void {
     drawer.replaceChildren();
     drawer.append(el("div", { class: "pane-title", text: "Sessions" }));
     for (const session of sessions) {
@@ -84,7 +90,7 @@ export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarE
     }
     drawer.append(el("div", { class: "pane-title", text: "Files" }));
     for (const node of files) {
-        drawer.append(renderFileTreeNode(node, callbacks, drawer));
+        drawer.append(renderFileTreeNode(node, callbacks, drawer, coverage));
     }
 }
 
@@ -95,28 +101,35 @@ export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarE
 // selected node's own changed paths, rather than a second list of ellipsis-truncated full paths.
 // `selectionRoot` is the container this tree lives in — a leaf click clears the selection within
 // it and no further.
-export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement): HTMLElement {
+// `coverage` is optional: only the Files sidebar shows coverage strips (task 119) — the details
+// pane's "Files touched" tree passes nothing and renders plain rows.
+export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
     if (node.kind === FOLDER_NODE_KIND) {
         // open: "" — el's attrs are Record<string, string | EventListener> (webapp/app.ts:31), so a
         // boolean will not typecheck; el forwards unknown keys to setAttribute, and a present `open`
         // attribute is what expands a <details>.
         return el("details", { class: "file-folder", open: "" }, [
             el("summary", { class: "file-folder-name", text: node.name }),
-            ...node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot)),
+            ...node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)),
         ]);
     }
-    return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot);
+    return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot, coverage);
 }
 
 // One file row: the basename only (item 77 — the full path was truncated to uselessness), with the
 // full path in the tooltip, its revision count, and a badge naming where a rename moved it from.
-function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement): HTMLElement {
+function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
     const item = el("div", {
         class: entry.isDeleted ? "file-item deleted" : "file-item",
         text: node.name,
         title: entry.isDeleted ? `${entry.target} (deleted)` : entry.target,
     }, []);
-    item.append(el("span", { class: "revcount", text: `(${entry.revisionCount})` }));
+    const segments = coverage?.get(entry.target);
+    if (segments === undefined) {
+        item.append(el("span", { class: "revcount", text: `(${entry.revisionCount})` }));
+    } else {
+        appendCoverageStrip(item, entry.target, segments);
+    }
     if (entry.originalPath !== undefined) {
         item.append(el("span", {
             class: "rename-badge",
@@ -136,5 +149,57 @@ function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbac
 
 function basenameOf(path: string): string {
     return path.slice(path.lastIndexOf("/") + 1);
+}
+
+// ─── task 119: coverage strip + click-for-reason popover ───
+// The one open coverage popover and the segment that opened it (clicking that segment again
+// closes it). One document-level click closes it from anywhere, the toolbar popovers' pattern
+// (app-header.ts) — in-popover and segment clicks stopPropagation to stay open.
+let openCoveragePopover: { segment: HTMLElement; popover: HTMLElement } | undefined;
+
+function hideCoveragePopover(): void {
+    openCoveragePopover?.popover.remove();
+    openCoveragePopover = undefined;
+}
+document.addEventListener("click", hideCoveragePopover);
+
+// The strip on a partially-recovered file's row: one segment per revision (red = unrecoverable,
+// click for the reason popover) and "<recovered> / <total> revs" in place of the plain count.
+function appendCoverageStrip(item: HTMLElement, target: string, segments: CoverageSegment[]): void {
+    item.append(el("span", { class: "covbar" },
+        segments.map((segment) => buildCoverageSegmentElement(item, target, segment))));
+    const recovered = segments.filter((segment) => segment.recovered).length;
+    item.append(el("span", { class: "revcount", text: `${recovered} / ${segments.length} revs` }));
+}
+
+// One strip segment; a red (unrecovered) one toggles the reason popover under the row. The
+// stopPropagation keeps the click from also selecting the file row (and from the document-level
+// closer instantly hiding the popover it just opened).
+function buildCoverageSegmentElement(item: HTMLElement, target: string, segment: CoverageSegment): HTMLElement {
+    const cell = el("span", { class: segment.recovered ? "" : "miss" });
+    if (!segment.recovered) {
+        cell.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleCoveragePopover(cell, item, target, segment);
+        });
+    }
+    return cell;
+}
+
+// Show (or hide, when its own segment is re-clicked) the reason popover, inserted into the
+// flow right under the segment's file row.
+function toggleCoveragePopover(cell: HTMLElement, item: HTMLElement, target: string, segment: CoverageSegment): void {
+    const wasOpen = openCoveragePopover?.segment === cell;
+    hideCoveragePopover();
+    if (wasOpen) {
+        return;
+    }
+    const popover = el("div", { class: "popover cov-popover" }, [
+        el("div", { text: `${target} — rev ${segment.revisionIndex + 1} ✗ unrecoverable` }),
+        el("div", { class: "muted", text: `reason: ${segment.reason ?? "unknown"}` }),
+    ]);
+    popover.addEventListener("click", (event) => event.stopPropagation());
+    item.after(popover);
+    openCoveragePopover = { segment: cell, popover };
 }
 

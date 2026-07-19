@@ -21,6 +21,7 @@ import {
     type FileRevision,
 } from "./reconstruction_engine.ts";
 import { findBranchById, shortUuid } from "./reconstruction_branch.ts";
+import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { recordVerdict } from "./reconstruction_parse_lines.ts";
 import {
@@ -165,7 +166,11 @@ export function runCli(argv: string[]): string {
     if (traced !== undefined) return runTrace(traced);
     const options = parseArgs(argv);
     applyCliPathOverrides(options);
-    const records = loadTranscript(options.jsonlPath);
+    // task 119: a previous in-process run's aborted leftovers must not leak into this run's
+    // failure notes (the tests drive runCli repeatedly in one process).
+    clearReconstructionFailures();
+    // Strict mode throws instead of skipping, so skippedLines is always empty here.
+    const { records } = loadTranscript(options.jsonlPath);
     const reader = buildSidecarReader(records);
     if (options.json) {
         return renderJson(records, reader, options);

@@ -96,7 +96,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
     // HTTP 200 with the kind discriminant (not 428) so browsers don't log the expected flow as an error.
     if (query.get("progress") !== "1") {
         const jsonlPaths = resolveJsonlPaths(projectName, jsonlName);
-        const records = loadProjectRecords(jsonlPaths);
+        const { records } = loadProjectRecords(jsonlPaths);
         const decision = decideDocumentResponse(records, allowScripts);
         if (decision.kind === DocumentResponseKind.consentRequired && !declined) {
             sendJson(response, 200, decision);
@@ -136,7 +136,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
         reportStage(`resolved ${jsonlPaths.length} transcript file(s)`);
         // This parse is the only one (the build below reuses these records from the cache), so
         // it streams the full per-record detail the console shows during a cold load.
-        const records = loadProjectRecords(jsonlPaths, writeNdjsonLine);
+        const { records } = loadProjectRecords(jsonlPaths, writeNdjsonLine);
         reportStage("scanning parsed records for recorded script executions");
         const decision = decideDocumentResponse(records, allowScripts);
         reportStage(decision.kind === DocumentResponseKind.consentRequired
@@ -196,7 +196,7 @@ export function handleRangePatchRequest(response: ServerResponse, query: URLSear
     const allowScripts = query.get("allowScripts") === "1";
     const declined = query.get("declined") === "1";
     const jsonlPaths = resolveJsonlPaths(projectName, null);
-    const records = loadProjectRecords(jsonlPaths);
+    const { records } = loadProjectRecords(jsonlPaths);
     const decision = decideDocumentResponse(records, allowScripts);
     if (decision.kind === DocumentResponseKind.consentRequired && !declined) {
         sendJson(response, 200, decision);
@@ -216,7 +216,7 @@ export function handleStepFilesRequest(response: ServerResponse, query: URLSearc
     const allowScripts = query.get("allowScripts") === "1";
     const declined = query.get("declined") === "1";
     const jsonlPaths = resolveJsonlPaths(projectName, null);
-    const records = loadProjectRecords(jsonlPaths);
+    const { records } = loadProjectRecords(jsonlPaths);
     const decision = decideDocumentResponse(records, allowScripts);
     if (decision.kind === DocumentResponseKind.consentRequired && !declined) {
         sendJson(response, 200, decision);
