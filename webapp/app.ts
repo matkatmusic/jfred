@@ -66,6 +66,7 @@ if (typeof window !== "undefined") {
     // Item 10a: rail-click reopen retired with handleInspectorRailClick above.
     // document.getElementById("inspector").addEventListener("click", handleInspectorRailClick);
     // item 66: fork-layout chrome — the three splitters + the console hide/show pair.
+    makeSplitter("split-sd", "drawer", "x", false, 140);
     makeSplitter("split-td", "timeline-pane", "y", false, 80);
     makeSplitter("split-lr", "details-left", "x", false, 140);
     makeSplitter("split-dc", "console-row", "y", true, 60);

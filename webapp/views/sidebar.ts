@@ -165,7 +165,10 @@ function hideCoveragePopover(): void {
     openCoveragePopover?.popover.remove();
     openCoveragePopover = undefined;
 }
-document.addEventListener("click", hideCoveragePopover);
+// Guarded like app.ts's bootstrap: the node test suite imports this module without a DOM.
+if (typeof document !== "undefined") {
+    document.addEventListener("click", hideCoveragePopover);
+}
 
 // The strip on a partially-recovered file's row: one segment per revision (red = unrecoverable,
 // click for the reason popover) and "<recovered> / <total> revs" in place of the plain count.
