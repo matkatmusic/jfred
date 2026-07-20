@@ -1089,6 +1089,9 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .rev-card.missing { border-style: dashed; border-color: var(--red); background: transparent; opacity: 0.75; }
 .rev-card.missing .rev-head { color: var(--red); }
 .rev-card.missing .why { color: var(--muted); font-size: 10.5px; margin-top: 4px; max-width: 130px; }
+/* Declared after .rev-card.missing so a clicked placeholder still shows the selection accent
+   (equal specificity — source order decides; keeps the dashed missing style). */
+.rev-card.missing.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--panel)); opacity: 1; }
 .covbar { display: flex; gap: 2px; }
 .covbar span { flex: 1; min-width: 3px; max-width: 26px; height: 12px; border-radius: 2px; background: var(--green); opacity: 0.85; }
 .covbar span.miss { background: var(--red); cursor: pointer; }

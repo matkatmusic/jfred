@@ -52,7 +52,7 @@ export function clearRightPaneBody(): HTMLElement {
 // The diff the right pane currently shows, kept for toggle re-renders. `reload` re-fetches
 // (a full-context diff is a DIFFERENT server response, so the full-contents toggle cannot
 // re-render from the current text — item 75).
-let shownDiff: { label: string; diffText: string; reload: () => void } | undefined;
+let shownDiff: { label: string; diffText: string; reload: () => void; unrecoverableReason?: string } | undefined;
 
 // Plain explanatory text in the right pane (rename-only revisions, missing blocks).
 export function showTextInDetails(label: string, text: string): void {
@@ -74,6 +74,36 @@ export function showContentInDetails(target: string, revisionNumber: number, con
         renderCodeInto(pane, content, target);
     }
     clearRightPaneBody().append(pane);
+}
+
+// task 126: the placeholder's banner stack — the timeline header's ⚠ banner styling
+// (.recon-banner), the carried-forward note, and the section title above the previous
+// revision's diff.
+function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
+    body.append(
+        el("div", { class: "recon-banner" }, [
+            el("span", { class: "warn", text: "⚠ Not reconstructed" }),
+            ` — ${reason}`,
+        ]),
+        el("pre", { class: "diff-text", text: "(the previous revision's content is carried forward at this revision)" }),
+        el("div", { class: "pane-title", text: "— previous revision content —" }),
+    );
+}
+
+// task 126: an unrecoverable placeholder's pane — the ⚠ banner, then the PREVIOUS revision's
+// own diff (what the placeholder carries forward). The reason rides shownDiff so the
+// columns/inline toggle re-renders keep the banner.
+export function showUnrecoverableInDetails(label: string, reason: string, previousDiffText: string | undefined, reload: () => void): void {
+    if (previousDiffText === undefined) {
+        shownDiff = undefined;
+        setRightPaneLabel(label);
+        hideDiffModeToggle();
+        const body = clearRightPaneBody();
+        appendUnrecoverableBanner(body, reason);
+        body.append(el("pre", { class: "diff-text", text: "(no previous revision to show — this is the first revision)" }));
+        return;
+    }
+    showDiffInDetails(label, previousDiffText, reload, reason);
 }
 
 // The mockup's inline diff: one .diff-line per unified line, gutter number + raw text.
@@ -152,8 +182,8 @@ export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
 
 // One diff in the right pane, in whichever layout the persisted toggle selects. #dm-columns /
 // #dm-inline re-render the SAME diff and persist through diff-vs-base's storage vocabulary.
-export function showDiffInDetails(label: string, diffText: string, reload: () => void): void {
-    shownDiff = { label, diffText, reload };
+export function showDiffInDetails(label: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
+    shownDiff = { label, diffText, reload, unrecoverableReason };
     setRightPaneLabel(label);
     const mode = mapStoredDiffModeToToggle(readStoredDiffMode());
     const toggle = document.getElementById("diff-mode-toggle")!;
@@ -167,7 +197,7 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
     const switchDiffMode = (label2: DiffToggleLabel) => {
         writeStoredDiffMode(label2);
         if (shownDiff !== undefined) {
-            showDiffInDetails(shownDiff.label, shownDiff.diffText, shownDiff.reload);
+            showDiffInDetails(shownDiff.label, shownDiff.diffText, shownDiff.reload, shownDiff.unrecoverableReason);
         }
     };
     // Full contents changes the fetched diff (wider git context), so it re-fetches via
@@ -179,6 +209,9 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
     columnsButton.onclick = () => switchDiffMode("columns");
     inlineButton.onclick = () => switchDiffMode("inline");
     const body = clearRightPaneBody();
+    if (unrecoverableReason !== undefined) {
+        appendUnrecoverableBanner(body, unrecoverableReason);
+    }
     if (mode === "columns") {
         appendColumnsDiff(body, diffText);
         return;
