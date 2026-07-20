@@ -168,6 +168,62 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     text-transform: uppercase;
     color: var(--muted);
 }
+/* Item 77: the Files pane is a tree. A folder is a native <details open> (no toggle JS).
+   Task 123 (Fork-style): decorations live in fixed-width columns so names at one depth
+   share a left edge; each .file-folder-kids wrapper indents one step and draws the
+   vertical guide line; chevron only on folder rows; folders as prominent as files. */
+.file-item {
+    padding: 3px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    color: var(--text);
+}
+/* File icon in a fixed column, offset by an empty 13px chevron column so file names
+   align with sibling folder names. */
+.file-item::before {
+    content: "📄";
+    display: inline-block;
+    width: 21px;
+    margin-left: 13px;
+}
+.file-item:hover { background: var(--sel-hover); }
+.file-item.selected { background: var(--sel); color: #fff; }
+.file-item .revcount { color: var(--muted); margin-left: 6px; }
+.file-item.selected .revcount { color: #bcd0ea; }
+.file-folder > summary {
+    padding: 3px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    list-style: none;
+}
+.file-folder > summary::-webkit-details-marker { display: none; }
+/* Own chevron + folder icon in one fixed 34px column (native marker hidden above so the
+   column width is deterministic across browsers). */
+.file-folder > summary::before {
+    content: "▸ 📁";
+    display: inline-block;
+    width: 34px;
+    color: var(--muted);
+}
+.file-folder[open] > summary::before { content: "▾ 📁"; }
+.file-folder > summary:hover { background: var(--sel-hover); }
+/* One indent step per depth; the left border IS the vertical guide, sitting under the
+   parent's chevron. Summary text starts at 10+34=44px; a child file's text at
+   16+10+13+21=60px; a child folder's at 16+10+34=60px — every child name exactly one
+   16px step right of its parent's, uniformly for files and folders. */
+.file-folder > .file-folder-kids {
+    margin-left: 16px;
+    border-left: 1px solid var(--border);
+}
+/* task 123: pre-Fork-style metrics (replaced above; kept per comment-out-don't-delete).
 .file-item {
     padding: 3px 10px 3px 18px;
     font-family: var(--mono);
@@ -178,12 +234,6 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     cursor: pointer;
     color: var(--text);
 }
-.file-item:hover { background: var(--sel-hover); }
-.file-item.selected { background: var(--sel); color: #fff; }
-.file-item .revcount { color: var(--muted); margin-left: 6px; }
-.file-item.selected .revcount { color: #bcd0ea; }
-/* Item 77: the Files pane is a tree. A folder is a native <details open> (no toggle JS); each
-   level indents its own contents, so nested <details> compound the indent on their own. */
 .file-folder > summary {
     padding: 3px 10px 3px 18px;
     font-family: var(--mono);
@@ -192,10 +242,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     cursor: pointer;
     white-space: nowrap;
 }
-/* The disclosure triangle already shows open/closed, so the icon stays the same either way. */
 .file-folder > summary::before { content: "📁"; margin-right: 5px; }
-.file-folder > summary:hover { background: var(--sel-hover); }
 .file-folder > *:not(summary) { padding-left: 10px; }
+*/
 /* A file deleted and never recreated: still browsable, but shown as gone. */
 .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
 /* Where a rename moved the file from (its history is keyed at the final path). */

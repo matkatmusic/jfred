@@ -108,9 +108,13 @@ export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallba
         // open: "" — el's attrs are Record<string, string | EventListener> (webapp/app.ts:31), so a
         // boolean will not typecheck; el forwards unknown keys to setAttribute, and a present `open`
         // attribute is what expands a <details>.
+        // task 123: one wrapper per folder — the CSS indents it one step and draws the
+        // vertical guide line on its left border.
+        const kids = el("div", { class: "file-folder-kids" },
+            node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)));
         return el("details", { class: "file-folder", open: "" }, [
             el("summary", { class: "file-folder-name", text: node.name }),
-            ...node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)),
+            kids,
         ]);
     }
     return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot, coverage);
