@@ -45,9 +45,10 @@ function computeBaseName(path: string): string {
 // One file chip: letter badge + name ("old → new" for renames).
 function renderFileChip(change: FileChange, onclick: EventListener): HTMLElement {
     const letter = computeOpLetter(change);
+    // displayPath, not path (task 127): a pre-rename chip shows the name the file had then.
     const label = change.renamedFrom !== undefined
-        ? `${computeBaseName(change.renamedFrom)} → ${computeBaseName(change.path)}`
-        : computeBaseName(change.path);
+        ? `${computeBaseName(change.renamedFrom)} → ${computeBaseName(change.displayPath)}`
+        : computeBaseName(change.displayPath);
     return el("span", { class: "timeline-chip", title: "Show revision in Inspector", onclick }, [
         el("span", { class: `op-badge op-${letter.toLowerCase()}`, text: letter }),
         el("span", { text: label }),

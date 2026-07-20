@@ -101,8 +101,11 @@ export type WireJsonlFile = { fileName: string };
 export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
 
 // indexRevisionsByChangeId's entries: one changeId resolved to its displayable revision facts.
+// displayPath is the name the file had AT that revision (task 127) — path stays the final
+// target because every lookup/fetch keys on it.
 export type RevisionIndexEntry = {
     path: string;
+    displayPath: string;
     eventKind: string;
     renamedFrom: string | undefined;
     isFirstRevision: boolean;
@@ -112,8 +115,11 @@ export type RevisionIndex = Map<string, RevisionIndexEntry>;
 
 // deriveFileChanges' chips: one displayable file change per distinct path; `when` is the owning
 // snapshot's instant (the chip row's timestamp, item 55).
+// displayPath is the entry-time name for display only (task 127) — path stays the lookup and
+// fetch key.
 export type FileChange = {
     path: string;
+    displayPath: string;
     eventKind: string;
     renamedFrom: string | undefined;
     isFirstRevision: boolean;

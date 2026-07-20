@@ -41,13 +41,15 @@ function buildTouchedFileEntries(changes: FileChange[], wireDocument: WireTimeli
     );
     const entriesByTarget = new Map<string, FileSidebarEntry>();
     for (const change of changes) {
+        // Entries display the ENTRY-TIME name (task 127): the visible target is the change's
+        // displayPath; lookups into the sidebar view-model stay keyed by the final path.
         const known = sidebarEntriesByTarget.get(change.path);
         if (known !== undefined) {
-            entriesByTarget.set(change.path, known);
+            entriesByTarget.set(change.path, { ...known, target: change.displayPath });
             continue;
         }
         entriesByTarget.set(change.path, {
-            target: change.path,
+            target: change.displayPath,
             revisionCount: 0,
             isDeleted: false,
             originalPath: change.renamedFrom,
@@ -105,8 +107,9 @@ function showClickedFileDiff(
 function appendFileList(left: HTMLElement, changes: FileChange[], context: DetailsContext): HTMLElement[] {
     // A leaf click knows only its path; the diff needs the FileChange (its changeId resolves the
     // revision, its eventKind picks the rename/no-hunk fallback text). Last change per path wins,
-    // matching buildTouchedFileEntries' dedup.
-    const changeByPath = new Map(changes.map((change) => [change.path, change]));
+    // matching buildTouchedFileEntries' dedup. Keyed by displayPath (task 127) — the tree's
+    // entries carry the entry-time name, and onFileClick echoes that back.
+    const changeByPath = new Map(changes.map((change) => [change.displayPath, change]));
     // Re-callable so the full-contents toggle can re-fetch this file's diff at the current stored
     // context width (item 75).
     const showFileDiff = async (change: FileChange) => {

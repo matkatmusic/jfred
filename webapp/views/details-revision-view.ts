@@ -2,8 +2,7 @@
 // route to a file's content lands here: the Files sidebar (no focus → revision #1, diff), and
 // every timeline chip-row button (focused on its own revision, in the mode its button names).
 // Rev-cards on the left, the selected card's diff / content / causing record on the right
-// (tests/details-revision-view.test.ts covers the focus + range view-model helpers, which live
-// in details-model.ts).
+// (tests/details-revision-view.test.ts covers the focus + range view-model helpers in details-model.ts).
 
 import { el } from "../app-dom.ts";
 import { routeToFileHistory } from "../app-routes.ts";
@@ -128,6 +127,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         const block = (await getDiffBlocks(fullContentsIsOn()))[index];
         const change: FileChange = {
             path: target,
+            displayPath: target,    // this site renders its own `${target} — revision #n` label
             eventKind: card.opLabel,
             renamedFrom: history.revisions[index]!.rename?.from,
             isFirstRevision: index === 0,

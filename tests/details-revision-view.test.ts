@@ -34,7 +34,7 @@ const THREE_REVISION_HISTORY = {
 // One file change on src/orders.py. FileChange names renamedFrom + isFirstRevision explicitly —
 // they are required fields, not optional ones.
 function buildOrdersChange(changeId: string, eventKind: EventKind, when: string, isFirstRevision: boolean): FileChange {
-    return { path: "src/orders.py", eventKind: eventKind as string, renamedFrom: undefined, isFirstRevision, changeId, when };
+    return { path: "src/orders.py", displayPath: "src/orders.py", eventKind: eventKind as string, renamedFrom: undefined, isFirstRevision, changeId, when };
 }
 
 // Two snapshot-bearing turns, each owning one of the first two revisions by changeId.

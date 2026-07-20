@@ -41,17 +41,35 @@ export function computeGitBaselineText(snapshot: WireStepSnapshot): string {
     return `Files seeded from git base commit ${commitHash}`;
 }
 
+// Entry-time path per revision (task 127): walk backward from the final target, stepping each
+// rename's `from` across it, so revisions before a rename display the name the file had at
+// that time.
+function computeEntryTimePaths(history: WireFileHistory): string[] {
+    const entryTimePaths = new Array<string>(history.revisions.length);
+    let currentPath = history.target;
+    for (let index = history.revisions.length - 1; index >= 0; index -= 1) {
+        entryTimePaths[index] = currentPath;
+        const rename = history.revisions[index]!.rename;
+        if (rename !== undefined) {
+            currentPath = rename.from;
+        }
+    }
+    return entryTimePaths;
+}
+
 // changeId -> { path, eventKind, renamedFrom, isRewound } across surviving AND rewound histories,
 // so a step's changeIds resolve to displayable file chips and orphan detection in one lookup.
 // Surviving histories are indexed first and win duplicates (a changeId present in both branches
 // counts as surviving).
 function recordHistoryRevisions(index: RevisionIndex, history: WireFileHistory, isRewound: boolean): void {
+    const entryTimePaths = computeEntryTimePaths(history);
     history.revisions.forEach((revision, position) => {
         if (index.has(revision.changeId)) {
             return;
         }
         index.set(revision.changeId, {
             path: revision.rename !== undefined ? revision.rename.to : history.target,
+            displayPath: entryTimePaths[position]!,
             eventKind: revision.kind,
             renamedFrom: revision.rename !== undefined ? revision.rename.from : undefined,
             isFirstRevision: position === 0,
@@ -88,6 +106,7 @@ export function deriveFileChanges(step: WireStepSnapshot, revisionIndex: Revisio
         seenPaths.add(revision.path);
         changes.push({
             path: revision.path,
+            displayPath: revision.displayPath,
             eventKind: revision.eventKind,
             renamedFrom: revision.renamedFrom,
             isFirstRevision: revision.isFirstRevision,
@@ -100,7 +119,7 @@ export function deriveFileChanges(step: WireStepSnapshot, revisionIndex: Revisio
             continue;
         }
         seenPaths.add(path);
-        changes.push({ path, eventKind: EDIT_EVENT_KIND, renamedFrom: undefined, isFirstRevision: false, changeId: undefined, when: step.when });
+        changes.push({ path, displayPath: path, eventKind: EDIT_EVENT_KIND, renamedFrom: undefined, isFirstRevision: false, changeId: undefined, when: step.when });
     }
     return changes;
 }

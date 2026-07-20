@@ -1,28 +1,32 @@
-// Timeline event-type filter bar (task 114) — thin DOM wiring over timeline-filter-model.ts.
-// Renders one .toolbar-btn per mode into #timeline-filter-bar; clicking a button hides every
-// .tl-row whose node fails checkNodeMatchesFilterMode. State is per-render: navigation rebuilds
-// the bar back at "All" (app-router re-hides the bar on every route change).
+// Timeline event-type filter bar (task 114) + keyword search box (task 127) — thin DOM wiring
+// over timeline-filter-model.ts. Renders a search input and one .toolbar-btn per mode into
+// #timeline-filter-bar; a row hides when its node fails the combined mode+search predicate.
+// State is per-render: navigation rebuilds the bar back at "All" with a blank term (app-router
+// re-hides the bar on every route change).
 
 import { el } from "../app-dom.ts";
+import { computeMatchCounterLabel, computeWrappedMatchIndex } from "./details-find-model.ts";
 import {
     TIMELINE_FILTER_BUTTONS,
     TIMELINE_FILTER_MODES,
-    checkNodeMatchesFilterMode,
+    checkNodePassesFilters,
+    computeMatchingNodeIndexes,
     type TimelineFilterMode,
 } from "./timeline-filter-model.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 
 const ACTIVE_BUTTON_CLASS = "active";
 const FILTERED_OUT_ROW_CLASS = "tl-filtered-out";
+const CURRENT_MATCH_ROW_CLASS = "tl-search-current";
 
-// Hide every row whose node fails the mode's predicate; restore the rest.
-function applyTimelineFilterMode(context: TimelineRenderContext, mode: TimelineFilterMode): void {
+// Hide every row failing the combined mode+search predicate; restore the rest.
+function applyTimelineFilters(context: TimelineRenderContext, mode: TimelineFilterMode, term: string): void {
     for (const [index, node] of context.nodes.entries()) {
         const row = context.nodeRows.get(index);
         if (row === undefined) {
             continue;
         }
-        row.classList.toggle(FILTERED_OUT_ROW_CLASS, !checkNodeMatchesFilterMode(node, mode));
+        row.classList.toggle(FILTERED_OUT_ROW_CLASS, !checkNodePassesFilters(node, mode, term));
     }
 }
 
@@ -33,8 +37,82 @@ function markActiveButton(buttons: HTMLButtonElement[], activeButton: HTMLButton
     }
 }
 
-// Build the single-select mode buttons into `bar` and unhide it; the All button starts active.
+// Build the search box + single-select mode buttons into `bar` and unhide it; the All button
+// starts active with a blank term.
 export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTMLElement): void {
+    let activeMode: TimelineFilterMode = TIMELINE_FILTER_MODES.all;
+    let searchTerm = "";
+    const searchInput = el("input", { class: "timeline-search", type: "search", placeholder: "🔍 search" }) as HTMLInputElement;
+    // Fork-style search chrome, shown only while a term is entered: n/N counter (current
+    // result of results found), ▲/▼ jump buttons, then the ✕ clear button. Entering a term
+    // jumps to result #1; ▲/▼ (and Enter / Shift+Enter) walk the results, wrapping.
+    let matchNodeIndexes: number[] = [];
+    let currentMatchPosition = -1;
+    let currentMatchRow: HTMLElement | null = null;
+    const countLabel = el("span", { class: "search-count" });
+    const prevButton = el("button", { class: "search-step", text: "▲", title: "Previous result" }) as HTMLButtonElement;
+    const nextButton = el("button", { class: "search-step", text: "▼", title: "Next result" }) as HTMLButtonElement;
+    const clearButton = el("button", { class: "search-clear", text: "✕", title: "Clear search" }) as HTMLButtonElement;
+    const searchChrome = [countLabel, prevButton, nextButton, clearButton];
+    searchChrome.forEach((element) => { element.hidden = true; });
+    // Move the current-result marker to the current match's row and SELECT it — selection
+    // renders the details pane and centers the row, so result #1 shows its details the moment
+    // a term lands on it. Guarded on the already-selected row so retyping a term that keeps
+    // landing on the same result doesn't re-render the pane per keystroke.
+    const jumpToCurrentMatch = () => {
+        currentMatchRow?.classList.remove(CURRENT_MATCH_ROW_CLASS);
+        currentMatchRow = null;
+        const nodeIndex = matchNodeIndexes[currentMatchPosition];
+        if (nodeIndex === undefined) {
+            return;
+        }
+        const row = context.nodeRows.get(nodeIndex);
+        if (row === undefined) {
+            return;
+        }
+        currentMatchRow = row;
+        row.classList.add(CURRENT_MATCH_ROW_CLASS);
+        if (row !== context.selectedRow) {
+            void context.selectTimelineRow(nodeIndex);
+            return;
+        }
+        row.scrollIntoView({ block: "nearest" });
+    };
+    const updateCounterAndJump = () => {
+        countLabel.textContent = computeMatchCounterLabel(currentMatchPosition, matchNodeIndexes.length);
+        jumpToCurrentMatch();
+    };
+    // Re-derive the result list for the current term+mode and land on result #1.
+    const refreshFilteredRows = () => {
+        applyTimelineFilters(context, activeMode, searchTerm);
+        const hasTerm = searchTerm.trim() !== "";
+        matchNodeIndexes = hasTerm ? computeMatchingNodeIndexes(context.nodes, activeMode, searchTerm) : [];
+        currentMatchPosition = matchNodeIndexes.length === 0 ? -1 : 0;
+        searchChrome.forEach((element) => { element.hidden = !hasTerm; });
+        updateCounterAndJump();
+    };
+    const stepMatch = (delta: number) => {
+        currentMatchPosition = computeWrappedMatchIndex(currentMatchPosition, matchNodeIndexes.length, delta);
+        updateCounterAndJump();
+    };
+    searchInput.oninput = () => {
+        searchTerm = searchInput.value;
+        refreshFilteredRows();
+    };
+    searchInput.onkeydown = (event) => {
+        if (event.key !== "Enter") {
+            return;
+        }
+        stepMatch(event.shiftKey ? -1 : 1);
+    };
+    prevButton.onclick = () => stepMatch(-1);
+    nextButton.onclick = () => stepMatch(1);
+    clearButton.onclick = () => {
+        searchInput.value = "";
+        searchTerm = "";
+        refreshFilteredRows();
+        searchInput.focus();
+    };
     const buttons: HTMLButtonElement[] = [];
     for (const [mode, label] of TIMELINE_FILTER_BUTTONS) {
         const button = el("button", { class: "toolbar-btn", text: label }) as HTMLButtonElement;
@@ -43,10 +121,11 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
         }
         button.onclick = () => {
             markActiveButton(buttons, button);
-            applyTimelineFilterMode(context, mode);
+            activeMode = mode;
+            refreshFilteredRows();
         };
         buttons.push(button);
     }
-    bar.replaceChildren(...buttons);
+    bar.replaceChildren(searchInput, ...searchChrome, ...buttons);
     bar.hidden = false;
 }

@@ -141,6 +141,7 @@ function makeTurnNodeFixture(
 
 const singleFileChangeFixture: FileChange[] = [{
     path: "orders.py",
+    displayPath: "orders.py",
     eventKind: EventKind.edit,
     renamedFrom: undefined,
     isFirstRevision: false,

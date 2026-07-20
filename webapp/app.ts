@@ -8,6 +8,7 @@ import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole 
 import { inflightLoadController } from "./app-fetch.ts";
 import { initializeHeader } from "./app-header.ts";
 import { renderRoute } from "./app-router.ts";
+import { initDetailsFind } from "./views/details-find.ts";
 
 // Item 10a: dead code, commented out — a hidden inspector is display:none on EVERY route
 // (styles.css has no .inspector-pane.hidden rail override), so this handler could never fire.
@@ -70,6 +71,7 @@ if (typeof window !== "undefined") {
     makeSplitter("split-td", "timeline-pane", "y", false, 80);
     makeSplitter("split-lr", "details-left", "x", false, 140);
     makeSplitter("split-dc", "console-row", "y", true, 60);
+    initDetailsFind();          // task 127: the right pane's find widget (input + n/N + < >)
     document.getElementById("console-hide")!.addEventListener("click", collapseProgressConsole);
     document.getElementById("console-show")!.addEventListener("click", expandProgressConsole);
     document.getElementById("console-cancel")!.addEventListener("click", () => {

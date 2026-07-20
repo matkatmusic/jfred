@@ -595,6 +595,21 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     white-space: nowrap;
 }
 #details-right-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+/* task 127: the right pane's find widget (input + n/N counter + prev/next), between the
+   label and the diff-mode toggle */
+#details-find { flex: 0 0 auto; display: inline-flex; gap: 4px; align-items: center; }
+#details-find input {
+    width: 14ch;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border-strong);
+    border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 11px;
+}
+#details-find button {
+    background: var(--control); color: var(--text); border: 1px solid var(--border-strong);
+    border-radius: 3px; padding: 1px 6px; font-size: 11px; cursor: pointer;
+}
+#details-find-count { color: var(--muted); }
+::highlight(details-find) { background: #7c6f2a; }
+::highlight(details-find-current) { background: #c9a227; color: #000; }
 #diff-mode-toggle { flex: 0 0 auto; }
 #diff-mode-toggle:not([hidden]) { display: inline-flex; }
 #diff-mode-toggle button {
@@ -1046,6 +1061,20 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 
 /* Timeline event-type filter (task 114) */
 #timeline-filter-bar { margin: 4px 8px 0; }
+/* task 127: the keyword search box — two ~9-letter words + the 🔍 emoji wide */
+.timeline-search { width: 20ch; }
+/* task 127: the explicit ✕ clear buttons (Fork-style, shown once a term is entered); the
+   native webkit cancel ✕ is hidden so the inputs don't show two */
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+.search-clear, .search-step { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; }
+.search-clear:hover, .search-step:hover { color: var(--text); }
+.search-step { font-size: 9px; }
+/* task 127: the timeline search's n/N counter — current result / results found (shown only
+   while a term is entered) */
+.search-count { color: var(--muted); font-size: 11px; }
+/* task 127: the row the search is currently landed on (▲/▼ walk this marker) */
+.tl-row.tl-search-current { outline: 1px solid #c9a227; outline-offset: -1px; }
+#details-find button.search-clear { background: none; border: none; padding: 0 2px; }
 #timeline-filter-bar .toolbar-btn.active {
     background: var(--sel);
     border-color: var(--accent);

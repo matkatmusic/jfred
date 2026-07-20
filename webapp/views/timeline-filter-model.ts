@@ -99,3 +99,60 @@ export function checkNodeMatchesFilterMode(node: TimelineNode, mode: TimelineFil
     }
     return node.kind === COMMIT_NODE_KIND;
 }
+
+// ── keyword search (task 127) ────────────────────────────────────────────────────────────────
+
+// Everything a row can visibly say, lowercased once: turn text, tool name/summary, commit
+// detail + hash, and each file chip's names (final, entry-time, renamed-from).
+function computeNodeSearchHaystack(node: TimelineNode): string {
+    const parts: string[] = [];
+    if (node.text !== undefined) {
+        parts.push(node.text);
+    }
+    if (node.summary !== undefined) {
+        parts.push(node.toolName ?? "", node.summary);
+    }
+    if (node.detail !== undefined) {
+        parts.push(node.detail);
+    }
+    if (node.resultHash !== undefined) {
+        parts.push(node.resultHash);
+    }
+    for (const change of node.fileChanges ?? []) {
+        parts.push(change.path, change.displayPath, change.renamedFrom ?? "");
+    }
+    return parts.join("\n").toLowerCase();
+}
+
+// The search predicate: does `node` stay visible under `term`? Blank matches everything;
+// otherwise a case-insensitive substring test over the node's visible text. Deliberately NO
+// session-end exemption (unlike the mode predicate): a terminator carries no text, so a real
+// term hides it.
+export function checkNodeMatchesSearchTerm(node: TimelineNode, term: string): boolean {
+    const normalizedTerm = term.trim().toLowerCase();
+    if (normalizedTerm === "") {
+        return true;
+    }
+    return computeNodeSearchHaystack(node).includes(normalizedTerm);
+}
+
+// A row stays visible iff it passes BOTH the active mode button and the search term.
+export function checkNodePassesFilters(node: TimelineNode, mode: TimelineFilterMode, term: string): boolean {
+    if (!checkNodeMatchesFilterMode(node, mode)) {
+        return false;
+    }
+    return checkNodeMatchesSearchTerm(node, term);
+}
+
+// The search's jump list: the node indexes surviving the combined predicate, in timeline
+// order. Entry #1 of the results is the first index; N (the counter denominator) is the
+// list's length.
+export function computeMatchingNodeIndexes(nodes: TimelineNode[], mode: TimelineFilterMode, term: string): number[] {
+    const matchingIndexes: number[] = [];
+    for (const [index, node] of nodes.entries()) {
+        if (checkNodePassesFilters(node, mode, term)) {
+            matchingIndexes.push(index);
+        }
+    }
+    return matchingIndexes;
+}

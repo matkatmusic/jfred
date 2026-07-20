@@ -5,11 +5,12 @@ import assert from "node:assert/strict";
 import {
     GIT_BASE_CHANGE_ID_PREFIX,
     computeSnapshotJumpRoute,
+    deriveFileChanges,
     indexRevisionsByChangeId,
     splitPatchByFile,
 } from "../webapp/views/timeline-changes.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
-import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
 import { routeToFileHistory } from "../webapp/app-routes.ts";
 import { buildProjectReconstruction } from "../src/viewer_api.ts";
 import { renderRangePatch } from "../src/viewer_api_diffs.ts";
@@ -179,6 +180,63 @@ test("test_file_changes_carry_snapshot_timestamp", () => {
     for (const change of filesBubble!.fileChanges!) {
         assert.ok(snapshotWhens.has(change.when));
     }
+});
+
+// ── task 127: entry-time display paths ──────────────────────────────────────────────────────
+// A one-file document whose history is [edit under the original name, rename to the final name]
+// — the minimal shape reproducing the s87 "pre-rename entry shows core_inventory.py" bug.
+const renamedFileDocument: WireTimelineDocument = {
+    filesTouched: [{
+        target: "/repo/core_inventory.py",
+        revisions: [
+            { kind: "edit", changeId: "c1", timestamp: "2026-07-20T10:00:00Z" },
+            { kind: "rename", changeId: "c2", timestamp: "2026-07-20T10:05:00Z", rename: { from: "/repo/inventory.py", to: "/repo/core_inventory.py" } },
+        ],
+    }],
+    rewoundFilesTouched: [],
+    messages: [],
+    steps: [],
+    commitMarkers: [],
+};
+
+test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
+    // Scenario: a file edited under its original name, then renamed. The revision BEFORE the
+    // rename must display the original name; the rename revision displays the new name.
+    // Steps:
+    // index the two-revision renamed-file document.
+    const index = indexRevisionsByChangeId(renamedFileDocument);
+    // the pre-rename revision displays the name the file had THEN...
+    assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
+    // ...while its lookup path stays the final target.
+    assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");
+    // the rename revision displays the post-rename name (unchanged behavior).
+    assert.equal(index.get("c2")!.displayPath, "/repo/core_inventory.py");
+});
+
+test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", () => {
+    // Scenario: a chip resolved from a pre-rename revision carries the entry-time name for
+    // display while keeping the final path as its lookup key.
+    // Steps:
+    // resolve a step whose only changeId is the pre-rename revision.
+    const index = indexRevisionsByChangeId(renamedFileDocument);
+    const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: ["c1"], changedPaths: [] };
+    const changes = deriveFileChanges(step, index);
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0]!.displayPath, "/repo/inventory.py");
+    assert.equal(changes[0]!.path, "/repo/core_inventory.py");
+});
+
+test("test_deriveFileChanges_fallback_chips_display_their_own_path", () => {
+    // Scenario: a changedPaths-hint chip resolves through no revision — its display name is
+    // simply its path.
+    // Steps:
+    // resolve a step with no resolvable changeIds and one changedPaths hint.
+    const index = indexRevisionsByChangeId(renamedFileDocument);
+    const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: [], changedPaths: ["/repo/orders.py"] };
+    const changes = deriveFileChanges(step, index);
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0]!.displayPath, "/repo/orders.py");
+    assert.equal(changes[0]!.path, "/repo/orders.py");
 });
 
 test("test_gitBaseChangeIdPrefix_mirrors_engine_constant", () => {

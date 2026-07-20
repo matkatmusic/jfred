@@ -7,6 +7,9 @@ import {
     TIMELINE_FILTER_MODES,
     TIMELINE_FILTER_BUTTONS,
     checkNodeMatchesFilterMode,
+    checkNodeMatchesSearchTerm,
+    checkNodePassesFilters,
+    computeMatchingNodeIndexes,
 } from "../webapp/views/timeline-filter-model.ts";
 import { SCRIPT_EXECUTION_EVENT_KIND } from "../webapp/views/timeline-labels.ts";
 import {
@@ -26,8 +29,8 @@ import {
 // ── fixture nodes: one minimal literal per shape the predicate distinguishes ────────────────────
 const userTurn: TurnNode = { kind: USER_TURN_NODE_KIND, when: "t1", sessionId: "s", text: "hi", snapshots: [], gitOperations: [] };
 const agentTurn: TurnNode = { kind: AGENT_TURN_NODE_KIND, when: "t2", sessionId: "s", text: "ok", snapshots: [], gitOperations: [] };
-const agentTurnWithScriptChange: TurnNode = { ...agentTurn, fileChanges: [{ path: "a.py", eventKind: SCRIPT_EXECUTION_EVENT_KIND, renamedFrom: undefined, isFirstRevision: false, changeId: undefined, when: "t2" }] };
-const agentTurnWithEditChange: TurnNode = { ...agentTurn, fileChanges: [{ path: "a.py", eventKind: EDIT_EVENT_KIND, renamedFrom: undefined, isFirstRevision: true, changeId: "c1", when: "t2" }] };
+const agentTurnWithScriptChange: TurnNode = { ...agentTurn, fileChanges: [{ path: "a.py", displayPath: "a.py", eventKind: SCRIPT_EXECUTION_EVENT_KIND, renamedFrom: undefined, isFirstRevision: false, changeId: undefined, when: "t2" }] };
+const agentTurnWithEditChange: TurnNode = { ...agentTurn, fileChanges: [{ path: "a.py", displayPath: "a.py", eventKind: EDIT_EVENT_KIND, renamedFrom: undefined, isFirstRevision: true, changeId: "c1", when: "t2" }] };
 const sessionEnd: SessionEndNode = { kind: SESSION_END_NODE_KIND, when: "t9", sessionId: "s", snapshots: [] };
 const commit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t3", sessionId: "s" };
 const plainToolCall: ToolCallNode = { kind: TOOL_CALL_NODE_KIND, when: "t4", sessionId: "s", uuid: "u1", toolName: "Grep", summary: "grep foo", toolUseId: "tu1" };
@@ -129,6 +132,76 @@ test("test_session_end_matches_every_mode", () => {
     for (const mode of Object.values(TIMELINE_FILTER_MODES)) {
         assert.equal(checkNodeMatchesFilterMode(sessionEnd, mode), true);
     }
+});
+
+// ── task 127: keyword search predicate ──────────────────────────────────────────────────────
+// The driving use case's node: an agent turn whose chip is the s87 pre-rename inventory edit.
+const agentTurnWithRenameChip: TurnNode = { ...agentTurn, fileChanges: [{ path: "/repo/core_inventory.py", displayPath: "/repo/inventory.py", eventKind: EDIT_EVENT_KIND, renamedFrom: "/repo/inventory.py", isFirstRevision: false, changeId: "c9", when: "t2" }] };
+const renameToolCall: ToolCallNode = { ...plainToolCall, uuid: "u4", toolUseId: "tu4", toolName: "Bash", summary: "git mv inventory.py core_inventory.py" };
+const commitWithDetail: CommitNode = { ...commit, detail: "wip" };
+
+test("test_checkNodeMatchesSearchTerm_empty_term_matches_every_node", () => {
+    // Scenario: a blank search box hides nothing — blank and whitespace-only terms match all.
+    // Steps: "" and "   " match a user turn and a commit.
+    assert.equal(checkNodeMatchesSearchTerm(userTurn, ""), true);
+    assert.equal(checkNodeMatchesSearchTerm(userTurn, "   "), true);
+    assert.equal(checkNodeMatchesSearchTerm(commit, ""), true);
+});
+
+test("test_checkNodeMatchesSearchTerm_matches_turn_text_case_insensitively", () => {
+    // Scenario: the term matches a turn's message text regardless of case.
+    // Steps: the "hi" user turn matches "HI"; it does not match an unrelated term.
+    assert.equal(checkNodeMatchesSearchTerm(userTurn, "HI"), true);
+    assert.equal(checkNodeMatchesSearchTerm(userTurn, "inventory"), false);
+});
+
+test("test_checkNodeMatchesSearchTerm_matches_tool_call_summary_and_name", () => {
+    // Scenario: a tool-call row is searchable by its tool name and its one-line summary.
+    // Steps: the git-mv Bash row matches "bash" and "git mv".
+    assert.equal(checkNodeMatchesSearchTerm(renameToolCall, "bash"), true);
+    assert.equal(checkNodeMatchesSearchTerm(renameToolCall, "git mv"), true);
+});
+
+test("test_checkNodeMatchesSearchTerm_matches_commit_detail", () => {
+    // Scenario: a commit row is searchable by its message detail.
+    // Steps: the "wip" commit matches "wip"; the detail-less commit does not.
+    assert.equal(checkNodeMatchesSearchTerm(commitWithDetail, "wip"), true);
+    assert.equal(checkNodeMatchesSearchTerm(commit, "wip"), false);
+});
+
+test("test_checkNodeMatchesSearchTerm_matches_file_chip_paths", () => {
+    // Scenario: the driving use case — load s87, search "inventory", find the entry whose chip
+    // touched inventory.py (final, entry-time, and renamed-from names all count).
+    // Steps: the rename-chip turn matches; the chipless agent turn does not.
+    assert.equal(checkNodeMatchesSearchTerm(agentTurnWithRenameChip, "inventory"), true);
+    assert.equal(checkNodeMatchesSearchTerm(agentTurn, "inventory"), false);
+});
+
+test("test_checkNodeMatchesSearchTerm_hides_session_end_rows", () => {
+    // Scenario: unlike the mode predicate, search has NO session-end exemption — a terminator
+    // carries no text, so a real term hides it ("non-matching entries hidden").
+    // Steps: the session-end fixture fails a real term.
+    assert.equal(checkNodeMatchesSearchTerm(sessionEnd, "inventory"), false);
+});
+
+test("test_checkNodePassesFilters_requires_both_mode_and_term", () => {
+    // Scenario: a row stays visible only when it passes the active mode button AND the term.
+    // Steps: the rename-chip turn passes (files, "inventory"); fails on the wrong mode; fails
+    // on a non-matching term.
+    assert.equal(checkNodePassesFilters(agentTurnWithRenameChip, TIMELINE_FILTER_MODES.files, "inventory"), true);
+    assert.equal(checkNodePassesFilters(agentTurnWithRenameChip, TIMELINE_FILTER_MODES.git, "inventory"), false);
+    assert.equal(checkNodePassesFilters(agentTurnWithRenameChip, TIMELINE_FILTER_MODES.files, "zzz"), false);
+});
+
+test("test_computeMatchingNodeIndexes_lists_matching_rows_in_timeline_order", () => {
+    // Scenario: the search's jump list — the node indexes surviving the combined mode+search
+    // predicate, in timeline order (entry #1 of the results is the first index; N is the
+    // list's length).
+    // Steps: among [rename-chip turn, plain agent turn, session end], "inventory" under All
+    // matches only the chip turn (index 0); a blank term matches all three.
+    const nodes: TimelineNode[] = [agentTurnWithRenameChip, agentTurn, sessionEnd];
+    assert.deepEqual(computeMatchingNodeIndexes(nodes, TIMELINE_FILTER_MODES.all, "inventory"), [0]);
+    assert.deepEqual(computeMatchingNodeIndexes(nodes, TIMELINE_FILTER_MODES.all, ""), [0, 1, 2]);
 });
 
 test("test_filter_buttons_cover_every_mode_with_all_first", () => {

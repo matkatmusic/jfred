@@ -6,6 +6,7 @@
 
 import { el } from "../app-dom.ts";
 import { fetchText, getConsentChoice } from "../app-fetch.ts";
+import { resetDetailsFind } from "./details-find.ts";
 import {
     SplitRowKind,
     computeInlineRows,
@@ -40,6 +41,9 @@ export function hideDiffModeToggle(): void {
 }
 
 export function clearRightPaneBody(): HTMLElement {
+    // Every right-pane render routes through here, so stale find-widget Ranges never survive
+    // a re-render (task 127).
+    resetDetailsFind();
     const body = document.getElementById("details-right-body")!;
     body.replaceChildren();
     return body;
@@ -202,9 +206,10 @@ export async function showRevisionDiffInDetails(change: FileChange, blocks: stri
     const link = change.changeId === undefined ? undefined : findRevisionForChangeId(filesTouched, change.changeId, undefined);
     const block = link?.revisionNumber === undefined ? undefined : blocks[link.revisionNumber - 1];
     const fallbackText = computeRevisionDiffFallbackText(block, change);
+    // displayPath, not path (task 127): the pane label shows the entry-time file name.
     if (fallbackText !== undefined) {
-        showTextInDetails(change.path, fallbackText);
+        showTextInDetails(change.displayPath, fallbackText);
         return;
     }
-    showDiffInDetails(change.path, block!, reload);
+    showDiffInDetails(change.displayPath, block!, reload);
 }
