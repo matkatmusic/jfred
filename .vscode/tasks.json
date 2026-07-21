@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build:webapp",
+            "type": "npm",
+            "script": "build:webapp",
+            "problemMatcher": ["$tsc"],
+            "presentation": { "reveal": "silent", "clear": true }
+        },
+        {
+            "label": "prep:demo",
+            "type": "shell",
+            "command": "tar -xf demo/repo.git.tar -C demo/projects/s87-demo-composite",
+            "options": { "cwd": "${workspaceFolder}" },
+            "dependsOn": ["build:webapp"],
+            "problemMatcher": [],
+            "presentation": { "reveal": "silent", "clear": true }
+        }
+    ]
+}
