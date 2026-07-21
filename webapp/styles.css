@@ -916,8 +916,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .inspector-content { flex: 1; min-width: 0; overflow-y: auto; padding: 0 8px; }
 .inspector-nav { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .jump-link { text-decoration: underline dotted; cursor: pointer; }
-/* Item 10h: the history jump button sits inside the JSON <pre>; give it button typography. */
-.snapshot-history-btn { display: block; margin: 8px 0 4px; font-family: system-ui, sans-serif; }
+/* Item 10h: the history jump button sits inside the JSON <pre>; give it button typography.
+   task 132: inline-block so it sits on the same line as the backupFileName path. */
+.snapshot-history-btn { display: inline-block; margin: 0 0 0 8px; font-family: system-ui, sans-serif; }
 .inspector-json { white-space: pre-wrap; word-break: break-word; overflow-x: auto; font-size: 12px; line-height: 1.5; }
 .inspector-text { white-space: pre-wrap; word-break: break-word; overflow-x: auto; font-size: 12px; line-height: 1.5; }
 /* Long string values collapse to their first 7 wrapped lines behind a […] toggle. */

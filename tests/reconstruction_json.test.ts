@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import {
     extractConversationMessages,
     summarizeBranches,
-    buildLineVerdicts,
     buildReconstructionDocument,
 } from "../src/reconstruction_json.ts";
 import { buildStepSnapshots } from "../src/reconstruction_json_steps.ts";
@@ -16,7 +15,7 @@ import {
 } from "../src/reconstruction_engine.ts";
 import { countStepsInTranscript } from "../src/reconstruction_steps.ts";
 import { isGenuineUserPrompt } from "../src/reconstruction_prompts.ts";
-import { RecordType, BlockType, Verdict } from "../src/structures/vocabulary.ts";
+import { RecordType, BlockType } from "../src/structures/vocabulary.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import {
     createSidecarReader,
@@ -177,31 +176,8 @@ test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_file
     assert.ok(resolvedAny);
 });
 
-test("test_buildLineVerdicts_one_entry_per_record_in_file_order", () => {
-    // Behavior: one entry per parsed record, line === array index.
-    const verdicts = buildLineVerdicts(records);
-    // Verify.
-    assert.equal(verdicts.length, records.length);
-    verdicts.forEach((v, i) => assert.equal(v.line, i));
-});
-
-test("test_buildLineVerdicts_classifies_each_line", () => {
-    // Behavior: every entry's verdict is a Verdict member; a genuine prompt flips isGenuinePrompt.
-    const verdicts = buildLineVerdicts(records);
-    const verdictValues = new Set(Object.values(Verdict));
-    // Verify: all verdicts valid; a genuine user prompt is flagged, a non-prompt user record is not.
-    for (const v of verdicts) {
-        assert.ok(verdictValues.has(v.verdict));
-    }
-    const genuineIndex = records.findIndex((r) => isGenuineUserPrompt(r));
-    assert.equal(verdicts[genuineIndex]!.isGenuinePrompt, true);
-    const nonPromptIndex = records.findIndex(
-        (r) => r.type === RecordType.user && !isGenuineUserPrompt(r),
-    );
-    if (nonPromptIndex >= 0) {
-        assert.equal(verdicts[nonPromptIndex]!.isGenuinePrompt, false);
-    }
-});
+// (task 134) the three buildLineVerdicts tests moved with their subject to
+// tests/reconstruction_line_verdicts.test.ts.
 
 test("test_buildReconstructionDocument_step_count_matches_countStepsInTranscript", () => {
     // Behavior: the document's step count matches the engine's step counter.

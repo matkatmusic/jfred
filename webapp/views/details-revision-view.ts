@@ -198,7 +198,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         ];
         const cardElement = card.unrecoverableReason === undefined
             ? el("div", { class: "rev-card" }, healthyCardRows)
-            : buildMissingRevisionCard(card);
+            : buildMissingRevisionCard(buildActionButton, context, card, cards.length);
         cardElement.onclick = () => {
             selectCard(cardElement);
             void showCardDiff(card, index);

@@ -7,6 +7,7 @@ import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 import { findTimelineNodeIndexForRawLine } from "./timeline-labels.ts";
 import { findJsonlForSession } from "./timeline-sessions.ts";
+import type { LineNode } from "./timeline-line-nodes.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import {
     COMMIT_NODE_KIND,
@@ -84,7 +85,7 @@ async function tryOpenInspectorForSnapshot(context: TimelineRenderContext, snaps
 }
 
 // ── inspector jump (requirement 6): turn -> first resolvable changeId -> (jsonl, line) ──
-export async function openStepInspector(context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement): Promise<void> {
+export async function openStepInspector(context: TimelineRenderContext, node: TurnNode | CommitNode | LineNode, previewPane: HTMLElement): Promise<void> {
     for (const snapshot of node.snapshots ?? []) {     // a merged baseline commit row owns snapshots too (task 121)
         const opened = await tryOpenInspectorForSnapshot(context, snapshot);
         if (opened) {
@@ -99,8 +100,9 @@ export async function openStepInspector(context: TimelineRenderContext, node: Tu
 
 // Clicking a turn opens the transcript drawer on the message's OWN JSONL line (the record
 // embedding its uuid — findLineForChangeId is a generic substring scan, so it resolves uuids
-// too). Synthetic agent turns carry no uuid and fall back to the changeId scan above.
-export async function openTurnInspector(context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement): Promise<void> {
+// too). Synthetic agent turns carry no uuid and fall back to the changeId scan above; raw-line
+// rows (task 134) resolve the same uuid way.
+export async function openTurnInspector(context: TimelineRenderContext, node: TurnNode | CommitNode | LineNode, previewPane: HTMLElement): Promise<void> {
     if (node.uuid === undefined) {
         openStepInspector(context, node, previewPane);
         return;

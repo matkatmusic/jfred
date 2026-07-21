@@ -8,6 +8,7 @@ import {
     deriveNodeFileChanges,
     indexRevisionsByChangeId,
 } from "./timeline-changes.ts";
+import { LINE_NODE_KIND, deriveLineNodes } from "./timeline-line-nodes.ts";
 import { deriveCommitNodes, deriveToolCallNodes } from "./timeline-node-derive.ts";
 import {
     AGENT_TURN_NODE_KIND,
@@ -152,6 +153,10 @@ function assignStepNumbers(nodes: TimelineNode[]): void {
         if (node.kind === TOOL_CALL_NODE_KIND) {
             continue;
         }
+        // task 134: raw-line rows must not renumber steps — numbers drive picks and range patches.
+        if (node.kind === LINE_NODE_KIND) {
+            continue;
+        }
         stepNumber += 1;
         node.stepNumber = stepNumber;
     }
@@ -190,7 +195,7 @@ function filterPreBaselineNodes(nodes: TimelineNode[], preBaselineSkipped: boole
 // StepSnapshots attach to the first agent reply of their own session at or after them (tool calls
 // run before the reply's text is emitted); leftovers get a synthetic reply node so no file change
 // is ever dropped.
-export function buildTurnTimelineViewModel(document: WireTimelineDocument): { nodes: TimelineNode[] } {
+export function buildTurnTimelineViewModel(document: WireTimelineDocument, includeAllLines = false): { nodes: TimelineNode[] } {
     const revisionIndex = indexRevisionsByChangeId(document);
     const turnNodes: TurnNode[] = document.messages.map((message) => ({
         kind: message.role === USER_ROLE ? USER_TURN_NODE_KIND : AGENT_TURN_NODE_KIND,
@@ -212,7 +217,9 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument): { no
     // gitOperations still feed deriveCommitNodes' hard stops.
     const toolCallNodes = deriveToolCallNodes(document);
     appendSessionEndNodes(turnNodes, toolCallNodes);
-    const sortedNodes = [...turnNodes, ...commitNodes, ...toolCallNodes].sort(compareTimelineNodes);
+    // task 134: opt-in raw-line rows — every transcript record not already a turn/tool row.
+    const lineNodes = includeAllLines ? deriveLineNodes(document) : [];
+    const sortedNodes = [...turnNodes, ...commitNodes, ...toolCallNodes, ...lineNodes].sort(compareTimelineNodes);
     // (task 56) drop pre-baseline nodes BEFORE numbering so step 1 is the baseline node.
     const nodes = filterPreBaselineNodes(sortedNodes, document.preBaselineSkipped === true);
     assignStepNumbers(nodes);

@@ -54,15 +54,29 @@ export function buildRevisionActionsElement(
     ]);
 }
 
-// task 119: an unrecoverable placeholder's card — dashed "rev N ✗" head plus the reason where
-// the action row would sit: the placeholder's lines are the prior revision carried forward, so
-// content/export/patch actions would lie.
-export function buildMissingRevisionCard(card: RevisionCard): HTMLElement {
+// task 119: an unrecoverable placeholder's card — dashed "rev N ✗" head. task 129: the .why
+// line says which revision (of how many) failed to apply which operation; the raw engine
+// error survives as the hover title. task 130: ONLY the jump + { } actions — the placeholder's
+// lines are the prior revision carried forward, so content/export/patch actions would lie.
+export function buildMissingRevisionCard(
+    buildActionButton: (text: string, onActivate: () => unknown) => HTMLElement,
+    context: DetailsContext,
+    card: RevisionCard,
+    revisionCount: number,
+): HTMLElement {
     return el("div", { class: "rev-card missing" }, [
         el("div", { class: "rev-head" }, [
             el("span", { text: `rev ${card.revisionNumber} ✗` }),
             el("span", { class: "rev-ts", text: new Date(card.timestamp).toLocaleString() }),
         ]),
-        el("div", { class: "why", text: card.unrecoverableReason! }),
+        el("div", {
+            class: "why",
+            title: card.unrecoverableReason!,
+            text: `rev ${card.revisionNumber} (of ${revisionCount}) failed to apply ${card.opLabel}`,
+        }),
+        el("div", { class: "rev-actions" }, [
+            buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
+            buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+        ]),
     ]);
 }

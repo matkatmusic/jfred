@@ -3,6 +3,7 @@
 // browser runtime that cannot import the TS enums; the tests assert equivalence against the real
 // enum members.
 
+import type { LineNode, WireLineVerdict } from "./timeline-line-nodes.ts";
 export const COMMIT_NODE_KIND = "commit";
 export const USER_TURN_NODE_KIND = "user-turn";
 export const AGENT_TURN_NODE_KIND = "agent-turn";
@@ -99,6 +100,7 @@ export type WireTimelineDocument = {
     // Optional (same convention): the user declined pre-baseline reconstruction (task 56) —
     // the git-baseline node becomes the timeline's first shown step.
     preBaselineSkipped?: boolean;
+    lineVerdicts?: WireLineVerdict[];
 };
 export type WireJsonlFile = { fileName: string };
 export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
@@ -245,4 +247,4 @@ export type ToolCallNode = {
     resultHash?: undefined;
 };
 
-export type TimelineNode = TurnNode | SessionEndNode | CommitNode | ToolCallNode;
+export type TimelineNode = TurnNode | SessionEndNode | CommitNode | ToolCallNode | LineNode;

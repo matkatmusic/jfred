@@ -5,7 +5,7 @@
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SkippedLine } from "./parse/loadTranscript.ts";
-import { RecordType, BlockType, Verdict, FailureScope } from "./structures/vocabulary.ts";
+import { RecordType, BlockType, FailureScope } from "./structures/vocabulary.ts";
 import {
     drainReconstructionFailures,
     noteReconstructionFailure,
@@ -13,7 +13,7 @@ import {
 } from "./reconstruction_health.ts";
 import { getContentBlocks, type TextBlock } from "./structures/content-blocks.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
-import { recordVerdict } from "./reconstruction_parse_lines.ts";
+import { buildLineVerdicts, type LineVerdict } from "./reconstruction_line_verdicts.ts";
 import { findConversationBranches } from "./reconstruction_branch.ts";
 import { collectOrphanedUuids } from "./reconstruction_orphans.ts";
 import { findGitCommitEvents } from "./reconstruction_git_commit_events.ts";
@@ -95,26 +95,6 @@ export function summarizeBranches(records: TranscriptRecord[]): BranchSummary[] 
         rewindPoint: branch.rewindPoint,
         isSurviving: branch.isSurviving,
         wasRewound: !branch.isSurviving,
-    }));
-}
-
-export type LineVerdict = {
-    line: number;
-    uuid: Uuid | undefined;
-    type: RecordType;
-    verdict: Verdict;
-    isGenuinePrompt: boolean;
-};
-
-// The engine's per-line classification, line-aligned to the parsed records array. Pure surfacing of
-// recordVerdict + isGenuineUserPrompt (both per-record, no transcript context) — no new logic.
-export function buildLineVerdicts(records: TranscriptRecord[]): LineVerdict[] {
-    return records.map((record, index) => ({
-        line: index,
-        uuid: record.uuid,
-        type: record.type,
-        verdict: recordVerdict(record),
-        isGenuinePrompt: isGenuineUserPrompt(record),
     }));
 }
 

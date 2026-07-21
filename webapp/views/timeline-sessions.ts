@@ -3,6 +3,7 @@
 // navigation, and the large-timeline progress-overlay math (item 78).
 
 import { computeSessionShortLabel } from "./timeline-labels.ts";
+import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
 import {
     AGENT_TURN_NODE_KIND,
     COMMIT_NODE_KIND,
@@ -83,6 +84,10 @@ export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: numbe
 export function checkRowIsExpandable(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return node.isGitBaseline === true;
+    }
+    // task 134: raw-line rows are thin one-liners like the pre-filter-chips view.
+    if (node.kind === LINE_NODE_KIND) {
+        return false;
     }
     return node.kind !== SESSION_END_NODE_KIND;
 }

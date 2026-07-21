@@ -5,7 +5,9 @@
 // re-hides the bar on every route change).
 
 import { el } from "../app-dom.ts";
+import { renderRoute } from "../app-router.ts";
 import { computeMatchCounterLabel, computeWrappedMatchIndex } from "./details-find-model.ts";
+import { checkAllLinesIsOn, toggleAllLinesSetting } from "./timeline-line-nodes.ts";
 import {
     TIMELINE_FILTER_BUTTONS,
     TIMELINE_FILTER_MODES,
@@ -126,6 +128,15 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
         };
         buttons.push(button);
     }
-    bar.replaceChildren(searchInput, ...searchChrome, ...buttons);
+    // task 134: raw-lines toggle — unlike the display-only mode buttons this changes node
+    // DERIVATION, so it re-renders the whole route (the app-consent renderRoute precedent);
+    // sessionStorage carries the state across the rebuild.
+    const allLinesButton = el("button", { class: "toolbar-btn", text: "Raw lines" }) as HTMLButtonElement;
+    allLinesButton.classList.toggle(ACTIVE_BUTTON_CLASS, checkAllLinesIsOn());
+    allLinesButton.onclick = () => {
+        toggleAllLinesSetting();
+        void renderRoute();
+    };
+    bar.replaceChildren(searchInput, ...searchChrome, ...buttons, allLinesButton);
     bar.hidden = false;
 }

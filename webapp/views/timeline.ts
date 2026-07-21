@@ -20,6 +20,7 @@ import {
     buildFilesSidebarViewModel,
 } from "./timeline-file-tree.ts";
 import { findTimelineNodeIndexForRawLine } from "./timeline-labels.ts";
+import { checkAllLinesIsOn } from "./timeline-line-nodes.ts";
 import { buildTurnTimelineViewModel } from "./timeline-nodes.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import { clearActiveChip, markChipActive } from "./timeline-render-chips.ts";
@@ -107,7 +108,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
     // the compositor even while this thread is blocked building the view-model. (item 82)
     showLoadingProgress("preparing timeline…", Number.NaN);
     await waitForNextAnimationFrame();
-    const { nodes } = buildTurnTimelineViewModel(reconstructionDocument);
+    const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, checkAllLinesIsOn());
     const listing = (await fetchJson<WireProjectListing[]>("/api/projects")).find((entry) => entry.name === project);
     // (item 66) old local closure, lifted into the exported view-model helper findJsonlForSession:
     // const findJsonlForSession = (sessionId: string | undefined) =>
