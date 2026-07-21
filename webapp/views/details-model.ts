@@ -26,12 +26,6 @@ export function checkChangeIdIsGitBaseline(changeId: string | undefined): boolea
     return changeId !== undefined && changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX);
 }
 
-// The commit hash inside gitBase:<hash>:<target> — the second colon-separated field (hashes
-// never contain colons); "" for a malformed id, never a throw.
-export function extractGitBaseCommitHash(changeId: string): string {
-    return changeId.split(":")[1] ?? "";
-}
-
 // Everything the render modes need from the owning timeline view: the loaded document, the
 // node list, and the callbacks the timeline wires (its inspector openers, row selector, and
 // range-patch fetcher).

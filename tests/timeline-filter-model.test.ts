@@ -36,6 +36,8 @@ const commit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t3", sessionId: "s" 
 const plainToolCall: ToolCallNode = { kind: TOOL_CALL_NODE_KIND, when: "t4", sessionId: "s", uuid: "u1", toolName: "Grep", summary: "grep foo", toolUseId: "tu1" };
 const scriptToolCall: ToolCallNode = { ...plainToolCall, uuid: "u2", toolUseId: "tu2", scriptRun: { timestamp: "t4", code: "print()", changedPaths: ["a.py"] } };
 const readOnlyScriptToolCall: ToolCallNode = { ...plainToolCall, uuid: "u3", toolUseId: "tu3", scriptRun: { timestamp: "t4", code: "print()", changedPaths: [] } };
+// task 121: the merged git-derived baseline row — still a commit node, now carrying chips.
+const mergedBaselineCommit: CommitNode = { ...commit, isGitBaseline: true, fileChanges: [{ path: "orders.py", displayPath: "orders.py", eventKind: EDIT_EVENT_KIND, renamedFrom: undefined, isFirstRevision: true, changeId: "gitBase:abc:orders.py", when: "t3" }] };
 const EVERY_FIXTURE_NODE: TimelineNode[] = [userTurn, agentTurn, agentTurnWithScriptChange, agentTurnWithEditChange, sessionEnd, commit, plainToolCall, scriptToolCall, readOnlyScriptToolCall];
 
 test("test_all_mode_matches_every_node_kind", () => {
@@ -217,4 +219,19 @@ test("test_filter_buttons_cover_every_mode_with_all_first", () => {
         TIMELINE_FILTER_MODES.files,
         TIMELINE_FILTER_MODES.git,
     ]);
+});
+
+test("test_merged_baseline_commit_row_matches_git_and_files_modes", () => {
+    // Scenario (task 121): the merged baseline row is still a commit node AND carries file
+    // chips — Git mode matches it natively, Files mode matches through its chips.
+    // Steps: the merged row matches git; the merged row matches files.
+    assert.equal(checkNodeMatchesFilterMode(mergedBaselineCommit, TIMELINE_FILTER_MODES.git), true);
+    assert.equal(checkNodeMatchesFilterMode(mergedBaselineCommit, TIMELINE_FILTER_MODES.files), true);
+});
+
+test("test_merged_baseline_commit_row_leaves_conversation_mode", () => {
+    // Scenario (task 121, accepted trade): once merged, the baseline is no longer a turn —
+    // Conversation mode hides it. Pinned so the trade stays deliberate.
+    // Steps: the merged row does not match conversation.
+    assert.equal(checkNodeMatchesFilterMode(mergedBaselineCommit, TIMELINE_FILTER_MODES.conversation), false);
 });

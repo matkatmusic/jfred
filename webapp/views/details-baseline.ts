@@ -6,7 +6,7 @@
 
 import { el } from "../app-dom.ts";
 import { showContentInDetails } from "./details-diff.ts";
-import { extractGitBaseCommitHash } from "./details-model.ts";
+import { extractGitBaseCommitHash } from "./timeline-changes.ts";
 import {
     type WireDocument as WireHistoryDocument,
     buildFileHistoryViewModel,

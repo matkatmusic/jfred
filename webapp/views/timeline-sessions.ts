@@ -78,10 +78,11 @@ export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: numbe
 }
 
 // Whether a row gets a tri + bubble (item 66): commit and session-end rows are thin one-liners
-// (locked decision 4); every turn and tool-call row expands.
+// (locked decision 4); every turn and tool-call row expands. The one commit exception (task
+// 121): the merged git-derived baseline row expands to show its file chips.
 export function checkRowIsExpandable(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
-        return false;
+        return node.isGitBaseline === true;
     }
     return node.kind !== SESSION_END_NODE_KIND;
 }

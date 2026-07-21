@@ -7,7 +7,7 @@ import { renderDetailsFileMode } from "./details-revision-view.ts";
 import { computeSnapshotJumpRoute } from "./timeline-changes.ts";
 import { openTurnInspector } from "./timeline-render-inspectors.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import type { FileChange, TranscriptLocation, TurnNode } from "./timeline-types.ts";
+import type { CommitNode, FileChange, TranscriptLocation, TurnNode } from "./timeline-types.ts";
 // (item 84) old: splitDiffBlocks (./file-history.ts), renderDiffText (./diff-vs-base.ts) and
 // renderCodeInto (../highlight.ts) were imported for showFilePreview / showRevisionDiff. Both
 // renderers are retired — the Revision View (details.ts) does this rendering now, and still
@@ -126,7 +126,7 @@ export function markChipActive(context: TimelineRenderContext, chipElement: HTML
 // };
 
 // The { } button's click body (extracted from renderFileButtonRow).
-function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
+function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
     event.stopPropagation();
     // (item 55, closing item 53) old: openTurnInspector(node, previewPane); —
     // reverted item 47b: the chip opens its file's OWN causing line (e.g. the
@@ -178,7 +178,7 @@ function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRende
 // for snapshot-backed revisions (task 94: backup-blob changeIds, gated inside
 // computeSnapshotJumpRoute) — its presence IS the "this revision HAS a File History Snapshot"
 // indicator, no longer an any-resolvable-changeId over-fire.
-export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNode, nodeIndex: number, change: FileChange, previewPane: HTMLElement): HTMLElement {
+export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNode | CommitNode, nodeIndex: number, change: FileChange, previewPane: HTMLElement): HTMLElement {
     const causingLocation = context.chipLineLocations.get(`${nodeIndex}:${change.path}`);
     const buttons = [renderFileChip(change, (event: Event) => {
         event.stopPropagation();

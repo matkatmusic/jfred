@@ -16,6 +16,7 @@ import {
     SESSION_END_NODE_KIND,
     TOOL_CALL_NODE_KIND,
     USER_TURN_NODE_KIND,
+    type CommitNode,
     type FileChange,
     type TimelineNode,
 } from "../webapp/views/timeline-types.ts";
@@ -201,4 +202,16 @@ test("test_findAdjacentFileTouchedIndex_returns_undefined_when_no_candidate_in_d
     ];
     // searching forward from index 0 finds nothing.
     assert.equal(findAdjacentFileTouchedIndex(nodes, 0, 1), undefined);
+});
+
+test("test_checkRowIsExpandable_expands_only_merged_baseline_commit_rows", () => {
+    // Scenario (task 121): the merged git-derived baseline commit row expands to show its file
+    // chips; plain commit rows stay thin one-liners (locked decision 4 intact).
+    // Steps:
+    // a commit node flagged isGitBaseline expands.
+    const mergedBaselineCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t1", sessionId: "s", isGitBaseline: true };
+    assert.equal(checkRowIsExpandable(mergedBaselineCommit), true);
+    // a plain commit node does not.
+    const plainCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t1", sessionId: "s" };
+    assert.equal(checkRowIsExpandable(plainCommit), false);
 });

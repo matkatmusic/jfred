@@ -1,12 +1,11 @@
-// Git-baseline changeId helpers (details-model.ts) — the task-56 follow-up pane render
-// keys on these; own file so timeline-changes.test.ts stays under the 250-line cap.
+// Git-baseline changeId helpers — the task-56 follow-up pane render keys on these; own file so
+// timeline-changes.test.ts stays under the 250-line cap. extractGitBaseCommitHash moved to
+// timeline-changes.ts (task 121, the gitBase vocabulary's canonical home).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-    checkChangeIdIsGitBaseline,
-    extractGitBaseCommitHash,
-} from "../webapp/views/details-model.ts";
+import { checkChangeIdIsGitBaseline } from "../webapp/views/details-model.ts";
+import { extractGitBaseCommitHash } from "../webapp/views/timeline-changes.ts";
 
 test("test_checkChangeIdIsGitBaseline_detects_beacon_changeIds", () => {
     // Scenario (task 56 follow-up): the details pane needs one canonical "is this revision a

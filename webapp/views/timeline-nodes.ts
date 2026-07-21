@@ -2,9 +2,9 @@
 // messages, step snapshots, git operations, and tool calls into the sorted, numbered
 // TimelineNode list (buildTurnTimelineViewModel).
 
+import { recordGitBaselineSnapshot } from "./timeline-baseline-host.ts";
 import {
     checkSnapshotIsGitBaseline,
-    computeGitBaselineText,
     deriveNodeFileChanges,
     indexRevisionsByChangeId,
 } from "./timeline-changes.ts";
@@ -16,6 +16,7 @@ import {
     TOOL_CALL_NODE_KIND,
     USER_ROLE,
     USER_TURN_NODE_KIND,
+    type CommitNode,
     type SessionEndNode,
     type SnapshotInstant,
     type TimelineNode,
@@ -64,38 +65,20 @@ function checkNodeCanOwnSnapshot(node: TurnNode, snapshot: SnapshotInstant): boo
     return node.when >= snapshot.when;
 }
 
-// (task 86) attach a gitBase-only snapshot to the dedicated baseline node, creating it on first
-// use; returns the (possibly just-created) baseline turn.
-function recordGitBaselineSnapshot(turnNodes: TurnNode[], snapshot: WireStepSnapshot, baselineTurn: TurnNode | undefined): TurnNode {
-    if (baselineTurn === undefined) {
-        baselineTurn = {
-            kind: AGENT_TURN_NODE_KIND,
-            when: snapshot.when,
-            sessionId: snapshot.sessionId,
-            text: computeGitBaselineText(snapshot),
-            isGitBaseline: true,
-            snapshots: [],
-            gitOperations: [],
-        };
-        turnNodes.push(baselineTurn);
-    }
-    baselineTurn.snapshots.push(snapshot);
-    return baselineTurn;
-}
-
 // Per snapshot: the FIRST agent-turn node of its own session at or after it (turnNodes are in
 // message order, chronological per session). Ownerless snapshots are always a trailing suffix of
 // their session (steps are chronological), so they collect into ONE synthetic empty-text agent
 // turn per session — no file change is ever silently dropped. gitBase-only steps split off
-// FIRST into a dedicated baseline node (task 86).
-function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], steps: WireStepSnapshot[]): void {
+// FIRST into the baseline host (task 86; since task 121 the recorded base-commit row when one
+// exists, a dedicated baseline turn otherwise).
+function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], commitNodes: CommitNode[], steps: WireStepSnapshot[]): void {
     const syntheticTurns = new Map<string | undefined, TurnNode>();
-    let baselineTurn: TurnNode | undefined;
+    let baselineHost: TurnNode | CommitNode | undefined;
     for (const snapshot of steps) {
         // (task 86) gitBase-only steps get their own baseline node — they must not mingle with
         // the generic unattributed synthetic turn below.
         if (checkSnapshotIsGitBaseline(snapshot)) {
-            baselineTurn = recordGitBaselineSnapshot(turnNodes, snapshot, baselineTurn);
+            baselineHost = recordGitBaselineSnapshot(turnNodes, commitNodes, snapshot, baselineHost);
             continue;
         }
         const owner = turnNodes.find((node) => checkNodeCanOwnSnapshot(node, snapshot));
@@ -220,13 +203,15 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument): { no
         snapshots: [],
         gitOperations: [],
     }));
-    attachSnapshotsToAgentTurns(turnNodes, document.steps);
+    // (task 121) commit nodes derive BEFORE snapshots attach so the baseline merge can find the
+    // recorded base-commit row; they still join the same sort below.
+    const commitNodes = deriveCommitNodes(document);
+    attachSnapshotsToAgentTurns(turnNodes, commitNodes, document.steps);
     // (item 55) old: attachGitOperationsToAgentTurns(turnNodes, document.gitOperations ?? []);
     // — git rows generalized into standalone tool-call nodes (every Bash call is a toolCall);
     // gitOperations still feed deriveCommitNodes' hard stops.
     const toolCallNodes = deriveToolCallNodes(document);
     appendSessionEndNodes(turnNodes, toolCallNodes);
-    const commitNodes = deriveCommitNodes(document);
     const sortedNodes = [...turnNodes, ...commitNodes, ...toolCallNodes].sort(compareTimelineNodes);
     // (task 56) drop pre-baseline nodes BEFORE numbering so step 1 is the baseline node.
     const nodes = filterPreBaselineNodes(sortedNodes, document.preBaselineSkipped === true);

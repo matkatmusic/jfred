@@ -55,7 +55,7 @@ test("test_trailing_snapshots_get_a_synthetic_agent_turn", () => {
     assert.equal(syntheticIndexes.length, 1);
     const synthetic = nodes[syntheticIndexes[0]!]!;
     assert.equal(synthetic.text, "");
-    assert.equal(synthetic.snapshots.length, 2);
+    assert.equal(synthetic.snapshots!.length, 2);
     // assert it sits after the prompt and before the session-end node.
     const promptIndex = nodes.findIndex((node: { kind: string }) => node.kind === USER_TURN_NODE_KIND);
     const endIndex = nodes.findIndex((node: { kind: string }) => node.kind === SESSION_END_NODE_KIND);

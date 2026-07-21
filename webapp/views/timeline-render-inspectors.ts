@@ -12,6 +12,7 @@ import {
     COMMIT_NODE_KIND,
     SESSION_END_NODE_KIND,
     TOOL_CALL_NODE_KIND,
+    type CommitNode,
     type FileChange,
     type TimelineNode,
     type ToolCallNode,
@@ -83,8 +84,8 @@ async function tryOpenInspectorForSnapshot(context: TimelineRenderContext, snaps
 }
 
 // ── inspector jump (requirement 6): turn -> first resolvable changeId -> (jsonl, line) ──
-export async function openStepInspector(context: TimelineRenderContext, node: TurnNode, previewPane: HTMLElement): Promise<void> {
-    for (const snapshot of node.snapshots) {
+export async function openStepInspector(context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement): Promise<void> {
+    for (const snapshot of node.snapshots ?? []) {     // a merged baseline commit row owns snapshots too (task 121)
         const opened = await tryOpenInspectorForSnapshot(context, snapshot);
         if (opened) {
             return;
@@ -99,7 +100,7 @@ export async function openStepInspector(context: TimelineRenderContext, node: Tu
 // Clicking a turn opens the transcript drawer on the message's OWN JSONL line (the record
 // embedding its uuid — findLineForChangeId is a generic substring scan, so it resolves uuids
 // too). Synthetic agent turns carry no uuid and fall back to the changeId scan above.
-export async function openTurnInspector(context: TimelineRenderContext, node: TurnNode, previewPane: HTMLElement): Promise<void> {
+export async function openTurnInspector(context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement): Promise<void> {
     if (node.uuid === undefined) {
         openStepInspector(context, node, previewPane);
         return;

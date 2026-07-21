@@ -5,7 +5,6 @@
 import { routeToFileHistory } from "../app-routes.ts";
 import { checkChangeIdIsBackupBlobName, findRevisionForChangeId } from "./file-history-model.ts";
 import {
-    COMMIT_NODE_KIND,
     EDIT_EVENT_KIND,
     TOOL_CALL_NODE_KIND,
     type FileChange,
@@ -34,11 +33,16 @@ export function checkSnapshotIsGitBaseline(snapshot: WireStepSnapshot): boolean 
     return snapshot.changeIds.every((changeId) => changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX));
 }
 
-// The baseline node's message text: the beacon changeId is gitBase:<hash>:<target>, so the
-// commit hash is the second colon-separated field (hashes never contain colons).
+// The commit hash inside gitBase:<hash>:<target> — the second colon-separated field (hashes
+// never contain colons); "" for a malformed id, never a throw. (Moved from details-model.ts,
+// task 121 — the gitBase vocabulary's canonical home.)
+export function extractGitBaseCommitHash(changeId: string): string {
+    return changeId.split(":")[1] ?? "";
+}
+
+// The baseline node's message text, naming the base commit the beacon changeId carries.
 export function computeGitBaselineText(snapshot: WireStepSnapshot): string {
-    const commitHash = snapshot.changeIds[0]!.split(":")[1] ?? "";
-    return `Files seeded from git base commit ${commitHash}`;
+    return `Files seeded from git base commit ${extractGitBaseCommitHash(snapshot.changeIds[0]!)}`;
 }
 
 // Entry-time path per revision (task 127): walk backward from the final target, stepping each
@@ -148,25 +152,8 @@ export function computeSnapshotJumpRoute(project: string, filesTouched: WireFile
     return `${routeToFileHistory(project, revisionLink.target)}/rev/${revisionLink.revisionNumber}`;
 }
 
-// old (pre engine-stamped isOrphaned): the per-step snapshot proxy — a step counted orphaned
-// when its changeIds resolved only to rewound-branch revisions. Retired: the engine now stamps
-// branch membership per record on the wire (message.isOrphaned / toolCall.isOrphaned).
-// // A step is orphaned when at least one of its changeIds matches a rewound-branch revision and
-// // none matches a surviving one — those are the dimmed, unpickable rows.
-// export function checkStepIsOrphaned(step: WireStepSnapshot, revisionIndex: RevisionIndex): boolean {
-//     let matchesRewound = false;
-//     for (const changeId of step.changeIds) {
-//         const revision = revisionIndex.get(changeId);
-//         if (revision === undefined) {
-//             continue;
-//         }
-//         if (!revision.isRewound) {
-//             return false;
-//         }
-//         matchesRewound = true;
-//     }
-//     return matchesRewound;
-// }
+// old (pre engine-stamped isOrphaned): checkStepIsOrphaned, the per-step snapshot proxy —
+// retired; preserved in archive/timeline-changes-retired-orphan-proxies.ts (task 121).
 
 // Split a multi-file range patch on its `diff --git ` headers into per-file blocks, each keyed by
 // its patch-relative b/ path (the range-diff inspector shows one file's block at a time).
@@ -216,26 +203,18 @@ function deriveMergedFileChanges(snapshots: WireStepSnapshot[], revisionIndex: R
     return changes;
 }
 
-// old (pre engine-stamped isOrphaned): the snapshot-proxy orphan check — retired alongside
-// checkStepIsOrphaned; node.isOrphaned now copies the engine's per-record wire stamp.
-// // Orphaned when the turn owns snapshots and EVERY one sits on a rewound branch; a turn with any
-// // surviving snapshot — or none at all — stays on the spine.
-// function checkTurnIsOrphaned(snapshots: WireStepSnapshot[], revisionIndex: RevisionIndex): boolean {
-//     if (snapshots.length === 0) {
-//         return false;
-//     }
-//     return snapshots.every((snapshot) => checkStepIsOrphaned(snapshot, revisionIndex));
-// }
+// old (pre engine-stamped isOrphaned): checkTurnIsOrphaned, the snapshot-proxy orphan check —
+// retired; preserved in archive/timeline-changes-retired-orphan-proxies.ts (task 121).
 
-// fileChanges + isOrphaned on every turn/session-end node (user turns and session ends own no
-// snapshots, so they resolve to no chips and never orphaned); commit and tool-call nodes carry
-// no snapshots at all and are skipped.
+// fileChanges on every snapshot-owning node (user turns and session ends own empty snapshot
+// lists, so they resolve to no chips). Tool-call nodes never own snapshots; plain commit rows
+// own none either — but the merged baseline commit row does, and gets its chips (task 121).
 export function deriveNodeFileChanges(nodes: TimelineNode[], revisionIndex: RevisionIndex): void {
     for (const node of nodes) {
-        if (node.kind === COMMIT_NODE_KIND) {
+        if (node.kind === TOOL_CALL_NODE_KIND) {
             continue;
         }
-        if (node.kind === TOOL_CALL_NODE_KIND) {
+        if (node.snapshots === undefined) {
             continue;
         }
         node.fileChanges = deriveMergedFileChanges(node.snapshots, revisionIndex);

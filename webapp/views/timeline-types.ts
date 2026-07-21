@@ -197,15 +197,18 @@ export type CommitNode = {
     resultHash?: string;
     // True when the commit command's tool_result errored (task 103) — the row's FAILED badge.
     isError?: boolean;
+    // task 121: the recorded base-commit row absorbs the git-derived baseline — it carries the
+    // baseline flag, the baseline summary text, the absorbed beacon snapshots, and the seeded
+    // file chips deriveNodeFileChanges stamps from them. All absent on plain commit rows.
+    isGitBaseline?: boolean;
+    text?: string;
+    snapshots?: WireStepSnapshot[];
+    fileChanges?: FileChange[];
     uuid?: undefined;
-    text?: undefined;
     isSystem?: undefined;
-    snapshots?: undefined;
     gitOperations?: undefined;
     stepNumber?: undefined;
-    fileChanges?: undefined;
     isOrphaned?: undefined;
-    isGitBaseline?: undefined;
     summary?: undefined;
     toolName?: undefined;
     toolUseId?: undefined;

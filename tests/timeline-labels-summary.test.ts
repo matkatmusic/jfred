@@ -9,9 +9,11 @@ import {
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     AGENT_TURN_NODE_KIND,
+    COMMIT_NODE_KIND,
     SESSION_END_NODE_KIND,
     TOOL_CALL_NODE_KIND,
     USER_TURN_NODE_KIND,
+    type CommitNode,
 } from "../webapp/views/timeline-types.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 
@@ -148,4 +150,17 @@ test("test_computeSessionShortLabel_takes_first_eight_chars", () => {
     assert.equal(computeSessionShortLabel("0a1b2c3d-4e5f-6789-abcd-ef0123456789"), "0a1b2c3d");
     // assert an id shorter than 8 chars passes through whole.
     assert.equal(computeSessionShortLabel("abc"), "abc");
+});
+
+test("test_computeRowSummaryText_prefers_commit_node_text", () => {
+    // Scenario (task 121): the merged git-derived baseline row is a commit node carrying its
+    // baseline summary text — the row text wins over the commit message; a plain commit
+    // still shows its message.
+    // Steps:
+    // a merged baseline commit node returns its baseline text.
+    const mergedBaselineCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "2026-01-01T00:05:00.000Z", sessionId: "session-a", detail: "baseline", text: "Files seeded from git base commit abc1234" };
+    assert.equal(computeRowSummaryText(mergedBaselineCommit), "Files seeded from git base commit abc1234");
+    // the same node without text still returns its commit message.
+    const plainCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "2026-01-01T00:05:00.000Z", sessionId: "session-a", detail: "baseline" };
+    assert.equal(computeRowSummaryText(plainCommit), "baseline");
 });

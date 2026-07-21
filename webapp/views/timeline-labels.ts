@@ -156,6 +156,10 @@ export function computeSessionShortLabel(sessionId: string): string {
 // Wire event kind of a script-made revision (mirrors EventKind.scriptExecution).
 export const SCRIPT_EXECUTION_EVENT_KIND = "script-execution";
 
+// The green baseline pill's label — shared by the role-pill path (standalone baseline turn)
+// and the merged base-commit row's dress (task 121).
+export const GIT_BASELINE_ROLE_PILL_LABEL = "git-derived baseline";
+
 // The session-start marker's text: the session's user-given custom title when the document
 // carries one ("Session <title> started: <id>"), else id-only ("Session started: <id>").
 // sessionTitles is optional — older cached documents predate the field.
@@ -190,7 +194,7 @@ export function computeRolePillLabel(node: TimelineNode): string | undefined {
     if (node.kind === USER_TURN_NODE_KIND) return "User";
     if (node.kind === TOOL_CALL_NODE_KIND) return "Tool";
     if (node.kind !== AGENT_TURN_NODE_KIND) return undefined;
-    if (node.isGitBaseline === true) return "git-derived baseline";
+    if (node.isGitBaseline === true) return GIT_BASELINE_ROLE_PILL_LABEL;
     const ranScript = (node.fileChanges ?? []).some((change) => change.eventKind === SCRIPT_EXECUTION_EVENT_KIND);
     if (ranScript) return "Script";
     return "Agent";
@@ -207,6 +211,9 @@ export function computeRolePillClass(label: string): string {
 // `Bash(npx tsc --noEmit)`; commits show their message; session ends name their session.
 export function computeRowSummaryText(node: TimelineNode): string {
     if (node.kind === COMMIT_NODE_KIND) {
+        if (node.text !== undefined) {
+            return node.text;    // the merged baseline row reads its baseline text (task 121)
+        }
         return node.detail ?? "git commit";
     }
     if (node.kind === SESSION_END_NODE_KIND) {
