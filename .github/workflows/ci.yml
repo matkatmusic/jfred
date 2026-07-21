@@ -1,10 +1,10 @@
-# Task 64: the public repo's only CI — typecheck, suite, and webapp build on every push/PR.
-# The scenarios submodule (public) is initialized because 56 test files load scenario JSONLs
-# via tests/fixtures.ts, which throws when they are absent — task 59 (make the suite
-# scenario-optional) was closed WITHOUT code, so a bare clone cannot run the suite. Only
-# `scenarios` is initialized: the other submodules are not needed by the suite. Free on
-# public repos (standard GitHub-hosted runners); no matrix or release automation until the
-# repo has users.
+# Task 64: the public repo's only CI — typecheck, capture-free tests, and webapp build on every
+# push/PR. The executed scenario captures (scenarios/executed/, raw session transcripts) are
+# gitignored in the scenarios submodule and never published, so no checkout can provide the
+# JSONLs the scenario suites read — `npm run test:ci` runs exactly the tests whose imports avoid
+# the capture-reading modules (scripts/list_capture_free_tests.ts); the full suite stays a local
+# concern. No submodules are needed. Free on public repos (standard GitHub-hosted runners); no
+# matrix or release automation until the repo has users.
 name: CI
 
 on:
@@ -17,12 +17,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
-            - run: git submodule update --init scenarios
             - uses: actions/setup-node@v5
               with:
                   node-version: 22          # matches devDependencies' @types/node ^22
                   cache: npm
             - run: npm ci
             - run: npm run typecheck
-            - run: npm test
+            - run: npm run test:ci
             - run: npm run build:webapp     # catches webapp tsconfig breakage (task text)

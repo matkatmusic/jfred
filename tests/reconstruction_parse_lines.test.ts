@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Verdict } from "../src/structures/vocabulary.ts";
 import { evaluateLine, partitionLines } from "../src/reconstruction_parse_lines.ts";
-import { jsonlPathsForScenario } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S37_JSONL } from "./fixtures.ts";
 import { Path } from "../src/structures/domain.ts";
 

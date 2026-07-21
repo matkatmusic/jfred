@@ -5,18 +5,18 @@ import { tmpdir } from "node:os";
 import { parseRecord } from "../src/parse/parseRecord.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
-import { listCoveredScenarios } from "../scripts/coverage_scenarios.ts";
+// Moved to fixtures.ts (task 64): every capture-dependent helper lives there, so this module —
+// and the many capture-free tests importing it — stays runnable on a clone without the executed
+// scenario captures. Commented originals below; delete once the moved suite is confirmed green.
+// import { listCoveredScenarios } from "../scripts/coverage_scenarios.ts";
 
-// The session transcript(s) for a scenario id (e.g. "s37"), resolved from the discovered coverage
-// scenarios. Throws when the scenario is not captured, so a missing ground truth fails loudly rather than
-// silently skipping. Tests asserting on a specific line take the single path; reconstruction tests take all.
-export function jsonlPathsForScenario(scenarioId: string): Path[] {
-    const scenario = listCoveredScenarios().find((covered) => covered.scenarioId === scenarioId);
-    if (scenario === undefined) {
-        throw new Error(`no covered scenario with id ${scenarioId}`);
-    }
-    return scenario.jsonlPaths;
-}
+// export function jsonlPathsForScenario(scenarioId: string): Path[] {
+//     const scenario = listCoveredScenarios().find((covered) => covered.scenarioId === scenarioId);
+//     if (scenario === undefined) {
+//         throw new Error(`no covered scenario with id ${scenarioId}`);
+//     }
+//     return scenario.jsonlPaths;
+// }
 
 // Read a text file and return its non-empty lines — the shared JSONL line reader
 // used across the transcript tests. Generic: takes any file path.
@@ -33,31 +33,27 @@ export function loadRecords(file: string): TranscriptRecord[] {
     return readNonEmptyLines(file).map(parseRecord);
 }
 
-// Resolve a scenario directory by name across the given executed-scenario roots: the first root
-// whose dir holds at least one transcript wins (mirrors findScenarioJsonl's resolution rule).
-// Generic: the roots are data and live with the fixtures.
-export function resolveScenarioDir(roots: readonly string[], dirName: string): string {
-    for (const root of roots) {
-        const dir = join(root, dirName);
-        let entries: string[];
-        try {
-            entries = readdirSync(dir);
-        } catch {
-            continue;
-        }
-        if (entries.some((name) => name.endsWith(".jsonl"))) {
-            return dir;
-        }
-    }
-    throw new Error(`scenario ${dirName}: no directory with .jsonl found under known roots`);
-}
+// Moved to fixtures.ts (task 64) — see the note above. Delete once confirmed green.
+// export function resolveScenarioDir(roots: readonly string[], dirName: string): string {
+//     for (const root of roots) {
+//         const dir = join(root, dirName);
+//         let entries: string[];
+//         try {
+//             entries = readdirSync(dir);
+//         } catch {
+//             continue;
+//         }
+//         if (entries.some((name) => name.endsWith(".jsonl"))) {
+//             return dir;
+//         }
+//     }
+//     throw new Error(`scenario ${dirName}: no directory with .jsonl found under known roots`);
+// }
 
-// The transcript JSONLs directly inside a scenario directory, sorted by file name — the
-// multi-session counterpart of findScenarioJsonl's single-transcript resolution.
-export function listScenarioJsonlPaths(dir: Path): Path[] {
-    const names = readdirSync(dir.value).filter((name) => name.endsWith(".jsonl")).sort();
-    return names.map((name) => new Path(join(dir.value, name)));
-}
+// export function listScenarioJsonlPaths(dir: Path): Path[] {
+//     const names = readdirSync(dir.value).filter((name) => name.endsWith(".jsonl")).sort();
+//     return names.map((name) => new Path(join(dir.value, name)));
+// }
 
 // --- Temp-repo machinery for the range-patch acceptance tests -----------------------------------
 

@@ -8,7 +8,8 @@ import { buildProjectDocument } from "../src/viewer_api.ts";
 import { buildConversationViewModel } from "../webapp/views/conversation.ts";
 import { buildProjectViewModel } from "../webapp/views/project.ts";
 import { filterProjectsByName } from "../webapp/views/projects.ts";
-import { jsonlPathsForScenario, readNonEmptyLines } from "./utilities.ts";
+import { readNonEmptyLines } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 

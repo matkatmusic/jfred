@@ -15,7 +15,8 @@ import { runCli } from "../src/reconstruction_cli.ts";
 import { BlockType, DocumentResponseKind, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { jsonlPathsForScenario, loadRecords } from "./utilities.ts";
+import { loadRecords } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S19_JSONL, S37_JSONL } from "./fixtures.ts";
 
 // -------------------- 2.3 buildProjectDocument --------------------

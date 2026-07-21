@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { recordVerdict } from "../src/reconstruction_parse_lines.ts";
 import { EventKind, Verdict } from "../src/structures/vocabulary.ts";
-import { loadRecords, jsonlPathsForScenario } from "./utilities.ts";
+import { loadRecords } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S1_JSONL, S2_JSONL, S3_JSONL, S4_JSONL } from "./fixtures.ts";
 
 // Phase B parity: extraction's `ignore` gate is a no-op. Dropping every record the classifier marks

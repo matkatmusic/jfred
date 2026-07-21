@@ -21,7 +21,8 @@ import {
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";
-import { jsonlPathsForScenario, loadRecords } from "./utilities.ts";
+import { loadRecords } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 
 // A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`.
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string): TranscriptRecord {

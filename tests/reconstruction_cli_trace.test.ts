@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { TraceDetailMode, Verdict } from "../src/structures/vocabulary.ts";
 import { runCli } from "../src/reconstruction_cli.ts";
 import { parseTraceArgs, TRACE_HELP } from "../src/reconstruction_cli_trace.ts";
-import { jsonlPathsForScenario } from "./utilities.ts";
+import { jsonlPathsForScenario } from "./fixtures.ts";
 
 const S37 = jsonlPathsForScenario("s37")[0]!.toString();
 
