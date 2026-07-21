@@ -10,6 +10,33 @@ import { Path, type Uuid } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import { codeLiteralMoveCall, renameArrowLine } from "./regex_expressions.ts";
+import { isJunkStateKey } from "./reconstruction_script_sandbox.ts";
+
+// A move the sandbox diff proves at the state-key level (task 143): `fromKey` vanished from
+// the pre state and `toKey` appeared in the post state with byte-identical content — a
+// shutil.move reports both sides as changed paths, but it is ONE move.
+export type ScriptRenameKeyPair = { fromKey: string; toKey: string };
+
+// Pair each created key with the first still-unclaimed deleted key holding byte-identical
+// pre content. Junk keys (pycache) never pair; a key present in both states is a
+// modification, never a rename side.
+export function matchRenamePairs(pre: Map<string, string>, post: Map<string, string>): ScriptRenameKeyPair[] {
+    const deletedKeys: string[] = [];
+    for (const key of pre.keys()) {
+        if (post.has(key) || isJunkStateKey(key)) continue;
+        deletedKeys.push(key);
+    }
+    const pairs: ScriptRenameKeyPair[] = [];
+    const claimedSourceKeys = new Set<string>();
+    for (const key of post.keys()) {
+        if (pre.has(key) || isJunkStateKey(key)) continue;
+        const sourceKey = deletedKeys.find((deleted) => !claimedSourceKeys.has(deleted) && pre.get(deleted) === post.get(key));
+        if (sourceKey === undefined) continue;
+        claimedSourceKeys.add(sourceKey);
+        pairs.push({ fromKey: sourceKey, toKey: key });
+    }
+    return pairs;
+}
 
 // One executor tool_use as the rename channels need it: its id (the changeId of any rename it
 // evidences), run instant, cwd for path resolution, and — for MCP ctx_execute — its script code.

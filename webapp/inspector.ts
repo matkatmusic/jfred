@@ -124,12 +124,26 @@ export function formatInspectorLineCounter(lineIndex: number, lineCount: number)
     return `line ${lineIndex} of 0–${lineCount - 1}`;
 }
 
+// task 142: Prev/Next enablement mirrors whether a jump target exists — index 0 has no Prev,
+// the last raw line has no Next (the buttons previously stayed enabled and clamped silently).
+export function computeInspectorNavDisabledStates(lineIndex: number, lineCount: number): { prevIsDisabled: boolean; nextIsDisabled: boolean } {
+    return { prevIsDisabled: lineIndex === 0, nextIsDisabled: lineIndex === lineCount - 1 };
+}
+
 // Assemble the Prev / line-counter / Next navigation row plus any tool-flow buttons.
 function buildInspectorNavigationRow(clamped: number, rawLines: string[], showLine: (line: number) => void, toolButtons: HTMLElement[]): HTMLElement {
+    // task 142: the row is rebuilt on every showLine, so the disabled states re-compute per
+    // line. Property assignment, not an el() attribute — setAttribute("disabled", "false")
+    // would still disable.
+    const disabledStates = computeInspectorNavDisabledStates(clamped, rawLines.length);
+    const prevButton = el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }) as HTMLButtonElement;
+    prevButton.disabled = disabledStates.prevIsDisabled;
+    const nextButton = el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) }) as HTMLButtonElement;
+    nextButton.disabled = disabledStates.nextIsDisabled;
     return el("div", { class: "inspector-nav" }, [
-        el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }),
+        prevButton,
         el("span", { class: "muted", text: formatInspectorLineCounter(clamped, rawLines.length) }),
-        el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) }),
+        nextButton,
         ...toolButtons,
     ]);
 }

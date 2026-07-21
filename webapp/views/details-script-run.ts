@@ -1,7 +1,7 @@
 // Script-run Details mode (task 67): selecting a tool-call row whose sandbox execution modified
-// files shows the script itself on the left and each affected file's before/after diff — the
-// revision the run produced, rendered side-by-side — stacked on the right. The DOM-free
-// resolution half lives in details-script-run-model.ts.
+// files shows the script on the left plus the run's changed-file list (task 144); clicking a
+// file shows JUST that file's before/after diff on the right — the rev-card list -> selected
+// diff pattern. The DOM-free resolution half lives in details-script-run-model.ts.
 
 import { el } from "../app-dom.ts";
 import { revealDetailsPane } from "../inspector.ts";
@@ -29,14 +29,36 @@ export async function renderDetailsScriptRunMode(node: ToolCallNode, nodeIndex: 
     // ponytail: plain text, no syntax highlight — renderCodeInto when someone asks.
     left.append(el("pre", { class: "script-source", text: viewModel.code }));
     setRightPaneLabel("Before / after this run");
-    // The stacked sections are side-by-side by design (the task's ask); the single-diff
-    // columns/inline toggle re-renders one pane-wide diff and cannot drive a stack.
+    // task 144: one file's diff at a time (the rev-card pattern); the single-diff columns/
+    // inline toggle still cannot drive this pane, so it stays hidden.
     hideDiffModeToggle();
-    const body = clearRightPaneBody();
-    for (const entry of viewModel.files) {
+    clearRightPaneBody();
+    if (viewModel.files.length === 0) {
+        return;
+    }
+    left.append(el("div", { class: "pane-title", text: "Files changed" }));
+    const fileButtons = viewModel.files.map((entry, index) => el("button", {
+        class: "row-btn",
+        text: computeFileButtonLabel(entry),
+        title: entry.path,
+        onclick: () => void showSelectedFileDiff(index),
+    }));
+    const showSelectedFileDiff = async (index: number): Promise<void> => {
+        for (const [buttonIndex, button] of fileButtons.entries()) {
+            button.classList.toggle("selected", buttonIndex === index);
+        }
+        const entry = viewModel.files[index]!;
+        const body = clearRightPaneBody();
         body.append(el("div", { class: "pane-title", text: entry.path }));
         await appendChangedFileDiff(body, entry, context);
-    }
+    };
+    left.append(...fileButtons);
+    await showSelectedFileDiff(0);
+}
+
+// A file button's label: the path's basename (the full path rides on the button's title).
+function computeFileButtonLabel(entry: ScriptRunFileEntry): string {
+    return entry.path.slice(entry.path.lastIndexOf("/") + 1);
 }
 
 // One changed file's diff section: the resolved revision's block from the same /api/diff

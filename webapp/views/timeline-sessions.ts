@@ -9,8 +9,12 @@ import {
     COMMIT_NODE_KIND,
     SESSION_END_NODE_KIND,
     type TimelineNode,
-    type WireProjectListing,
 } from "./timeline-types.ts";
+
+// The /api/projects listing shape this sidebar joins sessions against (moved from
+// timeline-types.ts — this module is its only consumer).
+export type WireJsonlFile = { fileName: string };
+export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
 
 // The project JSONL whose file name starts with the session id (JSONLs are named after their
 // session uuid); undefined when unattributed or when the listing has no match. Lifted out of

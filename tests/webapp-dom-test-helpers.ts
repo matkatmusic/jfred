@@ -68,6 +68,9 @@ export function setupWebappDom(): void {
         ResizeObserver: FakeResizeObserver,
         Terminal: FakeXtermTerminal,
         FitAddon: { FitAddon: FakeXtermFitAddon },
+        // The find widget's CSS Custom Highlight API (task 127): happy-dom has no CSS global;
+        // a Map covers the set/delete calls resetDetailsFind and paintMatches make.
+        CSS: { highlights: new Map() },
     });
     browserWindow.document.body.innerHTML = readIndexHtmlBodyMarkup();
 }

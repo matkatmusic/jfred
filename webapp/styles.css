@@ -127,6 +127,8 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .toolbar-btn:hover:not(:disabled), .row-btn:hover:not(:disabled) { background: var(--control-hover); border-color: var(--accent); }
 .toolbar-btn:disabled, .row-btn:disabled, button:disabled { opacity: 0.5; cursor: default; }
 .row-btn { font-size: 11px; padding: 1px 7px; }
+/* task 144: the script-run pane's selected file button — the rev-card selection look. */
+.row-btn.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--panel)); }
 .popover {
     position: absolute;
     top: calc(100% + 2px);

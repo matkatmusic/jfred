@@ -1,6 +1,7 @@
 // Files-pane view-model (split from timeline.ts, task 92): the sidebar's flat entries and the
 // nested, prefix-stripped, chain-collapsed file tree (items 66/77, task 90).
 
+import { applyRenameBadgeLabels, findScriptRenameSource } from "./timeline-file-badges.ts";
 import {
     DELETE_EVENT_KIND,
     RENAME_EVENT_KIND,
@@ -31,74 +32,15 @@ export function buildFilesSidebarViewModel(document: WireTimelineDocument): File
         target: history.target,
         revisionCount: history.revisions.length,
         isDeleted: findLastRevisionKind(history) === DELETE_EVENT_KIND,
-        originalPath: findOriginalPath(history),
+        originalPath: findOriginalPath(history) ?? findScriptRenameSource(document, history.target),
         renameBadgeLabel: undefined,
     }));
     applyRenameBadgeLabels(entries);
     return entries;
 }
 
-// One rename badge being disambiguated (task 91): its entry, the old path's segments, and the
-// suffix depth grown until the badge's label collides with no other badge's.
-type RenameBadge = { entry: FileSidebarEntry; segments: string[]; depth: number };
-
-// Stamp every renamed entry's renameBadgeLabel: start each badge at the old path's basename and
-// deepen colliding badges until all labels differ (task 91 — two renames from the same basename
-// in different directories must be tellable apart without hovering).
-export function applyRenameBadgeLabels(entries: FileSidebarEntry[]): void {
-    const badges: RenameBadge[] = [];
-    for (const entry of entries) {
-        if (entry.originalPath === undefined) {
-            continue;
-        }
-        badges.push({ entry, segments: splitPathSegments(entry.originalPath), depth: 1 });
-    }
-    while (deepenCollidingBadges(badges)) {
-        // repeat until no badge grew — each pass regroups by the freshly deepened labels.
-    }
-    for (const badge of badges) {
-        badge.entry.renameBadgeLabel = computeBadgeLabel(badge);
-    }
-}
-
-function splitPathSegments(path: string): string[] {
-    return path.split("/").filter((segment) => segment !== "");
-}
-
-// A badge's current label: the last `depth` segments of its old path.
-function computeBadgeLabel(badge: RenameBadge): string {
-    return badge.segments.slice(badge.segments.length - badge.depth).join("/");
-}
-
-// Deepen every badge that shares its current label with a badge born at a DIFFERENT old path;
-// true when any badge grew (the caller loops until stable). Two identical old paths legitimately
-// share their full-path label — findGrowableBadges stops them at their segment count, so the
-// loop always terminates.
-function deepenCollidingBadges(badges: RenameBadge[]): boolean {
-    const badgesByLabel = new Map<string, RenameBadge[]>();
-    for (const badge of badges) {
-        const label = computeBadgeLabel(badge);
-        badgesByLabel.set(label, [...(badgesByLabel.get(label) ?? []), badge]);
-    }
-    let anyBadgeGrew = false;
-    for (const group of badgesByLabel.values()) {
-        for (const badge of findGrowableBadges(group)) {
-            badge.depth += 1;
-            anyBadgeGrew = true;
-        }
-    }
-    return anyBadgeGrew;
-}
-
-// The badges in a same-label group that must (and still can) grow: none when the group holds
-// fewer than two distinct old paths — that label is settled.
-function findGrowableBadges(group: RenameBadge[]): RenameBadge[] {
-    const distinctOldPaths = new Set(group.map((badge) => badge.segments.join("/")));
-    if (distinctOldPaths.size < 2) {
-        return [];
-    }
-    return group.filter((badge) => badge.depth < badge.segments.length);
-}
+// Badge machinery (RenameBadge, applyRenameBadgeLabels, findScriptRenameSource): moved to
+// timeline-file-badges.ts (task 145 — the line cap; split, never condense).
 
 // The kind of the revision a file ends life at; undefined for an empty history.
 function findLastRevisionKind(history: WireFileHistory): string | undefined {

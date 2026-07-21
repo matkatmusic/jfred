@@ -7,8 +7,8 @@
 import { el } from "../app-dom.ts";
 import { revealDetailsPane } from "../inspector.ts";
 import { deriveCommitChangedFiles } from "./timeline-commit-files.ts";
+import { applyRenameBadgeLabels } from "./timeline-file-badges.ts";
 import {
-    applyRenameBadgeLabels,
     buildFileTree,
     buildFilesSidebarViewModel,
     type FileSidebarEntry,

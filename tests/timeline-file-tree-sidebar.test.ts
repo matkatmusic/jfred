@@ -51,6 +51,46 @@ test("test_buildFilesSidebarViewModel_lists_targets_with_revision_counts", () =>
     ]);
 });
 
+// Task 145: a script move (shutil.move) leaves no rename REVISION — the engine seeds the
+// destination's history fresh via the script channels — but the run's sandbox diff proved the
+// pair (task 143 renamedPaths), so the badge falls back to it.
+const scriptMoveDocument = {
+    ...commitWalkDocument,
+    filesTouched: [{
+        target: "/tmp/proj/core_one.py",
+        revisions: [
+            { kind: EventKind.write, changeId: "scriptRun:tu1:/tmp/proj/core_one.py", timestamp: "2026-01-01T00:00:05.000Z" },
+        ],
+    }],
+    scriptRuns: [{
+        toolUseId: "tu1",
+        timestamp: "2026-01-01T00:00:05.000Z",
+        code: "import shutil",
+        changedPaths: ["/tmp/proj/core_one.py"],
+        renamedPaths: [{ from: "/tmp/proj/one.py", to: "/tmp/proj/core_one.py" }],
+    }],
+};
+
+test("test_buildFilesSidebarViewModel_badges_a_script_move_from_the_runs_rename_pairs", () => {
+    // Scenario (task 145): core_one.py's history has no rename revision, but a script run's
+    // renamedPaths proves one.py -> core_one.py — the entry still gets its rename badge.
+    // Steps:
+    // build the sidebar view-model from the script-move document.
+    const entries = buildFilesSidebarViewModel(scriptMoveDocument);
+    // the destination entry's origin comes from the run's pair, badge disambiguated as usual.
+    assert.equal(entries[0]?.originalPath, "/tmp/proj/one.py");
+    assert.equal(entries[0]?.renameBadgeLabel, "one.py");
+});
+
+test("test_buildFilesSidebarViewModel_reports_no_origin_without_rename_evidence", () => {
+    // Scenario (task 145 guard): with no rename revision AND no run pairs, the entry stays
+    // badge-less — the fallback must not invent origins.
+    const documentWithoutPairs = { ...scriptMoveDocument, scriptRuns: [] };
+    const entries = buildFilesSidebarViewModel(documentWithoutPairs);
+    assert.equal(entries[0]?.originalPath, undefined);
+    assert.equal(entries[0]?.renameBadgeLabel, undefined);
+});
+
 test("test_buildFilesSidebarViewModel_flags_a_file_whose_last_revision_is_a_delete", () => {
     // Scenario: a file deleted and never recreated is reported as deleted, so the tree can dim it.
     // Steps:

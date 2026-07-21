@@ -41,6 +41,13 @@ function summarizeScriptForProgress(script: string): string {
 export const PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX = "running script in sandbox";
 export const PROGRESS_LABEL_SANDBOX_MEMO_PREFIX = "reusing sandbox result";
 
+// A sandbox artifact no scenario tracks: python bytecode caches. Canonical home here (task
+// 143) — both the run summarizer (reconstruction_script_runs.ts) and the rename-pair matcher
+// (reconstruction_script_renames.ts) filter sandbox state keys through it.
+export function isJunkStateKey(key: string): boolean {
+    return key.includes("__pycache__") || key.endsWith(".pyc");
+}
+
 // Sandbox outcomes per (script, seeded state) content hash. The engine's replay premise is
 // that a recorded script is a deterministic transform of its seeded files, so one spawn per
 // distinct input suffices — lineage replays and rolling re-seeds re-ask constantly (s84:

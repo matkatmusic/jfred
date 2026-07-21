@@ -4,10 +4,10 @@
 // groups can call each other without import cycles.
 
 import type { DetailsContext } from "./details-model.ts";
+import type { WireProjectListing } from "./timeline-sessions.ts";
 import type {
     TimelineNode,
     TranscriptLocation,
-    WireProjectListing,
     WireTimelineDocument,
 } from "./timeline-types.ts";
 

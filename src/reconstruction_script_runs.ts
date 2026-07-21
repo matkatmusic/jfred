@@ -19,7 +19,8 @@ import {
     scriptCodeMayWriteFiles,
     type LineageContentBefore,
 } from "./reconstruction_script_prestate.ts";
-import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { isJunkStateKey, runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { matchRenamePairs } from "./reconstruction_script_renames.ts";
 
 // One execution per distinct run per records array: pre-state build + sandbox run, memoized —
 // Phases 3–4 multiply call sites and each sandbox run costs ~100ms. The memo lives in the
@@ -150,10 +151,8 @@ export function runForTarget(
     return chosen;
 }
 
-// A sandbox artifact no scenario tracks: python bytecode caches.
-function isJunkStateKey(key: string): boolean {
-    return key.includes("__pycache__") || key.endsWith(".pyc");
-}
+// isJunkStateKey: moved to reconstruction_script_sandbox.ts (task 143 — the rename-pair
+// matcher in reconstruction_script_renames.ts shares it, and a module cycle must not form).
 
 // Absolute paths of files that exist only AFTER an executed run — script-born files (an out.txt,
 // a shutil.move destination) that left no Write/Edit/Bash event.
@@ -182,14 +181,21 @@ export function discoverScriptCreatedPaths(
     return [...created.values()];
 }
 
+// A move the sandbox diff proves, resolved to absolute paths for the wire document (task 143;
+// the state-key matcher lives in reconstruction_script_renames.ts).
+export type ScriptRenamePair = { from: Path; to: Path };
+
 // One recorded script run and the files its sandbox execution changed, created, or deleted —
 // captured at reconstruction time (task 67; executeRunOnce is memoized, so a consented build
 // pays nothing extra) and carried onto the wire document for the timeline's script-run rows.
+// renamedPaths (task 143) holds the proven move pairs; their SOURCE paths are collapsed out
+// of changedPaths so "modified N file(s)" counts files, not both sides of every move.
 export type ScriptRunFileChanges = {
     toolUseId: Uuid | undefined;
     timestamp: Date;
     code: string;
     changedPaths: Path[];
+    renamedPaths: ScriptRenamePair[];
 };
 
 export function summarizeScriptRunFileChanges(
@@ -200,28 +206,36 @@ export function summarizeScriptRunFileChanges(
         toolUseId: run.toolUseId,
         timestamp: run.timestamp,
         code: run.code,
-        changedPaths: computeRunChangedPaths(run, records, reader),
+        ...computeRunFileOutcome(run, records, reader),
     }));
 }
 
 // The absolute paths executeRunOnce's pre/post diff shows changed, created, or deleted (the
-// union of both states' keys covers all three in one content comparison) — [] on a declined
-// build (nothing may execute) or when no sidecar reader exists. The gate check comes BEFORE
-// executeRunOnce so a declined build never runs a script.
-function computeRunChangedPaths(
+// union of both states' keys covers all three in one content comparison), with rename-pair
+// sources collapsed out (task 143) — empty on a declined build (nothing may execute) or when
+// no sidecar reader exists. The gate check comes BEFORE executeRunOnce so a declined build
+// never runs a script.
+function computeRunFileOutcome(
     run: ScriptRun,
     records: TranscriptRecord[],
     reader: BackupReader | undefined,
-): Path[] {
-    if (reader === undefined || !isImpureExecutionAllowed()) return [];
+): { changedPaths: Path[]; renamedPaths: ScriptRenamePair[] } {
+    if (reader === undefined || !isImpureExecutionAllowed()) return { changedPaths: [], renamedPaths: [] };
     const execution = executeRunOnce(run, records, reader);
-    if (execution.post === undefined) return [];
+    if (execution.post === undefined) return { changedPaths: [], renamedPaths: [] };
+    const pairs = matchRenamePairs(execution.pre, execution.post);
+    const pairSourceKeys = new Set(pairs.map((pair) => pair.fromKey));
     const changed = new Map<string, Path>();
     for (const key of new Set([...execution.pre.keys(), ...execution.post.keys()])) {
         if (isJunkStateKey(key)) continue;
+        if (pairSourceKeys.has(key)) continue;
         if (execution.pre.get(key) === execution.post.get(key)) continue;
         const absolute = resolveAgainstCwd(run.cwd, new Path(key));
         if (!changed.has(absolute)) changed.set(absolute, new Path(absolute));
     }
-    return [...changed.values()];
+    const renamedPaths = pairs.map((pair) => ({
+        from: new Path(resolveAgainstCwd(run.cwd, new Path(pair.fromKey))),
+        to: new Path(resolveAgainstCwd(run.cwd, new Path(pair.toKey))),
+    }));
+    return { changedPaths: [...changed.values()], renamedPaths };
 }

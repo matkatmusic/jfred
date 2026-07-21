@@ -4,6 +4,7 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
+import { absorbParallelToolCallSiblings } from "./reconstruction_trunk_absorb.ts";
 import {
     collectAncestorUuids,
     collectHeadUuids,
@@ -59,7 +60,8 @@ function collectPredecessorFinalHeads(records: TranscriptRecord[], survivingHead
 }
 
 // The uuid strings on the surviving trunk across every session tree: the surviving head's own
-// chain plus each predecessor tree's final-head chain.
+// chain plus each predecessor tree's final-head chain, with same-turn parallel-tool-call
+// siblings absorbed (task 145).
 export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivingHead: Uuid): Set<string> {
     const trunk = collectAncestorUuids(records, survivingHead);
     for (const head of collectPredecessorFinalHeads(records, survivingHead)) {
@@ -67,8 +69,10 @@ export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivin
             trunk.add(uuid);
         }
     }
+    absorbParallelToolCallSiblings(records, trunk);
     return trunk;
 }
+
 
 // The rewind point of an abandoned tip: the deepest record on the tip's path that also lies on the
 // surviving path — found by walking tip -> root and returning the first uuid in `survivingSet`.

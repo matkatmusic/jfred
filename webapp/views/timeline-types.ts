@@ -77,6 +77,8 @@ export type WireScriptRun = {
     timestamp: string;
     code: string;
     changedPaths: string[];
+    // task 143 (optional on older cached docs): proven move pairs; sources collapsed out of changedPaths.
+    renamedPaths?: WireRename[];
 };
 export type WireTimelineDocument = {
     filesTouched: WireFileHistory[];
@@ -97,13 +99,11 @@ export type WireTimelineDocument = {
     // Optional (same convention): every failure the engine survived (task 119) — the partial-
     // reconstruction banner's counts and tooltip reasons.
     failures?: { scope: string; stage: string; target?: string; reason: string }[];
-    // Optional (same convention): the user declined pre-baseline reconstruction (task 56) —
-    // the git-baseline node becomes the timeline's first shown step.
+    // Optional (same convention): the user declined pre-baseline reconstruction (task 56) — the
+    // git-baseline node becomes the timeline's first shown step.
     preBaselineSkipped?: boolean;
     lineVerdicts?: WireLineVerdict[];
 };
-export type WireJsonlFile = { fileName: string };
-export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
 
 // indexRevisionsByChangeId's entries: one changeId resolved to its displayable revision facts.
 // displayPath is the name the file had AT that revision (task 127) — path stays the final

@@ -14,3 +14,18 @@ test("test_formatInspectorLineCounter_names_the_zero_based_index_range", async (
     assert.equal(formatInspectorLineCounter(0, 99), "line 0 of 0–98");
     assert.equal(formatInspectorLineCounter(98, 99), "line 98 of 0–98");
 });
+
+test("test_inspector_nav_disabled_states_at_ends_and_middle", async () => {
+    // Scenario (task 142): the record stepper's Prev disables on line 0 and Next disables on
+    // the last line, instead of both staying enabled and clamping to a silent no-op.
+    setupWebappDom();
+    const { computeInspectorNavDisabledStates } = await import("../webapp/inspector.ts");
+    // Step: at index 0 of 3 lines, Prev is disabled and Next is enabled.
+    assert.deepEqual(computeInspectorNavDisabledStates(0, 3), { prevIsDisabled: true, nextIsDisabled: false });
+    // Step: at the last index (2 of 3 lines), Next is disabled and Prev is enabled.
+    assert.deepEqual(computeInspectorNavDisabledStates(2, 3), { prevIsDisabled: false, nextIsDisabled: true });
+    // Step: in the middle, both are enabled.
+    assert.deepEqual(computeInspectorNavDisabledStates(1, 3), { prevIsDisabled: false, nextIsDisabled: false });
+    // Step: a single-line transcript disables both.
+    assert.deepEqual(computeInspectorNavDisabledStates(0, 1), { prevIsDisabled: true, nextIsDisabled: true });
+});

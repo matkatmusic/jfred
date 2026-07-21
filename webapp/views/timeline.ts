@@ -46,10 +46,10 @@ import {
     computeGraphLaneRuns,
     SESSION_LANE_VARIABLES,
     waitForNextAnimationFrame,
+    type WireProjectListing,
 } from "./timeline-sessions.ts";
 import {
     type TranscriptLocation,
-    type WireProjectListing,
     type WireTimelineDocument,
 } from "./timeline-types.ts";
 import type { DetailsContext } from "./details-model.ts";

@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { applyRenameBadgeLabels } from "../webapp/views/timeline-file-badges.ts";
 import {
-    applyRenameBadgeLabels,
     buildFileTree,
     buildFilesSidebarViewModel,
     findCommonDirectoryPrefix,
