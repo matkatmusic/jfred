@@ -7,6 +7,7 @@
 import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole } from "./app-console.ts";
 import { inflightLoadController } from "./app-fetch.ts";
 import { initializeHeader } from "./app-header.ts";
+import { initializeProjectPathsSection } from "./app-paths-project.ts";
 import { renderRoute } from "./app-router.ts";
 import { initDetailsFind } from "./views/details-find.ts";
 
@@ -78,5 +79,8 @@ if (typeof window !== "undefined") {
         (document.getElementById("console-cancel") as HTMLButtonElement).disabled = true; // re-enabled by setCancelButtonVisible when the cancel lands
         inflightLoadController?.abort();
     });
-    initializeHeader().then(renderRoute);
+    initializeHeader().then(() => {
+        initializeProjectPathsSection();               // task 137: the popover's per-project section
+        renderRoute();
+    });
 }

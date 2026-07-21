@@ -15,6 +15,22 @@ type WireConfig = { projectsDir: string; fileHistoryDir: string; bootId: string 
 // The /api/projects payload rows, as far as the Projects menu reads them.
 type WireProjectListing = { name: string };
 
+// Native macOS folder picker — fills the input; the popover's apply/store buttons still apply
+// it. Empty path = user cancelled; leave the field alone. Module-level export so the task-137
+// repo field (app-paths-project.ts) reuses it.
+export async function pickFolderInto(target: HTMLInputElement): Promise<void> {
+    const response = await fetch(`/api/pick-folder?current=${encodeURIComponent(target.value)}`);
+    if (!response.ok) {
+        // No alert(): native dialogs block headless automation. The breadcrumb carries the error.
+        setBreadcrumb(`folder picker failed: ${await response.text()}`);
+        return;
+    }
+    const { path } = await response.json() as { path: string };
+    if (path !== "") {
+        target.value = path;
+    }
+}
+
 // Both toolbar popovers close together — opening one, picking a project, applying a folder
 // change, or any document-level click funnels through here (the mockup's pattern).
 function hideToolbarPopovers(): void {
@@ -65,6 +81,12 @@ export async function initializeHeader(): Promise<void> {
     document.addEventListener("click", hideToolbarPopovers);
     const input = document.getElementById("projects-dir-input") as HTMLInputElement;
     const fileHistoryInput = document.getElementById("file-history-dir-input") as HTMLInputElement;
+    // task 136: the file-history field hides behind a toggle — hidden means "derive from the
+    // projects folder"; showing the field is the explicit-override gesture.
+    const fileHistoryFields = document.getElementById("file-history-fields")!;
+    document.getElementById("file-history-toggle")!.addEventListener("click", () => {
+        fileHistoryFields.hidden = !fileHistoryFields.hidden;
+    });
     // The last server-reported effective file-history dir. An UNEDITED field posts "" so the
     // server re-derives from the (possibly new) projects folder — otherwise the old derived
     // value would pin itself as an explicit override across folder switches (item 46).
@@ -79,8 +101,19 @@ export async function initializeHeader(): Promise<void> {
     // stale consent choices before the first document load can read them (item 82).
     reconcileServerBootId(config.bootId);
     applyConfig(config);
+    // task 136: while the file-history fields are hidden the dir is DERIVED — always post ""
+    // so the server re-derives from the projects folder (the item-46 convention).
+    const computeFileHistoryDirToPost = (): string => {
+        if (fileHistoryFields.hidden) {
+            return "";
+        }
+        if (fileHistoryInput.value === reportedFileHistoryDir) {
+            return "";
+        }
+        return fileHistoryInput.value;
+    };
     document.getElementById("projects-dir-change")!.addEventListener("click", async () => {
-        const fileHistoryDir = fileHistoryInput.value === reportedFileHistoryDir ? "" : fileHistoryInput.value;
+        const fileHistoryDir = computeFileHistoryDirToPost();
         const response = await fetch("/api/config", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -101,20 +134,6 @@ export async function initializeHeader(): Promise<void> {
         location.hash = "#/";
         renderRoute();
     });
-    // Native macOS folder picker — fills the input; "Change folder…" still applies it.
-    // Empty path = user cancelled; leave the field alone.
-    const pickFolderInto = async (target: HTMLInputElement): Promise<void> => {
-        const response = await fetch(`/api/pick-folder?current=${encodeURIComponent(target.value)}`);
-        if (!response.ok) {
-            // No alert(): native dialogs block headless automation. The breadcrumb carries the error.
-            setBreadcrumb(`folder picker failed: ${await response.text()}`);
-            return;
-        }
-        const { path } = await response.json() as { path: string };
-        if (path !== "") {
-            target.value = path;
-        }
-    };
     document.getElementById("projects-dir-open")!.addEventListener("click", () => void pickFolderInto(input));
     document.getElementById("file-history-dir-open")!.addEventListener("click", () => void pickFolderInto(fileHistoryInput));
 }

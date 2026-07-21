@@ -61,6 +61,78 @@ test("test_projects_button_opens_menu_and_document_click_closes_it", async () =>
     assert.equal(getRequiredElementById("paths-popover").hidden, true);
 });
 
+// task 136: the file-history field hides behind a toggle; hidden = "derive from the projects
+// folder", so the apply POST always carries fileHistoryDir "" while the fields are hidden.
+
+// Wrap the current stubbed fetch with a recorder so a test can inspect POST bodies while the
+// canned routes keep answering.
+function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
+    const recordedCalls: { url: string; init: RequestInit | undefined }[] = [];
+    const delegate = globalThis.fetch;
+    Object.assign(globalThis, {
+        fetch: (url: unknown, init?: RequestInit) => {
+            recordedCalls.push({ url: String(url), init });
+            return delegate(String(url), init);
+        },
+    });
+    return recordedCalls;
+}
+
+// The parsed JSON body of the recorded POST to /api/config, asserted present.
+function getRecordedConfigPostBody(recordedCalls: { url: string; init: RequestInit | undefined }[]): { projectsDir: string; fileHistoryDir: string } {
+    const configPost = recordedCalls.find((call) => call.url.includes("/api/config") && call.init?.method === "POST");
+    assert.ok(configPost !== undefined, "a POST to /api/config was recorded");
+    return JSON.parse(String(configPost.init!.body)) as { projectsDir: string; fileHistoryDir: string };
+}
+
+test("test_file_history_fields_start_hidden_and_toggle_shows_them", async () => {
+    // Scenario (task 136): the file-history field + Open… button start hidden (derived dir);
+    // the "Set File History Snapshots" button toggles their visibility.
+    // Steps:
+    // boot the DOM and run initializeHeader.
+    await initializeHeaderInFreshDom();
+    const fileHistoryFields = getRequiredElementById("file-history-fields");
+    // the fields start hidden (index.html markup).
+    assert.equal(fileHistoryFields.hidden, true);
+    // clicking the toggle shows them.
+    getRequiredElementById("file-history-toggle").click();
+    assert.equal(fileHistoryFields.hidden, false);
+    // clicking again hides them.
+    getRequiredElementById("file-history-toggle").click();
+    assert.equal(fileHistoryFields.hidden, true);
+});
+
+test("test_apply_posts_empty_file_history_while_fields_hidden", async () => {
+    // Scenario (task 136): while the fields are hidden the dir is DERIVED — the apply POST
+    // carries "" even when the (hidden) input holds text.
+    // Steps:
+    // boot the DOM, leave the fields hidden, put a value in the hidden input.
+    await initializeHeaderInFreshDom();
+    (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/tmp/should-not-post";
+    const recordedCalls = recordFetchCalls();
+    // apply the folder change.
+    getRequiredElementById("projects-dir-change").click();
+    await flushAsyncWork();
+    // the POST body carries the empty derive marker, not the hidden text.
+    assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "");
+});
+
+test("test_apply_posts_edited_file_history_when_fields_shown", async () => {
+    // Scenario (task 136): showing the fields is the explicit-override gesture — an edited
+    // value posts through.
+    // Steps:
+    // boot the DOM, show the fields, edit the input.
+    await initializeHeaderInFreshDom();
+    getRequiredElementById("file-history-toggle").click();
+    (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/tmp/custom-history";
+    const recordedCalls = recordFetchCalls();
+    // apply the folder change.
+    getRequiredElementById("projects-dir-change").click();
+    await flushAsyncWork();
+    // the POST body carries the edited override.
+    assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "/tmp/custom-history");
+});
+
 test("test_paths_popover_stays_open_on_inside_click", async () => {
     // Scenario: clicks inside the paths popover (typing in the inputs) stop propagation so the
     // document-level closer never fires; only the apply button lets its click through.

@@ -12,6 +12,7 @@ import {
     hydrateProjectPaths,
     readProjectPathsConfig,
     setPathOverrides,
+    type WireProjectPaths,
 } from "./reconstruction_overrides.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 
@@ -83,14 +84,31 @@ export function getEffectiveFileHistoryDir(): Path {
         ?? getDefaultFileHistoryRoot();
 }
 
-// item 46: set the engine's path overrides for this request — the project's reveng-paths.json
-// entry (if any) plus the viewer's effective file-history dir. Every project-scoped route calls
-// this BEFORE any build work; overrides are process-wide module state, so each request
-// overwrites the previous request's (builds are synchronous and the server serializes them).
+// task 137: per-project overrides applied for this server session only (the "apply without
+// storing" path). Setting an entry REPLACES the project's previous session entry — the client
+// posts the full field set each time, and {} clears it.
+const sessionProjectPaths = new Map<string, WireProjectPaths>();
+
+export function setSessionProjectPaths(projectName: string, entry: WireProjectPaths): void {
+    sessionProjectPaths.set(projectName, entry);
+}
+
+// The project's effective wire entry: the stored reveng-paths.json entry with the session
+// entry's fields merged over it (a session field wins over the same stored field).
+export function getMergedProjectPaths(projectName: string): WireProjectPaths {
+    return { ...readProjectPathsConfig(getProjectsDir())[projectName], ...sessionProjectPaths.get(projectName) };
+}
+
+// item 46: set the engine's path overrides for this request — the project's merged entry
+// (stored config + task-137 session overrides) plus the viewer's effective file-history dir
+// when the entry sets none. Every project-scoped route calls this BEFORE any build work;
+// overrides are process-wide module state, so each request overwrites the previous request's
+// (builds are synchronous and the server serializes them).
 export function applyProjectOverrides(projectName: string): void {
-    const entry = readProjectPathsConfig(getProjectsDir())[projectName];
-    const overrides = entry === undefined ? {} : hydrateProjectPaths(entry);
-    overrides.fileHistoryRoot = getEffectiveFileHistoryDir();
+    const overrides = hydrateProjectPaths(getMergedProjectPaths(projectName));
+    if (overrides.fileHistoryRoot === undefined) {
+        overrides.fileHistoryRoot = getEffectiveFileHistoryDir();
+    }
     setPathOverrides(overrides);
 }
 

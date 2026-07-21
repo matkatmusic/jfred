@@ -150,6 +150,17 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #paths-popover { min-width: 360px; padding: 10px; }
 #paths-popover .dir-label { display: block; font-size: 10px; }
 #paths-popover .dir-input { display: block; width: 100%; margin: 2px 0 10px; }
+/* task 137: the per-project commit pick list — scrollable, .menu-item row styling */
+#commit-pick-list { max-height: 14em; overflow-y: auto; margin: 2px 0 10px; }
+.commit-pick-row {
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.commit-pick-row:hover { background: var(--sel); color: #fff; }
+#commit-match-warning { display: block; font-size: 10px; margin: 0 0 10px; }
 
 /* ─── Layout: sidebar | rightcol ──────────────────────────────── */
 .layout { flex: 1; display: flex; overflow: hidden; min-height: 0; }

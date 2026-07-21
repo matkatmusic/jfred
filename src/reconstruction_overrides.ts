@@ -11,7 +11,7 @@
 // resolution (resolveAgainstCwd) in a mixed path space that breaks lineage joins
 // (user-approved deviation from the item-46 text, 2026-07-09).
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 
@@ -49,8 +49,9 @@ export function serializePathOverrides(): string {
 // lists directories and .jsonl files, so the config never shows up as a project).
 export const PROJECT_PATHS_CONFIG_NAME = "reveng-paths.json";
 
-// Wire shape of one project's entry in <projectsDir>/reveng-paths.json.
-export type WireProjectPaths = { cwd?: string; repo?: string; baseCommit?: string };
+// Wire shape of one project's entry in <projectsDir>/reveng-paths.json. fileHistory is the
+// per-project explicit file-history-snapshots override (task 137).
+export type WireProjectPaths = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string };
 
 // The whole config file: project dir name -> entry. {} when the file does not exist;
 // malformed JSON throws (a typo must be loud, not a silently ignored override).
@@ -75,6 +76,17 @@ export function hydrateProjectPaths(wire: WireProjectPaths): PathOverrides {
     if (wire.baseCommit !== undefined) {
         overrides.baseCommit = new Uuid(wire.baseCommit);
     }
+    if (wire.fileHistory !== undefined) {
+        overrides.fileHistoryRoot = new Path(wire.fileHistory);
+    }
     return overrides;
+}
+
+// Merge one project's entry into <projectsDir>/reveng-paths.json (task 137's opt-in store).
+// Field-wise merge: fields absent from `entry` keep their stored values.
+export function writeProjectPathsEntry(projectsDir: Path, projectName: string, entry: WireProjectPaths): void {
+    const config = readProjectPathsConfig(projectsDir);
+    config[projectName] = { ...config[projectName], ...entry };
+    writeFileSync(join(projectsDir.toString(), PROJECT_PATHS_CONFIG_NAME), JSON.stringify(config, null, 4) + "\n");
 }
 

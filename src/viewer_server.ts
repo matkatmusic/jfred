@@ -26,6 +26,11 @@ import {
     handleRangePatchRequest,
     handleStepFilesRequest,
 } from "./viewer_server_routes.ts";
+import {
+    handleProjectPathsRequest,
+    handleRepoCommitMatchRequest,
+    handleRepoCommitsRequest,
+} from "./viewer_api_repo.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
 import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
@@ -161,6 +166,12 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
         } else if (url.pathname === "/api/config") {
             // item 46: sendJson(response, 200, { projectsDir: getProjectsDir() });
             sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+        } else if (url.pathname === "/api/repo-commits") {
+            handleRepoCommitsRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/repo-commit-match") {
+            handleRepoCommitMatchRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/project-paths") {
+            handleProjectPathsRequest(request, response, url.searchParams);
         } else if (url.pathname === "/api/pick-folder") {
             handleFolderPickRequest(response, url.searchParams);
         } else if (url.pathname === "/api/projects") {

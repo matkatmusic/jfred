@@ -7,7 +7,6 @@ import {
     buildSessionsSidebarViewModel,
     checkRowIsExpandable,
     computeGraphLaneRuns,
-    findAdjacentFileTouchedIndex,
     findJsonlForSession,
 } from "../webapp/views/timeline-sessions.ts";
 import {
@@ -17,13 +16,8 @@ import {
     TOOL_CALL_NODE_KIND,
     USER_TURN_NODE_KIND,
     type CommitNode,
-    type FileChange,
-    type TimelineNode,
 } from "../webapp/views/timeline-types.ts";
-import {
-    RecordType,
-    EventKind,
-} from "../src/structures/vocabulary.ts";
+import { RecordType } from "../src/structures/vocabulary.ts";
 import {
     s84Document,
     s39SeedDocument,
@@ -121,88 +115,8 @@ test("test_checkRowIsExpandable_excludes_commits_and_session_ends", () => {
     assert.equal(checkRowIsExpandable(toolCall), true);
 });
 
-// ── task 85: header Prev/Next over file-touching agent turns ──
-// findAdjacentFileTouchedIndex reads only kind + fileChanges, so hand-built minimal turn
-// nodes (wire shape) exercise it fully.
-
-function makeTurnNodeFixture(
-    kind: typeof USER_TURN_NODE_KIND | typeof AGENT_TURN_NODE_KIND,
-    fileChanges: FileChange[],
-): TimelineNode {
-    return {
-        kind,
-        when: "2026-01-01T00:00:00.000Z",
-        sessionId: undefined,
-        text: "",
-        snapshots: [],
-        gitOperations: [],
-        fileChanges,
-    };
-}
-
-const singleFileChangeFixture: FileChange[] = [{
-    path: "orders.py",
-    displayPath: "orders.py",
-    eventKind: EventKind.edit,
-    renamedFrom: undefined,
-    isFirstRevision: false,
-    changeId: undefined,
-    when: "2026-01-01T00:00:00.000Z",
-}];
-
-test("test_findAdjacentFileTouchedIndex_next_from_before_start_finds_first_candidate", () => {
-    // Behavior: with the reference before the first row (-1), Next lands on the first
-    // agent turn that carries file chips.
-    // Steps:
-    // a user turn, then a chipless agent turn, then an agent turn with chips.
-    const nodes = [
-        makeTurnNodeFixture(USER_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-    ];
-    // searching forward from -1 returns the chip-bearing row's index.
-    assert.equal(findAdjacentFileTouchedIndex(nodes, -1, 1), 2);
-});
-
-test("test_findAdjacentFileTouchedIndex_next_skips_non_agent_and_chipless_rows", () => {
-    // Behavior: Next skips user turns and agent turns without file changes.
-    // Steps:
-    // a chip-bearing agent turn, a user turn, a chipless agent turn, a chip-bearing agent turn.
-    const nodes = [
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-        makeTurnNodeFixture(USER_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-    ];
-    // searching forward from index 0 skips indexes 1 and 2 and lands on 3.
-    assert.equal(findAdjacentFileTouchedIndex(nodes, 0, 1), 3);
-});
-
-test("test_findAdjacentFileTouchedIndex_prev_finds_nearest_earlier_candidate", () => {
-    // Behavior: Prev walks backwards to the nearest earlier chip-bearing agent turn.
-    // Steps:
-    // same four rows as the skip test, searching backward from the last row.
-    const nodes = [
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-        makeTurnNodeFixture(USER_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, []),
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-    ];
-    // searching backward from index 3 skips indexes 2 and 1 and lands on 0.
-    assert.equal(findAdjacentFileTouchedIndex(nodes, 3, -1), 0);
-});
-
-test("test_findAdjacentFileTouchedIndex_returns_undefined_when_no_candidate_in_direction", () => {
-    // Behavior: walking off either end without a candidate is undefined (button no-op).
-    // Steps:
-    // one chip-bearing agent turn followed only by a user turn.
-    const nodes = [
-        makeTurnNodeFixture(AGENT_TURN_NODE_KIND, singleFileChangeFixture),
-        makeTurnNodeFixture(USER_TURN_NODE_KIND, []),
-    ];
-    // searching forward from index 0 finds nothing.
-    assert.equal(findAdjacentFileTouchedIndex(nodes, 0, 1), undefined);
-});
+// (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135
+// checkRowCarriesJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
 
 test("test_checkRowIsExpandable_expands_only_merged_baseline_commit_rows", () => {
     // Scenario (task 121): the merged git-derived baseline commit row expands to show its file

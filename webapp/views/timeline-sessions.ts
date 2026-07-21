@@ -109,6 +109,31 @@ export function findAdjacentFileTouchedIndex(
     return undefined;
 }
 
+// A row's { } button opens its JSONL record — commits are repo events with no record, and a
+// synthetic node (the git-derived baseline turn, task 135) has no transcript line behind it.
+export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
+    if (node.kind === COMMIT_NODE_KIND) {
+        return false;
+    }
+    if (node.uuid === undefined) {
+        return false;
+    }
+    return true;
+}
+
+// The next/previous visible row, one step at a time (task 131's header line-stepper — with the
+// task-134 all-lines toggle on this is one JSONL line per click). undefined = already at the end.
+export function findAdjacentRowIndex(nodes: TimelineNode[], fromIndex: number, direction: 1 | -1): number | undefined {
+    const target = fromIndex + direction;
+    if (target < 0) {
+        return undefined;
+    }
+    if (target >= nodes.length) {
+        return undefined;
+    }
+    return target;
+}
+
 // Fixed session-lane palette, assigned by first appearance; a session keeps its color for the
 // whole list (never re-cycled mid-list).
 export const SESSION_LANE_VARIABLES = ["--accent", "--green", "--orange", "--lane-violet", "--lane-teal"];

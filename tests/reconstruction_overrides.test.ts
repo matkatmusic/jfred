@@ -13,6 +13,7 @@ import {
     serializePathOverrides,
     readProjectPathsConfig,
     hydrateProjectPaths,
+    writeProjectPathsEntry,
     PROJECT_PATHS_CONFIG_NAME,
 } from "../src/reconstruction_overrides.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
@@ -116,4 +117,37 @@ test("test_hydrate_project_paths_builds_domain_types", () => {
     assert.equal(partialOverrides.projectCwd, undefined);
     assert.equal(partialOverrides.baseCommit, undefined);
     assert.equal(partialOverrides.fileHistoryRoot, undefined);
+});
+
+test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
+    // Scenario (task 137): a per-project explicit file-history override rides in the same
+    // reveng-paths.json entry and hydrates into the engine's fileHistoryRoot override.
+    // Step: hydrate an entry carrying only fileHistory.
+    const overrides = hydrateProjectPaths({ fileHistory: "/tmp/custom-history" });
+    // Step: the field is a real Path carrying the wire value.
+    assert.ok(overrides.fileHistoryRoot instanceof Path);
+    assert.equal(overrides.fileHistoryRoot.toString(), "/tmp/custom-history");
+});
+
+test("test_write_project_paths_entry_merges_into_existing_config", () => {
+    // Scenario (task 137's opt-in store): writing one project's entry merges field-wise into
+    // the existing file — stored fields absent from the new entry survive, other projects
+    // stay untouched, and a missing file is created.
+    // Step: a config with an existing entry for "proj-a" plus an unrelated "proj-b".
+    const projectsDir = makeTempDir();
+    writeFileSync(join(projectsDir, PROJECT_PATHS_CONFIG_NAME), JSON.stringify({
+        "proj-a": { cwd: "/original/a" },
+        "proj-b": { repo: "/repos/b" },
+    }));
+    // Step: store repo + baseCommit for proj-a.
+    writeProjectPathsEntry(new Path(projectsDir), "proj-a", { repo: "/repos/a", baseCommit: "abc123" });
+    const config = readProjectPathsConfig(new Path(projectsDir));
+    // the stored cwd survives the merge; the new fields land beside it.
+    assert.deepEqual(config["proj-a"], { cwd: "/original/a", repo: "/repos/a", baseCommit: "abc123" });
+    // the unrelated project is untouched.
+    assert.deepEqual(config["proj-b"], { repo: "/repos/b" });
+    // Step: a brand-new project name creates its entry (and would create the file if missing).
+    const emptyProjectsDir = makeTempDir();
+    writeProjectPathsEntry(new Path(emptyProjectsDir), "proj-new", { fileHistory: "/tmp/fh" });
+    assert.deepEqual(readProjectPathsConfig(new Path(emptyProjectsDir))["proj-new"], { fileHistory: "/tmp/fh" });
 });

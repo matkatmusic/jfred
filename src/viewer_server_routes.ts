@@ -50,8 +50,9 @@ export function requireParam(query: URLSearchParams, name: string): string {
 }
 
 // The resolved JSONL path(s) for a project: one named file, or every JSONL in the project
-// (the unified project view) when no file name is given.
-function resolveJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
+// (the unified project view) when no file name is given. Exported for the task-137
+// repo-commit-match route (viewer_api_repo.ts).
+export function resolveJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
     if (jsonlName !== null) {
         return [resolveProjectFile(getProjectsDir(), projectName, jsonlName)];
     }

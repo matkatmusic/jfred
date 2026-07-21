@@ -18,9 +18,24 @@
             <label class="dir-label" for="projects-dir-input">Projects folder</label>
             <input id="projects-dir-input" class="dir-input" type="text" spellcheck="false">
             <button id="projects-dir-open" class="toolbar-btn">Open…</button>
-            <label class="dir-label" for="file-history-dir-input">File history</label>
-            <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
-            <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+            <button id="file-history-toggle" class="toolbar-btn">Set File History Snapshots</button>
+            <div id="file-history-fields" hidden>
+                <label class="dir-label" for="file-history-dir-input">File history</label>
+                <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
+                <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+            </div>
+            <div id="project-paths-section" hidden>
+                <label class="dir-label" for="repo-dir-input">Repo (this project)</label>
+                <input id="repo-dir-input" class="dir-input" type="text" spellcheck="false">
+                <button id="repo-dir-open" class="toolbar-btn">Open…</button>
+                <button id="pick-commit-btn" class="toolbar-btn">Pick commit…</button>
+                <div id="commit-pick-list" hidden></div>
+                <label class="dir-label" for="base-commit-display">Base commit</label>
+                <input id="base-commit-display" class="dir-input" type="text" readonly>
+                <span id="commit-match-warning" class="muted"></span>
+                <button id="project-paths-apply" class="toolbar-btn">Apply to session</button>
+                <button id="project-paths-store" class="toolbar-btn">Store for this project…</button>
+            </div>
             <button id="projects-dir-change" class="toolbar-btn">Change folder…</button>
         </div>
     </header>
@@ -34,6 +49,8 @@
                     <span id="timeline-summary" class="muted"></span>
                     <button id="files-prev" title="Jump to the previous message that touched files">◀ Prev</button>
                     <button id="files-next" title="Jump to the next message that touched files">Next ▶</button>
+                    <button id="line-prev" title="Select the previous JSON line (one timeline row back)">◀ Line</button>
+                    <button id="line-next" title="Select the next JSON line (one timeline row forward)">Line ▶</button>
                     <button id="toggle-all">Expand All</button>
                 </div>
                 <div id="timeline-filter-bar" class="filter-bar" hidden></div>

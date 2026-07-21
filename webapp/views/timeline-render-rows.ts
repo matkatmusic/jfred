@@ -24,6 +24,7 @@ import {
 } from "./timeline-render-row-cells.ts";
 import { buildPickCell } from "./timeline-render-selectbar.ts";
 import {
+    checkRowCarriesJsonRecordButton,
     checkRowIsExpandable,
     checkTimelineNeedsProgressOverlay,
     computeTimelineBuildProgressLabel,
@@ -109,7 +110,9 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         line.append(el("span", { class: "tl-ts", text: new Date(node.when).toLocaleString() }));
         line.append(el("span", { class: "tl-pos", text: context.lineLabels.get(index) ?? "" }));
         line.append(el("span", { class: "tl-uuid", text: node.sessionId === undefined ? "" : computeSessionShortLabel(node.sessionId) }));
-        if (node.kind !== COMMIT_NODE_KIND) {              // commits are repo events: no JSONL record
+        // commits are repo events: no JSONL record; task 135: synthetic uuid-less rows (the
+        // git-derived baseline turn) have no record either.
+        if (checkRowCarriesJsonRecordButton(node)) {
             appendJsonRecordButton(context, line, index);
         }
         line.addEventListener("click", () => {

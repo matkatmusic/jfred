@@ -11,7 +11,9 @@ import {
     setProjectsDir,
     setFileHistoryDir,
     getEffectiveFileHistoryDir,
+    getMergedProjectPaths,
     applyProjectOverrides,
+    setSessionProjectPaths,
 } from "../src/viewer_api_projects.ts";
 import {
     getPathOverrides,
@@ -95,6 +97,42 @@ test("test_apply_project_overrides_reads_config_entry_and_effective_fhs_root", (
         assert.equal(getPathOverrides().baseCommit, undefined);
         assert.equal(getPathOverrides().fileHistoryRoot?.toString(), join(treeRoot, "file-history"));
     } finally {
+        rmSync(treeRoot, { recursive: true, force: true });
+    }
+});
+
+test("test_session_project_paths_merge_over_stored_entry", () => {
+    // Scenario (task 137): "apply to session" overrides merge field-wise over the stored
+    // reveng-paths.json entry — a session field wins over the same stored field, stored fields
+    // absent from the session entry survive, and a per-project fileHistory beats the derived root.
+    const treeRoot = mkdtempSync(join(tmpdir(), "reveng-session-"));
+    try {
+        // Steps: a projects dir whose config stores repo + baseCommit for project "p".
+        mkdirSync(join(treeRoot, "projects"));
+        mkdirSync(join(treeRoot, "file-history"));
+        writeFileSync(join(treeRoot, "projects", PROJECT_PATHS_CONFIG_NAME), JSON.stringify({
+            p: { repo: "/repos/from-file", baseCommit: "aaaa1111" },
+        }));
+        setProjectsDir(join(treeRoot, "projects"));
+        // Step: a session entry supplies a new baseCommit and an explicit fileHistory.
+        setSessionProjectPaths("p", { baseCommit: "bbbb2222", fileHistory: "/tmp/session-history" });
+        // the merged wire entry shows session fields winning, stored fields surviving.
+        assert.deepEqual(getMergedProjectPaths("p"), {
+            repo: "/repos/from-file",
+            baseCommit: "bbbb2222",
+            fileHistory: "/tmp/session-history",
+        });
+        // Step: applying the project stamps the merged overrides into the engine.
+        applyProjectOverrides("p");
+        assert.equal(getPathOverrides().repoDir?.toString(), "/repos/from-file");
+        assert.equal(getPathOverrides().baseCommit?.toString(), "bbbb2222");
+        // the per-project fileHistory wins over the derived sibling root.
+        assert.equal(getPathOverrides().fileHistoryRoot?.toString(), "/tmp/session-history");
+        // Step: a project with no session entry still gets the derived root (regression guard).
+        applyProjectOverrides("other");
+        assert.equal(getPathOverrides().fileHistoryRoot?.toString(), join(treeRoot, "file-history"));
+    } finally {
+        setSessionProjectPaths("p", {});
         rmSync(treeRoot, { recursive: true, force: true });
     }
 });

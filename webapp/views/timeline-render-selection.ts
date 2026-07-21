@@ -6,7 +6,7 @@ import { renderDetailsScriptRunMode } from "./details-script-run.ts";
 import { clearFileSelectionIn } from "./sidebar.ts";
 import { findContributingNodeIndexes } from "./timeline-commit-files.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import { findAdjacentFileTouchedIndex } from "./timeline-sessions.ts";
+import { findAdjacentFileTouchedIndex, findAdjacentRowIndex } from "./timeline-sessions.ts";
 import { COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
 
 // Restart the row-flash animation (mockup jumpToTimelineRow's remove/reflow/add dance).
@@ -85,16 +85,21 @@ export function wireToggleAllButton(context: TimelineRenderContext): void {
     updateToggleLabel();
 }
 
-// ── header Prev/Next over file-touching agent turns (task 85). Expanding IS the task's
+// ── header Prev/Next over file-touching agent turns (task 85) plus the task-131 line-stepper
+// pair (◀ Line / Line ▶: one visible row per click). Expanding IS the task's
 // "click the triangle": the chips live in the bubble. onclick assignment, like #toggle-all,
 // so re-renders never stack handlers. A button disables when no candidate row exists in
-// its direction; selectTimelineRow re-enables/disables both on every selection. ──
+// its direction; selectTimelineRow re-enables/disables all four on every selection. ──
 export function wireFileNavButtons(context: TimelineRenderContext): void {
     const filesPrevButton = document.getElementById("files-prev") as HTMLButtonElement;
     const filesNextButton = document.getElementById("files-next") as HTMLButtonElement;
+    const linePrevButton = document.getElementById("line-prev") as HTMLButtonElement;
+    const lineNextButton = document.getElementById("line-next") as HTMLButtonElement;
     context.refreshFileNavButtons = () => {
         filesPrevButton.disabled = findAdjacentFileTouchedIndex(context.nodes, context.fileNavReferenceIndex, -1) === undefined;
         filesNextButton.disabled = findAdjacentFileTouchedIndex(context.nodes, context.fileNavReferenceIndex, 1) === undefined;
+        linePrevButton.disabled = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, -1) === undefined;
+        lineNextButton.disabled = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, 1) === undefined;
     };
     const jumpToAdjacentFileTouchedRow = (direction: 1 | -1): void => {
         const target = findAdjacentFileTouchedIndex(context.nodes, context.fileNavReferenceIndex, direction);
@@ -105,7 +110,18 @@ export function wireFileNavButtons(context: TimelineRenderContext): void {
         context.updateToggleLabel();
         void context.selectTimelineRow(target);                    // selects + renders details + centers; also updates fileNavReferenceIndex + button states
     };
+    // task 131: one visible row per click — no expand step (line rows are thin one-liners;
+    // selectTimelineRow handles selection, details render, centering, and button refresh).
+    const selectAdjacentRow = (direction: 1 | -1): void => {
+        const target = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, direction);
+        if (target === undefined) {
+            return;
+        }
+        void context.selectTimelineRow(target);
+    };
     filesPrevButton.onclick = () => jumpToAdjacentFileTouchedRow(-1);
     filesNextButton.onclick = () => jumpToAdjacentFileTouchedRow(1);
+    linePrevButton.onclick = () => selectAdjacentRow(-1);
+    lineNextButton.onclick = () => selectAdjacentRow(1);
     context.refreshFileNavButtons();
 }

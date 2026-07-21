@@ -142,6 +142,17 @@ function showCausingRecordForChip(event: Event, context: TimelineRenderContext, 
     renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.record });
 }
 
+// The { } chip (task 135 extraction): rendered only when the file's causing line resolved —
+// renderFileButtonRow guards, this just builds the button.
+function appendCausingRecordChipButton(buttons: HTMLElement[], context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation, change: FileChange, changeId: string): void {
+    buttons.push(el("span", {
+        class: "timeline-chip timeline-chip-action",
+        title: "Show this file's causing record in inspector",
+        text: "{ }",
+        onclick: (event: Event) => showCausingRecordForChip(event, context, node, previewPane, causingLocation, change, changeId),
+    }));
+}
+
 // The +/- button's click body (extracted from renderFileButtonRow).
 function showRevisionDiffForChip(event: Event, context: TimelineRenderContext, change: FileChange, changeId: string): void {
     event.stopPropagation();
@@ -195,12 +206,11 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
         // Narrowed once: TypeScript does not carry a property narrowing into the callbacks
         // below, and the project's style bans the non-null assertion that would paper over it.
         const changeId = change.changeId;
-        buttons.push(el("span", {
-            class: "timeline-chip timeline-chip-action",
-            title: "Show this file's causing record in inspector",
-            text: "{ }",
-            onclick: (event: Event) => showCausingRecordForChip(event, context, node, previewPane, causingLocation, change, changeId),
-        }));
+        // task 135: no causing line resolved (synthetic gitbase: changeId) — the { } chip
+        // would only show "no transcript line for this step"; skip it.
+        if (causingLocation !== undefined) {
+            appendCausingRecordChipButton(buttons, context, node, previewPane, causingLocation, change, changeId);
+        }
         buttons.push(el("span", {
             class: "timeline-chip timeline-chip-action",
             title: "Show Diff in Inspector",
