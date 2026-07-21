@@ -81,3 +81,26 @@ test("test_view_model_includes_line_nodes_only_when_toggled", () => {
     const { nodes: defaultNodes } = buildTurnTimelineViewModel(buildLineVerdictDocument());
     assert.equal(defaultNodes.filter((node) => node.kind === LINE_NODE_KIND).length, 0);
 });
+
+test("test_derive_line_nodes_carries_source_coordinates", () => {
+    // Scenario (task 160): a verdict with source {filePath, lineNumber} yields a node with
+    // sourceJsonlName = the file's basename and sourceLineIndex = lineNumber - 1 (the raw-line
+    // fetch is 0-based); a verdict without source (pre-task-160 cached document) yields
+    // undefined for both.
+    // Steps:
+    // derive over a document whose unrepresented verdicts differ in source presence.
+    const document = buildLineVerdictDocument();
+    document.lineVerdicts[2] = {
+        ...document.lineVerdicts[2]!,
+        source: { filePath: "/home/user/.claude/projects/p/session-a.jsonl", lineNumber: 3 },
+    } as unknown as (typeof document.lineVerdicts)[number];
+    const nodes = deriveLineNodes(document as never);
+    // the hook line (verdict index 2) carries basename + 0-based line.
+    const hookNode = nodes.find((node) => node.uuid === "hook-1")!;
+    assert.equal(hookNode.sourceJsonlName, "session-a.jsonl");
+    assert.equal(hookNode.sourceLineIndex, 2);
+    // the source-less summary line yields undefined coordinates.
+    const summaryNode = nodes.find((node) => node.uuid === undefined)!;
+    assert.equal(summaryNode.sourceJsonlName, undefined);
+    assert.equal(summaryNode.sourceLineIndex, undefined);
+});

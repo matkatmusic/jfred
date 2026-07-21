@@ -511,6 +511,8 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .tl-text.role-script { color: var(--lane-teal); }
 .tl-text.role-commit { color: var(--text); }
 .tl-text.role-end { color: var(--muted); font-style: italic; }
+/* task 160: raw-line rows' classification text — distinct from tool (orange), end (muted), and default text. */
+.tl-text.role-line { color: var(--lane-violet); }
 .tl-row.selected .tl-text { color: #fff; }
 /* harness-generated command/reminder turns read dimmer */
 .tl-text.system { opacity: 0.55; }

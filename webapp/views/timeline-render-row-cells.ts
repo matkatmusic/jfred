@@ -8,6 +8,7 @@ import {
     computeRolePillClass,
     computeSessionStartLabel,
 } from "./timeline-labels.ts";
+import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
 import { renderFileButtonRow } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import {
@@ -34,6 +35,11 @@ export function computeRoleClass(kind: TimelineNode["kind"]): string {
     }
     if (kind === COMMIT_NODE_KIND) {
         return "role-commit";
+    }
+    // task 160: a raw-line row's text is its classification ("type · verdict") — its own
+    // color, not the session-end styling.
+    if (kind === LINE_NODE_KIND) {
+        return "role-line";
     }
     return "role-end";
 }

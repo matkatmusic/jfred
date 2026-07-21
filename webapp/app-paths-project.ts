@@ -20,6 +20,10 @@ type WireCommitMatch = { matchedCount: number; totalCount: number };
 // The project the section currently edits (set by refreshProjectPathsSection).
 let activeProjectName = "";
 
+// task 154: the rows the last "Pick commit…" fetch returned — the filter box re-renders
+// the pick list from these without refetching.
+let fetchedCommitRows: WireRepoCommitRow[] = [];
+
 function getInputById(id: string): HTMLInputElement {
     return document.getElementById(id) as HTMLInputElement;
 }
@@ -44,6 +48,7 @@ function renderMatchWarning(counts: WireCommitMatch): void {
 async function pickCommitRow(hash: string): Promise<void> {
     getInputById("base-commit-display").value = hash;
     document.getElementById("commit-pick-list")!.hidden = true;
+    getInputById("commit-pick-filter").hidden = true;
     const repo = getInputById("repo-dir-input").value;
     const matchParams = new URLSearchParams({ project: activeProjectName, repo, commit: hash });
     renderMatchWarning(await fetchJson<WireCommitMatch>(`/api/repo-commit-match?${matchParams}`));
@@ -58,13 +63,36 @@ function buildCommitPickRow(row: WireRepoCommitRow): HTMLElement {
     });
 }
 
-// "Pick commit…": fetch the repo's commits and show the scrollable pick list.
+// task 154: one commit row matches when the typed text appears in its hash, date, or
+// subject (case-insensitive); empty filter text matches every row.
+function filterCommitRows(rows: WireRepoCommitRow[], filterText: string): WireRepoCommitRow[] {
+    const needle = filterText.trim().toLowerCase();
+    if (needle === "") {
+        return rows;
+    }
+    return rows.filter((row) => `${row.hash} ${row.date} ${row.subject}`.toLowerCase().includes(needle));
+}
+
+// Re-render the pick list from the fetched rows through the current filter text (task 154).
+function renderCommitPickList(): void {
+    const filterText = getInputById("commit-pick-filter").value;
+    const pickList = document.getElementById("commit-pick-list")!;
+    pickList.replaceChildren(...filterCommitRows(fetchedCommitRows, filterText).map(buildCommitPickRow));
+}
+
+// "Pick commit…": fetch the repo's commits and show the scrollable pick list plus its
+// filter box (task 154), cleared on every open. oninput assignment so repeated opens
+// never stack handlers (the file's convention).
 async function showCommitPickList(): Promise<void> {
     const repo = getInputById("repo-dir-input").value;
     const pickList = document.getElementById("commit-pick-list")!;
     try {
-        const rows = await fetchJson<WireRepoCommitRow[]>(`/api/repo-commits?repo=${encodeURIComponent(repo)}`);
-        pickList.replaceChildren(...rows.map(buildCommitPickRow));
+        fetchedCommitRows = await fetchJson<WireRepoCommitRow[]>(`/api/repo-commits?repo=${encodeURIComponent(repo)}`);
+        const filterInput = getInputById("commit-pick-filter");
+        filterInput.value = "";
+        filterInput.oninput = renderCommitPickList;
+        filterInput.hidden = false;
+        renderCommitPickList();
         pickList.hidden = false;
     } catch (error) {
         // No alert(): native dialogs block headless automation. The breadcrumb carries the error.

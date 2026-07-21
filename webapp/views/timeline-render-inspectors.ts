@@ -7,7 +7,7 @@ import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 import { findTimelineNodeIndexForRawLine } from "./timeline-labels.ts";
 import { findJsonlForSession } from "./timeline-sessions.ts";
-import type { LineNode } from "./timeline-line-nodes.ts";
+import { LINE_NODE_KIND, type LineNode } from "./timeline-line-nodes.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import {
     COMMIT_NODE_KIND,
@@ -126,6 +126,18 @@ export async function openTurnInspector(context: TimelineRenderContext, node: Tu
     openTranscriptInspectorSynced(context, { jsonlName, rawLines, line });
 }
 
+// task 160: a raw-line row with source coordinates opens the transcript inspector directly
+// at its own line — no uuid scan, correct for uuid-less records (summary lines) and
+// multi-file projects (the verdict's `line` field is a merged-array index, display-only).
+async function openLineRowInspector(context: TimelineRenderContext, node: LineNode, previewPane: HTMLElement): Promise<void> {
+    if (node.sourceJsonlName === undefined || node.sourceLineIndex === undefined) {
+        await openTurnInspector(context, node, previewPane);   // pre-task-160 cached documents
+        return;
+    }
+    const rawLines = await fetchRawRecords(context.project, node.sourceJsonlName);
+    openTranscriptInspectorSynced(context, { jsonlName: node.sourceJsonlName, rawLines, line: node.sourceLineIndex });
+}
+
 // (item 66) the dead item-47 findRevisionResultLine/showRevisionJson comment block and the
 // dead item-55 showGitOperationJson helper are deleted here — see the archive copy.
 
@@ -178,6 +190,10 @@ export function openNodeInspector(context: TimelineRenderContext, nodeIndex: num
     }
     if (node.kind === COMMIT_NODE_KIND) {
         return;                                        // a commit is a repo event: no JSONL record
+    }
+    if (node.kind === LINE_NODE_KIND) {
+        void openLineRowInspector(context, node, previewPane);
+        return;
     }
     void openTurnInspector(context, node, previewPane);
 }

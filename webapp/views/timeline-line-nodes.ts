@@ -18,6 +18,9 @@ export type WireLineVerdict = {
     verdict: string;
     timestamp?: string;
     sessionId?: string;
+    // task 160: the record's transcript file + 1-based line (RecordSource server-side) —
+    // absent on pre-task-160 cached documents.
+    source?: { filePath: string; lineNumber: number };
 };
 
 // One raw-transcript-line row. Mirrors the union convention in timeline-types.ts: every field
@@ -28,6 +31,11 @@ export type LineNode = {
     sessionId: string | undefined;
     uuid?: string;
     text: string;
+    // task 160: the row's transcript file (basename, the /api/raw jsonl name) and its 0-based
+    // raw-line index — the { } button's direct-open coordinates. Accessed only after `kind`
+    // narrowing, so the other node kinds need no `?: undefined` mirrors.
+    sourceJsonlName: string | undefined;
+    sourceLineIndex: number | undefined;
     stepNumber?: undefined;
     isSystem?: undefined;
     isOrphaned?: undefined;
@@ -69,6 +77,11 @@ export function deriveLineNodes(document: WireTimelineDocument): LineNode[] {
             sessionId: verdict.sessionId,
             uuid: verdict.uuid,
             text: `${verdict.type} · ${verdict.verdict}`,
+            sourceJsonlName: verdict.source === undefined ? undefined : verdict.source.filePath.split("/").pop(),
+            // ponytail: lineNumber-1 assumes no interior blank lines in the .jsonl
+            // (fetchRawRecords drops blanks); renumber against the raw text if a
+            // blank-line transcript ever appears.
+            sourceLineIndex: verdict.source === undefined ? undefined : verdict.source.lineNumber - 1,
         }));
 }
 

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findTimelineNodeIndexForRawLine } from "../webapp/views/timeline-labels.ts";
+import { findTimelineNodeIndexForRawLine, formatRowTimestamp } from "../webapp/views/timeline-labels.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     AGENT_TURN_NODE_KIND,
@@ -137,4 +137,17 @@ test("test_user_turn_uuid_match_requires_uuid_key_form", () => {
     assert.equal(findTimelineNodeIndexForRawLine(nodes, `{"messageId":"${userUuid}"}`), -1);
     // the record's own "uuid":"…" form still matches the user turn.
     assert.equal(findTimelineNodeIndexForRawLine(nodes, `{"uuid":"${userUuid}"}`), userNodeIndex);
+});
+
+test("test_row_timestamp_formats_empty_and_invalid_as_blank", () => {
+    // Scenario (task 160): formatRowTimestamp renders a valid ISO string via
+    // toLocaleString, and renders "" (never "Invalid Date") for an empty or
+    // unparseable `when` — summary lines carry no timestamp at all.
+    // Steps:
+    // an empty `when` (the timestamp-less LineNode default) renders blank.
+    assert.equal(formatRowTimestamp(""), "");
+    // an unparseable `when` renders blank too.
+    assert.equal(formatRowTimestamp("not-a-date"), "");
+    // a valid ISO string renders exactly as the pre-task-160 code did.
+    assert.equal(formatRowTimestamp("2026-07-21T12:00:00Z"), new Date("2026-07-21T12:00:00Z").toLocaleString());
 });

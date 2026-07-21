@@ -135,6 +135,11 @@ export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return false;
     }
+    // task 160: every raw-line row is inspectable — uuid-less ones (summary lines) open by
+    // their source line instead of a uuid scan.
+    if (node.kind === LINE_NODE_KIND) {
+        return true;
+    }
     if (node.uuid === undefined) {
         return false;
     }

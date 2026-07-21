@@ -9,6 +9,14 @@ import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-te
 const FIRST_COMMIT_HASH = "a".repeat(40);
 const SECOND_COMMIT_HASH = "b".repeat(40);
 
+// Fire an "input" event the way a keystroke would. happy-dom's dispatchEvent accepts only
+// its OWN Event class, so the event is constructed from the happy-dom window global — Node's
+// built-in Event is rejected with "parameter 1 is not of type 'Event'".
+function dispatchInputEvent(input: HTMLInputElement): void {
+    const happyDomEventClass = (window as unknown as { Event: typeof Event }).Event;
+    input.dispatchEvent(new happyDomEventClass("input"));
+}
+
 // The element with `id`, asserted present — a missing id fails the test naming the id.
 function getRequiredElementById(id: string): HTMLElement {
     const element = document.getElementById(id);
@@ -55,4 +63,48 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     // 1 of 4 recorded paths matching is a poor ratio — the soft warning names the counts.
     const warningText = getRequiredElementById("commit-match-warning").textContent!;
     assert.ok(warningText.includes("1 of 4"), `warning names the counts: ${warningText}`);
+});
+
+test("test_commit_pick_filter_narrows_rows", async () => {
+    // Scenario (task 154): typing in the filter box narrows the pick list to matching
+    // rows (hash, date, or subject, case-insensitive); clearing it restores all rows.
+    // Steps:
+    // boot a fresh DOM, stub routes, refresh the section, open the pick list.
+    setupWebappDom();
+    stubFetchRoutes({
+        "/api/project-paths": { repo: "/repos/p" },
+        "/api/repo-commits": [
+            { hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" },
+            { hash: SECOND_COMMIT_HASH, date: "2026-07-20", subject: "older change" },
+        ],
+        "/api/repo-commit-match": { matchedCount: 4, totalCount: 4 },
+    });
+    const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
+    await refreshProjectPathsSection("proj-a");
+    getRequiredElementById("pick-commit-btn").click();
+    await flushAsyncWork();
+    // opening the list also unhides the filter box, empty.
+    const filterInput = getRequiredElementById("commit-pick-filter") as HTMLInputElement;
+    assert.equal(filterInput.hidden, false);
+    assert.equal(filterInput.value, "");
+    const pickList = getRequiredElementById("commit-pick-list");
+    // type a subject fragment ("NEWEST", uppercase) and fire an input event.
+    filterInput.value = "NEWEST";
+    dispatchInputEvent(filterInput);
+    // exactly one row remains and it names the matching subject.
+    const narrowedRows = [...pickList.querySelectorAll(".commit-pick-row")];
+    assert.equal(narrowedRows.length, 1);
+    assert.ok(narrowedRows[0]!.textContent!.includes("newest change"));
+    // clearing the filter restores both rows.
+    filterInput.value = "";
+    dispatchInputEvent(filterInput);
+    assert.equal(pickList.querySelectorAll(".commit-pick-row").length, 2);
+    // picking a row hides the filter box together with the list.
+    filterInput.value = "older";
+    dispatchInputEvent(filterInput);
+    ([...pickList.querySelectorAll(".commit-pick-row")][0] as HTMLElement).click();
+    await flushAsyncWork();
+    assert.equal(pickList.hidden, true);
+    assert.equal(filterInput.hidden, true);
+    assert.equal((getRequiredElementById("base-commit-display") as HTMLInputElement).value, SECOND_COMMIT_HASH);
 });

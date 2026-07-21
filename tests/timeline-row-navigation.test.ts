@@ -168,3 +168,20 @@ test("test_findAdjacentRowIndex_next_from_before_start_selects_first_row", () =>
     const nodes = [makeTurnNodeFixture(USER_TURN_NODE_KIND, [])];
     assert.equal(findAdjacentRowIndex(nodes, -1, 1), 0);
 });
+
+test("test_uuid_less_line_node_rows_carry_the_json_record_button", async () => {
+    // Scenario (task 160): EVERY raw-line row is inspectable — a jsonl-line node WITHOUT a
+    // uuid (a summary line) still gets { }; it opens by source line instead of a uuid scan.
+    // Steps:
+    // a uuid-less jsonl-line node, as deriveLineNodes emits for a summary line.
+    const { LINE_NODE_KIND } = await import("../webapp/views/timeline-line-nodes.ts");
+    const summaryLineNode = {
+        kind: LINE_NODE_KIND,
+        when: "",
+        sessionId: undefined,
+        text: "summary · ignore",
+        sourceJsonlName: "session-a.jsonl",
+        sourceLineIndex: 3,
+    };
+    assert.equal(checkRowCarriesJsonRecordButton(summaryLineNode as never), true);
+});

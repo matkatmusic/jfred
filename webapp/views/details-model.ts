@@ -13,6 +13,7 @@ import {
     type WireTimelineDocument,
 } from "./timeline-types.ts";
 import { computeAnchoredRevisionIndex } from "./file-history-model.ts";
+import { formatRowTimestamp } from "./timeline-labels.ts";
 import { GIT_BASE_CHANGE_ID_PREFIX } from "./timeline-changes.ts";
 
 // ── types (derived from timeline's wire/view-model types — one canonical home, no copies) ──
@@ -92,7 +93,7 @@ function humanizeNodeKind(kind: string): string {
 // The pane header for a selected row: commits lead with their hash + message; every other node
 // names its 1-based step position and kind. Timestamps use the timeline's row format.
 export function computeDetailsHeaderText(node: TimelineNode, position: { index: number; total: number }): string {
-    const timestamp = new Date(node.when).toLocaleString();
+    const timestamp = formatRowTimestamp(node.when);   // task 160: blank, never "Invalid Date"
     if (node.kind === COMMIT_NODE_KIND) {
         // no hash → no hash segment; a placeholder dash reads broken (user report, s58)
         const hashSegment = node.resultHash === undefined ? "" : ` ${node.resultHash}`;

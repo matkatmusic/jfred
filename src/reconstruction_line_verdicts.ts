@@ -5,6 +5,7 @@
 import type { Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { RecordType, Verdict } from "./structures/vocabulary.ts";
+import { getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { recordVerdict } from "./reconstruction_parse_lines.ts";
 
@@ -17,6 +18,10 @@ export type LineVerdict = {
     // task 134: the timeline's raw-line rows sort by timestamp and tint by session lane.
     timestamp: Date | undefined;
     sessionId: Uuid | undefined;
+    // task 160: where the record physically sits — its transcript file and 1-based line —
+    // so the webapp's { } button can open uuid-less rows (summary lines) by line. undefined
+    // when the records were parsed outside loadTranscript (no source was recorded).
+    source: RecordSource | undefined;
 };
 
 // The engine's per-line classification, line-aligned to the parsed records array. Pure surfacing of
@@ -30,5 +35,6 @@ export function buildLineVerdicts(records: TranscriptRecord[]): LineVerdict[] {
         isGenuinePrompt: isGenuineUserPrompt(record),
         timestamp: record.timestamp,
         sessionId: record.sessionId,
+        source: getRecordSource(record),
     }));
 }

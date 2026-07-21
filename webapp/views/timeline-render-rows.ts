@@ -10,6 +10,7 @@ import {
     computeRowSummaryText,
     computeSessionShortLabel,
     findSessionStartIndexes,
+    formatRowTimestamp,
 } from "./timeline-labels.ts";
 import { appendGapRows, computeGapRowBuckets } from "./reconstruction-render.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
@@ -113,7 +114,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         if (node.scriptRun !== undefined) {
             line.append(el("span", { class: "script-files-badge", text: `modified ${node.scriptRun.changedPaths.length} file(s)` }));
         }
-        line.append(el("span", { class: "tl-ts", text: new Date(node.when).toLocaleString() }));
+        line.append(el("span", { class: "tl-ts", text: formatRowTimestamp(node.when) }));
         line.append(el("span", { class: "tl-pos", text: context.lineLabels.get(index) ?? "" }));
         line.append(el("span", { class: "tl-uuid", text: node.sessionId === undefined ? "" : computeSessionShortLabel(node.sessionId) }));
         // commits are repo events: no JSONL record; task 135: synthetic uuid-less rows (the

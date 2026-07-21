@@ -14,7 +14,7 @@ import type { BuiltReconstruction } from "./reconstruction_json.ts";
 // Bump on any change to the persisted shape OR the tag format below; files carrying a different
 // version are ignored (a cache miss) and overwritten by the next rebuild (the cacheKey, hence the
 // filename, is unchanged), so a shape change can never deserialize into corruption.
-const SCHEMA_VERSION = 2;   // 2: document gained scriptRuns (task 67)
+const SCHEMA_VERSION = 3;   // 3: lineVerdicts gained source (task 160); 2: scriptRuns (task 67)
 
 // The wrapper key that marks a serialized domain object. No real persisted field is named this, so a
 // revived object can never be a false positive.

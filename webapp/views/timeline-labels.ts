@@ -153,6 +153,16 @@ export function computeSessionShortLabel(sessionId: string): string {
     return sessionId.slice(0, 8);
 }
 
+// A row's timestamp cell text (task 160): a timestamp-less row (summary lines carry no date
+// field at all, so LineNode.when is "") shows a blank cell, never "Invalid Date".
+export function formatRowTimestamp(when: string): string {
+    const stamp = new Date(when);
+    if (Number.isNaN(stamp.getTime())) {
+        return "";
+    }
+    return stamp.toLocaleString();
+}
+
 // Wire event kind of a script-made revision (mirrors EventKind.scriptExecution).
 export const SCRIPT_EXECUTION_EVENT_KIND = "script-execution";
 
