@@ -37,6 +37,20 @@ export const pythonWritePrimitive = new RegExp(
         "|\\b(?:exec|eval)\\s*\\(|__import__|writeFileSync|appendFileSync",
 );
 
+// A shell construct that moves, copies, deletes, or creates files when the run is a plain bash
+// command line (task 139; the s2 `mv` was labeled read-only by the python-only checks above): a
+// write-verb word, `sed -i`, or an output redirect whose target looks like a file path (contains
+// "." or "/"). `2>&1` never matches (its target has no "."/"/") and `/dev/null` is excluded
+// explicitly. No `g` flag — used with `.test()`. Equivalent to the literal
+// /\b(?:mv|cp|rm|mkdir|touch|tee|ln)\b|\bsed[ \t]+-i\b|>{1,2}[ \t]*(?!\/dev\/null\b)[\w~-]*[./][\w./~-]*/.
+// ponytail: raw-text scan, same ceiling as pythonWritePrimitive — these tokens inside python
+// strings, and float comparisons (`x > 0.5`), read as may-write. Accepted false may-writes
+// (item-68 rule: narrow read-only, never widen); each costs only a wasted sandbox attempt.
+export const shellWritePrimitive = new RegExp(
+    "\\b(?:mv|cp|rm|mkdir|touch|tee|ln)\\b|\\bsed[ \\t]+-i\\b" +
+        "|>{1,2}[ \\t]*(?!/dev/null\\b)[\\w~-]*[./][\\w./~-]*",
+);
+
 // A whole `import …` line: group 1 = everything after `import` (a comma list, an `as` alias, or junk
 // like "os; print(1)" — junk fails the caller's allowlist and lands on may-write, the safe side).
 // `[ \t]` instead of `\s` so the match never crosses the line break. e.g. "import os, re" -> group 1 =

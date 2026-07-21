@@ -15,6 +15,7 @@ import {
     openCallToken,
     pythonWritePrimitive,
     readOnlyOpenArgument,
+    shellWritePrimitive,
     writingImportedName,
 } from "./regex_script_detection.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
@@ -85,11 +86,14 @@ function allOpenCallsAreReads(code: string): boolean {
 // Whether the script could write, delete, rename, or create files when run under the python3
 // sandbox. Conservative by construction: any unparseable construct answers true (may-write),
 // which merely executes the run as before the gate; only a provably-read-only script answers
-// false. Shell/JS-only tokens are irrelevant to correctness — a non-python script crashes in
-// the sandbox and yields post:undefined with or without the gate.
+// false. Shell write verbs and file redirects classify may-write too (task 139) — that fixes
+// the item-69 consent LABEL, not reconstruction correctness: a shell line crashes the python3
+// sandbox and yields post:undefined either way (rename evidence comes from the dedicated
+// rename extraction).
 // ponytail: raw-text scan — aliased builtins (`o = open`) and getattr tricks evade it; no
 // recorded transcript uses them, and task 67's executed-outcome check is the exact answer.
 export function scriptCodeMayWriteFiles(code: string): boolean {
+    if (shellWritePrimitive.test(code)) return true;
     if (pythonWritePrimitive.test(code)) return true;
     if (!allImportsAreReadOnlySafe(code)) return true;
     if (!allOpenCallsAreReads(code)) return true;

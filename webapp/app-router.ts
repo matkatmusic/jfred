@@ -20,6 +20,15 @@ export function resetLastLoadedProject(): void {
     lastLoadedProject = undefined;
 }
 
+// task 138: monotonically increasing navigation stamp — a run whose stamp is no longer the
+// newest must not touch shared chrome (the details drawer) after its awaits resolve.
+let renderRouteGeneration = 0;
+
+// True when a newer renderRoute run has started since `generation` was stamped.
+function checkRouteRenderIsStale(generation: number): boolean {
+    return generation !== renderRouteGeneration;
+}
+
 // True only when a navigation starts loading a project DIFFERENT from the one whose output
 // fills the console. Same-project sub-route hops and non-project routes keep the console
 // (TASKS item 22: clear on new project/session load, not on every navigation).
@@ -32,7 +41,7 @@ export function checkNavigationStartsNewProjectLoad(previousProject: string | un
 
 // The project-route arm of renderRoute's dispatch, extracted so its anchor ternaries sit one
 // indent level shallower (deep-nesting flag at the old depth).
-async function renderProjectRoute(view: HTMLElement, segments: string[]): Promise<void> {
+async function renderProjectRoute(view: HTMLElement, segments: string[], generation: number): Promise<void> {
     const project = segments[1]!;
     setToolbarTitle(project);   // item 66: was setBreadcrumb(project)
     // The timeline is ALWAYS a loaded project's base view (user decision 2026-07-06):
@@ -41,13 +50,20 @@ async function renderProjectRoute(view: HTMLElement, segments: string[]): Promis
         : segments[2] === "jsonl" ? segments[3] : undefined;
     const anchorLine = segments[2] === "timeline" && segments[5] === "at" ? segments[6] : undefined;
     await renderTimelineView(view, project, anchorJsonl, anchorLine);
+    // task 138: a newer navigation started while the timeline rendered — the drawer belongs to it.
+    if (checkRouteRenderIsStale(generation)) return;
     await renderSubRouteDrawer(project, segments);
 }
 
 export async function renderRoute(): Promise<void> {
+    const generation = ++renderRouteGeneration;   // task 138: this run is now the newest
     inflightLoadController?.abort();   // navigation tears down any in-flight load
     const view = document.getElementById("view")!;
-    view.replaceChildren();
+    // task 138: each run owns a fresh pane, swapped in atomically. Two overlapping runs used to
+    // clear-then-append into the SAME element and both appends landed (duplicate projects list);
+    // now a superseded run's late appends land in its own detached pane and are never seen.
+    const pane = el("div");
+    view.replaceChildren(pane);
     view.onclick = null;
     // item 73: the consent dialog hides #toggle-all while its header owns Expand All; every
     // navigation restores the skeleton button before the next view wires or ignores it.
@@ -88,6 +104,9 @@ export async function renderRoute(): Promise<void> {
     // chrome + details pane hide so #view and the console fill the column):
     // document.querySelector(".layout")!.classList.toggle("timeline-route", checkRouteIsTimeline(segments));
     document.getElementById("rightcol")!.classList.toggle("project-route", checkRouteIsTimeline(segments));
+    // task 140: the Timeline pane header is timeline-route chrome, exactly like the
+    // project-route class above — hidden on #/ (the projects view brings its own pane title).
+    document.getElementById("timeline-pane-header")!.hidden = !checkRouteIsTimeline(segments);
     // item 66: the fork sidebar (webapp/views/sidebar.ts) is rendered by renderTimelineView
     // itself — the old per-route project drawer is retired:
     // const refreshDrawer = () => renderProjectDrawer(drawer, segments[1]!, {
@@ -105,15 +124,15 @@ export async function renderRoute(): Promise<void> {
         }
         if (segments.length === 0) {
             setToolbarTitle(undefined);   // item 66: was setBreadcrumb("")
-            await renderProjectsView(view);
+            await renderProjectsView(pane);
         } else if (segments[0] === "project") {
-            await renderProjectRoute(view, segments);
+            await renderProjectRoute(pane, segments, generation);
         } else {
-            view.append(el("div", { class: "error-box", text: `unknown route: ${location.hash}` }));
+            pane.append(el("div", { class: "error-box", text: `unknown route: ${location.hash}` }));
         }
     } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;   // cancelled — console already logged it
-        view.append(el("div", { class: "error-box", text: String(error) }));
+        pane.append(el("div", { class: "error-box", text: String(error) }));
     }
     // item 66: was — a post-render refreshDrawer() so the old drawer's "Files touched" section
     // appeared without another navigation; renderTimelineView now builds the fork sidebar from

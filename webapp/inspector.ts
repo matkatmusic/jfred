@@ -117,11 +117,18 @@ function buildHighlightedJsonBody(
     );
 }
 
+// task 141: the nav counter, 0-based with its inclusive index range — "line 0 / 98" read as
+// index-over-count. 0-based stays the app-wide convention (timeline /at/<line> anchors and the
+// rev cards' "L:n" labels are raw-line indexes).
+export function formatInspectorLineCounter(lineIndex: number, lineCount: number): string {
+    return `line ${lineIndex} of 0–${lineCount - 1}`;
+}
+
 // Assemble the Prev / line-counter / Next navigation row plus any tool-flow buttons.
 function buildInspectorNavigationRow(clamped: number, rawLines: string[], showLine: (line: number) => void, toolButtons: HTMLElement[]): HTMLElement {
     return el("div", { class: "inspector-nav" }, [
         el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }),
-        el("span", { class: "muted", text: `line ${clamped} / ${rawLines.length - 1}` }),
+        el("span", { class: "muted", text: formatInspectorLineCounter(clamped, rawLines.length) }),
         el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) }),
         ...toolButtons,
     ]);

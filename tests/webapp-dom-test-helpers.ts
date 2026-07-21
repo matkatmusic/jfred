@@ -14,6 +14,7 @@ class FakeXtermTerminal {
         done?.();
     }
     scrollToBottom(): void {}
+    clear(): void {}
     loadAddon(_addon: unknown): void {}
     onSelectionChange(_callback: () => void): void {}
     getSelection(): string {

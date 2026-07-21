@@ -127,3 +127,31 @@ test("test_scriptCodeMayWriteFiles_flags_unknown_and_escaping_imports", () => {
     assert.equal(scriptCodeMayWriteFiles('from os import remove\nremove("a")\n'), true);
     assert.equal(scriptCodeMayWriteFiles("exec(compiled)\n"), true);
 });
+
+test("test_scriptCodeMayWriteFiles_flags_shell_write_verbs", () => {
+    // Scenario (task 139): a plain bash command that moves/copies/deletes/creates files must
+    // classify may-write — the s2 `mv` run was labeled read-only by the python-only gate.
+    assert.equal(scriptCodeMayWriteFiles("mv /tmp/s2_original.py /tmp/s2_moved.py"), true);
+    assert.equal(scriptCodeMayWriteFiles("cp a.py b.py"), true);
+    assert.equal(scriptCodeMayWriteFiles("rm -f stale.txt"), true);
+    assert.equal(scriptCodeMayWriteFiles("mkdir -p out && touch out/marker"), true);
+    assert.equal(scriptCodeMayWriteFiles("cat notes.md | tee copy.md"), true);
+    assert.equal(scriptCodeMayWriteFiles("ln -s target link"), true);
+    assert.equal(scriptCodeMayWriteFiles("sed -i 's/a/b/' config.py"), true);
+});
+
+test("test_scriptCodeMayWriteFiles_flags_shell_output_redirects_to_files", () => {
+    // Scenario (task 139): an output redirect whose target looks like a file path writes it.
+    assert.equal(scriptCodeMayWriteFiles("echo hello > out.txt"), true);
+    assert.equal(scriptCodeMayWriteFiles("python3 check.py >> logs/run.log"), true);
+});
+
+test("test_scriptCodeMayWriteFiles_accepts_read_only_shell_probes", () => {
+    // Scenario (task 139 guard): the harness probes (ls/pytest/grep) and the read-only-safe
+    // redirect targets (fd dup, /dev/null) must stay read-only — the item-68 skip depends on it.
+    assert.equal(scriptCodeMayWriteFiles("ls -la"), false);
+    assert.equal(scriptCodeMayWriteFiles("pytest -q tests/"), false);
+    assert.equal(scriptCodeMayWriteFiles("grep -n def ledger.py 2>&1"), false);
+    assert.equal(scriptCodeMayWriteFiles("pytest -q 2>/dev/null"), false);
+    assert.equal(scriptCodeMayWriteFiles("cat ledger.py | head -20"), false);
+});
