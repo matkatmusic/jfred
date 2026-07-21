@@ -2,11 +2,10 @@
 // selected revision. Side-by-side/inline toggle, revision selector with URL sync, line-number gutters.
 
 import { el as elFromApp } from "../app-dom.ts";
+import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
 import {
     fetchDocument,
     fetchText,
-    getBaselineChoice,
-    getConsentChoice,
 } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";

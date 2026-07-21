@@ -18,6 +18,7 @@ import {
     isImpureExecutionAllowed,
     setImpureExecutionAllowed,
 } from "../src/reconstruction_exec_gate.ts";
+import { setPreBaselineReconstructionAllowed } from "../src/reconstruction_base_commit.ts";
 import { S19_JSONL } from "./fixtures.ts";
 
 function buildChainRecord(type: RecordType, uuid: string, parent: string | null): TranscriptRecord {
@@ -130,6 +131,22 @@ test("test_execution_memo_is_invalidated_when_the_exec_gate_flips", () => {
         assert.notEqual(gateOff, gateOn);
     } finally {
         setImpureExecutionAllowed(true);
+    }
+});
+
+test("test_derived_caches_rebuild_when_the_pre_baseline_flag_flips", () => {
+    // Scenario (task 151): a "No" build's executions (and histories) must not be served into a
+    // "Yes" rebuild of the same records array, and vice versa — the pre-baseline flag joins the
+    // reader/exec-gate validity rule for the derived-cache group.
+    const records = buildScriptRunRecords();
+    const run = findScriptExecutionRuns(records)[0]!;
+    const allowed = executeRunOnce(run, records, emptyReader);
+    try {
+        setPreBaselineReconstructionAllowed(false);
+        const declined = executeRunOnce(run, records, emptyReader);
+        assert.notEqual(declined, allowed);
+    } finally {
+        setPreBaselineReconstructionAllowed(true);
     }
 });
 

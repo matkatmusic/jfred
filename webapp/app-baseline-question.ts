@@ -6,7 +6,8 @@
 // session only, mirroring the script-consent dialog (app-consent.ts).
 
 import { el } from "./app-dom.ts";
-import { storeBaselineChoice, type WireBaselineQuestion } from "./app-fetch.ts";
+import { storeBaselineChoice } from "./app-choices.ts";
+import { type WireBaselineQuestion } from "./app-fetch.ts";
 import { renderRoute } from "./app-router.ts";
 
 // The short display form of a full commit hash (git's customary 12 abbreviated digits).

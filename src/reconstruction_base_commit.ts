@@ -37,6 +37,47 @@ export function setPreBaselineReconstructionAllowed(allowed: boolean): void {
     preBaselineReconstructionAllowed = allowed;
 }
 
+// task 151: the corpus stamps the derived-cache group with this flag (beside the exec gate) —
+// histories and executions computed under one answer must never serve the other.
+export function isPreBaselineReconstructionAllowed(): boolean {
+    return preBaselineReconstructionAllowed;
+}
+
+// The declined-baseline cutoff instant, memoized per repo|commit pair (task 151): script runs
+// at-or-before it are superseded by the beacon (seedBaseCommitBeacon keeps only events strictly
+// after the commit time), so executeRunOnce skips them. undefined while pre-baseline
+// reconstruction is allowed, or when no baseline is configured/readable.
+let skippedBaselineCutoffCache: { cachedFor: string; cutoff: Date | undefined } | undefined;
+
+export function computeSkippedBaselineCutoff(): Date | undefined {
+    if (preBaselineReconstructionAllowed) {
+        return undefined;
+    }
+    const { repoDir, baseCommit } = getPathOverrides();
+    if (repoDir === undefined) {
+        return undefined;
+    }
+    if (baseCommit === undefined) {
+        return undefined;
+    }
+    const cachedFor = `${repoDir.toString()}|${baseCommit.toString()}`;
+    if (skippedBaselineCutoffCache?.cachedFor !== cachedFor) {
+        skippedBaselineCutoffCache = { cachedFor, cutoff: readCommitTimestamp(repoDir, baseCommit) };
+    }
+    return skippedBaselineCutoffCache.cutoff;
+}
+
+// Whether a script run at `timestamp` is superseded by a declined baseline (task 151): "No" to
+// the pre-baseline question makes the beacon supersede everything at-or-before the commit
+// instant, so executing such a run is provably wasted work (executeRunOnce's skip gate).
+export function checkTimestampPrecedesSkippedBaseline(timestamp: Date): boolean {
+    const cutoff = computeSkippedBaselineCutoff();
+    if (cutoff === undefined) {
+        return false;
+    }
+    return timestamp.getTime() <= cutoff.getTime();
+}
+
 // Deterministic changeId (item-34 scriptRun: precedent) so every replay of the same
 // baseline agrees: gitBase:<hash>:<target>.
 export function computeBaseCommitChangeId(baseCommit: Uuid, target: Path): Uuid {

@@ -50,12 +50,6 @@ import type {
 // seeding (`resolving` non-empty) or lineage seeding (`seedingLineages` non-empty) is
 // stack-dependent (the cycle guards alter what it can see) and computes fresh, exactly as before.
 // corpus: moved to reconstruction_corpus.ts (item 14)
-// type FileOverCache = {
-//     reader: BackupReader | undefined;
-//     impureAllowed: boolean;
-//     byTarget: Map<string, FileRevision[]>;
-// };
-// const fileOverCaches = new WeakMap<TranscriptRecord[], FileOverCache>();
 
 // The branch-agnostic core: reconstruct one file's history over EXACTLY the records given (no branch
 // selection here) — follow any rename to its final path, keep only that lineage's events, seed any
@@ -72,11 +66,6 @@ export function reconstructFileOver(
         return computeFileRevisionsOver(records, target, resolving, reader);
     }
     // corpus: moved to reconstruction_corpus.ts (item 14)
-    // let cache = fileOverCaches.get(records);
-    // if (cache === undefined || cache.reader !== reader || cache.impureAllowed !== isImpureExecutionAllowed()) {
-    //     cache = { reader, impureAllowed: isImpureExecutionAllowed(), byTarget: new Map<string, FileRevision[]>() };
-    //     fileOverCaches.set(records, cache);
-    // }
     const byTarget = getDerivedCaches(records, reader).historiesByTarget;
     const targetKey = target.toString();
     const cached = byTarget.get(targetKey);
@@ -96,6 +85,10 @@ function runStageTolerantly(
     input: FileEvent[],
     run: () => FileEvent[],
 ): FileEvent[] {
+    // task 149: announce before running — the per-target counter label used to freeze at n/n
+    // while the whole chain ground silently. The `reconstructing ` prefix keeps the webapp's
+    // phase classifier in phase 4.
+    reportReconstructionProgress(`reconstructing ${target} — ${stage}`);
     try {
         return run();
     } catch (error) {
@@ -192,30 +185,6 @@ const seedingLineages = new Set<string>();
 // seedingLineages is non-empty). The reader-identity/exec-gate validity re-check is the corpus's
 // job (getDerivedCaches).
 // corpus: moved to reconstruction_corpus.ts (item 14)
-// type LineageSeedCache = {
-//     reader: BackupReader | undefined;
-//     impureAllowed: boolean;
-//     byKey: Map<string, string | undefined>;
-// };
-// const lineageSeedCaches = new WeakMap<TranscriptRecord[], LineageSeedCache>();
-//
-// function getLineageSeedCache(records: TranscriptRecord[], reader: BackupReader): LineageSeedCache {
-//     const cached = lineageSeedCaches.get(records);
-//     if (cached !== undefined) {
-//         if (cached.reader === reader) {
-//             if (cached.impureAllowed === isImpureExecutionAllowed()) {
-//                 return cached;
-//             }
-//         }
-//     }
-//     const fresh: LineageSeedCache = {
-//         reader,
-//         impureAllowed: isImpureExecutionAllowed(),
-//         byKey: new Map<string, string | undefined>(),
-//     };
-//     lineageSeedCaches.set(records, fresh);
-//     return fresh;
-// }
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
 function computeSeededText(revisionBefore: FileRevision | undefined): string | undefined {

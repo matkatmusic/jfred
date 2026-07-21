@@ -15,6 +15,7 @@ import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     BASE_COMMIT_CHANGE_ID_PREFIX,
     computeBaseCommitChangeId,
+    computeSkippedBaselineCutoff,
     readCommitTimestamp,
     seedBaseCommitBeacon,
     setPreBaselineReconstructionAllowed,
@@ -205,6 +206,33 @@ test("test_seed_base_commit_beacon_keeps_pre_baseline_events_by_default", () => 
         assert.equal(seeded[0], earlier);
         assert.ok(seeded[1]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
         assert.equal(seeded[2], later);
+    } finally {
+        rmSync(repoDir, { recursive: true, force: true });
+    }
+});
+
+test("test_compute_skipped_baseline_cutoff_is_undefined_while_pre_baseline_reconstruction_is_allowed", () => {
+    // Scenario (task 151): with the flag at its default `true`, there is no cutoff — script
+    // runs must never be skipped on a "Yes" (or unasked) build, overrides or not. The flag
+    // short-circuits before the repo is consulted, so a fake override path suffices.
+    setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
+    assert.equal(computeSkippedBaselineCutoff(), undefined);
+});
+
+test("test_compute_skipped_baseline_cutoff_returns_the_commit_timestamp_when_pre_baseline_is_declined", () => {
+    // Scenario (task 151): "No" + configured overrides — the cutoff is the baseline commit's
+    // committer timestamp, the same instant seedBaseCommitBeacon orders its beacon by.
+    const commitInstant = "2026-01-01T00:00:10Z";
+    const { repoDir, commitHash } = makeCommittedRepo({ "orders.py": "committed\n" }, commitInstant);
+    try {
+        setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
+        // Step: decline pre-baseline reconstruction.
+        setPreBaselineReconstructionAllowed(false);
+        // Step: the cutoff equals the repo's committer timestamp.
+        const cutoff = computeSkippedBaselineCutoff();
+        const expected = readCommitTimestamp(new Path(repoDir), new Uuid(commitHash));
+        assert.ok(cutoff !== undefined);
+        assert.equal(cutoff.getTime(), expected!.getTime());
     } finally {
         rmSync(repoDir, { recursive: true, force: true });
     }

@@ -10,6 +10,7 @@ import {
     clearReconstructionFailures,
     drainReconstructionFailures,
 } from "../src/reconstruction_health.ts";
+import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { EventKind, FailureScope } from "../src/structures/vocabulary.ts";
 import { loadRecords } from "./utilities.ts";
 import { S13_JSONL, S15_JSONL, S19_JSONL } from "./fixtures.ts";
@@ -68,6 +69,38 @@ test("test_reconstructFile_survives_a_throwing_reader_stage", () => {
     // The stage that touched the dead blob was noted as a survived per-stage failure.
     const failures = drainReconstructionFailures();
     assert.ok(failures.some((failure) => failure.scope === FailureScope.fileStage));
+});
+
+// task 149: the nine per-file chain stages were silent — the console froze on the last
+// `reconstructing <target> n/n` label while the whole stage chain ground on. Every stage now
+// announces through the progress sink before it runs.
+test("test_run_stage_tolerantly_announces_each_stage_through_the_progress_sink", () => {
+    // Install a capturing progress sink around a reconstruction of the S15 transcript.
+    const capturedLabels: string[] = [];
+    setReconstructionProgressSink((event) => capturedLabels.push(event.label));
+    try {
+        reconstructAll(loadRecords(S15_JSONL));
+    } finally {
+        setReconstructionProgressSink(undefined);
+    }
+    // The first chain stage announced itself with the target and the stage name — the label
+    // keeps the `reconstructing ` prefix so the webapp's phase classifier stays in phase 4.
+    assert.ok(capturedLabels.some((label) => /^reconstructing .+ — seedBaseCommitBeacon$/.test(label)));
+});
+
+// task 149: collectAcceptedUserEditIds silently re-runs the whole per-target loop once per
+// conversation branch — each branch pass now announces itself with its position.
+test("test_collect_accepted_user_edit_ids_announces_each_branch_pass", () => {
+    // Install a capturing progress sink around the accepted-set collection for S15 (one branch).
+    const capturedLabels: string[] = [];
+    setReconstructionProgressSink((event) => capturedLabels.push(event.label));
+    try {
+        collectAcceptedUserEditIds(loadRecords(S15_JSONL));
+    } finally {
+        setReconstructionProgressSink(undefined);
+    }
+    // The first branch pass announces its position out of the enumerated branch count.
+    assert.ok(capturedLabels.some((label) => /^reconstructing accepted user edits — branch 1\/\d+$/.test(label)));
 });
 
 // extractRenderableEvents keeps the genuine S15 user edit as exactly one renderable turn.

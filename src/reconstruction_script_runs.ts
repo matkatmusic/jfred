@@ -3,6 +3,7 @@
 // in reconstruction_script_stage.ts.
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
+import { checkTimestampPrecedesSkippedBaseline } from "./reconstruction_base_commit.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
@@ -28,7 +29,6 @@ import { matchRenamePairs } from "./reconstruction_script_renames.ts";
 // or the exec-gate flag changes.
 export type RunExecution = { pre: Map<string, string>; post: Map<string, string> | undefined };
 // corpus: moved to reconstruction_corpus.ts (item 14)
-// const executionsByRecords = new WeakMap<TranscriptRecord[], Map<string, RunExecution>>();
 
 // The truncation instant of the innermost lineage replay in progress. A seeded replay's result
 // is cut by lastRevisionStrictlyBefore(revisions, cutoff), so runs at/after the cutoff can only
@@ -67,6 +67,10 @@ export function selectRunsWithinReplayWindow(runs: ScriptRun[]): ScriptRun[] {
 // read-only (TASKS.md item 68). Exported for the spawn-count tests.
 export const PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX = "skipping read-only script run";
 
+// Progress label announced instead of an execution when the run precedes a declined baseline
+// (task 151). Exported for the gate tests.
+export const PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX = "skipping pre-baseline script run";
+
 export function executeRunOnce(
     run: ScriptRun,
     records: TranscriptRecord[],
@@ -74,15 +78,16 @@ export function executeRunOnce(
     seedContent?: LineageContentBefore,
 ): RunExecution {
     // corpus: moved to reconstruction_corpus.ts (item 14)
-    // let byRun = executionsByRecords.get(records);
-    // if (byRun === undefined) {
-    //     byRun = new Map<string, RunExecution>();
-    //     executionsByRecords.set(records, byRun);
-    // }
     const byRun = getDerivedCaches(records, reader).executionsByRun;
     const key = `${run.timestamp.getTime()}|${run.code}`;
     const cached = byRun.get(key);
     if (cached !== undefined) return cached;
+    if (checkTimestampPrecedesSkippedBaseline(run.timestamp)) {
+        reportReconstructionProgress(`${PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
+        const skipped: RunExecution = { pre: new Map(), post: undefined };
+        byRun.set(key, skipped);
+        return skipped;
+    }
     // Item 68: a script with no statically detectable write primitive cannot change or
     // create files, so its pre-state build and sandbox run are provably no-ops for evidence.
     // The empty pre is safe: every caller checks `post === undefined` before touching `pre`.

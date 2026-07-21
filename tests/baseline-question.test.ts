@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
 import { decideBaselineQuestion } from "../src/viewer_api.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
@@ -41,4 +42,30 @@ test("test_no_baseline_question_when_choice_already_made", () => {
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
     // Step: choiceMade true -> undefined even with a configured baseline.
     assert.equal(decideBaselineQuestion(true), undefined);
+});
+
+// task 152: the re-ask control's two primitives — forget the stored answer, and evict the
+// project's cached documents so the next fetch actually reaches the server and re-asks.
+test("test_clear_baseline_choice_removes_the_stored_answer", async () => {
+    // Step: boot the webapp DOM so sessionStorage exists, then import the fetch module.
+    setupWebappDom();
+    const { storeBaselineChoice, getBaselineChoice, clearBaselineChoice } = await import("../webapp/app-choices.ts");
+    // Step: store an answer, clear it, and observe the not-asked-yet null.
+    storeBaselineChoice("proj", "0");
+    assert.equal(getBaselineChoice("proj"), "0");
+    clearBaselineChoice("proj");
+    assert.equal(getBaselineChoice("proj"), null);
+});
+
+test("test_drop_project_documents_evicts_only_that_projects_cache_entries", async () => {
+    setupWebappDom();
+    const { documentCache, dropProjectDocuments } = await import("../webapp/app-fetch.ts");
+    // Step: seed cache entries for two projects (the whole-project and one per-jsonl key).
+    documentCache.clear();
+    documentCache.set("proj|*", {} as never);
+    documentCache.set("proj|a.jsonl", {} as never);
+    documentCache.set("other|*", {} as never);
+    // Step: dropping `proj` leaves only the other project's entry.
+    dropProjectDocuments("proj");
+    assert.deepEqual([...documentCache.keys()], ["other|*"]);
 });

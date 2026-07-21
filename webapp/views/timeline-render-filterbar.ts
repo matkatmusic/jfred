@@ -5,6 +5,8 @@
 // re-hides the bar on every route change).
 
 import { el } from "../app-dom.ts";
+import { clearBaselineChoice, getBaselineChoice } from "../app-choices.ts";
+import { dropProjectDocuments } from "../app-fetch.ts";
 import { renderRoute } from "../app-router.ts";
 import { computeMatchCounterLabel, computeWrappedMatchIndex } from "./details-find-model.ts";
 import { checkAllLinesIsOn, toggleAllLinesSetting } from "./timeline-line-nodes.ts";
@@ -141,6 +143,17 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
         toggleAllLinesSetting();
         void renderRoute();
     };
-    bar.replaceChildren(searchInput, ...searchChrome, ...buttons, allLinesButton);
+    // task 152: re-pose the pre-baseline question — clears the stored answer and the project's
+    // cached documents, then re-renders so the choice-less document fetch reaches the server
+    // (which is what makes it ask again). Only offered once an answer is stored: no stored
+    // answer means no baseline is configured, or the question is already pending.
+    const reaskBaselineButton = el("button", { class: "toolbar-btn", text: "Re-ask baseline" }) as HTMLButtonElement;
+    reaskBaselineButton.hidden = getBaselineChoice(context.project) === null;
+    reaskBaselineButton.onclick = () => {
+        clearBaselineChoice(context.project);
+        dropProjectDocuments(context.project);
+        void renderRoute();
+    };
+    bar.replaceChildren(searchInput, ...searchChrome, ...buttons, allLinesButton, reaskBaselineButton);
     bar.hidden = false;
 }

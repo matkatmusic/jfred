@@ -1,8 +1,9 @@
 // The per-transcript-set cache state for one reconstruction: every memo that is keyed on a
 // records-array identity lives here, in two validity groups. Branch selections are pure
 // functions of the records alone and never invalidate. Derived caches depend on the sidecar
-// reader identity AND the exec-gate flag; a change to either discards the whole group (a
-// declined build's results must never serve a consented one, and vice versa). Guards
+// reader identity AND the exec-gate flag AND the task-56 pre-baseline flag; a change to any
+// discards the whole group (a declined build's results must never serve a consented one, and
+// vice versa). Guards
 // (seedingLineages, activeLineageReplayCutoff, resolving) are execution-stack state, not
 // cache state — they stay in their own modules. Design: plans/items14-23-26-33-close.md
 // (Phase 4, item 14).
@@ -15,12 +16,14 @@ import type { FileEvent, FileRevision } from "./reconstruction_engine.ts";
 import type { RunExecution } from "./reconstruction_script_runs.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
+import { isPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 
 // The reader/exec-gate-validated cache group: per-file histories (reconstructFileOver),
 // lineage-seed texts (getLineageContentBefore), and sandbox executions (executeRunOnce).
 export type DerivedCaches = {
     reader: BackupReader | undefined;
     impureAllowed: boolean;
+    preBaselineAllowed: boolean;
     historiesByTarget: Map<string, FileRevision[]>;
     lineageSeedsByKey: Map<string, string | undefined>;
     executionsByRun: Map<string, RunExecution>;
@@ -43,11 +46,13 @@ export type CorpusState = {
 
 const corpusStates = new WeakMap<TranscriptRecord[], CorpusState>();
 
-// An empty derived-cache group stamped with the reader and the CURRENT exec-gate value.
+// An empty derived-cache group stamped with the reader and the CURRENT exec-gate and
+// pre-baseline flag values.
 function buildDerivedCaches(reader: BackupReader | undefined): DerivedCaches {
     return {
         reader,
         impureAllowed: isImpureExecutionAllowed(),
+        preBaselineAllowed: isPreBaselineReconstructionAllowed(),
         historiesByTarget: new Map<string, FileRevision[]>(),
         lineageSeedsByKey: new Map<string, string | undefined>(),
         executionsByRun: new Map<string, RunExecution>(),
@@ -86,6 +91,10 @@ export function getDerivedCaches(
         return state.derived;
     }
     if (state.derived.impureAllowed !== isImpureExecutionAllowed()) {
+        state.derived = buildDerivedCaches(reader);
+        return state.derived;
+    }
+    if (state.derived.preBaselineAllowed !== isPreBaselineReconstructionAllowed()) {
         state.derived = buildDerivedCaches(reader);
     }
     return state.derived;

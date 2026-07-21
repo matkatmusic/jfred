@@ -4,7 +4,8 @@
 // header → router.
 
 import { el } from "./app-dom.ts";
-import { documentCache, fetchJson, rawLinesCache, reconcileServerBootId } from "./app-fetch.ts";
+import { reconcileServerBootId } from "./app-choices.ts";
+import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
 import { routeToProject } from "./app-routes.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
 

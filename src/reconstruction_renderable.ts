@@ -66,7 +66,11 @@ export function collectAcceptedUserEditIds(
     reader?: BackupReader,
 ): Set<string> {
     const accepted = new Set<string>();
-    for (const branch of findConversationBranches(records)) {
+    // task 149: each branch pass silently re-runs the whole per-target loop — announce its
+    // position so the console keeps advancing through this stretch.
+    const branches = findConversationBranches(records);
+    for (const [branchIndex, branch] of branches.entries()) {
+        reportReconstructionProgress(`reconstructing accepted user edits — branch ${branchIndex + 1}/${branches.length}`);
         const branchRecords = selectBranchRecords(records, branch.tip);
         addBranchUserEditIds(reconstructFilesOver(branchRecords, reader), accepted);
     }

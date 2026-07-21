@@ -14,7 +14,7 @@ import {
     loadProjectRecords,
 } from "../src/viewer_api_records.ts";
 import { matchJsonlSourceLink } from "../webapp/app-console.ts";
-import { reconcileServerBootId } from "../webapp/app-fetch.ts";
+import { reconcileServerBootId } from "../webapp/app-choices.ts";
 import { classifyLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { copyFixtureIntoTempDir } from "./utilities.ts";

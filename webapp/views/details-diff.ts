@@ -5,13 +5,10 @@
 // shownDiff toggle state.
 
 import { el } from "../app-dom.ts";
-import { fetchText, getBaselineChoice, getConsentChoice } from "../app-fetch.ts";
+import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
+import { fetchText } from "../app-fetch.ts";
 import { resetDetailsFind } from "./details-find.ts";
-import {
-    SplitRowKind,
-    computeInlineRows,
-    computeSplitRows,
-} from "./diff-vs-base-model.ts";
+import { SplitRowKind, computeInlineRows, computeSplitRows } from "./diff-vs-base-model.ts";
 import { findRevisionForChangeId, splitDiffBlocks } from "./file-history-model.ts";
 import { computeRevisionDiffFallbackText } from "./timeline-labels.ts";
 import { type FileChange } from "./timeline-types.ts";

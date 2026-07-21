@@ -1,5 +1,6 @@
 // ─── shared fetch + caches ───────────────────────────────────────────────────
 
+import { computeConsentKey, getBaselineChoice } from "./app-choices.ts";
 import { collapseProgressConsole, logProgress } from "./app-console.ts";
 import { hideLoadingProgress, showLoadingProgress } from "./app-progress.ts";
 
@@ -78,59 +79,16 @@ export async function fetchRawRecords(project: string, jsonl: string): Promise<s
     return rawLinesCache.get(cacheKey)!;
 }
 
-// ─── script-execution consent + pre-baseline choice (per-browser-SESSION memory only, by design) ──
+// ─── consent + pre-baseline choices: moved to app-choices.ts (task 152, 250-line cap) ──────────
 
-const CONSENT_KEY_PREFIX = "consent:";
-// task 56: the pre-baseline answer, stored per project exactly like the consent choice.
-const BASELINE_KEY_PREFIX = "baseline:";
-// Prefixes of per-project choices a server relaunch must forget (boot-id sweep below).
-const CHOICE_KEY_PREFIXES = [CONSENT_KEY_PREFIX, BASELINE_KEY_PREFIX];
-
-function computeConsentKey(project: string): string {
-    return `${CONSENT_KEY_PREFIX}${project}`;
-}
-
-export function storeConsentChoice(project: string, choice: string): void {
-    sessionStorage.setItem(computeConsentKey(project), choice);
-}
-
-// "1" (run), "0" (declined), or null (not asked yet this session).
-export function getConsentChoice(project: string): string | null {
-    return sessionStorage.getItem(computeConsentKey(project));
-}
-
-function computeBaselineKey(project: string): string {
-    return `${BASELINE_KEY_PREFIX}${project}`;
-}
-
-export function storeBaselineChoice(project: string, choice: string): void {
-    sessionStorage.setItem(computeBaselineKey(project), choice);
-}
-
-// "1" (reconstruct pre-baseline), "0" (start at the baseline commit), or null (not asked yet).
-export function getBaselineChoice(project: string): string | null {
-    return sessionStorage.getItem(computeBaselineKey(project));
-}
-
-// The server stamps each process launch with a boot id (GET /api/config). Consent choices live in
-// sessionStorage, which survives both a page reload AND a server restart — so after relaunching the
-// server (e.g. to drop the sandbox memo) a reloaded page would silently reuse the old "Run"/"declined"
-// choice and never re-prompt. When the boot id changes we know the server was relaunched and clear
-// every remembered consent choice so the next load re-prompts. The boot id shares sessionStorage's
-// per-tab lifetime, so a brand-new tab (empty storage) simply stores the current id with nothing to clear.
-const SERVER_BOOT_ID_KEY = "serverBootId";
-
-export function reconcileServerBootId(bootId: string): void {
-    if (sessionStorage.getItem(SERVER_BOOT_ID_KEY) === bootId) {
-        return;
-    }
-    for (let index = sessionStorage.length - 1; index >= 0; index--) {
-        const key = sessionStorage.key(index);
-        if (key !== null && CHOICE_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
-            sessionStorage.removeItem(key);
+// task 152: evict one project's cached documents — a cache hit would answer from memory and
+// the re-posed question would never reach the wire.
+export function dropProjectDocuments(project: string): void {
+    for (const key of [...documentCache.keys()]) {
+        if (key.startsWith(`${project}|`)) {
+            documentCache.delete(key);
         }
     }
-    sessionStorage.setItem(SERVER_BOOT_ID_KEY, bootId);
 }
 
 // Fetch a document under the consent protocol. Resolves to { document } or

@@ -3,7 +3,8 @@
 // live in app-consent-model.ts.
 
 import { el } from "./app-dom.ts";
-import { storeConsentChoice, type WireConsentScript } from "./app-fetch.ts";
+import { storeConsentChoice } from "./app-choices.ts";
+import { type WireConsentScript } from "./app-fetch.ts";
 import {
     checkConsentScriptOverflowsPreview,
     clampConsentSelectionStep,

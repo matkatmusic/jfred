@@ -2,7 +2,8 @@
 // the contiguity rule hint, the picked-range summary strip, and the range-patch fetch.
 
 import { el } from "../app-dom.ts";
-import { fetchText, getBaselineChoice, getConsentChoice } from "../app-fetch.ts";
+import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
+import { fetchText } from "../app-fetch.ts";
 import { downloadText } from "./download.ts";
 import { checkNodeIsPickable, checkPickIsLegal, computeRangeSummary } from "./timeline-picks.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";

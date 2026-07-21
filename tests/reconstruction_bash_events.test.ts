@@ -82,3 +82,32 @@ test("test_parseRedirect_ignores_the_null_device", () => {
     // A real target still parses.
     assert.equal(parseRedirect("echo hi > /a/f.txt")!.target.toString(), "/a/f.txt");
 });
+
+// task 150 — the redirect regex matches the `>` inside a JS arrow (`=>`), so a `node -e`
+// one-liner from a real session minted the token `x.taskNumber).join(','))"` as a redirect
+// target. Command-text shrapnel must never become a reconstruction target.
+test("test_parseRedirect_rejects_a_js_arrow_inside_a_node_one_liner", () => {
+    // The exact command shape that produced the task-150 bogus target: an arrow function
+    // whose `=>` is the last `>` in the command, followed by one non-space token to the end.
+    assert.equal(parseRedirect("node -e \"console.log(tasks.map(x => x.taskNumber).join(','))\""), undefined);
+});
+
+// task 150 — a candidate carrying shell/JS punctuation is command text, not a path.
+test("test_parseRedirect_rejects_targets_containing_shell_or_js_punctuation", () => {
+    // Parentheses mark an expression fragment, not a filename.
+    assert.equal(parseRedirect("echo hi > out(1).txt"), undefined);
+    // A quote can only reach the target token by mis-splitting quoted command text.
+    assert.equal(parseRedirect("echo hi > \"quoted.txt\""), undefined);
+    // A comma marks an argument list fragment.
+    assert.equal(parseRedirect("echo hi > a,b.txt"), undefined);
+});
+
+// task 150 — the filter must not over-reject: plain and absolute targets still parse.
+test("test_parseRedirect_still_accepts_plain_and_absolute_targets", () => {
+    // A bare relative filename overwrite target parses.
+    assert.equal(parseRedirect("echo hi > out.txt")!.target.toString(), "out.txt");
+    // An absolute append target parses and is flagged as appending.
+    const appended = parseRedirect("echo hi >> /a/log.txt")!;
+    assert.equal(appended.target.toString(), "/a/log.txt");
+    assert.equal(appended.appends, true);
+});
