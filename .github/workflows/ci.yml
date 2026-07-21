@@ -1,0 +1,24 @@
+# Task 64: the public repo's only CI — typecheck, suite, and webapp build on every push/PR.
+# No submodules on checkout (deliberate): the suite is scenario-submodule-optional (task 59),
+# so CI proves the bare-clone path a fresh contributor hits. Free on public repos
+# (standard GitHub-hosted runners); no matrix or release automation until the repo has users.
+name: CI
+
+on:
+    push:
+        branches: [master, develop]
+    pull_request:
+
+jobs:
+    ci:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22          # matches devDependencies' @types/node ^22
+                  cache: npm
+            - run: npm ci
+            - run: npm run typecheck
+            - run: npm test
+            - run: npm run build:webapp     # catches webapp tsconfig breakage (task text)
