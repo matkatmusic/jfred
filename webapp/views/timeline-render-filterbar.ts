@@ -13,6 +13,7 @@ import {
     TIMELINE_FILTER_MODES,
     checkNodePassesFilters,
     computeMatchingNodeIndexes,
+    computeSessionTitleByNodeIndex,
     type TimelineFilterMode,
 } from "./timeline-filter-model.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
@@ -22,13 +23,13 @@ const FILTERED_OUT_ROW_CLASS = "tl-filtered-out";
 const CURRENT_MATCH_ROW_CLASS = "tl-search-current";
 
 // Hide every row failing the combined mode+search predicate; restore the rest.
-function applyTimelineFilters(context: TimelineRenderContext, mode: TimelineFilterMode, term: string): void {
+function applyTimelineFilters(context: TimelineRenderContext, mode: TimelineFilterMode, term: string, sessionTitleByNodeIndex: Map<number, string>): void {
     for (const [index, node] of context.nodes.entries()) {
         const row = context.nodeRows.get(index);
         if (row === undefined) {
             continue;
         }
-        row.classList.toggle(FILTERED_OUT_ROW_CLASS, !checkNodePassesFilters(node, mode, term));
+        row.classList.toggle(FILTERED_OUT_ROW_CLASS, !checkNodePassesFilters(node, mode, term, sessionTitleByNodeIndex.get(index)));
     }
 }
 
@@ -84,11 +85,14 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
         countLabel.textContent = computeMatchCounterLabel(currentMatchPosition, matchNodeIndexes.length);
         jumpToCurrentMatch();
     };
+    // task 148: session titles join the search — computed once, the node list is fixed for
+    // this render (navigation rebuilds the bar).
+    const sessionTitleByNodeIndex = computeSessionTitleByNodeIndex(context.nodes, context.reconstructionDocument.sessionTitles);
     // Re-derive the result list for the current term+mode and land on result #1.
     const refreshFilteredRows = () => {
-        applyTimelineFilters(context, activeMode, searchTerm);
+        applyTimelineFilters(context, activeMode, searchTerm, sessionTitleByNodeIndex);
         const hasTerm = searchTerm.trim() !== "";
-        matchNodeIndexes = hasTerm ? computeMatchingNodeIndexes(context.nodes, activeMode, searchTerm) : [];
+        matchNodeIndexes = hasTerm ? computeMatchingNodeIndexes(context.nodes, activeMode, searchTerm, sessionTitleByNodeIndex) : [];
         currentMatchPosition = matchNodeIndexes.length === 0 ? -1 : 0;
         searchChrome.forEach((element) => { element.hidden = !hasTerm; });
         updateCounterAndJump();

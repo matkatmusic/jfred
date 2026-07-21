@@ -927,7 +927,10 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 /* ─── Transcript inspector internals (inspector.ts) ───────────── */
 .details-pane h2 { color: var(--accent); font-size: 12px; margin-bottom: 6px; font-family: var(--mono); }
 .inspector-content { flex: 1; min-width: 0; overflow-y: auto; padding: 0 8px; }
-.inspector-nav { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+/* task 147: sticky inside #details-right-body so Prev/Next stay visible while the JSON
+   scrolls. Opaque --bg (the .details-pane background) hides text passing under; the old
+   margin-bottom gap becomes padding so scrolled text can't peek through it. */
+.inspector-nav { display: flex; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 1; background: var(--bg); padding-bottom: 6px; }
 .jump-link { text-decoration: underline dotted; cursor: pointer; }
 /* Item 10h: the history jump button sits inside the JSON <pre>; give it button typography.
    task 132: inline-block so it sits on the same line as the backupFileName path. */

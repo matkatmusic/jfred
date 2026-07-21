@@ -2,7 +2,7 @@
 // DOM-free so tests exercise it directly (same split as timeline-picks.ts / details-model.ts);
 // the DOM consumer is timeline-render-filterbar.ts.
 
-import { SCRIPT_EXECUTION_EVENT_KIND } from "./timeline-labels.ts";
+import { SCRIPT_EXECUTION_EVENT_KIND, findSessionStartIndexes } from "./timeline-labels.ts";
 import {
     AGENT_TURN_NODE_KIND,
     COMMIT_NODE_KIND,
@@ -124,33 +124,59 @@ function computeNodeSearchHaystack(node: TimelineNode): string {
     return parts.join("\n").toLowerCase();
 }
 
+// task 148: session titles are searchable. Each titled session contributes ONE extra
+// haystack — on its FIRST node — so typing a custom title jumps to the row directly under
+// that session's header marker (findSessionStartIndexes inserts the marker before that
+// node). Only the first node: every row of a session matching its title would turn the
+// search into a session filter, which is not the jump-to-header behavior.
+export function computeSessionTitleByNodeIndex(nodes: TimelineNode[], sessionTitles: Record<string, string> | undefined): Map<number, string> {
+    const titleByNodeIndex = new Map<number, string>();
+    if (sessionTitles === undefined) {
+        return titleByNodeIndex;
+    }
+    for (const sessionStart of findSessionStartIndexes(nodes)) {
+        const sessionTitle = sessionTitles[sessionStart.sessionId];
+        if (sessionTitle === undefined) {
+            continue;
+        }
+        titleByNodeIndex.set(sessionStart.nodeIndex, sessionTitle);
+    }
+    return titleByNodeIndex;
+}
+
 // The search predicate: does `node` stay visible under `term`? Blank matches everything;
-// otherwise a case-insensitive substring test over the node's visible text. Deliberately NO
+// otherwise a case-insensitive substring test over the node's visible text — plus the
+// node's session title when the caller attached one (task 148). Deliberately NO
 // session-end exemption (unlike the mode predicate): a terminator carries no text, so a real
 // term hides it.
-export function checkNodeMatchesSearchTerm(node: TimelineNode, term: string): boolean {
+export function checkNodeMatchesSearchTerm(node: TimelineNode, term: string, sessionTitle?: string): boolean {
     const normalizedTerm = term.trim().toLowerCase();
     if (normalizedTerm === "") {
+        return true;
+    }
+    if (sessionTitle !== undefined && sessionTitle.toLowerCase().includes(normalizedTerm)) {
         return true;
     }
     return computeNodeSearchHaystack(node).includes(normalizedTerm);
 }
 
 // A row stays visible iff it passes BOTH the active mode button and the search term.
-export function checkNodePassesFilters(node: TimelineNode, mode: TimelineFilterMode, term: string): boolean {
+// sessionTitle (task 148) feeds only the search side — a title never overrides the mode.
+export function checkNodePassesFilters(node: TimelineNode, mode: TimelineFilterMode, term: string, sessionTitle?: string): boolean {
     if (!checkNodeMatchesFilterMode(node, mode)) {
         return false;
     }
-    return checkNodeMatchesSearchTerm(node, term);
+    return checkNodeMatchesSearchTerm(node, term, sessionTitle);
 }
 
 // The search's jump list: the node indexes surviving the combined predicate, in timeline
 // order. Entry #1 of the results is the first index; N (the counter denominator) is the
-// list's length.
-export function computeMatchingNodeIndexes(nodes: TimelineNode[], mode: TimelineFilterMode, term: string): number[] {
+// list's length. sessionTitleByNodeIndex (task 148) attaches each titled session's title
+// to its first node.
+export function computeMatchingNodeIndexes(nodes: TimelineNode[], mode: TimelineFilterMode, term: string, sessionTitleByNodeIndex?: Map<number, string>): number[] {
     const matchingIndexes: number[] = [];
     for (const [index, node] of nodes.entries()) {
-        if (checkNodePassesFilters(node, mode, term)) {
+        if (checkNodePassesFilters(node, mode, term, sessionTitleByNodeIndex?.get(index))) {
             matchingIndexes.push(index);
         }
     }
