@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     buildSessionsSidebarViewModel,
+    checkNodeIsAbandonedBranchTip,
     checkRowIsExpandable,
     computeGraphLaneRuns,
     findJsonlForSession,
@@ -16,6 +17,7 @@ import {
     TOOL_CALL_NODE_KIND,
     USER_TURN_NODE_KIND,
     type CommitNode,
+    type TurnNode,
 } from "../webapp/views/timeline-types.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import {
@@ -117,6 +119,27 @@ test("test_checkRowIsExpandable_excludes_commits_and_session_ends", () => {
 
 // (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135
 // checkRowCarriesJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
+
+test("test_checkNodeIsAbandonedBranchTip_marks_last_orphaned_row_per_session", () => {
+    // Scenario (task 158): the "(abandoned)" pill lands on the LAST row of an abandoned run —
+    // an orphaned node whose next SAME-session node is not orphaned, or that has none after it.
+    // Steps:
+    // the commit-walk timeline's orphans sit at node indexes 3 and 4 — only 4 is the tip.
+    const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
+    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 3), false);
+    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 4), true);
+    // a surviving row is never a tip.
+    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 0), false);
+    // an interleaved OTHER-session surviving row landing after the tip must not mask it.
+    const turn = (sessionId: string, isOrphaned: boolean): TurnNode =>
+        ({ kind: USER_TURN_NODE_KIND, when: "t1", sessionId, text: "", snapshots: [], gitOperations: [], isOrphaned });
+    const interleaved = [turn("a", true), turn("b", false), turn("a", false)];
+    assert.equal(checkNodeIsAbandonedBranchTip(interleaved, 0), true);
+    // a later same-session orphaned row means the run continues — not the tip yet.
+    const continuing = [turn("a", true), turn("b", false), turn("a", true)];
+    assert.equal(checkNodeIsAbandonedBranchTip(continuing, 0), false);
+    assert.equal(checkNodeIsAbandonedBranchTip(continuing, 2), true);
+});
 
 test("test_checkRowIsExpandable_expands_only_merged_baseline_commit_rows", () => {
     // Scenario (task 121): the merged git-derived baseline commit row expands to show its file

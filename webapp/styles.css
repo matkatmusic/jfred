@@ -409,8 +409,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     border-radius: 8px;
     padding: 0 6px;
 }
-/* task 103: the red FAILED badge on rows whose git command's tool_result errored. */
-.failed-badge {
+/* task 103: the red FAILED badge on rows whose git command's tool_result errored.
+   task 158: shared by the "(abandoned)" pill on the last row of an abandoned branch. */
+.failed-badge, .abandoned-badge {
     flex: 0 0 auto;
     font-family: var(--mono);
     font-size: 10px;
@@ -1092,7 +1093,8 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 /* task 127: the row the search is currently landed on (▲/▼ walk this marker) */
 .tl-row.tl-search-current { outline: 1px solid #c9a227; outline-offset: -1px; }
 #details-find button.search-clear { background: none; border: none; padding: 0 2px; }
-#timeline-filter-bar .toolbar-btn.active {
+#timeline-filter-bar .toolbar-btn.active,
+#all-lines-btn.active {
     background: var(--sel);
     border-color: var(--accent);
     color: #fff;

@@ -136,8 +136,10 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
     }
     // task 134: raw-lines toggle — unlike the display-only mode buttons this changes node
     // DERIVATION, so it re-renders the whole route (the app-consent renderRoute precedent);
-    // sessionStorage carries the state across the rebuild.
-    const allLinesButton = el("button", { class: "toolbar-btn", text: "Raw lines" }) as HTMLButtonElement;
+    // sessionStorage carries the state across the rebuild. task 161: the button is static
+    // pane-header markup (index.html); the router's timeline-pane-header hidden toggle governs
+    // its visibility, this per-render pass owns its active state and click wiring.
+    const allLinesButton = document.getElementById("all-lines-btn") as HTMLButtonElement;
     allLinesButton.classList.toggle(ACTIVE_BUTTON_CLASS, checkAllLinesIsOn());
     allLinesButton.onclick = () => {
         toggleAllLinesSetting();
@@ -146,14 +148,15 @@ export function renderTimelineFilterBar(context: TimelineRenderContext, bar: HTM
     // task 152: re-pose the pre-baseline question — clears the stored answer and the project's
     // cached documents, then re-renders so the choice-less document fetch reaches the server
     // (which is what makes it ask again). Only offered once an answer is stored: no stored
-    // answer means no baseline is configured, or the question is already pending.
-    const reaskBaselineButton = el("button", { class: "toolbar-btn", text: "Re-ask baseline" }) as HTMLButtonElement;
+    // answer means no baseline is configured, or the question is already pending. task 157:
+    // static app-header markup (index.html); app-router re-hides it on every navigation.
+    const reaskBaselineButton = document.getElementById("reask-baseline-btn") as HTMLButtonElement;
     reaskBaselineButton.hidden = getBaselineChoice(context.project) === null;
     reaskBaselineButton.onclick = () => {
         clearBaselineChoice(context.project);
         dropProjectDocuments(context.project);
         void renderRoute();
     };
-    bar.replaceChildren(searchInput, ...searchChrome, ...buttons, allLinesButton, reaskBaselineButton);
+    bar.replaceChildren(searchInput, ...searchChrome, ...buttons);
     bar.hidden = false;
 }

@@ -82,6 +82,22 @@ export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: numbe
     return runs;
 }
 
+// task 158: the LAST row of an abandoned (rewound) branch — an orphaned node whose next node
+// of the SAME session is not orphaned, or that has no later same-session node. Same-session
+// scoping so an interleaved surviving session's row landing after the tip can't mask it.
+export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: number): boolean {
+    const node = nodes[index]!;
+    if (node.isOrphaned !== true) {
+        return false;
+    }
+    for (let next = index + 1; next < nodes.length; next += 1) {
+        if (nodes[next]!.sessionId === node.sessionId) {
+            return nodes[next]!.isOrphaned !== true;
+        }
+    }
+    return true;
+}
+
 // Whether a row gets a tri + bubble (item 66): commit and session-end rows are thin one-liners
 // (locked decision 4); every turn and tool-call row expands. The one commit exception (task
 // 121): the merged git-derived baseline row expands to show its file chips.

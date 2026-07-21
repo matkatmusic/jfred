@@ -11,6 +11,7 @@
     <header class="toolbar">
         <span id="toolbar-title"><a href="#/" title="JSONL File Reverse Engineer Debugger">JFRED</a></span>
         <span id="breadcrumb" class="breadcrumb"></span>
+        <button id="reask-baseline-btn" class="toolbar-btn" hidden>Re-ask baseline</button>
         <button id="projects-btn" class="toolbar-btn">Projects ▾</button>
         <button id="paths-btn" class="toolbar-btn">Paths…</button>
         <div id="projects-menu" class="popover" hidden></div>
@@ -47,6 +48,7 @@
                 <div id="timeline-pane-header" hidden>
                     <span class="pane-title">Timeline</span>
                     <span id="timeline-summary" class="muted"></span>
+                    <button id="all-lines-btn" class="toolbar-btn" title="Show every raw JSONL line as its own timeline row">Raw lines</button>
                     <button id="files-prev" title="Jump to the previous message that touched files">◀ Prev</button>
                     <button id="files-next" title="Jump to the next message that touched files">Next ▶</button>
                     <button id="line-prev" title="Select the previous JSON line (one timeline row back)">◀ Line</button>

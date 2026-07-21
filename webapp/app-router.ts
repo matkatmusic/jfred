@@ -71,6 +71,9 @@ export async function renderRoute(): Promise<void> {
     // task 114: the event-type filter bar is timeline-only; every navigation re-hides it and
     // renderTimelineFilterBar unhides it (reset back to "All") when a timeline renders.
     document.getElementById("timeline-filter-bar")!.hidden = true;
+    // task 157: the header's Re-ask-baseline button is project chrome like the filter bar —
+    // re-hidden here, unhidden by renderTimelineFilterBar when a baseline answer is stored.
+    document.getElementById("reask-baseline-btn")!.hidden = true;
     // item 66: was — emptied the whole inspector pane on every route change:
     // const inspector = document.getElementById("inspector")!;
     // inspector.classList.add("hidden");

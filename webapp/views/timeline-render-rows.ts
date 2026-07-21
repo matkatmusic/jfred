@@ -24,6 +24,7 @@ import {
 } from "./timeline-render-row-cells.ts";
 import { buildPickCell } from "./timeline-render-selectbar.ts";
 import {
+    checkNodeIsAbandonedBranchTip,
     checkRowCarriesJsonRecordButton,
     checkRowIsExpandable,
     checkTimelineNeedsProgressOverlay,
@@ -102,6 +103,11 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         // failed commands are badged, never suppressed.
         if (node.isError === true) {
             line.append(el("span", { class: "failed-badge", text: "FAILED" }));
+        }
+        // task 158: the tip of an abandoned branch announces where the dead branch ENDS — the
+        // orphan dimming alone doesn't.
+        if (checkNodeIsAbandonedBranchTip(context.nodes, index)) {
+            line.append(el("span", { class: "abandoned-badge", text: "(abandoned)" }));
         }
         // task 67: a script run the sandbox proved modified files carries its count on the row.
         if (node.scriptRun !== undefined) {
