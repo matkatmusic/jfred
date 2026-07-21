@@ -64,6 +64,25 @@ test("test_select_live_branch_keeps_the_sibling_tool_result", () => {
     assert.ok(uuids.includes("R2"));
 });
 
+test("test_absorb_does_not_swallow_a_tool_result_leading_to_real_content", () => {
+    // Scenario: a hook-rewrite fork gives tool_use A1 two tool_result children; the dead one
+    // (R2) is followed by an assistant TEXT reply — a real rewound exchange (the orphans
+    // suite dims it), NOT parallel-tool-call plumbing. The absorb must leave R2 excluded.
+    const records: TranscriptRecord[] = [
+        rec(RecordType.user, "P", null),
+        assistantToolUse("A1", "P", "M1", "tool-one"),
+        userToolResult("R2", "A1", "tool-one"),          // dead side of the fork...
+        rec(RecordType.assistant, "A9", "R2"),            // ...with real assistant content below
+        lastPrompt("A9"),
+        userToolResult("R1", "A1", "tool-one"),           // trunk continues here
+        rec(RecordType.assistant, "A3", "R1"),
+        lastPrompt("A3"),
+    ];
+    const kept = selectLiveBranch(records);
+    const uuids = kept.filter((record) => record.uuid).map((record) => record.uuid!.toString()).sort();
+    assert.deepEqual(uuids, ["A1", "A3", "P", "R1"]);
+});
+
 test("test_absorb_does_not_swallow_a_real_rewound_branch", () => {
     // Scenario: a genuine rewind forks at P into an assistant turn from a DIFFERENT API
     // response (msg M9) followed by an abandoned user prompt; neither absorb rule matches, so

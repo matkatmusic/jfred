@@ -51,9 +51,20 @@ function checkRecordIsAlreadyKept(record: TranscriptRecord, trunk: Set<string>):
     return trunk.has(record.uuid.toString());
 }
 
-// True when the record is the same-turn tail of an absorbed chain: an attachment or a bare
-// tool_result echo, parented on a record the trunk already holds.
-function checkRecordJoinsAbsorbedTurn(record: TranscriptRecord, trunk: Set<string>): boolean {
+// True when the record is plumbing: an attachment or a bare tool_result echo. Anything else
+// (a user prompt, an assistant reply) is real conversational content.
+function checkRecordIsPlumbing(record: TranscriptRecord): boolean {
+    if (record.type === RecordType.attachment) {
+        return true;
+    }
+    return checkRecordIsToolResultOnly(record);
+}
+
+// True when the record is the same-turn tail of an absorbed chain: plumbing parented on a
+// record the trunk already holds, with NOTHING but plumbing below it. A dead-end tool_result
+// followed by real content (a hook-rewrite fork the user rewound after an assistant reply) is
+// a genuine rewound exchange and must stay off the trunk so it still dims.
+function checkRecordJoinsAbsorbedTurn(record: TranscriptRecord, trunk: Set<string>, childrenByParent: Map<string, TranscriptRecord[]>): boolean {
     const parent = record.parentUuid;
     if (parent === undefined) {
         return false;
@@ -64,10 +75,44 @@ function checkRecordJoinsAbsorbedTurn(record: TranscriptRecord, trunk: Set<strin
     if (!trunk.has(parent.toString())) {
         return false;
     }
-    if (record.type === RecordType.attachment) {
-        return true;
+    if (!checkRecordIsPlumbing(record)) {
+        return false;
     }
-    return checkRecordIsToolResultOnly(record);
+    return checkSubtreeIsPlumbingOnly(record, childrenByParent);
+}
+
+// True when every descendant of `record` is plumbing (depth-first over the parentUuid tree).
+function checkSubtreeIsPlumbingOnly(record: TranscriptRecord, childrenByParent: Map<string, TranscriptRecord[]>): boolean {
+    for (const child of childrenByParent.get(record.uuid!.toString()) ?? []) {
+        if (!checkRecordIsPlumbing(child)) {
+            return false;
+        }
+        if (!checkSubtreeIsPlumbingOnly(child, childrenByParent)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Children indexed by parent uuid, for the subtree walks above.
+function indexChildrenByParent(records: TranscriptRecord[]): Map<string, TranscriptRecord[]> {
+    const childrenByParent = new Map<string, TranscriptRecord[]>();
+    for (const record of records) {
+        if (record.uuid === undefined) {
+            continue;
+        }
+        const parent = record.parentUuid;
+        if (parent === undefined) {
+            continue;
+        }
+        if (parent === null) {
+            continue;
+        }
+        const siblings = childrenByParent.get(parent.toString()) ?? [];
+        siblings.push(record);
+        childrenByParent.set(parent.toString(), siblings);
+    }
+    return childrenByParent;
 }
 
 // Rule (1): absorb every assistant record that shares a message.id with a trunk assistant
@@ -107,13 +152,13 @@ function absorbSameResponseAssistantSiblings(records: TranscriptRecord[], trunk:
 }
 
 // One absorption sweep of rule (2); true when any record was absorbed.
-function absorbTurnTailsOnce(records: TranscriptRecord[], trunk: Set<string>): boolean {
+function absorbTurnTailsOnce(records: TranscriptRecord[], trunk: Set<string>, childrenByParent: Map<string, TranscriptRecord[]>): boolean {
     let absorbedAny = false;
     for (const record of records) {
         if (checkRecordIsAlreadyKept(record, trunk)) {
             continue;
         }
-        if (!checkRecordJoinsAbsorbedTurn(record, trunk)) {
+        if (!checkRecordJoinsAbsorbedTurn(record, trunk, childrenByParent)) {
             continue;
         }
         trunk.add(record.uuid!.toString());
@@ -126,7 +171,8 @@ export function absorbParallelToolCallSiblings(records: TranscriptRecord[], trun
     absorbSameResponseAssistantSiblings(records, trunk);
     // Rule (2): the absorbed siblings' result echoes and attachments, to a fixed point —
     // an absorbed record may be the parent the next tail needs, so sweep until stable.
-    while (absorbTurnTailsOnce(records, trunk)) {
+    const childrenByParent = indexChildrenByParent(records);
+    while (absorbTurnTailsOnce(records, trunk, childrenByParent)) {
         // the sweep itself mutates trunk; nothing further to do per pass.
     }
 }
