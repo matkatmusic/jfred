@@ -13,11 +13,24 @@ import {
     type WireTimelineDocument,
 } from "./timeline-types.ts";
 import { computeAnchoredRevisionIndex } from "./file-history-model.ts";
+import { GIT_BASE_CHANGE_ID_PREFIX } from "./timeline-changes.ts";
 
 // ── types (derived from timeline's wire/view-model types — one canonical home, no copies) ──
 
 // One reconstructed file history off the wire document (target + its revision list).
 export type WireFileHistory = WireTimelineDocument["filesTouched"][number];
+
+// task 56 follow-up: is this FileChange's optional changeId a base-commit beacon? The details
+// pane renders those as baseline content instead of an empty "(no content change)" diff.
+export function checkChangeIdIsGitBaseline(changeId: string | undefined): boolean {
+    return changeId !== undefined && changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX);
+}
+
+// The commit hash inside gitBase:<hash>:<target> — the second colon-separated field (hashes
+// never contain colons); "" for a malformed id, never a throw.
+export function extractGitBaseCommitHash(changeId: string): string {
+    return changeId.split(":")[1] ?? "";
+}
 
 // Everything the render modes need from the owning timeline view: the loaded document, the
 // node list, and the callbacks the timeline wires (its inspector openers, row selector, and

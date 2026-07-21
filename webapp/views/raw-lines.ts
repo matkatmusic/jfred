@@ -5,6 +5,7 @@
 import { el as elUntyped } from "../app-dom.ts";
 import { fetchDocument, fetchRawRecords } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
+import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 
@@ -68,6 +69,10 @@ function appendRawLineRow(listPane: HTMLElement, entry: RawLineEntry, inspectLin
 
 export async function renderRawLinesView(container: HTMLElement, project: string, jsonl: string): Promise<void> {
     const result = await fetchDocument<WireDocument>(project, jsonl);
+    if (result.baselineQuestion !== undefined) {
+        renderBaselineQuestionDialog(container, project, result.baselineQuestion);
+        return;
+    }
     if (result.consentRequired !== undefined) {
         renderConsentDialog(container, project, result.consentRequired);
         return;

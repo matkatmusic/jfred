@@ -13,7 +13,8 @@ import {
 import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { serializePathOverrides } from "./reconstruction_overrides.ts";
+import { getPathOverrides, serializePathOverrides } from "./reconstruction_overrides.ts";
+import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { scriptCodeMayWriteFiles } from "./reconstruction_script_prestate.ts";
 import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
@@ -94,6 +95,34 @@ export function decideDocumentResponse(records: TranscriptRecord[], allowScripts
     return { kind: DocumentResponseKind.document };
 }
 
+// Task 56: the pre-baseline question payload for the wire, or undefined when the gate does
+// not apply. It applies only when the ACTIVE project overrides carry a base commit (item 46)
+// and the client has not yet sent a preBaseline choice — asked BEFORE the consent gate (the
+// scope-of-work decision precedes the run-scripts decision, and it needs no record scan).
+export type BaselineQuestion = {
+    kind: DocumentResponseKind.baselineQuestionRequired;
+    baseCommit: string;
+    repo: string;
+};
+
+export function decideBaselineQuestion(choiceMade: boolean): BaselineQuestion | undefined {
+    if (choiceMade) {
+        return undefined;
+    }
+    const { repoDir, baseCommit } = getPathOverrides();
+    if (repoDir === undefined) {
+        return undefined;
+    }
+    if (baseCommit === undefined) {
+        return undefined;
+    }
+    return {
+        kind: DocumentResponseKind.baselineQuestionRequired,
+        baseCommit: baseCommit.toString(),
+        repo: repoDir.toString(),
+    };
+}
+
 export const PROGRESS_LABEL_ARTIFACT_CACHE_HIT = "reusing cached document artifact";
 
 // Built documents per (transcript-set stamp, consent, target). allowScripts is in the key
@@ -114,12 +143,16 @@ export function buildReconstructionWithConsent(
     target: Path | undefined,
     allowScripts: boolean,
     onProgress?: ProgressSink,
+    // task 56: trailing + defaulted so every pre-existing caller keeps today's behavior.
+    reconstructPreBaseline: boolean = true,
 ): BuiltReconstruction {
     const targetKey = target === undefined ? "" : target.toString();
     // item 46: const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${targetKey}`;
     // The stamp reads the ACTIVE overrides — callers applyProjectOverrides first; a config-file
     // edit between requests changes the stamp and misses the cache, which is the point.
-    const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${targetKey}|${serializePathOverrides()}`;
+    // task 56: the pre-baseline choice is in the key — a trimmed and a full build must never
+    // share an entry (same reason allowScripts is here).
+    const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${serializePathOverrides()}`;
     const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
     if (cachedBuild !== undefined) {
         reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
@@ -136,11 +169,18 @@ export function buildReconstructionWithConsent(
         return diskBuild;
     }
     setImpureExecutionAllowed(allowScripts);
+    // task 56: same lifecycle as the exec gate — the trim is on only for this build's duration.
+    setPreBaselineReconstructionAllowed(reconstructPreBaseline);
     // The deep engine stages (script sandbox runs, per-file reconstruction) announce through the
     // build-scoped module sink — same lifecycle as the exec gate: on for the build, off after.
     setReconstructionProgressSink(onProgress);
     try {
         const built = buildProjectReconstruction(jsonlPaths, target, onProgress);
+        // task 56: stamp trimmed builds so the timeline knows to start at the baseline node.
+        // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
+        if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {
+            built.document.preBaselineSkipped = true;
+        }
         // The build's new sandbox spawns were persisted per batch; flush the final tail so nothing is
         // lost before the response (batched persist is the O(N²)-write fix — item Step 6).
         flushSandboxMemoToDisk();
@@ -151,6 +191,7 @@ export function buildReconstructionWithConsent(
         return built;
     } finally {
         setImpureExecutionAllowed(false);
+        setPreBaselineReconstructionAllowed(true);
         setReconstructionProgressSink(undefined);
     }
 }
@@ -161,6 +202,7 @@ export function buildDocumentWithConsent(
     target: Path | undefined,
     allowScripts: boolean,
     onProgress?: ProgressSink,
+    reconstructPreBaseline: boolean = true,
 ): ReconstructionDocument {
-    return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress).document;
+    return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline).document;
 }

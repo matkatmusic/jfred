@@ -9,6 +9,7 @@
 import { el } from "../app-dom.ts";
 import { fetchDocument, fetchJson, fetchRawRecords } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
+import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { showLoadingProgress } from "../app-progress.ts";
 import { openInspectorPane } from "../inspector.ts";
 import { renderDetailsFileMode } from "./details-revision-view.ts";
@@ -89,6 +90,10 @@ function renderFileDetails(target: string, detailsContext: DetailsContext): void
 // inspector on it.
 export async function renderTimelineView(container: HTMLElement, project: string, anchorJsonl?: string, anchorLine?: string): Promise<void> {
     const result = await fetchDocument(project, undefined);
+    if (result.baselineQuestion !== undefined) {
+        renderBaselineQuestionDialog(container, project, result.baselineQuestion);
+        return;
+    }
     if (result.consentRequired !== undefined) {
         renderConsentDialog(container, project, result.consentRequired);
         return;

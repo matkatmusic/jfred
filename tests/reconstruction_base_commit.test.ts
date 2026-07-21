@@ -17,11 +17,14 @@ import {
     computeBaseCommitChangeId,
     readCommitTimestamp,
     seedBaseCommitBeacon,
+    setPreBaselineReconstructionAllowed,
 } from "../src/reconstruction_base_commit.ts";
 
-// Overrides are process-wide module state — never let one test's state leak into the next.
+// Overrides and the task-56 pre-baseline flag are process-wide module state — never let
+// one test's state leak into the next.
 afterEach(() => {
     setPathOverrides({});
+    setPreBaselineReconstructionAllowed(true);
 });
 
 // Build a throwaway git repo holding `files`, committed once at `commitInstant`
@@ -156,6 +159,52 @@ test("test_seed_base_commit_beacon_no_ops_for_file_absent_from_commit", () => {
         // Step: seeding returns the events unchanged.
         const seeded = seedBaseCommitBeacon(records, events, target);
         assert.deepEqual(seeded, events);
+    } finally {
+        rmSync(repoDir, { recursive: true, force: true });
+    }
+});
+
+test("test_seed_base_commit_beacon_drops_superseded_events_when_pre_baseline_reconstruction_declined", () => {
+    // Scenario (task 56): the user answered "No" to the pre-baseline question — events the
+    // beacon supersedes (at-or-before its insertion point) are dropped so replay skips them.
+    const commitInstant = "2026-01-01T00:00:10Z";
+    const { repoDir, commitHash } = makeCommittedRepo({ "orders.py": "committed\n" }, commitInstant);
+    try {
+        const records = [buildRecordWithCwd(repoDir, "2026-01-01T00:00:01Z")];
+        const target = new Path(join(repoDir, "orders.py"));
+        // Step: one event before the commit time, one after (same bracket as the splice test).
+        const earlier = buildWriteEvent(target, "before\n", "2026-01-01T00:00:05Z", "toolu_w1");
+        const later = buildWriteEvent(target, "after\n", "2026-01-01T00:00:20Z", "toolu_w2");
+        setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
+        // Step: decline pre-baseline reconstruction.
+        setPreBaselineReconstructionAllowed(false);
+        // Step: the result is exactly [beacon, later] — the earlier event is gone.
+        const seeded = seedBaseCommitBeacon(records, [earlier, later], target);
+        assert.equal(seeded.length, 2);
+        assert.ok(seeded[0]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
+        assert.equal(seeded[1], later);
+    } finally {
+        rmSync(repoDir, { recursive: true, force: true });
+    }
+});
+
+test("test_seed_base_commit_beacon_keeps_pre_baseline_events_by_default", () => {
+    // Scenario (task 56): with the flag untouched, the default is today's behavior — the
+    // beacon is spliced and every pre-baseline event survives (locks the CLI-safe default).
+    const commitInstant = "2026-01-01T00:00:10Z";
+    const { repoDir, commitHash } = makeCommittedRepo({ "orders.py": "committed\n" }, commitInstant);
+    try {
+        const records = [buildRecordWithCwd(repoDir, "2026-01-01T00:00:01Z")];
+        const target = new Path(join(repoDir, "orders.py"));
+        const earlier = buildWriteEvent(target, "before\n", "2026-01-01T00:00:05Z", "toolu_w1");
+        const later = buildWriteEvent(target, "after\n", "2026-01-01T00:00:20Z", "toolu_w2");
+        setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
+        // Step: the splice keeps both neighbors in place around the beacon.
+        const seeded = seedBaseCommitBeacon(records, [earlier, later], target);
+        assert.equal(seeded.length, 3);
+        assert.equal(seeded[0], earlier);
+        assert.ok(seeded[1]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
+        assert.equal(seeded[2], later);
     } finally {
         rmSync(repoDir, { recursive: true, force: true });
     }

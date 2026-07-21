@@ -10,6 +10,7 @@ import {
     peekCachedDocument,
 } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
+import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { routeToFileHistory, routeToProject, routeToTimeline } from "../app-routes.ts";
 
 // app.ts is being typed in parallel; typed view of its untyped `el` for this file's call sites.
@@ -111,6 +112,10 @@ export async function renderProjectDrawer(
 // consent dialog when scripts need a decision) and shows a summary; the drawer is the nav.
 export async function renderProjectView(container: HTMLElement, project: string): Promise<void> {
     const result = await fetchDocument<WireDocument>(project, undefined);
+    if (result.baselineQuestion !== undefined) {
+        renderBaselineQuestionDialog(container, project, result.baselineQuestion);
+        return;
+    }
     if (result.consentRequired !== undefined) {
         renderConsentDialog(container, project, result.consentRequired);
         return;

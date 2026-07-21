@@ -2,7 +2,7 @@
 // the contiguity rule hint, the picked-range summary strip, and the range-patch fetch.
 
 import { el } from "../app-dom.ts";
-import { fetchText, getConsentChoice } from "../app-fetch.ts";
+import { fetchText, getBaselineChoice, getConsentChoice } from "../app-fetch.ts";
 import { downloadText } from "./download.ts";
 import { checkNodeIsPickable, checkPickIsLegal, computeRangeSummary } from "./timeline-picks.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
@@ -16,6 +16,11 @@ export function buildConsentParams(context: TimelineRenderContext): URLSearchPar
     }
     if (choice === "0") {
         params.set("declined", "1");
+    }
+    // task 56: ride the stored pre-baseline answer so this hits the same cached document.
+    const baselineChoice = getBaselineChoice(context.project);
+    if (baselineChoice !== null) {
+        params.set("preBaseline", baselineChoice);
     }
     return params;
 }

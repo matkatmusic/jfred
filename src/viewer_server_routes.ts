@@ -7,6 +7,7 @@ import { type ServerResponse } from "node:http";
 import {
     buildDocumentWithConsent,
     buildReconstructionWithConsent,
+    decideBaselineQuestion,
     decideDocumentResponse,
     PROGRESS_LABEL_SERIALIZING_DOCUMENT,
     formatSendingDocumentLabel,
@@ -83,6 +84,9 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
     const projectName = requireParam(query, "project");   // a missing project still 400s (before any header)
     const jsonlName = query.get("jsonl");
     const allowScripts = query.get("allowScripts") === "1";
+    // task 56: "1"/"0" = the user's pre-baseline answer; null = not asked yet (gate below).
+    const preBaselineChoice = query.get("preBaseline");
+    const reconstructPreBaseline = preBaselineChoice !== "0";
     const targetValue = query.get("target");
     const target = targetValue === null ? undefined : new Path(targetValue);
     // declined=1 is the client's remembered "Continue without running" — build degraded, no re-prompt.
@@ -90,11 +94,17 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
     // item 46: the project's path overrides apply to everything below (both branches). Runs
     // before any header goes out, so a malformed reveng-paths.json still 400s loudly.
     applyProjectOverrides(projectName);
+    // task 56: a configured base commit needs the user's answer BEFORE any consent scan or build.
+    const baselineQuestion = decideBaselineQuestion(preBaselineChoice !== null);
 
     // Non-progress path: resolve + consent-decide + respond, all BEFORE any header, so a resolver
     // refusal (bad project, traversal) still becomes a 400 via the outer catch. Consent-required is
     // HTTP 200 with the kind discriminant (not 428) so browsers don't log the expected flow as an error.
     if (query.get("progress") !== "1") {
+        if (baselineQuestion !== undefined) {
+            sendJson(response, 200, baselineQuestion);
+            return;
+        }
         const jsonlPaths = resolveJsonlPaths(projectName, jsonlName);
         const { records } = loadProjectRecords(jsonlPaths);
         const decision = decideDocumentResponse(records, allowScripts);
@@ -102,7 +112,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
             sendJson(response, 200, decision);
             return;
         }
-        sendJson(response, 200, buildDocumentWithConsent(jsonlPaths, target, allowScripts, logBuildProgressToConsole));
+        sendJson(response, 200, buildDocumentWithConsent(jsonlPaths, target, allowScripts, logBuildProgressToConsole, reconstructPreBaseline));
         return;
     }
 
@@ -131,6 +141,12 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
         writeNdjsonLine({ kind: DocumentResponseKind.progress, label });
     };
     try {
+        // task 56: same gate as the non-progress path, as the stream's terminal line.
+        if (baselineQuestion !== undefined) {
+            reportStage(`pre-baseline question required — base commit ${baselineQuestion.baseCommit}`);
+            response.end(JSON.stringify(baselineQuestion) + "\n");
+            return;
+        }
         reportStage(`resolving transcript files for ${projectName}`);
         const jsonlPaths = resolveJsonlPaths(projectName, jsonlName);
         reportStage(`resolved ${jsonlPaths.length} transcript file(s)`);
@@ -149,7 +165,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
         const document = buildDocumentWithConsent(jsonlPaths, target, allowScripts, (event) => {
             writeNdjsonLine(event);
             logBuildProgressToConsole(event);
-        });
+        }, reconstructPreBaseline);
         // The stringify below blocks the event loop for the whole document (seconds for a large
         // project); announce it FIRST so the client shows "serializing document" instead of
         // freezing on the last build line. The byte size is only known AFTER stringify, so the
@@ -171,13 +187,16 @@ export function handleDiffRequest(response: ServerResponse, query: URLSearchPara
     const jsonlPaths = resolveJsonlPaths(projectName, query.get("jsonl"));
     const filePath = new Path(requireParam(query, "file"));
     const allowScripts = query.get("allowScripts") === "1";
+    // task 56: no question gate here — the timeline already decided; the param only keeps
+    // this request on the same cache entry as the document it is diffing.
+    const reconstructPreBaseline = query.get("preBaseline") !== "0";
     // item 75: "Show full contents" — the revision-diff branch below widens git's context
     // to the whole file when the client asks for it.
     const fullContext = query.get("context") === "full";
     // Untargeted on purpose: both diff views send no jsonl param, so this reuses the very
     // project-wide artifact the views already built (equality certified by
     // test_revision_diff_from_untargeted_document_matches_targeted_build).
-    const document = buildDocumentWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole);
+    const document = buildDocumentWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole, reconstructPreBaseline);
     if (query.get("mode") === "vsbase") {
         sendText(response, 200, renderDiffVsBase(document, filePath, Number(query.get("rev") ?? "0")));
         return;
@@ -194,6 +213,7 @@ export function handleRangePatchRequest(response: ServerResponse, query: URLSear
     applyProjectOverrides(projectName);   // item 46
     const { fromStep, toStep } = parseRangePatchQuery(query);
     const allowScripts = query.get("allowScripts") === "1";
+    const reconstructPreBaseline = query.get("preBaseline") !== "0";   // task 56: cache-key agreement only
     const declined = query.get("declined") === "1";
     const jsonlPaths = resolveJsonlPaths(projectName, null);
     const { records } = loadProjectRecords(jsonlPaths);
@@ -202,7 +222,7 @@ export function handleRangePatchRequest(response: ServerResponse, query: URLSear
         sendJson(response, 200, decision);
         return;
     }
-    const { document, stepFileHistories } = buildReconstructionWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole);
+    const { document, stepFileHistories } = buildReconstructionWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole, reconstructPreBaseline);
     sendText(response, 200, renderRangePatch(stepFileHistories, document.steps, fromStep, toStep));
 }
 
@@ -214,6 +234,7 @@ export function handleStepFilesRequest(response: ServerResponse, query: URLSearc
     applyProjectOverrides(projectName);   // item 46
     const { step } = parseStepFilesQuery(query);
     const allowScripts = query.get("allowScripts") === "1";
+    const reconstructPreBaseline = query.get("preBaseline") !== "0";   // task 56: cache-key agreement only
     const declined = query.get("declined") === "1";
     const jsonlPaths = resolveJsonlPaths(projectName, null);
     const { records } = loadProjectRecords(jsonlPaths);
@@ -222,6 +243,6 @@ export function handleStepFilesRequest(response: ServerResponse, query: URLSearc
         sendJson(response, 200, decision);
         return;
     }
-    const { document, stepFileHistories } = buildReconstructionWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole);
+    const { document, stepFileHistories } = buildReconstructionWithConsent(jsonlPaths, undefined, allowScripts, logBuildProgressToConsole, reconstructPreBaseline);
     sendJson(response, 200, resolveStepFiles(stepFileHistories, document.steps, step));
 }

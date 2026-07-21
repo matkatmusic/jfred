@@ -5,9 +5,11 @@ import { el as elFromApp } from "../app-dom.ts";
 import {
     fetchDocument,
     fetchText,
+    getBaselineChoice,
     getConsentChoice,
 } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
+import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { routeToFileHistory } from "../app-routes.ts";
 import {
     computeInlineRows,
@@ -130,6 +132,10 @@ export async function renderDiffVsBaseView(
     anchorRev: string | undefined,
 ): Promise<void> {
     const result = await fetchDocument<WireFileHistoryDocument>(project, undefined);
+    if (result.baselineQuestion !== undefined) {
+        renderBaselineQuestionDialog(container, project, result.baselineQuestion);
+        return;
+    }
     if (result.consentRequired !== undefined) {
         renderConsentDialog(container, project, result.consentRequired);
         return;
@@ -148,6 +154,9 @@ export async function renderDiffVsBaseView(
     const loadDiff = async () => {
         const params = new URLSearchParams({ project, file: target, mode: "vsbase", rev: revisionSelect.value });
         if (getConsentChoice(project) === "1") params.set("allowScripts", "1");
+        // task 56: ride the stored pre-baseline answer so this hits the same cached document.
+        const baselineChoice = getBaselineChoice(project);
+        if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
         renderDiffText(diffPane, await fetchText(`/api/diff?${params}`));
     };
     // URL sync lives in the listener, not loadDiff, so the initial render never rewrites a bare

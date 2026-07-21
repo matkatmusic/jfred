@@ -96,6 +96,9 @@ export type WireTimelineDocument = {
     // Optional (same convention): every failure the engine survived (task 119) — the partial-
     // reconstruction banner's counts and tooltip reasons.
     failures?: { scope: string; stage: string; target?: string; reason: string }[];
+    // Optional (same convention): the user declined pre-baseline reconstruction (task 56) —
+    // the git-baseline node becomes the timeline's first shown step.
+    preBaselineSkipped?: boolean;
 };
 export type WireJsonlFile = { fileName: string };
 export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };

@@ -19,10 +19,12 @@ import {
     RevisionViewMode,
     buildRevisionCards,
     checkCardRunIsContiguous,
+    checkChangeIdIsGitBaseline,
     computeFocusedCardIndex,
     computeOwningNodeIndexes,
     fullContentsIsOn,
 } from "./details-model.ts";
+import { showGitBaselineInDetails } from "./details-baseline.ts";
 import {
     fetchRevisionDiffBlocks,
     setDetailsHeader,
@@ -80,6 +82,11 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         if (card.unrecoverableReason !== undefined) {
             const previousBlock = index > 0 ? (await getDiffBlocks(fullContentsIsOn()))[index - 1] : undefined;
             showUnrecoverableInDetails(label, card.unrecoverableReason, previousBlock, () => void showCardDiff(card, index));
+            return;
+        }
+        // task 56 follow-up: a base-commit beacon's diff is empty — show the committed bytes.
+        if (checkChangeIdIsGitBaseline(card.changeId)) {
+            showGitBaselineInDetails(context.document, target, card.changeId);
             return;
         }
         const block = (await getDiffBlocks(fullContentsIsOn()))[index];

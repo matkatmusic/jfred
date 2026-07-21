@@ -159,6 +159,9 @@ export type ReconstructionDocument = {
     scriptRuns: ScriptRunFileChanges[];
     // Every line the tolerant parse skipped — the webapp's timeline gap rows.
     skippedLines: SkippedLine[];
+    // task 56: true only when the user declined pre-baseline reconstruction (viewer-stamped,
+    // never by the CLI) — the timeline starts at the git-baseline node.
+    preBaselineSkipped?: boolean;
     // Every failure the engine survived while building THIS document. Known limitation: per-file
     // revision memos are cached per records-array, so a warm rebuild over cached revisions
     // re-reports only per-revision `unrecoverable` flags (cached inside the revision objects),

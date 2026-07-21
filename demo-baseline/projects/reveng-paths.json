@@ -1,0 +1,6 @@
+{
+    "baseline-demo": {
+        "repo": "demo-baseline/projects/baseline-demo/repo",
+        "baseCommit": "3802acbd0a0e4aca111ab27cf503471de8cd5633"
+    }
+}

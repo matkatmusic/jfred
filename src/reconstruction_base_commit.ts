@@ -26,6 +26,17 @@ import { noteStage } from "./reconstruction_provenance.ts";
 
 export const BASE_COMMIT_CHANGE_ID_PREFIX = "gitBase:";
 
+// Task 56: whether events preceding the base-commit beacon are still replayed. true =
+// today's behavior (splice among them). false = the user's "No" to the pre-baseline
+// question: the beacon supersedes them, so they are dropped before replay. Module state
+// on the exec-gate precedent — builds are synchronous and serialized; the viewer sets it
+// per request and resets to true afterwards (the CLI never touches it).
+let preBaselineReconstructionAllowed = true;
+
+export function setPreBaselineReconstructionAllowed(allowed: boolean): void {
+    preBaselineReconstructionAllowed = allowed;
+}
+
 // Deterministic changeId (item-34 scriptRun: precedent) so every replay of the same
 // baseline agrees: gitBase:<hash>:<target>.
 export function computeBaseCommitChangeId(baseCommit: Uuid, target: Path): Uuid {
@@ -118,6 +129,19 @@ export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEv
     // splicing into a COPY of the input.
     const followerIndex = events.findIndex((event) => event.timestamp.getTime() > timestamp.getTime());
     const insertionIndex = followerIndex === -1 ? events.length : followerIndex;
+    if (!preBaselineReconstructionAllowed) {
+        // Task 56: the beacon supersedes everything at-or-before its insertion point — drop
+        // those events so replay never does the work the baseline already answers for.
+        const trimmed = [beacon, ...events.slice(insertionIndex)];
+        noteStage({
+            stage: "seedBaseCommitBeacon",
+            target,
+            changeId,
+            detail: `seeded a tier-1 write beacon and dropped ${insertionIndex} superseded pre-baseline event(s)`,
+            when: timestamp,
+        });
+        return trimmed;
+    }
     const seeded = [...events];
     seeded.splice(insertionIndex, 0, beacon);
     noteStage({

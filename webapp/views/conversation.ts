@@ -7,6 +7,7 @@ import { el as elUntyped } from "../app-dom.ts";
 import { logProgress } from "../app-console.ts";
 import { fetchDocument, fetchRawRecords } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
+import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { routeToConversation, routeToFileHistory } from "../app-routes.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
@@ -119,6 +120,10 @@ function buildStubRowNode(entry: Extract<ConversationEntry, { kind: "stub" }>, i
 
 export async function renderConversationView(container: HTMLElement, project: string, jsonl: string, anchorLine: string | undefined): Promise<void> {
     const result = await fetchDocument<WireConversationDocument>(project, jsonl);
+    if (result.baselineQuestion !== undefined) {
+        renderBaselineQuestionDialog(container, project, result.baselineQuestion);
+        return;
+    }
     if (result.consentRequired !== undefined) {
         renderConsentDialog(container, project, result.consentRequired);
         return;

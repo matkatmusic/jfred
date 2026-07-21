@@ -192,6 +192,8 @@ export enum BranchRole {
 export enum DocumentResponseKind {
     document = "document",
     consentRequired = "consent-required",
+    // task 56: a configured base commit needs the user's pre-baseline answer first
+    baselineQuestionRequired = "baseline-question",
     progress = "progress",
     error = "error",
 }

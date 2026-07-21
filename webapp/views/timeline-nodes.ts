@@ -187,6 +187,21 @@ function checkMessageTextIsSystem(text: string): boolean {
     return text.includes("<system-reminder>");
 }
 
+// (task 56) when the document was built without pre-baseline reconstruction, the git-baseline
+// node is the first shown step: every node strictly before its instant is dropped. Without a
+// baseline node (e.g. the commit was unreadable, so no beacons were seeded) nothing is hidden —
+// never hide work that was not superseded.
+function filterPreBaselineNodes(nodes: TimelineNode[], preBaselineSkipped: boolean): TimelineNode[] {
+    if (!preBaselineSkipped) {
+        return nodes;
+    }
+    const baselineNode = nodes.find((node) => node.isGitBaseline === true);
+    if (baselineNode === undefined) {
+        return nodes;
+    }
+    return nodes.filter((node) => node.when >= baselineNode.when);
+}
+
 // One timeline node per conversation turn: every user prompt and agent reply is a numbered step;
 // a session-end step closes each session; git commits stay as unnumbered hard stops.
 // StepSnapshots attach to the first agent reply of their own session at or after them (tool calls
@@ -212,7 +227,9 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument): { no
     const toolCallNodes = deriveToolCallNodes(document);
     appendSessionEndNodes(turnNodes, toolCallNodes);
     const commitNodes = deriveCommitNodes(document);
-    const nodes = [...turnNodes, ...commitNodes, ...toolCallNodes].sort(compareTimelineNodes);
+    const sortedNodes = [...turnNodes, ...commitNodes, ...toolCallNodes].sort(compareTimelineNodes);
+    // (task 56) drop pre-baseline nodes BEFORE numbering so step 1 is the baseline node.
+    const nodes = filterPreBaselineNodes(sortedNodes, document.preBaselineSkipped === true);
     assignStepNumbers(nodes);
     deriveNodeFileChanges(nodes, revisionIndex);
     return { nodes };

@@ -8,14 +8,18 @@ import { hideLoadingProgress, showLoadingProgress } from "./app-progress.ts";
 export type WireConsentScript = { timestamp: string; cwd?: string; code: string; readOnly?: boolean; source?: { filePath: string; lineNumber: number } };
 // The unified document payload is carried opaquely here; views type their own slices.
 type WireDocument = Record<string, unknown>;
-// One NDJSON line of the /api/document stream: progress lines, the error/consent terminals,
-// or the document itself (which has no `kind`).
+// The task-56 pre-baseline question payload: which repo/commit the answer is about.
+export type WireBaselineQuestion = { baseCommit: string; repo: string };
+// One NDJSON line of the /api/document stream: progress lines, the error/consent/
+// baseline-question terminals, or the document itself (which has no `kind`).
 type WireDocumentStreamLine = WireDocument & {
-    kind?: "progress" | "error" | "consent-required";
+    kind?: "progress" | "error" | "consent-required" | "baseline-question";
     label?: string;
     current?: number;
     total?: number;
     scripts?: WireConsentScript[];
+    baseCommit?: string;
+    repo?: string;
 };
 
 export const documentCache = new Map<string, WireDocument>();
@@ -74,9 +78,13 @@ export async function fetchRawRecords(project: string, jsonl: string): Promise<s
     return rawLinesCache.get(cacheKey)!;
 }
 
-// ─── script-execution consent (per-browser-SESSION memory only, by design) ──
+// ─── script-execution consent + pre-baseline choice (per-browser-SESSION memory only, by design) ──
 
 const CONSENT_KEY_PREFIX = "consent:";
+// task 56: the pre-baseline answer, stored per project exactly like the consent choice.
+const BASELINE_KEY_PREFIX = "baseline:";
+// Prefixes of per-project choices a server relaunch must forget (boot-id sweep below).
+const CHOICE_KEY_PREFIXES = [CONSENT_KEY_PREFIX, BASELINE_KEY_PREFIX];
 
 function computeConsentKey(project: string): string {
     return `${CONSENT_KEY_PREFIX}${project}`;
@@ -89,6 +97,19 @@ export function storeConsentChoice(project: string, choice: string): void {
 // "1" (run), "0" (declined), or null (not asked yet this session).
 export function getConsentChoice(project: string): string | null {
     return sessionStorage.getItem(computeConsentKey(project));
+}
+
+function computeBaselineKey(project: string): string {
+    return `${BASELINE_KEY_PREFIX}${project}`;
+}
+
+export function storeBaselineChoice(project: string, choice: string): void {
+    sessionStorage.setItem(computeBaselineKey(project), choice);
+}
+
+// "1" (reconstruct pre-baseline), "0" (start at the baseline commit), or null (not asked yet).
+export function getBaselineChoice(project: string): string | null {
+    return sessionStorage.getItem(computeBaselineKey(project));
 }
 
 // The server stamps each process launch with a boot id (GET /api/config). Consent choices live in
@@ -105,7 +126,7 @@ export function reconcileServerBootId(bootId: string): void {
     }
     for (let index = sessionStorage.length - 1; index >= 0; index--) {
         const key = sessionStorage.key(index);
-        if (key !== null && key.startsWith(CONSENT_KEY_PREFIX)) {
+        if (key !== null && CHOICE_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
             sessionStorage.removeItem(key);
         }
     }
@@ -162,7 +183,7 @@ async function parseDocumentStreamLines(lines: string[], finalPayload: WireDocum
 
 // DocumentType lets each view name the wire fields it reads (its own Wire* type); the cache and
 // stream handling below stay shape-agnostic.
-export async function fetchDocument<DocumentType = WireDocument>(project: string, jsonl?: string): Promise<{ document?: DocumentType; consentRequired?: WireConsentScript[] }> {
+export async function fetchDocument<DocumentType = WireDocument>(project: string, jsonl?: string): Promise<{ document?: DocumentType; consentRequired?: WireConsentScript[]; baselineQuestion?: WireBaselineQuestion }> {
     const cacheKey = `${project}|${jsonl ?? "*"}`;
     if (documentCache.has(cacheKey)) return { document: documentCache.get(cacheKey)! as DocumentType };
     const params = new URLSearchParams({ project, progress: "1" });
@@ -170,6 +191,9 @@ export async function fetchDocument<DocumentType = WireDocument>(project: string
     const choice = sessionStorage.getItem(computeConsentKey(project));
     params.set("allowScripts", choice === "1" ? "1" : "0");
     if (choice === "0") params.set("declined", "1");
+    // task 56: an absent choice sends NO param — that is what lets the server ask.
+    const baselineChoice = getBaselineChoice(project);
+    if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
     const controller = new AbortController();
     inflightLoadController = controller;
     setCancelButtonVisible(true);
@@ -195,9 +219,12 @@ export async function fetchDocument<DocumentType = WireDocument>(project: string
             ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
             finalPayload = await parseDocumentStreamLines(lines, finalPayload);
         }
-        // A real document has no `kind` field; consent/error ride the kind discriminant.
+        // A real document has no `kind` field; consent/error/baseline ride the kind discriminant.
         if (finalPayload.kind === "error") throw new Error(finalPayload.label);
         if (finalPayload.kind === "consent-required") return { consentRequired: finalPayload.scripts };
+        if (finalPayload.kind === "baseline-question") {
+            return { baselineQuestion: { baseCommit: finalPayload.baseCommit!, repo: finalPayload.repo! } };
+        }
         documentCache.set(cacheKey, finalPayload);
         // item 66: this load actually streamed (cache miss) and completed — auto-collapse the
         // console shortly after so the timeline gets the vertical space back.

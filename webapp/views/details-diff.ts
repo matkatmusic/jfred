@@ -5,7 +5,7 @@
 // shownDiff toggle state.
 
 import { el } from "../app-dom.ts";
-import { fetchText, getConsentChoice } from "../app-fetch.ts";
+import { fetchText, getBaselineChoice, getConsentChoice } from "../app-fetch.ts";
 import { resetDetailsFind } from "./details-find.ts";
 import {
     SplitRowKind,
@@ -226,6 +226,8 @@ export async function fetchRevisionDiffBlocks(project: string, target: string, f
     if (getConsentChoice(project) === "1") {
         params.set("allowScripts", "1");
     }
+    const baselineChoice = getBaselineChoice(project);   // task 56: same cached document
+    if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
     if (fullContents) {
         params.set("context", "full");
     }

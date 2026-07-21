@@ -18,7 +18,8 @@ import {
     type TimelineNode,
     type WireTimelineDocument,
 } from "./timeline-types.ts";
-import { type DetailsContext, computeDetailsHeaderText, fullContentsIsOn } from "./details-model.ts";
+import { type DetailsContext, checkChangeIdIsGitBaseline, computeDetailsHeaderText, fullContentsIsOn } from "./details-model.ts";
+import { showGitBaselineInDetails } from "./details-baseline.ts";
 import {
     clearRightPaneBody,
     fetchRevisionDiffBlocks,
@@ -113,6 +114,11 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
     // Re-callable so the full-contents toggle can re-fetch this file's diff at the current stored
     // context width (item 75).
     const showFileDiff = async (change: FileChange) => {
+        // task 56 follow-up: a base-commit beacon's diff is empty — show the committed bytes.
+        if (checkChangeIdIsGitBaseline(change.changeId)) {
+            showGitBaselineInDetails(context.document, change.path, change.changeId!);
+            return;
+        }
         const blocks = await fetchRevisionDiffBlocks(context.project, change.path, fullContentsIsOn());
         await showRevisionDiffInDetails(change, blocks, context.document.filesTouched, () => void showFileDiff(change));
     };
