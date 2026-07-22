@@ -1,10 +1,12 @@
-# Task 64: the public repo's only CI — typecheck, capture-free tests, and webapp build on every
-# push/PR. The executed scenario captures (scenarios/executed/, raw session transcripts) are
-# gitignored in the scenarios submodule and never published, so no checkout can provide the
-# JSONLs the scenario suites read — `npm run test:ci` runs exactly the tests whose imports avoid
-# the capture-reading modules (scripts/list_capture_free_tests.ts); the full suite stays a local
-# concern. No submodules are needed. Free on public repos (standard GitHub-hosted runners); no
-# matrix or release automation until the repo has users.
+# Task 165: the public repo's only CI — typecheck, the FULL test suite, and webapp build on
+# every push/PR. The executed scenario captures (scenarios/executed/, exposure reviewed and
+# accepted 2026-07-21) are published in the scenarios submodule, including per-session
+# file-history sidecars (scenarios/file-history/) and each git-baseline scenario's repo as
+# repo.git.tar (a nested .git commits as a gitlink and drops contents — the demo-bundle trap;
+# npm pretest re-extracts them). Genuinely machine-bound tests (e.g. s85's repo recorded at a
+# live tmpdir cwd) may still fail here — exclude those via scripts/list_capture_free_tests.ts
+# (`npm run test:ci`) if they prove unfixable. Free on public repos; no matrix or release
+# automation until the repo has users.
 name: CI
 
 on:
@@ -17,11 +19,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
+            - run: git submodule update --init scenarios
             - uses: actions/setup-node@v5
               with:
                   node-version: 22          # matches devDependencies' @types/node ^22
                   cache: npm
             - run: npm ci
             - run: npm run typecheck
-            - run: npm run test:ci
+            - run: npm test
             - run: npm run build:webapp     # catches webapp tsconfig breakage (task text)

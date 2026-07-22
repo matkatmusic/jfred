@@ -15,6 +15,7 @@ import { fillRedirectContent, seedEditBaseFromBackup } from "./reconstruction_si
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { completeElidedBeacons, completeTruncatedBeacon } from "./reconstruction_beacons.ts";
 import { injectScriptExecutions } from "./reconstruction_script_stage.ts";
+import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
 import {
     enterLineageReplayWindow,
     restoreLineageReplayWindow,
@@ -114,7 +115,12 @@ function computeFileRevisionsOver(
     resolving: Set<string>,
     reader?: BackupReader,
 ): FileRevision[] {
-    const events = extractFileEvents(records);
+    const extracted = extractFileEvents(records);
+    // task 155: sandbox-proven script moves join the chain so a moved source's lineage
+    // resolves to its destination; stage-tolerant like every impure stage.
+    const events = reader
+        ? runStageTolerantly("appendScriptMoveRenames", target, extracted, () => appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader)))
+        : extracted;
     const renameChain = buildRenameChain(events);
     const finalTarget = resolveFinalPath(target, renameChain);
     const lineage = events.filter((event) =>

@@ -10,6 +10,7 @@ import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findConversationBranches, selectBranchRecords } from "./reconstruction_branch.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { discoverScriptCreatedPaths } from "./reconstruction_script_runs.ts";
+import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import {
     buildRenameChain,
@@ -26,7 +27,10 @@ export function reconstructFilesOver(
     records: TranscriptRecord[],
     reader?: BackupReader,
 ): FileHistory[] {
-    const events = extractFileEvents(records);
+    const extracted = extractFileEvents(records);
+    // task 155: sandbox-proven script moves join the chain so a moved-away source collapses
+    // into its destination's history instead of surviving as an alive 1-revision file.
+    const events = appendScriptMoveRenames(extracted, records, reader, reader ? getLineageContentBefore(records, reader) : undefined);
     const renameChain = buildRenameChain(events);
     const targets = distinctFinalPaths(events, renameChain);
     if (reader) {

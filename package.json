@@ -6,6 +6,7 @@
     "description": "Reconstruct file change history from Claude Code session JSONL files (clean-room).",
     "license": "GPL-3.0-only",
     "scripts": {
+        "pretest": "sh scripts/extract_scenario_git_tars.sh",
         "test": "node --import tsx --test tests/*.test.ts",
         "test:ci": "node --import tsx --test $(node --import tsx scripts/list_capture_free_tests.ts)",
         "typecheck": "tsc --noEmit",
