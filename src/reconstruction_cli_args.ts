@@ -7,18 +7,24 @@ import { basename, dirname } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 import {
     hydrateProjectPaths,
+    hydrateProjectSources,
     readProjectPathsConfig,
     setPathOverrides,
     type PathOverrides,
+    type SourceEntry,
+    type WireProjectPaths,
 } from "./reconstruction_overrides.ts";
 
 // item 46: const USAGE =
 // item 46:     "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords]";
 export const USAGE =
-    "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>]";
+    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>]";
 
 export type CliOptions = {
     jsonlPath: string;
+    // Spec S4b: every positional is a transcript; jsonlPath stays the first (the config-lookup
+    // and error paths key on it).
+    jsonlPaths: string[];
     target: Path | undefined;
     branch: string | undefined;
     countSteps: boolean;
@@ -91,7 +97,9 @@ export function parseArgs(argv: string[]): CliOptions {
     const baseCommitFlag = extractValueFlag(repoFlag.rest, "--base-commit");
     // item 46: const rest = stepFlag.rest;
     const rest = baseCommitFlag.rest;
-    const jsonlPath = rest.find((arg) => !arg.startsWith("--"));
+    // item 46 / spec S4b: const jsonlPath = rest.find((arg) => !arg.startsWith("--"));
+    const jsonlPaths = rest.filter((arg) => !arg.startsWith("--"));
+    const jsonlPath = jsonlPaths[0];
     if (!jsonlPath) {
         throw new Error(USAGE);
     }
@@ -106,6 +114,7 @@ export function parseArgs(argv: string[]): CliOptions {
     const graphs = resolveGraphFlags(rest, branchFlag.value, surviving, listBranches, verbose, diff);
     return {
         jsonlPath,
+        jsonlPaths,
         target: fileAlias.value !== undefined ? new Path(fileAlias.value) : undefined,
         branch: branchFlag.value,
         countSteps,
@@ -133,6 +142,10 @@ export function applyCliPathOverrides(options: CliOptions): void {
     const projectDir = dirname(options.jsonlPath);
     const entry = readProjectPathsConfig(new Path(dirname(projectDir)))[basename(projectDir)];
     const merged: PathOverrides = entry !== undefined ? hydrateProjectPaths(entry) : {};
+    const sources = resolveCliSources(options, entry, projectDir);
+    if (sources !== undefined) {
+        merged.sources = sources;
+    }
     if (options.fileHistoryRoot !== undefined) {
         merged.fileHistoryRoot = options.fileHistoryRoot;
     }
@@ -146,6 +159,31 @@ export function applyCliPathOverrides(options: CliOptions): void {
         merged.baseCommit = options.baseCommit;
     }
     setPathOverrides(merged);
+}
+
+// Spec S4b: the run's declared sources — the config entry's `sources` list when the transcript's
+// project declares one; else, for positionals spanning more than one DISTINCT projects root, one
+// bare {projectsDir} source per root (positional order) so per-source sibling file-history
+// resolution works with zero config. Single-root single-transcript runs stay sources-less.
+function resolveCliSources(
+    options: CliOptions,
+    entry: WireProjectPaths | undefined,
+    projectDir: string,
+): SourceEntry[] | undefined {
+    if (entry?.sources !== undefined) {
+        return hydrateProjectSources(new Path(dirname(projectDir)), entry);
+    }
+    const distinctRoots: string[] = [];
+    for (const jsonlPath of options.jsonlPaths) {
+        const projectsRoot = dirname(dirname(jsonlPath));
+        if (!distinctRoots.includes(projectsRoot)) {
+            distinctRoots.push(projectsRoot);
+        }
+    }
+    if (distinctRoots.length <= 1) {
+        return undefined;
+    }
+    return distinctRoots.map((projectsRoot) => ({ projectsDir: new Path(projectsRoot) }));
 }
 
 // Parse the `--step <n>` value into a 1-based step number, or undefined when the flag is absent. A

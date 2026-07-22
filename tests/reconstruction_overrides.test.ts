@@ -204,3 +204,22 @@ test("test_write_project_paths_entry_merges_into_existing_config", () => {
     writeProjectPathsEntry(new Path(emptyProjectsDir), "proj-new", { fileHistory: "/tmp/fh" });
     assert.deepEqual(readProjectPathsConfig(new Path(emptyProjectsDir))["proj-new"], { fileHistory: "/tmp/fh" });
 });
+
+test("test_serialize_path_overrides_includes_sources", () => {
+    // Scenario (spec S6): the cache stamp must distinguish source configs — a source-list
+    // change can never reuse a single-source cached document.
+    // Step: capture the empty-overrides stamp.
+    setPathOverrides({});
+    const emptyStamp = serializePathOverrides();
+    // Test action: set overrides carrying one declared source (with root, no fileHistoryDir).
+    setPathOverrides({
+        sources: [{ projectsDir: new Path("/tmp/live/projects"), root: new Path("/tmp/ws") }],
+    });
+    const sourcedStamp = serializePathOverrides();
+    // Test verification: the stamp changed, and it is deterministic across calls.
+    assert.notEqual(sourcedStamp, emptyStamp);
+    assert.equal(sourcedStamp, serializePathOverrides());
+    // the source's fields are all present in the stamp (fixed key order via JSON round-trip).
+    assert.ok(sourcedStamp.includes("/tmp/live/projects"));
+    assert.ok(sourcedStamp.includes("/tmp/ws"));
+});

@@ -29,6 +29,12 @@ export function getRecordSource(record: TranscriptRecord): RecordSource | undefi
     return recordSources.get(record);
 }
 
+// Re-stamp a clone with its original's source (the multi-source identity join clones records
+// to remap paths; a stampless clone would break per-source file-history resolution).
+export function setRecordSource(record: TranscriptRecord, source: RecordSource): void {
+    recordSources.set(record, source);
+}
+
 // " [file.jsonl:123]" for a known source, "" otherwise — the clickable token appended to console
 // labels (the client's matchJsonlSourceLink parses it back into a raw-line jump).
 export function formatRecordSourceToken(source: RecordSource | undefined): string {

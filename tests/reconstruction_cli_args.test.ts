@@ -97,3 +97,50 @@ describe("applyCliPathOverrides", () => {
         assert.deepEqual(getPathOverrides(), {});
     });
 });
+
+test("test_parse_args_collects_multiple_positional_transcripts", () => {
+    // Scenario (spec S4b): every non-flag argument is a transcript path — multiple
+    // conversation-log folders arrive as multiple positionals.
+    const options = parseArgs(["a.jsonl", "b.jsonl", "--diff"]);
+    // Test verification: both positionals collected, first one keeps the legacy field.
+    assert.deepEqual(options.jsonlPaths, ["a.jsonl", "b.jsonl"]);
+    assert.equal(options.jsonlPath, "a.jsonl");
+});
+
+test("test_parse_args_single_positional_keeps_legacy_fields", () => {
+    // Scenario (spec S4b): a single-transcript invocation is byte-for-byte the legacy shape.
+    const options = parseArgs(["t.jsonl", "--verbose"]);
+    assert.deepEqual(options.jsonlPaths, ["t.jsonl"]);
+    assert.equal(options.jsonlPath, "t.jsonl");
+});
+
+test("test_apply_cli_overrides_derives_sources_from_multi_root_positionals", () => {
+    // Scenario (spec S4b): positionals spanning two DISTINCT projects roots, with no config
+    // sources, derive one bare {projectsDir} source per root so per-source sibling
+    // file-history resolution works with zero config.
+    // Step: two copied-out-of-~/.claude trees, one transcript path in each.
+    const treeA = mkdtempSync(join(tmpdir(), "cli-sources-a-"));
+    const treeB = mkdtempSync(join(tmpdir(), "cli-sources-b-"));
+    const projectDirA = join(treeA, "projects", "-proj-a");
+    const projectDirB = join(treeB, "projects", "-proj-b");
+    mkdirSync(projectDirA, { recursive: true });
+    mkdirSync(projectDirB, { recursive: true });
+    const options = parseArgs([join(projectDirA, "a.jsonl"), join(projectDirB, "b.jsonl")]);
+    // Test action: apply the overrides for this run.
+    applyCliPathOverrides(options);
+    // Test verification: one derived source per distinct projects root, positional order.
+    const sources = getPathOverrides().sources;
+    assert.equal(sources?.length, 2);
+    assert.equal(sources?.[0]?.projectsDir.toString(), join(treeA, "projects"));
+    assert.equal(sources?.[1]?.projectsDir.toString(), join(treeB, "projects"));
+});
+
+test("test_apply_cli_overrides_single_positional_leaves_sources_absent", () => {
+    // Scenario (spec S4b): single-source invocations stay unchanged — no derived sources.
+    const tree = mkdtempSync(join(tmpdir(), "cli-sources-single-"));
+    const projectDir = join(tree, "projects", "-proj");
+    mkdirSync(projectDir, { recursive: true });
+    const options = parseArgs([join(projectDir, "t.jsonl")]);
+    applyCliPathOverrides(options);
+    assert.equal(getPathOverrides().sources, undefined);
+});

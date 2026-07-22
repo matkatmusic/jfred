@@ -10,6 +10,7 @@ import {
 } from "./reconstruction_sidecar_reader.ts";
 import {
     hydrateProjectPaths,
+    hydrateProjectSources,
     readProjectPathsConfig,
     setPathOverrides,
     type WireProjectPaths,
@@ -105,7 +106,13 @@ export function getMergedProjectPaths(projectName: string): WireProjectPaths {
 // overrides are process-wide module state, so each request overwrites the previous request's
 // (builds are synchronous and the server serializes them).
 export function applyProjectOverrides(projectName: string): void {
-    const overrides = hydrateProjectPaths(getMergedProjectPaths(projectName));
+    const wireEntry = getMergedProjectPaths(projectName);
+    const overrides = hydrateProjectPaths(wireEntry);
+    // Spec S6: a declared source list rides the overrides so the build layer merges the
+    // multi-source record stream (viewer_api.ts) with per-source blob resolution.
+    if (wireEntry.sources !== undefined) {
+        overrides.sources = hydrateProjectSources(getProjectsDir(), wireEntry);
+    }
     if (overrides.fileHistoryRoot === undefined) {
         overrides.fileHistoryRoot = getEffectiveFileHistoryDir();
     }
@@ -147,6 +154,9 @@ export function scanProjects(projectsDir: Path): ProjectListing[] {
     listings.sort((a, b) => computeLatestActivity(b) - computeLatestActivity(a));
     return listings;
 }
+
+// resolveJsonlPaths (and its multi-source union) lives in viewer_api_sources.ts (task 177:
+// this file and viewer_server_routes.ts are both at the 250-line cap).
 
 // The on-disk file for a static request: the compiled webapp/dist copy when the build emitted
 // one (transpiled .js), else the webapp/ source (index.html, styles.css, vendor/*.js). The

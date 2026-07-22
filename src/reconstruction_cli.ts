@@ -44,6 +44,8 @@ import {
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { parseTraceArgs, runTrace } from "./reconstruction_cli_trace.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
+import { mergeMultiSourceRecords } from "./reconstruction_multi_source.ts";
 
 // Render histories in the verbose/diff mode, each under its `### <path>` header.
 function renderHistories(
@@ -169,9 +171,15 @@ export function runCli(argv: string[]): string {
     // task 119: a previous in-process run's aborted leftovers must not leak into this run's
     // failure notes (the tests drive runCli repeatedly in one process).
     clearReconstructionFailures();
-    // Strict mode throws instead of skipping, so skippedLines is always empty here.
-    const { records } = loadTranscript(options.jsonlPath);
-    const reader = buildSidecarReader(records);
+    // Strict mode throws instead of skipping, so skippedLines is always empty here — a parse
+    // error in ANY transcript aborts the run (spec S4b keeps the CLI strict, task-119 decision).
+    // spec S4b: const { records } = loadTranscript(options.jsonlPath);
+    const recordLists = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath).records);
+    const sources = getPathOverrides().sources;
+    // With declared (or multi-root derived) sources the stream goes through the multi-source
+    // stages; one sources-less list is exactly the legacy single-transcript records.
+    const records = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
+    const reader = buildSidecarReader(records, sources);
     if (options.json) {
         return renderJson(records, reader, options);
     }

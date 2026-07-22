@@ -12,12 +12,8 @@ import {
     PROGRESS_LABEL_SERIALIZING_DOCUMENT,
     formatSendingDocumentLabel,
 } from "./viewer_api.ts";
-import {
-    scanProjects,
-    resolveProjectFile,
-    getProjectsDir,
-    applyProjectOverrides,
-} from "./viewer_api_projects.ts";
+import { applyProjectOverrides } from "./viewer_api_projects.ts";
+import { resolveJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import {
     renderRevisionDiff,
@@ -49,21 +45,8 @@ export function requireParam(query: URLSearchParams, name: string): string {
     return value;
 }
 
-// The resolved JSONL path(s) for a project: one named file, or every JSONL in the project
-// (the unified project view) when no file name is given. Exported for the task-137
-// repo-commit-match route (viewer_api_repo.ts).
-export function resolveJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
-    if (jsonlName !== null) {
-        return [resolveProjectFile(getProjectsDir(), projectName, jsonlName)];
-    }
-    const listing = scanProjects(getProjectsDir()).find((project) => project.name === projectName);
-    if (listing === undefined) {
-        throw new Error(`no project named ${projectName}`);
-    }
-    return listing.jsonlFiles.map((entry) =>
-        resolveProjectFile(getProjectsDir(), projectName, entry.fileName.toString()),
-    );
-}
+// resolveJsonlPaths moved to viewer_api_sources.ts (task 177: this file is at the 250-line
+// cap, and the multi-source union belongs beside the project scanning it composes).
 
 // Build-stage progress mirrored to the server console: after the transcripts load, the synchronous
 // build is otherwise silent on stdout, so tailing the server log shows one live line per unit of

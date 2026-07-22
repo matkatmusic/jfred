@@ -14,6 +14,7 @@ import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import { mergeMultiSourceRecords, groupRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { scriptCodeMayWriteFiles } from "./reconstruction_script_prestate.ts";
@@ -59,7 +60,15 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
     // The per-record walk belongs to the caller's own loadProjectRecords call (the /api/document
     // route always pre-walks); the build emits stages and deep-engine progress only.
     // skippedLines rides to the wire document (the webapp's partial-reconstruction gaps).
-    const { records, skippedLines } = loadProjectRecords(jsonlPaths);
+    const loaded = loadProjectRecords(jsonlPaths);
+    const { skippedLines } = loaded;
+    // Spec S5a: with declared sources the record stream goes through the multi-source stages
+    // (dedupe → interleave → identity join) before any engine work. The merge builds a NEW
+    // array, so the per-records WeakMap memos run cold on multi-source builds.
+    // ponytail: memoize per (stamp, sources) if profiling ever shows it.
+    const records = sources === undefined || sources.length === 0
+        ? loaded.records
+        : mergeMultiSourceRecords(groupRecordsBySession(loaded.records), sources);
     // task 119: a previous build's aborted leftovers must not leak into this document's failures.
     clearReconstructionFailures();
     reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
@@ -177,7 +186,9 @@ export function buildReconstructionWithConsent(
     // build-scoped module sink — same lifecycle as the exec gate: on for the build, off after.
     setReconstructionProgressSink(onProgress);
     try {
-        const built = buildProjectReconstruction(jsonlPaths, target, onProgress);
+        // Spec S6: the viewer's declared sources ride the process-wide overrides (set by
+        // applyProjectOverrides / applyCliPathOverrides before any build).
+        const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources);
         // task 56: stamp trimmed builds so the timeline knows to start at the baseline node.
         // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
         if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {

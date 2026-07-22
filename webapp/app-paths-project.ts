@@ -7,11 +7,14 @@
 import { el } from "./app-dom.ts";
 import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
 import { pickFolderInto, prefillFileHistoryOverrideField } from "./app-header.ts";
+import { collectSourceRows, initializeSourcesSection, renderSourceRows, type WireSourceEntryClient } from "./app-paths-sources.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
 
 // One project's reveng-paths.json entry on the wire (WireProjectPaths server-side).
-type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string };
+// task 177: gains an optional multi-source list — the Sources section's own entries.
+// type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string };
+type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string; sources?: WireSourceEntryClient[] };
 
 // The /api/repo-commits rows and the /api/repo-commit-match counts.
 type WireRepoCommitRow = { hash: string; date: string; subject: string };
@@ -119,6 +122,11 @@ function collectEntryFromFields(): WireProjectPathsEntry {
             entry.fileHistory = fileHistory;
         }
     }
+    // task 177: only ride the sources list when at least one row qualifies.
+    const sources = collectSourceRows();
+    if (sources !== undefined) {
+        entry.sources = sources;
+    }
     return entry;
 }
 
@@ -154,6 +162,9 @@ export async function refreshProjectPathsSection(projectName: string): Promise<v
     getInputById("base-commit-display").value = entry.baseCommit ?? "";
     // task 153: a stored per-project fileHistory override surfaces in the task-136 field.
     prefillFileHistoryOverrideField(entry.fileHistory);
+    // task 177: the Sources section prefills from the merged entry's sources list.
+    initializeSourcesSection();
+    renderSourceRows(entry.sources ?? []);
 }
 
 // Bootstrap hook: every Paths-popover open re-derives the current project from the route —

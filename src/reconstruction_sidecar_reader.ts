@@ -104,8 +104,9 @@ function sessionIdsOf(records: TranscriptRecord[]): Uuid[] {
 
 // The source entry whose projectsDir is the given transcript-derived projects root, by
 // normalized-path equality. undefined when no declared source matches (that session falls
-// back to the single-root chain).
-function findMatchingSourceEntry(sources: SourceEntry[], projectsRoot: string): SourceEntry | undefined {
+// back to the single-root chain). Exported for the multi-source root resolution (spec S5a),
+// which matches sessions to sources the same way.
+export function findMatchingSourceEntry(sources: SourceEntry[], projectsRoot: string): SourceEntry | undefined {
     for (const source of sources) {
         if (resolve(source.projectsDir.toString()) === resolve(projectsRoot)) {
             return source;

@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 // item 46: import { parseArgs, runCli } from "../src/reconstruction_cli.ts";
 import { runCli } from "../src/reconstruction_cli.ts";
 import { S1_JSONL, S2_JSONL, S3_JSONL, S4_JSONL, S5_JSONL, S6_JSONL, S7_JSONL, S8_JSONL, S9_JSONL } from "./fixtures.ts";
+import { join } from "node:path";
+import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { SESSION_A, SESSION_B, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { branchRewoundHeader, rewoundMention } from "../src/regex_expressions.ts";
 
 // These tests assert re-run-STABLE topology only — branch wrappers, file names, turn kinds, ordering, and
@@ -178,3 +181,29 @@ test("test_s9_surviving_flag_shows_the_restored_files", () => {
     assert.ok(!out.includes("## "));
 });
 
+
+// Spec S4b: runCli merges multiple positional transcripts across two source trees into one
+// document (distinct targets from both sources appear; the per-source sidecar chain applies).
+test("test_run_cli_merges_two_transcripts_across_sources", () => {
+    const treeA = makeSourceTree("-cli-proj-a");
+    const treeB = makeSourceTree("-cli-proj-b");
+    const rootA = join(treeA.treeRoot, "ws-a");
+    const rootB = join(treeB.treeRoot, "ws-b");
+    const pairA = buildWriteRecordPair(
+        { sessionId: SESSION_A, cwd: rootA, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_cli_a", parentUuid: null },
+        join(rootA, "alpha.py"),
+        "alpha\n",
+    );
+    const pairB = buildWriteRecordPair(
+        { sessionId: SESSION_B, cwd: rootB, timestamp: "2026-07-22T10:05:00.000Z", toolId: "toolu_cli_b", parentUuid: null },
+        join(rootB, "beta.py"),
+        "beta\n",
+    );
+    writeTranscriptFixture(treeA.projectDir, "a.jsonl", pairA.records);
+    writeTranscriptFixture(treeB.projectDir, "b.jsonl", pairB.records);
+    const out = runCli([join(treeA.projectDir, "a.jsonl"), join(treeB.projectDir, "b.jsonl"), "--json"]);
+    // both sources' files are in the one merged document.
+    assert.ok(out.includes("alpha.py"));
+    assert.ok(out.includes("beta.py"));
+    setPathOverrides({});
+});

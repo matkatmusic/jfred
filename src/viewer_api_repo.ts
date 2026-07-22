@@ -23,7 +23,8 @@ import {
     getProjectsDir,
     setSessionProjectPaths,
 } from "./viewer_api_projects.ts";
-import { requireParam, resolveJsonlPaths, sendJson } from "./viewer_server_routes.ts";
+import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { resolveJsonlPaths } from "./viewer_api_sources.ts";
 
 // One commit row on the wire, as the pick list renders it.
 export type RepoCommitRow = { hash: string; date: string; subject: string };

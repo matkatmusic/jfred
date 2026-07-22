@@ -15,12 +15,13 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 
-// The four overrides. All optional; an absent field means "use today's default".
+// The overrides. All optional; an absent field means "use today's default".
 export type PathOverrides = {
     fileHistoryRoot?: Path;   // file-history blob root (chain: this → derived sibling → ~/.claude/file-history)
     projectCwd?: Path;        // where the project lives on disk NOW (extra git-evidence repo candidate)
     repoDir?: Path;           // the git repo to read committed blobs from (wins over the transcript-sibling clone)
     baseCommit?: Uuid;        // commit whose tree seeds tier-1 write beacons (requires repoDir)
+    sources?: SourceEntry[];  // the project's declared multi-source list (spec S4b/S6); absent = single-source
 };
 
 let activePathOverrides: PathOverrides = {};
@@ -34,14 +35,20 @@ export function getPathOverrides(): PathOverrides {
 }
 
 // Stable string for cache stamps: the defined fields in fixed key order (undefined
-// fields drop out of JSON.stringify, so the empty state is always "{}").
+// fields drop out of JSON.stringify, so the empty state is always "{}"). `sources` is in the
+// stamp so a source-list config change never reuses a single-source cached document (spec S6).
 export function serializePathOverrides(): string {
-    const { fileHistoryRoot, projectCwd, repoDir, baseCommit } = activePathOverrides;
+    const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = activePathOverrides;
     return JSON.stringify({
         fileHistoryRoot: fileHistoryRoot?.toString(),
         projectCwd: projectCwd?.toString(),
         repoDir: repoDir?.toString(),
         baseCommit: baseCommit?.toString(),
+        sources: sources?.map((source) => ({
+            projectsDir: source.projectsDir.toString(),
+            fileHistoryDir: source.fileHistoryDir?.toString(),
+            root: source.root?.toString(),
+        })),
     });
 }
 
