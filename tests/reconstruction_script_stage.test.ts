@@ -17,7 +17,7 @@ import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vo
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { loadRecords } from "./utilities.ts";
+import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { jsonlPathsForScenario } from "./fixtures.ts";
 
 // A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`.
@@ -57,10 +57,11 @@ const COMMENT = "# names normalized via rename script";
 
 // The merged s37 records and an on-disk sidecar reader for its session.
 function reconstructLedger() {
-    const records = jsonlPathsForScenario("s37").flatMap((path) => loadRecords(path.toString()));
-    // task 165: resolve the sidecar root via the engine's own chain (transcript-derived
-    // sibling → default) so the captured scenarios/file-history sidecars serve CI, not
-    // only the live ~/.claude/file-history.
+    // task 165: load through loadTranscript so records carry their on-disk SOURCE — the
+    // reader's sibling derivation needs it to resolve the captured scenarios/file-history
+    // sidecars; source-less records silently fall back to the live ~/.claude/file-history
+    // (green on the capture machine, absent on CI).
+    const records = jsonlPathsForScenario("s37").flatMap((path) => loadTranscript(path.toString()).records);
     const reader = buildSidecarReader(records)!;
     const histories = reconstructAll(records, reader);
     const ledger = histories.find(
