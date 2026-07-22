@@ -5,12 +5,12 @@
 // reconstruction_sidecar.ts (the transforms own it); this module imports it one-way.
 
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { getPathOverrides } from "./reconstruction_overrides.ts";
+import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 
 // The default on-disk reader: <root>/<sessionId>/<backupFileName>.
@@ -102,26 +102,76 @@ function sessionIdsOf(records: TranscriptRecord[]): Uuid[] {
     return ids;
 }
 
+// The source entry whose projectsDir is the given transcript-derived projects root, by
+// normalized-path equality. undefined when no declared source matches (that session falls
+// back to the single-root chain).
+function findMatchingSourceEntry(sources: SourceEntry[], projectsRoot: string): SourceEntry | undefined {
+    for (const source of sources) {
+        if (resolve(source.projectsDir.toString()) === resolve(projectsRoot)) {
+            return source;
+        }
+    }
+    return undefined;
+}
+
+// The file-history root for one source-stamped record (spec S4a chain: the matching
+// declared source's explicit fileHistoryDir → the record's transcript-derived sibling →
+// the ~/.claude default).
+function resolveSourceFileHistoryRoot(recordSource: RecordSource, sources: SourceEntry[]): string {
+    const projectsRoot = dirname(dirname(recordSource.filePath));
+    const matchedSource = findMatchingSourceEntry(sources, projectsRoot);
+    const explicitDir = matchedSource?.fileHistoryDir?.toString();
+    const siblingDir = deriveSiblingFileHistoryRoot(new Path(projectsRoot))?.toString();
+    return explicitDir ?? siblingDir ?? getDefaultFileHistoryRoot().toString();
+}
+
+// Per-session file-history roots for multi-source records (spec S4a, design §c5): each
+// session's blobs live under the root of the source that recorded it, resolved from the
+// session's first source-stamped record. Keyed by sessionId string (module-private
+// internal map; the public reader surface still speaks Uuid — coding-req §1).
+function computeSessionFileHistoryRoots(records: TranscriptRecord[], sources: SourceEntry[]): Map<string, string> {
+    const sessionRoots = new Map<string, string>();
+    for (const record of records) {
+        const sessionId = (record as { sessionId?: Uuid }).sessionId;
+        if (!sessionId) {
+            continue;
+        }
+        if (sessionRoots.has(sessionId.toString())) {
+            continue;
+        }
+        const source = getRecordSource(record);
+        if (!source) {
+            continue;
+        }
+        sessionRoots.set(sessionId.toString(), resolveSourceFileHistoryRoot(source, sources));
+    }
+    return sessionRoots;
+}
+
 // The on-disk file-history reader spanning every session dir the records reference: a referenced
 // backup lives under whichever session took it, so read the owner's copy when the engine names one,
 // else try each session in order and read the first that exists (falling back to the first session's
 // path so a genuinely-missing backup throws the same ENOENT as a single-session reader). undefined
 // when the records carry no session id (no backups to read). For single-session records this is
 // exactly the old single-session reader. Shared by the CLI, the coverage checker, and the viewer.
-export function buildSidecarReader(records: TranscriptRecord[]): BackupReader | undefined {
+export function buildSidecarReader(records: TranscriptRecord[], sources?: SourceEntry[]): BackupReader | undefined {
     const sessionIds = sessionIdsOf(records);
     if (sessionIds.length === 0) {
         return undefined;
     }
     // item 46: const root = getDefaultFileHistoryRoot().toString();
     const root = resolveFileHistoryRoot(records).toString();
+    // spec S4a: with declared sources, each session reads from its OWN source's root;
+    // sessions no source claims keep the single-root chain above.
+    const sessionRoots = sources === undefined ? undefined : computeSessionFileHistoryRoots(records, sources);
     return (backupFileName, sessionId) => {
         const name = backupFileName.toString();
         // The engine passes the snapshot's OWNING session: across merged sessions the same `@vN` blob
         // name recurs with different content, so we MUST read the owner's copy. Fall back to a
         // first-existing search only when the owner is unknown (a pre-sessionId caller).
         const owner = sessionId ?? sessionIds.find((id) => existsSync(join(root, id.toString(), name)));
-        return readFileSync(join(root, (owner ?? sessionIds[0]!).toString(), name), "utf8");
+        const ownerRoot = sessionRoots?.get((owner ?? sessionIds[0]!).toString()) ?? root;
+        return readFileSync(join(ownerRoot, (owner ?? sessionIds[0]!).toString(), name), "utf8");
     };
 }
 

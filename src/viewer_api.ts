@@ -13,7 +13,7 @@ import {
 import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { getPathOverrides, serializePathOverrides } from "./reconstruction_overrides.ts";
+import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { scriptCodeMayWriteFiles } from "./reconstruction_script_prestate.ts";
@@ -52,8 +52,10 @@ export function formatSendingDocumentLabel(byteLength: number): string {
 
 // One-or-many JSONLs -> the wire document AND its compact step-file histories (returned separately;
 // the histories never ride the wire). Exactly the CLI --json composition, generalized to a merged
-// multi-JSONL record stream (the coverage checker's proven pattern).
-export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink): BuiltReconstruction {
+// multi-JSONL record stream (the coverage checker's proven pattern). The optional `sources` list
+// (spec S4a) makes the sidecar reader resolve each session's blobs from its OWN source's
+// file-history dir — absent, the single-root chain applies exactly as before.
+export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[]): BuiltReconstruction {
     // The per-record walk belongs to the caller's own loadProjectRecords call (the /api/document
     // route always pre-walks); the build emits stages and deep-engine progress only.
     // skippedLines rides to the wire document (the webapp's partial-reconstruction gaps).
@@ -61,7 +63,7 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
     // task 119: a previous build's aborted leftovers must not leak into this document's failures.
     clearReconstructionFailures();
     reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
-    const reader = buildSidecarReader(records);
+    const reader = buildSidecarReader(records, sources);
     reportStage(onProgress, PROGRESS_LABEL_CONSTRUCTING_BRANCHES);
     const branched = reconstructBranches(records, reader);
     reportStage(onProgress, PROGRESS_LABEL_BUILDING_DOCUMENT);

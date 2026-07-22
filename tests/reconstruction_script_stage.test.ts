@@ -16,11 +16,7 @@ import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
-import {
-    createSidecarReader,
-    getDefaultFileHistoryRoot,
-    findSessionId,
-} from "../src/reconstruction_sidecar_reader.ts";
+import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { loadRecords } from "./utilities.ts";
 import { jsonlPathsForScenario } from "./fixtures.ts";
 
@@ -62,7 +58,10 @@ const COMMENT = "# names normalized via rename script";
 // The merged s37 records and an on-disk sidecar reader for its session.
 function reconstructLedger() {
     const records = jsonlPathsForScenario("s37").flatMap((path) => loadRecords(path.toString()));
-    const reader = createSidecarReader(findSessionId(records)!, getDefaultFileHistoryRoot());
+    // task 165: resolve the sidecar root via the engine's own chain (transcript-derived
+    // sibling → default) so the captured scenarios/file-history sidecars serve CI, not
+    // only the live ~/.claude/file-history.
+    const reader = buildSidecarReader(records)!;
     const histories = reconstructAll(records, reader);
     const ledger = histories.find(
         (history) =>

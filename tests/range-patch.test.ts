@@ -82,14 +82,14 @@ test("test_range_patch_rejects_indices_out_of_range", () => {
 });
 
 test("test_range_patch_covers_renamed_files_in_s85", () => {
-    // Scenario: a range spanning s85's move operations patches in the moved-to files. The engine
-    // models these moves as destination creations (sources persist in the document's own state —
-    // 85/85 coverage certifies that as the on-disk truth), so the patch must create every
-    // destination and leave the untouched originals alone.
+    // Scenario: a range spanning s85's move operations patches in the moved-to files. Since task
+    // 155 the engine models these moves as TRUE rename revisions (source history merges into the
+    // destination), so the patch must create every destination AND carry the moved-away source's
+    // own diff block (its rename/removal) — sources no longer persist as untouched originals.
     // Steps:
     // find the first step that tracks a core_* destination; patch from the step before it to the end.
     // assert the patch creates each core_* destination.
-    // assert unchanged originals get no diff block.
+    // assert the moved-away source gets its own diff block (task 155 rename revisions).
     const moveStep = s85Document.steps.find((step) =>
         Object.keys(filesAtStep(step.index)).some((path) => path.includes("core_one.py")),
     );
@@ -98,7 +98,7 @@ test("test_range_patch_covers_renamed_files_in_s85", () => {
     for (const destination of ["core_one.py", "core_two.py", "core_three.py"]) {
         assert.ok(patch.includes(`+++ b/${destination}`));
     }
-    assert.ok(!patch.includes("diff --git a/one.py"));
+    assert.ok(patch.includes("diff --git a/one.py"));
 });
 
 test("test_resolveStepFiles_returns_the_repo_map_at_a_step_and_rejects_out_of_range", () => {

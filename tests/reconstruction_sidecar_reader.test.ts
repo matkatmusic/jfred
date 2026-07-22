@@ -47,11 +47,40 @@ function makeCopiedTree(withSibling: boolean): { treeRoot: string; projectDir: s
 
 // A minimal one-record transcript written into <projectDir>/<name>, loaded through
 // loadTranscript so each record carries a real source (file path + line number).
-function loadMinimalTranscript(projectDir: string, name: string): TranscriptRecord[] {
+function loadMinimalTranscript(projectDir: string, name: string, sessionId: string = "11111111-2222-3333-4444-555555555555"): TranscriptRecord[] {
     const jsonlPath = join(projectDir, name);
-    const minimalRecord = { type: RecordType.aiTitle, sessionId: "11111111-2222-3333-4444-555555555555", aiTitle: "t" };
+    const minimalRecord = { type: RecordType.aiTitle, sessionId, aiTitle: "t" };
     writeFileSync(jsonlPath, `${JSON.stringify(minimalRecord)}\n`);
     return loadTranscript(jsonlPath).records;
+}
+
+// One blob file under <treeRoot>/file-history/<sessionId>/<blobName>.
+function writeBlobForSession(treeRoot: string, sessionId: string, blobName: string, content: string): void {
+    const blobDir = join(treeRoot, "file-history", sessionId);
+    mkdirSync(blobDir, { recursive: true });
+    writeFileSync(join(blobDir, blobName), content);
+}
+
+// Two copied-out-of-~/.claude trees, each holding one single-session transcript and one
+// file-history blob of the SAME name with tree-specific content — the spec-S4 two-source
+// fixture: only per-source root resolution can read both blobs correctly.
+const SHARED_BLOB_NAME = "aaaa0000@v1";
+function makeTwoSourceFixture(): {
+    treeA: { treeRoot: string; projectDir: string };
+    treeB: { treeRoot: string; projectDir: string };
+    sessionA: string;
+    sessionB: string;
+    records: TranscriptRecord[];
+} {
+    const treeA = makeCopiedTree(true);
+    const treeB = makeCopiedTree(true);
+    const sessionA = "aaaaaaaa-1111-2222-3333-444444444444";
+    const sessionB = "bbbbbbbb-1111-2222-3333-444444444444";
+    const recordsA = loadMinimalTranscript(treeA.projectDir, "a.jsonl", sessionA);
+    const recordsB = loadMinimalTranscript(treeB.projectDir, "b.jsonl", sessionB);
+    writeBlobForSession(treeA.treeRoot, sessionA, SHARED_BLOB_NAME, "content from tree A");
+    writeBlobForSession(treeB.treeRoot, sessionB, SHARED_BLOB_NAME, "content from tree B");
+    return { treeA, treeB, sessionA, sessionB, records: [...recordsA, ...recordsB] };
 }
 
 test("test_derive_sibling_file_history_root_finds_existing_sibling", () => {
@@ -94,6 +123,64 @@ test("test_resolve_file_history_root_falls_back_to_default_without_source_or_ove
     assert.equal(resolveFileHistoryRoot(records).toString(), getDefaultFileHistoryRoot().toString());
 });
 
+test("test_build_sidecar_reader_reads_each_sessions_blob_from_its_own_source", () => {
+    // Scenario (spec S4a, design §c5): with records merged from two sources, each session's
+    // blob must be read from the file-history root of the source that OWNS the session —
+    // never from the first source's root for everyone.
+    // Step: two trees, two sessions, the SAME blob name with different content in each.
+    const fixture = makeTwoSourceFixture();
+    // Step: build the reader with both sources declared (sibling file-history derivation).
+    const reader = buildSidecarReader(fixture.records, [
+        { projectsDir: new Path(join(fixture.treeA.treeRoot, "projects")) },
+        { projectsDir: new Path(join(fixture.treeB.treeRoot, "projects")) },
+    ]);
+    assert.ok(reader, "expected merged two-source records to yield a sidecar reader");
+    // Step: session A's blob comes from tree A, session B's from tree B.
+    assert.equal(reader(new Path(SHARED_BLOB_NAME), new Uuid(fixture.sessionA)), "content from tree A");
+    assert.equal(reader(new Path(SHARED_BLOB_NAME), new Uuid(fixture.sessionB)), "content from tree B");
+});
+
+test("test_build_sidecar_reader_source_fileHistoryDir_wins_over_sibling_derivation", () => {
+    // Scenario (design §b analog: config-first): a source's explicit fileHistoryDir
+    // outranks the derivable <treeRoot>/file-history sibling.
+    // Step: the two-tree fixture, plus a custom history dir holding tree B's session blob
+    // with distinct content.
+    const fixture = makeTwoSourceFixture();
+    const customHistoryDir = makeTempDir();
+    // writeBlobForSession appends file-history/<session>, so write the custom dir's blob directly.
+    mkdirSync(join(customHistoryDir, fixture.sessionB), { recursive: true });
+    writeFileSync(join(customHistoryDir, fixture.sessionB, SHARED_BLOB_NAME), "content from custom dir");
+    // Step: declare source B WITH fileHistoryDir.
+    const reader = buildSidecarReader(fixture.records, [
+        { projectsDir: new Path(join(fixture.treeA.treeRoot, "projects")) },
+        { projectsDir: new Path(join(fixture.treeB.treeRoot, "projects")), fileHistoryDir: new Path(customHistoryDir) },
+    ]);
+    assert.ok(reader);
+    // Step: session B reads from the custom dir, not the derivable sibling.
+    assert.equal(reader(new Path(SHARED_BLOB_NAME), new Uuid(fixture.sessionB)), "content from custom dir");
+    // Step: session A is unaffected — still the sibling derivation.
+    assert.equal(reader(new Path(SHARED_BLOB_NAME), new Uuid(fixture.sessionA)), "content from tree A");
+});
+
+test("test_build_sidecar_reader_single_source_matches_no_sources_behavior", () => {
+    // Scenario (spec S4a): single source is the degenerate case — passing a one-entry
+    // sources list must read exactly the bytes the sources-less reader reads.
+    // Step: one tree, one session, one blob.
+    const tree = makeCopiedTree(true);
+    const sessionId = "cccccccc-1111-2222-3333-444444444444";
+    const records = loadMinimalTranscript(tree.projectDir, "c.jsonl", sessionId);
+    writeBlobForSession(tree.treeRoot, sessionId, SHARED_BLOB_NAME, "single source content");
+    // Step: build both readers over the same records.
+    const readerWithoutSources = buildSidecarReader(records);
+    const readerWithOneSource = buildSidecarReader(records, [{ projectsDir: new Path(join(tree.treeRoot, "projects")) }]);
+    assert.ok(readerWithoutSources);
+    assert.ok(readerWithOneSource);
+    // Step: identical bytes from both.
+    const blobPath = new Path(SHARED_BLOB_NAME);
+    const owner = new Uuid(sessionId);
+    assert.equal(readerWithOneSource(blobPath, owner), readerWithoutSources(blobPath, owner));
+});
+
 // The first scenario transcript (among the s43 captures) whose session left real blob
 // files under the live default file-history root, with one blob name to copy.
 function findTranscriptWithBlobs(): { jsonlPath: Path; sessionId: Uuid; blobName: string } | undefined {
@@ -116,13 +203,18 @@ function findTranscriptWithBlobs(): { jsonlPath: Path; sessionId: Uuid; blobName
     return undefined;
 }
 
-test("test_build_sidecar_reader_reads_blob_from_derived_sibling_root", () => {
+test("test_build_sidecar_reader_reads_blob_from_derived_sibling_root", (t) => {
     // Scenario: the audit use case end-to-end at the reader level — a transcript COPIED
     // into <X>/projects/<project>/ with its blobs copied into <X>/file-history/<session>/
     // must be readable without touching ~/.claude.
     // Step: find a real s43 transcript whose session has on-disk blobs to copy from.
     const fixture = findTranscriptWithBlobs();
-    assert.ok(fixture, "expected an s43 transcript with on-disk file-history blobs");
+    if (fixture === undefined) {
+        // Machine-bound input (task 165): the live ~/.claude/file-history blobs exist only
+        // on the capture machine — absent (e.g. CI), skip rather than fail.
+        t.skip("no live ~/.claude/file-history blobs for s43 on this machine");
+        return;
+    }
     // Step: build the copied tree — the transcript under <X>/projects/<project>/copy.jsonl.
     const { treeRoot, projectDir } = makeCopiedTree(true);
     const copiedJsonlPath = join(projectDir, "copy.jsonl");

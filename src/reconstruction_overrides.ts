@@ -49,9 +49,52 @@ export function serializePathOverrides(): string {
 // lists directories and .jsonl files, so the config never shows up as a project).
 export const PROJECT_PATHS_CONFIG_NAME = "reveng-paths.json";
 
+// Wire shape of one entry in a project's `sources` list (spec S3): one conversation-log
+// folder plus its optional file-history folder and workspace root. Paths resolve exactly
+// like every other reveng-paths.json path (task-56 trap: jfred-root-relative or absolute,
+// taken verbatim).
+export type WireSourceEntry = { projectsDir: string; fileHistoryDir?: string; root?: string };
+
 // Wire shape of one project's entry in <projectsDir>/reveng-paths.json. fileHistory is the
-// per-project explicit file-history-snapshots override (task 137).
-export type WireProjectPaths = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string };
+// per-project explicit file-history-snapshots override (task 137); sources is the
+// multi-source list (spec S3).
+export type WireProjectPaths = {
+    cwd?: string;
+    repo?: string;
+    baseCommit?: string;
+    fileHistory?: string;
+    sources?: WireSourceEntry[];
+};
+
+// One hydrated source (spec S3/S4): where a source's JSONLs live, optionally where its
+// file-history blobs live, and optionally the workspace root its file paths are relative
+// to. An absent root means "auto-detect from JSONL cwds" (design §b) — resolved by later
+// pipeline stages, never at parse time.
+export type SourceEntry = { projectsDir: Path; fileHistoryDir?: Path; root?: Path };
+
+// A project's sources list (spec S3). A legacy entry (no `sources` key) is the one-entry
+// degenerate case: the config's own projects dir, carrying the legacy fileHistory override.
+export function hydrateProjectSources(configProjectsDir: Path, wire: WireProjectPaths): SourceEntry[] {
+    if (wire.sources === undefined) {
+        const legacySource: SourceEntry = { projectsDir: configProjectsDir };
+        if (wire.fileHistory !== undefined) {
+            legacySource.fileHistoryDir = new Path(wire.fileHistory);
+        }
+        return [legacySource];
+    }
+    const sourceEntries: SourceEntry[] = [];
+    for (const wireSource of wire.sources) {
+        const sourceEntry: SourceEntry = { projectsDir: new Path(wireSource.projectsDir) };
+        if (wireSource.fileHistoryDir !== undefined) {
+            sourceEntry.fileHistoryDir = new Path(wireSource.fileHistoryDir);
+        }
+        if (wireSource.root !== undefined) {
+            sourceEntry.root = new Path(wireSource.root);
+        }
+        sourceEntries.push(sourceEntry);
+    }
+    return sourceEntries;
+}
 
 // The whole config file: project dir name -> entry. {} when the file does not exist;
 // malformed JSON throws (a typo must be loud, not a silently ignored override).

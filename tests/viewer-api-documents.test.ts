@@ -6,9 +6,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     buildProjectDocument,
+    buildProjectReconstruction,
     decideDocumentResponse,
     buildDocumentWithConsent,
 } from "../src/viewer_api.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { makeTempDir } from "./overrides-test-helpers.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { scriptCodeMayWriteFiles } from "../src/reconstruction_script_prestate.ts";
 import { runCli } from "../src/reconstruction_cli.ts";
@@ -49,6 +53,30 @@ test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
             assert.ok(unifiedTargets.includes(target), `unified document covers ${target}`);
         }
     }
+});
+
+test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
+    // Scenario (spec S4a): one reconstruction over JSONLs from TWO conversation-log
+    // folders, with the sources list riding to the sidecar reader (per-source blob
+    // resolution is proven at the reader unit level in reconstruction_sidecar_reader.test.ts).
+    // Step: two temp trees each holding one minimal single-session transcript.
+    const treeRoots = [makeTempDir(), makeTempDir()];
+    const jsonlPaths: Path[] = [];
+    const sources = [];
+    for (const [index, treeRoot] of treeRoots.entries()) {
+        const projectDir = join(treeRoot, "projects", "-two-source-project");
+        mkdirSync(projectDir, { recursive: true });
+        const jsonlPath = join(projectDir, `session-${index}.jsonl`);
+        const minimalRecord = { type: RecordType.aiTitle, sessionId: `dddddddd-1111-2222-3333-44444444444${index}`, aiTitle: "t" };
+        writeFileSync(jsonlPath, `${JSON.stringify(minimalRecord)}\n`);
+        jsonlPaths.push(new Path(jsonlPath));
+        sources.push({ projectsDir: new Path(join(treeRoot, "projects")) });
+    }
+    // Step: build with both JSONL paths and both sources declared.
+    const built = buildProjectReconstruction(jsonlPaths, undefined, undefined, sources);
+    // Step: a document comes back (records parsed from both folders, no throw).
+    assert.ok(built.document);
+    assert.ok(Array.isArray(built.document.filesTouched));
 });
 
 // -------------------- 2.4 decideDocumentResponse --------------------
