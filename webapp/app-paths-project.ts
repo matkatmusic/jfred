@@ -6,7 +6,7 @@
 
 import { el } from "./app-dom.ts";
 import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
-import { pickFolderInto } from "./app-header.ts";
+import { pickFolderInto, prefillFileHistoryOverrideField } from "./app-header.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
 
@@ -152,6 +152,8 @@ export async function refreshProjectPathsSection(projectName: string): Promise<v
     const entry = await fetchJson<WireProjectPathsEntry>(`/api/project-paths?project=${encodeURIComponent(projectName)}`);
     getInputById("repo-dir-input").value = entry.repo ?? "";
     getInputById("base-commit-display").value = entry.baseCommit ?? "";
+    // task 153: a stored per-project fileHistory override surfaces in the task-136 field.
+    prefillFileHistoryOverrideField(entry.fileHistory);
 }
 
 // Bootstrap hook: every Paths-popover open re-derives the current project from the route —

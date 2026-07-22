@@ -65,6 +65,27 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     assert.ok(warningText.includes("1 of 4"), `warning names the counts: ${warningText}`);
 });
 
+test("test_refresh_prefills_file_history_field_from_stored_override", async () => {
+    // Scenario (task 153): a stored per-project fileHistory entry surfaces in the task-136
+    // field when the section refreshes; a project without one restores the derived state so
+    // the prior project's prefill never leaks.
+    // Steps:
+    // boot a fresh DOM and refresh for a project whose stored entry carries a fileHistory dir.
+    setupWebappDom();
+    stubFetchRoutes({ "/api/project-paths": { repo: "/repos/p", fileHistory: "/stored/fh" } });
+    const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
+    await refreshProjectPathsSection("proj-a");
+    // the task-136 fields unhide and carry the stored override.
+    assert.equal(getRequiredElementById("file-history-fields").hidden, false);
+    assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/stored/fh");
+    // refresh for a project WITHOUT a stored override: the fields hide and the value restores
+    // to the reported derived dir ("" here — initializeHeader never ran in this test).
+    stubFetchRoutes({ "/api/project-paths": { repo: "/repos/q" } });
+    await refreshProjectPathsSection("proj-b");
+    assert.equal(getRequiredElementById("file-history-fields").hidden, true);
+    assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "");
+});
+
 test("test_commit_pick_filter_narrows_rows", async () => {
     // Scenario (task 154): typing in the filter box narrows the pick list to matching
     // rows (hash, date, or subject, case-insensitive); clearing it restores all rows.

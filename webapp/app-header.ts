@@ -32,6 +32,37 @@ export async function pickFolderInto(target: HTMLInputElement): Promise<void> {
     }
 }
 
+// The last server-reported effective file-history dir. An UNEDITED field posts "" so the
+// server re-derives from the (possibly new) projects folder — otherwise the old derived
+// value would pin itself as an explicit override across folder switches (item 46).
+// (Hoisted out of initializeHeader for task 153: the prefill restore below needs it.)
+let reportedFileHistoryDir = "";
+
+// task 153: the per-project fileHistory override currently prefilled into the task-136 field
+// ("" = none). Lets computeFileHistoryDirToPost treat the prefilled value as UNEDITED (post
+// "" = derive) and lets the next popover open restore the derived state.
+let prefilledProjectOverrideDir = "";
+
+// task 153: surface a stored per-project fileHistory override in the task-136 field on popover
+// open. No override restores the derived state ONLY when a prefill is active — a user's manual
+// explicit-override gesture is never clobbered.
+export function prefillFileHistoryOverrideField(overrideDir: string | undefined): void {
+    const fileHistoryFields = document.getElementById("file-history-fields")!;
+    const fileHistoryInput = document.getElementById("file-history-dir-input") as HTMLInputElement;
+    if (overrideDir !== undefined) {
+        fileHistoryFields.hidden = false;
+        fileHistoryInput.value = overrideDir;
+        prefilledProjectOverrideDir = overrideDir;
+        return;
+    }
+    if (prefilledProjectOverrideDir === "") {
+        return;
+    }
+    fileHistoryFields.hidden = true;
+    fileHistoryInput.value = reportedFileHistoryDir;
+    prefilledProjectOverrideDir = "";
+}
+
 // Both toolbar popovers close together — opening one, picking a project, applying a folder
 // change, or any document-level click funnels through here (the mockup's pattern).
 function hideToolbarPopovers(): void {
@@ -88,10 +119,6 @@ export async function initializeHeader(): Promise<void> {
     document.getElementById("file-history-toggle")!.addEventListener("click", () => {
         fileHistoryFields.hidden = !fileHistoryFields.hidden;
     });
-    // The last server-reported effective file-history dir. An UNEDITED field posts "" so the
-    // server re-derives from the (possibly new) projects folder — otherwise the old derived
-    // value would pin itself as an explicit override across folder switches (item 46).
-    let reportedFileHistoryDir = "";
     const applyConfig = (config: WireConfig): void => {
         input.value = config.projectsDir;
         fileHistoryInput.value = config.fileHistoryDir;
@@ -109,6 +136,10 @@ export async function initializeHeader(): Promise<void> {
             return "";
         }
         if (fileHistoryInput.value === reportedFileHistoryDir) {
+            return "";
+        }
+        // task 153: an unedited prefilled per-project override is not a global-override gesture.
+        if (fileHistoryInput.value === prefilledProjectOverrideDir) {
             return "";
         }
         return fileHistoryInput.value;

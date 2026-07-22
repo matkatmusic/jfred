@@ -182,23 +182,32 @@ export function splitPatchByFile(patchText: string): { path: string; block: stri
     return blocks.map((entry) => ({ path: entry.path, block: entry.lines.join("\n") }));
 }
 
-// A turn's file chips: deriveFileChanges merged over its snapshots, deduped by path (first kind
-// wins, matching deriveFileChanges' own seenPaths convention).
-function mergeSnapshotFileChanges(snapshot: WireStepSnapshot, revisionIndex: RevisionIndex, seenPaths: Set<unknown>, changes: FileChange[]): void {
+// task 133: the merge dedupe key. Two snapshots on one turn may hold DISTINCT revisions of
+// the same file (baseline-demo: an external user-edit then an agent Edit) — each keeps its
+// chip; only a repeat of the SAME revision collapses. Fallback chips (no changeId) still
+// collapse per path.
+function computeMergedChipKey(change: FileChange): string {
+    return `${change.path}|${change.changeId ?? ""}`;
+}
+
+// A turn's file chips: deriveFileChanges merged over its snapshots, deduped by path+changeId
+// (task 133; deriveFileChanges keeps its own within-step path dedupe — rename-pair collapse
+// lives there).
+function mergeSnapshotFileChanges(snapshot: WireStepSnapshot, revisionIndex: RevisionIndex, seenChipKeys: Set<string>, changes: FileChange[]): void {
     for (const change of deriveFileChanges(snapshot, revisionIndex)) {
-        if (seenPaths.has(change.path)) {
+        if (seenChipKeys.has(computeMergedChipKey(change))) {
             continue;
         }
-        seenPaths.add(change.path);
+        seenChipKeys.add(computeMergedChipKey(change));
         changes.push(change);
     }
 }
 
 function deriveMergedFileChanges(snapshots: WireStepSnapshot[], revisionIndex: RevisionIndex): FileChange[] {
     const changes: FileChange[] = [];
-    const seenPaths = new Set();
+    const seenChipKeys = new Set<string>();
     for (const snapshot of snapshots) {
-        mergeSnapshotFileChanges(snapshot, revisionIndex, seenPaths, changes);
+        mergeSnapshotFileChanges(snapshot, revisionIndex, seenChipKeys, changes);
     }
     return changes;
 }
