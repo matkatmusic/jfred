@@ -71,6 +71,9 @@ export type WireProjectPaths = {
     baseCommit?: string;
     fileHistory?: string;
     sources?: WireSourceEntry[];
+    // task 159: the wizard screen-5 pre-baseline answer ("1" reconstruct / "0" start at the
+    // baseline), persisted on Store; the webapp seeds its task-56 sessionStorage mirror from it.
+    preBaseline?: string;
 };
 
 // One hydrated source (spec S3/S4): where a source's JSONLs live, optionally where its

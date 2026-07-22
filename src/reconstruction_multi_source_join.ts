@@ -9,7 +9,7 @@ import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource, setRecordSource } from "./parse/loadTranscript.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
-import { checkJoinContentAgreement } from "./reconstruction_multi_source_gate.ts";
+import { checkJoinContentAgreement, noteJoinedPathConflicts } from "./reconstruction_multi_source_gate.ts";
 
 // The session id off a record's envelope (file-history-snapshot records carry none) — the same
 // cast pattern the sidecar reader uses. Lives here so the module pair's imports stay one-way.
@@ -128,13 +128,22 @@ function collectPrimaryPaths(
     const primaryPaths = new Map<string, { absolute: string; root: string }>();
     for (const earlierRoot of rootOrder.slice(0, laterIndex)) {
         const earlierMap = collectRelativePathMap(filterRecordsByRoot(records, sessionRoots, earlierRoot), earlierRoot);
-        for (const [relative, absolute] of earlierMap) {
-            if (!primaryPaths.has(relative)) {
-                primaryPaths.set(relative, { absolute, root: earlierRoot });
-            }
-        }
+        addMissingPrimaryEntries(primaryPaths, earlierMap, earlierRoot);
     }
     return primaryPaths;
+}
+
+// Merge one root's rel-path map into the primary map, earlier owners keeping their claim.
+function addMissingPrimaryEntries(
+    primaryPaths: Map<string, { absolute: string; root: string }>,
+    relativeToAbsolute: Map<string, string>,
+    root: string,
+): void {
+    for (const [relative, absolute] of relativeToAbsolute) {
+        if (!primaryPaths.has(relative)) {
+            primaryPaths.set(relative, { absolute, root });
+        }
+    }
 }
 
 // Clone-remap every record of the later root's sessions from one absolute path onto the primary.
@@ -190,19 +199,43 @@ export function joinCrossSourceFileIdentities(
         return records;
     }
     let workingRecords = records;
+    const joinedPrimaries = new Set<string>();
     for (let laterIndex = 1; laterIndex < rootOrder.length; laterIndex++) {
-        const laterRoot = rootOrder[laterIndex]!;
-        const laterPathMap = collectRelativePathMap(
-            filterRecordsByRoot(workingRecords, sessionRoots, laterRoot), laterRoot);
-        const primaryPaths = collectPrimaryPaths(workingRecords, sessionRoots, rootOrder, laterIndex);
-        for (const [relative, laterAbsolute] of laterPathMap) {
-            const primary = primaryPaths.get(relative);
-            if (primary === undefined || primary.absolute === laterAbsolute) {
-                continue;
-            }
-            workingRecords = tryJoinRelativePath(
-                workingRecords, sources, sessionRoots, laterRoot, laterAbsolute, primary);
+        workingRecords = joinPathsOfLaterRoot(
+            workingRecords, sources, sessionRoots, rootOrder, laterIndex, joinedPrimaries);
+    }
+    for (const primaryAbsolute of joinedPrimaries) {
+        noteJoinedPathConflicts(workingRecords, new Path(primaryAbsolute), sources);
+    }
+    return workingRecords;
+}
+
+// One later root's §a pass: attempt a join for every rel-path it shares with an earlier root,
+// recording each joined primary path into joinedPrimaries.
+function joinPathsOfLaterRoot(
+    workingRecords: TranscriptRecord[],
+    sources: SourceEntry[],
+    sessionRoots: Map<string, Path>,
+    rootOrder: string[],
+    laterIndex: number,
+    joinedPrimaries: Set<string>,
+): TranscriptRecord[] {
+    const laterRoot = rootOrder[laterIndex]!;
+    const laterPathMap = collectRelativePathMap(
+        filterRecordsByRoot(workingRecords, sessionRoots, laterRoot), laterRoot);
+    const primaryPaths = collectPrimaryPaths(workingRecords, sessionRoots, rootOrder, laterIndex);
+    for (const [relative, laterAbsolute] of laterPathMap) {
+        const primary = primaryPaths.get(relative);
+        if (primary === undefined || primary.absolute === laterAbsolute) {
+            continue;
         }
+        const joinedRecords = tryJoinRelativePath(
+            workingRecords, sources, sessionRoots, laterRoot, laterAbsolute, primary);
+        // remap always builds a new array, so a changed reference marks a completed join.
+        if (joinedRecords !== workingRecords) {
+            joinedPrimaries.add(primary.absolute);
+        }
+        workingRecords = joinedRecords;
     }
     return workingRecords;
 }

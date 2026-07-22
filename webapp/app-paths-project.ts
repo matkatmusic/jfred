@@ -4,17 +4,21 @@
 // overrides, applied to the session on "Apply" and written to reveng-paths.json only on
 // "Store" (no silent writes). ───
 
-import { el } from "./app-dom.ts";
+import { getBaselineChoice, storeBaselineChoice } from "./app-choices.ts";
+import { el, getInputById } from "./app-dom.ts";
 import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
 import { pickFolderInto, prefillFileHistoryOverrideField } from "./app-header.ts";
+import { renderPathsSummary } from "./app-paths-summary.ts";
 import { collectSourceRows, initializeSourcesSection, renderSourceRows, type WireSourceEntryClient } from "./app-paths-sources.ts";
+import { startProjectWizard, startSingleScreenEdit } from "./app-paths-wizard.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
 
 // One project's reveng-paths.json entry on the wire (WireProjectPaths server-side).
 // task 177: gains an optional multi-source list — the Sources section's own entries.
+// task 159: gains preBaseline — the wizard screen-5 answer, persisted on Store.
 // type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string };
-type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string; sources?: WireSourceEntryClient[] };
+type WireProjectPathsEntry = { cwd?: string; repo?: string; baseCommit?: string; fileHistory?: string; sources?: WireSourceEntryClient[]; preBaseline?: string };
 
 // The /api/repo-commits rows and the /api/repo-commit-match counts.
 type WireRepoCommitRow = { hash: string; date: string; subject: string };
@@ -27,9 +31,10 @@ let activeProjectName = "";
 // the pick list from these without refetching.
 let fetchedCommitRows: WireRepoCommitRow[] = [];
 
-function getInputById(id: string): HTMLInputElement {
-    return document.getElementById(id) as HTMLInputElement;
-}
+// task 159: getInputById moved to app-dom.ts (shared with app-paths-wizard.ts).
+// function getInputById(id: string): HTMLInputElement {
+//     return document.getElementById(id) as HTMLInputElement;
+// }
 
 // task 137: soft warning only — a mismatched repo still applies; the counts tell the user
 // whether relative paths actually line up (the s87 cwd-remap contract).
@@ -127,12 +132,22 @@ function collectEntryFromFields(): WireProjectPathsEntry {
     if (sources !== undefined) {
         entry.sources = sources;
     }
+    // task 159: the wizard screen-5 answer rides from the task-56 mirror, so Store persists it.
+    const preBaseline = getBaselineChoice(activeProjectName);
+    if (preBaseline !== null) {
+        entry.preBaseline = preBaseline;
+    }
     return entry;
 }
 
 // Apply (persist=false) or Store (persist=true) the entry, then reload the open project so
 // the rebuild runs under the new overrides (the folder-switch handler's invalidation).
 async function postProjectPaths(persist: boolean): Promise<void> {
+    // task 159: the Finish face is reachable from a screen-1-only run with no project loaded —
+    // there is no entry to post then (the wizard's own listener posts the global config).
+    if (activeProjectName === "") {
+        return;
+    }
     const response = await fetch("/api/project-paths", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,7 +165,9 @@ async function postProjectPaths(persist: boolean): Promise<void> {
 
 // Show + wire the section for `projectName` and prefill from the merged entry (stored config
 // + session overrides). onclick assignment so repeated refreshes never stack handlers.
-export async function refreshProjectPathsSection(projectName: string): Promise<void> {
+// task 159: returns the merged entry (the wizard's no-entry trigger reads it) and re-renders
+// the summary panel's rows from the freshly prefilled fields.
+export async function refreshProjectPathsSection(projectName: string): Promise<WireProjectPathsEntry> {
     activeProjectName = projectName;
     document.getElementById("project-paths-section")!.hidden = false;
     (document.getElementById("repo-dir-open") as HTMLButtonElement).onclick = () => void pickFolderInto(getInputById("repo-dir-input"));
@@ -165,6 +182,43 @@ export async function refreshProjectPathsSection(projectName: string): Promise<v
     // task 177: the Sources section prefills from the merged entry's sources list.
     initializeSourcesSection();
     renderSourceRows(entry.sources ?? []);
+    // task 159: a persisted screen-5 answer seeds the task-56 mirror (an unanswered session
+    // only — a fresh in-session choice is never clobbered), then the summary rows re-render.
+    if (entry.preBaseline !== undefined && getBaselineChoice(projectName) === null) {
+        storeBaselineChoice(projectName, entry.preBaseline);
+    }
+    renderPathsSummary(projectName, startSingleScreenEdit);
+    return entry;
+}
+
+// True when the merged entry carries ANY stored/overridden value — the wizard only auto-runs
+// for a project with no reveng-paths entry at all (mockup trigger 1).
+function checkEntryIsConfigured(entry: WireProjectPathsEntry): boolean {
+    return entry.repo !== undefined || entry.baseCommit !== undefined || entry.fileHistory !== undefined
+        || entry.sources !== undefined || entry.preBaseline !== undefined;
+}
+
+// task 159: projects the wizard was already offered to this page-session — no re-nag on
+// ordinary project switches back and forth.
+const wizardOfferedProjects = new Set<string>();
+
+// Project-load trigger (called from renderRoute on a NEW project load): with no reveng-paths
+// entry, open the popover on wizard screens 2–5. Fetch failures stay silent — the load itself
+// surfaces them.
+export async function maybeOfferProjectPathsWizard(projectName: string): Promise<void> {
+    if (wizardOfferedProjects.has(projectName)) {
+        return;
+    }
+    wizardOfferedProjects.add(projectName);
+    try {
+        const entry = await refreshProjectPathsSection(projectName);
+        if (checkEntryIsConfigured(entry)) {
+            return;
+        }
+        startProjectWizard(projectName);
+    } catch {
+        // no reachable /api/project-paths (or a test stub without it): no wizard offer.
+    }
 }
 
 // Bootstrap hook: every Paths-popover open re-derives the current project from the route —

@@ -2,6 +2,11 @@
 
 type ElAttrs = Record<string, string | EventListener>;
 
+// The input element with `id` (task 159: shared by app-paths-project.ts and app-paths-wizard.ts).
+export function getInputById(id: string): HTMLInputElement {
+    return document.getElementById(id) as HTMLInputElement;
+}
+
 export function el(tag: string, attrs: ElAttrs = {}, children: (Node | string)[] = []): HTMLElement {
     const node = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {

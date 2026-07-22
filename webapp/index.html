@@ -16,34 +16,77 @@
         <button id="paths-btn" class="toolbar-btn">Paths…</button>
         <div id="projects-menu" class="popover" hidden></div>
         <div id="paths-popover" class="popover" hidden>
-            <label class="dir-label" for="projects-dir-input">Projects folder</label>
-            <input id="projects-dir-input" class="dir-input" type="text" spellcheck="false">
-            <button id="projects-dir-open" class="toolbar-btn">Open…</button>
-            <button id="file-history-toggle" class="toolbar-btn">Set File History Snapshots</button>
-            <div id="file-history-fields" hidden>
-                <label class="dir-label" for="file-history-dir-input">File history</label>
-                <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
-                <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+            <!-- task 159: the popover's default face is the summary panel; the pre-wizard flat
+                 control list is wrapped into #wizard-screen-1…5 below (app-paths-wizard.ts). -->
+            <div id="paths-summary">
+                <div id="paths-summary-rows"></div>
+                <button id="paths-run-wizard" class="toolbar-btn">Run full wizard…</button>
+            </div>
+            <div id="wizard-screen-1" hidden>
+                <p class="wizard-question">Where are your Claude Code session logs?</p>
+                <label class="dir-label" for="projects-dir-input">Projects folder</label>
+                <input id="projects-dir-input" class="dir-input" type="text" spellcheck="false">
+                <button id="projects-dir-open" class="toolbar-btn">Open…</button>
+                <button id="wizard-set-projects-dir" class="toolbar-btn">Set Projects Folder location</button>
+                <!-- task 159: the old one-shot apply button stays functional (the wizard's Finish
+                     clicks it when the folder changed) but hides behind the wizard flow. -->
+                <button id="projects-dir-change" class="toolbar-btn" hidden>Change folder…</button>
+            </div>
+            <div id="wizard-screen-2" hidden>
+                <p class="wizard-question">Do you wish to set a custom file history snapshot path, or auto-derive the path?</p>
+                <label class="wizard-choice"><input type="radio" name="wizard-file-history" id="wizard-file-history-auto"> Auto-derive (default — server derives from the projects folder)</label>
+                <label class="wizard-choice"><input type="radio" name="wizard-file-history" id="wizard-file-history-custom"> Custom path:</label>
+                <!-- task 159: the task-136 toggle is superseded by the radios above (app-paths-wizard.ts)
+                     but stays functional for the header tests. -->
+                <button id="file-history-toggle" class="toolbar-btn" hidden>Set File History Snapshots</button>
+                <div id="file-history-fields" hidden>
+                    <label class="dir-label" for="file-history-dir-input">File history</label>
+                    <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
+                    <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+                </div>
             </div>
             <div id="project-paths-section" hidden>
-                <label class="dir-label" for="repo-dir-input">Repo (this project)</label>
-                <input id="repo-dir-input" class="dir-input" type="text" spellcheck="false">
-                <button id="repo-dir-open" class="toolbar-btn">Open…</button>
-                <button id="pick-commit-btn" class="toolbar-btn">Pick commit…</button>
-                <input id="commit-pick-filter" class="dir-input" type="search" placeholder="Filter commits…" hidden>
-                <div id="commit-pick-list" hidden></div>
-                <label class="dir-label" for="base-commit-display">Base commit</label>
-                <input id="base-commit-display" class="dir-input" type="text" readonly>
-                <span id="commit-match-warning" class="muted"></span>
-                <div id="project-sources-section">
-                    <label class="dir-label">Sources</label>
-                    <div id="project-sources-list"></div>
-                    <button id="project-sources-add" type="button">Add source</button>
+                <div id="wizard-screen-3" hidden>
+                    <p class="wizard-question">Do you wish to set a Git Repo path?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-repo" id="wizard-repo-no"> No (default — reconstruct without a repo)</label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-repo" id="wizard-repo-yes"> Yes:</label>
+                    <label class="dir-label" for="repo-dir-input">Repo (this project)</label>
+                    <input id="repo-dir-input" class="dir-input" type="text" spellcheck="false">
+                    <button id="repo-dir-open" class="toolbar-btn">Open…</button>
+                    <button id="wizard-set-repo-dir" class="toolbar-btn">Set Git Repo location</button>
+                    <div id="project-sources-section">
+                        <label class="dir-label">Sources</label>
+                        <div id="project-sources-list"></div>
+                        <button id="project-sources-add" type="button">Add source</button>
+                    </div>
                 </div>
-                <button id="project-paths-apply" class="toolbar-btn">Apply to session</button>
-                <button id="project-paths-store" class="toolbar-btn">Store for this project…</button>
+                <div id="wizard-screen-4" hidden>
+                    <p class="wizard-question">Do you wish to pick a git repo commit?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-commit" id="wizard-commit-default"> <span id="wizard-commit-default-label">Default</span></label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-commit" id="wizard-commit-pick"> Pick one:</label>
+                    <button id="pick-commit-btn" class="toolbar-btn">Pick commit…</button>
+                    <input id="commit-pick-filter" class="dir-input" type="search" placeholder="Filter commits…" hidden>
+                    <div id="commit-pick-list" hidden></div>
+                    <label class="dir-label" for="base-commit-display">Base commit</label>
+                    <input id="base-commit-display" class="dir-input" type="text" readonly>
+                    <span id="commit-match-warning" class="muted"></span>
+                </div>
+                <div id="wizard-screen-5" hidden>
+                    <p class="wizard-question">Reconstruct file states preceding the baseline commit?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-prebaseline" id="wizard-prebaseline-yes"> Yes — include pre-baseline reconstruction</label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-prebaseline" id="wizard-prebaseline-no" checked> No</label>
+                </div>
             </div>
-            <button id="projects-dir-change" class="toolbar-btn">Change folder…</button>
+            <div id="wizard-finish" hidden>
+                <div id="wizard-finish-rows"></div>
+                <button id="project-paths-apply" class="toolbar-btn">Apply to session only</button>
+                <button id="project-paths-store" class="toolbar-btn">Store for this project</button>
+            </div>
+            <div id="wizard-nav" hidden>
+                <button id="wizard-back" class="toolbar-btn">◂ Back</button>
+                <button id="wizard-cancel" class="toolbar-btn">Cancel</button>
+                <button id="wizard-next" class="toolbar-btn">Next ▸</button>
+            </div>
         </div>
     </header>
     <main class="layout">

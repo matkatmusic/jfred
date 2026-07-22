@@ -8,8 +8,10 @@ import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { reconstructFile, type EditEvent, type FileEvent } from "./reconstruction_engine.ts";
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { lastRevisionAtOrBefore, linesTextOf } from "./reconstruction_revisions.ts";
-import { EventKind } from "./structures/vocabulary.ts";
+import { extractFileEvents } from "./reconstruction_extract.ts";
+import { lastRevisionAtOrBefore, lastRevisionStrictlyBefore, linesTextOf } from "./reconstruction_revisions.ts";
+import { noteReconstructionFailure } from "./reconstruction_health.ts";
+import { EventKind, FailureScope } from "./structures/vocabulary.ts";
 
 // A single trailing newline stripped — the engine's line model drops a file's final newline
 // (a trailing "\n" does not create an empty line entry), so evidence text must be compared
@@ -53,9 +55,44 @@ export function checkJoinContentAgreement(
     if (base === undefined) {
         return false;
     }
-    const reconstructedContent = linesTextOf(base).join("\n");
-    if (editEvidence.originalFile !== undefined) {
-        return stripSingleTrailingNewline(editEvidence.originalFile) === reconstructedContent;
+    return editEvidenceAgreesWithState(editEvidence, linesTextOf(base).join("\n"));
+}
+
+// One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly,
+// else every hunk's pre-side must be contained.
+function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolean {
+    if (edit.originalFile !== undefined) {
+        return stripSingleTrailingNewline(edit.originalFile) === stateText;
     }
-    return editEvidence.hunks.every((hunk) => reconstructedContent.includes(extractHunkPreSideText(hunk)));
+    return edit.hunks.every((hunk) => stateText.includes(extractHunkPreSideText(hunk)));
+}
+
+// §c4 (spec S5, task 176) — conflict notes, not errors: after a join, every edit on the joined
+// path whose pre-state evidence disagrees with the merged timeline's state strictly before it
+// surfaces as a task-119 health-sink conflict note; reconstruction continues untouched. A
+// mismatch the engine already explains (a backup-seeded stale base reconstructs an agreeing
+// prior revision) stays silent.
+export function noteJoinedPathConflicts(
+    mergedRecords: TranscriptRecord[],
+    primaryPath: Path,
+    sources: SourceEntry[],
+): void {
+    const reader = buildSidecarReader(mergedRecords, sources);
+    const revisions = reconstructFile(mergedRecords, primaryPath, reader);
+    for (const event of extractFileEvents(mergedRecords)) {
+        if (event.kind !== EventKind.edit || event.target.toString() !== primaryPath.toString()) {
+            continue;
+        }
+        const edit: EditEvent = event;
+        const base = lastRevisionStrictlyBefore(revisions, edit.timestamp);
+        if (base === undefined || editEvidenceAgreesWithState(edit, linesTextOf(base).join("\n"))) {
+            continue;
+        }
+        noteReconstructionFailure({
+            scope: FailureScope.fileStage,
+            stage: "noteJoinedPathConflicts",
+            target: primaryPath,
+            reason: `cross-source conflict: ${edit.timestamp.toISOString()} edit pre-state disagrees with the merged timeline`,
+        });
+    }
 }

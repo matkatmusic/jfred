@@ -7,6 +7,7 @@
 import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole } from "./app-console.ts";
 import { initializeHeader } from "./app-header.ts";
 import { initializeProjectPathsSection } from "./app-paths-project.ts";
+import { initializeWizard, maybeStartFirstLaunchWizard } from "./app-paths-wizard.ts";
 import { renderRoute } from "./app-router.ts";
 import { initDetailsFind } from "./views/details-find.ts";
 
@@ -78,6 +79,8 @@ if (typeof window !== "undefined") {
     // one cancel affordance; it navigates to "#/", and renderRoute aborts the in-flight load.
     initializeHeader().then(() => {
         initializeProjectPathsSection();               // task 137: the popover's per-project section
+        initializeWizard();                            // task 159: the Paths wizard state machine
+        maybeStartFirstLaunchWizard();                 // task 159: no global config → full wizard
         renderRoute();
     });
 }

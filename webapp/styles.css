@@ -152,6 +152,17 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #paths-popover { min-width: 360px; padding: 10px; }
 #paths-popover .dir-label { display: block; font-size: 10px; }
 #paths-popover .dir-input { display: block; width: 100%; margin: 2px 0 10px; }
+/* task 159: the Paths wizard — summary rows, screen questions, radio choices, nav row */
+.wizard-question { margin: 0 0 8px; font-size: 12px; color: var(--text); }
+.wizard-choice { display: block; margin: 2px 0; font-size: 12px; color: var(--text); }
+.summary-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; font-size: 12px; }
+.summary-label { color: var(--muted); flex: 0 0 9em; }
+.summary-value { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-family: var(--mono); }
+.summary-edit { font-size: 10px; padding: 1px 7px; }
+#paths-run-wizard, #wizard-nav { margin-top: 10px; }
+#wizard-nav { display: flex; justify-content: flex-end; gap: 8px; }
+#wizard-nav #wizard-back { margin-right: auto; }
+#wizard-finish-rows { margin-bottom: 10px; }
 /* task 137: the per-project commit pick list — scrollable, .menu-item row styling */
 #commit-pick-list { max-height: 14em; overflow-y: auto; margin: 2px 0 10px; }
 .commit-pick-row {
