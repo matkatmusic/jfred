@@ -8,6 +8,7 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
+import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import type { ConversationBranch } from "./reconstruction_branch.ts";
 import {
     collectDescendantUuids,
@@ -27,7 +28,11 @@ export function findStructuralRewoundBranches(
 ): ConversationBranch[] {
     const claimed = new Set<string>(existingTips);
     const found: ConversationBranch[] = [];
-    for (const forkPoint of findPromptForkPoints(records)) {
+    const forkPoints = findPromptForkPoints(records);
+    for (const [forkIndex, forkPoint] of forkPoints.entries()) {
+        // task 163: the fork walk is the structural half of branch-tip scanning — announce it so
+        // transcripts whose only rewinds are structural (no head-based tips) still show motion.
+        reportReconstructionProgress("scanning branch tips", forkIndex + 1, forkPoints.length);
         found.push(...rewoundBranchesAtFork(records, forkPoint, claimed));
     }
     return found;
