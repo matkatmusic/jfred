@@ -119,28 +119,28 @@ def launchScenario(pane_target, scenario_file, index, total, model=""):
 
 
 def parseStepProgress(text):
-    """Return (first unchecked step number, its text, total steps) from a progress copy, or None."""
+    """Return (first unchecked step number, body by step number, total steps) from a progress copy, or None."""
     steps = re.findall(r"^- \[( |x)\] (\d+)\. (.*)$", text, re.MULTILINE)
-    unchecked = [(int(num), body) for mark, num, body in steps if mark == " "]
+    unchecked = [int(num) for mark, num, _ in steps if mark == " "]
     if not unchecked:
         return None
-    num, body = unchecked[0]
-    return num, body, len(steps)
+    return unchecked[0], {int(num): body for _, num, body in steps}, len(steps)
 
 
 def reportStepProgress(stem, last_reported):
-    """Print which step a running scenario is on, once per advance; True if it advanced."""
-    executed_file = findLatestExecutedFile(stem)
-    if executed_file is None:
+    """Back-fill and print EVERY step crossed since the last poll (fast Edit:/SpawnNewAgent
+    directives finish between polls); True if it advanced."""
+    if (executed_file := findLatestExecutedFile(stem)) is None:
         return False
-    progress = parseStepProgress(executed_file.read_text())
-    if progress is None:
+    if (progress := parseStepProgress(executed_file.read_text())) is None:
         return False
-    num, body, total = progress
-    if last_reported.get(stem) == num:
+    current, bodies, total = progress
+    previous = last_reported.get(stem, 0)
+    if previous >= current:
         return False
-    last_reported[stem] = num
-    print(f"  sending step {num}/{total}: {' '.join(body.split()[:10])}", flush=True)
+    last_reported[stem] = current
+    for num in range(previous + 1, current + 1):
+        print(f"  sending step {num}/{total}: {' '.join(bodies[num].split()[:10])}", flush=True)
     return True
 
 
