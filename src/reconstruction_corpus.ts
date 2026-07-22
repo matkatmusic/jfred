@@ -4,8 +4,8 @@
 // reader identity AND the exec-gate flag AND the task-56 pre-baseline flag; a change to any
 // discards the whole group (a declined build's results must never serve a consented one, and
 // vice versa). Guards
-// (seedingLineages, activeLineageReplayCutoff, resolving) are execution-stack state, not
-// cache state — they stay in their own modules. Design: plans/items14-23-26-33-close.md
+// (the lineage replay-frame stack, activeLineageReplayCutoff, resolving) are execution-stack
+// state, not cache state — they stay in their own modules. Design: plans/items14-23-26-33-close.md
 // (Phase 4, item 14).
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -14,6 +14,7 @@ import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { GitAddEvent, GitCommitEvent } from "./reconstruction_git_commit_events.ts";
 import type { FileEvent, FileRevision } from "./reconstruction_engine.ts";
 import type { RunExecution } from "./reconstruction_script_runs.ts";
+import type { LineageSeedEntry } from "./reconstruction_lineage_memo.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { isPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
@@ -25,7 +26,7 @@ export type DerivedCaches = {
     impureAllowed: boolean;
     preBaselineAllowed: boolean;
     historiesByTarget: Map<string, FileRevision[]>;
-    lineageSeedsByKey: Map<string, string | undefined>;
+    lineageSeedsByKey: Map<string, LineageSeedEntry>;
     executionsByRun: Map<string, RunExecution>;
 };
 
@@ -54,7 +55,7 @@ function buildDerivedCaches(reader: BackupReader | undefined): DerivedCaches {
         impureAllowed: isImpureExecutionAllowed(),
         preBaselineAllowed: isPreBaselineReconstructionAllowed(),
         historiesByTarget: new Map<string, FileRevision[]>(),
-        lineageSeedsByKey: new Map<string, string | undefined>(),
+        lineageSeedsByKey: new Map<string, LineageSeedEntry>(),
         executionsByRun: new Map<string, RunExecution>(),
     };
 }

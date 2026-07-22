@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JFReD — session debugger demo (legacy engine)</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; background: #fafafa; }
+    h1 { font-size: 1.6rem; }
+    .banner { background: #fff3cd; border: 1px solid #e0c869; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0; }
+    ul.sessions { list-style: none; padding: 0; }
+    ul.sessions li { margin: 0.3rem 0; }
+    ul.sessions a { font-family: ui-monospace, monospace; font-size: 0.9rem; text-decoration: none; color: #0b5fa5; }
+    ul.sessions a:hover { text-decoration: underline; }
+    footer { margin-top: 2rem; font-size: 0.85rem; color: #666; }
+</style>
+</head>
+<body>
+<h1>JFReD — Claude Code session debugger (demo)</h1>
+
+<div class="banner">
+    <strong>What this is:</strong> the JFReD JSONL debugger running the <strong>frozen
+    legacy engine</strong> (the archived <code>api/</code> modules) entirely in your
+    browser — no server. It is <strong>not Engine B</strong>, the current
+    reconstruction engine in this repository's <code>src/</code>; see the
+    <a href="https://github.com/matkatmusic/jfred">repo README</a> for the live webapp.
+</div>
+
+<p>
+    Pick a session from the preloaded <code>s87-demo-composite</code> capture — a
+    scripted multi-session Claude Code scenario (edits, script runs, renames,
+    rewinds) recorded specifically for this demo. Each link opens the debugger with
+    that session's JSONL already loaded; you can also load any local JSONL with the
+    <em>Open</em> button once inside.
+</p>
+
+<ul class="sessions">
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/2c6a7ebe-c18b-472a-829d-46902eb5ff7e.jsonl">2c6a7ebe-c18b-472a-829d-46902eb5ff7e.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/2cc5e6db-d9c4-46ff-b91b-df843a142eea.jsonl">2cc5e6db-d9c4-46ff-b91b-df843a142eea.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/32f66592-8812-4f02-94e4-1800b061a7b8.jsonl">32f66592-8812-4f02-94e4-1800b061a7b8.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/454c85dc-c2f3-42f3-9c8c-7d4809539cea.jsonl">454c85dc-c2f3-42f3-9c8c-7d4809539cea.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/4a168318-6bbf-41ba-b29d-c8a402b87dad.jsonl">4a168318-6bbf-41ba-b29d-c8a402b87dad.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/52855eba-e789-4a7d-a5da-dd9efec54949.jsonl">52855eba-e789-4a7d-a5da-dd9efec54949.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/5ad58935-01e9-4b5f-aa25-ce1d44236cbe.jsonl">5ad58935-01e9-4b5f-aa25-ce1d44236cbe.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/6775b8db-db73-4a02-9cc5-563a43939a6e.jsonl">6775b8db-db73-4a02-9cc5-563a43939a6e.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/68886817-e574-4740-8b03-1f4e9988f16b.jsonl">68886817-e574-4740-8b03-1f4e9988f16b.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/84ba27f7-69fe-4bc6-b44e-f824baaa3079.jsonl">84ba27f7-69fe-4bc6-b44e-f824baaa3079.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/b763c828-4d27-4766-8b9f-e814c5b4a4dd.jsonl">b763c828-4d27-4766-8b9f-e814c5b4a4dd.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/ccb74e00-1632-45da-86ed-9acc7b719925.jsonl">ccb74e00-1632-45da-86ed-9acc7b719925.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/ce9fb29a-7380-45c3-b6e4-527276bbb68c.jsonl">ce9fb29a-7380-45c3-b6e4-527276bbb68c.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/d06bba6c-c6dd-42f9-80f7-6f7b36a9dcb3.jsonl">d06bba6c-c6dd-42f9-80f7-6f7b36a9dcb3.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/e39149cd-8c36-48cc-95f8-2cda98d49a71.jsonl">e39149cd-8c36-48cc-95f8-2cda98d49a71.jsonl</a></li>
+    <li><a href="jfred/jfred.html?file=../demo/s87-demo-composite/ee3482f5-9efa-4827-ae72-85bc9975a9a4.jsonl">ee3482f5-9efa-4827-ae72-85bc9975a9a4.jsonl</a></li>
+</ul>
+
+<footer>
+    Demo data: the s87-demo-composite scenario capture (synthetic, recorded for this
+    demo). App: frozen copy of the archived JFReD viewer; see <code>docs/README.md</code>
+    for provenance.
+</footer>
+</body>
+</html>

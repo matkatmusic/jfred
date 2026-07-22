@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JFReD — JSONL File Reconstruction Debugger</title>
+<link rel="stylesheet" href="../web-shared/jfred-styles.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>JFReD</h1>
+  <button id="open-btn" class="toolbar-btn">Open JSONL...</button>
+  <div class="path-bar" id="path-bar">
+    <input type="text" id="path-input" placeholder="/path/to/file.jsonl" spellcheck="false">
+    <button id="load-path-btn" class="toolbar-btn">Load</button>
+  </div>
+  <select id="file-select" class="file-select" disabled>
+    <option value="">-- select file --</option>
+  </select>
+  <button id="view-toggle" class="toolbar-btn" disabled>All Lines</button>
+  <div class="step-nav">
+    <span class="step-info" id="step-info">No file loaded</span>
+    <button id="prev-btn" class="nav-btn" disabled title="Previous step">&#9664;</button>
+    <button id="next-btn" class="nav-btn" disabled title="Next step">&#9654;</button>
+    <button id="jump-div-btn" class="nav-btn jump" disabled title="Jump to next divergence">&#9888;</button>
+    <button id="jump-user-btn" class="nav-btn jump" disabled title="Jump to next user edit">&#9650;</button>
+  </div>
+</div>
+
+<div class="top-half">
+  <div class="step-list" id="step-list">
+    <div class="empty-state">Load a JSONL file to begin.</div>
+  </div>
+  <div class="inspector-area">
+    <div class="inspector-pane">
+      <div class="inspector-pane-header">Actual State</div>
+      <div class="inspector-pane-body" id="tab-actual">
+        <div class="no-data">Select a step to view the actual file state.</div>
+      </div>
+    </div>
+    <div class="inspector-pane">
+      <div class="inspector-pane-header">JSON Inspector</div>
+      <div class="inspector-pane-body" id="tab-json">
+        <pre id="json-inspector-content"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="resize-h" id="resize-h"></div>
+
+<div class="bottom-half" id="pane-area">
+  <div class="pane-toolbar">
+    <button id="diff-only-btn" class="toolbar-btn">Diff Only</button>
+  </div>
+  <div class="pane" id="pane-prev">
+    <div class="pane-header">PREVIOUS <span class="pane-badge" id="prev-badge"></span></div>
+    <div class="pane-body" id="prev-body"><div class="no-data">expectedState</div></div>
+  </div>
+  <div class="pane" id="pane-computed">
+    <div class="pane-header">COMPUTED <span class="pane-badge" id="computed-badge"></span></div>
+    <div class="pane-body" id="computed-body"><div class="no-data">contents</div></div>
+  </div>
+  <div class="pane" id="pane-next">
+    <div class="pane-header">NEXT <span class="pane-badge" id="next-badge"></span></div>
+    <div class="pane-body" id="next-body"><div class="no-data">next expectedState</div></div>
+  </div>
+</div>
+
+<!-- Shared browser-UI component (web-shared/) -->
+<script src="../web-shared/json-inspector.js"></script>
+
+<!-- Engine modules (api/, browser-compatible classic scripts; dependency order) -->
+<script src="../api/transcript-parsers.js"></script>
+<script src="../api/extract-bash-file-ops.js"></script>
+<script src="../api/snapshot-store-io.js"></script>
+<script src="../api/edit-replay.js"></script>
+<script src="../api/line-diff.js"></script>
+<script src="../api/rewind-classification.js"></script>
+<script src="../api/file-event-observations.js"></script>
+<script src="../api/file-state-history.js"></script>
+<script src="../api/read-event-scanner.js"></script>
+<script src="../api/edit-stream-extraction.js"></script>
+
+<!-- JFReD modules (ES modules) -->
+<script type="module" src="../web-shared/jfred-alllines.js"></script>
+<script type="module" src="jfred-load.js"></script>
+<script type="module" src="../web-shared/jfred-layout.js"></script>
+</body>
+</html>

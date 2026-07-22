@@ -19,6 +19,17 @@ import {
     enterLineageReplayWindow,
     restoreLineageReplayWindow,
 } from "./reconstruction_script_runs.ts";
+import {
+    countActiveLineageReplayFrames,
+    doesReplayWindowKeepInstant,
+    findServableLineageSeed,
+    isLineageKeyOnReplayStack,
+    noteLineageCacheServe,
+    recordLineageGuardHit,
+    recordLineageKeyQuery,
+    runLineageReplayFrame,
+    storeLineageSeedWhenCacheable,
+} from "./reconstruction_lineage_memo.ts";
 // corpus: moved to reconstruction_corpus.ts (item 14) — the gate check now lives in getDerivedCaches
 // import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
@@ -47,7 +58,7 @@ import type {
 // One file's reconstruction memoized per records-array identity. reconstructFileOver is
 // deterministic for (records, target, reader, exec-gate), and the document build re-requests the
 // same file's history once per pass. Only PURE top-level calls are cached — a call inside copy
-// seeding (`resolving` non-empty) or lineage seeding (`seedingLineages` non-empty) is
+// seeding (`resolving` non-empty) or lineage seeding (a replay frame active) is
 // stack-dependent (the cycle guards alter what it can see) and computes fresh, exactly as before.
 // corpus: moved to reconstruction_corpus.ts (item 14)
 
@@ -62,7 +73,7 @@ export function reconstructFileOver(
     resolving: Set<string>,
     reader?: BackupReader,
 ): FileRevision[] {
-    if (resolving.size > 0 || seedingLineages.size > 0) {
+    if (resolving.size > 0 || countActiveLineageReplayFrames() > 0) {
         return computeFileRevisionsOver(records, target, resolving, reader);
     }
     // corpus: moved to reconstruction_corpus.ts (item 14)
@@ -176,15 +187,10 @@ function seedOneCopy(
     return { ...event, seedLines: linesTextOf(atCopy) };
 }
 
-// Files currently being lineage-seeded, keyed "path|beforeMs" — breaks seed→reconstruct→seed cycles.
-const seedingLineages = new Set<string>();
-
-// Lineage-seed texts memoized per records-array identity, keyed "path|beforeMs". Only replays
-// that STARTED on a clean seeding stack are cached: a nested replay's result can be degraded by
-// the cycle guards of the replays above it (same reason reconstructFileOver computes fresh while
-// seedingLineages is non-empty). The reader-identity/exec-gate validity re-check is the corpus's
-// job (getDerivedCaches).
-// corpus: moved to reconstruction_corpus.ts (item 14)
+// Lineage-seed texts memoized per records-array identity, keyed "path|beforeMs". Task 162: the
+// cycle-guard stack and the proof rules for WHICH replays are safe to cache/serve (nested ones
+// included) live in reconstruction_lineage_memo.ts; the reader-identity/exec-gate validity
+// re-check is the corpus's job (getDerivedCaches).
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
 function computeSeededText(revisionBefore: FileRevision | undefined): string | undefined {
@@ -203,29 +209,30 @@ function replayLineageContentBefore(
     before: Date,
 ): string | undefined {
     const cycleKey = `${target.toString()}|${before.getTime()}`;
-    if (seedingLineages.has(cycleKey)) return undefined;
-    const enteredWithCleanStack = seedingLineages.size === 0;
-    // corpus: moved to reconstruction_corpus.ts (item 14)
-    // const cache = getLineageSeedCache(records, reader);
-    const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
-    if (enteredWithCleanStack) {
-        if (seedsByKey.has(cycleKey)) {
-            return seedsByKey.get(cycleKey);
-        }
+    recordLineageKeyQuery(cycleKey);
+    if (isLineageKeyOnReplayStack(cycleKey)) {
+        recordLineageGuardHit(cycleKey);
+        return undefined;
     }
+    const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
     const previousCutoff = enterLineageReplayWindow(before);
-    seedingLineages.add(cycleKey);
     try {
-        reportReconstructionProgress(`replaying lineage of ${target}`);
-        const revisions = reconstructFileOver(records, target, new Set(), reader);
-        const revisionBefore = lastRevisionStrictlyBefore(revisions, before);
-        const seededText = computeSeededText(revisionBefore);
-        if (enteredWithCleanStack) {
-            seedsByKey.set(cycleKey, seededText);
+        // Cache reads/writes are valid only for replays the memo module can PROVE identical to a
+        // fresh compute (window kept its instant, no queried dependency in flight) — task 162.
+        const windowKeptInstant = doesReplayWindowKeepInstant(previousCutoff, before);
+        const servableEntry = findServableLineageSeed(seedsByKey, cycleKey, windowKeptInstant);
+        if (servableEntry !== null) {
+            noteLineageCacheServe(servableEntry);
+            return servableEntry.text;
         }
-        return seededText;
+        reportReconstructionProgress(`replaying lineage of ${target}`);
+        const replayed = runLineageReplayFrame(cycleKey, () => {
+            const revisions = reconstructFileOver(records, target, new Set(), reader);
+            return computeSeededText(lastRevisionStrictlyBefore(revisions, before));
+        });
+        storeLineageSeedWhenCacheable(seedsByKey, cycleKey, replayed.cacheable, windowKeptInstant);
+        return replayed.text;
     } finally {
-        seedingLineages.delete(cycleKey);
         restoreLineageReplayWindow(previousCutoff);
     }
 }
