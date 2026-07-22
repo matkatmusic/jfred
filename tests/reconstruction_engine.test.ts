@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import {
     reconstructFile,
     reconstructAll,
-    findDeletedTarget,
     type CopyEvent,
     type FileRevision,
 } from "../src/reconstruction_engine.ts";
+import { findDeletedTarget } from "../src/reconstruction_branch.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { FileEvent } from "../src/reconstruction_engine.ts";

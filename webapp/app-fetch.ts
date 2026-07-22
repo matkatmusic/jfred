@@ -100,14 +100,10 @@ export function peekCachedDocument<DocumentType = WireDocument>(project: string)
 }
 
 // The one in-flight document load. renderRoute aborts it on every navigation (previously two
-// hashchanges raced duplicate stream reads); the console Cancel button aborts it on demand.
+// hashchanges raced duplicate stream reads). task 164: the progress box's Cancel navigates to
+// "#/", which aborts through that same renderRoute path — the old #console-cancel button and
+// its setCancelButtonVisible toggling are retired.
 export let inflightLoadController: AbortController | undefined;
-
-function setCancelButtonVisible(visible: boolean): void {
-    const button = document.getElementById("console-cancel") as HTMLButtonElement;
-    button.hidden = !visible;
-    button.disabled = false; // any visibility change ends a pending cancel
-}
 
 // Only the terminal document payload is ever this large; progress lines are tiny. Gating on size
 // lets the tiny lines parse inline while the one huge line gets a visible "parsing document" label
@@ -154,7 +150,6 @@ export async function fetchDocument<DocumentType = WireDocument>(project: string
     if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
     const controller = new AbortController();
     inflightLoadController = controller;
-    setCancelButtonVisible(true);
     try {
         // The server does its consent-decision parse (and, for a project view, a full projects scan)
         // BEFORE it writes headers — that work is silent until the stream opens. Time to first byte
@@ -197,7 +192,6 @@ export async function fetchDocument<DocumentType = WireDocument>(project: string
         hideLoadingProgress();
         if (inflightLoadController === controller) {
             inflightLoadController = undefined;
-            setCancelButtonVisible(false);
         }
     }
 }

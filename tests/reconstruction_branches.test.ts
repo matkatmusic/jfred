@@ -4,7 +4,8 @@ import {
     collectAcceptedUserEditIds,
     extractRenderableEvents,
 } from "../src/reconstruction_renderable.ts";
-import { reconstructAll, reconstructFile } from "../src/reconstruction_engine.ts";
+import { reconstructAll, reconstructBranches, reconstructFile } from "../src/reconstruction_engine.ts";
+import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import {
     clearReconstructionFailures,
@@ -111,5 +112,46 @@ test("test_extractRenderableEvents_keeps_the_genuine_S15_user_edit_turn", () => 
     const renderable = extractRenderableEvents(records, accepted);
     // Exactly one user-edit turn survives (the genuine content-changing edit).
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 1);
+});
+
+// task 163: the branch enumeration ran silently between the "constructing branches" stage label
+// and the first per-target counter — each abandoned-tip scan now announces its position.
+test("test_find_conversation_branches_announces_each_abandoned_tip_scan", () => {
+    // Install a capturing progress sink around a branch-aware reconstruction of S19
+    // (a conv-rewind transcript: it has at least one abandoned tip).
+    const capturedEvents: ProgressEvent[] = [];
+    setReconstructionProgressSink((event) => capturedEvents.push(event));
+    try {
+        reconstructBranches(loadRecords(S19_JSONL));
+    } finally {
+        setReconstructionProgressSink(undefined);
+    }
+    // The first tip scan announced itself as a counted event (current 1 of a positive total).
+    // NOTE: totals are never compared against the captured-event count — the pipeline re-enters
+    // findConversationBranches (per-branch accepted-edit passes, nested lineage replays), so the
+    // same 1..N sequence can legitimately repeat.
+    const tipScans = capturedEvents.filter((event) => event.label === "scanning branch tips");
+    assert.ok(tipScans.length > 0);
+    assert.equal(tipScans[0]!.current, 1);
+    assert.ok(tipScans[0]!.total! >= 1);
+});
+
+// task 163: each rewound branch's reconstruction carried no branch-level announcement — the
+// rewound pass now announces each branch as a counted event before reconstructing it.
+test("test_reconstruct_branches_announces_each_rewound_branch", () => {
+    // Install a capturing progress sink around a branch-aware reconstruction of S19.
+    const capturedEvents: ProgressEvent[] = [];
+    setReconstructionProgressSink((event) => capturedEvents.push(event));
+    try {
+        reconstructBranches(loadRecords(S19_JSONL));
+    } finally {
+        setReconstructionProgressSink(undefined);
+    }
+    // The first rewound branch announced its position out of a positive branch count.
+    // (Same re-entrancy caveat as above: never compare total to the captured-event count.)
+    const rewoundEvents = capturedEvents.filter((event) => event.label === "reconstructing rewound branch");
+    assert.ok(rewoundEvents.length > 0);
+    assert.equal(rewoundEvents[0]!.current, 1);
+    assert.ok(rewoundEvents[0]!.total! >= 1);
 });
 

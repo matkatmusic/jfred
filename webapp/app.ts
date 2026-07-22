@@ -5,7 +5,6 @@
 // (app-drawer.ts), and the route/header dispatch (app-router.ts).
 
 import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole } from "./app-console.ts";
-import { inflightLoadController } from "./app-fetch.ts";
 import { initializeHeader } from "./app-header.ts";
 import { initializeProjectPathsSection } from "./app-paths-project.ts";
 import { renderRoute } from "./app-router.ts";
@@ -75,10 +74,8 @@ if (typeof window !== "undefined") {
     initDetailsFind();          // task 127: the right pane's find widget (input + n/N + < >)
     document.getElementById("console-hide")!.addEventListener("click", collapseProgressConsole);
     document.getElementById("console-show")!.addEventListener("click", expandProgressConsole);
-    document.getElementById("console-cancel")!.addEventListener("click", () => {
-        (document.getElementById("console-cancel") as HTMLButtonElement).disabled = true; // re-enabled by setCancelButtonVisible when the cancel lands
-        inflightLoadController?.abort();
-    });
+    // task 164: #console-cancel retired — the progress box's Cancel (app-progress.ts) is the
+    // one cancel affordance; it navigates to "#/", and renderRoute aborts the in-flight load.
     initializeHeader().then(() => {
         initializeProjectPathsSection();               // task 137: the popover's per-project section
         renderRoute();

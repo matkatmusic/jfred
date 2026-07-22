@@ -309,6 +309,7 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     flex-direction: column;
     min-width: 0;
     background: var(--bg);
+    position: relative;   /* task 164: containing block for .timeline-progress-overlay */
 }
 #timeline-pane-header {
     flex: 0 0 auto;
@@ -997,20 +998,22 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     color: var(--muted); font-size: 11px;
 }
 
-/* Item 78: build-progress overlay for large timelines. */
+/* Item 78: build-progress overlay for large timelines.
+   task 164: absolute inside #timeline-pane (position: relative above) — only the timeline is
+   blocked; the console, inspector, and header stay usable while a project loads. */
 .timeline-progress-overlay {
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 50;
-    /* Informational only (label + bar, nothing clickable), so let clicks pass THROUGH to the
-       controls underneath — chiefly the console's Cancel button, which the overlay covers. */
+    /* The backdrop passes clicks through to the pane; the box below re-enables pointer events
+       so its Cancel/confirm buttons stay clickable (task 164). */
     pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
     /* Translucent backdrop: #view is empty during both the reconstruction stream and the
        row build (renderRoute clears it; the timeline is built in a detached fragment), so the
-       half-built timeline never shows — but the loading console stays visible underneath. */
+       half-built timeline never shows. */
     background: color-mix(in srgb, var(--bg) 70%, transparent);
 }
 .timeline-progress-box {
@@ -1025,6 +1028,15 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     background: var(--panel);
     color: var(--text);
     font: 13px var(--ui);
+    pointer-events: auto;   /* task 164: the Cancel/confirm buttons live here */
+}
+/* task 164: the box's cancel affordance and its in-DOM confirm row. */
+.timeline-progress-cancel { align-self: flex-end; }
+.timeline-progress-confirm {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
 }
 /* Long stage labels (e.g. "reconstructing /very/long/path.py") ellipsize instead of widening the box. */
 .timeline-progress-label {

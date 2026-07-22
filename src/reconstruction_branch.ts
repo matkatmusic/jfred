@@ -7,7 +7,8 @@
 // plans/s7/s7-reconstruction-plan.md and plans/s8/s8-reconstruction-plan.md.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { Uuid } from "./structures/domain.ts";
+import { Uuid, type Path } from "./structures/domain.ts";
+import { EventKind } from "./structures/vocabulary.ts";
 import {
     collectAncestorUuids,
     collectHeadUuids,
@@ -19,6 +20,7 @@ import {
     findRewindPoint,
 } from "./reconstruction_trunk.ts";
 import { findWorkingTreeOwner } from "./reconstruction_worktree.ts";
+import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { findStructuralRewoundBranches } from "./reconstruction_fork.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
@@ -89,7 +91,11 @@ export function findConversationBranches(
     const branches: ConversationBranch[] = [
         { tip: survivingHead, rewindPoint: undefined, isSurviving: true },
     ];
-    for (const tip of collectAbandonedHeads(records, survivingSet)) {
+    const abandonedTips = collectAbandonedHeads(records, survivingSet);
+    for (const [tipIndex, tip] of abandonedTips.entries()) {
+        // task 163: the rewind-point walk per tip is the enumeration's real work — announce it
+        // so the "constructing branches" stage shows motion before the first per-target line.
+        reportReconstructionProgress("scanning branch tips", tipIndex + 1, abandonedTips.length);
         const rewindPoint = findRewindPoint(records, tip, survivingSet);
         branches.push({ tip, rewindPoint, isSurviving: false });
     }
@@ -218,5 +224,18 @@ export function findBranchById(
         return undefined;
     }
     return match.histories;
+}
+
+// Find a file the surviving branch deletes (its rm target), if any — lets a caller
+// default the target when one isn't named explicitly. (Moved from reconstruction_engine.ts,
+// task 163: the engine sat at the 250-line cap; this branch-scoped query lives with
+// selectLiveBranch, its only non-generic dependency.)
+export function findDeletedTarget(
+    records: TranscriptRecord[],
+): Path | undefined {
+    const deletion = extractFileEvents(selectLiveBranch(records)).find(
+        (event) => event.kind === EventKind.delete,
+    );
+    return deletion?.kind === EventKind.delete ? deletion.target : undefined;
 }
 

@@ -2,6 +2,8 @@
 // One reusable centered bar shown during the two long phases of opening a project: the server-side
 // reconstruction stream (driven by fetchDocument's determinate progress lines) and the client-side
 // timeline row build (item 78, driven from views/timeline.ts). Created once, appended on demand.
+// task 164: mounted INSIDE #timeline-pane (not document.body) so only the timeline is blocked —
+// the console, inspector, and header stay usable while a project loads.
 
 import { el } from "./app-dom.ts";
 
@@ -36,7 +38,7 @@ const LOAD_PHASE_MATCHERS: string[][] = [
     ["reusing cached transcript records", ".jsonl:", "parsing records"],
     ["scanning parsed records", "consent", "no script-execution"],
     ["reusing cached document artifact", "reading sidecar", "constructing branches",
-        "replaying lineage", "reconstructing ", "script stage", "executing script run",
+        "scanning branch tips", "replaying lineage", "reconstructing ", "script stage", "executing script run",
         "building pre-execution", "indexing change ids", "extracting conversation",
         "summarizing branches", "building step snapshots", "building line verdicts",
         "building document"],
@@ -53,6 +55,35 @@ export function classifyLoadPhase(label: string): number | undefined {
         }
     }
     return undefined;
+}
+
+// task 164: the box's cancel affordance — Cancel swaps to an in-DOM confirm row (never
+// window.confirm: native dialogs block headless automation, app-header.ts convention).
+// "Yes, cancel" navigates to the project picker: the overlay only exists during a
+// project-route load, so assigning "#/" always fires hashchange -> renderRoute, which
+// aborts the in-flight load (app-router.ts) — navigation IS the cancellation, one code path.
+function buildCancelControls(): HTMLElement[] {
+    const cancelButton = el("button", { class: "toolbar-btn timeline-progress-cancel", text: "Cancel" });
+    const confirmYesButton = el("button", { class: "toolbar-btn timeline-progress-confirm-yes", text: "Yes, cancel" });
+    const confirmNoButton = el("button", { class: "toolbar-btn timeline-progress-confirm-no", text: "No" });
+    const confirmRow = el("div", { class: "timeline-progress-confirm" }, [
+        el("span", { text: "Cancel this reconstruction?" }),
+        confirmYesButton,
+        confirmNoButton,
+    ]);
+    confirmRow.hidden = true;
+    cancelButton.addEventListener("click", () => {
+        cancelButton.hidden = true;
+        confirmRow.hidden = false;
+    });
+    confirmNoButton.addEventListener("click", () => {
+        confirmRow.hidden = true;
+        cancelButton.hidden = false;
+    });
+    confirmYesButton.addEventListener("click", () => {
+        window.location.hash = "#/";
+    });
+    return [cancelButton, confirmRow];
 }
 
 function updateElapsedLabel(): void {
@@ -75,7 +106,7 @@ export function showLoadingProgress(label: string, fraction: number): void {
         const stageLabel = el("div", { class: "timeline-progress-label" });
         const fill = el("div", { class: "timeline-progress-fill" });
         const stageTrack = el("div", { class: "timeline-progress-track" }, [fill]);
-        const box = el("div", { class: "timeline-progress-box" }, [header, phaseTrack, stageLabel, stageTrack]);
+        const box = el("div", { class: "timeline-progress-box" }, [header, phaseTrack, stageLabel, stageTrack, ...buildCancelControls()]);
         const overlay = el("div", { class: "timeline-progress-overlay" }, [box]);
         loadingProgressStartMs = Date.now();
         loadingProgressCurrentPhase = 0;
@@ -99,7 +130,8 @@ export function showLoadingProgress(label: string, fraction: number): void {
         elements.stageTrack.classList.add("indeterminate");
     }
     if (!elements.overlay.isConnected) {
-        document.body.append(elements.overlay);
+        // task 164: pane-scoped — the console and inspector stay interactive during a load.
+        (document.getElementById("timeline-pane") ?? document.body).append(elements.overlay);
     }
 }
 

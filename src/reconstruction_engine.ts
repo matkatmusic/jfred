@@ -22,6 +22,7 @@ import { reconstructFileOver } from "./reconstruction_branches.ts";
 import { reconstructFilesOver } from "./reconstruction_renderable.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { ScriptExecutionEvent } from "./reconstruction_script_execution.ts";
+import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // --- The per-line model ------------------------------------------------------
 
@@ -177,16 +178,7 @@ export function reconstructAll(
     return reconstructFilesOver(selectLiveBranch(records), reader);
 }
 
-// Find a file the surviving branch deletes (its rm target), if any — lets a caller
-// default the target when one isn't named explicitly.
-export function findDeletedTarget(
-    records: TranscriptRecord[],
-): Path | undefined {
-    const deletion = extractFileEvents(selectLiveBranch(records)).find(
-        (event) => event.kind === EventKind.delete,
-    );
-    return deletion?.kind === EventKind.delete ? deletion.target : undefined;
-}
+// findDeletedTarget moved to reconstruction_branch.ts (task 163: engine at the 250-line cap).
 
 // --- Branch-aware reconstruction: surviving + retrievable rewound branches -----
 
@@ -217,7 +209,13 @@ export function reconstructBranches(
     const survivingBranch = branches.find((branch) => branch.isSurviving);
     const surviving = reconstructAll(records, reader);
     const rewoundBranches = branches.filter((branch) => !branch.isSurviving);
-    const rewoundHistories = rewoundBranches.map((branch) => buildRewoundBranchHistory(records, branch, reader));
+    const rewoundHistories = rewoundBranches.map((branch, branchIndex) => {
+        // task 163: announce each rewound branch's position — the per-target counters inside
+        // reconstructFilesOver carry no branch-level motion. The `reconstructing ` prefix keeps
+        // the webapp classifier in phase 4.
+        reportReconstructionProgress("reconstructing rewound branch", branchIndex + 1, rewoundBranches.length);
+        return buildRewoundBranchHistory(records, branch, reader);
+    });
     const rewound = rewoundHistories.filter((entry): entry is RewoundBranchHistory => entry !== undefined);
     return { survivingTip: survivingBranch?.tip, surviving, rewound };
 }

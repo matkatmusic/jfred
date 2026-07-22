@@ -87,6 +87,12 @@ test("test_classifyLoadPhase_total_is_six", () => {
     assert.equal(LOAD_PHASE_COUNT, 6);
 });
 
+// task 163: the branch-enumeration counter must land in phase 4 (Building document), like
+// every other deep-engine label of the build stage.
+test("test_classifyLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
+    assert.equal(classifyLoadPhase("scanning branch tips — 3 / 12"), 4);
+});
+
 // -------------------- server boot-id consent reset --------------------
 
 // Minimal in-memory stand-in for the browser's sessionStorage (reconcileServerBootId reads
