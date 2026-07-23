@@ -8,7 +8,7 @@ import { statSync } from "node:fs";
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { relative, resolve } from "node:path";
 import { findFirstRecordCwd } from "./reconstruction_base_commit.ts";
-import { type FileEvent } from "./reconstruction_engine.ts";
+import { listEventPaths } from "./reconstruction_bound.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import {
     writeProjectPathsEntry,
@@ -16,7 +16,6 @@ import {
 } from "./reconstruction_overrides.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { type TranscriptRecord } from "./structures/envelope.ts";
-import { EventKind } from "./structures/vocabulary.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import {
     getMergedProjectPaths,
@@ -61,17 +60,6 @@ export function countPathsInTree(relativePaths: string[], treePaths: Set<string>
 // The recorded targets that live under the recorded project root, as repo-relative paths —
 // the relative-path agreement the engine's cwd remap relies on (readCommitFileContent keys
 // commit-content lookups by relativePath).
-// The path fields an event carries: rename/copy name from→to, every other kind a target.
-function listEventPaths(event: FileEvent): Path[] {
-    if (event.kind === EventKind.rename) {
-        return [event.from, event.to];
-    }
-    if (event.kind === EventKind.copy) {
-        return [event.from, event.to];
-    }
-    return [event.target];
-}
-
 function computeRecordedRelativePaths(records: TranscriptRecord[]): string[] {
     const recordedRoot = findFirstRecordCwd(records);
     if (recordedRoot === undefined) {

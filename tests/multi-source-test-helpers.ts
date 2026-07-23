@@ -76,6 +76,31 @@ function buildUserToolResultRecord(envelope: RecordEnvelope, resultText: string,
 
 export type RecordPair = { records: object[]; lastUuid: string };
 
+// A genuine typed-in user prompt record (string message content, no tool_result, not meta) —
+// the turn-boundary shape the task-193 bound tests cut at. isSidechain marks a subagent's
+// opening prompt, which is NOT a turn boundary; sessionId defaults to SESSION_A.
+export function buildPromptRecord(
+    uuid: string,
+    parentUuid: string | null,
+    timestamp: string,
+    cwd: string,
+    options?: { isSidechain?: boolean; sessionId?: string },
+): object {
+    const record: Record<string, unknown> = {
+        type: "user",
+        uuid,
+        parentUuid,
+        sessionId: options?.sessionId ?? SESSION_A,
+        timestamp,
+        cwd,
+        message: { role: "user", content: "next task" },
+    };
+    if (options?.isSidechain === true) {
+        record.isSidechain = true;
+    }
+    return record;
+}
+
 // The assistant tool_use + user toolUseResult pair for one Write.
 export function buildWriteRecordPair(envelope: RecordEnvelope, filePath: string, content: string): RecordPair {
     const writeResult = {

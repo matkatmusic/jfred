@@ -5,11 +5,13 @@
 // plans/reconstruction-engine-design.md.
 
 import { fileURLToPath } from "node:url";
-import { loadTranscript, type ProgressEvent, type ProgressSink } from "./parse/loadTranscript.ts";
+import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import {
+    buildStderrProgressSink,
     reportReconstructionProgress,
     setReconstructionProgressSink,
 } from "./reconstruction_progress.ts";
+import { applyRevisionBound } from "./reconstruction_bound.ts";
 import { Path } from "./structures/domain.ts";
 import {
     USAGE,
@@ -164,28 +166,6 @@ function renderJson(
     return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target).document, null, 2);
 }
 
-// One stderr line for a progress event, or undefined when the event is filtered at this level:
-// stage level (--progress) drops the counted per-item events; --progress-all keeps them.
-function formatProgressLine(event: ProgressEvent, showCountedEvents: boolean): string | undefined {
-    if (event.current === undefined) {
-        return `${event.label}\n`;
-    }
-    if (!showCountedEvents) {
-        return undefined;
-    }
-    return `${event.label} (${event.current}/${event.total})\n`;
-}
-
-// task 191: CLI progress goes to stderr so stdout stays pure JSON for --json consumers.
-function buildStderrProgressSink(showCountedEvents: boolean): ProgressSink {
-    return (event) => {
-        const line = formatProgressLine(event, showCountedEvents);
-        if (line !== undefined) {
-            process.stderr.write(line);
-        }
-    };
-}
-
 // Load the transcript and render the chosen view. The bare default (no flags) prints both DAGs; the
 // graph flags take precedence, then the branch selectors, then the surviving content view (the
 // back-compat path for --surviving and for --verbose/--diff with no selector).
@@ -222,7 +202,10 @@ function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefine
     }
     // With declared (or multi-root derived) sources the stream goes through the multi-source
     // stages; one sources-less list is exactly the legacy single-transcript records.
-    const records = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
+    const merged = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
+    // task 193: --until-revision truncates the stream at the containing turn's end BEFORE the
+    // sidecar reader and engine see it, so every view below is bounded uniformly.
+    const records = applyRevisionBound(merged, options);
     reportReconstructionProgress("building sidecar backup reader");
     const reader = buildSidecarReader(records, sources);
     if (options.json) {

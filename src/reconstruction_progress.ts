@@ -6,7 +6,7 @@
 // serializes them; thread an options object through reconstruct* if that changes.
 
 import { DocumentResponseKind } from "./structures/vocabulary.ts";
-import type { ProgressSink } from "./parse/loadTranscript.ts";
+import type { ProgressEvent, ProgressSink } from "./parse/loadTranscript.ts";
 
 let activeSink: ProgressSink | undefined;
 
@@ -25,5 +25,27 @@ export function reportReconstructionProgress(label: string, current?: number, to
         return;
     }
     activeSink({ kind: DocumentResponseKind.progress, label, current, total });
+}
+
+// One stderr line for a progress event, or undefined when the event is filtered at this level:
+// stage level (--progress) drops the counted per-item events; --progress-all keeps them.
+function formatProgressLine(event: ProgressEvent, showCountedEvents: boolean): string | undefined {
+    if (event.current === undefined) {
+        return `${event.label}\n`;
+    }
+    if (!showCountedEvents) {
+        return undefined;
+    }
+    return `${event.label} (${event.current}/${event.total})\n`;
+}
+
+// task 191: CLI progress goes to stderr so stdout stays pure JSON for --json consumers.
+export function buildStderrProgressSink(showCountedEvents: boolean): ProgressSink {
+    return (event) => {
+        const line = formatProgressLine(event, showCountedEvents);
+        if (line !== undefined) {
+            process.stderr.write(line);
+        }
+    };
 }
 

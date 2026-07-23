@@ -144,3 +144,32 @@ test("test_apply_cli_overrides_single_positional_leaves_sources_absent", () => {
     applyCliPathOverrides(options);
     assert.equal(getPathOverrides().sources, undefined);
 });
+
+test("test_parse_until_revision_flag", () => {
+    // Scenario (task 193): --until-revision lands as a typed Path, and the ordinal defaults to
+    // the FIRST revision when --nth is absent.
+    const options = parseArgs(["t.jsonl", "--until-revision", "/a/b.py"]);
+    assert.equal(options.untilRevision?.toString(), "/a/b.py");
+    assert.equal(options.untilNth, 1);
+});
+
+test("test_parse_until_nth_flag", () => {
+    // Scenario (task 193): --nth picks a later revision ordinal for the bound.
+    const options = parseArgs(["t.jsonl", "--until-revision", "/a/b.py", "--nth", "4"]);
+    assert.equal(options.untilNth, 4);
+});
+
+test("test_parse_nth_requires_until_revision", () => {
+    // Scenario (task 193): an ordinal without a bound target is meaningless — usage error.
+    assert.throws(() => parseArgs(["t.jsonl", "--nth", "2"]), /usage/);
+});
+
+test("test_parse_nth_rejects_non_integer", () => {
+    // Scenario (task 193): a non-integer ordinal is a usage error, mirroring --step.
+    assert.throws(() => parseArgs(["t.jsonl", "--until-revision", "/a/b.py", "--nth", "x"]), /usage/);
+});
+
+test("test_parse_nth_rejects_below_one", () => {
+    // Scenario (task 193): ordinals are 1-based; zero is a usage error.
+    assert.throws(() => parseArgs(["t.jsonl", "--until-revision", "/a/b.py", "--nth", "0"]), /usage/);
+});

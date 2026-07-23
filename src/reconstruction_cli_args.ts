@@ -18,7 +18,7 @@ import {
 // item 46: const USAGE =
 // item 46:     "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords]";
 export const USAGE =
-    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>]";
+    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>] [--until-revision <path> [--nth <n>]]";
 
 export type CliOptions = {
     jsonlPath: string;
@@ -45,6 +45,10 @@ export type CliOptions = {
     projectCwd: Path | undefined;
     repoDir: Path | undefined;
     baseCommit: Uuid | undefined;
+    // task 193: bound the whole reconstruction at the end of the turn containing this file's
+    // nth revision (untilNth is 1-based, defaulting to the first revision).
+    untilRevision: Path | undefined;
+    untilNth: number;
 };
 
 // Pull a value-taking flag (e.g. `--target <path>`) out of argv: return its value (undefined when
@@ -99,8 +103,13 @@ export function parseArgs(argv: string[]): CliOptions {
     const cwdFlag = extractValueFlag(fhsAlias.rest, "--cwd");
     const repoFlag = extractValueFlag(cwdFlag.rest, "--repo");
     const baseCommitFlag = extractValueFlag(repoFlag.rest, "--base-commit");
+    const untilRevisionFlag = extractValueFlag(baseCommitFlag.rest, "--until-revision");
+    const nthFlag = extractValueFlag(untilRevisionFlag.rest, "--nth");
+    if (nthFlag.value !== undefined && untilRevisionFlag.value === undefined) {
+        throw new Error(USAGE);
+    }
     // item 46: const rest = stepFlag.rest;
-    const rest = baseCommitFlag.rest;
+    const rest = nthFlag.rest;
     // item 46 / spec S4b: const jsonlPath = rest.find((arg) => !arg.startsWith("--"));
     const jsonlPaths = rest.filter((arg) => !arg.startsWith("--"));
     const jsonlPath = jsonlPaths[0];
@@ -139,7 +148,25 @@ export function parseArgs(argv: string[]): CliOptions {
         projectCwd: cwdFlag.value !== undefined ? new Path(cwdFlag.value) : undefined,
         repoDir: repoFlag.value !== undefined ? new Path(repoFlag.value) : undefined,
         baseCommit: baseCommitFlag.value !== undefined ? new Uuid(baseCommitFlag.value) : undefined,
+        untilRevision: untilRevisionFlag.value !== undefined ? new Path(untilRevisionFlag.value) : undefined,
+        untilNth: parseOrdinal(nthFlag.value),
     };
+}
+
+// Parse the `--nth <n>` value into a 1-based revision ordinal; absent means the first revision.
+// A present-but-non-integer (or < 1) value is a usage error, mirroring parseStepNumber.
+function parseOrdinal(value: string | undefined): number {
+    if (value === undefined) {
+        return 1;
+    }
+    const ordinal = Number(value);
+    if (!Number.isInteger(ordinal)) {
+        throw new Error(USAGE);
+    }
+    if (ordinal < 1) {
+        throw new Error(USAGE);
+    }
+    return ordinal;
 }
 
 // Apply the path overrides for this run: the transcript's projects-folder config entry
