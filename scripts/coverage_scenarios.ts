@@ -6,15 +6,20 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, relative } from "node:path";
 import { Path } from "../src/structures/domain.ts";
+import type { SourceEntry } from "../src/reconstruction_overrides.ts";
 
 // A scenario that has captured ground truth: its id (s19), dir name, all session transcripts, and
 // `.step_states` dir. A run can split into several JSONL — pre/post a /clear, baseline + scenario for a
 // git-baseline, one per agent for a concurrent run — all merged into one record stream at reconstruction.
+// A multi-source capture (s88+) additionally declares `sources` — one bare {projectsDir} entry per
+// `source-*/projects` tree — so the checker routes through the multi-source merge and the per-source
+// sidecar reader (spec S7c).
 export type CoveredScenario = {
     scenarioId: string;
     dirName: string;
     jsonlPaths: Path[];
     stepStatesDir: string;
+    sources?: SourceEntry[];
 };
 
 // Names that are never scenario source files in a `.step_states` folder: the capture manifest, the
@@ -45,6 +50,41 @@ export function allJsonls(dir: string): string[] {
     return jsonlPaths;
 }
 
+// The sorted `source-*` subdirectory names of a scenario dir that contain a `projects` directory —
+// the per-source trees of a multi-source capture (each also holds a sibling `file-history/`).
+export function findSourceTrees(dir: string): string[] {
+    const treeNames = readdirSync(dir).filter(
+        (name) => name.startsWith("source-") && isDirectory(join(dir, name, "projects")),
+    );
+    treeNames.sort();
+    return treeNames;
+}
+
+// Every session jsonl across the given source trees: each tree contributes the jsonls of every
+// project dir under its `projects/` root, sorted within each project dir by allJsonls.
+function allSourceTreeJsonls(dir: string, treeNames: string[]): string[] {
+    return treeNames.flatMap((treeName) => {
+        const projectsRoot = join(dir, treeName, "projects");
+        return readdirSync(projectsRoot)
+            .filter((projectName) => isDirectory(join(projectsRoot, projectName)))
+            .sort()
+            .flatMap((projectName) => allJsonls(join(projectsRoot, projectName)));
+    });
+}
+
+// The jsonl paths + declared sources of one scenario dir. With `source-*` trees present the flat
+// root jsonls are IGNORED (they are auto-capture duplicates of the same sessions, and the capture
+// root has no file-history sibling — loading them would fall back to the live ~/.claude chain);
+// each tree becomes one bare {projectsDir} source, so sibling file-history resolution is zero-config.
+function collectScenarioInputs(dir: string): { jsonls: string[]; sources?: SourceEntry[] } {
+    const treeNames = findSourceTrees(dir);
+    if (treeNames.length === 0) {
+        return { jsonls: allJsonls(dir) };
+    }
+    const sources = treeNames.map((treeName) => ({ projectsDir: new Path(join(dir, treeName, "projects")) }));
+    return { jsonls: allSourceTreeJsonls(dir, treeNames), sources };
+}
+
 // Every scenario under `executedRoot` that has a `.step_states/` dir AND at least one transcript. A dir with
 // `.step_states` but no jsonl is logged and skipped (nothing to reconstruct from).
 export function findCoveredScenarios(executedRoot: URL): CoveredScenario[] {
@@ -56,13 +96,13 @@ export function findCoveredScenarios(executedRoot: URL): CoveredScenario[] {
         if (!isDirectory(dir) || !existsSync(stepStatesDir)) {
             continue;
         }
-        const jsonls = allJsonls(dir);
+        const { jsonls, sources } = collectScenarioInputs(dir);
         if (jsonls.length === 0) {
             console.warn(`skip ${dirName}: no .jsonl transcript`);
             continue;
         }
         const jsonlPaths = jsonls.map((jsonl) => new Path(jsonl));
-        covered.push({ scenarioId: scenarioIdOf(dirName), dirName, jsonlPaths, stepStatesDir });
+        covered.push({ scenarioId: scenarioIdOf(dirName), dirName, jsonlPaths, stepStatesDir, sources });
     }
     return covered;
 }

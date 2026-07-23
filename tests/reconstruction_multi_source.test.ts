@@ -14,11 +14,15 @@ import {
     computeSessionRoots,
     mergeMultiSourceRecords,
 } from "../src/reconstruction_multi_source.ts";
+import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
+import { reconstructStepStates, snapshotFileText } from "../src/reconstruction_steps.ts";
 import {
     SESSION_A,
+    SESSION_B,
     makeSourceTree,
     makeTwoSourceEditFixture,
     buildWriteRecordPair,
+    buildEditRecordPair,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
@@ -113,4 +117,47 @@ test("test_single_source_records_pass_through_unchanged", () => {
     const sources: SourceEntry[] = [{ projectsDir: new Path(join(tree.treeRoot, "projects")) }];
     const merged = mergeMultiSourceRecords([records], sources);
     assert.deepEqual(merged, records);
+});
+
+test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
+    // Scenario (task 179, s89): session A's root is <proj>, session B's root is the NESTED
+    // <proj>/tests — the same file is tests/test_x.py under A but test_x.py under B, while its
+    // ABSOLUTE path is identical. Identity must fall out of the merged stream (absolute-path
+    // fast path); the rel-path join must not split or remap it.
+    const treeA = makeSourceTree("-scen89-proj");
+    const treeB = makeSourceTree("-scen89-proj-tests");
+    const rootA = join(treeA.treeRoot, "proj");
+    const rootB = join(rootA, "tests");
+    const filePath = join(rootA, "tests", "test_x.py");
+    const versions = [
+        "def test_a():\n    assert True\n",
+        "def test_a():\n    assert True\ndef test_b():\n    assert True\n",
+        "def test_a():\n    assert True\ndef test_b():\n    assert True\ndef test_c():\n    assert True\n",
+    ];
+    const write = buildWriteRecordPair(
+        { sessionId: SESSION_A, cwd: rootA, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_w_a1", parentUuid: null },
+        filePath, versions[0]!,
+    );
+    const editB = buildEditRecordPair(
+        { sessionId: SESSION_B, cwd: rootB, timestamp: "2026-07-22T10:05:00.000Z", toolId: "toolu_e_b1", parentUuid: null },
+        filePath, versions[1]!, versions[0]!,
+        { oldStart: 2, oldLines: 1, newStart: 2, newLines: 3, lines: ["     assert True", "+def test_b():", "+    assert True"] },
+    );
+    const editA = buildEditRecordPair(
+        { sessionId: SESSION_A, cwd: rootA, timestamp: "2026-07-22T10:10:00.000Z", toolId: "toolu_e_a2", parentUuid: "toolu_w_a1-result" },
+        filePath, versions[2]!, versions[1]!,
+        { oldStart: 4, oldLines: 1, newStart: 4, newLines: 3, lines: ["     assert True", "+def test_c():", "+    assert True"] },
+    );
+    const listA = writeTranscriptFixture(treeA.projectDir, "a.jsonl", [...write.records, ...editA.records]);
+    const listB = writeTranscriptFixture(treeB.projectDir, "b.jsonl", editB.records);
+    const sources: SourceEntry[] = [
+        { projectsDir: new Path(join(treeA.treeRoot, "projects")), root: new Path(rootA) },
+        { projectsDir: new Path(join(treeB.treeRoot, "projects")), root: new Path(rootB) },
+    ];
+    const merged = mergeMultiSourceRecords([listA, listB], sources);
+    const steps = reconstructStepStates(merged, buildSidecarReader(merged, sources));
+    // Test verification: three engine steps carry the ONE interleaved ladder (engine text drops
+    // the trailing newline).
+    const ladder = steps.map((step) => snapshotFileText(step, filePath));
+    assert.deepEqual(ladder, versions.map((text) => text.slice(0, -1)));
 });

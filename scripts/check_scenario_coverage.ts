@@ -20,6 +20,7 @@ import {
     type StepChange,
 } from "../src/reconstruction_steps.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
+import { mergeMultiSourceRecords, groupRecordsBySession } from "../src/reconstruction_multi_source.ts";
 import { Path } from "../src/structures/domain.ts";
 import {
     enableProvenance,
@@ -139,9 +140,13 @@ function buildStepMismatch(
 // reproduces it) or a mismatch.
 export function checkScenario(scenario: CoveredScenario): ScenarioResult {
     console.log(`\n=== scenario ${scenario.scenarioId} (${scenario.dirName}) ===`);
-    const records = scenario.jsonlPaths.flatMap((path) => loadTranscript(path.toString()).records);
+    const loaded = scenario.jsonlPaths.flatMap((path) => loadTranscript(path.toString()).records);
+    // Spec S7c: a multi-source capture routes through the viewer's merge stages + per-source reader.
+    const records = scenario.sources === undefined
+        ? loaded
+        : mergeMultiSourceRecords(groupRecordsBySession(loaded), scenario.sources);
     console.log(`   Loaded ${records.length} transcript records from ${scenario.jsonlPaths.length} JSONL files`);
-    const reader = buildSidecarReader(records);
+    const reader = buildSidecarReader(records, scenario.sources);
     const uuidLineIndex = buildUuidLineIndex(scenario.jsonlPaths);
     enableProvenance();
     const steps = reconstructStepStates(records, reader);
