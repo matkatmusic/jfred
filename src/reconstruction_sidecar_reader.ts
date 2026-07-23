@@ -12,6 +12,7 @@ import { Path, Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
+import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // The default on-disk reader: <root>/<sessionId>/<backupFileName>.
 export function createSidecarReader(sessionId: Uuid, root: Path): BackupReader {
@@ -165,6 +166,9 @@ export function buildSidecarReader(records: TranscriptRecord[], sources?: Source
     // spec S4a: with declared sources, each session reads from its OWN source's root;
     // sessions no source claims keep the single-root chain above.
     const sessionRoots = sources === undefined ? undefined : computeSessionFileHistoryRoots(records, sources);
+    // task 191: close out the CLI's "building sidecar backup reader" stage — the build itself is
+    // instant (blob reads happen lazily), so a hang after this line belongs to the next stage.
+    reportReconstructionProgress(`sidecar reader ready: ${sessionIds.length} session(s), root ${root}`);
     return (backupFileName, sessionId) => {
         const name = backupFileName.toString();
         // The engine passes the snapshot's OWNING session: across merged sessions the same `@vN` blob

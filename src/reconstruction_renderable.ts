@@ -27,6 +27,9 @@ export function reconstructFilesOver(
     records: TranscriptRecord[],
     reader?: BackupReader,
 ): FileHistory[] {
+    // task 191: this runs once per branch pass and precedes any per-target line — announce it so
+    // stage-level --progress keeps moving through the extraction/lineage stretch.
+    reportReconstructionProgress(`extracting file events from ${records.length} records`);
     const extracted = extractFileEvents(records);
     // task 155: sandbox-proven script moves join the chain so a moved-away source collapses
     // into its destination's history instead of surviving as an alive 1-revision file.

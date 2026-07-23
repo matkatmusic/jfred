@@ -205,6 +205,9 @@ export function reconstructBranches(
     records: TranscriptRecord[],
     reader?: BackupReader,
 ): BranchedReconstruction {
+    // task 191: cover the silent stretch after the sidecar-reader stage (the tip-scan events
+    // below are counted, so stage-level --progress would otherwise show nothing here).
+    reportReconstructionProgress(`finding conversation branches across ${records.length} records`);
     const branches = findConversationBranches(records);
     const survivingBranch = branches.find((branch) => branch.isSurviving);
     const surviving = reconstructAll(records, reader);
