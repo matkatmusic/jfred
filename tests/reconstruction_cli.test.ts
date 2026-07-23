@@ -207,3 +207,32 @@ test("test_run_cli_merges_two_transcripts_across_sources", () => {
     assert.ok(out.includes("beta.py"));
     setPathOverrides({});
 });
+
+// Task 181: the existing --file flag (alias of --target) narrows the output to the named
+// file's revision ladder end-to-end through the multi-source merge path — the other source's
+// file is reconstructed but filtered out of the rendering.
+test("test_file_flag_filters_ladder_on_multi_source_fixture", () => {
+    const treeA = makeSourceTree("-cli-file-a");
+    const treeB = makeSourceTree("-cli-file-b");
+    const rootA = join(treeA.treeRoot, "ws-a");
+    const rootB = join(treeB.treeRoot, "ws-b");
+    const alphaPath = join(rootA, "alpha.py");
+    const pairA = buildWriteRecordPair(
+        { sessionId: SESSION_A, cwd: rootA, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_cli_fa", parentUuid: null },
+        alphaPath,
+        "alpha\n",
+    );
+    const pairB = buildWriteRecordPair(
+        { sessionId: SESSION_B, cwd: rootB, timestamp: "2026-07-22T10:05:00.000Z", toolId: "toolu_cli_fb", parentUuid: null },
+        join(rootB, "beta.py"),
+        "beta\n",
+    );
+    writeTranscriptFixture(treeA.projectDir, "a.jsonl", pairA.records);
+    writeTranscriptFixture(treeB.projectDir, "b.jsonl", pairB.records);
+    const out = runCli([join(treeA.projectDir, "a.jsonl"), join(treeB.projectDir, "b.jsonl"), "--file", alphaPath, "--json"]);
+    // Only the named file's ladder renders; the other source's file is filtered out.
+    assert.ok(out.includes("alpha.py"));
+    assert.ok(out.includes("revisions"));
+    assert.ok(!out.includes("beta.py"));
+    setPathOverrides({});
+});

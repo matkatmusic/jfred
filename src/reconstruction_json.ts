@@ -196,11 +196,17 @@ export function buildReconstructionDocument(
     const branches = buildPhaseTolerantly("summarizeBranches", [], () => summarizeBranches(records));
     reportReconstructionProgress("building step snapshots");
     // task 119: const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);
-    const { steps, stepFileHistories } = buildPhaseTolerantly(
+    const { steps: allSteps, stepFileHistories } = buildPhaseTolerantly(
         "buildStepSnapshots",
         { steps: [], stepFileHistories: [] },
         () => buildStepSnapshots(records, reader, branched.surviving),
     );
+    // Task 181: --target narrows the step timeline like it narrows filesTouched — a step that
+    // never touched the target is another file's history, not part of this ladder.
+    const steps =
+        target === undefined
+            ? allSteps
+            : allSteps.filter((step) => step.changedPaths.includes(target.toString()));
     reportReconstructionProgress("building line verdicts");
     // task 119: const lineVerdicts = buildLineVerdicts(records);
     const lineVerdicts = buildPhaseTolerantly("buildLineVerdicts", [], () => buildLineVerdicts(records));

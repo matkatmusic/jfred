@@ -87,14 +87,18 @@ export async function renderProjectDrawer(
     // The default view: a JSONL opens the project-wide revision timeline anchored at its session.
     // Direct #/…/jsonl/<f> URLs still render the conversation view (bookmarks stay valid); the
     // conversation stays reachable via the timeline's session-header links and inspector jumps.
+    // Task 185: the list lives in its own scroll container capped at half the column, so a
+    // project with many JSONLs can't squeeze the files tree out of view.
+    const jsonlList = el("div", { class: "drawer-jsonl-list" });
     for (const entry of listing.jsonlFiles) {
-        drawer.append(el("a", {
+        jsonlList.append(el("a", {
             class: `drawer-item${entry.fileName === activeJsonl ? " active" : ""}`,
             href: routeToTimeline(project, entry.fileName, undefined),
             text: entry.fileName,
             title: `${entry.sizeBytes} B · ${new Date(entry.modifiedAt).toLocaleString()}`,
         }));
     }
+    drawer.append(jsonlList);
 
     const cachedDocument = peekCachedDocument<WireDocument>(project);
     if (cachedDocument === undefined) return;

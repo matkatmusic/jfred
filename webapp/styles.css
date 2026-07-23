@@ -294,6 +294,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .drawer-item:hover { background: var(--sel-hover); text-decoration: none; }
 .drawer-item.active { background: var(--control); border-left-color: var(--accent); color: var(--accent); }
 .drawer-file { padding-left: 16px; }
+/* Task 185: the JSONL list occupies at most half the File Nav column and scrolls within
+   itself, so the files tree below keeps the rest of the column. */
+.drawer-jsonl-list { max-height: 50%; overflow-y: auto; }
 
 /* ─── Splitters ───────────────────────────────────────────────── */
 .splitter-h {
