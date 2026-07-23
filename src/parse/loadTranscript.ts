@@ -158,7 +158,9 @@ export function loadTranscript(
     onProgress?: ProgressSink,
     tolerateUnmodeledFields = false,
 ): LoadedTranscript {
-    console.log(`   Loading transcript from ${filePath}`);   // pre-existing CLI line — keep
+    // task 191: console.log(`   Loading transcript from ${filePath}`);   — retired from stdout;
+    // the `loading <file>` progress event on the next line is its replacement (the CLI's
+    // --progress flag prints it to stderr; the viewer's sink already prints it server-side).
     onProgress?.({ kind: DocumentResponseKind.progress, label: `loading ${basename(filePath)}` });
     const fileText = readFileSync(filePath, "utf8");
     const lines = fileText.split("\n");

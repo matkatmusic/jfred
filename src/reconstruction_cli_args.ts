@@ -18,7 +18,7 @@ import {
 // item 46: const USAGE =
 // item 46:     "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords]";
 export const USAGE =
-    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>]";
+    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>]";
 
 export type CliOptions = {
     jsonlPath: string;
@@ -37,6 +37,10 @@ export type CliOptions = {
     graphFile: boolean;
     json: boolean;
     allRecords: boolean;
+    // task 191: progress-to-stderr verbosity. `progress` = stage labels only; `progressAll`
+    // adds the counted per-item events (and implies `progress`).
+    progress: boolean;
+    progressAll: boolean;
     fileHistoryRoot: Path | undefined;
     projectCwd: Path | undefined;
     repoDir: Path | undefined;
@@ -111,6 +115,8 @@ export function parseArgs(argv: string[]): CliOptions {
     const diff = rest.includes("--diff");
     const allRecords = rest.includes("--allRecords");
     const json = rest.includes("--json") || allRecords;
+    const progressAll = rest.includes("--progress-all");
+    const progress = rest.includes("--progress") || progressAll;
     const graphs = resolveGraphFlags(rest, branchFlag.value, surviving, listBranches, verbose, diff);
     return {
         jsonlPath,
@@ -127,6 +133,8 @@ export function parseArgs(argv: string[]): CliOptions {
         graphFile: graphs.file,
         json,
         allRecords,
+        progress,
+        progressAll,
         fileHistoryRoot: fhsAlias.value !== undefined ? new Path(fhsAlias.value) : undefined,
         projectCwd: cwdFlag.value !== undefined ? new Path(cwdFlag.value) : undefined,
         repoDir: repoFlag.value !== undefined ? new Path(repoFlag.value) : undefined,

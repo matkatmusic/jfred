@@ -5,7 +5,11 @@
 // plans/reconstruction-engine-design.md.
 
 import { fileURLToPath } from "node:url";
-import { loadTranscript } from "./parse/loadTranscript.ts";
+import { loadTranscript, type ProgressEvent, type ProgressSink } from "./parse/loadTranscript.ts";
+import {
+    reportReconstructionProgress,
+    setReconstructionProgressSink,
+} from "./reconstruction_progress.ts";
 import { Path } from "./structures/domain.ts";
 import {
     USAGE,
@@ -160,6 +164,28 @@ function renderJson(
     return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target).document, null, 2);
 }
 
+// One stderr line for a progress event, or undefined when the event is filtered at this level:
+// stage level (--progress) drops the counted per-item events; --progress-all keeps them.
+function formatProgressLine(event: ProgressEvent, showCountedEvents: boolean): string | undefined {
+    if (event.current === undefined) {
+        return `${event.label}\n`;
+    }
+    if (!showCountedEvents) {
+        return undefined;
+    }
+    return `${event.label} (${event.current}/${event.total})\n`;
+}
+
+// task 191: CLI progress goes to stderr so stdout stays pure JSON for --json consumers.
+function buildStderrProgressSink(showCountedEvents: boolean): ProgressSink {
+    return (event) => {
+        const line = formatProgressLine(event, showCountedEvents);
+        if (line !== undefined) {
+            process.stderr.write(line);
+        }
+    };
+}
+
 // Load the transcript and render the chosen view. The bare default (no flags) prints both DAGs; the
 // graph flags take precedence, then the branch selectors, then the surviving content view (the
 // back-compat path for --surviving and for --verbose/--diff with no selector).
@@ -171,14 +197,33 @@ export function runCli(argv: string[]): string {
     // task 119: a previous in-process run's aborted leftovers must not leak into this run's
     // failure notes (the tests drive runCli repeatedly in one process).
     clearReconstructionFailures();
+    const sink = options.progress ? buildStderrProgressSink(options.progressAll) : undefined;
+    setReconstructionProgressSink(sink);
+    try {
+        return renderTranscriptView(options, sink);
+    } finally {
+        // task 191, same in-process concern as task 119 above: the sink must not outlive its run.
+        setReconstructionProgressSink(undefined);
+    }
+}
+
+// The post-parse body of runCli: load every transcript, merge, build the sidecar reader, and
+// dispatch to the selected view. `sink` reaches loadTranscript explicitly (the module-level
+// engine sink cannot be imported from there — reconstruction_progress.ts imports the
+// ProgressSink type FROM loadTranscript, so the reverse import would be circular).
+function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefined): string {
     // Strict mode throws instead of skipping, so skippedLines is always empty here — a parse
     // error in ANY transcript aborts the run (spec S4b keeps the CLI strict, task-119 decision).
     // spec S4b: const { records } = loadTranscript(options.jsonlPath);
-    const recordLists = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath).records);
+    const recordLists = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath, sink).records);
     const sources = getPathOverrides().sources;
+    if (sources !== undefined) {
+        reportReconstructionProgress(`merging ${recordLists.length} transcripts across ${sources.length} sources`);
+    }
     // With declared (or multi-root derived) sources the stream goes through the multi-source
     // stages; one sources-less list is exactly the legacy single-transcript records.
     const records = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
+    reportReconstructionProgress("building sidecar backup reader");
     const reader = buildSidecarReader(records, sources);
     if (options.json) {
         return renderJson(records, reader, options);
