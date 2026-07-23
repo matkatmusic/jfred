@@ -146,6 +146,13 @@ function rebuiltEvent(
 // Reconstruction stage: replace each user-edit beacon that is the validated echo of a script-execution
 // run with a synthetic ScriptExecutionEvent, OR inject a new event when the script modified a file
 // that has no beacon (multi-session transcripts where the baseline Write predates the script run).
+// Task 191: the stage announcement shows the replay-window count against the full pool
+// ("script stage: 2559 of 2871 runs for <file>") so a watcher can see the window's ceiling.
+export function formatScriptStageLabel(windowedCount: number, totalCount: number, target?: Path): string {
+    const targetSuffix = target === undefined ? "" : ` for ${target}`;
+    return `script stage: ${windowedCount} of ${totalCount} runs${targetSuffix}`;
+}
+
 export function injectScriptExecutions(
     records: TranscriptRecord[],
     events: FileEvent[],
@@ -154,10 +161,10 @@ export function injectScriptExecutions(
     seedContent?: LineageContentBefore,
 ): FileEvent[] {
     if (!isImpureExecutionAllowed()) return events;
-    const runs = selectRunsWithinReplayWindow(findScriptExecutionRuns(records));
+    const allRuns = findScriptExecutionRuns(records);
+    const runs = selectRunsWithinReplayWindow(allRuns);
     if (runs.length === 0) return events;
-    const targetSuffix = target === undefined ? "" : ` for ${target}`;
-    reportReconstructionProgress(`script stage: ${runs.length} runs${targetSuffix}`);
+    reportReconstructionProgress(formatScriptStageLabel(runs.length, allRuns.length, target));
     let anyReplaced = false;
     const result = events.map((event) => {
         const rebuilt = rebuiltEvent(event, runs, records, reader, seedContent);

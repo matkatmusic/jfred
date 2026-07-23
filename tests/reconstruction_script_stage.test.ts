@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { reconstructAll } from "../src/reconstruction_engine.ts";
 import { linesTextOf } from "../src/reconstruction_revisions.ts";
-import { injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { formatScriptStageLabel, injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
 import {
     discoverScriptCreatedPaths,
     executeRunOnce,
@@ -197,3 +197,16 @@ test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
     }
 });
 
+
+// Task 191 follow-up: the stage label shows the windowed count AGAINST the total pool
+// ("2559 of 2871 runs"), so a watcher can see how close the advancing replay window is to the
+// dataset's full run count. Both variants: with and without a --target suffix.
+test("test_script_stage_label_shows_windowed_count_of_total", () => {
+    // A target-scoped stage pass names the file after the counts.
+    assert.equal(
+        formatScriptStageLabel(3, 10, new Path("/tmp/x.py")),
+        "script stage: 3 of 10 runs for /tmp/x.py",
+    );
+    // An all-files pass carries no target suffix.
+    assert.equal(formatScriptStageLabel(3, 10, undefined), "script stage: 3 of 10 runs");
+});
