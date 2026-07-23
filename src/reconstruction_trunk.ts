@@ -5,6 +5,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
 import { absorbParallelToolCallSiblings } from "./reconstruction_trunk_absorb.ts";
+import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import {
     collectAncestorUuids,
     collectHeadUuids,
@@ -12,10 +13,13 @@ import {
 } from "./reconstruction_tree.ts";
 
 // The ancestor-chain uuid set of every head, keyed by head uuid string — computed once so the
-// tree grouping below reads each chain a single time.
+// tree grouping below reads each chain a single time. Each walk is O(records) (per-call uuid
+// re-index in collectAncestorUuids), so on a many-session merged corpus this loop is the slow
+// part of branch enumeration — announce per-head motion for the stage-level heartbeat.
 function mapHeadChains(records: TranscriptRecord[], heads: Uuid[]): Map<string, Set<string>> {
     const chains = new Map<string, Set<string>>();
-    for (const head of heads) {
+    for (const [headIndex, head] of heads.entries()) {
+        reportReconstructionProgress("charting conversation heads", headIndex + 1, heads.length);
         chains.set(head.toString(), collectAncestorUuids(records, head));
     }
     return chains;
@@ -122,16 +126,16 @@ function dedupeUuids(uuids: Uuid[]): Uuid[] {
 // other abandoned head. (A head that lies on another abandoned head's chain is an interior node of
 // that deeper branch, not a branch tip of its own.)
 function isMaximalTip(
-    records: TranscriptRecord[],
     head: Uuid,
     abandoned: Uuid[],
+    chains: Map<string, Set<string>>,
 ): boolean {
     for (const other of abandoned) {
         if (other.toString() === head.toString()) {
             continue;
         }
-        const otherAncestors = collectAncestorUuids(records, other);
-        if (otherAncestors.has(head.toString())) {
+        // const otherAncestors = collectAncestorUuids(records, other);  // pre-charted below
+        if (chains.get(other.toString())!.has(head.toString())) {
             return false;
         }
     }
@@ -139,11 +143,15 @@ function isMaximalTip(
 }
 
 // The abandoned (rewound) heads: heads not on the surviving chain, deduped to maximal tips.
+// Chains are charted ONCE via mapHeadChains — the per-pair collectAncestorUuids walks this
+// replaces were O(heads² × records) and stalled real multi-session projects for hours inside
+// "finding conversation branches" with no progress output.
 export function collectAbandonedHeads(
     records: TranscriptRecord[],
     survivingSet: Set<string>,
 ): Uuid[] {
     const heads = dedupeUuids(collectHeadUuids(records));
     const abandoned = heads.filter((head) => !survivingSet.has(head.toString()));
-    return abandoned.filter((head) => isMaximalTip(records, head, abandoned));
+    const chains = mapHeadChains(records, abandoned);
+    return abandoned.filter((head) => isMaximalTip(head, abandoned, chains));
 }

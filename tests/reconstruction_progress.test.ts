@@ -5,6 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runCli } from "../src/reconstruction_cli.ts";
+import { buildStderrProgressSink } from "../src/reconstruction_progress.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
 import { S1_JSONL } from "./fixtures.ts";
 
 // ── Task 191: CLI progress on stderr, behind --progress/--progress-all ──
@@ -71,6 +73,36 @@ test("test_progress_all_flag_writes_counted_record_events", () => {
     const stderrLines = captureStderrLines(() => { runCli([S1_JSONL, "--json", "--progress-all"]); });
     // At least one counted per-record event was written.
     assert.ok(stderrLines.some((line) => /\(\d+\/\d+\)\n$/.test(line)));
+});
+
+// Stage-level heartbeat: a counted event surfaces at stage level once the stream has been
+// silent past the heartbeat window, so slow per-item loops (branch-tip scans on real data)
+// don't read as a frozen engine.
+test("test_stage_level_heartbeat_surfaces_counted_event_after_silence", () => {
+    const sink = buildStderrProgressSink(false);
+    const originalNow = Date.now;
+    try {
+        let nowMs = originalNow();
+        Date.now = () => nowMs;
+        // Within the window, counted events stay filtered at stage level.
+        const early = captureStderrLines(() => {
+            sink({ kind: DocumentResponseKind.progress, label: "scanning branch tips", current: 1, total: 9 });
+        });
+        assert.deepEqual(early, []);
+        // After the silence window, the next counted event surfaces as a heartbeat.
+        nowMs += 60_000;
+        const late = captureStderrLines(() => {
+            sink({ kind: DocumentResponseKind.progress, label: "scanning branch tips", current: 2, total: 9 });
+        });
+        assert.deepEqual(late, ["scanning branch tips (2/9)\n"]);
+        // The heartbeat write resets the window — the very next counted event is filtered again.
+        const afterHeartbeat = captureStderrLines(() => {
+            sink({ kind: DocumentResponseKind.progress, label: "scanning branch tips", current: 3, total: 9 });
+        });
+        assert.deepEqual(afterHeartbeat, []);
+    } finally {
+        Date.now = originalNow;
+    }
 });
 
 // Task 191: the sink is build-scoped — a later flag-less run in the same process stays silent

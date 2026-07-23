@@ -39,11 +39,19 @@ function formatProgressLine(event: ProgressEvent, showCountedEvents: boolean): s
     return `${event.label} (${event.current}/${event.total})\n`;
 }
 
+// Stage-level runs stay silent through slow counted loops (branch-tip scans on real data run
+// minutes per item), which reads as a frozen engine. After this much silence, the next counted
+// event surfaces even at stage level — a heartbeat, not the --progress-all flood.
+const STAGE_HEARTBEAT_MS = 2000;
+
 // task 191: CLI progress goes to stderr so stdout stays pure JSON for --json consumers.
 export function buildStderrProgressSink(showCountedEvents: boolean): ProgressSink {
+    let lastWriteMs = Date.now();
     return (event) => {
-        const line = formatProgressLine(event, showCountedEvents);
+        const heartbeatDue = Date.now() - lastWriteMs >= STAGE_HEARTBEAT_MS;
+        const line = formatProgressLine(event, showCountedEvents || heartbeatDue);
         if (line !== undefined) {
+            lastWriteMs = Date.now();
             process.stderr.write(line);
         }
     };

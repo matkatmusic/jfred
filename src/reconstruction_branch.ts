@@ -83,14 +83,17 @@ function survivingBranchRecordsFileChange(
 export function findConversationBranches(
     records: TranscriptRecord[],
 ): ConversationBranch[] {
+    reportReconstructionProgress("locating surviving head");
     const survivingHead = findSurvivingHead(records);
     if (survivingHead === undefined) {
         return [];
     }
+    reportReconstructionProgress("collecting surviving trunk uuids");
     const survivingSet = collectSurvivingTrunkUuids(records, survivingHead);
     const branches: ConversationBranch[] = [
         { tip: survivingHead, rewindPoint: undefined, isSurviving: true },
     ];
+    reportReconstructionProgress("collecting abandoned heads");
     const abandonedTips = collectAbandonedHeads(records, survivingSet);
     for (const [tipIndex, tip] of abandonedTips.entries()) {
         // task 163: the rewind-point walk per tip is the enumeration's real work — announce it
@@ -100,6 +103,7 @@ export function findConversationBranches(
         branches.push({ tip, rewindPoint, isSurviving: false });
     }
     const existingTips = new Set(branches.map((branch) => branch.tip.toString()));
+    reportReconstructionProgress("scanning structural forks");
     branches.push(...findStructuralRewoundBranches(records, existingTips));
     return branches;
 }

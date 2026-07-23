@@ -175,6 +175,7 @@ export function reconstructAll(
     records: TranscriptRecord[],
     reader?: BackupReader,
 ): FileHistory[] {
+    reportReconstructionProgress(`reconstructing surviving files across ${records.length} records`);
     return reconstructFilesOver(selectLiveBranch(records), reader);
 }
 
