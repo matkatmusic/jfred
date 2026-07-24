@@ -159,11 +159,11 @@ export function scanProjects(projectsDir: Path): ProjectListing[] {
 // this file and viewer_server_routes.ts are both at the 250-line cap).
 
 // Map a static-request URL path to its webapp-relative file name: `/` is the app's main page
-// (webapp_old.html until the layered page claims index.html — task 204/205), `/webapp_old.html`
-// is the preserved pre-redesign page, and `/app/*` prefixes strip to plain asset names.
+// (the layered index.html — task 205), `/webapp_old.html` is the preserved pre-redesign page,
+// and `/app/*` prefixes strip to plain asset names.
 export function computeStaticFileRelative(urlPath: string): string {
     if (urlPath === "/") {
-        return "webapp_old.html";
+        return "index.html";
     }
     return urlPath.replace(/^\/app\//, "").replace(/^\//, "");
 }

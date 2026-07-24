@@ -10,8 +10,16 @@ import { computeStaticFileRelative, resolveStaticFilePath } from "../src/viewer_
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(WEBAPP_DIR, "dist");
 
-test("root_maps_to_webapp_old_until_layered_page_lands", () => {
-    assert.equal(computeStaticFileRelative("/"), "webapp_old.html");
+test("test_root_maps_to_layered_index_page", () => {
+    // Scenario (task 205): the layered page claimed index.html as the app's main page.
+    assert.equal(computeStaticFileRelative("/"), "index.html");
+});
+
+test("test_layered_index_resolves_to_existing_source_file", () => {
+    // Scenario (task 205): the served root page actually exists in webapp/.
+    const resolved = resolveStaticFilePath("index.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
+    assert.equal(resolved, resolve(WEBAPP_DIR, "index.html"));
+    assert.ok(existsSync(resolved));
 });
 
 test("webapp_old_path_maps_to_webapp_old_file", () => {

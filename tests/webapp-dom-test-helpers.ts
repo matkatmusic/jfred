@@ -77,6 +77,28 @@ export function setupWebappDom(): void {
     browserWindow.document.body.innerHTML = readIndexHtmlBodyMarkup();
 }
 
+// The layered page's body markup (task 205): index.html is the new main page.
+function readLayeredHtmlBodyMarkup(): string {
+    const html = readFileSync(new URL("../webapp/index.html", import.meta.url), "utf8");
+    return html.split("<body>")[1]!.split("</body>")[0]!;
+}
+
+// Build a fresh happy-dom window for the layered page (task 205): the setupWebappDom globals
+// minus the xterm/ResizeObserver/CSS fakes — the layered skeleton uses none of them.
+export function setupLayeredDom(): void {
+    const browserWindow = new Window({ url: "http://localhost:7343/" });
+    Object.assign(globalThis, {
+        window: browserWindow,
+        document: browserWindow.document,
+        location: browserWindow.location,
+        sessionStorage: browserWindow.sessionStorage,
+        localStorage: browserWindow.localStorage,
+        HTMLElement: browserWindow.HTMLElement,
+        HTMLButtonElement: browserWindow.HTMLButtonElement,
+    });
+    browserWindow.document.body.innerHTML = readLayeredHtmlBodyMarkup();
+}
+
 // A minimal Response-like object covering exactly what fetchLogged reads: ok/status/json/text.
 function respondJson(payload: unknown, ok: boolean, status: number): Response {
     return {

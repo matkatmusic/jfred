@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JFRED — Layered Timeline</title>
+    <link rel="stylesheet" href="/app/layered-styles.css">
+</head>
+<body>
+    <header class="layered-header">
+        <button id="layered-drawer-toggle" class="layered-toolbar-btn" title="Collapse or restore the drawer">☰</button>
+        <h1 class="layered-title">JFRED — Layered Timeline</h1>
+        <a class="layered-old-link" href="/webapp_old.html" title="The preserved pre-redesign page (spec S7)">classic app</a>
+    </header>
+    <div class="layered-app">
+        <nav id="layered-drawer" class="layered-drawer">
+            <h3>JSONL sessions</h3>
+            <div id="layered-session-list"></div>
+            <h3>File nav</h3>
+            <div id="layered-file-nav"></div>
+        </nav>
+        <main id="layered-timeline" class="layered-timeline">
+            <div id="layered-canvas" class="layered-canvas"></div>
+        </main>
+        <aside id="layered-right" class="layered-right">
+            <section id="layered-details" class="layered-details"></section>
+            <section id="layered-changes" class="layered-changes" hidden></section>
+        </aside>
+    </div>
+    <script type="module" src="/app/layered-app.js"></script>
+</body>
+</html>
