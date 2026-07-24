@@ -11,6 +11,42 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { shortUuid } from "./reconstruction_branch.ts";
 import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
 import type { Path } from "./structures/domain.ts";
+import type { CliOptions } from "./reconstruction_cli_args.ts";
+import { renderDiff, renderVerbose } from "./reconstruction_render.ts";
+
+// Render histories in the verbose/diff mode, each under its `### <path>` header. (Moved from
+// reconstruction_cli.ts with filterByTarget/renderChosen — task 192 line-cap split.)
+function renderHistories(
+    histories: FileHistory[],
+    render: (revisions: FileRevision[]) => string,
+): string {
+    const sections = histories.map((history) => `### ${history.target}\n${render(history.revisions)}`);
+    return sections.join("\n\n");
+}
+
+// The histories matching --target (by exact final path), or all of them when no --target is given.
+export function filterByTarget(
+    histories: FileHistory[],
+    target: Path | undefined,
+): FileHistory[] {
+    if (target === undefined) {
+        return histories;
+    }
+    return histories.filter((history) => history.target.toString() === target.toString());
+}
+
+// Render a chosen set of histories in the selected view (list/verbose/diff), narrowed to --target
+// when one is given. Shared by every branch view so the flags compose uniformly.
+export function renderChosen(histories: FileHistory[], options: CliOptions): string {
+    const chosen = filterByTarget(histories, options.target);
+    if (options.diff) {
+        return renderHistories(chosen, renderDiff);
+    }
+    if (options.verbose) {
+        return renderHistories(chosen, renderVerbose);
+    }
+    return renderHistoryList(chosen);
+}
 
 // The clock portion of a timestamp (HH:MM:SSZ).
 function formatShortTime(date: Date): string {

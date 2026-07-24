@@ -41,13 +41,15 @@ export const pythonWritePrimitive = new RegExp(
 // command line (task 139; the s2 `mv` was labeled read-only by the python-only checks above): a
 // write-verb word, `sed -i`, or an output redirect whose target looks like a file path (contains
 // "." or "/"). `2>&1` never matches (its target has no "."/"/") and `/dev/null` is excluded
-// explicitly. No `g` flag — used with `.test()`. Equivalent to the literal
-// /\b(?:mv|cp|rm|mkdir|touch|tee|ln)\b|\bsed[ \t]+-i\b|>{1,2}[ \t]*(?!\/dev\/null\b)[\w~-]*[./][\w./~-]*/.
+// explicitly. `ln` is split from the write-verb group (task 192): `\b` alone let the `ln`
+// letters inside an option cluster match (`grep -ln`), so `ln` additionally requires no word
+// character or `-` immediately before it. No `g` flag — used with `.test()`. Equivalent to the
+// literal /\b(?:mv|cp|rm|mkdir|touch|tee)\b|(?<![\w-])ln\b|\bsed[ \t]+-i\b|>{1,2}[ \t]*(?!\/dev\/null\b)[\w~-]*[./][\w./~-]*/.
 // ponytail: raw-text scan, same ceiling as pythonWritePrimitive — these tokens inside python
 // strings, and float comparisons (`x > 0.5`), read as may-write. Accepted false may-writes
 // (item-68 rule: narrow read-only, never widen); each costs only a wasted sandbox attempt.
 export const shellWritePrimitive = new RegExp(
-    "\\b(?:mv|cp|rm|mkdir|touch|tee|ln)\\b|\\bsed[ \\t]+-i\\b" +
+    "\\b(?:mv|cp|rm|mkdir|touch|tee)\\b|(?<![\\w-])ln\\b|\\bsed[ \\t]+-i\\b" +
         "|>{1,2}[ \\t]*(?!/dev/null\\b)[\\w~-]*[./][\\w./~-]*",
 );
 

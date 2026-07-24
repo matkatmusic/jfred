@@ -20,9 +20,14 @@ import {
 } from "./regex_script_detection.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
+import type { WriteEvent } from "./reconstruction_engine.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { pathBasename } from "./reconstruction_script_indirection.ts";
+import {
+    ReconstructionCounter,
+    incrementReconstructionCounter,
+} from "./reconstruction_counters.ts";
 
 // --- static read-only detection (TASKS.md item 68) --------------------------------------------------
 
@@ -145,20 +150,31 @@ export function getPreExecutionState(
     reader: BackupReader,
     seedContent?: LineageContentBefore,
 ): Map<string, string> {
+    incrementReconstructionCounter(ReconstructionCounter.preStateBuilds);
     reportReconstructionProgress(`building pre-execution state for run @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const events = extractFileEvents(records);
     const renameChain = buildRenameChain(events);
     const state = new Map<string, string>();
+    // task 192 Phase 3: collect each CURRENT path's LAST eligible authored Write first, then
+    // resolve content ONCE per path. The delete+set on replace keeps the map's iteration
+    // order equal to each path's final-Write order, so two current paths collapsing to one
+    // computeScriptStateKey keep the exact winner the per-event walk produced.
+    const latestWritesByCurrentPath = new Map<string, { currentPath: Path; write: WriteEvent }>();
     for (const event of events) {
         if (event.kind !== EventKind.write) continue;
         if (event.timestamp.getTime() > run.timestamp.getTime()) continue;
         const currentPath = resolveFinalPath(event.target, renameChain);
+        const pathKey = currentPath.toString();
+        latestWritesByCurrentPath.delete(pathKey);
+        latestWritesByCurrentPath.set(pathKey, { currentPath, write: event });
+    }
+    for (const { currentPath, write } of latestWritesByCurrentPath.values()) {
         // Lineage first (it carries post-backup Edits and earlier runs' effects); then the
         // backup at the current name; then the rename source's backup; then the authored Write.
         const content = seedContent?.(currentPath, run.timestamp)
             ?? backupSeedWriteFor(records, currentPath, run.timestamp, reader)?.content
-            ?? backupSeedWriteFor(records, event.target, run.timestamp, reader)?.content
-            ?? event.content;
+            ?? backupSeedWriteFor(records, write.target, run.timestamp, reader)?.content
+            ?? write.content;
         state.set(computeScriptStateKey(currentPath, run.cwd), content);
     }
     for (const ref of parseScriptFileRefs(run.code)) {

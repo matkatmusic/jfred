@@ -90,8 +90,41 @@ test("test_bound_truncates_after_containing_turn_end", () => {
     assert.equal(bound.records.length, 5);
     // The same-turn edit record IS included.
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));
-    // The bound instant is the last kept record's stamp.
-    assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:02:00.000Z");
+    // The bound instant is the turn-end boundary prompt's stamp (task 192, Phase 6).
+    assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:05:00.000Z");
+});
+
+test("test_bound_instant_reports_turn_end_not_last_record", () => {
+    // Scenario (task 192, optimizations.md Phase 6): the reported boundInstant must be the
+    // ACTUAL turn-end boundary the wall-clock filter used, not the stamp of whatever record
+    // happened to be retained last — merged multi-JSONL streams are grouped by input file,
+    // not globally sorted, so the last array element's stamp can be an arbitrary instant.
+    // Steps:
+    // Two sessions interleave; alpha's turn (session A) ends at promptA2 10:08.
+    // Session B writes beta at 10:05 — the last RETAINED record, stamped before 10:08.
+    const tree = makeSourceTree("-bound-instant");
+    const root = join(tree.treeRoot, "workspace");
+    const alphaPath = join(root, "alpha_bound.py");
+    const writeAlpha = buildWriteRecordPair(
+        { sessionId: SESSION_A, cwd: root, timestamp: "2026-07-23T10:01:00.000Z", toolId: "toolu_bi_w1", parentUuid: "prompt-a1" },
+        alphaPath,
+        "line one\n",
+    );
+    const writeBeta = buildWriteRecordPair(
+        { sessionId: SESSION_B, cwd: root, timestamp: "2026-07-23T10:05:00.000Z", toolId: "toolu_bi_w2", parentUuid: "prompt-b1" },
+        join(root, "beta_bound.py"),
+        "beta\n",
+    );
+    const records = writeTranscriptFixture(tree.projectDir, "bound-instant.jsonl", [
+        buildPromptRecord("prompt-a1", null, "2026-07-23T10:00:00.000Z", root),
+        ...writeAlpha.records,
+        buildPromptRecord("prompt-b1", null, "2026-07-23T10:03:00.000Z", root, { sessionId: SESSION_B }),
+        ...writeBeta.records,
+        buildPromptRecord("prompt-a2", writeAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
+    ]);
+    const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
+    // The last retained record is beta's 10:05 result — the bound must still report 10:08.
+    assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:08:00.000Z");
 });
 
 test("test_bound_same_turn_ordinals_share_a_bound", () => {
@@ -173,57 +206,8 @@ test("test_cli_until_revision_bounds_all_views", () => {
     setPathOverrides({});
 });
 
-test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () => {
-    // Scenario: two sessions ran CONCURRENTLY, so the merged time-ordered stream interleaves
-    // their turns. The turn end must be the OWNING session's next prompt — another session's
-    // prompt landing mid-turn must not cut session A's turn short — and the cut is by wall
-    // clock, so the other session's records inside the window stay in.
-    // Merged stream:
-    //   promptA1 10:00 | write alpha (A) 10:01 | promptB1 (B) 10:03 | edit alpha (A) 10:04
-    //   | write beta (B) 10:05 | promptA2 (A) 10:08 | write gamma (B) 10:09
-    const tree = makeSourceTree("-bound-interleaved");
-    const root = join(tree.treeRoot, "workspace");
-    const alphaPath = join(root, "alpha_bound.py");
-    const writeAlpha = buildWriteRecordPair(
-        { sessionId: SESSION_A, cwd: root, timestamp: "2026-07-23T10:01:00.000Z", toolId: "toolu_il_w1", parentUuid: "prompt-a1" },
-        alphaPath,
-        "line one\n",
-    );
-    const editAlpha = buildEditRecordPair(
-        { sessionId: SESSION_A, cwd: root, timestamp: "2026-07-23T10:04:00.000Z", toolId: "toolu_il_e1", parentUuid: writeAlpha.lastUuid },
-        alphaPath,
-        "line one\nline two\n",
-        "line one\n",
-        { oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line two"] },
-    );
-    const writeBeta = buildWriteRecordPair(
-        { sessionId: SESSION_B, cwd: root, timestamp: "2026-07-23T10:05:00.000Z", toolId: "toolu_il_w2", parentUuid: "prompt-b1" },
-        join(root, "beta_bound.py"),
-        "beta\n",
-    );
-    const writeGamma = buildWriteRecordPair(
-        { sessionId: SESSION_B, cwd: root, timestamp: "2026-07-23T10:09:00.000Z", toolId: "toolu_il_w3", parentUuid: writeBeta.lastUuid },
-        join(root, "gamma_bound.py"),
-        "gamma\n",
-    );
-    const records = writeTranscriptFixture(tree.projectDir, "interleaved.jsonl", [
-        buildPromptRecord("prompt-a1", null, "2026-07-23T10:00:00.000Z", root),
-        ...writeAlpha.records,
-        buildPromptRecord("prompt-b1", null, "2026-07-23T10:03:00.000Z", root, { sessionId: SESSION_B }),
-        ...editAlpha.records,
-        ...writeBeta.records,
-        buildPromptRecord("prompt-a2", editAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
-        ...writeGamma.records,
-    ]);
-    const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
-    // Session B's 10:03 prompt did NOT end A's turn: the same-turn 10:04 edit is kept.
-    assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_il_e1-result"));
-    // The wall-clock cut keeps B's in-window activity (beta) and drops post-bound work (gamma).
-    assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_il_w2-result"));
-    assert.ok(!bound.records.some((record) => record.uuid?.toString() === "toolu_il_w3-result"));
-    // Everything strictly before promptA2's 10:08 instant survives: 8 of 10 records.
-    assert.equal(bound.records.length, 8);
-});
+// test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams: moved to
+// tests/reconstruction_bound_sessions.test.ts (task 192 — this file crossed the 250-line cap).
 
 test("test_bound_ignores_sidechain_prompts", () => {
     // Scenario: a subagent's opening prompt (isSidechain) inside turn 1 is NOT a turn boundary —

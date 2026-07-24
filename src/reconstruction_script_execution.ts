@@ -25,12 +25,32 @@ export type ScriptExecutionEvent = {
 
 // --- run detection ----------------------------------------------------------------------------------
 
+// What the sandbox could execute a run's code AS (task 192): python runs go through the
+// `python3 __script__.py` sandbox; bash runs cannot (shell code under python3 always crashed
+// to post:undefined), so the execution layer skips their pre-state build and sandbox spawn
+// outright. Derived from the ORIGINATING tool block, never inferred from the code text —
+// except that a bash run resolved through indirection to a written .py body becomes python
+// (the s34/s37 `python3 apply.py` mechanism).
+export enum ScriptExecutorKind {
+    python = "python",
+    bash = "bash",
+}
+
 // A recorded script-execution run: the script source it ran, when, the directory it ran from
 // (the MCP executor's input.cwd when present, else the record's cwd), the transcript
-// file:line the run was parsed from (absent for synthetic test records), and the id of the
+// file:line the run was parsed from (absent for synthetic test records), the id of the
 // tool_use block that produced the run (absent for synthetic runs) — the session-attributable
-// source a synthetic script-execution changeId embeds.
-export type ScriptRun = { code: string; timestamp: Date; cwd?: Path; source?: RecordSource; toolUseId?: Uuid };
+// source a synthetic script-execution changeId embeds — and the executor kind the sandbox
+// gate keys on (task 192). executorKind is optional so synthetic test runs default to the
+// pre-gate behavior: an absent kind executes like python.
+export type ScriptRun = {
+    code: string;
+    timestamp: Date;
+    cwd?: Path;
+    source?: RecordSource;
+    toolUseId?: Uuid;
+    executorKind?: ScriptExecutorKind;
+};
 
 // Prefix marking a synthetic script-execution changeId. Follows the originalFile: precedent
 // (reconstruction_reseed.ts): a prefixed id that resolveSyntheticChangeIdToSourceId can unwrap.
@@ -95,7 +115,10 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
         if (code !== undefined) {
             const blockCwd = (block.input as { cwd?: string }).cwd;
             const cwd = blockCwd !== undefined ? new Path(blockCwd) : recordCwd;
-            runs.push({ code, timestamp, cwd, source, toolUseId: block.id });
+            // task 192: the ORIGINATING tool decides the executor kind (MCP ctx tools are
+            // python code-execution; only the Bash shell yields bash).
+            const executorKind = block.name === ToolName.Bash ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
+            runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind });
         }
     }
     return runs;

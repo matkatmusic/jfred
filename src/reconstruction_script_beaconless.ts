@@ -14,11 +14,8 @@ import {
 } from "./reconstruction_script_execution.ts";
 import { scriptCodeMayWriteFiles, type LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
-import {
-    executeRunOnce,
-    refForTarget,
-    runTouchesTarget,
-} from "./reconstruction_script_runs.ts";
+import { executeRunOnce } from "./reconstruction_script_runs.ts";
+import { refForTarget, runTouchesTarget } from "./reconstruction_script_probe.ts";
 
 // The target's known state on its chained lineage: the sandbox key it lives under and its content
 // after the last injected run.

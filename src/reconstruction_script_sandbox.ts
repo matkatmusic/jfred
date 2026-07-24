@@ -10,6 +10,10 @@ import { join, dirname, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
+import {
+    ReconstructionCounter,
+    incrementReconstructionCounter,
+} from "./reconstruction_counters.ts";
 
 // Every file under `dir`, as [pathRelativeToBase, utf8 content], recursing into subdirectories.
 function readAllFiles(dir: string, base: string = dir): [string, string][] {
@@ -173,6 +177,7 @@ export function runScriptAgainstState(
     const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
     const memoizedOutcome = getCachedValueRefreshingRecency(sandboxOutcomesByInput, inputKey);
     if (memoizedOutcome !== undefined) {
+        incrementReconstructionCounter(ReconstructionCounter.sandboxMemoHits);
         reportReconstructionProgress(
             `${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${summarizeScriptForProgress(script)}`,
         );
@@ -181,6 +186,7 @@ export function runScriptAgainstState(
     reportReconstructionProgress(
         `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${summarizeScriptForProgress(script)}`,
     );
+    incrementReconstructionCounter(ReconstructionCounter.sandboxSpawns);
     const post = spawnSandboxRun(script, preState, recordedCwd);
     sandboxOutcomesByInput.set(inputKey, { post });
     evictLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);

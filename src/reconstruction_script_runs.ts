@@ -11,6 +11,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { type BackupReader } from "./reconstruction_sidecar.ts";
 import {
+    ScriptExecutorKind,
     findScriptExecutionRuns,
     formatRunSource,
     type ScriptRun,
@@ -22,6 +23,10 @@ import {
 } from "./reconstruction_script_prestate.ts";
 import { isJunkStateKey, runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { matchRenamePairs } from "./reconstruction_script_renames.ts";
+import {
+    ReconstructionCounter,
+    incrementReconstructionCounter,
+} from "./reconstruction_counters.ts";
 
 // One execution per distinct run per records array: pre-state build + sandbox run, memoized —
 // Phases 3–4 multiply call sites and each sandbox run costs ~100ms. The memo lives in the
@@ -71,6 +76,10 @@ export const PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX = "skipping read-only script r
 // (task 151). Exported for the gate tests.
 export const PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX = "skipping pre-baseline script run";
 
+// Progress label announced instead of an execution for a run the sandbox cannot execute —
+// bash-origin code under the python3-only sandbox (task 192). Exported for the gate tests.
+export const PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX = "skipping non-python sandbox run";
+
 export function executeRunOnce(
     run: ScriptRun,
     records: TranscriptRecord[],
@@ -78,12 +87,28 @@ export function executeRunOnce(
     seedContent?: LineageContentBefore,
 ): RunExecution {
     // corpus: moved to reconstruction_corpus.ts (item 14)
+    incrementReconstructionCounter(ReconstructionCounter.executionRequests);
     const byRun = getDerivedCaches(records, reader).executionsByRun;
-    const key = `${run.timestamp.getTime()}|${run.code}`;
+    // task 192: the executor kind participates in the run identity (an absent kind is a
+    // synthetic test run and executes like python — the pre-gate behavior).
+    const executorKind = run.executorKind ?? ScriptExecutorKind.python;
+    const key = `${run.timestamp.getTime()}|${executorKind}|${run.code}`;
     const cached = byRun.get(key);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {
+        incrementReconstructionCounter(ReconstructionCounter.executionCacheHits);
+        return cached;
+    }
     if (checkTimestampPrecedesSkippedBaseline(run.timestamp)) {
         reportReconstructionProgress(`${PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
+        const skipped: RunExecution = { pre: new Map(), post: undefined };
+        byRun.set(key, skipped);
+        return skipped;
+    }
+    // task 192: bash code cannot produce a post-state through the python3-only sandbox (it
+    // always crashed to post:undefined) — skip the pre-state build and sandbox spawn outright.
+    // Static shell rename/redirect evidence is extracted through separate channels either way.
+    if (executorKind === ScriptExecutorKind.bash) {
+        reportReconstructionProgress(`${PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
         const skipped: RunExecution = { pre: new Map(), post: undefined };
         byRun.set(key, skipped);
         return skipped;
@@ -107,54 +132,8 @@ export function executeRunOnce(
     return execution;
 }
 
-// The pre/post-state key that denotes `target`, or undefined when the run's sandbox never saw it.
-export function refForTarget(target: Path, stateKeys: string[]): string | undefined {
-    const targetStr = target.toString();
-    return stateKeys.find((ref) => targetStr === ref || targetStr.endsWith(`/${ref}`));
-}
-
-// Whether executing the run shows `target` changed or created — the glob-agnostic gate for a
-// script that finds its files (glob.glob) instead of naming them.
-export function runTouchesTarget(
-    run: ScriptRun,
-    target: Path,
-    records: TranscriptRecord[],
-    reader: BackupReader,
-    seedContent?: LineageContentBefore,
-): boolean {
-    const execution = executeRunOnce(run, records, reader, seedContent);
-    if (execution.post === undefined) return false;
-    const ref = refForTarget(target, [...execution.pre.keys(), ...execution.post.keys()]);
-    if (ref === undefined) return false;
-    const contentBefore = execution.pre.get(ref);
-    const contentAfter = execution.post.get(ref);
-    return contentAfter !== undefined && contentAfter !== contentBefore;
-}
-
-// The latest run at or before `when` whose source mentions `target`'s basename — or, when no run
-// names it, the latest whose EXECUTION provably changes it. False positives are harmless — the
-// forward test rejects them. Substring stays primary so existing scenarios keep their run selection.
-export function runForTarget(
-    runs: ScriptRun[],
-    target: Path,
-    when: Date,
-    records: TranscriptRecord[],
-    reader: BackupReader,
-    seedContent?: LineageContentBefore,
-): ScriptRun | undefined {
-    const basename = target.toString().split("/").pop() ?? "";
-    let chosen: ScriptRun | undefined;
-    for (const run of runs) {
-        if (run.timestamp.getTime() > when.getTime()) continue;
-        if (run.code.includes(basename)) chosen = run;
-    }
-    if (chosen !== undefined) return chosen;
-    for (const run of runs) {
-        if (run.timestamp.getTime() > when.getTime()) continue;
-        if (runTouchesTarget(run, target, records, reader, seedContent)) chosen = run;
-    }
-    return chosen;
-}
+// refForTarget / runTouchesTarget / runForTarget: moved to reconstruction_script_probe.ts
+// (task 192 — this file sat at the 250-line cap).
 
 // isJunkStateKey: moved to reconstruction_script_sandbox.ts (task 143 — the rename-pair
 // matcher in reconstruction_script_renames.ts shares it, and a module cycle must not form).

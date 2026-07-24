@@ -155,3 +155,59 @@ test("test_scriptCodeMayWriteFiles_accepts_read_only_shell_probes", () => {
     assert.equal(scriptCodeMayWriteFiles("pytest -q 2>/dev/null"), false);
     assert.equal(scriptCodeMayWriteFiles("cat ledger.py | head -20"), false);
 });
+
+test("test_prestate_resolves_each_path_once", () => {
+    // Scenario: three Writes to one path before the run must cost ONE content lookup for
+    // that path (task 192 Phase 3), and the seeded value is unchanged.
+    // Steps:
+    // build three successive Writes of the same file, then a run after them.
+    const records = [
+        buildWriteRecord("/proj/x.py", "v1\n", "2026-01-01T00:00:01Z", "/proj"),
+        buildWriteRecord("/proj/x.py", "v2\n", "2026-01-01T00:00:02Z", "/proj"),
+        buildWriteRecord("/proj/x.py", "v3\n", "2026-01-01T00:00:03Z", "/proj"),
+    ];
+    const run: ScriptRun = { code: "print(1)", timestamp: new Date("2026-01-01T00:00:05Z"), cwd: new Path("/proj") };
+    // count seedContent lookups per path while building the pre-state.
+    const lookups: string[] = [];
+    const state = getPreExecutionState(run, records, emptyReader, (target) => {
+        lookups.push(target.toString());
+        return "seeded\n";
+    });
+    // one lookup for the one path, and its seeded content is served.
+    assert.deepEqual(lookups, ["/proj/x.py"]);
+    assert.equal(state.get("x.py"), "seeded\n");
+});
+
+test("test_prestate_rename_collapse_keeps_last_writer", () => {
+    // Scenario: a.py is written, renamed to b.py, then b.py is rewritten; the collapsed
+    // current path must hold the LAST writer's content (the per-event walk's winner).
+    // Steps:
+    // Write a.py, mv a.py -> b.py, Write b.py, then a run after all three.
+    const records = [
+        buildWriteRecord("/proj/a.py", "one\n", "2026-01-01T00:00:01Z", "/proj"),
+        buildToolRecord(ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z", "/proj"),
+        buildWriteRecord("/proj/b.py", "two\n", "2026-01-01T00:00:03Z", "/proj"),
+    ];
+    const run: ScriptRun = { code: "print(1)", timestamp: new Date("2026-01-01T00:00:05Z"), cwd: new Path("/proj") };
+    const state = getPreExecutionState(run, records, emptyReader);
+    // the collapsed b.py key holds the later Write's content.
+    assert.equal(state.get("b.py"), "two\n");
+    assert.ok(!state.has("a.py"));
+});
+
+test("test_prestate_basename_collision_final_writer_wins", () => {
+    // Scenario: two files OUTSIDE the run's cwd share a basename, so both collapse to the
+    // same flat state key; interleaved Writes (A1, B, A2) must leave the key holding the
+    // FINAL writer's content — the exact winner the per-event walk produced (task 192).
+    // Steps:
+    // Write /x/data.py, then /y/data.py, then /x/data.py again; run from unrelated cwd.
+    const records = [
+        buildWriteRecord("/x/data.py", "A1\n", "2026-01-01T00:00:01Z", "/proj"),
+        buildWriteRecord("/y/data.py", "B\n", "2026-01-01T00:00:02Z", "/proj"),
+        buildWriteRecord("/x/data.py", "A2\n", "2026-01-01T00:00:03Z", "/proj"),
+    ];
+    const run: ScriptRun = { code: "print(1)", timestamp: new Date("2026-01-01T00:00:05Z"), cwd: new Path("/proj") };
+    const state = getPreExecutionState(run, records, emptyReader);
+    // the shared "data.py" key holds the final writer's content.
+    assert.equal(state.get("data.py"), "A2\n");
+});

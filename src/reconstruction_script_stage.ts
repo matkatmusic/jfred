@@ -20,10 +20,9 @@ import {
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import {
     executeRunOnce,
-    refForTarget,
-    runForTarget,
     selectRunsWithinReplayWindow,
 } from "./reconstruction_script_runs.ts";
+import { refForTarget, runForTarget } from "./reconstruction_script_probe.ts";
 import { beaconlessScriptExecutions } from "./reconstruction_script_beaconless.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_engine.ts";
 

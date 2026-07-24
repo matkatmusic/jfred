@@ -28,6 +28,10 @@ import {
 } from "./reconstruction_engine.ts";
 import { findBranchById, shortUuid } from "./reconstruction_branch.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
+import {
+    formatReconstructionCountersLine,
+    resetReconstructionCounters,
+} from "./reconstruction_counters.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { recordVerdict } from "./reconstruction_parse_lines.ts";
 import {
@@ -35,10 +39,10 @@ import {
     buildReconstructionDocument,
 } from "./reconstruction_json.ts";
 import { buildStepSnapshots } from "./reconstruction_json_steps.ts";
-import { renderDiff, renderVerbose } from "./reconstruction_render.ts";
 import {
+    filterByTarget,
     renderBranchSummary,
-    renderHistoryList,
+    renderChosen,
 } from "./reconstruction_render_list.ts";
 import { renderGraphs } from "./reconstruction_graph_render.ts";
 import {
@@ -50,41 +54,15 @@ import {
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { parseTraceArgs, runTrace } from "./reconstruction_cli_trace.ts";
+import {
+    isTargetedSurvivingRequest,
+    listTargetedSurvivingHistories,
+} from "./reconstruction_target.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { mergeMultiSourceRecords } from "./reconstruction_multi_source.ts";
 
-// Render histories in the verbose/diff mode, each under its `### <path>` header.
-function renderHistories(
-    histories: FileHistory[],
-    render: (revisions: FileRevision[]) => string,
-): string {
-    const sections = histories.map((history) => `### ${history.target}\n${render(history.revisions)}`);
-    return sections.join("\n\n");
-}
-
-// The histories matching --target (by exact final path), or all of them when no --target is given.
-function filterByTarget(
-    histories: FileHistory[],
-    target: Path | undefined,
-): FileHistory[] {
-    if (target === undefined) {
-        return histories;
-    }
-    return histories.filter((history) => history.target.toString() === target.toString());
-}
-
-// Render a chosen set of histories in the selected view (list/verbose/diff), narrowed to --target
-// when one is given. Shared by every branch view so the flags compose uniformly.
-function renderChosen(histories: FileHistory[], options: CliOptions): string {
-    const chosen = filterByTarget(histories, options.target);
-    if (options.diff) {
-        return renderHistories(chosen, renderDiff);
-    }
-    if (options.verbose) {
-        return renderHistories(chosen, renderVerbose);
-    }
-    return renderHistoryList(chosen);
-}
+// renderHistories / filterByTarget / renderChosen: moved to reconstruction_render_list.ts
+// (task 192 — this file crossed the 250-line cap when the targeted fast path arrived).
 
 // The selectable branch ids for the `--branch` error message: "surviving" plus each rewound tip.
 function listAvailableBranchIds(branched: BranchedReconstruction): string {
@@ -152,6 +130,11 @@ function renderJson(
         }
         return JSON.stringify(resolveFilesAtStep(stepFileHistories, steps[options.stepNumber - 1]!.when), null, 2);
     }
+    // task 192: (surviving, one target) never needs the all-branch/all-file pass — route it
+    // through the target-scoped engine path before reconstructBranches can start.
+    if (isTargetedSurvivingRequest(options)) {
+        return JSON.stringify(listTargetedSurvivingHistories(records, reader, options.target!), null, 2);
+    }
     const branched = reconstructBranches(records, reader);
     if (options.branch !== undefined) {
         const histories = findBranchById(branched, options.branch);
@@ -177,10 +160,15 @@ export function runCli(argv: string[]): string {
     // task 119: a previous in-process run's aborted leftovers must not leak into this run's
     // failure notes (the tests drive runCli repeatedly in one process).
     clearReconstructionFailures();
+    resetReconstructionCounters();
     const sink = options.progress ? buildStderrProgressSink(options.progressAll) : undefined;
     setReconstructionProgressSink(sink);
     try {
-        return renderTranscriptView(options, sink);
+        const rendered = renderTranscriptView(options, sink);
+        // task 192: the work-counter report rides stderr like the progress stream (NOT the
+        // sink — the progress contract test pins the sink's line sequences).
+        if (sink !== undefined) process.stderr.write(`${formatReconstructionCountersLine()}\n`);
+        return rendered;
     } finally {
         // task 191, same in-process concern as task 119 above: the sink must not outlive its run.
         setReconstructionProgressSink(undefined);
@@ -219,6 +207,10 @@ function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefine
     }
     if (options.graphConvo || options.graphFile) {
         return renderGraphs(records, { convo: options.graphConvo, file: options.graphFile }, reader);
+    }
+    // task 192: same fast path as renderJson — the text views compose through renderChosen.
+    if (isTargetedSurvivingRequest(options)) {
+        return renderChosen(listTargetedSurvivingHistories(records, reader, options.target!), options);
     }
     const branched = reconstructBranches(records, reader);
     if (options.listBranches) {

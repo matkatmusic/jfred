@@ -6,7 +6,7 @@ import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
 import { singleWhitespace } from "./regex_expressions.ts";
-import type { ScriptRun } from "./reconstruction_script_execution.ts";
+import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 
 // The final path segment of a "/"-separated path string.
 export function pathBasename(value: string): string {
@@ -141,5 +141,13 @@ export function resolveScriptIndirection(run: ScriptRun, writtenBodiesByBasename
         return run;
     }
     const body = resolveBodyAtInstant(bodies, run.timestamp);
-    return body === undefined ? run : { ...run, code: body };
+    if (body === undefined) {
+        return run;
+    }
+    // task 192: a bash run whose invoked file is a written .py body IS python-executable —
+    // the s34/s37 `python3 apply.py` mechanism must keep entering the sandbox. Every other
+    // substitution keeps the originating tool's kind.
+    const resolvesToPython = run.executorKind === ScriptExecutorKind.bash && filename.endsWith(".py");
+    const executorKind = resolvesToPython ? ScriptExecutorKind.python : run.executorKind;
+    return { ...run, code: body, executorKind };
 }

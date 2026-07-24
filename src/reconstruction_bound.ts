@@ -16,8 +16,10 @@ import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
 
 // The truncation result: the (possibly cut) record stream, the target's total revision count
-// across the FULL stream (reported so the user can pick the next ordinal), and the last kept
-// record's instant (undefined when the chosen revision sits in the final turn — nothing cut).
+// across the FULL stream (reported so the user can pick the next ordinal), and the turn-end
+// boundary instant the wall-clock filter used (undefined when the chosen revision sits in the
+// final turn — nothing cut). Task 192 Phase 6: the boundary instant, NOT the last retained
+// array element's stamp — merged streams are grouped by input JSONL, not globally sorted.
 export type RevisionBound = {
     records: TranscriptRecord[];
     totalRevisions: number;
@@ -138,9 +140,7 @@ export function truncateRecordsAtRevisionTurnEnd(
         return { records, totalRevisions: revisions.length, boundInstant: undefined };
     }
     const kept = records.filter((record, index) => recordIsWithinBound(record, index, boundary));
-    const lastKeptInstant = kept[kept.length - 1]?.timestamp;
-    const boundInstant = lastKeptInstant instanceof Date ? lastKeptInstant : chosen.timestamp;
-    return { records: kept, totalRevisions: revisions.length, boundInstant };
+    return { records: kept, totalRevisions: revisions.length, boundInstant: boundary.instant };
 }
 
 // CLI glue: a no-op without --until-revision; otherwise truncate and report the pick-your-n

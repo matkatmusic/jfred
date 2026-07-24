@@ -5,7 +5,15 @@
 // frames a guard hit degraded ("poisoned") — so reconstruction_branches.ts can cache exactly the
 // replays whose results are PROVEN stack-independent, and serve a cached result only when a fresh
 // compute would take the identical path. The frame stack REPLACES the old `seedingLineages` Set
-// (same cycle-guard role, keys now ordered). No imports — pure execution-stack bookkeeping.
+// (same cycle-guard role, keys now ordered). Sole import: the counters module (itself
+// import-free), which tallies replay requests/serves here because the two hook points
+// (recordLineageKeyQuery, noteLineageCacheServe) are each called exactly once per
+// replayLineageContentBefore entry/serve and reconstruction_branches.ts sits at its line cap.
+
+import {
+    ReconstructionCounter,
+    incrementReconstructionCounter,
+} from "./reconstruction_counters.ts";
 
 // A cacheable lineage-seed result: the seeded text plus every cycleKey the computation queried
 // (transitively). Valid to serve only while none of those keys is in flight.
@@ -27,6 +35,7 @@ export function isLineageKeyOnReplayStack(cycleKey: string): boolean {
 // Every replay entry records its key into every in-flight frame: each ancestor's result now
 // depends on what this key resolves to.
 export function recordLineageKeyQuery(cycleKey: string): void {
+    incrementReconstructionCounter(ReconstructionCounter.lineageReplayRequests);
     for (const frame of activeFrames) {
         frame.queriedKeys.add(cycleKey);
     }
@@ -77,6 +86,7 @@ export function findServableLineageSeed(
 
 // Serving a cached entry makes its dependencies the caller's dependencies.
 export function noteLineageCacheServe(entry: LineageSeedEntry): void {
+    incrementReconstructionCounter(ReconstructionCounter.lineageCacheServes);
     for (const frame of activeFrames) {
         for (const queriedKey of entry.queriedKeys) {
             frame.queriedKeys.add(queriedKey);
