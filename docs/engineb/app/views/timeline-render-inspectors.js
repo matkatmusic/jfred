@@ -1,0 +1,218 @@
+// Timeline inspector openers (task 92 split from timeline.ts): resolving a node/changeId to its
+// transcript (jsonl, line) and opening the inspector on it, with the timeline-selection sync.
+import { el } from "../app-dom.js";
+import { fetchRawRecords } from "../app-fetch.js";
+import { openTranscriptInspector } from "../inspector.js";
+import { findLineForChangeId } from "./file-history-model.js";
+import { findTimelineNodeIndexForRawLine } from "./timeline-labels.js";
+import { findJsonlForSession } from "./timeline-sessions.js";
+import { LINE_NODE_KIND } from "./timeline-line-nodes.js";
+import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND, } from "./timeline-types.js";
+// The transcript line carrying a changeId, probed across the project's JSONLs (raw text is
+// cached after the first fetch); undefined for synthetic changeIds that match no line.
+export async function findTranscriptLineForChangeId(context, changeId) {
+    for (const file of context.listing?.jsonlFiles ?? []) {
+        const rawLines = await fetchRawRecords(context.project, file.fileName);
+        const line = findLineForChangeId(rawLines, changeId);
+        if (line >= 0) {
+            return { jsonlName: file.fileName, rawLines, line };
+        }
+    }
+    return undefined;
+}
+// Item 43: keep the timeline's selected bubble on the step owning the inspector's shown
+// line, so Prev/Next (and in-inspector jumps) walk the selection along the timeline. A
+// line owned by no node (summary records, snapshot lines with re-stamped changeIds)
+// keeps the current selection.
+export function syncSelectedRowToShownLine(context, rawLines, shownLine) {
+    const nodeIndex = findTimelineNodeIndexForRawLine(context.nodes, rawLines[shownLine] ?? "");
+    if (nodeIndex === -1) {
+        return;
+    }
+    const row = context.nodeRows.get(nodeIndex);
+    if (row === undefined) {
+        return;
+    }
+    if (row === context.selectedRow) {
+        return;
+    }
+    if (context.selectedRow !== null) {
+        context.selectedRow.classList.remove("selected");
+    }
+    context.selectedRow = row;
+    row.classList.add("selected");
+    // Item 45: bring the newly selected row into view; "nearest" scrolls only when the
+    // row is outside the pane, so in-view steps don't jump. Selection-swap + scroll ONLY —
+    // the details pane already shows the inspector that drove this sync (item 66).
+    row.scrollIntoView({ block: "nearest" });
+}
+// Every timeline transcript-inspector open routes through this wrapper so line changes
+// inside the inspector sync the timeline selection (item 43).
+export function openTranscriptInspectorSynced(context, options) {
+    openTranscriptInspector({
+        ...options,
+        onJumpToLine: (shownLine) => syncSelectedRowToShownLine(context, options.rawLines, shownLine),
+    });
+}
+// Extracted per-snapshot loop body of openStepInspector: probe each of the snapshot's
+// changeIds until one resolves to a transcript line; true when the inspector was opened.
+async function tryOpenInspectorForSnapshot(context, snapshot) {
+    for (const changeId of snapshot.changeIds) {
+        const located = await findTranscriptLineForChangeId(context, changeId);
+        if (located !== undefined) {
+            openTranscriptInspectorSynced(context, located);
+            return true;
+        }
+    }
+    return false;
+}
+// ── inspector jump (requirement 6): turn -> first resolvable changeId -> (jsonl, line) ──
+export async function openStepInspector(context, node, previewPane) {
+    for (const snapshot of node.snapshots ?? []) { // a merged baseline commit row owns snapshots too (task 121)
+        const opened = await tryOpenInspectorForSnapshot(context, snapshot);
+        if (opened) {
+            return;
+        }
+    }
+    // Synthetic changeIds (user-edit / evidence splices) match no JSONL line — say so instead
+    // of opening the inspector on nothing.
+    previewPane.classList.remove("hidden");
+    previewPane.replaceChildren(el("div", { class: "muted", text: "no transcript line for this step (synthetic change id)" }));
+}
+// Clicking a turn opens the transcript drawer on the message's OWN JSONL line (the record
+// embedding its uuid — findLineForChangeId is a generic substring scan, so it resolves uuids
+// too). Synthetic agent turns carry no uuid and fall back to the changeId scan above; raw-line
+// rows (task 134) resolve the same uuid way.
+export async function openTurnInspector(context, node, previewPane) {
+    if (node.uuid === undefined) {
+        openStepInspector(context, node, previewPane);
+        return;
+    }
+    const jsonlName = findJsonlForSession(context.listing, node.sessionId);
+    if (jsonlName === undefined) {
+        openStepInspector(context, node, previewPane);
+        return;
+    }
+    const rawLines = await fetchRawRecords(context.project, jsonlName);
+    // Prefer the record whose OWN uuid field matches — a bare-uuid scan would land on the
+    // file-history-snapshot line that references the message as its messageId.
+    let line = findLineForChangeId(rawLines, `"uuid":"${node.uuid}"`);
+    if (line < 0) {
+        line = findLineForChangeId(rawLines, node.uuid);
+    }
+    if (line < 0) {
+        openStepInspector(context, node, previewPane);
+        return;
+    }
+    openTranscriptInspectorSynced(context, { jsonlName, rawLines, line });
+}
+// task 160: a raw-line row with source coordinates opens the transcript inspector directly
+// at its own line — no uuid scan, correct for uuid-less records (summary lines) and
+// multi-file projects (the verdict's `line` field is a merged-array index, display-only).
+async function openLineRowInspector(context, node, previewPane) {
+    if (node.sourceJsonlName === undefined || node.sourceLineIndex === undefined) {
+        await openTurnInspector(context, node, previewPane); // pre-task-160 cached documents
+        return;
+    }
+    const rawLines = await fetchRawRecords(context.project, node.sourceJsonlName);
+    openTranscriptInspectorSynced(context, { jsonlName: node.sourceJsonlName, rawLines, line: node.sourceLineIndex });
+}
+// (item 66) the dead item-47 findRevisionResultLine/showRevisionJson comment block and the
+// dead item-55 showGitOperationJson helper are deleted here — see the archive copy.
+// { } button on a tool-call row (item 55): the tool_use record's line (or the hook attachment
+// that rewrote the command), matched by the record's OWN uuid field. The inspector's
+// line-sync then selects the row itself.
+export async function openToolCallLine(context, node, previewPane) {
+    const jsonlName = node.sessionId === undefined ? undefined : findJsonlForSession(context.listing, node.sessionId);
+    if (jsonlName === undefined) {
+        previewPane.classList.remove("hidden");
+        previewPane.replaceChildren(el("div", { class: "muted", text: "no transcript line for this tool call" }));
+        return;
+    }
+    const rawLines = await fetchRawRecords(context.project, jsonlName);
+    const line = findLineForChangeId(rawLines, `"uuid":"${node.uuid}"`);
+    if (line < 0) {
+        previewPane.classList.remove("hidden");
+        previewPane.replaceChildren(el("div", { class: "muted", text: "no transcript line for this tool call" }));
+        return;
+    }
+    openTranscriptInspectorSynced(context, { jsonlName, rawLines, line });
+}
+// The session transcript at its LAST line — a session-end row's opener (the old session-
+// header link behavior, re-homed onto the row's { } button).
+export async function openSessionEndTranscript(context, node, previewPane) {
+    const jsonlName = findJsonlForSession(context.listing, node.sessionId);
+    if (jsonlName === undefined) {
+        previewPane.classList.remove("hidden");
+        previewPane.replaceChildren(el("div", { class: "muted", text: "no transcript for this session" }));
+        return;
+    }
+    const rawLines = await fetchRawRecords(context.project, jsonlName);
+    openTranscriptInspectorSynced(context, { jsonlName, rawLines, line: rawLines.length - 1 });
+}
+// The per-kind inspector opener shared by the { } buttons and the details pane
+// (DetailsContext.openNodeInspector). Deliberately does NOT re-call selectTimelineRow —
+// the details pane calls this while rendering, and reopening the selection would loop.
+export function openNodeInspector(context, nodeIndex) {
+    const node = context.nodes[nodeIndex];
+    const previewPane = context.previewPanes.get(nodeIndex);
+    if (node.kind === TOOL_CALL_NODE_KIND) {
+        void openToolCallLine(context, node, previewPane);
+        return;
+    }
+    if (node.kind === SESSION_END_NODE_KIND) {
+        void openSessionEndTranscript(context, node, previewPane);
+        return;
+    }
+    if (node.kind === COMMIT_NODE_KIND) {
+        return; // a commit is a repo event: no JSONL record
+    }
+    if (node.kind === LINE_NODE_KIND) {
+        void openLineRowInspector(context, node, previewPane);
+        return;
+    }
+    void openTurnInspector(context, node, previewPane);
+}
+// Each turn's own JSONL line label ("L:<n> (of <total>)", numbered like the details pane),
+// resolved up front — one cached raw fetch per session file.
+export async function resolveLineLabels(context) {
+    for (const [index, node] of context.nodes.entries()) {
+        if (node.uuid === undefined) {
+            continue;
+        }
+        const jsonlName = node.sessionId === undefined ? undefined : findJsonlForSession(context.listing, node.sessionId);
+        if (jsonlName === undefined) {
+            continue;
+        }
+        const rawLines = await fetchRawRecords(context.project, jsonlName);
+        const line = findLineForChangeId(rawLines, `"uuid":"${node.uuid}"`);
+        if (line < 0) {
+            continue;
+        }
+        // Numbered exactly like the details pane's "line <n> / <max>" (0-based, max index).
+        context.lineLabels.set(index, `L:${line} (of ${rawLines.length - 1})`);
+    }
+}
+// Extracted per-change loop body of resolveChipLineLocations: locate one chip's causing
+// record and store it under its `${nodeIndex}:${path}` key (no-op when unresolvable).
+async function resolveChipLineLocationForChange(context, index, change) {
+    if (change.changeId === undefined) {
+        return;
+    }
+    const located = await findTranscriptLineForChangeId(context, change.changeId);
+    if (located === undefined) {
+        return;
+    }
+    context.chipLineLocations.set(`${index}:${change.path}`, located);
+}
+// Per-chip causing-line locations (item 55): each chip's { } opens its file's OWN causing
+// record (the Write/Edit tool_use line — reverting item 47b, user-decided) and its row shows
+// that line's L:n label. Synthetic changeIds resolve to no entry; their chips fall back to
+// the turn's own message line. Keyed `${nodeIndex}:${path}` (chips are deduped by path).
+export async function resolveChipLineLocations(context) {
+    for (const [index, node] of context.nodes.entries()) {
+        for (const change of node.fileChanges ?? []) {
+            await resolveChipLineLocationForChange(context, index, change);
+        }
+    }
+}

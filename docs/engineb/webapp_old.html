@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>JFRED - JSONL File Reverse Engineer Debugger</title>
+    <link rel="stylesheet" href="app/styles.css">
+</head>
+<body>
+    <header class="toolbar">
+        <span id="toolbar-title"><a href="#/" title="JSONL File Reverse Engineer Debugger">JFRED</a></span>
+        <span id="breadcrumb" class="breadcrumb"></span>
+        <button id="reask-baseline-btn" class="toolbar-btn" hidden>Re-ask baseline</button>
+        <button id="projects-btn" class="toolbar-btn">Projects ▾</button>
+        <button id="paths-btn" class="toolbar-btn">Paths…</button>
+        <div id="projects-menu" class="popover" hidden></div>
+        <div id="paths-popover" class="popover" hidden>
+            <!-- task 159: the popover's default face is the summary panel; the pre-wizard flat
+                 control list is wrapped into #wizard-screen-1…5 below (app-paths-wizard.ts). -->
+            <div id="paths-summary">
+                <div id="paths-summary-rows"></div>
+                <button id="paths-run-wizard" class="toolbar-btn">Run full wizard…</button>
+            </div>
+            <div id="wizard-screen-1" hidden>
+                <p class="wizard-question">Where are your Claude Code session logs?</p>
+                <label class="dir-label" for="projects-dir-input">Projects folder</label>
+                <input id="projects-dir-input" class="dir-input" type="text" spellcheck="false">
+                <button id="projects-dir-open" class="toolbar-btn">Open…</button>
+                <button id="wizard-set-projects-dir" class="toolbar-btn">Set Projects Folder location</button>
+                <!-- task 159: the old one-shot apply button stays functional (the wizard's Finish
+                     clicks it when the folder changed) but hides behind the wizard flow. -->
+                <button id="projects-dir-change" class="toolbar-btn" hidden>Change folder…</button>
+            </div>
+            <div id="wizard-screen-2" hidden>
+                <p class="wizard-question">Do you wish to set a custom file history snapshot path, or auto-derive the path?</p>
+                <label class="wizard-choice"><input type="radio" name="wizard-file-history" id="wizard-file-history-auto"> Auto-derive (default — server derives from the projects folder)</label>
+                <label class="wizard-choice"><input type="radio" name="wizard-file-history" id="wizard-file-history-custom"> Custom path:</label>
+                <!-- task 159: the task-136 toggle is superseded by the radios above (app-paths-wizard.ts)
+                     but stays functional for the header tests. -->
+                <button id="file-history-toggle" class="toolbar-btn" hidden>Set File History Snapshots</button>
+                <div id="file-history-fields" hidden>
+                    <label class="dir-label" for="file-history-dir-input">File history</label>
+                    <input id="file-history-dir-input" class="dir-input" type="text" spellcheck="false">
+                    <button id="file-history-dir-open" class="toolbar-btn">Open…</button>
+                </div>
+            </div>
+            <div id="project-paths-section" hidden>
+                <div id="wizard-screen-3" hidden>
+                    <p class="wizard-question">Do you wish to set a Git Repo path?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-repo" id="wizard-repo-no"> No (default — reconstruct without a repo)</label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-repo" id="wizard-repo-yes"> Yes:</label>
+                    <label class="dir-label" for="repo-dir-input">Repo (this project)</label>
+                    <input id="repo-dir-input" class="dir-input" type="text" spellcheck="false">
+                    <button id="repo-dir-open" class="toolbar-btn">Open…</button>
+                    <button id="wizard-set-repo-dir" class="toolbar-btn">Set Git Repo location</button>
+                    <div id="project-sources-section">
+                        <label class="dir-label">Sources</label>
+                        <div id="project-sources-list"></div>
+                        <button id="project-sources-add" type="button">Add source</button>
+                    </div>
+                </div>
+                <div id="wizard-screen-4" hidden>
+                    <p class="wizard-question">Do you wish to pick a git repo commit?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-commit" id="wizard-commit-default"> <span id="wizard-commit-default-label">Default</span></label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-commit" id="wizard-commit-pick"> Pick one:</label>
+                    <button id="pick-commit-btn" class="toolbar-btn">Pick commit…</button>
+                    <input id="commit-pick-filter" class="dir-input" type="search" placeholder="Filter commits…" hidden>
+                    <div id="commit-pick-list" hidden></div>
+                    <label class="dir-label" for="base-commit-display">Base commit</label>
+                    <input id="base-commit-display" class="dir-input" type="text" readonly>
+                    <span id="commit-match-warning" class="muted"></span>
+                </div>
+                <div id="wizard-screen-5" hidden>
+                    <p class="wizard-question">Reconstruct file states preceding the baseline commit?</p>
+                    <label class="wizard-choice"><input type="radio" name="wizard-prebaseline" id="wizard-prebaseline-yes"> Yes — include pre-baseline reconstruction</label>
+                    <label class="wizard-choice"><input type="radio" name="wizard-prebaseline" id="wizard-prebaseline-no" checked> No</label>
+                </div>
+            </div>
+            <div id="wizard-finish" hidden>
+                <div id="wizard-finish-rows"></div>
+                <button id="project-paths-apply" class="toolbar-btn">Apply to session only</button>
+                <button id="project-paths-store" class="toolbar-btn">Store for this project</button>
+            </div>
+            <div id="wizard-nav" hidden>
+                <button id="wizard-back" class="toolbar-btn">◂ Back</button>
+                <button id="wizard-cancel" class="toolbar-btn">Cancel</button>
+                <button id="wizard-next" class="toolbar-btn">Next ▸</button>
+            </div>
+        </div>
+    </header>
+    <main class="layout">
+        <nav id="drawer" class="sidebar hidden"></nav>
+        <div id="split-sd" class="splitter-v"></div>
+        <div id="rightcol">
+            <section id="timeline-pane">
+                <div id="timeline-pane-header" hidden>
+                    <span class="pane-title">Timeline</span>
+                    <span id="timeline-summary" class="muted"></span>
+                    <button id="all-lines-btn" class="toolbar-btn" title="Show every raw JSONL line as its own timeline row">Raw lines</button>
+                    <button id="files-prev" title="Jump to the previous message that touched files">◀ Prev</button>
+                    <button id="files-next" title="Jump to the next message that touched files">Next ▶</button>
+                    <button id="line-prev" title="Select the previous JSON line (one timeline row back)">◀ Line</button>
+                    <button id="line-next" title="Select the next JSON line (one timeline row forward)">Line ▶</button>
+                    <button id="toggle-all">Expand All</button>
+                </div>
+                <div id="timeline-filter-bar" class="filter-bar" hidden></div>
+                <section id="view" class="view-pane"></section>
+                <div id="timeline-selectbar" hidden></div>
+            </section>
+            <div id="split-td" class="splitter-h"></div>
+            <aside id="inspector" class="details-pane hidden">
+                <div id="details-header">No selection</div>
+                <div id="details-body">
+                    <div id="details-left"></div>
+                    <div id="split-lr" class="splitter-v"></div>
+                    <div id="details-right">
+                        <div id="details-right-header">
+                            <span id="details-right-label">JSON</span>
+                            <span id="details-find">
+                                <input id="details-find-input" type="search" placeholder="🔍 find">
+                                <button id="details-find-clear" class="search-clear" title="Clear search" hidden>✕</button>
+                                <span id="details-find-count">0/0</span>
+                                <button id="details-find-prev" title="Previous match">&lt;</button>
+                                <button id="details-find-next" title="Next match">&gt;</button>
+                            </span>
+                            <span id="diff-mode-toggle" hidden>
+                                <button id="dm-full">Show full contents</button><button id="dm-columns">Columns</button><button id="dm-inline">Inline</button>
+                            </span>
+                        </div>
+                        <div id="details-right-body"></div>
+                    </div>
+                </div>
+            </aside>
+            <div id="split-dc" class="splitter-h"></div>
+            <div id="console-row">
+                <div id="console-header">
+                    <span>Console</span>
+                    <span>
+                        <!-- task 164: #console-cancel retired — the progress box's Cancel is the one cancel affordance. -->
+                        <button id="progress-copy" class="toolbar-btn" title="Copy all console text">copy</button>
+                        <button id="console-hide" class="toolbar-btn">Hide console</button>
+                    </span>
+                </div>
+                <section id="progress-console" class="progress-console"></section>
+            </div>
+            <div id="console-bar" hidden>
+                <span id="console-last"></span>
+                <button id="console-show" class="toolbar-btn">Show console</button>
+            </div>
+        </div>
+    </main>
+    <link rel="stylesheet" href="app/vendor/xterm.css">
+    <link rel="stylesheet" href="app/vendor/highlight-github.min.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="app/vendor/highlight-github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <script src="app/vendor/xterm.js"></script>
+    <script src="app/vendor/addon-fit.js"></script>
+    <script src="app/vendor/highlight.min.js"></script>
+    <script src="static-shim.js"></script>
+    <script type="module" src="app/app.js"></script>
+</body>
+</html>

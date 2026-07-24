@@ -80,6 +80,15 @@ export const PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX = "skipping pre-baseline sc
 // bash-origin code under the python3-only sandbox (task 192). Exported for the gate tests.
 export const PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX = "skipping non-python sandbox run";
 
+// The executionsByRun memo key: the run's instant, executor kind, and full source. Task 192:
+// the executor kind participates in the run identity (an absent kind is a synthetic test run
+// and executes like python — the pre-gate behavior). Exported for the horizon module's pure
+// memo probes (task 220), which must build the identical key without executing anything.
+export function computeRunExecutionKey(run: ScriptRun): string {
+    const executorKind = run.executorKind ?? ScriptExecutorKind.python;
+    return `${run.timestamp.getTime()}|${executorKind}|${run.code}`;
+}
+
 export function executeRunOnce(
     run: ScriptRun,
     records: TranscriptRecord[],
@@ -89,10 +98,7 @@ export function executeRunOnce(
     // corpus: moved to reconstruction_corpus.ts (item 14)
     incrementReconstructionCounter(ReconstructionCounter.executionRequests);
     const byRun = getDerivedCaches(records, reader).executionsByRun;
-    // task 192: the executor kind participates in the run identity (an absent kind is a
-    // synthetic test run and executes like python — the pre-gate behavior).
-    const executorKind = run.executorKind ?? ScriptExecutorKind.python;
-    const key = `${run.timestamp.getTime()}|${executorKind}|${run.code}`;
+    const key = computeRunExecutionKey(run);
     const cached = byRun.get(key);
     if (cached !== undefined) {
         incrementReconstructionCounter(ReconstructionCounter.executionCacheHits);
@@ -107,7 +113,7 @@ export function executeRunOnce(
     // task 192: bash code cannot produce a post-state through the python3-only sandbox (it
     // always crashed to post:undefined) — skip the pre-state build and sandbox spawn outright.
     // Static shell rename/redirect evidence is extracted through separate channels either way.
-    if (executorKind === ScriptExecutorKind.bash) {
+    if ((run.executorKind ?? ScriptExecutorKind.python) === ScriptExecutorKind.bash) {
         reportReconstructionProgress(`${PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
         const skipped: RunExecution = { pre: new Map(), post: undefined };
         byRun.set(key, skipped);

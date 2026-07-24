@@ -1,0 +1,188 @@
+// Right-pane JSON inspector: the selected JSONL line pretty-printed as actual JSON text
+// (curly braces and all), syntax-highlighted — the presentation the legacy JFReD diff viewer
+// used (web-shared/json-inspector.js), rebuilt without innerHTML: the text is tokenized and
+// appended as text nodes + spans, so page content can never inject markup.
+// Prev/Next walk the transcript line by line; uuid and toolu_… string values are jump-links
+// to the linked line (a uuid jumps to the record it names; a tool id jumps to its use/result
+// counterpart). Navigation also notifies the calling view so it can scroll/highlight along.
+import { fetchJson, peekCachedDocument } from "./app-fetch.js";
+import { parseRouteSegments } from "./app-routes.js";
+import { computeBlobRequestUrl, computeLinkMaps, computeRevisionLinkRoute, findToolNavigationTargets, } from "./inspector-links.js";
+import { el, renderHighlightedJson } from "./inspector-json.js";
+import { blobPresenceByKey, buildSnapshotDrawer, bumpShowLineRenderCount, probeTrackedBackupPresence, } from "./inspector-snapshots.js";
+import { extractReadableText } from "./inspector-text.js";
+import { renderCodeInto } from "./highlight.js";
+// Whether the inspector body renders formatted text instead of highlighted JSON. Module-level
+// so the choice sticks across lines and re-opens for the browser session (same pattern as
+// diff-vs-base's diffDisplayMode). ponytail: session-only; localStorage if ever wanted.
+let inspectorShowsFormattedText = false;
+// item 66: the collapse-rail is retired — the fork layout's #split-td splitter resizes the
+// Details pane instead of a 24px rail toggle.
+// // Item 10a: collapse shrinks the pane to a 24px rail (mirroring the Files drawer) instead of
+// // display:none, so the SAME focusable button expands it again — glyph and label flip per state.
+// function toggleInspectorCollapsed(pane: HTMLElement, button: HTMLElement) {
+//     const collapsed = pane.classList.toggle("collapsed");
+//     button.textContent = collapsed ? "«" : "»";
+//     button.title = collapsed ? "Expand inspector" : "Collapse inspector";
+// }
+// Show the Details pane without touching its contents — the diff/file modes (views/details.ts)
+// reveal first, then paint their own columns.
+export function revealDetailsPane() {
+    document.getElementById("inspector").classList.remove("hidden");
+}
+// The Details pane's right column, revealed and cleared for a JSON inspector render: label
+// flips to "JSON", the diff toggle hides (it belongs to diff renders only), and the returned
+// #details-right-body is the column every inspector/sub-route view fills.
+// item 66: was — rebuilt the pane's children wholesale (collapse chevron + .inspector-content):
+//     pane.classList.remove("collapsed");
+//     const content = el("div", { class: "inspector-content" });
+//     const collapseButton = el("button", { class: "row-btn inspector-close", text: "»", title: "Collapse inspector" });
+//     collapseButton.onclick = () => toggleInspectorCollapsed(pane, collapseButton);
+//     pane.replaceChildren(collapseButton, content);
+export function openInspectorPane() {
+    const pane = document.getElementById("inspector");
+    // The 50%-width file-preview modifier is opt-in per open; callers wanting it re-add it.
+    pane.classList.remove("file-preview-drawer");
+    // Same for the snapshot-drawer split: a fresh open starts without the bottom drawer.
+    pane.classList.remove("snapshot-drawer");
+    revealDetailsPane();
+    document.getElementById("details-right-label").textContent = "JSON";
+    document.getElementById("diff-mode-toggle").hidden = true;
+    const body = document.getElementById("details-right-body");
+    body.replaceChildren();
+    return body;
+}
+// The project of the current #/project/* hash, or undefined on other routes.
+function findCurrentProject() {
+    const segments = parseRouteSegments();
+    return segments[0] === "project" ? segments[1] : undefined;
+}
+// Append the hook/result jump buttons for the shown tool call (each only when its line exists).
+function appendToolNavigationButtons(toolTargets, toolButtons, showLine) {
+    if (toolTargets.hookLine >= 0) {
+        toolButtons.push(el("button", { class: "row-btn", text: "Go to PreToolUse hook", onclick: () => showLine(toolTargets.hookLine) }));
+    }
+    if (toolTargets.resultLine >= 0) {
+        toolButtons.push(el("button", { class: "row-btn", text: "Go to Tool Result", onclick: () => showLine(toolTargets.resultLine) }));
+    }
+}
+// Append the raw-JSON/formatted-text toggle button; flipping it re-shows the same line.
+function appendFormattedTextToggleButton(toolButtons, showLine, clamped) {
+    toolButtons.push(el("button", {
+        class: "row-btn",
+        text: inspectorShowsFormattedText ? "Show raw JSON" : "Show as formatted text",
+        onclick: () => {
+            inspectorShowsFormattedText = !inspectorShowsFormattedText;
+            showLine(clamped);
+        },
+    }));
+}
+// Render the line's highlighted-JSON body (the non-formatted-text presentation).
+function buildHighlightedJsonBody(value, clamped, maps, showLine, filesTouched, openRevision, sessionId, project, openSnapshotDrawer) {
+    // (item 23) old call: body = renderHighlightedJson(JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision);
+    return renderHighlightedJson(JSON.stringify(value, null, 4), value, clamped, maps, showLine, filesTouched, openRevision, { sessionId, presenceByKey: blobPresenceByKey, project, openSnapshotDrawer });
+}
+// task 141: the nav counter, 0-based with its inclusive index range — "line 0 / 98" read as
+// index-over-count. 0-based stays the app-wide convention (timeline /at/<line> anchors and the
+// rev cards' "L:n" labels are raw-line indexes).
+export function formatInspectorLineCounter(lineIndex, lineCount) {
+    return `line ${lineIndex} of 0–${lineCount - 1}`;
+}
+// task 142: Prev/Next enablement mirrors whether a jump target exists — index 0 has no Prev,
+// the last raw line has no Next (the buttons previously stayed enabled and clamped silently).
+export function computeInspectorNavDisabledStates(lineIndex, lineCount) {
+    return { prevIsDisabled: lineIndex === 0, nextIsDisabled: lineIndex === lineCount - 1 };
+}
+// Assemble the Prev / line-counter / Next navigation row plus any tool-flow buttons.
+function buildInspectorNavigationRow(clamped, rawLines, showLine, toolButtons) {
+    // task 142: the row is rebuilt on every showLine, so the disabled states re-compute per
+    // line. Property assignment, not an el() attribute — setAttribute("disabled", "false")
+    // would still disable.
+    const disabledStates = computeInspectorNavDisabledStates(clamped, rawLines.length);
+    const prevButton = el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) });
+    prevButton.disabled = disabledStates.prevIsDisabled;
+    const nextButton = el("button", { class: "row-btn", text: "Next ▶", onclick: () => showLine(clamped + 1) });
+    nextButton.disabled = disabledStates.nextIsDisabled;
+    return el("div", { class: "inspector-nav" }, [
+        prevButton,
+        el("span", { class: "muted", text: formatInspectorLineCounter(clamped, rawLines.length) }),
+        nextButton,
+        ...toolButtons,
+    ]);
+}
+// Open the inspector on `line` of a transcript. onJumpToLine (optional) is called with every
+// shown line so the calling view can scroll/highlight in step; it must not reopen the inspector.
+export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLine }) {
+    const maps = computeLinkMaps(rawLines);
+    // Revision links resolve through the project's already-cached unified document — never a
+    // build. On routes with no cached document, changeId values simply render unlinked.
+    const project = findCurrentProject();
+    const filesTouched = project === undefined ? [] : (peekCachedDocument(project)?.filesTouched ?? []);
+    // Revision links navigate: the router renders file history as a drawer over the timeline
+    // (renderSubRouteDrawer) and the URL reflects it, so revision links are shareable.
+    const openRevision = (revisionLink) => {
+        location.hash = computeRevisionLinkRoute(project, revisionLink);
+    };
+    // The shown transcript's session id, by the timeline's file-naming convention: the JSONL
+    // is named "<sessionId>.jsonl". Blob presence probes and snapshot reads are owner-keyed
+    // on it (a blob name only means something under its owning session's dir).
+    const sessionId = jsonlName.replace(/\.jsonl$/, "");
+    // Raise (or refill) the bottom snapshot drawer with one blob's verbatim content, splitting
+    // the Details pane: JSON above, blob below.
+    const openSnapshotDrawer = async (blobName, entry) => {
+        const result = await fetchJson(computeBlobRequestUrl(sessionId, blobName));
+        const pane = document.getElementById("inspector");
+        // item 66: was `pane.querySelector(".inspector-content")` — the content column is now
+        // the static #details-right-body skeleton element.
+        const content = document.getElementById("details-right-body");
+        if (content === null) {
+            return;
+        }
+        // Re-clicking a link while a drawer is open replaces the drawer's contents.
+        pane.querySelector(".snapshot-pane")?.remove();
+        pane.classList.add("snapshot-drawer");
+        const snapshotText = el("pre", { class: "inspector-text" });
+        renderCodeInto(snapshotText, result.content ?? "", entry.relativePath);
+        const drawer = buildSnapshotDrawer(pane, entry, blobName, snapshotText);
+        content.append(drawer);
+    };
+    const showLine = (index) => {
+        const clamped = Math.min(Math.max(index, 0), rawLines.length - 1);
+        const renderCountAtStart = bumpShowLineRenderCount();
+        let value;
+        try {
+            value = JSON.parse(rawLines[clamped]);
+        }
+        catch {
+            value = rawLines[clamped];
+        }
+        // Probe the on-disk presence of this record's tracked backups (unknowns only), then
+        // re-render the SAME line once every probe settles — progressive enhancement: the
+        // first paint shows those tokens plain, never a flicker loop.
+        const trackedBackups = value?.snapshot?.trackedFileBackups;
+        if (trackedBackups !== undefined) {
+            probeTrackedBackupPresence(trackedBackups, sessionId, renderCountAtStart, showLine, clamped);
+        }
+        // Tool-flow jumps (shown only on assistant tool_use lines): hook + result of THIS call.
+        const toolTargets = findToolNavigationTargets(rawLines, value);
+        const toolButtons = [];
+        if (toolTargets !== undefined) {
+            appendToolNavigationButtons(toolTargets, toolButtons, showLine);
+        }
+        const readableText = extractReadableText(value);
+        if (readableText !== undefined) {
+            appendFormattedTextToggleButton(toolButtons, showLine, clamped);
+        }
+        let body;
+        if (inspectorShowsFormattedText && readableText !== undefined) {
+            body = el("pre", { class: "inspector-text", text: readableText });
+        }
+        else {
+            body = buildHighlightedJsonBody(value, clamped, maps, showLine, filesTouched, openRevision, sessionId, project, openSnapshotDrawer);
+        }
+        openInspectorPane().append(buildInspectorNavigationRow(clamped, rawLines, showLine, toolButtons), el("h2", { text: jsonlName }), body);
+        if (onJumpToLine !== undefined)
+            onJumpToLine(clamped);
+    };
+    showLine(line);
+}

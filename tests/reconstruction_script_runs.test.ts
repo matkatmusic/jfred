@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX,
+    computeRunExecutionKey,
     executeRunOnce,
 } from "../src/reconstruction_script_runs.ts";
 import {
@@ -90,6 +91,27 @@ test("test_bash_indirection_to_python_file_executes", () => {
     const resolved = runs.find((run) => run.code === body);
     assert.ok(resolved !== undefined);
     assert.equal(resolved.executorKind, ScriptExecutorKind.python);
+});
+
+test("test_run_execution_key_carries_instant_executor_and_code", () => {
+    // Scenario: the executionsByRun memo key is `${instantMs}|${executorKind}|${code}`, with an
+    // absent executor kind defaulting to python (the synthetic-test-run rule from task 192).
+    // Steps:
+    // a recorded python run's key reproduces the exact format executeRunOnce memoizes under.
+    const records = [
+        buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print("x")\n' }, "2026-01-01T00:00:02Z"),
+    ];
+    const run = findScriptExecutionRuns(records)[0]!;
+    assert.equal(
+        computeRunExecutionKey(run),
+        `${run.timestamp.getTime()}|${ScriptExecutorKind.python}|${run.code}`,
+    );
+    // a synthetic run without an executor kind keys exactly like a python run.
+    const synthetic = { ...run, executorKind: undefined };
+    assert.equal(computeRunExecutionKey(synthetic), computeRunExecutionKey(run));
+    // two runs differing only in code get different keys.
+    const differentCode = { ...run, code: 'print("y")\n' };
+    assert.notEqual(computeRunExecutionKey(differentCode), computeRunExecutionKey(run));
 });
 
 test("test_bash_static_rename_evidence_survives_gate", () => {

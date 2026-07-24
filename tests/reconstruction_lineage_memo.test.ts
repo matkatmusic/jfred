@@ -52,6 +52,30 @@ test("a cached entry is servable only while none of its queried keys is in fligh
     assert.notEqual(findServableLineageSeed(seedsByKey, "A|1", true), null);
 });
 
+test("a cached entry is not servable while a queried FILE is in flight at any instant", () => {
+    // Task 220: horizon keys let an entry be served at a different instant than it was computed
+    // at; a fresh compute there would cycle-guard against the in-flight file — so the serve
+    // check must refuse on the queried key's PATH, not just its exact instant.
+    const seedsByKey = new Map<string, LineageSeedEntry>();
+    seedsByKey.set("A|h1", { text: "text-a", queriedKeys: new Set(["B|2"]) });
+    runLineageReplayFrame("B|3", () => {
+        assert.equal(findServableLineageSeed(seedsByKey, "A|h1", true), null);
+        return undefined;
+    });
+    assert.notEqual(findServableLineageSeed(seedsByKey, "A|h1", true), null);
+});
+
+test("a cached entry stays servable while an unrelated file is in flight", () => {
+    // The path-level refusal must not over-trigger: a different file whose instant NUMBER
+    // matches a queried key's instant is unrelated.
+    const seedsByKey = new Map<string, LineageSeedEntry>();
+    seedsByKey.set("A|h1", { text: "text-a", queriedKeys: new Set(["B|2"]) });
+    runLineageReplayFrame("C|2", () => {
+        assert.notEqual(findServableLineageSeed(seedsByKey, "A|h1", true), null);
+        return undefined;
+    });
+});
+
 test("a window-narrowed replay can neither read nor write the cache", () => {
     const seedsByKey = new Map<string, LineageSeedEntry>();
     seedsByKey.set("A|1", { text: "text-a", queriedKeys: new Set() });

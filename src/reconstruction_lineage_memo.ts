@@ -53,11 +53,22 @@ export function recordLineageGuardHit(cycleKey: string): void {
     }
 }
 
-// Whether a cached entry may be served: nothing it queried is currently in flight, so a fresh
-// compute would take the identical path and return the identical text — on ANY stack.
+// The file path of a cycle key — everything before the LAST "|" (the instant suffix; a path
+// may itself contain "|" but never ends the key).
+function extractLineagePathOfCycleKey(cycleKey: string): string {
+    return cycleKey.slice(0, cycleKey.lastIndexOf("|"));
+}
+
+// Whether a cached entry may be served: no FILE it queried is currently in flight — at any
+// instant, not just the recorded one. Task 220's horizon keys serve an entry at instants other
+// than the one it was computed at; a fresh compute there would cycle-guard against an in-flight
+// replay of the same file regardless of instant, so the refusal must match on the path alone.
 function checkNoQueriedKeyInFlight(entry: LineageSeedEntry): boolean {
+    const inFlightPaths = new Set(
+        activeFrames.map((frame) => extractLineagePathOfCycleKey(frame.cycleKey)),
+    );
     for (const queriedKey of entry.queriedKeys) {
-        if (isLineageKeyOnReplayStack(queriedKey)) {
+        if (inFlightPaths.has(extractLineagePathOfCycleKey(queriedKey))) {
             return false;
         }
     }

@@ -32,8 +32,8 @@ import {
     storeLineageSeedWhenCacheable,
 } from "./reconstruction_lineage_memo.ts";
 // corpus: moved to reconstruction_corpus.ts (item 14) — the gate check now lives in getDerivedCaches
-// import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
+import { computeLineageSeedHorizonKey } from "./reconstruction_lineage_horizon.ts";
 import { placeGitCommitEvidence } from "./reconstruction_git_placement.ts";
 import { seedBaseCommitBeacon } from "./reconstruction_base_commit.ts";
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
@@ -193,10 +193,8 @@ function seedOneCopy(
     return { ...event, seedLines: linesTextOf(atCopy) };
 }
 
-// Lineage-seed texts memoized per records-array identity, keyed "path|beforeMs". Task 162: the
-// cycle-guard stack and the proof rules for WHICH replays are safe to cache/serve (nested ones
-// included) live in reconstruction_lineage_memo.ts; the reader-identity/exec-gate validity
-// re-check is the corpus's job (getDerivedCaches).
+// Lineage-seed texts memoized per records identity, keyed by relevant-input horizon (task 220).
+// Proof rules: reconstruction_lineage_memo.ts (task 162); validity re-check: getDerivedCaches.
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
 function computeSeededText(revisionBefore: FileRevision | undefined): string | undefined {
@@ -221,12 +219,13 @@ function replayLineageContentBefore(
         return undefined;
     }
     const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
+    const seedKey = computeLineageSeedHorizonKey(records, reader, target, before);
     const previousCutoff = enterLineageReplayWindow(before);
     try {
         // Cache reads/writes are valid only for replays the memo module can PROVE identical to a
         // fresh compute (window kept its instant, no queried dependency in flight) — task 162.
         const windowKeptInstant = doesReplayWindowKeepInstant(previousCutoff, before);
-        const servableEntry = findServableLineageSeed(seedsByKey, cycleKey, windowKeptInstant);
+        const servableEntry = findServableLineageSeed(seedsByKey, seedKey, windowKeptInstant);
         if (servableEntry !== null) {
             noteLineageCacheServe(servableEntry);
             return servableEntry.text;
@@ -236,7 +235,7 @@ function replayLineageContentBefore(
             const revisions = reconstructFileOver(records, target, new Set(), reader);
             return computeSeededText(lastRevisionStrictlyBefore(revisions, before));
         });
-        storeLineageSeedWhenCacheable(seedsByKey, cycleKey, replayed.cacheable, windowKeptInstant);
+        storeLineageSeedWhenCacheable(seedsByKey, seedKey, replayed.cacheable, windowKeptInstant);
         return replayed.text;
     } finally {
         restoreLineageReplayWindow(previousCutoff);
