@@ -16,6 +16,7 @@ import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { mergeMultiSourceRecords, groupRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
+import { truncateRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { scriptCodeMayWriteFiles } from "./reconstruction_script_prestate.ts";
 import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
@@ -56,7 +57,7 @@ export function formatSendingDocumentLabel(byteLength: number): string {
 // multi-JSONL record stream (the coverage checker's proven pattern). The optional `sources` list
 // (spec S4a) makes the sidecar reader resolve each session's blobs from its OWN source's
 // file-history dir — absent, the single-root chain applies exactly as before.
-export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[]): BuiltReconstruction {
+export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest): BuiltReconstruction {
     // The per-record walk belongs to the caller's own loadProjectRecords call (the /api/document
     // route always pre-walks); the build emits stages and deep-engine progress only.
     // skippedLines rides to the wire document (the webapp's partial-reconstruction gaps).
@@ -66,9 +67,15 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
     // (dedupe → interleave → identity join) before any engine work. The merge builds a NEW
     // array, so the per-records WeakMap memos run cold on multi-source builds.
     // ponytail: memoize per (stamp, sources) if profiling ever shows it.
-    const records = sources === undefined || sources.length === 0
+    const merged = sources === undefined || sources.length === 0
         ? loaded.records
         : mergeMultiSourceRecords(groupRecordsBySession(loaded.records), sources);
+    // task 194: bounded mode — truncate the merged stream at the bound file's nth-revision
+    // turn end (task-193 semantics) BEFORE any engine work, exactly like the CLI's
+    // --until-revision cut (reconstruction_cli.ts applies it pre-reconstruction too).
+    const records = bound === undefined
+        ? merged
+        : truncateRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
     // task 119: a previous build's aborted leftovers must not leak into this document's failures.
     clearReconstructionFailures();
     reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
@@ -156,14 +163,19 @@ export function buildReconstructionWithConsent(
     onProgress?: ProgressSink,
     // task 56: trailing + defaulted so every pre-existing caller keeps today's behavior.
     reconstructPreBaseline: boolean = true,
+    // task 194: bounded mode — absent means a full build, today's behavior.
+    bound?: RevisionBoundRequest,
 ): BuiltReconstruction {
     const targetKey = target === undefined ? "" : target.toString();
+    // task 194: a bounded and a full build must never share a cache entry (same reason as the
+    // consent and pre-baseline flags below).
+    const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
     // item 46: const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${targetKey}`;
     // The stamp reads the ACTIVE overrides — callers applyProjectOverrides first; a config-file
     // edit between requests changes the stamp and misses the cache, which is the point.
     // task 56: the pre-baseline choice is in the key — a trimmed and a full build must never
     // share an entry (same reason allowScripts is here).
-    const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${serializePathOverrides()}`;
+    const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
     const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
     if (cachedBuild !== undefined) {
         reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
@@ -188,7 +200,7 @@ export function buildReconstructionWithConsent(
     try {
         // Spec S6: the viewer's declared sources ride the process-wide overrides (set by
         // applyProjectOverrides / applyCliPathOverrides before any build).
-        const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources);
+        const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
         // task 56: stamp trimmed builds so the timeline knows to start at the baseline node.
         // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
         if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {
@@ -216,6 +228,7 @@ export function buildDocumentWithConsent(
     allowScripts: boolean,
     onProgress?: ProgressSink,
     reconstructPreBaseline: boolean = true,
+    bound?: RevisionBoundRequest,
 ): ReconstructionDocument {
-    return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline).document;
+    return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, bound).document;
 }

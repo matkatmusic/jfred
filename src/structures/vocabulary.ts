@@ -172,6 +172,21 @@ export enum Verdict {
 
 export const KNOWN_VERDICTS: Verdict[] = Object.values(Verdict);
 
+// The from-scratch layered timeline's node classes (spec S1, from-scratch-reconstruction.hpp):
+// beacon = verified full-content evidence (commit blob, snapshot, Write body, full Read echo);
+// preAnchorStub = a byteless pre-anchor mention — position known, content unknown, display only;
+// endState = the on-disk final node; presumedUserEdit = an unexplained adjacent-pair diff (the
+// Q8 presumption — only evidence convicts); scriptRun = a recorded script execution.
+export enum LayeredNodeKind {
+    beacon = "beacon",
+    preAnchorStub = "pre-anchor-stub",
+    endState = "end-state",
+    presumedUserEdit = "presumed-user-edit",
+    scriptRun = "script-run",
+}
+
+export const KNOWN_LAYERED_NODE_KINDS: LayeredNodeKind[] = Object.values(LayeredNodeKind);
+
 // How a `--details` trace row is rendered: a short content preview, or the whole record
 // pretty-printed. Enum so the renderer compares members, not bare strings (coding-req §4).
 export enum TraceDetailMode {

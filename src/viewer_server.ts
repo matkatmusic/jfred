@@ -11,6 +11,7 @@ import {
     scanProjects,
     readBlobSnapshot,
     resolveProjectFile,
+    computeStaticFileRelative,
     resolveStaticFilePath,
     getProjectsDir,
     setProjectsDir,
@@ -31,6 +32,7 @@ import {
     handleRepoCommitMatchRequest,
     handleRepoCommitsRequest,
 } from "./viewer_api_repo.ts";
+import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
 import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
@@ -85,10 +87,10 @@ function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: bool
     };
 }
 
-// Serve `/` (index.html) and `/app/*` from webapp/dist/ then webapp/, refusing any resolved
-// path outside those roots.
+// Serve `/`, `/webapp_old.html` (the pre-redesign page, task 204), and `/app/*` from
+// webapp/dist/ then webapp/, refusing any resolved path outside those roots.
 function serveStaticFile(response: ServerResponse, urlPath: string): void {
-    const relative = urlPath === "/" ? "index.html" : urlPath.replace(/^\/app\//, "");
+    const relative = computeStaticFileRelative(urlPath);
     const resolved = realpathSync(resolveStaticFilePath(relative, WEBAPP_DIST_DIR, WEBAPP_DIR));
     // dist lives inside webapp/, so the WEBAPP_DIR check covers both today; the explicit second
     // clause keeps a future dist relocation from silently opening a traversal hole.
@@ -176,6 +178,8 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             handleFolderPickRequest(response, url.searchParams);
         } else if (url.pathname === "/api/projects") {
             sendJson(response, 200, scanProjects(getProjectsDir()));
+        } else if (url.pathname === "/api/prescan") {
+            handlePrescanRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {
             handleDocumentRequest(response, url.searchParams);
         } else if (url.pathname === "/api/raw") {
@@ -192,7 +196,7 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             handleRangePatchRequest(response, url.searchParams);
         } else if (url.pathname === "/api/step-files") {
             handleStepFilesRequest(response, url.searchParams);
-        } else if (url.pathname === "/" || url.pathname.startsWith("/app/")) {
+        } else if (url.pathname === "/" || url.pathname === "/webapp_old.html" || url.pathname.startsWith("/app/")) {
             serveStaticFile(response, url.pathname);
         } else {
             sendText(response, 404, `no route: ${url.pathname}`);

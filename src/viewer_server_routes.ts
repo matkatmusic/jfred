@@ -75,6 +75,12 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
     const target = targetValue === null ? undefined : new Path(targetValue);
     // declined=1 is the client's remembered "Continue without running" — build degraded, no re-prompt.
     const declined = query.get("declined") === "1";
+    // task 194: bounded mode — reconstruct only until boundFile's boundNth-revision turn end
+    // (task-193 semantics). Absent boundFile = full reconstruction, today's behavior.
+    const boundFileValue = query.get("boundFile");
+    const bound = boundFileValue === null
+        ? undefined
+        : { file: new Path(boundFileValue), ordinal: Number(query.get("boundNth") ?? "1") };
     // item 46: the project's path overrides apply to everything below (both branches). Runs
     // before any header goes out, so a malformed reveng-paths.json still 400s loudly.
     applyProjectOverrides(projectName);
@@ -96,7 +102,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
             sendJson(response, 200, decision);
             return;
         }
-        sendJson(response, 200, buildDocumentWithConsent(jsonlPaths, target, allowScripts, logBuildProgressToConsole, reconstructPreBaseline));
+        sendJson(response, 200, buildDocumentWithConsent(jsonlPaths, target, allowScripts, logBuildProgressToConsole, reconstructPreBaseline, bound));
         return;
     }
 
@@ -149,7 +155,7 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
         const document = buildDocumentWithConsent(jsonlPaths, target, allowScripts, (event) => {
             writeNdjsonLine(event);
             logBuildProgressToConsole(event);
-        }, reconstructPreBaseline);
+        }, reconstructPreBaseline, bound);
         // The stringify below blocks the event loop for the whole document (seconds for a large
         // project); announce it FIRST so the client shows "serializing document" instead of
         // freezing on the last build line. The byte size is only known AFTER stringify, so the

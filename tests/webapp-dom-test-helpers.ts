@@ -42,9 +42,11 @@ class FakeResizeObserver {
 }
 
 // Extract the real header/console markup so every id the webapp looks up exists with its real
-// attributes (including the popovers' initial `hidden`).
+// attributes (including the popovers' initial `hidden`). The page under test is the preserved
+// pre-redesign webapp_old.html (task 204 renamed index.html; the layered page will claim
+// index.html later — task 205).
 function readIndexHtmlBodyMarkup(): string {
-    const html = readFileSync(new URL("../webapp/index.html", import.meta.url), "utf8");
+    const html = readFileSync(new URL("../webapp/webapp_old.html", import.meta.url), "utf8");
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 

@@ -10,6 +10,8 @@ import { el } from "../app-dom.ts";
 import { fetchDocument, fetchJson, fetchRawRecords } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
+import { getModeChoice } from "../app-choices.ts";
+import { renderModeSelectionView } from "../app-mode-select.ts";
 import { showLoadingProgress } from "../app-progress.ts";
 import { openInspectorPane } from "../inspector.ts";
 import { renderDetailsFileMode } from "./details-revision-view.ts";
@@ -90,6 +92,12 @@ function renderFileDetails(target: string, detailsContext: DetailsContext): void
 // anchorLine (optional, 0-based raw line of anchorJsonl): scroll to the owning step, open the
 // inspector on it.
 export async function renderTimelineView(container: HTMLElement, project: string, anchorJsonl?: string, anchorLine?: string): Promise<void> {
+    // task 194: the reconstruction-mode decision comes on its OWN view, before any build work
+    // is kicked off (before the console overlay, empty timeline, and file-nav are shown).
+    if (getModeChoice(project) === null) {
+        await renderModeSelectionView(container, project);
+        return;
+    }
     const result = await fetchDocument(project, undefined);
     if (result.baselineQuestion !== undefined) {
         renderBaselineQuestionDialog(container, project, result.baselineQuestion);

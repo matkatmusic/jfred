@@ -1,6 +1,6 @@
 // ─── shared fetch + caches ───────────────────────────────────────────────────
 
-import { computeConsentKey, getBaselineChoice } from "./app-choices.ts";
+import { computeConsentKey, getBaselineChoice, getModeChoice } from "./app-choices.ts";
 import { collapseProgressConsole, logProgress } from "./app-console.ts";
 import { hideLoadingProgress, showLoadingProgress } from "./app-progress.ts";
 
@@ -138,10 +138,18 @@ async function parseDocumentStreamLines(lines: string[], finalPayload: WireDocum
 // DocumentType lets each view name the wire fields it reads (its own Wire* type); the cache and
 // stream handling below stay shape-agnostic.
 export async function fetchDocument<DocumentType = WireDocument>(project: string, jsonl?: string): Promise<{ document?: DocumentType; consentRequired?: WireConsentScript[]; baselineQuestion?: WireBaselineQuestion }> {
-    const cacheKey = `${project}|${jsonl ?? "*"}`;
+    // task 194: a stored bounded-mode choice rides as boundFile/boundNth (absent = full build).
+    // The bound is in the cache key too — a bounded and a full document must never share one.
+    const modeChoice = getModeChoice(project);
+    const boundKeySuffix = modeChoice?.mode === "bounded" ? `|${modeChoice.file}#${modeChoice.nth}` : "";
+    const cacheKey = `${project}|${jsonl ?? "*"}${boundKeySuffix}`;
     if (documentCache.has(cacheKey)) return { document: documentCache.get(cacheKey)! as DocumentType };
     const params = new URLSearchParams({ project, progress: "1" });
     if (jsonl !== undefined) params.set("jsonl", jsonl);
+    if (modeChoice?.mode === "bounded") {
+        params.set("boundFile", modeChoice.file);
+        params.set("boundNth", String(modeChoice.nth));
+    }
     const choice = sessionStorage.getItem(computeConsentKey(project));
     params.set("allowScripts", choice === "1" ? "1" : "0");
     if (choice === "0") params.set("declined", "1");

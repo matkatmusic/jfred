@@ -158,6 +158,16 @@ export function scanProjects(projectsDir: Path): ProjectListing[] {
 // resolveJsonlPaths (and its multi-source union) lives in viewer_api_sources.ts (task 177:
 // this file and viewer_server_routes.ts are both at the 250-line cap).
 
+// Map a static-request URL path to its webapp-relative file name: `/` is the app's main page
+// (webapp_old.html until the layered page claims index.html — task 204/205), `/webapp_old.html`
+// is the preserved pre-redesign page, and `/app/*` prefixes strip to plain asset names.
+export function computeStaticFileRelative(urlPath: string): string {
+    if (urlPath === "/") {
+        return "webapp_old.html";
+    }
+    return urlPath.replace(/^\/app\//, "").replace(/^\//, "");
+}
+
 // The on-disk file for a static request: the compiled webapp/dist copy when the build emitted
 // one (transpiled .js), else the webapp/ source (index.html, styles.css, vendor/*.js). The
 // server realpath+prefix-checks the result before reading it.

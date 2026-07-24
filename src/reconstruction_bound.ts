@@ -26,6 +26,14 @@ export type RevisionBound = {
     boundInstant: Date | undefined;
 };
 
+// A caller's request for a bounded build (task 194: the webapp's bounded mode rides the
+// document request as boundFile/boundNth and lands here): truncate at `file`'s `ordinal`-th
+// revision turn end — the same semantics as the CLI's --until-revision/--nth.
+export type RevisionBoundRequest = {
+    file: Path;
+    ordinal: number;
+};
+
 // The path fields an event carries: rename/copy name from→to, every other kind a target.
 export function listEventPaths(event: FileEvent): Path[] {
     if (event.kind === EventKind.rename) {
