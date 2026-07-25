@@ -70,13 +70,61 @@ body {
 .legend-script { border: 3px solid #c9366b; background: transparent; }
 .legend-echo { background: #6b7280; border-radius: 2px; }
 .legend-disk { border: 2px double #111827; background: transparent; }
-.layered-file-widget {
-    min-height: 80px;
-    margin-bottom: 12px;
-    padding: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
+/* Per-file widgets on the shared vertical axis (task 207, spec S8). layered-app.ts emits ONLY
+   raw axis milliseconds (--axis-ms per widget and per node, --axis-span-ms per widget); the
+   ms -> pixel scale and every placement rule live here, so no JS layout pass exists. */
+.layered-canvas {
+    --axis-scale: 0.0008;
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    min-height: 100%;
 }
+.layered-file-widget {
+    flex: none;
+    margin-top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px);
+    padding: 8px 10px 14px;
+    border: 2px solid rgba(0, 0, 0, 0.25);
+    border-radius: 14px;
+}
+.layered-file-name {
+    font: 600 12.5px ui-monospace, Menlo, monospace;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+.layered-lanes { display: flex; gap: 8px; }
+.layered-lane {
+    position: relative;
+    width: 56px;
+    flex: none;
+    min-height: calc(var(--axis-span-ms, 0) * var(--axis-scale) * 1px + 24px);
+    border-left: 1.5px solid rgba(0, 0, 0, 0.15);
+}
+/* The lane's session name comes straight off its data attribute — no label element to build. */
+.layered-lane::before {
+    content: attr(data-session);
+    display: block;
+    font-size: 10px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.layered-node {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px + 14px);
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: #6b7280;
+}
+.kind-beacon { background: #2f6fed; }
+.kind-pre-anchor-stub { background: transparent; border: 2px dashed #9ca3af; }
+.kind-end-state { border: 2px double #111827; background: #fff; }
+.kind-presumed-user-edit { background: #e07f3f; }
+.kind-script-run { border: 3px solid #c9366b; background: transparent; }
 
 .layered-right {
     flex: 1;

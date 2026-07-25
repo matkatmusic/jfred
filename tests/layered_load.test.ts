@@ -150,7 +150,7 @@ test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
     assert.equal(beta.sessionTimelines.length, 1);
     assert.equal(beta.sessionTimelines[0].timeline.nodes.length, 1);
     assert.equal(beta.sessionTimelines[0].timeline.nodes[0].kind, LayeredNodeKind.beacon);
-    // typed edges are S6 territory — S1 leaves them empty.
+    // the fixture records no mv/cp, so the S6 typed edges stay empty.
     assert.deepEqual(graph.renames, []);
     assert.deepEqual(graph.copies, []);
     assert.deepEqual(graph.scriptLinks, []);

@@ -18,7 +18,7 @@ import { Uuid } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { replayEvents } from "./reconstruction_replay.ts";
 import { lastLinesOf, splitLines, reverseEditFromAfter } from "./reconstruction_replay_edit.ts";
-import { backupSeedWriteFor, backupAfterWriteFor } from "./reconstruction_sidecar.ts";
+import { backupSeedWriteFor, backupAfterWriteFor, clampSeedBetweenPreviousAndEdit } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_engine.ts";
@@ -80,7 +80,7 @@ function lastPriorTimeFor(target: Path, priorEvents: FileEvent[]): Date | undefi
 // the result omitted it. This is the exact pre-edit disk — used to recover an out-of-hunk-window trailing
 // append the reconstructed base missed (s40: the user's "# reviewed by ops" line). The changeId is
 // synthetic so the seed stays out of the graphs (spec 40); the timestamp is the edit's, which
-// seedBeforeEdit pulls to just before the edit when this seed is used.
+// clampSeedBetweenPreviousAndEdit pulls to just before the edit when this seed is used.
 // The changeId prefix stamped onto an `originalFile` reseed Write (see originalFileSeedFor). Synthetic,
 // so the seed stays out of the graphs; exported so consumers that must UN-wrap it back to the real edit
 // changeId (reconstruction_json's session attribution) share this one literal.
@@ -123,7 +123,7 @@ function outOfWindowEditSeed(
     // the edit's OWN `originalFile` — the literal pre-edit content (s40: the user's "# reviewed by ops"
     // append was snapshotted 46ms AFTER the subtotal Edit, so no at/before backup holds it, but the edit
     // result records the exact pre-edit file). originalFile is exact, so it cannot false-match a later
-    // backup the way a strictly-after backup would. seedBeforeEdit re-times the seed to just before the
+    // backup the way a strictly-after backup would. clampSeedBetweenPreviousAndEdit re-times it to before the
     // edit, so the recovered append becomes its own revision (s40 step-4) and the edit replays on it (step-5).
     const backup = backupSeedWriteFor(records, event.target, event.timestamp, reader);
     const original = originalFileSeedFor(event);
@@ -195,19 +195,6 @@ function staleEditSeedFor(
     return outOfWindowEditSeed(records, event, priorEvents, reader); // s34
 }
 
-// A seed spliced BEFORE an edit is that edit's PRE-edit base, so it must sort before the edit on the
-// timeline. The backup it was recovered from can carry a timestamp at/after the edit — e.g. a post-/clear
-// edit (s64) whose only base backup was taken later, or an includeAfter backup (s19/s23/m6). When it does,
-// pull the seed to just before the edit so the per-step timeline shows the base THEN the edited state, not
-// only the edited one (lastRevisionAtOrBefore would otherwise resolve both steps to the edited revision).
-// Backups already earlier than the edit (s19/s23/s34/s45) are left untouched.
-function seedBeforeEdit(seed: WriteEvent, event: FileEvent): WriteEvent {
-    if (seed.timestamp.getTime() < event.timestamp.getTime()) {
-        return seed;
-    }
-    return { ...seed, timestamp: new Date(event.timestamp.getTime() - 1) };
-}
-
 // Record that a stale-edit-base reseed fired, tagging the edit it seeds (its changeId is the producing
 // record) and the backup time used.
 function noteStaleSeed(event: FileEvent, seed: WriteEvent): void {
@@ -233,7 +220,9 @@ export function seedStaleEditBases(
     for (const event of lineage) {
         const rawSeed = staleEditSeedFor(records, event, result, reader);
         if (rawSeed) {
-            const seed = seedBeforeEdit(rawSeed, event);
+            // task 224: the seed must sort into the window between the event it is pushed after and the
+            // edit it seeds — the recovered backup's own stamp can sit outside BOTH ends.
+            const seed = clampSeedBetweenPreviousAndEdit(rawSeed, event.timestamp, result[result.length - 1]?.timestamp);
             noteStaleSeed(event, seed);
             result.push(seed);
         }

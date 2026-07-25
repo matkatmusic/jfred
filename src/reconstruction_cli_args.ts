@@ -14,11 +14,12 @@ import {
     type SourceEntry,
     type WireProjectPaths,
 } from "./reconstruction_overrides.ts";
+import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 
 // item 46: const USAGE =
 // item 46:     "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords]";
 export const USAGE =
-    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>] [--until-revision <path> [--nth <n>]]";
+    "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>] [--no-pre-baseline] [--until-revision <path> [--nth <n>]]";
 
 export type CliOptions = {
     jsonlPath: string;
@@ -45,6 +46,10 @@ export type CliOptions = {
     projectCwd: Path | undefined;
     repoDir: Path | undefined;
     baseCommit: Uuid | undefined;
+    // task 223: the CLI equivalent of the viewer's "No" to the pre-baseline question —
+    // `--no-pre-baseline` makes the base-commit beacon supersede everything at-or-before it,
+    // so a re-seeded iteration reconstructs only forward from its seed.
+    preBaseline: boolean;
     // task 193: bound the whole reconstruction at the end of the turn containing this file's
     // nth revision (untilNth is 1-based, defaulting to the first revision).
     untilRevision: Path | undefined;
@@ -124,6 +129,7 @@ export function parseArgs(argv: string[]): CliOptions {
     const diff = rest.includes("--diff");
     const allRecords = rest.includes("--allRecords");
     const json = rest.includes("--json") || allRecords;
+    const preBaseline = !rest.includes("--no-pre-baseline");
     const progressAll = rest.includes("--progress-all");
     const progress = rest.includes("--progress") || progressAll;
     const graphs = resolveGraphFlags(rest, branchFlag.value, surviving, listBranches, verbose, diff);
@@ -148,6 +154,7 @@ export function parseArgs(argv: string[]): CliOptions {
         projectCwd: cwdFlag.value !== undefined ? new Path(cwdFlag.value) : undefined,
         repoDir: repoFlag.value !== undefined ? new Path(repoFlag.value) : undefined,
         baseCommit: baseCommitFlag.value !== undefined ? new Uuid(baseCommitFlag.value) : undefined,
+        preBaseline,
         untilRevision: untilRevisionFlag.value !== undefined ? new Path(untilRevisionFlag.value) : undefined,
         untilNth: parseOrdinal(nthFlag.value),
     };
@@ -193,6 +200,9 @@ export function applyCliPathOverrides(options: CliOptions): void {
     if (options.baseCommit !== undefined) {
         merged.baseCommit = options.baseCommit;
     }
+    // task 223: set unconditionally (not only when declined) — the gate is module state shared
+    // with the viewer, so an in-process CLI run must never inherit a previous run's answer.
+    setPreBaselineReconstructionAllowed(options.preBaseline);
     setPathOverrides(merged);
 }
 

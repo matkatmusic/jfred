@@ -10,6 +10,10 @@ import {
     PROJECT_PATHS_CONFIG_NAME,
     type WireProjectPaths,
 } from "../src/reconstruction_overrides.ts";
+import {
+    isPreBaselineReconstructionAllowed,
+    setPreBaselineReconstructionAllowed,
+} from "../src/reconstruction_base_commit.ts";
 
 // A transcript path is required; without one, parseArgs reports usage.
 test("test_parse_args_requires_a_transcript_path", () => {
@@ -172,4 +176,29 @@ test("test_parse_nth_rejects_non_integer", () => {
 test("test_parse_nth_rejects_below_one", () => {
     // Scenario (task 193): ordinals are 1-based; zero is a usage error.
     assert.throws(() => parseArgs(["t.jsonl", "--until-revision", "/a/b.py", "--nth", "0"]), /usage/);
+});
+
+test("test_parse_no_pre_baseline_flag", () => {
+    // Scenario (task 223): the CLI equivalent of the viewer's "No" to the pre-baseline question —
+    // absent keeps today's "Yes"; present declines reconstructing anything before the seed.
+    assert.equal(parseArgs(["t.jsonl"]).preBaseline, true);
+    assert.equal(parseArgs(["t.jsonl", "--no-pre-baseline"]).preBaseline, false);
+});
+
+test("test_apply_cli_overrides_declines_pre_baseline_reconstruction", () => {
+    // Scenario (task 223): applying the options is what reaches the engine's module-level gate, so
+    // a re-seeded CLI iteration reconstructs only forward from its own seed.
+    const tree = mkdtempSync(join(tmpdir(), "cli-pre-baseline-"));
+    const projectDir = join(tree, "projects", "-proj");
+    mkdirSync(projectDir, { recursive: true });
+    try {
+        applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl"), "--no-pre-baseline"]));
+        assert.equal(isPreBaselineReconstructionAllowed(), false);
+        // Test verification: the gate is shared module state, so the NEXT in-process run must not
+        // inherit the declined answer.
+        applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl")]));
+        assert.equal(isPreBaselineReconstructionAllowed(), true);
+    } finally {
+        setPreBaselineReconstructionAllowed(true);
+    }
 });

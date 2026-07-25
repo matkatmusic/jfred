@@ -18,6 +18,8 @@ import { BlockType, EventKind, LayeredNodeKind } from "./structures/vocabulary.t
 import { sortNodesOntoAxis } from "./layered_instants.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
 import { completeLayer1Timeline } from "./layered_end_state.ts";
+import { buildLineageEdges, checkEventIsLineageEdge } from "./layered_lineage.ts";
+import type { LineageEvidence } from "./layered_lineage.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import type {
     JsonlRef,
@@ -130,21 +132,26 @@ function getOrCreateNodeList(
 }
 
 // Collect one session's nodes into the nested file -> session -> nodes map. Rename/copy events
-// carry from/to instead of target — they become typed edges in S6 (task 203), not nodes here.
-// Read echoes leave no FileEvent, so their nodes join from collectReadEchoNodes (task 198).
+// carry from/to instead of target — they are held aside as typed-edge evidence (task 203, S6),
+// not nodes. Read echoes leave no FileEvent, so their nodes join from collectReadEchoNodes.
 function collectSessionNodes(
     records: TranscriptRecord[],
     sessionFile: Path,
     nodesByFileThenSession: Map<string, Map<string, TimelineNode[]>>,
+    lineageEvidence: LineageEvidence[],
 ): void {
     const refsByChangeId = indexJsonlRefsByChangeId(records, sessionFile);
     for (const event of extractFileEvents(records)) {
-        const target = (event as { target?: Path }).target;
-        if (target === undefined) {
-            continue;
-        }
         const evidence = refsByChangeId.get(event.changeId.toString());
         if (evidence === undefined) {
+            continue;
+        }
+        if (checkEventIsLineageEdge(event)) {
+            lineageEvidence.push({ event, evidence });
+            continue;
+        }
+        const target = (event as { target?: Path }).target;
+        if (target === undefined) {
             continue;
         }
         getOrCreateNodeList(nodesByFileThenSession, target.toString(), sessionFile.toString())
@@ -178,13 +185,19 @@ function buildEntities(nodesByFileThenSession: Map<string, Map<string, TimelineN
 }
 
 // S1 loader entry point: discover sources (explicit paths win), load every session transcript,
-// and return the per-file entity graph. Typed edges stay empty until S6 (task 203); the
+// and return the per-file entity graph with its typed rename/copy edges (S6, task 203). The
 // evidence roots from resolveEvidenceRoots feed layers 2-3 (tasks 200-202).
 export function loadLayeredProject(projectFolder: Path, overrides: LayeredSourceOverrides): ReconstructionGraph {
     const nodesByFileThenSession = new Map<string, Map<string, TimelineNode[]>>();
+    const lineageEvidence: LineageEvidence[] = [];
     for (const jsonlPath of discoverJsonlPaths(projectFolder, overrides.jsonlPaths)) {
         const { records } = loadTranscript(jsonlPath.toString());
-        collectSessionNodes(records, jsonlPath, nodesByFileThenSession);
+        collectSessionNodes(records, jsonlPath, nodesByFileThenSession, lineageEvidence);
     }
-    return { entities: buildEntities(nodesByFileThenSession), renames: [], copies: [], scriptLinks: [] };
+    // buildLineageEdges adds an entity for any rename/copy endpoint the node walk never saw.
+    const entitiesByPath = new Map(
+        buildEntities(nodesByFileThenSession).map((entity) => [entity.filename.toString(), entity]),
+    );
+    const { renames, copies } = buildLineageEdges(lineageEvidence, entitiesByPath);
+    return { entities: [...entitiesByPath.values()], renames, copies, scriptLinks: [] };
 }

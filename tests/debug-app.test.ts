@@ -1,7 +1,7 @@
 // Task 183: the per-file debug viewer's page skeleton — file selection listing deep-link
 // anchors, a status line, and boot behavior for the three URL shapes (no project, project
-// only, project + deep-linked file). Ladder RENDERING is task 184 — the deep-linked boot only
-// reports the fetched revision count here.
+// only, project + deep-linked file). Task 184: rendering the selected file's revision ladder
+// (index, source attribution, timestamp, seed hash, conflict note).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -63,18 +63,76 @@ test("test_debug_boot_with_project_fetches_and_renders_file_list", async () => {
     assert.match(getById("debug-status").textContent ?? "", /select a file/);
 });
 
-test("test_debug_boot_with_deep_linked_file_shows_revision_count", async () => {
-    // Scenario: ?project&file fetches that file's ladder and reports its revision count
-    // (rendering the ladder itself is task 184).
+// Two revisions in the wire shape /api/file-ladder serves: a base-commit seed (its
+// `gitBase:<hash>:<target>` changeId) followed by an edit the engine could not replay.
+const LADDER_PAYLOAD = {
+    target: "/w/alpha.py",
+    revisions: [
+        { kind: "write", changeId: "gitBase:9d14d60d:/w/alpha.py", timestamp: "2026-05-01T10:00:00.000Z" },
+        {
+            kind: "edit",
+            changeId: "toolu_02",
+            timestamp: "2026-05-02T11:30:00.000Z",
+            unrecoverable: { reason: "hunk context not found" },
+        },
+    ],
+};
+
+test("test_debug_boot_with_deep_linked_file_renders_the_ladder", async () => {
+    // Scenario: ?project&file fetches that file's ladder, renders one list entry per revision,
+    // and reports the count.
     // Steps:
     // boot over a deep-linked URL with the ladder response stubbed.
     setupDebugDom("?project=proj&file=%2Fw%2Falpha.py");
-    stubFetchRoutes({ "/api/file-ladder": { target: "/w/alpha.py", revisions: [{}, {}] } });
+    stubFetchRoutes({ "/api/file-ladder": LADDER_PAYLOAD });
     const { bootDebugApp } = await import("../webapp/debug-app.ts");
     await bootDebugApp();
-    // the status names the file and its 2 fetched revisions.
+    // one <li> per revision appears, and the status names the file and its 2 fetched revisions.
+    assert.equal(getById("debug-ladder").querySelectorAll("li").length, 2);
     assert.match(getById("debug-status").textContent ?? "", /alpha\.py/);
     assert.match(getById("debug-status").textContent ?? "", /2 revision/);
+});
+
+test("test_renderDebugLadder_attributes_each_revision_to_its_source_and_time", async () => {
+    // Scenario: every revision row names the event kind that produced it, its changeId, and its
+    // timestamp — the debug viewer's source attribution.
+    // Steps:
+    // render the two-revision ladder.
+    setupDebugDom();
+    const { renderDebugLadder } = await import("../webapp/debug-app.ts");
+    renderDebugLadder(LADDER_PAYLOAD);
+    // the first entry attributes itself to the write event and carries that revision's timestamp.
+    const firstItem = getById("debug-ladder").querySelector("li");
+    assert.match(firstItem?.querySelector(".debug-source")?.textContent ?? "", /write \(gitBase:9d14d60d/);
+    assert.equal(firstItem?.querySelector(".debug-time")?.textContent, "2026-05-01T10:00:00.000Z");
+});
+
+test("test_renderDebugLadder_shows_the_seed_hash_only_on_base_commit_revisions", async () => {
+    // Scenario: a `gitBase:<hash>:<target>` changeId surfaces its commit hash; an ordinary
+    // changeId shows no seed row.
+    // Steps:
+    // render the two-revision ladder.
+    setupDebugDom();
+    const { renderDebugLadder } = await import("../webapp/debug-app.ts");
+    renderDebugLadder(LADDER_PAYLOAD);
+    // only the seeded revision carries a seed, and it names the commit hash alone.
+    const seeds = getById("debug-ladder").querySelectorAll(".debug-seed");
+    assert.equal(seeds.length, 1);
+    assert.equal(seeds[0]?.textContent, "9d14d60d");
+});
+
+test("test_renderDebugLadder_shows_conflict_notes_on_unrecoverable_revisions", async () => {
+    // Scenario: a revision the engine could not replay shows its reason instead of passing as a
+    // clean revision.
+    // Steps:
+    // render the two-revision ladder.
+    setupDebugDom();
+    const { renderDebugLadder } = await import("../webapp/debug-app.ts");
+    renderDebugLadder(LADDER_PAYLOAD);
+    // exactly the unrecoverable revision carries the note, and it names the reason.
+    const notes = getById("debug-ladder").querySelectorAll(".debug-conflict");
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0]?.textContent, "hunk context not found");
 });
 
 test("test_debug_boot_with_failed_fetch_reports_the_failure", async () => {

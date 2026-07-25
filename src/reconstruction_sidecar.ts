@@ -71,6 +71,28 @@ export function backupSeedWriteFor(
     };
 }
 
+// A seed spliced before an EDIT has to sort into the window between the event it is pushed after and
+// that edit. `backupSeedWriteFor` stamps it with the BACKUP's own instant, which answers to neither
+// bound: it can land at/after the edit (a post-/clear edit whose only base backup was taken later —
+// s64; an includeAfter backup — s19/s23/m6), and, once a mid-window `--base-commit` beacon precedes it,
+// BEFORE that beacon (task 224). Clamping both ends keeps the replayed ladder non-decreasing. A seed
+// already inside its window is returned untouched, so every ladder monotonic today is byte-for-byte
+// unaffected. When `previousTime` is already at/after the edit no valid slot exists — the events were
+// non-monotonic BEFORE this seed — and the load-bearing "a seed precedes the edit it seeds" rule wins.
+export function clampSeedBetweenPreviousAndEdit(
+    seed: WriteEvent,
+    editTime: Date,
+    previousTime: Date | undefined,
+): WriteEvent {
+    const latestAllowed = editTime.getTime() - 1;
+    const earliestAllowed = previousTime === undefined ? seed.timestamp.getTime() : previousTime.getTime();
+    const placed = Math.min(Math.max(seed.timestamp.getTime(), earliestAllowed), latestAllowed);
+    if (placed === seed.timestamp.getTime()) {
+        return seed;
+    }
+    return { ...seed, timestamp: new Date(placed) };
+}
+
 // A synthetic Write of `target`'s content from the FIRST file-history backup taken strictly AFTER
 // `when`. The source for reversing an edit to recover its pre-edit base when the sidecar holds no
 // at-or-before full content (s28: a scoped rename leaves no per-file Write, so catalog_view.py's only
