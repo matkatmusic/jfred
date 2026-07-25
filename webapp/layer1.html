@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JFRED — Layer 1 View</title>
+<style>
+  /* Lifted verbatim from plans/layer1-mockup.html (user-signed-off 2026-07-25), which in turn
+     lifted its tokens, header, button, ruler, .filebox and .node styling from
+     plans/mvp-app-mockup.html so this reads as the same app. */
+  .viz-root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb;
+    --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,.10);
+    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834;
+    --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
+    --seg-a: rgba(27,175,122,.12);
+    --sel-edge: #1baf7a; --box: #d98a2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19;
+      --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
+      --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+      --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+      --seg-a: rgba(25,158,112,.15);
+      --sel-edge: #199e70; --box: #b57427;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
+    --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+    --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+    --seg-a: rgba(25,158,112,.15);
+    --sel-edge: #199e70; --box: #b57427;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--page); }
+  .viz-root { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink); background: var(--page); height: 100vh; display: flex; flex-direction: column; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+  header h1 { font-size: 14px; }
+  header .crumb { font-size: 11.5px; color: var(--muted); }
+  button { font: 600 12px system-ui; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; color: var(--ink); cursor: pointer; }
+  button:hover { border-color: var(--ink2); }
+  button:disabled { color: var(--muted); cursor: not-allowed; }
+  button:disabled:hover { border-color: var(--border); }
+
+  .layerbar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .layerbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .layerbar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
+  .layerbar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  .layerbar button.uncomputed { border-style: dashed; color: var(--muted); }
+
+  /* The whole Layer 1 input surface: two folder paths and an optional ref. */
+  .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .sources label { display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--muted); }
+  .sources input { font: 11.5px ui-monospace, Menlo, monospace; padding: 4px 8px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
+  .sources input:focus { outline: none; border-color: var(--sel-edge); }
+
+  /* S12: legend above the timeline, outside the scroll container. */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 7px 16px; font-size: 11px;
+    color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
+  .canvas { position: relative; min-width: max-content; padding-left: 96px; }
+
+  .ruler { position: absolute; left: 0; top: 0; bottom: 0; width: 96px; z-index: 8; }
+  .ruler .rail { position: absolute; left: 80px; top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
+  .ruler .tick { position: absolute; left: 0; width: 70px; text-align: right; top: calc(var(--axis-px) * 1px);
+    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
+
+  .stage { display: flex; align-items: flex-start; gap: 26px; }
+
+  .filebox { position: relative; flex: none; min-width: 168px;
+    margin-top: calc(var(--axis-px) * 1px);
+    border: 2px solid var(--box); border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 30px 12px 14px; }
+  .filebox .fname { position: absolute; top: 7px; left: 12px;
+    font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
+  .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
+
+  .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
+  .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }
+  .node { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
+    z-index: 6; width: 15px; height: 15px; border-radius: 50%;
+    box-shadow: 0 0 0 2.5px var(--surface); }
+  .n-commit { border-radius: 4px; background: var(--c-commit); }
+  .n-disk { background: transparent; border: 3px double var(--c-disk); }
+  .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
+    font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
+
+  /* Orphan buckets: one per direction, a plain file list, placed at the earliest member instant. */
+  .filebox.bucket { border-style: dashed; border-color: var(--muted); }
+  .filebox.bucket .fname { color: var(--ink2); font-family: inherit; font-size: 12px; }
+  .bucket ul { list-style: none; }
+  .bucket li { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0;
+    font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); }
+  .bucket li em { font-style: normal; color: var(--muted); font-size: 10px; }
+  .nopairs { color: var(--muted); font-size: 11.5px; padding: 34px 8px 0; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <header>
+    <h1>Layer 1 View — Current File State vs Git State</h1>
+    <span class="crumb" id="crumb"></span>
+    <div class="layerbar">
+      <span class="lbl">Layer:</span>
+      <button class="current">1</button>
+      <button class="uncomputed" title="Layer 2 adds JSONL-derived start points">2</button>
+      <button class="uncomputed" title="Layer 3 adds file-history snapshots">3</button>
+    </div>
+  </header>
+
+  <div class="sources">
+    <label>Project folder
+      <input id="dir" type="text" size="34" value="">
+      <button class="pick" data-for="dir">Open…</button></label>
+    <label>Git repo
+      <input id="repo" type="text" size="34" value="">
+      <button class="pick" data-for="repo">Open…</button></label>
+    <label>Commit / branch
+      <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
+    <button id="load">Load</button>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
+    <span><i style="border:3px double var(--c-disk);background:transparent"></i> on-disk</span>
+    <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
+  </div>
+
+  <main class="timelines"><div class="canvas">
+    <div class="ruler" id="ruler"><div class="rail"></div></div>
+    <div class="stage" id="stage"></div>
+  </div></main>
+</div>
+<script type="module" src="/app/layer1-page.js"></script>
+</body>
+</html>

@@ -99,6 +99,29 @@ export function setupLayeredDom(): void {
     browserWindow.document.body.innerHTML = readLayeredHtmlBodyMarkup();
 }
 
+// The Layer 1 View page's body markup (task 237, spec S18).
+function readLayer1HtmlBodyMarkup(): string {
+    const html = readFileSync(new URL("../webapp/layer1.html", import.meta.url), "utf8");
+    return html.split("<body>")[1]!.split("</body>")[0]!;
+}
+
+// Build a fresh happy-dom window for the Layer 1 View page (task 237). `search` seeds the page
+// URL's query string, which IS that page's input surface (?dir=&repo=&ref=). `history` is
+// published because the page mirrors its header boxes back into the URL via replaceState.
+export function setupLayer1Dom(search: string = ""): void {
+    const browserWindow = new Window({ url: `http://localhost:7343/app/layer1.html${search}` });
+    Object.assign(globalThis, {
+        window: browserWindow,
+        document: browserWindow.document,
+        location: browserWindow.location,
+        history: browserWindow.history,
+        HTMLElement: browserWindow.HTMLElement,
+        HTMLInputElement: browserWindow.HTMLInputElement,
+        HTMLButtonElement: browserWindow.HTMLButtonElement,
+    });
+    browserWindow.document.body.innerHTML = readLayer1HtmlBodyMarkup();
+}
+
 // The debug page's body markup (task 183): the per-file debug viewer skeleton.
 function readDebugHtmlBodyMarkup(): string {
     const html = readFileSync(new URL("../webapp/debug.html", import.meta.url), "utf8");
