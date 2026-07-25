@@ -7,6 +7,16 @@ export function getInputById(id: string): HTMLInputElement {
     return document.getElementById(id) as HTMLInputElement;
 }
 
+// The element with `id`, thrown on absence so a markup drift fails loudly (shared by the
+// layered and debug pages — task 183 moved it here from layered-app.ts).
+export function getRequiredElementById(id: string): HTMLElement {
+    const element = document.getElementById(id);
+    if (element === null) {
+        throw new Error(`page markup is missing #${id}`);
+    }
+    return element;
+}
+
 export function el(tag: string, attrs: ElAttrs = {}, children: (Node | string)[] = []): HTMLElement {
     const node = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {

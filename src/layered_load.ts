@@ -1,8 +1,8 @@
 // loadLayeredProject (task 196, spec S1): source discovery (explicit paths win, otherwise
 // discovered from the project folder) and the per-file entity graph built from JSONL rows.
-// Layer-1 node semantics (anchor selection, end state, presumption gaps) are S2/tasks 198-199 —
-// here a full-content row becomes a BeaconNode and any other file-touching row a
-// PreAnchorStubNode; S2 refines that mapping.
+// Layer-1 node mapping (task 198, spec S2): a full-content row (Write body, user edit, Edit
+// with populated originalFile, complete Read echo) becomes a BeaconNode; any other
+// file-touching row a PreAnchorStubNode. End state + presumption gaps are task 199.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -15,6 +15,7 @@ import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind, LayeredNodeKind } from "./structures/vocabulary.ts";
 import { compareAxisPlacements, type AxisPlacement } from "./layered_instants.ts";
+import { collectReadEchoNodes } from "./layered_anchor.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import type {
     JsonlRef,
@@ -88,18 +89,47 @@ function checkEventCarriesFullContent(event: FileEvent): boolean {
     return event.kind === EventKind.write || event.kind === EventKind.userEdit;
 }
 
-// The S1 node for one file-touching event: full content -> beacon, anything else -> stub.
-// ponytail: S1 places rows on the axis; S2 (tasks 198/199) owns real layer-1 node semantics.
+// An Edit result's populated originalFile is the literal pre-edit disk — full-content evidence
+// (task 198). The wire value may be null (unreported), so populated means a real string.
+function findEditOriginalContent(event: FileEvent): string | undefined {
+    if (event.kind !== EventKind.edit) {
+        return undefined;
+    }
+    if (typeof event.originalFile === "string") {
+        return event.originalFile;
+    }
+    return undefined;
+}
+
+// The layer-1 node for one file-touching event: full content -> beacon, anything else -> stub.
 function buildNodeFromEvent(event: FileEvent, evidence: JsonlRef): TimelineNode {
     if (checkEventCarriesFullContent(event)) {
         const content = (event as { content: string }).content;
         return { kind: LayeredNodeKind.beacon, instant: event.timestamp, content, evidence };
     }
+    const originalContent = findEditOriginalContent(event);
+    if (originalContent !== undefined) {
+        return { kind: LayeredNodeKind.beacon, instant: event.timestamp, content: originalContent, evidence };
+    }
     return { kind: LayeredNodeKind.preAnchorStub, instant: event.timestamp, evidence };
+}
+
+// The (file, session) node list out of the nested map, created on first touch.
+function getOrCreateNodeList(
+    nodesByFileThenSession: Map<string, Map<string, TimelineNode[]>>,
+    fileKey: string,
+    sessionKey: string,
+): TimelineNode[] {
+    const sessionNodeLists = nodesByFileThenSession.get(fileKey) ?? new Map<string, TimelineNode[]>();
+    nodesByFileThenSession.set(fileKey, sessionNodeLists);
+    const nodes = sessionNodeLists.get(sessionKey) ?? [];
+    sessionNodeLists.set(sessionKey, nodes);
+    return nodes;
 }
 
 // Collect one session's nodes into the nested file -> session -> nodes map. Rename/copy events
 // carry from/to instead of target — they become typed edges in S6 (task 203), not nodes here.
+// Read echoes leave no FileEvent, so their nodes join from collectReadEchoNodes (task 198).
 function collectSessionNodes(
     records: TranscriptRecord[],
     sessionFile: Path,
@@ -115,11 +145,12 @@ function collectSessionNodes(
         if (evidence === undefined) {
             continue;
         }
-        const sessionNodeLists = nodesByFileThenSession.get(target.toString()) ?? new Map<string, TimelineNode[]>();
-        nodesByFileThenSession.set(target.toString(), sessionNodeLists);
-        const nodes = sessionNodeLists.get(sessionFile.toString()) ?? [];
-        sessionNodeLists.set(sessionFile.toString(), nodes);
-        nodes.push(buildNodeFromEvent(event, evidence));
+        getOrCreateNodeList(nodesByFileThenSession, target.toString(), sessionFile.toString())
+            .push(buildNodeFromEvent(event, evidence));
+    }
+    for (const placement of collectReadEchoNodes(records, sessionFile)) {
+        getOrCreateNodeList(nodesByFileThenSession, placement.target.toString(), sessionFile.toString())
+            .push(placement.node);
     }
 }
 

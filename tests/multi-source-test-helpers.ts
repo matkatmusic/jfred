@@ -121,12 +121,13 @@ export function buildWriteRecordPair(envelope: RecordEnvelope, filePath: string,
 }
 
 // The pair for one Edit (an "update" result with structuredPatch + originalFile — the §a
-// content-gate evidence).
+// content-gate evidence). originalFile: null models a result that reports no pre-edit content
+// (task 198's byteless-Edit class).
 export function buildEditRecordPair(
     envelope: RecordEnvelope,
     filePath: string,
     postContent: string,
-    originalFile: string,
+    originalFile: string | null,
     hunk: WireHunk,
 ): RecordPair {
     const editResult = {
@@ -141,6 +142,30 @@ export function buildEditRecordPair(
         records: [
             buildAssistantToolUseRecord(envelope, "Edit", { file_path: filePath, old_string: "", new_string: "" }),
             buildUserToolResultRecord(envelope, "updated", editResult),
+        ],
+        lastUuid: `${envelope.toolId}-result`,
+    };
+}
+
+// The echoed window of a Read result: which lines came back and how many the file holds.
+export type ReadWindow = { startLine: number; numLines: number; totalLines: number };
+
+// The pair for one Read (a "text" result whose file block carries the echo window — task 198's
+// complete-vs-partial Read echo evidence).
+export function buildReadRecordPair(
+    envelope: RecordEnvelope,
+    filePath: string,
+    content: string,
+    window: ReadWindow,
+): RecordPair {
+    const readResult = {
+        type: "text",
+        file: { filePath, content, numLines: window.numLines, startLine: window.startLine, totalLines: window.totalLines },
+    };
+    return {
+        records: [
+            buildAssistantToolUseRecord(envelope, "Read", { file_path: filePath }),
+            buildUserToolResultRecord(envelope, "read", readResult),
         ],
         lastUuid: `${envelope.toolId}-result`,
     };

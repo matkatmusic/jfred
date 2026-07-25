@@ -115,7 +115,10 @@ export function indexToolUseNamesById(
     return nameById;
 }
 
-function resolveToolNameForRecord(
+// The tool name behind this user record's tool_result block, or undefined when the record
+// carries none (exported for callers that must filter by tool BEFORE resolving — resolution
+// throws UnknownToolNameError on unmodeled tools by design).
+export function resolveToolNameForRecord(
     record: TranscriptRecord,
     nameById: Map<string, string>,
 ): string | undefined {

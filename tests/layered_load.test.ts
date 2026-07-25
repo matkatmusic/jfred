@@ -136,13 +136,14 @@ test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
     const graph = loadLayeredProject(new Path(fixture.projectDir), {});
     // exactly the two evidenced files appear.
     assert.equal(graph.entities.length, 2);
-    // alpha's entity holds ONE session timeline (session A) with write-beacon then edit-stub.
+    // alpha's entity holds ONE session timeline (session A): the write beacon, then the edit —
+    // ALSO a beacon since task 198 (its populated originalFile is full-content evidence).
     const alpha = findEntity(graph.entities, fixture.alphaPath);
     assert.equal(alpha.sessionTimelines.length, 1);
     const alphaNodes = alpha.sessionTimelines[0].timeline.nodes;
     assert.equal(alphaNodes.length, 2);
     assert.equal(alphaNodes[0].kind, LayeredNodeKind.beacon);
-    assert.equal(alphaNodes[1].kind, LayeredNodeKind.preAnchorStub);
+    assert.equal(alphaNodes[1].kind, LayeredNodeKind.beacon);
     assert.ok(alphaNodes[0].instant.getTime() < alphaNodes[1].instant.getTime());
     // beta's entity holds session B's single write beacon.
     const beta = findEntity(graph.entities, fixture.betaPath);

@@ -2,14 +2,7 @@
 // per-file placeholder widgets, file-nav click scrolling to its widget, and the Changes pane
 // hidden until a segment is selected. Task 206 adds the layered-graph fetch on load.
 
-// The element with `id`, thrown on absence so a markup drift fails loudly.
-function getRequiredElementById(id: string): HTMLElement {
-    const element = document.getElementById(id);
-    if (element === null) {
-        throw new Error(`layered page markup is missing #${id}`);
-    }
-    return element;
-}
+import { getRequiredElementById } from "./app-dom.ts";
 
 // Collapse or restore the left drawer.
 export function toggleLayeredDrawer(): void {

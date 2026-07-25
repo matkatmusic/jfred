@@ -99,6 +99,28 @@ export function setupLayeredDom(): void {
     browserWindow.document.body.innerHTML = readLayeredHtmlBodyMarkup();
 }
 
+// The debug page's body markup (task 183): the per-file debug viewer skeleton.
+function readDebugHtmlBodyMarkup(): string {
+    const html = readFileSync(new URL("../webapp/debug.html", import.meta.url), "utf8");
+    return html.split("<body>")[1]!.split("</body>")[0]!;
+}
+
+// Build a fresh happy-dom window for the debug page (task 183). `search` seeds the page URL's
+// query string (deep-link tests), e.g. "?project=proj&file=%2Fw%2Falpha.py".
+export function setupDebugDom(search: string = ""): void {
+    const browserWindow = new Window({ url: `http://localhost:7343/app/debug.html${search}` });
+    Object.assign(globalThis, {
+        window: browserWindow,
+        document: browserWindow.document,
+        location: browserWindow.location,
+        sessionStorage: browserWindow.sessionStorage,
+        localStorage: browserWindow.localStorage,
+        HTMLElement: browserWindow.HTMLElement,
+        HTMLButtonElement: browserWindow.HTMLButtonElement,
+    });
+    browserWindow.document.body.innerHTML = readDebugHtmlBodyMarkup();
+}
+
 // A minimal Response-like object covering exactly what fetchLogged reads: ok/status/json/text.
 function respondJson(payload: unknown, ok: boolean, status: number): Response {
     return {
