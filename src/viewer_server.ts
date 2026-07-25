@@ -136,6 +136,7 @@ function handleConfigUpdate(request: IncomingMessage, response: ServerResponse):
 }
 
 // GET /api/pick-folder — open a NATIVE macOS folder chooser (osascript) and return the choice.
+// Task 236 asked for POST; a side-effect-free picker is a GET and app-header.ts already calls it that way.
 // Cancel (or any osascript failure) is { path: "" } — the client no-ops on empty. The optional
 // `current` param seeds the dialog's starting folder, but only when it exists on disk: a bad
 // seed makes `default location` throw instead of showing the dialog.
