@@ -15,7 +15,7 @@ import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind, LayeredNodeKind } from "./structures/vocabulary.ts";
-import { compareAxisPlacements, type AxisPlacement } from "./layered_instants.ts";
+import { sortNodesOntoAxis } from "./layered_instants.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
 import { completeLayer1Timeline } from "./layered_end_state.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
@@ -154,24 +154,6 @@ function collectSessionNodes(
         getOrCreateNodeList(nodesByFileThenSession, placement.target.toString(), sessionFile.toString())
             .push(placement.node);
     }
-}
-
-// The sortable axis view of one node (JSONL rows are ms-precision — the widened-seconds flag
-// arrives with git beacons in layer 2/task 200).
-function makeJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
-    return {
-        instant: node.instant,
-        widenedFromSeconds: false,
-        content: node.kind === LayeredNodeKind.beacon ? node.content : undefined,
-    };
-}
-
-// Sort one timeline's nodes onto the shared instant axis.
-function sortNodesOntoAxis(nodes: TimelineNode[]): TimelineNode[] {
-    return nodes
-        .map((node) => ({ node, placement: makeJsonlAxisPlacement(node) }))
-        .sort((a, b) => compareAxisPlacements(a.placement, b.placement))
-        .map((entry) => entry.node);
 }
 
 // One session's sorted timeline for an entity, completed with the on-disk end state and

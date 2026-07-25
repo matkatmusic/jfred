@@ -4,7 +4,8 @@
 // ordered by clock (the commit's true moment is anywhere inside that second), so the Q7/Q9
 // content-order tiebreak decides.
 
-import type { Instant } from "./layered_types.ts";
+import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import type { Instant, TimelineNode } from "./layered_types.ts";
 
 // Git committer time (epoch seconds, never author time) widened onto the shared UTC-ms axis.
 export function widenCommitterSecondsToInstant(committerEpochSeconds: number): Instant {
@@ -59,4 +60,23 @@ export function compareAxisPlacements(a: AxisPlacement, b: AxisPlacement): numbe
         return compareByContentOrder(a, b);
     }
     return a.instant.getTime() - b.instant.getTime();
+}
+
+// The sortable axis view of one node (JSONL rows are ms-precision — the widened-seconds flag
+// arrives with git beacons in layer 2/task 200).
+function makeJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
+    return {
+        instant: node.instant,
+        widenedFromSeconds: false,
+        content: node.kind === LayeredNodeKind.beacon ? node.content : undefined,
+    };
+}
+
+// Sort one timeline's nodes onto the shared instant axis. Shared by the S1 loader
+// (layered_load.ts) and the S5 merge (layered_merge.ts) — one sort, one axis.
+export function sortNodesOntoAxis(nodes: TimelineNode[]): TimelineNode[] {
+    return nodes
+        .map((node) => ({ node, placement: makeJsonlAxisPlacement(node) }))
+        .sort((a, b) => compareAxisPlacements(a.placement, b.placement))
+        .map((entry) => entry.node);
 }

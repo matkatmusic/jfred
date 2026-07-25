@@ -79,6 +79,23 @@ export interface SessionTimeline {
     timeline: Timeline;
 }
 
+// One node of an entity's merged multi-session view (spec S5). The merge is DERIVED — the
+// per-session SessionTimelines stay the stored truth (Q13).
+export interface MergedNode {
+    node: TimelineNode;
+    // The session that observed it; undefined for nodes belonging to no session — the on-disk
+    // end state (one file, one disk) and merged-level presumption gaps.
+    sessionFile: Path | undefined;
+    // The OTHER sessions that observed these same bytes — the input for spec S8's dashed
+    // cross-lane lines. Empty unless at least two DISTINCT sessions observed the content.
+    corroboratedBy: Path[];
+}
+
+// One entity's nodes across every session, ordered on the shared instant axis.
+export interface MergedTimeline {
+    nodes: MergedNode[];
+}
+
 // The unit that owns a file's history; one per distinct file. Identity = absolute path after
 // per-session cwd resolution. Layers operate on a DERIVED merged view of these (Q13, spec S5).
 export interface ReconstructionEntity {

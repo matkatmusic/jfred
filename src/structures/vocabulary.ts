@@ -187,6 +187,16 @@ export enum LayeredNodeKind {
 
 export const KNOWN_LAYERED_NODE_KINDS: LayeredNodeKind[] = Object.values(LayeredNodeKind);
 
+// The per-file sweep's verdict for one candidate file (spec S11, task 186). Endpoint matches
+// (baseline blob present, final revision = current disk) are NECESSARY BUT NOT SUFFICIENT — a
+// ladder holding unrecoverable revisions has gaps and must not read as a pass.
+export enum SweepVerdict {
+    ok = "ok",
+    gaps = "gaps",
+    endpointMiss = "endpoint-miss",
+    none = "none",
+}
+
 // How a `--details` trace row is rendered: a short content preview, or the whole record
 // pretty-printed. Enum so the renderer compares members, not bare strings (coding-req §4).
 export enum TraceDetailMode {
