@@ -49,9 +49,9 @@ test("webapp_old_html_serves_the_preexisting_page", async () => {
         await waitUntilListening(child);
         const oldPageHtml = await fetchPageText("/webapp_old.html");
         assert.ok(oldPageHtml.includes("JSONL File Reverse Engineer Debugger"));
-        // Until the layered page (task 205) claims index.html, `/` serves the same page.
+        // The layered page (task 205) claimed index.html, so `/` serves it instead.
         const rootHtml = await fetchPageText("/");
-        assert.ok(rootHtml.includes("JSONL File Reverse Engineer Debugger"));
+        assert.ok(rootHtml.includes("JFRED — Layered Timeline"));
     } finally {
         child.kill();
     }
