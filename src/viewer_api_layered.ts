@@ -5,9 +5,40 @@
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { loadLayeredProject } from "./layered_load.ts";
+import { mergeSessionTimelines } from "./layered_merge.ts";
+import type { Instant, ReconstructionEntity, ReconstructionGraph } from "./layered_types.ts";
 import { Path } from "./structures/domain.ts";
 import { getProjectsDir, scanProjects } from "./viewer_api_projects.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
+
+// The graph as the layered page consumes it: every stored field, plus each entity's spec-S8
+// corroborated instants. The stored truth stays the per-session timelines (Q13) — this addition
+// is derived, and travels only because the page cannot compute it.
+interface WireLayeredEntity extends ReconstructionEntity {
+    corroboratedInstants: Instant[];
+}
+
+interface WireLayeredGraph extends Omit<ReconstructionGraph, "entities"> {
+    entities: WireLayeredEntity[];
+}
+
+// Spec S8's dashed cross-lane lines sit exactly where S5 marked corroboration — a property of
+// the DERIVED merged view (`mergeSessionTimelines`), never of the stored per-session timelines.
+// webapp/ may not import from src/, so the merge runs here and only its S8 input travels: the
+// instants whose bytes two DISTINCT sessions both observed.
+function listCorroboratedInstants(entity: ReconstructionEntity): Instant[] {
+    return mergeSessionTimelines(entity).nodes
+        .filter((merged) => merged.corroboratedBy.length > 0)
+        .map((merged) => merged.node.instant);
+}
+
+function describeGraphForWire(graph: ReconstructionGraph): WireLayeredGraph {
+    const entities = graph.entities.map((entity) => ({
+        ...entity,
+        corroboratedInstants: listCorroboratedInstants(entity),
+    }));
+    return { ...graph, entities };
+}
 
 // GET /api/layered-graph?project=<name> — the project's layered ReconstructionGraph as JSON
 // (Path/Uuid serialize via toJSON, Dates to ISO strings — the graph is JSON-clean as-is).
@@ -20,5 +51,5 @@ export function handleLayeredGraphRequest(response: ServerResponse, query: URLSe
         throw new Error(`no project named ${projectName}`);
     }
     const projectFolder = new Path(join(getProjectsDir().toString(), projectName));
-    sendJson(response, 200, loadLayeredProject(projectFolder, {}));
+    sendJson(response, 200, describeGraphForWire(loadLayeredProject(projectFolder, {})));
 }

@@ -92,7 +92,17 @@ body {
     margin-bottom: 4px;
     white-space: nowrap;
 }
-.layered-lanes { display: flex; gap: 8px; }
+.layered-lanes { position: relative; display: flex; gap: 8px; }
+/* Dashed cross-lane corroboration line (task 208, spec S8): sits on the lanes container so it
+   spans every lane, at the same axis offset the lane dots use. */
+.layered-corroboration {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px + 14px);
+    border-top: 1.5px dashed #7a3fe0;
+    pointer-events: none;
+}
 .layered-lane {
     position: relative;
     width: 56px;

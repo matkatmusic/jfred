@@ -39,8 +39,16 @@ interface WireSessionTimeline {
     timeline: { nodes: WireTimelineNode[] };
 }
 
+interface WireEntity {
+    filename: string;
+    sessionTimelines: WireSessionTimeline[];
+    // Spec S8's dashed-line positions, derived server-side from S5's corroboration marks
+    // (viewer_api_layered.ts): the instants whose bytes two DISTINCT sessions both observed.
+    corroboratedInstants: string[];
+}
+
 interface WireLayeredGraph {
-    entities: Array<{ filename: string; sessionTimelines: WireSessionTimeline[] }>;
+    entities: WireEntity[];
 }
 
 // The last path segment of a "/"-joined wire path.
@@ -66,6 +74,8 @@ export interface FileWidgetModel {
     fileName: string;
     lanes: WireSessionTimeline[];
     startInstant: Date | undefined;
+    // Where this widget draws its dashed cross-lane lines (spec S8).
+    corroboratedInstants: Date[];
 }
 
 // Every instant a file's lanes carry, hydrated from the wire's ISO text.
@@ -100,6 +110,7 @@ export function buildFileWidgetModels(graph: WireLayeredGraph): FileWidgetModel[
         fileName: entity.filename,
         lanes: entity.sessionTimelines,
         startInstant: findExtremeInstant(listLaneInstants(entity.sessionTimelines), false),
+        corroboratedInstants: entity.corroboratedInstants.map((instant) => new Date(instant)),
     }));
     const sortKeyOf = (model: FileWidgetModel): number =>
         model.startInstant?.getTime() ?? Number.POSITIVE_INFINITY;
@@ -126,6 +137,17 @@ function buildSessionLane(sessionTimeline: WireSessionTimeline, widgetStart: Dat
     return lane;
 }
 
+// One dashed line spanning every lane of a widget at a corroborated instant (spec S8) — drawn
+// where S5 found two distinct sessions observing the same bytes. Same `--axis-ms` contract as a
+// node dot, so line and dots share one scale.
+function buildCorroborationLine(instant: Date, widgetStart: Date | undefined): HTMLElement {
+    const line = document.createElement("i");
+    line.className = "layered-corroboration";
+    line.style.setProperty("--axis-ms", String(measureAxisOffsetMs(instant, widgetStart)));
+    line.title = `corroborated @ ${instant.toISOString()}`;
+    return line;
+}
+
 // One file's rounded canvas widget: offset to its history's start on the shared vertical axis,
 // per-session lanes inside (spec S8). JS emits only raw axis milliseconds — `--axis-ms` for the
 // widget's own offset and `--axis-span-ms` for its height; layered-styles.css owns the ms→px
@@ -142,7 +164,12 @@ function buildFileWidget(model: FileWidgetModel, widgetIndex: number, axisOrigin
     name.textContent = model.fileName;
     const lanes = document.createElement("div");
     lanes.className = "layered-lanes";
-    lanes.replaceChildren(...model.lanes.map((lane) => buildSessionLane(lane, model.startInstant)));
+    // The dashed lines come FIRST so the lane dots paint over them, and they live on the lanes
+    // container (not in one lane) because a corroboration line spans all of them.
+    lanes.replaceChildren(
+        ...model.corroboratedInstants.map((instant) => buildCorroborationLine(instant, model.startInstant)),
+        ...model.lanes.map((lane) => buildSessionLane(lane, model.startInstant)),
+    );
     widget.replaceChildren(name, lanes);
     return widget;
 }
