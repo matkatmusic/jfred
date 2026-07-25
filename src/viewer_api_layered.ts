@@ -4,6 +4,7 @@
 
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
+import { resolveInstantOffsets } from "./layer1_ruler_axis.ts";
 import { loadLayeredProject } from "./layered_load.ts";
 import { mergeSessionTimelines } from "./layered_merge.ts";
 import type { Instant, ReconstructionEntity, ReconstructionGraph } from "./layered_types.ts";
@@ -20,6 +21,10 @@ interface WireLayeredEntity extends ReconstructionEntity {
 
 interface WireLayeredGraph extends Omit<ReconstructionGraph, "entities"> {
     entities: WireLayeredEntity[];
+    // Every instant in the graph, keyed by its ISO text, resolved to its pixel offset on the one
+    // shared ruler (task 239). The page reads an offset by the same ISO string its nodes already
+    // carry on the wire, so no instant arithmetic survives in the browser.
+    axisOffsetsPx: Record<string, number>;
 }
 
 // Spec S8's dashed cross-lane lines sit exactly where S5 marked corroboration — a property of
@@ -32,12 +37,26 @@ function listCorroboratedInstants(entity: ReconstructionEntity): Instant[] {
         .map((merged) => merged.node.instant);
 }
 
+// The S18 capped-gap ruler ACCUMULATES — an instant's pixel offset depends on every earlier gap,
+// so it cannot be derived from that instant alone and CSS cannot express it the way S8's
+// `--axis-ms` was (task 239). resolveInstantOffsets runs once here over the WHOLE graph, so every
+// widget, node dot and corroboration line shares one axis; the page then emits a single finished
+// number per element and layered-styles.css still does all the placing.
+function mapInstantsToAxisPixels(entities: WireLayeredEntity[]): Record<string, number> {
+    const instants = entities.flatMap((entity) => [
+        ...entity.corroboratedInstants,
+        ...entity.sessionTimelines.flatMap((session) => session.timeline.nodes.map((node) => node.instant)),
+    ]);
+    return Object.fromEntries(resolveInstantOffsets(instants)
+        .map((position) => [position.instant.toISOString(), position.offsetPx]));
+}
+
 function describeGraphForWire(graph: ReconstructionGraph): WireLayeredGraph {
     const entities = graph.entities.map((entity) => ({
         ...entity,
         corroboratedInstants: listCorroboratedInstants(entity),
     }));
-    return { ...graph, entities };
+    return { ...graph, entities, axisOffsetsPx: mapInstantsToAxisPixels(entities) };
 }
 
 // GET /api/layered-graph?project=<name> — the project's layered ReconstructionGraph as JSON

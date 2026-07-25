@@ -62,11 +62,12 @@ function waitUntilListening(child: ChildProcess): Promise<void> {
 type WireGraph = {
     entities: Array<{
         filename: string;
-        sessionTimelines: Array<{ sessionFile: string; timeline: { nodes: Array<{ kind: string; content?: string }> } }>;
+        sessionTimelines: Array<{ sessionFile: string; timeline: { nodes: Array<{ kind: string; instant: string; content?: string }> } }>;
     }>;
     renames: unknown[];
     copies: unknown[];
     scriptLinks: unknown[];
+    axisOffsetsPx: Record<string, number>;
 };
 
 test("test_layered_graph_endpoint_returns_the_fixture_graph_json", async () => {
@@ -92,6 +93,11 @@ test("test_layered_graph_endpoint_returns_the_fixture_graph_json", async () => {
         assert.deepEqual(graph.renames, []);
         assert.deepEqual(graph.copies, []);
         assert.deepEqual(graph.scriptLinks, []);
+        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text
+        // the nodes carry — that key agreement is the whole contract, since the page looks an
+        // offset up by a node's `instant` string. The earliest instant sits at the origin; the
+        // capped-gap arithmetic itself is covered by tests/layer1_ruler_axis.test.ts.
+        assert.deepEqual(graph.axisOffsetsPx, { [nodes[0]!.instant]: 0 });
     } finally {
         child.kill();
     }

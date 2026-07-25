@@ -12,17 +12,20 @@ import { widenCommitterSecondsToInstant } from "./layered_instants.ts";
 import type { BeaconNode } from "./layered_types.ts";
 
 // One commit that touched the target, on the shared axis.
-interface CommitTouch {
+export interface CommitTouch {
     hash: string;
     committerEpochSeconds: number;
 }
 
-// The commits touching `cwdRelativePath` in `repoPath`, OLDEST first (timeline order). %ct is
-// committer epoch seconds — the only time source this module reads. Empty on any git failure.
-function listCommitsTouchingFile(repoPath: Path, cwdRelativePath: string): CommitTouch[] {
+// The commits touching `repoRelativePath` in `repoPath`, OLDEST first (timeline order). %ct is
+// committer epoch seconds — the only time source this module reads. No `--follow`: rename
+// tracking is S6's job, so a renamed file simply shows the shorter history. Empty on any git
+// failure. Shared with Layer 1's per-pair history (task 233, layer1_commit_history.ts) so there
+// is exactly one git-log reader in the engine.
+export function listCommitsTouchingFile(repoPath: Path, repoRelativePath: Path): CommitTouch[] {
     let log: string;
     try {
-        log = execSync(`git log --format="%H %ct" -- ${JSON.stringify(cwdRelativePath)}`, {
+        log = execSync(`git log --format="%H %ct" -- ${JSON.stringify(repoRelativePath.toString())}`, {
             cwd: repoPath.toString(),
             stdio: "pipe",
         }).toString();
@@ -62,7 +65,7 @@ export function collectCommitBeaconNodes(repoPath: Path, filePath: Path): Beacon
         return [];
     }
     const beacons: BeaconNode[] = [];
-    for (const touch of listCommitsTouchingFile(repoPath, cwdRelativePath)) {
+    for (const touch of listCommitsTouchingFile(repoPath, new Path(cwdRelativePath))) {
         const content = readBlobAtCommit(repoPath, touch.hash, cwdRelativePath);
         if (content === undefined) {
             continue;

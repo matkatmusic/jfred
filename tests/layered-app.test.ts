@@ -111,11 +111,12 @@ test("test_revealChangesPane_toggles_hidden_with_selection", async () => {
     assert.equal(getById("layered-changes").hidden, true);
 });
 
-// The wire graph the fetch test serves: one entity, one session timeline, no nodes.
+// The wire graph the fetch test serves: one entity, one session timeline, no nodes. No nodes means
+// no instants, so the shared ruler (task 239) is legitimately empty — the widget pins to origin.
 function buildWireGraphFixture(): object {
     const timeline = { sessionFile: "/proj/a.jsonl", timeline: { nodes: [] } };
     const entity = { filename: "/w/alpha.py", sessionTimelines: [timeline], corroboratedInstants: [] };
-    return { entities: [entity], renames: [], copies: [], scriptLinks: [] };
+    return { entities: [entity], renames: [], copies: [], scriptLinks: [], axisOffsetsPx: {} };
 }
 
 test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {

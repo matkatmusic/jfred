@@ -6,6 +6,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { flushAsyncWork, setupLayeredDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
+// The four distinct instants of the fixture below, resolved to their places on the one shared
+// ruler. Task 239 / spec S18: the capped-gap ruler ACCUMULATES, so the server resolves every
+// instant once (src/layer1_ruler_axis.ts) and ships the finished pixels; the page only subtracts
+// two of them. The fixture therefore STATES the offsets — round numbers chosen for readability —
+// rather than re-deriving the cap here, exactly as it states corroboratedInstants rather than
+// re-running the S5 merge. tests/viewer_api_layered.test.ts covers the resolver's real values.
+const FIXTURE_AXIS_OFFSETS_PX = {
+    "2026-07-25T10:00:00.000Z": 0,
+    "2026-07-25T10:02:00.000Z": 5,
+    "2026-07-25T10:03:00.000Z": 7.5,
+    "2026-07-25T10:05:00.000Z": 12.5,
+};
+
 // A two-file, two-session wire graph (spec S8's verification fixture). newer.py is listed FIRST
 // so a widget order matching start instants can only come from sorting, never from input order:
 // older.py starts 10:00 (sessions a + b), newer.py 10:05 (session b only). Every entity carries
@@ -28,7 +41,7 @@ function buildTwoFileTwoSessionGraph(): object {
         ],
         corroboratedInstants: [],
     };
-    return { entities: [newer, older], renames: [], copies: [], scriptLinks: [] };
+    return { entities: [newer, older], renames: [], copies: [], scriptLinks: [], axisOffsetsPx: FIXTURE_AXIS_OFFSETS_PX };
 }
 
 // The same fixture with older.py's 10:02 instant corroborated — the one instant session b also
@@ -46,9 +59,10 @@ function listRenderedWidgets(): HTMLElement[] {
     return [...document.querySelectorAll("#layered-canvas .layered-file-widget")] as HTMLElement[];
 }
 
-// The raw axis milliseconds an element carries (the offset CSS scales into pixels).
-function readAxisOffsetMs(element: HTMLElement): number {
-    return Number(element.style.getPropertyValue("--axis-ms"));
+// The finished ruler offset an element carries, in pixels (task 239) — the one number the page
+// hands CSS, which still does the placing.
+function readAxisOffsetPx(element: HTMLElement): number {
+    return Number(element.style.getPropertyValue("--axis-px"));
 }
 
 test("test_file_widgets_are_offset_in_history_start_instant_order", async () => {
@@ -65,11 +79,11 @@ test("test_file_widgets_are_offset_in_history_start_instant_order", async () => 
     const widgets = listRenderedWidgets();
     assert.equal(widgets.length, 2);
     assert.equal(widgets[0]?.querySelector(".layered-file-name")?.textContent, "/w/older.py");
-    assert.equal(readAxisOffsetMs(widgets[0]!), 0);
-    // the later-starting file is offset by its five-minute distance from that origin.
+    assert.equal(readAxisOffsetPx(widgets[0]!), 0);
+    // the later-starting file is offset by its 10:05 ruler position, measured from that origin.
     assert.equal(widgets[1]?.querySelector(".layered-file-name")?.textContent, "/w/newer.py");
-    assert.equal(readAxisOffsetMs(widgets[1]!), 5 * 60 * 1000);
-    assert.ok(readAxisOffsetMs(widgets[0]!) < readAxisOffsetMs(widgets[1]!));
+    assert.equal(readAxisOffsetPx(widgets[1]!), 12.5);
+    assert.ok(readAxisOffsetPx(widgets[0]!) < readAxisOffsetPx(widgets[1]!));
 });
 
 test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () => {
@@ -85,7 +99,7 @@ test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () =>
     // older.py draws exactly one dashed line, at the corroborated instant's widget-relative offset.
     const [olderWidget, newerWidget] = listRenderedWidgets();
     const lines = [...olderWidget!.querySelectorAll(".layered-corroboration")] as HTMLElement[];
-    assert.deepEqual(lines.map(readAxisOffsetMs), [2 * 60 * 1000]);
+    assert.deepEqual(lines.map(readAxisOffsetPx), [5]);
     // the line spans the lanes rather than sitting inside one of them.
     assert.equal(lines[0]!.parentElement?.className, "layered-lanes");
     // newer.py has no corroboration, so it draws no line at all.
@@ -105,12 +119,12 @@ test("test_file_widget_holds_one_lane_per_observing_session", async () => {
     const olderLanes = [...olderWidget!.querySelectorAll(".layered-lane")] as HTMLElement[];
     assert.deepEqual(olderLanes.map((lane) => lane.dataset.session), ["a.jsonl", "b.jsonl"]);
     assert.equal(newerWidget!.querySelectorAll(".layered-lane").length, 1);
-    // lane a's two nodes sit at 0 and +3 minutes from older.py's 10:00 start.
+    // lane a's two nodes sit at the 10:00 and 10:03 ruler marks, measured from older.py's start.
     const laneNodes = [...olderLanes[0]!.querySelectorAll(".layered-node")] as HTMLElement[];
-    assert.deepEqual(laneNodes.map(readAxisOffsetMs), [0, 3 * 60 * 1000]);
-    // lane b's single node sits at +2 minutes on the SAME widget-relative axis.
+    assert.deepEqual(laneNodes.map(readAxisOffsetPx), [0, 7.5]);
+    // lane b's single 10:02 node sits at 5 px on the SAME widget-relative ruler.
     const laneBNodes = [...olderLanes[1]!.querySelectorAll(".layered-node")] as HTMLElement[];
-    assert.deepEqual(laneBNodes.map(readAxisOffsetMs), [2 * 60 * 1000]);
+    assert.deepEqual(laneBNodes.map(readAxisOffsetPx), [5]);
     // the widget's span reaches its latest node so the lanes are tall enough to hold them.
-    assert.equal(olderWidget!.style.getPropertyValue("--axis-span-ms"), String(3 * 60 * 1000));
+    assert.equal(olderWidget!.style.getPropertyValue("--axis-span-px"), "7.5");
 });

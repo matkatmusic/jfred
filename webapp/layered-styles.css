@@ -70,11 +70,12 @@ body {
 .legend-script { border: 3px solid #c9366b; background: transparent; }
 .legend-echo { background: #6b7280; border-radius: 2px; }
 .legend-disk { border: 2px double #111827; background: transparent; }
-/* Per-file widgets on the shared vertical axis (task 207, spec S8). layered-app.ts emits ONLY
-   raw axis milliseconds (--axis-ms per widget and per node, --axis-span-ms per widget); the
-   ms -> pixel scale and every placement rule live here, so no JS layout pass exists. */
+/* Per-file widgets on the shared vertical axis (task 207, spec S8; migrated to --axis-px by task
+   239 for spec S18). layered-app.ts emits ONE finished ruler offset per element (--axis-px per
+   widget and per node, --axis-span-px per widget) because S18's capped-gap ruler accumulates and
+   no fixed CSS scale can express it; every placement rule still lives here, so no JS layout pass
+   exists. */
 .layered-canvas {
-    --axis-scale: 0.0008;
     display: flex;
     align-items: flex-start;
     gap: 24px;
@@ -82,7 +83,7 @@ body {
 }
 .layered-file-widget {
     flex: none;
-    margin-top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px);
+    margin-top: calc(var(--axis-px, 0) * 1px);
     padding: 8px 10px 14px;
     border: 2px solid rgba(0, 0, 0, 0.25);
     border-radius: 14px;
@@ -99,7 +100,7 @@ body {
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px + 14px);
+    top: calc(var(--axis-px, 0) * 1px + 14px);
     border-top: 1.5px dashed #7a3fe0;
     pointer-events: none;
 }
@@ -107,7 +108,7 @@ body {
     position: relative;
     width: 56px;
     flex: none;
-    min-height: calc(var(--axis-span-ms, 0) * var(--axis-scale) * 1px + 24px);
+    min-height: calc(var(--axis-span-px, 0) * 1px + 24px);
     border-left: 1.5px solid rgba(0, 0, 0, 0.15);
 }
 /* The lane's session name comes straight off its data attribute — no label element to build. */
@@ -123,7 +124,7 @@ body {
 .layered-node {
     position: absolute;
     left: 50%;
-    top: calc(var(--axis-ms, 0) * var(--axis-scale) * 1px + 14px);
+    top: calc(var(--axis-px, 0) * 1px + 14px);
     width: 13px;
     height: 13px;
     border-radius: 50%;
