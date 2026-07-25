@@ -140,16 +140,16 @@ test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
     // ALSO a beacon since task 198 (its populated originalFile is full-content evidence).
     const alpha = findEntity(graph.entities, fixture.alphaPath);
     assert.equal(alpha.sessionTimelines.length, 1);
-    const alphaNodes = alpha.sessionTimelines[0].timeline.nodes;
+    const alphaNodes = alpha.sessionTimelines[0]!.timeline.nodes;
     assert.equal(alphaNodes.length, 2);
-    assert.equal(alphaNodes[0].kind, LayeredNodeKind.beacon);
-    assert.equal(alphaNodes[1].kind, LayeredNodeKind.beacon);
-    assert.ok(alphaNodes[0].instant.getTime() < alphaNodes[1].instant.getTime());
+    assert.equal(alphaNodes[0]!.kind, LayeredNodeKind.beacon);
+    assert.equal(alphaNodes[1]!.kind, LayeredNodeKind.beacon);
+    assert.ok(alphaNodes[0]!.instant.getTime() < alphaNodes[1]!.instant.getTime());
     // beta's entity holds session B's single write beacon.
     const beta = findEntity(graph.entities, fixture.betaPath);
     assert.equal(beta.sessionTimelines.length, 1);
-    assert.equal(beta.sessionTimelines[0].timeline.nodes.length, 1);
-    assert.equal(beta.sessionTimelines[0].timeline.nodes[0].kind, LayeredNodeKind.beacon);
+    assert.equal(beta.sessionTimelines[0]!.timeline.nodes.length, 1);
+    assert.equal(beta.sessionTimelines[0]!.timeline.nodes[0]!.kind, LayeredNodeKind.beacon);
     // the fixture records no mv/cp, so the S6 typed edges stay empty.
     assert.deepEqual(graph.renames, []);
     assert.deepEqual(graph.copies, []);
@@ -166,7 +166,7 @@ test("test_loadLayeredProject_explicit_jsonl_override_limits_sources", () => {
     });
     // beta.py (evidenced only by session B) is absent.
     assert.equal(graph.entities.length, 1);
-    assert.equal(graph.entities[0].filename.toString(), fixture.alphaPath);
+    assert.equal(graph.entities[0]!.filename.toString(), fixture.alphaPath);
 });
 
 test("test_loadLayeredProject_beacon_carries_write_content_and_evidence_line", () => {
@@ -177,7 +177,7 @@ test("test_loadLayeredProject_beacon_carries_write_content_and_evidence_line", (
     const fixture = makeLayeredFixture();
     const graph = loadLayeredProject(new Path(fixture.projectDir), {});
     const alpha = findEntity(graph.entities, fixture.alphaPath);
-    const beacon = alpha.sessionTimelines[0].timeline.nodes[0];
+    const beacon = alpha.sessionTimelines[0]!.timeline.nodes[0]!;
     assert.equal(beacon.kind, LayeredNodeKind.beacon);
     if (beacon.kind !== LayeredNodeKind.beacon) {
         return;
