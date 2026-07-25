@@ -31,6 +31,16 @@ function buildTwoFileTwoSessionGraph(): object {
     return { entities: [newer, older], renames: [], copies: [], scriptLinks: [] };
 }
 
+// The same fixture with older.py's 10:02 instant corroborated — the one instant session b also
+// observed. Task 208 (spec S8): the dashed lines are drawn exactly at these instants, so the
+// fixture states them explicitly rather than re-deriving the S5 merge in the page.
+function buildCorroboratedGraph(): object {
+    const graph = buildTwoFileTwoSessionGraph() as { entities: { filename: string; corroboratedInstants: string[] }[] };
+    const older = graph.entities.find((entity) => entity.filename === "/w/older.py");
+    older!.corroboratedInstants = ["2026-07-25T10:02:00.000Z"];
+    return graph;
+}
+
 // The canvas's file widgets, in DOM order.
 function listRenderedWidgets(): HTMLElement[] {
     return [...document.querySelectorAll("#layered-canvas .layered-file-widget")] as HTMLElement[];
@@ -60,6 +70,26 @@ test("test_file_widgets_are_offset_in_history_start_instant_order", async () => 
     assert.equal(widgets[1]?.querySelector(".layered-file-name")?.textContent, "/w/newer.py");
     assert.equal(readAxisOffsetMs(widgets[1]!), 5 * 60 * 1000);
     assert.ok(readAxisOffsetMs(widgets[0]!) < readAxisOffsetMs(widgets[1]!));
+});
+
+test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () => {
+    // Scenario (task 208, spec S8): a dashed cross-lane line appears at every instant S5 marked
+    // as corroborated, and nowhere else — a file with no corroboration draws none.
+    // Steps:
+    // load the two-file graph with older.py's 10:02 instant marked corroborated.
+    setupLayeredDom();
+    stubFetchRoutes({ "/api/layered-graph": buildCorroboratedGraph() });
+    const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
+    await loadLayeredGraphIntoDrawer("p1");
+    await flushAsyncWork();
+    // older.py draws exactly one dashed line, at the corroborated instant's widget-relative offset.
+    const [olderWidget, newerWidget] = listRenderedWidgets();
+    const lines = [...olderWidget!.querySelectorAll(".layered-corroboration")] as HTMLElement[];
+    assert.deepEqual(lines.map(readAxisOffsetMs), [2 * 60 * 1000]);
+    // the line spans the lanes rather than sitting inside one of them.
+    assert.equal(lines[0]!.parentElement?.className, "layered-lanes");
+    // newer.py has no corroboration, so it draws no line at all.
+    assert.equal(newerWidget!.querySelectorAll(".layered-corroboration").length, 0);
 });
 
 test("test_file_widget_holds_one_lane_per_observing_session", async () => {
