@@ -30,8 +30,9 @@ export function selectAnchorNode(timeline: Timeline): BeaconNode | undefined {
     );
 }
 
-// Whether this node kind carries verified bytes (beacon or the on-disk end state).
-function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | EndStateNode {
+// Whether this node kind carries verified bytes (beacon or the on-disk end state). Shared with
+// the task-199 gap pairing — the single source of "which kinds carry bytes".
+export function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | EndStateNode {
     if (node.kind === LayeredNodeKind.beacon) {
         return true;
     }

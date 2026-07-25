@@ -2,7 +2,8 @@
 // discovered from the project folder) and the per-file entity graph built from JSONL rows.
 // Layer-1 node mapping (task 198, spec S2): a full-content row (Write body, user edit, Edit
 // with populated originalFile, complete Read echo) becomes a BeaconNode; any other
-// file-touching row a PreAnchorStubNode. End state + presumption gaps are task 199.
+// file-touching row a PreAnchorStubNode. Each session timeline is then completed (task 199):
+// on-disk end state as the final node, presumption gaps between differing verified states.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -16,6 +17,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind, LayeredNodeKind } from "./structures/vocabulary.ts";
 import { compareAxisPlacements, type AxisPlacement } from "./layered_instants.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
+import { completeLayer1Timeline } from "./layered_end_state.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import type {
     JsonlRef,
@@ -172,9 +174,13 @@ function sortNodesOntoAxis(nodes: TimelineNode[]): TimelineNode[] {
         .map((entry) => entry.node);
 }
 
-// One session's sorted timeline for an entity.
-function buildSessionTimeline(sessionFileKey: string, nodes: TimelineNode[]): SessionTimeline {
-    return { sessionFile: new Path(sessionFileKey), timeline: { nodes: sortNodesOntoAxis(nodes) } };
+// One session's sorted timeline for an entity, completed with the on-disk end state and
+// presumption gaps (task 199).
+function buildSessionTimeline(sessionFileKey: string, nodes: TimelineNode[], filename: Path): SessionTimeline {
+    return {
+        sessionFile: new Path(sessionFileKey),
+        timeline: { nodes: completeLayer1Timeline(sortNodesOntoAxis(nodes), filename) },
+    };
 }
 
 // One entity per distinct absolute path, its sessionTimelines in session-file name order.
@@ -183,7 +189,7 @@ function buildEntities(nodesByFileThenSession: Map<string, Map<string, TimelineN
     for (const [fileKey, sessionNodeLists] of nodesByFileThenSession) {
         const sessionTimelines = [...sessionNodeLists.entries()]
             .sort(([leftFile], [rightFile]) => leftFile.localeCompare(rightFile))
-            .map(([sessionFileKey, nodes]) => buildSessionTimeline(sessionFileKey, nodes));
+            .map(([sessionFileKey, nodes]) => buildSessionTimeline(sessionFileKey, nodes, new Path(fileKey)));
         entities.push({ filename: new Path(fileKey), sessionTimelines });
     }
     return entities;
