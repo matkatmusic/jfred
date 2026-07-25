@@ -60,7 +60,7 @@ function buildAssistantToolUseRecord(envelope: RecordEnvelope, toolName: string,
 }
 
 // The user record reporting that tool call's result.
-function buildUserToolResultRecord(envelope: RecordEnvelope, resultText: string, toolUseResult: object): object {
+function buildUserToolResultRecord(envelope: RecordEnvelope, resultText: string, toolUseResult: object | string): object {
     const toolResultBlock = { tool_use_id: envelope.toolId, type: "tool_result", content: resultText };
     return {
         type: "user",
@@ -75,6 +75,23 @@ function buildUserToolResultRecord(envelope: RecordEnvelope, resultText: string,
 }
 
 export type RecordPair = { records: object[]; lastUuid: string };
+
+// The pair for a tool run that FAILED: real transcripts report a plain string toolUseResult
+// ("Error: File does not exist.", "User rejected tool use") instead of a structured payload.
+export function buildErroredToolResultRecordPair(
+    envelope: RecordEnvelope,
+    toolName: string,
+    toolInput: object,
+    errorText: string,
+): RecordPair {
+    return {
+        records: [
+            buildAssistantToolUseRecord(envelope, toolName, toolInput),
+            buildUserToolResultRecord(envelope, errorText, errorText),
+        ],
+        lastUuid: `${envelope.toolId}-result`,
+    };
+}
 
 // A genuine typed-in user prompt record (string message content, no tool_result, not meta) —
 // the turn-boundary shape the task-193 bound tests cut at. isSidechain marks a subagent's

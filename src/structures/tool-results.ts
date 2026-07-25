@@ -171,13 +171,18 @@ function resolveToolResult(toolName: string, raw: unknown): ResolvedToolResult {
 }
 
 // Resolve and type the tool result attached to a user record, or undefined when
-// the record carries no toolUseResult or no resolvable tool name.
+// the record carries no toolUseResult, no resolvable tool name, or an errored run.
 export function getToolResultForUserRecord(
     record: TranscriptRecord,
     nameById: Map<string, string>,
 ): ResolvedToolResult | undefined {
     const raw = record.toolUseResult;
     if (!raw) {
+        return undefined;
+    }
+    // An errored or rejected run reports a plain string ("Error: File does not exist.",
+    // "User rejected tool use") instead of a structured payload — nothing to type.
+    if (typeof raw === "string") {
         return undefined;
     }
     const toolName = resolveToolNameForRecord(record, nameById);

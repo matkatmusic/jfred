@@ -12,6 +12,13 @@ import { ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
 import { loadRecords } from "./utilities.ts";
 import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
+import { join } from "node:path";
+import {
+    SESSION_A,
+    buildErroredToolResultRecordPair,
+    makeSourceTree,
+    writeTranscriptFixture,
+} from "./multi-source-test-helpers.ts";
 
 // Find the first resolved tool result of a given tool across a transcript's
 // records. Generic helper so each tool test does not re-spell the index/scan.
@@ -111,5 +118,27 @@ test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
     assert.equal(typeof hunk.newStart, "number");
     assert.ok(Array.isArray(hunk.lines));
     assert.equal(typeof hunk.lines[0], "string");
+});
+
+test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
+    // Scenario: a FAILED tool run reports a plain string toolUseResult ("Error: File does not
+    // exist.") instead of a structured payload — there is nothing to type, so resolution
+    // yields undefined instead of crashing on the missing payload fields.
+    // Steps:
+    // one session holding a Read whose result is the error string.
+    const tree = makeSourceTree("-errored-read");
+    const workspaceRoot = join(tree.treeRoot, "workspace");
+    const erroredRead = buildErroredToolResultRecordPair(
+        { sessionId: SESSION_A, cwd: workspaceRoot, timestamp: "2026-07-24T10:01:00.000Z", toolId: "toolu_err_r1", parentUuid: null },
+        "Read",
+        { file_path: join(workspaceRoot, "missing.py") },
+        "Error: File does not exist.",
+    );
+    const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", erroredRead.records);
+    const nameById = indexToolUseNamesById(records);
+    // every record resolves without throwing; the errored result record resolves to undefined.
+    for (const record of records) {
+        assert.equal(getToolResultForUserRecord(record, nameById), undefined);
+    }
 });
 

@@ -62,6 +62,16 @@ test("test_buildEndStateNode_absent_file_yields_undefined", () => {
     assert.equal(buildEndStateNode(new Path(join(dir, "never-written.py"))), undefined);
 });
 
+test("test_buildEndStateNode_directory_path_yields_undefined", () => {
+    // Scenario: a recorded path can be a DIRECTORY on today's disk (seen in the real jot
+    // project) — a directory has no file bytes, so no end-state node is fabricated.
+    // Steps:
+    // a tmp dir standing at the recorded path.
+    const dir = mkdtempSync(join(tmpdir(), "layered-end-state-"));
+    // no node is fabricated for it.
+    assert.equal(buildEndStateNode(new Path(dir)), undefined);
+});
+
 test("test_insertPresumedUserEditGaps_gap_only_between_differing_verified_states", () => {
     // Scenario: only an adjacent verified pair with DIFFERING bytes earns a presumption gap.
     // Steps:

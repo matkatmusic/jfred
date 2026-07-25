@@ -3,7 +3,7 @@
 // states with differing content (Q8 invariant: an unexplained diff is presumed a user edit;
 // the engine may leave a gap but may never invent an attribution).
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
 import { checkNodeCarriesBytes } from "./layered_anchor.ts";
@@ -13,12 +13,14 @@ import type { BeaconNode, EndStateNode, TimelineNode } from "./layered_types.ts"
 // the file no longer exists on disk (a vanished file has no end state to verify). Instant =
 // disk mtime — recorded evidence, never "now" (Q7).
 export function buildEndStateNode(filename: Path): EndStateNode | undefined {
-    if (!existsSync(filename.toString())) {
+    // A missing path has no end state; a directory (a real-data shape) has no file bytes.
+    const stats = statSync(filename.toString(), { throwIfNoEntry: false });
+    if (stats === undefined || !stats.isFile()) {
         return undefined;
     }
     return {
         kind: LayeredNodeKind.endState,
-        instant: statSync(filename.toString()).mtime,
+        instant: stats.mtime,
         content: readFileSync(filename.toString(), "utf8"),
     };
 }
