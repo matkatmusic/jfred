@@ -1,6 +1,6 @@
 // Layered page skeleton behavior (task 205, spec S7): collapsing drawer, drawer lists with
 // per-file placeholder widgets, file-nav click scrolling to its widget, and the Changes pane
-// hidden until a segment is selected. DOM-only — task 206 wires the data endpoint.
+// hidden until a segment is selected. Task 206 adds the layered-graph fetch on load.
 
 // The element with `id`, thrown on absence so a markup drift fails loudly.
 function getRequiredElementById(id: string): HTMLElement {
@@ -55,10 +55,47 @@ export function renderLayeredDrawer(sessionNames: string[], fileNames: string[])
     fileNav.replaceChildren(...navItems);
 }
 
-// Wire the header toggle button and render the empty drawer.
+// The wire form of the layered graph (task 206): what JSON.parse yields — Path/Uuid arrive as
+// plain strings, so this is NOT the engine's ReconstructionGraph.
+interface WireLayeredGraph {
+    entities: Array<{
+        filename: string;
+        sessionTimelines: Array<{ sessionFile: string }>;
+    }>;
+}
+
+// The distinct sessionFile basenames across the graph, in first-seen order.
+function listSessionBasenames(graph: WireLayeredGraph): string[] {
+    const seen = new Set<string>();
+    for (const entity of graph.entities) {
+        for (const sessionTimeline of entity.sessionTimelines) {
+            seen.add(sessionTimeline.sessionFile.split("/").pop() ?? sessionTimeline.sessionFile);
+        }
+    }
+    return [...seen];
+}
+
+// Task 206: fetch the layered graph for the page's project (named via ?project=) and fill the
+// drawer. No project param → the empty skeleton stays; a failed fetch likewise.
+export async function loadLayeredGraphIntoDrawer(
+    projectName: string | null = new URLSearchParams(location.search).get("project"),
+): Promise<void> {
+    if (projectName === null) {
+        return;
+    }
+    const response = await fetch(`/api/layered-graph?project=${encodeURIComponent(projectName)}`);
+    if (!response.ok) {
+        return;
+    }
+    const graph = await response.json() as WireLayeredGraph;
+    renderLayeredDrawer(listSessionBasenames(graph), graph.entities.map((entity) => entity.filename));
+}
+
+// Wire the header toggle button, render the empty drawer, and start the graph fetch.
 export function bootLayeredApp(): void {
     getRequiredElementById("layered-drawer-toggle").addEventListener("click", toggleLayeredDrawer);
     renderLayeredDrawer([], []);
+    void loadLayeredGraphIntoDrawer();
 }
 
 bootLayeredApp();

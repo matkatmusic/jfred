@@ -25,7 +25,8 @@ export interface BeaconNode {
     kind: LayeredNodeKind.beacon;
     instant: Instant;
     content: string;
-    // Undefined when the beacon came from git (a commit blob has no JSONL line to point at).
+    // Undefined when the beacon came from git or the sidecar backup timeline (neither carries
+    // a JSONL line to point at).
     evidence: JsonlRef | undefined;
 }
 

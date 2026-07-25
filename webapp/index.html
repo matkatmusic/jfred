@@ -20,7 +20,19 @@
             <div id="layered-file-nav"></div>
         </nav>
         <main id="layered-timeline" class="layered-timeline">
-            <div id="layered-canvas" class="layered-canvas"></div>
+            <div id="layered-legend" class="layered-legend">
+                <span><i class="legend-anchor"></i> anchor</span>
+                <span><i class="legend-commit"></i> commit</span>
+                <span><i class="legend-snapshot"></i> snapshot</span>
+                <span><i class="legend-user"></i> presumed user edit</span>
+                <span><i class="legend-script"></i> script run</span>
+                <span><i class="legend-echo"></i> full-content echo</span>
+                <span><i class="legend-disk"></i> on-disk</span>
+                <span>dimmed = ignored (rewound branch)</span>
+            </div>
+            <div id="layered-timeline-scroll" class="layered-timeline-scroll">
+                <div id="layered-canvas" class="layered-canvas"></div>
+            </div>
         </main>
         <aside id="layered-right" class="layered-right">
             <section id="layered-details" class="layered-details"></section>

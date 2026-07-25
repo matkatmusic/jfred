@@ -37,12 +37,39 @@ body {
 .layered-drawer h3 { font-size: 11px; text-transform: uppercase; margin: 8px 0 4px; }
 .layered-drawer-item { padding: 2px 4px; cursor: pointer; }
 
-/* Timeline canvas takes the left half; the right pane the other half (S7). */
+/* Timeline canvas takes the left half; the right pane the other half (S7). The legend sits
+   above the ONLY scrolling child (S12), so it stays in view while the timeline scrolls. */
 .layered-timeline {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.layered-timeline-scroll {
     flex: 1;
     overflow: auto;
     padding: 10px;
 }
+
+/* Always-visible legend (task 212, spec S12). Swatch colors are placeholders until S8's
+   visual pass; the shapes follow plans/mvp-app-mockup.html. */
+.layered-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    padding: 6px 10px;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+.layered-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.layered-legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.legend-anchor { background: #2f6fed; }
+.legend-commit { background: #7a3fe0; border-radius: 3px; }
+.legend-snapshot { background: #0fa36b; }
+.legend-user { background: #e07f3f; }
+.legend-script { border: 3px solid #c9366b; background: transparent; }
+.legend-echo { background: #6b7280; border-radius: 2px; }
+.legend-disk { border: 2px double #111827; background: transparent; }
 .layered-file-widget {
     min-height: 80px;
     margin-bottom: 12px;

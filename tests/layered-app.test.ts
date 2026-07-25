@@ -1,9 +1,11 @@
 // Task 205 (spec S7): the layered page skeleton — regions present, collapsing drawer, file-nav
 // click scrolling to its widget, and the Changes pane hidden until a segment is selected.
+// Task 206 adds the layered-graph fetch-on-load; task 212 (spec S12) the always-visible legend.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayeredDom } from "./webapp-dom-test-helpers.ts";
+import { readFileSync } from "node:fs";
+import { flushAsyncWork, setupLayeredDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
 // The element with `id`, asserting it exists.
 function getById(id: string): HTMLElement {
@@ -96,4 +98,70 @@ test("test_revealChangesPane_toggles_hidden_with_selection", async () => {
     assert.equal(getById("layered-changes").hidden, false);
     revealChangesPane(false);
     assert.equal(getById("layered-changes").hidden, true);
+});
+
+// The wire graph the fetch test serves: one entity, one session timeline, no nodes.
+function buildWireGraphFixture(): object {
+    const timeline = { sessionFile: "/proj/a.jsonl", timeline: { nodes: [] } };
+    const entity = { filename: "/w/alpha.py", sessionTimelines: [timeline] };
+    return { entities: [entity], renames: [], copies: [], scriptLinks: [] };
+}
+
+test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {
+    // Scenario (task 206): the page fetches /api/layered-graph on load and fills the drawer —
+    // session names are the distinct sessionFile basenames, file names the entity filenames.
+    // Steps:
+    // stub the endpoint with a one-entity wire graph and run the loader for project "p1".
+    setupLayeredDom();
+    stubFetchRoutes({ "/api/layered-graph": buildWireGraphFixture() });
+    const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
+    await loadLayeredGraphIntoDrawer("p1");
+    await flushAsyncWork();
+    // the drawer holds session a.jsonl and file /w/alpha.py.
+    assert.equal(getById("layered-session-list").children[0]?.textContent, "a.jsonl");
+    assert.equal(getById("layered-file-nav").children[0]?.textContent, "/w/alpha.py");
+});
+
+test("test_boot_without_a_project_param_keeps_the_empty_skeleton", async () => {
+    // Scenario (task 206): a bare page load (no ?project=) fetches nothing and renders empty.
+    setupLayeredDom();
+    stubFetchRoutes({});
+    const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
+    // the helper's window URL carries no ?project=, so the default argument resolves to null.
+    await loadLayeredGraphIntoDrawer();
+    await flushAsyncWork();
+    assert.equal(getById("layered-session-list").children.length, 0);
+    assert.equal(getById("layered-file-nav").children.length, 0);
+});
+
+test("test_legend_sits_above_the_scrolled_timeline_area", () => {
+    // Scenario (task 212, spec S12): the legend lives in the timeline area but OUTSIDE the
+    // scrolled container, preceding it — so scrolling the timeline leaves the legend in view.
+    setupLayeredDom();
+    const legend = getById("layered-legend");
+    const scroll = getById("layered-timeline-scroll");
+    const timeline = getById("layered-timeline");
+    assert.ok(timeline.contains(legend));
+    assert.ok(timeline.contains(scroll));
+    assert.ok(scroll.contains(getById("layered-canvas")));
+    assert.equal(scroll.contains(legend), false);
+    assert.equal(legend.nextElementSibling, scroll);
+    // CSS mechanism (happy-dom loads no stylesheet, so assert the file): the scroll child is
+    // the ONLY overflow container — .layered-timeline itself no longer scrolls.
+    const css = readFileSync(new URL("../webapp/layered-styles.css", import.meta.url), "utf8");
+    const scrollBlock = css.split(".layered-timeline-scroll {")[1]?.split("}")[0] ?? "";
+    assert.ok(scrollBlock.includes("overflow"));
+    const timelineBlock = css.split(".layered-timeline {")[1]?.split("}")[0] ?? "";
+    assert.equal(timelineBlock.includes("overflow"), false);
+});
+
+test("test_legend_names_every_layered_node_class", () => {
+    // Scenario (task 212): the legend carries the mockup's node vocabulary
+    // (plans/mvp-app-mockup.html) so every rendered node class is decodable.
+    setupLayeredDom();
+    const legendText = getById("layered-legend").textContent ?? "";
+    for (const label of ["anchor", "commit", "snapshot", "presumed user edit", "script run",
+        "full-content echo", "on-disk", "ignored"]) {
+        assert.ok(legendText.includes(label), `legend is missing "${label}"`);
+    }
 });

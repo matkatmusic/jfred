@@ -33,6 +33,7 @@ import {
     handleRepoCommitsRequest,
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
+import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
 import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
@@ -180,6 +181,8 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             sendJson(response, 200, scanProjects(getProjectsDir()));
         } else if (url.pathname === "/api/prescan") {
             handlePrescanRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/layered-graph") {
+            handleLayeredGraphRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {
             handleDocumentRequest(response, url.searchParams);
         } else if (url.pathname === "/api/raw") {
