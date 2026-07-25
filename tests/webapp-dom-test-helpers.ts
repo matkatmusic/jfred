@@ -5,6 +5,11 @@
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 
+// The pristine global fetch, captured at module load BEFORE any test replaces it. forwardFetchToOrigin
+// below builds on THIS rather than on whatever globalThis.fetch currently is: called after
+// stubFetchRoutes, it would otherwise forward through the stub and get canned 404s back.
+const NATIVE_FETCH = globalThis.fetch;
+
 // The minimal xterm surface app-console.ts exercises (ensureProgressTerminal, logProgress,
 // fitProgressColumns). Every method is a no-op; writeln invokes its completion callback so the
 // scroll-in-callback pattern still runs.
@@ -170,6 +175,17 @@ function buildStubbedFetch(routesByPathname: Record<string, unknown>): (url: unk
 // Replace global fetch for the duration of a test with the canned-route stub above.
 export function stubFetchRoutes(routesByPathname: Record<string, unknown>): void {
     Object.assign(globalThis, { fetch: buildStubbedFetch(routesByPathname) });
+}
+
+// Point the page's RELATIVE fetches at a live server (task 238, spec S18). node's native fetch
+// rejects a relative url, so an end-to-end DOM test cannot otherwise reach a spawned viewer. Only
+// the ORIGIN is supplied by the harness: the pathname, the query, the route, the git reads and the
+// response are all real, which is what separates an acceptance test from a second render test.
+export function forwardFetchToOrigin(origin: string): void {
+    Object.assign(globalThis, {
+        fetch: (url: unknown, options?: RequestInit): Promise<Response> =>
+            NATIVE_FETCH(new URL(String(url), origin), options),
+    });
 }
 
 // Let fire-and-forget promise chains (void populateProjectsMenu, the presence-probe

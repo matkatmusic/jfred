@@ -12,7 +12,7 @@
 
 import assert from "node:assert/strict";
 import { execSync, spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -28,6 +28,14 @@ export const FIRST_COMMIT_INSTANT = "2026-07-01T10:00:00Z";
 export const SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";
 export const SHARED_FILE_MTIME = "2026-07-01T18:00:00Z";
 export const DISK_ONLY_FILE_MTIME = "2026-07-02T14:00:00Z";
+
+// Task 238's UNRELATED fixture, kept separate from the overlapping one above because three test
+// files depend on that one's exact instants and pixel ladder. Distinct instants per file so each
+// bucket row proves it carries its OWN timestamp and neither bucket's ordering passes on a tie.
+export const UNRELATED_FIRST_COMMIT_INSTANT = "2026-07-01T10:00:00Z";
+export const UNRELATED_SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";
+export const UNRELATED_FIRST_DISK_MTIME = "2026-07-02T09:00:00Z";
+export const UNRELATED_SECOND_DISK_MTIME = "2026-07-02T12:00:00Z";
 
 // The ruler at 2.5 px/hr with a 24 px per-gap cap (task 234), resolved over the WHOLE view — the
 // five instants above, de-duplicated and ascending, each advancing by min(elapsedHours × 2.5, 24).
@@ -104,6 +112,32 @@ export function makeFixtureRepo(): string {
     writeFileSync(join(repoDir, "shared.txt"), "committed twice\n");
     runGit(repoDir, "add -A");
     runGit(repoDir, "commit -q -m second", SECOND_COMMIT_INSTANT);
+    return repoDir;
+}
+
+// Task 238's project folder: every relative path here is absent from makeUnrelatedFixtureRepo's
+// tree, so pairing yields ZERO pairs and BOTH buckets are populated — S18's acceptance criterion.
+export function makeUnrelatedFixtureDiskFolder(): string {
+    const diskDir = mkdtempSync(join(tmpdir(), "layer1-unrelated-dir-"));
+    writeFileWithPinnedMtime(diskDir, "notes.txt", "disk only\n", UNRELATED_FIRST_DISK_MTIME);
+    writeFileWithPinnedMtime(diskDir, "todo.md", "disk only too\n", UNRELATED_SECOND_DISK_MTIME);
+    return diskDir;
+}
+
+// Task 238's repo: every tracked path is absent from the folder above. Two commits of one file
+// each, so the two gitOrphans rows carry DIFFERENT instants and the bucket's ascending order is
+// actually exercised rather than resolved by a tie. docs/readme.md is nested on purpose — it
+// proves the buckets list repo-relative paths rather than basenames.
+export function makeUnrelatedFixtureRepo(): string {
+    const repoDir = mkdtempSync(join(tmpdir(), "layer1-unrelated-repo-"));
+    runGit(repoDir, "init -q");
+    writeFileSync(join(repoDir, "alpha.py"), "print('repo only')\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m first", UNRELATED_FIRST_COMMIT_INSTANT);
+    mkdirSync(join(repoDir, "docs"), { recursive: true });
+    writeFileSync(join(repoDir, "docs", "readme.md"), "repo only too\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m second", UNRELATED_SECOND_COMMIT_INSTANT);
     return repoDir;
 }
 
