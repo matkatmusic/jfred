@@ -9,6 +9,7 @@
 // as a touch) and widening committer seconds onto the shared ms axis. Committer time, never
 // author time — one machine, one clock (hpp Q7).
 
+import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { listCommitsTouchingFile } from "./layered_git_beacons.ts";
 import { widenCommitterSecondsToInstant } from "./layered_instants.ts";
 import type { Instant } from "./layered_types.ts";
@@ -20,11 +21,13 @@ export interface CommitHistoryNode {
     instant: Instant;
 }
 
-// The commits touching `repoRelativePath` in `repoDir`, OLDEST first (commit order). Empty when
-// the file was never committed; a genuinely unreadable repo or a bad ref is caught loudly
-// upstream by listRepoTreeAtRef (task 231), so quiet emptiness here cannot hide a mistyped input.
-export function listPairCommitHistory(repoDir: Path, repoRelativePath: Path): CommitHistoryNode[] {
-    return listCommitsTouchingFile(repoDir, repoRelativePath).map((touch) => ({
+// The commits touching `repoRelativePath` in `repoDir` reachable from `ref` (default: the active
+// branch), OLDEST first (commit order). Empty when the file was never committed; a genuinely
+// unreadable repo or a bad ref is caught loudly upstream by listRepoTreeAtRef (task 231), so quiet
+// emptiness here cannot hide a mistyped input. `ref` must be the SAME ref the repo tree was read
+// at (task 235) — otherwise a path tracked at that ref but absent from HEAD gets no ladder.
+export function listPairCommitHistory(repoDir: Path, repoRelativePath: Path, ref: string = ACTIVE_BRANCH_REF): CommitHistoryNode[] {
+    return listCommitsTouchingFile(repoDir, repoRelativePath, ref).map((touch) => ({
         hash: touch.hash,
         instant: widenCommitterSecondsToInstant(touch.committerEpochSeconds),
     }));

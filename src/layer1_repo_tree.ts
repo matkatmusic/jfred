@@ -6,8 +6,10 @@
 import { spawnSync } from "node:child_process";
 import { Path } from "./structures/domain.ts";
 
-// The default ref: HEAD already IS the repo's active branch, so no separate branch lookup.
-const ACTIVE_BRANCH_REF = "HEAD";
+// The default ref: HEAD already IS the repo's active branch, so no separate branch lookup. The
+// engine's ONE canonical "HEAD" — layered_git_beacons.ts and layer1_commit_history.ts import it
+// from here rather than re-spelling the string (coding-requirements §2).
+export const ACTIVE_BRANCH_REF = "HEAD";
 
 // The tracked paths in `repoDir` at `ref`, relative to the repo root, in git's tree order.
 // Throws when the ref does not resolve (or the directory is not a repo), naming the ref.

@@ -34,6 +34,7 @@ import {
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
+import { handleLayer1ViewRequest } from "./viewer_api_layer1.ts";
 import { handleFileLadderRequest } from "./viewer_api_ladder.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
@@ -185,6 +186,8 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             handlePrescanRequest(response, url.searchParams);
         } else if (url.pathname === "/api/layered-graph") {
             handleLayeredGraphRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/layer1-view") {
+            handleLayer1ViewRequest(response, url.searchParams);
         } else if (url.pathname === "/api/file-ladder") {
             handleFileLadderRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {

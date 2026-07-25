@@ -4,8 +4,9 @@
 // skip, the same posture as reconstruction_git_evidence.ts. Merging these onto session
 // timelines is S5/task 202's job — this module only produces the nodes.
 
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { relative } from "node:path";
+import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { Path } from "./structures/domain.ts";
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
 import { widenCommitterSecondsToInstant } from "./layered_instants.ts";
@@ -17,23 +18,27 @@ export interface CommitTouch {
     committerEpochSeconds: number;
 }
 
-// The commits touching `repoRelativePath` in `repoPath`, OLDEST first (timeline order). %ct is
-// committer epoch seconds — the only time source this module reads. No `--follow`: rename
-// tracking is S6's job, so a renamed file simply shows the shorter history. Empty on any git
-// failure. Shared with Layer 1's per-pair history (task 233, layer1_commit_history.ts) so there
-// is exactly one git-log reader in the engine.
-export function listCommitsTouchingFile(repoPath: Path, repoRelativePath: Path): CommitTouch[] {
-    let log: string;
-    try {
-        log = execSync(`git log --format="%H %ct" -- ${JSON.stringify(repoRelativePath.toString())}`, {
-            cwd: repoPath.toString(),
-            stdio: "pipe",
-        }).toString();
-    } catch {
+// The commits touching `repoRelativePath` in `repoPath` reachable from `ref` (default: the active
+// branch), OLDEST first (timeline order). %ct is committer epoch seconds — the only time source
+// this module reads. No `--follow`: rename tracking is S6's job, so a renamed file simply shows
+// the shorter history. Empty on any git failure. Shared with Layer 1's per-pair history (task 233,
+// layer1_commit_history.ts) so there is exactly one git-log reader in the engine.
+//
+// spawnSync in ARGUMENT-ARRAY form, not an execSync template (task 235): `ref` now arrives from a
+// URL, and inside execSync's double quotes `$(…)`/backticks would still execute — the array form
+// removes the shell entirely, needs no quoting dance, and lets maxBuffer be raised past
+// execSync's 1 MB default, which a long history would otherwise trip into a false "no commits".
+export function listCommitsTouchingFile(repoPath: Path, repoRelativePath: Path, ref: string = ACTIVE_BRANCH_REF): CommitTouch[] {
+    const result = spawnSync("git", ["log", ref, "--format=%H %ct", "--", repoRelativePath.toString()], {
+        cwd: repoPath.toString(),
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+    });
+    if (result.status !== 0) {
         return [];
     }
     const touches: CommitTouch[] = [];
-    for (const line of log.split("\n")) {
+    for (const line of result.stdout.split("\n")) {
         const [hash, seconds] = line.split(" ");
         if (hash === undefined || seconds === undefined || hash === "") {
             continue;

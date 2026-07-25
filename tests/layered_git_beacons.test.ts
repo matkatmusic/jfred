@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
-import { collectCommitBeaconNodes } from "../src/layered_git_beacons.ts";
+import { collectCommitBeaconNodes, listCommitsTouchingFile } from "../src/layered_git_beacons.ts";
 
 // Run a git command in `repoDir` with fixed identity and the given commit dates.
 function runGit(repoDir: string, command: string, committerDate?: string, authorDate?: string): void {
@@ -79,4 +79,27 @@ test("test_collectCommitBeaconNodes_refuses_paths_outside_the_repo", () => {
     const repoDir = makeFixtureRepo();
     const beacons = collectCommitBeaconNodes(new Path(repoDir), new Path("/elsewhere/notes.txt"));
     assert.deepEqual(beacons, []);
+});
+
+// Task 235 (spec S18): /api/layer1-view accepts a `ref`, so the shared git-log reader must log
+// from THAT ref. Without it, a repo tree read at a ref would be paired against ladders read from
+// HEAD — a path tracked at the ref but absent from HEAD would come back with no commits at all.
+test("test_commit_history_is_read_from_the_requested_ref_not_head", () => {
+    // Scenario: side-only.txt exists ONLY on a side branch, so it is unreachable from HEAD.
+    // Steps:
+    // build the three-commit fixture, then add side-only.txt on a branch and return to HEAD.
+    const repoDir = makeFixtureRepo();
+    // `git init`'s default branch name differs by machine, so return with `checkout -` rather
+    // than naming main/master.
+    runGit(repoDir, "checkout -q -b side");
+    writeFileSync(join(repoDir, "side-only.txt"), "side\n");
+    runGit(repoDir, "add side-only.txt");
+    runGit(repoDir, "commit -q -m side", "2026-07-04T13:00:00Z", "2026-06-04T11:00:00Z");
+    runGit(repoDir, "checkout -q -");
+    // reading with the DEFAULT ref finds nothing — the Layer-2 callers' behavior is unchanged.
+    assert.deepEqual(listCommitsTouchingFile(new Path(repoDir), new Path("side-only.txt")), []);
+    // reading with ref "side" finds that one commit — the ref reached git log.
+    const sideTouches = listCommitsTouchingFile(new Path(repoDir), new Path("side-only.txt"), "side");
+    assert.equal(sideTouches.length, 1);
+    assert.equal(sideTouches[0]!.committerEpochSeconds, Date.parse("2026-07-04T13:00:00Z") / 1000);
 });
