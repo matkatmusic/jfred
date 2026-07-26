@@ -94,8 +94,8 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
     );
 }
 
-// One pair's widget: offset to its FIRST commit, a commit node per touching commit, then the
-// double-ringed on-disk node last.
+// One pair's widget: named by its BASENAME, full path on hover (task 245 — a path is unbounded but
+// the bubble is 168 px), offset to its FIRST commit, a node per commit, on-disk node last.
 function buildPairWidget(pair: WirePair): HTMLElement {
     // The one subtraction base. ponytail: a pair whose history came back empty pins to its
     // on-disk node instead of throwing — only reachable on a clone whose history was truncated;
@@ -110,7 +110,7 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     }
     appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
     return setAxisPx(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: pair.path }),
+        el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, title: pair.path }),
         el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
         lane,
     ]), startPx);

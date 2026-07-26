@@ -117,7 +117,7 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     // the widget pins to the first commit's absolute axisPx, passed through untouched.
     const widget = listMatching("#stage .filebox:not(.bucket)")[0]!;
-    assert.equal(widget.querySelector(".fname")?.textContent, "src/index.ts");
+    assert.equal(widget.querySelector(".fname")?.textContent, "index.ts");
     assert.equal(readAxisOffsetPx(widget), WIDGET_BASE_PX);
     assert.equal(widget.querySelector(".sub")?.textContent, "2 commits · on disk");
     // the commit nodes are widget-relative and in wire order — the hashes prove the order came
@@ -153,6 +153,24 @@ test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover
     const diskLabel = listMatching("#stage .n-disk + .nlabel")[0]!;
     assert.equal(diskLabel.textContent, "on disk");
     assert.equal(diskLabel.hasAttribute("title"), false);
+});
+
+test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hover", async () => {
+    // Scenario (task 245): a full path is unbounded in width but the bubble is a fixed 168 px,
+    // so the label carries only the BASENAME — and because six sibling bubbles can share the
+    // same leading directory, a truncated path would leave them all reading alike. The whole
+    // path must stay recoverable, which is what the hover title is for.
+    // Steps:
+    // load the partial-overlap view, whose single pair is at "src/index.ts".
+    await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
+    const name = listMatching("#stage .filebox:not(.bucket) .fname")[0]!;
+    // the visible label is the basename alone — the directory is what overprinted the neighbours.
+    assert.equal(name.textContent, "index.ts");
+    // the hover title is the full wire path, so nothing the endpoint sent is unrecoverable.
+    assert.equal(name.getAttribute("title"), "src/index.ts");
+    // an orphan bucket's title is not a path, so it must NOT gain a title attribute — that is
+    // what proves the change landed on the pair widget's name and not on every .fname el() builds.
+    assert.equal(findBucketTitled("No repository match")?.getAttribute("title"), null);
 });
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {

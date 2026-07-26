@@ -107,8 +107,14 @@
      in layout, so this scroll container's scrollable area shrinks with the content; `transform`
      would leave the page scrolling over a huge empty region when zoomed out. It also scales font
      size, so tick labels shrink in step with the gaps between them — which is why the page's 13 px
-     tick-label collision skip stays correct at every level and the ruler needs no re-render. */
-  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1); }
+     tick-label collision skip stays correct at every level and the ruler needs no re-render.
+     `isolation` makes this an UNCONDITIONAL stacking context, which the leader line on
+     `.filebox::before` requires: `zoom` creates one only when it is not 1, so without this the
+     leader's `z-index: -1` would escape to the root at 100% zoom, paint behind `.viz-root`'s opaque
+     background and be invisible. Scoped here, the leader lands behind the bubbles and above the
+     page background — and `.ruler`'s z-index 8 still covers it. */
+  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
+    isolation: isolate; }
 
   /* left: 0 pins the gutter to the scrollport's left edge under horizontal scroll; it still
      scrolls VERTICALLY with the content, which it must — a tick marks a node's row. The
@@ -121,11 +127,44 @@
 
   .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
 
+  /* padding-top is DERIVED, not chosen: `.sub` is abspos at top:24px with a 15 px line box
+     (10px x the inherited 1.5), so the header ends at y 39. The lane starts at padding-top and its
+     `--axis-px: 0` node is translate(-50%,-50%)-centred there, reaching 10 px above it (7.5 px
+     half-height + its 2.5 px ring). 39 + 10 = 49, so 50 px is the first value that clears the
+     header — this is what stopped the short-hash label overprinting "on disk" (task 247). Move
+     `.fname`/`.sub`'s `top`, or their font sizes, and this value must be redone.
+     `margin-top` is deliberately NOT compensated: it keeps the border-box top edge at --axis-px,
+     which is the exact ruler position the leader line below aims at. */
   .filebox { position: relative; flex: none; min-width: 168px;
     margin-top: calc(var(--axis-px) * 1px);
     border: 2px solid var(--box); border-radius: 14px;
-    background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 30px 12px 14px; }
+    background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 50px 12px 14px; }
+
+  /* Task 250: trace a bubble back to its timestamp on the sticky gutter. `top: -2px` cancels the
+     2 px border so the line sits on the border-box top edge, which is `margin-top` = --axis-px =
+     precisely the ruler tick for the bubble's first instant. `right: 100%` starts it at the
+     bubble's left edge and it runs LEFTWARD past canvas x=0; `.ruler` is sticky at the scrollport's
+     left edge, opaque and at z-index 8, so it paints over the excess and the leader appears to
+     begin at the gutter's right edge at EVERY horizontal scroll position — no JS, no measurement,
+     no re-render. Leftward overflow is unreachable in LTR so `.timelines` gains no phantom scroll
+     area, and abspos boxes are excluded from `min-width: max-content` so the canvas is not widened.
+     The width is ONE VIEWPORT, not the distance to the gutter: a bubble the reader can see is by
+     definition less than a scrollport width right of the pinned gutter, so a viewport's worth always
+     spans the visible gap and needs no measurement. Dividing by the inherited `--zoom` cancels the
+     scaling `.canvas` applies, so the RENDERED length is exactly 100vw at every zoom level — a fixed
+     px length instead would have to exceed the canvas's full width (~156,000 px on this repo at
+     805 widgets) and would silently run out on a bigger project. */
+  .filebox::before { content: ""; position: absolute; right: 100%; top: -2px;
+    width: calc(100vw / var(--zoom, 1)); border-top: 1px dashed var(--baseline); z-index: -1; }
+
+  /* max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos +
+     nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the
+     padding box (164 px on a 168 px bubble); minus the 12 px `left` and a matching 12 px on the
+     right it spans exactly the content width and ellipsises inside its own border. The trailing
+     ellipsis is only correct because the renderer now passes the BASENAME — on a full path the
+     shared leading directory would survive and the distinguishing tail would be what got cut. */
   .filebox .fname { position: absolute; top: 7px; left: 12px;
+    max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
   .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
 
