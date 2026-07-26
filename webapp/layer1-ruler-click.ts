@@ -11,7 +11,7 @@
 //   * a `.node` inside a bubble carries a WIDGET-RELATIVE offset, so its absolute position is its
 //     bubble's offset plus its own.
 //
-// ponytail: no scrolling helper and no measurement. Native `scrollIntoView({ block: "center" })` —
+// ponytail: no scrolling helper and no measurement. Native `scrollIntoView` —
 // used in ~12 other places here — reads the LIVE layout at click time, so it is automatically
 // correct after a pane (task 257's Detail View drawer, task 258's inspector) has shrunk the
 // scrollport, and under the native CSS `zoom` layer1-zoom.ts puts on `.canvas`. Reimplementing it
@@ -73,7 +73,10 @@ export function findBubbleForAxisPx(axisPx: number): HTMLElement | undefined {
 // throwing — `.ruler .tick:hover` still lights up, which is the same affordance every other tick has.
 export function makeRulerTickClickable(tick: HTMLElement): HTMLElement {
     tick.addEventListener("click", () => {
-        findBubbleForAxisPx(readAxisPx(tick))?.scrollIntoView({ block: "center", inline: "center" });
+        // Task 277: `block: "start"`, the same fix layer1-find-file.ts's landOnBubble carries and
+        // for the same reason — a `.filebox` is as tall as its own ladder span, so centring one
+        // vertically puts its top off the top of the pane. `inline: "center"` is unchanged.
+        findBubbleForAxisPx(readAxisPx(tick))?.scrollIntoView({ block: "start", inline: "center" });
     });
     return tick;
 }

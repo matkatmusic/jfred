@@ -10,12 +10,14 @@
 // turns an absolute ruler position into a widget-relative one.
 
 import { el, getRequiredElementById } from "./app-dom.ts";
+import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
+import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
 
 // What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as
@@ -118,11 +120,17 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
 function buildPairWidget(pair: WirePair): HTMLElement {
     // Spans EARLIEST to LATEST whichever KIND each is: an on-disk mtime predating the first commit
     // gave a negative offset, drawing the disk node over the header (247-249). Empty ladder: free.
-    const nodePx = [...pair.commits.map((commit) => commit.axisPx), pair.onDisk.axisPx];
+    // The ladder in wire order — commits oldest-first, on-disk last (src/viewer_api_layer1.ts's
+    // listPairNodeLadder). Held whole rather than just its offsets so task 259 can read the
+    // instants back off it and group the nodes that share one.
+    const ladder = [...pair.commits, pair.onDisk];
+    const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
     lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
-    lane.append(el("div", { class: "lrail" }));
+    // Task 259's markers go in BEFORE the nodes: neither carries a z-index, so DOM order is what
+    // keeps the rectangle behind the dots and their labels (`.node`'s own z-index: 6 is above both).
+    lane.append(el("div", { class: "lrail" }), ...buildTieGroupMarkers(ladder, startPx));
     for (const commit of pair.commits) {
         // Short label, full hash on hover — see SHORT_HASH_LENGTH.
         appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
@@ -170,6 +178,9 @@ export function renderLayer1View(view: WireLayer1View): void {
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
     renderRulerTicks(view.ruler);
+    // Task 252: nothing measures the nav, so its position among these calls is free — it sits with
+    // the other gutter-side render rather than among the stage's.
+    renderLayer1FileNav(view);
     renderLeaderLines(view.ruler);
     const buckets = [
         // gitOrphans = in the repo, absent from disk. diskOrphans = on disk, absent from the repo.
@@ -194,10 +205,11 @@ export async function loadLayer1View(): Promise<void> {
         crumb.textContent = "pick a project folder and a git repo";
         return;
     }
-    // Clear BOTH before the ~10 s build: the previous view's counts and widgets are stale the moment
-    // a new load starts, and leaving them up is what made the page read as frozen.
+    // Clear ALL THREE before the ~10 s build: the previous view's counts, widgets and File Nav are
+    // stale the moment a new load starts, and leaving them up is what made the page read as frozen.
     crumb.textContent = "";
     getRequiredElementById("stage").replaceChildren();
+    getRequiredElementById("filenav-tree").replaceChildren();
     showLayer1Progress("starting");
     try {
         renderLayer1View(await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`));

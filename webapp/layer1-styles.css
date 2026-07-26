@@ -130,7 +130,12 @@
      `.fname`/`.sub`'s `top`, or their font sizes, and this value must be redone.
      `margin-top` is deliberately NOT compensated: it keeps the border-box top edge at --axis-px,
      which is the exact ruler position the leader line below aims at. */
-  .filebox { position: relative; flex: none; min-width: 168px;
+  /* Task 277: `scroll-margin-top` is what keeps a jumped-to bubble's name off the pane's top edge.
+     layer1-find-file.ts aligns with `block: "start"` (centring a bubble thousands of px tall put its
+     top above the viewport), and without this the landed bubble's border sits flush against the
+     legend. Purely cosmetic breathing room — it does not move the bubble, only where the scroll
+     stops. */
+  .filebox { position: relative; flex: none; min-width: 168px; scroll-margin-top: 14px;
     margin-top: calc(var(--axis-px) * 1px);
     border: 2px solid var(--box); border-radius: 14px;
     background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 50px 12px 14px; }
@@ -200,6 +205,18 @@
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
 
+  /* Task 259: two nodes at ONE instant sit on stacked 22 px rows (task 251); this rectangle says
+     they were simultaneous, which giving them their own rows had otherwise destroyed. The geometry
+     is DERIVED from `.node` above, not chosen: a node is centred on its --axis-px and its painted
+     box (15 px plus a 2.5 px ring) reaches 10 px past that in every direction, so -11px/+22px
+     clears the run's first and last rows with a 1 px hairline. `left: -11px` clears the dots, which
+     translate(-50%) puts 10 px left of the lane's x=0. No z-index and no pointer-events: the marker
+     is appended before the nodes, so DOM order already paints it underneath them and their labels,
+     and nothing in a lane is clickable. */
+  .lane .tiegroup { position: absolute; left: -11px; right: 0;
+    top: calc(var(--axis-px) * 1px - 11px); height: calc(var(--span-px) * 1px + 22px);
+    border: 1.5px solid var(--c-anchor); border-radius: 10px; background: var(--seg-a); }
+
   /* Orphan buckets: one per direction, a plain file list, placed at the earliest member instant. */
   .filebox.bucket { border-style: dashed; border-color: var(--muted); }
   .filebox.bucket .fname { color: var(--ink2); font-family: inherit; font-size: 12px; }
@@ -234,7 +251,47 @@
      column's one growing child, so `min-height: 0` is what keeps `.timelines` scrolling rather than
      stretching the whole page; `display: flex` hands it the pane's full box. */
   .stagewrap { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
-  .minimap { position: absolute; left: 12px; bottom: 12px; z-index: 20;
+
+  /* Task 252: the File Nav — every identified file, including the repo files with no on-disk
+     presence. A flex sibling of `main.timelines`, so it is left of the sticky ruler with no
+     involvement in the zoomed canvas. `overflow: auto` gives it its own scroll: a real project
+     lists ~800 files and the pane must not stretch the page column. */
+  .filenav { flex: none; width: 232px; overflow: auto;
+    border-right: 1px solid var(--border); background: var(--surface); }
+  .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* Task 252: the shared file tree's rules (webapp/styles.css:199-280), retargeted at this page's
+     tokens — layer1.html does not load styles.css, and adding its --mono/--text/--sel/--sel-hover/
+     --guide/--orange here to carry six rules verbatim is the larger change. A folder is a native
+     <details open>, so the pane needs no toggle JS; decorations sit in fixed-width columns so names
+     at one depth share a left edge. The rename-badge and coverage-strip rules are deliberately NOT
+     brought across: Layer 1 sets neither originalPath nor coverage, so they would be dead. */
+  .file-item { padding: 3px 10px; font: 11px ui-monospace, Menlo, monospace; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--ink); }
+  .file-item::before { content: "📄"; display: inline-block; width: 21px; margin-left: 13px; }
+  .file-item:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .file-item.selected { background: var(--sel-edge); color: #fff; }
+  .file-item .revcount { color: var(--muted); margin-left: 6px; }
+  .file-item.selected .revcount { color: #e8f6f0; }
+  /* A repo file with no on-disk presence: still listed, shown as gone. */
+  .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
+  .file-folder > summary { padding: 3px 10px; font: 600 11px ui-monospace, Menlo, monospace;
+    color: var(--ink); cursor: pointer; white-space: nowrap; list-style: none; }
+  .file-folder > summary::-webkit-details-marker { display: none; }
+  .file-folder > summary::before { content: "▸ 📁"; display: inline-block; width: 34px;
+    color: var(--muted); }
+  .file-folder[open] > summary::before { content: "▾ 📁"; }
+  .file-folder > summary:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .file-folder > .file-folder-kids { margin-left: 16px; border-left: 1px solid var(--grid); }
+
+  /* Task 269: `left` clears BOTH the File Nav and the sticky ruler gutter. The minimap is absolute
+     against .stagewrap, so its origin is the nav's left edge, not the timeline pane's: 232px is
+     .filenav's width, 82px is the gutter (`.ruler`'s `--rail-x` 80px plus the rail's own 2px
+     border), and 12px is the inset. Those two literals repeat values owned by .filenav and .ruler
+     because a custom property set on either is not in scope here — change one and change the
+     other. Task 279 (a draggable File Nav width) has to drive this same number. */
+  .minimap { position: absolute; left: calc(232px + 82px + 12px); bottom: 12px; z-index: 20;
     width: 176px; height: 124px; padding: 6px; cursor: crosshair;
     border: 1px solid var(--border); border-radius: 8px;
     background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }

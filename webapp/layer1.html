@@ -61,6 +61,14 @@
        lower-left corner while the canvas scrolls under it. Putting the minimap inside
        `main.timelines` instead would have it scroll away with the render. -->
   <div class="stagewrap">
+    <!-- Task 252: the File Nav — every identified file, including the repo files with no on-disk
+         presence. A flex sibling of the scroll container, so it sits to the LEFT of the sticky
+         ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the
+         tree on every load, reusing the same tree the main webapp's Files pane renders. -->
+    <aside class="filenav">
+      <div class="filenav-title">File Nav</div>
+      <div id="filenav-tree"></div>
+    </aside>
     <main class="timelines" id="timelines"><div class="canvas">
       <div class="leaders" id="leaders"></div>
     <div class="ruler" id="ruler"><div class="rail"></div></div>

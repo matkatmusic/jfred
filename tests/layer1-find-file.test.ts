@@ -15,17 +15,21 @@ import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 // boot here, against a throwaway DOM (same guard as tests/layer1-zoom.test.ts).
 setupLayer1Dom();
 const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-const { jumpToNamedBubble } = await import("../webapp/layer1-find-file.ts");
+const { jumpToBubbleAtPath, jumpToNamedBubble } = await import("../webapp/layer1-find-file.ts");
 
 // What scrollIntoView was called on, in call order, named by the FULL path so a collision test can
 // tell the six same-basename bubbles apart.
 const scrolledPaths: string[] = [];
 
+// The options each of those calls carried (task 277: which EDGE of the bubble the scroll aligns).
+const scrolledOptions: ScrollIntoViewOptions[] = [];
+
 // The spy. Installed on the prototype rather than per element because the bubbles are built fresh
 // by each openFoundPage() call, and the page — not the test — owns those elements.
 function spyOnScrollIntoView(): void {
-    HTMLElement.prototype.scrollIntoView = function recordScroll(this: HTMLElement): void {
+    HTMLElement.prototype.scrollIntoView = function recordScroll(this: HTMLElement, options?: unknown): void {
         scrolledPaths.push(this.querySelector(".fname")?.getAttribute("title") ?? "");
+        scrolledOptions.push((options ?? {}) as ScrollIntoViewOptions);
     };
 }
 
@@ -45,6 +49,7 @@ function openFoundPage(paths: string[]): void {
     bootLayer1Page();
     spyOnScrollIntoView();
     scrolledPaths.length = 0;
+    scrolledOptions.length = 0;
     document.getElementById("stage")!.innerHTML = paths.map(buildStageBubble).join("");
 }
 
@@ -129,6 +134,64 @@ test("test_an_unmatched_name_reports_instead_of_doing_nothing", () => {
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
     // but the submit is reported, quoting the term back so a typo is visible.
     assert.equal(readCrumbText(), 'find "no-such-file.txt": no bubble matches');
+});
+
+test("test_a_jump_aligns_the_bubbles_top_edge_rather_than_its_middle", () => {
+    // Scenario (task 277): a `.filebox` is as tall as its own ladder span, so a file with a long
+    // history is thousands of px tall. Centring that box VERTICALLY puts its top — its name, its
+    // first node — far above the viewport, which reads as "only the horizontal scroll worked".
+    // The horizontal centring is correct and must survive.
+    // Steps:
+    // open a page and jump to a bubble.
+    openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
+    jumpToNamedBubble("settings.json");
+    // the scroll aligns the bubble's TOP with the pane's top edge...
+    assert.equal(scrolledOptions[0]!.block, "start");
+    // ...while still centring it horizontally, which is what put it on screen sideways.
+    assert.equal(scrolledOptions[0]!.inline, "center");
+});
+
+test("test_an_exact_path_jump_lands_the_same_bubble_however_many_times_it_is_repeated", () => {
+    // Scenario (task 278): a File Nav leaf knows the EXACT path it represents, so clicking it twice
+    // must land the same bubble twice. Routing a click through the typed box's substring+cycle
+    // search made a repeat click advance to the NEXT match instead — and for `.gitignore`, whose
+    // root path is a substring of every nested one, no cycle position was ever right.
+    // Steps:
+    // open the collision set, which holds three bubbles whose paths contain "tasks.json".
+    openFoundPage(COLLIDING_PATHS);
+    // jump to one of them by its exact path, twice.
+    jumpToBubbleAtPath("tasks.json");
+    jumpToBubbleAtPath("tasks.json");
+    // both jumps landed the SAME bubble — the root one, not .vscode/tasks.json.
+    assert.deepEqual(scrolledPaths, ["tasks.json", "tasks.json"]);
+    // and exactly that bubble is lit.
+    assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("title"), "tasks.json");
+});
+
+test("test_an_exact_path_jump_does_not_write_the_find_boxs_counter_into_the_crumb", () => {
+    // Scenario (task 278): the user saw `find "<name>": n of N` appear in the header when they
+    // clicked a file in the File Nav, and the n climb on every repeat click. A click is not a
+    // search, so it must not report as one.
+    // Steps:
+    // open a page and jump by exact path.
+    openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
+    jumpToBubbleAtPath(".vscode/settings.json");
+    // the crumb carries no find-counter text.
+    assert.doesNotMatch(readCrumbText(), /of \d/);
+});
+
+test("test_an_exact_path_with_no_bubble_reports_instead_of_doing_nothing", () => {
+    // Scenario (task 278): an orphan path is listed in the File Nav but has NO bubble of its own —
+    // it lives in a bucket. Clicking it must say so rather than appearing to do nothing.
+    // Steps:
+    // open a populated page and jump to a path no bubble carries.
+    openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
+    jumpToBubbleAtPath("src/deleted-long-ago.ts");
+    // nothing scrolled and nothing lit.
+    assert.deepEqual(scrolledPaths, []);
+    assert.equal(document.querySelectorAll(".filebox.found").length, 0);
+    // but the crumb names the path and why it has no bubble.
+    assert.match(readCrumbText(), /src\/deleted-long-ago\.ts/);
 });
 
 test("test_the_enter_key_on_the_box_is_what_submits", () => {

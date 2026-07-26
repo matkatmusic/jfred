@@ -124,8 +124,10 @@ test("test_clicking_a_shared_tick_centers_the_bubble_that_begins_there", async (
     // that merely holds a node on it, which is what a one-stage search would have returned.
     assert.equal(requests.length, 1);
     assert.equal(readBubbleName(requests[0]!.target), "beginning.ts");
-    // centered in BOTH axes: the canvas is oversized horizontally as well as vertically.
-    assert.deepEqual(requests[0]!.options, { block: "center", inline: "center" });
+    // task 277: the bubble's TOP is aligned, not its middle — a bubble is as tall as its own ladder
+    // span, so centring one vertically puts its name and first node above the pane. Horizontally it
+    // is still centred, because the canvas is oversized sideways too.
+    assert.deepEqual(requests[0]!.options, { block: "start", inline: "center" });
 });
 
 test("test_clicking_a_tick_no_bubble_begins_at_centers_the_bubble_holding_that_node", async () => {

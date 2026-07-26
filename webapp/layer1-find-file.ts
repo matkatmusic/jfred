@@ -96,6 +96,20 @@ function selectNextMatch(term: string): HTMLElement | undefined {
     return landed;
 }
 
+// Scroll a found bubble into view and light it. Shared by the typed box and the File Nav click so
+// neither can drift from the other's landing behaviour.
+//
+// Task 277: `block: "start"`, NOT "center". A `.filebox` is as tall as its own ladder span
+// (`margin-top` = --axis-px, `.lane`'s `min-height` = --span-px + 18px), so a file with a long
+// history is thousands of px tall and centring that box vertically puts its top — its name, its
+// first node — far above the viewport. That reads as "the jump only scrolled sideways", which is
+// exactly what the user reported. `inline: "center"` stays: horizontal centring was always correct,
+// because a bubble is placed sideways by its column index in `.stage`.
+function landOnBubble(bubble: HTMLElement): void {
+    bubble.scrollIntoView({ block: "start", inline: "center" });
+    highlightBubble(bubble);
+}
+
 // Jump to the next bubble named by `term`. Exported for the test, which drives this rather than the
 // keystroke so the cycle can be stepped without re-deriving what a happy-dom KeyboardEvent needs.
 export function jumpToNamedBubble(term: string): HTMLElement | undefined {
@@ -104,10 +118,29 @@ export function jumpToNamedBubble(term: string): HTMLElement | undefined {
         return undefined;
     }
     const landed = selectNextMatch(trimmed);
-    landed?.scrollIntoView({ block: "center", inline: "center" });
     if (landed !== undefined) {
-        highlightBubble(landed);
+        landOnBubble(landed);
     }
+    return landed;
+}
+
+// Jump to the bubble owning EXACTLY `path` (task 278). The File Nav's caller, not the typed box's:
+// a leaf knows the exact path it represents, so it needs no substring match, no cycle counter and
+// no "n of N" crumb — clicking one file twice must land the same bubble twice. Routing a click
+// through jumpToNamedBubble made a repeat click advance to the next match instead, and for
+// `.gitignore`, whose root path is a substring of every nested one, no substring rule could ever
+// have picked the right bubble.
+export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
+    const owner = listNameElements().find((nameElement) => nameElement.getAttribute("title") === path);
+    if (owner === undefined) {
+        // Never a silent no-op: an ORPHAN path is listed in the File Nav but has no bubble of its
+        // own — it lives in one of the two buckets — so the click must say that rather than look
+        // broken.
+        reportIntoCrumb(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
+        return undefined;
+    }
+    const landed = owner.closest(".filebox") as HTMLElement;
+    landOnBubble(landed);
     return landed;
 }
 
