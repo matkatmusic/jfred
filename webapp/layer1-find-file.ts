@@ -35,8 +35,9 @@ let litBubble: HTMLElement | undefined;
 let unlightTimer: ReturnType<typeof setTimeout> | undefined;
 
 // Every bubble's name element, in render order. `.fname` is where BOTH matchable strings live: its
-// text is the basename (task 245 shortened the visible label to that) and its `title` is the full
-// repo-relative path.
+// text is the basename (task 245 shortened the visible label to that) and its `data-path` is the
+// full repo-relative path (task 280 moved it off `title`, which rendered as an unstyled native
+// tooltip the user rejected in favour of an in-page hover reveal).
 function listNameElements(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")];
 }
@@ -44,10 +45,10 @@ function listNameElements(): HTMLElement[] {
 // ponytail: ONE case-insensitive substring test over "<full path>" covers every required input.
 // `launch.json` matches `.vscode/launch.json` because a basename is a substring of its own path
 // (requirement 1), and `.vscode/launch` narrows a colliding basename to one bubble for free
-// (requirement 2's bonus) — no separate basename branch, no separate path branch. The title falls
-// back to the visible text for the orphan buckets, whose labels carry no path.
+// (requirement 2's bonus) — no separate basename branch, no separate path branch. The data-path
+// falls back to the visible text for the orphan buckets, whose labels carry no path.
 function matchesSearchTerm(nameElement: HTMLElement, lowerTerm: string): boolean {
-    const haystack = nameElement.getAttribute("title") ?? nameElement.textContent ?? "";
+    const haystack = nameElement.dataset.path ?? nameElement.textContent ?? "";
     return haystack.toLowerCase().includes(lowerTerm);
 }
 
@@ -71,28 +72,31 @@ function highlightBubble(bubble: HTMLElement): void {
     unlightTimer = setTimeout(() => bubble.classList.remove("found"), HIGHLIGHT_MS);
 }
 
-// Never a silent no-op (requirement 5): every submit reports into the #crumb, whether it landed or
-// not. The full path is echoed back because with a colliding basename the counter alone does not say
-// WHICH of the six the viewport is now looking at.
-function reportIntoCrumb(message: string): void {
-    getRequiredElementById("crumb").textContent = message;
+// Never a silent no-op (requirement 5): every submit reports here, whether it landed or not. Its
+// OWN element, not the header's #crumb (task 273): the crumb also carries the stage's pair and
+// orphan counts, so writing a search into it destroyed those, and nothing put them back when the
+// search was abandoned. A dedicated element makes clearing this readout one empty string.
+function reportFindStatus(message: string): void {
+    getRequiredElementById("find-status").textContent = message;
 }
 
-// Advance the cycle for `term` and return the match to land on, or undefined when nothing matches.
-// A CHANGED term restarts at the first match; an unchanged one steps forward and wraps, so holding
-// Enter walks all six collisions and returns to the top rather than stopping at the last.
-function selectNextMatch(term: string): HTMLElement | undefined {
+// Advance the cycle for `term` by `step` (+1 next, -1 previous) and return the match to land on, or
+// undefined when nothing matches. A CHANGED term restarts at the first match whichever direction
+// asked for it — a first search has no position to step from. `+ matches.length` before the modulo
+// is what makes -1 wrap to the LAST match instead of yielding a negative index (task 271): JS's %
+// keeps the sign of its left operand.
+function selectMatchAtStep(term: string, step: number): HTMLElement | undefined {
     const matches = findMatchingBubbles(term.toLowerCase());
     if (matches.length === 0) {
         cycledTerm = "";
-        reportIntoCrumb(`find "${term}": no bubble matches`);
+        reportFindStatus(`find "${term}": no bubble matches`);
         return undefined;
     }
-    cycleIndex = term === cycledTerm ? (cycleIndex + 1) % matches.length : 0;
+    cycleIndex = term === cycledTerm ? (cycleIndex + step + matches.length) % matches.length : 0;
     cycledTerm = term;
     const landed = matches[cycleIndex]!;
-    const landedPath = landed.querySelector(".fname")?.getAttribute("title") ?? term;
-    reportIntoCrumb(`find "${term}": ${cycleIndex + 1} of ${matches.length} · ${landedPath}`);
+    const landedPath = landed.querySelector<HTMLElement>(".fname")?.dataset.path ?? term;
+    reportFindStatus(`find "${term}": ${cycleIndex + 1} of ${matches.length} · ${landedPath}`);
     return landed;
 }
 
@@ -110,14 +114,15 @@ function landOnBubble(bubble: HTMLElement): void {
     highlightBubble(bubble);
 }
 
-// Jump to the next bubble named by `term`. Exported for the test, which drives this rather than the
-// keystroke so the cycle can be stepped without re-deriving what a happy-dom KeyboardEvent needs.
-export function jumpToNamedBubble(term: string): HTMLElement | undefined {
+// Jump to the next (or, with step -1, the previous) bubble named by `term`. Exported for the test,
+// which drives this rather than the keystroke so the cycle can be stepped without re-deriving what
+// a happy-dom KeyboardEvent needs.
+export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement | undefined {
     const trimmed = term.trim();
     if (trimmed === "") {
         return undefined;
     }
-    const landed = selectNextMatch(trimmed);
+    const landed = selectMatchAtStep(trimmed, step);
     if (landed !== undefined) {
         landOnBubble(landed);
     }
@@ -131,12 +136,12 @@ export function jumpToNamedBubble(term: string): HTMLElement | undefined {
 // `.gitignore`, whose root path is a substring of every nested one, no substring rule could ever
 // have picked the right bubble.
 export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
-    const owner = listNameElements().find((nameElement) => nameElement.getAttribute("title") === path);
+    const owner = listNameElements().find((nameElement) => nameElement.dataset.path === path);
     if (owner === undefined) {
         // Never a silent no-op: an ORPHAN path is listed in the File Nav but has no bubble of its
         // own — it lives in one of the two buckets — so the click must say that rather than look
         // broken.
-        reportIntoCrumb(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
+        reportFindStatus(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
         return undefined;
     }
     const landed = owner.closest(".filebox") as HTMLElement;
@@ -144,13 +149,40 @@ export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
     return landed;
 }
 
-// Wire the box. Enter IS the submit — there is no Find button, because the input is only ever
-// reached by typing into it, so the hand is already on the keyboard.
+// Task 273: put the box back to its untouched state. All three pieces of a live search are dropped
+// together — the readout, the lit bubble and the cycle position — because leaving any one of them
+// keeps some part of an abandoned search on screen or in effect.
+function clearFindState(): void {
+    clearTimeout(unlightTimer);
+    litBubble?.classList.remove("found");
+    litBubble = undefined;
+    cycledTerm = "";
+    cycleIndex = 0;
+    reportFindStatus("");
+}
+
+// Wire the box. Enter submits and steps forward; the two buttons step the same cycle in either
+// direction (task 271) from whatever the box currently holds, which is why they read `box.value`
+// rather than carrying a term of their own.
 export function wireFindFileBox(): void {
     const box = getRequiredElementById("find-file") as HTMLInputElement;
     box.addEventListener("keydown", (event) => {
         if ((event as KeyboardEvent).key === "Enter") {
             jumpToNamedBubble(box.value);
         }
+    });
+    // `input`, not `keyup`: it also fires for a paste, a cut and a click on the field's native
+    // clear button, which are three more ways to empty the box that a key listener would miss.
+    box.addEventListener("input", () => {
+        if (box.value.trim() !== "") {
+            return;
+        }
+        clearFindState();
+    });
+    getRequiredElementById("find-prev").addEventListener("click", () => {
+        jumpToNamedBubble(box.value, -1);
+    });
+    getRequiredElementById("find-next").addEventListener("click", () => {
+        jumpToNamedBubble(box.value, 1);
     });
 }

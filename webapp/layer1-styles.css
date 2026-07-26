@@ -72,6 +72,15 @@
     background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
   .sources input:focus { outline: none; border-color: var(--sel-edge); }
 
+  /* Task 271/273: the find box's cycle buttons and its own readout. The buttons are deliberately
+     narrow — they carry a single chevron, so the default 10 px side padding leaves them wider than
+     their glyph and pushes the readout off the row on a narrow window. `min-width: 0` + ellipsis on
+     the readout so a long matched path shortens rather than reflowing the row. */
+  .sources .find-status { font-size: 11.5px; color: var(--muted); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sources #find-prev, .sources #find-next { padding: 3px 8px; margin-left: -8px; }
+  .sources #find-prev { margin-left: 0; }
+
   /* S12: legend above the timeline, outside the scroll container. */
   .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 7px 16px; font-size: 11px;
     color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
@@ -114,10 +123,13 @@
      background is load-bearing: widgets scroll UNDER it — so the gutter is EXACTLY as wide as its
      rail, --rail-x plus the rail's own 2 px border, one source for both. Gutter px PAST the rail
      paint over that much of the leader line, which is why a dash looked like it stopped 14 px
-     short of the ruler (task 262); those 14 px are `.canvas`'s gap now, so no widget moved. */
-  .ruler { --rail-x: 80px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+     short of the ruler (task 262); those 14 px are `.canvas`'s gap now, so no widget moved.
+     Task 276 widened both — the label is now "MM-DD HH:MM:SS.hh" (17 characters at 10 px), and
+     --rail-x keeps the same 10 px of clearance between the label's right edge and the rail that
+     the 70/80 pair had. */
+  .ruler { --rail-x: 118px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
-  .ruler .tick { position: absolute; left: 0; width: 70px; text-align: right; top: calc(var(--axis-px) * 1px);
+  .ruler .tick { position: absolute; left: 0; width: 108px; text-align: right; top: calc(var(--axis-px) * 1px);
     font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
 
   .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
@@ -193,6 +205,17 @@
   .filebox .fname { position: absolute; top: 7px; left: 12px;
     max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
+  /* Task 280/270: hovering a truncated name reveals the whole path IN PAGE. `max-width: none` +
+     `overflow: visible` is the whole reveal — the name is already abspos and `white-space: nowrap`,
+     so lifting the bound lets it run past the bubble's 168 px instead of ellipsising.
+     The background and z-index are not decoration: `.stage`'s bubbles sit 26 px apart, so a
+     revealed path paints straight over its neighbours without an opaque backdrop behind it.
+     z-index 7 is DERIVED, not chosen — above `.node`'s 6 so the revealed name covers the
+     neighbouring bubbles' dots and labels, below `.ruler`'s 8 so it still scrolls under the sticky
+     gutter rather than over it. `margin-left` cancels the padding so the text does not shift
+     sideways under the cursor as it is revealed. No JS: this is a pure :hover state. */
+  .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7;
+    background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
   .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
 
   .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
@@ -249,17 +272,30 @@
      non-scrolling positioning parent AROUND the scroll container — `position: absolute` inside
      `main.timelines` itself would resolve against the scrolled CONTENT and slide away. It is the
      column's one growing child, so `min-height: 0` is what keeps `.timelines` scrolling rather than
-     stretching the whole page; `display: flex` hands it the pane's full box. */
-  .stagewrap { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
+     stretching the whole page; `display: flex` hands it the pane's full box.
+     Task 279: the File Nav's width, declared HERE because it is the nearest common ancestor of both
+     the pane that is this wide and the minimap that must clear it — one value, so a drag cannot move
+     one without the other. webapp/layer1-filenav-resize.ts overwrites it inline on this element. */
+  .stagewrap { --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
 
   /* Task 252: the File Nav — every identified file, including the repo files with no on-disk
      presence. A flex sibling of `main.timelines`, so it is left of the sticky ruler with no
      involvement in the zoomed canvas. `overflow: auto` gives it its own scroll: a real project
      lists ~800 files and the pane must not stretch the page column. */
-  .filenav { flex: none; width: 232px; overflow: auto;
+  .filenav { flex: none; width: var(--filenav-w); overflow: auto;
     border-right: 1px solid var(--border); background: var(--surface); }
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* Task 279: the drag handle, straddling the pane's right edge — 6 px wide and centred on it, so
+     the whole edge is grabbable rather than one corner. `position: absolute` against .stagewrap
+     puts it in the same coordinate space as .minimap and keeps it out of the flex row, so grabbing
+     it cannot itself change the layout it is measuring. z-index 21 is one above .minimap's 20:
+     the minimap is `left`-positioned to clear the pane, so at the narrowest widths the two can meet
+     and the handle must stay grabbable. */
+  .filenav-grip { position: absolute; top: 0; bottom: 0; left: calc(var(--filenav-w) - 3px);
+    width: 6px; z-index: 21; cursor: col-resize; }
+  .filenav-grip:hover { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
 
   /* Task 252: the shared file tree's rules (webapp/styles.css:199-280), retargeted at this page's
      tokens — layer1.html does not load styles.css, and adding its --mono/--text/--sel/--sel-hover/
@@ -297,12 +333,13 @@
   .file-folder > .file-folder-kids { margin-left: 16px; border-left: 1px solid var(--grid); }
 
   /* Task 269: `left` clears BOTH the File Nav and the sticky ruler gutter. The minimap is absolute
-     against .stagewrap, so its origin is the nav's left edge, not the timeline pane's: 232px is
-     .filenav's width, 82px is the gutter (`.ruler`'s `--rail-x` 80px plus the rail's own 2px
-     border), and 12px is the inset. Those two literals repeat values owned by .filenav and .ruler
-     because a custom property set on either is not in scope here — change one and change the
-     other. Task 279 (a draggable File Nav width) has to drive this same number. */
-  .minimap { position: absolute; left: calc(232px + 82px + 12px); bottom: 12px; z-index: 20;
+     against .stagewrap, so its origin is the nav's left edge, not the timeline pane's: the pane's
+     width is now the shared `--filenav-w` property (task 279) rather than a repeated literal, so a
+     drag of the File Nav's edge moves the minimap with it. 120px is the gutter (`.ruler`'s
+     `--rail-x` 118px after task 276, plus the rail's own 2px border), and 12px is the inset. The
+     gutter number still repeats `.ruler`'s value because a property set there is not in scope
+     here. */
+  .minimap { position: absolute; left: calc(var(--filenav-w) + 120px + 12px); bottom: 12px; z-index: 20;
     width: 176px; height: 124px; padding: 6px; cursor: crosshair;
     border: 1px solid var(--border); border-radius: 8px;
     background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }

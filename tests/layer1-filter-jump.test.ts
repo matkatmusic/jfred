@@ -40,12 +40,16 @@ const scrolledPaths: string[] = [];
 function openLayer1Page(): void {
     setupLayer1Dom();
     HTMLElement.prototype.scrollIntoView = function recordScroll(this: HTMLElement): void {
-        scrolledPaths.push(this.querySelector(".fname")?.getAttribute("title") ?? "");
+        scrolledPaths.push(this.querySelector(".fname")?.getAttribute("data-path") ?? "");
     };
     scrolledPaths.length = 0;
     renderLayer1View(FULL_VIEW);
 }
 
+// A File Nav row, matched by the full path the tree's leaf renderer puts on its `title`. Task 280
+// moved a BUBBLE's path from `title` to `data-path`, but that change stops at the bubble: a File Nav
+// row is rendered by webapp/views/sidebar.ts, is not truncated by a 168 px box, and has no in-page
+// hover reveal to make its native tooltip redundant — so `title` is still where its path lives.
 function findNavRow(selector: string, label: string): HTMLElement {
     const row = [...document.querySelectorAll<HTMLElement>(`#filenav-tree ${selector}`)]
         .find((candidate) => (candidate.getAttribute("title") ?? candidate.textContent) === label);

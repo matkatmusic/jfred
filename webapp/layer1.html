@@ -46,6 +46,14 @@
     <button id="load">Load</button>
     <label>Find bubble
       <input id="find-file" type="text" size="22" placeholder="basename — Enter cycles matches"></label>
+    <!-- Task 271: explicit cycle controls. Enter still submits and still advances; these make the
+         cycle visible and add the direction it never had. -->
+    <button id="find-prev" title="Previous match">‹</button>
+    <button id="find-next" title="Next match">›</button>
+    <!-- Task 273: the find box's own readout. It used to be written into the header's #crumb,
+         which also carries the stage's pair and orphan counts — so a search destroyed those, and
+         emptying the box left the dead result behind with nothing able to restore them. -->
+    <span class="find-status" id="find-status"></span>
   </div>
   <div class="legend">
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
@@ -60,7 +68,7 @@
   <!-- Task 246: .stagewrap does not scroll, so the minimap inside it stays pinned to the pane's
        lower-left corner while the canvas scrolls under it. Putting the minimap inside
        `main.timelines` instead would have it scroll away with the render. -->
-  <div class="stagewrap">
+  <div class="stagewrap" id="stagewrap">
     <!-- Task 252: the File Nav — every identified file, including the repo files with no on-disk
          presence. A flex sibling of the scroll container, so it sits to the LEFT of the sticky
          ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the
@@ -69,6 +77,11 @@
       <div class="filenav-title">File Nav</div>
       <div id="filenav-tree"></div>
     </aside>
+    <!-- Task 279: the File Nav's drag handle. A sibling of the pane rather than a child of it,
+         because .filenav is `overflow: auto` — a handle inside it would scroll away with the file
+         list. It is positioned by the same --filenav-w the pane's width reads, so it tracks the
+         edge it resizes. -->
+    <div class="filenav-grip" id="filenav-grip"></div>
     <main class="timelines" id="timelines"><div class="canvas">
       <div class="leaders" id="leaders"></div>
     <div class="ruler" id="ruler"><div class="rail"></div></div>

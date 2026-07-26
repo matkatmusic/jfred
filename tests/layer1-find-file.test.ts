@@ -1,71 +1,24 @@
 // The Layer 1 page's jump-to-bubble box (task 261). The render is 808 widgets across ~156,000 px,
 // so the box is what makes "look at the launch.json bubble" a workable handoff.
 //
-// happy-dom implements NO layout and NO scrolling, so no assertion below reads a scroll position —
-// that would be measuring happy-dom rather than the page. Instead scrollIntoView is SPIED on: the
-// contract under test is "the right element was asked to centre itself", which is exactly what the
-// production code delegates to the browser.
+// The DOM boot, the scrollIntoView spy, the bubble fixture and the two readouts live in
+// ./layer1-find-file-helpers.ts — tasks 271 and 273 pushed this file past the repo's 250-line cap,
+// and setup is the half that no scenario comment explains.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
-
-// webapp/layer1-page.ts calls bootLayer1Page() at MODULE SCOPE, so the first import in this process
-// wires every listener a SECOND time — and one Enter would then advance the cycle twice. Absorb that
-// boot here, against a throwaway DOM (same guard as tests/layer1-zoom.test.ts).
-setupLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-const { jumpToBubbleAtPath, jumpToNamedBubble } = await import("../webapp/layer1-find-file.ts");
-
-// What scrollIntoView was called on, in call order, named by the FULL path so a collision test can
-// tell the six same-basename bubbles apart.
-const scrolledPaths: string[] = [];
-
-// The options each of those calls carried (task 277: which EDGE of the bubble the scroll aligns).
-const scrolledOptions: ScrollIntoViewOptions[] = [];
-
-// The spy. Installed on the prototype rather than per element because the bubbles are built fresh
-// by each openFoundPage() call, and the page — not the test — owns those elements.
-function spyOnScrollIntoView(): void {
-    HTMLElement.prototype.scrollIntoView = function recordScroll(this: HTMLElement, options?: unknown): void {
-        scrolledPaths.push(this.querySelector(".fname")?.getAttribute("title") ?? "");
-        scrolledOptions.push((options ?? {}) as ScrollIntoViewOptions);
-    };
-}
-
-// One bubble in the same shape buildPairWidget emits: the BASENAME as the visible `.fname` text
-// (task 245) and the full path as that element's `title`. The box must match what the user can SEE,
-// which is only the basename — so a test fixture that put the full path in the text would prove
-// nothing.
-function buildStageBubble(path: string): string {
-    const basename = path.split("/").pop()!;
-    return `<div class="filebox"><div class="fname" title="${path}">${basename}</div></div>`;
-}
-
-// A booted page whose stage holds `paths` as bubbles. Booting per test resets the module's cycle
-// state along with the DOM, so one test's repeat-submits cannot leak into the next.
-function openFoundPage(paths: string[]): void {
-    setupLayer1Dom();
-    bootLayer1Page();
-    spyOnScrollIntoView();
-    scrolledPaths.length = 0;
-    scrolledOptions.length = 0;
-    document.getElementById("stage")!.innerHTML = paths.map(buildStageBubble).join("");
-}
-
-function readCrumbText(): string {
-    return document.getElementById("crumb")!.textContent ?? "";
-}
-
-// The six colliding bubbles the task names as the real case in this repo.
-const COLLIDING_PATHS = [
-    ".claude/launch.json",
-    ".vscode/launch.json",
-    ".vscode-parent/launch.json",
-    "tasks.json",
-    ".vscode/tasks.json",
-    ".vscode-parent/tasks.json",
-];
+import {
+    clickCycleButton,
+    COLLIDING_PATHS,
+    jumpToBubbleAtPath,
+    jumpToNamedBubble,
+    openFoundPage,
+    readCrumbText,
+    readFindStatusText,
+    scrolledOptions,
+    scrolledPaths,
+    submitTermWithEnter,
+} from "./layer1-find-file-helpers.ts";
 
 test("test_a_bare_basename_scrolls_to_its_bubble", () => {
     // Scenario (task 261 requirement 1): since task 245 the bubble's visible label is the BASENAME,
@@ -79,9 +32,9 @@ test("test_a_bare_basename_scrolls_to_its_bubble", () => {
     assert.deepEqual(scrolledPaths, [".vscode/settings.json"]);
     // the landed bubble is lit so it is obvious which one was targeted (requirement 4).
     assert.equal(document.querySelectorAll(".filebox.found").length, 1);
-    assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("title"), ".vscode/settings.json");
-    // and the crumb names it rather than leaving the jump unreported (requirement 5).
-    assert.match(readCrumbText(), /1 of 1 · \.vscode\/settings\.json/);
+    assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("data-path"), ".vscode/settings.json");
+    // and the readout names it rather than leaving the jump unreported (requirement 5).
+    assert.match(readFindStatusText(), /1 of 1 · \.vscode\/settings\.json/);
 });
 
 test("test_a_colliding_basename_cycles_through_every_match_and_wraps", () => {
@@ -103,7 +56,7 @@ test("test_a_colliding_basename_cycles_through_every_match_and_wraps", () => {
     ]);
     // the counter says how far through the cycle the viewport is, so an ambiguous term is
     // navigable rather than confusing.
-    assert.match(readCrumbText(), /1 of 3 · \.claude\/launch\.json/);
+    assert.match(readFindStatusText(), /1 of 3 · \.claude\/launch\.json/);
     // exactly ONE bubble stays lit — the previous match is darkened as the cycle advances.
     assert.equal(document.querySelectorAll(".filebox.found").length, 1);
 });
@@ -119,7 +72,7 @@ test("test_a_partial_path_narrows_a_colliding_basename_to_one_bubble", () => {
     // only the one bubble under .vscode matches — .vscode-parent/tasks.json is not a superstring
     // of ".vscode/tasks".
     assert.deepEqual(scrolledPaths, [".vscode/tasks.json"]);
-    assert.match(readCrumbText(), /1 of 1 · \.vscode\/tasks\.json/);
+    assert.match(readFindStatusText(), /1 of 1 · \.vscode\/tasks\.json/);
 });
 
 test("test_an_unmatched_name_reports_instead_of_doing_nothing", () => {
@@ -133,7 +86,7 @@ test("test_an_unmatched_name_reports_instead_of_doing_nothing", () => {
     assert.deepEqual(scrolledPaths, []);
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
     // but the submit is reported, quoting the term back so a typo is visible.
-    assert.equal(readCrumbText(), 'find "no-such-file.txt": no bubble matches');
+    assert.equal(readFindStatusText(), 'find "no-such-file.txt": no bubble matches');
 });
 
 test("test_a_jump_aligns_the_bubbles_top_edge_rather_than_its_middle", () => {
@@ -165,7 +118,7 @@ test("test_an_exact_path_jump_lands_the_same_bubble_however_many_times_it_is_rep
     // both jumps landed the SAME bubble — the root one, not .vscode/tasks.json.
     assert.deepEqual(scrolledPaths, ["tasks.json", "tasks.json"]);
     // and exactly that bubble is lit.
-    assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("title"), "tasks.json");
+    assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("data-path"), "tasks.json");
 });
 
 test("test_an_exact_path_jump_does_not_write_the_find_boxs_counter_into_the_crumb", () => {
@@ -190,8 +143,8 @@ test("test_an_exact_path_with_no_bubble_reports_instead_of_doing_nothing", () =>
     // nothing scrolled and nothing lit.
     assert.deepEqual(scrolledPaths, []);
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
-    // but the crumb names the path and why it has no bubble.
-    assert.match(readCrumbText(), /src\/deleted-long-ago\.ts/);
+    // but the readout names the path and why it has no bubble.
+    assert.match(readFindStatusText(), /src\/deleted-long-ago\.ts/);
 });
 
 test("test_the_enter_key_on_the_box_is_what_submits", () => {
@@ -209,4 +162,62 @@ test("test_the_enter_key_on_the_box_is_what_submits", () => {
     // a NON-Enter keystroke does not submit — the box would otherwise jump on every character.
     box.dispatchEvent(new window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
     assert.deepEqual(scrolledPaths, ["src/reconstruction_cli.ts"]);
+});
+
+test("test_clearing_the_find_box_clears_its_result_readout", () => {
+    // Scenario (task 273): the user reported that emptying the box leaves the last search's
+    // "n of N" on screen against a search they have abandoned. Emptying it must clear the readout,
+    // darken the found bubble, and reset the cycle so the NEXT term starts at its first match
+    // rather than at wherever the abandoned one stopped.
+    // Steps:
+    // open the collision set and cycle twice, so there is both a lit bubble and a counter showing.
+    openFoundPage(COLLIDING_PATHS);
+    jumpToNamedBubble("launch.json");
+    jumpToNamedBubble("launch.json");
+    assert.match(readFindStatusText(), /2 of 3/);
+    // empty the box and fire the input event the browser fires on every keystroke.
+    const box = document.getElementById("find-file") as HTMLInputElement;
+    box.value = "";
+    box.dispatchEvent(new window.Event("input", { bubbles: true }));
+    // the readout is empty rather than reporting an abandoned search.
+    assert.equal(readFindStatusText(), "");
+    // no bubble is left lit against that search either.
+    assert.equal(document.querySelectorAll(".filebox.found").length, 0);
+    // and the cycle restarted: re-typing the same term lands on its FIRST match, not its third.
+    jumpToNamedBubble("launch.json");
+    assert.equal(scrolledPaths.at(-1), ".claude/launch.json");
+});
+
+test("test_the_next_button_steps_forward_through_the_matches", () => {
+    // Scenario (task 271): repeat-Enter was the only way to reach match 2 of 3, which is invisible
+    // as an affordance. The button must do exactly what Enter does, from the box's current text.
+    // Steps:
+    // open the collision set, type an ambiguous term, and submit it once with Enter.
+    openFoundPage(COLLIDING_PATHS);
+    submitTermWithEnter("launch.json");
+    // click Next twice.
+    clickCycleButton("find-next");
+    clickCycleButton("find-next");
+    // the two clicks continued the SAME cycle the Enter started, rather than restarting it.
+    assert.deepEqual(scrolledPaths, [
+        ".claude/launch.json",
+        ".vscode/launch.json",
+        ".vscode-parent/launch.json",
+    ]);
+    assert.match(readFindStatusText(), /3 of 3/);
+});
+
+test("test_the_previous_button_steps_backward_and_wraps", () => {
+    // Scenario (task 271): the user asked for BACKWARD as well as forward — overshooting a match
+    // with Enter otherwise means cycling all the way round to reach it again. Stepping back from
+    // the first match must wrap to the last, mirroring the forward cycle's wrap.
+    // Steps:
+    // open the collision set and submit the ambiguous term once, landing on match 1 of 3.
+    openFoundPage(COLLIDING_PATHS);
+    submitTermWithEnter("launch.json");
+    // click Previous once.
+    clickCycleButton("find-prev");
+    // it wrapped backward to the LAST match rather than sticking on the first.
+    assert.equal(scrolledPaths.at(-1), ".vscode-parent/launch.json");
+    assert.match(readFindStatusText(), /3 of 3/);
 });

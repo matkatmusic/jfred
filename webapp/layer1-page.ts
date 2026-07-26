@@ -11,6 +11,7 @@
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
+import { wireFileNavResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
@@ -39,9 +40,13 @@ function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
     return node;
 }
 
-// The mockup's tick/row label: "MM-DD HH:MM" in UTC.
+// The tick/row label: "MM-DD HH:MM:SS.hh" in UTC. Task 276: the slice used to stop at 16, which cut
+// the label at minutes — so two instants seconds apart rendered as the SAME text and their rows read
+// as duplicates. 22 is the ISO string's index after the second millisecond digit, which is the
+// precision the user asked for ("07-18 19:42:08.22"); the third digit is dropped rather than rounded
+// because this is a label, not a value anything is computed from.
 function formatInstantLabel(instant: string): string {
-    return new Date(instant).toISOString().slice(5, 16).replace("T", " ");
+    return new Date(instant).toISOString().slice(5, 22).replace("T", " ");
 }
 
 // The left gutter's ticks. `ruler` arrives ascending, so one running "last drawn" position is
@@ -86,8 +91,9 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
     );
 }
 
-// One pair's widget: named by its BASENAME, full path on hover (task 245 — a path is unbounded but
-// the bubble is 168 px), offset to its EARLIEST node, a node per commit, on-disk node last.
+// One pair's widget: named by its BASENAME, full path revealed in-page on hover (task 280 — a path
+// is unbounded but the bubble is 168 px), offset to its EARLIEST node, a node per commit, on-disk
+// node last.
 function buildPairWidget(pair: WirePair): HTMLElement {
     // Spans EARLIEST to LATEST whichever KIND each is: an on-disk mtime predating the first commit
     // gave a negative offset, drawing the disk node over the header (247-249). Empty ladder: free.
@@ -108,7 +114,11 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     }
     appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
     return setAxisPx(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, title: pair.path }),
+        // Task 280: the full path on `data-path`, not `title`. A `title` renders as the native
+        // tooltip — delayed, unstyled and gone on the first mouse move — which the user rejected;
+        // the CSS hover rule reveals the whole name in-page instead. Same attribute the find box
+        // and the File Nav's exact-path jump read, so this is also the widget's identity.
+        el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
         el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
         lane,
     ]), startPx);
@@ -212,6 +222,7 @@ export function bootLayer1Page(): void {
     // an empty form and draw nothing — half of S18's "one shareable link".
     fillSourceBoxesFromUrl();
     wireZoomControls();
+    wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();
     wireFolderPickers(() => {

@@ -166,11 +166,15 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     const name = listMatching("#stage .filebox:not(.bucket) .fname")[0]!;
     // the visible label is the basename alone — the directory is what overprinted the neighbours.
     assert.equal(name.textContent, "index.ts");
-    // the hover title is the full wire path, so nothing the endpoint sent is unrecoverable.
-    assert.equal(name.getAttribute("title"), "src/index.ts");
-    // an orphan bucket's title is not a path, so it must NOT gain a title attribute — that is
-    // what proves the change landed on the pair widget's name and not on every .fname el() builds.
-    assert.equal(findBucketTitled("No repository match")?.getAttribute("title"), null);
+    // task 280: the full path lives on `data-path`, NOT on `title` — a `title` is the native
+    // tooltip the user rejected (slow, unstyled, vanishes on movement), and the in-page hover
+    // reveal in layer1-styles.css replaces it. data-path is also what the find box and the File
+    // Nav's exact-path jump match against, so nothing the endpoint sent is unrecoverable.
+    assert.equal(name.getAttribute("data-path"), "src/index.ts");
+    assert.equal(name.hasAttribute("title"), false);
+    // an orphan bucket's heading is not a path, so it must NOT gain one — that is what proves the
+    // change landed on the pair widget's name and not on every .fname el() builds.
+    assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {
@@ -190,7 +194,9 @@ test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", asy
     assert.deepEqual(listTextOf(diskBucket, "li span"), [DISK_ORPHAN.path]);
     assert.equal(readAxisOffsetPx(diskBucket), DISK_ORPHAN.axisPx);
     // each row carries its own timestamp beside its path.
-    assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40"]);
+    // task 276: the label carries seconds and hundredths, not just minutes. Instants seconds apart
+    // rendered as identical text before this, which is what made distinct rows look duplicated.
+    assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40:00.00"]);
 });
 
 test("test_empty_bucket_is_omitted_and_zero_pairs_shows_the_no_pairs_message", async () => {
@@ -223,7 +229,8 @@ test("test_ruler_skips_a_tick_label_that_would_overprint_the_one_above_it", asyn
     await loadPageWithView(buildRulerOnlyView(crowded), BOTH_ROOTS_SEARCH);
     // the 4 px tick is dropped; the 14 px one still clears 13 px from the 0 px tick that DID draw.
     assert.deepEqual(listMatching("#ruler .tick").map(readAxisOffsetPx), [0, 14]);
-    assert.deepEqual(listMatching("#ruler .tick").map((tick) => tick.textContent), ["06-01 09:00", "06-01 14:36"]);
+    assert.deepEqual(listMatching("#ruler .tick").map((tick) => tick.textContent),
+        ["06-01 09:00:00.00", "06-01 14:36:00.00"]);
 });
 
 test("test_the_url_query_seeds_the_header_boxes_and_a_load_mirrors_them_back", async () => {
