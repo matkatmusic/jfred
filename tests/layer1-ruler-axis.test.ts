@@ -19,7 +19,7 @@ import {
     RULER_PIXELS_PER_HOUR,
     layOutNodeLadders,
     resolveInstantOffsets,
-} from "../src/layer1_ruler_axis.ts";
+} from "../webapp/layer1-ruler-axis.ts";
 
 const HOUR_MS = 60 * 60 * 1000;
 const BASE_MS = Date.UTC(2026, 6, 25, 12, 0, 0);

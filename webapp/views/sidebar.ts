@@ -6,6 +6,7 @@
 
 import { el } from "../app-dom.ts";
 import type { CoverageSegment } from "./reconstruction-coverage.ts";
+import { appendCoverageStrip } from "./sidebar-coverage.ts";
 
 // task 119: the segments of each partially-recovered file's coverage strip, keyed by target.
 // Built by reconstruction-render.ts's buildCoverageSegmentsByTarget — files with full coverage
@@ -45,23 +46,37 @@ type FileTreeNode = {
 
 const FOLDER_NODE_KIND = "folder";
 
+// The class marking the row a tree's current selection sits on. Shared by the leaf renderer, the
+// folder renderer (task 253) and clearFileSelectionIn's query, so it is named once.
+const SELECTED_CLASS = "selected";
+
 // What a file tree needs from its owner. The Files sidebar and the details pane's "Files touched"
 // tree (item 84) render the SAME tree with different click meanings, so this is the narrower half
 // of ForkSidebarCallbacks.
 export type FileTreeCallbacks = {
     onFileClick: (target: string) => void;
+    // task 253: a folder click hands over the full paths of every LEAF at or below it, rather than
+    // the folder's own path — buildFileTree strips the common directory prefix and a folder node
+    // carries no path at all, so its descendants' targets are the only full paths the tree holds.
+    // An empty list means the selection was cleared by re-clicking the selected folder.
+    // Optional: only the Layer 1 File Nav filters by folder; the Files sidebar (views/timeline.ts)
+    // and the details pane (views/details.ts) pass nothing and their folders stay inert.
+    onFolderClick?: (targets: string[]) => void;
 };
 
 type ForkSidebarCallbacks = FileTreeCallbacks & {
     onSessionClick: (firstNodeIndex: number) => void;
 };
 
-// Un-mark the active file within ONE tree's container. There are now two trees on screen —
+// Un-mark the active row within ONE tree's container. There are now two trees on screen —
 // #drawer's Files pane and #details-left's "Files touched" (item 84) — and a click in one must not
 // clear the other's selection, so the root is explicit rather than hardcoded to #drawer.
+// The selector is the class alone, not `.file-item.selected`: since task 253 a FOLDER row can hold
+// the selection too, and one folder filter and one selected file must not sit marked at once. The
+// two older callers are unaffected — their trees mark nothing but file rows.
 export function clearFileSelectionIn(root: HTMLElement): void {
-    for (const item of root.querySelectorAll(".file-item.selected")) {
-        item.classList.remove("selected");
+    for (const item of root.querySelectorAll(`.${SELECTED_CLASS}`)) {
+        item.classList.remove(SELECTED_CLASS);
     }
 }
 
@@ -112,12 +127,54 @@ export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallba
         // vertical guide line on its left border.
         const kids = el("div", { class: "file-folder-kids" },
             node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)));
-        return el("details", { class: "file-folder", open: "" }, [
-            el("summary", { class: "file-folder-name", text: node.name }),
-            kids,
-        ]);
+        const summary = el("summary", { class: "file-folder-name", text: node.name });
+        attachFolderClick(summary, node, callbacks, selectionRoot);
+        return el("details", { class: "file-folder", open: "" }, [summary, kids]);
     }
     return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot, coverage);
+}
+
+// task 253: make a folder row select (and re-select off) the files below it. Nothing is attached
+// when the owner declared no folder behaviour, so the two older trees keep inert folders.
+//
+// NO preventDefault and NO stopPropagation: opening and closing the <details> is this very click's
+// DEFAULT ACTION on a <summary>, and cancelling it would trade the pane's expand/collapse for the
+// filter. The "is it already selected" state is read back off the DOM rather than held in a module
+// variable — the row's own class already is that state, and clearFileSelectionIn wipes it in step
+// with every other selection in the tree.
+function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement): void {
+    const onFolderClick = callbacks.onFolderClick;
+    if (onFolderClick === undefined) {
+        return;
+    }
+    // The expand/collapse triangle becomes a REAL element here, so a click on it is distinguishable
+    // by `event.target` — as the row's ::before decoration it was a pseudo-element, which is not an
+    // event target, and reaching for it to see what was inside a folder also filtered the timeline
+    // to it. Added only for an owner that filters by folder; the other two trees keep the CSS-only
+    // marker and need no such distinction.
+    const toggle = el("span", { class: "file-folder-toggle" });
+    summary.prepend(toggle);
+    summary.addEventListener("click", (event) => {
+        // The triangle opens and closes, and does nothing else. Returning early rather than
+        // cancelling the event: opening the <details> is this click's default action either way.
+        if (event.target === toggle) {
+            return;
+        }
+        const wasSelected = summary.classList.contains(SELECTED_CLASS);
+        clearFileSelectionIn(selectionRoot);
+        summary.classList.toggle(SELECTED_CLASS, !wasSelected);
+        onFolderClick(wasSelected ? [] : listDescendantTargets(node));
+    });
+}
+
+// Every file leaf at or below `node`, as full paths. Recurses on the presence of `entry` rather than
+// on `kind`: `entry` is what the leaf renderer actually requires (`node.entry!` below), so the two
+// cannot fall out of step.
+function listDescendantTargets(node: FileTreeNode): string[] {
+    if (node.entry !== undefined) {
+        return [node.entry.target];
+    }
+    return node.children.flatMap(listDescendantTargets);
 }
 
 // One file row: the basename only (item 77 — the full path was truncated to uselessness), with the
@@ -145,7 +202,7 @@ function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbac
     }
     item.addEventListener("click", () => {
         clearFileSelectionIn(selectionRoot);
-        item.classList.add("selected");
+        item.classList.add(SELECTED_CLASS);
         callbacks.onFileClick(entry.target);
     });
     return item;
@@ -155,58 +212,5 @@ function basenameOf(path: string): string {
     return path.slice(path.lastIndexOf("/") + 1);
 }
 
-// ─── task 119: coverage strip + click-for-reason popover ───
-// The one open coverage popover and the segment that opened it (clicking that segment again
-// closes it). One document-level click closes it from anywhere, the toolbar popovers' pattern
-// (app-header.ts) — in-popover and segment clicks stopPropagation to stay open.
-let openCoveragePopover: { segment: HTMLElement; popover: HTMLElement } | undefined;
-
-function hideCoveragePopover(): void {
-    openCoveragePopover?.popover.remove();
-    openCoveragePopover = undefined;
-}
-// Guarded like app.ts's bootstrap: the node test suite imports this module without a DOM.
-if (typeof document !== "undefined") {
-    document.addEventListener("click", hideCoveragePopover);
-}
-
-// The strip on a partially-recovered file's row: one segment per revision (red = unrecoverable,
-// click for the reason popover) and "<recovered> / <total> revs" in place of the plain count.
-function appendCoverageStrip(item: HTMLElement, target: string, segments: CoverageSegment[]): void {
-    item.append(el("span", { class: "covbar" },
-        segments.map((segment) => buildCoverageSegmentElement(item, target, segment))));
-    const recovered = segments.filter((segment) => segment.recovered).length;
-    item.append(el("span", { class: "revcount", text: `${recovered} / ${segments.length} revs` }));
-}
-
-// One strip segment; a red (unrecovered) one toggles the reason popover under the row. The
-// stopPropagation keeps the click from also selecting the file row (and from the document-level
-// closer instantly hiding the popover it just opened).
-function buildCoverageSegmentElement(item: HTMLElement, target: string, segment: CoverageSegment): HTMLElement {
-    const cell = el("span", { class: segment.recovered ? "" : "miss" });
-    if (!segment.recovered) {
-        cell.addEventListener("click", (event) => {
-            event.stopPropagation();
-            toggleCoveragePopover(cell, item, target, segment);
-        });
-    }
-    return cell;
-}
-
-// Show (or hide, when its own segment is re-clicked) the reason popover, inserted into the
-// flow right under the segment's file row.
-function toggleCoveragePopover(cell: HTMLElement, item: HTMLElement, target: string, segment: CoverageSegment): void {
-    const wasOpen = openCoveragePopover?.segment === cell;
-    hideCoveragePopover();
-    if (wasOpen) {
-        return;
-    }
-    const popover = el("div", { class: "popover cov-popover" }, [
-        el("div", { text: `${target} — rev ${segment.revisionIndex + 1} ✗ unrecoverable` }),
-        el("div", { class: "muted", text: `reason: ${segment.reason ?? "unknown"}` }),
-    ]);
-    popover.addEventListener("click", (event) => event.stopPropagation());
-    item.after(popover);
-    openCoveragePopover = { segment: cell, popover };
-}
-
+// Coverage strip + reason popover (task 119): moved to views/sidebar-coverage.ts (task 253 — the
+// 250-line cap; split, never condense).

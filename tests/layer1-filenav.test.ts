@@ -25,7 +25,9 @@ const NAV_VIEW = {
 async function renderNavIntoNewContainer(): Promise<HTMLElement> {
     const { renderFileNavInto } = await import("../webapp/layer1-filenav.ts");
     const container = document.createElement("div");
-    renderFileNavInto(container, NAV_VIEW);
+    // Folder clicks are tests/layer1-folder-filter.test.ts's subject; this file is about what the
+    // pane LISTS, so the selection callback is a no-op here.
+    renderFileNavInto(container, NAV_VIEW, () => {});
     return container;
 }
 

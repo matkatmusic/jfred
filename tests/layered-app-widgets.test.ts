@@ -8,7 +8,7 @@ import { flushAsyncWork, setupLayeredDom, stubFetchRoutes } from "./webapp-dom-t
 
 // The four distinct instants of the fixture below, resolved to their places on the one shared
 // ruler. Task 239 / spec S18: the capped-gap ruler ACCUMULATES, so the server resolves every
-// instant once (src/layer1_ruler_axis.ts) and ships the finished pixels; the page only subtracts
+// instant once (webapp/layer1-ruler-axis.ts) and ships the finished pixels; the page only subtracts
 // two of them. The fixture therefore STATES the offsets — round numbers chosen for readability —
 // rather than re-deriving the cap here, exactly as it states corroboratedInstants rather than
 // re-running the S5 merge. tests/viewer_api_layered.test.ts covers the resolver's real values.

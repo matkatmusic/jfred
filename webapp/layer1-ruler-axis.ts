@@ -19,8 +19,16 @@
 // offset already carries its row within its own instant, so the page still does no arithmetic.
 // Bounds fall out of the same ordered set: the first entry is the start (a disk orphan predating
 // the first commit legitimately moves the start earlier) and the last is the end.
+//
+// This module lives in webapp/ rather than src/ because BOTH the endpoint (src/viewer_api_layer1.ts)
+// and the page (webapp/layer1-filter.ts, task 253) must lay instants out identically — a folder
+// filter re-runs this layout over the SURVIVING instants client-side, and a second copy of the gap
+// arithmetic would let the filtered ruler drift from the one the server shipped.
 
-import type { Instant } from "./layered_types.ts";
+// `Instant` is `Date` (src/layered_types.ts). Re-declared rather than imported because
+// tsconfig.webapp.json's rootDir is "webapp": a src/ import — even a type-only one — pulls a file
+// outside that rootDir into the emitting program and tsc rejects it.
+type Instant = Date;
 
 const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
 

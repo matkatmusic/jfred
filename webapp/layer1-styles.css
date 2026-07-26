@@ -276,13 +276,24 @@
   .file-item.selected .revcount { color: #e8f6f0; }
   /* A repo file with no on-disk presence: still listed, shown as gone. */
   .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
+  /* display: flex so the triangle can sit ahead of the ::before folder icon. The triangle is a real
+     <span> on this page only (webapp/views/sidebar.ts's attachFolderClick) because clicking it must
+     open the folder WITHOUT selecting it, and a pseudo-element cannot be an event target; `order`
+     is what keeps the rendered glyph order "▸ 📁" while the span stays the summary's first child. */
   .file-folder > summary { padding: 3px 10px; font: 600 11px ui-monospace, Menlo, monospace;
-    color: var(--ink); cursor: pointer; white-space: nowrap; list-style: none; }
+    color: var(--ink); cursor: pointer; white-space: nowrap; list-style: none; display: flex; }
   .file-folder > summary::-webkit-details-marker { display: none; }
-  .file-folder > summary::before { content: "▸ 📁"; display: inline-block; width: 34px;
+  .file-folder > summary::before { content: "📁"; display: inline-block; width: 21px;
     color: var(--muted); }
-  .file-folder[open] > summary::before { content: "▾ 📁"; }
+  .file-folder > summary > .file-folder-toggle { order: -1; display: inline-block; width: 13px;
+    color: var(--muted); }
+  .file-folder > summary > .file-folder-toggle::before { content: "▸"; }
+  .file-folder[open] > summary > .file-folder-toggle::before { content: "▾"; }
   .file-folder > summary:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  /* Task 253: the folder driving the current timeline filter. Same treatment as .file-item.selected
+     above so the pane speaks one selection language; re-clicking it clears the filter. Only Layer 1
+     filters by folder, so this rule has no counterpart in webapp/styles.css. */
+  .file-folder > summary.selected { background: var(--sel-edge); color: #fff; }
   .file-folder > .file-folder-kids { margin-left: 16px; border-left: 1px solid var(--grid); }
 
   /* Task 269: `left` clears BOTH the File Nav and the sticky ruler gutter. The minimap is absolute

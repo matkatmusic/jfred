@@ -11,6 +11,7 @@
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
+import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
@@ -18,38 +19,8 @@ import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
+import type { WireInstant, WireLayer1View, WireOrphan, WirePair } from "./layer1-wire.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
-
-// What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as
-// ISO text, so these are NOT src/viewer_api_layer1.ts's Layer1Wire* types (same naming convention
-// as webapp/layered-app.ts's Wire* mirrors).
-interface WireInstant {
-    instant: string;
-    axisPx: number;
-}
-
-interface WireCommit extends WireInstant {
-    hash: string;
-}
-
-interface WirePair {
-    path: string;
-    // Oldest first, as the endpoint emits them.
-    commits: WireCommit[];
-    onDisk: WireInstant;
-}
-
-interface WireOrphan extends WireInstant {
-    path: string;
-}
-
-interface WireLayer1View {
-    pairs: WirePair[];
-    gitOrphans: WireOrphan[];
-    diskOrphans: WireOrphan[];
-    // Every distinct instant the view draws, ascending.
-    ruler: WireInstant[];
-}
 
 // Minimum vertical distance between two tick LABELS, in px (the mockup's collision skip). At the
 // locked 2.5 px/hour two commits minutes apart resolve under 1 px, so without this the ruler
@@ -173,14 +144,17 @@ function buildStagePairs(pairs: WirePair[]): HTMLElement[] {
     return pairs.map(buildPairWidget);
 }
 
-// Draw a fetched view: the crumb, the ruler gutter, the pair widgets and the two buckets.
-export function renderLayer1View(view: WireLayer1View): void {
+// Everything the crumb, the ruler gutter and the stage draw for ONE view. Exported for task 253:
+// a folder filter redraws the timeline from its own filtered, re-laid-out view while the File Nav
+// is left standing — the nav is the control that SET the filter, so redrawing it would both shrink
+// it to the filtered set and wipe the folder's selected class and expanded state.
+//
+// The crumb's counts are inside, so a filter reports how many records survived it — the only
+// on-screen reading of how much the filter removed, and it costs nothing.
+export function renderLayer1Stage(view: WireLayer1View): void {
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
     renderRulerTicks(view.ruler);
-    // Task 252: nothing measures the nav, so its position among these calls is free — it sits with
-    // the other gutter-side render rather than among the stage's.
-    renderLayer1FileNav(view);
     renderLeaderLines(view.ruler);
     const buckets = [
         // gitOrphans = in the repo, absent from disk. diskOrphans = on disk, absent from the repo.
@@ -193,6 +167,15 @@ export function renderLayer1View(view: WireLayer1View): void {
     );
     // Task 246: the minimap MEASURES the widgets it maps, so it is drawn after they are in the DOM.
     drawLayer1Minimap();
+}
+
+// Draw a FETCHED view: the File Nav over every file it holds, then the stage.
+// The nav is drawn only here, and `view` is captured by the folder callback — so every later folder
+// click re-filters from the unfiltered payload rather than from whatever the previous filter left on
+// screen, and an empty selection restores the whole view without another fetch.
+export function renderLayer1View(view: WireLayer1View): void {
+    renderLayer1FileNav(view, (targets) => renderLayer1Stage(filterLayer1ViewByTargets(view, targets)));
+    renderLayer1Stage(view);
 }
 
 // Fetch and draw the view for whatever the boxes currently hold, mirroring them into the URL

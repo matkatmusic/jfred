@@ -55,15 +55,21 @@ export function listFileNavEntries(view: FileNavView) {
 // counter are both wrong here: clicking `.gitignore` twice must land the same bubble twice, and the
 // root `.gitignore` path is a substring of every nested one, so no substring rule could pick it.
 // An ORPHAN has no bubble of its own — it lives in a bucket — and jumpToBubbleAtPath reports that
-// into the crumb; scrolling to the owning bucket is this pane's task-253/254/255 behaviour.
-export function renderFileNavInto(container: HTMLElement, view: FileNavView): void {
+// into the crumb.
+//
+// `onFolderSelect` is task 253's timeline filter: a folder click hands back the full paths of every
+// file at or below it, or an empty list when re-clicking the selected folder cleared it. The nav
+// only REPORTS the selection — it neither filters nor redraws, which is what lets the page leave
+// this pane standing (still listing every file, still holding the folder's own selected/expanded
+// state) while the stage beside it is redrawn from the filtered set.
+export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void): void {
     container.replaceChildren(
-        ...buildFileTree(listFileNavEntries(view))
-            .map((node) => renderFileTreeNode(node, { onFileClick: jumpToBubbleAtPath }, container)),
+        ...buildFileTree(listFileNavEntries(view)).map((node) =>
+            renderFileTreeNode(node, { onFileClick: jumpToBubbleAtPath, onFolderClick: onFolderSelect }, container)),
     );
 }
 
 // The page-facing wrapper: the nav's one host element on layer1.html.
-export function renderLayer1FileNav(view: FileNavView): void {
-    renderFileNavInto(getRequiredElementById("filenav-tree"), view);
+export function renderLayer1FileNav(view: FileNavView, onFolderSelect: (targets: string[]) => void): void {
+    renderFileNavInto(getRequiredElementById("filenav-tree"), view, onFolderSelect);
 }

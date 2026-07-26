@@ -2,7 +2,7 @@
 // GET /api/layer1-view supplies. The wire is FROZEN and carries ABSOLUTE axisPx on every node, so
 // the page's one permitted arithmetic operation — subtracting a widget's own base offset — is what
 // these tests prove. No timestamp below is converted to a pixel: the fixtures STATE the offsets,
-// exactly as tests/layered-app-widgets.test.ts does (tests/layer1_ruler_axis.test.ts and task 240
+// exactly as tests/layered-app-widgets.test.ts does (tests/layer1-ruler-axis.test.ts and task 240
 // cover the resolver's real values). Expected offsets are read back off the fixture rows rather
 // than repeated as literals — a renumbered fixture must not leave a stale expectation behind.
 

@@ -50,7 +50,7 @@ interface WireEntity {
 // Every instant in the graph, keyed by the same ISO text the nodes carry, already resolved to its
 // place on the one shared ruler by the server (task 239 / spec S18). The S18 ruler's gap cap
 // ACCUMULATES, so an offset cannot be recovered from one instant — the page never tries, it looks
-// the finished number up. `resolveInstantOffsets` (src/layer1_ruler_axis.ts) is the one producer;
+// the finished number up. `resolveInstantOffsets` (webapp/layer1-ruler-axis.ts) is the one producer;
 // webapp/ may not import src/, so the value travels on the wire like `corroboratedInstants` does.
 type AxisOffsetsPx = Record<string, number>;
 

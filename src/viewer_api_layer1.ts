@@ -8,7 +8,7 @@ import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts";
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
-import { layOutNodeLadders, type NodeLadder } from "./layer1_ruler_axis.ts";
+import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
