@@ -75,6 +75,13 @@
          tree on every load, reusing the same tree the main webapp's Files pane renders. -->
     <aside class="filenav">
       <div class="filenav-title">File Nav</div>
+      <!-- Task 281: the nav's OWN search box. It narrows this tree and nothing else — the
+           find-bubble box above scrolls the timeline, which is a different job, so neither box
+           reads the other's text. Inside the <aside> so it moves and resizes with the pane. -->
+      <div class="filenav-search">
+        <input id="filenav-search" type="text" placeholder="search files...">
+        <button id="filenav-search-clear" title="Clear the file search">×</button>
+      </div>
       <div id="filenav-tree"></div>
     </aside>
     <!-- Task 279: the File Nav's drag handle. A sibling of the pane rather than a child of it,

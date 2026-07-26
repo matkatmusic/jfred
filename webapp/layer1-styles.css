@@ -126,11 +126,19 @@
      short of the ruler (task 262); those 14 px are `.canvas`'s gap now, so no widget moved.
      Task 276 widened both — the label is now "MM-DD HH:MM:SS.hh" (17 characters at 10 px), and
      --rail-x keeps the same 10 px of clearance between the label's right edge and the rail that
-     the 70/80 pair had. */
-  .ruler { --rail-x: 118px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+     the 70/80 pair had.
+     Task 275 widened them again, and the width is DERIVED: the row now reads
+     "MM-DD HH:MM:SS.hh (n)" and a merged row (task 268) sums the counts it absorbed, so allow three
+     digits — 23 characters. ui-monospace/Menlo advances 0.6em, so 23 x 10 x 0.6 = 138 px, rounded
+     to 140. `white-space: nowrap` is the actual guarantee the user asked for ("put the (num) on the
+     same line as the timestamp, don't wrap it"): the width keeps the label off the rail, nowrap
+     keeps it on one line even if a count ever exceeds three digits. --rail-x again keeps 10 px of
+     clearance. */
+  .ruler { --rail-x: 150px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
-  .ruler .tick { position: absolute; left: 0; width: 108px; text-align: right; top: calc(var(--axis-px) * 1px);
-    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
+  .ruler .tick { position: absolute; left: 0; width: 140px; text-align: right; top: calc(var(--axis-px) * 1px);
+    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+    transform: translateY(-50%); }
 
   .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
 
@@ -201,7 +209,12 @@
      padding box (164 px on a 168 px bubble); minus the 12 px `left` and a matching 12 px on the
      right it spans exactly the content width and ellipsises inside its own border. The trailing
      ellipsis is only correct because the renderer now passes the BASENAME — on a full path the
-     shared leading directory would survive and the distinguishing tail would be what got cut. */
+     shared leading directory would survive and the distinguishing tail would be what got cut.
+
+     Task 270 briefly wrapped this name onto a second clamped line. REVERTED on user feedback
+     2026-07-26: "the previous truncated + mouse-over-to-show-full name works better than the
+     word-wrapped version". One ellipsised line at rest, full name on hover (the rule below) is the
+     settled treatment — the reveal is what makes a long name readable, not the resting state. */
   .filebox .fname { position: absolute; top: 7px; left: 12px;
     max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
@@ -213,7 +226,9 @@
      z-index 7 is DERIVED, not chosen — above `.node`'s 6 so the revealed name covers the
      neighbouring bubbles' dots and labels, below `.ruler`'s 8 so it still scrolls under the sticky
      gutter rather than over it. `margin-left` cancels the padding so the text does not shift
-     sideways under the cursor as it is revealed. No JS: this is a pure :hover state. */
+     sideways under the cursor as it is revealed. No JS: this is a pure :hover state.
+     User-confirmed 2026-07-26 as the answer to task 270: this reveal, not a wrapped resting name,
+     is how a long name becomes readable. */
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7;
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
   .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
@@ -287,6 +302,23 @@
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 
+  /* Task 281: the nav's own search box. The input's font/padding/border/radius/focus values are
+     `.sources input`'s verbatim (lines 71-73) — the page now has two search boxes and two visual
+     treatments would read as two unrelated widgets. They are repeated rather than shared because a
+     common selector would have to reach across two unrelated blocks for four declarations.
+     `position: sticky` is load-bearing: `.filenav` is `overflow: auto` and a real project lists
+     ~800 files, so a box in normal flow scrolls out of reach exactly when it is wanted. It sticks
+     to the pane's top edge and needs the opaque background to cover the rows passing under it.
+     `min-width: 0` on the input lets it shrink with the draggable pane instead of forcing the
+     clear button out of the row. */
+  .filenav-search { display: flex; gap: 4px; padding: 0 10px 6px;
+    position: sticky; top: 0; z-index: 1; background: var(--surface); }
+  .filenav-search input { flex: 1; min-width: 0; box-sizing: border-box;
+    font: 11.5px ui-monospace, Menlo, monospace; padding: 4px 8px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
+  .filenav-search input:focus { outline: none; border-color: var(--sel-edge); }
+  .filenav-search button { flex: none; padding: 3px 8px; }
+
   /* Task 279: the drag handle, straddling the pane's right edge — 6 px wide and centred on it, so
      the whole edge is grabbable rather than one corner. `position: absolute` against .stagewrap
      puts it in the same coordinate space as .minimap and keeps it out of the flex row, so grabbing
@@ -335,11 +367,12 @@
   /* Task 269: `left` clears BOTH the File Nav and the sticky ruler gutter. The minimap is absolute
      against .stagewrap, so its origin is the nav's left edge, not the timeline pane's: the pane's
      width is now the shared `--filenav-w` property (task 279) rather than a repeated literal, so a
-     drag of the File Nav's edge moves the minimap with it. 120px is the gutter (`.ruler`'s
-     `--rail-x` 118px after task 276, plus the rail's own 2px border), and 12px is the inset. The
+     drag of the File Nav's edge moves the minimap with it. 152px is the gutter (`.ruler`'s
+     `--rail-x` 150px after task 275, plus the rail's own 2px border), and 12px is the inset. The
      gutter number still repeats `.ruler`'s value because a property set there is not in scope
-     here. */
-  .minimap { position: absolute; left: calc(var(--filenav-w) + 120px + 12px); bottom: 12px; z-index: 20;
+     here — widen the gutter and this literal must be widened in step, or the minimap slides back
+     over it. */
+  .minimap { position: absolute; left: calc(var(--filenav-w) + 152px + 12px); bottom: 12px; z-index: 20;
     width: 176px; height: 124px; padding: 6px; cursor: crosshair;
     border: 1px solid var(--border); border-radius: 8px;
     background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }

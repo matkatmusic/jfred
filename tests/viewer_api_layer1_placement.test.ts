@@ -112,6 +112,11 @@ test("test_layer1_view_endpoint_returns_the_ruler_ticks_ascending_with_the_gap_c
     assert.deepEqual(view.ruler.map((position) => position.axisPx), [
         EARLY_DISK_ORPHAN_PX, FIRST_COMMIT_PX, SECOND_COMMIT_PX, SHARED_FILE_PX, DISK_ONLY_FILE_PX,
     ]);
+    // task 275: each tick also carries how many EVENTS happened at it — every node the view draws
+    // there, across all bubbles. The first commit counts TWO (shared.txt's commit node and the
+    // repo-only.txt bucket row it also placed), which is the case that proves the count spans
+    // bubbles rather than being a per-bubble number; every other instant is drawn once.
+    assert.deepEqual(view.ruler.map((position) => position.eventCount), [1, 2, 1, 1, 1]);
 });
 
 test("test_layer1_view_endpoint_places_each_orphan_bucket_row_at_its_own_instant", async () => {

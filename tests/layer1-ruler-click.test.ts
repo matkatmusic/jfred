@@ -57,13 +57,34 @@ const BEGINNING_PAIR = {
     onDisk: AT_LATE,
 };
 
-// Both pairs on one ruler. `ruler` is ascending, as the endpoint emits it.
+// Both pairs on one ruler. `ruler` is ascending, as the endpoint emits it. Every entry carries task
+// 275's event count because the gutter refuses to draw one without it; the numbers are the real
+// tallies (the shared instant is drawn by both bubbles), though nothing here asserts on them.
 function buildSharedInstantView(): object {
     return {
         pairs: [SPANNING_PAIR, BEGINNING_PAIR],
         gitOrphans: [],
         diskOrphans: [],
-        ruler: [AT_EARLY, AT_SHARED, AT_HELD, AT_LATE],
+        ruler: [
+            { ...AT_EARLY, eventCount: 1 },
+            { ...AT_SHARED, eventCount: 2 },
+            { ...AT_HELD, eventCount: 1 },
+            { ...AT_LATE, eventCount: 1 },
+        ],
+    };
+}
+
+// A view whose ONLY record is a two-row disk-orphan bucket. A bucket draws no `.node`, so before
+// task 266 the second row's instant had nothing the click lookup could see.
+const BUCKET_FIRST = { path: "notes.txt", instant: "2026-06-20T09:00:00.000Z", axisPx: 200 };
+const BUCKET_SECOND = { path: "scratch.txt", instant: "2026-06-22T09:00:00.000Z", axisPx: 240 };
+
+function buildBucketOnlyView(): object {
+    return {
+        pairs: [],
+        gitOrphans: [],
+        diskOrphans: [BUCKET_FIRST, BUCKET_SECOND],
+        ruler: [{ ...BUCKET_FIRST, eventCount: 1 }, { ...BUCKET_SECOND, eventCount: 1 }],
     };
 }
 
@@ -106,9 +127,16 @@ function clickRulerTickAt(axisPx: number): void {
 }
 
 // A bubble's identity is its file NAME, never its position — an off-by-one in the stage-1 search
-// must not pass because the right index happened to be picked.
-function readBubbleName(bubble: HTMLElement): string | null | undefined {
-    return bubble.querySelector(".fname")?.textContent;
+// must not pass because the right index happened to be picked. The scroll target may be a ROW
+// INSIDE a bubble rather than the bubble itself (task 266), so the name is read off whichever
+// `.filebox` encloses it.
+function readBubbleName(target: HTMLElement): string | null | undefined {
+    return target.closest(".filebox")?.querySelector(".fname")?.textContent;
+}
+
+// The widget-relative offset an element was drawn at — the value the click lookup matches on.
+function readAxisPx(element: HTMLElement): number {
+    return Number(element.style.getPropertyValue("--axis-px"));
 }
 
 test("test_clicking_a_shared_tick_centers_the_bubble_that_begins_there", async () => {
@@ -124,13 +152,13 @@ test("test_clicking_a_shared_tick_centers_the_bubble_that_begins_there", async (
     // that merely holds a node on it, which is what a one-stage search would have returned.
     assert.equal(requests.length, 1);
     assert.equal(readBubbleName(requests[0]!.target), "beginning.ts");
-    // task 277: the bubble's TOP is aligned, not its middle — a bubble is as tall as its own ladder
-    // span, so centring one vertically puts its name and first node above the pane. Horizontally it
-    // is still centred, because the canvas is oversized sideways too.
-    assert.deepEqual(requests[0]!.options, { block: "start", inline: "center" });
+    // task 266: the row the reader clicked is already on screen, so the jump must not move it
+    // vertically at all — `nearest` scrolls only if the target is out of view. Horizontally it is
+    // centred, because the stage is oversized sideways and that IS the jump.
+    assert.deepEqual(requests[0]!.options, { block: "nearest", inline: "center" });
 });
 
-test("test_clicking_a_tick_no_bubble_begins_at_centers_the_bubble_holding_that_node", async () => {
+test("test_clicking_a_tick_no_bubble_begins_at_scrolls_to_the_row_at_that_instant", async () => {
     // Scenario (task 260, stage 2 — the user's words): "if no bubble starts there, scroll to the
     // node at that timestamp". HELD_PX carries the first pair's on-disk node and nothing begins on
     // it, so the fallback is the only thing that can answer this click.
@@ -140,10 +168,50 @@ test("test_clicking_a_tick_no_bubble_begins_at_centers_the_bubble_holding_that_n
     const requests = recordScrollRequests();
     // click a ruler row no bubble begins at.
     clickRulerTickAt(HELD_PX);
-    // the bubble CONTAINING the node at that instant is centered — node offsets are widget-relative,
-    // so this only resolves if the lookup adds the bubble's own base offset back on.
+    // the bubble CONTAINING the node at that instant is brought across — node offsets are
+    // widget-relative, so this only resolves if the lookup adds the bubble's own base offset back on.
     assert.equal(requests.length, 1);
     assert.equal(readBubbleName(requests[0]!.target), "spanning.ts");
+});
+
+test("test_a_stage_two_click_targets_the_clicked_row_and_not_the_bubbles_top", async () => {
+    // Scenario (task 266): the reported bug. spanning.ts BEGINS at EARLY_PX but holds the clicked
+    // instant at HELD_PX, 80 px further down its ladder. Handing scrollIntoView the BUBBLE aligns
+    // whatever block option is in force against EARLY_PX — which over the real render put the
+    // clicked row a median 1,870 px outside the pane. The target must be the row at HELD_PX itself,
+    // and the scroll must not move it vertically.
+    // Steps:
+    // draw both pairs and click the row only spanning.ts's on-disk node stands on.
+    await loadPageWithView(buildSharedInstantView());
+    const requests = recordScrollRequests();
+    clickRulerTickAt(HELD_PX);
+    // the target is a NODE inside the bubble, not the `.filebox` — the thing actually drawn at the
+    // clicked instant.
+    const target = requests[0]!.target;
+    assert.ok(target.classList.contains("node"), `scrolled a ${target.className} rather than a node`);
+    // and it is the node whose absolute offset IS the clicked instant: its own widget-relative
+    // offset plus its bubble's base. A bubble-shaped target would read EARLY_PX here instead.
+    const bubblePx = readAxisPx(target.closest(".filebox") as HTMLElement);
+    assert.equal(bubblePx, EARLY_PX);
+    assert.equal(bubblePx + readAxisPx(target), HELD_PX);
+    // vertically nothing is forced, so the row the reader clicked stays where it was.
+    assert.deepEqual(requests[0]!.options, { block: "nearest", inline: "center" });
+});
+
+test("test_a_ruler_row_only_an_orphan_bucket_holds_is_still_clickable", async () => {
+    // Scenario (task 266): a bucket renders a `ul`/`li` list and no `.node`, so stage 2 was blind to
+    // every bucket row except the earliest — which stage 1 catches only because it is the bucket's
+    // own `--axis-px`. Over the real render two ruler rows resolved to nothing at all and answered a
+    // click in silence, which is indistinguishable from the feature being broken.
+    // Steps:
+    // draw a view whose only records are two disk orphans, and click the LATER one's row.
+    await loadPageWithView(buildBucketOnlyView());
+    const requests = recordScrollRequests();
+    clickRulerTickAt(BUCKET_SECOND.axisPx);
+    // the bucket holding that row was asked to scroll — the row itself, inside it.
+    assert.equal(requests.length, 1);
+    assert.equal(readBubbleName(requests[0]!.target), "No repository match");
+    assert.equal(requests[0]!.target.tagName, "LI");
 });
 
 test("test_every_drawn_ruler_row_is_clickable", async () => {

@@ -15,6 +15,13 @@ export interface WireCommit extends WireInstant {
     hash: string;
 }
 
+// One RULER entry. Its own type rather than a widened WireInstant: every commit, orphan and on-disk
+// node is a WireInstant too, and none of them carries a count (task 275).
+export interface WireRulerTick extends WireInstant {
+    // How many nodes the view draws at this instant, across every bubble.
+    eventCount: number;
+}
+
 export interface WirePair {
     path: string;
     // Oldest first, as the endpoint emits them.
@@ -31,5 +38,5 @@ export interface WireLayer1View {
     gitOrphans: WireOrphan[];
     diskOrphans: WireOrphan[];
     // Every distinct instant the view draws, ascending.
-    ruler: WireInstant[];
+    ruler: WireRulerTick[];
 }

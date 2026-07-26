@@ -29,7 +29,14 @@ const FULL_VIEW = {
     ],
     gitOrphans: [],
     diskOrphans: [],
-    ruler: [{ instant: T0, axisPx: 0 }, { instant: T1, axisPx: 22 }, { instant: T2, axisPx: 44 }],
+    // eventCount is task 275's per-instant node tally: T0 is a.ts's and c.ts's first commit, T1 is
+    // a.ts landing on disk plus b.ts's commit, T2 is b.ts's and c.ts's disk mtime. Nothing here
+    // asserts on it — the ruler gutter refuses to draw an entry without one.
+    ruler: [
+        { instant: T0, axisPx: 0, eventCount: 2 },
+        { instant: T1, axisPx: 22, eventCount: 2 },
+        { instant: T2, axisPx: 44, eventCount: 2 },
+    ],
 };
 
 // The full path of every element scrollIntoView was called on, in call order.

@@ -38,6 +38,15 @@ export interface Layer1WireCommit extends Layer1WireInstant {
     hash: string;
 }
 
+// One RULER entry. Its own type rather than a widened Layer1WireInstant: every commit, orphan and
+// on-disk node is one of those too, and none of them carries a count.
+export interface Layer1WireRulerTick extends Layer1WireInstant {
+    // Task 275: how many nodes the view draws at this instant, across every bubble — "how many
+    // events occurred at that timestamp", which the gutter prints after the label. Measured by
+    // layOutNodeLadders so the client-side re-layout a folder filter runs produces the same number.
+    eventCount: number;
+}
+
 // One pair: its path relative to BOTH roots, the commits that touched it (oldest first), and its
 // current on-disk state — S18's final node.
 export interface Layer1WirePair {
@@ -59,7 +68,7 @@ export interface Layer1WireView {
     gitOrphans: Layer1WireOrphan[];
     diskOrphans: Layer1WireOrphan[];
     // Every distinct instant the view draws, ascending — the page's ruler ticks.
-    ruler: Layer1WireInstant[];
+    ruler: Layer1WireRulerTick[];
 }
 
 // One git-orphan path with the instant that places it, before the axis is resolved.
@@ -198,6 +207,10 @@ export function buildLayer1View(
             path: file.relativePath,
             ...placeInstantOnAxis(offsets, file.mtime),
         }))),
-        ruler: layout.ticks.map((tick) => ({ instant: tick.instant, axisPx: tick.offsetPx })),
+        ruler: layout.ticks.map((tick) => ({
+            instant: tick.instant,
+            axisPx: tick.offsetPx,
+            eventCount: tick.eventCount,
+        })),
     };
 }

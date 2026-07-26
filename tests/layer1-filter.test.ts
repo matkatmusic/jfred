@@ -46,8 +46,16 @@ const FULL_VIEW: WireLayer1View = {
     ],
     gitOrphans: [{ path: "src/drop/gone.ts", instant: T7, axisPx: 198 }],
     diskOrphans: [{ path: "src/keep/extra.ts", instant: T2, axisPx: 66 }],
-    ruler: [EARLY, T0, T1, T2, T3, T4, T5, T6, T7].map((instant, index) =>
-        ({ instant, axisPx: [0, 22, 44, 66, 88, 132, 154, 176, 198][index]! })),
+    // eventCount is task 275's per-instant node tally across every bubble. T2 and T3 each carry two
+    // (T2 is a.ts's second commit plus the extra.ts disk orphan; T3 is b.ts committing and landing
+    // on disk in the same moment), and every other instant is drawn by exactly one node. The filter
+    // RE-MEASURES these rather than carrying them over, so the expectations below drop with the
+    // records they counted.
+    ruler: [EARLY, T0, T1, T2, T3, T4, T5, T6, T7].map((instant, index) => ({
+        instant,
+        axisPx: [0, 22, 44, 66, 88, 132, 154, 176, 198][index]!,
+        eventCount: [1, 1, 1, 2, 2, 1, 1, 1, 1][index]!,
+    })),
 };
 
 function findPair(view: WireLayer1View, path: string) {

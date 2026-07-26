@@ -16,6 +16,17 @@ interface FixtureInstant {
     axisPx: number;
 }
 
+// One RULER entry: a placed moment plus the number of events the endpoint measured there (task
+// 275), which the gutter prints after the label as "(n)".
+interface FixtureRulerTick extends FixtureInstant {
+    eventCount: number;
+}
+
+// Every instant in these fixtures is drawn by exactly ONE node, so each ruler entry counts 1.
+function countOneEventAt(entry: FixtureInstant): FixtureRulerTick {
+    return { ...entry, eventCount: 1 };
+}
+
 // One commit node of the pair's ladder.
 interface FixtureCommit extends FixtureInstant {
     hash: string;
@@ -38,11 +49,12 @@ const GIT_ORPHAN = { path: "docs/old-api.md", instant: "2026-07-20T16:00:00.000Z
 const DISK_ORPHAN = { path: "notes.txt", instant: "2026-07-23T19:40:00.000Z", axisPx: 52 };
 
 // Every distinct instant the view draws, ascending. Adjacent offsets sit 14 px apart — clear of
-// the page's 13 px tick-label collision threshold — so all five draw and no assertion below
-// accidentally exercises the skip, which has its own test.
-const RULER: FixtureInstant[] = [
+// the 13 px tick-label collision threshold — and every label is distinct, so all five draw and no
+// assertion below accidentally exercises a merge; which entries become rows is
+// tests/layer1-ruler-rows.test.ts's subject.
+const RULER: FixtureRulerTick[] = [
     PAIR_COMMITS[0]!, PAIR_COMMITS[1]!, GIT_ORPHAN, DISK_ORPHAN, PAIR_ON_DISK,
-];
+].map(countOneEventAt);
 
 // The widget's subtraction base: its FIRST commit's absolute ruler position.
 const WIDGET_BASE_PX = PAIR_COMMITS[0]!.axisPx;
@@ -60,13 +72,8 @@ function buildDiskOnlyView(): object {
         pairs: [],
         gitOrphans: [],
         diskOrphans: [DISK_ORPHAN],
-        ruler: [DISK_ORPHAN],
+        ruler: [countOneEventAt(DISK_ORPHAN)],
     };
-}
-
-// A view whose only content is a ruler — used to drive the tick-label collision skip on its own.
-function buildRulerOnlyView(ruler: FixtureInstant[]): object {
-    return { pairs: [], gitOrphans: [], diskOrphans: [], ruler };
 }
 
 // Set up a fresh page whose URL already names both roots, stub the endpoint, and boot it.
@@ -134,6 +141,12 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
     assert.equal(lane.style.getPropertyValue("--span-px"), String(PAIR_ON_DISK.axisPx - WIDGET_BASE_PX));
     // the ruler gutter draws every supplied tick at the endpoint's own pixels.
     assert.deepEqual(listMatching("#ruler .tick").map(readAxisOffsetPx), RULER.map((tick) => tick.axisPx));
+    // task 275: each row reads "<timestamp> (<events>)", the count coming off the wire rather than
+    // being derived here — every instant in this fixture is drawn by one node, so each reads (1).
+    assert.deepEqual(listMatching("#ruler .tick").map((tick) => tick.textContent), [
+        "06-01 09:00:00.00 (1)", "06-01 14:30:00.00 (1)", "07-20 16:00:00.00 (1)",
+        "07-23 19:40:00.00 (1)", "07-24 08:15:00.00 (1)",
+    ]);
 });
 
 test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover", async () => {
@@ -214,23 +227,6 @@ test("test_empty_bucket_is_omitted_and_zero_pairs_shows_the_no_pairs_message", a
     assert.equal(buckets.length, 1);
     assert.equal(buckets[0]?.querySelector(".fname")?.textContent, "No repository match");
     assert.equal(findBucketTitled("No on-disk match"), undefined);
-});
-
-test("test_ruler_skips_a_tick_label_that_would_overprint_the_one_above_it", async () => {
-    // Scenario (plans/layer1-mockup.html): at the locked 2.5 px/hour two nearby instants resolve
-    // within a few pixels, so a tick label closer than 13 px to the last DRAWN one is dropped.
-    // Steps:
-    // load a ruler whose middle tick sits 4 px below the first and 10 px above the last.
-    const crowded: FixtureInstant[] = [
-        { instant: "2026-06-01T09:00:00.000Z", axisPx: 0 },
-        { instant: "2026-06-01T10:36:00.000Z", axisPx: 4 },
-        { instant: "2026-06-01T14:36:00.000Z", axisPx: 14 },
-    ];
-    await loadPageWithView(buildRulerOnlyView(crowded), BOTH_ROOTS_SEARCH);
-    // the 4 px tick is dropped; the 14 px one still clears 13 px from the 0 px tick that DID draw.
-    assert.deepEqual(listMatching("#ruler .tick").map(readAxisOffsetPx), [0, 14]);
-    assert.deepEqual(listMatching("#ruler .tick").map((tick) => tick.textContent),
-        ["06-01 09:00:00.00", "06-01 14:36:00.00"]);
 });
 
 test("test_the_url_query_seeds_the_header_boxes_and_a_load_mirrors_them_back", async () => {

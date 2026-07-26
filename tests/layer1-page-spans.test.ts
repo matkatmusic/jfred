@@ -26,7 +26,9 @@ function buildDiskBeforeCommitsView(): object {
         pairs: [{ path: "src/stale.ts", commits: DISK_FIRST_COMMITS, onDisk: DISK_FIRST_ON_DISK }],
         gitOrphans: [],
         diskOrphans: [],
-        ruler: [DISK_FIRST_ON_DISK, ...DISK_FIRST_COMMITS],
+        // Each instant is drawn by exactly one of this pair's nodes, so every ruler entry counts
+        // one event (task 275 — the gutter prints it, nothing here reads it back).
+        ruler: [DISK_FIRST_ON_DISK, ...DISK_FIRST_COMMITS].map((tick) => ({ ...tick, eventCount: 1 })),
     };
 }
 

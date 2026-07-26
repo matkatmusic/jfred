@@ -174,6 +174,34 @@ test("test_layOutNodeLadders_lets_measured_rows_outrank_the_120_px_gap_cap", () 
     assert.deepEqual(layout.ladderOffsetsPx, [[0, 22, 44, 66, 88, 110, 132]]);
 });
 
+test("test_layOutNodeLadders_counts_every_node_at_an_instant_across_all_bubbles", () => {
+    // Scenario (task 275, the user's words): "(6) ... means there are six events that occurred at
+    // that timestamp". An event is a NODE, wherever it is drawn — so bubbles sitting side by side
+    // at one moment all count, which is exactly what the spacing floor deliberately does NOT do.
+    // Steps:
+    // three bubbles at one moment — one of them drawing TWO nodes there — plus a later moment.
+    const layout = layOutNodeLadders([
+        makeInstantsAtHours([0, 0, 12]),
+        makeInstantsAtHours([0]),
+        makeInstantsAtHours([0, 12]),
+    ]);
+    // the shared moment counts FOUR events (2 + 1 + 1) and the later one counts two.
+    assert.deepEqual(layout.ticks.map((tick) => tick.eventCount), [4, 2]);
+    // and that is emphatically not the number the ruler was spaced by: the gap leaving the shared
+    // instant is TWO rows, the tallest single bubble's stack, not four.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 2 * RULER_NODE_ROW_PIXELS]);
+});
+
+test("test_resolveInstantOffsets_counts_the_events_it_collapsed_into_each_position", () => {
+    // Scenario: the layered graph's axis takes bare instants and de-duplicates them, so the count
+    // has to be taken BEFORE that — otherwise every position would report one event.
+    // Steps:
+    // four instants of which three name the same moment.
+    const positions = resolveInstantOffsets(makeInstantsAtHours([0, 8, 0, 0]));
+    // the collapsed position reports all three, and the lone one reports itself.
+    assert.deepEqual(positions.map((position) => position.eventCount), [3, 1]);
+});
+
 test("test_resolveInstantOffsets_collapses_duplicate_instants_to_one_position", () => {
     // Scenario: a commit instant and a disk mtime can name the same moment — one moment is one
     // position on the ruler.

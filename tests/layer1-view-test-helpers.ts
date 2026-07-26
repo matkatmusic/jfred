@@ -70,7 +70,9 @@ export type WireLayer1View = {
     pairs: Array<{ path: string; commits: Array<WireLayer1Instant & { hash: string }>; onDisk: WireLayer1Instant }>;
     gitOrphans: Array<WireLayer1Instant & { path: string }>;
     diskOrphans: Array<WireLayer1Instant & { path: string }>;
-    ruler: WireLayer1Instant[];
+    // A ruler entry also carries task 275's per-instant event count, which no NODE does — the
+    // gutter prints it after the label as "(n)".
+    ruler: Array<WireLayer1Instant & { eventCount: number }>;
 };
 
 // Run a git command in `repoDir` with a fixed identity. GIT_COMMITTER_DATE stamps the instant S18

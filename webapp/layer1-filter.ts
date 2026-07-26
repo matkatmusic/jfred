@@ -71,7 +71,13 @@ export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
         pairs: view.pairs.map((pair, index) => placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!)),
         gitOrphans: view.gitOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
         diskOrphans: view.diskOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
-        ruler: layout.ticks.map((tick) => ({ instant: tick.instant.toISOString(), axisPx: tick.offsetPx })),
+        // eventCount is re-measured by the layout above, not carried over from the unfiltered view:
+        // a folder filter removes bubbles, so the events left at an instant are genuinely fewer.
+        ruler: layout.ticks.map((tick) => ({
+            instant: tick.instant.toISOString(),
+            axisPx: tick.offsetPx,
+            eventCount: tick.eventCount,
+        })),
     };
 }
 

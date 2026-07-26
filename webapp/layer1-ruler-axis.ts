@@ -60,6 +60,13 @@ export const RULER_NODE_ROW_PIXELS = 22;
 export interface RulerPosition {
     instant: Instant;
     offsetPx: number;
+    // Task 275: how many events happened at this moment — every node drawn there, across EVERY
+    // ladder. Produced here rather than on the page because the folder filter re-lays the ruler out
+    // client-side (webapp/layer1-filter.ts), so a count derived anywhere else could disagree with
+    // the shipped one. Deliberately NOT countRowsPerInstant's number: that takes a per-ladder MAX
+    // because bubbles stack side by side, which measures the ruler's spacing demand rather than
+    // counting the events.
+    eventCount: number;
 }
 
 // One bubble's nodes on the axis: the instants a SINGLE widget must draw, in the order it draws
@@ -99,14 +106,20 @@ function orderDistinctInstants(instants: Instant[]): Instant[] {
 // Walk an ALREADY ordered, already de-duplicated set of instants, accumulating gaps from the
 // earliest at 0. `measureContentFloorPx` is asked about the EARLIER instant of each gap: the rows
 // stacked at an instant hang BELOW it, so they are paid for by the gap leaving it, not the one
-// arriving at it.
-function accumulateOffsets(ordered: Instant[], measureContentFloorPx: (instant: Instant) => number): RulerPosition[] {
+// arriving at it. `eventCounts` is the un-de-duplicated tally the caller measured, keyed by epoch ms.
+function accumulateOffsets(
+    ordered: Instant[],
+    measureContentFloorPx: (instant: Instant) => number,
+    eventCounts: Map<number, number>,
+): RulerPosition[] {
     let offsetPx = 0;
     let previous: Instant | undefined = undefined;
     return ordered.map((instant) => {
         offsetPx += previous === undefined ? 0 : measureGapPixels(previous, instant, measureContentFloorPx(previous));
         previous = instant;
-        return { instant, offsetPx };
+        // `ordered` is `eventCounts`' own key set de-duplicated, so `?? 0` is unreachable rather
+        // than a silent fallback — it exists only because Map.get is typed as possibly-undefined.
+        return { instant, offsetPx, eventCount: eventCounts.get(instant.getTime()) ?? 0 };
     });
 }
 
@@ -115,7 +128,9 @@ function accumulateOffsets(ordered: Instant[], measureContentFloorPx: (instant: 
 // heuristic. This is the layered graph's entry point (src/viewer_api_layered.ts, task 239); Layer 1
 // calls layOutNodeLadders below instead.
 export function resolveInstantOffsets(instants: Instant[]): RulerPosition[] {
-    return accumulateOffsets(orderDistinctInstants(instants), () => 0);
+    // A flat instant list has the same shape as one ladder, so the same tally answers "how many
+    // events at this moment" here — no second counting rule for the layered graph's axis.
+    return accumulateOffsets(orderDistinctInstants(instants), () => 0, countNodesPerInstant(instants));
 }
 
 // How many stacked rows each instant must make room for: the most nodes any ONE ladder places
@@ -125,18 +140,20 @@ export function resolveInstantOffsets(instants: Instant[]): RulerPosition[] {
 function countRowsPerInstant(ladders: NodeLadder[]): Map<number, number> {
     const rowsPerInstant = new Map<number, number>();
     for (const ladder of ladders) {
-        for (const [epochMs, rows] of countLadderNodesPerInstant(ladder)) {
+        for (const [epochMs, rows] of countNodesPerInstant(ladder)) {
             rowsPerInstant.set(epochMs, Math.max(rowsPerInstant.get(epochMs) ?? 1, rows));
         }
     }
     return rowsPerInstant;
 }
 
-// One ladder's nodes tallied by instant — also the source of each node's row, since the Nth node a
-// bubble draws at one instant belongs on row N.
-function countLadderNodesPerInstant(ladder: NodeLadder): Map<number, number> {
+// Nodes tallied by instant. Asked TWO different questions, which is why it takes a bare instant
+// list rather than a ladder: over ONE ladder it is the source of that ladder's row demand (the Nth
+// node a bubble draws at one instant belongs on row N), and over EVERY ladder flattened it is task
+// 275's event count.
+function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
     const perInstant = new Map<number, number>();
-    for (const instant of ladder) {
+    for (const instant of nodes) {
         perInstant.set(instant.getTime(), (perInstant.get(instant.getTime()) ?? 0) + 1);
     }
     return perInstant;
@@ -159,9 +176,13 @@ function assignRowSlots(ladder: NodeLadder): number[] {
 // per-instant node counts are its floors, and their nodes come back placed.
 export function layOutNodeLadders(ladders: NodeLadder[]): RulerLayout {
     const rowsPerInstant = countRowsPerInstant(ladders);
+    // Every node every bubble draws, in one list: the ruler's instants come from it, and so does
+    // task 275's per-instant event count.
+    const everyNode = ladders.flat();
     const ticks = accumulateOffsets(
-        orderDistinctInstants(ladders.flat()),
+        orderDistinctInstants(everyNode),
         (instant) => (rowsPerInstant.get(instant.getTime()) ?? 1) * RULER_NODE_ROW_PIXELS,
+        countNodesPerInstant(everyNode),
     );
     const tickOffsets = new Map(ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {

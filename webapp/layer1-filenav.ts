@@ -62,14 +62,44 @@ export function listFileNavEntries(view: FileNavView) {
 // only REPORTS the selection — it neither filters nor redraws, which is what lets the page leave
 // this pane standing (still listing every file, still holding the folder's own selected/expanded
 // state) while the stage beside it is redrawn from the filtered set.
-export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void): void {
+// `query` is task 281's search box: a plain case-insensitive substring over the FULL path, so
+// typing a directory name narrows to that directory's files as readily as typing a basename. No
+// fuzzy match, no scoring, no index — the whole entry list is a few hundred short strings, which a
+// keystroke re-filters and re-renders well inside a frame.
+//
+// Filtering here rather than hiding rows in the rendered tree is what keeps the folder rows honest:
+// buildFileTree re-derives the common prefix and the single-child chains from the SURVIVORS, so a
+// query matching one directory's files can legitimately render a flat list with no folder row at
+// all. That is the tree behaving correctly, not the filter dropping folders.
+export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void, query: string = ""): void {
+    const needle = query.trim().toLowerCase();
+    const matched = listFileNavEntries(view).filter((entry) => entry.target.toLowerCase().includes(needle));
     container.replaceChildren(
-        ...buildFileTree(listFileNavEntries(view)).map((node) =>
+        ...buildFileTree(matched).map((node) =>
             renderFileTreeNode(node, { onFileClick: jumpToBubbleAtPath, onFolderClick: onFolderSelect }, container)),
     );
 }
 
-// The page-facing wrapper: the nav's one host element on layer1.html.
+// The page-facing wrapper: the nav's host elements on layer1.html.
+//
+// The search box is wired by PROPERTY assignment, not addEventListener: the page calls this again
+// on every load, and a second listener would keep the previous load's `view` alive and re-render
+// the tree from it. Assignment replaces the previous handler outright.
+//
+// The box's text SURVIVES a reload — a filtered pane that silently un-filters when the user presses
+// Load would be lying about what it lists — so the initial render reads it rather than assuming "".
+//
+// ponytail: the search neither calls `onFolderSelect` nor touches the stage, so it cannot disturb
+// task 253's folder filter. It does redraw the tree, which resets the folders' open/closed state;
+// restoring that would mean tracking every <details> across a re-render for a pane whose folders
+// are open by default.
 export function renderLayer1FileNav(view: FileNavView, onFolderSelect: (targets: string[]) => void): void {
-    renderFileNavInto(getRequiredElementById("filenav-tree"), view, onFolderSelect);
+    const tree = getRequiredElementById("filenav-tree");
+    const box = getRequiredElementById("filenav-search") as HTMLInputElement;
+    box.oninput = () => renderFileNavInto(tree, view, onFolderSelect, box.value);
+    getRequiredElementById("filenav-search-clear").onclick = () => {
+        box.value = "";
+        renderFileNavInto(tree, view, onFolderSelect, box.value);
+    };
+    renderFileNavInto(tree, view, onFolderSelect, box.value);
 }

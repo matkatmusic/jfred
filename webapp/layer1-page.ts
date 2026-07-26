@@ -18,15 +18,11 @@ import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
+import { formatInstantLabel, listRulerRows } from "./layer1-ruler-rows.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
-import type { WireInstant, WireLayer1View, WireOrphan, WirePair } from "./layer1-wire.ts";
+import type { WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
-
-// Minimum vertical distance between two tick LABELS, in px (the mockup's collision skip). At the
-// locked 2.5 px/hour two commits minutes apart resolve under 1 px, so without this the ruler
-// gutter renders as overlapping text.
-const TICK_LABEL_MIN_GAP_PX = 13;
 
 // User-locked 2026-07-25: 8 characters. The full hash stays on the wire and on the node's `title`;
 // only the visible label is shortened, because 40 monospace characters at 10 px is ~240 px — wider
@@ -40,30 +36,13 @@ function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
     return node;
 }
 
-// The tick/row label: "MM-DD HH:MM:SS.hh" in UTC. Task 276: the slice used to stop at 16, which cut
-// the label at minutes — so two instants seconds apart rendered as the SAME text and their rows read
-// as duplicates. 22 is the ISO string's index after the second millisecond digit, which is the
-// precision the user asked for ("07-18 19:42:08.22"); the third digit is dropped rather than rounded
-// because this is a label, not a value anything is computed from.
-function formatInstantLabel(instant: string): string {
-    return new Date(instant).toISOString().slice(5, 22).replace("T", " ");
-}
-
-// The left gutter's ticks. `ruler` arrives ascending, so one running "last drawn" position is
-// enough to drop a label that would collide with the one above it.
-function renderRulerTicks(ruler: WireInstant[]): void {
-    const ticks: HTMLElement[] = [];
-    let lastDrawnPx = Number.NEGATIVE_INFINITY;
-    for (const tick of ruler) {
-        if (tick.axisPx - lastDrawnPx < TICK_LABEL_MIN_GAP_PX) {
-            continue;
-        }
-        lastDrawnPx = tick.axisPx;
-        const drawn = setAxisPx(el("div", { class: "tick", text: formatInstantLabel(tick.instant) }), tick.axisPx);
-        // Task 260: a drawn tick is also the navigation control for its instant. Only DRAWN ticks
-        // get one — the collision skip above means not every instant has a row to click.
-        ticks.push(makeRulerTickClickable(drawn));
-    }
+// The left gutter. Which entries get a printed row, and what each row reads, is decided once by
+// layer1-ruler-rows.ts (tasks 268 and 275) — this only builds the elements. Task 260: every drawn
+// row is also the navigation control for its instant; a merged row answers for the earliest of the
+// instants it stands for, which is the one its `--axis-px` carries.
+function renderRulerTicks(ruler: WireRulerTick[]): void {
+    const ticks = listRulerRows(ruler).map((row) =>
+        makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx)));
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
@@ -135,10 +114,14 @@ function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElement | und
     if (earliest === undefined) {
         return undefined;
     }
-    const list = el("ul", {}, rows.map((row) => el("li", {}, [
+    // Task 266: each row carries the same WIDGET-RELATIVE `--axis-px` a `.node` does, so the ruler's
+    // click lookup can find a bucket row the way it finds a pair's node. A bucket draws no `.node`
+    // at all, so without this an instant only a bucket holds answered a click with nothing. No CSS
+    // rule reads `--axis-px` on an `li`, so the row does not move — this is pure data.
+    const list = el("ul", {}, rows.map((row) => setAxisPx(el("li", {}, [
         el("span", { text: row.path }),
         el("em", { text: formatInstantLabel(row.instant) }),
-    ])));
+    ]), row.axisPx - earliest.axisPx)));
     return setAxisPx(el("div", { class: "filebox bucket" }, [
         el("div", { class: "fname", text: title }),
         el("div", { class: "sub", text: `${rows.length} files` }),

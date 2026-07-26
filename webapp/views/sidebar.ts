@@ -50,6 +50,17 @@ const FOLDER_NODE_KIND = "folder";
 // folder renderer (task 253) and clearFileSelectionIn's query, so it is named once.
 const SELECTED_CLASS = "selected";
 
+// The class on a folder's <summary> row. Written by the folder renderer and read back by
+// listSelectedFolderTargets's query (task 255), so it is named once.
+const FOLDER_NAME_CLASS = "file-folder-name";
+
+// task 255: each folder row's descendant targets, keyed by its own <summary>. The list is fixed
+// once the tree is rendered, so it is computed at attach time and looked up again when a
+// shift-click needs the union of every selected folder. A WeakMap rather than a selection state
+// object: the `selected` class on the rows stays the only selection state (as in task 253), and a
+// discarded tree's entries go with it.
+const folderTargetsBySummary = new WeakMap<HTMLElement, string[]>();
+
 // What a file tree needs from its owner. The Files sidebar and the details pane's "Files touched"
 // tree (item 84) render the SAME tree with different click meanings, so this is the narrower half
 // of ForkSidebarCallbacks.
@@ -59,6 +70,8 @@ export type FileTreeCallbacks = {
     // the folder's own path — buildFileTree strips the common directory prefix and a folder node
     // carries no path at all, so its descendants' targets are the only full paths the tree holds.
     // An empty list means the selection was cleared by re-clicking the selected folder.
+    // task 255: shift-click selects several folders at once, so the list is the de-duplicated
+    // UNION of every selected folder's leaves rather than only the clicked one's.
     // Optional: only the Layer 1 File Nav filters by folder; the Files sidebar (views/timeline.ts)
     // and the details pane (views/details.ts) pass nothing and their folders stay inert.
     onFolderClick?: (targets: string[]) => void;
@@ -127,7 +140,7 @@ export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallba
         // vertical guide line on its left border.
         const kids = el("div", { class: "file-folder-kids" },
             node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)));
-        const summary = el("summary", { class: "file-folder-name", text: node.name });
+        const summary = el("summary", { class: FOLDER_NAME_CLASS, text: node.name });
         attachFolderClick(summary, node, callbacks, selectionRoot);
         return el("details", { class: "file-folder", open: "" }, [summary, kids]);
     }
@@ -154,6 +167,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
     // marker and need no such distinction.
     const toggle = el("span", { class: "file-folder-toggle" });
     summary.prepend(toggle);
+    folderTargetsBySummary.set(summary, listDescendantTargets(node));
     summary.addEventListener("click", (event) => {
         // The triangle opens and closes, and does nothing else. Returning early rather than
         // cancelling the event: opening the <details> is this click's default action either way.
@@ -161,10 +175,29 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
             return;
         }
         const wasSelected = summary.classList.contains(SELECTED_CLASS);
-        clearFileSelectionIn(selectionRoot);
+        // task 255: a shift-click ADDS this folder to the selection (or drops it back out) instead
+        // of replacing it. A plain click is unchanged by construction — after the clear this row is
+        // the only selected folder, so the union below is exactly its own descendants, and
+        // re-clicking the selected folder leaves none selected, so the union is empty.
+        if (!event.shiftKey) {
+            clearFileSelectionIn(selectionRoot);
+        }
         summary.classList.toggle(SELECTED_CLASS, !wasSelected);
-        onFolderClick(wasSelected ? [] : listDescendantTargets(node));
+        onFolderClick(listSelectedFolderTargets(selectionRoot));
     });
+}
+
+// task 255: the files of every folder currently marked selected in one tree, de-duplicated — a
+// selected parent and a selected child folder overlap on the child's files. Only folder rows are
+// counted: clearFileSelectionIn's class is shared with the file leaves, which stand for themselves.
+function listSelectedFolderTargets(selectionRoot: HTMLElement): string[] {
+    const union = new Set<string>();
+    for (const summary of selectionRoot.querySelectorAll(`.${FOLDER_NAME_CLASS}.${SELECTED_CLASS}`)) {
+        for (const target of folderTargetsBySummary.get(summary as HTMLElement) ?? []) {
+            union.add(target);
+        }
+    }
+    return [...union];
 }
 
 // Every file leaf at or below `node`, as full paths. Recurses on the presence of `entry` rather than
