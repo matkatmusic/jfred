@@ -69,6 +69,11 @@ export function openTranscriptInspectorSynced(context: TimelineRenderContext, op
         ...options,
         onJumpToLine: (shownLine) => syncSelectedRowToShownLine(context, options.rawLines, shownLine),
     });
+    // task 258: the open above revealed the Details pane, SHRINKING the timeline, so the clicked row
+    // can now sit off-screen — re-center it. BARE scroll on the already-selected row, never
+    // selectTimelineRow (that would loop, see openNodeInspector); the reveal is synchronous and the
+    // scrollIntoView flushes layout, so what it measures is the POST-reflow (shrunken) split.
+    context.selectedRow?.scrollIntoView({ block: "center" });
 }
 
 // Extracted per-snapshot loop body of openStepInspector: probe each of the snapshot's

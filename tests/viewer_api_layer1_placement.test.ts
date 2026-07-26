@@ -76,13 +76,14 @@ test("test_layer1_view_endpoint_places_every_pair_node_on_the_shared_ruler", asy
     // the first commit sits at 120, NOT 0 — early.txt's mtime predates it, so the ruler's start
     // moved earlier and every commit shifted downstream by that opening capped gap. A run that
     // anchored the ruler at the first commit rather than at the view's earliest instant would read
-    // 0 here, and the second commit would read 16 instead of 136.
+    // 0 here, and the second commit would read 22 instead of 142.
     assert.deepEqual(pair.commits.map((commit) => commit.axisPx), [FIRST_COMMIT_PX, SECOND_COMMIT_PX]);
     // every commit node carries its hash, so the page can label the dot.
     assert.equal(pair.commits.filter((commit) => commit.hash.length === 40).length, 2);
     // the on-disk node — S18's final node — sits at the file's pinned mtime, three hours past the
-    // second commit: 136 + 16, because a 3-hour gap is under the FLOOR and so renders 16 px rather
-    // than its linear 7.5 — the clamp that keeps the two nodes' 15 px dots from overprinting.
+    // second commit: 142 + 22, because a 3-hour gap is under the CONTENT FLOOR and so renders one
+    // whole 22 px node row rather than its linear 7.5 — the task-251 clamp that gives this bubble's
+    // "on disk" row somewhere to sit that its neighbouring hash row is not already using.
     assert.equal(pair.onDisk.instant, new Date(SHARED_FILE_MTIME).toISOString());
     assert.equal(pair.onDisk.axisPx, SHARED_FILE_PX);
 });
@@ -103,10 +104,11 @@ test("test_layer1_view_endpoint_returns_the_ruler_ticks_ascending_with_the_gap_c
         new Date(DISK_ONLY_FILE_MTIME).toISOString(),
     ]);
     // both locked clamps, end to end: the opening 6-week gap renders exactly 120 px rather than
-    // its linear 2520, while the 5-hour and 3-hour gaps are both under the FLOOR and so render an
-    // equal 16 px each rather than 12.5 and 7.5. The closing 20-hour gap is in band at 50, and the
-    // last tick reads 202 because the clamps apply per ADJACENT PAIR and accumulate — a run that
-    // clamped the axis as a whole would read 120 here.
+    // its linear 2520, while the 5-hour and 3-hour gaps are both under the CONTENT FLOOR and so
+    // render an equal 22 px each — one node row — rather than 12.5 and 7.5. The closing 20-hour gap
+    // is in proportion at 50 and needs no floor, and the last tick reads 214 because the clamps
+    // apply per ADJACENT PAIR and accumulate — a run that clamped the axis as a whole would read
+    // 120 here.
     assert.deepEqual(view.ruler.map((position) => position.axisPx), [
         EARLY_DISK_ORPHAN_PX, FIRST_COMMIT_PX, SECOND_COMMIT_PX, SHARED_FILE_PX, DISK_ONLY_FILE_PX,
     ]);
@@ -130,7 +132,7 @@ test("test_layer1_view_endpoint_places_each_orphan_bucket_row_at_its_own_instant
         new Date(EARLY_DISK_ORPHAN_MTIME).toISOString(),
         new Date(DISK_ONLY_FILE_MTIME).toISOString(),
     ]);
-    // and each row carries its own place: the bucket spans the whole ruler, 0 to 202.
+    // and each row carries its own place: the bucket spans the whole ruler, 0 to 214.
     assert.deepEqual(view.diskOrphans.map((orphan) => orphan.axisPx), [
         EARLY_DISK_ORPHAN_PX, DISK_ONLY_FILE_PX,
     ]);

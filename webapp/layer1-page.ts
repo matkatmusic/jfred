@@ -9,8 +9,13 @@
 // arithmetic operation is subtracting a widget's own base offset from a node's, which is what
 // turns an absolute ruler position into a widget-relative one.
 
-import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
+import { el, getRequiredElementById } from "./app-dom.ts";
+import { wireFindFileBox } from "./layer1-find-file.ts";
+import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
+import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
 
 // What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as
@@ -49,9 +54,6 @@ interface WireLayer1View {
 // gutter renders as overlapping text.
 const TICK_LABEL_MIN_GAP_PX = 13;
 
-// The three header boxes; the ids match layer1.html and the names match the endpoint's params.
-const SOURCE_PARAM_IDS = ["dir", "repo", "ref"] as const;
-
 // User-locked 2026-07-25: 8 characters. The full hash stays on the wire and on the node's `title`;
 // only the visible label is shortened, because 40 monospace characters at 10 px is ~240 px — wider
 // than a widget, which is most of the overprinting in the reported screenshot.
@@ -79,7 +81,10 @@ function renderRulerTicks(ruler: WireInstant[]): void {
             continue;
         }
         lastDrawnPx = tick.axisPx;
-        ticks.push(setAxisPx(el("div", { class: "tick", text: formatInstantLabel(tick.instant) }), tick.axisPx));
+        const drawn = setAxisPx(el("div", { class: "tick", text: formatInstantLabel(tick.instant) }), tick.axisPx);
+        // Task 260: a drawn tick is also the navigation control for its instant. Only DRAWN ticks
+        // get one — the collision skip above means not every instant has a row to click.
+        ticks.push(makeRulerTickClickable(drawn));
     }
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
@@ -160,30 +165,8 @@ export function renderLayer1View(view: WireLayer1View): void {
         ...buildStagePairs(view.pairs),
         ...buckets.filter((bucket) => bucket !== undefined),
     );
-}
-
-// The header boxes as endpoint/URL params. A blank box contributes nothing: the ref box is
-// optional and the endpoint reads an absent ref as the repo's active branch.
-function readSourceParams(): URLSearchParams {
-    const params = new URLSearchParams();
-    for (const id of SOURCE_PARAM_IDS) {
-        const value = getInputById(id).value.trim();
-        if (value !== "") {
-            params.set(id, value);
-        }
-    }
-    return params;
-}
-
-// Seed the boxes from the page URL so ?dir=&repo=&ref= is a working shareable link.
-function fillSourceBoxesFromUrl(): void {
-    const params = new URLSearchParams(location.search);
-    for (const id of SOURCE_PARAM_IDS) {
-        const value = params.get(id);
-        if (value !== null) {
-            getInputById(id).value = value;
-        }
-    }
+    // Task 246: the minimap MEASURES the widgets it maps, so it is drawn after they are in the DOM.
+    drawLayer1Minimap();
 }
 
 // Fetch and draw the view for whatever the boxes currently hold, mirroring them into the URL
@@ -213,34 +196,17 @@ export async function loadLayer1View(): Promise<void> {
     }
 }
 
-// GET /api/pick-folder (task 236) — an empty path means the user cancelled, so leave the box
-// alone. ponytail: a local 5-liner rather than app-header.ts's pickFolderInto, which drags in
-// app-router → views/timeline → the whole classic app and reports failures into that page's
-// #breadcrumb; lift it into a shared module if a third page ever needs a picker.
-async function pickFolderInto(target: HTMLInputElement): Promise<void> {
-    const response = await fetch(`/api/pick-folder?current=${encodeURIComponent(target.value)}`);
-    if (!response.ok) {
-        getRequiredElementById("crumb").textContent = `folder picker failed: ${await response.text()}`;
-        return;
-    }
-    const { path } = await response.json() as { path: string };
-    if (path !== "") {
-        target.value = path;
-    }
-}
-
 // Wire the pickers and the Load button, then draw whatever the URL already asked for.
 export function bootLayer1Page(): void {
     // FIRST: readSourceParams reads the BOXES, so without this a ?dir=&repo=&ref= link would open
     // an empty form and draw nothing — half of S18's "one shareable link".
     fillSourceBoxesFromUrl();
     wireZoomControls();
-    for (const button of document.querySelectorAll("button.pick")) {
-        const target = getInputById((button as HTMLElement).dataset.for ?? "");
-        button.addEventListener("click", () => {
-            void pickFolderInto(target).then(loadLayer1View);
-        });
-    }
+    wireBucketJumpButtons();
+    wireFindFileBox();
+    wireFolderPickers(() => {
+        void loadLayer1View();
+    });
     getRequiredElementById("load").addEventListener("click", () => {
         void loadLayer1View();
     });

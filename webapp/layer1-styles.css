@@ -1,0 +1,228 @@
+  /* Lifted verbatim from plans/layer1-mockup.html (user-signed-off 2026-07-25), which in turn
+     lifted its tokens, header, button, ruler, .filebox and .node styling from
+     plans/mvp-app-mockup.html so this reads as the same app. */
+  .viz-root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb;
+    --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,.10);
+    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834;
+    --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
+    --seg-a: rgba(27,175,122,.12);
+    --sel-edge: #1baf7a; --box: #d98a2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19;
+      --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
+      --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+      --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+      --seg-a: rgba(25,158,112,.15);
+      --sel-edge: #199e70; --box: #b57427;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
+    --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+    --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+    --seg-a: rgba(25,158,112,.15);
+    --sel-edge: #199e70; --box: #b57427;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--page); }
+  .viz-root { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink); background: var(--page); height: 100vh; display: flex; flex-direction: column; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+  header h1 { font-size: 14px; }
+  header .crumb { font-size: 11.5px; color: var(--muted); }
+  button { font: 600 12px system-ui; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; color: var(--ink); cursor: pointer; }
+  button:hover { border-color: var(--ink2); }
+  button:disabled { color: var(--muted); cursor: not-allowed; }
+  button:disabled:hover { border-color: var(--border); }
+
+  /* Zoom sits LEFT of the layer buttons: both groups carry `margin-left: auto`, and two auto
+     margins split the free space between them, so zoom lands mid-header and .layerbar stays
+     pinned hard right. */
+  .zoombar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .zoombar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .zoombar .zoom-level { font-size: 11.5px; color: var(--ink2);
+    font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
+
+  .layerbar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .layerbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .layerbar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
+  .layerbar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  .layerbar button.uncomputed { border-style: dashed; color: var(--muted); }
+
+  /* The whole Layer 1 input surface: two folder paths and an optional ref. */
+  .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .sources label { display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--muted); }
+  .sources input { font: 11.5px ui-monospace, Menlo, monospace; padding: 4px 8px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
+  .sources input:focus { outline: none; border-color: var(--sel-edge); }
+
+  /* S12: legend above the timeline, outside the scroll container. */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 7px 16px; font-size: 11px;
+    color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+  /* The build takes ~10 s on a real project, so the page reports it. ponytail: a flow-positioned
+     strip between the legend and the scroll container, NOT an overlay — `main.timelines` is a
+     scroll container, so `position: absolute; inset: 0` would drift out of the viewport the moment
+     the user scrolled. webapp/app-progress.ts is deliberately not reused: its CSS lives in
+     styles.css (which this page never loads) against a disjoint token set (--bg/--panel/--accent
+     vs this page's --page/--surface/--sel-edge), and its cancel button hardcodes
+     `location.hash = "#/"` — meaningless on a page that is not hash-routed. */
+  .loadbar { display: flex; align-items: center; gap: 10px; padding: 6px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface); }
+  .loadbar-track { flex: 1; height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+  .loadbar-fill { height: 100%; width: 0; background: var(--sel-edge); transition: width .12s linear; }
+  .loadbar-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap; }
+
+  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
+  /* A flex row, not padding-left + an absolute ruler: the gutter must be a real column so it
+     can be `position: sticky` and survive horizontal scroll. `align-items` is left at its
+     `stretch` default so the ruler's height follows the tallest widget.
+     ponytail: zoom is the NATIVE `zoom` property, never `transform: scale()`. `zoom` participates
+     in layout, so this scroll container's scrollable area shrinks with the content; `transform`
+     would leave the page scrolling over a huge empty region when zoomed out. It also scales font
+     size, so tick labels shrink in step with the gaps between them — which is why the page's 13 px
+     tick-label collision skip stays correct at every level and the ruler needs no re-render.
+     `isolation` makes this an UNCONDITIONAL stacking context, which the leader line on
+     `.filebox::before` requires: `zoom` creates one only when it is not 1, so without this the
+     leader's `z-index: -1` would escape to the root at 100% zoom, paint behind `.viz-root`'s opaque
+     background and be invisible. Scoped here, the leader lands behind the bubbles and above the
+     page background — and `.ruler`'s z-index 8 still covers it. */
+  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
+    isolation: isolate; gap: 14px; }
+
+  /* left: 0 pins the gutter to the scrollport's left edge under horizontal scroll; it still
+     scrolls VERTICALLY with the content, which it must — a tick marks a node's row. The
+     background is load-bearing: widgets scroll UNDER it — so the gutter is EXACTLY as wide as its
+     rail, --rail-x plus the rail's own 2 px border, one source for both. Gutter px PAST the rail
+     paint over that much of the leader line, which is why a dash looked like it stopped 14 px
+     short of the ruler (task 262); those 14 px are `.canvas`'s gap now, so no widget moved. */
+  .ruler { --rail-x: 80px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+  .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
+  .ruler .tick { position: absolute; left: 0; width: 70px; text-align: right; top: calc(var(--axis-px) * 1px);
+    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
+
+  .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
+
+  /* padding-top is DERIVED, not chosen: `.sub` is abspos at top:24px with a 15 px line box
+     (10px x the inherited 1.5), so the header ends at y 39. The lane starts at padding-top and its
+     `--axis-px: 0` node is translate(-50%,-50%)-centred there, reaching 10 px above it (7.5 px
+     half-height + its 2.5 px ring). 39 + 10 = 49, so 50 px is the first value that clears the
+     header — this is what stopped the short-hash label overprinting "on disk" (task 247). Move
+     `.fname`/`.sub`'s `top`, or their font sizes, and this value must be redone.
+     `margin-top` is deliberately NOT compensated: it keeps the border-box top edge at --axis-px,
+     which is the exact ruler position the leader line below aims at. */
+  .filebox { position: relative; flex: none; min-width: 168px;
+    margin-top: calc(var(--axis-px) * 1px);
+    border: 2px solid var(--box); border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 50px 12px 14px; }
+
+  /* Task 250: trace a bubble back to its timestamp on the sticky gutter. `top: -2px` cancels the
+     2 px border so the line sits on the border-box top edge, which is `margin-top` = --axis-px =
+     precisely the ruler tick for the bubble's first instant. `right: 100%` starts it at the
+     bubble's left edge and it runs LEFTWARD past canvas x=0; `.ruler` is sticky at the scrollport's
+     left edge, opaque and at z-index 8, so it paints over the excess and the leader appears to
+     begin at the gutter's right edge at EVERY horizontal scroll position — no JS, no measurement,
+     no re-render. Leftward overflow is unreachable in LTR so `.timelines` gains no phantom scroll
+     area, and abspos boxes are excluded from `min-width: max-content` so the canvas is not widened.
+     The width is ONE VIEWPORT, not the distance to the gutter: a bubble the reader can see is by
+     definition less than a scrollport width right of the pinned gutter, so a viewport's worth always
+     spans the visible gap and needs no measurement. Dividing by the inherited `--zoom` cancels the
+     scaling `.canvas` applies, so the RENDERED length is exactly 100vw at every zoom level — a fixed
+     px length instead would have to exceed the canvas's full width (~156,000 px on this repo at
+     805 widgets) and would silently run out on a bigger project. */
+  .filebox::before { content: ""; position: absolute; right: 100%; top: -2px;
+    width: calc(100vw / var(--zoom, 1)); border-top: 1px dashed var(--baseline); z-index: -1; }
+
+  /* max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos +
+     nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the
+     padding box (164 px on a 168 px bubble); minus the 12 px `left` and a matching 12 px on the
+     right it spans exactly the content width and ellipsises inside its own border. The trailing
+     ellipsis is only correct because the renderer now passes the BASENAME — on a full path the
+     shared leading directory would survive and the distinguishing tail would be what got cut. */
+  .filebox .fname { position: absolute; top: 7px; left: 12px;
+    max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
+    font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
+  .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
+
+  .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
+  .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }
+  .node { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
+    z-index: 6; width: 15px; height: 15px; border-radius: 50%;
+    box-shadow: 0 0 0 2.5px var(--surface); }
+  .n-commit { border-radius: 4px; background: var(--c-commit); }
+  .n-disk { background: transparent; border: 3px double var(--c-disk); }
+  .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
+    font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
+
+  /* Orphan buckets: one per direction, a plain file list, placed at the earliest member instant. */
+  .filebox.bucket { border-style: dashed; border-color: var(--muted); }
+  .filebox.bucket .fname { color: var(--ink2); font-family: inherit; font-size: 12px; }
+  .bucket ul { list-style: none; }
+  .bucket li { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0;
+    font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); }
+  .bucket li em { font-style: normal; color: var(--muted); font-size: 10px; }
+  .nopairs { color: var(--muted); font-size: 11.5px; padding: 34px 8px 0; }
+
+  /* Task 256: the orphan-bucket jump shortcuts. `flex-basis: 100%` drops the bar onto its own
+     wrapped header row (header is already `flex-wrap: wrap`) rather than sharing the first one:
+     .zoombar and .layerbar split that row's free space with two `margin-left: auto`, and a third
+     group on it would unpin .layerbar from the right edge. Its own row also means these labels are
+     full bucket titles — the strings the reader matches against the headings on the canvas. */
+  .jumpbar { display: flex; align-items: center; gap: 6px; flex-basis: 100%; }
+  .jumpbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .jumpbar button { padding: 3px 8px; }
+
+  /* Task 261: the bubble the "Find bubble" box just scrolled to. The ring is drawn with `outline`
+     rather than by changing `border`, because .filebox's border is 2px and part of its layout — a
+     wider border would nudge the bubble's own box and change the very geometry the user opened this
+     page to inspect. `outline` is painted outside the border box and takes no space, and the
+     `outline-offset` lifts it clear of the 14px corner radius. The class is switched off ~1.5 s
+     later by webapp/layer1-find-file.ts, so the highlight is gone before the user starts judging
+     the bubble's real styling. */
+  .filebox.found { outline: 3px solid var(--sel-edge); outline-offset: 3px;
+    background: color-mix(in srgb, var(--sel-edge) 12%, var(--surface)); }
+
+  /* Task 246: the minimap, pinned to the LOWER-LEFT of the timeline pane. .stagewrap is the
+     non-scrolling positioning parent AROUND the scroll container — `position: absolute` inside
+     `main.timelines` itself would resolve against the scrolled CONTENT and slide away. It is the
+     column's one growing child, so `min-height: 0` is what keeps `.timelines` scrolling rather than
+     stretching the whole page; `display: flex` hands it the pane's full box. */
+  .stagewrap { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
+  .minimap { position: absolute; left: 12px; bottom: 12px; z-index: 20;
+    width: 176px; height: 124px; padding: 6px; cursor: crosshair;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }
+  .minimap .mm-title { position: absolute; top: -8px; left: 8px; padding: 0 4px; font-size: 9px;
+    color: var(--muted); background: var(--page); }
+  /* Every mark is absolutely placed by webapp/layer1-minimap.ts; `overflow: hidden` is what keeps a
+     rounding overshoot from painting outside the frame. */
+  .mm-plot { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .mm-box { position: absolute; background: var(--box); opacity: .55; border-radius: 1px; }
+  .mm-box.bucket { background: var(--muted); }
+  .mm-view { position: absolute; border: 1.5px solid var(--sel-edge);
+    background: color-mix(in srgb, var(--sel-edge) 14%, transparent); border-radius: 2px; }
+
+  /* Task 260: a tick is a navigation control, so it must read as one before it is clicked. The
+     hover state changes colour only — the tick is abspos and `transform`-centred on its own offset,
+     so anything that altered its box would shift the label off the instant it marks. */
+  .ruler .tick { cursor: pointer; }
+  .ruler .tick:hover { color: var(--ink); text-decoration: underline; }

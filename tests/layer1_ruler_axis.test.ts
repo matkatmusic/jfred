@@ -2,13 +2,22 @@
 // accumulated pixel offsets at 2.5 px/hour with a 16 px per-gap floor and a 120 px per-gap cap.
 // The proportional band is therefore 6.4 h (16 / 2.5) to 48 h (120 / 2.5); every "in proportion"
 // case below sits inside it.
+//
+// TWO ENTRY POINTS, deliberately: `resolveInstantOffsets` takes bare instants and keeps the 16 px
+// heuristic — it is the layered graph's axis (src/viewer_api_layered.ts, task 239) and its
+// behaviour is unchanged, which is why its tests below are untouched. `layOutNodeLadders` (task
+// 251) takes what each BUBBLE must draw and measures the floor from it instead; those tests start
+// at the second block. Expectations are hand-derived from the locked constants, never computed by
+// calling the code under test.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     RULER_GAP_CAP_PIXELS,
     RULER_MIN_GAP_PIXELS,
+    RULER_NODE_ROW_PIXELS,
     RULER_PIXELS_PER_HOUR,
+    layOutNodeLadders,
     resolveInstantOffsets,
 } from "../src/layer1_ruler_axis.ts";
 
@@ -85,6 +94,84 @@ test("test_resolveInstantOffsets_places_a_pre_first_commit_disk_orphan_at_zero",
         makeInstantsAtHours([-8, 0, 12]).map((instant) => instant.getTime()),
     );
     assert.deepEqual(positions.map((position) => position.offsetPx), [0, 20, 50]);
+});
+
+// A LADDER below is the same shape as an instant list — makeInstantsAtHours doubles as its
+// builder, since one bubble's ladder is just the moments that bubble draws, in draw order.
+
+test("test_layOutNodeLadders_gives_two_nodes_of_one_bubble_at_one_instant_their_own_rows", () => {
+    // Scenario: the reported defect. A commit and the file's mtime land on the SAME second, so both
+    // nodes resolved to one offset and the hash label printed straight over "on disk".
+    // Steps:
+    // one bubble drawing two nodes at a single moment.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0, 0])]);
+    // the moment is still ONE tick — the ruler did not gain a second entry.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0]);
+    // but the two nodes come back one full row apart, which is what stops the overprinting.
+    assert.deepEqual(layout.ladderOffsetsPx, [[0, RULER_NODE_ROW_PIXELS]]);
+    assert.deepEqual(layout.ladderOffsetsPx, [[0, 22]]);
+});
+
+test("test_layOutNodeLadders_charges_the_next_gap_for_the_rows_stacked_at_an_instant", () => {
+    // Scenario: rows hang BELOW their instant, so the gap LEAVING it has to pay for them — else the
+    // next instant's node is drawn on top of a row already in use.
+    // Steps:
+    // a bubble with two tied nodes, then a third node one hour later.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 1])]);
+    // the gap is 2 rows = 44 px, not the hour's linear 2.5 px and not the 16 px heuristic.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 2 * RULER_NODE_ROW_PIXELS]);
+    // so the third node lands exactly one row below the second: 0, 22, 44 — three clear rows.
+    assert.deepEqual(layout.ladderOffsetsPx, [[0, 22, 44]]);
+});
+
+test("test_layOutNodeLadders_charges_nothing_for_a_tie_across_two_different_bubbles", () => {
+    // Scenario: bubbles sit SIDE BY SIDE, so two of them drawing a node at the same moment is free
+    // — only nodes inside one bubble have to stack. Measuring the tie globally would inflate the
+    // ruler on every project where two files were committed together, which is most of them.
+    // Steps:
+    // two bubbles each drawing ONE node at the same moment, and a third bubble an hour later.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([0]), makeInstantsAtHours([1])]);
+    // the shared moment demands a single row, so the gap is one row rather than two.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
+    // and both bubbles' nodes sit on row 0 of that instant — neither was pushed down.
+    assert.deepEqual(layout.ladderOffsetsPx, [[0], [0], [22]]);
+});
+
+test("test_layOutNodeLadders_replaces_the_16_px_heuristic_with_one_measured_node_row", () => {
+    // Scenario: task 251 — a gap too short to render was floored at a guessed 16 px, which cleared
+    // the 15 px dot but left its label nowhere to go. The floor is now the row a node actually
+    // needs.
+    // Steps:
+    // two bubbles a minute apart, whose linear placement would be about 0.04 px.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([1 / 60])]);
+    // the gap renders one node row, NOT the old heuristic.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
+    assert.notEqual(RULER_NODE_ROW_PIXELS, RULER_MIN_GAP_PIXELS);
+});
+
+test("test_layOutNodeLadders_leaves_a_gap_already_wider_than_its_rows_in_proportion", () => {
+    // Scenario: content may only ever push entries FURTHER apart. A gap with room to spare must
+    // keep reading as elapsed time, or the axis stops being a time axis.
+    // Steps:
+    // two bubbles twelve hours apart — 30 px linear, comfortably past one 22 px row.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([12])]);
+    // the gap stays at its proportional 30 px, untouched by the floor.
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 12 * RULER_PIXELS_PER_HOUR]);
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 30]);
+});
+
+test("test_layOutNodeLadders_lets_measured_rows_outrank_the_120_px_gap_cap", () => {
+    // Scenario: the cap exists to fit a months-long history on one screen, but capping a gap whose
+    // rows were already charged would clip those rows back off the axis — the squashing this task
+    // fixes. Content wins; the cap bounds only the LINEAR term.
+    // Steps:
+    // a bubble stacking six nodes on one moment, then a node six weeks later.
+    const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 0, 0, 0, 0, 6 * 7 * 24])]);
+    // six rows need 132 px, so the gap exceeds the 120 px cap rather than being clamped to it.
+    assert.equal(layout.ticks.at(-1)!.offsetPx, 6 * RULER_NODE_ROW_PIXELS);
+    assert.ok(6 * RULER_NODE_ROW_PIXELS > RULER_GAP_CAP_PIXELS);
+    // and the last node sits one row below the sixth stacked node (110), with nothing overprinted.
+    assert.deepEqual(layout.ladderOffsetsPx, [[0, 22, 44, 66, 88, 110, 132]]);
 });
 
 test("test_resolveInstantOffsets_collapses_duplicate_instants_to_one_position", () => {

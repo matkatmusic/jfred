@@ -37,26 +37,32 @@ export const UNRELATED_SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";
 export const UNRELATED_FIRST_DISK_MTIME = "2026-07-02T09:00:00Z";
 export const UNRELATED_SECOND_DISK_MTIME = "2026-07-02T12:00:00Z";
 
-// The floored-linear, capped ruler (task 234), resolved over the WHOLE view — the five instants
-// above, de-duplicated and ascending, each advancing by 2.5 px/hr clamped into the 16 px … 120 px
-// band. Derived by hand so the expectations cannot agree with a buggy resolver:
+// The content-measured, capped ruler (task 234, re-floored by task 251), resolved over the WHOLE
+// view — the five instants above, de-duplicated and ascending, each advancing by 2.5 px/hr capped
+// at 120 px and then raised to whatever the earlier instant's stacked node rows need. Every instant
+// here is drawn by at most ONE node of any single bubble, so each demands exactly one 22 px row and
+// the content floor is a flat 22 px throughout. Derived by hand so the expectations cannot agree
+// with a buggy resolver:
 //
-//   early.txt mtime       2026-05-20T10:00Z    —                                 0
-//   first commit          2026-07-01T10:00Z    +1008 h → min(2520, 120) = 120    120
-//   second commit         2026-07-01T15:00Z    +5 h    → max(12.5, 16)  =  16    136
-//   shared.txt mtime      2026-07-01T18:00Z    +3 h    → max(7.5,  16)  =  16    152
-//   disk-only.txt mtime   2026-07-02T14:00Z    +20 h   → 50 (in band)            202
+//   early.txt mtime       2026-05-20T10:00Z    —                                     0
+//   first commit          2026-07-01T10:00Z    +1008 h → max(min(2520,120), 22)=120  120
+//   second commit         2026-07-01T15:00Z    +5 h    → max(12.5, 22)         = 22  142
+//   shared.txt mtime      2026-07-01T18:00Z    +3 h    → max(7.5,  22)         = 22  164
+//   disk-only.txt mtime   2026-07-02T14:00Z    +20 h   → max(50,   22)         = 50  214
 //
 // The gaps deliberately exercise all three regimes: one over the cap (6 weeks), two under the
-// FLOOR (5 h and 3 h — both below the 6.4 h the floor buys, which is why they render an equal
-// 16 px each rather than 12.5 and 7.5), and one in proportion (20 h). Both clamps ACCUMULATE per
-// adjacent pair, so the last tick reads 202 rather than 120. Every value is exact in binary
-// floating point, so comparing them with deepEqual is safe.
+// content floor (5 h and 3 h — both below the 8.8 h that one row buys, which is why they render an
+// equal 22 px each rather than 12.5 and 7.5), and one in proportion (20 h, which needs no help from
+// the floor). Task 251 moved the two floored gaps from 16 px to 22 px, since a row a bubble must
+// actually show is 22 px tall — the 16 px heuristic they used to take was a guess at the dot's
+// height and left the label with nowhere to go. Both clamps ACCUMULATE per adjacent pair, so the
+// last tick reads 214 rather than 120. Every value is exact in binary floating point, so comparing
+// them with deepEqual is safe.
 export const EARLY_DISK_ORPHAN_PX = 0;
 export const FIRST_COMMIT_PX = 120;
-export const SECOND_COMMIT_PX = 136;
-export const SHARED_FILE_PX = 152;
-export const DISK_ONLY_FILE_PX = 202;
+export const SECOND_COMMIT_PX = 142;
+export const SHARED_FILE_PX = 164;
+export const DISK_ONLY_FILE_PX = 214;
 
 // The wire form: Path serializes via toJSON to a string, Date to an ISO string.
 export type WireLayer1Instant = { instant: string; axisPx: number };

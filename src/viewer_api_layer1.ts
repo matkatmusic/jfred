@@ -8,7 +8,7 @@ import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts";
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
-import { resolveInstantOffsets } from "./layer1_ruler_axis.ts";
+import { layOutNodeLadders, type NodeLadder } from "./layer1_ruler_axis.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
@@ -24,7 +24,10 @@ export const LAYER1_PROGRESS_LABEL_RESOLVING_RULER = "resolving the ruler";
 
 // One placed moment on the wire: the instant, plus the finished pixel offset the page emits as
 // --axis-px. The S18 ruler ACCUMULATES, so an offset cannot be derived from its own instant — the
-// page must be handed the number (the same contract as task 239's axisOffsetsPx).
+// page must be handed the number (the same contract as task 239's axisOffsetsPx). Since task 251 a
+// NODE's axisPx also carries its row within its instant, so two nodes of one pair that share a
+// moment arrive one row apart and the page still does no arithmetic. `ruler` keeps the instant's
+// own tick — its first row — which is the anchor a same-instant indicator reads against (task 259).
 export interface Layer1WireInstant {
     instant: Instant;
     axisPx: number;
@@ -78,11 +81,29 @@ function reportStage(reportProgress: ProgressSink, label: string, current?: numb
     reportProgress({ kind: DocumentResponseKind.progress, label, current, total });
 }
 
-// Resolve the whole view's instants ONCE so widgets, nodes and buckets share one ruler. Keyed by
-// epoch ms — the same identity resolveInstantOffsets de-duplicates on, so two Date objects for the
-// same moment resolve to one offset.
-function mapInstantsToOffsetPixels(instants: Instant[]): Map<number, number> {
-    return new Map(resolveInstantOffsets(instants).map((position) => [position.instant.getTime(), position.offsetPx]));
+// One pair's ladder in the order the page draws it: every commit oldest-first, then the on-disk
+// node last. This IS the bubble's content — the file name and its sub-line sit in the bubble's own
+// fixed padding and consume no ruler, so these node rows are the whole of what task 251 measures,
+// and the ruler is charged for exactly them. Order is load-bearing twice over: it decides which
+// tied node takes the upper row, and it makes the returned offsets readable positionally below.
+function listPairNodeLadder(pair: PairHistory): NodeLadder {
+    return [...pair.commits.map((commit) => commit.instant), pair.file.mtime];
+}
+
+// One pair on the wire, its nodes taking the offsets the layout measured for THIS pair's ladder.
+// `nodeOffsetsPx` is parallel to listPairNodeLadder's output, so the commits read off the front in
+// the same oldest-first order and the on-disk node is the last entry — by construction, not by a
+// lookup, which is what lets two nodes sharing an instant come back on different rows.
+function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer1WirePair {
+    return {
+        path: pair.file.relativePath,
+        commits: pair.commits.map((commit, node) => ({
+            hash: commit.hash,
+            instant: commit.instant,
+            axisPx: nodeOffsetsPx[node]!,
+        })),
+        onDisk: { instant: pair.file.mtime, axisPx: nodeOffsetsPx.at(-1)! },
+    };
 }
 
 // Place one instant on the resolved ruler. Every instant handed out below was part of the resolve
@@ -154,18 +175,21 @@ export function buildLayer1View(
     }
     const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress);
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
-    const offsets = mapInstantsToOffsetPixels([
-        ...pairHistories.flatMap((pair) => [...pair.commits.map((commit) => commit.instant), pair.file.mtime]),
-        ...gitOrphanPlacements.map((placement) => placement.instant),
-        ...pairing.diskOrphans.map((file) => file.mtime),
+    // The ladders are the ruler's whole input (task 251). Pair ladders come FIRST and in
+    // `pairHistories` order, which is what makes `ladderOffsetsPx[index]` that pair's own rows
+    // below. Each orphan instant follows as a ONE-node ladder: a bucket row is a list item that
+    // flows inside its bucket rather than a node pinned to the axis, so it must still bound the
+    // ruler but must not be charged a stacked row.
+    const layout = layOutNodeLadders([
+        ...pairHistories.map(listPairNodeLadder),
+        ...gitOrphanPlacements.map((placement) => [placement.instant]),
+        ...pairing.diskOrphans.map((file) => [file.mtime]),
     ]);
+    // Ticks, not node rows: a bucket is placed at its instant's own position on the shared ruler.
+    const offsets = new Map(layout.ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {
         // Pair order is the disk walk's path order — not re-sorted.
-        pairs: pairHistories.map((pair) => ({
-            path: pair.file.relativePath,
-            commits: pair.commits.map((commit) => ({ hash: commit.hash, ...placeInstantOnAxis(offsets, commit.instant) })),
-            onDisk: placeInstantOnAxis(offsets, pair.file.mtime),
-        })),
+        pairs: pairHistories.map((pair, index) => placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!)),
         gitOrphans: orderRowsByInstant(gitOrphanPlacements.map((placement) => ({
             path: placement.path,
             ...placeInstantOnAxis(offsets, placement.instant),
@@ -174,6 +198,6 @@ export function buildLayer1View(
             path: file.relativePath,
             ...placeInstantOnAxis(offsets, file.mtime),
         }))),
-        ruler: [...offsets].map(([epochMs, axisPx]) => ({ instant: new Date(epochMs), axisPx })),
+        ruler: layout.ticks.map((tick) => ({ instant: tick.instant, axisPx: tick.offsetPx })),
     };
 }
