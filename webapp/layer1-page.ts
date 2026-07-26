@@ -95,14 +95,14 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
 }
 
 // One pair's widget: named by its BASENAME, full path on hover (task 245 — a path is unbounded but
-// the bubble is 168 px), offset to its FIRST commit, a node per commit, on-disk node last.
+// the bubble is 168 px), offset to its EARLIEST node, a node per commit, on-disk node last.
 function buildPairWidget(pair: WirePair): HTMLElement {
-    // The one subtraction base. ponytail: a pair whose history came back empty pins to its
-    // on-disk node instead of throwing — only reachable on a clone whose history was truncated;
-    // give it a real ladder if shallow clones ever become a supported input.
-    const startPx = pair.commits[0]?.axisPx ?? pair.onDisk.axisPx;
+    // Spans EARLIEST to LATEST whichever KIND each is: an on-disk mtime predating the first commit
+    // gave a negative offset, drawing the disk node over the header (247-249). Empty ladder: free.
+    const nodePx = [...pair.commits.map((commit) => commit.axisPx), pair.onDisk.axisPx];
+    const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
-    lane.style.setProperty("--span-px", String(pair.onDisk.axisPx - startPx));
+    lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
     lane.append(el("div", { class: "lrail" }));
     for (const commit of pair.commits) {
         // Short label, full hash on hover — see SHORT_HASH_LENGTH.
