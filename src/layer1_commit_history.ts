@@ -23,7 +23,7 @@ export interface CommitHistoryNode {
 
 // The commits touching `repoRelativePath` in `repoDir` reachable from `ref` (default: the active
 // branch), OLDEST first (commit order). Empty when the file was never committed; a genuinely
-// unreadable repo or a bad ref is caught loudly upstream by listRepoTreeAtRef (task 231), so quiet
+// unreadable repo or a bad ref is caught loudly upstream by readRepoTreeAtRef (task 231), so quiet
 // emptiness here cannot hide a mistyped input. `ref` must be the SAME ref the repo tree was read
 // at (task 235) — otherwise a path tracked at that ref but absent from HEAD gets no ladder.
 export function listPairCommitHistory(repoDir: Path, repoRelativePath: Path, ref: string = ACTIVE_BRANCH_REF): CommitHistoryNode[] {

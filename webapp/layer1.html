@@ -56,6 +56,14 @@
   button:disabled { color: var(--muted); cursor: not-allowed; }
   button:disabled:hover { border-color: var(--border); }
 
+  /* Zoom sits LEFT of the layer buttons: both groups carry `margin-left: auto`, and two auto
+     margins split the free space between them, so zoom lands mid-header and .layerbar stays
+     pinned hard right. */
+  .zoombar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .zoombar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .zoombar .zoom-level { font-size: 11.5px; color: var(--ink2);
+    font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
+
   .layerbar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
   .layerbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
   .layerbar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
@@ -77,15 +85,41 @@
   .legend span { display: inline-flex; align-items: center; gap: 5px; }
   .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
 
-  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
-  .canvas { position: relative; min-width: max-content; padding-left: 96px; }
+  /* The build takes ~10 s on a real project, so the page reports it. ponytail: a flow-positioned
+     strip between the legend and the scroll container, NOT an overlay — `main.timelines` is a
+     scroll container, so `position: absolute; inset: 0` would drift out of the viewport the moment
+     the user scrolled. webapp/app-progress.ts is deliberately not reused: its CSS lives in
+     styles.css (which this page never loads) against a disjoint token set (--bg/--panel/--accent
+     vs this page's --page/--surface/--sel-edge), and its cancel button hardcodes
+     `location.hash = "#/"` — meaningless on a page that is not hash-routed. */
+  .loadbar { display: flex; align-items: center; gap: 10px; padding: 6px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface); }
+  .loadbar-track { flex: 1; height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+  .loadbar-fill { height: 100%; width: 0; background: var(--sel-edge); transition: width .12s linear; }
+  .loadbar-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap; }
 
-  .ruler { position: absolute; left: 0; top: 0; bottom: 0; width: 96px; z-index: 8; }
+  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
+  /* A flex row, not padding-left + an absolute ruler: the gutter must be a real column so it
+     can be `position: sticky` and survive horizontal scroll. `align-items` is left at its
+     `stretch` default so the ruler's height follows the tallest widget.
+     ponytail: zoom is the NATIVE `zoom` property, never `transform: scale()`. `zoom` participates
+     in layout, so this scroll container's scrollable area shrinks with the content; `transform`
+     would leave the page scrolling over a huge empty region when zoomed out. It also scales font
+     size, so tick labels shrink in step with the gaps between them — which is why the page's 13 px
+     tick-label collision skip stays correct at every level and the ruler needs no re-render. */
+  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1); }
+
+  /* left: 0 pins the gutter to the scrollport's left edge under horizontal scroll; it still
+     scrolls VERTICALLY with the content, which it must — a tick marks a node's row. The
+     background is load-bearing: widgets scroll UNDER the gutter, not through it. */
+  .ruler { position: sticky; left: 0; z-index: 8; flex: none; width: 96px;
+    background: var(--page); }
   .ruler .rail { position: absolute; left: 80px; top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
   .ruler .tick { position: absolute; left: 0; width: 70px; text-align: right; top: calc(var(--axis-px) * 1px);
     font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
 
-  .stage { display: flex; align-items: flex-start; gap: 26px; }
+  .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
 
   .filebox { position: relative; flex: none; min-width: 168px;
     margin-top: calc(var(--axis-px) * 1px);
@@ -120,6 +154,13 @@
   <header>
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
+    <div class="zoombar">
+      <span class="lbl">Zoom:</span>
+      <button id="zoom-out" title="Zoom out">−</button>
+      <span class="zoom-level" id="zoom-level">100%</span>
+      <button id="zoom-in" title="Zoom in">+</button>
+      <button id="zoom-reset">Reset</button>
+    </div>
     <div class="layerbar">
       <span class="lbl">Layer:</span>
       <button class="current">1</button>
@@ -143,6 +184,10 @@
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
     <span><i style="border:3px double var(--c-disk);background:transparent"></i> on-disk</span>
     <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
+  </div>
+  <div class="loadbar" id="loadbar" hidden>
+    <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
+    <span class="loadbar-label" id="loadbar-label"></span>
   </div>
 
   <main class="timelines"><div class="canvas">

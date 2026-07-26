@@ -5,6 +5,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -63,6 +64,64 @@ test("test_walkCurrentFileState_walks_a_folder_with_no_gitignore", () => {
     writeFixtureFile(root, "node_modules/pkg/index.js", "pkg\n");
     writeFixtureFile(root, ".git/config", "[core]\n");
     assert.deepEqual(listWalkedPaths(root), ["notes.txt"]);
+});
+
+// Run a git command in `folder` with a fixed identity and a pinned committer date.
+function runGit(folder: string, command: string): void {
+    execSync(`git -c user.name=t -c user.email=t@t ${command}`, {
+        cwd: folder,
+        stdio: "pipe",
+        env: { ...process.env, GIT_COMMITTER_DATE: "2026-07-01T10:00:00Z" },
+    });
+}
+
+// A REAL repo holding a tracked file, an untracked file, an ignored file (via a NESTED .gitignore
+// the fallback matcher cannot read), and a committed submodule whose inner repo has a file of its
+// own. `protocol.file.allow=always` is mandatory: modern git refuses a local-path submodule clone.
+function makeFixtureRepoWithSubmodule(): string {
+    const innerDir = mkdtempSync(join(tmpdir(), "layer1-disk-walk-inner-"));
+    runGit(innerDir, "init -q");
+    writeFixtureFile(innerDir, "inner.txt", "belongs to another repository\n");
+    runGit(innerDir, "add -A");
+    runGit(innerDir, "commit -q -m inner");
+    const root = mkdtempSync(join(tmpdir(), "layer1-disk-walk-repo-"));
+    runGit(root, "init -q");
+    writeFixtureFile(root, "kept.txt", "tracked\n");
+    runGit(root, "add -A");
+    runGit(root, "commit -q -m one");
+    runGit(root, `-c protocol.file.allow=always submodule add -q ${innerDir} external/tmux_lib`);
+    runGit(root, "commit -q -m submodule");
+    writeFixtureFile(root, "untracked.txt", "present but uncommitted\n");
+    writeFixtureFile(root, "src/.gitignore", "generated.ts\n");
+    writeFixtureFile(root, "src/generated.ts", "machine written\n");
+    return root;
+}
+
+test("test_walkCurrentFileState_asks_git_and_omits_a_submodules_contents_and_its_gitlink", () => {
+    // Scenario: a submodule's files belong to ANOTHER repository, so Layer 1 must not report them
+    // at all — the real case is jfred's four submodules holding 10,884 files, every one of which
+    // landed in the "No repository match" bucket. The gitlink itself is not a file either.
+    // Steps:
+    // walk a real repo that holds a tracked file, an untracked file and a submodule.
+    const walked = listWalkedPaths(makeFixtureRepoWithSubmodule());
+    // the submodule's contents are absent — git stops at the gitlink, so they are never listed.
+    assert.equal(walked.some((path) => path.startsWith("external/tmux_lib/")), false, walked.join(","));
+    // and the gitlink's own path is absent too: it is a directory on disk, never a file.
+    assert.equal(walked.includes("external/tmux_lib"), false, walked.join(","));
+});
+
+test("test_walkCurrentFileState_reports_tracked_and_untracked_files_but_not_ignored_ones", () => {
+    // Scenario: the `current file state` is what is on disk, which is tracked AND untracked files
+    // — but never an ignored one. A NESTED .gitignore governs here, which is exactly what asking
+    // git buys over the fallback matcher (that one reads only the TOP-LEVEL .gitignore).
+    // Steps:
+    // walk the same repo.
+    const walked = listWalkedPaths(makeFixtureRepoWithSubmodule());
+    // the tracked file, the untracked file and the two .gitignore/.gitmodules files git tracks.
+    assert.equal(walked.includes("kept.txt"), true, walked.join(","));
+    assert.equal(walked.includes("untracked.txt"), true, walked.join(","));
+    // the file ignored by the NESTED src/.gitignore is absent.
+    assert.equal(walked.includes("src/generated.ts"), false, walked.join(","));
 });
 
 test("test_walkCurrentFileState_reports_the_files_mtime", () => {

@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { matchJsonlSourceLink } from "../webapp/app-console.ts";
-import { splitNdjsonChunk } from "../webapp/app-fetch.ts";
+import { splitNdjsonChunk } from "../webapp/app-ndjson.ts";
 import { routeToTimeline } from "../webapp/app-routes.ts";
 
 // -------------------- Step 4: client NDJSON line splitter --------------------

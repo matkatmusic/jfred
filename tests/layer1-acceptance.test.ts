@@ -12,6 +12,8 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import {
+    SUBMODULE_FIXTURE_FOLDER,
+    makeSubmoduleFixtureRoot,
     makeUnrelatedFixtureDiskFolder,
     makeUnrelatedFixtureRepo,
     startFixtureViewer,
@@ -24,6 +26,8 @@ const SCRATCH_PORT = 19900 + (process.pid % 500);
 
 const diskDir = makeUnrelatedFixtureDiskFolder();
 const repoDir = makeUnrelatedFixtureRepo();
+// ONE root serving as both the project folder and the repo — the submodule-exclusion case.
+const submoduleRoot = makeSubmoduleFixtureRoot();
 
 let child: ChildProcess | undefined = undefined;
 
@@ -46,8 +50,8 @@ after(() => {
 // macrotask turns, written for a stub that resolves immediately, and a real HTTP round trip plus
 // the endpoint's git subprocesses will not reliably fit inside it. boot's own fire-and-forget load
 // renders the same view, so the two cannot disagree.
-async function renderPageAgainstLiveEndpoint(): Promise<void> {
-    const search = `?dir=${encodeURIComponent(diskDir)}&repo=${encodeURIComponent(repoDir)}`;
+async function renderPageAgainstLiveEndpoint(dir: string = diskDir, repo: string = repoDir): Promise<void> {
+    const search = `?dir=${encodeURIComponent(dir)}&repo=${encodeURIComponent(repo)}`;
     setupLayer1Dom(search);
     forwardFetchToOrigin(`http://127.0.0.1:${SCRATCH_PORT}`);
     const { bootLayer1Page, loadLayer1View } = await import("../webapp/layer1-page.ts");
@@ -68,6 +72,12 @@ function findBucketTitled(title: string): HTMLElement | undefined {
 
 function listBucketPaths(bucket: HTMLElement): (string | null)[] {
     return [...bucket.querySelectorAll("li span")].map((row) => row.textContent);
+}
+
+// Every path named by EITHER bucket, so a claim about "no bucket mentions X" cannot pass by
+// looking in the wrong direction.
+function listEveryBucketPath(): (string | null)[] {
+    return listMatching("#stage .filebox.bucket").flatMap(listBucketPaths);
 }
 
 test("test_unrelated_roots_render_zero_pair_widgets", async () => {
@@ -105,4 +115,24 @@ test("test_every_repo_path_and_every_disk_path_lands_in_its_own_bucket", async (
     assert.deepEqual(listBucketPaths(findBucketTitled("No on-disk match")!), ["alpha.py", "docs/readme.md"]);
     // the folder's two files, oldest mtime first (09:00 then 12:00 the next day).
     assert.deepEqual(listBucketPaths(findBucketTitled("No repository match")!), ["notes.txt", "todo.md"]);
+});
+
+test("test_layer1_view_reports_no_orphan_for_a_submodules_contents", async () => {
+    // Scenario: the submodule's files belong to another repository, so neither bucket
+    // mentions them and the gitlink itself is not a phantom repo-only row. Against the real
+    // jfred repo this is 10,884 rows of noise; here it is one file inside vendor/lib.
+    // Steps:
+    // request the view for a repo that has one tracked file and one submodule.
+    await renderPageAgainstLiveEndpoint(submoduleRoot, submoduleRoot);
+    const bucketPaths = listEveryBucketPath();
+    // the submodule's CONTENTS are absent — the walk never descended into the folder at all.
+    for (const path of bucketPaths) {
+        assert.equal(path?.startsWith(`${SUBMODULE_FIXTURE_FOLDER}/`), false, `${path} is submodule content`);
+    }
+    // and the gitlink itself is not a phantom "No on-disk match" row either: `git ls-tree -r`
+    // reports it as one bare directory name, which pairing would otherwise treat as a file.
+    assert.equal(bucketPaths.includes(SUBMODULE_FIXTURE_FOLDER), false);
+    // the root's own tracked file still pairs, so the exclusion did not over-reach.
+    assert.ok(listMatching("#stage .filebox:not(.bucket) .fname")
+        .some((name) => name.textContent === "kept.txt"));
 });

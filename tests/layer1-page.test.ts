@@ -8,7 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
 
 // One placed moment as the endpoint ships it.
 interface FixtureInstant {
@@ -22,9 +22,10 @@ interface FixtureCommit extends FixtureInstant {
 }
 
 // The pair's ladder, oldest first — the order the endpoint emits and the page must preserve.
+// REAL 40-character hashes: 7-char fakes would pass a broken truncation unchanged.
 const PAIR_COMMITS: FixtureCommit[] = [
-    { hash: "a1b2c3d", instant: "2026-06-01T09:00:00.000Z", axisPx: 10 },
-    { hash: "e4f5a6b", instant: "2026-06-01T14:30:00.000Z", axisPx: 24 },
+    { hash: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", instant: "2026-06-01T09:00:00.000Z", axisPx: 10 },
+    { hash: "e4f5a6b7c8d90e1f2a3b4c5d6e7f8091a2b3c4d5", instant: "2026-06-01T14:30:00.000Z", axisPx: 24 },
 ];
 
 // The pair's current on-disk state — S18's final node.
@@ -71,9 +72,11 @@ function buildRulerOnlyView(ruler: FixtureInstant[]): object {
 // Set up a fresh page whose URL already names both roots, stub the endpoint, and boot it.
 // bootLayer1Page is called EXPLICITLY rather than relying on the module's own boot line: node's
 // module cache runs that only on the first import, so later tests would otherwise render nothing.
-async function loadPageWithView(view: object, search: string): Promise<void> {
+// The page reads an NDJSON progress stream, so the stub is a stream whose lines are `progressLines`
+// followed by the view as the terminal (kind-less) line — the exact framing the route emits.
+async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
     setupLayer1Dom(search);
-    stubFetchRoutes({ "/api/layer1-view": view });
+    stubStreamRoute("/api/layer1-view", [...progressLines, view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
     await flushAsyncWork();
@@ -121,7 +124,9 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
     // from `commits` rather than from some sort the page invented.
     assert.deepEqual(listMatching("#stage .node.n-commit").map(readAxisOffsetPx),
         [PAIR_COMMITS[0]!.axisPx - WIDGET_BASE_PX, PAIR_COMMITS[1]!.axisPx - WIDGET_BASE_PX]);
-    assert.deepEqual(listTextOf(widget, ".nlabel"), ["a1b2c3d", "e4f5a6b", "on disk"]);
+    // each dot is labelled with its commit's SHORT hash — the full 40 characters overprinted the
+    // neighbouring widget.
+    assert.deepEqual(listTextOf(widget, ".nlabel"), ["a1b2c3d4", "e4f5a6b7", "on disk"]);
     // the on-disk node is last, on the same widget-relative ruler, and the lane spans to hold it.
     assert.deepEqual(listMatching("#stage .node.n-disk").map(readAxisOffsetPx),
         [PAIR_ON_DISK.axisPx - WIDGET_BASE_PX]);
@@ -129,6 +134,25 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
     assert.equal(lane.style.getPropertyValue("--span-px"), String(PAIR_ON_DISK.axisPx - WIDGET_BASE_PX));
     // the ruler gutter draws every supplied tick at the endpoint's own pixels.
     assert.deepEqual(listMatching("#ruler .tick").map(readAxisOffsetPx), RULER.map((tick) => tick.axisPx));
+});
+
+test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover", async () => {
+    // Scenario (S18 feedback, user-locked 2026-07-25): 40 monospace characters is wider than a
+    // widget, so a dot is LABELLED with its first 8 — but the whole hash must stay recoverable,
+    // which is what the hover title is for. The wire is untouched: truncation happens only at render.
+    // Steps:
+    // load the partial-overlap view, whose two commits carry real 40-character hashes.
+    await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
+    const commitLabels = listMatching("#stage .n-commit + .nlabel");
+    // each visible label is the 8-character prefix, and each title is that same commit's full hash.
+    assert.deepEqual(commitLabels.map((label) => label.textContent), ["a1b2c3d4", "e4f5a6b7"]);
+    assert.deepEqual(commitLabels.map((label) => label.getAttribute("title")),
+        PAIR_COMMITS.map((commit) => commit.hash));
+    // the on-disk node has nothing longer to reveal, so it carries NO title attribute at all —
+    // which is what proves the optional argument did not leak onto every node el() builds.
+    const diskLabel = listMatching("#stage .n-disk + .nlabel")[0]!;
+    assert.equal(diskLabel.textContent, "on disk");
+    assert.equal(diskLabel.hasAttribute("title"), false);
 });
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {

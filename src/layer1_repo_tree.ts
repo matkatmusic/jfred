@@ -11,12 +11,43 @@ import { Path } from "./structures/domain.ts";
 // from here rather than re-spelling the string (coding-requirements §2).
 export const ACTIVE_BRANCH_REF = "HEAD";
 
-// The tracked paths in `repoDir` at `ref`, relative to the repo root, in git's tree order.
-// Throws when the ref does not resolve (or the directory is not a repo), naming the ref.
-export function listRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF): Path[] {
+// Blobs and gitlinks, told apart. `git ls-tree -r` recurses trees but stops at a gitlink,
+// so a submodule arrives as ONE mode-160000 entry naming its directory — indistinguishable
+// from a blob path once --name-only strips the mode. Both callers need the distinction:
+// the pairing must not treat a gitlink as a file, and the disk walk must not descend into
+// its folder.
+export interface Layer1RepoTree {
+    trackedFiles: Path[];
+    submodulePaths: Path[];
+}
+
+const GITLINK_MODE = "160000";
+
+// One `git ls-tree` record: "<mode> <type> <object>\tpath". The mode is the text before the
+// first space, and the path is everything past the first tab — a path may itself contain
+// spaces, so the tab is the only safe split point.
+function routeTreeRecord(record: string, tree: Layer1RepoTree): void {
+    const tabIndex = record.indexOf("\t");
+    if (tabIndex === -1) {
+        return;
+    }
+    const path = new Path(record.slice(tabIndex + 1));
+    const mode = record.slice(0, record.indexOf(" "));
+    if (mode === GITLINK_MODE) {
+        tree.submodulePaths.push(path);
+        return;
+    }
+    tree.trackedFiles.push(path);
+}
+
+// The tree of `repoDir` at `ref`: tracked file paths and submodule gitlink paths, both relative
+// to the repo root, in git's tree order. Throws when the ref does not resolve (or the directory
+// is not a repo), naming the ref.
+export function readRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF): Layer1RepoTree {
     // -z keeps paths raw (git C-quotes spaces/unicode without it); the argument array means
-    // the ref never reaches a shell, so no validation regex or quoting dance is needed.
-    const result = spawnSync("git", ["ls-tree", "-r", "--name-only", "-z", ref, "--"], {
+    // the ref never reaches a shell, so no validation regex or quoting dance is needed. The
+    // DEFAULT output format is read rather than --format, which older git versions lack.
+    const result = spawnSync("git", ["ls-tree", "-r", "-z", ref, "--"], {
         cwd: repoDir.toString(),
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
@@ -24,5 +55,11 @@ export function listRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF
     if (result.status !== 0) {
         throw new Error(`git ls-tree failed for ref "${ref}" in ${repoDir.toString()}: ${result.stderr ?? result.error?.message ?? ""}`.trim());
     }
-    return result.stdout.split("\0").filter((line) => line !== "").map((line) => new Path(line));
+    const tree: Layer1RepoTree = { trackedFiles: [], submodulePaths: [] };
+    for (const record of result.stdout.split("\0")) {
+        if (record !== "") {
+            routeTreeRecord(record, tree);
+        }
+    }
+    return tree;
 }

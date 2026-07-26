@@ -34,7 +34,7 @@ import {
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
-import { handleLayer1ViewRequest } from "./viewer_api_layer1.ts";
+import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
 import { handleFileLadderRequest } from "./viewer_api_ladder.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";

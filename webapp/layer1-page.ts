@@ -10,6 +10,8 @@
 // turns an absolute ruler position into a widget-relative one.
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
+import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
+import { wireZoomControls } from "./layer1-zoom.ts";
 
 // What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as
 // ISO text, so these are NOT src/viewer_api_layer1.ts's Layer1Wire* types (same naming convention
@@ -50,6 +52,11 @@ const TICK_LABEL_MIN_GAP_PX = 13;
 // The three header boxes; the ids match layer1.html and the names match the endpoint's params.
 const SOURCE_PARAM_IDS = ["dir", "repo", "ref"] as const;
 
+// User-locked 2026-07-25: 8 characters. The full hash stays on the wire and on the node's `title`;
+// only the visible label is shortened, because 40 monospace characters at 10 px is ~240 px — wider
+// than a widget, which is most of the overprinting in the reported screenshot.
+const SHORT_HASH_LENGTH = 8;
+
 // Hand CSS one finished ruler offset. Every placement rule still lives in layer1.html's stylesheet
 // — this is the only value JS contributes to layout.
 function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
@@ -77,11 +84,13 @@ function renderRulerTicks(ruler: WireInstant[]): void {
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
-// One dot plus its label, both pinned to the same widget-relative offset.
-function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string): void {
+// One dot plus its label, both pinned to the same widget-relative offset. `titleText` is optional so
+// the "on disk" node, which has nothing longer to reveal, is unaffected; el() omits an undefined
+// attribute, so a hover title costs one key and no new code path.
+function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string, titleText?: string): void {
     lane.append(
         setAxisPx(el("i", { class: `node ${nodeClass}` }), axisPx),
-        setAxisPx(el("span", { class: "nlabel", text }), axisPx),
+        setAxisPx(el("span", { class: "nlabel", text, title: titleText }), axisPx),
     );
 }
 
@@ -96,7 +105,8 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     lane.style.setProperty("--span-px", String(pair.onDisk.axisPx - startPx));
     lane.append(el("div", { class: "lrail" }));
     for (const commit of pair.commits) {
-        appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash);
+        // Short label, full hash on hover — see SHORT_HASH_LENGTH.
+        appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
     }
     appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
     return setAxisPx(el("div", { class: "filebox" }, [
@@ -186,14 +196,21 @@ export async function loadLayer1View(): Promise<void> {
         crumb.textContent = "pick a project folder and a git repo";
         return;
     }
-    const response = await fetch(`/api/layer1-view?${params}`);
-    if (!response.ok) {
-        // The route's refusals are already 400s carrying the message and no stack, so the crumb is
-        // the whole error surface. No alert(): native dialogs block headless automation.
-        crumb.textContent = await response.text();
-        return;
+    // Clear BOTH before the ~10 s build: the previous view's counts and widgets are stale the moment
+    // a new load starts, and leaving them up is what made the page read as frozen.
+    crumb.textContent = "";
+    getRequiredElementById("stage").replaceChildren();
+    showLayer1Progress("starting");
+    try {
+        renderLayer1View(await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`));
+    } catch (error) {
+        // The route's refusals carry the message and no stack — as a 400 body for a bad dir/repo, or
+        // as the stream's terminal error line for a bad ref — so the crumb is the whole error
+        // surface. No alert(): native dialogs block headless automation.
+        crumb.textContent = String(error);
+    } finally {
+        hideLayer1Progress();
     }
-    renderLayer1View(await response.json() as WireLayer1View);
 }
 
 // GET /api/pick-folder (task 236) — an empty path means the user cancelled, so leave the box
@@ -217,6 +234,7 @@ export function bootLayer1Page(): void {
     // FIRST: readSourceParams reads the BOXES, so without this a ?dir=&repo=&ref= link would open
     // an empty form and draw nothing — half of S18's "one shareable link".
     fillSourceBoxesFromUrl();
+    wireZoomControls();
     for (const button of document.querySelectorAll("button.pick")) {
         const target = getInputById((button as HTMLElement).dataset.for ?? "");
         button.addEventListener("click", () => {

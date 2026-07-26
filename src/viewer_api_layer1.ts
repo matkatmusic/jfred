@@ -4,16 +4,23 @@
 // JSONL data). HTTP wiring stays in viewer_server.ts; this file parses the query, composes the five
 // layer1_* modules, and serializes (precedent: viewer_api_layered.ts).
 
-import { type ServerResponse } from "node:http";
-import { existsSync, statSync } from "node:fs";
 import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts";
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
-import { ACTIVE_BRANCH_REF, listRepoTreeAtRef } from "./layer1_repo_tree.ts";
+import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
 import { resolveInstantOffsets } from "./layer1_ruler_axis.ts";
 import type { Instant } from "./layered_types.ts";
+import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { DocumentResponseKind } from "./structures/vocabulary.ts";
+
+// The stages this route announces. Named here so the tests assert the same strings the route
+// emits rather than re-typing them (precedent: PROGRESS_LABEL_PARSING_RECORDS).
+export const LAYER1_PROGRESS_LABEL_WALKING_FOLDER = "walking project folder";
+export const LAYER1_PROGRESS_LABEL_READING_TREE = "reading repository tree";
+export const LAYER1_PROGRESS_LABEL_READING_HISTORY = "reading file history";
+export const LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY = "placing repository-only files";
+export const LAYER1_PROGRESS_LABEL_RESOLVING_RULER = "resolving the ruler";
 
 // One placed moment on the wire: the instant, plus the finished pixel offset the page emits as
 // --axis-px. The S18 ruler ACCUMULATES, so an offset cannot be derived from its own instant — the
@@ -64,6 +71,13 @@ interface PairHistory {
     commits: { hash: string; instant: Instant }[];
 }
 
+// One announcement, counted or not. Reuses /api/document's ProgressEvent shape rather than
+// inventing a second progress vocabulary; `current`/`total` stay absent on the uncounted stages
+// (JSON.stringify drops undefined properties).
+function reportStage(reportProgress: ProgressSink, label: string, current?: number, total?: number): void {
+    reportProgress({ kind: DocumentResponseKind.progress, label, current, total });
+}
+
 // Resolve the whole view's instants ONCE so widgets, nodes and buckets share one ruler. Keyed by
 // epoch ms — the same identity resolveInstantOffsets de-duplicates on, so two Date objects for the
 // same moment resolve to one offset.
@@ -85,9 +99,11 @@ function placeInstantOnAxis(offsets: Map<number, number>, instant: Instant): Lay
 // Each git-orphan path's placing instant: its LAST touching commit, since a repo path with no
 // on-disk counterpart has no mtime and its most recent commit is the moment it last existed in the
 // repo (plans/layer1-mockup.html places a repo-only row the same way).
-function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string): GitOrphanPlacement[] {
+function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string, reportProgress: ProgressSink): GitOrphanPlacement[] {
     const placements: GitOrphanPlacement[] = [];
-    for (const orphanPath of gitOrphans) {
+    for (let index = 0; index < gitOrphans.length; index += 1) {
+        const orphanPath = gitOrphans[index]!;
+        reportStage(reportProgress, LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY, index + 1, gitOrphans.length);
         const lastTouch = listPairCommitHistory(repoDir, orphanPath, ref).at(-1);
         // ponytail: a path git lists at `ref` always has a commit reachable from that ref, so this
         // only holds for a shallow clone whose history was truncated; such a row is dropped rather
@@ -107,18 +123,37 @@ function orderRowsByInstant(rows: Layer1WireOrphan[]): Layer1WireOrphan[] {
     return [...rows].sort((left, right) => left.instant.getTime() - right.instant.getTime());
 }
 
-// The S18 Layer 1 View of `projectFolder` against `repoDir` at `ref`.
-export function buildLayer1View(projectFolder: Path, repoDir: Path, ref: string): Layer1WireView {
+// The S18 Layer 1 View of `projectFolder` against `repoDir` at `ref`. `reportProgress` is an
+// explicit parameter rather than reconstruction_progress.ts's process-wide sink, which is scoped
+// to document builds and would mix this route's lines into one.
+export function buildLayer1View(
+    projectFolder: Path,
+    repoDir: Path,
+    ref: string,
+    reportProgress: ProgressSink = () => {},
+): Layer1WireView {
+    reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
     const diskFiles = walkCurrentFileState(projectFolder);
+    reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_TREE);
     // Runs BEFORE any history read so a bad ref throws once, from the module whose message already
-    // names it, rather than degrading into empty ladders.
-    const repoPaths = listRepoTreeAtRef(repoDir, ref);
-    const pairing = pairDiskFilesAgainstRepoPaths(diskFiles, repoPaths);
-    const pairHistories: PairHistory[] = pairing.pairs.map((file) => ({
-        file,
-        commits: listPairCommitHistory(repoDir, file.relativePath, ref),
-    }));
-    const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref);
+    // names it, rather than degrading into empty ladders. Only `trackedFiles` reaches the pairing:
+    // a submodule GITLINK is not a file, so pairing it would invent a phantom repo-only row for
+    // each of jfred's four submodules. Their CONTENTS are excluded on the other side by
+    // walkCurrentFileState, which asks git and so stops at the same gitlink boundary.
+    const repoTree = readRepoTreeAtRef(repoDir, ref);
+    const pairing = pairDiskFilesAgainstRepoPaths(diskFiles, repoTree.trackedFiles);
+    // One `git log` per tracked path is where this route's ~10 s goes, so each iteration announces
+    // its position. ponytail: every item is reported, unbatched — 832 lines over 10 s is not a
+    // bottleneck, and a throttle would add a branch needing its own test. Batch into groups here
+    // if the line rate ever starts to matter.
+    const pairHistories: PairHistory[] = [];
+    for (let index = 0; index < pairing.pairs.length; index += 1) {
+        const file = pairing.pairs[index]!;
+        reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_HISTORY, index + 1, pairing.pairs.length);
+        pairHistories.push({ file, commits: listPairCommitHistory(repoDir, file.relativePath, ref) });
+    }
+    const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress);
+    reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
     const offsets = mapInstantsToOffsetPixels([
         ...pairHistories.flatMap((pair) => [...pair.commits.map((commit) => commit.instant), pair.file.mtime]),
         ...gitOrphanPlacements.map((placement) => placement.instant),
@@ -141,45 +176,4 @@ export function buildLayer1View(projectFolder: Path, repoDir: Path, ref: string)
         }))),
         ruler: [...offsets].map(([epochMs, axisPx]) => ({ instant: new Date(epochMs), axisPx })),
     };
-}
-
-// `dir` and `repo` are pasted or typed into the header's text boxes, so both are validated here
-// rather than deep in a walker: a bad one must be a 400 the page can display, not an ENOENT from
-// readdirSync. Existence + is-a-folder only — this is a localhost tool reading the user's own
-// machine, so there is no allowlist to enforce (the same posture as POST /api/config).
-function requireExistingFolderParam(query: URLSearchParams, name: string): Path {
-    const value = requireParam(query, name);
-    if (!existsSync(value)) {
-        throw new Error(`${name} folder does not exist: ${value}`);
-    }
-    if (!statSync(value).isDirectory()) {
-        throw new Error(`${name} is not a folder: ${value}`);
-    }
-    return new Path(value);
-}
-
-// An absent ref AND an empty one both mean "the repo's active branch" — the header's ref box is
-// optional, and a blank box still submits `?ref=`. A non-repo repo path and an unresolvable ref
-// need no check of their own: listRepoTreeAtRef throws naming the ref, and git ls-tree's stderr
-// names the non-repo case. The ref never reaches a shell (both git calls use argument arrays), so
-// no validation regex is required.
-function resolveRequestedRef(query: URLSearchParams): string {
-    const requested = query.get("ref");
-    if (requested === null) {
-        return ACTIVE_BRANCH_REF;
-    }
-    if (requested.trim() === "") {
-        return ACTIVE_BRANCH_REF;
-    }
-    return requested.trim();
-}
-
-// GET /api/layer1-view?dir=&repo=&ref= — the S18 Layer 1 View as JSON (Path/Date serialize via
-// toJSON / to ISO strings). Every failure below throws before any header is written, so
-// viewer_server.ts's outer catch turns it into a 400 carrying the message and no stack, matching
-// every other route.
-export function handleLayer1ViewRequest(response: ServerResponse, query: URLSearchParams): void {
-    const projectFolder = requireExistingFolderParam(query, "dir");
-    const repoDir = requireExistingFolderParam(query, "repo");
-    sendJson(response, 200, buildLayer1View(projectFolder, repoDir, resolveRequestedRef(query)));
 }

@@ -2,6 +2,7 @@
 
 import { computeConsentKey, getBaselineChoice, getModeChoice } from "./app-choices.ts";
 import { collapseProgressConsole, logProgress } from "./app-console.ts";
+import { splitNdjsonChunk } from "./app-ndjson.ts";
 import { hideLoadingProgress, showLoadingProgress } from "./app-progress.ts";
 
 // One recorded script execution awaiting consent (wire shape: timestamp is an ISO string;
@@ -35,15 +36,6 @@ function reportStreamProgress(parsed: WireDocumentStreamLine): void {
     const fraction = hasCount ? parsed.current! / parsed.total! : Number.NaN;
     const detail = hasCount ? `${parsed.label} — ${parsed.current} / ${parsed.total}` : parsed.label!;
     showLoadingProgress(detail, fraction);
-}
-
-// Split buffered NDJSON text into complete lines plus the trailing partial line.
-export function splitNdjsonChunk(bufferedText: string, chunkText: string): { remainder: string; lines: string[] } {
-    const combinedText = bufferedText + chunkText;
-    const splitLines = combinedText.split("\n");
-    const remainder = splitLines.pop()!;
-    const lines = splitLines.filter((line) => line.length > 0);
-    return { remainder, lines };
 }
 
 // Every server request announces itself in the loading console — its start AND its timed

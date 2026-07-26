@@ -177,6 +177,36 @@ export function stubFetchRoutes(routesByPathname: Record<string, unknown>): void
     Object.assign(globalThis, { fetch: buildStubbedFetch(routesByPathname) });
 }
 
+// A Response whose body is a real ReadableStream of NDJSON, for a page that reads a progress stream
+// rather than a JSON body (the Layer 1 page's `?progress=1` path). Each value in `lines` becomes one
+// JSON line; they are delivered as ONE chunk, which is also the realistic case — the server's build
+// is synchronous, so many lines land per reader.read().
+function enqueueOnceThenClose(encoded: Uint8Array): (controller: ReadableStreamDefaultController) => void {
+    return (controller) => {
+        controller.enqueue(encoded);
+        controller.close();
+    };
+}
+
+function respondNdjsonStream(lines: unknown[]): Response {
+    const encoded = new TextEncoder().encode(lines.map((line) => JSON.stringify(line)).join("\n") + "\n");
+    const body = new ReadableStream({ start: enqueueOnceThenClose(encoded) });
+    return { ok: true, status: 200, body, text: async () => "" } as unknown as Response;
+}
+
+function buildStubbedStreamFetch(pathname: string, lines: unknown[]): (url: unknown) => Promise<Response> {
+    return async (url: unknown): Promise<Response> => {
+        const matched = new URL(String(url), "http://localhost:7343").pathname === pathname;
+        return matched ? respondNdjsonStream(lines) : respondJson({}, false, 404);
+    };
+}
+
+// Replace global fetch with one that answers `pathname` with a canned NDJSON stream. Query strings
+// are ignored, exactly as stubFetchRoutes does, so a caller appending `&progress=1` still matches.
+export function stubStreamRoute(pathname: string, lines: unknown[]): void {
+    Object.assign(globalThis, { fetch: buildStubbedStreamFetch(pathname, lines) });
+}
+
 // Point the page's RELATIVE fetches at a live server (task 238, spec S18). node's native fetch
 // rejects a relative url, so an end-to-end DOM test cannot otherwise reach a spawned viewer. Only
 // the ORIGIN is supplied by the harness: the pathname, the query, the route, the git reads and the

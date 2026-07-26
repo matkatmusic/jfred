@@ -37,24 +37,26 @@ export const UNRELATED_SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";
 export const UNRELATED_FIRST_DISK_MTIME = "2026-07-02T09:00:00Z";
 export const UNRELATED_SECOND_DISK_MTIME = "2026-07-02T12:00:00Z";
 
-// The ruler at 2.5 px/hr with a 24 px per-gap cap (task 234), resolved over the WHOLE view — the
-// five instants above, de-duplicated and ascending, each advancing by min(elapsedHours × 2.5, 24).
-// Derived by hand so the expectations cannot agree with a buggy resolver:
+// The floored-linear, capped ruler (task 234), resolved over the WHOLE view — the five instants
+// above, de-duplicated and ascending, each advancing by 2.5 px/hr clamped into the 16 px … 120 px
+// band. Derived by hand so the expectations cannot agree with a buggy resolver:
 //
-//   early.txt mtime       2026-05-20T10:00Z    —                            0
-//   first commit          2026-07-01T10:00Z    +1008 h → min(2520, 24) = 24   24
-//   second commit         2026-07-01T15:00Z    +5 h    → 12.5                 36.5
-//   shared.txt mtime      2026-07-01T18:00Z    +3 h    → 7.5                  44
-//   disk-only.txt mtime   2026-07-02T14:00Z    +20 h   → min(50, 24)  = 24    68
+//   early.txt mtime       2026-05-20T10:00Z    —                                 0
+//   first commit          2026-07-01T10:00Z    +1008 h → min(2520, 120) = 120    120
+//   second commit         2026-07-01T15:00Z    +5 h    → max(12.5, 16)  =  16    136
+//   shared.txt mtime      2026-07-01T18:00Z    +3 h    → max(7.5,  16)  =  16    152
+//   disk-only.txt mtime   2026-07-02T14:00Z    +20 h   → 50 (in band)            202
 //
-// The gaps are deliberately one sub-cap (5 h) and two over-cap (6 weeks, 20 h), and the cap
-// ACCUMULATES per adjacent pair, so the last tick reads 68 rather than 24. Every value is exact in
-// binary floating point, so comparing them with deepEqual is safe.
+// The gaps deliberately exercise all three regimes: one over the cap (6 weeks), two under the
+// FLOOR (5 h and 3 h — both below the 6.4 h the floor buys, which is why they render an equal
+// 16 px each rather than 12.5 and 7.5), and one in proportion (20 h). Both clamps ACCUMULATE per
+// adjacent pair, so the last tick reads 202 rather than 120. Every value is exact in binary
+// floating point, so comparing them with deepEqual is safe.
 export const EARLY_DISK_ORPHAN_PX = 0;
-export const FIRST_COMMIT_PX = 24;
-export const SECOND_COMMIT_PX = 36.5;
-export const SHARED_FILE_PX = 44;
-export const DISK_ONLY_FILE_PX = 68;
+export const FIRST_COMMIT_PX = 120;
+export const SECOND_COMMIT_PX = 136;
+export const SHARED_FILE_PX = 152;
+export const DISK_ONLY_FILE_PX = 202;
 
 // The wire form: Path serializes via toJSON to a string, Date to an ISO string.
 export type WireLayer1Instant = { instant: string; axisPx: number };
@@ -139,6 +141,32 @@ export function makeUnrelatedFixtureRepo(): string {
     runGit(repoDir, "add -A");
     runGit(repoDir, "commit -q -m second", UNRELATED_SECOND_COMMIT_INSTANT);
     return repoDir;
+}
+
+// ONE root that is both the project folder and the repo, holding one tracked file plus a committed
+// submodule whose inner repo has a file of its own. dir === repo is the case the S18 feedback came
+// from (both header boxes pointed at RevEng/jfred), and it is the only coordinate system where a
+// gitlink path and a disk-walk path name the same thing — so it is where submodule exclusion is
+// observable end to end. The submodule is nested at vendor/lib rather than at the root so the
+// exclusion is proven against a path CONTAINING A SEPARATOR (the real repo has external/tmux_lib).
+// `protocol.file.allow=always` is mandatory: modern git refuses a local-path submodule clone.
+export const SUBMODULE_FIXTURE_FOLDER = "vendor/lib";
+
+export function makeSubmoduleFixtureRoot(): string {
+    const innerDir = mkdtempSync(join(tmpdir(), "layer1-submodule-inner-"));
+    runGit(innerDir, "init -q");
+    writeFileSync(join(innerDir, "inner.txt"), "belongs to another repository\n");
+    runGit(innerDir, "add -A");
+    runGit(innerDir, "commit -q -m inner", UNRELATED_FIRST_COMMIT_INSTANT);
+    const rootDir = mkdtempSync(join(tmpdir(), "layer1-submodule-root-"));
+    runGit(rootDir, "init -q");
+    writeFileSync(join(rootDir, "kept.txt"), "tracked here\n");
+    runGit(rootDir, "add -A");
+    runGit(rootDir, "commit -q -m one", UNRELATED_FIRST_COMMIT_INSTANT);
+    runGit(rootDir, `-c protocol.file.allow=always submodule add -q ${innerDir} ${SUBMODULE_FIXTURE_FOLDER}`);
+    runGit(rootDir, "add -A");
+    runGit(rootDir, "commit -q -m submodule", UNRELATED_SECOND_COMMIT_INSTANT);
+    return rootDir;
 }
 
 // parseServerArgs REQUIRES --projects-dir even though this route reads no JSONL; the disk fixture
