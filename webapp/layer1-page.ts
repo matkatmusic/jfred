@@ -89,6 +89,20 @@ function renderRulerTicks(ruler: WireInstant[]): void {
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
+// One dashed line per ruler ENTRY, spanning the canvas behind the bubbles (task 264). Every bubble
+// with a node at that instant shares this one line, replacing the per-bubble `.filebox::before` that
+// drew an overlapping copy for each of 805 bubbles and made the page unusably slow (task 263).
+//
+// Every entry gets one, not just the entries whose LABEL survives renderRulerTicks' overprint skip:
+// a skipped label still has bubbles sitting on it, and dropping its line would leave those bubbles
+// with no connector at all. Task 268 (merging rows that display the same value) is what reduces the
+// count; that is a different question from which labels happen to collide.
+function renderLeaderLines(ruler: WireInstant[]): void {
+    getRequiredElementById("leaders").replaceChildren(
+        ...ruler.map((entry) => setAxisPx(el("div", { class: "leader" }), entry.axisPx)),
+    );
+}
+
 // One dot plus its label, both pinned to the same widget-relative offset. `titleText` is optional so
 // the "on disk" node, which has nothing longer to reveal, is unaffected; el() omits an undefined
 // attribute, so a hover title costs one key and no new code path.
@@ -156,6 +170,7 @@ export function renderLayer1View(view: WireLayer1View): void {
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
     renderRulerTicks(view.ruler);
+    renderLeaderLines(view.ruler);
     const buckets = [
         // gitOrphans = in the repo, absent from disk. diskOrphans = on disk, absent from the repo.
         buildOrphanBucket("No on-disk match", view.gitOrphans),

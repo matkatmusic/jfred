@@ -145,12 +145,39 @@
      area, and abspos boxes are excluded from `min-width: max-content` so the canvas is not widened.
      The width is ONE VIEWPORT, not the distance to the gutter: a bubble the reader can see is by
      definition less than a scrollport width right of the pinned gutter, so a viewport's worth always
-     spans the visible gap and needs no measurement. Dividing by the inherited `--zoom` cancels the
-     scaling `.canvas` applies, so the RENDERED length is exactly 100vw at every zoom level — a fixed
-     px length instead would have to exceed the canvas's full width (~156,000 px on this repo at
-     805 widgets) and would silently run out on a bigger project. */
-  .filebox::before { content: ""; position: absolute; right: 100%; top: -2px;
-    width: calc(100vw / var(--zoom, 1)); border-top: 1px dashed var(--baseline); z-index: -1; }
+     spans the visible gap and needs no measurement.
+
+     THAT WAS WRONG, and one viewport is the bug the user re-reported on 2026-07-26 (task 262 round
+     two). It holds only for a bubble that is ON SCREEN. A leader is painted for EVERY bubble,
+     including the ones scrolled off to the RIGHT, and one of those ends a viewport to the left of
+     its own off-screen bubble — which lands in the MIDDLE of the visible canvas. The result is
+     dashes hanging in mid-air on rows with no bubble in sight, reading exactly as "the dashed line
+     does not reach the ruler". Round one (the 14 px gutter overpaint below) was a real defect but a
+     different one, and fixing it could not have fixed this.
+
+     So the length must cross canvas x=0 from ANY bubble, not just a visible one, which means it has
+     to beat the canvas's own width rather than the viewport's. ponytail: a flat ceiling well above
+     the ~156,000 px this repo renders at 805 widgets, NOT divided by `--zoom` — `zoom` scales it
+     along with everything else, and at the 0.1 minimum this still covers 50,000 rendered px. If a
+     project ever renders wider than this, publish the canvas width as a custom property in
+     layer1-page.ts and use it here; nothing else about the leader changes. */
+  /* The leader lines now belong to the RULER, not to the bubbles (task 264). One line per ruler
+     entry, spanning the whole canvas, shared by every bubble that has a node at that instant —
+     rather than one per bubble, which drew a fresh overlapping copy for each of the 805 bubbles and
+     made the page unusably slow once each copy had to be long enough to reach the gutter (#263).
+
+     `inset: 0` against `.canvas` — NOT `.stage` — is what lets a line reach the gutter with no
+     length guess at all: `.stage` starts to the right of the sticky ruler, so a line anchored there
+     could never span the gap that #262 was about. z-index -1 keeps them behind the bubbles, and
+     `.canvas`'s `isolation: isolate` is what stops that escaping to the root (see the .canvas rule).
+
+     top is the entry's own `--axis-px`, which is ALSO where every node at that instant sits: a node
+     is placed at `axisPx - startPx` inside a bubble whose own offset is `startPx`, so its absolute
+     canvas y is exactly `axisPx`. That is task 265 — the line lands on the NODES rather than on the
+     bubble's box top, which sat above them by the header's derived 50 px padding. */
+  .leaders { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+  .leader { position: absolute; left: 0; right: 0; top: calc(var(--axis-px) * 1px);
+    border-top: 1px dashed var(--baseline); }
 
   /* max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos +
      nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the

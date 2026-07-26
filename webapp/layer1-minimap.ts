@@ -30,16 +30,35 @@ interface ContentBoxPx {
     heightPx: number;
 }
 
-// Plot px per content px. The map is only useful if the WHOLE render fits inside it, so the tighter
-// of the two axes wins. The Math.max guards a division by zero on the pre-render page (no widgets
-// yet) and under happy-dom, which implements no layout and reports every extent as 0.
+// Plot px per content px, PER AXIS — the two are independent and deliberately not equal.
+//
+// plans/layer1-mockup.html fits one uniform `Math.min` scale, and this module shipped that; against
+// the real render it is wrong. The canvas is ~156,000 px wide but only a few thousand tall, so the
+// width term is an order of magnitude the smaller and, applied to BOTH axes, squashed every mark
+// into the top fifth of the plot with four fifths left blank (user report, screenshot 2026-07-26).
+// A uniform scale only reads correctly when the render's aspect ratio is near the plot's; the mockup
+// was built on mock data where it happened to be.
+//
+// Stretching each axis to its own extent costs shape fidelity, which this map does not have to sell:
+// every mark is already clamped up to MINIMUM_MARK_PX, so a bubble is a speck rather than a shape at
+// either scale. What the reader needs is WHERE they are, and that needs the full box on both axes.
+interface MinimapScale {
+    xPerContentPx: number;
+    yPerContentPx: number;
+}
+
+// The Math.max guards a division by zero on the pre-render page (no widgets yet) and under
+// happy-dom, which implements no layout and reports every extent as 0.
 export function fitMinimapScale(
     contentWidthPx: number,
     contentHeightPx: number,
     plotWidthPx: number,
     plotHeightPx: number,
-): number {
-    return Math.min(plotWidthPx / Math.max(contentWidthPx, 1), plotHeightPx / Math.max(contentHeightPx, 1));
+): MinimapScale {
+    return {
+        xPerContentPx: plotWidthPx / Math.max(contentWidthPx, 1),
+        yPerContentPx: plotHeightPx / Math.max(contentHeightPx, 1),
+    };
 }
 
 // The scroll container. It carries an id purely so this module and the page share one lookup.
@@ -54,17 +73,21 @@ function getMinimapPlot(): HTMLElement {
     return getRequiredElementById("mm-plot");
 }
 
-function readMinimapScale(): number {
-    return Number(getMinimapPlot().dataset["scale"] ?? 0);
+function readMinimapScale(): MinimapScale {
+    const plot = getMinimapPlot();
+    return {
+        xPerContentPx: Number(plot.dataset["scaleX"] ?? 0),
+        yPerContentPx: Number(plot.dataset["scaleY"] ?? 0),
+    };
 }
 
 // Place one absolutely-positioned rectangle inside the plot. Used for both a widget mark and the
 // viewport rectangle — they differ only in which content box they are handed.
-function positionInPlot(target: HTMLElement, box: ContentBoxPx, scale: number): void {
-    target.style.left = `${box.leftPx * scale}px`;
-    target.style.top = `${box.topPx * scale}px`;
-    target.style.width = `${Math.max(box.widthPx * scale, MINIMUM_MARK_PX)}px`;
-    target.style.height = `${Math.max(box.heightPx * scale, MINIMUM_MARK_PX)}px`;
+function positionInPlot(target: HTMLElement, box: ContentBoxPx, scale: MinimapScale): void {
+    target.style.left = `${box.leftPx * scale.xPerContentPx}px`;
+    target.style.top = `${box.topPx * scale.yPerContentPx}px`;
+    target.style.width = `${Math.max(box.widthPx * scale.xPerContentPx, MINIMUM_MARK_PX)}px`;
+    target.style.height = `${Math.max(box.heightPx * scale.yPerContentPx, MINIMUM_MARK_PX)}px`;
 }
 
 // One rendered widget's content-space box. `paneRect` is passed in rather than re-read per widget:
@@ -95,15 +118,15 @@ export function syncMinimapViewport(): void {
 // which case there is no position to scroll to.
 function scrollToMinimapPoint(event: Event): void {
     const scale = readMinimapScale();
-    if (scale <= 0) {
+    if (scale.xPerContentPx <= 0 || scale.yPerContentPx <= 0) {
         return;
     }
     const { clientX, clientY } = event as MouseEvent;
     const pane = getTimelinePane();
     const plotRect = getMinimapPlot().getBoundingClientRect();
     pane.scrollTo({
-        left: (clientX - plotRect.left) / scale - pane.clientWidth / 2,
-        top: (clientY - plotRect.top) / scale - pane.clientHeight / 2,
+        left: (clientX - plotRect.left) / scale.xPerContentPx - pane.clientWidth / 2,
+        top: (clientY - plotRect.top) / scale.yPerContentPx - pane.clientHeight / 2,
         behavior: "smooth",
     });
 }
@@ -140,7 +163,8 @@ export function drawLayer1Minimap(): void {
     const pane = getTimelinePane();
     const plot = getMinimapPlot();
     const scale = fitMinimapScale(pane.scrollWidth, pane.scrollHeight, plot.clientWidth, plot.clientHeight);
-    plot.dataset["scale"] = String(scale);
+    plot.dataset["scaleX"] = String(scale.xPerContentPx);
+    plot.dataset["scaleY"] = String(scale.yPerContentPx);
     const paneRect = pane.getBoundingClientRect();
     const marks = [...document.querySelectorAll(".filebox")].map((widget) => {
         // The two orphan buckets are `.filebox.bucket`; they read as muted on the map exactly as
