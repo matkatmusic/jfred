@@ -147,9 +147,12 @@
      nearest common ancestor of BOTH consumers (`.leader` inside `.leaders`, `.ruler .tick` inside
      `.ruler`), so one declaration reaches both and neither can be moved without the other.
      Moving `.fname`/`.sub`'s `top` or their font sizes redoes `.filebox`'s derived `padding-top`
-     and therefore this number too — task 270 briefly made it 70px. */
+     and therefore this number too — task 270 briefly made it 70px.
+     Task 292: `--rail-x` moved UP here from `.ruler` for the same reason `--lane-y` lives here —
+     the gutter's width and the range bars' left edge are now two consumers of one number, and
+     `.ranges` is not inside `.ruler`. `.ruler` inherits it, so its own rules are unchanged. */
   .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
-    isolation: isolate; gap: 14px; --lane-y: 52px; }
+    isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; }
 
   /* left: 0 pins the gutter to the scrollport's left edge under horizontal scroll; it still
      scrolls VERTICALLY with the content, which it must — a tick marks a node's row. The
@@ -167,7 +170,7 @@
      same line as the timestamp, don't wrap it"): the width keeps the label off the rail, nowrap
      keeps it on one line even if a count ever exceeds three digits. --rail-x again keeps 10 px of
      clearance. */
-  .ruler { --rail-x: 150px; position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+  .ruler { position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
   /* Task 290: `+ var(--lane-y)` drops the label onto the node's own row. See `.canvas` for the
      derivation; changed in the same step as `.leader` because moving only one would make the
@@ -194,7 +197,10 @@
   .filebox { position: relative; flex: none; min-width: 168px; scroll-margin-top: 14px;
     margin-top: calc(var(--axis-px) * 1px);
     border: 2px solid var(--box); border-radius: 14px;
-    background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 50px 12px 14px; }
+    /* Task 292: half-transparent so the JSONL wash behind it reads THROUGH the bubble (user,
+       2026-07-27) — otherwise the one place the range matters most, over the files it touched, is
+       the one place it cannot be seen. */
+    background: color-mix(in srgb, var(--surface) 52%, transparent); padding: 50px 12px 14px; }
 
   /* Task 250: trace a bubble back to its timestamp on the sticky gutter. `top: -2px` cancels the
      2 px border so the line sits on the border-box top edge, which is `margin-top` = --axis-px =
@@ -266,6 +272,32 @@
      for, and at opacity 0 it is never seen — so leaving `.shown` grey made a revealed line read as
      page furniture rather than as the answer to what was just hovered or selected. */
   .leader.shown, .leader.aimed { opacity: 1; border-top-color: var(--sel-edge); }
+
+  /* Task 292: a picked JSONL's extent. Two layers, positioned by `.leader`'s exact formula — they
+     live inside `.canvas`, whose native `zoom` scales them with everything else, so neither does
+     zoom arithmetic of its own.
+     The WASH is BEHIND the bubbles (user, 2026-07-27), like the leaders: it says which nodes the
+     session covers, and a bubble that has to be read through a tint is a bubble the wash has cost
+     something. The BAR is in FRONT, in the empty lane between the gutter's rail and the first
+     bubble, where it can never cover a file — 7 px wide, one 9 px slot per picked session. */
+  .washes { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+  .range-wash { position: absolute; left: 0; right: 0;
+    top: calc(var(--axis-px) * 1px + var(--lane-y)); height: calc(var(--span-px) * 1px);
+    background: color-mix(in srgb, var(--c-script) 14%, transparent);
+    border-top: 1px dashed var(--c-script); border-bottom: 1px dashed var(--c-script); }
+  .ranges { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+  .range { position: absolute; width: 7px; border-radius: 4px; pointer-events: auto; cursor: default;
+    left: calc(var(--rail-x, 150px) + 5px + var(--slot) * 9px);
+    top: calc(var(--axis-px) * 1px + var(--lane-y)); height: calc(var(--span-px) * 1px);
+    background: color-mix(in srgb, var(--c-script) 70%, transparent); }
+  /* The two ends read as ends rather than as a bar the scrollport clipped. */
+  .range::before, .range::after { content: ""; position: absolute; left: -3px; right: -3px;
+    height: 2px; background: var(--c-script); border-radius: 2px; }
+  .range::before { top: -1px; }
+  .range::after { bottom: -1px; }
+  /* The gutter is opaque and always on screen, so it carries the range too — a band alone is hidden
+     wherever a bubble sits over it. */
+  .ruler .tick.inrange { color: var(--c-script); }
 
   /* max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos +
      nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the
@@ -403,11 +435,39 @@
   /* Task 252: the File Nav — every identified file, including the repo files with no on-disk
      presence. A flex sibling of `main.timelines`, so it is left of the sticky ruler with no
      involvement in the zoomed canvas. `overflow: auto` gives it its own scroll: a real project
-     lists ~800 files and the pane must not stretch the page column. */
-  .filenav { flex: none; width: var(--filenav-w); overflow: auto;
+     lists ~800 files and the pane must not stretch the page column.
+     Task 292: the aside is now a flex COLUMN of two panes, so the scroll moved from it onto each
+     `.navpane` — one list must be able to reach its end without dragging the other off screen.
+     `min-height: 0` is what stops the column being sized by its content instead of by the row.
+     `--files-share` is the split the horizontal grip writes, out of 100. */
+  .filenav { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0; --files-share: 50;
     border-right: 1px solid var(--border); background: var(--surface); }
+  .navpane { overflow: auto; min-height: 0; }
+  #pane-files { flex: var(--files-share) 1 0; }
+  #pane-sessions { flex: calc(100 - var(--files-share)) 1 0; }
+  /* Negative margins so the 7 px target straddles the boundary rather than pushing the panes apart. */
+  .pane-grip { flex: none; height: 7px; margin: -3px 0; cursor: row-resize; z-index: 3;
+    background: transparent; }
+  .pane-grip:hover, .pane-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 6px; }
+  .filenav-title button { margin-left: auto; padding: 1px 7px; font-size: 10px;
+    letter-spacing: normal; text-transform: none; }
+
+  /* Task 292: one JSONL. The selected colour is `--c-script`, the same token the range bar and the
+     wash use, so the pane and the band it drew read as one control. */
+  .session-item { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); margin: 0 8px 3px;
+    padding: 3px 5px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
+  .session-item:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .session-item.selected { color: var(--ink); border-color: var(--c-script);
+    background: color-mix(in srgb, var(--c-script) 20%, transparent); }
+  .session-item .sname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-item .smeta { display: block; font-size: 9.5px; color: var(--muted); padding-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-item.selected .smeta { color: var(--ink2); }
+  .navempty { font-size: 11px; color: var(--muted); padding: 6px 12px; }
 
   /* Task 281: the nav's own search box. The input's font/padding/border/radius/focus values are
      `.sources input`'s verbatim (lines 71-73) — the page now has two search boxes and two visual
@@ -544,7 +604,40 @@
      its own to show — so the affordance is scoped to `.lane`, which only a pair widget draws. */
   .lane .node, .lane .nlabel { cursor: pointer; }
   .lane .nlabel:hover { color: var(--ink); text-decoration: underline dotted; }
-  /* The drawer's numbered lines (webapp/layer1-file-view.ts). `.dbody` already sets the monospace
-     font and `white-space: pre` the gutter's space-padded numbers depend on. */
-  .dbody .dline { display: block; }
-  .dbody .dln { color: var(--muted); user-select: none; }
+  /* The drawer's body (webapp/layer1-file-view.ts): a plain line-number column beside ONE
+     hljs-highlighted block, so the highlighter sees the whole file and a multi-line string is
+     tokenised once (task 294). Both children inherit `.dbody`'s font, line-height and
+     `white-space: pre`, which is what keeps the two columns' rows level. */
+  /* Tasks 295/296/297: the shared source-path dialog and the Save button's note. `position: fixed`
+     against the viewport, not against `.stagewrap` — the dialog must sit in front of the timeline
+     and never scroll with it. */
+  .savednote { font-size: 10.5px; color: var(--sel-edge); }
+  .modal-wrap { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+    background: color-mix(in srgb, #000 45%, transparent); }
+  .modal-wrap[hidden] { display: none; }
+  .modal { width: min(560px, 88vw); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); padding: 12px; position: relative; }
+  .mtitle { font: 600 12px system-ui; color: var(--ink); padding-bottom: 8px; }
+  .mlist { height: 190px; overflow: auto; background: var(--page); border: 1px solid var(--border);
+    border-radius: 7px; padding: 4px; }
+  /* A row is as wide as its path and never ellipsised — `.mlist`'s `overflow: auto` then scrolls
+     horizontally, so a long source path can be read in full. `min-width: 100%` keeps the hover and
+     selected backgrounds spanning the visible row rather than stopping at the text. */
+  .mlist div { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2);
+    padding: 3px 6px; border-radius: 4px; cursor: pointer; white-space: nowrap;
+    width: max-content; min-width: 100%; }
+  .mlist div:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .mlist div.picked { background: var(--sel-edge); color: #fff; }
+  .mlist .mempty { color: var(--muted); cursor: default; }
+  .mbuttons { display: flex; gap: 6px; align-items: center; padding-top: 9px; }
+  .mspacer { flex: 1; }
+  /* The folder held none of what this list is for. In front of the list, gone on its own a few
+     seconds later — the folder is refused, not the user. */
+  .malert { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+    background: var(--c-anchor); color: #fff; font: 600 11px system-ui;
+    padding: 6px 12px; border-radius: 16px; }
+  .malert[hidden] { display: none; }
+
+  .dbody { display: flex; align-items: flex-start; gap: 12px; }
+  .dbody .dgutter { flex: none; text-align: right; color: var(--muted); user-select: none; }
+  .dbody .dcode { flex: 1; min-width: 0; }

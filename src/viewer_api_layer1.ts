@@ -12,7 +12,8 @@ import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
-import { CommitTimeSource, DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { CommitTimeSource } from "./structures/vocabulary_view.ts";
 
 // The stages this route announces. Named here so the tests assert the same strings the route
 // emits rather than re-typing them (precedent: PROGRESS_LABEL_PARSING_RECORDS).

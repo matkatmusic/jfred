@@ -238,13 +238,3 @@ export enum FailureScope {
     file = "file",
     documentPhase = "document-phase",
 }
-
-// Which git stamp places a commit on the Layer 1 axis (task 282): a rebase collapses committer time
-// onto one instant while author time stays days apart, so the reading is chosen per view — never a
-// boolean. The values ARE the `time=` query-param and the toggle buttons' id suffixes: one spelling
-// across wire, URL and DOM.
-export enum CommitTimeSource {
-    committer = "committer",
-    author = "author",
-}
-

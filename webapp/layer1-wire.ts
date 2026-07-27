@@ -33,6 +33,20 @@ export interface WireOrphan extends WireInstant {
     path: string;
 }
 
+// One session transcript from /api/layer1-sessions (task 292). `started`/`ended` are the session's
+// FIRST and LAST record — deliberately not the instants of the files it touched, because the band
+// has to be able to open before the first write and close after the last one.
+export interface WireSession {
+    file: string;
+    // Absolute path: the wire identity, because two source folders can hold the same basename.
+    fullPath: string;
+    title: string;
+    started: string;
+    ended: string;
+    // Every file the session touched, which is all the filter needs.
+    paths: string[];
+}
+
 export interface WireLayer1View {
     pairs: WirePair[];
     gitOrphans: WireOrphan[];

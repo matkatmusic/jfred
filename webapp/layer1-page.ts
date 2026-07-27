@@ -9,10 +9,10 @@
 // arithmetic operation is subtracting a widget's own base offset from a node's, which is what
 // turns an absolute ruler position into a widget-relative one.
 
-import { el, getRequiredElementById } from "./app-dom.ts";
+import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
-import { wireFileNavResize } from "./layer1-filenav-resize.ts";
+import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
@@ -22,25 +22,18 @@ import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
-import { formatInstantLabel, listRulerRows } from "./layer1-ruler-rows.ts";
+import { listRulerRows } from "./layer1-ruler-rows.ts";
+import { wirePathPickers } from "./layer1-path-picker.ts";
+import { renderSessionRanges } from "./layer1-ranges.ts";
+import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths } from "./layer1-sessions.ts";
+import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
+import { seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { markMultiEventTicks, wireTickExpansion } from "./layer1-tick-files.ts";
-import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
-import type { WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
+import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
+import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
-
-// User-locked 2026-07-25: 8 characters. The full hash stays on the wire and on the node's `title`;
-// only the visible label is shortened, because 40 monospace characters at 10 px is ~240 px — wider
-// than a widget, which is most of the overprinting in the reported screenshot.
-const SHORT_HASH_LENGTH = 8;
-
-// Hand CSS one finished ruler offset. Every placement rule still lives in layer1.html's stylesheet
-// — this is the only value JS contributes to layout.
-function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
-    node.style.setProperty("--axis-px", String(axisPx));
-    return node;
-}
 
 // The left gutter. Which entries get a printed row, and what each row reads, is decided once by
 // layer1-ruler-rows.ts (tasks 268 and 275) — this only builds the elements. Task 260: every drawn
@@ -68,83 +61,6 @@ function renderLeaderLines(ruler: WireInstant[]): void {
     );
 }
 
-// One dot plus its label, both pinned to the same widget-relative offset. `titleText` is optional so
-// the "on disk" node, which has nothing longer to reveal, is unaffected; el() omits an undefined
-// attribute, so a hover title costs one key and no new code path.
-function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string, titleText?: string): void {
-    lane.append(
-        setAxisPx(el("i", { class: `node ${nodeClass}` }), axisPx),
-        setAxisPx(el("span", { class: "nlabel", text, title: titleText }), axisPx),
-    );
-}
-
-// One pair's widget: named by its BASENAME, full path revealed in-page on hover (task 280 — a path
-// is unbounded but the bubble is 168 px), offset to its EARLIEST node, a node per commit, on-disk
-// node last.
-function buildPairWidget(pair: WirePair): HTMLElement {
-    // Spans EARLIEST to LATEST whichever KIND each is: an on-disk mtime predating the first commit
-    // gave a negative offset, drawing the disk node over the header (247-249). Empty ladder: free.
-    // The ladder in wire order — commits oldest-first, on-disk last (src/viewer_api_layer1.ts's
-    // listPairNodeLadder). Held whole rather than just its offsets so task 259 can read the
-    // instants back off it and group the nodes that share one.
-    const ladder = [...pair.commits, pair.onDisk];
-    const nodePx = ladder.map((node) => node.axisPx);
-    const startPx = Math.min(...nodePx);
-    const lane = setAxisPx(el("div", { class: "lane" }), 0);
-    lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
-    // Task 259's markers go in BEFORE the nodes: neither carries a z-index, so DOM order is what
-    // keeps the rectangle behind the dots and their labels (`.node`'s own z-index: 6 is above both).
-    lane.append(el("div", { class: "lrail" }), ...buildTieGroupMarkers(ladder, startPx));
-    for (const commit of pair.commits) {
-        // Short label, full hash on hover — see SHORT_HASH_LENGTH.
-        appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
-    }
-    appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
-    return setAxisPx(el("div", { class: "filebox" }, [
-        // Task 280: the full path on `data-path`, not `title`. A `title` renders as the native
-        // tooltip — delayed, unstyled and gone on the first mouse move — which the user rejected;
-        // the CSS hover rule reveals the whole name in-page instead. Same attribute the find box
-        // and the File Nav's exact-path jump read, so this is also the widget's identity.
-        el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
-        el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
-        lane,
-    ]), startPx);
-}
-
-// One orphan bucket: a plain file list carrying each member's own timestamp, placed at its
-// EARLIEST member's instant. `title` and `rows` are supplied together by the single caller below
-// so a bucket's direction is never inferred from its contents — gitOrphans and diskOrphans are
-// mirror images and a swap would be invisible (spec S18 "Output contract"). The endpoint already
-// sorts rows ascending, so rows[0] IS the earliest member and no Math.min is needed here.
-// Undefined for an empty bucket: S18 omits those entirely.
-function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElement | undefined {
-    const earliest = rows[0];
-    if (earliest === undefined) {
-        return undefined;
-    }
-    // Task 266: each row carries the same WIDGET-RELATIVE `--axis-px` a `.node` does, so the ruler's
-    // click lookup can find a bucket row the way it finds a pair's node. A bucket draws no `.node`
-    // at all, so without this an instant only a bucket holds answered a click with nothing. No CSS
-    // rule reads `--axis-px` on an `li`, so the row does not move — this is pure data.
-    const list = el("ul", {}, rows.map((row) => setAxisPx(el("li", {}, [
-        el("span", { text: row.path }),
-        el("em", { text: formatInstantLabel(row.instant) }),
-    ]), row.axisPx - earliest.axisPx)));
-    return setAxisPx(el("div", { class: "filebox bucket" }, [
-        el("div", { class: "fname", text: title }),
-        el("div", { class: "sub", text: `${rows.length} files` }),
-        list,
-    ]), earliest.axisPx);
-}
-
-// The pair widgets, or the S18 empty-state message when the two roots share no path at all.
-function buildStagePairs(pairs: WirePair[]): HTMLElement[] {
-    if (pairs.length === 0) {
-        return [el("div", { class: "nopairs", text: "No git ↔ on-disk pairs." })];
-    }
-    return pairs.map(buildPairWidget);
-}
-
 // Everything the crumb, the ruler gutter and the stage draw for ONE view. Exported for task 253:
 // a folder filter redraws the timeline from its own filtered, re-laid-out view while the File Nav
 // is left standing — the nav is the control that SET the filter, so redrawing it would both shrink
@@ -169,22 +85,62 @@ export function renderLayer1Stage(view: WireLayer1View): void {
     // Task 284: which ticks would EXPAND is measured off the drawn stage, so this runs after the
     // bubbles are in the DOM — the same reason the minimap does.
     markMultiEventTicks();
+    // Task 292: the picked sessions' bands, measured against the ruler this stage was drawn with.
+    renderSessionRanges(listSelectedSessions(), view.ruler);
     // Task 246: the minimap MEASURES the widgets it maps, so it is drawn after they are in the DOM.
     drawLayer1Minimap();
 }
 
+// Task 292: two pickers, one rule — a file is drawn only when BOTH admit it. An EMPTY list means
+// that picker is not filtering, so it contributes nothing and the other one stands alone; two
+// non-empty lists intersect.
+export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] {
+    if (folders.length === 0) {
+        return [...sessions];
+    }
+    if (sessions.length === 0) {
+        return [...folders];
+    }
+    const touched = new Set(sessions);
+    return folders.filter((path) => touched.has(path));
+}
+
+// The File Nav's last folder selection. Module state because the session pane's clicks have to
+// re-apply it without the nav being re-consulted — redrawing the nav would wipe its own selection.
+let folderTargets: string[] = [];
+
 // Draw a FETCHED view: the File Nav over every file it holds, then the stage.
-// The nav is drawn only here, and `view` is captured by the folder callback — so every later folder
-// click re-filters from the unfiltered payload rather than from whatever the previous filter left on
+// The nav is drawn only here, and `view` is captured by both callbacks — so every later click
+// re-filters from the unfiltered payload rather than from whatever the previous filter left on
 // screen, and an empty selection restores the whole view without another fetch.
 export function renderLayer1View(view: WireLayer1View): void {
-    renderLayer1FileNav(view, (targets) => renderLayer1Stage(filterLayer1ViewByTargets(view, targets)));
+    const redrawFiltered = (): void => renderLayer1Stage(
+        filterLayer1ViewByTargets(view, intersectFilterTargets(folderTargets, listSessionFilterTargets())),
+    );
+    renderLayer1FileNav(view, (targets) => {
+        folderTargets = targets;
+        redrawFiltered();
+    });
     renderLayer1Stage(view);
+    // Every file this view draws, in the view's own relative spelling. The pane keeps only the
+    // transcripts that touched one of them (user, 2026-07-27) — a JSONL from an unrelated project
+    // under the same source folder has nothing to say about this timeline.
+    setKnownProjectPaths(getInputById("dir").value.trim(), [
+        ...view.pairs.map((pair) => pair.path),
+        ...view.gitOrphans.map((orphan) => orphan.path),
+        ...view.diskOrphans.map((orphan) => orphan.path),
+    ]);
+    // The session pane fills from its OWN endpoint, so it is fetched after the stage is up rather
+    // than delaying it — the timeline is the page, this pane is an accessory to it.
+    void loadLayer1Sessions().then(() => renderSessionPane(redrawFiltered));
 }
 
 // Fetch and draw the view for whatever the boxes currently hold, mirroring them into the URL
 // first (replaceState, not pushState: re-loading the same page is not a navigation).
 export async function loadLayer1View(): Promise<void> {
+    // Tasks 295/296: the source lists travel in the URL too, and an untouched list is re-derived
+    // from whatever project folder the box now holds — so this runs before the params are read.
+    syncSourceButtons();
     const params = readSourceParams();
     history.replaceState(null, "", `?${params}`);
     const crumb = getRequiredElementById("crumb");
@@ -197,6 +153,9 @@ export async function loadLayer1View(): Promise<void> {
     crumb.textContent = "";
     getRequiredElementById("stage").replaceChildren();
     getRequiredElementById("filenav-tree").replaceChildren();
+    // A filter from the previous project must not survive into the next one's render.
+    folderTargets = [];
+    resetSessionSelection();
     showLayer1Progress("starting");
     try {
         renderLayer1View(await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`));
@@ -211,10 +170,18 @@ export async function loadLayer1View(): Promise<void> {
 }
 
 // Wire the pickers and the Load button, then draw whatever the URL already asked for.
-export function bootLayer1Page(): void {
+export async function bootLayer1Page(): Promise<void> {
     // FIRST: readSourceParams reads the BOXES, so without this a ?dir=&repo=&ref= link would open
     // an empty form and draw nothing — half of S18's "one shareable link".
     fillSourceBoxesFromUrl();
+    // Tasks 295/296/297. Wired here with every other listener; the two AWAITS they depend on come
+    // after the whole page is wired, so a slow or refusing endpoint can never leave a control dead.
+    wirePathPickers(() => {
+        markSettingsDirty();
+        void loadLayer1View();
+    });
+    wireSettingsSave();
+    wireSessionPaneResize();
     // AFTER fillSourceBoxesFromUrl: it seeds the choice from ?time=, and this syncs the buttons'
     // `.current` class to whatever is now selected (task 282). The instants are resolved
     // server-side, so flipping the toggle re-loads the view.
@@ -244,7 +211,12 @@ export function bootLayer1Page(): void {
     getRequiredElementById("load").addEventListener("click", () => {
         void loadLayer1View();
     });
+    // LAST, and in this order: the server's roots are what the default source lists are derived
+    // from, and a saved project can only fill boxes the URL left empty (restoreSavedSettings stands
+    // down when the URL names a project). Both are best-effort — the page still draws without them.
+    await seedSourceDefaults();
+    await restoreSavedSettings().catch(() => false);
     void loadLayer1View();
 }
 
-bootLayer1Page();
+void bootLayer1Page();

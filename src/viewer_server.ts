@@ -34,10 +34,8 @@ import {
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
-import { handleLayer1FileRequest } from "./viewer_api_layer1_file.ts";
-import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
-import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
 import { handleFileLadderRequest } from "./viewer_api_ladder.ts";
+import { dispatchLayer1Route } from "./viewer_server_layer1_routes.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
 import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
@@ -185,12 +183,8 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             handlePrescanRequest(response, url.searchParams);
         } else if (url.pathname === "/api/layered-graph") {
             handleLayeredGraphRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/layer1-view") {
-            handleLayer1ViewRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/layer1-refs") {
-            handleLayer1RefsRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/layer1-file") {
-            handleLayer1FileRequest(response, url.searchParams);
+        } else if (dispatchLayer1Route(request, response, url)) {
+            // Handled by the Layer 1 group (viewer_server_layer1_routes.ts); nothing more to do.
         } else if (url.pathname === "/api/file-ladder") {
             handleFileLadderRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {

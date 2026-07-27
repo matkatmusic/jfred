@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { filterLayer1ViewByTargets, relayOutLayer1View } from "../webapp/layer1-filter.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Full ISO-8601 UTC, because the re-layout hydrates these to Date and writes them back with
 // toISOString() — any other spelling would come back changed and the deep-equal test would fail for
@@ -184,4 +185,23 @@ test("test_the_relayout_does_not_mutate_the_view_it_is_given", () => {
     relayOutLayer1View(filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS));
     // the source view still holds it.
     assert.equal(FULL_VIEW.pairs[0]!.commits[0]!.axisPx, originalAxisPx);
+});
+
+test("test_two_pickers_intersect_and_an_empty_one_does_not_filter", async () => {
+    // Scenario (task 292): the File Nav's folders and the JSONLs pane are two independent filters
+    // over one file list, and the mockup's rule is `inSelection && touchedBySelection`. An EMPTY
+    // list means that picker is not filtering — reading it as "select nothing" would blank the
+    // stage the moment either picker was left alone.
+    // Imported here rather than at the top: layer1-page.ts boots at module scope, so a top-level
+    // import would wire the whole page for a test about one pure function.
+    setupLayer1Dom();
+    const { intersectFilterTargets } = await import("../webapp/layer1-page.ts");
+    // Steps:
+    // one picker idle, the other holding a selection.
+    assert.deepEqual(intersectFilterTargets([], ["a.ts", "b.ts"]), ["a.ts", "b.ts"]);
+    assert.deepEqual(intersectFilterTargets(["a.ts"], []), ["a.ts"]);
+    // both holding one: only what they agree on survives.
+    assert.deepEqual(intersectFilterTargets(["a.ts", "b.ts"], ["b.ts", "c.ts"]), ["b.ts"]);
+    // and no overlap draws nothing, which is the honest answer rather than either picker's list.
+    assert.deepEqual(intersectFilterTargets(["a.ts"], ["c.ts"]), []);
 });

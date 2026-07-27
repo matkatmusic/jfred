@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy this to .config/debugConfig.json (that folder is gitignored) to give the Layer 1 View cold-start defaults. Every field is optional. Precedence, highest first: a ?dir=/?repo= link, then ~/.jfred-layer1-settings.json, then this file. `npm run visual` reads dir/repo from here too, so the harness and the browser open the same project.",
+  "dir": "/absolute/path/to/the/project/folder",
+  "repo": "/absolute/path/to/its/git/repo",
+  "jsonl": [
+    "/absolute/path/to/.claude/projects/<the project folder path, every non-alphanumeric character replaced by a hyphen>"
+  ],
+  "fileHistory": [
+    "/absolute/path/to/a/.claude/file-history"
+  ]
+}

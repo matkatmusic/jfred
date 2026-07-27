@@ -11,6 +11,7 @@ import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { computeLayer1Defaults } from "../../src/viewer_api_layer1_defaults.ts";
 import { checkStateGeometry, type Violation } from "./assertions.ts";
 import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
 import { GEOMETRY_PROBE, type StateGeometry } from "./geometry.ts";
@@ -29,8 +30,12 @@ const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 // Layer 1 compares a working tree against a git repo, so this repo is its own real-data fixture:
 // ~800 pair bubbles across a ~156,000 px stage, which is the render every reported bug came from.
-const VIEW_DIR = JFRED_ROOT;
-const VIEW_REPO = JFRED_ROOT;
+// debugConfig.json, when present, is what the browser opens on — so the harness opens on it too
+// (user, 2026-07-27), or the two verify different renders. Absent, this falls back to the repo
+// itself, which is what it always used.
+const DEBUG_DEFAULTS = computeLayer1Defaults();
+const VIEW_DIR = DEBUG_DEFAULTS.dir ?? JFRED_ROOT;
+const VIEW_REPO = DEBUG_DEFAULTS.repo ?? JFRED_ROOT;
 
 // The viewer requires a projects dir even though Layer 1 reads none; the checked-in demo bundle
 // keeps a cold start off the user's live ~/.claude/projects.

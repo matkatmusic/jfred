@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JFRED — Layer 1 View</title>
 <link rel="stylesheet" href="/app/layer1-styles.css">
+<!-- Task 294: the Detail View drawer's syntax highlighting. The SAME vendored highlight.js the
+     classic page loads (webapp_old.html) and the same webapp/highlight.ts wrapper the Revision
+     View already calls — no second tokeniser. The theme sheets come AFTER layer1-styles.css so
+     the token colours win inside `.hljs`, and the script is a plain tag so `hljs` is a global
+     before the deferred layer1-page.js module runs. -->
+<link rel="stylesheet" href="/app/vendor/highlight-github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/app/vendor/highlight-github-dark.min.css" media="(prefers-color-scheme: dark)">
+<script src="/app/vendor/highlight.min.js"></script>
 </head>
 <body>
 <div class="viz-root">
@@ -62,6 +70,13 @@
     <label>Project folder
       <input id="dir" type="text" size="34" value="">
       <button class="pick" data-for="dir">Open…</button></label>
+    <!-- Tasks 295/296: two lists, one dialog. Each button prints how many folders its list holds,
+         so neither has to be opened to be read. Task 297's button reports whether either has moved
+         since the last save. -->
+    <button id="pick-jsonl">JSONL sources</button>
+    <button id="pick-fh">File History Snapshots</button>
+    <button id="save-settings" disabled>Save project settings</button>
+    <span class="savednote" id="saved-note"></span>
   </div>
   <!-- Task 286: two rows, not one. The project folder is what is on DISK; everything on this row
        describes the REPOSITORY that disk state is read against. Splitting them also stops the
@@ -84,6 +99,7 @@
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
     <span><i style="border:3px double var(--c-disk);background:transparent"></i> on-disk</span>
     <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
+    <span><i style="border:1px dashed var(--c-script);background:color-mix(in srgb, var(--c-script) 11%, transparent)"></i> JSONL range</span>
   </div>
   <div class="loadbar" id="loadbar" hidden>
     <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
@@ -99,15 +115,30 @@
          ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the
          tree on every load, reusing the same tree the main webapp's Files pane renders. -->
     <aside class="filenav">
-      <div class="filenav-title">File Nav</div>
-      <!-- Task 281: the nav's OWN search box. It narrows this tree and nothing else — the
-           find-bubble box above scrolls the timeline, which is a different job, so neither box
-           reads the other's text. Inside the <aside> so it moves and resizes with the pane. -->
-      <div class="filenav-search">
-        <input id="filenav-search" type="text" placeholder="search files...">
-        <button id="filenav-search-clear" title="Clear the file search">×</button>
-      </div>
-      <div id="filenav-tree"></div>
+      <section class="navpane" id="pane-files">
+        <div class="filenav-title">File Nav</div>
+        <!-- Task 281: the nav's OWN search box. It narrows this tree and nothing else — the
+             find-bubble box above scrolls the timeline, which is a different job, so neither box
+             reads the other's text. Inside the <aside> so it moves and resizes with the pane. -->
+        <div class="filenav-search">
+          <input id="filenav-search" type="text" placeholder="search files...">
+          <button id="filenav-search-clear" title="Clear the file search">×</button>
+        </div>
+        <div id="filenav-tree"></div>
+      </section>
+      <!-- Task 292: the horizontal split between the two panes. A sibling of both, so dragging it
+           re-shares the <aside>'s height rather than scrolling inside either list. -->
+      <div class="pane-grip" id="navpane-grip" title="Drag to resize"></div>
+      <!-- Task 292: the project's JSONLs. Same picker behaviour as the folder tree — a click
+           filters the timeline to the files that session touched, a re-click clears, shift extends.
+           Each surviving file keeps its WHOLE history; the band drawn over the canvas is what says
+           which stretch of it the session is answerable for. -->
+      <section class="navpane" id="pane-sessions">
+        <div class="filenav-title">JSONLs
+          <button id="clear-sessions" disabled>All sessions</button>
+        </div>
+        <div id="sessions"></div>
+      </section>
     </aside>
     <!-- Task 279: the File Nav's drag handle. A sibling of the pane rather than a child of it,
          because .filenav is `overflow: auto` — a handle inside it would scroll away with the file
@@ -116,6 +147,11 @@
     <div class="filenav-grip" id="filenav-grip"></div>
     <main class="timelines" id="timelines"><div class="canvas">
       <div class="leaders" id="leaders"></div>
+      <!-- Task 292: two layers, not one. The wash rides BEHIND the bubbles so a file's whole
+           history still reads through it; the bars ride in FRONT, in the empty lane left of the
+           stage, so a 7 px marker never covers a bubble. -->
+      <div class="washes" id="washes"></div>
+      <div class="ranges" id="ranges"></div>
     <div class="ruler" id="ruler"><div class="rail"></div></div>
       <div class="stage" id="stage"></div>
     </div></main>
@@ -133,6 +169,25 @@
       <div class="dmeta" id="dmeta"></div>
       <div class="dbody" id="dbody"></div>
     </aside>
+  </div>
+
+  <!-- Tasks 295/296: ONE dialog serves both source lists — same widget, same rules, different title
+       and different array. `position: fixed` and centred over everything, so it is in front of the
+       timeline rather than scrolling with it. It edits a COPY: [cancel] drops the draft, [set and
+       close] commits it and rebuilds the view. -->
+  <div class="modal-wrap" id="pathpicker" hidden>
+    <div class="modal">
+      <div class="mtitle" id="pp-title"></div>
+      <div class="mlist" id="pp-list"></div>
+      <div class="malert" id="pp-alert" hidden></div>
+      <div class="mbuttons">
+        <button id="pp-add" title="Add a folder">+</button>
+        <button id="pp-remove" title="Remove the selected folder" disabled>−</button>
+        <span class="mspacer"></span>
+        <button id="pp-cancel">cancel</button>
+        <button id="pp-ok">set and close</button>
+      </div>
+    </div>
   </div>
 </div>
 <script type="module" src="/app/layer1-page.js"></script>

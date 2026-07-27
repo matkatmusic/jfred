@@ -15,7 +15,7 @@ import { listCommitsTouchingFile } from "./layered_git_beacons.ts";
 import { widenEpochSecondsToInstant } from "./layered_instants.ts";
 import type { Instant } from "./layered_types.ts";
 import type { Path } from "./structures/domain.ts";
-import { CommitTimeSource } from "./structures/vocabulary.ts";
+import { CommitTimeSource } from "./structures/vocabulary_view.ts";
 
 // One commit node of a pair's history.
 export interface CommitHistoryNode {

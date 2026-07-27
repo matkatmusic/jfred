@@ -68,6 +68,22 @@ npx tsx src/viewer_server.ts --projects-dir /path/to/projects \
     [--port 7343] [--file-history-dir /path/to/file-history]
 ```
 
+### Local defaults for the Layer 1 View
+
+The Layer 1 View opens with empty source boxes unless you tell it otherwise. To have it
+open on the same project every time, copy the committed example into a gitignored
+`.config/` folder and edit it:
+
+```sh
+mkdir -p .config
+cp debugConfig.example.json .config/debugConfig.json
+```
+
+Every field is optional. The precedence, highest first, is a `?dir=`/`?repo=` link, then
+the settings the Save-project-settings button writes to `~/.jfred-layer1-settings.json`,
+then this file. `npm run visual` reads `dir`/`repo` from it too, so the headless harness
+and your browser open the same project. Without the file, nothing changes.
+
 ## Scope, honestly
 
 - Reconstruction is evidence-bound. Content that was never echoed into a transcript,

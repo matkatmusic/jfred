@@ -9,7 +9,8 @@ import { type ServerResponse } from "node:http";
 import { existsSync, statSync } from "node:fs";
 import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { Path } from "./structures/domain.ts";
-import { CommitTimeSource, DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { CommitTimeSource } from "./structures/vocabulary_view.ts";
 import { buildLayer1View } from "./viewer_api_layer1.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 

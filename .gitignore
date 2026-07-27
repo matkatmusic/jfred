@@ -155,3 +155,6 @@ __pycache__/
 
 # task 56: repo extracted at `npm run demo:baseline` time — the committed artifact is repo.git.tar
 demo-baseline/projects/baseline-demo/repo/
+
+# Local dev config: Layer 1 cold-start defaults (see debugConfig.example.json)
+.config/

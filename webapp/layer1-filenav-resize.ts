@@ -70,32 +70,73 @@ function commitFileNavWidth(stagewrap: HTMLElement, clientX: number): void {
     stagewrap.classList.remove("resizing");
 }
 
-// Wire the grip. Move and release are listened for on the WINDOW, not on the grip: a 6 px handle is
-// narrower than a fast drag's per-frame travel, so a grip-bound listener would drop the drag the
-// moment the pointer outran it. `setPointerCapture` would do the same job in a browser but is not
-// implemented by happy-dom, which is what the tests run on.
-export function wireFileNavResize(): void {
-    const grip = getRequiredElementById("filenav-grip");
-    const stagewrap = getRequiredElementById("stagewrap");
+// The drag plumbing both grips share. Move and release are listened for on the WINDOW, not on the
+// grip: a 7 px handle is narrower than a fast drag's per-frame travel, so a grip-bound listener
+// would drop the drag the moment the pointer outran it. `setPointerCapture` would do the same job
+// in a browser but is not implemented by happy-dom, which is what the tests run on.
+//
+// `onRelease` is separate from `onMove` because the width drag commits a DIFFERENT property than the
+// one it previews (task 288); the pane split has nothing to defer, so it passes the same callback
+// twice.
+function wireGripDrag(
+    grip: HTMLElement,
+    onMove: (event: MouseEvent) => void,
+    onRelease: (event: MouseEvent) => void,
+    onStart: () => void = () => {},
+): void {
     grip.addEventListener("pointerdown", (event) => {
         // Without this the browser starts a text selection instead, and the drag paints the whole
         // page blue.
         event.preventDefault();
         grip.classList.add("dragging");
-        freezeTimelineWidth(stagewrap);
-        previewFileNavWidth(stagewrap, (event as MouseEvent).clientX);
-        const resizeToPointer = (move: Event): void => {
-            previewFileNavWidth(stagewrap, (move as MouseEvent).clientX);
-        };
-        // The release event's own clientX is the pointer's final position, so no last-move variable
-        // has to be carried across the drag.
-        const endResize = (release: Event): void => {
-            commitFileNavWidth(stagewrap, (release as MouseEvent).clientX);
+        // Before the first preview: what it measures must not already be the thing being changed.
+        onStart();
+        onMove(event as MouseEvent);
+        const dragToPointer = (move: Event): void => onMove(move as MouseEvent);
+        // The release event's own coordinates are the pointer's final position, so no last-move
+        // variable has to be carried across the drag.
+        const endDrag = (release: Event): void => {
+            onRelease(release as MouseEvent);
             grip.classList.remove("dragging");
-            window.removeEventListener("pointermove", resizeToPointer);
-            window.removeEventListener("pointerup", endResize);
+            window.removeEventListener("pointermove", dragToPointer);
+            window.removeEventListener("pointerup", endDrag);
         };
-        window.addEventListener("pointermove", resizeToPointer);
-        window.addEventListener("pointerup", endResize);
+        window.addEventListener("pointermove", dragToPointer);
+        window.addEventListener("pointerup", endDrag);
     });
+}
+
+export function wireFileNavResize(): void {
+    const stagewrap = getRequiredElementById("stagewrap");
+    wireGripDrag(
+        getRequiredElementById("filenav-grip"),
+        (event) => previewFileNavWidth(stagewrap, event.clientX),
+        (event) => commitFileNavWidth(stagewrap, event.clientX),
+        () => freezeTimelineWidth(stagewrap),
+    );
+}
+
+// Task 292: the horizontal split between the File Nav and the JSONLs pane, as a share out of 100.
+// Committed per MOVE, unlike the width drag: re-sharing the aside's height reflows the two lists
+// and nothing else — the canvas is not a flex sibling of either, so there is no ~156,000 px repaint
+// to defer.
+const MIN_PANE_SHARE = 15;
+const MAX_PANE_SHARE = 85;
+
+function resizeFileNavPanes(filenav: HTMLElement, clientY: number): void {
+    const box = filenav.getBoundingClientRect();
+    // A zero-height pane cannot happen in a browser, but happy-dom reports 0 for every box — guard
+    // so a test drag writes a share rather than NaN.
+    const share = box.height === 0 ? MIN_PANE_SHARE : ((clientY - box.top) / box.height) * 100;
+    filenav.style.setProperty("--files-share", String(Math.min(MAX_PANE_SHARE, Math.max(MIN_PANE_SHARE, share))));
+}
+
+export function wireSessionPaneResize(): void {
+    const filenav = document.querySelector(".filenav") as HTMLElement | null;
+    const grip = document.getElementById("navpane-grip");
+    if (filenav === null || grip === null) {
+        return;
+    }
+    const resize = (event: MouseEvent): void => resizeFileNavPanes(filenav, event.clientY);
+    wireGripDrag(grip, resize, resize);
 }

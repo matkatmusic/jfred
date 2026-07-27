@@ -70,7 +70,8 @@ async function openNodeDrawer(node: HTMLElement): Promise<void> {
         body.textContent = await response.text();
         return;
     }
-    renderFileContentInto(body, (await response.json() as { content: string }).content);
+    // `path` is what picks the highlighter's language (task 294).
+    renderFileContentInto(body, (await response.json() as { content: string }).content, path);
 }
 
 export function wireNodeDrawer(): void {

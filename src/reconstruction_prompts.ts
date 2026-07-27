@@ -3,7 +3,7 @@
 // prompt-fork detection live here. See plans/s13/s13-reconstruction-plan.md.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getContentBlocks } from "./structures/content-blocks.ts";
+import { getContentBlocks, type TextBlock } from "./structures/content-blocks.ts";
 import { BlockType, RecordType } from "./structures/vocabulary.ts";
 import { Uuid } from "./structures/domain.ts";
 
@@ -26,6 +26,36 @@ export function isGenuineUserPrompt(record: TranscriptRecord): boolean {
         }
     }
     return true;
+}
+
+// A prompt's displayed text: a plain-string message.content is the text itself, an array content is
+// its TextBlocks joined. ponytail: the same two readings as reconstruction_json.ts's private
+// extractMessageText — hoist that one here if a third caller ever needs it.
+function readPromptText(record: TranscriptRecord): string {
+    const message = record.message as { content?: unknown } | undefined;
+    if (typeof message?.content === "string") {
+        return message.content;
+    }
+    return getContentBlocks(record)
+        .filter((block): block is TextBlock => block.type === BlockType.text)
+        .map((block) => block.text)
+        .join("\n");
+}
+
+// The first genuine typed-in prompt's text — the session's title in Layer 1's JSONLs pane (task
+// 292). Blank prompts are skipped rather than returned, so a session opened with an attachment-only
+// turn still shows the words the user actually typed; "" when the transcript holds no prompt at all.
+export function readFirstUserPrompt(records: TranscriptRecord[]): string {
+    for (const record of records) {
+        if (!isGenuineUserPrompt(record)) {
+            continue;
+        }
+        const text = readPromptText(record);
+        if (text.trim() !== "") {
+            return text;
+        }
+    }
+    return "";
 }
 
 // The parentUuid strings that parent ≥2 genuine user prompts, in first-appearance order. Each is a
