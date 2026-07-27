@@ -24,8 +24,9 @@ import { getRequiredElementById } from "./app-dom.ts";
 let cycledTerm = "";
 let cycleIndex = 0;
 
-// The one element currently lit, so landing on a second one darkens the first.
-let litElement: HTMLElement | undefined;
+// What is currently lit, so landing on something else darkens it. A LIST because a landing lights
+// the row AND its owning bubble (plans/layer1-mockup.html's `highlight([box, ...extra])`).
+let litElements: HTMLElement[] = [];
 
 // Fired on `document` whenever a jump lands, carrying the element it landed on. The page's own
 // notification that the SELECTION moved — layer1-leader-visibility.ts listens for it to keep that
@@ -69,9 +70,16 @@ function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
 // bubble's highlighted effect active instead of fading out quickly" — so the timer is gone and the
 // light moves only when something else is landed on, or when the find box is emptied.
 export function highlightLandedElement(landed: HTMLElement): void {
-    litElement?.classList.remove("found");
-    litElement = landed;
-    landed.classList.add("found");
+    for (const lit of litElements) {
+        lit.classList.remove("found");
+    }
+    // The owning bubble is lit TOO, never instead (user, 2026-07-27, on the expanded ruler row's
+    // file list): the row says which moment, the bubble says which file. `closest` returns the
+    // element itself when it already IS the bubble, so the Set collapses the find box's case.
+    litElements = [...new Set([landed, landed.closest(".filebox")].filter((element) => element !== null))] as HTMLElement[];
+    for (const lit of litElements) {
+        lit.classList.add("found");
+    }
     // The leader lines are drawn on demand (user, 2026-07-26) and a landing is a SELECTION, so the
     // line for what was landed on stays up until the next landing. A DOM event rather than a call
     // into layer1-leader-visibility.ts: layer1-ruler-click.ts already imports THIS module, so an
@@ -164,8 +172,10 @@ export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
 // keeps some part of an abandoned search on screen or in effect. Emptying the box is now the ONLY
 // thing that darkens the page, since the highlight no longer expires on its own.
 function clearFindState(): void {
-    litElement?.classList.remove("found");
-    litElement = undefined;
+    for (const lit of litElements) {
+        lit.classList.remove("found");
+    }
+    litElements = [];
     cycledTerm = "";
     cycleIndex = 0;
     reportFindStatus("");

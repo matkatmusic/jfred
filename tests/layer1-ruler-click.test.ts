@@ -229,20 +229,22 @@ test("test_every_drawn_ruler_row_is_clickable", async () => {
 // not say which instant it means; and only ONE thing is lit, so a second click MOVES the light.
 test("test_clicking_a_ruler_tick_highlights_the_element_it_landed_on", async () => {
     // Steps: draw both pairs with nothing lit, click a lone-event row (stage 1), click a second instant
-    // so the one light must MOVE, then click a SHARED row and pick a name off its list (task 284) — the
-    // light lands on the same node either route. `.found` is the class layer1-styles.css paints from.
+    // so the light must MOVE, then click a SHARED row and pick a name off its list (task 284) — the
+    // light lands on the same node either route. A landing lights TWO things (user, 2026-07-27): the
+    // row, which says which moment, and its OWNING BUBBLE, which says which file — clicking a name
+    // off the expanded list and getting only a lit dot was the reported gap.
     await loadPageWithView(buildSharedInstantView());
     assert.equal(document.querySelector(".found"), null);
     clickRulerTickAt(EARLY_PX);
     assert.equal(readBubbleName(document.querySelector<HTMLElement>(".found")!), "spanning.ts");
     clickRulerTickAt(HELD_PX);
-    assert.equal(document.querySelectorAll(".found").length, 1);
-    const litNode = document.querySelector<HTMLElement>(".found")!;
-    assert.ok(litNode.classList.contains("node"), `lit a ${litNode.className} rather than a node`);
-    assert.equal(readAxisPx(litNode.closest(".filebox") as HTMLElement) + readAxisPx(litNode), HELD_PX);
+    assert.equal(document.querySelectorAll(".found").length, 2);
+    const litNode = document.querySelector<HTMLElement>(".node.found")!;
+    const litBubble = litNode.closest(".filebox") as HTMLElement;
+    assert.equal(readAxisPx(litBubble) + readAxisPx(litNode), HELD_PX);
     clickRulerTickAt(SHARED_PX);
     (document.querySelector(".tickfiles button") as HTMLElement).click();
-    const litRow = document.querySelector<HTMLElement>(".found")!;
+    const litRow = document.querySelector<HTMLElement>(".node.found")!;
     assert.equal(readBubbleName(litRow), "beginning.ts");
-    assert.ok(litRow.classList.contains("node"), `lit a ${litRow.className} rather than a node`);
+    assert.ok(litRow.closest(".filebox")!.classList.contains("found"), "the file's bubble is lit too");
 });

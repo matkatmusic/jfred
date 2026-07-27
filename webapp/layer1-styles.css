@@ -261,8 +261,11 @@
   .leaders { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
   .leader { position: absolute; left: 0; right: 0; top: calc(var(--axis-px) * 1px + var(--lane-y));
     height: 8px; pointer-events: auto; border-top: 1px dashed var(--baseline); opacity: 0; }
-  .leader.shown, .leader.aimed { opacity: 1; }
-  .leader.aimed { border-top-color: var(--sel-edge); }
+  /* A drawn line is a `--sel-edge` line, matching plans/layer1-mockup.html's single `.leader.on`
+     rule (user, 2026-07-27). `--baseline` above is the at-rest colour of a line nobody has asked
+     for, and at opacity 0 it is never seen — so leaving `.shown` grey made a revealed line read as
+     page furniture rather than as the answer to what was just hovered or selected. */
+  .leader.shown, .leader.aimed { opacity: 1; border-top-color: var(--sel-edge); }
 
   /* max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos +
      nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the
