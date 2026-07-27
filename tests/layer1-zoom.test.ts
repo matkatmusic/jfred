@@ -58,6 +58,43 @@ test("test_zoom_buttons_scale_the_canvas_and_report_the_level", () => {
     assert.equal(readZoomLevelText(), "100%");
 });
 
+// A lit bubble in the stage, with its scroll call recorded. happy-dom has no `zoom` layout, so what
+// is asserted is that the page ASKS to re-anchor — the arguments, not a measured position.
+function litBubbleWithRecordedScroll(): { options: ScrollIntoViewOptions[] } {
+    const bubble = document.createElement("div");
+    bubble.className = "filebox found";
+    const recorded: ScrollIntoViewOptions[] = [];
+    bubble.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => {
+        recorded.push(options as ScrollIntoViewOptions);
+    };
+    document.getElementById("stage")!.append(bubble);
+    return { options: recorded };
+}
+
+test("test_zoom_re_anchors_on_the_lit_bubble", () => {
+    // Scenario (visual loop, 2026-07-27): native `zoom` re-lays-out the canvas but leaves the scroll
+    // position alone, so the bubble the reader had just found was measured ~2,900 px above the pane
+    // after three zoom-out clicks — they zoom out for context and lose their selection.
+    // Steps:
+    // boot the page and light one bubble, as a find or a ruler-tick landing does.
+    openZoomablePage();
+    const scrolled = litBubbleWithRecordedScroll();
+    // one zoom step re-anchors on it, with the same block/inline the find box lands with (task 277).
+    clickButtonById("zoom-out");
+    assert.deepEqual(scrolled.options, [{ block: "start", inline: "center" }]);
+});
+
+test("test_zoom_with_nothing_lit_scrolls_nothing", () => {
+    // Scenario: the anchor is the SELECTION, so an unzoomed page with no landing must not scroll —
+    // and the boot-time applyZoom(1) runs before anything can be lit at all.
+    // Steps:
+    // boot the page, light nothing, and zoom.
+    openZoomablePage();
+    clickButtonById("zoom-out");
+    // nothing carries `.found`, so nothing was asked to scroll.
+    assert.equal(document.querySelector(".filebox.found"), null);
+});
+
 test("test_zoom_out_clamps_at_the_minimum", () => {
     // Scenario (plan step 5): the step is MULTIPLICATIVE, so nothing stops it short of zero on its
     // own — the clamp is the only thing keeping a held-down button from shrinking the render away.
