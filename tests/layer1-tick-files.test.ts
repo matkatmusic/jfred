@@ -51,16 +51,18 @@ function buildOrphanBubble(title: string, path: string, bucketPx: number): HTMLE
     ]), bucketPx);
 }
 
-// A fresh page carrying `bubbles` on its stage, and nothing else.
-function drawStage(bubbles: HTMLElement[]): void {
+// A fresh page carrying the built bubbles on its stage, and nothing else. `build` is a callback
+// rather than a ready-made array because `el` reads the global `document`, which setupLayer1Dom is
+// what installs — bubbles built in the argument list would be built against the previous test's page.
+function drawStage(build: () => HTMLElement[]): void {
     setupLayer1Dom();
-    document.getElementById("stage")!.replaceChildren(...bubbles);
+    document.getElementById("stage")!.replaceChildren(...build());
 }
 
 // spanning.ts begins EARLY and holds an interior node on the shared instant; beginning.ts BEGINS on
 // it. Both draw a row at SHARED_PX, which is the whole point of the expansion.
 function drawTwoBubblesSharingOneInstant(): void {
-    drawStage([
+    drawStage(() => [
         buildPairBubble("src/spanning.ts", EARLY_PX, [
             ...buildNode(0, "a1b2c3d"),
             ...buildNode(SHARED_PX - EARLY_PX, "e4f5a6b"),
@@ -110,7 +112,7 @@ test("test_listEventsAtRow_names_an_orphan_by_its_own_row_and_not_its_buckets_he
     // its ROW inside a bucket. The bucket's `.fname` is a heading — listing it here put "No
     // repository match" in the list as though it were a file, which the user rejected.
     // Steps: draw a one-row bucket and list what stands at its instant.
-    drawStage([buildOrphanBubble("No repository match", "notes/scratch.txt", SHARED_PX)]);
+    drawStage(() => [buildOrphanBubble("No repository match", "notes/scratch.txt", SHARED_PX)]);
     const events = listEventsAtRow([SHARED_PX]);
     assert.equal(events.length, 1);
     assert.equal(events[0]!.path, "notes/scratch.txt");
