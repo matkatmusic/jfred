@@ -12,7 +12,7 @@ import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { CommitTimeSource, DocumentResponseKind } from "./structures/vocabulary.ts";
 
 // The stages this route announces. Named here so the tests assert the same strings the route
 // emits rather than re-typing them (precedent: PROGRESS_LABEL_PARSING_RECORDS).
@@ -129,12 +129,12 @@ function placeInstantOnAxis(offsets: Map<number, number>, instant: Instant): Lay
 // Each git-orphan path's placing instant: its LAST touching commit, since a repo path with no
 // on-disk counterpart has no mtime and its most recent commit is the moment it last existed in the
 // repo (plans/layer1-mockup.html places a repo-only row the same way).
-function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string, reportProgress: ProgressSink): GitOrphanPlacement[] {
+function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string, reportProgress: ProgressSink, timeSource: CommitTimeSource): GitOrphanPlacement[] {
     const placements: GitOrphanPlacement[] = [];
     for (let index = 0; index < gitOrphans.length; index += 1) {
         const orphanPath = gitOrphans[index]!;
         reportStage(reportProgress, LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY, index + 1, gitOrphans.length);
-        const lastTouch = listPairCommitHistory(repoDir, orphanPath, ref).at(-1);
+        const lastTouch = listPairCommitHistory(repoDir, orphanPath, ref, timeSource).at(-1);
         // ponytail: a path git lists at `ref` always has a commit reachable from that ref, so this
         // only holds for a shallow clone whose history was truncated; such a row is dropped rather
         // than invented at a fake instant. Revisit if shallow clones become a real input.
@@ -155,12 +155,14 @@ function orderRowsByInstant(rows: Layer1WireOrphan[]): Layer1WireOrphan[] {
 
 // The S18 Layer 1 View of `projectFolder` against `repoDir` at `ref`. `reportProgress` is an
 // explicit parameter rather than reconstruction_progress.ts's process-wide sink, which is scoped
-// to document builds and would mix this route's lines into one.
+// to document builds and would mix this route's lines into one. `timeSource` (task 282) is LAST
+// and defaulted, so every existing 3- and 4-argument call is unchanged.
 export function buildLayer1View(
     projectFolder: Path,
     repoDir: Path,
     ref: string,
     reportProgress: ProgressSink = () => {},
+    timeSource: CommitTimeSource = CommitTimeSource.committer,
 ): Layer1WireView {
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
     const diskFiles = walkCurrentFileState(projectFolder);
@@ -180,9 +182,9 @@ export function buildLayer1View(
     for (let index = 0; index < pairing.pairs.length; index += 1) {
         const file = pairing.pairs[index]!;
         reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_HISTORY, index + 1, pairing.pairs.length);
-        pairHistories.push({ file, commits: listPairCommitHistory(repoDir, file.relativePath, ref) });
+        pairHistories.push({ file, commits: listPairCommitHistory(repoDir, file.relativePath, ref, timeSource) });
     }
-    const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress);
+    const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress, timeSource);
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
     // The ladders are the ruler's whole input (task 251). Pair ladders come FIRST and in
     // `pairHistories` order, which is what makes `ladderOffsetsPx[index]` that pair's own rows

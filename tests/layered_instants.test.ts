@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     compareAxisPlacements,
-    widenCommitterSecondsToInstant,
+    widenEpochSecondsToInstant,
     type AxisPlacement,
 } from "../src/layered_instants.ts";
 
@@ -15,11 +15,11 @@ function makePlacement(instantMs: number, widenedFromSeconds: boolean, content: 
     return { instant: new Date(instantMs), widenedFromSeconds, content };
 }
 
-test("test_widenCommitterSecondsToInstant_multiplies_by_1000", () => {
+test("test_widenEpochSecondsToInstant_multiplies_by_1000", () => {
     // Scenario: git committer time arrives in whole epoch seconds; the shared axis is UTC ms.
     // Steps:
     // widen a known committer second.
-    const instant = widenCommitterSecondsToInstant(1_700_000_000);
+    const instant = widenEpochSecondsToInstant(1_700_000_000);
     // the resulting Instant sits at exactly that second's ms boundary.
     assert.equal(instant.getTime(), 1_700_000_000_000);
 });

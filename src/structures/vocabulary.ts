@@ -1,12 +1,11 @@
-// The s1 transcript's discriminant vocabulary — every string enum, in one
-// canonical home, each paired with the runtime set of its wire strings
-// (Object.values). Each member's value IS the wire string (enum-class style), so
-// parsing is a validated cast, not a transform. Every structure file imports the
-// discriminants it needs from here.
+// The s1 transcript's discriminant vocabulary — every string enum, in one canonical home, each
+// paired with the runtime set of its wire strings (Object.values). Each member's value IS the wire
+// string (enum-class style), so parsing is a validated cast, not a transform. Every structure file
+// imports the discriminants it needs from here.
 
 // The 10 record `type` values that occur in the s1-delete-file transcript
-// (recon/06-s1-vocabulary.md). Later scenarios extend this: s4-overwrite-file
-// adds queue-operation (a queued user prompt, modeled as discriminant only).
+// (recon/06-s1-vocabulary.md). Later scenarios extend this: s4-overwrite-file adds queue-operation
+// (a queued user prompt, modeled as discriminant only).
 export enum RecordType {
     attachment = "attachment",
     assistant = "assistant",
@@ -48,12 +47,11 @@ export enum BlockType {
 
 export const KNOWN_CONTENT_BLOCK_TYPES: BlockType[] = Object.values(BlockType);
 
-// Tool names observed across scenarios: Bash/Write in s1; Read/Edit added by
-// s2-move-file (a move done as Read -> Edit -> Write -> Bash `mv`). The
-// context-mode MCP execution tools (ctx_execute / ctx_execute_file /
-// ctx_batch_execute) run a script in a sandbox — s37 applies a rename script
-// through ctx_execute; each carries its source as `input.code`. Their values are
-// the full `mcp__<server>__<tool>` wire strings.
+// Tool names observed across scenarios: Bash/Write in s1; Read/Edit added by s2-move-file (a move
+// done as Read -> Edit -> Write -> Bash `mv`). The context-mode MCP execution tools (ctx_execute /
+// ctx_execute_file / ctx_batch_execute) run a script in a sandbox — s37 applies a rename script
+// through ctx_execute; each carries its source as `input.code`. Their values are the full
+// `mcp__<server>__<tool>` wire strings.
 export enum ToolName {
     Bash = "Bash",
     Write = "Write",
@@ -101,21 +99,18 @@ export enum AttachmentPayloadType {
     invoked_skills = "invoked_skills",
 }
 
-export const ATTACHMENT_PAYLOAD_TYPES: AttachmentPayloadType[] =
-    Object.values(AttachmentPayloadType);
+export const ATTACHMENT_PAYLOAD_TYPES: AttachmentPayloadType[] = Object.values(AttachmentPayloadType);
 
 // --- Field-key groups (top-level wire field names) ---------------------------
-// The above enums are the discriminant *values*; these are top-level field
-// *names* shared across records. TS types erase at runtime, so the parse gate
-// (loadTranscript) and the hydrator (parseRecord) share these lists rather than
-// each re-spelling the field names.
+// The above enums are the discriminant *values*; these are top-level field *names* shared across
+// records. TS types erase at runtime, so the parse gate (loadTranscript) and the hydrator
+// (parseRecord) share these lists rather than each re-spelling the field names.
 
 // The id-typed envelope fields, hydrated into Uuid by parseRecord.
 export const ENVELOPE_ID_KEYS = ["uuid", "parentUuid", "sessionId"] as const;
 
-// Every top-level key an EnvelopeBase carries (the runtime mirror of the
-// EnvelopeBase type in envelope.ts) — the field set of every conversational
-// record (user/assistant/system/attachment).
+// Every top-level key an EnvelopeBase carries (the runtime mirror of the EnvelopeBase type in
+// envelope.ts) — the field set of every conversational record (user/assistant/system/attachment).
 export const ENVELOPE_KEYS = [
     "type",
     ...ENVELOPE_ID_KEYS,
@@ -130,16 +125,15 @@ export const ENVELOPE_KEYS = [
 ] as const;
 
 // --- Engine-side discriminants -----------------------------------------------
-// Not a wire string: this names the reconstruction engine's own event kinds. It
-// lives here so every enum has a single canonical home (coding-requirements §2).
+// Not a wire string: this names the reconstruction engine's own event kinds. It lives here so
+// every enum has a single canonical home (coding-requirements §2).
 
-// The evidence kinds the reconstruction engine replays. s1: write (create) and
-// delete (Bash rm). s2-move-file adds edit (in-place splice) and rename (Bash
-// mv). s3-copy-file adds copy (Bash cp). s4-overwrite-file adds overwrite (a
-// second Write to a present file). s5-bash-redirect adds append (a >> redirect to
-// a present file). s15-user-edit-then-conv-rewind adds user-edit (a user's
-// out-of-band disk edit, captured as an edited_text_file attachment, replayed as a
-// full-content revision like overwrite). s37-script-rename-driver-back-and-forth-mcp adds
+// The evidence kinds the reconstruction engine replays. s1: write (create) and delete (Bash rm).
+// s2-move-file adds edit (in-place splice) and rename (Bash mv). s3-copy-file adds copy (Bash cp).
+// s4-overwrite-file adds overwrite (a second Write to a present file). s5-bash-redirect adds append
+// (a >> redirect to a present file). s15-user-edit-then-conv-rewind adds user-edit (a user's
+// out-of-band disk edit, captured as an edited_text_file attachment, replayed as a full-content
+// revision like overwrite). s37-script-rename-driver-back-and-forth-mcp adds
 // script-execution (the post-execution state of a recorded script run — Bash or MCP ctx_execute —
 // replayed as a full-content revision and validated against the first confirmed post-execution
 // beacon; distinct from `rename`, which is a path move). Later scenarios add read, etc.
@@ -243,5 +237,14 @@ export enum FailureScope {
     fileStage = "file-stage",
     file = "file",
     documentPhase = "document-phase",
+}
+
+// Which git stamp places a commit on the Layer 1 axis (task 282): a rebase collapses committer time
+// onto one instant while author time stays days apart, so the reading is chosen per view — never a
+// boolean. The values ARE the `time=` query-param and the toggle buttons' id suffixes: one spelling
+// across wire, URL and DOM.
+export enum CommitTimeSource {
+    committer = "committer",
+    author = "author",
 }
 

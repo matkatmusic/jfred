@@ -33,6 +33,9 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
+// Task 284. A cycle: that module reads the stage through listElementsDrawnAtAxisPx below. Both
+// modules only DECLARE functions at load, so neither runs before the other is populated.
+import { listEventsAtRow, rememberRowOffsets, toggleExpandedRow } from "./layer1-tick-files.ts";
 
 // Tolerance for matching one `--axis-px` against another, in px. Not a fuzzy-match window: a node's
 // absolute offset is recovered as `startPx + (nodePx - startPx)`, which is only exact to within a
@@ -107,8 +110,19 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
 // passed alongside it: `setAxisPx` has already put it there, and a second parameter could disagree.
 // A tick with no bubble at all (possible only if the stage is empty) is left inert rather than
 // throwing — `.ruler .tick:hover` still lights up, which is the same affordance every other tick has.
-export function makeRulerTickClickable(tick: HTMLElement): HTMLElement {
+// `axisPxList` is every entry the ROW absorbed (layer1-ruler-rows.ts), which is what task 284's
+// expansion is built over — a merged row stands for several instants and its own offset is only the
+// first of them. The single-match jump below still reads the offset off the ELEMENT, unchanged.
+export function makeRulerTickClickable(tick: HTMLElement, axisPxList: number[]): HTMLElement {
+    rememberRowOffsets(tick, axisPxList);
     tick.addEventListener("click", () => {
+        // Task 284: more than one thing is drawn at this row, so expand it into their names rather
+        // than silently jumping to whichever the lookup found first. A re-click closes it again.
+        const events = listEventsAtRow(axisPxList);
+        if (events.length > 1) {
+            toggleExpandedRow(tick, events);
+            return;
+        }
         // `block: "nearest"` — deliberately NOT layer1-find-file.ts's `block: "start"`, and this is
         // the second half of task 266. The find box aims at a bubble the reader cannot see yet, so
         // it has to choose a vertical resting place. A ruler tick is the opposite case: the row

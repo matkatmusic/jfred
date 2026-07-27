@@ -36,10 +36,14 @@ export function formatInstantLabel(instant: string): string {
     return new Date(instant).toISOString().slice(5, 22).replace("T", " ");
 }
 
-// One printed gutter row: where it sits, and what it reads.
+// One printed gutter row: where it sits, what it reads, and every entry it stands for.
 export interface RulerRow {
     axisPx: number;
     text: string;
+    // Task 284: the offsets of every ABSORBED entry, this row's own first. A merged row stands for
+    // several instants, and an expansion built from `axisPx` alone could only ever see the surviving
+    // entry's own events — under-reporting the row exactly the way its count used to.
+    axisPxList: number[];
 }
 
 // One row while it is still collecting entries, before its count is spelled into its text.
@@ -47,6 +51,7 @@ interface RowTally {
     axisPx: number;
     label: string;
     eventCount: number;
+    axisPxList: number[];
 }
 
 // One entry's event count. Every ruler entry is produced by layOutNodeLadders, which measures the
@@ -81,6 +86,7 @@ function absorbIntoPreviousRow(tallies: RowTally[], tick: WireRulerTick, label: 
         return false;
     }
     previous.eventCount += readEventCount(tick);
+    previous.axisPxList.push(tick.axisPx);
     return true;
 }
 
@@ -93,7 +99,11 @@ export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
         if (absorbIntoPreviousRow(tallies, tick, label)) {
             continue;
         }
-        tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick) });
+        tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick), axisPxList: [tick.axisPx] });
     }
-    return tallies.map((row) => ({ axisPx: row.axisPx, text: `${row.label} (${row.eventCount})` }));
+    return tallies.map((row) => ({
+        axisPx: row.axisPx,
+        text: `${row.label} (${row.eventCount})`,
+        axisPxList: row.axisPxList,
+    }));
 }

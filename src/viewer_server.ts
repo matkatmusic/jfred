@@ -34,6 +34,8 @@ import {
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
+import { handleLayer1FileRequest } from "./viewer_api_layer1_file.ts";
+import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
 import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
 import { handleFileLadderRequest } from "./viewer_api_ladder.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
@@ -43,10 +45,9 @@ import { Path, Uuid } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-// A fresh stamp per process launch, handed to the client via GET /api/config. When it changes the
-// client knows the server was relaunched and drops its remembered script-consent choices so a
-// reloaded page re-prompts (consent lives in the browser's per-tab sessionStorage, which survives
-// both a reload and a server restart). A launch nonce, not a domain identifier — plain string.
+// A fresh stamp per process launch, handed to the client via GET /api/config: when it changes the
+// client knows the server was relaunched and drops its remembered script-consent choices, which
+// otherwise survive in the browser's per-tab sessionStorage. A launch nonce, so a plain string.
 const SERVER_BOOT_ID = randomUUID();
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(import.meta.dirname, "..", "webapp", "dist");
@@ -60,13 +61,11 @@ const CONTENT_TYPES: Record<string, string> = {
     ".png": "image/png",
 };
 
-// item 46: throw new Error("usage: tsx src/viewer_server.ts [--port <n>] [--projects-dir <path>]");
 const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--resetSandboxMemo] [--resetDocumentCache]";
 
-// Parse `--projects-dir <path>` (MANDATORY — there is no default scan root), `--port <n>`
-// (default 7343), `--file-history-dir <path>` (default: the item-46 derivation chain),
-// `--resetSandboxMemo` (delete the disk memo before load, for a forced cold reconstruction), and
-// `--resetDocumentCache` (delete the disk document cache before load, item 79).
+// Parse the flags USAGE lists: `--projects-dir` is MANDATORY (there is no default scan root),
+// `--port` defaults to 7343, `--file-history-dir` to the item-46 derivation chain, and the two
+// reset flags delete the disk sandbox memo / document cache (item 79) before load.
 function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean } {
     const dirIndex = argv.indexOf("--projects-dir");
     if (dirIndex < 0 || argv[dirIndex + 1] === undefined) {
@@ -188,6 +187,10 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
             handleLayeredGraphRequest(response, url.searchParams);
         } else if (url.pathname === "/api/layer1-view") {
             handleLayer1ViewRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/layer1-refs") {
+            handleLayer1RefsRequest(response, url.searchParams);
+        } else if (url.pathname === "/api/layer1-file") {
+            handleLayer1FileRequest(response, url.searchParams);
         } else if (url.pathname === "/api/file-ladder") {
             handleFileLadderRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {

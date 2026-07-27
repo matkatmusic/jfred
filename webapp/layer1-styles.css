@@ -57,15 +57,35 @@
   .zoombar .zoom-level { font-size: 11.5px; color: var(--ink2);
     font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
 
-  .layerbar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-  .layerbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
-  .layerbar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
-  .layerbar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  /* Task 282's time toggle shares .layerbar's rules: both are a label plus mutually-exclusive
+     buttons, so a second rule set would be two things to keep in step. It carries NO
+     `margin-left: auto` of its own — a third auto margin would re-split the header's free space
+     and move the zoom and layer groups the user already signed off. */
+  .layerbar, .timebar { display: flex; align-items: center; gap: 4px; }
+  .layerbar { margin-left: auto; }
+  .layerbar .lbl, .timebar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .layerbar button, .timebar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
+  .layerbar button.current, .timebar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
   .layerbar button.uncomputed { border-style: dashed; color: var(--muted); }
 
-  /* The whole Layer 1 input surface: two folder paths and an optional ref. */
+  /* The whole Layer 1 input surface: the project folder on its own row, then the repository row
+     (task 286) carrying the repo path, its confirmation flag and the two ref pickers. */
   .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  /* Task 286: the branch and commit pickers exist only once the path is confirmed to BE a git
+     repo, so they are hidden until webapp/layer1-refs.ts adds `.repo-ok`. A path that is not a
+     repository simply shows no pickers — the view route's own 400 already reports it in the crumb,
+     and a second error surface for the same mistake would say it twice. */
+  .sources.repo .repo-flag, .sources.repo .repo-only { display: none; }
+  .sources.repo.repo-ok .repo-flag { display: inline; }
+  .sources.repo.repo-ok .repo-only { display: inline-flex; }
+  .sources .repo-flag { font-size: 11.5px; color: var(--sel-edge); }
+  .sources select { font: 11.5px ui-monospace, Menlo, monospace; padding: 3px 6px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
+  /* User-locked: 75 characters of commit subject plus the hash and the date. Sized in `ch` because
+     that number is a CHARACTER count of monospace text — 8 hash + 2 + 75 subject + 2 + 10 date,
+     rounded up for the select's own chrome. `max-width` keeps a narrow window from overflowing. */
+  #commit { width: 100ch; max-width: 60vw; }
   /* `.jumpbar` shares these three rules because task 285 moved the find widget out of `.sources`
      and onto the jump bar: the page has three text inputs and three visual treatments would read as
      three unrelated widgets, so the find box keeps the label/monospace/border/focus treatment it
@@ -484,3 +504,44 @@
      so anything that altered its box would shift the label off the instant it marks. */
   .ruler .tick { cursor: pointer; }
   .ruler .tick:hover { color: var(--ink); text-decoration: underline; }
+
+  /* Task 284: a tick shared by more than one event expands into the files touched at that instant
+     instead of silently jumping to whichever the lookup found first. The list lives IN the gutter,
+     not over the canvas (user, 2026-07-26): `.ruler` is opaque and z-index 8, so it paints cleanly
+     over the canvas it overhangs while the timestamps stay put. `width: max-content` past the
+     140px rail is deliberate — a path is longer than the gutter is wide.
+     An OPEN row is not a SELECTED row: bold means selected and nothing else, so an open row is
+     announced by the list hanging under it, which no other row has. */
+  .ruler .tick.multi { text-decoration: underline dotted; }
+  .ruler .tick.expanded { color: var(--ink); }
+  .tickfiles { position: absolute; left: 12px; top: 100%; width: max-content; max-width: 300px;
+    padding: 2px 0 0; z-index: 9; }
+  .tickfiles button { display: block; width: 100%; text-align: left; border: none; border-radius: 3px;
+    padding: 0 4px; font: 10px ui-monospace, Menlo, monospace; color: var(--ink2);
+    background: var(--page); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tickfiles button:hover { background: color-mix(in srgb, var(--sel-edge) 20%, transparent); color: var(--ink); }
+
+  /* Task 257: the Detail View drawer, the right half of the pane. A flex sibling of the timeline
+     rather than an overlay, so opening it SHRINKS the scrollport instead of covering the render it
+     describes. NO width transition: webapp/layer1-drawer.ts re-centres the clicked node against the
+     POST-reflow pane, and a re-centre measured mid-animation aims at a width already stale. */
+  .drawer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
+    background: var(--surface); }
+  .drawer.open { width: 50%; display: flex; flex-direction: column; }
+  .drawer .dhead { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); }
+  .drawer .dhead button { margin-left: auto; }
+  .drawer .dpath { font: 600 12px ui-monospace, Menlo, monospace; color: var(--c-snap);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drawer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted);
+    border-bottom: 1px solid var(--border); }
+  .drawer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;
+    font: 11.5px/1.55 ui-monospace, Menlo, monospace; color: var(--ink2); white-space: pre; }
+  /* Only a pair's own nodes open the drawer — a bucket row is a plain list item with no bytes of
+     its own to show — so the affordance is scoped to `.lane`, which only a pair widget draws. */
+  .lane .node, .lane .nlabel { cursor: pointer; }
+  .lane .nlabel:hover { color: var(--ink); text-decoration: underline dotted; }
+  /* The drawer's numbered lines (webapp/layer1-file-view.ts). `.dbody` already sets the monospace
+     font and `white-space: pre` the gutter's space-padded numbers depend on. */
+  .dbody .dline { display: block; }
+  .dbody .dln { color: var(--muted); user-select: none; }

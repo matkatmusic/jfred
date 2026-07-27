@@ -10,6 +10,7 @@
 // turns an absolute ruler position into a widget-relative one.
 
 import { el, getRequiredElementById } from "./app-dom.ts";
+import { wireNodeDrawer } from "./layer1-drawer.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { wireFileNavResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
@@ -19,10 +20,13 @@ import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
+import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { formatInstantLabel, listRulerRows } from "./layer1-ruler-rows.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
+import { markMultiEventTicks, wireTickExpansion } from "./layer1-tick-files.ts";
 import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
+import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
 import type { WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
 
@@ -43,8 +47,10 @@ function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 // row is also the navigation control for its instant; a merged row answers for the earliest of the
 // instants it stands for, which is the one its `--axis-px` carries.
 function renderRulerTicks(ruler: WireRulerTick[]): void {
+    // Task 284: the row carries every offset it ABSORBED, not just its own — a merged row stands for
+    // several instants, and the click has to see the events at all of them.
     const ticks = listRulerRows(ruler).map((row) =>
-        makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx)));
+        makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row.axisPxList));
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
@@ -160,6 +166,9 @@ export function renderLayer1Stage(view: WireLayer1View): void {
         ...buildStagePairs(view.pairs),
         ...buckets.filter((bucket) => bucket !== undefined),
     );
+    // Task 284: which ticks would EXPAND is measured off the drawn stage, so this runs after the
+    // bubbles are in the DOM — the same reason the minimap does.
+    markMultiEventTicks();
     // Task 246: the minimap MEASURES the widgets it maps, so it is drawn after they are in the DOM.
     drawLayer1Minimap();
 }
@@ -206,14 +215,30 @@ export function bootLayer1Page(): void {
     // FIRST: readSourceParams reads the BOXES, so without this a ?dir=&repo=&ref= link would open
     // an empty form and draw nothing — half of S18's "one shareable link".
     fillSourceBoxesFromUrl();
+    // AFTER fillSourceBoxesFromUrl: it seeds the choice from ?time=, and this syncs the buttons'
+    // `.current` class to whatever is now selected (task 282). The instants are resolved
+    // server-side, so flipping the toggle re-loads the view.
+    wireTimeSourceToggle(() => {
+        void loadLayer1View();
+    });
+    // Task 286: a branch pick re-loads the whole view; the commit pick only writes into #ref.
+    wireRefPickers(() => {
+        void loadLayer1View();
+    });
+    void confirmRepoAndFillRefs();
     wireZoomControls();
     wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();
+    // Delegated like wireLeaderVisibility below: every bubble and every tick is replaced on each
+    // render, so a per-element listener would have to be re-attached every time (tasks 257/284).
+    wireNodeDrawer();
+    wireTickExpansion();
     // Delegated, so it is wired ONCE here rather than per line: the leader lines themselves are
     // replaced on every render, and so is every bubble the pointer resolves against.
     wireLeaderVisibility();
     wireFolderPickers(() => {
+        void confirmRepoAndFillRefs();
         void loadLayer1View();
     });
     getRequiredElementById("load").addEventListener("click", () => {

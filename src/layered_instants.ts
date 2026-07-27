@@ -7,17 +7,18 @@
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
 import type { Instant, TimelineNode } from "./layered_types.ts";
 
-// Git committer time (epoch seconds, never author time) widened onto the shared UTC-ms axis.
-export function widenCommitterSecondsToInstant(committerEpochSeconds: number): Instant {
-    return new Date(committerEpochSeconds * 1000);
+// A git stamp (committer OR author — task 282 lets a Layer 1 view pick) widened onto the shared
+// UTC-ms axis. Second-precision is the only property this depends on, and both stamps have it.
+export function widenEpochSecondsToInstant(epochSeconds: number): Instant {
+    return new Date(epochSeconds * 1000);
 }
 
 // The sortable view of a timeline node.
 export interface AxisPlacement {
     instant: Instant;
-    // True when the instant was widened from git committer seconds — its true moment is
-    // anywhere inside that second, so same-second comparisons against ms-precision JSONL
-    // instants must fall back to content order (hpp Q7/Q9).
+    // True when the instant was widened from git seconds — its true moment is anywhere inside
+    // that second, so same-second comparisons against ms-precision JSONL instants must fall back
+    // to content order (hpp Q7/Q9).
     widenedFromSeconds: boolean;
     // Full content when the node carries it (beacon/end-state); undefined otherwise.
     content: string | undefined;

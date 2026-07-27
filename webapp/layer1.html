@@ -11,6 +11,16 @@
   <header>
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
+    <!-- Task 282: which git stamp places a bubble. Two commits rewritten in one rebase share a
+         committer instant while their author instants are days apart, so the reading is chosen per
+         view rather than assumed. The instants are resolved server-side, so flipping this re-loads
+         the view — the existing loadbar reports that build. Each button's id suffix IS the value
+         written to ?time=, so the wiring is a lookup rather than a translation table. -->
+    <div class="timebar">
+      <span class="lbl">Time:</span>
+      <button id="time-committer" class="current">committer</button>
+      <button id="time-author">author</button>
+    </div>
     <div class="zoombar">
       <span class="lbl">Zoom:</span>
       <button id="zoom-out" title="Zoom out">−</button>
@@ -36,7 +46,7 @@
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
       <label>Find bubble
-        <input id="find-file" type="text" size="22" placeholder="basename — Enter cycles matches"></label>
+        <input id="find-file" type="text" size="22"></label>
       <!-- Task 271: explicit cycle controls. Enter still submits and still advances; these make the
            cycle visible and add the direction it never had. -->
       <button id="find-prev" title="Previous match">‹</button>
@@ -52,11 +62,22 @@
     <label>Project folder
       <input id="dir" type="text" size="34" value="">
       <button class="pick" data-for="dir">Open…</button></label>
+  </div>
+  <!-- Task 286: two rows, not one. The project folder is what is on DISK; everything on this row
+       describes the REPOSITORY that disk state is read against. Splitting them also stops the
+       100ch commit dropdown pushing the folder box off the row. The branch and commit pickers stay
+       hidden until webapp/layer1-refs.ts confirms the path IS a git repo and adds `.repo-ok`.
+       `#ref` SURVIVES as a text box: a raw hash must still be typeable, and it is the existing
+       ?ref= query param — the commit dropdown WRITES into it rather than replacing it, which is
+       also why layer1-sources.ts's SOURCE_PARAM_IDS needs no change. -->
+  <div class="sources repo">
     <label>Git repo
       <input id="repo" type="text" size="34" value="">
       <button class="pick" data-for="repo">Open…</button></label>
-    <label>Commit / branch
-      <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
+    <span class="repo-flag">✓ git repo</span>
+    <label class="repo-only">Branch <select id="branch"></select></label>
+    <label class="repo-only">Commit <select id="commit"></select></label>
+    <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
     <button id="load">Load</button>
   </div>
   <div class="legend">
@@ -101,6 +122,17 @@
     <div class="minimap"><span class="mm-title">minimap</span>
       <div class="mm-plot" id="mm-plot"><div class="mm-view" id="mm-view"></div></div>
     </div>
+    <!-- Task 257: the Detail View drawer — the file's bytes at the clicked node's moment. A third
+         flex child of .stagewrap rather than an overlay, so opening it SHRINKS the timeline pane
+         instead of covering the render it is describing; webapp/layer1-drawer.ts re-centres the
+         clicked node against the post-reflow layout, which is why .drawer carries no width
+         transition. #dbody is a div, not a <pre>: layer1-file-view.ts renders numbered lines. -->
+    <aside class="drawer" id="drawer">
+      <div class="dhead"><div class="dpath" id="dpath"></div>
+        <button id="dclose">Close</button></div>
+      <div class="dmeta" id="dmeta"></div>
+      <div class="dbody" id="dbody"></div>
+    </aside>
   </div>
 </div>
 <script type="module" src="/app/layer1-page.js"></script>
