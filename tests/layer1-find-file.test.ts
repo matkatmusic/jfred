@@ -221,3 +221,22 @@ test("test_the_previous_button_steps_backward_and_wraps", () => {
     assert.equal(scrolledPaths.at(-1), ".vscode-parent/launch.json");
     assert.match(readFindStatusText(), /3 of 3/);
 });
+
+test("test_the_find_widget_sits_at_the_end_of_the_jump_bar", () => {
+    // Scenario (task 285, user 2026-07-26): the find box was buried among the source paths while
+    // the bucket jump buttons sat in the header, so the page's two navigation controls were in two
+    // unrelated places. Requested position: to the RIGHT of the last `Jump to:` button.
+    // Steps:
+    // boot the page.
+    openFoundPage([]);
+    // the box, its two cycle buttons and its readout all live inside the jump bar.
+    const jumpbar = document.querySelector(".jumpbar")!;
+    for (const id of ["find-file", "find-prev", "find-next", "find-status"]) {
+        assert.ok(jumpbar.contains(document.getElementById(id)), `${id} is not in the jump bar`);
+    }
+    // and the widget follows the bucket buttons rather than preceding them.
+    const children = [...jumpbar.children];
+    const lastBucketButton = [...jumpbar.querySelectorAll("[data-bucket]")].at(-1)!;
+    const findLabel = document.getElementById("find-file")!.closest("label")!;
+    assert.ok(children.indexOf(findLabel) > children.indexOf(lastBucketButton));
+});

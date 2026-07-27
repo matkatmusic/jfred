@@ -18,21 +18,19 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 
-// How long the landed bubble stays lit, in ms. Long enough to catch the eye after the scroll
-// settles, short enough that it is gone before the user starts judging the bubble's own styling —
-// which is the whole point of looking at it.
-const HIGHLIGHT_MS = 1500;
-
 // The term the counter is currently counting through, and how far through it we are. Held at module
 // scope because the cycle is the feature: submitting the SAME term again must advance to the next
 // match rather than re-landing on the first.
 let cycledTerm = "";
 let cycleIndex = 0;
 
-// The lit bubble and its pending un-lighting, so a second jump cancels the first's timer instead of
-// letting it switch the light off under the new bubble.
-let litBubble: HTMLElement | undefined;
-let unlightTimer: ReturnType<typeof setTimeout> | undefined;
+// The one element currently lit, so landing on a second one darkens the first.
+let litElement: HTMLElement | undefined;
+
+// Fired on `document` whenever a jump lands, carrying the element it landed on. The page's own
+// notification that the SELECTION moved — layer1-leader-visibility.ts listens for it to keep that
+// element's dashed leader line up.
+export const LANDED_EVENT = "layer1-landed";
 
 // Every bubble's name element, in render order. `.fname` is where BOTH matchable strings live: its
 // text is the basename (task 245 shortened the visible label to that) and its `data-path` is the
@@ -61,15 +59,27 @@ function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
         .map((nameElement) => nameElement.closest(".filebox") as HTMLElement);
 }
 
-// Light the landed bubble so it is obvious WHICH one was targeted (requirement 4), and darken the
-// previous one. The timer handle is cleared first: without it, two jumps 200 ms apart would leave
-// the first jump's expiry to switch the second jump's light off early.
-function highlightBubble(bubble: HTMLElement): void {
-    clearTimeout(unlightTimer);
-    litBubble?.classList.remove("found");
-    litBubble = bubble;
-    bubble.classList.add("found");
-    unlightTimer = setTimeout(() => bubble.classList.remove("found"), HIGHLIGHT_MS);
+// Light the element a jump landed on, and darken whatever was lit before: exactly ONE thing on the
+// page carries `.found` at any moment (user, 2026-07-26). Exported because a ruler-tick click
+// (tasks 283/267) lights the same way — it lands on a `.node` or a bucket `li` rather than always a
+// `.filebox`, which is why nothing here reads the element's kind.
+//
+// The highlight is PERSISTENT. It used to switch itself off after 1.5 s so it could not be mistaken
+// for the bubble's own styling; the user's 2026-07-26 instruction is the opposite — "leave the
+// bubble's highlighted effect active instead of fading out quickly" — so the timer is gone and the
+// light moves only when something else is landed on, or when the find box is emptied.
+export function highlightLandedElement(landed: HTMLElement): void {
+    litElement?.classList.remove("found");
+    litElement = landed;
+    landed.classList.add("found");
+    // The leader lines are drawn on demand (user, 2026-07-26) and a landing is a SELECTION, so the
+    // line for what was landed on stays up until the next landing. A DOM event rather than a call
+    // into layer1-leader-visibility.ts: layer1-ruler-click.ts already imports THIS module, so an
+    // import in the other direction would close a cycle for what is one notification.
+    // `window.CustomEvent`, not the bare global: under the tests' happy-dom the page's document
+    // only accepts events built by ITS window, and node's own global CustomEvent is a different
+    // class. In a browser the two are the same object, so this costs nothing.
+    document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
 // Never a silent no-op (requirement 5): every submit reports here, whether it landed or not. Its
@@ -111,7 +121,7 @@ function selectMatchAtStep(term: string, step: number): HTMLElement | undefined 
 // because a bubble is placed sideways by its column index in `.stage`.
 function landOnBubble(bubble: HTMLElement): void {
     bubble.scrollIntoView({ block: "start", inline: "center" });
-    highlightBubble(bubble);
+    highlightLandedElement(bubble);
 }
 
 // Jump to the next (or, with step -1, the previous) bubble named by `term`. Exported for the test,
@@ -150,12 +160,12 @@ export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
 }
 
 // Task 273: put the box back to its untouched state. All three pieces of a live search are dropped
-// together — the readout, the lit bubble and the cycle position — because leaving any one of them
-// keeps some part of an abandoned search on screen or in effect.
+// together — the readout, the lit element and the cycle position — because leaving any one of them
+// keeps some part of an abandoned search on screen or in effect. Emptying the box is now the ONLY
+// thing that darkens the page, since the highlight no longer expires on its own.
 function clearFindState(): void {
-    clearTimeout(unlightTimer);
-    litBubble?.classList.remove("found");
-    litBubble = undefined;
+    litElement?.classList.remove("found");
+    litElement = undefined;
     cycledTerm = "";
     cycleIndex = 0;
     reportFindStatus("");

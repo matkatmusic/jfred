@@ -13,18 +13,23 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
 
+// `eventCount` is task 275's per-instant count. Not optional: layer1-ruler-rows.ts refuses a ruler
+// entry without one (the count is printed in every row), so a fixture missing it fails the whole
+// load with "ruler entry ... carries no event count" and the page draws nothing at all.
 interface FixtureInstant {
     instant: string;
     axisPx: number;
+    eventCount: number;
 }
 
 // Three instants whose MIDDLE label is dropped by renderRulerTicks' 13 px overprint skip: 4 px is
 // closer to 0 than the gap allows, while 14 px clears it. The skip is what makes this fixture worth
 // having — a leader must survive it even though a label does not.
+// The counts match the two pairs below: both begin at 0 and both end on disk at 14.
 const CROWDED_RULER: FixtureInstant[] = [
-    { instant: "2026-06-01T09:00:00.000Z", axisPx: 0 },
-    { instant: "2026-06-01T10:36:00.000Z", axisPx: 4 },
-    { instant: "2026-06-01T14:36:00.000Z", axisPx: 14 },
+    { instant: "2026-06-01T09:00:00.000Z", axisPx: 0, eventCount: 2 },
+    { instant: "2026-06-01T10:36:00.000Z", axisPx: 4, eventCount: 1 },
+    { instant: "2026-06-01T14:36:00.000Z", axisPx: 14, eventCount: 2 },
 ];
 
 // TWO pairs anchored on the SAME instant, which is the case the user reported: before task 264 this

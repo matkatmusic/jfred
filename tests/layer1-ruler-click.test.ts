@@ -1,9 +1,9 @@
-// Task 260: clicking a row of the Layer 1 ruler centers that instant's bubble in the visible
-// timeline area. The user's rule for a tick several bubbles share, settled 2026-07-25, has two
-// stages: the bubble that BEGINS at that instant wins, and "if no bubble starts there, scroll to
-// the node at that timestamp". Both stages are proved below, and the fixture is built so a naive
-// one-stage implementation FAILS: the bubble that merely holds a node on the shared instant is
-// drawn FIRST, so a plain document-order "any node here" search returns the wrong one.
+// Task 260: clicking a row of the Layer 1 ruler centers that instant in the visible timeline area.
+// The user's rule for a tick several bubbles share (settled 2026-07-25, amended 2026-07-26): the
+// bubble that BEGINS at that instant wins, else "scroll to the node at that timestamp" — and either
+// way the target is the ROW drawn there, never the bubble's box. Both cases are proved below, and
+// the fixture is built so a naive implementation FAILS: the bubble that merely holds a node on the
+// shared instant is drawn FIRST, so a plain document-order "any node here" search picks the wrong one.
 //
 // happy-dom implements no layout, so nothing here reads a scroll position — that would be measuring
 // happy-dom rather than the page. The assertion is that the RIGHT ELEMENT was handed to native
@@ -139,22 +139,22 @@ function readAxisPx(element: HTMLElement): number {
     return Number(element.style.getPropertyValue("--axis-px"));
 }
 
-test("test_clicking_a_shared_tick_centers_the_bubble_that_begins_there", async () => {
-    // Scenario (task 260, stage 1): two bubbles touch the same instant — one merely has an interior
-    // commit node on it, the other BEGINS on it. The user's rule picks the one that begins there.
-    // Steps:
-    // draw both pairs and start recording scroll requests.
+test("test_clicking_a_shared_tick_selects_the_node_of_the_bubble_that_begins_there", async () => {
+    // Scenario (task 260 stage 1, amended by the user 2026-07-26): two bubbles touch the same
+    // instant — one merely has an interior commit node on it, the other BEGINS on it. That bubble
+    // still wins, but what is handed over is its NODE: a lit box said nothing about which instant.
+    // Steps: draw both pairs, record scroll requests, and click the shared instant's ruler row.
     await loadPageWithView(buildSharedInstantView());
     const requests = recordScrollRequests();
-    // click the shared instant's ruler row.
     clickRulerTickAt(SHARED_PX);
-    // exactly one scroll, aimed at the bubble that BEGINS there — not at the earlier-drawn bubble
-    // that merely holds a node on it, which is what a one-stage search would have returned.
+    // exactly one scroll, aimed at a NODE inside the bubble that BEGINS there — not the
+    // earlier-drawn bubble that merely holds a node on it, and not a `.filebox` either.
     assert.equal(requests.length, 1);
-    assert.equal(readBubbleName(requests[0]!.target), "beginning.ts");
-    // task 266: the row the reader clicked is already on screen, so the jump must not move it
-    // vertically at all — `nearest` scrolls only if the target is out of view. Horizontally it is
-    // centred, because the stage is oversized sideways and that IS the jump.
+    const target = requests[0]!.target;
+    assert.equal(readBubbleName(target), "beginning.ts");
+    assert.ok(target.classList.contains("node"), `scrolled a ${target.className} rather than a node`);
+    // task 266: the clicked row is already on screen, so `nearest` moves it vertically only if it
+    // is out of view; `inline: "center"` brings the oversized stage across, which IS the jump.
     assert.deepEqual(requests[0]!.options, { block: "nearest", inline: "center" });
 });
 
@@ -225,4 +225,26 @@ test("test_every_drawn_ruler_row_is_clickable", async () => {
         clickRulerTickAt(axisPx);
         assert.equal(requests.length, 1, `ruler row at ${axisPx}px scrolled nothing`);
     }
+});
+
+// Scenario (283/267 + the user, 2026-07-26): the tick scrolled a bubble across but nothing said WHICH one
+// it meant (283); EVERY tick must mark the NODE it landed on, never the bubble, because a lit bubble does
+// not say which instant it means; and only ONE thing is lit, so a second click MOVES the light.
+test("test_clicking_a_ruler_tick_highlights_the_element_it_landed_on", async () => {
+    // Steps: draw both pairs with nothing lit, click where beginning.ts begins (stage 1), click a second
+    // instant so the one light must MOVE, then click the instant only spanning.ts's on-disk node stands
+    // on (stage 2). `.found` is the class layer1-styles.css paints the outline from, so it IS the contract.
+    await loadPageWithView(buildSharedInstantView());
+    assert.equal(document.querySelector(".found"), null);
+    clickRulerTickAt(SHARED_PX);
+    const litRow = document.querySelector<HTMLElement>(".found")!;
+    assert.equal(readBubbleName(litRow), "beginning.ts");
+    assert.ok(litRow.classList.contains("node"), `lit a ${litRow.className} rather than a node`);
+    clickRulerTickAt(EARLY_PX);
+    assert.equal(document.querySelectorAll(".found").length, 1);
+    assert.equal(readBubbleName(document.querySelector<HTMLElement>(".found")!), "spanning.ts");
+    clickRulerTickAt(HELD_PX);
+    const litNode = document.querySelector<HTMLElement>(".found")!;
+    assert.ok(litNode.classList.contains("node"), `lit a ${litNode.className} rather than a node`);
+    assert.equal(readAxisPx(litNode.closest(".filebox") as HTMLElement) + readAxisPx(litNode), HELD_PX);
 });

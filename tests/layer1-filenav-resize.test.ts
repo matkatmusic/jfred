@@ -26,8 +26,23 @@ function dragGripTo(clientX: number): void {
     window.dispatchEvent(new window.MouseEvent("pointerup", { clientX }));
 }
 
+// Press and move WITHOUT releasing, so the in-progress state is observable.
+function startDragToward(clientX: number): void {
+    const grip = document.getElementById("filenav-grip")!;
+    grip.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true, clientX: 232 }));
+    window.dispatchEvent(new window.MouseEvent("pointermove", { clientX }));
+}
+
 function readFileNavWidth(): string {
     return document.getElementById("stagewrap")!.style.getPropertyValue("--filenav-w");
+}
+
+function readFileNavDragWidth(): string {
+    return document.getElementById("stagewrap")!.style.getPropertyValue("--filenav-drag-w");
+}
+
+function readFrozenTimelineWidth(): string {
+    return document.getElementById("stagewrap")!.style.getPropertyValue("--timeline-w");
 }
 
 test("test_dragging_the_grip_writes_the_shared_filenav_width", () => {
@@ -65,4 +80,44 @@ test("test_a_pointer_move_after_the_drag_ends_does_not_resize", () => {
     window.dispatchEvent(new window.MouseEvent("pointermove", { clientX: 500 }));
     // the width is still where the drag left it.
     assert.equal(readFileNavWidth(), "340px");
+});
+
+test("test_a_drag_in_progress_moves_the_preview_and_not_the_pane", () => {
+    // Scenario (task 288): every pointermove used to write the pane's own width, and the pane is a
+    // flex sibling of the ~156,000px timeline canvas, so each move relaid out the whole canvas and
+    // the drag was unusable. Only the preview property may move while the button is down.
+    // Steps:
+    // open the page and press-and-move without releasing.
+    openResizablePage();
+    startDragToward(340);
+    // the preview carries the pointer's width...
+    assert.equal(readFileNavDragWidth(), "340px");
+    // ...and the pane's own width has not moved off its default, so nothing relaid out.
+    assert.equal(readFileNavWidth(), "");
+    // and the grip reads as a live preview line.
+    assert.ok(document.getElementById("filenav-grip")!.classList.contains("dragging"));
+    // The 2026-07-26 follow-up: the PANE follows too, which it can only do safely while the
+    // timeline pane is frozen at the width it already had — `.resizing` plus a captured
+    // `--timeline-w` are the two halves of that freeze, and CSS needs both.
+    assert.ok(document.getElementById("stagewrap")!.classList.contains("resizing"));
+    assert.notEqual(readFrozenTimelineWidth(), "");
+});
+
+test("test_releasing_the_drag_commits_the_width_and_drops_the_preview", () => {
+    // Scenario (task 288): the pane must still end up where the user let go — the preview is the
+    // only thing that is cheap, so the real width is written exactly once, on release.
+    // Steps:
+    // open the page and complete a drag out to 340px.
+    openResizablePage();
+    dragGripTo(340);
+    // the pane's shared width is committed...
+    assert.equal(readFileNavWidth(), "340px");
+    // ...the preview property is gone, so `.filenav-grip` falls back to reading the committed width.
+    assert.equal(readFileNavDragWidth(), "");
+    // ...and the grip is no longer painted as a drag in progress.
+    assert.equal(document.getElementById("filenav-grip")!.classList.contains("dragging"), false);
+    // ...and the timeline's freeze is lifted, so it flexes back over the width the nav gave up —
+    // leaving either half set would pin the timeline to a stale width for the rest of the session.
+    assert.equal(document.getElementById("stagewrap")!.classList.contains("resizing"), false);
+    assert.equal(readFrozenTimelineWidth(), "");
 });

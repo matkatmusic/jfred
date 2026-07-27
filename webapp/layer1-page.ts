@@ -15,6 +15,8 @@ import { wireFileNavResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
+import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
@@ -56,7 +58,7 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
 // count; that is a different question from which labels happen to collide.
 function renderLeaderLines(ruler: WireInstant[]): void {
     getRequiredElementById("leaders").replaceChildren(
-        ...ruler.map((entry) => setAxisPx(el("div", { class: "leader" }), entry.axisPx)),
+        ...ruler.map((entry) => makeLeaderHoverable(setAxisPx(el("div", { class: "leader" }), entry.axisPx))),
     );
 }
 
@@ -208,6 +210,9 @@ export function bootLayer1Page(): void {
     wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();
+    // Delegated, so it is wired ONCE here rather than per line: the leader lines themselves are
+    // replaced on every render, and so is every bubble the pointer resolves against.
+    wireLeaderVisibility();
     wireFolderPickers(() => {
         void loadLayer1View();
     });

@@ -26,11 +26,25 @@
     </div>
     <!-- Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find
          it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives
-         that bucket, character for character — layer1-jump-buckets.ts locates the bucket by it. -->
+         that bucket, character for character — layer1-jump-buckets.ts locates the bucket by it.
+         Task 285: this row now also carries the find-bubble widget. Both are navigation controls —
+         one jumps to a bucket, the other jumps to a named bubble — so they belong on one row
+         instead of the buttons sitting in the header while the find box was buried among the
+         source paths. -->
     <div class="jumpbar">
       <span class="lbl">Jump to:</span>
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
+      <label>Find bubble
+        <input id="find-file" type="text" size="22" placeholder="basename — Enter cycles matches"></label>
+      <!-- Task 271: explicit cycle controls. Enter still submits and still advances; these make the
+           cycle visible and add the direction it never had. -->
+      <button id="find-prev" title="Previous match">‹</button>
+      <button id="find-next" title="Next match">›</button>
+      <!-- Task 273: the find box's own readout. It used to be written into the header's #crumb,
+           which also carries the stage's pair and orphan counts — so a search destroyed those, and
+           emptying the box left the dead result behind with nothing able to restore them. -->
+      <span class="find-status" id="find-status"></span>
     </div>
   </header>
 
@@ -44,16 +58,6 @@
     <label>Commit / branch
       <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
     <button id="load">Load</button>
-    <label>Find bubble
-      <input id="find-file" type="text" size="22" placeholder="basename — Enter cycles matches"></label>
-    <!-- Task 271: explicit cycle controls. Enter still submits and still advances; these make the
-         cycle visible and add the direction it never had. -->
-    <button id="find-prev" title="Previous match">‹</button>
-    <button id="find-next" title="Next match">›</button>
-    <!-- Task 273: the find box's own readout. It used to be written into the header's #crumb,
-         which also carries the stage's pair and orphan counts — so a search destroyed those, and
-         emptying the box left the dead result behind with nothing able to restore them. -->
-    <span class="find-status" id="find-status"></span>
   </div>
   <div class="legend">
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
