@@ -1,4 +1,4 @@
-// Layer 3 snapshot beacons (task 201, spec S4): every non-null file-history backup point
+// Layer 2 snapshot beacons (task 201, spec S4): every non-null file-history backup point
 // becomes a verified BeaconNode. Resolution is per-OWNING-session (Q12): the backup timeline
 // stamps each point with the sessionId that took it, and that id is passed to the BackupReader
 // — the same `abc123@vN` blob name recurs across sessions with different bytes, so a global
@@ -29,7 +29,7 @@ function buildBeaconsFromBackupPoints(points: BackupPoint[], reader: BackupReade
     return beacons;
 }
 
-// The layer-3 beacons per absolute file path: every snapshot blob the records evidence, resolved
+// The Layer 2 beacons per absolute file path: every snapshot blob the records evidence, resolved
 // through its owning session's sidecar. Paths whose snapshots are all blobless get no entry.
 export function collectSnapshotBeaconNodes(
     records: TranscriptRecord[],

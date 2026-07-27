@@ -64,7 +64,7 @@ export function compareAxisPlacements(a: AxisPlacement, b: AxisPlacement): numbe
 }
 
 // The sortable axis view of one node (JSONL rows are ms-precision — the widened-seconds flag
-// arrives with git beacons in layer 2/task 200).
+// arrives with git beacons in Layer 1/task 200).
 function makeJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
     return {
         instant: node.instant,

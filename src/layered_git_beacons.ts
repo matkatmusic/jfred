@@ -1,4 +1,4 @@
-// Layer 2 commit beacons (task 200, spec S3): each commit touching a file contributes a
+// Layer 1 commit beacons (task 200, spec S3): each commit touching a file contributes a
 // verified BeaconNode carrying the commit's blob bytes at its COMMITTER instant (author time is
 // never read — hpp Q7). Absence (no repo, path outside it, no blob at a commit) is a silent
 // skip, the same posture as reconstruction_git_evidence.ts. Merging these onto session
@@ -64,11 +64,11 @@ function readBlobAtCommit(repoPath: Path, hash: string, cwdRelativePath: string)
     }
 }
 
-// The layer-2 beacons for one file: one node per commit whose tree holds the file, oldest
+// The Layer 1 beacons for one file: one node per commit whose tree holds the file, oldest
 // first, instants widened from committer seconds. evidence stays undefined — a commit blob has
 // no JSONL line to point at.
 // Deliberately committer-ONLY: task 282's author/committer toggle is a LAYER 1 view choice, while
-// hpp Q7 pins layer 2's beacons to committer time. Do not "fix" this to follow the toggle.
+// hpp Q7 pins commit beacons to committer time. Do not "fix" this to follow the toggle.
 export function collectCommitBeaconNodes(repoPath: Path, filePath: Path): BeaconNode[] {
     const cwdRelativePath = relative(repoPath.toString(), filePath.toString());
     if (cwdRelativePath === "" || cwdRelativePath.startsWith("..")) {
