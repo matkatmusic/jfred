@@ -1,6 +1,4 @@
-// Task 253: filtering cannot just hide bubbles — `axisPx` is an ACCUMULATED offset, so removing an
-// instant moves every later node and would leave the dropped files' time reserved as blank space.
-// Survivors go back through the SAME layout the endpoint ran, so the two rulers cannot drift apart.
+// Task 253: axisPx is an accumulated offset, so filtering re-runs the SAME layout as the endpoint rather than hiding bubbles.
 
 import { layOutNodeLadders, type NodeLadder } from "./layer1-ruler-axis.ts";
 import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair } from "./layer1-wire.ts";
@@ -10,8 +8,7 @@ function readWireInstant(text: string): Date {
     return new Date(text);
 }
 
-// Mirrors src/viewer_api_layer1.ts's listPairNodeLadder; the order is load-bearing because the
-// offsets come back positionally.
+// Mirrors src/viewer_api_layer1.ts's listPairNodeLadder; order is load-bearing since offsets come back positionally.
 function listWirePairLadder(pair: WirePair): NodeLadder {
     return [...pair.commits.map((commit) => commit.instant), pair.onDisk.instant].map(readWireInstant);
 }
@@ -21,8 +18,7 @@ function placeNodeAtPixels<Node extends WireInstant>(node: Node, axisPx: number)
     return { ...node, axisPx };
 }
 
-// An orphan reads the TICK offset, never a stacked node row. Every instant asked for was the
-// layout's own input, so a miss is a bug here — fail loudly rather than draw at a silent zero.
+// An orphan reads the TICK offset, never a stacked row; a missing instant is a bug, not a silent zero.
 function placeOrphanOnAxis(tickOffsetsPx: Map<number, number>, orphan: WireOrphan): WireOrphan {
     const axisPx = tickOffsetsPx.get(readWireInstant(orphan.instant).getTime());
     if (axisPx === undefined) {
@@ -40,8 +36,7 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
     };
 }
 
-// Mirrors src/viewer_api_layer1.ts's assembly: pair ladders FIRST and in `pairs` order, so
-// ladderOffsetsPx[index] is pair `index`'s rows; each orphan follows as a ONE-node ladder.
+// Mirrors src/viewer_api_layer1.ts: pair ladders come first, so ladderOffsetsPx[index] is pair index's rows; orphans follow as one-node ladders.
 export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
     const layout = layOutNodeLadders([
         ...view.pairs.map(listWirePairLadder),
@@ -53,8 +48,7 @@ export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
         pairs: view.pairs.map((pair, index) => placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!)),
         gitOrphans: view.gitOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
         diskOrphans: view.diskOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
-        // eventCount is re-measured by the layout above, not carried over from the unfiltered view:
-        // a folder filter removes bubbles, so the events left at an instant are genuinely fewer.
+        // eventCount is re-measured here, not carried from the unfiltered view: a folder filter removes bubbles, so counts per instant shrink.
         ruler: layout.ticks.map((tick) => ({
             instant: tick.instant.toISOString(),
             axisPx: tick.offsetPx,
@@ -63,8 +57,7 @@ export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
     };
 }
 
-// `targets` is the folder's already-resolved LEAF paths; empty means no filter. Membership is exact,
-// never a prefix test — startsWith would let `src/keep/a.ts` match `a.ts.bak` (task 278).
+// `targets` holds LEAF paths (empty = no filter); membership is exact, never prefix, so `a.ts.bak` can't match `a.ts` (task 278).
 export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[]): WireLayer1View {
     if (targets.length === 0) {
         return relayOutLayer1View(view);

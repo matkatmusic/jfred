@@ -1,9 +1,4 @@
-// DOM tests for webapp/app-paths-wizard.ts (task 159): the Paths wizard state machine — the
-// summary default face, single-screen Edit round trips, the screen-3 "no" skip, the Finish
-// store prompt (baseline mirror + preBaseline riding the POST), Cancel posting nothing, and
-// the two auto-run triggers (no-entry project load, first launch with no global config).
-// Module state (the offered-projects set) persists across tests — every test uses a UNIQUE
-// project name.
+// DOM tests for webapp/app-paths-wizard.ts (task 159): the Paths wizard state machine — the summary default face, single-screen Edit round trips, the screen-3 "no" skip, the Finish store prompt (baseline mirror + preBaseline riding the POST), Cancel posting nothing, and the two auto-run triggers (no-entry project load, first launch with no global config).  Module state (the offered-projects set) persists across tests — every test uses a UNIQUE project name.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,8 +17,7 @@ function getInput(id: string): HTMLInputElement {
     return getRequiredElementById(id) as HTMLInputElement;
 }
 
-// Wrap the current stubbed fetch with a recorder so a test can inspect POST bodies while the
-// canned routes keep answering (app-header.test.ts's recordFetchCalls pattern).
+// Wrap the current stubbed fetch with a recorder so a test can inspect POST bodies while the canned routes keep answering (app-header.test.ts's recordFetchCalls pattern).
 function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     const recordedCalls: { url: string; init: RequestInit | undefined }[] = [];
     const delegate = globalThis.fetch;
@@ -36,8 +30,7 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     return recordedCalls;
 }
 
-// Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap
-// (fills the folder inputs), and wire the wizard listeners.
+// Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap (fills the folder inputs), and wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     setupWebappDom();
     stubFetchRoutes({
@@ -55,8 +48,7 @@ async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<t
 }
 
 test("test_paths_button_shows_summary_default_face_with_global_rows", async () => {
-    // Scenario: on a non-project route, Paths… opens the popover on the summary face with the
-    // two GLOBAL rows (projects folder + file history) and no wizard screen visible.
+    // Scenario: on a non-project route, Paths… opens the popover on the summary face with the two GLOBAL rows (projects folder + file history) and no wizard screen visible.
     await initializeWizardInFreshDom({});
     getRequiredElementById("paths-btn").click();
     assert.equal(getRequiredElementById("paths-popover").hidden, false);
@@ -71,8 +63,7 @@ test("test_paths_button_shows_summary_default_face_with_global_rows", async () =
 });
 
 test("test_summary_edit_opens_single_screen_whose_next_is_finish", async () => {
-    // Scenario (mockup §b): with a project refreshed, the summary shows all 5 rows; the Git
-    // repo row's [Edit] jumps to screen 3 alone — Back disabled, Next relabeled Finish.
+    // Scenario (mockup §b): with a project refreshed, the summary shows all 5 rows; the Git repo row's [Edit] jumps to screen 3 alone — Back disabled, Next relabeled Finish.
     await initializeWizardInFreshDom({ repo: "/repos/p" });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-edit");
@@ -90,9 +81,7 @@ test("test_summary_edit_opens_single_screen_whose_next_is_finish", async () => {
 });
 
 test("test_screen3_answered_no_skips_4_and_5_and_clears_repo_fields", async () => {
-    // Scenario (mockup flow): a project run reaching screen 3 with "No" checked jumps straight
-    // to the Finish face and clears repo + base commit, so the project reconstructs exactly as
-    // with no reveng-paths entry.
+    // Scenario (mockup flow): a project run reaching screen 3 with "No" checked jumps straight to the Finish face and clears repo + base commit, so the project reconstructs exactly as with no reveng-paths entry.
     const wizard = await initializeWizardInFreshDom({ repo: "/repos/p", baseCommit: TIP_COMMIT_HASH });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-skip");
@@ -113,8 +102,7 @@ test("test_screen3_answered_no_skips_4_and_5_and_clears_repo_fields", async () =
 });
 
 test("test_full_project_run_finish_stores_mirror_and_posts_preBaseline", async () => {
-    // Scenario: screens 2→3(yes)→4(default)→5(yes)→Finish; "Apply to session only" stores the
-    // task-56 mirror BEFORE the POST, whose entry carries preBaseline; the popover closes.
+    // Scenario: screens 2→3(yes)→4(default)→5(yes)→Finish; "Apply to session only" stores the task-56 mirror BEFORE the POST, whose entry carries preBaseline; the popover closes.
     const wizard = await initializeWizardInFreshDom({ repo: "/repos/p" });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-full");
@@ -163,8 +151,7 @@ test("test_cancel_abandons_run_with_nothing_posted", async () => {
 });
 
 test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
-    // Scenario (mockup trigger): a project loading with NO reveng-paths entry auto-opens the
-    // wizard at screen 2; a configured project does not.
+    // Scenario (mockup trigger): a project loading with NO reveng-paths entry auto-opens the wizard at screen 2; a configured project does not.
     await initializeWizardInFreshDom({});
     const { maybeOfferProjectPathsWizard } = await import("../webapp/app-paths-project.ts");
     await maybeOfferProjectPathsWizard("proj-offer");
@@ -178,8 +165,7 @@ test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
 });
 
 test("test_first_launch_with_empty_projects_dir_starts_full_wizard", async () => {
-    // Scenario (mockup trigger): no global config leaves the projects-dir input empty at boot —
-    // the full wizard starts at screen 1 (screen-1-only run without a project: Next is Finish).
+    // Scenario (mockup trigger): no global config leaves the projects-dir input empty at boot — the full wizard starts at screen 1 (screen-1-only run without a project: Next is Finish).
     setupWebappDom();
     stubFetchRoutes({});
     const wizard = await import("../webapp/app-paths-wizard.ts");

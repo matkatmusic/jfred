@@ -1,9 +1,4 @@
-// loadLayeredProject (task 196, spec S1): source discovery (explicit paths win, otherwise
-// discovered from the project folder) and the per-file entity graph built from JSONL rows.
-// Layer-1 node mapping (task 198, spec S2): a full-content row (Write body, user edit, Edit
-// with populated originalFile, complete Read echo) becomes a BeaconNode; any other
-// file-touching row a PreAnchorStubNode. Each session timeline is then completed (task 199):
-// on-disk end state as the final node, presumption gaps between differing verified states.
+// S1 source discovery + S2 node mapping + task 199 timeline completion.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -36,8 +31,7 @@ export interface LayeredSourceOverrides {
     snapshotPaths?: Path[];
 }
 
-// The session files to load: the override verbatim, otherwise the folder's top-level .jsonl
-// files in name order (session-id subdirectories hold sidecars, not transcripts).
+// Returns override paths verbatim, or discovers top-level .jsonl files.
 export function discoverJsonlPaths(projectFolder: Path, override: Path[] | undefined): Path[] {
     if (override !== undefined) {
         return override;
@@ -48,8 +42,7 @@ export function discoverJsonlPaths(projectFolder: Path, override: Path[] | undef
     return jsonlNames.map((name) => new Path(join(projectFolder.toString(), name)));
 }
 
-// The evidence roots layers 2-3 consume: explicit overrides win; otherwise the repo root is the
-// records' first cwd and the snapshot root the transcript-derived file-history resolution chain.
+// Resolves repo and snapshot roots for layers 2-3.
 export function resolveEvidenceRoots(
     records: TranscriptRecord[],
     overrides: LayeredSourceOverrides,
@@ -77,8 +70,7 @@ function collectToolUseRefsFromRecord(
     }
 }
 
-// Map each tool_use block id to the JsonlRef of the record that issued it, so events (keyed by
-// changeId = block id) can point back at their evidence line.
+// Index tool_use block ids to their source JsonlRef for evidence tracking.
 function indexJsonlRefsByChangeId(records: TranscriptRecord[], sessionFile: Path): Map<string, JsonlRef> {
     const refsByChangeId = new Map<string, JsonlRef>();
     for (const record of records) {
@@ -87,14 +79,12 @@ function indexJsonlRefsByChangeId(records: TranscriptRecord[], sessionFile: Path
     return refsByChangeId;
 }
 
-// Whether the event carries full verified content AT EXTRACTION TIME (append/overwrite content
-// is filled later during reconstruction, so only write and user-edit qualify here).
+// Only write and userEdit carry full content at extraction time.
 function checkEventCarriesFullContent(event: FileEvent): boolean {
     return event.kind === EventKind.write || event.kind === EventKind.userEdit;
 }
 
-// An Edit result's populated originalFile is the literal pre-edit disk — full-content evidence
-// (task 198). The wire value may be null (unreported), so populated means a real string.
+// Extracts Edit's originalFile when present (non-null string).
 function findEditOriginalContent(event: FileEvent): string | undefined {
     if (event.kind !== EventKind.edit) {
         return undefined;
@@ -131,9 +121,7 @@ function getOrCreateNodeList(
     return nodes;
 }
 
-// Collect one session's nodes into the nested file -> session -> nodes map. Rename/copy events
-// carry from/to instead of target — they are held aside as typed-edge evidence (task 203, S6),
-// not nodes. Read echoes leave no FileEvent, so their nodes join from collectReadEchoNodes.
+// Populates file->session->nodes map; rename/copy events become lineage evidence instead.
 function collectSessionNodes(
     records: TranscriptRecord[],
     sessionFile: Path,
@@ -163,8 +151,7 @@ function collectSessionNodes(
     }
 }
 
-// One session's sorted timeline for an entity, completed with the on-disk end state and
-// presumption gaps (task 199).
+// One session's sorted timeline for an entity, completed with the on-disk end state and presumption gaps (task 199).
 function buildSessionTimeline(sessionFileKey: string, nodes: TimelineNode[], filename: Path): SessionTimeline {
     return {
         sessionFile: new Path(sessionFileKey),
@@ -184,9 +171,7 @@ function buildEntities(nodesByFileThenSession: Map<string, Map<string, TimelineN
     return entities;
 }
 
-// S1 loader entry point: discover sources (explicit paths win), load every session transcript,
-// and return the per-file entity graph with its typed rename/copy edges (S6, task 203). The
-// evidence roots from resolveEvidenceRoots feed layers 2-3 (tasks 200-202).
+// Entry point: loads all sessions and builds the per-file entity graph.
 export function loadLayeredProject(projectFolder: Path, overrides: LayeredSourceOverrides): ReconstructionGraph {
     const nodesByFileThenSession = new Map<string, Map<string, TimelineNode[]>>();
     const lineageEvidence: LineageEvidence[] = [];
@@ -201,3 +186,4 @@ export function loadLayeredProject(projectFolder: Path, overrides: LayeredSource
     const { renames, copies } = buildLineageEdges(lineageEvidence, entitiesByPath);
     return { entities: [...entitiesByPath.values()], renames, copies, scriptLinks: [] };
 }
+

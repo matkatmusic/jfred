@@ -1,9 +1,6 @@
-// Tasks 295/296: the source-folder dialog. ONE widget serves both lists — same rules, different
-// title and different array — because the two differ only in what they count
-// (plans/layer1-mockup.html:577-592, 1519-1572).
+// Tasks 295/296: the source-folder dialog. ONE widget serves both lists — same rules, different title and different array — because the two differ only in what they count (plans/layer1-mockup.html:577-592, 1519-1572).
 //
-// It edits a COPY: [cancel] drops the draft, [set and close] is what commits and rebuilds. That is
-// what makes a mis-click on [−] recoverable without an undo stack.
+// It edits a COPY: [cancel] drops the draft, [set and close] is what commits and rebuilds. That is what makes a mis-click on [−] recoverable without an undo stack.
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
@@ -12,8 +9,7 @@ const PICKER_TITLE_BY_KIND: Record<SourceKind, string> = {
     [SourceKind.jsonl]: "JSONL Source Paths",
     [SourceKind.fileHistory]: "File History Snapshot Paths",
 };
-// What the folder held none of. Named per kind, because "no JSONL files found" over a snapshot
-// list would be describing the wrong thing.
+// What the folder held none of. Named per kind, because "no JSONL files found" over a snapshot list would be describing the wrong thing.
 const EMPTY_ALERT_BY_KIND: Record<SourceKind, string> = {
     [SourceKind.jsonl]: "no JSONL files found",
     [SourceKind.fileHistory]: "no snapshots found",
@@ -61,9 +57,7 @@ function flashEmptyAlert(kind: SourceKind): void {
     alertTimer = setTimeout(() => { alert.hidden = true; }, ALERT_VISIBLE_MS) as unknown as number;
 }
 
-// Does the chosen folder hold what this list is for, at ANY nesting depth? A folder that does not
-// is refused rather than added — a source path that contributes nothing is a lie about the build's
-// inputs. An unreachable server reads as "nothing found", which refuses rather than admits.
+// Does the chosen folder hold what this list is for, at ANY nesting depth? A folder that does not is refused rather than added — a source path that contributes nothing is a lie about the build's inputs. An unreachable server reads as "nothing found", which refuses rather than admits.
 async function countFilesUnder(path: string, kind: SourceKind): Promise<number> {
     const query = new URLSearchParams({ path, kind });
     const response = await fetch(`/api/scan-source?${query}`);
@@ -73,9 +67,7 @@ async function countFilesUnder(path: string, kind: SourceKind): Promise<number> 
     return (await response.json() as { found: number }).found;
 }
 
-// [+] — the OS folder chooser (GET /api/pick-folder, the existing osascript picker), then the scan.
-// An empty path is the user cancelling; a path already in the list is a no-op rather than a
-// duplicate row.
+// [+] — the OS folder chooser (GET /api/pick-folder, the existing osascript picker), then the scan.  An empty path is the user cancelling; a path already in the list is a no-op rather than a duplicate row.
 async function addPickedFolder(): Promise<void> {
     const response = await fetch(`/api/pick-folder?current=${encodeURIComponent(draftPaths[draftPick] ?? "")}`);
     if (!response.ok) {
@@ -103,9 +95,7 @@ function removePickedFolder(): void {
     renderPicker();
 }
 
-// `onChanged` is passed in rather than imported, for the same no-cycle reason wireFolderPickers
-// takes `afterPick`: the only caller is layer1-page.ts's boot, and reaching back for its
-// loadLayer1View would make the two modules circular.
+// `onChanged` is passed in rather than imported, for the same no-cycle reason wireFolderPickers takes `afterPick`: the only caller is layer1-page.ts's boot, and reaching back for its loadLayer1View would make the two modules circular.
 export function wirePathPickers(onChanged: () => void): void {
     getRequiredElementById("pick-jsonl").addEventListener("click", () => openPicker(SourceKind.jsonl));
     getRequiredElementById("pick-fh").addEventListener("click", () => openPicker(SourceKind.fileHistory));

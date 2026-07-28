@@ -1,5 +1,4 @@
-// Built on the branch-AGNOSTIC core so the disk keeps abandoned-branch writes after a conv-only rewind,
-// matching the scenario runner's `.step_states` snapshots. Design: plans/reconstruction-engine-design.md.
+// Built on the branch-agnostic core so disk keeps abandoned-branch writes after a conv-only rewind, matching the runner's `.step_states` snapshots.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
@@ -31,8 +30,7 @@ function collectChangeTimes(histories: FileHistory[]): Date[] {
     return [...byMillis.values()].sort((a, b) => a.getTime() - b.getTime());
 }
 
-// ponytail: if two lineages ever resolve to the same name-at-time the later wins — impossible on a real
-// disk; revisit only if it occurs.
+// ponytail: two lineages resolving to the same name-at-time have the later win; impossible on a real disk, revisit if seen.
 function pathAtTime(history: FileHistory, when: Date): Path {
     const renames = history.revisions.filter(
         (revision): revision is FileRevision & { rename: RenameInfo } => revision.rename !== undefined,

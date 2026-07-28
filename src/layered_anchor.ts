@@ -1,8 +1,4 @@
-// Task 198 (spec S2): layer-1 anchor semantics. A timeline's ANCHOR is its first full-content
-// beacon (commit blob, snapshot, Write body, complete Read echo, populated originalFile — Q14);
-// byteless nodes before it are pre-anchor mentions that refuse byte-consuming operations
-// (display/placement only). Read echoes never reach extractFileEvents, so their layer-1 nodes
-// are collected here straight from the records.
+// Layer-1 anchor semantics: first full-content beacon per timeline (spec S2/Q14).
 
 import { getRecordSource } from "./parse/loadTranscript.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -22,16 +18,14 @@ import type {
     TimelineNode,
 } from "./layered_types.ts";
 
-// The first full-content beacon of an instant-ordered timeline — its ANCHOR (Q14) — or
-// undefined while no full-content evidence exists yet.
+// Returns the timeline's first beacon node — its anchor (Q14).
 export function selectAnchorNode(timeline: Timeline): BeaconNode | undefined {
     return timeline.nodes.find(
         (node): node is BeaconNode => node.kind === LayeredNodeKind.beacon,
     );
 }
 
-// Whether this node kind carries verified bytes (beacon or the on-disk end state). Shared with
-// the task-199 gap pairing — the single source of "which kinds carry bytes".
+// Single source of "which kinds carry bytes" for gap pairing.
 export function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | EndStateNode {
     if (node.kind === LayeredNodeKind.beacon) {
         return true;
@@ -39,8 +33,7 @@ export function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | 
     return node.kind === LayeredNodeKind.endState;
 }
 
-// The node's verified bytes. Byteless kinds (pre-anchor stubs, presumption gaps, script runs)
-// refuse: they exist for display/placement only (spec S2).
+// Returns verified bytes; byteless kinds throw (spec S2).
 export function requireNodeContent(node: TimelineNode): string {
     if (checkNodeCarriesBytes(node)) {
         return node.content;
@@ -56,8 +49,7 @@ function checkReadEchoIsComplete(result: ReadResult): boolean {
     return false;
 }
 
-// One Read echo as a layer-1 node: a complete echo is verified full content -> beacon; a
-// partial window is a byteless mention -> pre-anchor stub.
+// Complete echo becomes beacon; partial window becomes pre-anchor stub.
 function buildReadEchoNode(result: ReadResult, instant: Date, evidence: JsonlRef): TimelineNode {
     if (checkReadEchoIsComplete(result)) {
         return { kind: LayeredNodeKind.beacon, instant, content: result.file.content, evidence };
@@ -68,9 +60,7 @@ function buildReadEchoNode(result: ReadResult, instant: Date, evidence: JsonlRef
 // One file's Read-echo node placement: which timeline it lands on plus the node itself.
 export type ReadEchoPlacement = { target: Path; node: TimelineNode };
 
-// This record's Read-echo placement, or undefined when the record is not a sourced,
-// timestamped Read result. The tool-name filter runs BEFORE result resolution because
-// getToolResultForUserRecord throws on unmodeled tool names (the fog-of-war guard).
+// Filter by tool name first to avoid fog-of-war throws from getToolResultForUserRecord.
 function buildReadEchoPlacement(
     record: TranscriptRecord,
     nameById: Map<string, string>,
@@ -110,3 +100,4 @@ export function collectReadEchoNodes(records: TranscriptRecord[], sessionFile: P
     }
     return placements;
 }
+

@@ -1,15 +1,11 @@
-// Task 297: the Layer 1 page's saved project settings — the project folder, the repo and its
-// branch/commit, and the two source lists — written to the server's config file on demand and read
-// back once at boot (plans/layer1-mockup.html:1574-1594, where localStorage stood in for the file).
+// Task 297: the Layer 1 page's saved project settings — the project folder, the repo and its branch/commit, and the two source lists — written to the server's config file on demand and read back once at boot (plans/layer1-mockup.html:1574-1594, where localStorage stood in for the file).
 //
-// The unload prompt is the browser's own; a page cannot word it, which is why "discard" is the
-// reader leaving anyway rather than a third button of ours.
+// The unload prompt is the browser's own; a page cannot word it, which is why "discard" is the reader leaving anyway rather than a third button of ours.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
 
-// One saved project. `dir` is also the key it is stored under, so saving project A never disturbs
-// project B.
+// One saved project. `dir` is also the key it is stored under, so saving project A never disturbs project B.
 interface Layer1ProjectSettings {
     dir: string;
     repo: string;
@@ -21,16 +17,14 @@ interface Layer1ProjectSettings {
 
 let settingsDirty = false;
 
-// Something the saved record covers has moved: arm the button and drop the "saved" note, which is
-// now describing an older state than the one on screen.
+// Something the saved record covers has moved: arm the button and drop the "saved" note, which is now describing an older state than the one on screen.
 export function markSettingsDirty(): void {
     settingsDirty = true;
     (getRequiredElementById("save-settings") as HTMLButtonElement).disabled = false;
     getRequiredElementById("saved-note").textContent = "";
 }
 
-// A <select> that has not been populated yet reads "", which is the right value to save: no branch
-// was chosen. getInputById would refuse it, so the selects are read directly.
+// A <select> that has not been populated yet reads "", which is the right value to save: no branch was chosen. getInputById would refuse it, so the selects are read directly.
 function readSelectValue(id: string): string {
     return (document.getElementById(id) as HTMLSelectElement | null)?.value ?? "";
 }
@@ -63,13 +57,9 @@ async function saveSettings(): Promise<void> {
     note.textContent = "saved";
 }
 
-// Fill the page from the last saved project, or from .config/debugConfig.json's defaults, and
-// report whether it filled anything.
+// Fill the page from the last saved project, or from .config/debugConfig.json's defaults, and report whether it filled anything.
 //
-// Precedence is PER FIELD, not per record: a link naming ?dir= and ?repo= must render those two,
-// but it says nothing about the source lists, and blanking the whole restore over it is what left
-// the headless harness — which always navigates with a query string — running on one derived JSONL
-// folder instead of the three the config names.
+// Precedence is PER FIELD, not per record: a link naming ?dir= and ?repo= must render those two, but it says nothing about the source lists, and blanking the whole restore over it is what left the headless harness — which always navigates with a query string — running on one derived JSONL folder instead of the three the config names.
 export async function restoreSavedSettings(): Promise<boolean> {
     const url = new URLSearchParams(location.search);
     const response = await fetch("/api/layer1-settings");
@@ -81,8 +71,7 @@ export async function restoreSavedSettings(): Promise<boolean> {
         projects?: Record<string, Layer1ProjectSettings>;
         defaults?: Partial<Layer1ProjectSettings>;
     };
-    // A saved project beats the debugConfig.json defaults, which beat nothing at all. Each field
-    // falls back independently, so a config naming only `dir` still contributes that one box.
+    // A saved project beats the debugConfig.json defaults, which beat nothing at all. Each field falls back independently, so a config naming only `dir` still contributes that one box.
     const project = saved.lastDir == null ? undefined : saved.projects?.[saved.lastDir];
     const chosen = project ?? saved.defaults;
     if (chosen === undefined) {
@@ -91,9 +80,7 @@ export async function restoreSavedSettings(): Promise<boolean> {
     fillBoxUnlessUrlNamesIt(url, "dir", chosen.dir);
     fillBoxUnlessUrlNamesIt(url, "repo", chosen.repo);
     fillBoxUnlessUrlNamesIt(url, "ref", chosen.ref);
-    // A restored or configured list is deliberate, so it must NOT be re-derived from the project
-    // folder — that is exactly what `touched` means to layer1-source-paths.ts. The param names are
-    // the ones readSourceParams writes, so a link carrying its own lists still wins.
+    // A restored or configured list is deliberate, so it must NOT be re-derived from the project folder — that is exactly what `touched` means to layer1-source-paths.ts. The param names are the ones readSourceParams writes, so a link carrying its own lists still wins.
     if (chosen.jsonl !== undefined && !url.has("jsonl")) {
         writeSourcePaths(SourceKind.jsonl, [...chosen.jsonl]);
     }
@@ -110,8 +97,7 @@ function fillBoxUnlessUrlNamesIt(url: URLSearchParams, id: string, value: string
     }
 }
 
-// The boxes on the sources rows are part of the same saved record as the two lists, so editing one
-// arms the button exactly as committing a list does.
+// The boxes on the sources rows are part of the same saved record as the two lists, so editing one arms the button exactly as committing a list does.
 const DIRTYING_INPUT_IDS = ["dir", "repo", "ref"];
 const DIRTYING_SELECT_IDS = ["branch", "commit"];
 

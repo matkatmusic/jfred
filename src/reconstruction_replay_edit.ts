@@ -1,7 +1,4 @@
-// Replay helpers: the per-line primitives (split/genesis/carry/presence) and the Edit
-// splice. Imports nothing from reconstruction_replay.ts so the dependency runs one way
-// (replay -> here), keeping the module graph acyclic. Design:
-// plans/reconstruction-engine-design.md.
+// Replay helpers: the per-line primitives (split/genesis/carry/presence) and the Edit splice. Imports nothing from reconstruction_replay.ts so the dependency runs one way (replay -> here), keeping the module graph acyclic. Design: plans/reconstruction-engine-design.md.
 
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -27,8 +24,7 @@ export function genesisLine(line: string, timestamp: Date): LineEntry {
     return { oldLineNum: DOES_NOT_EXIST_YET, values: [{ line, timestamp }] };
 }
 
-// The file is present when the latest revision exists and is not a deletion — so a
-// write after a delete is a fresh create, not an overwrite (locked decision 3).
+// The file is present when the latest revision exists and is not a deletion — so a write after a delete is a fresh create, not an overwrite (locked decision 3).
 export function fileIsPresent(revisions: FileRevision[]): boolean {
     const last = revisions[revisions.length - 1];
     return last !== undefined && last.kind !== EventKind.delete;
@@ -54,9 +50,7 @@ function editRevision(event: EditEvent, lines: LineEntry[]): FileRevision {
     };
 }
 
-// The old-line indices (into the previous revision) that this hunk deletes. Walk
-// the hunk: ' ' and '-' each consume one old line starting at oldStart-1; '-' is
-// deleted.
+// The old-line indices (into the previous revision) that this hunk deletes. Walk the hunk: ' ' and '-' each consume one old line starting at oldStart-1; '-' is deleted.
 function removedOldIndicesOf(hunk: StructuredPatchHunk): Set<number> {
     const removed = new Set<number>();
     let oldIndex = hunk.oldStart - 1;
@@ -73,8 +67,7 @@ function removedOldIndicesOf(hunk: StructuredPatchHunk): Set<number> {
     return removed;
 }
 
-// Previous lines minus the removed indices; each survivor keeps its previous
-// index as its oldLineNum back-pointer.
+// Previous lines minus the removed indices; each survivor keeps its previous index as its oldLineNum back-pointer.
 function keepSurvivingLines(
     previousLines: LineEntry[],
     removed: Set<number>,
@@ -89,10 +82,7 @@ function keepSurvivingLines(
     return survivors;
 }
 
-// One context (' ') line of a hunk: carry the working line forward when it exists, or — when the base
-// is empty because the creating Write is off-branch (conversation-only-rewind-then-edit, spec 39) —
-// materialise it as a genesis line so the splice never indexes past the empty base. `born` reports
-// whether the line was created here (so the caller marks the revision as having added a line).
+// One context (' ') line of a hunk: carry the working line forward when it exists, or — when the base is empty because the creating Write is off-branch (conversation-only-rewind-then-edit, spec 39) — materialise it as a genesis line so the splice never indexes past the empty base. `born` reports whether the line was created here (so the caller marks the revision as having added a line).
 function resolveContextLine(
     workingLines: LineEntry[],
     workingIndex: number,
@@ -106,10 +96,7 @@ function resolveContextLine(
     return { entry: carryAt(carried, workingIndex), born: false };
 }
 
-// Insert the hunk's '+' lines among the (post-removal) working lines. Context
-// lines carry their working index as oldLineNum and keep their existing values;
-// '+' lines are born (-1) with the hunk text (its prefix char stripped) at the
-// edit timestamp.
+// Insert the hunk's '+' lines among the (post-removal) working lines. Context lines carry their working index as oldLineNum and keep their existing values; '+' lines are born (-1) with the hunk text (its prefix char stripped) at the edit timestamp.
 function insertHunkAdditions(
     workingLines: LineEntry[],
     hunk: StructuredPatchHunk,
@@ -138,10 +125,7 @@ function insertHunkAdditions(
     return { lines: result, added };
 }
 
-// A `>>` append: carry the present file's lines forward unchanged (identity
-// back-pointers) and add the redirect's new tail lines as genesis. When the file is
-// absent the append creates it — every line genesis, kind write — mirroring how a
-// write-to-absent is a create not an overwrite (locked decision 2).
+// A `>>` append: carry the present file's lines forward unchanged (identity back-pointers) and add the redirect's new tail lines as genesis. When the file is absent the append creates it — every line genesis, kind write — mirroring how a write-to-absent is a create not an overwrite (locked decision 2).
 export function appendRevision(
     event: AppendEvent,
     revisions: FileRevision[],
@@ -167,9 +151,7 @@ export function appendRevision(
     };
 }
 
-// Splice one Edit's hunks against the latest revision. A hunk with any '-' emits
-// a removal revision; a hunk with any '+' emits an addition revision; both carry
-// the Edit's changeId. Context lines keep identity; inserted lines are born (-1).
+// Splice one Edit's hunks against the latest revision. A hunk with any '-' emits a removal revision; a hunk with any '+' emits an addition revision; both carry the Edit's changeId. Context lines keep identity; inserted lines are born (-1).
 export function applyEdit(event: EditEvent, revisions: FileRevision[]): void {
     for (const hunk of event.hunks) {
         const previousLines = lastLinesOf(revisions);
@@ -185,10 +167,7 @@ export function applyEdit(event: EditEvent, revisions: FileRevision[]): void {
     }
 }
 
-// Un-apply one hunk against POST-edit content: at newStart-1 the hunk's new-side region (' ' and '+'
-// lines) sits in `afterLines`; replace it with the old-side region (' ' and '-' lines) to recover the
-// pre-hunk lines. Returns undefined when the after content does not carry the hunk's ' '/'+' lines where
-// newStart says — the after-backup is the wrong blob, so never fabricate.
+// Un-apply one hunk against POST-edit content: at newStart-1 the hunk's new-side region (' ' and '+' lines) sits in `afterLines`; replace it with the old-side region (' ' and '-' lines) to recover the pre-hunk lines. Returns undefined when the after content does not carry the hunk's ' '/'+' lines where newStart says — the after-backup is the wrong blob, so never fabricate.
 function unapplyHunkAgainstAfter(afterLines: string[], hunk: StructuredPatchHunk): string[] | undefined {
     const head = afterLines.slice(0, hunk.newStart - 1);
     const preEditRegion: string[] = [];
@@ -211,9 +190,7 @@ function unapplyHunkAgainstAfter(afterLines: string[], hunk: StructuredPatchHunk
     return [...head, ...preEditRegion, ...afterLines.slice(afterIndex)];
 }
 
-// The pre-edit lines recovered by un-applying ALL of `event`'s hunks against post-edit `afterLines`,
-// latest hunk first so earlier hunks' indices stay valid. undefined when any hunk fails to match (the
-// after content is the wrong blob — recover nothing rather than fabricate).
+// The pre-edit lines recovered by un-applying ALL of `event`'s hunks against post-edit `afterLines`, latest hunk first so earlier hunks' indices stay valid. undefined when any hunk fails to match (the after content is the wrong blob — recover nothing rather than fabricate).
 export function reverseEditFromAfter(afterLines: string[], event: EditEvent): string[] | undefined {
     let lines = afterLines;
     for (let index = event.hunks.length - 1; index >= 0; index -= 1) {

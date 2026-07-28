@@ -1,5 +1,4 @@
-// The wire is FROZEN and carries ABSOLUTE axisPx, so fixtures STATE offsets rather than deriving
-// them from timestamps, and expectations are read back off the fixtures to avoid stale literals.
+// The wire is frozen with absolute axisPx, so fixtures state offsets directly instead of deriving them from timestamps.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -37,8 +36,7 @@ const GIT_ORPHAN = { path: "docs/old-api.md", instant: "2026-07-20T16:00:00.000Z
 // On disk, absent from the repo — the "No repository match" bucket's only member.
 const DISK_ORPHAN = { path: "notes.txt", instant: "2026-07-23T19:40:00.000Z", axisPx: 52 };
 
-// Adjacent offsets sit 14 px apart, clear of the 13 px label-collision threshold, so no assertion
-// below accidentally exercises a tick merge.
+// Adjacent offsets sit 14 px apart, clear of the 13 px label-collision threshold, so no tick merge triggers here.
 const RULER: FixtureRulerTick[] = [
     PAIR_COMMITS[0]!, PAIR_COMMITS[1]!, GIT_ORPHAN, DISK_ORPHAN, PAIR_ON_DISK,
 ].map(countOneEventAt);
@@ -61,8 +59,7 @@ function buildDiskOnlyView(): object {
     };
 }
 
-// bootLayer1Page is called EXPLICITLY because node's module cache runs the module's own boot line
-// only on the first import, so later tests would otherwise render nothing.
+// bootLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
 async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
     setupLayer1Dom(search);
     stubStreamRoute("/api/layer1-view", [...progressLines, view]);
@@ -90,8 +87,7 @@ function readBoxValue(id: string): string {
     return (document.getElementById(id) as HTMLInputElement).value;
 }
 
-// Matching on NAME rather than position or size stops an inverted gitOrphans/diskOrphans binding
-// from slipping through on shape.
+// Matching on NAME rather than position or size stops an inverted gitOrphans/diskOrphans binding from slipping through on shape.
 function findBucketTitled(title: string): HTMLElement | undefined {
     return listMatching("#stage .filebox.bucket")
         .find((bucket) => bucket.querySelector(".fname")?.textContent === title);
@@ -122,8 +118,7 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
 });
 
 test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover", async () => {
-    // 40 characters is wider than a widget, so only 8 are shown and the hover title keeps the
-    // whole hash recoverable (S18 feedback, user-locked 2026-07-25).
+    // 40 characters is wider than a widget, so only 8 show and the hover title keeps the full hash recoverable.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     const commitLabels = listMatching("#stage .n-commit + .nlabel");
     assert.deepEqual(commitLabels.map((label) => label.textContent), ["a1b2c3d4", "e4f5a6b7"]);
@@ -136,23 +131,19 @@ test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover
 });
 
 test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hover", async () => {
-    // Task 245: the bubble is a fixed 168 px, and truncating the path instead of taking the
-    // basename would leave siblings sharing a directory all reading alike.
+    // Task 245: the bubble is fixed at 168 px; truncating the path (not the basename) keeps same-directory siblings distinct.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     const name = listMatching("#stage .filebox:not(.bucket) .fname")[0]!;
     assert.equal(name.textContent, "index.ts");
-    // Task 280: the full path lives on `data-path`, NOT `title` — the user rejected the native
-    // tooltip, and data-path is what the find box and File Nav match against.
+    // Task 280: the full path lives on `data-path`, not `title`, since the box and File Nav match against data-path.
     assert.equal(name.getAttribute("data-path"), "src/index.ts");
     assert.equal(name.hasAttribute("title"), false);
-    // A bucket heading is not a path, so its lack of data-path proves the change landed on the
-    // pair widget's name and not on every .fname el() builds.
+    // A bucket heading has no data-path, proving the attribute landed only on the pair widget's name element.
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {
-    // The two orphan sets are mirror images, so a swapped binding would leave every count
-    // identical — only WHICH PATH lands in WHICH bucket catches it.
+    // The two orphan sets mirror each other, so only checking WHICH path lands in WHICH bucket catches a swapped binding.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     assert.equal(listMatching("#stage .filebox.bucket").length, 2);
     const gitBucket = findBucketTitled("No on-disk match")!;
@@ -161,8 +152,7 @@ test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", asy
     const diskBucket = findBucketTitled("No repository match")!;
     assert.deepEqual(listTextOf(diskBucket, "li span"), [DISK_ORPHAN.path]);
     assert.equal(readAxisOffsetPx(diskBucket), DISK_ORPHAN.axisPx);
-    // Task 276: seconds and hundredths are required — minute precision made instants seconds apart
-    // render as identical text, so distinct rows looked duplicated.
+    // Task 276: seconds and hundredths are required, since minute precision made distinct instants render as identical, duplicate-looking text.
     assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40:00.00"]);
 });
 

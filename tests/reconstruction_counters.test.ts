@@ -16,9 +16,7 @@ import type { TranscriptRecord } from "../src/structures/envelope.ts";
 const emptyReader: BackupReader = () => "";
 
 test("test_counter_increment_and_snapshot", () => {
-    // Scenario: incrementing one counter twice shows 2 in the snapshot; untouched counters read 0.
-    // Steps:
-    // start from a clean slate.
+    // Scenario: incrementing one counter twice shows 2 in the snapshot; untouched counters read 0.  Steps: start from a clean slate.
     resetReconstructionCounters();
     // increment one counter twice.
     incrementReconstructionCounter(ReconstructionCounter.preStateBuilds);
@@ -30,9 +28,7 @@ test("test_counter_increment_and_snapshot", () => {
 });
 
 test("test_counter_reset_zeroes_all", () => {
-    // Scenario: reset returns every counter to 0.
-    // Steps:
-    // increment a counter, then reset.
+    // Scenario: reset returns every counter to 0.  Steps: increment a counter, then reset.
     resetReconstructionCounters();
     incrementReconstructionCounter(ReconstructionCounter.executionRequests);
     resetReconstructionCounters();
@@ -41,9 +37,7 @@ test("test_counter_reset_zeroes_all", () => {
 });
 
 test("test_counters_line_reports_every_counter", () => {
-    // Scenario: the CLI's stderr line is `counters: {…}` JSON with every counter present.
-    // Steps:
-    // from a clean slate, format the line.
+    // Scenario: the CLI's stderr line is `counters: {…}` JSON with every counter present.  Steps: from a clean slate, format the line.
     resetReconstructionCounters();
     const line = formatReconstructionCountersLine();
     // it parses as JSON after the prefix and carries all enum members at 0.
@@ -55,10 +49,7 @@ test("test_counters_line_reports_every_counter", () => {
 });
 
 test("test_execute_run_once_counts_request_and_cache_hit", () => {
-    // Scenario: executeRunOnce tallies one executionRequests per call and one
-    // executionCacheHits when the memo answers.
-    // Steps:
-    // build a read-only python run (no pre-state build, no sandbox spawn needed).
+    // Scenario: executeRunOnce tallies one executionRequests per call and one executionCacheHits when the memo answers.  Steps: build a read-only python run (no pre-state build, no sandbox spawn needed).
     resetReconstructionCounters();
     const records: TranscriptRecord[] = [];
     const run: ScriptRun = { code: 'print("hi")', timestamp: new Date("2026-01-01T00:00:01Z") };

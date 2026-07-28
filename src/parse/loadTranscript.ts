@@ -17,8 +17,7 @@ export type ProgressSink = (event: ProgressEvent) => void;
 
 export const PROGRESS_LABEL_PARSING_RECORDS = "parsing records";
 
-// Held in a WeakMap rather than stamped ON the record, so the record's top-level shape stays
-// exactly the file's and the fog-of-war field gate never sees a synthetic key.
+// WeakMap preserves the record's original shape for fog-of-war gating.
 export type RecordSource = { filePath: string; lineNumber: number };
 const recordSources = new WeakMap<TranscriptRecord, RecordSource>();
 
@@ -26,14 +25,12 @@ export function getRecordSource(record: TranscriptRecord): RecordSource | undefi
     return recordSources.get(record);
 }
 
-// The multi-source identity join clones records to remap paths, and a stampless clone would break
-// per-source file-history resolution.
+// The multi-source identity join clones records to remap paths, and a stampless clone would break per-source file-history resolution.
 export function setRecordSource(record: TranscriptRecord, source: RecordSource): void {
     recordSources.set(record, source);
 }
 
-// The clickable token appended to console labels; the client's matchJsonlSourceLink parses it back
-// into a raw-line jump.
+// The clickable token appended to console labels; the client's matchJsonlSourceLink parses it back into a raw-line jump.
 export function formatRecordSourceToken(source: RecordSource | undefined): string {
     if (source === undefined) {
         return "";
@@ -55,9 +52,7 @@ export function parseTranscriptLine(line: string): TranscriptRecord {
     return record;
 }
 
-// Strict mode is the engine's fog-of-war guard for the CLI and tests; tolerant mode exists because
-// the viewer opens real sessions carrying fields the scenarios never modeled, and reports each
-// unmodeled field once per (type, field) per file instead of throwing.
+// Strict mode guards the CLI/tests; tolerant mode lets the viewer open real sessions with unmodeled fields, reporting each once.
 function reportUnmodeledTopLevelFields(
     record: TranscriptRecord,
     reportedUnmodeled: Set<string>,
@@ -95,8 +90,7 @@ export type LoadedTranscript = {
     skippedLines: SkippedLine[];
 };
 
-// Best-effort: called only for lines whose JSON already parsed once, but the guard covers the
-// theoretical re-parse throw anyway.
+// Best-effort: called only for lines whose JSON already parsed once, but the guard covers the theoretical re-parse throw anyway.
 function readLineTimestamp(text: string): Date | undefined {
     try {
         const raw = (JSON.parse(text) as { timestamp?: unknown }).timestamp;
@@ -117,8 +111,7 @@ function describeSkippedLine(filePath: string, lineNumber: number, text: string,
     return { filePath: new Path(filePath), lineNumber, reason: String(error) };
 }
 
-// Tolerant mode only; strict mode rethrows unchanged (the fog-of-war guard). The skipped line keeps
-// its slot in the current/total arithmetic via its loop index.
+// Tolerant mode only; strict mode rethrows unchanged. The skipped line still counts toward current/total via its loop index.
 function captureSkippedLineOrRethrow(
     error: unknown,
     tolerateUnmodeledFields: boolean,
@@ -167,8 +160,7 @@ export function loadTranscript(
             assertOnlyKnownTopLevelKeys(record);
         }
         records.push(record);
-        // ponytail: unthrottled — one event per record by user decision; add a stride
-        // throttle here if a 100k-line file ever makes the stream measurably slow.
+        // ponytail: unthrottled by design; add a stride throttle if a 100k-line file ever makes the stream measurably slow.
         onProgress?.({
             kind: DocumentResponseKind.progress,
             label: `${record.type}${formatRecordSourceToken({ filePath, lineNumber })}`,

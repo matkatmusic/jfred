@@ -1,7 +1,4 @@
-// Script-execution replay, the target probes: which recorded run produced a given file's
-// change, and whether an executed run provably touches a target. Split from
-// reconstruction_script_runs.ts (task 192: that file sat at the 250-line cap); the memoized
-// execution layer these probes drive stays there.
+// Script-execution replay, the target probes: which recorded run produced a given file's change, and whether an executed run provably touches a target. Split from reconstruction_script_runs.ts (task 192: that file sat at the 250-line cap); the memoized execution layer these probes drive stays there.
 
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -16,8 +13,7 @@ export function refForTarget(target: Path, stateKeys: string[]): string | undefi
     return stateKeys.find((ref) => targetStr === ref || targetStr.endsWith(`/${ref}`));
 }
 
-// Whether executing the run shows `target` changed or created — the glob-agnostic gate for a
-// script that finds its files (glob.glob) instead of naming them.
+// Whether executing the run shows `target` changed or created — the glob-agnostic gate for a script that finds its files (glob.glob) instead of naming them.
 export function runTouchesTarget(
     run: ScriptRun,
     target: Path,
@@ -34,9 +30,7 @@ export function runTouchesTarget(
     return contentAfter !== undefined && contentAfter !== contentBefore;
 }
 
-// The latest run at or before `when` whose source mentions `target`'s basename — or, when no run
-// names it, the latest whose EXECUTION provably changes it. False positives are harmless — the
-// forward test rejects them. Substring stays primary so existing scenarios keep their run selection.
+// The latest run at or before `when` whose source mentions `target`'s basename — or, when no run names it, the latest whose EXECUTION provably changes it. False positives are harmless — the forward test rejects them. Substring stays primary so existing scenarios keep their run selection.
 export function runForTarget(
     runs: ScriptRun[],
     target: Path,

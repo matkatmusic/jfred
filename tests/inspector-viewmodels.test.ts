@@ -1,6 +1,4 @@
-// Pure view-model tests for the JSON inspector's formatted-text mode (webapp/inspector.js).
-// Records arrive exactly as the inspector sees them: JSON.parse of one raw JSONL line, or the
-// raw string itself when the line is not JSON.
+// Pure view-model tests for the JSON inspector's formatted-text mode; records arrive as JSON.parse'd or raw JSONL lines.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -13,8 +11,7 @@ import {
 import { extractReadableText } from "../webapp/inspector-text.ts";
 
 test("test_extract_readable_text_returns_string_message_content_verbatim", () => {
-    // Scenario: a user record whose message.content is a plain string — the prompt text IS
-    // the readable content.
+    // Scenario: a user record whose message.content is a plain string — the prompt text IS the readable content.
     const record = { type: "user", message: { role: "user", content: "fix the bug" } };
     assert.equal(extractReadableText(record), "fix the bug");
 });
@@ -29,8 +26,7 @@ test("test_extract_readable_text_joins_text_blocks_with_blank_lines", () => {
 });
 
 test("test_extract_readable_text_unwraps_tool_result_content", () => {
-    // Scenario: a tool_result block carries the file/tool output — string form and nested
-    // text-block form both read as their text.
+    // Scenario: a tool_result block carries the file/tool output — string form and nested text-block form both read as their text.
     const stringForm = { message: { content: [{ type: "tool_result", content: "line a\nline b" }] } };
     assert.equal(extractReadableText(stringForm), "line a\nline b");
     const nestedForm = { message: { content: [{ type: "tool_result", content: [{ type: "text", text: "inner" }] }] } };
@@ -38,8 +34,7 @@ test("test_extract_readable_text_unwraps_tool_result_content", () => {
 });
 
 test("test_extract_readable_text_renders_tool_use_string_inputs_verbatim", () => {
-    // Scenario: a tool_use block (e.g. a Write) holds the real payload in its string input
-    // fields — show them with real newlines under a per-field divider, not JSON-escaped.
+    // Scenario: a tool_use block (e.g. Write) holds its payload in string input fields; show them with real newlines, not JSON-escaped.
     const record = { message: { content: [
         { type: "tool_use", name: "Write", input: { file_path: "a.py", content: "x = 1\ny = 2", count: 3 } },
     ] } };
@@ -50,42 +45,36 @@ test("test_extract_readable_text_renders_tool_use_string_inputs_verbatim", () =>
 });
 
 test("test_extract_readable_text_marks_unknown_blocks_instead_of_dropping_them", () => {
-    // Scenario: a block kind the extractor does not model becomes a one-line placeholder so
-    // nothing silently vanishes.
+    // Scenario: a block kind the extractor does not model becomes a one-line placeholder so nothing silently vanishes.
     const record = { message: { content: [{ type: "thinking", thinking: "hmm" }] } };
     assert.equal(extractReadableText(record), "[thinking]");
 });
 
 test("test_extract_readable_text_returns_undefined_without_message_content", () => {
-    // Scenario: a file-history snapshot record has no message — the inspector hides the
-    // formatted-text toggle for it.
+    // Scenario: a file-history snapshot record has no message — the inspector hides the formatted-text toggle for it.
     assert.equal(extractReadableText({ type: "file-history-snapshot", snapshot: {} }), undefined);
 });
 
 test("test_extract_readable_text_returns_non_json_lines_verbatim", () => {
-    // Scenario: the inspector falls back to the raw string when a line fails JSON.parse;
-    // that string is already the readable content.
+    // Scenario: the inspector falls back to the raw string when JSON.parse fails; that string is already the readable content.
     assert.equal(extractReadableText("not json at all"), "not json at all");
 });
 
 test("test_revision_link_route_carries_revision_anchor", () => {
-    // Scenario: a revision link with a revision number routes to the file-history view
-    // anchored at that revision — the same /rev/<n> shape routeToFileHistory-based routes use.
+    // Scenario: a revision link with a revision number routes to the file-history view, matching routeToFileHistory's /rev/<n> shape.
     const route = computeRevisionLinkRoute("proj-a", { target: "/tmp/app.py", revisionNumber: 3 });
     assert.equal(route, "#/project/proj-a/file/%2Ftmp%2Fapp.py/rev/3");
 });
 
 test("test_revision_link_route_without_revision_number_omits_anchor", () => {
-    // Scenario: a link that resolved to a file but no single revision routes to the plain
-    // file-history view (no /rev segment).
+    // A link resolved to a file but no single revision routes to the plain file-history view, with no /rev segment.
     const route = computeRevisionLinkRoute("proj-a", { target: "/tmp/app.py", revisionNumber: undefined });
     assert.equal(route, "#/project/proj-a/file/%2Ftmp%2Fapp.py");
 });
 
 
 test("test_find_tracked_backup_entry_returns_the_tracked_path_and_backup_time", () => {
-    // Scenario: a file-history-snapshot record tracks a backup whose blob name matches — the
-    // entry's KEY is the tracked relative path, and its backupTime dates the captured state.
+    // A file-history-snapshot record tracks a backup whose blob name matches; the key is the tracked path and its backup time.
     const record = { type: "file-history-snapshot", snapshot: { trackedFileBackups: {
         "tests/test_inventory.py": { backupFileName: "abcdef0123456789@v2", backupTime: "2026-01-01T00:00:03.000Z" },
     } } };
@@ -109,9 +98,7 @@ test("test_find_tracked_backup_entry_returns_undefined_when_the_blob_is_not_trac
 });
 
 test("test_snapshot_history_anchor_names_the_revision_in_effect_at_backup_time", () => {
-    // Scenario: the tracked relative path suffix-matches a reconstructed file whose second
-    // revision is still ahead of the backupTime — the anchor is the 1-based number of the
-    // last revision at or before that time.
+    // Scenario: the tracked path matches a file whose revision follows backupTime; the anchor is the last revision before that time.
     const filesTouched = [{ target: "/proj/tests/test_inventory.py", revisions: [
         { changeId: "toolu_1", timestamp: "2026-01-01T00:00:01.000Z" },
         { changeId: "toolu_2", timestamp: "2026-01-01T00:00:05.000Z" },
@@ -123,8 +110,7 @@ test("test_snapshot_history_anchor_names_the_revision_in_effect_at_backup_time",
 });
 
 test("test_snapshot_history_anchor_omits_the_revision_when_backup_precedes_them_all", () => {
-    // Scenario: the backup predates every reconstructed revision — the file still links, but
-    // with nothing anchored (revisionNumber undefined → the plain file-history route).
+    // Scenario: the backup predates every revision, so the file still links but with no revision anchored (plain file-history route).
     const filesTouched = [{ target: "/proj/tests/test_inventory.py", revisions: [
         { changeId: "toolu_1", timestamp: "2026-01-01T00:00:05.000Z" },
     ] }];
@@ -135,8 +121,7 @@ test("test_snapshot_history_anchor_omits_the_revision_when_backup_precedes_them_
 });
 
 test("test_snapshot_history_anchor_returns_undefined_without_a_matching_target", () => {
-    // Scenario: no reconstructed file matches the tracked path — the caller omits the
-    // [View in File History] button entirely.
+    // Scenario: no reconstructed file matches the tracked path — the caller omits the [View in File History] button entirely.
     const filesTouched = [{ target: "/proj/src/other.py", revisions: [
         { changeId: "toolu_1", timestamp: "2026-01-01T00:00:01.000Z" },
     ] }];
@@ -144,8 +129,7 @@ test("test_snapshot_history_anchor_returns_undefined_without_a_matching_target",
 });
 
 test("test_blob_request_url_encodes_both_query_params", () => {
-    // Scenario: the /api/blob request URL carries the session and blob name URL-encoded (the
-    // @ in a blob name must not break the query string).
+    // The /api/blob URL URL-encodes session and blob name, since an @ in the name must not break the query string.
     assert.equal(
         computeBlobRequestUrl("a4918fd5-session", "abcdef0123456789@v2"),
         "/api/blob?session=a4918fd5-session&name=abcdef0123456789%40v2",

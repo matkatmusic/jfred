@@ -1,6 +1,4 @@
-// Two-DAG model: the conversationDAG forks at a rewind, the fileDAG is per-file cross-branch disk
-// lineage. Both share ONE letter per turn (assignTurnLetters), so a fileDAG `B` is the same turn as
-// the conversationDAG `B`. Design: plans/reconstruction-engine-design.md (spec 40).
+// Two-DAG model: conversationDAG forks at rewinds, fileDAG is per-file cross-branch lineage sharing one letter per turn (spec 40).
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -52,8 +50,7 @@ export type FileDag = { files: FileDagEntry[] };
 
 const ROOT_LETTER = "A";
 
-// Bijective base-26 (26 -> "AA") so letters never run out past Z; callers offset by 1 because "A"
-// is the conversation root.
+// Bijective base-26 so letters never run out past Z; callers offset by 1 since "A" is the root.
 function columnLabel(index: number): string {
     let label = "";
     let n = index + 1;
@@ -73,8 +70,7 @@ function turnTarget(event: FileEvent): Path {
     return event.target;
 }
 
-// The single source of letters for both graphs (decision 7); `accepted` drops redundant disk-echo
-// user edits so letters stay contiguous over real changes.
+// The single source of letters for both graphs (decision 7); `accepted` drops disk-echo edits so letters stay contiguous.
 export function assignTurnLetters(records: TranscriptRecord[], accepted?: Set<string>): Map<string, string> {
     const letters = new Map<string, string>();
     extractRenderableEvents(records, accepted).forEach((event, index) => {
@@ -112,8 +108,7 @@ export function buildFileDag(records: TranscriptRecord[], reader?: BackupReader)
     return { files: order.map((key) => ({ target: new Path(key), turns: groups.get(key)! })) };
 }
 
-// Diverging records = on the tip's chain but NOT the surviving chain, matching
-// buildRewoundBranchHistory's rule.
+// Diverging records = on the tip's chain but NOT the surviving chain, matching buildRewoundBranchHistory's rule.
 function buildRewoundConvoBranch(
     records: TranscriptRecord[],
     branch: ConversationBranch,
@@ -131,8 +126,7 @@ function buildRewoundConvoBranch(
     return { role: BranchRole.rewound, tip: branch.tip, rewindPoint: branch.rewindPoint, turns };
 }
 
-// With a real fork, drop the shared trunk so only post-rewind turns remain; with no fork keep them
-// all so the whole surviving history renders as a linear trunk (decision 5).
+// With a fork, drop shared trunk so only post-rewind turns remain; with no fork keep them all (decision 5).
 function selectPostForkRecords(
     records: TranscriptRecord[],
     branchRecords: TranscriptRecord[],
@@ -168,8 +162,7 @@ function buildSurvivingConvoBranch(
         const tip = survivingBranch?.tip ?? rootUuid ?? turns[turns.length - 1]!.changeId;
         return { role: BranchRole.surviving, tip, rewindPoint: undefined, turns };
     }
-    // A file-less surviving branch is kept ONLY when a rewound branch exists, else the fork
-    // collapses into a misleading linear trunk (S13).
+    // A file-less surviving branch is kept ONLY when a rewound branch exists (S13).
     if (rewound.length === 0) {
         return undefined;
     }

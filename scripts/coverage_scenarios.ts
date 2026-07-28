@@ -1,5 +1,4 @@
-// Discovery + ground-truth IO for the scenario coverage checker.
-// Design: plans/i-need-a-script-peppy-twilight.md (Phase 1).
+// Discovery + ground-truth IO for the scenario coverage checker.  Design: plans/i-need-a-script-peppy-twilight.md (Phase 1).
 
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -7,9 +6,7 @@ import { join, relative } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { SourceEntry } from "../src/reconstruction_overrides.ts";
 
-// A run can split into several JSONL (a /clear, a git baseline, one per concurrent agent), all
-// merged into one record stream. A multi-source capture (s88+) also declares `sources`, one per
-// `source-*/projects` tree, so the checker routes through the per-source sidecar reader (spec S7c).
+// Multi-source captures merge several JSONL files via the sidecar reader.
 export type CoveredScenario = {
     scenarioId: string;
     dirName: string;
@@ -18,22 +15,19 @@ export type CoveredScenario = {
     sources?: SourceEntry[];
 };
 
-// `.claude` holds harness permission metadata the permission system writes, which has no JSONL
-// event or file-history backup and so is outside what the engine reconstructs.
+// `.claude` holds harness permission metadata with no JSONL event or file-history backup, so it's outside what the engine reconstructs.
 const NON_SOURCE_NAMES = new Set(["manifest.json", "__pycache__", ".pytest_cache", ".claude"]);
 
 export function isDirectory(path: string): boolean {
     return existsSync(path) && statSync(path).isDirectory();
 }
 
-// The scenario id prefix of a dir name (s19-user-edit-conv-rewind -> s19), or the whole name if it has no
-// leading `<letters><digits>` token.
+// Extracts the scenario id prefix (e.g. "s19") from a directory name.
 function scenarioIdOf(dirName: string): string {
     return dirName.match(/^[a-z]+\d+/)?.[0] ?? dirName;
 }
 
-// Sorted for deterministic order; all are returned because a split run's sessions merge into one
-// record stream at reconstruction.
+// Sorted for deterministic order; all are returned because a split run's sessions merge into one record stream at reconstruction.
 export function allJsonls(dir: string): string[] {
     const entryNames = readdirSync(dir);
     const jsonlNames = entryNames.filter((name) => name.endsWith(".jsonl"));
@@ -61,8 +55,7 @@ function allSourceTreeJsonls(dir: string, treeNames: string[]): string[] {
     });
 }
 
-// With `source-*` trees present the flat root jsonls are IGNORED: they duplicate the same sessions
-// and the capture root has no file-history sibling, so loading them falls back to live ~/.claude.
+// With `source-*` trees present, flat root jsonls are IGNORED: they duplicate the same sessions and have no file-history sibling.
 function collectScenarioInputs(dir: string): { jsonls: string[]; sources?: SourceEntry[] } {
     const treeNames = findSourceTrees(dir);
     if (treeNames.length === 0) {
@@ -171,4 +164,5 @@ export function stepFolders(stepStatesDir: string): string[] {
     stepNames.sort((a, b) => stepNumberOf(a) - stepNumberOf(b));
     return stepNames;
 }
+
 

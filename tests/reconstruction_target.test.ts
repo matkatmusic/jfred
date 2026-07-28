@@ -21,8 +21,7 @@ import {
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
-// An assistant record on the parentUuid tree carrying one timestamped tool_use — the shape the
-// branch-aware equivalence fixtures need (rec() has no timestamp, buildToolRecord no uuid).
+// An assistant record on the parentUuid tree carrying one timestamped tool_use — the shape the branch-aware equivalence fixtures need (rec() has no timestamp, buildToolRecord no uuid).
 function buildTreeToolRecord(
     uuid: string,
     parent: string | null,
@@ -39,8 +38,7 @@ function buildTreeToolRecord(
     } as unknown as TranscriptRecord;
 }
 
-// The all-files path's answer for one target: reconstructBranches' surviving histories narrowed
-// by exact final path — the contract the targeted fast path must reproduce byte for byte.
+// The all-files path's answer for one target: reconstructBranches' surviving histories narrowed by exact final path — the contract the targeted fast path must reproduce byte for byte.
 function selectSurvivingHistoryViaAllFiles(records: TranscriptRecord[], target: Path): FileHistory | undefined {
     const surviving = reconstructBranches(records).surviving;
     return surviving.find((history) => history.target.toString() === target.toString());
@@ -67,8 +65,7 @@ function buildRewoundRecords(): TranscriptRecord[] {
 }
 
 test("test_targeted_history_matches_allfiles_for_simple_write", () => {
-    // Scenario: on a linear conversation the fast path returns the exact history the
-    // all-branch reconstruction exposes for the same final path.
+    // Scenario: on a linear conversation the fast path returns the exact history the all-branch reconstruction exposes for the same final path.
     const records = buildTwoFileRecords();
     const target = new Path("/proj/alpha.py");
     // reconstruct via both paths and deep-compare the parsed structures.
@@ -79,8 +76,7 @@ test("test_targeted_history_matches_allfiles_for_simple_write", () => {
 });
 
 test("test_targeted_history_matches_allfiles_with_rewound_branch", () => {
-    // Scenario: with a rewound branch present, the fast path still equals the all-branch
-    // surviving answer (the rewound gamma.py write must not leak into alpha's history).
+    // Scenario: with a rewound branch present, the fast path still equals the all-branch surviving answer (the rewound gamma.py write must not leak into alpha's history).
     const records = buildRewoundRecords();
     const target = new Path("/proj/alpha.py");
     const viaAllFiles = selectSurvivingHistoryViaAllFiles(records, target);
@@ -90,8 +86,7 @@ test("test_targeted_history_matches_allfiles_with_rewound_branch", () => {
 });
 
 test("test_targeted_history_for_absent_target_is_undefined", () => {
-    // Scenario: a path no evidence touches yields undefined, matching the all-files
-    // path's empty filter result.
+    // Scenario: a path no evidence touches yields undefined, matching the all-files path's empty filter result.
     const records = buildTwoFileRecords();
     const target = new Path("/proj/missing.py");
     assert.equal(selectSurvivingHistoryViaAllFiles(records, target), undefined);
@@ -99,8 +94,7 @@ test("test_targeted_history_for_absent_target_is_undefined", () => {
 });
 
 test("test_targeted_history_for_old_rename_source_is_undefined", () => {
-    // Scenario: a.py was renamed to b.py; requesting the OLD source must not become a new
-    // result (the all-files path only exposes final paths), while the destination matches.
+    // Scenario: a.py was renamed to b.py; requesting the OLD source must not become a new result (the all-files path only exposes final paths), while the destination matches.
     const records = [
         buildTreeToolRecord("A", null, ToolName.Write, { file_path: "/proj/a.py", content: "a = 1\n" }, "2026-01-01T00:00:01Z"),
         buildTreeToolRecord("B", "A", ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z"),
@@ -114,8 +108,7 @@ test("test_targeted_history_for_old_rename_source_is_undefined", () => {
 });
 
 test("test_targeted_path_never_reconstructs_unrelated_files_or_rewound_branches", () => {
-    // Scenario: the fast path's progress stream mentions ONLY the requested target — no
-    // other file's reconstruction, no rewound-branch pass, no script-created discovery.
+    // Scenario: the fast path's progress stream mentions ONLY the requested target — no other file's reconstruction, no rewound-branch pass, no script-created discovery.
     const labels: string[] = [];
     setReconstructionProgressSink((event) => {
         labels.push(event.label);
@@ -157,8 +150,7 @@ function buildTwoSourceCliFixture(suffix: string): { jsonlPaths: string[]; alpha
 }
 
 test("test_targeted_cli_json_emits_one_element_history_array", () => {
-    // Scenario: --branch surviving --json --file yields exactly [historyOfTarget], with the
-    // other source's file absent from the output.
+    // Scenario: --branch surviving --json --file yields exactly [historyOfTarget], with the other source's file absent from the output.
     const { jsonlPaths, alphaPath } = buildTwoSourceCliFixture("-json");
     const out = runCli([...jsonlPaths, "--branch", "surviving", "--file", alphaPath, "--json"]);
     const parsed = JSON.parse(out) as { target: string; revisions: unknown[] }[];

@@ -1,14 +1,11 @@
-// Provenance sink: an opt-in, module-level log of which reconstruction STAGE mutated which file, so the
-// coverage checker can name the stage function responsible for a mismatched step. Disabled by default, so
-// the engine/CLI/test reconstruction paths are an unobserved no-op until a caller turns it on.
+// Provenance sink: an opt-in, module-level log of which reconstruction STAGE mutated which file, so the coverage checker can name the stage function responsible for a mismatched step. Disabled by default, so the engine/CLI/test reconstruction paths are an unobserved no-op until a caller turns it on.
 // ponytail: global sink — correct for the script's sequential per-scenario runs; thread a sink instead only
 // if the engine ever reconstructs scenarios concurrently.
 // Design: plans/i-need-a-script-peppy-twilight.md (Phase 2).
 
 import type { Path, Uuid } from "./structures/domain.ts";
 
-// One stage's mutation note: the stage function name, the file it touched, the driving changeId (when one
-// applies), a one-line detail, and the backup time it used (when one applies).
+// One stage's mutation note: the stage function name, the file it touched, the driving changeId (when one applies), a one-line detail, and the backup time it used (when one applies).
 export type ProvenanceEntry = {
     stage: string;
     target: Path;

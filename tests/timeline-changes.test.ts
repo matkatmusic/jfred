@@ -24,8 +24,7 @@ import {
 } from "./timeline-test-helpers.ts";
 
 test("test_timeline_file_changes_carry_event_kinds", () => {
-    // Uses s2-move-file: s85's "moves" are modeled as destination creations with no rename
-    // revisions, so only s2 exercises a true rename.
+    // Uses s2-move-file: s85's "moves" model as destination creations, so only s2 exercises a true rename.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const fileChanges = nodes
         .filter((node: { kind: string }) => node.kind === AGENT_TURN_NODE_KIND)
@@ -38,8 +37,7 @@ test("test_timeline_file_changes_carry_event_kinds", () => {
 });
 
 test("test_split_patch_by_file_returns_one_block_per_file", () => {
-    // The range-diff inspector shows only the clicked file, so the patch splits on `diff --git `
-    // headers into one block per file, each keyed by its b/ path.
+    // The range-diff inspector shows only the clicked file, so the patch splits into one block per `diff --git ` header.
     const { document: rawS85Document, stepFileHistories: rawS85Histories } = buildProjectReconstruction(S85_JSONL_PATHS, undefined);
     const patch = renderRangePatch(rawS85Histories, rawS85Document.steps, 1, 3);
     const blocks = splitPatchByFile(patch);
@@ -54,8 +52,7 @@ test("test_split_patch_by_file_returns_one_block_per_file", () => {
 });
 
 test("test_file_changes_carry_their_change_id", () => {
-    // Each chip needs the changeId of the revision it displays so the { } and +/- buttons can
-    // resolve the causing JSONL line and the diff block.
+    // Each chip needs its revision's changeId so the { } and +/- buttons can resolve the causing line and diff.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const revisionIndex = indexRevisionsByChangeId(s2Document);
     let checked = 0;
@@ -75,8 +72,7 @@ test("test_file_changes_carry_their_change_id", () => {
 });
 
 test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", () => {
-    // A chip whose changeId is a backup blob name (`<hex>@vN`) routes to the file-history view
-    // anchored at that revision's 1-based number; task 94 narrowed the button to those.
+    // A chip whose changeId is a backup blob name (`<hex>@vN`) routes to the file-history view at that revision's 1-based number.
     const filesTouched = [{
         target: "/tmp/geo_report.py",
         revisions: [
@@ -92,8 +88,7 @@ test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", ()
 });
 
 test("test_compute_snapshot_jump_route_returns_undefined_for_tool_evidenced_changeids", () => {
-    // Task 94: a `toolu_…` changeId resolves to a surviving revision that is tool-evidenced, not
-    // snapshot-backed, so the 📷 button must not render — the pre-task-94 over-fire.
+    // Task 94: a `toolu_…` changeId is tool-evidenced, not snapshot-backed, so the 📷 button must not render.
     const history = s84Document.filesTouched[0]!;
     const change = { path: history.target, changeId: history.revisions[0]!.changeId };
     // precondition: the changeId is NOT a backup blob name — otherwise this test proves nothing.
@@ -114,8 +109,7 @@ test("test_compute_snapshot_jump_route_returns_undefined_for_unresolvable_change
 });
 
 test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => {
-    // Task 103: a FAILED git command still emits its rows, but both row kinds must carry isError.
-    // The Bash row joins to the errored operation by record uuid.
+    // Task 103: a failed git command still emits its rows; both kinds carry isError, Bash joins by uuid.
     const document = {
         filesTouched: [],
         rewoundFilesTouched: [],
@@ -141,8 +135,7 @@ test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => 
 });
 
 test("test_file_changes_carry_snapshot_timestamp", () => {
-    // Chip rows show a per-chip timestamp: each FileChange carries the `when` of the snapshot that
-    // contributed it.
+    // Chip rows show a per-chip timestamp: each FileChange carries the `when` of the snapshot that contributed it.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     const filesBubble = nodes.find((node) =>
         node.kind === AGENT_TURN_NODE_KIND && node.text === "" && (node.fileChanges ?? []).length === 2);
@@ -168,8 +161,7 @@ const renamedFileDocument: WireTimelineDocument = {
 };
 
 test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
-    // A revision before a rename must display the name the file had THEN, while its lookup path
-    // stays the final target.
+    // A revision before a rename displays the file's name at that time, while its lookup path stays the final target.
     const index = indexRevisionsByChangeId(renamedFileDocument);
     assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
     assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");
@@ -177,8 +169,7 @@ test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
 });
 
 test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", () => {
-    // A chip from a pre-rename revision shows the entry-time name but keeps the final path as its
-    // lookup key.
+    // A chip from a pre-rename revision shows the entry-time name but keeps the final path as its lookup key.
     const index = indexRevisionsByChangeId(renamedFileDocument);
     const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: ["c1"], changedPaths: [] };
     const changes = deriveFileChanges(step, index);

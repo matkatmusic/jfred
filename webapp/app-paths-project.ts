@@ -1,8 +1,4 @@
-// ─── the Paths popover's per-project section (task 137): repo picker + visual commit picker
-// + apply/store of the project's reveng-paths.json entry. The projects/file-history fields
-// above it are GLOBAL config (app-header.ts); repo/baseCommit/fileHistory are per-project
-// overrides, applied to the session on "Apply" and written to reveng-paths.json only on
-// "Store" (no silent writes). ───
+// Per-project Paths popover: repo/commit/fileHistory overrides applied on Apply, persisted on Store.
 
 import { getBaselineChoice, storeBaselineChoice } from "./app-choices.ts";
 import { el, getInputById } from "./app-dom.ts";
@@ -27,8 +23,7 @@ type WireCommitMatch = { matchedCount: number; totalCount: number };
 // The project the section currently edits (set by refreshProjectPathsSection).
 let activeProjectName = "";
 
-// task 154: the rows the last "Pick commit…" fetch returned — the filter box re-renders
-// the pick list from these without refetching.
+// task 154: cached commit rows for client-side filter without refetch.
 let fetchedCommitRows: WireRepoCommitRow[] = [];
 
 // task 159: getInputById moved to app-dom.ts (shared with app-paths-wizard.ts).
@@ -36,8 +31,7 @@ let fetchedCommitRows: WireRepoCommitRow[] = [];
 //     return document.getElementById(id) as HTMLInputElement;
 // }
 
-// task 137: soft warning only — a mismatched repo still applies; the counts tell the user
-// whether relative paths actually line up (the s87 cwd-remap contract).
+// task 137: soft warning only — a mismatched repo still applies; the counts tell the user whether relative paths actually line up (the s87 cwd-remap contract).
 function renderMatchWarning(counts: WireCommitMatch): void {
     const warningElement = document.getElementById("commit-match-warning")!;
     if (counts.totalCount === 0) {
@@ -51,8 +45,7 @@ function renderMatchWarning(counts: WireCommitMatch): void {
     warningElement.textContent = `⚠ only ${counts.matchedCount} of ${counts.totalCount} recorded file paths exist in this commit's tree — is this the right repo/commit?`;
 }
 
-// Picking a row fills the base-commit field with the FULL hash, hides the list, and fetches
-// the path-match counts for the soft warning.
+// Picking a row fills the base-commit field with the FULL hash, hides the list, and fetches the path-match counts for the soft warning.
 async function pickCommitRow(hash: string): Promise<void> {
     getInputById("base-commit-display").value = hash;
     document.getElementById("commit-pick-list")!.hidden = true;
@@ -71,8 +64,7 @@ function buildCommitPickRow(row: WireRepoCommitRow): HTMLElement {
     });
 }
 
-// task 154: one commit row matches when the typed text appears in its hash, date, or
-// subject (case-insensitive); empty filter text matches every row.
+// task 154: one commit row matches when the typed text appears in its hash, date, or subject (case-insensitive); empty filter text matches every row.
 function filterCommitRows(rows: WireRepoCommitRow[], filterText: string): WireRepoCommitRow[] {
     const needle = filterText.trim().toLowerCase();
     if (needle === "") {
@@ -88,9 +80,7 @@ function renderCommitPickList(): void {
     pickList.replaceChildren(...filterCommitRows(fetchedCommitRows, filterText).map(buildCommitPickRow));
 }
 
-// "Pick commit…": fetch the repo's commits and show the scrollable pick list plus its
-// filter box (task 154), cleared on every open. oninput assignment so repeated opens
-// never stack handlers (the file's convention).
+// "Pick commit…": fetch the repo's commits and show the scrollable pick list plus its filter box (task 154), cleared on every open. oninput assignment so repeated opens never stack handlers (the file's convention).
 async function showCommitPickList(): Promise<void> {
     const repo = getInputById("repo-dir-input").value;
     const pickList = document.getElementById("commit-pick-list")!;
@@ -108,8 +98,7 @@ async function showCommitPickList(): Promise<void> {
     }
 }
 
-// The entry the apply/store buttons post: only non-empty fields ride along. fileHistory rides
-// only while the task-136 fields are SHOWN — a visible field is the explicit-override gesture.
+// The entry the apply/store buttons post: only non-empty fields ride along. fileHistory rides only while the task-136 fields are SHOWN — a visible field is the explicit-override gesture.
 function collectEntryFromFields(): WireProjectPathsEntry {
     const entry: WireProjectPathsEntry = {};
     const repo = getInputById("repo-dir-input").value;
@@ -140,11 +129,9 @@ function collectEntryFromFields(): WireProjectPathsEntry {
     return entry;
 }
 
-// Apply (persist=false) or Store (persist=true) the entry, then reload the open project so
-// the rebuild runs under the new overrides (the folder-switch handler's invalidation).
+// Apply (persist=false) or Store (persist=true) the entry, then reload the open project so the rebuild runs under the new overrides (the folder-switch handler's invalidation).
 async function postProjectPaths(persist: boolean): Promise<void> {
-    // task 159: the Finish face is reachable from a screen-1-only run with no project loaded —
-    // there is no entry to post then (the wizard's own listener posts the global config).
+    // task 159: the Finish face is reachable from a screen-1-only run with no project loaded — there is no entry to post then (the wizard's own listener posts the global config).
     if (activeProjectName === "") {
         return;
     }
@@ -163,10 +150,7 @@ async function postProjectPaths(persist: boolean): Promise<void> {
     renderRoute();
 }
 
-// Show + wire the section for `projectName` and prefill from the merged entry (stored config
-// + session overrides). onclick assignment so repeated refreshes never stack handlers.
-// task 159: returns the merged entry (the wizard's no-entry trigger reads it) and re-renders
-// the summary panel's rows from the freshly prefilled fields.
+// Show + wire the section for `projectName` and prefill from the merged entry (stored config + session overrides). onclick assignment so repeated refreshes never stack handlers.  task 159: returns the merged entry (the wizard's no-entry trigger reads it) and re-renders the summary panel's rows from the freshly prefilled fields.
 export async function refreshProjectPathsSection(projectName: string): Promise<WireProjectPathsEntry> {
     activeProjectName = projectName;
     document.getElementById("project-paths-section")!.hidden = false;
@@ -182,8 +166,7 @@ export async function refreshProjectPathsSection(projectName: string): Promise<W
     // task 177: the Sources section prefills from the merged entry's sources list.
     initializeSourcesSection();
     renderSourceRows(entry.sources ?? []);
-    // task 159: a persisted screen-5 answer seeds the task-56 mirror (an unanswered session
-    // only — a fresh in-session choice is never clobbered), then the summary rows re-render.
+    // task 159: a persisted screen-5 answer seeds the task-56 mirror (an unanswered session only — a fresh in-session choice is never clobbered), then the summary rows re-render.
     if (entry.preBaseline !== undefined && getBaselineChoice(projectName) === null) {
         storeBaselineChoice(projectName, entry.preBaseline);
     }
@@ -198,13 +181,10 @@ function checkEntryIsConfigured(entry: WireProjectPathsEntry): boolean {
         || entry.sources !== undefined || entry.preBaseline !== undefined;
 }
 
-// task 159: projects the wizard was already offered to this page-session — no re-nag on
-// ordinary project switches back and forth.
+// task 159: projects the wizard was already offered to this page-session — no re-nag on ordinary project switches back and forth.
 const wizardOfferedProjects = new Set<string>();
 
-// Project-load trigger (called from renderRoute on a NEW project load): with no reveng-paths
-// entry, open the popover on wizard screens 2–5. Fetch failures stay silent — the load itself
-// surfaces them.
+// Project-load trigger (called from renderRoute on a NEW project load): with no reveng-paths entry, open the popover on wizard screens 2–5. Fetch failures stay silent — the load itself surfaces them.
 export async function maybeOfferProjectPathsWizard(projectName: string): Promise<void> {
     if (wizardOfferedProjects.has(projectName)) {
         return;
@@ -221,8 +201,7 @@ export async function maybeOfferProjectPathsWizard(projectName: string): Promise
     }
 }
 
-// Bootstrap hook: every Paths-popover open re-derives the current project from the route —
-// no project open keeps the section hidden.
+// Bootstrap hook: every Paths-popover open re-derives the current project from the route — no project open keeps the section hidden.
 export function initializeProjectPathsSection(): void {
     document.getElementById("paths-btn")!.addEventListener("click", () => {
         const segments = parseRouteSegments();
@@ -236,3 +215,4 @@ export function initializeProjectPathsSection(): void {
         void refreshProjectPathsSection(segments[1]);
     });
 }
+

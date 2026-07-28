@@ -1,7 +1,4 @@
-// Project navigation: a persistent left drawer on every #/project/* route (the project's
-// JSONL files and touched files stay reachable from the conversation/file/raw views), and
-// the project landing view, which hosts the script-consent dialog and a summary.
-// The view-model half is DOM-free and tested against scenario ground truth (viewer-project-views.test.ts).
+// Project navigation: a persistent left drawer on every #/project/* route (the project's JSONL files and touched files stay reachable from the conversation/file/raw views), and the project landing view, which hosts the script-consent dialog and a summary.  The view-model half is DOM-free and tested against scenario ground truth (viewer-project-views.test.ts).
 
 import { el as elUntyped } from "../app-dom.ts";
 import {
@@ -26,8 +23,7 @@ type WireDocument = { filesTouched: WireFileHistory[]; messages: unknown[] };
 type WireJsonlFile = { fileName: string; sizeBytes: number; modifiedAt: string };
 type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
 
-// Pure view model for the project view (no DOM): every reconstructed file target across the
-// project's (possibly many) JSONLs, sorted, for the files-touched tree pane.
+// Pure view model for the project view (no DOM): every reconstructed file target across the project's (possibly many) JSONLs, sorted, for the files-touched tree pane.
 export function buildProjectViewModel(document: WireDocument): { fileTargets: string[] } {
     return { fileTargets: document.filesTouched.map((history) => history.target).sort() };
 }
@@ -59,16 +55,14 @@ function appendTouchedFileLink(
     }));
 }
 
-// The left drawer: JSONL files always (cheap listing); touched files only once the project's
-// unified document is already cached (never forces a whole-project build just for navigation).
+// The left drawer: JSONL files always (cheap listing); touched files only once the project's unified document is already cached (never forces a whole-project build just for navigation).
 export async function renderProjectDrawer(
     drawer: HTMLElement,
     project: string,
     { activeJsonl, activeTarget }: { activeJsonl?: string; activeTarget?: string },
 ): Promise<void> {
     drawer.replaceChildren();
-    // Collapse state is the `collapsed` class on the persistent #drawer element, so it survives
-    // this replaceChildren-based re-render and resets on page reload (deliberately unpersisted).
+    // Collapse state is the `collapsed` class on the persistent #drawer element, so it survives this replaceChildren-based re-render and resets on page reload (deliberately unpersisted).
     const toggleButton = el("button", {
         class: "row-btn drawer-toggle",
         text: drawer.classList.contains("collapsed") ? "»" : "«",
@@ -84,11 +78,7 @@ export async function renderProjectDrawer(
     drawer.append(el("div", { class: "pane-title" }, [el("a", { href: routeToProject(project), text: project })]));
 
     drawer.append(el("div", { class: "drawer-section-title", text: `JSONL files (${listing.jsonlFiles.length})` }));
-    // The default view: a JSONL opens the project-wide revision timeline anchored at its session.
-    // Direct #/…/jsonl/<f> URLs still render the conversation view (bookmarks stay valid); the
-    // conversation stays reachable via the timeline's session-header links and inspector jumps.
-    // Task 185: the list lives in its own scroll container capped at half the column, so a
-    // project with many JSONLs can't squeeze the files tree out of view.
+    // The default view: a JSONL opens the project-wide revision timeline anchored at its session.  Direct #/…/jsonl/<f> URLs still render the conversation view (bookmarks stay valid); the conversation stays reachable via the timeline's session-header links and inspector jumps.  Task 185: the list lives in its own scroll container capped at half the column, so a project with many JSONLs can't squeeze the files tree out of view.
     const jsonlList = el("div", { class: "drawer-jsonl-list" });
     for (const entry of listing.jsonlFiles) {
         jsonlList.append(el("a", {
@@ -112,8 +102,7 @@ export async function renderProjectDrawer(
     }
 }
 
-// The project landing view (#/project/<name>): builds the unified document (hosting the
-// consent dialog when scripts need a decision) and shows a summary; the drawer is the nav.
+// The project landing view (#/project/<name>): builds the unified document (hosting the consent dialog when scripts need a decision) and shows a summary; the drawer is the nav.
 export async function renderProjectView(container: HTMLElement, project: string): Promise<void> {
     const result = await fetchDocument<WireDocument>(project, undefined);
     if (result.baselineQuestion !== undefined) {

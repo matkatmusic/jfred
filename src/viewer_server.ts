@@ -1,5 +1,4 @@
-// Thin HTTP wiring over viewer_api.ts (`npm run app`). Binds 127.0.0.1 ONLY: a debugging surface
-// for the user's own machine, never exposed. All logic lives in viewer_api.ts.
+// Thin HTTP wiring over viewer_api.ts. Binds 127.0.0.1 ONLY — a local debugging surface, never exposed.
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
@@ -42,8 +41,7 @@ import { Path, Uuid } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-// A change tells the client the server relaunched, so it drops the script-consent choices that
-// otherwise survive in the browser's per-tab sessionStorage.
+// A change tells the client the server relaunched, so it drops its stored script-consent choices.
 const SERVER_BOOT_ID = randomUUID();
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(import.meta.dirname, "..", "webapp", "dist");
@@ -87,8 +85,7 @@ function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: bool
 function serveStaticFile(response: ServerResponse, urlPath: string): void {
     const relative = computeStaticFileRelative(urlPath);
     const resolved = realpathSync(resolveStaticFilePath(relative, WEBAPP_DIST_DIR, WEBAPP_DIR));
-    // dist lives inside webapp/, so the WEBAPP_DIR check covers both today; the explicit second
-    // clause keeps a future dist relocation from silently opening a traversal hole.
+    // The second clause is redundant today, but stops a future dist relocation opening a traversal hole.
     if (!resolved.startsWith(WEBAPP_DIR + sep) && !resolved.startsWith(WEBAPP_DIST_DIR + sep)) {
         sendText(response, 400, "path escapes webapp/");
         return;
@@ -97,8 +94,7 @@ function serveStaticFile(response: ServerResponse, urlPath: string): void {
     sendText(response, 200, readFileSync(resolved, "utf8"), contentType);
 }
 
-// Order matters: the projects switch clears the file-history override (item 46), so an explicit
-// fileHistoryDir in the SAME body must be applied after it.
+// Order matters: the projects switch clears the override, so an explicit fileHistoryDir applies after it.
 function applyConfigUpdate(response: ServerResponse, body: string): void {
     const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
     if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
@@ -126,13 +122,11 @@ function handleConfigUpdate(request: IncomingMessage, response: ServerResponse):
     });
 }
 
-// GET /api/pick-folder — open a NATIVE macOS folder chooser (osascript) and return the choice.
-// Task 236 asked for POST; a side-effect-free picker is a GET and app-header.ts already calls it that way.
-// Cancel (or any osascript failure) is { path: "" } — the client no-ops on empty. The optional
-// `current` param seeds the dialog's starting folder, but only when it exists on disk: a bad
-// seed makes `default location` throw instead of showing the dialog.
-// ponytail: spawnSync blocks the single-threaded server while the dialog is open — fine for a
-// single-user localhost tool; switch to spawn+promise if a second concurrent user ever exists.
+// GET /api/pick-folder — a native macOS osascript chooser; cancel or failure returns an empty path.
+
+// `current` seeds the dialog only when it exists on disk, since a bad seed makes osascript throw.
+
+// ponytail: spawnSync blocks the server while the dialog is open; use spawn+promise if concurrency appears.
 function handleFolderPickRequest(response: ServerResponse, query: URLSearchParams): void {
     const current = query.get("current");
     const seed = current !== null && existsSync(current)
@@ -208,8 +202,7 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
 const { port, resetSandboxMemo, resetDocumentCache } = parseServerArgs(process.argv.slice(2));
 // App posture: impure stages OFF until a consented build turns them on for its own duration.
 setImpureExecutionAllowed(false);
-// Item 11: only the viewer opts in to the disk-backed memo, so restarts stop re-paying a spawn
-// per distinct python run; CLI and tests stay memory-only.
+// Item 11: only the viewer opts into the disk memo, so restarts stop re-spawning python. CLI stays memory-only.
 const sandboxMemoPath = new Path(join(import.meta.dirname, "..", ".cache", "sandbox-memo.json"));
 // Delete BEFORE configuring persistence, which loads it — a forced cold load for measurement.
 if (resetSandboxMemo) {
@@ -224,8 +217,7 @@ if (resetDocumentCache) {
 }
 configureDocumentCachePersistence(documentCacheDir);
 const server = createServer(handleRequest);
-// A cold /api/document build can exceed Node's default ~300s timeout, closing the socket mid-build
-// so the eventual sendJson throws ERR_HTTP_HEADERS_SENT and kills the process.
+// A cold build can exceed Node's ~300s timeout, killing the process with ERR_HTTP_HEADERS_SENT.
 server.requestTimeout = 0;
 server.listen(port, "127.0.0.1", () => {
     console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);

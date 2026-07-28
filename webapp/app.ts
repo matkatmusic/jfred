@@ -1,8 +1,4 @@
-// App shell entry: splitter wiring + the browser bootstrap. The pieces this file used to hold
-// live in their own modules now — el() (app-dom.ts), routes (app-routes.ts), the loading console
-// (app-console.ts), the progress overlay (app-progress.ts), fetch/caches/consent storage
-// (app-fetch.ts), the consent dialog (app-consent-model.ts/app-consent.ts), the sub-route drawer
-// (app-drawer.ts), and the route/header dispatch (app-router.ts).
+// App shell entry: splitter wiring + the browser bootstrap. The pieces this file used to hold live in their own modules now — el() (app-dom.ts), routes (app-routes.ts), the loading console (app-console.ts), the progress overlay (app-progress.ts), fetch/caches/consent storage (app-fetch.ts), the consent dialog (app-consent-model.ts/app-consent.ts), the sub-route drawer (app-drawer.ts), and the route/header dispatch (app-router.ts).
 
 import { collapseProgressConsole, ensureProgressTerminal, expandProgressConsole } from "./app-console.ts";
 import { initializeHeader } from "./app-header.ts";
@@ -27,8 +23,7 @@ import { initDetailsFind } from "./views/details-find.ts";
 
 // ─── splitters (item 66, ported from the mockup) ─────────────────────────────
 
-// Dragging the splitter pins the pane's flex-basis to its pointer-tracked pixel size
-// (invert=true for a pane sitting AFTER its splitter, e.g. the console row).
+// Dragging the splitter pins the pane's flex-basis to its pointer-tracked pixel size (invert=true for a pane sitting AFTER its splitter, e.g. the console row).
 function makeSplitter(splitterId: string, paneId: string, axis: "x" | "y", invert: boolean, minPx: number): void {
     const splitter = document.getElementById(splitterId)!;
     const pane = document.getElementById(paneId)!;
@@ -60,8 +55,7 @@ function makeSplitter(splitterId: string, paneId: string, axis: "x" | "y", inver
     });
 }
 
-// Bootstrap only in a real browser: the node test suite imports the view modules (for their
-// DOM-free view-model functions), which transitively loads this module without a window.
+// Bootstrap only in a real browser: the node test suite imports the view modules (for their DOM-free view-model functions), which transitively loads this module without a window.
 if (typeof window !== "undefined") {
     ensureProgressTerminal();   // show the empty 10-row console immediately, before any load
     window.addEventListener("hashchange", renderRoute);
@@ -75,8 +69,7 @@ if (typeof window !== "undefined") {
     initDetailsFind();          // task 127: the right pane's find widget (input + n/N + < >)
     document.getElementById("console-hide")!.addEventListener("click", collapseProgressConsole);
     document.getElementById("console-show")!.addEventListener("click", expandProgressConsole);
-    // task 164: #console-cancel retired — the progress box's Cancel (app-progress.ts) is the
-    // one cancel affordance; it navigates to "#/", and renderRoute aborts the in-flight load.
+    // task 164: #console-cancel retired — the progress box's Cancel (app-progress.ts) is the one cancel affordance; it navigates to "#/", and renderRoute aborts the in-flight load.
     initializeHeader().then(() => {
         initializeProjectPathsSection();               // task 137: the popover's per-project section
         initializeWizard();                            // task 159: the Paths wizard state machine

@@ -1,6 +1,4 @@
-// Per-row cell builders for the revision timeline (task 121 split from timeline-render-rows.ts,
-// 250-line cap): the fork gutter cell, the role classes, and the small append-one-cell helpers
-// buildTimelineRows composes into each .tl-row.
+// Per-row cell builders for the revision timeline (task 121 split from timeline-render-rows.ts, 250-line cap): the fork gutter cell, the role classes, and the small append-one-cell helpers buildTimelineRows composes into each .tl-row.
 
 import { el } from "../app-dom.ts";
 import {
@@ -36,16 +34,14 @@ export function computeRoleClass(kind: TimelineNode["kind"]): string {
     if (kind === COMMIT_NODE_KIND) {
         return "role-commit";
     }
-    // task 160: a raw-line row's text is its classification ("type · verdict") — its own
-    // color, not the session-end styling.
+    // task 160: a raw-line row's text is its classification ("type · verdict") — its own color, not the session-end styling.
     if (kind === LINE_NODE_KIND) {
         return "role-line";
     }
     return "role-end";
 }
 
-// Commit and session-end dots render hollow (border ring) — both read as terminators (the old
-// SVG rail's convention, now the .g-hollow class).
+// Commit and session-end dots render hollow (border ring) — both read as terminators (the old SVG rail's convention, now the .g-hollow class).
 function checkDotIsHollow(kind: TimelineNode["kind"]): boolean {
     if (kind === COMMIT_NODE_KIND) {
         return true;
@@ -53,9 +49,7 @@ function checkDotIsHollow(kind: TimelineNode["kind"]): boolean {
     return kind === SESSION_END_NODE_KIND;
 }
 
-// The fork gutter cell (mockup buildGraphCell): the lane-1 rail tinted with the row's session
-// color; rows inside a computeGraphLaneRuns run add the lane-2 rail (fork curve on the run's
-// first row, cut-off on its last) and put their dot on lane 2 (CSS colors it).
+// The fork gutter cell (mockup buildGraphCell): the lane-1 rail tinted with the row's session color; rows inside a computeGraphLaneRuns run add the lane-2 rail (fork curve on the run's first row, cut-off on its last) and put their dot on lane 2 (CSS colors it).
 export function buildGraphCell(kind: TimelineNode["kind"], index: number, laneRuns: { startIndex: number; endIndex: number }[], sessionColor: string): HTMLElement {
     const cell = el("div", { class: "tl-graph" });
     cell.append(el("span", { class: "g-rail g-l1", style: `background:${sessionColor}` }));
@@ -93,10 +87,7 @@ export function appendSessionStartMarker(context: TimelineRenderContext, rowFrag
     rowFragment.append(marker);
 }
 
-// The commit row's cells (extracted from buildTimelineRows). A plain commit: spacer, "git
-// commit" label, hash pill. The merged git-derived baseline row (task 121): expansion triangle
-// (its bubble carries the baseline file chips), green baseline pill instead of the label, hash
-// pill kept.
+// The commit row's cells (extracted from buildTimelineRows). A plain commit: spacer, "git commit" label, hash pill. The merged git-derived baseline row (task 121): expansion triangle (its bubble carries the baseline file chips), green baseline pill instead of the label, hash pill kept.
 export function appendCommitCells(context: TimelineRenderContext, line: HTMLElement, row: HTMLElement, node: TimelineNode): void {
     if (node.isGitBaseline === true) {
         appendExpansionTriangle(context, line, row);
@@ -135,9 +126,7 @@ export function appendJsonRecordButton(context: TimelineRenderContext, line: HTM
     }));
 }
 
-// A bubble carries file chips when its node owns them: every agent turn, plus the merged
-// git-derived baseline commit row (task 121). Typed as a predicate so the chip renderer
-// receives the narrowed chip-owning union.
+// A bubble carries file chips when its node owns them: every agent turn, plus the merged git-derived baseline commit row (task 121). Typed as a predicate so the chip renderer receives the narrowed chip-owning union.
 function checkBubbleShowsFileChips(node: TimelineNode): node is TurnNode | CommitNode {
     if (node.kind === AGENT_TURN_NODE_KIND) {
         return true;

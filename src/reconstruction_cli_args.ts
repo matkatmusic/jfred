@@ -39,8 +39,7 @@ export type CliOptions = {
     projectCwd: Path | undefined;
     repoDir: Path | undefined;
     baseCommit: Uuid | undefined;
-    // When false the base-commit beacon supersedes everything at-or-before it, so a re-seeded
-    // iteration reconstructs only forward from its seed.
+    // When false the base-commit beacon supersedes everything at-or-before it, so a re-seeded iteration reconstructs only forward from its seed.
     preBaseline: boolean;
     // Bounds the run at the end of the turn containing this file's nth revision (1-based).
     untilRevision: Path | undefined;
@@ -158,8 +157,7 @@ function parseOrdinal(value: string | undefined): number {
     return ordinal;
 }
 
-// The transcript's config entry is the base; direct CLI flags win per-field. fileHistoryRoot has no
-// config field — folder-level discovery is the viewer's job — so it arrives only via its flag.
+// The transcript's config entry is the base; direct CLI flags win per-field. fileHistoryRoot arrives only via its flag.
 export function applyCliPathOverrides(options: CliOptions): void {
     const projectDir = dirname(options.jsonlPath);
     const entry = readProjectPathsConfig(new Path(dirname(projectDir)))[basename(projectDir)];
@@ -180,14 +178,12 @@ export function applyCliPathOverrides(options: CliOptions): void {
     if (options.baseCommit !== undefined) {
         merged.baseCommit = options.baseCommit;
     }
-    // Set unconditionally: the gate is module state shared with the viewer, so an in-process CLI
-    // run must never inherit a previous run's answer.
+    // Set unconditionally: shared module state must never inherit a prior run's value.
     setPreBaselineReconstructionAllowed(options.preBaseline);
     setPathOverrides(merged);
 }
 
-// Multi-root runs get one bare source per distinct projects root so per-source sibling file-history
-// resolution works with zero config; single-root runs stay sources-less.
+// Multi-root runs get one bare source per distinct projects root, enabling per-source file-history resolution with zero config.
 function resolveCliSources(
     options: CliOptions,
     entry: WireProjectPaths | undefined,

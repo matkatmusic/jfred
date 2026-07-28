@@ -1,13 +1,11 @@
-// Unit tests for webapp/views/timeline-line-nodes.ts (task 134): the raw-line rows behind the
-// timeline's "show every JSONL line" toggle. DOM-free — model only, like timeline-nodes.test.ts.
+// Unit tests for webapp/views/timeline-line-nodes.ts (task 134): the raw-line rows behind the timeline's "show every JSONL line" toggle. DOM-free — model only, like timeline-nodes.test.ts.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LINE_NODE_KIND, deriveLineNodes } from "../webapp/views/timeline-line-nodes.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 
-// A minimal document: one prompt turn, one tool call, and three verdict lines — the prompt's
-// line (already a turn row), a hook line nobody else shows, and a uuid-less summary line.
+// A minimal document: one prompt turn, one tool call, and three verdict lines — the prompt's line (already a turn row), a hook line nobody else shows, and a uuid-less summary line.
 function buildLineVerdictDocument() {
     return {
         messages: [{
@@ -39,10 +37,7 @@ function buildLineVerdictDocument() {
 }
 
 test("test_derive_line_nodes_emits_one_node_per_unrepresented_verdict", () => {
-    // Scenario: only lines NO existing row shows become raw-line nodes.
-    // Steps:
-    // derive over a document whose verdicts include a turn line, a tool line, a hook line, and
-    // a uuid-less summary line.
+    // Scenario: only lines NO existing row shows become raw-line nodes.  Steps: derive over a document whose verdicts include a turn line, a tool line, a hook line, and a uuid-less summary line.
     const lineNodes = deriveLineNodes(buildLineVerdictDocument());
     // the turn and tool lines are skipped; hook + summary get their own rows.
     assert.deepEqual(lineNodes.map((node) => node.uuid), ["hook-1", undefined]);
@@ -63,10 +58,7 @@ test("test_derive_line_nodes_defaults_missing_timestamp_to_empty_when", () => {
 });
 
 test("test_view_model_includes_line_nodes_only_when_toggled", () => {
-    // Scenario: buildTurnTimelineViewModel emits raw-line rows only when the toggle is on, and
-    // never numbers them (step numbers drive picks and range patches).
-    // Steps:
-    // build the view model with the toggle ON.
+    // Scenario: buildTurnTimelineViewModel emits raw-line rows only when the toggle is on, and never numbers them (step numbers drive picks and range patches).  Steps: build the view model with the toggle ON.
     const { nodes } = buildTurnTimelineViewModel(buildLineVerdictDocument(), true);
     const lineNodes = nodes.filter((node) => node.kind === LINE_NODE_KIND);
     // both unrepresented lines are rows, interleaved by their when instants.
@@ -83,12 +75,7 @@ test("test_view_model_includes_line_nodes_only_when_toggled", () => {
 });
 
 test("test_derive_line_nodes_carries_source_coordinates", () => {
-    // Scenario (task 160): a verdict with source {filePath, lineNumber} yields a node with
-    // sourceJsonlName = the file's basename and sourceLineIndex = lineNumber - 1 (the raw-line
-    // fetch is 0-based); a verdict without source (pre-task-160 cached document) yields
-    // undefined for both.
-    // Steps:
-    // derive over a document whose unrepresented verdicts differ in source presence.
+    // Scenario (task 160): a verdict with source {filePath, lineNumber} yields a node with sourceJsonlName = the file's basename and sourceLineIndex = lineNumber - 1 (the raw-line fetch is 0-based); a verdict without source (pre-task-160 cached document) yields undefined for both.  Steps: derive over a document whose unrepresented verdicts differ in source presence.
     const document = buildLineVerdictDocument();
     document.lineVerdicts[2] = {
         ...document.lineVerdicts[2]!,

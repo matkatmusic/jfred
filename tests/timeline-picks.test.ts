@@ -21,11 +21,7 @@ import {
 } from "./timeline-test-helpers.ts";
 
 test("test_pick_crossing_commit_is_illegal", () => {
-    // Scenario: git commit nodes are hard stops — a pick range can never cross one.
-    // Steps:
-    // build s85's turn timeline; locate its first commit node.
-    // pick the nearest pickable node on each side of it.
-    // assert the pick is illegal (and that the commit node itself sits in no segment).
+    // Scenario: git commit nodes are hard stops — a pick range can never cross one.  Steps: build s85's turn timeline; locate its first commit node.  pick the nearest pickable node on each side of it.  assert the pick is illegal (and that the commit node itself sits in no segment).
     const { nodes } = buildTurnTimelineViewModel(s85Document);
     const segments = computePickSegments(nodes);
     const commitIndex = nodes.findIndex((node: { kind: string }) => node.kind === COMMIT_NODE_KIND);
@@ -47,12 +43,7 @@ test("test_pick_crossing_commit_is_illegal", () => {
 });
 
 test("test_pick_skipping_orphaned_node_is_legal", () => {
-    // Scenario: orphaned (rewound-branch) nodes are unpickable and transparent to contiguity —
-    // picking the surviving nodes around one is legal.
-    // Steps:
-    // build s45's turn timeline (its rewound step lands BETWEEN surviving turns chronologically).
-    // locate the orphaned agent turn; assert it sits in no segment.
-    // pick the nearest pickable neighbor on each side of it; assert the pick is legal.
+    // Scenario: orphaned (rewound-branch) nodes are unpickable and transparent to contiguity — picking the surviving nodes around one is legal.  Steps: build s45's turn timeline (its rewound step lands BETWEEN surviving turns chronologically).  locate the orphaned agent turn; assert it sits in no segment.  pick the nearest pickable neighbor on each side of it; assert the pick is legal.
     const { nodes } = buildTurnTimelineViewModel(s45Document);
     const segments = computePickSegments(nodes);
     const orphanIndex = nodes.findIndex((node: { isOrphaned?: boolean }) => node.isOrphaned === true);
@@ -74,10 +65,7 @@ test("test_pick_skipping_orphaned_node_is_legal", () => {
 });
 
 test("test_noncontiguous_pick_is_illegal", () => {
-    // Scenario: a pick with an unpicked PICKABLE node inside its span is not contiguous.
-    // Steps:
-    // build s84's turn timeline; find a segment holding three or more pickable nodes.
-    // pick the first and third only (skipping the second); assert illegal.
+    // Scenario: a pick with an unpicked PICKABLE node inside its span is not contiguous.  Steps: build s84's turn timeline; find a segment holding three or more pickable nodes.  pick the first and third only (skipping the second); assert illegal.
     const { nodes } = buildTurnTimelineViewModel(s84Document);
     const segments = computePickSegments(nodes);
     const pickablesBySegment = new Map<number, number[]>();
@@ -93,9 +81,7 @@ test("test_noncontiguous_pick_is_illegal", () => {
 });
 
 test("test_single_pick_is_legal", () => {
-    // Scenario: one picked pickable node is always a legal (degenerate) range.
-    // Steps:
-    // build s85's turn timeline; pick its first pickable node; assert legal.
+    // Scenario: one picked pickable node is always a legal (degenerate) range.  Steps: build s85's turn timeline; pick its first pickable node; assert legal.
     const { nodes } = buildTurnTimelineViewModel(s85Document);
     const segments = computePickSegments(nodes);
     const first = segments.findIndex((segment: number | null) => segment !== null);
@@ -104,11 +90,7 @@ test("test_single_pick_is_legal", () => {
 });
 
 test("test_range_summary_counts_distinct_files", () => {
-    // Scenario: the selection bar's "N steps picked · M files" counts DISTINCT file paths across
-    // the picked turn nodes.
-    // Steps:
-    // build s85's turn timeline; pick the first two pickable nodes (their fileChanges overlap on
-    // none or some paths — the count must equal the union size computed independently here).
+    // Scenario: the selection bar's "N steps picked · M files" counts DISTINCT file paths across the picked turn nodes.  Steps: build s85's turn timeline; pick the first two pickable nodes (their fileChanges overlap on none or some paths — the count must equal the union size computed independently here).
     const { nodes } = buildTurnTimelineViewModel(s85Document);
     const segments = computePickSegments(nodes);
     const picked: number[] = [];
@@ -125,10 +107,7 @@ test("test_range_summary_counts_distinct_files", () => {
 });
 
 test("test_range_summary_spans_underlying_snapshots_of_picked_turns", () => {
-    // Scenario: /api/range-patch still speaks snapshot indexes — a picked turn range maps to the
-    // min..max snapshot index across ALL snapshots the picked turns own.
-    // Steps:
-    // build s2's turn timeline; pick the first two pickable turn nodes.
+    // Scenario: /api/range-patch still speaks snapshot indexes — a picked turn range maps to the min..max snapshot index across ALL snapshots the picked turns own.  Steps: build s2's turn timeline; pick the first two pickable turn nodes.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const segments = computePickSegments(nodes);
     const picked: number[] = [];
@@ -168,20 +147,12 @@ test("test_pick_segments_skip_user_turns_and_session_ends", () => {
 });
 
 test("test_checkSelectionBlocksBackgroundClose_blocks_when_selection_is_active", () => {
-    // Scenario: finishing a text-selection drag over empty timeline background fires a click on
-    // the container; a non-collapsed selection means the user was selecting text, not asking
-    // to close the inspector (item 10b).
-    // Steps:
-    // feed a fake Selection whose isCollapsed is false.
-    // assert the predicate blocks the background close.
+    // Scenario: finishing a text-selection drag over empty timeline background fires a click on the container; a non-collapsed selection means the user was selecting text, not asking to close the inspector (item 10b).  Steps: feed a fake Selection whose isCollapsed is false.  assert the predicate blocks the background close.
     assert.equal(checkSelectionBlocksBackgroundClose({ isCollapsed: false }), true);
 });
 
 test("test_checkSelectionBlocksBackgroundClose_allows_plain_clicks", () => {
-    // Scenario: an ordinary background click (collapsed selection, or the null selection some
-    // browsers return) must still close the inspector.
-    // Steps:
-    // assert a collapsed selection does not block the close.
+    // Scenario: an ordinary background click (collapsed selection, or the null selection some browsers return) must still close the inspector.  Steps: assert a collapsed selection does not block the close.
     assert.equal(checkSelectionBlocksBackgroundClose({ isCollapsed: true }), false);
     // assert a null selection does not block the close.
     assert.equal(checkSelectionBlocksBackgroundClose(null), false);

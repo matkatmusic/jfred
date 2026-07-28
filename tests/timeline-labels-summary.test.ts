@@ -18,10 +18,7 @@ import {
 import { RecordType } from "../src/structures/vocabulary.ts";
 
 test("test_computeRowSummaryText_uses_first_text_line", () => {
-    // Scenario: a user or agent turn's one-line row text is the FIRST line of its message text
-    // (the collapsed fork-style row shows one line; the bubble shows the rest).
-    // Steps:
-    // build a minimal document with a multi-line prompt and a multi-line reply.
+    // Scenario: a user or agent turn's one-line row text is the FIRST line of its message text (the collapsed fork-style row shows one line; the bubble shows the rest).  Steps: build a minimal document with a multi-line prompt and a multi-line reply.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -111,10 +108,7 @@ test("test_computeRowSummaryText_labels_session_ends", () => {
 });
 
 test("test_computeRowSummaryText_falls_back_for_blank_agent_turns", () => {
-    // Scenario: a synthetic trailing agent turn has no reply text — its row must read
-    // "(tool activity)" instead of rendering blank.
-    // Steps:
-    // build a document whose only agent turn is synthetic (a snapshot with no later reply).
+    // Scenario: a synthetic trailing agent turn has no reply text — its row must read "(tool activity)" instead of rendering blank.  Steps: build a document whose only agent turn is synthetic (a snapshot with no later reply).
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -143,21 +137,14 @@ test("test_computeRowSummaryText_falls_back_for_blank_agent_turns", () => {
 });
 
 test("test_computeSessionShortLabel_takes_first_eight_chars", () => {
-    // Scenario: session ids everywhere in the fork layout (uuid column, sidebar, session-end
-    // rows) shorten to their first 8 characters.
-    // Steps:
-    // assert a full uuid shortens to its first 8 chars.
+    // Scenario: session ids everywhere in the fork layout (uuid column, sidebar, session-end rows) shorten to their first 8 characters.  Steps: assert a full uuid shortens to its first 8 chars.
     assert.equal(computeSessionShortLabel("0a1b2c3d-4e5f-6789-abcd-ef0123456789"), "0a1b2c3d");
     // assert an id shorter than 8 chars passes through whole.
     assert.equal(computeSessionShortLabel("abc"), "abc");
 });
 
 test("test_computeRowSummaryText_prefers_commit_node_text", () => {
-    // Scenario (task 121): the merged git-derived baseline row is a commit node carrying its
-    // baseline summary text — the row text wins over the commit message; a plain commit
-    // still shows its message.
-    // Steps:
-    // a merged baseline commit node returns its baseline text.
+    // Scenario (task 121): the merged git-derived baseline row is a commit node carrying its baseline summary text — the row text wins over the commit message; a plain commit still shows its message.  Steps: a merged baseline commit node returns its baseline text.
     const mergedBaselineCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "2026-01-01T00:05:00.000Z", sessionId: "session-a", detail: "baseline", text: "Files seeded from git base commit abc1234" };
     assert.equal(computeRowSummaryText(mergedBaselineCommit), "Files seeded from git base commit abc1234");
     // the same node without text still returns its commit message.

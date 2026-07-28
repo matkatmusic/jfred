@@ -1,28 +1,15 @@
-// The Layer 1 page's minimap (task 246), per plans/layer1-mockup.html: the whole render shrunk into
-// a 176x124 plot in the LOWER-LEFT corner of the timeline pane, with one mark per widget and a
-// rectangle showing which slice of it the scrollport is currently over. The pane's scrollbars only
-// surface while a scroll is in flight, so at rest a 156,000 px-wide render gave no clue where the
-// reader was standing.
+// The Layer 1 page's minimap (task 246), per plans/layer1-mockup.html: the whole render shrunk into a 176x124 plot in the LOWER-LEFT corner of the timeline pane, with one mark per widget and a rectangle showing which slice of it the scrollport is currently over. The pane's scrollbars only surface while a scroll is in flight, so at rest a 156,000 px-wide render gave no clue where the reader was standing.
 //
-// It lives in `.stagewrap` — a non-scrolling wrapper AROUND `main.timelines` — never inside the
-// scroll container itself, so it stays pinned to the pane's corner while the canvas scrolls under
-// it. Split out of layer1-page.ts because that file is at the 250-line cap.
+// It lives in `.stagewrap` — a non-scrolling wrapper AROUND `main.timelines` — never inside the scroll container itself, so it stays pinned to the pane's corner while the canvas scrolls under it. Split out of layer1-page.ts because that file is at the 250-line cap.
 //
-// ponytail: every number below is MEASURED, never derived from the zoom level, which is what keeps
-// the minimap correct under the zoom control (webapp/layer1-zoom.ts). Native CSS `zoom` participates
-// in LAYOUT, so the pane's scrollWidth/scrollHeight/scrollLeft already describe the zoomed content,
-// and getBoundingClientRect already reports zoomed on-screen boxes. Both live in the unzoomed
-// scrollport's coordinate space — `.timelines` is outside the `zoom`ed `.canvas` — so the two mix
-// without a correction factor, and this module never reads `--zoom` at all.
+// ponytail: every number below is MEASURED, never derived from the zoom level, which is what keeps the minimap correct under the zoom control (webapp/layer1-zoom.ts). Native CSS `zoom` participates in LAYOUT, so the pane's scrollWidth/scrollHeight/scrollLeft already describe the zoomed content, and getBoundingClientRect already reports zoomed on-screen boxes. Both live in the unzoomed scrollport's coordinate space — `.timelines` is outside the `zoom`ed `.canvas` — so the two mix without a correction factor, and this module never reads `--zoom` at all.
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 
-// A 168 px bubble in a 176 px plot of a 156,000 px render scales to under a tenth of a pixel, which
-// browsers drop. 1.5 px keeps every widget on the map as a visible speck.
+// A 168 px bubble in a 176 px plot of a 156,000 px render scales to under a tenth of a pixel, which browsers drop. 1.5 px keeps every widget on the map as a visible speck.
 const MINIMUM_MARK_PX = 1.5;
 
-// A box in CONTENT coordinates: the scrollport's padding-box origin, which is the same origin
-// scrollLeft/scrollTop count from, so a scroll offset and a widget offset are directly comparable.
+// A box in CONTENT coordinates: the scrollport's padding-box origin, which is the same origin scrollLeft/scrollTop count from, so a scroll offset and a widget offset are directly comparable.
 interface ContentBoxPx {
     leftPx: number;
     topPx: number;
@@ -32,23 +19,15 @@ interface ContentBoxPx {
 
 // Plot px per content px, PER AXIS — the two are independent and deliberately not equal.
 //
-// plans/layer1-mockup.html fits one uniform `Math.min` scale, and this module shipped that; against
-// the real render it is wrong. The canvas is ~156,000 px wide but only a few thousand tall, so the
-// width term is an order of magnitude the smaller and, applied to BOTH axes, squashed every mark
-// into the top fifth of the plot with four fifths left blank (user report, screenshot 2026-07-26).
-// A uniform scale only reads correctly when the render's aspect ratio is near the plot's; the mockup
-// was built on mock data where it happened to be.
+// plans/layer1-mockup.html fits one uniform `Math.min` scale, and this module shipped that; against the real render it is wrong. The canvas is ~156,000 px wide but only a few thousand tall, so the width term is an order of magnitude the smaller and, applied to BOTH axes, squashed every mark into the top fifth of the plot with four fifths left blank (user report, screenshot 2026-07-26).  A uniform scale only reads correctly when the render's aspect ratio is near the plot's; the mockup was built on mock data where it happened to be.
 //
-// Stretching each axis to its own extent costs shape fidelity, which this map does not have to sell:
-// every mark is already clamped up to MINIMUM_MARK_PX, so a bubble is a speck rather than a shape at
-// either scale. What the reader needs is WHERE they are, and that needs the full box on both axes.
+// Stretching each axis to its own extent costs shape fidelity, which this map does not have to sell: every mark is already clamped up to MINIMUM_MARK_PX, so a bubble is a speck rather than a shape at either scale. What the reader needs is WHERE they are, and that needs the full box on both axes.
 interface MinimapScale {
     xPerContentPx: number;
     yPerContentPx: number;
 }
 
-// The Math.max guards a division by zero on the pre-render page (no widgets yet) and under
-// happy-dom, which implements no layout and reports every extent as 0.
+// The Math.max guards a division by zero on the pre-render page (no widgets yet) and under happy-dom, which implements no layout and reports every extent as 0.
 export function fitMinimapScale(
     contentWidthPx: number,
     contentHeightPx: number,
@@ -66,9 +45,7 @@ function getTimelinePane(): HTMLElement {
     return getRequiredElementById("timelines");
 }
 
-// The clipped inner box the marks are drawn into. It also CARRIES the current scale, in a data
-// attribute, so the scroll and click handlers below need no module-level state that could drift out
-// of step with what is actually on screen.
+// The clipped inner box the marks are drawn into. It also CARRIES the current scale, in a data attribute, so the scroll and click handlers below need no module-level state that could drift out of step with what is actually on screen.
 function getMinimapPlot(): HTMLElement {
     return getRequiredElementById("mm-plot");
 }
@@ -81,8 +58,7 @@ function readMinimapScale(): MinimapScale {
     };
 }
 
-// Place one absolutely-positioned rectangle inside the plot. Used for both a widget mark and the
-// viewport rectangle — they differ only in which content box they are handed.
+// Place one absolutely-positioned rectangle inside the plot. Used for both a widget mark and the viewport rectangle — they differ only in which content box they are handed.
 function positionInPlot(target: HTMLElement, box: ContentBoxPx, scale: MinimapScale): void {
     target.style.left = `${box.leftPx * scale.xPerContentPx}px`;
     target.style.top = `${box.topPx * scale.yPerContentPx}px`;
@@ -90,8 +66,7 @@ function positionInPlot(target: HTMLElement, box: ContentBoxPx, scale: MinimapSc
     target.style.height = `${Math.max(box.heightPx * scale.yPerContentPx, MINIMUM_MARK_PX)}px`;
 }
 
-// One rendered widget's content-space box. `paneRect` is passed in rather than re-read per widget:
-// the real render has 833 of them and the pane's own box does not move between them.
+// One rendered widget's content-space box. `paneRect` is passed in rather than re-read per widget: the real render has 833 of them and the pane's own box does not move between them.
 function measureInContent(widget: Element, pane: HTMLElement, paneRect: DOMRect): ContentBoxPx {
     const rect = widget.getBoundingClientRect();
     return {
@@ -102,8 +77,7 @@ function measureInContent(widget: Element, pane: HTMLElement, paneRect: DOMRect)
     };
 }
 
-// Move the viewport rectangle to wherever the pane is currently scrolled. This is the ONLY thing
-// that runs per scroll event — the marks do not move, so a scroll never re-measures the render.
+// Move the viewport rectangle to wherever the pane is currently scrolled. This is the ONLY thing that runs per scroll event — the marks do not move, so a scroll never re-measures the render.
 export function syncMinimapViewport(): void {
     const pane = getTimelinePane();
     positionInPlot(getRequiredElementById("mm-view"), {
@@ -114,8 +88,7 @@ export function syncMinimapViewport(): void {
     }, readMinimapScale());
 }
 
-// Click the map to centre the pane on that point. `scale` of 0 means nothing has been drawn yet, in
-// which case there is no position to scroll to.
+// Click the map to centre the pane on that point. `scale` of 0 means nothing has been drawn yet, in which case there is no position to scroll to.
 function scrollToMinimapPoint(event: Event): void {
     const scale = readMinimapScale();
     if (scale.xPerContentPx <= 0 || scale.yPerContentPx <= 0) {
@@ -131,23 +104,16 @@ function scrollToMinimapPoint(event: Event): void {
     });
 }
 
-// ponytail: re-registering the SAME function reference for the same event on the same element is a
-// no-op per the DOM spec, so calling this on every draw keeps exactly one of each listener — no
-// "already wired" flag and no unwiring pass. (Named functions, therefore: an inline arrow would be a
-// fresh reference every call and would stack up.)
+// ponytail: re-registering the SAME function reference for the same event on the same element is a no-op per the DOM spec, so calling this on every draw keeps exactly one of each listener — no "already wired" flag and no unwiring pass. (Named functions, therefore: an inline arrow would be a fresh reference every call and would stack up.)
 function wireMinimapListeners(): void {
     getTimelinePane().addEventListener("scroll", syncMinimapViewport);
     getMinimapPlot().addEventListener("click", scrollToMinimapPoint);
 }
 
-// The canvas currently under observation. A ResizeObserver re-`observe`d with a target it already
-// watches re-fires immediately, which from inside a draw would loop forever — hence the guard
-// rather than an unconditional observe.
+// The canvas currently under observation. A ResizeObserver re-`observe`d with a target it already watches re-fires immediately, which from inside a draw would loop forever — hence the guard rather than an unconditional observe.
 let observedCanvas: Element | null = null;
 
-// Redraw whenever the canvas changes size. That is what makes ZOOM correct without this module
-// knowing zoom exists: `zoom` resizes the canvas's layout box, the observer fires, and the map is
-// rebuilt against the new extent. It also covers a window resize and any future content change.
+// Redraw whenever the canvas changes size. That is what makes ZOOM correct without this module knowing zoom exists: `zoom` resizes the canvas's layout box, the observer fires, and the map is rebuilt against the new extent. It also covers a window resize and any future content change.
 function observeCanvasResize(): void {
     const canvas = document.querySelector(".canvas");
     if (canvas === null || canvas === observedCanvas) {
@@ -157,8 +123,7 @@ function observeCanvasResize(): void {
     new window.ResizeObserver(() => drawLayer1Minimap()).observe(canvas);
 }
 
-// Rebuild the whole map: one mark per widget bubble, plus the viewport rectangle. Called after every
-// render, and by the resize observer above.
+// Rebuild the whole map: one mark per widget bubble, plus the viewport rectangle. Called after every render, and by the resize observer above.
 export function drawLayer1Minimap(): void {
     const pane = getTimelinePane();
     const plot = getMinimapPlot();
@@ -167,8 +132,7 @@ export function drawLayer1Minimap(): void {
     plot.dataset["scaleY"] = String(scale.yPerContentPx);
     const paneRect = pane.getBoundingClientRect();
     const marks = [...document.querySelectorAll(".filebox")].map((widget) => {
-        // The two orphan buckets are `.filebox.bucket`; they read as muted on the map exactly as
-        // they do on the canvas, so a speck is identifiable without hovering it.
+        // The two orphan buckets are `.filebox.bucket`; they read as muted on the map exactly as they do on the canvas, so a speck is identifiable without hovering it.
         const mark = el("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box" });
         positionInPlot(mark, measureInContent(widget, pane, paneRect), scale);
         return mark;

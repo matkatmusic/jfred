@@ -1,5 +1,4 @@
-// Script-execution consent dialog: running recorded scripts is opt-in, declining still
-// yields a degraded document.
+// Script-execution consent dialog: running recorded scripts is opt-in, declining still yields a degraded document.
 
 import { el } from "./app-dom.ts";
 import { storeConsentChoice } from "./app-choices.ts";
@@ -17,8 +16,7 @@ import {
 import { renderRoute } from "./app-router.ts";
 import { renderCodeInto } from "./highlight.ts";
 
-// Shell lines carrying inline code (`python3 -c "…"`) highlight only the quoted body, in the
-// interpreter's language.
+// Shell lines carrying inline code (`python3 -c "…"`) highlight only the quoted body, in the interpreter's language.
 function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     const pre = el("pre");
     const inline = splitInlineInterpreterCode(script.code);
@@ -148,12 +146,10 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
     };
     prevButton.onclick = () => navigateConsentScript(-1);
     nextButton.onclick = () => navigateConsentScript(1);
-    // <details> toggle events don't bubble but are observable in the capture phase, and fire
-    // for programmatic open changes too, so one listener covers every expand path.
+    // <details> toggle events only surface in the capture phase, including programmatic opens, so one listener covers every expand path.
     box.addEventListener("toggle", () => updateScriptNavState(), true);
     updateScriptNavState();
-    // Re-query the DOM on every click: per-row Expand and Show/hide mutate the same state
-    // between clicks. onclick (not addEventListener) so re-renders never stack handlers.
+    // Re-query the DOM per click since Expand and Show/hide share state; onclick avoids addEventListener stacking handlers on re-renders.
     const toggleAllButton = expandAllButton;
     const collectExpandables = () => ({
         previews: [...box.querySelectorAll<HTMLPreElement>(".consent-script pre")]

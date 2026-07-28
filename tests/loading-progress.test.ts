@@ -1,7 +1,4 @@
-// Item 82 — loading-progress overhaul. Pure-helper coverage: the server's document size-label
-// (A1), the cache-hit record-replay throttle (B1), and the client's phase classifier (C1). The
-// overlay DOM, elapsed clock, and paint-yield are visually verified by the user (project
-// console-helper convention), so they carry no unit test.
+// Item 82 — loading-progress overhaul. Pure-helper coverage: the server's document size-label (A1), the cache-hit record-replay throttle (B1), and the client's phase classifier (C1). The overlay DOM, elapsed clock, and paint-yield are visually verified by the user (project console-helper convention), so they carry no unit test.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -37,8 +34,7 @@ test("test_computeRecordProgressStride_bounds_line_count", () => {
 });
 
 test("test_cached_record_replay_is_throttled_counted_and_token_bearing", () => {
-    // Prime both caches, then re-run the cache-hit replay through a spy sink and assert the per-record
-    // events are bounded, monotonic, reach 100%, and still carry the clickable source token.
+    // Prime both caches, then re-run the cache-hit replay through a spy sink and assert the per-record events are bounded, monotonic, reach 100%, and still carry the clickable source token.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
     const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     loadProjectRecords([jsonlPath]);
@@ -87,16 +83,14 @@ test("test_classifyLoadPhase_total_is_six", () => {
     assert.equal(LOAD_PHASE_COUNT, 6);
 });
 
-// task 163: the branch-enumeration counter must land in phase 4 (Building document), like
-// every other deep-engine label of the build stage.
+// task 163: the branch-enumeration counter must land in phase 4 (Building document), like every other deep-engine label of the build stage.
 test("test_classifyLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
     assert.equal(classifyLoadPhase("scanning branch tips — 3 / 12"), 4);
 });
 
 // -------------------- server boot-id consent reset --------------------
 
-// Minimal in-memory stand-in for the browser's sessionStorage (reconcileServerBootId reads
-// length/key/getItem and mutates set/removeItem). Typed loosely — the test runs under node, not DOM.
+// Minimal in-memory stand-in for the browser's sessionStorage (reconcileServerBootId reads length/key/getItem and mutates set/removeItem). Typed loosely — the test runs under node, not DOM.
 function makeSessionStorageStub(): any {
     const map = new Map<string, string>();
     return {

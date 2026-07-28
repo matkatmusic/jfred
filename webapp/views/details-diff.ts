@@ -1,8 +1,4 @@
-// Details pane right-column rendering (split from details.ts, task 92): the shared #details-*
-// pane plumbing plus the text / content / diff renders. Diff rendering reuses diff-vs-base's
-// row view-models with the mockup's .diff / .diff-cols markup; showTextInDetails,
-// showContentInDetails, and showDiffInDetails live together because they share the module's
-// shownDiff toggle state.
+// Details pane right-column rendering (split from details.ts, task 92): the shared #details-* pane plumbing plus the text / content / diff renders. Diff rendering reuses diff-vs-base's row view-models with the mockup's .diff / .diff-cols markup; showTextInDetails, showContentInDetails, and showDiffInDetails live together because they share the module's shownDiff toggle state.
 
 import { el } from "../app-dom.ts";
 import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
@@ -38,17 +34,14 @@ export function hideDiffModeToggle(): void {
 }
 
 export function clearRightPaneBody(): HTMLElement {
-    // Every right-pane render routes through here, so stale find-widget Ranges never survive
-    // a re-render (task 127).
+    // Every right-pane render routes through here, so stale find-widget Ranges never survive a re-render (task 127).
     resetDetailsFind();
     const body = document.getElementById("details-right-body")!;
     body.replaceChildren();
     return body;
 }
 
-// The diff the right pane currently shows, kept for toggle re-renders. `reload` re-fetches
-// (a full-context diff is a DIFFERENT server response, so the full-contents toggle cannot
-// re-render from the current text — item 75).
+// The diff the right pane currently shows, kept for toggle re-renders. `reload` re-fetches (a full-context diff is a DIFFERENT server response, so the full-contents toggle cannot re-render from the current text — item 75).
 let shownDiff: { label: string; diffText: string; reload: () => void; unrecoverableReason?: string } | undefined;
 
 // Plain explanatory text in the right pane (rename-only revisions, missing blocks).
@@ -73,9 +66,7 @@ export function showContentInDetails(target: string, revisionNumber: number, con
     clearRightPaneBody().append(pane);
 }
 
-// task 126: the placeholder's banner stack — the timeline header's ⚠ banner styling
-// (.recon-banner), the carried-forward note, and the section title above the previous
-// revision's diff.
+// task 126: the placeholder's banner stack — the timeline header's ⚠ banner styling (.recon-banner), the carried-forward note, and the section title above the previous revision's diff.
 function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
     body.append(
         el("div", { class: "recon-banner" }, [
@@ -87,9 +78,7 @@ function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
     );
 }
 
-// task 126: an unrecoverable placeholder's pane — the ⚠ banner, then the PREVIOUS revision's
-// own diff (what the placeholder carries forward). The reason rides shownDiff so the
-// columns/inline toggle re-renders keep the banner.
+// task 126: an unrecoverable placeholder's pane — the ⚠ banner, then the PREVIOUS revision's own diff (what the placeholder carries forward). The reason rides shownDiff so the columns/inline toggle re-renders keep the banner.
 export function showUnrecoverableInDetails(label: string, reason: string, previousDiffText: string | undefined, reload: () => void): void {
     if (previousDiffText === undefined) {
         shownDiff = undefined;
@@ -160,9 +149,7 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
     );
 }
 
-// The mockup's two-column diff grid, driven by diff-vs-base's computeSplitRows: full rows span
-// the grid as hunk headers; pair rows emit ln+body cells per side (empty cells keep alignment).
-// Exported for the script-run mode's stacked per-file diffs (task 67).
+// The mockup's two-column diff grid, driven by diff-vs-base's computeSplitRows: full rows span the grid as hunk headers; pair rows emit ln+body cells per side (empty cells keep alignment).  Exported for the script-run mode's stacked per-file diffs (task 67).
 export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
     const grid = el("div", { class: "diff-cols" });
     for (const row of computeSplitRows(diffText)) {
@@ -177,8 +164,7 @@ export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
     body.append(grid);
 }
 
-// One diff in the right pane, in whichever layout the persisted toggle selects. #dm-columns /
-// #dm-inline re-render the SAME diff and persist through diff-vs-base's storage vocabulary.
+// One diff in the right pane, in whichever layout the persisted toggle selects. #dm-columns / #dm-inline re-render the SAME diff and persist through diff-vs-base's storage vocabulary.
 export function showDiffInDetails(label: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
     shownDiff = { label, diffText, reload, unrecoverableReason };
     setRightPaneLabel(label);
@@ -197,8 +183,7 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
             showDiffInDetails(shownDiff.label, shownDiff.diffText, shownDiff.reload, shownDiff.unrecoverableReason);
         }
     };
-    // Full contents changes the fetched diff (wider git context), so it re-fetches via
-    // reload rather than re-rendering the current text.
+    // Full contents changes the fetched diff (wider git context), so it re-fetches via reload rather than re-rendering the current text.
     fullButton.onclick = () => {
         writeStoredFullContents(!fullContentsIsOn());
         reload();
@@ -216,8 +201,7 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
     appendInlineDiff(body, diffText);
 }
 
-// The revision-timeline diff blocks of one file, freshly fetched (same /api/diff request the
-// file-history view issues, consent flag included).
+// The revision-timeline diff blocks of one file, freshly fetched (same /api/diff request the file-history view issues, consent flag included).
 export async function fetchRevisionDiffBlocks(project: string, target: string, fullContents: boolean): Promise<string[]> {
     const params = new URLSearchParams({ project, file: target, mode: "revisions" });
     if (getConsentChoice(project) === "1") {
@@ -231,9 +215,7 @@ export async function fetchRevisionDiffBlocks(project: string, target: string, f
     return splitDiffBlocks(await fetchText(`/api/diff?${params}`));
 }
 
-// One file change's revision diff in the right pane: its changeId resolves to a 1-based
-// revision through the document's histories, that revision's block renders as a diff, and the
-// no-hunk cases (renames, missing blocks) render their fallback explanation instead.
+// One file change's revision diff in the right pane: its changeId resolves to a 1-based revision through the document's histories, that revision's block renders as a diff, and the no-hunk cases (renames, missing blocks) render their fallback explanation instead.
 export async function showRevisionDiffInDetails(change: FileChange, blocks: string[], filesTouched: WireFileHistory[], reload: () => void): Promise<void> {
     const link = change.changeId === undefined ? undefined : findRevisionForChangeId(filesTouched, change.changeId, undefined);
     const block = link?.revisionNumber === undefined ? undefined : blocks[link.revisionNumber - 1];

@@ -40,8 +40,7 @@ test("test_computeRevisionDiffFallbackText_explains_a_missing_block", () => {
 });
 
 test("test_computeRevisionDiffFallbackText_explains_a_rename_block", () => {
-    // Item 47: renderDiffWithContext emits no body for renames, so the header-only block
-    // otherwise rendered as an empty-looking +/- pane.
+    // Item 47: renderDiffWithContext emits no body for renames, so the header-only block otherwise rendered as an empty-looking +/- pane.
     const change = { path: "/tmp/core_inventory.py", displayPath: "/tmp/core_inventory.py", eventKind: EventKind.rename, renamedFrom: "/tmp/inventory.py", isFirstRevision: false, changeId: "c1", when: "2026-01-01T00:00:00.000Z" };
     const block = "@@ renamed /tmp/inventory.py → /tmp/core_inventory.py @ 2026-07-01T20:51:55.964Z @@";
     assert.equal(
@@ -66,15 +65,7 @@ test("test_computeToolActivityTag_tags_chip_carrying_blank_turns_as_tool_result"
     );
 });
 
-// (item 55) the "tool call" branch is retired — git rows moved out of agent-turn bubbles into
-// standalone tool-call nodes, so a blank turn with only gitOperations no longer exists.
-// test("test_computeToolActivityTag_tags_gitop_only_blank_turns_as_tool_call", () => {
-//     const operation = { kind: GitOperationKind.commit, when: "2026-01-01T00:00:00.000Z" };
-//     assert.equal(
-//         computeToolActivityTag({ kind: AGENT_TURN_NODE_KIND, text: " ", fileChanges: [], gitOperations: [operation] }),
-//         "tool call",
-//     );
-// });
+// (item 55) tool-call branch retired: git rows moved to standalone nodes, so blank turns with only gitOperations no longer exist.
 
 test("test_computeToolActivityTag_ignores_gitop_only_blank_turns", () => {
     // Item 55: git rows are standalone tool-call nodes now, so the old "tool call" tag is retired.

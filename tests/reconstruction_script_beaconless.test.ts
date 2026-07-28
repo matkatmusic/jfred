@@ -1,7 +1,4 @@
-// Per-file tests for src/reconstruction_script_beaconless.ts (task 122): the birth gate, the
-// item-68 read-only bail, and run chaining through the target's rolling content — exercising
-// beaconlessScriptExecutions directly (the injectScriptExecutions wrapper is covered by
-// reconstruction_script_stage.test.ts).
+// Per-file tests for src/reconstruction_script_beaconless.ts (task 122): the birth gate, the item-68 read-only bail, and run chaining through the target's rolling content — exercising beaconlessScriptExecutions directly (the injectScriptExecutions wrapper is covered by reconstruction_script_stage.test.ts).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,8 +22,7 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 const emptyReader: BackupReader = () => "";
 
 test("test_beaconlessScriptExecutions_injects_a_birth_for_a_script_written_target", () => {
-    // Steps:
-    // records: a Write of the script file, then a run whose script births out.txt.
+    // Steps: records: a Write of the script file, then a run whose script births out.txt.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("out.txt", "w").write("created\\n")\n' }, "2026-01-01T00:00:02Z"),
@@ -42,8 +38,7 @@ test("test_beaconlessScriptExecutions_injects_a_birth_for_a_script_written_targe
 });
 
 test("test_beaconlessScriptExecutions_returns_no_event_for_a_read_only_run", () => {
-    // Steps:
-    // records: a Write plus a read-only counting script over it (no write primitive).
+    // Steps: records: a Write plus a read-only counting script over it (no write primitive).
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/ledger.py", content: "def add(): pass\n" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print(len(open("ledger.py").read()))\n' }, "2026-01-01T00:00:02Z"),
@@ -55,9 +50,7 @@ test("test_beaconlessScriptExecutions_returns_no_event_for_a_read_only_run", () 
 });
 
 test("test_beaconlessScriptExecutions_chains_a_later_run_over_the_rolling_content", () => {
-    // Scenario: run 1 births core_one.py via shutil.move; run 2 glob-renames f_one -> alpha.
-    // The chained gate must yield BOTH events even though run 2 never names the born file —
-    // run 2 executes against run 1's rolling output, not its own cached pre-state.
+    // Scenario: run 1 births core_one.py via shutil.move; run 2 glob-renames f_one -> alpha.  The chained gate must yield BOTH events even though run 2 never names the born file — run 2 executes against run 1's rolling output, not its own cached pre-state.
     const moveScript = 'import shutil\nshutil.move("one.py", "core_one.py")\n';
     const renameScript = 'import glob\nfor p in glob.glob("core_*.py"):\n'
         + '    text = open(p).read()\n'

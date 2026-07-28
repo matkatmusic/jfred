@@ -27,8 +27,7 @@ function buildBashRecord(id: string, command: string, timestamp: string): Transc
     } as unknown as TranscriptRecord;
 }
 
-// One assistant record running `git mv a.py b.py` with the transcript cwd set to /work — the
-// shape `collectEventsFromRecord` reads cwd from to resolve the rename's relative paths.
+// One assistant record running `git mv a.py b.py` with the transcript cwd set to /work — the shape `collectEventsFromRecord` reads cwd from to resolve the rename's relative paths.
 function buildGitMvRecords(): TranscriptRecord[] {
     return [
         {
@@ -40,8 +39,7 @@ function buildGitMvRecords(): TranscriptRecord[] {
     ];
 }
 
-// `git mv a.py b.py` issued with cwd /work extracts to one rename whose from/to are resolved
-// absolute against that cwd — so the rename can later link to the absolute Write/Edit targets.
+// `git mv a.py b.py` issued with cwd /work extracts to one rename whose from/to are resolved absolute against that cwd — so the rename can later link to the absolute Write/Edit targets.
 test("test_extract_maps_git_mv_to_a_rename_with_cwd_resolved_paths", () => {
     // Build one assistant record: a Bash tool_use `git mv a.py b.py`, on a record whose cwd is /work.
     const records = buildGitMvRecords();
@@ -83,12 +81,9 @@ test("test_parseRedirect_ignores_the_null_device", () => {
     assert.equal(parseRedirect("echo hi > /a/f.txt")!.target.toString(), "/a/f.txt");
 });
 
-// task 150 — the redirect regex matches the `>` inside a JS arrow (`=>`), so a `node -e`
-// one-liner from a real session minted the token `x.taskNumber).join(','))"` as a redirect
-// target. Command-text shrapnel must never become a reconstruction target.
+// task 150 — the redirect regex matches the `>` inside a JS arrow (`=>`), so a `node -e` one-liner from a real session minted the token `x.taskNumber).join(','))"` as a redirect target. Command-text shrapnel must never become a reconstruction target.
 test("test_parseRedirect_rejects_a_js_arrow_inside_a_node_one_liner", () => {
-    // The exact command shape that produced the task-150 bogus target: an arrow function
-    // whose `=>` is the last `>` in the command, followed by one non-space token to the end.
+    // The exact command shape that produced the task-150 bogus target: an arrow function whose `=>` is the last `>` in the command, followed by one non-space token to the end.
     assert.equal(parseRedirect("node -e \"console.log(tasks.map(x => x.taskNumber).join(','))\""), undefined);
 });
 

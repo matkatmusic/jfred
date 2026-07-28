@@ -24,8 +24,7 @@ test("test_coverage_scenarios_importer_is_capture_dependent", () => {
 });
 
 test("test_transitive_coverage_scenarios_reacher_stays_runnable", () => {
-    // Reaches coverage_scenarios.ts only through check_scenario_coverage.ts helpers, which scan
-    // lazily — the file loads and passes on a captureless clone, so it must stay in the CI list.
+    // Reaches coverage_scenarios.ts only through check_scenario_coverage.ts helpers, which scan lazily — the file loads and passes on a captureless clone, so it must stay in the CI list.
     assert.equal(checkTestFileIsCaptureFree(pathOfTestFile("reconstruction_trunk.test.ts")), true);
 });
 

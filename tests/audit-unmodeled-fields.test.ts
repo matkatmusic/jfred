@@ -8,12 +8,7 @@ import {
 import { RecordType } from "../src/structures/vocabulary.ts";
 
 test("test_auditJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
-    // Scenario: one transcript carries an unknown record type, a known record with an
-    // unmodeled field, a fully modeled record, and a synthetic reconstructed record
-    // with a tool-invented field. The auditor reports the first two, keyed with counts
-    // and a file:line example, and skips the synthetic record entirely.
-    // Steps:
-    // build the four-line transcript text.
+    // Scenario: one transcript carries an unknown record type, a known record with an unmodeled field, a fully modeled record, and a synthetic reconstructed record with a tool-invented field. The auditor reports the first two, keyed with counts and a file:line example, and skips the synthetic record entirely.  Steps: build the four-line transcript text.
     const lines = [
         JSON.stringify({ type: "made-up-type", payload: 1 }),
         JSON.stringify({ type: RecordType.mode, sessionId: "s", mode: "normal", bogusKey: 1 }),
@@ -44,10 +39,7 @@ test("test_auditJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
 });
 
 test("test_auditJsonlText_accumulates_across_files", () => {
-    // Scenario: the same unmodeled field seen in two files counts both occurrences
-    // and both distinct files, keeping the FIRST example.
-    // Steps:
-    // audit the same one-line transcript under two file labels.
+    // Scenario: the same unmodeled field seen in two files counts both occurrences and both distinct files, keeping the FIRST example.  Steps: audit the same one-line transcript under two file labels.
     const line = JSON.stringify({ type: RecordType.mode, sessionId: "s", mode: "normal", bogusKey: 1 });
     const findings = createAuditFindings();
     auditJsonlText("proj/a.jsonl", line, findings);

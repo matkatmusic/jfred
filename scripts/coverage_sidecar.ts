@@ -1,15 +1,6 @@
-// RETIRED 2026-07-02 (Phase 3+5, Step 2.1): the multi-session reader below moved to
-// src/reconstruction_sidecar_reader.ts as THE shared buildSidecarReader (CLI + coverage checker +
-// viewer server all merge or read sessions now, so "coverage-checker concern" stopped being true).
-// Kept commented-out instead of deleted per user direction. No module imports this file.
+// RETIRED 2026-07-02: moved to src/reconstruction_sidecar_reader.ts. Kept per user direction.
 //
-// // Multi-session file-history reader for the coverage checker. A single scenario can span several sessions
-// // — pre/post a /clear, baseline + scenario for a git-baseline, one per agent for a concurrent run — and the
-// // checker merges all of their JSONL into one record stream (scripts/coverage_scenarios.ts). The default
-// // engine reader (createSidecarReader) is scoped to ONE session's file-history dir, but a merged transcript
-// // references backups stored under EACH session's own dir, so reconstruction needs a reader that knows them
-// // all. This module builds that reader. It lives on the checker side (not in src/) because merging sessions
-// // is a coverage-checker concern; the engine and CLI still reconstruct one session at a time.
+// // Multi-session reader resolving backups across merged sessions.
 //
 // import { existsSync, readFileSync } from "node:fs";
 // import { join } from "node:path";
@@ -52,4 +43,5 @@
 //         return readFileSync(join(root, (owner ?? sessionIds[0]!).toString(), name), "utf8");
 //     };
 // }
+
 

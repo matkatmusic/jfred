@@ -1,6 +1,4 @@
-// Unified-diff renderers split from reconstruction_render.ts: the webapp's context
-// diff text (renderDiffWithContext) and the git-apply-able whole-file patch emitter
-// (renderGitFileDiff). Pure functions over FileRevision[]; no IO.
+// Splits the webapp diff text and git-apply patch emitter from reconstruction_render.ts; pure functions over FileRevision[].
 
 import type { FileRevision } from "./reconstruction_engine.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -10,8 +8,7 @@ import { runGitUnifiedDiff, DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES 
 
 const DIFF_CONTEXT_LINE_COUNT = 3;
 
-// One aligned line in a revision-vs-previous comparison: its unified-diff sign plus the
-// 1-based line number it holds on each side (0 = absent on that side).
+// One aligned line in a revision-vs-previous diff: sign plus 1-based line number on each side, 0 if absent.
 type AlignedDiffLine = { sign: " " | "-" | "+"; text: string; oldLineNumber: number; newLineNumber: number };
 
 function isRenameRevision(revision: FileRevision): boolean {
@@ -23,10 +20,7 @@ function isRenameRevision(revision: FileRevision): boolean {
     return false;
 }
 
-// Walk a revision's back-pointers against the previous revision: kept entries are context,
-// born entries additions, unreferenced previous indices removals. Within a change region the
-// removals come first (unified-diff order). Sound because the engine carries kept lines
-// forward unchanged (reconstruction_replay_edit.ts) — a changed line is always kill + born.
+// Aligns a revision's lines against the previous one so unified-diff renderers can find changes.
 function computeAlignedDiffLines(
     previous: FileRevision | undefined,
     revision: FileRevision,
@@ -56,9 +50,7 @@ function computeAlignedDiffLines(
     return alignedLines;
 }
 
-// One aligned line's contribution to the hunk ranges: context lines contribute nothing;
-// a changed line's context window merges into the last range when overlapping or adjacent,
-// otherwise opens a new range.
+// Expands each changed line into a context window and merges overlapping or adjacent windows into one hunk range.
 function mergeOrAppendHunkRange(
     ranges: Array<{ start: number; end: number }>,
     alignedLines: AlignedDiffLine[],
@@ -80,8 +72,7 @@ function mergeOrAppendHunkRange(
     ranges.push({ start, end });
 }
 
-// Which aligned-line index ranges become hunks: each change expanded by the context window,
-// overlapping or adjacent windows merged.
+// Which aligned-line index ranges become hunks: each change expanded by the context window, overlapping or adjacent windows merged.
 function computeHunkRanges(alignedLines: AlignedDiffLine[]): Array<{ start: number; end: number }> {
     const ranges: Array<{ start: number; end: number }> = [];
     alignedLines.forEach((line, index) => {
@@ -90,8 +81,7 @@ function computeHunkRanges(alignedLines: AlignedDiffLine[]): Array<{ start: numb
     return ranges;
 }
 
-// One hunk: the standard "@@ -oldStart,oldCount +newStart,newCount @@" header (1-based;
-// 0,0 for an absent side) followed by its sign-prefixed lines.
+// One hunk: the standard @@ header (1-based, 0,0 if absent) followed by its sign-prefixed lines.
 function renderHunk(hunkLines: AlignedDiffLine[]): string {
     const oldSidedLines = hunkLines.filter((line) => line.oldLineNumber > 0);
     const newSidedLines = hunkLines.filter((line) => line.newLineNumber > 0);
@@ -102,8 +92,7 @@ function renderHunk(hunkLines: AlignedDiffLine[]): string {
     return [header, ...body].join("\n");
 }
 
-// One non-rename revision's hunks: git-diff the previous revision's text against this one
-// and append the result to the block when non-empty.
+// Git-diffs the previous revision's text against this one and appends the result when non-empty.
 function appendGitHunksForRevision(
     blockLines: string[],
     previous: FileRevision | undefined,
@@ -119,13 +108,9 @@ function appendGitHunksForRevision(
     }
 }
 
-// The webapp's diff text: renderDiff's per-revision kind headers, but each block carries
-// standard unified hunks with context lines around every change — enough for the client to
-// render surrounding lines and line-number gutters. renderDiff (the CLI's human-oriented
-// changes-only view) is untouched.
+// Webapp diff text: like renderDiff's headers, but with unified hunks and context lines for the client to render gutters.
 export function renderDiffWithContext(revisions: FileRevision[], fullContext: boolean = false): string {
-    // item 75: "Show full contents" widens git's context to the whole file so every
-    // unchanged line renders as context; default keeps the ±3-line hunk window.
+    // item 75: "Show full contents" widens context to the whole file; default keeps the ±3-line window.
     const contextLines = fullContext ? FULL_FILE_CONTEXT_LINES : DEFAULT_DIFF_CONTEXT_LINES;
     const blocks: string[] = [];
     let previous: FileRevision | undefined;
@@ -141,8 +126,7 @@ export function renderDiffWithContext(revisions: FileRevision[], fullContext: bo
 }
 
 
-// Split patchable text into lines, tracking whether it ends with a newline (git needs the
-// `\ No newline at end of file` marker to reproduce byte-exact content). "" is zero lines.
+// Splits text into lines and tracks trailing newline, since git needs the no-newline marker for byte-exact output.
 function splitPatchLines(text: string): { lines: string[]; endsWithNewline: boolean } {
     if (text === "") {
         return { lines: [], endsWithNewline: true };
@@ -165,12 +149,7 @@ function renderHunkSide(sign: string, text: string): string[] {
     return rendered;
 }
 
-// One file's git-format diff block as a whole-file replacement hunk (every old line removed,
-// every new line added) — a valid unified diff that `git apply` accepts; renderDiff's custom
-// headers are not apply-compatible, hence this separate emitter. `undefined` text marks absence:
-// creation when before is absent, deletion when after is.
-// ponytail: whole-file hunks and unquoted paths — add an LCS hunk builder / git-style quoting
-// only if patch size or paths-with-spaces ever matter.
+// Whole-file replacement hunk valid for `git apply`; undefined marks creation/deletion. ponytail: add LCS hunks only if size matters.
 export function renderGitFileDiff(
     relativePath: string,
     beforeText: string | undefined,

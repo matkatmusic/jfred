@@ -97,12 +97,10 @@ test("test_checkRowIsExpandable_excludes_commits_and_session_ends", () => {
     assert.equal(checkRowIsExpandable(toolCall), true);
 });
 
-// (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135
-// checkRowCarriesJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
+// (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135 checkRowCarriesJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
 
 test("test_checkNodeIsAbandonedBranchTip_marks_last_orphaned_row_per_session", () => {
-    // Task 158: the "(abandoned)" pill lands on the LAST row of an abandoned run, so of
-    // commit-walk's orphans at 3 and 4 only 4 is the tip.
+    // Task 158: the abandoned pill marks a run's last orphaned row; between orphans 3 and 4, only 4 qualifies.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     assert.equal(checkNodeIsAbandonedBranchTip(nodes, 3), false);
     assert.equal(checkNodeIsAbandonedBranchTip(nodes, 4), true);

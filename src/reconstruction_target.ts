@@ -1,9 +1,4 @@
-// Target-scoped surviving-branch reconstruction (task 192, optimizations.md Phase 1): the
-// `--branch surviving --file <path>` fast path. Reconstructs EXACTLY the requested final
-// target over the surviving records — never touching reconstructBranches,
-// buildRewoundBranchHistory, reconstructFilesOver, discoverScriptCreatedPaths,
-// collectAcceptedUserEditIds, or the step/document builders — while preserving the
-// all-files path's exact-final-path selector contract byte for byte.
+// Target-scoped surviving-branch reconstruction (task 192, optimizations.md Phase 1): the `--branch surviving --file <path>` fast path. Reconstructs EXACTLY the requested final target over the surviving records — never touching reconstructBranches, buildRewoundBranchHistory, reconstructFilesOver, discoverScriptCreatedPaths, collectAcceptedUserEditIds, or the step/document builders — while preserving the all-files path's exact-final-path selector contract byte for byte.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
@@ -23,17 +18,14 @@ import {
 // The literal branch id that selects the surviving branch — the one branch the fast path serves.
 const SURVIVING_BRANCH_ID = "surviving";
 
-// One file's history over EXACTLY the records given, or undefined when the all-files
-// reconstruction would not expose `target` as a final path: a request for an old rename
-// source must NOT become a new result (parity with the CLI's exact-final-path filter).
+// One file's history over EXACTLY the records given, or undefined when the all-files reconstruction would not expose `target` as a final path: a request for an old rename source must NOT become a new result (parity with the CLI's exact-final-path filter).
 export function reconstructFileHistoryOver(
     records: TranscriptRecord[],
     target: Path,
     reader?: BackupReader,
 ): FileHistory | undefined {
     const extracted = extractFileEvents(records);
-    // Sandbox-proven script moves join the chain exactly as in reconstructFilesOver — the
-    // executions are memoized per records identity, so reconstructFileOver pays them anyway.
+    // Sandbox-proven script moves join the chain exactly as in reconstructFilesOver — the executions are memoized per records identity, so reconstructFileOver pays them anyway.
     const events = reader
         ? appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader))
         : extracted;
@@ -47,16 +39,14 @@ export function reconstructFileHistoryOver(
     if (isKnownFinalPath) {
         return { target, revisions };
     }
-    // ponytail: a discovered-but-zero-revision script-born path returns undefined here where
-    // the all-files path emits an empty history; no scenario exercises that corner.
+    // ponytail: a discovered-but-zero-revision script-born path returns undefined here where the all-files path emits an empty history; no scenario exercises that corner.
     if (revisions.length > 0) {
         return { target, revisions };
     }
     return undefined;
 }
 
-// The surviving-branch wrapper: select the surviving records once (corpus-memoized), then
-// reconstruct only the requested target over them.
+// The surviving-branch wrapper: select the surviving records once (corpus-memoized), then reconstruct only the requested target over them.
 export function reconstructSurvivingFileHistory(
     records: TranscriptRecord[],
     target: Path,
@@ -65,8 +55,7 @@ export function reconstructSurvivingFileHistory(
     return reconstructFileHistoryOver(selectLiveBranch(records), target, reader);
 }
 
-// Whether a CLI request selects exactly (surviving branch, one target) — the condition that
-// routes both JSON and text dispatch through the fast path before reconstructBranches.
+// Whether a CLI request selects exactly (surviving branch, one target) — the condition that routes both JSON and text dispatch through the fast path before reconstructBranches.
 export function isTargetedSurvivingRequest(options: CliOptions): boolean {
     if (options.branch !== SURVIVING_BRANCH_ID) {
         return false;
@@ -74,8 +63,7 @@ export function isTargetedSurvivingRequest(options: CliOptions): boolean {
     return options.target !== undefined;
 }
 
-// The zero-or-one history array the CLI renders for a targeted surviving request — the same
-// shape filterByTarget produces from the all-files reconstruction.
+// The zero-or-one history array the CLI renders for a targeted surviving request — the same shape filterByTarget produces from the all-files reconstruction.
 export function listTargetedSurvivingHistories(
     records: TranscriptRecord[],
     reader: BackupReader | undefined,

@@ -1,6 +1,4 @@
-// Resolve a path against a transcript `cwd` to one canonical absolute string. A leaf module —
-// imports only node `path` — so both extraction (rename targets) and the sidecar (snapshot
-// paths) share one resolver with no engine import cycle.
+// Resolve a path against a transcript `cwd` to one canonical absolute string. A leaf module — imports only node `path` — so both extraction (rename targets) and the sidecar (snapshot paths) share one resolver with no engine import cycle.
 import { resolve } from "node:path";
 import { Path } from "./domain.ts";
 

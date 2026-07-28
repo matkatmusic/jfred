@@ -1,7 +1,4 @@
-// Highlighted-JSON rendering for the inspector: the legacy JFReD viewer's token pattern
-// (web-shared/json-inspector.js), rebuilt without innerHTML — the text is tokenized and
-// appended as text nodes + spans, so page content can never inject markup. Linkable string
-// values become jump-links; snapshot backupFileName tokens get the snapshot treatment.
+// Highlighted-JSON rendering for the inspector: the legacy JFReD viewer's token pattern (web-shared/json-inspector.js), rebuilt without innerHTML — the text is tokenized and appended as text nodes + spans, so page content can never inject markup. Linkable string values become jump-links; snapshot backupFileName tokens get the snapshot treatment.
 
 import { el as elUntyped } from "./app-dom.ts";
 import { findRevisionForChangeId } from "./views/file-history-model.ts";
@@ -33,9 +30,7 @@ export const el = elUntyped as (
     children?: HTMLElement[],
 ) => HTMLElement;
 
-// The legacy viewer's token pattern: strings (key vs value by trailing colon), booleans,
-// null, and numbers. Everything between tokens (braces, brackets, commas, whitespace) is
-// plain text.
+// The legacy viewer's token pattern: strings (key vs value by trailing colon), booleans, null, and numbers. Everything between tokens (braces, brackets, commas, whitespace) is plain text.
 const JSON_TOKEN_PATTERN = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g;
 
 function classifyToken(token: string): string {
@@ -51,9 +46,7 @@ function classifyToken(token: string): string {
     return "json-number";
 }
 
-// A string value longer than this is collapsed to its first 7 wrapped lines behind a […]
-// toggle. 560 ≈ 7 lines × ~80 chars; the CSS line-clamp does the exact visual 7-line cut,
-// this threshold only decides which values get the toggle at all.
+// A string value longer than this is collapsed to its first 7 wrapped lines behind a […] toggle. 560 ≈ 7 lines × ~80 chars; the CSS line-clamp does the exact visual 7-line cut, this threshold only decides which values get the toggle at all.
 const LONG_VALUE_CHAR_LIMIT = 560;
 
 function checkValueIsLong(tokenClass: string, token: string): boolean {
@@ -63,8 +56,7 @@ function checkValueIsLong(tokenClass: string, token: string): boolean {
     return token.length > LONG_VALUE_CHAR_LIMIT;
 }
 
-// The [View in File Revisions] button for a resolved snapshot anchor (task 93: the route
-// now opens THE Revision View).
+// The [View in File Revisions] button for a resolved snapshot anchor (task 93: the route now opens THE Revision View).
 function appendViewInRevisionsButton(pre: HTMLElement, snapshotContext: SnapshotContext, anchor: WireRevisionLink) {
     pre.append(el("button", {
         class: "row-btn snapshot-history-btn",
@@ -75,10 +67,7 @@ function appendViewInRevisionsButton(pre: HTMLElement, snapshotContext: Snapshot
     }));
 }
 
-// A backupFileName token of the CURRENT record, rendered by on-disk presence: a "view
-// snapshot" link + [View in File Revisions] button when the blob exists, a dimmed
-// "(missing from disk)" suffix when it does not, a plain token while the probe is in flight.
-// This treatment replaces the generic revision-link behavior for these tokens.
+// A backupFileName token of the CURRENT record, rendered by on-disk presence: a "view snapshot" link + [View in File Revisions] button when the blob exists, a dimmed "(missing from disk)" suffix when it does not, a plain token while the probe is in flight.  This treatment replaces the generic revision-link behavior for these tokens.
 function appendSnapshotToken(
     pre: HTMLElement, tokenClass: string, token: string, value: string,
     entry: WireTrackedBackup, filesTouched: WireFileHistory[], snapshotContext: SnapshotContext,
@@ -104,8 +93,7 @@ function appendSnapshotToken(
     }
 }
 
-// Resolves what a string token links to: renders the snapshot treatment itself (handled =
-// true), or reports the jump target / revision link for the caller's span rendering.
+// Resolves what a string token links to: renders the snapshot treatment itself (handled = true), or reports the jump target / revision link for the caller's span rendering.
 function resolveStringTokenLink(
     pre: HTMLElement, tokenClass: string, token: string, record: WireValue,
     currentLine: number, maps: LinkMaps, filesTouched: WireFileHistory[],
@@ -115,8 +103,7 @@ function resolveStringTokenLink(
     let revisionLink: WireRevisionLink | undefined;
     try {
         const value = JSON.parse(token) as string;
-        // A backupFileName the CURRENT record tracks gets the snapshot treatment
-        // instead of the generic revision link.
+        // A backupFileName the CURRENT record tracks gets the snapshot treatment instead of the generic revision link.
         const trackedEntry = snapshotContext === undefined ? undefined : findTrackedBackupEntry(record, value);
         if (trackedEntry !== undefined) {
             // trackedEntry !== undefined implies snapshotContext was passed (see the ternary above).
@@ -125,9 +112,7 @@ function resolveStringTokenLink(
         }
         jumpTarget = findJumpTarget(value, currentLine, maps);
         if (jumpTarget === undefined) {
-            // A value that IS a revision changeId (e.g. a backupFileName blob name)
-            // links to that file's revision list, anchored on that revision. A blob
-            // version without its own revision anchors via the snapshot's backupTime.
+            // A value that IS a revision changeId (e.g. a backupFileName blob name) links to that file's revision list, anchored on that revision. A blob version without its own revision anchors via the snapshot's backupTime.
             revisionLink = findRevisionForChangeId(filesTouched, value, findBackupTimeForBlob(record, value));
         }
     } catch { /* not a lone string literal — no link */ }

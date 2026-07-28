@@ -1,8 +1,4 @@
-// The viewer server's document-build layer: build ReconstructionDocuments over one-or-many
-// JSONLs, decide when script-execution consent is needed, and cache built documents. Pure
-// functions over the existing engine — the HTTP wiring lives in viewer_server.ts; project
-// scanning, record loading, and diff rendering live in viewer_api_projects.ts,
-// viewer_api_records.ts, and viewer_api_diffs.ts.
+// Document-build layer: builds ReconstructionDocuments, decides script-execution consent, and caches results; HTTP wiring and other concerns live in sibling viewer_api_*.ts files.
 
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import {
@@ -47,12 +43,12 @@ export function formatSendingDocumentLabel(byteLength: number): string {
     return `sending document (${(byteLength / 1_000_000).toFixed(1)} MB)`;
 }
 
-// Spec S4a: the optional `sources` list makes the sidecar reader resolve each session's blobs from
-// its OWN source's file-history dir; absent, the single-root chain applies as before.
+// Spec S4a: `sources`, when given, makes the sidecar reader resolve each session's blobs from its OWN source's file-history dir.
 export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest): BuiltReconstruction {
     const loaded = loadProjectRecords(jsonlPaths);
     const { skippedLines } = loaded;
     // Spec S5a: the merge builds a NEW array, so per-records WeakMap memos run cold on multi-source builds.
+
     // ponytail: memoize per (stamp, sources) if profiling ever shows it.
     const merged = sources === undefined || sources.length === 0
         ? loaded.records
@@ -123,8 +119,7 @@ export const PROGRESS_LABEL_ARTIFACT_CACHE_HIT = "reusing cached document artifa
 // allowScripts is in the key because consented and degraded builds yield different documents.
 const builtDocumentCache = new Map<string, BuiltReconstruction>();
 
-// The exec gate is on only for a consented build's synchronous duration; a cache hit returns before
-// the gate/sink lifecycle so nothing impure runs when no build runs.
+// The exec gate runs only for a consented build's synchronous duration; a cache hit returns before that lifecycle starts.
 export function buildReconstructionWithConsent(
     jsonlPaths: Path[],
     target: Path | undefined,
@@ -137,8 +132,7 @@ export function buildReconstructionWithConsent(
 ): BuiltReconstruction {
     const targetKey = target === undefined ? "" : target.toString();
     const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
-    // Bounded/full and trimmed/full builds must never share an entry; the stamp reads the ACTIVE
-    // overrides, so a config edit between requests misses the cache on purpose.
+    // Bounded/full and trimmed/full builds never share a cache entry; the stamp reads ACTIVE overrides, so config edits miss the cache.
     const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
     const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
     if (cachedBuild !== undefined) {

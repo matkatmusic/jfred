@@ -1,16 +1,4 @@
-// Layer 1 on-disk file walk (task 230, spec S18): the `current file state` — every file under
-// the project folder, path relative to that folder, with its mtime. mtime is the Layer-1
-// timestamp everywhere (S18: birthtime is not portable, so it is never read). `.git` and
-// `node_modules` are excluded unconditionally; ignored paths are honored — a folder the user
-// points at may legitimately have no .gitignore, which is not an error.
-//
-// GIT ANSWERS FIRST when the folder is inside a repository, because git already knows three
-// things this module would otherwise have to re-implement badly: it stops at a SUBMODULE gitlink
-// exactly as `git ls-tree -r` does (jfred's four submodules hold 10,884 files that are not part
-// of this project's state at all), it honors NESTED .gitignore files plus .git/info/exclude and
-// core.excludesFile, and it distinguishes tracked from merely-present. The hand-rolled matcher
-// below is the fallback for a plain folder that is in no repository — a legitimate Layer 1 input,
-// since the two roots are independent.
+// Layer 1 on-disk file walk: mtime-stamped paths via git when available, manual walk otherwise.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -33,8 +21,7 @@ interface IgnoreRule {
     anchored: boolean;
 }
 
-// A glob pattern as an anchored regex: `*` spans anything but a separator, `?` one such
-// character, everything else is literal.
+// Converts a glob pattern to an anchored regex (`*`/`?` only).
 function buildPatternMatcher(pattern: string): RegExp {
     const source = pattern
         .replace(/[.+^${}()|[\]\\]/g, "\\$&")
@@ -44,10 +31,7 @@ function buildPatternMatcher(pattern: string): RegExp {
 }
 
 // The rules of the project folder's top-level .gitignore, or none when it has no .gitignore.
-// ponytail: minimal matcher — blanks, `#` comments, a trailing `/` directory form, a leading
-// `/` root-anchored form and `*`/`?` globs. NOT supported: `!` negations (skipped outright),
-// `**` spans, nested .gitignore files, core.excludesFile, and git's escape syntax. Upgrade to
-// the `ignore` package only when a real project folder is mis-walked because of one of those.
+// ponytail: minimal matcher — blanks, `#` comments, a trailing `/` directory form, a leading `/` root-anchored form and `*`/`?` globs. NOT supported: `!` negations (skipped outright), `**` spans, nested .gitignore files, core.excludesFile, and git's escape syntax. Upgrade to the `ignore` package only when a real project folder is mis-walked because of one of those.
 function readIgnoreRules(projectFolder: Path): IgnoreRule[] {
     let text: string;
     try {
@@ -63,8 +47,7 @@ function readIgnoreRules(projectFolder: Path): IgnoreRule[] {
         }
         const directoriesOnly = pattern.endsWith("/");
         const trimmed = pattern.replace(/\/$/, "").replace(/^\//, "");
-        // Git anchors a pattern to the root as soon as it carries a separator; otherwise it
-        // matches by name at any depth.
+        // Patterns with a separator are root-anchored; bare names match at any depth.
         rules.push({
             matcher: buildPatternMatcher(trimmed),
             directoriesOnly,
@@ -74,8 +57,7 @@ function readIgnoreRules(projectFolder: Path): IgnoreRule[] {
     return rules;
 }
 
-// Whether `relativePath` (a directory when `isDirectory`) is ignored by any rule. An ignored
-// directory is never descended into, so its contents need no rule of their own.
+// Returns true if any ignore rule matches; ignored directories are never descended into.
 function checkPathIsIgnored(relativePath: string, isDirectory: boolean, rules: IgnoreRule[]): boolean {
     const name = relativePath.split("/").at(-1) ?? relativePath;
     for (const rule of rules) {
@@ -89,9 +71,7 @@ function checkPathIsIgnored(relativePath: string, isDirectory: boolean, rules: I
     return false;
 }
 
-// Depth-first accumulation into `found`. `relativeFolder` is "" at the root. Entries that are
-// neither a directory nor a regular file (symlinks, sockets) are silently skipped — a Layer-1
-// pair needs real bytes on disk.
+// Depth-first walk; skips symlinks and sockets since Layer 1 needs real bytes on disk.
 function collectFolderFiles(projectFolder: Path, relativeFolder: string, rules: IgnoreRule[], found: DiskFileState[]): void {
     const absoluteFolder = join(projectFolder.toString(), relativeFolder);
     for (const entry of readdirSync(absoluteFolder, { withFileTypes: true })) {
@@ -113,13 +93,7 @@ function collectFolderFiles(projectFolder: Path, relativeFolder: string, rules: 
     }
 }
 
-// The working-tree paths git reports for `projectFolder` — tracked files plus untracked ones git
-// does not ignore — relative to that folder, or undefined when the folder is in no repository.
-//
-// A failure is SWALLOWED here, unlike layer1_repo_tree.ts's loud throw: the ref there is something
-// the user typed, whereas "this folder is not in a repo" is an ordinary Layer 1 input that the
-// fallback walk handles. `--others` never descends into a submodule, which is the whole reason
-// this call exists.
+// Git-tracked and untracked paths, or undefined when not in a repo.
 function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
     const result = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
         cwd: projectFolder.toString(),
@@ -132,17 +106,12 @@ function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
     return result.stdout.split("\0").filter((path) => path !== "");
 }
 
-// S18 excludes these unconditionally, with or without a .gitignore. Git's own answer already omits
-// `.git`, but a project that neither tracks NOR ignores `node_modules` would otherwise flood the
-// view with its contents as untracked files — the same defect submodules produced.
+// Git omits `.git` but untracked `node_modules` would flood results without this guard.
 function checkPathIsAlwaysExcluded(relativePath: string): boolean {
     return relativePath.split("/").some((segment) => ALWAYS_EXCLUDED_NAMES.includes(segment));
 }
 
-// Each git-named path with its mtime. Two kinds of entry fall out here rather than being filtered
-// upstream, because one stat answers both: a SUBMODULE gitlink, which git names as one path whose
-// disk entry is a directory, and a tracked-but-deleted file, which has no disk entry at all.
-// Layer 1's `current file state` means real bytes present right now.
+// Stats each path; submodule gitlinks and deleted files drop out via the isFile check.
 function statWorkingTreePaths(projectFolder: Path, relativePaths: string[]): DiskFileState[] {
     const found: DiskFileState[] = [];
     for (const relativePath of relativePaths) {
@@ -168,3 +137,5 @@ export function walkCurrentFileState(projectFolder: Path): DiskFileState[] {
     }
     return found.sort((left, right) => (left.relativePath.toString() < right.relativePath.toString() ? -1 : 1));
 }
+
+

@@ -1,15 +1,11 @@
-// The Layer 1 page's minimap (task 246).
-//
-// happy-dom implements NO layout — every rect is 0x0 and every extent is 0 — so measurements are
-// stubbed per element and assertions read the inline styles the module WRITES.
+// The Layer 1 minimap (task 246): happy-dom has NO layout — measurements are stubbed, assertions read what the module writes.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { drawLayer1Minimap, fitMinimapScale } from "../webapp/layer1-minimap.ts";
 
-// Keep the two axis ratios UNEQUAL (x 0.1, y 0.2): a fixture whose axes agree cannot tell a
-// per-axis scale from a single uniform one, and a uniform scale shipped undetected once.
+// Keep axis ratios UNEQUAL (x 0.1, y 0.2): equal axes can't distinguish a per-axis scale from a uniform one.
 const CONTENT_WIDTH_PX = 1000;
 const CONTENT_HEIGHT_PX = 250;
 const PANE_WIDTH_PX = 200;
@@ -50,8 +46,7 @@ function appendWidget(className: string, rect: StubbedRect): void {
     document.getElementById("stage")!.append(widget);
 }
 
-// The pane's rect sits at the viewport origin so a widget's client-space left/top IS its
-// content-space left/top when nothing is scrolled.
+// The pane's rect sits at the viewport origin, so a widget's client-space left/top IS its content-space left/top unscrolled.
 function openMappedPage(): HTMLElement {
     setupLayer1Dom();
     const pane = findRequiredElement("main.timelines");
@@ -72,8 +67,7 @@ function readPlacement(element: HTMLElement): string[] {
 }
 
 test("test_minimap_scale_fits_each_axis_to_its_own_extent", () => {
-    // Each axis scales to ITS OWN extent: a single uniform scale crammed every mark into the top
-    // fifth of the box on the real ~156,000 px-wide canvas.
+    // Each axis scales to ITS OWN extent: a uniform scale crammed every mark into the top fifth of the canvas.
     assert.deepEqual(fitMinimapScale(1000, 500, 100, 100), { xPerContentPx: 0.1, yPerContentPx: 0.2 });
     assert.deepEqual(fitMinimapScale(500, 1000, 100, 100), { xPerContentPx: 0.2, yPerContentPx: 0.1 });
     // An unrendered page reports every extent as 0; both scales must be numbers, not Infinity.
@@ -120,8 +114,7 @@ test("test_clicking_the_minimap_centres_the_pane_on_that_point", () => {
     findRequiredElement(".mm-plot").dispatchEvent(
         new window.MouseEvent("click", { clientX: 50, clientY: 20, bubbles: true }),
     );
-    // The click is CENTRED and un-scaled per axis; dividing both by the x scale would land at
-    // y 150, off the bottom of a 250 px render.
+    // The click is CENTRED and un-scaled per axis; using the x scale for both would land off the render's bottom.
     assert.equal(requested?.left, 400);
     assert.equal(requested?.top, 50);
 });

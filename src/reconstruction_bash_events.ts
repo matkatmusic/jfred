@@ -1,6 +1,4 @@
-// Bash command parsing: turn a Bash tool_use's command string into file events
-// (`rm` -> delete, `mv`/`git mv` -> rename, `cp` -> copy, `>`/`>>` -> overwrite/append).
-// Extraction proper (records -> events) lives in reconstruction_extract.ts.
+// Bash command string to file events; extraction lives in reconstruction_extract.ts.
 
 import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -30,8 +28,7 @@ export function parseRmTargets(command: string): Path[] {
     return match[1]!.trim().split(whitespaceRun).map((p) => new Path(p));
 }
 
-// Parse `mv <src> <dst>` or `git mv <src> <dst>` (two space-separated paths, no flags).
-// s2 used plain `mv` with absolute paths; s6 uses `git mv` with cwd-relative paths.
+// Parse `mv`/`git mv` into src and dst paths (s2 absolute, s6 cwd-relative).
 export function parseMvPaths(command: string): RenameInfo | undefined {
     const match = command.trim().match(bashMoveCommand);
     if (!match) {
@@ -52,21 +49,17 @@ export function parseCpPaths(command: string): CopyInfo | undefined {
 // The bash null device: `> /dev/null` discards output, so a redirect to it is not a write.
 const NULL_DEVICE = "/dev/null";
 
-// A parsed bash output redirection: the target file and whether it appends (`>>`)
-// rather than overwrites (`>`).
+// A parsed bash output redirection: the target file and whether it appends (`>>`) rather than overwrites (`>`).
 type ParsedRedirect = {
     target: Path;
     appends: boolean;
 };
 
-// Characters that never appear in a real recorded redirect target but are common in command
-// text the redirect regex can misfire on (a `node -e` one-liner's `=>` arrow, quoted JS,
-// argument lists). A candidate containing any of them is command-text shrapnel, not a path.
+// Deny-list: characters that signal a redirect candidate is command shrapnel, not a path.
 // ponytail: deny-list, not a path grammar — extend the string if a new shrapnel shape appears.
 const NON_PATH_CHARACTERS = "\"'`()<>{}$;,|";
 
-// Whether a redirect-target candidate is plausible as a filesystem path (task 150): free of
-// shell/JS punctuation that marks it as a fragment of command text.
+// Reject candidates containing shell/JS punctuation (task 150).
 function checkCandidateLooksLikePath(candidate: string): boolean {
     for (const character of NON_PATH_CHARACTERS) {
         if (candidate.includes(character)) {
@@ -76,11 +69,7 @@ function checkCandidateLooksLikePath(candidate: string): boolean {
     return true;
 }
 
-// Parse a bash output redirection target: `>>` appends, `>` overwrites/creates. Returns the
-// target and whether it appends, or undefined when there is no redirect. The content is NOT
-// parsed from the command — it is recovered from the file-history sidecar (locked decision 3).
-// task 150: a matched candidate that does not look like a path (an arrow-function fragment,
-// quoted JS) is dropped here — the one choke point both extraction and line parsing share.
+// Parse `>`/`>>` redirect target; content comes from sidecar, not the command (decision 3).
 export function parseRedirect(command: string): ParsedRedirect | undefined {
     const appended = command.match(bashAppendRedirect);
     if (appended && appended[1] !== NULL_DEVICE && checkCandidateLooksLikePath(appended[1]!)) {
@@ -90,14 +79,11 @@ export function parseRedirect(command: string): ParsedRedirect | undefined {
     if (overwritten && overwritten[1] !== NULL_DEVICE && checkCandidateLooksLikePath(overwritten[1]!)) {
         return { target: new Path(overwritten[1]!), appends: false };
     }
-    // `> /dev/null` (and `>>`) discards output — it is not a real file, so it must
-    // never become a file event or show up in the Files list (task 76).
+    // /dev/null is not a real file; suppress it (task 76).
     return undefined;
 }
 
-// Turn a Bash tool_use into a file event: `rm` -> delete, `mv`/`git mv` -> rename, `cp` ->
-// copy, else undefined (s1 uses rm; s2 uses mv; s3 uses cp; s6 uses git mv). The rename's
-// relative paths are resolved against `cwd` so they match the absolute Write/Edit targets.
+// Convert a Bash tool_use into file events; resolves relative paths against cwd.
 export function bashEventsFrom(
     block: ToolUseBlock,
     timestamp: Date,
@@ -136,3 +122,4 @@ export function bashEventsFrom(
     }
     return [];
 }
+

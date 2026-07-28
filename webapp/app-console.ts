@@ -4,9 +4,7 @@ import type { ILink, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
 import { parseRouteSegments, routeToTimeline } from "./app-routes.ts";
 
-// xterm.js is loaded as browser globals via <script> tags (webapp/vendor) — type those globals
-// here instead of value-importing the packages (a bundler-less build cannot resolve bare
-// module specifiers; the type-only imports above are erased at emit).
+// xterm.js is loaded as browser globals via <script> tags (webapp/vendor) — type those globals here instead of value-importing the packages (a bundler-less build cannot resolve bare module specifiers; the type-only imports above are erased at emit).
 declare global {
     const Terminal: typeof XtermTerminal;
     const FitAddon: { FitAddon: typeof XtermFitAddon };
@@ -19,10 +17,7 @@ export let progressTerminal: XtermTerminal | null = null;
 let progressFitAddon: XtermFitAddon | null = null;
 const CONSOLE_ROWS = 15;
 
-// The loading console is a persistent, full-width strip docked at the bottom of the window
-// (#progress-console in index.html), exactly CONSOLE_ROWS text rows tall. It is created once and reused for
-// every load, so it survives route re-renders (which wipe #view) — progress lines accumulate and
-// the last load's output stays visible until the next. The theme reads the app's live CSS vars.
+// The loading console is a persistent, full-width strip docked at the bottom of the window (#progress-console in index.html), exactly CONSOLE_ROWS text rows tall. It is created once and reused for every load, so it survives route re-renders (which wipe #view) — progress lines accumulate and the last load's output stays visible until the next. The theme reads the app's live CSS vars.
 function navigateToSourceLink(sourceLink: NonNullable<ReturnType<typeof matchJsonlSourceLink>>): void {
     const segments = parseRouteSegments();
     if (segments[0] !== "project") {
@@ -57,36 +52,27 @@ export function ensureProgressTerminal(): void {
         disableStdin: true,
         convertEol: true,
         scrollback: 10000,
-        // Right-click selects the word under the cursor; xterm then mirrors the selection into
-        // its hidden textarea, so the browser's NATIVE context menu (Copy etc.) works on it.
+        // Right-click selects the word under the cursor; xterm then mirrors the selection into its hidden textarea, so the browser's NATIVE context menu (Copy etc.) works on it.
         rightClickSelectsWord: true,
         theme: {
             background: rootStyles.getPropertyValue("--code-bg").trim(),
             foreground: rootStyles.getPropertyValue("--muted").trim(),
-            // xterm's DEFAULT selection overlay is translucent white — invisible on the light
-            // palette's white --code-bg, so selecting "didn't work" visually. Accent at ~35%
-            // alpha (hex AA suffix) is visible on both palettes.
+            // xterm's DEFAULT selection overlay is translucent white — invisible on the light palette's white --code-bg, so selecting "didn't work" visually. Accent at ~35% alpha (hex AA suffix) is visible on both palettes.
             selectionBackground: rootStyles.getPropertyValue("--accent").trim() + "59",
         },
     });
-    // Debug handle: lets devtools (and headless tests) drive the selection API directly,
-    // e.g. progressTerminal.select(0, 0, 20) — this app is itself a debugging surface.
+    // Debug handle: lets devtools (and headless tests) drive the selection API directly, e.g. progressTerminal.select(0, 0, 20) — this app is itself a debugging surface.
     window.progressTerminal = progressTerminal;
     progressFitAddon = new FitAddon.FitAddon();
     progressTerminal.loadAddon(progressFitAddon);
-    // Copy-on-select, like a real terminal: xterm draws its own selection layer instead of the
-    // browser's, so mirror every selection straight to the clipboard via the selection API
-    // (getSelection/onSelectionChange — xtermjs.org/docs/api/terminal/classes/terminal/#select).
+    // Copy-on-select, like a real terminal: xterm draws its own selection layer instead of the browser's, so mirror every selection straight to the clipboard via the selection API (getSelection/onSelectionChange — xtermjs.org/docs/api/terminal/classes/terminal/#select).
     // ponytail: clipboard failure is silently ignored — a copy convenience, not a data path.
     progressTerminal.onSelectionChange(() => {
         const selection = progressTerminal!.getSelection();
         if (selection) navigator.clipboard.writeText(selection).catch(() => {});
     });
     progressTerminal.open(document.getElementById("progress-console")!);
-    // Progress labels ending in "[<file>.jsonl:<line>]" become clickable links to the timeline,
-    // anchored at that raw line. The project comes from the current hash: the console outlives
-    // route changes, so a stale line clicked from a different project routes into the CURRENT
-    // project and fails into the existing error box.
+    // Progress labels ending in "[<file>.jsonl:<line>]" become clickable links to the timeline, anchored at that raw line. The project comes from the current hash: the console outlives route changes, so a stale line clicked from a different project routes into the CURRENT project and fails into the existing error box.
     // ponytail: not worth guarding — xterm draws hover underline + pointer itself.
     progressTerminal.registerLinkProvider({
         provideLinks(bufferLineNumber, callback) {
@@ -96,10 +82,7 @@ export function ensureProgressTerminal(): void {
     document.getElementById("progress-copy")!.onclick = copyConsoleText;
     fitProgressColumns();
     window.addEventListener("resize", fitProgressColumns);
-    // The window-resize listener misses width changes with no resize event — chiefly
-    // dragging the sidebar↔rightcol splitter (#split-lr), which narrows the console.
-    // A ResizeObserver on the console element re-fits `cols` on ANY box change, so
-    // xterm always wraps at the visible width instead of overflowing (clipped) it (item 80).
+    // The window-resize listener misses width changes with no resize event — chiefly dragging the sidebar↔rightcol splitter (#split-lr), which narrows the console.  A ResizeObserver on the console element re-fits `cols` on ANY box change, so xterm always wraps at the visible width instead of overflowing (clipped) it (item 80).
     const consoleResizeObserver = new ResizeObserver(() => fitProgressColumns());
     consoleResizeObserver.observe(document.getElementById("progress-console")!);
 }
@@ -122,10 +105,7 @@ function copyConsoleText(): void {
     }).catch(() => {});
 }
 
-// Fit BOTH cols and rows to the console box. Forcing CONSOLE_ROWS (15) rows made xterm render
-// one more row than the fixed-height box (styles.css #console-row: 255px minus header + padding)
-// could show, so `overflow: hidden` clipped the last line below the fold and scrollToBottom
-// couldn't rescue it (item 81). proposeDimensions() reports the rows that actually fit — use them.
+// Fit BOTH cols and rows to the console box. Forcing CONSOLE_ROWS (15) rows made xterm render one more row than the fixed-height box (styles.css #console-row: 255px minus header + padding) could show, so `overflow: hidden` clipped the last line below the fold and scrollToBottom couldn't rescue it (item 81). proposeDimensions() reports the rows that actually fit — use them.
 function fitProgressColumns(): void {
     const dimensions = progressFitAddon?.proposeDimensions();
     // if (dimensions?.cols) progressTerminal!.resize(dimensions.cols, CONSOLE_ROWS);
@@ -166,10 +146,7 @@ function formatConsoleTime(): string {
     return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
 }
 
-// The console line with its "[<jsonl>:<line>]" source token tinted cyan, so the clickable jump
-// stands out from the timestamp and the action description. ANSI colors become xterm cell
-// attributes, not buffer text, so matchJsonlSourceLink and the link provider still see the
-// plain token.
+// The console line with its "[<jsonl>:<line>]" source token tinted cyan, so the clickable jump stands out from the timestamp and the action description. ANSI colors become xterm cell attributes, not buffer text, so matchJsonlSourceLink and the link provider still see the plain token.
 function tintSourceToken(text: string): string {
     const link = matchJsonlSourceLink(text);
     if (link === undefined) {
@@ -186,9 +163,7 @@ export function logProgress(text: string): void {
     progressTerminal!.writeln(`${formatConsoleTime()} ${tintSourceToken(text)}`, () => progressTerminal!.scrollToBottom());
 }
 
-// The "[<file>.jsonl:<line>]" source token of a console line (formatRunSource emits at most one
-// per label), or undefined when the line has none. Labels carry 1-based transcript line numbers;
-// rawLineIndex converts to the 0-based index used by /at/ anchors and rawLines arrays.
+// The "[<file>.jsonl:<line>]" source token of a console line (formatRunSource emits at most one per label), or undefined when the line has none. Labels carry 1-based transcript line numbers; rawLineIndex converts to the 0-based index used by /at/ anchors and rawLines arrays.
 export function matchJsonlSourceLink(lineText: string): { jsonlFileName: string; rawLineIndex: number; tokenStartIndex: number; tokenText: string } | undefined {
     const match = /\[([\w.-]+\.jsonl):(\d+)\]/.exec(lineText);
     if (match === null) {

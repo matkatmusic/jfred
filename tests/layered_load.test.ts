@@ -1,5 +1,4 @@
-// Task 196 (spec S1): loadLayeredProject's source discovery (explicit paths win) and per-file
-// entities. Fixtures are wire records loaded through loadTranscript, never hand-cast objects.
+// Task 196 (spec S1): source discovery and per-file entities. Fixtures are wire records loaded via loadTranscript, never hand-cast objects.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -32,8 +31,7 @@ type LayeredFixture = {
     sessionARecords: import("../src/structures/envelope.ts").TranscriptRecord[];
 };
 
-// Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py;
-// session B (b.jsonl) writes beta.py.
+// Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py; session B (b.jsonl) writes beta.py.
 function makeLayeredFixture(): LayeredFixture {
     const tree = makeSourceTree("-layered-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
@@ -101,8 +99,7 @@ test("test_resolveEvidenceRoots_explicit_paths_win", () => {
 });
 
 test("test_resolveEvidenceRoots_discovers_from_records_without_overrides", () => {
-    // Without overrides the repo root falls back to the records' first cwd and the snapshot root to
-    // the transcript's sibling file-history directory.
+    // Without overrides, repo root falls back to records' first cwd; snapshot root falls back to the sibling file-history dir.
     const fixture = makeLayeredFixture();
     const roots = resolveEvidenceRoots(fixture.sessionARecords, {});
     assert.equal(roots.repoPath?.toString(), fixture.workspaceRoot);

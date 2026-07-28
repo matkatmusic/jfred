@@ -1,6 +1,4 @@
-// The viewer's projects-folder surface: scan the folder into listings, hold the runtime-
-// switchable projects/file-history roots, and resolve request names at the trust boundary
-// (project files, static assets, file-history blobs). The HTTP wiring lives in viewer_server.ts.
+// Projects-folder scanning, runtime root switching, and trust-boundary name resolution.
 
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
@@ -28,13 +26,10 @@ export type ProjectListing = {
     jsonlFiles: JsonlFileEntry[];
 };
 
-// The synthetic project holding .jsonl files that sit directly in the scanned folder (an
-// alternate folder that isn't .claude/projects-shaped), so any folder of JSONLs is loadable.
+// Synthetic project for loose .jsonl files sitting directly in the scanned folder.
 export const ROOT_PROJECT_NAME = "(root)";
 
-// The app's runtime-switchable scan root (POST /api/config swaps it). There is NO default:
-// the server refuses to start without --projects-dir, so reading it while unset is a bug.
-// item 46: let activeProjectsDir = new Path(join(homedir(), ".claude", "projects"));
+// The app's runtime-switchable scan root (POST /api/config swaps it). There is NO default: the server refuses to start without --projects-dir, so reading it while unset is a bug.  item 46: let activeProjectsDir = new Path(join(homedir(), ".claude", "projects"));
 let activeProjectsDir: Path | undefined;
 
 export function getProjectsDir(): Path {
@@ -44,27 +39,21 @@ export function getProjectsDir(): Path {
     return activeProjectsDir;
 }
 
-// Switch the active scan root. Validation is existence-only, by design: this is a typed/pasted
-// path in a localhost app on the user's own machine — the trust boundary is existence, not
-// authorization. Throws (server maps to 400) and leaves the active dir unchanged on a bad path.
+// Existence-only validation; localhost trust boundary needs no authorization check.
 export function setProjectsDir(requested: string): Path {
     if (!statSync(requested, { throwIfNoEntry: false })?.isDirectory()) {
         throw new Error(`not a directory: ${requested}`);
     }
     activeProjectsDir = new Path(resolve(requested));
-    // item 46: a folder switch re-derives the file-history root — exactly the webapp's
-    // prepopulate behavior (the response echoes the newly effective dir into the field).
+    // item 46: folder switch re-derives the file-history root (webapp prepopulate behavior).
     activeFileHistoryDir = undefined;
     return activeProjectsDir;
 }
 
-// item 46: the folder-level file-history override (POST /api/config / --file-history-dir).
-// undefined = derive from the projects folder.
+// item 46: the folder-level file-history override (POST /api/config / --file-history-dir).  undefined = derive from the projects folder.
 let activeFileHistoryDir: Path | undefined;
 
-// Switch the file-history root. The empty string clears the override so derivation follows
-// the projects folder again; a non-directory throws (server maps to 400) and leaves the
-// override unchanged. Returns the new EFFECTIVE dir (what the webapp shows in its field).
+// Empty string clears override; non-directory throws (400). Returns effective dir.
 export function setFileHistoryDir(requested: string): Path {
     if (requested === "") {
         activeFileHistoryDir = undefined;
@@ -77,39 +66,30 @@ export function setFileHistoryDir(requested: string): Path {
     return activeFileHistoryDir;
 }
 
-// The file-history root the viewer serves and shows: explicit override → the file-history/
-// sibling of the projects folder → the ~/.claude default (item 46's resolution chain).
+// Resolution chain: explicit override, then sibling dir, then ~/.claude default.
 export function getEffectiveFileHistoryDir(): Path {
     return activeFileHistoryDir
         ?? (activeProjectsDir === undefined ? undefined : deriveSiblingFileHistoryRoot(activeProjectsDir))
         ?? getDefaultFileHistoryRoot();
 }
 
-// task 137: per-project overrides applied for this server session only (the "apply without
-// storing" path). Setting an entry REPLACES the project's previous session entry — the client
-// posts the full field set each time, and {} clears it.
+// task 137: session-only overrides; client posts full field set each time, {} clears.
 const sessionProjectPaths = new Map<string, WireProjectPaths>();
 
 export function setSessionProjectPaths(projectName: string, entry: WireProjectPaths): void {
     sessionProjectPaths.set(projectName, entry);
 }
 
-// The project's effective wire entry: the stored reveng-paths.json entry with the session
-// entry's fields merged over it (a session field wins over the same stored field).
+// Stored reveng-paths.json entry with session overrides merged on top.
 export function getMergedProjectPaths(projectName: string): WireProjectPaths {
     return { ...readProjectPathsConfig(getProjectsDir())[projectName], ...sessionProjectPaths.get(projectName) };
 }
 
-// item 46: set the engine's path overrides for this request — the project's merged entry
-// (stored config + task-137 session overrides) plus the viewer's effective file-history dir
-// when the entry sets none. Every project-scoped route calls this BEFORE any build work;
-// overrides are process-wide module state, so each request overwrites the previous request's
-// (builds are synchronous and the server serializes them).
+// item 46: set the engine's path overrides for this request — the project's merged entry (stored config + task-137 session overrides) plus the viewer's effective file-history dir when the entry sets none. Every project-scoped route calls this BEFORE any build work; overrides are process-wide module state, so each request overwrites the previous request's (builds are synchronous and the server serializes them).
 export function applyProjectOverrides(projectName: string): void {
     const wireEntry = getMergedProjectPaths(projectName);
     const overrides = hydrateProjectPaths(wireEntry);
-    // Spec S6: a declared source list rides the overrides so the build layer merges the
-    // multi-source record stream (viewer_api.ts) with per-source blob resolution.
+    // Spec S6: multi-source record stream needs per-source blob resolution.
     if (wireEntry.sources !== undefined) {
         overrides.sources = hydrateProjectSources(getProjectsDir(), wireEntry);
     }
@@ -138,8 +118,7 @@ function computeLatestActivity(listing: ProjectListing): number {
     return listing.jsonlFiles[0]!.modifiedAt.getTime();
 }
 
-// Scan a projects folder (each subdirectory = one project; loose .jsonl files = the synthetic
-// "(root)" project) into listings sorted by most recent activity.
+// Subdirectories become projects; loose .jsonl files become the "(root)" project.
 export function scanProjects(projectsDir: Path): ProjectListing[] {
     const root = projectsDir.toString();
     const listings: ProjectListing[] = [];
@@ -155,12 +134,9 @@ export function scanProjects(projectsDir: Path): ProjectListing[] {
     return listings;
 }
 
-// resolveJsonlPaths (and its multi-source union) lives in viewer_api_sources.ts (task 177:
-// this file and viewer_server_routes.ts are both at the 250-line cap).
+// resolveJsonlPaths lives in viewer_api_sources.ts (task 177: 250-line cap split).
 
-// Map a static-request URL path to its webapp-relative file name: `/` is the app's main page
-// (the layered index.html — task 205), `/webapp_old.html` is the preserved pre-redesign page,
-// and `/app/*` prefixes strip to plain asset names.
+// `/` maps to index.html; `/app/*` prefixes strip to plain asset names.
 export function computeStaticFileRelative(urlPath: string): string {
     if (urlPath === "/") {
         return "index.html";
@@ -168,9 +144,7 @@ export function computeStaticFileRelative(urlPath: string): string {
     return urlPath.replace(/^\/app\//, "").replace(/^\//, "");
 }
 
-// The on-disk file for a static request: the compiled webapp/dist copy when the build emitted
-// one (transpiled .js), else the webapp/ source (index.html, styles.css, vendor/*.js). The
-// server realpath+prefix-checks the result before reading it.
+// Prefer compiled webapp/dist copy; fall back to webapp/ source.
 export function resolveStaticFilePath(relative: string, distDir: string, webappDir: string): string {
     const compiledCandidate = resolve(distDir, relative);
     if (existsSync(compiledCandidate)) {
@@ -179,10 +153,7 @@ export function resolveStaticFilePath(relative: string, distDir: string, webappD
     return resolve(webappDir, relative);
 }
 
-// Trust boundary for the HTTP layer: `project` and `jsonl` arrive as NAMES, never paths.
-// Resolve them against the projects dir and verify the resolved REAL path is still under it;
-// anything escaping (traversal, absolute names, symlink tricks) is a loud error the server maps
-// to 400. A nonexistent file throws here too (realpath), which is equally a refusal.
+// Trust boundary for the HTTP layer: `project` and `jsonl` arrive as NAMES, never paths.  Resolve them against the projects dir and verify the resolved REAL path is still under it; anything escaping (traversal, absolute names, symlink tricks) is a loud error the server maps to 400. A nonexistent file throws here too (realpath), which is equally a refusal.
 export function resolveProjectFile(projectsDir: Path, projectName: string, fileName: string): Path {
     const base = realpathSync(projectsDir.toString());
     const projectDir = projectName === ROOT_PROJECT_NAME ? base : resolve(base, projectName);
@@ -193,16 +164,11 @@ export function resolveProjectFile(projectsDir: Path, projectName: string, fileN
     return new Path(resolved);
 }
 
-// The exact shapes a blob-snapshot read accepts — both values reach a filesystem join, so this
-// is a trust boundary: a blob name is `<16 hex>@vN` and a session id is hex-and-dashes only.
-// Neither pattern admits `/`, `\`, or `.`, so traversal is impossible.
+// Trust boundary: patterns exclude `/`, `\`, `.` so traversal is impossible.
 const BLOB_NAME_PATTERN = /^[0-9a-f]{16}@v\d+$/;
 const SESSION_ID_PATTERN = /^[0-9a-fA-F-]+$/;
 
-// One file-history blob for the inspector's snapshot drawer: whether
-// <file-history root>/<sessionId>/<blobName> exists, and its verbatim content when it does.
-// Owner-session dir ONLY — no cross-session fallback (owner-keyed reads are the multi-session
-// @vN collision fix; probing other sessions' dirs would reintroduce wrong-content risk).
+// Owner-session dir only; no cross-session fallback (avoids @vN collision wrong-content risk).
 export function readBlobSnapshot(sessionId: Uuid, blobName: Path): { exists: boolean; content: string | undefined } {
     if (!BLOB_NAME_PATTERN.test(blobName.toString())) {
         throw new Error(`not a backup blob name: ${blobName.toString()}`);

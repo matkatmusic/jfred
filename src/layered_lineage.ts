@@ -1,9 +1,4 @@
-// Task 203 (spec S6): typed lineage edges and DERIVED lineage. The engine already extracts
-// `mv` as an EventKind.rename and `cp` as an EventKind.copy (reconstruction_bash_events.ts,
-// reached through extractFileEvents) — those same events become the graph's RenameEdge /
-// CopyEdge here, each carrying the JsonlRef of the row that recorded it. Lineage is never
-// stored as a group (Q11): `lineageOf` walks the RenameEdges on demand, and a copy's genesis
-// bytes are derived from the source's merged timeline at the copy instant.
+// Task 203 (spec S6): rename/copy events become typed lineage edges; lineageOf walks on demand (Q11).
 
 import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
@@ -20,8 +15,7 @@ import type {
 // The two extracted events that connect two paths, so they become edges instead of nodes.
 export type LineageEvent = RenameEvent | CopyEvent;
 
-// One lineage event held with the JSONL line that recorded it — the loader collects these while
-// walking sessions, because the edges can only be built once every entity exists.
+// Pairs a lineage event with its JSONL source; edges are built after all entities exist.
 export interface LineageEvidence {
     event: LineageEvent;
     evidence: JsonlRef;
@@ -35,9 +29,7 @@ export function checkEventIsLineageEdge(event: FileEvent): event is LineageEvent
     return event.kind === EventKind.copy;
 }
 
-// The entity for a path, created empty when the path has no content evidence of its own: a
-// rename/copy endpoint still owns a history, and at layer 1 the edge may be all that is known
-// about it.
+// Returns or creates an empty entity so rename/copy endpoints exist even without content evidence.
 function findOrCreateEntity(
     entitiesByPath: Map<string, ReconstructionEntity>,
     path: Path,
@@ -51,8 +43,7 @@ function findOrCreateEntity(
     return created;
 }
 
-// The graph's typed edges, in evidence order. `entitiesByPath` gains an entity for any endpoint
-// it does not already hold, so the caller reads its entity set back out of the map.
+// Builds typed rename/copy edges in evidence order, creating missing endpoint entities in the map.
 export function buildLineageEdges(
     lineageEvidence: LineageEvidence[],
     entitiesByPath: Map<string, ReconstructionEntity>,
@@ -71,8 +62,7 @@ export function buildLineageEdges(
     return { renames, copies };
 }
 
-// The rename edges keyed by the path on one side, so a walk can step from an entity to its
-// next (or previous) name.
+// Indexes rename edges by one side's path for directional traversal.
 function indexRenamesByEntity(
     renames: RenameEdge[],
     side: (edge: RenameEdge) => ReconstructionEntity,
@@ -80,11 +70,7 @@ function indexRenamesByEntity(
     return new Map(renames.map((edge) => [side(edge).filename.toString(), edge]));
 }
 
-// Follow one direction of the rename graph from `start`, EXCLUDING `start` itself. Stops at a
-// name already in `seen` (which both directions of one lineage share): recorded evidence can
-// describe a cycle (`mv a b; mv b a`) and a name may appear once per history. The engine's
-// resolveFinalPath answers only "the last path", so it cannot give the ordered entity chain a
-// lineage is.
+// Walks rename edges in one direction from start, stopping at cycles tracked via shared `seen` set.
 function walkRenameEdges(
     start: ReconstructionEntity,
     edgesByEntity: Map<string, RenameEdge>,
@@ -106,9 +92,7 @@ function walkRenameEdges(
     return walked;
 }
 
-// One continuous history (spec S6): every entity this file was named, oldest name first,
-// derived by walking RenameEdges back to the origin and forward to the final name. A copy is
-// NOT a rename, so a forked entity's lineage stays its own.
+// Spec S6: returns the full rename chain oldest-first; copies are separate lineages.
 export function lineageOf(
     entity: ReconstructionEntity,
     renames: RenameEdge[],
@@ -129,11 +113,7 @@ export function lineageOf(
     return [...earlierNames.reverse(), entity, ...laterNames];
 }
 
-// bornCopy's first content: copiedFrom's reconstructed state at timestampOfCopy — the last
-// verified bytes at or before the copy across the source's MERGED timeline (spec S5's derived
-// view, so any session's evidence counts). Undefined when no verified state precedes the copy:
-// the genesis stays unknown rather than invented (Q8). Derived on demand, never stored on the
-// bornCopy timeline.
+// Derives copy genesis from source's merged timeline at copy instant; undefined if no prior state (Q8).
 export function findCopyBornContent(edge: CopyEdge): string | undefined {
     const observed = mergeSessionTimelines(edge.copiedFrom).nodes
         .map((merged) => merged.node)
@@ -141,3 +121,4 @@ export function findCopyBornContent(edge: CopyEdge): string | undefined {
         .filter((node) => node.instant.getTime() <= edge.timestampOfCopy.getTime());
     return observed.at(-1)?.content;
 }
+

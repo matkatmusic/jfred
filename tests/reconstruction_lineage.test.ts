@@ -59,8 +59,7 @@ test("test_content_path_of_copy_is_its_destination", () => {
     assert.ok(contentPathOf(copy).equals(new Path("/x/s3_copy.py")));
 });
 
-// A copy is absent from the rename chain, so both source and destination survive
-// as distinct final paths (the opposite of a rename, which collapses its source).
+// A copy is absent from the rename chain, so both source and destination survive as distinct final paths (the opposite of a rename, which collapses its source).
 test("test_distinct_final_paths_keeps_copy_source_and_destination", () => {
     // A source write and a copy of it into a new file.
     const write: WriteEvent = {

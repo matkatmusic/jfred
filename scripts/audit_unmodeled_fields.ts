@@ -1,12 +1,4 @@
-// Corpus auditor for the field-level fog-of-war gate: walk a Claude Code projects
-// directory, parse every line of every .jsonl (including subagents/ subdirectories the
-// viewer never lists), and report every record type outside RecordType and every
-// top-level key outside ALLOWED_TOP_LEVEL_KEYS — each with occurrence count, distinct
-// file count, and one file:line example. Zero findings = the gate models everything
-// the corpus carries; rerun after Claude Code updates as the drift check. Run:
-//   npx tsx scripts/audit_unmodeled_fields.ts <projectsDir>
-// Exit codes: 0 clean, 1 findings, 2 usage error.
-// Design: ~/.claude/plans/plan-for-item-4-velvety-scone.md (TASKS.md #4).
+// Drift check: reports JSONL record types and keys not yet modeled.
 
 import { readdirSync, readFileSync, lstatSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -17,9 +9,7 @@ import {
 } from "../src/parse/recordKeys.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
-// Records written by the jot-recovery reconstruction tooling (not Claude Code) carry
-// this version stamp and tool-invented fields (reconstructed, timestampEstimated);
-// the audit skips them so zero-findings stays a clean drift signal.
+// Audit skips synthetic records so they don't pollute drift results.
 export const SYNTHETIC_RECONSTRUCTED_VERSION = "0.0.0-reconstructed";
 
 // One aggregated finding: how often, in how many files, and where first seen.
@@ -64,8 +54,7 @@ function tallyFinding(
     existing.files.add(fileLabel);
 }
 
-// Audit one transcript's text into `findings`. Split from file walking so tests can
-// feed fixture lines directly.
+// Audit one transcript's text into `findings`. Split from file walking so tests can feed fixture lines directly.
 export function auditJsonlText(fileLabel: string, text: string, findings: AuditFindings): void {
     const lines = text.split("\n");
     for (const [index, line] of lines.entries()) {
@@ -96,8 +85,7 @@ export function auditJsonlText(fileLabel: string, text: string, findings: AuditF
     }
 }
 
-// Every .jsonl under `root`, recursively; symlinks are skipped (e.g. project folders
-// aliased into ~/.claude/projects).
+// Every .jsonl under `root`, recursively; symlinks are skipped (e.g. project folders aliased into ~/.claude/projects).
 function collectJsonlPaths(root: string): string[] {
     const collected: string[] = [];
     for (const entry of readdirSync(root, { withFileTypes: true })) {
@@ -155,4 +143,5 @@ function main(): void {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     main();
 }
+
 

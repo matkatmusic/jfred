@@ -1,6 +1,4 @@
-// Tests for src/viewer_api_projects.ts: project scanning, the runtime-switchable projects dir,
-// and the project-file resolver (a trust boundary). The blob-snapshot read tests live in
-// viewer-api-blob-snapshots.test.ts (split for the 250-line cap).
+// Tests for src/viewer_api_projects.ts: project scanning, the runtime-switchable projects dir, and the project-file resolver (a trust boundary). The blob-snapshot read tests live in viewer-api-blob-snapshots.test.ts (split for the 250-line cap).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -19,12 +17,10 @@ import { Path } from "../src/structures/domain.ts";
 // -------------------- 2.2 scanProjects --------------------
 
 test("test_scanProjects_lists_directories_with_jsonl_counts", () => {
-    // Scenario: a projects dir with two project dirs — one holding 2 JSONLs, one holding none —
-    // scans to two listings sorted by most recent activity, the empty one included with [].
+    // Scenario: a projects dir with two project dirs — one holding 2 JSONLs, one holding none — scans to two listings sorted by most recent activity, the empty one included with [].
     const projectsDir = mkdtempSync(join(tmpdir(), "reveng-scan-"));
     try {
-        // Steps:
-        // create project dir "alpha" with two .jsonl files at known mtimes.
+        // Steps: create project dir "alpha" with two .jsonl files at known mtimes.
         mkdirSync(join(projectsDir, "alpha"));
         writeFileSync(join(projectsDir, "alpha", "one.jsonl"), "{}\n");
         writeFileSync(join(projectsDir, "alpha", "two.jsonl"), "{}\n");
@@ -64,9 +60,7 @@ test("test_scanProjects_ignores_non_directories", () => {
 });
 
 test("test_scanProjects_treats_loose_jsonls_as_root_project", () => {
-    // Scenario: .jsonl files sitting directly in the scanned dir (a folder that is not
-    // .claude/projects-shaped) appear as one synthetic "(root)" project, so any folder of
-    // JSONLs is loadable.
+    // Scenario: .jsonl files sitting directly in the scanned dir (a folder that is not .claude/projects-shaped) appear as one synthetic "(root)" project, so any folder of JSONLs is loadable.
     const projectsDir = mkdtempSync(join(tmpdir(), "reveng-scan-"));
     try {
         // Steps: put one loose JSONL directly in the scanned dir, then scan.
@@ -84,15 +78,12 @@ test("test_scanProjects_treats_loose_jsonls_as_root_project", () => {
 // -------------------- 3.1 runtime-switchable projects dir --------------------
 
 test("test_getProjectsDir_throws_before_any_setProjectsDir", () => {
-    // Scenario: there is no default scan root — the server refuses to start without
-    // --projects-dir, so reading the dir while unset is a loud error.
-    // NOTE: module state — this must stay the FIRST test that touches the projects dir.
+    // Scenario: there is no default scan root — the server refuses to start without --projects-dir, so reading the dir while unset is a loud error.  NOTE: module state — this must stay the FIRST test that touches the projects dir.
     assert.throws(() => getProjectsDir(), /--projects-dir/);
 });
 
 test("test_setProjectsDir_rejects_missing_directory", () => {
-    // Scenario: pointing the app at a nonexistent path is a loud error (the server maps it
-    // to 400), and the active dir is left unchanged.
+    // Scenario: pointing the app at a nonexistent path is a loud error (the server maps it to 400), and the active dir is left unchanged.
     const knownDir = mkdtempSync(join(tmpdir(), "reveng-known-"));
     try {
         const before = setProjectsDir(knownDir);
@@ -136,8 +127,7 @@ test("test_resolveProjectFile_resolves_names_within_projects_dir", () => {
 });
 
 test("test_resolveProjectFile_rejects_traversal", () => {
-    // Scenario: `project` and `jsonl` are NAMES, not paths — an escape attempt in either
-    // position must be rejected, never resolved outside the projects dir.
+    // Scenario: `project` and `jsonl` are NAMES, not paths — an escape attempt in either position must be rejected, never resolved outside the projects dir.
     const projectsDir = mkdtempSync(join(tmpdir(), "reveng-resolve-"));
     try {
         mkdirSync(join(projectsDir, "alpha"));
@@ -152,8 +142,7 @@ test("test_resolveProjectFile_rejects_traversal", () => {
 });
 
 test("test_resolveProjectFile_resolves_root_project_files", () => {
-    // Scenario: the synthetic "(root)" project resolves its files directly against the
-    // projects dir itself.
+    // Scenario: the synthetic "(root)" project resolves its files directly against the projects dir itself.
     const projectsDir = mkdtempSync(join(tmpdir(), "reveng-resolve-"));
     try {
         writeFileSync(join(projectsDir, "loose.jsonl"), "{}\n");

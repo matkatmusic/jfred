@@ -1,10 +1,4 @@
-// Task 255: shift-clicking folders in the file tree (webapp/views/sidebar.ts) selects more than one
-// at a time, and the click reports the UNION of every selected folder's files so the timeline can
-// show all of them. The exclusive plain click of task 253 must survive alongside it.
-//
-// Rendered through renderFileNavInto with a spy rather than through the page: the behaviour under
-// test is the tree's own click contract, and booting the page would drag in a stubbed NDJSON stream
-// for no added coverage (the same reasoning as tests/layer1-folder-filter.test.ts).
+// Task 255: shift-click multi-selects folders in the file tree; click reports the union of their files.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -13,9 +7,7 @@ import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 // el() needs a document.
 setupLayer1Dom();
 
-// All four share `src/`, which buildFileTree strips, leaving `keep`, `drop` and `other` as sibling
-// folders and `deep` nested inside `keep` — so a multi-select has a nested subfolder to pull in, a
-// second folder to add, and a third it must not reach.
+// `keep`, `drop`, `other` are sibling folders; `deep` nests inside `keep` for multi-select coverage.
 const NAV_VIEW = {
     pairs: [
         { path: "src/keep/a.ts", commits: [] },
@@ -43,8 +35,7 @@ function findFolderSummary(container: HTMLElement, name: string): HTMLElement {
     return summary as HTMLElement;
 }
 
-// Off `window`, not the bare global: setupLayer1Dom publishes the happy-dom window and a hand-picked
-// set of its constructors onto globalThis, and MouseEvent is not among them.
+// Off `window`: setupLayer1Dom's hand-picked globalThis constructors don't include MouseEvent.
 function shiftClickFolder(container: HTMLElement, name: string): void {
     findFolderSummary(container, name).dispatchEvent(
         new window.MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: true }),
@@ -58,8 +49,7 @@ function listSelectedFolderNames(container: HTMLElement): string[] {
 }
 
 test("test_shift_clicking_a_second_folder_reports_the_union_of_both_folders_files", async () => {
-    // Scenario (task 255): shift-clicking adds a folder to the selection instead of replacing it,
-    // so the timeline shows the files of BOTH — nested subfolders included, siblings excluded.
+    // Scenario (task 255): shift-click adds a folder to the selection; union includes nested subfolders.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
@@ -67,8 +57,7 @@ test("test_shift_clicking_a_second_folder_reports_the_union_of_both_folders_file
 });
 
 test("test_shift_clicking_a_second_folder_leaves_both_rows_marked_selected", async () => {
-    // Scenario (task 255): the pane must SHOW both filters, otherwise the stage is filtered to two
-    // folders while the nav claims one.
+    // Scenario (task 255): the pane must show both filters, matching what the nav claims selected.
     const { container } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
@@ -76,8 +65,7 @@ test("test_shift_clicking_a_second_folder_leaves_both_rows_marked_selected", asy
 });
 
 test("test_shift_clicking_a_selected_folder_again_drops_only_that_folder", async () => {
-    // Scenario (task 255): shift-click toggles, so releasing one of two selected folders must leave
-    // the other one driving the filter rather than clearing everything.
+    // Scenario (task 255): shift-click toggles off one folder, leaving the other still driving the filter.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
@@ -87,8 +75,7 @@ test("test_shift_clicking_a_selected_folder_again_drops_only_that_folder", async
 });
 
 test("test_a_plain_click_after_a_multi_select_replaces_the_whole_selection", async () => {
-    // Scenario (task 255 guard): task 253's exclusive click must survive — a plain click on a third
-    // folder drops both selected ones rather than joining them.
+    // Scenario (task 255 guard): task 253's plain click must still replace, not join, the selection.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
@@ -98,8 +85,7 @@ test("test_a_plain_click_after_a_multi_select_replaces_the_whole_selection", asy
 });
 
 test("test_a_selected_parent_and_child_folder_report_each_file_once", async () => {
-    // Scenario (task 255): `deep` sits inside `keep`, so both selected at once overlap on d.ts. The
-    // union is de-duplicated — a repeated path would be filtered twice downstream.
+    // Scenario (task 255): `deep` sits inside `keep`, so selecting both must de-duplicate the overlapping file.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "deep");

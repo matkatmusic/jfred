@@ -1,7 +1,4 @@
-// Script-execution replay: the reconstruction stage. Validates script execution by running the
-// pre-script state through the actual script (in a temp dir) and comparing the result to the
-// expected post-execution state derived from the file-history beacon. The memoized sandbox-run
-// layer it builds on lives in reconstruction_script_runs.ts.
+// Script-execution replay: the reconstruction stage. Validates script execution by running the pre-script state through the actual script (in a temp dir) and comparing the result to the expected post-execution state derived from the file-history beacon. The memoized sandbox-run layer it builds on lives in reconstruction_script_runs.ts.
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -26,8 +23,7 @@ import { refForTarget, runForTarget } from "./reconstruction_script_probe.ts";
 import { beaconlessScriptExecutions } from "./reconstruction_script_beaconless.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_engine.ts";
 
-// Windowed forward test: whether `lines` reproduces every visible beacon line at its own (1-based)
-// line number. The beacon may be a WINDOW, so only its shown lines are checked.
+// Windowed forward test: whether `lines` reproduces every visible beacon line at its own (1-based) line number. The beacon may be a WINDOW, so only its shown lines are checked.
 function linesMatchBeacon(lines: string[], snippet: BeaconSnippet): boolean {
     for (const { lineNo, text } of snippet.lines) {
         if (lineNo - 1 >= lines.length || lines[lineNo - 1] !== text) return false;
@@ -51,8 +47,7 @@ function getImmediatePostExecutionState(beaconContent: string): string {
     return beaconContent;
 }
 
-// The synthetic script-execution event for a validated beacon: the beacon's identity with the
-// computed content and the run's timestamp.
+// The synthetic script-execution event for a validated beacon: the beacon's identity with the computed content and the run's timestamp.
 function createScriptExecutionEvent(
     beacon: UserEditEvent,
     resultContent: string,
@@ -67,9 +62,7 @@ function createScriptExecutionEvent(
     };
 }
 
-// The VALIDATE pipeline from Script-execution-algorithm.md (lines 33-47): for a user-edit beacon that
-// is the echo of a script run, execute the script against the pre-execution state and compare to the
-// expected post-execution state. On match, return a ScriptExecutionEvent carrying the computed content.
+// The VALIDATE pipeline from Script-execution-algorithm.md (lines 33-47): for a user-edit beacon that is the echo of a script run, execute the script against the pre-execution state and compare to the expected post-execution state. On match, return a ScriptExecutionEvent carrying the computed content.
 function scriptExecutionForBeacon(
     beacon: UserEditEvent,
     runs: ScriptRun[],
@@ -95,8 +88,7 @@ function scriptExecutionForBeacon(
     const preContent = preExecutionState.get(targetRef);
     if (resultContent === preContent) return undefined;
 
-    // VALIDATE: compare resultingState to expectedState
-    // Primary: full content match against beacon backup
+    // VALIDATE: compare resultingState to expectedState Primary: full content match against beacon backup
     const beaconContent = getPostExecutionBeacon(beacon.target, beacon.timestamp, records, reader);
     if (beaconContent !== undefined) {
         const expectedState = getImmediatePostExecutionState(beaconContent);
@@ -142,11 +134,7 @@ function rebuiltEvent(
     return replacement;
 }
 
-// Reconstruction stage: replace each user-edit beacon that is the validated echo of a script-execution
-// run with a synthetic ScriptExecutionEvent, OR inject a new event when the script modified a file
-// that has no beacon (multi-session transcripts where the baseline Write predates the script run).
-// Task 191: the stage announcement shows the replay-window count against the full pool
-// ("script stage: 2559 of 2871 runs for <file>") so a watcher can see the window's ceiling.
+// Reconstruction stage: replace each user-edit beacon that is the validated echo of a script-execution run with a synthetic ScriptExecutionEvent, OR inject a new event when the script modified a file that has no beacon (multi-session transcripts where the baseline Write predates the script run).  Task 191: the stage announcement shows the replay-window count against the full pool ("script stage: 2559 of 2871 runs for <file>") so a watcher can see the window's ceiling.
 export function formatScriptStageLabel(windowedCount: number, totalCount: number, target?: Path): string {
     const targetSuffix = target === undefined ? "" : ` for ${target}`;
     return `script stage: ${windowedCount} of ${totalCount} runs${targetSuffix}`;

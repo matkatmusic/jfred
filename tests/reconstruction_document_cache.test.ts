@@ -1,7 +1,4 @@
-// Item 79: the disk-backed builtDocumentCache round-trips a BuiltReconstruction through JSON while
-// rebuilding real Path/Uuid/Date domain objects. The gate is behavioral: a hydrated build must drive
-// step-file resolution byte-identically to a fresh build — a plain JSON.parse corrupts that path
-// (step.when would be a string and resolveFilesAtStep calls Date methods on it).
+// Item 79: builtDocumentCache round-trips a BuiltReconstruction through JSON, rebuilding real Path/Uuid/Date domain objects.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,8 +36,7 @@ test("test_hydrated_build_roundtrip_preserves_domain_object_types", () => {
 });
 
 test("test_hydrated_build_drives_identical_step_file_resolution", () => {
-    // Scenario: the hydrated histories resolve a step's files byte-identically to the fresh build.
-    //           This is the real regression gate — a plain JSON.parse corrupts this path.
+    // The hydrated histories resolve a step's files byte-identically to the fresh build; a plain JSON.parse corrupts this path.
     const fresh = buildProjectReconstruction([new Path(S1_JSONL)], undefined);
     const freshFiles = filesAtLastStep(fresh);
     const hydrated = hydrateBuild(serializeBuild(fresh))!;
@@ -66,9 +62,7 @@ test("test_disk_cache_read_is_a_miss_when_persistence_is_unconfigured", () => {
 });
 
 test("test_disk_cache_is_capped_at_capacity", () => {
-    // Scenario: writing more distinct keys than the capacity leaves exactly the capacity of files on
-    //           disk — eviction fires. (Asserts the COUNT, not which file: rapid same-content writes
-    //           can tie on mtime, so which one is evicted is not a stable contract.)
+    // Writing more keys than capacity leaves exactly capacity files on disk; asserts the COUNT since mtime-tie eviction order isn't stable.
     const directory = mkdtempSync(join(tmpdir(), "doccache-evict-"));
     configureDocumentCachePersistence(new Path(directory));
     const built = buildProjectReconstruction([new Path(S1_JSONL)], undefined);

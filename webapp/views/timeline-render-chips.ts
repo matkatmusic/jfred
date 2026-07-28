@@ -1,5 +1,4 @@
-// Timeline file chips: the letter+color chip, the active-chip highlight, and the per-file button
-// row on an expanded agent turn.
+// Timeline file chips: the letter+color chip, the active-chip highlight, and the per-file button row on an expanded agent turn.
 
 import { el } from "../app-dom.ts";
 import { RevisionViewMode } from "./details-model.ts";
@@ -66,8 +65,7 @@ export function markChipActive(context: TimelineRenderContext, chipElement: HTML
 
 function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
     event.stopPropagation();
-    // The turn fallback stays HERE rather than in the Revision View: it needs `node`, which the
-    // Revision View has no notion of.
+    // The turn fallback stays here since it needs `node`, which the Revision View has no notion of.
     if (causingLocation === undefined) {
         openTurnInspector(context, node, previewPane);
         return;
@@ -105,8 +103,7 @@ function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRende
     }));
 }
 
-// One file's button row: [ name ] [{ }] [+/-] [📷] <TS> L:n. Every button is a deep-link into the
-// Revision View, differing only in the right-column mode it asks for.
+// One file's button row: each button deep-links into the Revision View, differing only in the mode requested.
 export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNode | CommitNode, nodeIndex: number, change: FileChange, previewPane: HTMLElement): HTMLElement {
     const causingLocation = context.chipLineLocations.get(`${nodeIndex}:${change.path}`);
     const buttons = [renderFileChip(change, (event: Event) => {
@@ -120,11 +117,9 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
         renderDetailsFileMode(change.path, context.detailsContext, { changeId: change.changeId, mode: RevisionViewMode.content });
     })];
     if (change.changeId !== undefined) {
-        // Narrowed once: TypeScript does not carry a property narrowing into the callbacks
-        // below, and the project's style bans the non-null assertion that would paper over it.
+        // Narrowed once: TypeScript won't carry this narrowing into callbacks below, and non-null assertions are banned here.
         const changeId = change.changeId;
-        // A synthetic `gitbase:` changeId resolves no causing line, so the { } chip would only
-        // show "no transcript line for this step".
+        // A synthetic `gitbase:` changeId has no causing line, so the { } chip shows nothing useful.
         if (causingLocation !== undefined) {
             appendCausingRecordChipButton(buttons, context, node, previewPane, causingLocation, change, changeId);
         }
@@ -134,8 +129,7 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
             text: "+/-",
             onclick: (event: Event) => showRevisionDiffForChip(event, context, change, changeId),
         }));
-        // Computed as a PRESENCE TEST, not to navigate: undefined means this revision has no File
-        // History Snapshot, and the button's absence is how the row says so (user-decided).
+        // Computed as a presence test: undefined means no File History Snapshot, so the button's absence signals that (user-decided).
         const jumpRoute = computeSnapshotJumpRoute(context.project, context.reconstructionDocument.filesTouched, change);
         if (jumpRoute !== undefined) {
             appendSnapshotJumpButton(buttons, context, change, changeId);

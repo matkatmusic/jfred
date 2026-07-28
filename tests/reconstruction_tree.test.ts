@@ -131,8 +131,7 @@ test("test_findPromptForkPoints_returns_the_single_S13_fork_b55cd7c5", () => {
     assert.deepEqual(shortForkIds(findPromptForkPoints(records)), ["b55cd7c5"]);
 });
 
-// The descendant walk must follow children of EVERY type, or an assistant continuation sitting past
-// an attachment is never reached.
+// The descendant walk must follow every child type, or a continuation past an attachment is missed.
 test("test_collectDescendantUuids_walks_through_attachment_intermediaries", () => {
     const prompt = buildUserTextRecord("p1", "fork", "Edit …", "2026-01-01T00:00:10Z");
     const attachment = buildAttachmentRecord("att1", "p1", "2026-01-01T00:00:11Z");
@@ -141,8 +140,7 @@ test("test_collectDescendantUuids_walks_through_attachment_intermediaries", () =
     assert.equal(descendants.has("as1"), true);
 });
 
-// The tip is the deepest user/assistant turn (assistant 1623ed02), NOT a later trailing `system`
-// bookkeeping record (15a21160); the walk starts at abandoned prompt 7ceda07f.
+// The tip is the deepest user/assistant turn, not a trailing system bookkeeping record; the walk starts at an abandoned prompt.
 test("test_findDeepestPromptOrReply_returns_the_last_assistant_not_a_trailing_system_record", () => {
     const records = loadRecords(S13_JSONL);
     const abandonedPrompt = records.find(

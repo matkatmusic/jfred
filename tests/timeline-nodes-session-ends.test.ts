@@ -17,10 +17,7 @@ import {
 } from "./timeline-test-helpers.ts";
 
 test("test_trailing_snapshots_get_a_synthetic_agent_turn", () => {
-    // Scenario: a snapshot with no later agent reply in its session must never be dropped — it
-    // attaches to a synthetic empty-text agent turn placed before the session-end node.
-    // Steps:
-    // build a minimal document: one user prompt, TWO snapshots AFTER it, no assistant message.
+    // Scenario: a snapshot with no later agent reply in its session must never be dropped — it attaches to a synthetic empty-text agent turn placed before the session-end node.  Steps: build a minimal document: one user prompt, TWO snapshots AFTER it, no assistant message.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -64,11 +61,7 @@ test("test_trailing_snapshots_get_a_synthetic_agent_turn", () => {
 });
 
 test("test_command_message_turns_are_marked_system", () => {
-    // Scenario: harness-generated turns (command-message prompts like /ponytail, system
-    // reminders) are SYSTEM messages — the timeline renders them dimmer than genuine user
-    // prompts and agent replies, so the view-model must flag them.
-    // Steps:
-    // build a minimal document: a /command prompt, a genuine prompt, and an agent reply.
+    // Scenario: harness-generated turns (command-message prompts like /ponytail, system reminders) are SYSTEM messages — the timeline renders them dimmer than genuine user prompts and agent replies, so the view-model must flag them.  Steps: build a minimal document: a /command prompt, a genuine prompt, and an agent reply.
     const document = {
         messages: [{
             uuid: "command-1",
@@ -104,10 +97,7 @@ test("test_command_message_turns_are_marked_system", () => {
 });
 
 test("test_unattributed_snapshots_get_no_session_end_node", () => {
-    // Scenario: snapshots with NO sessionId (e.g. unattributed script executions) still surface
-    // on a synthetic agent turn, but they are not a session — no "end of session undefined" step.
-    // Steps:
-    // build a minimal document: one prompt in session-a, one unattributed snapshot after it.
+    // Scenario: snapshots with NO sessionId (e.g. unattributed script executions) still surface on a synthetic agent turn, but they are not a session — no "end of session undefined" step.  Steps: build a minimal document: one prompt in session-a, one unattributed snapshot after it.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -139,11 +129,7 @@ test("test_unattributed_snapshots_get_no_session_end_node", () => {
 });
 
 test("test_session_end_node_closes_every_session", () => {
-    // Scenario: every session ends with exactly one session-end step, positioned after every
-    // conversation turn of that session and timestamped at the session's last turn. Unattributed
-    // turns (no sessionId) are not a session and get none.
-    // Steps:
-    // build s84's turn timeline.
+    // Scenario: every session ends with exactly one session-end step, positioned after every conversation turn of that session and timestamped at the session's last turn. Unattributed turns (no sessionId) are not a session and get none.  Steps: build s84's turn timeline.
     const { nodes } = buildTurnTimelineViewModel(s84Document);
     const turnKinds = new Set([USER_TURN_NODE_KIND, AGENT_TURN_NODE_KIND]);
     const sessionIds = new Set(
@@ -198,11 +184,7 @@ test("test_session_end_node_closes_every_session", () => {
 // });
 
 test("test_abandoned_branch_rows_dim_as_one_block", () => {
-    // Scenario: EVERY row of a rewound (abandoned) conversation branch dims — the user prompt
-    // that started it, the tool rows that ran on it, and the agent replies — as one contiguous
-    // lane-2 block, driven by the engine's per-record isOrphaned stamp on the wire.
-    // Steps:
-    // build s45's turn timeline (s45 has a genuinely rewound exchange).
+    // Scenario: EVERY row of a rewound (abandoned) conversation branch dims — the user prompt that started it, the tool rows that ran on it, and the agent replies — as one contiguous lane-2 block, driven by the engine's per-record isOrphaned stamp on the wire.  Steps: build s45's turn timeline (s45 has a genuinely rewound exchange).
     const { nodes } = buildTurnTimelineViewModel(s45Document);
     // the orphaned rows span all three dimmable kinds — not just file-mutating agent turns.
     const orphanedKinds = new Set(

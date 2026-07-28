@@ -1,8 +1,6 @@
 // Task 292: where a session's band lands on the S18 axis.
 //
-// The interpolation is the only real risk here. The ruler is CAPPED and FLOORED, so time and pixels
-// are not proportional — an instant halfway between two ticks in TIME is halfway between them in
-// PIXELS, and computing it from the instant alone would put it somewhere else entirely.
+// The interpolation is the only real risk here. The ruler is CAPPED and FLOORED, so time and pixels are not proportional — an instant halfway between two ticks in TIME is halfway between them in PIXELS, and computing it from the instant alone would put it somewhere else entirely.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,8 +8,7 @@ import { renderSessionRanges, resolveAxisPixelsAt } from "../webapp/layer1-range
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick, WireSession } from "../webapp/layer1-wire.ts";
 
-// Two ticks one hour apart in TIME and 100 px apart on the AXIS — a gap the cap has squashed, which
-// is exactly the case a time-proportional reading would get wrong.
+// Two ticks one hour apart in TIME and 100 px apart on the AXIS — a gap the cap has squashed, which is exactly the case a time-proportional reading would get wrong.
 const FIRST_TICK_INSTANT = "2026-06-01T10:00:00Z";
 const LAST_TICK_INSTANT = "2026-06-01T11:00:00Z";
 const TICKS: WireRulerTick[] = [

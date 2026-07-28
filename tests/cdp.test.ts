@@ -1,5 +1,4 @@
-// The driver's two pieces that do not need a browser: the free-port probe and the poll loop every
-// state's wait is built on. Chrome itself is exercised by the loop, not by a unit test.
+// The driver's two pieces that do not need a browser: the free-port probe and the poll loop every state's wait is built on. Chrome itself is exercised by the loop, not by a unit test.
 
 import assert from "node:assert/strict";
 import { createServer } from "node:net";

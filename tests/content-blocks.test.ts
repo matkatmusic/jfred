@@ -25,10 +25,7 @@ function findWriteToolUseBlockInLine(line: string): ToolUseBlock | undefined {
 }
 
 test("test_assistant_record_exposes_write_tool_use_block", () => {
-    // Scenario: the assistant turn that creates the file exposes a typed
-    // `tool_use` block for the Write tool.
-    // Steps:
-    // scan every assistant record's content blocks for a Write tool_use.
+    // Scenario: the assistant turn that creates the file exposes a typed `tool_use` block for the Write tool.  Steps: scan every assistant record's content blocks for a Write tool_use.
     let writeBlock: ToolUseBlock | undefined;
     for (const line of readNonEmptyLines(S1_JSONL)) {
         writeBlock = writeBlock ?? findWriteToolUseBlockInLine(line);
@@ -45,10 +42,7 @@ test("test_assistant_record_exposes_write_tool_use_block", () => {
 });
 
 test("test_getContentBlocks_throws_on_unknown_block_type", () => {
-    // Scenario: a content block whose `type` is outside the s1 vocabulary is
-    // rejected loudly (fog-of-war guard at the block level).
-    // Steps:
-    // build a fake assistant record carrying an unmodeled block type.
+    // Scenario: a content block whose `type` is outside the s1 vocabulary is rejected loudly (fog-of-war guard at the block level).  Steps: build a fake assistant record carrying an unmodeled block type.
     const line = JSON.stringify({
         type: "assistant",
         message: { content: [{ type: "mystery-block", source: {} }] },
@@ -69,10 +63,7 @@ function buildBase64ImageBlock() {
 }
 
 test("test_getContentBlocks_accepts_image_block", () => {
-    // Scenario: a real transcript user turn carrying a pasted image parses
-    // without throwing, and the block comes back typed BlockType.image.
-    // Steps:
-    // build a user record with an image block as observed on the wire.
+    // Scenario: a real transcript user turn carrying a pasted image parses without throwing, and the block comes back typed BlockType.image.  Steps: build a user record with an image block as observed on the wire.
     const line = JSON.stringify({
         type: "user",
         message: {

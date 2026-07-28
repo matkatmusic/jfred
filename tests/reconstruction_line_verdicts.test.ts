@@ -1,6 +1,4 @@
-// Unit tests for src/reconstruction_line_verdicts.ts (buildLineVerdicts moved to its own
-// canonical home when task 134 pushed reconstruction_json.ts past the 250-line cap). Same
-// fixture shape as tests/reconstruction_json.test.ts: loadRecords + S19_JSONL.
+// Unit tests for src/reconstruction_line_verdicts.ts (buildLineVerdicts moved to its own canonical home when task 134 pushed reconstruction_json.ts past the 250-line cap). Same fixture shape as tests/reconstruction_json.test.ts: loadRecords + S19_JSONL.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,9 +20,7 @@ test("test_buildLineVerdicts_one_entry_per_record_in_file_order", () => {
 });
 
 test("test_line_verdicts_carry_timestamp_and_session_id", () => {
-    // Behavior (task 134): each entry surfaces its record's hydrated envelope timestamp and
-    // sessionId (undefined when the record lacks them) — the timeline's raw-line rows need
-    // both to sort chronologically and tint their session lane.
+    // Behavior (task 134): each entry surfaces its record's hydrated envelope timestamp and sessionId (undefined when the record lacks them) — the timeline's raw-line rows need both to sort chronologically and tint their session lane.
     const verdicts = buildLineVerdicts(records);
     // Verify: pure surfacing — same Date / Uuid objects the record carries, index-aligned.
     verdicts.forEach((verdict, index) => {
@@ -36,12 +32,7 @@ test("test_line_verdicts_carry_timestamp_and_session_id", () => {
 });
 
 test("test_line_verdicts_carry_their_record_source", () => {
-    // Scenario (task 160): buildLineVerdicts stamps each verdict with the {filePath,
-    // lineNumber} source loadTranscript recorded for the record — the webapp's { } button
-    // opens uuid-less rows (summary lines) directly by file + line. loadRecords (parseRecord
-    // only) never stamps sources, so this test loads via loadTranscript.
-    // Steps:
-    // load the fixture through loadTranscript so every record gets a RecordSource.
+    // Scenario (task 160): buildLineVerdicts stamps each verdict with the {filePath, lineNumber} source loadTranscript recorded for the record — the webapp's { } button opens uuid-less rows (summary lines) directly by file + line. loadRecords (parseRecord only) never stamps sources, so this test loads via loadTranscript.  Steps: load the fixture through loadTranscript so every record gets a RecordSource.
     const loadedRecords = loadTranscript(S19_JSONL).records;
     const verdicts = buildLineVerdicts(loadedRecords);
     // every verdict carries a source naming the fixture file with a 1-based line number.
@@ -54,8 +45,7 @@ test("test_line_verdicts_carry_their_record_source", () => {
 });
 
 test("test_line_verdicts_without_loadTranscript_have_no_source", () => {
-    // Scenario (task 160): records parsed OUTSIDE loadTranscript (no WeakMap entry) yield
-    // verdicts with source undefined — the webapp's fall-back (uuid scan) path.
+    // Scenario (task 160): records parsed OUTSIDE loadTranscript (no WeakMap entry) yield verdicts with source undefined — the webapp's fall-back (uuid scan) path.
     const verdicts = buildLineVerdicts(records);
     assert.ok(verdicts.every((verdict) => verdict.source === undefined));
 });

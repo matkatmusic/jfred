@@ -1,6 +1,4 @@
-// task 193: bounded reconstruction — truncating the record stream at the end of the agent
-// turn containing the target file's nth revision. Fixtures are fabricated wire records
-// loaded through loadTranscript (multi-source-test-helpers), never hand-cast objects.
+// task 193: bounded reconstruction truncates the record stream at the end of the turn containing the file's nth revision.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,11 +20,7 @@ import {
 
 type BoundFixture = { records: TranscriptRecord[]; alphaPath: Path };
 
-// The three-turn fixture the bound tests share:
-//   prompt1 10:00 | write alpha 10:01 | edit alpha 10:02   <- turn 1 (alpha revisions 1+2)
-//   prompt2 10:05 | write beta 10:06  | edit alpha 10:07   <- turn 2 (alpha revision 3)
-//   prompt3 10:10                                          <- turn 3 (only when withFinalPrompt)
-// withSidechainPrompt inserts a subagent's opening prompt INSIDE turn 1 (10:01:30).
+// Shared three-turn fixture; withSidechainPrompt injects a subagent's opening prompt inside turn 1, to test it is not a boundary.
 function makeBoundFixture(options: { withFinalPrompt: boolean; withSidechainPrompt: boolean }): BoundFixture {
     const tree = makeSourceTree("-bound-project");
     const root = join(tree.treeRoot, "workspace");
@@ -79,8 +73,7 @@ test("test_bound_reports_total_revision_count", () => {
 });
 
 test("test_bound_truncates_after_containing_turn_end", () => {
-    // Scenario: the bound is the END of the containing turn, not the revision instant — the
-    // same-turn LATER revision (10:02) must stay in when revision 1 (10:01) is chosen.
+    // Scenario: the bound is the containing turn's end, not the revision instant; a same-turn later revision must stay in.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.records.length, 5);
@@ -89,10 +82,7 @@ test("test_bound_truncates_after_containing_turn_end", () => {
 });
 
 test("test_bound_instant_reports_turn_end_not_last_record", () => {
-    // Scenario (task 192, optimizations.md Phase 6): the reported boundInstant must be the
-    // ACTUAL turn-end boundary the wall-clock filter used, not the stamp of whatever record
-    // happened to be retained last — merged multi-JSONL streams are grouped by input file,
-    // not globally sorted, so the last array element's stamp can be an arbitrary instant.
+    // Task 192: boundInstant is the actual turn-end boundary used, not the last record's stamp; streams are grouped by file.
     const tree = makeSourceTree("-bound-instant");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
@@ -158,9 +148,7 @@ test("test_bound_rejects_unknown_target", () => {
     );
 });
 
-// Task 193 end-to-end: --until-revision bounds the WHOLE reconstruction at the end of the turn
-// containing the named file's first revision — a file written in a LATER turn never enters the
-// document, unlike --file which filters at render time after full reconstruction.
+// Task 193: --until-revision bounds the whole reconstruction at the turn end, unlike --file which filters after full reconstruction.
 test("test_cli_until_revision_bounds_all_views", () => {
     const tree = makeSourceTree("-cli-until-rev");
     const root = join(tree.treeRoot, "ws");
@@ -193,12 +181,10 @@ test("test_cli_until_revision_bounds_all_views", () => {
     setPathOverrides({});
 });
 
-// test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams: moved to
-// tests/reconstruction_bound_sessions.test.ts (task 192 — this file crossed the 250-line cap).
+// test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams: moved to tests/reconstruction_bound_sessions.test.ts (task 192 — this file crossed the 250-line cap).
 
 test("test_bound_ignores_sidechain_prompts", () => {
-    // Scenario: a subagent's opening prompt (isSidechain) inside turn 1 is NOT a turn boundary —
-    // the cut still lands before prompt2, keeping the sidechain prompt AND the same-turn edit.
+    // Scenario: a subagent's opening prompt inside turn 1 is not a turn boundary; the cut still lands before prompt2.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: true });
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.records.length, 6);

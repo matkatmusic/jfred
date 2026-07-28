@@ -1,6 +1,4 @@
-// Tests for the item-46 base-commit beacon stage: when the user configures repoDir +
-// baseCommit overrides, seedBaseCommitBeacon splices a tier-1 WriteEvent of the committed
-// bytes at the commit's committer timestamp; every absence degrades silently to a no-op.
+// Tests for seedBaseCommitBeacon: repoDir + baseCommit overrides splice a WriteEvent at commit time; missing overrides no-op.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
@@ -21,8 +19,7 @@ import {
     setPreBaselineReconstructionAllowed,
 } from "../src/reconstruction_base_commit.ts";
 
-// Overrides and the task-56 pre-baseline flag are process-wide module state — never let
-// one test's state leak into the next.
+// Overrides and the pre-baseline flag are process-wide state — never let one test leak into the next.
 afterEach(() => {
     setPathOverrides({});
     setPreBaselineReconstructionAllowed(true);
@@ -61,8 +58,7 @@ function buildWriteEvent(target: Path, content: string, timestamp: string, chang
 }
 
 test("test_compute_base_commit_change_id_is_deterministic", () => {
-    // The changeId is a pure function of (commit hash, target) so every replay of the same
-    // baseline agrees.
+    // The changeId is a pure function of (commit hash, target) so every replay of the same baseline agrees.
     const commit = new Uuid("abc123");
     const target = new Path("/tmp/project/orders.py");
     assert.ok(computeBaseCommitChangeId(commit, target).equals(computeBaseCommitChangeId(commit, target)));
@@ -105,8 +101,7 @@ test("test_seed_base_commit_beacon_splices_committed_content_at_commit_timestamp
 });
 
 test("test_seed_base_commit_beacon_inserts_mid_stream_by_timestamp", () => {
-    // A mid-session baseline must supersede only what came before it, so the beacon lands
-    // between the bracketing events.
+    // A mid-session baseline must supersede only what came before it, so the beacon lands between the bracketing events.
     const commitInstant = "2026-01-01T00:00:10Z";
     const { repoDir, commitHash } = makeCommittedRepo({ "orders.py": "committed\n" }, commitInstant);
     try {

@@ -1,6 +1,4 @@
-// Task 186 (spec S11): the per-file sweep's pure half — candidate selection out of git's
-// name-status output, the endpoint/gap verdict (endpoint matches are necessary but NOT
-// sufficient), and a markdown table no note can break.
+// Task 186 (spec S11): the per-file sweep's pure half — candidate selection out of git's name-status output, the endpoint/gap verdict (endpoint matches are necessary but NOT sufficient), and a markdown table no note can break.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -66,8 +64,7 @@ test("test_classifySweepRow_calls_a_complete_ladder_ok", () => {
 });
 
 test("test_classifySweepRow_calls_matched_endpoints_with_unrecoverable_revisions_gaps", () => {
-    // Scenario: the S11 user correction — endpoint matches do NOT make a pass when the ladder
-    // holds revisions the engine could not replay.
+    // Scenario: the S11 user correction — endpoint matches do NOT make a pass when the ladder holds revisions the engine could not replay.
     assert.equal(classifySweepRow(makeRow({ unrecoverable: 3 })), SweepVerdict.gaps);
 });
 
@@ -101,8 +98,7 @@ test("test_formatSweepTable_emits_a_markdown_table_with_one_row_per_candidate", 
 });
 
 test("test_formatSweepTable_keeps_a_multiline_note_inside_its_cell", () => {
-    // Scenario: an engine error message carrying newlines or pipes must not break the table —
-    // every row stays exactly one line with the same column count.
+    // Scenario: an engine error message carrying newlines or pipes must not break the table — every row stays exactly one line with the same column count.
     const table = formatSweepTable([makeRow({ note: "threw:\nhunk | mismatch\nat line 4" })]);
 
     const rowLine = table.split("\n")[2]!;

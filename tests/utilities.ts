@@ -18,8 +18,7 @@ import { Path } from "../src/structures/domain.ts";
 //     return scenario.jsonlPaths;
 // }
 
-// Read a text file and return its non-empty lines — the shared JSONL line reader
-// used across the transcript tests. Generic: takes any file path.
+// Read a text file and return its non-empty lines — the shared JSONL line reader used across the transcript tests. Generic: takes any file path.
 export function readNonEmptyLines(file: string): string[] {
     const fileText = readFileSync(file, "utf8");
     const lines = fileText.split("\n");
@@ -27,8 +26,7 @@ export function readNonEmptyLines(file: string): string[] {
     return nonEmptyLines;
 }
 
-// Parse every non-empty line of a transcript JSONL file into typed records (no
-// field gate; use loadTranscript for the gated path). Generic: takes any path.
+// Parse every non-empty line of a transcript JSONL file into typed records (no field gate; use loadTranscript for the gated path). Generic: takes any path.
 export function loadRecords(file: string): TranscriptRecord[] {
     return readNonEmptyLines(file).map(parseRecord);
 }
@@ -57,8 +55,7 @@ export function loadRecords(file: string): TranscriptRecord[] {
 
 // --- Temp-repo machinery for the range-patch acceptance tests -----------------------------------
 
-// Write a step snapshot's files (absolute-keyed) into `intoDir`, relativized against `root` —
-// the same relativization renderRangePatch applies to its patch paths.
+// Write a step snapshot's files (absolute-keyed) into `intoDir`, relativized against `root` — the same relativization renderRangePatch applies to its patch paths.
 export function materializeSnapshotIntoDirectory(files: Record<string, string>, root: string, intoDir: string): void {
     for (const [absolutePath, content] of Object.entries(files)) {
         const destination = join(intoDir, relative(root, absolutePath));
@@ -67,8 +64,7 @@ export function materializeSnapshotIntoDirectory(files: Record<string, string>, 
     }
 }
 
-// Turn `dir` into a git repository with everything committed (identity pinned so the commit
-// succeeds regardless of local git config; --allow-empty covers the empty before-state).
+// Turn `dir` into a git repository with everything committed (identity pinned so the commit succeeds regardless of local git config; --allow-empty covers the empty before-state).
 export function git_initRepositoryWithCommit(dir: string): void {
     execFileSync("git", ["init", "-q"], { cwd: dir });
     execFileSync("git", ["add", "-A"], { cwd: dir });
@@ -96,8 +92,7 @@ export function listRepositoryFiles(dir: string): string[] {
     return files.map((entry) => relative(dir, join(entry.parentPath, entry.name))).sort();
 }
 
-// A private temp copy of one fixture JSONL, so mtime edits and cache-coldness needs never
-// touch the shared fixture tree (a fresh path = a fresh transcript-set stamp).
+// A private temp copy of one fixture JSONL, so mtime edits and cache-coldness needs never touch the shared fixture tree (a fresh path = a fresh transcript-set stamp).
 export function copyFixtureIntoTempDir(fixturePath: string): Path {
     const tempDir = mkdtempSync(join(tmpdir(), "reveng-artifact-"));
     const copyPath = join(tempDir, "session.jsonl");

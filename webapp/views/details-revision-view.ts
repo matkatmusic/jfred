@@ -1,8 +1,4 @@
-// File-Revisions mode — THE Revision View (item 84; split from details.ts, task 92). Every
-// route to a file's content lands here: the Files sidebar (no focus → revision #1, diff), and
-// every timeline chip-row button (focused on its own revision, in the mode its button names).
-// Rev-cards on the left, the selected card's diff / content / causing record on the right
-// (tests/details-revision-view.test.ts covers the focus + range view-model helpers in details-model.ts).
+// File-Revisions mode — THE Revision View (item 84; split from details.ts, task 92). Every route to a file's content lands here: the Files sidebar (no focus → revision #1, diff), and every timeline chip-row button (focused on its own revision, in the mode its button names).  Rev-cards on the left, the selected card's diff / content / causing record on the right (tests/details-revision-view.test.ts covers the focus + range view-model helpers in details-model.ts).
 
 import { el } from "../app-dom.ts";
 import { routeToFileHistory } from "../app-routes.ts";
@@ -58,13 +54,10 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
     const cards = buildRevisionCards(history);
     const focusedIndex = computeFocusedCardIndex(cards, focus);
     const focusedMode = focus?.mode ?? RevisionViewMode.diff;
-    // Revision contents come from the file-history view model (step snapshots at each
-    // revision's timestamp) — the same mechanism the file-history view's Show content uses.
+    // Revision contents come from the file-history view model (step snapshots at each revision's timestamp) — the same mechanism the file-history view's Show content uses.
     const revisionContents = buildFileHistoryViewModel(context.document, target).revisions;
     const baseName = target.slice(target.lastIndexOf("/") + 1);
-    // The revision-timeline diff at each context width, fetched at most once each on first
-    // need: switching rev-cards never re-fetches, but toggling full contents fetches the
-    // wider diff separately (item 75).
+    // The revision-timeline diff at each context width, fetched at most once each on first need: switching rev-cards never re-fetches, but toggling full contents fetches the wider diff separately (item 75).
     let defaultBlocks: Promise<string[]> | undefined;
     let fullBlocks: Promise<string[]> | undefined;
     const getDiffBlocks = (full: boolean) => {
@@ -77,8 +70,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
     };
     const showCardDiff = async (card: RevisionCard, index: number) => {
         const label = `${target} — revision #${card.revisionNumber}`;
-        // t124:Q2 — a placeholder's lines are the prior revision carried forward, so a computed
-        // diff reads "(no content change)". Show the failure reason instead.
+        // t124:Q2 — a placeholder's lines are the prior revision carried forward, so a computed diff reads "(no content change)". Show the failure reason instead.
         if (card.unrecoverableReason !== undefined) {
             const previousBlock = index > 0 ? (await getDiffBlocks(fullContentsIsOn()))[index - 1] : undefined;
             showUnrecoverableInDetails(label, card.unrecoverableReason, previousBlock, () => void showCardDiff(card, index));
@@ -106,8 +98,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         }
         showDiffInDetails(label, block!, () => void showCardDiff(card, index));
     };
-    // item 84: one card's right-column render in a chosen mode. A card's OWN click always means
-    // diff — only an incoming focus can ask for content or record.
+    // item 84: one card's right-column render in a chosen mode. A card's OWN click always means diff — only an incoming focus can ask for content or record.
     const showCardInMode = (card: RevisionCard, index: number, mode: RevisionViewMode) => {
         if (mode === RevisionViewMode.content) {
             showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
@@ -121,19 +112,15 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
     };
     // item 84: which cards are toggled for a range diff (0-based). Empty → single-card mode.
     const rangeSelection = new Set<number>();
-    // Each card's range toggle, pushed in card order by the forEach below — so rangeToggles[i]
-    // is always card i's own toggle.
+    // Each card's range toggle, pushed in card order by the forEach below — so rangeToggles[i] is always card i's own toggle.
     const rangeToggles: HTMLElement[] = [];
-    // Every glyph re-reads the set: one click changes one card's membership, but the whole run's
-    // glyphs must agree with it.
+    // Every glyph re-reads the set: one click changes one card's membership, but the whole run's glyphs must agree with it.
     const refreshRangeToggleGlyphs = () => {
         rangeToggles.forEach((toggle, toggleIndex) => {
             toggle.textContent = rangeSelection.has(toggleIndex) ? "☑" : "☐";
         });
     };
-    // item 84: the picked run's diff for THIS file — card run → owning nodes → step range → the
-    // server's range patch → this file's block. The same path showFilePreview's range branch
-    // took before item 84 moved it here; computeRangeSummary still speaks node indexes.
+    // item 84: the picked run's diff for THIS file — card run → owning nodes → step range → the server's range patch → this file's block. The same path showFilePreview's range branch took before item 84 moved it here; computeRangeSummary still speaks node indexes.
     const showRangeDiff = async () => {
         const selectedIndexes = [...rangeSelection].sort((left2, right2) => left2 - right2);
         if (!checkCardRunIsContiguous(selectedIndexes)) {
@@ -158,8 +145,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         }
         showDiffInDetails(label, block.block, () => void showRangeDiff());
     };
-    // Never re-enter renderDetailsFileMode to repaint: it would rebuild the cards and drop both
-    // the selection and the focus. Flip the glyphs in place, then re-decide the right column.
+    // Never re-enter renderDetailsFileMode to repaint: it would rebuild the cards and drop both the selection and the focus. Flip the glyphs in place, then re-decide the right column.
     const toggleRangeCard = (index: number) => {
         if (rangeSelection.has(index)) {
             rangeSelection.delete(index);
@@ -204,8 +190,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
             void showCardDiff(card, index);
         };
         left.append(cardElement);
-        // item 84: was `if (index === 0)` — the focused card is now whichever revision the
-        // caller asked for, in the mode it asked for. No focus still means #1 in diff mode.
+        // item 84: was `if (index === 0)` — the focused card is now whichever revision the caller asked for, in the mode it asked for. No focus still means #1 in diff mode.
         if (index === focusedIndex) {
             selectCard(cardElement);
             showCardInMode(card, index, focusedMode);

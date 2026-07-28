@@ -28,8 +28,7 @@ test("test_transcript_set_stamp_is_stable_for_unchanged_files", () => {
 });
 
 test("test_transcript_set_stamp_ignores_path_order", () => {
-    // Safe because production callers always pass resolveJsonlPaths' mtime-sorted order, so a cache
-    // hit's record order matches what a fresh parse of that same call would produce.
+    // Safe since production callers always pass resolveJsonlPaths' mtime-sorted order, matching a fresh parse's record order.
     const forwardStamp = computeTranscriptSetStamp([new Path(S1_JSONL), new Path(S19_JSONL)]);
     const reversedStamp = computeTranscriptSetStamp([new Path(S19_JSONL), new Path(S1_JSONL)]);
     assert.equal(forwardStamp, reversedStamp);
@@ -74,8 +73,7 @@ test("test_build_with_consent_returns_same_document_for_unchanged_files", () => 
 });
 
 test("test_build_with_consent_keeps_consent_variants_in_separate_entries", () => {
-    // A consented build must never be served the degraded artifact: on S37 the two differ by
-    // script-derived revisions, so the consent flag has to be part of the cache key.
+    // A consented build must never serve the degraded artifact; S37's revisions differ, so consent is part of the cache key.
     const degradedDocument = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, false);
     const consentedDocument = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, true);
     assert.notEqual(consentedDocument, degradedDocument);
@@ -133,8 +131,7 @@ test("test_records_cache_evicts_least_recently_used_entry_beyond_capacity", () =
 });
 
 test("test_revision_diff_from_untargeted_document_matches_targeted_build", () => {
-    // Targeting only filters snapshots/histories, so /api/diff may serve from the shared
-    // untargeted artifact.
+    // Targeting only filters snapshots/histories, so /api/diff may serve from the shared untargeted artifact.
     const untargetedDocument = buildProjectDocument(S85_JSONL_PATHS, undefined);
     const trackedFile = untargetedDocument.filesTouched[0]!.target;
     const targetedDocument = buildProjectDocument(S85_JSONL_PATHS, trackedFile);

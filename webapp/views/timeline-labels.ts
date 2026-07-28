@@ -1,5 +1,4 @@
-// Row labels, pills, tags, and raw-line ownership for the revision timeline (split from
-// timeline.ts, task 92).
+// Row labels, pills, tags, and raw-line ownership for the revision timeline (split from timeline.ts, task 92).
 
 import {
     AGENT_TURN_NODE_KIND,
@@ -21,8 +20,7 @@ export function truncateToolCallSummary(summary: string): string {
     return `${firstLine.slice(0, TOOL_CALL_SUMMARY_MAX_CHARS)}…`;
 }
 
-// Matches by changeId (inverse of findLineForChangeId's substring convention) or by the turn's own
-// record uuid, so stepping onto a reply's line selects that reply (item 55).
+// Matches by changeId or the turn's own record uuid, so stepping onto a reply's line selects it (item 55).
 function checkAgentTurnOwnsRawLine(node: TimelineNode, rawLineText: string): boolean {
     if (node.kind !== AGENT_TURN_NODE_KIND) {
         return false;
@@ -52,8 +50,7 @@ function checkToolCallOwnsRawLineByToolUseId(node: TimelineNode, rawLineText: st
     return rawLineText.includes(node.toolUseId!);
 }
 
-// Must match the record's own "uuid" field: a bare substring match also hits lines that merely
-// REFERENCE the prompt and re-selects an earlier step (s39 lines 49/50 bug, item 55).
+// Must match the record's own uuid field; a substring match wrongly hits prompt references (s39 bug, item 55).
 function checkUserTurnOwnsRawLine(node: TimelineNode, rawLineText: string): boolean {
     if (node.kind !== USER_TURN_NODE_KIND) {
         return false;
@@ -61,8 +58,7 @@ function checkUserTurnOwnsRawLine(node: TimelineNode, rawLineText: string): bool
     return rawLineText.includes(`"uuid":"${node.uuid!}"`);
 }
 
-// Tier order matters: a snapshot line embeds both a changeId and the triggering prompt's uuid, and
-// such a line is about the file change, not the prompt. Returns -1 when no node matches.
+// Tier order matters: a line carrying both a changeId and a prompt uuid is about the file change.
 export function findTimelineNodeIndexForRawLine(nodes: TimelineNode[], rawLineText: string): number {
     const agentTurnIndex = nodes.findIndex((node) => checkAgentTurnOwnsRawLine(node, rawLineText));
     if (agentTurnIndex >= 0) {
@@ -107,8 +103,7 @@ export function computeRevisionDiffFallbackText(block: string | undefined, chang
     return `${block.trim()}\n(no content change in this revision)`;
 }
 
-// An agent turn with no reply text is tool activity, not a reply (item 52). The gitOperations
-// parameter stays only for wire-shape compatibility — git rows are standalone nodes now (item 55).
+// An agent turn with no reply text is tool activity, not a reply (item 52).
 export function computeToolActivityTag(node: {
     kind: string;
     text: string;
@@ -155,8 +150,7 @@ export function computeSessionStartLabel(sessionTitles: Record<string, string> |
     return `Session ${title} started: ${sessionId}`;
 }
 
-// Marker rows go before these indexes; without them an interleaved multi-JSONL project never
-// shows where a later session began (item 66 follow-up).
+// Marker rows go before these indexes, so an interleaved multi-JSONL project shows where each session began.
 export function findSessionStartIndexes(nodes: TimelineNode[]): { nodeIndex: number; sessionId: string }[] {
     const starts: { nodeIndex: number; sessionId: string }[] = [];
     const seenSessionIds = new Set<string>();

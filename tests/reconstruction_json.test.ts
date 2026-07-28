@@ -1,5 +1,4 @@
-// Unit tests for the pure JSON builders (src/reconstruction_json.ts), Steps 1–4 of the JSON-output
-// plan. Same shape as tests/reconstruction_steps_changes.test.ts: loadRecords + S19_JSONL.
+// Unit tests for the pure JSON builders (src/reconstruction_json.ts), Steps 1-4 of the JSON-output plan.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -110,8 +109,7 @@ test("test_summarizeBranches_marks_abandoned_branch_rewound", () => {
 });
 
 test("test_buildStepSnapshots_produce_skeleton_steps_without_file_contents", () => {
-    // Behavior: a step snapshot carries index/when/changeIds/changedPaths but NO `files` map — the
-    // per-step file contents are the O(steps × live-bytes) blow-up the wire-size fix removes.
+    // A step snapshot has no `files` map — per-step file contents were the wire-size blow-up this fix removes.
     const { steps } = buildStepSnapshots(records, reader, undefined);
     assert.ok(steps.length > 0);
     for (const step of steps) {
@@ -124,8 +122,7 @@ test("test_buildStepSnapshots_produce_skeleton_steps_without_file_contents", () 
 });
 
 test("test_buildReconstructionDocument_returns_branch_agnostic_histories_alongside_document", () => {
-    // Behavior: the compact histories the steps derive from are returned NEXT TO the document, never as a
-    // document field (a document field would be serialized onto the wire — the whole point of the fix).
+    // Compact histories return NEXT TO the document, never as a document field, which would defeat the wire-size fix.
     const branched = reconstructBranches(records, reader);
     const result = buildReconstructionDocument(records, branched, reader, undefined);
     assert.ok(result.stepFileHistories.length > 0);
@@ -144,10 +141,7 @@ test("test_buildStepSnapshots_aligns_steps_with_change_ids", () => {
 });
 
 test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_files", () => {
-    // Behavior: changedPaths is a best-effort changeId->path hint. Every resolved entry is one of the
-    // document's touched files (never a stray path), and the join resolves at least one step (proving it
-    // works) — but off-branch / re-stamped steps may resolve to [] since their changeId is not a surviving
-    // revision's changeId.
+    // changedPaths is a best-effort changeId->path hint; off-branch/re-stamped steps may resolve to [] since their changeId isn't surviving.
     const branched = reconstructBranches(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     const touched = new Set(document.filesTouched.map((h: FileHistory) => h.target.toString()));
@@ -164,8 +158,7 @@ test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_file
     assert.ok(resolvedAny);
 });
 
-// (task 134) the three buildLineVerdicts tests moved with their subject to
-// tests/reconstruction_line_verdicts.test.ts.
+// (task 134) the three buildLineVerdicts tests moved with their subject to tests/reconstruction_line_verdicts.test.ts.
 
 test("test_buildReconstructionDocument_step_count_matches_countStepsInTranscript", () => {
     // Behavior: the document's step count matches the engine's step counter.
@@ -190,6 +183,5 @@ test("test_buildReconstructionDocument_includes_line_verdicts_for_every_record",
     assert.equal(document.lineVerdicts.length, records.length);
 });
 
-// The task-119 skippedLines/failures document tests live in tests/reconstruction_json_health.test.ts
-// (250-line cap split).
+// The task-119 skippedLines/failures document tests live in tests/reconstruction_json_health.test.ts (250-line cap split).
 

@@ -21,8 +21,7 @@ function buildRecord(
     } as unknown as TranscriptRecord;
 }
 
-// A fork: one parent ("fork") with an earlier abandoned prompt (whose subtree continues to an
-// assistant reply) and a later surviving prompt. Mirrors the S13 shape in miniature.
+// A fork: one parent ("fork") with an earlier abandoned prompt (whose subtree continues to an assistant reply) and a later surviving prompt. Mirrors the S13 shape in miniature.
 function buildForkRecords(): TranscriptRecord[] {
     return [
         buildRecord(RecordType.system, "fork", null, "2026-01-01T00:00:00Z"),
@@ -32,8 +31,7 @@ function buildForkRecords(): TranscriptRecord[] {
     ];
 }
 
-// A fork whose earlier prompt is abandoned produces exactly one structural rewound branch, tipped at
-// the abandoned subtree's deepest reply and forked at the shared parent.
+// A fork whose earlier prompt is abandoned produces exactly one structural rewound branch, tipped at the abandoned subtree's deepest reply and forked at the shared parent.
 test("test_a_fork_with_an_abandoned_edited_prompt_yields_one_structural_rewound_branch", () => {
     // Build a fork with an abandoned prompt (earlier) and a surviving prompt (later).
     const records = buildForkRecords();
@@ -46,8 +44,7 @@ test("test_a_fork_with_an_abandoned_edited_prompt_yields_one_structural_rewound_
     assert.equal(branches[0]!.isSurviving, false);
 });
 
-// When the abandoned subtree already holds a represented (existing) tip, the dedup guard skips it, so
-// a branch the head path already enumerated is never double-counted (the S7/S8/S11/S12 regression).
+// When the abandoned subtree already holds a represented (existing) tip, the dedup guard skips it, so a branch the head path already enumerated is never double-counted (the S7/S8/S11/S12 regression).
 test("test_an_abandoned_subtree_already_holding_an_existing_tip_is_skipped", () => {
     // Build the same fork, but mark abandonedTip as already represented by a head-based branch.
     const records = buildForkRecords();

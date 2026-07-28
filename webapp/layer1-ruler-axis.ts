@@ -1,8 +1,6 @@
-// Lives in webapp/ so the endpoint and the client-side folder filter share one copy of the gap
-// arithmetic; two copies would let the filtered ruler drift from the shipped one.
+// Lives in webapp/ so the endpoint and client-side folder filter share one copy of the gap arithmetic, avoiding drift.
 
-// Re-declared rather than imported from src/layered_types.ts: tsconfig.webapp.json's rootDir is
-// "webapp", so even a type-only src/ import is rejected.
+// Re-declared rather than imported from src/layered_types.ts: tsconfig.webapp.json's rootDir is "webapp", so even a type-only src/ import is rejected.
 type Instant = Date;
 
 const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
@@ -13,30 +11,25 @@ export const RULER_PIXELS_PER_HOUR = 2.5;
 // User-locked 2026-07-25: keeps a months-long history on one screen.
 export const RULER_GAP_CAP_PIXELS = 120;
 
-// User-locked 2026-07-25: the `.node` dot is 15 px tall, so anything smaller lets two adjacent
-// nodes overprint. Governs only `resolveInstantOffsets`; a measured ladder always outranks it.
+// User-locked 2026-07-25: the `.node` dot is 15 px tall, so smaller gaps let nodes overprint; a measured ladder outranks this.
 export const RULER_MIN_GAP_PIXELS = 16;
 
-// DERIVED from webapp/layer1.html, not chosen: 20 px outer dot + 2 px hairline. Redo this if a
-// node's size, its ring or the label's font size changes.
+// Derived from webapp/layer1.html: 20 px outer dot + 2 px hairline; redo if node size, ring, or label font changes.
 export const RULER_NODE_ROW_PIXELS = 22;
 
 export interface RulerPosition {
     instant: Instant;
     offsetPx: number;
-    // Deliberately NOT countRowsPerInstant's per-ladder MAX: that measures spacing demand, this
-    // counts events (task 275).
+    // Deliberately NOT countRowsPerInstant's per-ladder MAX: that measures spacing demand, this counts events (task 275).
     eventCount: number;
 }
 
-// One bubble's nodes on the axis, in draw order. A bucket row joins as a one-instant ladder: it
-// bounds the ruler but asks for no extra room.
+// One bubble's nodes on the axis, in draw order; a bucket row is a one-instant ladder that bounds the ruler.
 export type NodeLadder = Instant[];
 
 export interface RulerLayout {
     ticks: RulerPosition[];
-    // Parallel to the ladders handed in rather than keyed by instant, because a ladder's two nodes
-    // CAN share an instant and those are exactly the two that must differ.
+    // Parallel to the ladders handed in, not keyed by instant, since a ladder's two nodes can share instant yet differ.
     ladderOffsetsPx: number[][];
 }
 
@@ -56,8 +49,7 @@ function orderDistinctInstants(instants: Instant[]): Instant[] {
     return [...byEpochMs.values()].sort((a, b) => a.getTime() - b.getTime());
 }
 
-// `measureContentFloorPx` is asked about the EARLIER instant of each gap: rows hang BELOW their
-// instant, so the gap leaving it pays for them. Input must already be ordered and de-duplicated.
+// `measureContentFloorPx` is asked about the earlier instant of each gap: rows hang below their instant, so the gap leaving pays.
 function accumulateOffsets(
     ordered: Instant[],
     measureContentFloorPx: (instant: Instant) => number,
@@ -68,20 +60,17 @@ function accumulateOffsets(
     return ordered.map((instant) => {
         offsetPx += previous === undefined ? 0 : measureGapPixels(previous, instant, measureContentFloorPx(previous));
         previous = instant;
-        // `?? 0` is unreachable — `ordered` is `eventCounts`' own key set; it only satisfies the
-        // possibly-undefined type of Map.get.
+        // `?? 0` is unreachable — `ordered` is `eventCounts`' own key set; it only satisfies the possibly-undefined type of Map.get.
         return { instant, offsetPx, eventCount: eventCounts.get(instant.getTime()) ?? 0 };
     });
 }
 
-// The layered graph's entry point: bare instants say nothing about what is drawn at them, so every
-// gap falls back on the 16 px heuristic. Layer 1 calls layOutNodeLadders instead.
+// Entry point for bare instants; every gap falls back on the 16 px heuristic. Layer 1 uses layOutNodeLadders instead.
 export function resolveInstantOffsets(instants: Instant[]): RulerPosition[] {
     return accumulateOffsets(orderDistinctInstants(instants), () => 0, countNodesPerInstant(instants));
 }
 
-// Per-ladder MAX, not an overall tally: bubbles sit side by side, so only nodes inside the SAME
-// bubble have to stack.
+// Per-ladder MAX, not an overall tally: bubbles sit side by side, so only nodes inside the same bubble stack.
 function countRowsPerInstant(ladders: NodeLadder[]): Map<number, number> {
     const rowsPerInstant = new Map<number, number>();
     for (const ladder of ladders) {
@@ -92,8 +81,7 @@ function countRowsPerInstant(ladders: NodeLadder[]): Map<number, number> {
     return rowsPerInstant;
 }
 
-// Takes a bare instant list rather than a ladder because it answers two questions: one ladder's row
-// demand, and every ladder flattened into task 275's event count.
+// Takes a bare instant list rather than a ladder: answers one ladder's row demand and task 275's flattened event count.
 function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
     const perInstant = new Map<number, number>();
     for (const instant of nodes) {
@@ -102,8 +90,7 @@ function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
     return perInstant;
 }
 
-// A commit and an mtime landing on the same second is routine; drawing both at one offset is the
-// reported overprinting.
+// A commit and an mtime landing on the same second is routine; drawing both at one offset is reported overprinting.
 function assignRowSlots(ladder: NodeLadder): number[] {
     const filledRows = new Map<number, number>();
     return ladder.map((instant) => {
@@ -113,8 +100,7 @@ function assignRowSlots(ladder: NodeLadder): number[] {
     });
 }
 
-// Task 251: ruler spacing measured from what the bubbles must show, so their contents cannot be
-// squashed into overprinted rows.
+// Task 251: ruler spacing is measured from what bubbles must show, so their contents are never squashed together.
 export function layOutNodeLadders(ladders: NodeLadder[]): RulerLayout {
     const rowsPerInstant = countRowsPerInstant(ladders);
     const everyNode = ladders.flat();
@@ -126,8 +112,7 @@ export function layOutNodeLadders(ladders: NodeLadder[]): RulerLayout {
     const tickOffsets = new Map(ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {
         ticks,
-        // `?? 0` is unreachable — every ladder instant went into `ticks` above; it only satisfies
-        // the possibly-undefined type of Map.get.
+        // `?? 0` is unreachable — every ladder instant went into `ticks` above; it only satisfies Map.get's type.
         ladderOffsetsPx: ladders.map((ladder) => assignRowSlots(ladder).map((slot, node) =>
             (tickOffsets.get(ladder[node]!.getTime()) ?? 0) + slot * RULER_NODE_ROW_PIXELS)),
     };

@@ -1,8 +1,4 @@
-// Task 220 — the STATIC half of the lineage-seed horizon: per-target lineage instants and the
-// path strings the pre-script rename chain connects, plus the all-events instant axis the
-// post-first-touch flood rule scans. Everything here is a pure function of the records array,
-// cached per records identity; the run-relevance half (which probes the execution memo) lives
-// in reconstruction_lineage_horizon.ts.
+// Static lineage inputs cached per corpus; run-relevance half lives in reconstruction_lineage_horizon.ts.
 
 import { Path } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -49,8 +45,7 @@ function collectEventPathStrings(event: FileEvent): string[] {
     return [event.target.toString()];
 }
 
-// The target's static lineage: the instants of its own events, and every path string its
-// pre-script rename chain connects (script-proven moves are the run channel's job).
+// Static lineage instants and rename-chain path strings for one target.
 function buildStaticInputsForTarget(records: TranscriptRecord[], target: Path): LineageStaticInputs {
     const events = extractFileEvents(records);
     const renameChain = buildRenameChain(events);

@@ -16,10 +16,7 @@ function buildStaticRoots(): { distDir: string; webappDir: string } {
 }
 
 test("test_resolveStaticFilePath_prefers_the_compiled_dist_copy", () => {
-    // Scenario: a .js request resolves to the compiled webapp/dist copy when the build
-    // emitted that file, so the browser loads transpiled output, not TypeScript source.
-    // Steps:
-    // a compiled app.js exists only in the dist root.
+    // Scenario: a .js request resolves to the compiled webapp/dist copy when the build emitted that file, so the browser loads transpiled output, not TypeScript source.  Steps: a compiled app.js exists only in the dist root.
     const { distDir, webappDir } = buildStaticRoots();
     writeFileSync(join(distDir, "app.js"), "compiled");
     // resolving app.js must pick the dist copy.
@@ -27,10 +24,7 @@ test("test_resolveStaticFilePath_prefers_the_compiled_dist_copy", () => {
 });
 
 test("test_resolveStaticFilePath_falls_back_to_the_webapp_source", () => {
-    // Scenario: index.html, styles.css, and vendor/*.js are never emitted by the build, so
-    // requests for them must fall back to the webapp source root.
-    // Steps:
-    // styles.css exists only in the webapp root.
+    // Scenario: index.html, styles.css, and vendor/*.js are never emitted by the build, so requests for them must fall back to the webapp source root.  Steps: styles.css exists only in the webapp root.
     const { distDir, webappDir } = buildStaticRoots();
     writeFileSync(join(webappDir, "styles.css"), "body {}");
     // resolving styles.css must pick the webapp copy.

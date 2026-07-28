@@ -1,6 +1,4 @@
-// Construction exercise for the layered data model (task 195, spec S1): build a small
-// two-entity graph — every node kind, a rename, a copy, and a script link — and check the
-// discriminants and evidence wiring hold together.
+// Construction exercise for the layered data model (task 195, spec S1): build a small two-entity graph — every node kind, a rename, a copy, and a script link — and check the discriminants and evidence wiring hold together.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

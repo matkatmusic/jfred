@@ -1,7 +1,4 @@
-// Renderers for the two-DAG view (s12-write-conv-only-rewrite). Both render oldest-at-top: the
-// conversationDAG roots at "A" and forks into oldest-first branch wrappers; the fileDAG lists each
-// file's version-ordered turns. Topology only — file CONTENT stays in the content views
-// (--surviving/--branch). Model + builders: reconstruction_graph.ts. Design: spec 40.
+// Renderers for conversationDAG and fileDAG views (spec 40, s12).
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Uuid } from "./structures/domain.ts";
@@ -38,8 +35,7 @@ function shortOrDash(uuid: Uuid | undefined): string {
     return uuid === undefined ? "????????" : shortUuid(uuid);
 }
 
-// A conversationDAG turn line core (no branch prefix): letter, kind, file base name, short change id —
-// aligned to the given widths so the change ids line up across branches.
+// Format a turn's core columns, aligned to the given widths.
 function renderTurnCore(turn: GraphTurn, widths: TurnWidths): string {
     const kind = turn.kind.padEnd(widths.kind);
     const target = getBaseName(turn.target).padEnd(widths.target);
@@ -55,8 +51,7 @@ function renderBranchHeader(branch: ConvoBranch): string {
     return `${header})`;
 }
 
-// One branch block: a `│` separator, the connector + header, then the branch's turns indented under
-// the continuing vertical (`│  `) or, for the last branch, plain spaces (`   `).
+// Render one branch block with connector, header, and indented turn lines.
 function renderBranchBlock(branch: ConvoBranch, isLast: boolean, widths: TurnWidths): string[] {
     const connector = isLast ? "└─" : "├─";
     const turnPrefix = isLast ? "   " : "│  ";
@@ -83,8 +78,7 @@ function renderRootLine(dag: ConversationDag): string {
     return `${dag.rootLetter}  prompt  #${shortOrDash(dag.rootUuid)}${suffix}`;
 }
 
-// Render the conversationDAG oldest-at-top: header, root, then a linear trunk (no fork) or oldest-first
-// branch wrappers.
+// Render the conversationDAG oldest-at-top: header, root, then a linear trunk (no fork) or oldest-first branch wrappers.
 export function renderConversationDag(dag: ConversationDag): string {
     const widths = computeTurnWidths(allConvoTurns(dag));
     const lines = [CONVO_HEADER, renderRootLine(dag)];
@@ -117,8 +111,7 @@ export function renderFileDag(dag: FileDag): string {
     return lines.join("\n");
 }
 
-// Render the selected graphs for a transcript: the conversationDAG first, then the fileDAG, separated
-// by a blank line. Both default on for the bare CLI (the new global default).
+// Render the selected DAGs for a transcript, separated by a blank line.
 export function renderGraphs(
     records: TranscriptRecord[],
     show: { convo: boolean; file: boolean },

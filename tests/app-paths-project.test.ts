@@ -1,6 +1,4 @@
-// DOM smoke test for webapp/app-paths-project.ts (task 137): the Paths popover's per-project
-// repo/commit picker — the commit pick list renders from /api/repo-commits, picking a row
-// fills the base-commit field, and a poor path-match count renders the soft warning.
+// DOM smoke test for webapp/app-paths-project.ts (task 137): the Paths popover's per-project repo/commit picker — the commit pick list renders from /api/repo-commits, picking a row fills the base-commit field, and a poor path-match count renders the soft warning.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -9,9 +7,7 @@ import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-te
 const FIRST_COMMIT_HASH = "a".repeat(40);
 const SECOND_COMMIT_HASH = "b".repeat(40);
 
-// Fire an "input" event the way a keystroke would. happy-dom's dispatchEvent accepts only
-// its OWN Event class, so the event is constructed from the happy-dom window global — Node's
-// built-in Event is rejected with "parameter 1 is not of type 'Event'".
+// Fire an "input" event the way a keystroke would. happy-dom's dispatchEvent accepts only its OWN Event class, so the event is constructed from the happy-dom window global — Node's built-in Event is rejected with "parameter 1 is not of type 'Event'".
 function dispatchInputEvent(input: HTMLInputElement): void {
     const happyDomEventClass = (window as unknown as { Event: typeof Event }).Event;
     input.dispatchEvent(new happyDomEventClass("input"));
@@ -25,11 +21,7 @@ function getRequiredElementById(id: string): HTMLElement {
 }
 
 test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
-    // Scenario (task 137): with a repo path in the field, "Pick commit…" fetches the repo's
-    // commits and renders a scrollable pick list; clicking a row fills the base-commit field
-    // and fetches the path-match counts, whose poor ratio renders the soft warning.
-    // Steps:
-    // boot a fresh DOM, stub the three routes the section touches, refresh it for a project.
+    // Scenario (task 137): with a repo path in the field, "Pick commit…" fetches the repo's commits and renders a scrollable pick list; clicking a row fills the base-commit field and fetches the path-match counts, whose poor ratio renders the soft warning.  Steps: boot a fresh DOM, stub the three routes the section touches, refresh it for a project.
     setupWebappDom();
     stubFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },
@@ -66,11 +58,7 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
 });
 
 test("test_refresh_prefills_file_history_field_from_stored_override", async () => {
-    // Scenario (task 153): a stored per-project fileHistory entry surfaces in the task-136
-    // field when the section refreshes; a project without one restores the derived state so
-    // the prior project's prefill never leaks.
-    // Steps:
-    // boot a fresh DOM and refresh for a project whose stored entry carries a fileHistory dir.
+    // Scenario (task 153): a stored per-project fileHistory entry surfaces in the task-136 field when the section refreshes; a project without one restores the derived state so the prior project's prefill never leaks.  Steps: boot a fresh DOM and refresh for a project whose stored entry carries a fileHistory dir.
     setupWebappDom();
     stubFetchRoutes({ "/api/project-paths": { repo: "/repos/p", fileHistory: "/stored/fh" } });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
@@ -78,8 +66,7 @@ test("test_refresh_prefills_file_history_field_from_stored_override", async () =
     // the task-136 fields unhide and carry the stored override.
     assert.equal(getRequiredElementById("file-history-fields").hidden, false);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/stored/fh");
-    // refresh for a project WITHOUT a stored override: the fields hide and the value restores
-    // to the reported derived dir ("" here — initializeHeader never ran in this test).
+    // refresh for a project WITHOUT a stored override: the fields hide and the value restores to the reported derived dir ("" here — initializeHeader never ran in this test).
     stubFetchRoutes({ "/api/project-paths": { repo: "/repos/q" } });
     await refreshProjectPathsSection("proj-b");
     assert.equal(getRequiredElementById("file-history-fields").hidden, true);
@@ -87,10 +74,7 @@ test("test_refresh_prefills_file_history_field_from_stored_override", async () =
 });
 
 test("test_commit_pick_filter_narrows_rows", async () => {
-    // Scenario (task 154): typing in the filter box narrows the pick list to matching
-    // rows (hash, date, or subject, case-insensitive); clearing it restores all rows.
-    // Steps:
-    // boot a fresh DOM, stub routes, refresh the section, open the pick list.
+    // Scenario (task 154): typing in the filter box narrows the pick list to matching rows (hash, date, or subject, case-insensitive); clearing it restores all rows.  Steps: boot a fresh DOM, stub routes, refresh the section, open the pick list.
     setupWebappDom();
     stubFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },

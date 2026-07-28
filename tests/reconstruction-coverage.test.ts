@@ -1,7 +1,4 @@
-// Pure view-model tests for the partial-reconstruction coverage helpers (task 119,
-// webapp/views/reconstruction-coverage.ts): the session-banner summary, per-file coverage
-// segments, timeline gap grouping, and gap-row insertion indexes. Fixtures are wire-shaped
-// literals (what the browser sees after fetch + JSON.parse).
+// Pure view-model tests for the partial-reconstruction coverage helpers (task 119, webapp/views/reconstruction-coverage.ts): the session-banner summary, per-file coverage segments, timeline gap grouping, and gap-row insertion indexes. Fixtures are wire-shaped literals (what the browser sees after fetch + JSON.parse).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -33,8 +30,7 @@ function makeRevision(changeId: string, unrecoverable?: { reason: string }) {
 }
 
 test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () => {
-    // Step 1: two files with three revisions total, one of them an unrecoverable placeholder,
-    // plus one skipped line and one survived engine failure.
+    // Step 1: two files with three revisions total, one of them an unrecoverable placeholder, plus one skipped line and one survived engine failure.
     const document = buildWireDocument({
         filesTouched: [
             { target: "/p/a.py", revisions: [makeRevision("toolu_A1"), makeRevision("toolu_A2", { reason: "sidecar backup missing" })] },
@@ -54,8 +50,7 @@ test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () =
 });
 
 test("test_summarizeReconstructionCoverage_is_not_partial_for_clean_document", () => {
-    // Step 1: a fully recovered document — no unrecoverable revisions, and the optional
-    // skippedLines / failures fields absent entirely (an older cached document's shape).
+    // Step 1: a fully recovered document — no unrecoverable revisions, and the optional skippedLines / failures fields absent entirely (an older cached document's shape).
     const document = buildWireDocument({
         filesTouched: [{ target: "/p/a.py", revisions: [makeRevision("toolu_A1")] }],
     });
@@ -79,8 +74,7 @@ test("test_buildFileCoverageSegments_marks_unrecoverable_revisions", () => {
             makeRevision("toolu_A3"),
         ],
     };
-    // Step 2: one segment per revision in order; only the placeholder is unrecovered, and it
-    // carries the reason for the strip's click-for-reason popover.
+    // Step 2: one segment per revision in order; only the placeholder is unrecovered, and it carries the reason for the strip's click-for-reason popover.
     assert.deepEqual(buildFileCoverageSegments(history), [
         { recovered: true, reason: undefined, revisionIndex: 0 },
         { recovered: false, reason: "sidecar backup missing", revisionIndex: 1 },
@@ -89,23 +83,20 @@ test("test_buildFileCoverageSegments_marks_unrecoverable_revisions", () => {
 });
 
 test("test_buildTimelineGaps_groups_consecutive_lines_into_one_gap", () => {
-    // Step 1: three consecutive skipped lines from one transcript; only the middle one still
-    // carried a parseable timestamp in its raw JSON.
+    // Step 1: three consecutive skipped lines from one transcript; only the middle one still carried a parseable timestamp in its raw JSON.
     const gaps = buildTimelineGaps([
         { filePath: "/p/s.jsonl", lineNumber: 5, reason: "malformed JSON: SyntaxError" },
         { filePath: "/p/s.jsonl", lineNumber: 6, timestamp: "2026-07-01T10:00:00Z", reason: 'unknown record type "future-nonsense"' },
         { filePath: "/p/s.jsonl", lineNumber: 7, reason: "malformed JSON: SyntaxError" },
     ]);
-    // Step 2: one gap — count is the run length, reason the FIRST line's, timestamp the run's
-    // first defined one, hydrated to a Date.
+    // Step 2: one gap — count is the run length, reason the FIRST line's, timestamp the run's first defined one, hydrated to a Date.
     assert.deepEqual(gaps, [
         { count: 3, reason: "malformed JSON: SyntaxError", timestamp: new Date("2026-07-01T10:00:00Z") },
     ]);
 });
 
 test("test_buildTimelineGaps_splits_non_consecutive_lines", () => {
-    // Step 1: a jump in line numbers within one file, then a different file at the very next
-    // line number — both break the run.
+    // Step 1: a jump in line numbers within one file, then a different file at the very next line number — both break the run.
     const gaps = buildTimelineGaps([
         { filePath: "/p/s.jsonl", lineNumber: 2, reason: "reason-a" },
         { filePath: "/p/s.jsonl", lineNumber: 5, reason: "reason-b" },
@@ -127,8 +118,7 @@ test("test_computeGapInsertionIndexes_places_gap_before_first_later_node", () =>
         [between, trailing],
         ["2026-07-01T10:00:00Z", "2026-07-01T11:00:00Z", "2026-07-01T12:00:00Z"],
     );
-    // Step 2: the between-gap keys to node 1 (the first node at or after it); the trailing gap
-    // keys past the last node, where the row loop appends it at the end.
+    // Step 2: the between-gap keys to node 1 (the first node at or after it); the trailing gap keys past the last node, where the row loop appends it at the end.
     assert.deepEqual(indexes, new Map([[1, [between]], [3, [trailing]]]));
 });
 

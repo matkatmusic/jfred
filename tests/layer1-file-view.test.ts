@@ -1,9 +1,6 @@
 // Task 294: the Detail View drawer's body is a line-number column beside ONE highlighted block.
 //
-// No `hljs` global is defined here — node:test never loads the vendored script — so every case
-// below exercises renderCodeInto's plain-text fallback. That is deliberate: what this file guards
-// is the SHAPE (two columns, honest line count, real text) rather than the vendored tokeniser,
-// which is not ours to test.
+// No `hljs` global is defined here — node:test never loads the vendored script — so every case below exercises renderCodeInto's plain-text fallback. That is deliberate: what this file guards is the SHAPE (two columns, honest line count, real text) rather than the vendored tokeniser, which is not ours to test.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -38,8 +35,7 @@ test("a file the highlighter has no language for is not an error", () => {
 });
 
 test("a binary file is named, not dumped as mojibake", () => {
-    // The route reads every file as UTF-8, so a PNG arrives as replacement characters around a
-    // NUL. Numbering thousands of rows of that says nothing about the file — task 299 shows it.
+    // The route reads every file as UTF-8, so a PNG arrives as replacement characters around a NUL. Numbering thousands of rows of that says nothing about the file — task 299 shows it.
     const png = "\u0089PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\ufffd\ufffd\ufffd\ufffd";
     assert.equal(looksBinary(png), true);
     const host = renderIntoHost(png, "assets/hero-timeline.png");

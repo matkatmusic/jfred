@@ -1,8 +1,4 @@
-// The `--trace` CLI mode (s37 script-replay diagnostic, Phase A, A5): print the Step-1 verdict trace for a
-// transcript and exit, with no effect on reconstruction. Split out of reconstruction_cli.ts (already at the
-// 250-line cap) — runCli short-circuits to here when `--trace` is present, BEFORE its own parseArgs, so the
-// `--details` selector tokens are never mistaken for the positional transcript path. Design:
-// ~/.claude/plans/task-implement-script-replay-partitioned-puppy.md (Phase A, A5).
+// --trace CLI mode: prints Step-1 verdict trace, split from reconstruction_cli.ts for the 250-line cap.
 
 import { Path } from "./structures/domain.ts";
 import { KNOWN_VERDICTS, TraceDetailMode, Verdict } from "./structures/vocabulary.ts";
@@ -13,8 +9,7 @@ import { numbersOnly } from "./regex_expressions.ts";
 
 const KNOWN_VERDICT_SET = new Set<string>(KNOWN_VERDICTS);
 
-// Whether a token after `--details` is one of its optional args (a Verdict-class selector, a line-number
-// selector, or a mode keyword) rather than the transcript path or the next flag.
+// True when token is a --details arg (verdict, line number, or mode), not a path.
 function isDetailToken(token: string): boolean {
     return (
         KNOWN_VERDICT_SET.has(token) ||
@@ -24,8 +19,7 @@ function isDetailToken(token: string): boolean {
     );
 }
 
-// The `--details` selector: an explicit `--line N` wins, else the single positional token right after
-// `--details` (a Verdict class or a line number), else `{ all: true }` (detail every rendered row).
+// Resolve --details selector: --line N wins, then positional verdict/number, then all.
 function parseSelector(argv: string[], detailsAt: number): TraceDetailSelector {
     const line = parseLineFlag(argv);
     if (line !== undefined) {
@@ -41,8 +35,7 @@ function parseSelector(argv: string[], detailsAt: number): TraceDetailSelector {
     return { all: true };
 }
 
-// The render mode from an explicit `--mode <mode>` flag (default preview-only when absent). A `--mode` with a
-// value that is neither `preview-only` nor `full` is a usage error — the positional-mode guesswork is gone.
+// Parse --mode flag; defaults to preview-only, throws on unknown values.
 function parseMode(argv: string[]): TraceDetailMode {
     const at = argv.indexOf("--mode");
     if (at < 0) {
@@ -55,8 +48,7 @@ function parseMode(argv: string[]): TraceDetailMode {
     throw new Error(`--mode must be '${TraceDetailMode.previewOnly}' or '${TraceDetailMode.full}'`);
 }
 
-// An explicit `--line N` selector value, or undefined when the flag is absent / its value is not an integer.
-// Overrides the `--details` positional selector so a single line can be targeted by name: `--details --line N`.
+// Parse --line N; overrides the --details positional selector.
 function parseLineFlag(argv: string[]): number | undefined {
     const at = argv.indexOf("--line");
     if (at < 0) {
@@ -66,8 +58,7 @@ function parseLineFlag(argv: string[]): number | undefined {
     return Number.isInteger(value) ? value : undefined;
 }
 
-// The trace options carried by argv: hideIgnored / onlyIgnored booleans and the optional `--details` block
-// (its selector from a positional class/line or `--line N`, its mode from `--mode <mode>`).
+// Build TraceOptions from argv: visibility booleans and optional --details block.
 function parseTraceOptions(argv: string[]): TraceOptions {
     const detailsAt = argv.indexOf("--details");
     const details = detailsAt >= 0
@@ -106,8 +97,7 @@ export const TRACE_HELP = [
 // A `--trace` invocation. `help` short-circuits everything else (no transcript path required).
 export type TraceInvocation = { jsonlPath: string; options: TraceOptions; help?: boolean };
 
-// Parse a `--trace` invocation, or undefined when `--trace` is absent (the caller then runs the normal CLI).
-// `--trace --help` returns a help-only invocation. Throws when `--trace` is given without a transcript path.
+// Returns undefined when --trace absent; throws if --trace given without a transcript path.
 export function parseTraceArgs(argv: string[]): TraceInvocation | undefined {
     if (!argv.includes("--trace")) {
         return undefined;

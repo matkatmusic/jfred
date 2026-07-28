@@ -1,10 +1,6 @@
-// What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as
-// ISO text, so these are NOT src/viewer_api_layer1.ts's Layer1Wire* types (same naming convention
-// as webapp/layered-app.ts's Wire* mirrors).
+// What JSON.parse yields from /api/layer1-view: `Path` arrives as a plain string and `Instant` as ISO text, so these are NOT src/viewer_api_layer1.ts's Layer1Wire* types (same naming convention as webapp/layered-app.ts's Wire* mirrors).
 //
-// Their own module rather than webapp/layer1-page.ts's private declarations (task 253): the folder
-// filter (webapp/layer1-filter.ts) takes and returns a whole view, and the page imports the filter,
-// so a type owned by the page could only reach the filter through a cycle.
+// Their own module rather than webapp/layer1-page.ts's private declarations (task 253): the folder filter (webapp/layer1-filter.ts) takes and returns a whole view, and the page imports the filter, so a type owned by the page could only reach the filter through a cycle.
 
 export interface WireInstant {
     instant: string;
@@ -15,8 +11,7 @@ export interface WireCommit extends WireInstant {
     hash: string;
 }
 
-// One RULER entry. Its own type rather than a widened WireInstant: every commit, orphan and on-disk
-// node is a WireInstant too, and none of them carries a count (task 275).
+// One RULER entry. Its own type rather than a widened WireInstant: every commit, orphan and on-disk node is a WireInstant too, and none of them carries a count (task 275).
 export interface WireRulerTick extends WireInstant {
     // How many nodes the view draws at this instant, across every bubble.
     eventCount: number;
@@ -33,9 +28,7 @@ export interface WireOrphan extends WireInstant {
     path: string;
 }
 
-// One session transcript from /api/layer1-sessions (task 292). `started`/`ended` are the session's
-// FIRST and LAST record — deliberately not the instants of the files it touched, because the band
-// has to be able to open before the first write and close after the last one.
+// One session transcript from /api/layer1-sessions (task 292). `started`/`ended` are the session's FIRST and LAST record — deliberately not the instants of the files it touched, because the band has to be able to open before the first write and close after the last one.
 export interface WireSession {
     file: string;
     // Absolute path: the wire identity, because two source folders can hold the same basename.

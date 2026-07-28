@@ -13,8 +13,7 @@ import { Path } from "../src/structures/domain.ts";
 import { collectSandboxSpawnLabels } from "./script-execution-test-helpers.ts";
 
 test("test_sandboxMemoDiskWrite_is_batched_and_flushed_at_end", () => {
-    // N distinct spawns below the batch size cause FEWER than N disk writes (the O(N²)-write
-    // amplification fix), and the end-of-build flush persists every outcome.
+    // Spawns below the batch size cause fewer than N disk writes, avoiding O(N²) write amplification; the end flush persists everything.
     const memoFile = new Path(join(mkdtempSync(join(tmpdir(), "memo-batch-")), "memo.json"));
     configureSandboxMemoPersistence(memoFile);
     try {
@@ -63,8 +62,7 @@ test("test_configureSandboxMemoPersistence_writes_new_outcomes_to_disk", () => {
 });
 
 test("test_configureSandboxMemoPersistence_seeds_memo_from_disk", () => {
-    // Configuring at a previously written file seeds the memo from disk, so an already-persisted
-    // run never spawns again — even across a memo clear.
+    // Configuring at a previously written file seeds the memo from disk, so an already-persisted run never spawns again.
     const tempDir = mkdtempSync(join(tmpdir(), "reveng-artifact-"));
     const fileA = join(tempDir, "memo-a.json");
     const fileB = join(tempDir, "memo-b.json");
@@ -122,8 +120,7 @@ test("test_persisted_failure_outcomes_round_trip", () => {
         // Clear via an absent file, then configure back at the written one.
         configureSandboxMemoPersistence(new Path(clearFile));
         configureSandboxMemoPersistence(new Path(memoFile));
-        // The non-undefined sentinel proves the callback overwrote it, so undefined means a
-        // memoized failure rather than a miss.
+        // The non-undefined sentinel proves the callback overwrote it, so undefined means a memoized failure rather than a miss.
         let seededResult: Map<string, string> | undefined = new Map();
         const secondSpawns = collectSandboxSpawnLabels(() => {
             seededResult = runScriptAgainstState(script, preState);

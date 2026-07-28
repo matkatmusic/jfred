@@ -1,7 +1,4 @@
-// Conversation view (#/project/<name>/jsonl/<file>): chat-like — genuine turns as bubbles,
-// every other record as a collapsed one-line stub, a branch selector strip, and edit-event
-// markers linking into the file-history view. Clicking any record opens the JSON inspector.
-// The view-model half is DOM-free and tested against scenario ground truth (viewer-project-views.test.ts).
+// Conversation view (#/project/<name>/jsonl/<file>): chat-like — genuine turns as bubbles, every other record as a collapsed one-line stub, a branch selector strip, and edit-event markers linking into the file-history view. Clicking any record opens the JSON inspector.  The view-model half is DOM-free and tested against scenario ground truth (viewer-project-views.test.ts).
 
 import { el as elUntyped } from "../app-dom.ts";
 import { logProgress } from "../app-console.ts";
@@ -12,8 +9,7 @@ import { routeToConversation, routeToFileHistory } from "../app-routes.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 
-// Local typed view of app.ts's el() while app.ts is typed in parallel — attrs limited to the
-// keys this view actually passes. ponytail: shim only; drop once app.ts exports its own types.
+// Local typed view of app.ts's el() while app.ts is typed in parallel — attrs limited to the keys this view actually passes. ponytail: shim only; drop once app.ts exports its own types.
 type WireElAttrs = {
     class?: string;
     text?: string;
@@ -22,8 +18,7 @@ type WireElAttrs = {
 };
 const el = elUntyped as (tag: string, attrs?: WireElAttrs, children?: HTMLElement[]) => HTMLElement;
 
-// Wire shapes of the /api/document JSON this view reads — ids, paths, and dates arrive as
-// plain strings on the wire, so these are declared locally rather than imported from ../../src.
+// Wire shapes of the /api/document JSON this view reads — ids, paths, and dates arrive as plain strings on the wire, so these are declared locally rather than imported from ../../src.
 type WireConversationMessage = {
     uuid: string;
     role: string;
@@ -50,16 +45,12 @@ type WireConversationDocument = {
     branches: WireBranch[];
     filesTouched: WireFileHistory[];
 };
-// Fields exclusive to one member are declared `?: undefined` on the other so union-wide reads
-// (entry.uuid, entry.message) typecheck without narrowing at every site.
+// Fields exclusive to one member are declared `?: undefined` on the other so union-wide reads (entry.uuid, entry.message) typecheck without narrowing at every site.
 type ConversationEntry =
     | { kind: "message"; message: WireConversationMessage; line?: undefined; uuid?: undefined; type?: undefined; verdict?: undefined }
     | { kind: "stub"; line: number; uuid: string; type: string; verdict: string; message?: undefined };
 
-// Pure view model for the conversation view (no DOM): the document's lineVerdicts walked in
-// line order, each line becoming either a full message entry (its uuid matches a conversation
-// message) or a collapsed one-line stub (every other record), so nothing in the transcript is
-// hidden — only folded.
+// Pure view model for the conversation view (no DOM): the document's lineVerdicts walked in line order, each line becoming either a full message entry (its uuid matches a conversation message) or a collapsed one-line stub (every other record), so nothing in the transcript is hidden — only folded.
 export function buildConversationViewModel(document: WireConversationDocument): { entries: ConversationEntry[] } {
     const messageByUuid = new Map<string, WireConversationMessage>();
     for (const message of document.messages) {
@@ -145,8 +136,7 @@ export async function renderConversationView(container: HTMLElement, project: st
     ]));
     container.append(renderBranchStrip(documentJson.branches));
 
-    // line index -> the file paths that line's change revised (the edit-event markers), keyed
-    // by scanning each revision's changeId back to its raw line (see findLineForChangeId).
+    // line index -> the file paths that line's change revised (the edit-event markers), keyed by scanning each revision's changeId back to its raw line (see findLineForChangeId).
     const targetsByLine = new Map<number, string[]>();
     for (const history of documentJson.filesTouched) {
         for (const revision of history.revisions) {

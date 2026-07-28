@@ -1,6 +1,4 @@
-// Server test for task 204 (spec S7): `/webapp_old.html` serves the pre-existing webapp page.
-// viewer_server.ts starts listening at import time, so this is a spawned-process test rather
-// than an import test: launch the server on a scratch port, fetch, assert, kill.
+// Server test for task 204 (spec S7): `/webapp_old.html` serves the pre-existing webapp page.  viewer_server.ts starts listening at import time, so this is a spawned-process test rather than an import test: launch the server on a scratch port, fetch, assert, kill.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,10 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
-// Ports far from the app default (7343) so the tests never collide with a running viewer.
-// One port PER SPAWN, never reused: a killed child can linger (an attached debugger holds it
-// in "waiting for the debugger to disconnect"), so no test may wait on a previous server's
-// exit or rebind its port.
+// Ports far from the app default (7343) so the tests never collide with a running viewer.  One port PER SPAWN, never reused: a killed child can linger (an attached debugger holds it in "waiting for the debugger to disconnect"), so no test may wait on a previous server's exit or rebind its port.
 let nextScratchPort = 17400 + (process.pid % 500);
 
 // One launched viewer: the child to kill, and the port it listens on.
@@ -58,10 +53,7 @@ async function fetchPageText(port: number, urlPath: string): Promise<string> {
     return response.text();
 }
 
-// The picker shells out to `osascript` found on PATH, so a temp dir holding a fake `osascript`
-// (prepended to PATH) stands in for the GUI dialog — no real chooser ever opens. The fake is
-// stateful on purpose: call 1 = the user picked a folder, call 2 = the user cancelled, which
-// exercises both branches against ONE server.
+// The picker shells out to `osascript` found on PATH, so a temp dir holding a fake `osascript` (prepended to PATH) stands in for the GUI dialog — no real chooser ever opens. The fake is stateful on purpose: call 1 = the user picked a folder, call 2 = the user cancelled, which exercises both branches against ONE server.
 const PICKED_FOLDER = "/Users/test/picked folder";
 
 function writeFakeOsascriptDir(): string {

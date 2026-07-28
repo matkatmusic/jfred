@@ -1,13 +1,9 @@
-// Pure line-addition diffs for the git-evidence placement stage (split from
-// reconstruction_git_placement.ts, 250-line cap): a blob explained as the base plus inserted
-// lines, and the re-anchoring of those insertions onto another base.
+// Line-addition diffs for git-evidence placement, split from reconstruction_git_placement.ts.
 
-// One line the blob carries beyond the base, anchored to the base line it follows (undefined =
-// inserted at the start of the file).
+// A single inserted line, anchored to the base line it follows.
 export type LineAddition = { anchor: string | undefined; line: string };
 
-// The blob as the base plus pure line insertions, or undefined when the blob deletes or changes
-// any base line (then the diff is not "unexplained additions" and the stage must stay silent).
+// Extracts pure insertions from base to blob; undefined if any base line was changed.
 export function pureAdditionsFrom(baseLines: string[], blobLines: string[]): LineAddition[] | undefined {
     const additions: LineAddition[] = [];
     let baseIndex = 0;
@@ -22,8 +18,7 @@ export function pureAdditionsFrom(baseLines: string[], blobLines: string[]): Lin
     return additions;
 }
 
-// `lines` with each addition inserted after the LAST occurrence of its anchor (or at the start),
-// or undefined when an anchor line is absent — the addition cannot be re-anchored onto this base.
+// Re-anchors additions onto a different base; undefined if any anchor is missing.
 export function applyAdditions(lines: string[], additions: LineAddition[]): string[] | undefined {
     const result = [...lines];
     for (const { anchor, line } of additions) {

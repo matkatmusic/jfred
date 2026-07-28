@@ -1,6 +1,4 @@
-// The visual loop's assertion layer, driven off hand-built geometry rather than a browser: every
-// rule must FIRE on the shape of the bug it names and stay quiet on the shape of the fix. Capture
-// free, so it runs in CI alongside the rest.
+// The visual loop's assertion layer, driven off hand-built geometry rather than a browser: every rule must FIRE on the shape of the bug it names and stay quiet on the shape of the fix. Capture free, so it runs in CI alongside the rest.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

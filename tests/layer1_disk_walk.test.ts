@@ -1,7 +1,4 @@
-// Task 230 (spec S18): walkCurrentFileState — the on-disk `current file state` of a project
-// folder, relative paths plus mtimes, with `.git`, `node_modules` and gitignored paths absent.
-// Fixtures are real temp folders; a folder with no .gitignore must still walk (S18: a folder
-// the user points at may have none, which is not an error).
+// Task 230 (spec S18): walkCurrentFileState — the on-disk `current file state` of a project folder, relative paths plus mtimes, with `.git`, `node_modules` and gitignored paths absent.  Fixtures are real temp folders; a folder with no .gitignore must still walk (S18: a folder the user points at may have none, which is not an error).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -19,8 +16,7 @@ function writeFixtureFile(root: string, relativePath: string, content: string): 
     writeFileSync(absolute, content);
 }
 
-// A folder holding two real source files plus every excluded shape: a .git dir, a
-// node_modules dir, a gitignored directory (`build/`) and a gitignored glob (`*.log`).
+// A folder holding two real source files plus every excluded shape: a .git dir, a node_modules dir, a gitignored directory (`build/`) and a gitignored glob (`*.log`).
 function makeFixtureFolder(): string {
     const root = mkdtempSync(join(tmpdir(), "layer1-disk-walk-"));
     writeFixtureFile(root, ".gitignore", "# comment\n\nbuild/\n*.log\n!keep.log\n");
@@ -40,16 +36,13 @@ function listWalkedPaths(root: string): string[] {
 }
 
 test("test_walkCurrentFileState_returns_every_non_excluded_file_relative_and_sorted", () => {
-    // Scenario: the fixture folder yields exactly its non-excluded files, each path relative to
-    // the project root and the list sorted for determinism. .gitignore itself is a real tracked
-    // file, so it is part of the current file state.
+    // Scenario: the fixture folder yields exactly its non-excluded files, each path relative to the project root and the list sorted for determinism. .gitignore itself is a real tracked file, so it is part of the current file state.
     const root = makeFixtureFolder();
     assert.deepEqual(listWalkedPaths(root), [".gitignore", "README.md", "src/app.ts", "src/nested/helper.ts"]);
 });
 
 test("test_walkCurrentFileState_excludes_git_node_modules_and_gitignored_paths", () => {
-    // Scenario: the .git dir, the node_modules dir, the gitignored `build/` directory and the
-    // gitignored `*.log` glob are all absent — including files nested inside them.
+    // Scenario: the .git dir, the node_modules dir, the gitignored `build/` directory and the gitignored `*.log` glob are all absent — including files nested inside them.
     const walked = listWalkedPaths(makeFixtureFolder());
     for (const excluded of [".git/config", "node_modules/pkg/index.js", "build/out.js", "debug.log"]) {
         assert.equal(walked.includes(excluded), false, `${excluded} should not be walked`);
@@ -57,8 +50,7 @@ test("test_walkCurrentFileState_excludes_git_node_modules_and_gitignored_paths",
 });
 
 test("test_walkCurrentFileState_walks_a_folder_with_no_gitignore", () => {
-    // Scenario: a folder with no .gitignore is not an error — it walks, and `.git` and
-    // `node_modules` are still excluded unconditionally.
+    // Scenario: a folder with no .gitignore is not an error — it walks, and `.git` and `node_modules` are still excluded unconditionally.
     const root = mkdtempSync(join(tmpdir(), "layer1-disk-walk-bare-"));
     writeFixtureFile(root, "notes.txt", "notes\n");
     writeFixtureFile(root, "node_modules/pkg/index.js", "pkg\n");
@@ -75,9 +67,7 @@ function runGit(folder: string, command: string): void {
     });
 }
 
-// A REAL repo holding a tracked file, an untracked file, an ignored file (via a NESTED .gitignore
-// the fallback matcher cannot read), and a committed submodule whose inner repo has a file of its
-// own. `protocol.file.allow=always` is mandatory: modern git refuses a local-path submodule clone.
+// A REAL repo holding a tracked file, an untracked file, an ignored file (via a NESTED .gitignore the fallback matcher cannot read), and a committed submodule whose inner repo has a file of its own. `protocol.file.allow=always` is mandatory: modern git refuses a local-path submodule clone.
 function makeFixtureRepoWithSubmodule(): string {
     const innerDir = mkdtempSync(join(tmpdir(), "layer1-disk-walk-inner-"));
     runGit(innerDir, "init -q");
@@ -98,11 +88,7 @@ function makeFixtureRepoWithSubmodule(): string {
 }
 
 test("test_walkCurrentFileState_asks_git_and_omits_a_submodules_contents_and_its_gitlink", () => {
-    // Scenario: a submodule's files belong to ANOTHER repository, so Layer 1 must not report them
-    // at all — the real case is jfred's four submodules holding 10,884 files, every one of which
-    // landed in the "No repository match" bucket. The gitlink itself is not a file either.
-    // Steps:
-    // walk a real repo that holds a tracked file, an untracked file and a submodule.
+    // Scenario: a submodule's files belong to ANOTHER repository, so Layer 1 must not report them at all — the real case is jfred's four submodules holding 10,884 files, every one of which landed in the "No repository match" bucket. The gitlink itself is not a file either.  Steps: walk a real repo that holds a tracked file, an untracked file and a submodule.
     const walked = listWalkedPaths(makeFixtureRepoWithSubmodule());
     // the submodule's contents are absent — git stops at the gitlink, so they are never listed.
     assert.equal(walked.some((path) => path.startsWith("external/tmux_lib/")), false, walked.join(","));
@@ -111,11 +97,7 @@ test("test_walkCurrentFileState_asks_git_and_omits_a_submodules_contents_and_its
 });
 
 test("test_walkCurrentFileState_reports_tracked_and_untracked_files_but_not_ignored_ones", () => {
-    // Scenario: the `current file state` is what is on disk, which is tracked AND untracked files
-    // — but never an ignored one. A NESTED .gitignore governs here, which is exactly what asking
-    // git buys over the fallback matcher (that one reads only the TOP-LEVEL .gitignore).
-    // Steps:
-    // walk the same repo.
+    // Scenario: the `current file state` is what is on disk, which is tracked AND untracked files — but never an ignored one. A NESTED .gitignore governs here, which is exactly what asking git buys over the fallback matcher (that one reads only the TOP-LEVEL .gitignore).  Steps: walk the same repo.
     const walked = listWalkedPaths(makeFixtureRepoWithSubmodule());
     // the tracked file, the untracked file and the two .gitignore/.gitmodules files git tracks.
     assert.equal(walked.includes("kept.txt"), true, walked.join(","));
@@ -125,8 +107,7 @@ test("test_walkCurrentFileState_reports_tracked_and_untracked_files_but_not_igno
 });
 
 test("test_walkCurrentFileState_reports_the_files_mtime", () => {
-    // Scenario: each entry carries the file's mtime as a Date (the Layer-1 timestamp; birthtime
-    // is deliberately never read).
+    // Scenario: each entry carries the file's mtime as a Date (the Layer-1 timestamp; birthtime is deliberately never read).
     const root = makeFixtureFolder();
     const readme = walkCurrentFileState(new Path(root)).find((file) => file.relativePath.toString() === "README.md");
     assert.ok(readme !== undefined);

@@ -10,14 +10,12 @@ import { S15_JSONL } from "./fixtures.ts";
 // The S15 user edit's full post-edit content (the snippet with its `<n>\t` line-number prefixes stripped).
 const S15_USER_EDIT_CONTENT = '# user edit\ndef hello():\n    print("hello")';
 
-// The single `edited_text_file` attachment record in a transcript, found by what it IS (it is the one record
-// `userEditEventFrom` recognizes) rather than by a hard-coded uuid prefix that rotates on every re-run.
+// The single `edited_text_file` attachment record in a transcript, found by what it IS (it is the one record `userEditEventFrom` recognizes) rather than by a hard-coded uuid prefix that rotates on every re-run.
 function editedTextFileRecord(records: TranscriptRecord[]): TranscriptRecord {
     return records.find((record) => userEditEventFrom(record) !== undefined)!;
 }
 
-// `userEditEventFrom` turns the `edited_text_file` attachment record into a user-edit file event whose
-// content is the snippet with line-number prefixes stripped and whose changeId is the record's own uuid.
+// `userEditEventFrom` turns the `edited_text_file` attachment record into a user-edit file event whose content is the snippet with line-number prefixes stripped and whose changeId is the record's own uuid.
 test("test_userEditEventFrom_reads_edited_text_file_attachment", () => {
     // Load the real S15 transcript and find its user-edit attachment record structurally.
     const records = loadRecords(S15_JSONL);
@@ -33,16 +31,14 @@ test("test_userEditEventFrom_reads_edited_text_file_attachment", () => {
     assert.equal(event!.content, S15_USER_EDIT_CONTENT);
 });
 
-// Across the whole transcript, exactly one record is an `edited_text_file` attachment — every other record
-// (prompts, assistant turns, tool results) yields no user-edit event.
+// Across the whole transcript, exactly one record is an `edited_text_file` attachment — every other record (prompts, assistant turns, tool results) yields no user-edit event.
 test("test_userEditEventFrom_ignores_other_records", () => {
     const records = loadRecords(S15_JSONL);
     const userEditRecords = records.filter((record) => userEditEventFrom(record) !== undefined);
     assert.equal(userEditRecords.length, 1);
 });
 
-// Extraction over the whole transcript surfaces exactly one user-edit event, ordered (by timestamp)
-// after the two trunk write events.
+// Extraction over the whole transcript surfaces exactly one user-edit event, ordered (by timestamp) after the two trunk write events.
 test("test_extractFileEvents_includes_the_user_edit_for_S15", () => {
     // Extract every file event from the S15 transcript.
     const events = extractFileEvents(loadRecords(S15_JSONL));

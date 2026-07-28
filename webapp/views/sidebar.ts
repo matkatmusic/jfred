@@ -1,5 +1,4 @@
-// Renders the "Sessions" and "Files" panes into the static #drawer; view-models come from
-// webapp/views/timeline.ts and clicks route back to the timeline through the callbacks.
+// Renders the "Sessions" and "Files" panes into #drawer; clicks route back to the timeline through callbacks.
 
 import { el } from "../app-dom.ts";
 import type { CoverageSegment } from "./reconstruction-coverage.ts";
@@ -26,8 +25,7 @@ type FileSidebarEntry = {
     renameBadgeLabel: string | undefined;
 };
 
-// Mirrored rather than imported: timeline.ts imports this module, so importing back would be a
-// cycle — the same reason the entry types above are mirrored.
+// Mirrored, not imported: timeline.ts imports this module, so importing back would be a cycle.
 type FileTreeNode = {
     kind: string;
     name: string;
@@ -41,16 +39,14 @@ const SELECTED_CLASS = "selected";
 
 const FOLDER_NAME_CLASS = "file-folder-name";
 
-// A WeakMap rather than a selection-state object: the `selected` class on the rows stays the only
-// selection state, and a discarded tree's entries go with it.
+// A WeakMap, so the `selected` class stays the only selection state and a discarded tree's entries go with it.
 const folderTargetsBySummary = new WeakMap<HTMLElement, string[]>();
 
-// The narrower half of ForkSidebarCallbacks: the Files sidebar and the details pane's "Files
-// touched" tree render the SAME tree with different click meanings.
+// The narrower half of ForkSidebarCallbacks: two panes render the SAME tree with different click meanings.
 export type FileTreeCallbacks = {
     onFileClick: (target: string) => void;
-    // Receives the de-duplicated union of every selected folder's LEAF paths, because buildFileTree
-    // strips the common prefix and a folder node carries no path of its own. Empty means cleared.
+    // Receives the de-duplicated union of every selected folder's LEAF paths; empty means cleared.
+
     // Optional: folders stay inert for owners that pass nothing.
     onFolderClick?: (targets: string[]) => void;
 };
@@ -59,8 +55,7 @@ type ForkSidebarCallbacks = FileTreeCallbacks & {
     onSessionClick: (firstNodeIndex: number) => void;
 };
 
-// The root is explicit because two trees are on screen and a click in one must not clear the
-// other's selection; the selector is the bare class because a FOLDER row can hold selection too.
+// The root is explicit so a click in one on-screen tree cannot clear the other's selection.
 export function clearFileSelectionIn(root: HTMLElement): void {
     for (const item of root.querySelectorAll(`.${SELECTED_CLASS}`)) {
         item.classList.remove(SELECTED_CLASS);
@@ -92,11 +87,9 @@ export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarE
 }
 
 // A native <details open> per folder, so the pane needs no toggle JS and no collapse state.
-// `selectionRoot` scopes a leaf click's clear; `coverage` is optional and omitted renders plain rows.
 export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
     if (node.kind === FOLDER_NODE_KIND) {
-        // `open: ""` because el's attrs are string-valued, and a present `open` attribute is what
-        // expands a <details>. The wrapper is what the CSS indents and draws the guide line on.
+        // `open: ""` because el's attrs are string-valued and a present `open` attribute expands a <details>.
         const kids = el("div", { class: "file-folder-kids" },
             node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)));
         const summary = el("summary", { class: FOLDER_NAME_CLASS, text: node.name });
@@ -106,15 +99,13 @@ export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallba
     return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot, coverage);
 }
 
-// NO preventDefault and NO stopPropagation: expanding the <details> is this click's default action
-// on a <summary>, and cancelling it would trade expand/collapse for the filter.
+// NO preventDefault: cancelling a <summary> click would trade expand/collapse for the filter.
 function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement): void {
     const onFolderClick = callbacks.onFolderClick;
     if (onFolderClick === undefined) {
         return;
     }
-    // A REAL element so a click on it is distinguishable by `event.target`; as a ::before
-    // pseudo-element it was no event target, so expanding a folder also filtered the timeline to it.
+    // A REAL element, not a ::before pseudo-element, so `event.target` can distinguish a click on it.
     const toggle = el("span", { class: "file-folder-toggle" });
     summary.prepend(toggle);
     folderTargetsBySummary.set(summary, listDescendantTargets(node));
@@ -124,8 +115,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
             return;
         }
         const wasSelected = summary.classList.contains(SELECTED_CLASS);
-        // A shift-click adds to the selection instead of replacing it; a plain click is unchanged by
-        // construction, since after the clear this row is the only selected folder.
+        // A shift-click adds to the selection instead of replacing it.
         if (!event.shiftKey) {
             clearFileSelectionIn(selectionRoot);
         }
@@ -134,8 +124,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
     });
 }
 
-// De-duplicated because a selected parent and child folder overlap; only folder rows count, since
-// the selected class is shared with file leaves, which stand for themselves.
+// De-duplicated because a selected parent and child folder overlap; only folder rows count here.
 function listSelectedFolderTargets(selectionRoot: HTMLElement): string[] {
     const union = new Set<string>();
     for (const summary of selectionRoot.querySelectorAll(`.${FOLDER_NAME_CLASS}.${SELECTED_CLASS}`)) {
@@ -146,8 +135,7 @@ function listSelectedFolderTargets(selectionRoot: HTMLElement): string[] {
     return [...union];
 }
 
-// Recurses on the presence of `entry` rather than on `kind`, because `entry` is what the leaf
-// renderer requires, so the two cannot fall out of step.
+// Recurses on `entry` rather than `kind`, since `entry` is what the leaf renderer requires.
 function listDescendantTargets(node: FileTreeNode): string[] {
     if (node.entry !== undefined) {
         return [node.entry.target];

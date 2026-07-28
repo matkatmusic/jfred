@@ -14,8 +14,7 @@ import type { ConvoBranch } from "../src/reconstruction_graph.ts";
 import { BranchRole, EventKind } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
-// A graph node with the given letter/kind/file/changeId (timestamp is only used for branch ordering,
-// which the builders already decided, so a fixed value is fine for renderer tests).
+// A graph node with the given letter/kind/file/changeId (timestamp is only used for branch ordering, which the builders already decided, so a fixed value is fine for renderer tests).
 function makeTurn(letter: string, kind: EventKind, file: string, changeId: string): GraphTurn {
     return {
         letter,
@@ -79,8 +78,7 @@ function buildFileDag(): FileDag {
     return { files: [scenario, tests] };
 }
 
-// A forked conversationDAG renders oldest-first branch wrappers with connectors, the rewind-point note
-// on the root, the role-named branch headers, and topology-only turn lines.
+// A forked conversationDAG renders oldest-first branch wrappers with connectors, the rewind-point note on the root, the role-named branch headers, and topology-only turn lines.
 test("test_render_conversation_dag_forked_shows_branches_oldest_first", () => {
     const out = renderConversationDag(buildForkedConvoDag());
     // The header and the root with its rewind-point annotation.
@@ -116,8 +114,7 @@ test("test_render_conversation_dag_linear_has_no_branch_wrappers", () => {
     assert.ok(out.includes("C  edit"));
 });
 
-// The fileDAG renders vertically: one base-name header per file then its version-ordered turns; the
-// letters cross-link to the conversationDAG (B/C/D/E are the same turns).
+// The fileDAG renders vertically: one base-name header per file then its version-ordered turns; the letters cross-link to the conversationDAG (B/C/D/E are the same turns).
 test("test_render_file_dag_is_vertical_per_file_with_shared_letters", () => {
     const out = renderFileDag(buildFileDag());
     assert.ok(out.includes("══ fileDAG ══"));

@@ -1,5 +1,4 @@
-// Run detection lives in reconstruction_script_execution.ts, pre-execution seeding in
-// reconstruction_script_prestate.ts.
+// Run detection lives in reconstruction_script_execution.ts, pre-execution seeding in reconstruction_script_prestate.ts.
 
 import { Path } from "./structures/domain.ts";
 import { execSync } from "node:child_process";
@@ -44,18 +43,13 @@ export function isJunkStateKey(key: string): boolean {
     return key.includes("__pycache__") || key.endsWith(".pyc");
 }
 
-// A script is a deterministic transform of its seeded files, so one spawn per distinct input
-// suffices. The wrapper keeps a memoized failure (`post: undefined`) distinct from a cache miss.
-// ponytail: outcomes are returned by reference — every caller treats post-states as read-only.
+// A script is deterministic per input, so one spawn suffices; ponytail: outcomes returned by reference, treat post-states read-only.
 type SandboxOutcome = { post: Map<string, string> | undefined };
 const sandboxOutcomesByInput = new Map<string, SandboxOutcome>();
-// Must exceed a project's distinct run count, else eviction beats the disk snapshot and every cold
-// process re-spawns. ponytail: flat constant — revisit if a project exceeds it.
+// Must exceed a project's distinct run count or eviction beats the disk snapshot; ponytail: flat constant, revisit if exceeded.
 const SANDBOX_MEMO_CAPACITY = 4096;
 
-// Opt-in: only the viewer server configures a path, keeping CLI/test spawn counts deterministic.
-// Persisting rewrites the WHOLE memo, so batching avoids O(N²) over a cold load.
-// ponytail: fixed batch size; a crash loses at most one batch, which the next load re-spawns.
+// Opt-in (viewer only, keeps CLI/tests deterministic); batches to avoid O(N²) rewrites. ponytail: fixed batch size, a crash re-spawns one batch.
 let sandboxMemoFilePath: Path | undefined;
 const SANDBOX_MEMO_PERSIST_BATCH_SIZE = 64;
 let sandboxSpawnsSinceLastPersist = 0;
@@ -73,16 +67,13 @@ export function configureSandboxMemoPersistence(filePath: Path | undefined): voi
     loadSandboxMemoFromDisk(filePath);
 }
 
-// Persist the memo unconditionally and reset the batch counter — call once when a reconstruction
-// completes so the final (sub-batch) tail of new spawns is never lost. No-op without a configured path.
+// Call once when a reconstruction completes so the final sub-batch tail of new spawns isn't lost; no-op without a path.
 export function flushSandboxMemoToDisk(): void {
     persistSandboxMemoToDisk();
     sandboxSpawnsSinceLastPersist = 0;
 }
 
-// Delete the persisted sandbox memo so the next run starts with an empty cache (force = no error if
-// absent). The server calls this before configureSandboxMemoPersistence when launched with
-// --resetSandboxMemo, to watch a full cold load reconstruct everything from scratch.
+// Deletes the persisted sandbox memo so --resetSandboxMemo forces a full cold-load reconstruction from scratch.
 export function resetSandboxMemoOnDisk(filePath: Path): void {
     rmSync(filePath.toString(), { force: true });
 }
@@ -131,10 +122,7 @@ function persistSandboxMemoToDisk(): void {
     }
 }
 
-// One collision-safe key per distinct sandbox input: the script plus every seeded (path,
-// content) pair in sorted-path order, NUL-separated, hashed. The recorded cwd participates
-// because it changes the effective script (its literal gets remapped to the sandbox dir) —
-// and its inclusion invalidates memoized failures persisted before the remap existed.
+// Hashes the script plus sorted seeded (path, content) pairs, plus cwd since remapping cwd changes the effective script.
 function computeSandboxInputKey(script: string, preState: Map<string, string>, recordedCwd?: Path): string {
     const hash = createHash("sha256");
     hash.update(script);
@@ -174,8 +162,7 @@ export function runScriptAgainstState(
     const post = spawnSandboxRun(script, preState, recordedCwd);
     sandboxOutcomesByInput.set(inputKey, { post });
     evictLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
-    // Persist per batch, not per spawn: the whole-memo rewrite is O(N²) if done every time.
-    // flushSandboxMemoToDisk() at end of build catches the final sub-batch tail.
+    // Persist per batch, not per spawn, since a full rewrite is O(N²); flushSandboxMemoToDisk() catches the final tail at build end.
     sandboxSpawnsSinceLastPersist += 1;
     if (sandboxSpawnsSinceLastPersist >= SANDBOX_MEMO_PERSIST_BATCH_SIZE) {
         persistSandboxMemoToDisk();
@@ -184,11 +171,7 @@ export function runScriptAgainstState(
     return post;
 }
 
-// The sandbox execution itself, extracted verbatim from the pre-memo body: seed a temp dir,
-// run python3, read back the resulting tree (undefined on any script failure).
-// A script that hardcodes its RECORDED cwd as an absolute literal would escape the sandbox and
-// touch (or mutate!) the real directory — so the recorded cwd, when known, is remapped to the
-// sandbox dir in the script text before it is written.
+// Seeds a temp dir, runs python3, reads back the tree; remaps a hardcoded cwd so scripts can't escape the sandbox.
 function spawnSandboxRun(
     script: string,
     preState: Map<string, string>,

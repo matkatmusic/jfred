@@ -1,7 +1,4 @@
-// Fabrication helpers for the multi-source merge tests (tasks 174/175): two-source temp trees
-// and Write/Edit record pairs in the exact captured wire shape (scenarios/executed/s1, s12).
-// Fixtures load through loadTranscript so records carry real source stamps — a stamp-skipping
-// loader would make the sidecar reader fall back to the LIVE ~/.claude/file-history.
+// Fabrication helpers for the multi-source merge tests (tasks 174/175): two-source temp trees and Write/Edit record pairs in the exact captured wire shape (scenarios/executed/s1, s12).  Fixtures load through loadTranscript so records carry real source stamps — a stamp-skipping loader would make the sidecar reader fall back to the LIVE ~/.claude/file-history.
 
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,8 +22,7 @@ export function makeSourceTree(projectName: string): SourceTree {
     return { treeRoot, projectDir };
 }
 
-// Serialize fabricated records one-per-line into <projectDir>/<name> and load them back through
-// loadTranscript so every record carries its on-disk source stamp.
+// Serialize fabricated records one-per-line into <projectDir>/<name> and load them back through loadTranscript so every record carries its on-disk source stamp.
 export function writeTranscriptFixture(projectDir: string, name: string, records: object[]): TranscriptRecord[] {
     const jsonlPath = join(projectDir, name);
     writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
@@ -76,8 +72,7 @@ function buildUserToolResultRecord(envelope: RecordEnvelope, resultText: string,
 
 export type RecordPair = { records: object[]; lastUuid: string };
 
-// The pair for a tool run that FAILED: real transcripts report a plain string toolUseResult
-// ("Error: File does not exist.", "User rejected tool use") instead of a structured payload.
+// The pair for a tool run that FAILED: real transcripts report a plain string toolUseResult ("Error: File does not exist.", "User rejected tool use") instead of a structured payload.
 export function buildErroredToolResultRecordPair(
     envelope: RecordEnvelope,
     toolName: string,
@@ -93,9 +88,7 @@ export function buildErroredToolResultRecordPair(
     };
 }
 
-// A genuine typed-in user prompt record (string message content, no tool_result, not meta) —
-// the turn-boundary shape the task-193 bound tests cut at. isSidechain marks a subagent's
-// opening prompt, which is NOT a turn boundary; sessionId defaults to SESSION_A.
+// A genuine typed-in user prompt record (string message content, no tool_result, not meta) — the turn-boundary shape the task-193 bound tests cut at. isSidechain marks a subagent's opening prompt, which is NOT a turn boundary; sessionId defaults to SESSION_A.
 export function buildPromptRecord(
     uuid: string,
     parentUuid: string | null,
@@ -137,9 +130,7 @@ export function buildWriteRecordPair(envelope: RecordEnvelope, filePath: string,
     };
 }
 
-// The pair for one Edit (an "update" result with structuredPatch + originalFile — the §a
-// content-gate evidence). originalFile: null models a result that reports no pre-edit content
-// (task 198's byteless-Edit class).
+// The pair for one Edit (an "update" result with structuredPatch + originalFile — the §a content-gate evidence). originalFile: null models a result that reports no pre-edit content (task 198's byteless-Edit class).
 export function buildEditRecordPair(
     envelope: RecordEnvelope,
     filePath: string,
@@ -167,8 +158,7 @@ export function buildEditRecordPair(
 // The echoed window of a Read result: which lines came back and how many the file holds.
 export type ReadWindow = { startLine: number; numLines: number; totalLines: number };
 
-// The pair for one Read (a "text" result whose file block carries the echo window — task 198's
-// complete-vs-partial Read echo evidence).
+// The pair for one Read (a "text" result whose file block carries the echo window — task 198's complete-vs-partial Read echo evidence).
 export function buildReadRecordPair(
     envelope: RecordEnvelope,
     filePath: string,
@@ -198,11 +188,7 @@ export type TwoSourceFixture = {
     betaPath: string;
 };
 
-// Two source trees with declared roots: source A's session writes <rootA>/app.py "line one" at
-// 10:00; source B's session edits <rootB>/app.py at 10:05 whose originalFile is the given
-// evidence. buildExtraRecordsA (optional) receives A's computed locations and returns further
-// records appended onto A's transcript (for interleave shapes) — a callback because the temp
-// paths only exist once the trees are made.
+// Two source trees with declared roots: source A's session writes <rootA>/app.py "line one" at 10:00; source B's session edits <rootB>/app.py at 10:05 whose originalFile is the given evidence. buildExtraRecordsA (optional) receives A's computed locations and returns further records appended onto A's transcript (for interleave shapes) — a callback because the temp paths only exist once the trees are made.
 export function makeTwoSourceEditFixture(
     originalFileSeenByB: string,
     buildExtraRecordsA?: (locations: { rootA: string; alphaPath: string }) => object[],

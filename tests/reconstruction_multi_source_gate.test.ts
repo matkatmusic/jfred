@@ -1,6 +1,4 @@
-// Spec S5 (task 176) §c4 conflict notes: a cross-source contradiction on a JOINED file must not
-// abort — it surfaces as a task-119 health-sink conflict note while the merged timeline still
-// completes; an agreeing cross-source stream stays silent.
+// Spec S5 (task 176) §c4 conflict notes: a cross-source contradiction on a JOINED file must not abort — it surfaces as a task-119 health-sink conflict note while the merged timeline still completes; an agreeing cross-source stream stays silent.
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -39,10 +37,7 @@ function buildSecondEditOfA(
 }
 
 test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline", () => {
-    // Scenario (§c4): A writes at t1, B's t2 edit agrees (join fires), then A's t3 edit carries
-    // pre-state evidence that contradicts the merged state at t3 (it never saw B's line).
-    // Steps: A write "line one" t1 → B edit +"line two" t2 → A edit t3, originalFile still
-    // "line one" (stale — the contradiction).
+    // Scenario (§c4): A writes at t1, B's t2 edit agrees (join fires), then A's t3 edit carries pre-state evidence that contradicts the merged state at t3 (it never saw B's line).  Steps: A write "line one" t1 → B edit +"line two" t2 → A edit t3, originalFile still "line one" (stale — the contradiction).
     const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline three\n", "line one\n", {
             oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line three"],

@@ -8,9 +8,7 @@ import { Path } from "../src/structures/domain.ts";
 import { collectSandboxSpawnLabels } from "./script-execution-test-helpers.ts";
 
 test("test_runScriptAgainstState_returns_files_the_script_creates", () => {
-    // Scenario: the script writes a new file the pre-state never contained; the result includes it.
-    // Steps:
-    // run a script that writes "out.txt" against an empty-but-nonempty pre-state.
+    // Scenario: the script writes a new file the pre-state never contained; the result includes it.  Steps: run a script that writes "out.txt" against an empty-but-nonempty pre-state.
     const script = 'open("out.txt", "w").write("created\\n")\n';
     const preState = new Map([["keep.py", "x = 1\n"]]);
     const result = runScriptAgainstState(script, preState);
@@ -57,11 +55,7 @@ test("test_runScriptAgainstState_applies_rename", () => {
 });
 
 test("test_runScriptAgainstState_memoizes_identical_input", () => {
-    // Scenario: two calls with byte-identical (script, seeded state) spawn ONE sandbox — the
-    // second returns the memoized outcome (s84 in logs1.txt asked 208 times for 14 distinct
-    // inputs; this memo is the fix).
-    // Steps:
-    // run the same transform twice, counting spawn announcements.
+    // Scenario: two calls with byte-identical (script, seeded state) spawn ONE sandbox — the second returns the memoized outcome (s84 in logs1.txt asked 208 times for 14 distinct inputs; this memo is the fix).  Steps: run the same transform twice, counting spawn announcements.
     const preState = new Map([["data.txt", "before\n"]]);
     const script = 'open("data.txt", "w").write("after\\n")\n';
     let firstResult: Map<string, string> | undefined;
@@ -77,10 +71,7 @@ test("test_runScriptAgainstState_memoizes_identical_input", () => {
 });
 
 test("test_runScriptAgainstState_distinguishes_seeded_content", () => {
-    // Scenario: same script, different seeded CONTENT — the memo must key on content, never on
-    // path names or file counts.
-    // Steps:
-    // run one appending script over two different seeds.
+    // Scenario: same script, different seeded CONTENT — the memo must key on content, never on path names or file counts.  Steps: run one appending script over two different seeds.
     const script = 'data = open("data.txt").read()\nopen("data.txt", "w").write(data + "x\\n")\n';
     const firstResult = runScriptAgainstState(script, new Map([["data.txt", "a\n"]]));
     const secondResult = runScriptAgainstState(script, new Map([["data.txt", "b\n"]]));
@@ -90,10 +81,7 @@ test("test_runScriptAgainstState_distinguishes_seeded_content", () => {
 });
 
 test("test_runScriptAgainstState_memoizes_failed_runs", () => {
-    // Scenario: a failing script memoizes too — its repeats must not re-pay the spawn (or its
-    // 5-second timeout) for a run already known to fail.
-    // Steps:
-    // run a script that exits nonzero, twice, counting spawn announcements.
+    // Scenario: a failing script memoizes too — its repeats must not re-pay the spawn (or its 5-second timeout) for a run already known to fail.  Steps: run a script that exits nonzero, twice, counting spawn announcements.
     const preState = new Map([["data.txt", "x\n"]]);
     const script = "raise SystemExit(1)\n";
     let firstResult: Map<string, string> | undefined;

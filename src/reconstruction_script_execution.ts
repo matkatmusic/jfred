@@ -8,11 +8,7 @@ import { getCorpusState } from "./reconstruction_corpus.ts";
 import { indexWrittenContentByBasename, resolveScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 
-// The proven post-execution state of a script run for one target file: the forward transform already
-// applied to the pre-script content. Injected as a synthetic authored event at the run's timestamp and
-// replayed as a full-content revision (like userEdit / overwrite). `content` is precomputed (not subs
-// re-applied at replay) so the revision is independent of replay ordering / earlier beacon completion.
-// One event per target file.
+// A script run's proven post-execution content, injected as a synthetic full-content revision; precomputed so replay order can't affect it.
 export type ScriptExecutionEvent = {
     kind: EventKind.scriptExecution;
     changeId: Uuid;
@@ -22,16 +18,13 @@ export type ScriptExecutionEvent = {
 };
 
 
-// Task 192: bash runs cannot go through the python3 sandbox (shell code always crashed to
-// post:undefined), so their pre-state build and spawn are skipped. Derived from the ORIGINATING
-// tool block, except a bash run resolved through indirection to a .py body becomes python.
+// Task 192: bash runs skip the python3 sandbox; kind derives from tool block, unless indirection resolves to a .py body.
 export enum ScriptExecutorKind {
     python = "python",
     bash = "bash",
 }
 
-// `cwd` is the MCP executor's input.cwd when present, else the record's. executorKind is optional
-// so synthetic test runs keep the pre-gate behavior: an absent kind executes like python.
+// `cwd` is the MCP executor's input.cwd, else the record's; an absent executorKind executes like python (pre-gate behavior).
 export type ScriptRun = {
     code: string;
     timestamp: Date;
@@ -44,8 +37,7 @@ export type ScriptRun = {
 // Follows the originalFile: precedent — a prefixed id resolveSyntheticChangeIdToSourceId unwraps.
 export const SCRIPT_RUN_CHANGE_ID_PREFIX = "scriptRun:";
 
-// Deterministic so the step-timeline and file-history replays produce joinable ids (item 34). The
-// source segment never contains ":", so the first ":" after the prefix always terminates it.
+// Deterministic so step-timeline and file-history replays produce joinable ids (item 34); the source segment never contains ':'.
 export function computeScriptExecutionChangeId(run: ScriptRun, target: Path): Uuid {
     const sourceSegment = run.toolUseId?.toString() ?? String(run.timestamp.getTime());
     return new Uuid(`${SCRIPT_RUN_CHANGE_ID_PREFIX}${sourceSegment}:${target.toString()}`);
@@ -103,8 +95,7 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
     return runs;
 }
 
-// A run invoking a written script file is resolved to that file's body. Memoized per records
-// identity because the per-file repair chain calls this once per reconstructed file.
+// A run invoking a written script file resolves to that file's body; memoized since repair chain calls this per file.
 export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[] {
     const state = getCorpusState(records);
     if (state.scriptRuns !== undefined) {

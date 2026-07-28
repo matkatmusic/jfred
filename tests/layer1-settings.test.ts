@@ -1,8 +1,6 @@
 // Task 297: the Save-project-settings button and the restore that reads its file back.
 //
-// Two rules carry the risk. A FAILED save must leave the button armed — a page that reports "saved"
-// when nothing was written is worse than one that never saves. And a ?dir=/?repo= link must beat the
-// saved file, or a shared link silently renders somebody else's project.
+// Two rules carry the risk. A FAILED save must leave the button armed — a page that reports "saved" when nothing was written is worse than one that never saves. And a ?dir=/?repo= link must beat the saved file, or a shared link silently renders somebody else's project.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -102,9 +100,7 @@ test("the saved file fills the boxes and the two source lists", async () => {
 });
 
 test("a link wins for the fields it names, and only those", async () => {
-    // Precedence is PER FIELD. A ?dir=&repo= link must render what it names — but it says nothing
-    // about the source lists, and blanking the whole restore over it is what left the headless
-    // harness, which always navigates with a query string, on one derived JSONL folder.
+    // Precedence is PER FIELD. A ?dir=&repo= link must render what it names — but it says nothing about the source lists, and blanking the whole restore over it is what left the headless harness, which always navigates with a query string, on one derived JSONL folder.
     setupLayer1Dom("?dir=/Users/you/code/other-app&repo=/Users/you/code/other-app");
     stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     getInputById("dir").value = "/Users/you/code/other-app";

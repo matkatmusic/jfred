@@ -29,8 +29,7 @@ test("test_parse_args_reads_path_target_and_flags", () => {
     assert.equal(options.verbose, false);
 });
 
-// parseArgs reads all four item-46 path-override flags, each landing as a typed domain value; the
-// positional transcript path is still found (flag values are never mistaken for it).
+// parseArgs reads all four item-46 path-override flags, each landing as a typed domain value; the positional transcript path is still found (flag values are never mistaken for it).
 test("test_parse_args_extracts_path_override_flags", () => {
     // Step: parse an argv carrying every override flag plus the positional transcript path.
     const options = parseArgs([
@@ -57,8 +56,7 @@ test("test_parse_args_accepts_fhs_alias", () => {
     assert.equal(options.fileHistoryRoot?.toString(), "/data/file-history");
 });
 
-// Build a temp <root>/projects/<project>/session.jsonl tree, optionally dropping a reveng-paths.json
-// config beside the project dir. Returns the transcript path applyCliPathOverrides will derive from.
+// Build a temp <root>/projects/<project>/session.jsonl tree, optionally dropping a reveng-paths.json config beside the project dir. Returns the transcript path applyCliPathOverrides will derive from.
 function makeProjectsTree(projectName: string, config?: Record<string, WireProjectPaths>): string {
     const projectsDir = join(mkdtempSync(join(tmpdir(), "item46-cli-")), "projects");
     mkdirSync(join(projectsDir, projectName), { recursive: true });
@@ -74,8 +72,7 @@ describe("applyCliPathOverrides", () => {
     // Every test here mutates the process-wide override state; always reset it.
     afterEach(() => setPathOverrides({}));
 
-    // The projects-folder config entry is the base and direct CLI flags win per-field: the config's
-    // cwd survives while the flag's repo replaces the config's repo.
+    // The projects-folder config entry is the base and direct CLI flags win per-field: the config's cwd survives while the flag's repo replaces the config's repo.
     test("test_apply_cli_path_overrides_merges_config_under_flags", () => {
         // Step: a projects tree whose reveng-paths.json gives this project a cwd AND a repo.
         const jsonlPath = makeProjectsTree("-Users-me-proj", {
@@ -103,8 +100,7 @@ describe("applyCliPathOverrides", () => {
 });
 
 test("test_parse_args_collects_multiple_positional_transcripts", () => {
-    // Scenario (spec S4b): every non-flag argument is a transcript path — multiple
-    // conversation-log folders arrive as multiple positionals.
+    // Scenario (spec S4b): every non-flag argument is a transcript path — multiple conversation-log folders arrive as multiple positionals.
     const options = parseArgs(["a.jsonl", "b.jsonl", "--diff"]);
     // Test verification: both positionals collected, first one keeps the legacy field.
     assert.deepEqual(options.jsonlPaths, ["a.jsonl", "b.jsonl"]);
@@ -119,10 +115,7 @@ test("test_parse_args_single_positional_keeps_legacy_fields", () => {
 });
 
 test("test_apply_cli_overrides_derives_sources_from_multi_root_positionals", () => {
-    // Scenario (spec S4b): positionals spanning two DISTINCT projects roots, with no config
-    // sources, derive one bare {projectsDir} source per root so per-source sibling
-    // file-history resolution works with zero config.
-    // Step: two copied-out-of-~/.claude trees, one transcript path in each.
+    // Scenario (spec S4b): positionals spanning two DISTINCT projects roots, with no config sources, derive one bare {projectsDir} source per root so per-source sibling file-history resolution works with zero config.  Step: two copied-out-of-~/.claude trees, one transcript path in each.
     const treeA = mkdtempSync(join(tmpdir(), "cli-sources-a-"));
     const treeB = mkdtempSync(join(tmpdir(), "cli-sources-b-"));
     const projectDirA = join(treeA, "projects", "-proj-a");
@@ -150,8 +143,7 @@ test("test_apply_cli_overrides_single_positional_leaves_sources_absent", () => {
 });
 
 test("test_parse_until_revision_flag", () => {
-    // Scenario (task 193): --until-revision lands as a typed Path, and the ordinal defaults to
-    // the FIRST revision when --nth is absent.
+    // Scenario (task 193): --until-revision lands as a typed Path, and the ordinal defaults to the FIRST revision when --nth is absent.
     const options = parseArgs(["t.jsonl", "--until-revision", "/a/b.py"]);
     assert.equal(options.untilRevision?.toString(), "/a/b.py");
     assert.equal(options.untilNth, 1);
@@ -179,23 +171,20 @@ test("test_parse_nth_rejects_below_one", () => {
 });
 
 test("test_parse_no_pre_baseline_flag", () => {
-    // Scenario (task 223): the CLI equivalent of the viewer's "No" to the pre-baseline question —
-    // absent keeps today's "Yes"; present declines reconstructing anything before the seed.
+    // Scenario (task 223): the CLI equivalent of the viewer's "No" to the pre-baseline question — absent keeps today's "Yes"; present declines reconstructing anything before the seed.
     assert.equal(parseArgs(["t.jsonl"]).preBaseline, true);
     assert.equal(parseArgs(["t.jsonl", "--no-pre-baseline"]).preBaseline, false);
 });
 
 test("test_apply_cli_overrides_declines_pre_baseline_reconstruction", () => {
-    // Scenario (task 223): applying the options is what reaches the engine's module-level gate, so
-    // a re-seeded CLI iteration reconstructs only forward from its own seed.
+    // Scenario (task 223): applying the options is what reaches the engine's module-level gate, so a re-seeded CLI iteration reconstructs only forward from its own seed.
     const tree = mkdtempSync(join(tmpdir(), "cli-pre-baseline-"));
     const projectDir = join(tree, "projects", "-proj");
     mkdirSync(projectDir, { recursive: true });
     try {
         applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl"), "--no-pre-baseline"]));
         assert.equal(isPreBaselineReconstructionAllowed(), false);
-        // Test verification: the gate is shared module state, so the NEXT in-process run must not
-        // inherit the declined answer.
+        // Test verification: the gate is shared module state, so the NEXT in-process run must not inherit the declined answer.
         applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl")]));
         assert.equal(isPreBaselineReconstructionAllowed(), true);
     } finally {

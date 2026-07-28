@@ -1,21 +1,12 @@
-// Task 231 (spec S18): the `starting repository state` — every file tracked at a ref, as a
-// path RELATIVE to the repo root. Layer 1 reads no JSONL; this is one git plumbing call.
-// Posture differs from layered_git_beacons.ts, which swallows git failures: a ref the user
-// typed is an input, so a bad one must be a loud error, never a silent fall back to HEAD.
+// Bad ref must throw loudly — user-supplied input, not a silent HEAD fallback.
 
 import { spawnSync } from "node:child_process";
 import { Path } from "./structures/domain.ts";
 
-// The default ref: HEAD already IS the repo's active branch, so no separate branch lookup. The
-// engine's ONE canonical "HEAD" — layered_git_beacons.ts and layer1_commit_history.ts import it
-// from here rather than re-spelling the string (coding-requirements §2).
+// Canonical HEAD constant shared by layered_git_beacons and layer1_commit_history.
 export const ACTIVE_BRANCH_REF = "HEAD";
 
-// Blobs and gitlinks, told apart. `git ls-tree -r` recurses trees but stops at a gitlink,
-// so a submodule arrives as ONE mode-160000 entry naming its directory — indistinguishable
-// from a blob path once --name-only strips the mode. Both callers need the distinction:
-// the pairing must not treat a gitlink as a file, and the disk walk must not descend into
-// its folder.
+// Separates blobs from gitlinks so callers skip submodule directories.
 export interface Layer1RepoTree {
     trackedFiles: Path[];
     submodulePaths: Path[];
@@ -23,9 +14,7 @@ export interface Layer1RepoTree {
 
 const GITLINK_MODE = "160000";
 
-// One `git ls-tree` record: "<mode> <type> <object>\tpath". The mode is the text before the
-// first space, and the path is everything past the first tab — a path may itself contain
-// spaces, so the tab is the only safe split point.
+// Split on tab, not space — paths may contain spaces.
 function routeTreeRecord(record: string, tree: Layer1RepoTree): void {
     const tabIndex = record.indexOf("\t");
     if (tabIndex === -1) {
@@ -40,13 +29,9 @@ function routeTreeRecord(record: string, tree: Layer1RepoTree): void {
     tree.trackedFiles.push(path);
 }
 
-// The tree of `repoDir` at `ref`: tracked file paths and submodule gitlink paths, both relative
-// to the repo root, in git's tree order. Throws when the ref does not resolve (or the directory
-// is not a repo), naming the ref.
+// Throws on bad ref; paths are repo-root-relative.
 export function readRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF): Layer1RepoTree {
-    // -z keeps paths raw (git C-quotes spaces/unicode without it); the argument array means
-    // the ref never reaches a shell, so no validation regex or quoting dance is needed. The
-    // DEFAULT output format is read rather than --format, which older git versions lack.
+    // -z avoids C-quoting; array args bypass shell so no ref escaping needed.
     const result = spawnSync("git", ["ls-tree", "-r", "-z", ref, "--"], {
         cwd: repoDir.toString(),
         encoding: "utf8",
@@ -63,3 +48,4 @@ export function readRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF
     }
     return tree;
 }
+

@@ -1,32 +1,23 @@
-// The Layer 1 page's jump-to-bubble box. Exists because the render is 808 widgets across ~156,000 px,
-// so hunting for a named bubble by hand is the slow step; a `?focus=<path>` deep link was rejected by
-// the user 2026-07-25 as harder than typing a name.
-//
-// ponytail: the scroll is native `scrollIntoView`, not offsetTop/offsetLeft arithmetic — `offsetTop`
-// inside the zoomed `.canvas` is UNSCALED, so hand-rolled math would land wrong at any zoom but 100%.
+// Layer 1's jump-to-bubble box for 808 widgets across ~156,000 px. ponytail: uses native scrollIntoView; offsetTop is unscaled in zoomed canvas.
 
 import { getRequiredElementById } from "./app-dom.ts";
 
-// Module scope because the cycle is the feature: submitting the SAME term again must advance to the
-// next match rather than re-landing on the first.
+// Module scope because the cycle is the feature: resubmitting the same term must advance to the next match, not restart.
 let cycledTerm = "";
 let cycleIndex = 0;
 
 // A LIST because a landing lights the row AND its owning bubble.
 let litElements: HTMLElement[] = [];
 
-// Fired on `document` when a jump lands; layer1-leader-visibility.ts listens to keep that element's
-// dashed leader line up.
+// Fired on `document` when a jump lands; layer1-leader-visibility.ts listens to keep that element's dashed leader line up.
 export const LANDED_EVENT = "layer1-landed";
 
-// `.fname` is where BOTH matchable strings live: its text is the basename, its `data-path` the full
-// repo-relative path.
+// `.fname` is where BOTH matchable strings live: its text is the basename, its `data-path` the full repo-relative path.
 function listNameElements(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")];
 }
 
-// ponytail: ONE case-insensitive substring test over the full path covers both a bare basename and a
-// path fragment — no separate branch for either. Falls back to the text for label-only buckets.
+// ponytail: one case-insensitive substring test over full path covers basename and fragment matches; falls back to text for label-only buckets.
 function matchesSearchTerm(nameElement: HTMLElement, lowerTerm: string): boolean {
     const haystack = nameElement.dataset.path ?? nameElement.textContent ?? "";
     return haystack.toLowerCase().includes(lowerTerm);
@@ -39,33 +30,26 @@ function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
         .map((nameElement) => nameElement.closest(".filebox") as HTMLElement);
 }
 
-// Exactly ONE thing on the page carries `.found` at a time, and the highlight is PERSISTENT (user,
-// 2026-07-26). Exported because a ruler-tick click lands on a `.node` or bucket `li` and lights the
-// same way, which is why nothing here reads the element's kind.
+// Only one thing carries `.found` at a time, stays lit (user, 2026-07-26); exported since ruler-tick clicks light the same way.
 export function highlightLandedElement(landed: HTMLElement): void {
     for (const lit of litElements) {
         lit.classList.remove("found");
     }
-    // The owning bubble is lit TOO, never instead (user, 2026-07-27). `closest` returns the element
-    // itself when it already IS the bubble, so the Set collapses the find box's case.
+    // The owning bubble is lit too, never instead (user, 2026-07-27); the Set collapses when `closest` returns the element itself.
     litElements = [...new Set([landed, landed.closest(".filebox")].filter((element) => element !== null))] as HTMLElement[];
     for (const lit of litElements) {
         lit.classList.add("found");
     }
-    // A DOM event rather than calling layer1-leader-visibility.ts, which would close an import
-    // cycle. `window.CustomEvent`, not the bare global: happy-dom's document only accepts events
-    // built by ITS window, and node's global CustomEvent is a different class.
+    // A DOM event avoids an import cycle with layer1-leader-visibility.ts; `window.CustomEvent` is used since happy-dom rejects events from other classes.
     document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
-// Never a silent no-op: every submit reports here. Its OWN element, not the header's #crumb, which
-// also carries the stage's pair and orphan counts that a search would destroy.
+// Never a silent no-op: every submit reports here, its own element, not the header's #crumb, which a search would destroy.
 function reportFindStatus(message: string): void {
     getRequiredElementById("find-status").textContent = message;
 }
 
-// `+ matches.length` before the modulo is what makes step -1 wrap to the LAST match instead of
-// yielding a negative index: JS's % keeps the sign of its left operand.
+// `+ matches.length` before modulo makes step -1 wrap to the last match, not a negative index (JS's % keeps sign).
 function selectMatchAtStep(term: string, step: number): HTMLElement | undefined {
     const matches = findMatchingBubbles(term.toLowerCase());
     if (matches.length === 0) {
@@ -81,9 +65,7 @@ function selectMatchAtStep(term: string, step: number): HTMLElement | undefined 
     return landed;
 }
 
-// Shared by the typed box and the File Nav click so neither can drift from the other's landing.
-// `block: "start"`, NOT "center": a `.filebox` is as tall as its own ladder span, so centring it
-// vertically puts its name and first node far above the viewport.
+// Shared by the typed box and File Nav click so both land identically; `block: "start"` avoids centring above the viewport.
 function landOnBubble(bubble: HTMLElement): void {
     bubble.scrollIntoView({ block: "start", inline: "center" });
     highlightLandedElement(bubble);
@@ -102,13 +84,11 @@ export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement |
     return landed;
 }
 
-// The File Nav's caller, not the typed box's: a leaf knows its exact path, so it needs no substring
-// match and no cycle — routing it through jumpToNamedBubble advanced on every repeat click.
+// The File Nav's caller: a leaf knows its exact path so needs no substring match or cycle, unlike jumpToNamedBubble.
 export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
     const owner = listNameElements().find((nameElement) => nameElement.dataset.path === path);
     if (owner === undefined) {
-        // Never a silent no-op: an ORPHAN path is listed in the File Nav but lives in a bucket with
-        // no bubble of its own, so the click must say that rather than look broken.
+        // Never a silent no-op: an orphan path has no bubble, so the click must say so, not look broken.
         reportFindStatus(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
         return undefined;
     }
@@ -117,8 +97,7 @@ export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
     return landed;
 }
 
-// All three pieces of a live search drop together, because leaving any one keeps part of an
-// abandoned search on screen or in effect. The only thing that darkens the page.
+// All three pieces of a live search drop together so nothing lingers; the only thing that darkens the page.
 function clearFindState(): void {
     for (const lit of litElements) {
         lit.classList.remove("found");
@@ -129,8 +108,7 @@ function clearFindState(): void {
     reportFindStatus("");
 }
 
-// The two buttons step the same cycle from whatever the box currently holds, which is why they read
-// `box.value` rather than carrying a term of their own.
+// The two buttons step the same cycle from whatever the box holds, so they read `box.value` rather than their term.
 export function wireFindFileBox(): void {
     const box = getRequiredElementById("find-file") as HTMLInputElement;
     box.addEventListener("keydown", (event) => {
@@ -138,8 +116,7 @@ export function wireFindFileBox(): void {
             jumpToNamedBubble(box.value);
         }
     });
-    // `input`, not `keyup`: it also fires for a paste, a cut and a click on the field's native
-    // clear button, which are three more ways to empty the box that a key listener would miss.
+    // `input`, not `keyup`: it fires for paste, cut, and clicking the clear button, ways a key listener would miss.
     box.addEventListener("input", () => {
         if (box.value.trim() !== "") {
             return;

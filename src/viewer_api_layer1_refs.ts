@@ -1,11 +1,6 @@
-// GET /api/layer1-refs?repo=&ref= — the branch names, the checked-out branch and a head window of
-// commits that fill Layer 1's two header dropdowns (task 286).
+// GET /api/layer1-refs?repo=&ref= — the branch names, the checked-out branch and a head window of commits that fill Layer 1's two header dropdowns (task 286).
 //
-// Its own module rather than an addition to viewer_api_repo.ts: that file is the classic app's
-// task-137 picker surface and already carries a 500-commit `git log`, tree-match counting and
-// project-paths writing. This route must stay fast, and it is Layer 1's alone. The row shape and
-// the log parser ARE reused from there (no-forwarding-layers: imported, not re-declared), because
-// `git log --format=%H%x09%ad%x09%s` is the exact shape both need.
+// Its own module rather than an addition to viewer_api_repo.ts: that file is the classic app's task-137 picker surface and already carries a 500-commit `git log`, tree-match counting and project-paths writing. This route must stay fast, and it is Layer 1's alone. The row shape and the log parser ARE reused from there (no-forwarding-layers: imported, not re-declared), because `git log --format=%H%x09%ad%x09%s` is the exact shape both need.
 
 import { spawnSync } from "node:child_process";
 import { type ServerResponse } from "node:http";
@@ -23,9 +18,7 @@ export interface Layer1RefsView {
     commits: RepoCommitRow[];  // newest first, capped at LAYER1_REF_COMMIT_LIMIT
 }
 
-// Every git call here is spawnSync in ARGUMENT-ARRAY form (task 235): `ref` arrives from a URL, so
-// it must never reach a shell. `failure` is the caller's message because the two failures mean
-// different things to the page — see the two call sites.
+// Every git call here is spawnSync in ARGUMENT-ARRAY form (task 235): `ref` arrives from a URL, so it must never reach a shell. `failure` is the caller's message because the two failures mean different things to the page — see the two call sites.
 function readGitOutput(repoDir: Path, args: string[], failure: string): string {
     const result = spawnSync("git", args, {
         cwd: repoDir.toString(),
@@ -42,8 +35,7 @@ function splitNonEmptyLines(output: string): string[] {
     return output.split("\n").map((line) => line.trim()).filter((line) => line !== "");
 }
 
-// The checked-out branch leads the list so the dropdown's first option is the one already in force.
-// A detached HEAD (rev-parse answers "HEAD", which is no branch) simply leaves the order alone.
+// The checked-out branch leads the list so the dropdown's first option is the one already in force.  A detached HEAD (rev-parse answers "HEAD", which is no branch) simply leaves the order alone.
 function orderBranchesHeadFirst(branches: string[], head: string): string[] {
     if (!branches.includes(head)) {
         return branches;
@@ -52,8 +44,7 @@ function orderBranchesHeadFirst(branches: string[], head: string): string[] {
 }
 
 export function buildLayer1RefsView(repoDir: Path, ref: string): Layer1RefsView {
-    // A non-zero status HERE is the repo confirmation the dropdowns gate on: the page hides the
-    // pickers when this route fails, so no separate "is this a repo" endpoint exists.
+    // A non-zero status HERE is the repo confirmation the dropdowns gate on: the page hides the pickers when this route fails, so no separate "is this a repo" endpoint exists.
     const branches = splitNonEmptyLines(
         readGitOutput(repoDir, ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
             `not a git repository: ${repoDir.toString()}`));
@@ -66,8 +57,7 @@ export function buildLayer1RefsView(repoDir: Path, ref: string): Layer1RefsView 
     return { branches: orderBranchesHeadFirst(branches, head), head, commits };
 }
 
-// `repo` gets the same existence + is-a-folder check the view route gives it, so a mistyped path is
-// a 400 the page can display rather than an ENOENT from git's cwd.
+// `repo` gets the same existence + is-a-folder check the view route gives it, so a mistyped path is a 400 the page can display rather than an ENOENT from git's cwd.
 export function handleLayer1RefsRequest(response: ServerResponse, query: URLSearchParams): void {
     const repoDir = requireExistingFolderParam(query, "repo");
     sendJson(response, 200, buildLayer1RefsView(repoDir, resolveRequestedRef(query)));

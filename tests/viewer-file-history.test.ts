@@ -15,8 +15,7 @@ function findScenario19Target(document: any): string {
     return history.target;
 }
 
-// Ground-truth file states end in a trailing newline the engine's snapshots normalize away;
-// compare both sides through the same stripTrailingNewline the coverage checker uses.
+// Ground-truth states end in a trailing newline the engine strips; compare both sides via stripTrailingNewline like the coverage checker.
 function readStrippedGroundTruth(stepName: string): string {
     return stripTrailingNewline(readFileSync(`${S19_STEP_STATES_DIR}/${stepName}/scenario19.py`, "utf8"));
 }
@@ -90,8 +89,7 @@ test("test_findRevisionForChangeId_does_not_prefix_match_non_blob_values", () =>
 });
 
 test("test_findRevisionForChangeId_resolves_backup_version_by_backup_time", () => {
-    // When the blob version matches nothing, the revision in effect at backupTime is the state
-    // the backup captured.
+    // When the blob version matches nothing, the revision in effect at backupTime is the state the backup captured.
     const filesTouched = [{
         target: "/tmp/a.py",
         revisions: [
@@ -124,11 +122,7 @@ test("test_findRevisionForChangeId_returns_undefined_for_unknown_changeId", () =
 // -------------------- per-revision block slicing --------------------
 
 test("test_splitDiffBlocks_keeps_numeric_hunk_headers_inside_their_revision_block", () => {
-    // Scenario: renderDiffWithContext emits revision-kind headers (block delimiters) with
-    // standard numeric "@@ -a,b +c,d @@" hunk headers INSIDE each block; slicing must split
-    // only on the revision headers.
-    // Steps:
-    // slice a two-revision diff whose second block carries two numeric hunks.
+    // Numeric hunk headers can appear inside a revision block; slicing must split only on revision-kind headers, not hunk headers.
     const blocks = splitDiffBlocks([
         "@@ created @ 2026-01-01T00:00:00.000Z @@",
         "@@ -0,0 +1,1 @@",

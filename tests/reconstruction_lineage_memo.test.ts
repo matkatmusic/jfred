@@ -1,5 +1,4 @@
-// tests/reconstruction_lineage_memo.test.ts — the task-162 proof rules for memoizing nested
-// lineage replays: query tracking, guard-hit poisoning, serve validity, and the window gate.
+// tests/reconstruction_lineage_memo.test.ts — the task-162 proof rules for memoizing nested lineage replays: query tracking, guard-hit poisoning, serve validity, and the window gate.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -53,9 +52,7 @@ test("a cached entry is servable only while none of its queried keys is in fligh
 });
 
 test("a cached entry is not servable while a queried FILE is in flight at any instant", () => {
-    // Task 220: horizon keys let an entry be served at a different instant than it was computed
-    // at; a fresh compute there would cycle-guard against the in-flight file — so the serve
-    // check must refuse on the queried key's PATH, not just its exact instant.
+    // Task 220: horizon keys let an entry be served at a different instant than it was computed at; a fresh compute there would cycle-guard against the in-flight file — so the serve check must refuse on the queried key's PATH, not just its exact instant.
     const seedsByKey = new Map<string, LineageSeedEntry>();
     seedsByKey.set("A|h1", { text: "text-a", queriedKeys: new Set(["B|2"]) });
     runLineageReplayFrame("B|3", () => {
@@ -66,8 +63,7 @@ test("a cached entry is not servable while a queried FILE is in flight at any in
 });
 
 test("a cached entry stays servable while an unrelated file is in flight", () => {
-    // The path-level refusal must not over-trigger: a different file whose instant NUMBER
-    // matches a queried key's instant is unrelated.
+    // The path-level refusal must not over-trigger: a different file whose instant NUMBER matches a queried key's instant is unrelated.
     const seedsByKey = new Map<string, LineageSeedEntry>();
     seedsByKey.set("A|h1", { text: "text-a", queriedKeys: new Set(["B|2"]) });
     runLineageReplayFrame("C|2", () => {

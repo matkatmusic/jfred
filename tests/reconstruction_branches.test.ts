@@ -16,8 +16,7 @@ import { EventKind, FailureScope } from "../src/structures/vocabulary.ts";
 import { loadRecords } from "./utilities.ts";
 import { S13_JSONL, S15_JSONL, S19_JSONL } from "./fixtures.ts";
 
-// An `edited_text_file` snapshot counts as a change only when its content differs from the
-// file's current content; S15's `# user edit` differs.
+// An `edited_text_file` snapshot counts as a change only when its content differs from the file's current content.
 test("test_collectAcceptedUserEditIds_includes_the_genuine_S15_user_edit", () => {
     const accepted = collectAcceptedUserEditIds(loadRecords(S15_JSONL));
     // The specific changeId rotates on re-run, so only the count is pinned.
@@ -38,8 +37,7 @@ test("test_extractRenderableEvents_drops_the_S13_disk_echo_turn", () => {
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 0);
 });
 
-// S19 is reader-dependent (its surviving edit-first file seeds its base from a backup blob),
-// so a throwing reader is guaranteed to be touched.
+// S19 is reader-dependent: its edit-first file seeds its base from a backup blob, so a throwing reader gets touched.
 test("test_reconstructFile_survives_a_throwing_reader_stage", () => {
     clearReconstructionFailures();
     const records = loadRecords(S19_JSONL);
@@ -65,8 +63,7 @@ test("test_run_stage_tolerantly_announces_each_stage_through_the_progress_sink",
     } finally {
         setReconstructionProgressSink(undefined);
     }
-    // The first chain stage announced itself with the target and the stage name — the label
-    // keeps the `reconstructing ` prefix so the webapp's phase classifier stays in phase 4.
+    // The first chain stage announced itself with the target and the stage name — the label keeps the `reconstructing ` prefix so the webapp's phase classifier stays in phase 4.
     assert.ok(capturedLabels.some((label) => /^reconstructing .+ — seedBaseCommitBeacon$/.test(label)));
 });
 
@@ -90,8 +87,7 @@ test("test_extractRenderableEvents_keeps_the_genuine_S15_user_edit_turn", () => 
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 1);
 });
 
-// task 163: branch enumeration ran silently. S19 is a conv-rewind transcript, so it has at
-// least one abandoned tip.
+// task 163: branch enumeration ran silently. S19 is a conv-rewind transcript, so it has at least one abandoned tip.
 test("test_find_conversation_branches_announces_each_abandoned_tip_scan", () => {
     const capturedEvents: ProgressEvent[] = [];
     setReconstructionProgressSink((event) => capturedEvents.push(event));
@@ -100,8 +96,7 @@ test("test_find_conversation_branches_announces_each_abandoned_tip_scan", () => 
     } finally {
         setReconstructionProgressSink(undefined);
     }
-    // Never compare total to the captured-event count: the pipeline re-enters
-    // findConversationBranches, so the same 1..N sequence can legitimately repeat.
+    // Never compare total to the captured-event count: the pipeline re-enters findConversationBranches, so the same 1..N sequence can legitimately repeat.
     const tipScans = capturedEvents.filter((event) => event.label === "scanning branch tips");
     assert.ok(tipScans.length > 0);
     assert.equal(tipScans[0]!.current, 1);

@@ -1,6 +1,4 @@
-// Generic conversation-tree walkers over the `parentUuid` forest and the `last-prompt` heads. The
-// canonical home for ancestor-chain and head lookups; reconstruction_branch.ts and the
-// surviving-head decision both build on these. See plans/s8/s8-reconstruction-plan.md.
+// Generic conversation-tree walkers over the `parentUuid` forest and the `last-prompt` heads. The canonical home for ancestor-chain and head lookups; reconstruction_branch.ts and the surviving-head decision both build on these. See plans/s8/s8-reconstruction-plan.md.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getLastPromptEntry } from "./structures/session-meta.ts";
@@ -53,10 +51,7 @@ function indexChildrenByParent(
     return byParent;
 }
 
-// The uuid strings of every descendant of `start` in the parentUuid forest, EXCLUSIVE of `start`. BFS
-// down, following children of every record type — the abandoned subtree threads through `attachment`
-// intermediaries between a prompt and its assistant continuation, so a type-filtered walk would stop
-// short. The downward dual of collectAncestorUuids. See plans/s13/s13-reconstruction-plan.md.
+// The uuid strings of every descendant of `start` in the parentUuid forest, EXCLUSIVE of `start`. BFS down, following children of every record type — the abandoned subtree threads through `attachment` intermediaries between a prompt and its assistant continuation, so a type-filtered walk would stop short. The downward dual of collectAncestorUuids. See plans/s13/s13-reconstruction-plan.md.
 export function collectDescendantUuids(
     records: TranscriptRecord[],
     start: Uuid,
@@ -72,8 +67,7 @@ export function collectDescendantUuids(
     return descendants;
 }
 
-// Add each not-yet-seen child's uuid to `descendants` and return those freshly-added uuid strings,
-// so the BFS queue is extended only by children it has not already visited.
+// Add each not-yet-seen child's uuid to `descendants` and return those freshly-added uuid strings, so the BFS queue is extended only by children it has not already visited.
 function recordNewChildren(
     siblings: TranscriptRecord[],
     descendants: Set<string>,
@@ -89,10 +83,7 @@ function recordNewChildren(
     return fresh;
 }
 
-// Among `start`'s descendants, the uuid of the latest-timestamp record whose type is user or
-// assistant — the abandoned branch's conversational tip (mirroring how a surviving tip is a
-// conversational head, not a trailing system/attachment bookkeeping record). undefined when the
-// subtree holds no user/assistant record. See plans/s13/s13-reconstruction-plan.md.
+// Among `start`'s descendants, the uuid of the latest-timestamp record whose type is user or assistant — the abandoned branch's conversational tip (mirroring how a surviving tip is a conversational head, not a trailing system/attachment bookkeeping record). undefined when the subtree holds no user/assistant record. See plans/s13/s13-reconstruction-plan.md.
 export function findDeepestPromptOrReply(
     records: TranscriptRecord[],
     start: Uuid,
@@ -139,9 +130,7 @@ function isLaterThan(
     return candidateTime > incumbentTime;
 }
 
-// The uuid strings on `tip`'s parentUuid ancestor chain, including the tip itself. Empty when the
-// tip resolves to no record (the caller reads that as "cannot identify"). Stops at a null or
-// unresolvable parent, or when a uuid repeats (cycle guard).
+// The uuid strings on `tip`'s parentUuid ancestor chain, including the tip itself. Empty when the tip resolves to no record (the caller reads that as "cannot identify"). Stops at a null or unresolvable parent, or when a uuid repeats (cycle guard).
 export function collectAncestorUuids(
     records: TranscriptRecord[],
     tip: Uuid,
@@ -167,9 +156,7 @@ export function collectAncestorUuids(
     return ancestors;
 }
 
-// The first last-prompt head at or above `start` — walk start -> root by parentUuid and return the
-// first uuid that is itself a conversation head. undefined when none is found (cycle/eof guarded).
-// Used to map a working-tree owner record up to the conversation head that owns that working tree.
+// The first last-prompt head at or above `start` — walk start -> root by parentUuid and return the first uuid that is itself a conversation head. undefined when none is found (cycle/eof guarded).  Used to map a working-tree owner record up to the conversation head that owns that working tree.
 export function findHeadAtOrAbove(
     records: TranscriptRecord[],
     start: Uuid,

@@ -1,6 +1,4 @@
-// The state sequence's ordering contracts. Which states exist is a design choice; the ORDER is not
-// — the landing check is only meaningful at a known zoom, so the jump must happen before the page
-// is zoomed out.
+// The state sequence's ordering contracts. Which states exist is a design choice; the ORDER is not — the landing check is only meaningful at a known zoom, so the jump must happen before the page is zoomed out.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

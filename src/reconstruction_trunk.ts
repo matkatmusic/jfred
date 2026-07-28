@@ -1,6 +1,4 @@
-// Surviving-trunk and abandoned-head helpers for the conversation-branch model
-// (reconstruction_branch.ts): head ancestor chains, predecessor-tree final heads, the surviving
-// trunk uuid set, rewind-point walks, and maximal-tip dedup of abandoned heads.
+// Surviving-trunk and abandoned-head helpers for the conversation-branch model (reconstruction_branch.ts): head ancestor chains, predecessor-tree final heads, the surviving trunk uuid set, rewind-point walks, and maximal-tip dedup of abandoned heads.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
@@ -12,10 +10,7 @@ import {
     indexRecordsByUuid,
 } from "./reconstruction_tree.ts";
 
-// The ancestor-chain uuid set of every head, keyed by head uuid string — computed once so the
-// tree grouping below reads each chain a single time. Each walk is O(records) (per-call uuid
-// re-index in collectAncestorUuids), so on a many-session merged corpus this loop is the slow
-// part of branch enumeration — announce per-head motion for the stage-level heartbeat.
+// The ancestor-chain uuid set of every head, keyed by head uuid string — computed once so the tree grouping below reads each chain a single time. Each walk is O(records) (per-call uuid re-index in collectAncestorUuids), so on a many-session merged corpus this loop is the slow part of branch enumeration — announce per-head motion for the stage-level heartbeat.
 function mapHeadChains(records: TranscriptRecord[], heads: Uuid[]): Map<string, Set<string>> {
     const chains = new Map<string, Set<string>>();
     for (const [headIndex, head] of heads.entries()) {
@@ -25,8 +20,7 @@ function mapHeadChains(records: TranscriptRecord[], heads: Uuid[]): Map<string, 
     return chains;
 }
 
-// True when the two chains share any uuid — their heads fork from a common record and belong to
-// the same conversation tree.
+// True when the two chains share any uuid — their heads fork from a common record and belong to the same conversation tree.
 function checkChainsOverlap(a: Set<string>, b: Set<string>): boolean {
     for (const uuid of a) {
         if (b.has(uuid)) {
@@ -36,10 +30,7 @@ function checkChainsOverlap(a: Set<string>, b: Set<string>): boolean {
     return false;
 }
 
-// The final head of every conversation tree the surviving head does NOT belong to. A multi-session
-// project (EndCurrentAgentAndSpawnNewAgent) is a FOREST of parentUuid-disconnected trees — each
-// predecessor session is a completed chapter whose final head the next session continues from, so
-// its chain is surviving trunk, never a rewound branch. Rewinds only exist WITHIN a tree.
+// The final head of every conversation tree the surviving head does NOT belong to. A multi-session project (EndCurrentAgentAndSpawnNewAgent) is a FOREST of parentUuid-disconnected trees — each predecessor session is a completed chapter whose final head the next session continues from, so its chain is surviving trunk, never a rewound branch. Rewinds only exist WITHIN a tree.
 function collectPredecessorFinalHeads(records: TranscriptRecord[], survivingHead: Uuid): Uuid[] {
     const heads = dedupeUuids(collectHeadUuids(records));
     const chains = mapHeadChains(records, heads);
@@ -63,9 +54,7 @@ function collectPredecessorFinalHeads(records: TranscriptRecord[], survivingHead
     return trees.map((tree) => tree.finalHead);
 }
 
-// The uuid strings on the surviving trunk across every session tree: the surviving head's own
-// chain plus each predecessor tree's final-head chain, with same-turn parallel-tool-call
-// siblings absorbed (task 145).
+// The uuid strings on the surviving trunk across every session tree: the surviving head's own chain plus each predecessor tree's final-head chain, with same-turn parallel-tool-call siblings absorbed (task 145).
 export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivingHead: Uuid): Set<string> {
     const trunk = collectAncestorUuids(records, survivingHead);
     for (const head of collectPredecessorFinalHeads(records, survivingHead)) {
@@ -78,8 +67,7 @@ export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivin
 }
 
 
-// The rewind point of an abandoned tip: the deepest record on the tip's path that also lies on the
-// surviving path — found by walking tip -> root and returning the first uuid in `survivingSet`.
+// The rewind point of an abandoned tip: the deepest record on the tip's path that also lies on the surviving path — found by walking tip -> root and returning the first uuid in `survivingSet`.
 export function findRewindPoint(
     records: TranscriptRecord[],
     tip: Uuid,
@@ -122,9 +110,7 @@ function dedupeUuids(uuids: Uuid[]): Uuid[] {
     return unique;
 }
 
-// True when `head` is a maximal tip among the abandoned heads — i.e. it is NOT an ancestor of any
-// other abandoned head. (A head that lies on another abandoned head's chain is an interior node of
-// that deeper branch, not a branch tip of its own.)
+// True when `head` is a maximal tip among the abandoned heads — i.e. it is NOT an ancestor of any other abandoned head. (A head that lies on another abandoned head's chain is an interior node of that deeper branch, not a branch tip of its own.)
 function isMaximalTip(
     head: Uuid,
     abandoned: Uuid[],
@@ -142,10 +128,7 @@ function isMaximalTip(
     return true;
 }
 
-// The abandoned (rewound) heads: heads not on the surviving chain, deduped to maximal tips.
-// Chains are charted ONCE via mapHeadChains — the per-pair collectAncestorUuids walks this
-// replaces were O(heads² × records) and stalled real multi-session projects for hours inside
-// "finding conversation branches" with no progress output.
+// The abandoned (rewound) heads: heads not on the surviving chain, deduped to maximal tips.  Chains are charted ONCE via mapHeadChains — the per-pair collectAncestorUuids walks this replaces were O(heads² × records) and stalled real multi-session projects for hours inside "finding conversation branches" with no progress output.
 export function collectAbandonedHeads(
     records: TranscriptRecord[],
     survivingSet: Set<string>,

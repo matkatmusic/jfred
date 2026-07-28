@@ -1,6 +1,4 @@
-// Revision-timeline render orchestrator: one row per reconstruction step across every JSONL,
-// strictly chronological, with git-commit nodes as pick hard-stops. View-model lives in
-// timeline-*.ts, DOM groups in timeline-render-*.ts, sharing the context built here.
+// Revision-timeline render orchestrator: one chronological row per reconstruction step, view-model in timeline-*.ts, DOM groups in timeline-render-*.ts.
 
 import { el } from "../app-dom.ts";
 import { fetchDocument, fetchJson, fetchRawRecords } from "../app-fetch.ts";
@@ -52,8 +50,7 @@ import {
 } from "./timeline-types.ts";
 import type { DetailsContext } from "./details-model.ts";
 
-// The /file/ drawer route needs this pass's DetailsContext; renderTimelineView always runs
-// before renderSubRouteDrawer, so it is set whenever that route fires.
+// The /file/ drawer route reads this pass's DetailsContext, set here since renderTimelineView always runs first.
 export let activeDetailsContext: DetailsContext | undefined;
 
 function selectTimelineRowAndFlash(context: TimelineRenderContext, nodeIndex: number): void {
@@ -98,8 +95,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
         return;
     }
     const reconstructionDocument = result.document as WireTimelineDocument;
-    // The synchronous view-model build below blocks the thread, so re-show an indicator and yield
-    // a frame; the shimmer is transform-based and keeps animating on the compositor.
+    // The view-model build below blocks the thread; re-show an indicator first since the shimmer keeps animating on the compositor.
     showLoadingProgress("preparing timeline…", Number.NaN);
     await waitForNextAnimationFrame();
     const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, checkAllLinesIsOn());
@@ -116,8 +112,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
         sessionColors.set(node.sessionId, `var(${SESSION_LANE_VARIABLES[sessionColors.size % SESSION_LANE_VARIABLES.length]})`);
     }
 
-    // The pane header's summary and expand-all button are static skeleton elements outside
-    // `container`, so each render rewrites them.
+    // The pane header's summary and expand-all button are static skeleton elements outside `container`, so each render rewrites them.
     const numberedNodes = nodes.filter((node) => node.stepNumber !== undefined);
     const touchedCount = new Set(nodes.flatMap((node) => (node.fileChanges ?? []).map((change) => change.path))).size;
     document.getElementById("timeline-summary")!.textContent =
@@ -167,9 +162,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
             nodes,
             openNodeInspector: (nodeIndex: number) => openNodeInspector(context, nodeIndex),
             selectTimelineRow: (nodeIndex: number) => selectTimelineRowAndFlash(context, nodeIndex),
-            // item 84: a rev card's { } opens its revision's causing record. openInspectorPane fills
-            // the right column ONLY, so the rev cards on the left stay standing — that is exactly
-            // the "revision cards still shown" the item asks for, at no cost.
+            // item 84: opening a rev card's causing record fills only the right column, so the left-side rev cards stay visible.
             openRecordForChangeId: (changeId: string) => void openRecordInspectorForChangeId(context, changeId),
             fetchRangePatch: (fromStep: number, toStep: number) => fetchRangePatch(context, fromStep, toStep),
         },
@@ -197,9 +190,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
         buildCoverageSegmentsByTarget(reconstructionDocument),
     );
 
-    // (item 66) GONE with the fork port (see webapp/archive/timeline-pre-item66.ts): the
-    // background click-to-close handler, the SVG drawRail + resize listener, the per-session
-    // header rows, and the orphan divider — the CSS gutter and the details pane replace them.
+    // (item 66) fork port removed the old drawer chrome (see webapp/archive/timeline-pre-item66.ts); the CSS gutter and details pane replace it.
 
     // ── session anchor (…/timeline/session/<jsonl>): flash-scroll the session's first row ──
     if (anchorJsonl !== undefined && anchorLine === undefined) {
@@ -210,9 +201,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
         }
     }
 
-    // Line anchor (…/at/<n>): select the owning row, open the inspector on that exact line
-    // (openStepInspector would re-derive first-matching changeId and could land elsewhere),
-    // and only THEN center-scroll — the details open reflows the panes (item 37 ordering).
+    // Line anchor (…/at/<n>): select the row, open its exact line, then center-scroll last since opening reflows the panes (item 37).
     if (anchorLine !== undefined) {
         const rawLines = await fetchRawRecords(project, anchorJsonl!);
         const rawLineIndex = Number(anchorLine);

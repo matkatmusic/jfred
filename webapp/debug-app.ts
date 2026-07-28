@@ -1,7 +1,4 @@
-// Per-file debug viewer (task 183 skeleton, task 184 ladder rendering): file selection over
-// /api/file-ladder plus a deep-link per file (?project=<name>&file=<path>), and the selected
-// file's revision ladder rendered as a plain ordered list. A DEBUG surface — it may expose
-// engine internals freely (source attribution, conflict notes, seed hashes).
+// Per-file debug viewer (task 183 skeleton, task 184 ladder rendering): file selection over /api/file-ladder plus a deep-link per file (?project=<name>&file=<path>), and the selected file's revision ladder rendered as a plain ordered list. A DEBUG surface — it may expose engine internals freely (source attribution, conflict notes, seed hashes).
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 
@@ -32,9 +29,7 @@ async function loadFileList(projectName: string): Promise<void> {
     renderDebugStatus("select a file to load its revision ladder");
 }
 
-// The wire form of one file's revision ladder — what JSON.parse yields from
-// /api/file-ladder?file=: Path/Uuid arrive as plain strings and Dates as ISO text, so this is
-// NOT the engine's FileHistory (precedent: WireLayeredGraph in layered-app.ts).
+// The wire form of one file's revision ladder — what JSON.parse yields from /api/file-ladder?file=: Path/Uuid arrive as plain strings and Dates as ISO text, so this is NOT the engine's FileHistory (precedent: WireLayeredGraph in layered-app.ts).
 interface WireFileRevision {
     kind: string;
     changeId: string;
@@ -47,8 +42,7 @@ interface WireFileLadder {
     revisions: WireFileRevision[];
 }
 
-// A `gitBase:<hash>:<target>` changeId marks a base-commit seed (reconstruction_base_commit.ts);
-// its hash is the commit this revision was seeded from. Any other changeId has no seed.
+// A `gitBase:<hash>:<target>` changeId marks a base-commit seed (reconstruction_base_commit.ts); its hash is the commit this revision was seeded from. Any other changeId has no seed.
 const SEED_CHANGE_ID_PREFIX = "gitBase:";
 
 function extractSeedHash(changeId: string): string | undefined {
@@ -58,9 +52,7 @@ function extractSeedHash(changeId: string): string | undefined {
     return changeId.slice(SEED_CHANGE_ID_PREFIX.length).split(":")[0];
 }
 
-// The definition rows for one revision: source attribution (the event kind that produced it plus
-// its changeId — the only per-revision provenance the ladder carries) and the timestamp always,
-// the seed hash and the conflict note only where the revision has them.
+// The definition rows for one revision: source attribution (the event kind that produced it plus its changeId — the only per-revision provenance the ladder carries) and the timestamp always, the seed hash and the conflict note only where the revision has them.
 function buildRevisionRows(revision: WireFileRevision): (Node | string)[] {
     const rows: (Node | string)[] = [
         el("dt", { text: "source" }),
@@ -78,8 +70,7 @@ function buildRevisionRows(revision: WireFileRevision): (Node | string)[] {
     return rows;
 }
 
-// Render the ladder as an ordered list — the <li> position IS the revision index — replacing any
-// previously rendered ladder.
+// Render the ladder as an ordered list — the <li> position IS the revision index — replacing any previously rendered ladder.
 export function renderDebugLadder(ladder: WireFileLadder): void {
     const items = ladder.revisions.map((revision) => el("li", {}, [el("dl", {}, buildRevisionRows(revision))]));
     getRequiredElementById("debug-ladder").replaceChildren(...items);
@@ -97,8 +88,7 @@ async function loadLadder(projectName: string, file: string): Promise<void> {
     renderDebugStatus(`${file}: ${ladder.revisions.length} revision(s) loaded`);
 }
 
-// Boot for the three URL shapes: no project -> guidance; project -> the file list;
-// project + file (a deep link) -> that file's ladder.
+// Boot for the three URL shapes: no project -> guidance; project -> the file list; project + file (a deep link) -> that file's ladder.
 export async function bootDebugApp(): Promise<void> {
     const params = new URLSearchParams(location.search);
     const projectName = params.get("project");

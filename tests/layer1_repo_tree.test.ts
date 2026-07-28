@@ -1,7 +1,4 @@
-// Task 231 (spec S18): readRepoTreeAtRef — the `starting repository state`, every tracked
-// path at a ref relative to the repo root, with submodule gitlinks told apart from blobs.
-// Fixture is a real temp git repo with two commits so an explicit hash and HEAD have provably
-// different trees.
+// Task 231 (spec S18): readRepoTreeAtRef — the `starting repository state`, every tracked path at a ref relative to the repo root, with submodule gitlinks told apart from blobs.  Fixture is a real temp git repo with two commits so an explicit hash and HEAD have provably different trees.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,10 +36,7 @@ function makeFixtureRepo(): { repoDir: string; firstCommit: string } {
     return { repoDir, firstCommit };
 }
 
-// A repo with one tracked file plus a committed submodule at vendor/lib. The submodule is nested
-// rather than at the root so the exact-match exclusion downstream is proven against a path
-// CONTAINING A SEPARATOR (the real repo has external/tmux_lib). `protocol.file.allow=always` is
-// mandatory: modern git refuses a local-path submodule clone without it.
+// A repo with one tracked file plus a committed submodule at vendor/lib. The submodule is nested rather than at the root so the exact-match exclusion downstream is proven against a path CONTAINING A SEPARATOR (the real repo has external/tmux_lib). `protocol.file.allow=always` is mandatory: modern git refuses a local-path submodule clone without it.
 function makeRepoWithSubmodule(): string {
     const innerDir = mkdtempSync(join(tmpdir(), "layer1-repo-inner-"));
     runGit(innerDir, "init -q");
@@ -61,8 +55,7 @@ function makeRepoWithSubmodule(): string {
 }
 
 test("test_readRepoTreeAtRef_defaults_to_the_active_branch_tree", () => {
-    // Scenario: called with no ref, the list matches `git ls-tree -r --name-only HEAD` exactly —
-    // every tracked path, relative to the repo root, nested ones included.
+    // Scenario: called with no ref, the list matches `git ls-tree -r --name-only HEAD` exactly — every tracked path, relative to the repo root, nested ones included.
     const { repoDir } = makeFixtureRepo();
     const expected = runGit(repoDir, "ls-tree -r --name-only HEAD").split("\n").filter((line) => line !== "");
     const tree = readRepoTreeAtRef(new Path(repoDir));
@@ -71,16 +64,14 @@ test("test_readRepoTreeAtRef_defaults_to_the_active_branch_tree", () => {
 });
 
 test("test_readRepoTreeAtRef_reads_an_explicit_commit_tree_not_HEAD", () => {
-    // Scenario: the first commit's hash yields THAT commit's tree — notes.txt only; the file
-    // added by the second commit must not leak in from HEAD.
+    // Scenario: the first commit's hash yields THAT commit's tree — notes.txt only; the file added by the second commit must not leak in from HEAD.
     const { repoDir, firstCommit } = makeFixtureRepo();
     const tree = readRepoTreeAtRef(new Path(repoDir), firstCommit);
     assert.deepEqual(tree.trackedFiles.map((path) => path.toString()), ["notes.txt"]);
 });
 
 test("test_readRepoTreeAtRef_reads_a_branch_name", () => {
-    // Scenario: a branch name resolves like any other ref — a branch pinned at the first commit
-    // shows the first commit's tree.
+    // Scenario: a branch name resolves like any other ref — a branch pinned at the first commit shows the first commit's tree.
     const { repoDir, firstCommit } = makeFixtureRepo();
     runGit(repoDir, `branch early ${firstCommit}`);
     const tree = readRepoTreeAtRef(new Path(repoDir), "early");
@@ -88,8 +79,7 @@ test("test_readRepoTreeAtRef_reads_a_branch_name", () => {
 });
 
 test("test_readRepoTreeAtRef_throws_naming_an_invalid_ref", () => {
-    // Scenario: an unresolvable ref is a loud error naming the bad ref — never a silent fall
-    // back to HEAD, which would show a tree the caller never asked for.
+    // Scenario: an unresolvable ref is a loud error naming the bad ref — never a silent fall back to HEAD, which would show a tree the caller never asked for.
     const { repoDir } = makeFixtureRepo();
     assert.throws(
         () => readRepoTreeAtRef(new Path(repoDir), "no-such-ref"),
@@ -98,10 +88,7 @@ test("test_readRepoTreeAtRef_throws_naming_an_invalid_ref", () => {
 });
 
 test("test_readRepoTreeAtRef_separates_submodule_gitlinks_from_tracked_files", () => {
-    // Scenario: `git ls-tree -r` recurses trees but stops at a gitlink, emitting the
-    // submodule as a bare directory name. Layer 1 must be able to tell the two apart.
-    // Steps:
-    // build a repo with one tracked file and one committed submodule.
+    // Scenario: `git ls-tree -r` recurses trees but stops at a gitlink, emitting the submodule as a bare directory name. Layer 1 must be able to tell the two apart.  Steps: build a repo with one tracked file and one committed submodule.
     const repoDir = makeRepoWithSubmodule();
     // read the tree at HEAD.
     const tree = readRepoTreeAtRef(new Path(repoDir));

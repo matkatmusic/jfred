@@ -56,8 +56,7 @@ export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: Wi
     return entries;
 }
 
-// One span per CONTIGUOUS run of orphaned rows: the first row draws the fork curve, the last the
-// merge-back end.
+// One span per contiguous run of orphaned rows: first row draws the fork curve, last the merge-back end.
 export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: number; endIndex: number }[] {
     const runs: { startIndex: number; endIndex: number }[] = [];
     let currentRun: { startIndex: number; endIndex: number } | undefined;
@@ -76,8 +75,7 @@ export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: numbe
     return runs;
 }
 
-// Task 158: the LAST row of a rewound branch. Scoped to the SAME session so an interleaved
-// surviving session's row landing after the tip cannot mask it.
+// Task 158: last row of a rewound branch, scoped to the same session so it can't be masked later.
 export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: number): boolean {
     const node = nodes[index]!;
     if (node.isOrphaned !== true) {
@@ -91,8 +89,7 @@ export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: numb
     return true;
 }
 
-// Commit and session-end rows are thin one-liners (locked decision 4); the merged git-derived
-// baseline row is the one commit exception, expanding to show its file chips (task 121).
+// Commit/session-end rows are thin one-liners; the merged git-derived baseline row is the exception, expanding for file chips (task 121).
 export function checkRowIsExpandable(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return node.isGitBaseline === true;
@@ -119,8 +116,7 @@ export function findAdjacentFileTouchedIndex(
     return undefined;
 }
 
-// Commits are repo events with no record, and a synthetic node (task 135's git-derived baseline
-// turn) has no transcript line behind it.
+// Commits are repo events with no record; a synthetic git-derived baseline node has no transcript line either (task 135).
 export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return false;
@@ -173,8 +169,7 @@ export function computeTimelineProgressFraction(rowsBuilt: number, totalRows: nu
     return rowsBuilt / totalRows;
 }
 
-// Resolve on the next animation frame so a just-applied DOM update paints before
-// the next batch of rows blocks the main thread again (item 78).
+// Resolve next frame so a just-applied DOM update paints before the next row batch blocks main thread (item 78).
 export function waitForNextAnimationFrame(): Promise<void> {
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }

@@ -1,6 +1,8 @@
-// Invariant: the bubble that BEGINS at a shared instant wins, and the target is the ROW, not the box.
+// Invariant: the bubble that BEGINS at a shared instant wins, and the target is the ROW.
+
 // The fixture draws the merely-holding bubble first, so a document-order search picks wrong.
-// happy-dom has no layout, so these assert which element reached scrollIntoView, not any measured box.
+
+// happy-dom has no layout, so these assert which element reached scrollIntoView.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -111,8 +113,7 @@ function readExpandedNames(): string[] {
 }
 
 test("test_clicking_a_shared_tick_selects_the_node_of_the_bubble_that_begins_there", async () => {
-    // A shared instant does not guess: the row expands into both names, begins-here first, and the
-    // NAME click jumps to that file's node.
+    // A shared instant does not guess: the row expands into both names, begins-here first.
     await loadPageWithView(buildSharedInstantView());
     const requests = recordScrollRequests();
     clickRulerTickAt(SHARED_PX);
@@ -129,8 +130,7 @@ test("test_clicking_a_shared_tick_selects_the_node_of_the_bubble_that_begins_the
 });
 
 test("test_clicking_a_tick_no_bubble_begins_at_scrolls_to_the_row_at_that_instant", async () => {
-    // Stage 2 fallback: nothing begins at HELD_PX, so the node standing there must answer. It only
-    // resolves if the lookup adds each bubble's base offset back onto its widget-relative nodes.
+    // Stage 2 fallback: nothing begins at HELD_PX, so the node standing there must answer.
     await loadPageWithView(buildSharedInstantView());
     const requests = recordScrollRequests();
     clickRulerTickAt(HELD_PX);
@@ -139,8 +139,7 @@ test("test_clicking_a_tick_no_bubble_begins_at_scrolls_to_the_row_at_that_instan
 });
 
 test("test_a_stage_two_click_targets_the_clicked_row_and_not_the_bubbles_top", async () => {
-    // Regression: scrolling the BUBBLE aligned against EARLY_PX and put the clicked row ~1,870 px
-    // outside the pane, so the target must be the node at HELD_PX, unmoved vertically.
+    // Regression: scrolling the BUBBLE put the clicked row far outside the pane.
     await loadPageWithView(buildSharedInstantView());
     const requests = recordScrollRequests();
     clickRulerTickAt(HELD_PX);
@@ -153,8 +152,7 @@ test("test_a_stage_two_click_targets_the_clicked_row_and_not_the_bubbles_top", a
 });
 
 test("test_a_ruler_row_only_an_orphan_bucket_holds_is_still_clickable", async () => {
-    // Regression: a bucket renders `ul`/`li` and no `.node`, so stage 2 was blind to every bucket
-    // row except the earliest and answered those clicks in silence.
+    // Regression: a bucket renders `ul`/`li` and no `.node`, so stage 2 was blind to its rows.
     await loadPageWithView(buildBucketOnlyView());
     const requests = recordScrollRequests();
     clickRulerTickAt(BUCKET_SECOND.axisPx);
@@ -175,8 +173,7 @@ test("test_every_drawn_ruler_row_is_clickable", async () => {
 });
 
 test("test_clicking_a_ruler_tick_highlights_the_element_it_landed_on", async () => {
-    // A landing lights exactly two things — the node (which moment) and its owning bubble (which
-    // file) — and a second click MOVES that light rather than adding one.
+    // A landing lights the node and its owning bubble; a second click MOVES that light.
     await loadPageWithView(buildSharedInstantView());
     assert.equal(document.querySelector(".found"), null);
     clickRulerTickAt(EARLY_PX);

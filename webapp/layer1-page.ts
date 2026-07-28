@@ -1,8 +1,4 @@
-// The Layer 1 View page: on-disk state against what the repository says. Its own page, not a hash
-// route, because its three inputs live in the query string so a view is one shareable link.
-//
-// The ruler ACCUMULATES, so an offset can never be recovered from its own instant — this page does
-// no time arithmetic, only subtracting a widget's base offset to make a node's offset relative.
+// Own page (not a hash route) so its query-string inputs make a shareable link; no time arithmetic, offsets relative.
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
@@ -38,17 +34,14 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
-// One shared line per ruler ENTRY: the per-bubble `.filebox::before` it replaced drew an
-// overlapping copy for each of 805 bubbles and made the page unusably slow. Every entry gets one,
-// including labels the overprint skip drops, or their bubbles would have no connector at all.
+// One shared line per ruler entry, replacing the per-bubble `.filebox::before` that drew 805 overlapping copies and was unusably slow.
 function renderLeaderLines(ruler: WireInstant[]): void {
     getRequiredElementById("leaders").replaceChildren(
         ...ruler.map((entry) => makeLeaderHoverable(setAxisPx(el("div", { class: "leader" }), entry.axisPx))),
     );
 }
 
-// Exported so a folder filter can redraw the timeline while leaving the File Nav standing —
-// redrawing the nav that SET the filter would shrink it and wipe its selection and expanded state.
+// Exported so a folder filter can redraw the timeline without redrawing the File Nav, which would wipe its selection.
 export function renderLayer1Stage(view: WireLayer1View): void {
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
@@ -68,8 +61,7 @@ export function renderLayer1Stage(view: WireLayer1View): void {
     drawLayer1Minimap();
 }
 
-// A file is drawn only when both pickers admit it; an EMPTY list means that picker is not
-// filtering, so the other stands alone.
+// A file is drawn only when both pickers admit it; an empty list means that picker isn't filtering.
 export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] {
     if (folders.length === 0) {
         return [...sessions];
@@ -81,12 +73,10 @@ export function intersectFilterTargets(folders: readonly string[], sessions: rea
     return folders.filter((path) => touched.has(path));
 }
 
-// Module state because the session pane's clicks re-apply the folder selection without re-consulting
-// the nav, whose redraw would wipe it.
+// Module state because the nav's redraw would wipe a selection the session pane still re-applies.
 let folderTargets: string[] = [];
 
-// Both callbacks capture the unfiltered `view`, so every later click re-filters from the full
-// payload rather than from what the previous filter left, and clearing needs no refetch.
+// Both callbacks capture the unfiltered `view`, so every click re-filters from the full payload.
 export function renderLayer1View(view: WireLayer1View): void {
     const redrawFiltered = (): void => renderLayer1Stage(
         filterLayer1ViewByTargets(view, intersectFilterTargets(folderTargets, listSessionFilterTargets())),
@@ -96,8 +86,7 @@ export function renderLayer1View(view: WireLayer1View): void {
         redrawFiltered();
     });
     renderLayer1Stage(view);
-    // The pane keeps only transcripts that touched one of these files; a JSONL from an unrelated
-    // project under the same source folder says nothing about this timeline.
+    // The pane keeps only transcripts that touched one of these files.
     setKnownProjectPaths(getInputById("dir").value.trim(), [
         ...view.pairs.map((pair) => pair.path),
         ...view.gitOrphans.map((orphan) => orphan.path),
@@ -128,8 +117,7 @@ export async function loadLayer1View(): Promise<void> {
     try {
         renderLayer1View(await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`));
     } catch (error) {
-        // The crumb is the whole error surface; no alert(), because native dialogs block headless
-        // automation.
+        // The crumb is the whole error surface; no alert(), because native dialogs block headless automation.
         crumb.textContent = String(error);
     } finally {
         hideLayer1Progress();
@@ -146,8 +134,7 @@ export async function bootLayer1Page(): Promise<void> {
     });
     wireSettingsSave();
     wireSessionPaneResize();
-    // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve
-    // server-side, so flipping the toggle re-loads the view.
+    // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
     wireTimeSourceToggle(() => {
         void loadLayer1View();
     });
@@ -160,8 +147,7 @@ export async function bootLayer1Page(): Promise<void> {
     wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();
-    // All three are delegated: every bubble, tick and leader is replaced on each render, so
-    // per-element listeners would need re-attaching every time.
+    // All three are delegated, since every bubble, tick and leader is replaced on each render.
     wireNodeDrawer();
     wireTickExpansion();
     wireLeaderVisibility();
@@ -172,8 +158,7 @@ export async function bootLayer1Page(): Promise<void> {
     getRequiredElementById("load").addEventListener("click", () => {
         void loadLayer1View();
     });
-    // LAST, and in this order: default source lists derive from the server's roots, and saved
-    // settings only fill boxes the URL left empty. Both best-effort — the page draws without them.
+    // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
     await seedSourceDefaults();
     await restoreSavedSettings().catch(() => false);
     void loadLayer1View();

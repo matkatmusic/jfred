@@ -1,6 +1,4 @@
-// The task-194 cheap pre-scan: every touched file with its FIRST modifying event — exact
-// extraction-level instants, upgraded to an earlier script-run instant only as a statically
-// attributed CANDIDATE (basename mention), never replay-proven.
+// The task-194 cheap pre-scan: every touched file with its FIRST modifying event — exact extraction-level instants, upgraded to an earlier script-run instant only as a statically attributed CANDIDATE (basename mention), never replay-proven.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -17,8 +15,7 @@ import {
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
-// A synthetic assistant record carrying one Bash run (the reconstruction_script_stage.test.ts
-// buildToolRecord pattern) — parse-only scans never execute it.
+// A synthetic assistant record carrying one Bash run (the reconstruction_script_stage.test.ts buildToolRecord pattern) — parse-only scans never execute it.
 function buildBashRunRecord(command: string, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -27,8 +24,7 @@ function buildBashRunRecord(command: string, timestamp: string): TranscriptRecor
     } as unknown as TranscriptRecord;
 }
 
-// alpha: Bash run mentioning its basename at 10:00:30, then write 10:01 + edit 10:02.
-// beta: write 10:06, never mentioned by any script.
+// alpha: Bash run mentioning its basename at 10:00:30, then write 10:01 + edit 10:02.  beta: write 10:06, never mentioned by any script.
 function makePrescanFixture(): { records: TranscriptRecord[]; alphaPath: string; betaPath: string } {
     const tree = makeSourceTree("-prescan-project");
     const root = join(tree.treeRoot, "workspace");
@@ -73,8 +69,7 @@ test("prescan_marks_earlier_script_mention_as_candidate_first_event", () => {
     const entries = computeReconstructionPrescan(records);
     const alphaEntry = entries.find((entry) => entry.path === alphaPath);
     assert.ok(alphaEntry !== undefined);
-    // The 10:00:30 Bash run mentions alpha's basename BEFORE alpha's 10:01 Write, so it becomes
-    // the first event — flagged as a candidate, since only replay could prove the touch.
+    // The 10:00:30 Bash run mentions alpha's basename BEFORE alpha's 10:01 Write, so it becomes the first event — flagged as a candidate, since only replay could prove the touch.
     assert.equal(alphaEntry.firstEventInstant, "2026-07-23T10:00:30.000Z");
     assert.equal(alphaEntry.firstEventIsScriptRunCandidate, true);
     // Entries come back earliest-first: alpha (10:00:30) precedes beta (10:06).

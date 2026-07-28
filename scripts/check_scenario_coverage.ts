@@ -1,11 +1,4 @@
-// Scenario coverage checker: run every executed scenario through the engine per code-change step and diff
-// each engine step against its captured `.step_states` ground truth. On a mismatch, report the scenario,
-// the instruction-numbered step folder, the differing file + first differing line, and the best-matching
-// engine step's triggering JSONL line. Pass/fail is "some engine step reproduces this folder byte-for-byte"
-// — never a positional alignment between engine steps and folders (their counts can differ). Run:
-//   npx tsx scripts/check_scenario_coverage.ts
-// Discovery/IO lives in coverage_scenarios.ts, comparison/selection in coverage_compare.ts.
-// Design: plans/i-need-a-script-peppy-twilight.md (Phase 1).
+// Diffs engine-reconstructed steps against captured ground-truth folders.
 
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -43,9 +36,7 @@ import {
     selectBestEngineStep,
 } from "./coverage_compare.ts";
 
-// One step folder the engine failed to reproduce: the folder number, a best-effort JSONL-line lead, a
-// first-line diff against the best-matching engine step, and the provenance stages that touched the
-// differing file (empty when none).
+// Mismatch details for one step folder the engine could not reproduce.
 export type StepMismatch = { stepNum: number; jsonlLine: string; diff: string; provenance: string };
 
 // Whether a provenance entry's target is the repo-relative differing file (matched on a path boundary).
@@ -60,9 +51,7 @@ function formatProvenanceEntry(entry: ProvenanceEntry): string {
     return `${entry.stage}: ${entry.detail}${changeId}`;
 }
 
-// The provenance entries that touched the differing file at or before the step, formatted one per line;
-// "" when none match. Pure (no engine dependency) — the stage that actually fires per step is captured
-// during reconstruction and passed in.
+// Provenance entries touching the differing file at or before this step.
 export function renderStepProvenance(
     entries: ProvenanceEntry[],
     differingFile: string,
@@ -87,8 +76,7 @@ export type ScenarioResult = {
 };
 
 
-// The first changeId of the best step that resolves to a JSONL line, formatted; a sentinel when none do
-// (a seeded/synthetic revision has no producing record).
+// Resolve the best step's changeId to a JSONL line number, or a sentinel for seeded revisions.
 function jsonlLineFor(change: StepChange | undefined, uuidLineIndex: Map<string, number>): string {
     for (const changeId of change?.changeIds ?? []) {
         const line = uuidLineIndex.get(changeId.toString());
@@ -108,8 +96,7 @@ function describeDiff(file: string, expected: string, actual: string): string {
     return `${file} @line ${lineDiff.lineNo}: expected ${JSON.stringify(lineDiff.expected)} got ${JSON.stringify(lineDiff.actual)}`;
 }
 
-// Build the mismatch record for one failing step folder: the best-matching engine step drives the diff and
-// the JSONL-line lead.
+// Build a mismatch record for one failing step folder using the best-matching engine step.
 function buildStepMismatch(
     stepNum: number,
     groundTruth: ReadonlyMap<string, string>,
@@ -136,8 +123,7 @@ function buildStepMismatch(
     return { stepNum, jsonlLine: jsonlLineFor(stepChanges[best], uuidLineIndex), diff, provenance: stepProvenance };
 }
 
-// Run one scenario: reconstruct its steps once, then for each captured folder record PASS (some engine step
-// reproduces it) or a mismatch.
+// Reconstruct a scenario's steps, comparing each captured folder against engine output.
 export function checkScenario(scenario: CoveredScenario): ScenarioResult {
     console.log(`\n=== scenario ${scenario.scenarioId} (${scenario.dirName}) ===`);
     const loaded = scenario.jsonlPaths.flatMap((path) => loadTranscript(path.toString()).records);
@@ -163,8 +149,7 @@ export function checkScenario(scenario: CoveredScenario): ScenarioResult {
             passed += 1;
             continue;
         }
-        // ponytail: look-ahead — if a later folder matches an engine step, this folder is a
-        // user-edit the transcript coalesced (scenario runner did 2+ Edit: steps between prompts)
+        // ponytail: look-ahead — if a later folder matches an engine step, this folder is a user-edit the transcript coalesced (scenario runner did 2+ Edit: steps between prompts)
         const laterFolders = folders.slice(i + 1);
         const laterMatches = laterFolders.some((later) => {
             const laterGroundTruth = readStepStateFiles(join(scenario.stepStatesDir, later));
@@ -182,8 +167,7 @@ export function checkScenario(scenario: CoveredScenario): ScenarioResult {
     return { scenario, passed, userEdits, total: folders.length, mismatches };
 }
 
-// Run a scenario, turning any thrown error into an ERROR result (one synthetic mismatch) so one bad scenario
-// never aborts the sweep.
+// Wraps checkScenario so a thrown error becomes an ERROR result instead of aborting the sweep.
 export function checkScenarioResilient(scenario: CoveredScenario): ScenarioResult {
     try {
         return checkScenario(scenario);
@@ -214,9 +198,7 @@ function printResult(result: ScenarioResult): void {
     }
 }
 
-// Sweep every covered scenario (or just the one named by argv[2], matched on scenarioId or dir name), print
-// the matrix and the uncovered list, and exit 1 when any covered step failed or errored. Exit 2 when a name
-// filter matches nothing.
+// Sweep covered scenarios, print coverage matrix, exit 1 on failure, exit 2 on no match.
 function main(): void {
     const executedRoot = new URL("../scenarios/executed/", import.meta.url);
     const onlyFailing = process.argv.includes("--onlyFailing");
@@ -247,4 +229,5 @@ function main(): void {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     main();
 }
+
 

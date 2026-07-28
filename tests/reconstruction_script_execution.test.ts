@@ -19,8 +19,7 @@ function toolUse(name: ToolName, input: Record<string, unknown>): ToolUseBlock {
     return { type: BlockType.tool_use, id: new Uuid("toolu_x"), name, input } as unknown as ToolUseBlock;
 }
 
-// C6b — a scriptExecution event replays wholesale, like an overwrite: one full-content revision of
-// its precomputed post-script content.
+// C6b — a scriptExecution event replays wholesale, like an overwrite: one full-content revision of its precomputed post-script content.
 test("test_replay_scriptExecution_emits_its_precomputed_content", () => {
     const events: FileEvent[] = [
         {
@@ -59,8 +58,7 @@ test("test_findScriptExecutionRuns_carries_the_records_cwd_on_each_run", () => {
 });
 
 test("test_findScriptExecutionRuns_resolves_indirection_to_the_body_current_at_each_run_instant", () => {
-    // A script rewritten between runs (s87's apply_renames.py, written 5×) must resolve to the body
-    // current at each run's instant, never to whichever Write loaded last in readdir order.
+    // A script rewritten between runs must resolve to the body current at that instant, not the last Write loaded.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v1')\n" }, "2026-01-01T00:00:01Z", "/w"),
         buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:02Z", "/w"),

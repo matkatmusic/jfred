@@ -1,8 +1,4 @@
-// Tasks 268 and 275: which ruler ENTRIES become printed gutter ROWS, and what each row reads.
-//
-// TWO reasons an entry loses its own row, kept distinguishable below: its label repeats the row
-// above (task 268), or it would overprint that row (TICK_LABEL_MIN_GAP_PX). Either way the
-// surviving row absorbs the folded entry's event count, so a merge cannot under-report.
+// Tasks 268/275: a row drops when its label repeats or overprints the row above; the survivor absorbs its count.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -35,8 +31,7 @@ test("test_listRulerRows_prints_the_event_count_after_each_label", () => {
 });
 
 test("test_listRulerRows_keeps_every_entry_whose_label_differs", () => {
-    // A merge seeded with a value equal to the first label would swallow row one and still pass
-    // every duplicate test below.
+    // A merge seeded equal to the first label would swallow row one yet still pass every duplicate test below.
     const rows = listRulerRows([
         makeTick("2026-06-01T09:00:00.000Z", 0, 1),
         makeTick("2026-06-01T09:00:01.000Z", 22, 2),

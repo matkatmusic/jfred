@@ -6,10 +6,7 @@ import { buildFilesSidebarViewModel } from "../webapp/views/timeline-file-tree.t
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { commitWalkDocument } from "./timeline-test-helpers.ts";
 
-// Item 77: absolute targets (production shape — src/reconstruction_extract.ts resolves every
-// file_path against the transcript cwd) covering the three cases the Files tree renders specially:
-// a rename lineage keyed at its FINAL path (src/reconstruction_lineage.ts), a deleted file, and a
-// delete-then-recreate (m4) that ends alive and must NOT read as deleted.
+// Item 77: fixtures for the three cases the Files tree renders specially: a rename lineage, a deleted file, a delete-then-recreate.
 
 const fileTreeDocument = {
     ...commitWalkDocument,
@@ -49,9 +46,7 @@ test("test_buildFilesSidebarViewModel_lists_targets_with_revision_counts", () =>
     ]);
 });
 
-// Task 145: a script move (shutil.move) leaves no rename REVISION — the engine seeds the
-// destination's history fresh via the script channels — but the run's sandbox diff proved the
-// pair (task 143 renamedPaths), so the badge falls back to it.
+// Task 145: a script move leaves no rename revision, so the badge falls back to the run's renamedPaths (task 143).
 const scriptMoveDocument = {
     ...commitWalkDocument,
     filesTouched: [{
@@ -70,16 +65,14 @@ const scriptMoveDocument = {
 };
 
 test("test_buildFilesSidebarViewModel_badges_a_script_move_from_the_runs_rename_pairs", () => {
-    // Scenario (task 145): core_one.py's history has no rename revision, but a script run's
-    // renamedPaths proves one.py -> core_one.py — the entry still gets its rename badge.
+    // Scenario (task 145): no rename revision, but the script run's renamedPaths proves one.py -> core_one.py, so the badge still shows.
     const entries = buildFilesSidebarViewModel(scriptMoveDocument);
     assert.equal(entries[0]?.originalPath, "/tmp/proj/one.py");
     assert.equal(entries[0]?.renameBadgeLabel, "one.py");
 });
 
 test("test_buildFilesSidebarViewModel_reports_no_origin_without_rename_evidence", () => {
-    // Scenario (task 145 guard): with no rename revision AND no run pairs, the entry stays
-    // badge-less — the fallback must not invent origins.
+    // Scenario (task 145 guard): with no rename revision or run pairs, the fallback must not invent an origin.
     const documentWithoutPairs = { ...scriptMoveDocument, scriptRuns: [] };
     const entries = buildFilesSidebarViewModel(documentWithoutPairs);
     assert.equal(entries[0]?.originalPath, undefined);
@@ -94,16 +87,14 @@ test("test_buildFilesSidebarViewModel_flags_a_file_whose_last_revision_is_a_dele
 });
 
 test("test_buildFilesSidebarViewModel_does_not_flag_a_file_recreated_after_a_delete", () => {
-    // Scenario: m4's write->delete->write recreate ends alive, so it must NOT be reported deleted.
-    // This guards against testing "any delete revision" instead of the LAST one.
+    // Scenario: m4's write->delete->write recreate ends alive, guarding against checking any delete instead of the last revision.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
     const recreated = entries.find((entry) => entry.target === "/tmp/proj/README.md");
     assert.equal(recreated?.isDeleted, false);
 });
 
 test("test_buildFilesSidebarViewModel_reports_the_original_path_of_a_renamed_file", () => {
-    // Scenario: a renamed file is ONE history keyed at its final path (reconstruction_lineage.ts);
-    // the pane still needs the path it started life at, for the rename badge.
+    // Scenario: a renamed file's history is keyed at its final path, but the pane needs its original for the badge.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
     const renamed = entries.find((entry) => entry.target === "/tmp/proj/src/renamed.py");
     assert.equal(renamed?.originalPath, "/tmp/proj/src/original.py");

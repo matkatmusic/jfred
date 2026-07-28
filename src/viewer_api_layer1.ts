@@ -1,5 +1,4 @@
-// Layer 1 View (spec S18): on-disk state against the repository. Reads NO JSONL, which is what
-// makes the task-238 acceptance test meaningful.
+// Layer 1 View (spec S18): on-disk state against the repository. Reads no JSONL, meaningful to the task-238 acceptance test.
 
 import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts";
@@ -19,8 +18,7 @@ export const LAYER1_PROGRESS_LABEL_READING_HISTORY = "reading file history";
 export const LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY = "placing repository-only files";
 export const LAYER1_PROGRESS_LABEL_RESOLVING_RULER = "resolving the ruler";
 
-// The S18 ruler ACCUMULATES, so an offset cannot be derived from its own instant — the page must
-// be handed the finished number.
+// The S18 ruler accumulates, so an offset can't be derived from its own instant; the page gets the finished number.
 export interface Layer1WireInstant {
     instant: Instant;
     axisPx: number;
@@ -31,8 +29,7 @@ export interface Layer1WireCommit extends Layer1WireInstant {
 }
 
 export interface Layer1WireRulerTick extends Layer1WireInstant {
-    // Nodes drawn at this instant across every bubble; measured by layOutNodeLadders so a
-    // client-side folder-filter re-layout produces the same number.
+    // Nodes drawn at this instant across every bubble; measured by layOutNodeLadders so a client-side folder-filter re-layout produces the same number.
     eventCount: number;
 }
 
@@ -47,8 +44,7 @@ export interface Layer1WireOrphan extends Layer1WireInstant {
     path: Path;
 }
 
-// The two orphan sets are mirror images, so a swap is invisible to the task-238 acceptance test
-// and must never happen here (S18 "Output contract").
+// The two orphan sets are mirror images; a swap is invisible to task-238 test and must never happen (S18 contract).
 export interface Layer1WireView {
     pairs: Layer1WirePair[];
     gitOrphans: Layer1WireOrphan[];
@@ -71,14 +67,12 @@ function reportStage(reportProgress: ProgressSink, label: string, current?: numb
     reportProgress({ kind: DocumentResponseKind.progress, label, current, total });
 }
 
-// Order is load-bearing: it decides which tied node takes the upper row, and it makes the returned
-// offsets readable positionally below.
+// Order is load-bearing: it decides which tied node takes the upper row, and makes the returned offsets readable positionally.
 function listPairNodeLadder(pair: PairHistory): NodeLadder {
     return [...pair.commits.map((commit) => commit.instant), pair.file.mtime];
 }
 
-// `nodeOffsetsPx` is parallel to listPairNodeLadder's output — positional, not a lookup, which is
-// what lets two nodes sharing an instant come back on different rows.
+// `nodeOffsetsPx` is parallel to listPairNodeLadder's output, positional not a lookup, letting two nodes sharing an instant land differently.
 function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer1WirePair {
     return {
         path: pair.file.relativePath,
@@ -91,8 +85,7 @@ function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer
     };
 }
 
-// Every instant here was part of the resolve input, so a miss is a bug in this file — fail loudly
-// instead of drawing a node at a silent zero.
+// Every instant here was part of the resolve input; a miss is a bug — fail loudly, not silent zero.
 function placeInstantOnAxis(offsets: Map<number, number>, instant: Instant): Layer1WireInstant {
     const axisPx = offsets.get(instant.getTime());
     if (axisPx === undefined) {
@@ -101,17 +94,14 @@ function placeInstantOnAxis(offsets: Map<number, number>, instant: Instant): Lay
     return { instant, axisPx };
 }
 
-// A repo path with no on-disk counterpart has no mtime, so its LAST touching commit is the moment
-// it last existed in the repo.
+// A repo path with no on-disk counterpart has no mtime; its last touching commit is when it last existed.
 function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string, reportProgress: ProgressSink, timeSource: CommitTimeSource): GitOrphanPlacement[] {
     const placements: GitOrphanPlacement[] = [];
     for (let index = 0; index < gitOrphans.length; index += 1) {
         const orphanPath = gitOrphans[index]!;
         reportStage(reportProgress, LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY, index + 1, gitOrphans.length);
         const lastTouch = listPairCommitHistory(repoDir, orphanPath, ref, timeSource).at(-1);
-        // ponytail: a path git lists at `ref` always has a commit reachable from that ref, so this
-        // only holds for a shallow clone whose history was truncated; such a row is dropped rather
-        // than invented at a fake instant. Revisit if shallow clones become a real input.
+        // ponytail: a shallow clone's truncated history can leave no commit; such a row is dropped, not faked. Revisit if needed.
         if (lastTouch === undefined) {
             continue;
         }
@@ -120,14 +110,12 @@ function listGitOrphanPlacements(repoDir: Path, gitOrphans: Path[], ref: string,
     return placements;
 }
 
-// Ascending, so a bucket's placement is simply its first row's axisPx and the page needs no
-// Math.min.
+// Ascending, so a bucket's placement is simply its first row's axisPx and the page needs no Math.min.
 function orderRowsByInstant(rows: Layer1WireOrphan[]): Layer1WireOrphan[] {
     return [...rows].sort((left, right) => left.instant.getTime() - right.instant.getTime());
 }
 
-// `reportProgress` is explicit rather than reconstruction_progress.ts's process-wide sink, which
-// is scoped to document builds and would mix this route's lines into one.
+// `reportProgress` is explicit rather than reconstruction_progress.ts's process-wide sink, scoped to document builds, which would mix routes together.
 export function buildLayer1View(
     projectFolder: Path,
     repoDir: Path,
@@ -138,12 +126,10 @@ export function buildLayer1View(
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
     const diskFiles = walkCurrentFileState(projectFolder);
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_TREE);
-    // Runs BEFORE any history read so a bad ref throws once rather than degrading into empty
-    // ladders. Only `trackedFiles` is paired: a submodule gitlink would invent a phantom row.
+    // Runs before any history read so a bad ref throws once, not degrading into empty ladders; only `trackedFiles` is paired.
     const repoTree = readRepoTreeAtRef(repoDir, ref);
     const pairing = pairDiskFilesAgainstRepoPaths(diskFiles, repoTree.trackedFiles);
-    // One `git log` per tracked path is where this route's ~10 s goes, so each iteration announces
-    // its position. ponytail: unbatched — batch into groups here if the line rate starts to matter.
+    // One `git log` per path is where this route's ~10 s goes. ponytail: unbatched, batch if rate matters.
     const pairHistories: PairHistory[] = [];
     for (let index = 0; index < pairing.pairs.length; index += 1) {
         const file = pairing.pairs[index]!;
@@ -152,9 +138,7 @@ export function buildLayer1View(
     }
     const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress, timeSource);
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
-    // Pair ladders come FIRST and in `pairHistories` order, which is what makes
-    // `ladderOffsetsPx[index]` that pair's own rows. An orphan is a ONE-node ladder: it bounds the
-    // ruler without being charged a stacked row.
+    // Pair ladders come first in `pairHistories` order, so `ladderOffsetsPx[index]` is that pair's rows; an orphan is a one-node ladder.
     const layout = layOutNodeLadders([
         ...pairHistories.map(listPairNodeLadder),
         ...gitOrphanPlacements.map((placement) => [placement.instant]),

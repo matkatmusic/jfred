@@ -1,5 +1,4 @@
-// Renames inside an executed script leave no tool_use event; the printed `old -> new` mapping
-// is the only in-transcript evidence, so this module parses that stdout into rename events.
+// No tool_use event marks a script rename; this module parses the printed `old -> new` line into rename events.
 
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -57,16 +56,7 @@ function basenameOf(value: string): string {
     return slash >= 0 ? value.slice(slash + 1) : value;
 }
 
-// Renames performed by an EXECUTED script (Bash or MCP ctx_execute), recovered from the run's printed stdout:
-// the transcript captures each `old -> new` line the script prints. A `shutil.move`/`os.rename` inside the
-// code is invisible to extraction (it is not a Bash `mv`), so the printed mapping is the only in-transcript
-// evidence of the move; parsing it into rename events lets the renamed-to path reconstruct as its source's
-// lineage (buildRenameChain/distinctFinalPaths). Two guards keep it honest: the source basename must have been
-// written/edited earlier (drops coincidental `x.y -> z.y` prose), and `renameArrowLine` only accepts
-// dot-extension filenames on BOTH sides — so a function-rename print (`f_one -> alpha`) and the echoed
-// f-string code (`{name}.py -> …`) never match.
-// One tool_use block's contribution to the pre-scan: Write/Edit targets feed the written-basename
-// guard set; executor runs register their run instant and cwd under the block's tool_use id.
+// Recovers script-internal renames from the printed `old -> new` line, since shutil.move/os.rename leave no tool_use event; guarded against false-positive matches.
 function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date | undefined, recordCwd: Path | undefined, executors: Map<string, ExecutorRun>, writtenBasenames: Set<string>): void {
     if (block.type !== BlockType.tool_use) {
         return;
@@ -84,8 +74,7 @@ function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date 
     }
 }
 
-// Candidates stamp at the RESULT instant, not the tool_use's: a consent-delayed MCP move can sit
-// pending for minutes, and only by the result instant has the execution provably finished.
+// Candidates stamp at the RESULT instant, not the tool_use's, since a consent-delayed MCP move can sit pending for minutes.
 function collectRenameCandidatesFromToolResult(block: ContentBlock, record: TranscriptRecord, executors: Map<string, ExecutorRun>, completionInstantByExecutorId: Map<string, Date>, candidates: RenameCandidate[]): void {
     if (block.type !== BlockType.tool_result) {
         return;
@@ -113,10 +102,7 @@ function collectRenameCandidatesFromToolResult(block: ContentBlock, record: Tran
     }
 }
 
-// The code-literal channel (s87 step 89): a COMPLETED run whose code contains a two-string-literal
-// `shutil.move("a.py", "b.py")` / `os.rename(...)` call evidences that rename even when the run
-// prints no arrow line. Uncompleted runs contribute nothing (never fabricate); the variable form
-// `shutil.move(src, dst)` never matches the literal regex.
+// Code-literal channel (s87 step 89): a COMPLETED run's two-string-literal `shutil.move(...)`/`os.rename(...)` call evidences a rename even with no arrow line.
 function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRun, completionInstantByExecutorId: Map<string, Date>, candidates: RenameCandidate[]): void {
     if (executor.code === undefined) {
         return;
@@ -136,8 +122,7 @@ function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRun, comp
     }
 }
 
-// A rename's source basename must be a Write/Edit target or an already-accepted rename's destination,
-// so a chained rename is accepted no matter which record loaded first.
+// A rename's source basename must be a Write/Edit target or an accepted rename's destination, so chains work regardless of order.
 function acceptRenameCandidatesInTimestampOrder(candidates: RenameCandidate[], writtenBasenames: Set<string>): FileEvent[] {
     const sortedCandidates = [...candidates].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     const knownSourceBasenames = new Set(writtenBasenames);

@@ -1,5 +1,4 @@
-// The document's scriptRuns[] (task 67): each recorded run plus the files its consented sandbox
-// execution changed. Fixture s25 is one Bash run rewriting several files in a single execution.
+// The document's scriptRuns[] (task 67): each recorded run plus the files its consented sandbox execution changed.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -31,8 +30,7 @@ function buildConsentedS25Document(): ReconstructionDocument {
 }
 
 test("test_declined_build_lists_script_runs_with_empty_changed_paths", () => {
-    // A declined build still lists every run (the consent dialog needs the code) but reports nothing
-    // changed. The gate DEFAULTS ON for CLI/tests, so it is restored afterwards.
+    // A declined build lists every run but reports nothing changed. The gate DEFAULTS ON for CLI/tests, so it's restored afterwards.
     setImpureExecutionAllowed(false);
     let document: ReconstructionDocument;
     try {
@@ -80,8 +78,7 @@ test("test_match_rename_pairs_ignores_content_edits_in_place", () => {
 });
 
 test("test_s85_move_run_collapses_rename_pairs_and_reports_them", () => {
-    // Task 143: the sandbox diff used to report all 6 paths; a rename pair is ONE move, so
-    // changedPaths collapses to the 3 destinations and the pairs ride alongside.
+    // Task 143: a rename pair is ONE move, so changedPaths collapses to the 3 destinations and the pairs ride alongside.
     setImpureExecutionAllowed(true);
     let document: ReconstructionDocument;
     try {
@@ -102,8 +99,7 @@ test("test_s85_move_run_collapses_rename_pairs_and_reports_them", () => {
 });
 
 test("test_script_changed_paths_name_files_the_document_tracks", () => {
-    // The webapp joins changedPaths to filesTouched by BASENAME, because the sandbox's state keys
-    // may still be cwd-relative before resolution.
+    // The webapp joins changedPaths to filesTouched by BASENAME, because the sandbox's state keys may still be cwd-relative before resolution.
     const document = buildConsentedS25Document();
     const trackedBasenames = new Set(
         document.filesTouched.map((history) => computeBasename(history.target.toString())),

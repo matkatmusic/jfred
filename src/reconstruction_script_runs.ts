@@ -1,6 +1,4 @@
-// Script-execution replay: memoized sandbox runs, run selection for a target, the lineage replay
-// window, and discovery of script-born files. The reconstruction stage that consumes these lives
-// in reconstruction_script_stage.ts.
+// Script-execution replay: memoized sandbox runs, run selection, lineage replay window, and script-born file discovery; consumed by reconstruction_script_stage.ts.
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { checkTimestampPrecedesSkippedBaseline } from "./reconstruction_base_commit.ts";
@@ -28,12 +26,10 @@ import {
     incrementReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
-// Memoized per distinct run per records array; each sandbox run costs ~100ms and call sites
-// multiply. The memo is invalidated with its derived-cache siblings.
+// Memoized per run per records array since each sandbox run costs ~100ms; invalidated alongside its derived-cache siblings.
 export type RunExecution = { pre: Map<string, string>; post: Map<string, string> | undefined };
 
-// Runs at/after the innermost replay's cutoff can only produce events the cut discards, and
-// processing them let a pre-state build re-enter its own in-flight execution.
+// Runs at/after the innermost replay cutoff would re-enter their own in-flight execution, so they're excluded from pre-state builds.
 let activeLineageReplayCutoff: Date | undefined;
 
 // Narrows the window only — never widens it.
@@ -68,8 +64,7 @@ export const PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX = "skipping pre-baseline sc
 
 export const PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX = "skipping non-python sandbox run";
 
-// An absent executor kind means a synthetic test run, which executes like python. Exported so
-// the horizon module's memo probes (task 220) can build the identical key without executing.
+// An absent executor kind runs like python; exported so horizon's memo probes (task 220) build the same key.
 export function computeRunExecutionKey(run: ScriptRun): string {
     const executorKind = run.executorKind ?? ScriptExecutorKind.python;
     return `${run.timestamp.getTime()}|${executorKind}|${run.code}`;
@@ -95,16 +90,14 @@ export function executeRunOnce(
         byRun.set(key, skipped);
         return skipped;
     }
-    // Task 192: bash always crashed to post:undefined under the python3-only sandbox, and its
-    // rename/redirect evidence is extracted statically through separate channels anyway.
+    // Task 192: bash always crashes to post:undefined in the python3-only sandbox; its rename/redirect evidence comes from separate static channels.
     if ((run.executorKind ?? ScriptExecutorKind.python) === ScriptExecutorKind.bash) {
         reportReconstructionProgress(`${PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
         const skipped: RunExecution = { pre: new Map(), post: undefined };
         byRun.set(key, skipped);
         return skipped;
     }
-    // Item 68: no write primitive means no file evidence; the empty pre is safe because every
-    // caller checks `post === undefined` before touching `pre`.
+    // Item 68: no write primitive means no file evidence; callers check `post === undefined` before touching `pre`.
     if (!scriptCodeMayWriteFiles(run.code)) {
         reportReconstructionProgress(
             `${PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`,
@@ -121,15 +114,13 @@ export function executeRunOnce(
     return execution;
 }
 
-// Finds script-born files (an out.txt, a shutil.move destination) that left no Write/Edit/Bash
-// event behind.
+// Finds script-born files (an out.txt, a shutil.move destination) that left no Write/Edit/Bash event behind.
 export function discoverScriptCreatedPaths(
     records: TranscriptRecord[],
     reader: BackupReader,
     seedContent?: LineageContentBefore,
 ): Path[] {
-    // Consent gate: discovery EXECUTES every recorded run, so a declined build must skip it
-    // entirely — same contract as injectScriptExecutions.
+    // Consent gate: discovery executes every recorded run, so a declined build skips it entirely, same as injectScriptExecutions.
     if (!isImpureExecutionAllowed()) return [];
     const created = new Map<string, Path>();
     const runs = findScriptExecutionRuns(records);
@@ -148,15 +139,10 @@ export function discoverScriptCreatedPaths(
     return [...created.values()];
 }
 
-// A move the sandbox diff proves, resolved to absolute paths for the wire document (task 143;
-// the state-key matcher lives in reconstruction_script_renames.ts).
+// A move the sandbox diff proves, resolved to absolute paths (task 143; matcher in reconstruction_script_renames.ts).
 export type ScriptRenamePair = { from: Path; to: Path };
 
-// One recorded script run and the files its sandbox execution changed, created, or deleted —
-// captured at reconstruction time (task 67; executeRunOnce is memoized, so a consented build
-// pays nothing extra) and carried onto the wire document for the timeline's script-run rows.
-// renamedPaths (task 143) holds the proven move pairs; their SOURCE paths are collapsed out
-// of changedPaths so "modified N file(s)" counts files, not both sides of every move.
+// A script run's file changes, captured once (task 67) and reused (task 143) for the timeline's script-run rows.
 export type ScriptRunFileChanges = {
     toolUseId: Uuid | undefined;
     timestamp: Date;
@@ -177,11 +163,7 @@ export function summarizeScriptRunFileChanges(
     }));
 }
 
-// The absolute paths executeRunOnce's pre/post diff shows changed, created, or deleted (the
-// union of both states' keys covers all three in one content comparison), with rename-pair
-// sources collapsed out (task 143) — empty on a declined build (nothing may execute) or when
-// no sidecar reader exists. The gate check comes BEFORE executeRunOnce so a declined build
-// never runs a script.
+// Paths executeRunOnce's diff shows changed; empty when execution is declined or no sidecar reader exists (task 143).
 function computeRunFileOutcome(
     run: ScriptRun,
     records: TranscriptRecord[],

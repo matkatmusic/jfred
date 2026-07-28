@@ -1,14 +1,10 @@
-// Script-run Details per-file selection (task 144): the left column lists the run's changed
-// files; clicking one shows JUST that file's before/after diff on the right — the rev-card
-// list -> selected-diff pattern, replacing the old all-files stack.
+// Script-run Details per-file selection (task 144): the left column lists the run's changed files; clicking one shows JUST that file's before/after diff on the right — the rev-card list -> selected-diff pattern, replacing the old all-files stack.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setupWebappDom, flushAsyncWork } from "./webapp-dom-test-helpers.ts";
 
-// One diff response per /api/diff call, watermarked with the requested file so the test can
-// assert WHICH file's diff the right pane shows. Served through a hand-rolled fetch (the
-// shared stubFetchRoutes helper serves JSON; fetchRevisionDiffBlocks reads text()).
+// One diff response per /api/diff call, watermarked with the requested file so the test can assert WHICH file's diff the right pane shows. Served through a hand-rolled fetch (the shared stubFetchRoutes helper serves JSON; fetchRevisionDiffBlocks reads text()).
 function stubDiffFetchByFile(): void {
     const fetchStub = async (url: unknown): Promise<Response> => {
         const parsed = new URL(String(url), "http://localhost:7343");

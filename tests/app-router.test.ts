@@ -1,13 +1,10 @@
-// DOM tests for webapp/app-router.ts: the latest-wins navigation guard (task 138) and the
-// timeline-pane-header route visibility (task 140), run against the real index.html markup
-// (webapp-dom-test-helpers.ts installs the globals the webapp import chain expects).
+// DOM tests for webapp/app-router.ts: the latest-wins navigation guard (task 138) and the timeline-pane-header route visibility (task 140), run against the real index.html markup (webapp-dom-test-helpers.ts installs the globals the webapp import chain expects).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
-// Boot a fresh DOM with a stubbed projects listing and import the router under test. The
-// dynamic import keeps every webapp module load AFTER the happy-dom globals exist.
+// Boot a fresh DOM with a stubbed projects listing and import the router under test. The dynamic import keeps every webapp module load AFTER the happy-dom globals exist.
 async function importRouterInFreshDom(): Promise<typeof import("../webapp/app-router.ts")> {
     setupWebappDom();
     stubFetchRoutes({
@@ -20,8 +17,7 @@ async function importRouterInFreshDom(): Promise<typeof import("../webapp/app-ro
 }
 
 test("test_overlapping_renderRoute_calls_render_the_projects_list_once", async () => {
-    // Scenario (task 138): two renderRoute runs overlap (the folder switch fires hashchange AND
-    // an explicit call); only the newest run's DOM may land — one filter bar, one row per project.
+    // Scenario (task 138): two renderRoute runs overlap (the folder switch fires hashchange AND an explicit call); only the newest run's DOM may land — one filter bar, one row per project.
     const { renderRoute } = await importRouterInFreshDom();
     // start two runs WITHOUT awaiting the first, so both are past their view clear.
     const firstRun = renderRoute();
@@ -35,8 +31,7 @@ test("test_overlapping_renderRoute_calls_render_the_projects_list_once", async (
 });
 
 test("test_renderRoute_hides_timeline_pane_header_on_the_projects_route", async () => {
-    // Scenario (task 140): the Timeline pane header is timeline chrome — it starts hidden in
-    // the markup and stays hidden on #/, while the projects view brings its own pane title.
+    // Scenario (task 140): the Timeline pane header is timeline chrome — it starts hidden in the markup and stays hidden on #/, while the projects view brings its own pane title.
     const { renderRoute } = await importRouterInFreshDom();
     const paneHeader = document.getElementById("timeline-pane-header")!;
     // the markup ships the header hidden, so it never flashes before the first render.
@@ -50,8 +45,7 @@ test("test_renderRoute_hides_timeline_pane_header_on_the_projects_route", async 
 });
 
 test("test_renderRoute_shows_timeline_pane_header_on_a_project_route", async () => {
-    // Scenario (task 140): a project route is a timeline route — the header unhides even while
-    // the document load itself fails (the stub answers 404; renderRoute's catch shows the error).
+    // Scenario (task 140): a project route is a timeline route — the header unhides even while the document load itself fails (the stub answers 404; renderRoute's catch shows the error).
     const { renderRoute } = await importRouterInFreshDom();
     location.hash = "#/project/proj-a/timeline";
     await renderRoute();

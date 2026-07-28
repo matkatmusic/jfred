@@ -1,6 +1,4 @@
-// The orchestrator's pure parts: the view URL it drives, and the two report writers that decide how
-// much of a failing run reaches the reader. Importing this module must NOT start a browser — the
-// entrypoint guard in run.ts is what this file silently proves.
+// The orchestrator's pure parts: the view URL it drives, and the two report writers that decide how much of a failing run reaches the reader. Importing this module must NOT start a browser — the entrypoint guard in run.ts is what this file silently proves.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

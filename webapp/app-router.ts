@@ -1,6 +1,4 @@
-// Hash-route render dispatch. The header wiring (toolbar popovers + the runtime-switchable
-// folders) lives in app-header.ts (task 115 split); it shares the lastLoadedProject
-// console-ownership state through resetLastLoadedProject.
+// Hash-route dispatch; header wiring lives in app-header.ts.
 
 import { el } from "./app-dom.ts";
 import { ensureProgressTerminal, expandProgressConsole, progressTerminal } from "./app-console.ts";
@@ -11,18 +9,15 @@ import { maybeOfferProjectPathsWizard } from "./app-paths-project.ts";
 import { renderProjectsView } from "./views/projects.ts";
 import { renderTimelineView } from "./views/timeline.ts";
 
-// The project whose load output currently fills the progress console; undefined before any
-// project load. Set by renderRoute, reset by the projects-folder switch.
+// Tracks which project's output currently fills the progress console.
 let lastLoadedProject: string | undefined;
 
-// Forget the loaded project after a projects-folder switch (app-header.ts) — every project is
-// then a fresh load from the new folder, even under an identical name.
+// Reset after a folder switch so every project re-loads fresh.
 export function resetLastLoadedProject(): void {
     lastLoadedProject = undefined;
 }
 
-// task 138: monotonically increasing navigation stamp — a run whose stamp is no longer the
-// newest must not touch shared chrome (the details drawer) after its awaits resolve.
+// task 138: stale navigations must not mutate shared chrome after awaits.
 let renderRouteGeneration = 0;
 
 // True when a newer renderRoute run has started since `generation` was stamped.
@@ -30,9 +25,7 @@ function checkRouteRenderIsStale(generation: number): boolean {
     return generation !== renderRouteGeneration;
 }
 
-// True only when a navigation starts loading a project DIFFERENT from the one whose output
-// fills the console. Same-project sub-route hops and non-project routes keep the console
-// (TASKS item 22: clear on new project/session load, not on every navigation).
+// Only true when navigating to a different project (item 22).
 export function checkNavigationStartsNewProjectLoad(previousProject: string | undefined, nextProject: string | undefined): boolean {
     if (nextProject === undefined) {
         return false;
@@ -40,13 +33,11 @@ export function checkNavigationStartsNewProjectLoad(previousProject: string | un
     return nextProject !== previousProject;
 }
 
-// The project-route arm of renderRoute's dispatch, extracted so its anchor ternaries sit one
-// indent level shallower (deep-nesting flag at the old depth).
+// Extracted to keep anchor ternaries one indent shallower.
 async function renderProjectRoute(view: HTMLElement, segments: string[], generation: number): Promise<void> {
     const project = segments[1]!;
     setToolbarTitle(project);   // item 66: was setBreadcrumb(project)
-    // The timeline is ALWAYS a loaded project's base view (user decision 2026-07-06):
-    // jsonl and file sub-routes keep their URLs but render as a drawer over it.
+    // Timeline is always the base view; sub-routes render as a drawer over it.
     const anchorJsonl = segments[2] === "timeline" && segments[3] === "session" ? segments[4]
         : segments[2] === "jsonl" ? segments[3] : undefined;
     const anchorLine = segments[2] === "timeline" && segments[5] === "at" ? segments[6] : undefined;
@@ -60,20 +51,15 @@ export async function renderRoute(): Promise<void> {
     const generation = ++renderRouteGeneration;   // task 138: this run is now the newest
     inflightLoadController?.abort();   // navigation tears down any in-flight load
     const view = document.getElementById("view")!;
-    // task 138: each run owns a fresh pane, swapped in atomically. Two overlapping runs used to
-    // clear-then-append into the SAME element and both appends landed (duplicate projects list);
-    // now a superseded run's late appends land in its own detached pane and are never seen.
+    // task 138: each run owns a fresh pane, swapped in atomically. Two overlapping runs used to clear-then-append into the SAME element and both appends landed (duplicate projects list); now a superseded run's late appends land in its own detached pane and are never seen.
     const pane = el("div");
     view.replaceChildren(pane);
     view.onclick = null;
-    // item 73: the consent dialog hides #toggle-all while its header owns Expand All; every
-    // navigation restores the skeleton button before the next view wires or ignores it.
+    // item 73: restore toggle-all hidden by consent dialog.
     (document.getElementById("toggle-all") as HTMLButtonElement).hidden = false;
-    // task 114: the event-type filter bar is timeline-only; every navigation re-hides it and
-    // renderTimelineFilterBar unhides it (reset back to "All") when a timeline renders.
+    // task 114: filter bar is timeline-only; renderTimelineFilterBar unhides it.
     document.getElementById("timeline-filter-bar")!.hidden = true;
-    // task 157: the header's Re-ask-baseline button is project chrome like the filter bar —
-    // re-hidden here, unhidden by renderTimelineFilterBar when a baseline answer is stored.
+    // task 157: re-ask button is project chrome, unhidden when baseline exists.
     document.getElementById("reask-baseline-btn")!.hidden = true;
     // item 66: was — emptied the whole inspector pane on every route change:
     // const inspector = document.getElementById("inspector")!;
@@ -85,8 +71,7 @@ export async function renderRoute(): Promise<void> {
     const segments = parseRouteSegments();
     const nextProject = segments[0] === "project" ? segments[1] : undefined;
     if (checkNavigationStartsNewProjectLoad(lastLoadedProject, nextProject)) {
-        // A different project's load is starting: the retained output belongs to the previous
-        // project, so clear before the first line of this load lands (TASKS item 22).
+        // Clear stale console output before new project's load begins (item 22).
         ensureProgressTerminal();
         progressTerminal!.clear();
         // item 66: a fresh load re-opens a collapsed console so its progress is visible.
@@ -97,9 +82,7 @@ export async function renderRoute(): Promise<void> {
     if (nextProject !== undefined) {
         lastLoadedProject = nextProject;
     }
-    // The project's default view is the revision timeline, not the summary landing pane. The
-    // bare route is rewritten (replaceState: no history entry, no hashchange re-render) so the
-    // consent dialog's re-render and reloads both land on the timeline route.
+    // Bare project route rewrites to timeline via replaceState (no extra history entry).
     if (segments[0] === "project") {
         if (segments.length === 2) {
             history.replaceState(null, "", routeToTimeline(segments[1]!));
@@ -110,8 +93,7 @@ export async function renderRoute(): Promise<void> {
     // chrome + details pane hide so #view and the console fill the column):
     // document.querySelector(".layout")!.classList.toggle("timeline-route", checkRouteIsTimeline(segments));
     document.getElementById("rightcol")!.classList.toggle("project-route", checkRouteIsTimeline(segments));
-    // task 140: the Timeline pane header is timeline-route chrome, exactly like the
-    // project-route class above — hidden on #/ (the projects view brings its own pane title).
+    // task 140: timeline pane header is project chrome, hidden on #/.
     document.getElementById("timeline-pane-header")!.hidden = !checkRouteIsTimeline(segments);
     // item 66: the fork sidebar (webapp/views/sidebar.ts) is rendered by renderTimelineView
     // itself — the old per-route project drawer is retired:
@@ -148,15 +130,12 @@ export async function renderRoute(): Promise<void> {
     // }
 }
 
-// The breadcrumb span now only carries the config-switch error (item 66); the current
-// project shows in the toolbar title instead.
+// Breadcrumb now only carries config-switch errors (item 66).
 export function setBreadcrumb(text: string): void {
     document.getElementById("breadcrumb")!.textContent = text;
 }
 
-// item 66: mockup toolbar title — "JFRED — project: <b>name</b>" on project routes, plain
-// "JFRED" (still a home link) otherwise. Replaces the per-route breadcrumb, so any stale
-// config-error text clears with it.
+// item 66: toolbar title shows project name on project routes, plain "JFRED" otherwise.
 function setToolbarTitle(project: string | undefined): void {
     const title = document.getElementById("toolbar-title")!;
     title.replaceChildren(el("a", { href: "#/", text: "JFRED", title: "JSONL File Reverse Engineer Debugger" }));
@@ -165,3 +144,4 @@ function setToolbarTitle(project: string | undefined): void {
     }
     setBreadcrumb("");
 }
+

@@ -1,7 +1,4 @@
-// Shared fixtures for the timeline view-model test files (split from timeline-viewmodels.test.ts).
-// Every test feeds the client's wire shape — JSON.parse(JSON.stringify(document)) — exactly what
-// the browser sees after fetch. Role/kind assertions go through the vocabulary enum members
-// (their values ARE the wire strings), never bare literals.
+// Shared fixtures for the timeline view-model test files (split from timeline-viewmodels.test.ts).  Every test feeds the client's wire shape — JSON.parse(JSON.stringify(document)) — exactly what the browser sees after fetch. Role/kind assertions go through the vocabulary enum members (their values ARE the wire strings), never bare literals.
 
 import { COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
 import { buildProjectDocument } from "../src/viewer_api.ts";
@@ -27,18 +24,13 @@ export const s2Document = JSON.parse(JSON.stringify(buildProjectDocument([new Pa
 
 export const s45Document = JSON.parse(JSON.stringify(buildProjectDocument([new Path(S45_JSONL)], undefined)));
 
-// s39's git-baseline seed session alone (item 55): its tool calls and raw lines are known
-// line-by-line (git init L32, ls L33, rtk-rewrite hook L39, mkdir L44, Writes L51/L55).
+// s39's git-baseline seed session alone (item 55): its tool calls and raw lines are known line-by-line (git init L32, ls L33, rtk-rewrite hook L39, mkdir L44, Writes L51/L55).
 
 export const S39_SEED_JSONL_PATH = S39_JSONL_PATHS.find((path) => path.toString().includes("b9783f4b"))!;
 
 export const s39SeedDocument = JSON.parse(JSON.stringify(buildProjectDocument([S39_SEED_JSONL_PATH], undefined)));
 
-// Shared fixture for the commit walk-back helpers: two surviving replies (alpha.py, beta.py), two
-// ADJACENT orphaned replies (gamma.py, delta.py live only on the rewound branch), a first commit,
-// one more surviving reply (alpha.py's second revision), and a second commit. Sorted node order:
-// [0 prompt, 1 replyA, 2 replyB, 3 replyO1, 4 replyO2, 5 commit#1, 6 replyD, 7 session-end,
-// 8 commit#2].
+// Shared fixture for the commit walk-back helpers: two surviving replies (alpha.py, beta.py), two ADJACENT orphaned replies (gamma.py, delta.py live only on the rewound branch), a first commit, one more surviving reply (alpha.py's second revision), and a second commit. Sorted node order: [0 prompt, 1 replyA, 2 replyB, 3 replyO1, 4 replyO2, 5 commit#1, 6 replyD, 7 session-end, 8 commit#2].
 
 export const commitWalkDocument = {
     messages: [{
@@ -127,9 +119,7 @@ export function findCommitNodeIndexes(nodes: { kind: string }[]): number[] {
     return nodes.flatMap((node, index) => (node.kind === COMMIT_NODE_KIND ? [index] : []));
 }
 
-// Minimal git-baseline document (task 86): one real turn pair, one gitBase-only step (no
-// session), and one generic unattributed step (blob-ref style changeId resolving nowhere,
-// changedPaths fallback) that must NOT merge into the baseline node.
+// Minimal git-baseline document (task 86): one real turn pair, one gitBase-only step (no session), and one generic unattributed step (blob-ref style changeId resolving nowhere, changedPaths fallback) that must NOT merge into the baseline node.
 
 export const gitBaselineDocument = {
     messages: [{

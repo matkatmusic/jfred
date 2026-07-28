@@ -37,9 +37,7 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 const emptyReader: BackupReader = () => "";
 
 test("test_exec_gate_defaults_to_enabled", () => {
-    // Scenario: the gate must default ON so the CLI, the test suite, and the coverage
-    // gate behave exactly as before the gate existed.
-    // Test verification: a fresh process reports impure execution as allowed.
+    // Scenario: the gate must default ON so the CLI, the test suite, and the coverage gate behave exactly as before the gate existed.  Test verification: a fresh process reports impure execution as allowed.
     assert.equal(isImpureExecutionAllowed(), true);
 });
 
@@ -70,9 +68,7 @@ test("test_exec_gate_disable_blocks_script_injection", () => {
 });
 
 test("test_exec_gate_disable_blocks_script_created_path_discovery", () => {
-    // Scenario: with the gate off, discoverScriptCreatedPaths must execute nothing and return
-    // no paths — discovery runs every recorded script, so a declined build must skip it (the
-    // same fixture discovers out.txt when the gate is on, per reconstruction_script_stage.test.ts).
+    // Scenario: with the gate off, discoverScriptCreatedPaths must execute nothing and return no paths — discovery runs every recorded script, so a declined build must skip it (the same fixture discovers out.txt when the gate is on, per reconstruction_script_stage.test.ts).
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -92,12 +88,7 @@ test("test_exec_gate_disable_blocks_script_created_path_discovery", () => {
 });
 
 test("test_execute_run_once_skips_a_run_at_or_before_a_declined_baseline", () => {
-    // Scenario (task 151): the user answered "No" to the pre-baseline question — a script run
-    // at-or-before the baseline commit's timestamp is superseded by the beacon, so executing
-    // it is provably wasted work. executeRunOnce (the one choke point every consumer routes
-    // through) must skip it with a progress label and no sandbox execution.
-    // Steps:
-    // commit a baseline repo at T=10 and configure it as the override pair.
+    // Scenario (task 151): the user answered "No" to the pre-baseline question — a script run at-or-before the baseline commit's timestamp is superseded by the beacon, so executing it is provably wasted work. executeRunOnce (the one choke point every consumer routes through) must skip it with a progress label and no sandbox execution.  Steps: commit a baseline repo at T=10 and configure it as the override pair.
     const repo = mkdtempSync(join(tmpdir(), "reveng-prebaseline-"));
     const capturedLabels: string[] = [];
     try {
@@ -134,14 +125,10 @@ test("test_execute_run_once_skips_a_run_at_or_before_a_declined_baseline", () =>
 });
 
 test("test_exec_gate_disable_blocks_git_evidence", () => {
-    // Scenario: with the gate off, placeGitCommitEvidence must not shell out to git and
-    // must return its events argument unchanged (same array identity) — even over a
-    // fixture that provably makes the enabled stage splice a new event (the s85-in-
-    // miniature fixture from reconstruction_git_evidence.test.ts).
+    // Scenario: with the gate off, placeGitCommitEvidence must not shell out to git and must return its events argument unchanged (same array identity) — even over a fixture that provably makes the enabled stage splice a new event (the s85-in- miniature fixture from reconstruction_git_evidence.test.ts).
     const repo = mkdtempSync(join(tmpdir(), "reveng-gate-"));
     try {
-        // Steps:
-        // commit a blob whose `# reviewed by ops` line no recorded event explains.
+        // Steps: commit a blob whose `# reviewed by ops` line no recorded event explains.
         const moved = '"""Module two."""\n\n\ndef f_two(x):\n    return x + 2\n';
         const blob = '"""Module two."""\n\n\ndef beta(x):\n    return x + 2\n# reviewed by ops\n';
         writeFileSync(join(repo, "core_two.py"), blob);

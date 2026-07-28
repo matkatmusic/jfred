@@ -9,13 +9,9 @@ import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { SESSION_A, SESSION_B, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { branchRewoundHeader, rewoundMention } from "../src/regex_expressions.ts";
 
-// These tests assert re-run-STABLE topology only — branch wrappers, file names, turn kinds, ordering, and
-// linearity. They deliberately do NOT pin short change-ids / branch-tip ids / tmp paths: those rotate every
-// time a scenario is re-executed, which is what made the old per-scenario suite brittle. Exact reconstructed
-// CONTENT (the rotating ids included) is proven re-run-stably by tests/scenario_coverage.test.ts instead.
+// These tests assert re-run-STABLE topology only — branch wrappers, file names, turn kinds, ordering, and linearity. They deliberately do NOT pin short change-ids / branch-tip ids / tmp paths: those rotate every time a scenario is re-executed, which is what made the old per-scenario suite brittle. Exact reconstructed CONTENT (the rotating ids included) is proven re-run-stably by tests/scenario_coverage.test.ts instead.
 
-// The default view of the real S5 transcript renders the redirect lineage in both DAGs: one file,
-// write -> append -> overwrite. Topology only — line counts live in the content views, not the graph.
+// The default view of the real S5 transcript renders the redirect lineage in both DAGs: one file, write -> append -> overwrite. Topology only — line counts live in the content views, not the graph.
 test("test_default_view_lists_s5_redirect_entries", () => {
     const out = runCli([S5_JSONL]);
     assert.ok(out.includes("══ conversationDAG ══"));
@@ -27,8 +23,7 @@ test("test_default_view_lists_s5_redirect_entries", () => {
     assert.ok(!out.includes("branch "));
 });
 
-// The default view renders the renamed file's write -> rename -> edit lineage and the test file's
-// write in both DAGs.
+// The default view renders the renamed file's write -> rename -> edit lineage and the test file's write in both DAGs.
 test("test_default_view_lists_s6_git_mv_lineage", () => {
     const out = runCli([S6_JSONL]);
     // The renamed file appears with both its rename and its later edit.
@@ -41,8 +36,7 @@ test("test_default_view_lists_s6_git_mv_lineage", () => {
     assert.ok(!out.includes("branch "));
 });
 
-// Default (no flag): S7's forked conversationDAG shows the rewound branch ABOVE the surviving branch,
-// oldest-first; the fileDAG stays linear.
+// Default (no flag): S7's forked conversationDAG shows the rewound branch ABOVE the surviving branch, oldest-first; the fileDAG stays linear.
 test("test_default_view_shows_all_branches", () => {
     const out = runCli([S7_JSONL]);
     assert.ok(out.includes("branch surviving"));
@@ -52,8 +46,7 @@ test("test_default_view_shows_all_branches", () => {
     assert.ok(!out.includes("overwrite"));
 });
 
-// A transcript with no rewound branch (S1) renders a LINEAR conversationDAG: no branch wrappers, no
-// connectors.
+// A transcript with no rewound branch (S1) renders a LINEAR conversationDAG: no branch wrappers, no connectors.
 test("test_default_view_unchanged_when_no_rewound_branches", () => {
     const out = runCli([S1_JSONL]);
     assert.ok(out.includes("══ conversationDAG ══"));
@@ -70,8 +63,7 @@ test("test_surviving_flag_shows_only_surviving_branch", () => {
     assert.ok(!out.includes("branch rewound"));
 });
 
-// --list-branches: one summary line per branch, naming the surviving and rewound branches (a summary, not
-// the full per-revision listing).
+// --list-branches: one summary line per branch, naming the surviving and rewound branches (a summary, not the full per-revision listing).
 test("test_list_branches_summarizes_surviving_and_rewound", () => {
     const out = runCli([S7_JSONL, "--list-branches"]);
     assert.ok(out.includes("surviving"));
@@ -122,8 +114,7 @@ test("test_default_view_lists_s3_with_copy_entry", () => {
     assert.ok(!out.includes("branch "));      // linear
 });
 
-// The default view lists S4's two files, each written twice (the second Write is a `write` turn in
-// the topology view — overwrite detection is a content-view concern).
+// The default view lists S4's two files, each written twice (the second Write is a `write` turn in the topology view — overwrite detection is a content-view concern).
 test("test_default_view_lists_s4_overwrite_entries", () => {
     const out = runCli([S4_JSONL]);
     assert.ok(out.includes("s4_overwrite.py"));
@@ -132,8 +123,7 @@ test("test_default_view_lists_s4_overwrite_entries", () => {
     assert.ok(!out.includes("branch "));  // linear
 });
 
-// Default (no flag): S8's forked conversationDAG has TWO rewound branch wrappers above the surviving
-// branch. The file-less head is not a branch.
+// Default (no flag): S8's forked conversationDAG has TWO rewound branch wrappers above the surviving branch. The file-less head is not a branch.
 test("test_default_view_shows_surviving_vc_plus_two_rewound", () => {
     const out = runCli([S8_JSONL]);
     assert.ok(out.includes("branch surviving"));
@@ -156,8 +146,7 @@ test("test_list_branches_lists_surviving_vc_and_two_rewound", () => {
     assert.equal((out.match(rewoundMention) ?? []).length, 2);
 });
 
-// Default (no flag): S9 has one surviving branch and zero rewound branches, so its conversationDAG is
-// LINEAR — no branch wrappers. Both restored files appear.
+// Default (no flag): S9 has one surviving branch and zero rewound branches, so its conversationDAG is LINEAR — no branch wrappers. Both restored files appear.
 test("test_s9_default_view_is_a_plain_list_of_the_restored_files", () => {
     const out = runCli([S9_JSONL]);
     assert.ok(out.includes("scenario9.py"));
@@ -182,8 +171,7 @@ test("test_s9_surviving_flag_shows_the_restored_files", () => {
 });
 
 
-// Spec S4b: runCli merges multiple positional transcripts across two source trees into one
-// document (distinct targets from both sources appear; the per-source sidecar chain applies).
+// Spec S4b: runCli merges multiple positional transcripts across two source trees into one document (distinct targets from both sources appear; the per-source sidecar chain applies).
 test("test_run_cli_merges_two_transcripts_across_sources", () => {
     const treeA = makeSourceTree("-cli-proj-a");
     const treeB = makeSourceTree("-cli-proj-b");
@@ -208,9 +196,7 @@ test("test_run_cli_merges_two_transcripts_across_sources", () => {
     setPathOverrides({});
 });
 
-// Task 181: the existing --file flag (alias of --target) narrows the output to the named
-// file's revision ladder end-to-end through the multi-source merge path — the other source's
-// file is reconstructed but filtered out of the rendering.
+// Task 181: the existing --file flag (alias of --target) narrows the output to the named file's revision ladder end-to-end through the multi-source merge path — the other source's file is reconstructed but filtered out of the rendering.
 test("test_file_flag_filters_ladder_on_multi_source_fixture", () => {
     const treeA = makeSourceTree("-cli-file-a");
     const treeB = makeSourceTree("-cli-file-b");

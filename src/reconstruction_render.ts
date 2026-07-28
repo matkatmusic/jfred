@@ -1,6 +1,4 @@
-// Presentation for the reconstruction engine: render a file's revisions as a
-// full line-state view (--verbose) or as a diff between revisions (--diff).
-// Pure functions over FileRevision[]; no IO. Design: reconstruction_engine.ts.
+// Presentation for the reconstruction engine: render a file's revisions as a full line-state view (--verbose) or as a diff between revisions (--diff).  Pure functions over FileRevision[]; no IO. Design: reconstruction_engine.ts.
 
 import type { FileRevision, LineEntry } from "./reconstruction_engine.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -16,8 +14,7 @@ function renderNumberedLine(entry: LineEntry, index: number): string {
     return `  ${String(index + 1).padStart(4)} | ${currentText(entry)}`;
 }
 
-// Describe a path transition as `from → to` (the two paths a rename or copy
-// connects, joined by an arrow).
+// Describe a path transition as `from → to` (the two paths a rename or copy connects, joined by an arrow).
 function renderPathArrow(transition: { from: Path; to: Path }): string {
     return `${transition.from} → ${transition.to}`;
 }
@@ -116,9 +113,7 @@ export function computeDiffBlockHeader(
     return `@@ ${diffLabel(before, after)} @ ${stamp} @@`;
 }
 
-// Render one revision as a diff against the previous one. Real changes only: a
-// removal is a previous line no current entry points back to; an addition is a
-// line born here (oldLineNum DOES_NOT_EXIST_YET). A rename is its own block with no line churn.
+// Render one revision as a diff against the previous one. Real changes only: a removal is a previous line no current entry points back to; an addition is a line born here (oldLineNum DOES_NOT_EXIST_YET). A rename is its own block with no line churn.
 function diffBlock(
     previous: FileRevision | undefined,
     revision: FileRevision,

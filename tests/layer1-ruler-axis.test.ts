@@ -1,5 +1,4 @@
-// The proportional band is 6.4 h (16 / 2.5) to 48 h (120 / 2.5); every "in proportion" case below
-// sits inside it. Expectations are hand-derived, never computed by the code under test.
+// The proportional band is 6.4-48 h; every "in proportion" case below sits inside it. Expectations are hand-derived, not computed.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,16 +38,14 @@ test("test_resolveInstantOffsets_caps_a_six_week_gap_at_120_px", () => {
 });
 
 test("test_resolveInstantOffsets_floors_a_one_minute_gap_at_16_px", () => {
-    // The reported defect: a minute apart is ~0.04 px linear, well under the 15 px dot, so adjacent
-    // nodes overprinted. The floor keeps them apart.
+    // The reported defect: a minute apart is ~0.04 px linear, well under the 15 px dot, so nodes overprinted.
     const offsets = resolveOffsetsAtHours([0, 1 / 60]);
     assert.deepEqual(offsets, [0, RULER_MIN_GAP_PIXELS]);
     assert.deepEqual(offsets, [0, 16]);
 });
 
 test("test_resolveInstantOffsets_preserves_ascending_order_from_unsorted_input", () => {
-    // Instants arrive from several sources (commits, disk mtimes) in no order; the ruler must still
-    // read strictly ascending in both time and pixels.
+    // Instants arrive from several sources (commits, disk mtimes) in no order; ruler must read strictly ascending in time and pixels.
     const positions = resolveInstantOffsets(makeInstantsAtHours([200, 0, 8, 20]));
     assert.deepEqual(
         positions.map((position) => position.instant.getTime()),
@@ -58,8 +55,7 @@ test("test_resolveInstantOffsets_preserves_ascending_order_from_unsorted_input",
 });
 
 test("test_resolveInstantOffsets_places_a_pre_first_commit_disk_orphan_at_zero", () => {
-    // S18 bounds: a disk orphan predating the first commit legitimately moves the ruler's start
-    // earlier, so IT becomes position 0.
+    // S18 bounds: a disk orphan predating the first commit moves the ruler's start earlier, so it becomes position 0.
     const commits = makeInstantsAtHours([0, 12]);
     const orphans = makeInstantsAtHours([-8]);
     const positions = resolveInstantOffsets([...commits, ...orphans]);
@@ -73,8 +69,7 @@ test("test_resolveInstantOffsets_places_a_pre_first_commit_disk_orphan_at_zero",
 // A ladder is the same shape as an instant list, so makeInstantsAtHours doubles as its builder.
 
 test("test_layOutNodeLadders_gives_two_nodes_of_one_bubble_at_one_instant_their_own_rows", () => {
-    // The reported defect: a commit and the file's mtime on the SAME second resolved to one offset,
-    // printing the hash label straight over "on disk".
+    // The reported defect: a commit and the file's mtime on the same second resolved to one offset, hiding hash label.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0, RULER_NODE_ROW_PIXELS]]);
@@ -82,40 +77,35 @@ test("test_layOutNodeLadders_gives_two_nodes_of_one_bubble_at_one_instant_their_
 });
 
 test("test_layOutNodeLadders_charges_the_next_gap_for_the_rows_stacked_at_an_instant", () => {
-    // Rows hang BELOW their instant, so the gap LEAVING it has to pay for them, else the next
-    // instant's node is drawn on top of a row already in use.
+    // Rows hang below their instant, so the leaving gap pays for them, else the next node draws atop used row.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 1])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 2 * RULER_NODE_ROW_PIXELS]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0, 22, 44]]);
 });
 
 test("test_layOutNodeLadders_charges_nothing_for_a_tie_across_two_different_bubbles", () => {
-    // Measuring a tie globally would inflate the ruler on every project where two files were
-    // committed together, which is most of them.
+    // Measuring a tie globally would inflate the ruler on every project where two files were committed together, which is common.
     const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([0]), makeInstantsAtHours([1])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0], [0], [22]]);
 });
 
 test("test_layOutNodeLadders_replaces_the_16_px_heuristic_with_one_measured_node_row", () => {
-    // The guessed 16 px floor cleared the 15 px dot but left its label nowhere to go; the floor is
-    // now the row a node actually needs.
+    // The old 16 px floor left no room for the label; the floor now matches the row a node needs.
     const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([1 / 60])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
     assert.notEqual(RULER_NODE_ROW_PIXELS, RULER_MIN_GAP_PIXELS);
 });
 
 test("test_layOutNodeLadders_leaves_a_gap_already_wider_than_its_rows_in_proportion", () => {
-    // Content may only ever push entries FURTHER apart; a gap with room to spare must keep reading
-    // as elapsed time, or the axis stops being a time axis.
+    // Content only pushes entries further apart; a gap with room to spare must still read as elapsed time.
     const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([12])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 12 * RULER_PIXELS_PER_HOUR]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 30]);
 });
 
 test("test_layOutNodeLadders_lets_measured_rows_outrank_the_120_px_gap_cap", () => {
-    // Capping a gap whose rows were already charged would clip those rows off the axis, so content
-    // wins and the cap bounds only the LINEAR term.
+    // Capping a charged gap would clip rows off the axis, so content wins and the cap bounds only linear growth.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 0, 0, 0, 0, 6 * 7 * 24])]);
     assert.equal(layout.ticks.at(-1)!.offsetPx, 6 * RULER_NODE_ROW_PIXELS);
     assert.ok(6 * RULER_NODE_ROW_PIXELS > RULER_GAP_CAP_PIXELS);
@@ -123,8 +113,7 @@ test("test_layOutNodeLadders_lets_measured_rows_outrank_the_120_px_gap_cap", () 
 });
 
 test("test_layOutNodeLadders_counts_every_node_at_an_instant_across_all_bubbles", () => {
-    // An event is a NODE wherever it is drawn, so side-by-side bubbles all count — exactly what the
-    // spacing floor deliberately does NOT do.
+    // An event is a node wherever it is drawn, so side-by-side bubbles all count, unlike the spacing floor.
     const layout = layOutNodeLadders([
         makeInstantsAtHours([0, 0, 12]),
         makeInstantsAtHours([0]),

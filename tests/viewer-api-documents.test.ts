@@ -1,6 +1,4 @@
-// Tests for src/viewer_api.ts document building: project documents over one-or-many JSONLs,
-// the script-consent decision, and consent-scoped building. Pure logic only — the HTTP wiring
-// in viewer_server.ts stays thin.
+// Tests src/viewer_api.ts document building: multi-JSONL projects, script consent, and consent-scoped builds; pure logic only, HTTP wiring stays thin.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,16 +23,14 @@ import { S19_JSONL, S37_JSONL } from "./fixtures.ts";
 
 
 test("test_buildProjectDocument_single_jsonl_matches_cli_json", () => {
-    // Scenario: for one JSONL, the viewer's document is byte-identical (after JSON
-    // round-trip) to what the CLI --json path produces for the same file.
+    // For one JSONL the viewer's document matches the CLI --json output exactly.
     const viaViewer = JSON.parse(JSON.stringify(buildProjectDocument([new Path(S19_JSONL)], undefined)));
     const viaCli = JSON.parse(runCli([S19_JSONL, "--json"]));
     assert.deepEqual(viaViewer, viaCli);
 });
 
 test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
-    // Scenario: s53's two agent transcripts unify into ONE document whose filesTouched
-    // covers the files of both.
+    // Scenario: s53's two agent transcripts unify into ONE document whose filesTouched covers the files of both.
     const paths = jsonlPathsForScenario("s53");
     assert.ok(paths.length >= 2, "s53 spans multiple JSONLs");
     const perTranscriptTargets = paths.map((path) =>
@@ -50,9 +46,7 @@ test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
 });
 
 test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
-    // Scenario (spec S4a): one reconstruction over JSONLs from TWO conversation-log
-    // folders, with the sources list riding to the sidecar reader (per-source blob
-    // resolution is proven at the reader unit level in reconstruction_sidecar_reader.test.ts).
+    // Scenario (S4a): one reconstruction over JSONLs from two conversation-log folders, with the sources list riding to the sidecar reader.
     const treeRoots = [makeTempDir(), makeTempDir()];
     const jsonlPaths: Path[] = [];
     const sources = [];
@@ -72,8 +66,7 @@ test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
 
 
 test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => {
-    // Scenario: a transcript with script-execution runs and no consent yields a
-    // consent-required decision carrying each script's code for the dialog.
+    // Script runs without consent yield a consent-required decision carrying each script's code.
     const records = loadRecords(S37_JSONL);
     const decision = decideDocumentResponse(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
@@ -84,8 +77,7 @@ test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => 
 });
 
 test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
-    // Scenario: the consent-required decision tags every script with readOnly, and the
-    // tag agrees with the execution gate's classifier (item 68) for that script's code.
+    // Every script's readOnly tag must agree with the execution gate's classifier (item 68).
     const records = loadRecords(S37_JSONL);
     const decision = decideDocumentResponse(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
@@ -103,9 +95,7 @@ test("test_decideDocumentResponse_builds_when_consented", () => {
 });
 
 test("test_decideDocumentResponse_builds_when_no_scripts", () => {
-    // Scenario: a script-free transcript never prompts, consent or not. Synthetic fixture:
-    // every executed scenario carries harness-probe script runs (ls/pytest), so no real
-    // captured transcript is script-free.
+    // A script-free transcript never prompts. Synthetic, since every captured transcript carries harness probes.
     const records = [
         {
             type: RecordType.assistant,
@@ -127,8 +117,7 @@ test("test_decideDocumentResponse_builds_when_no_scripts", () => {
 
 
 test("test_buildDocumentWithConsent_declined_still_returns_document", () => {
-    // Scenario: declining consent on a script scenario still yields a document — degraded
-    // (no script-derived revisions), with the gate off for the whole build.
+    // Declining consent still yields a document, degraded, with the gate off throughout.
     try {
         const document = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, false);
         assert.ok(Array.isArray(document.filesTouched));
@@ -144,8 +133,7 @@ test("test_buildDocumentWithConsent_declined_still_returns_document", () => {
 });
 
 test("test_buildDocumentWithConsent_restores_gate_after_build", () => {
-    // Scenario: a CONSENTED build enables the gate only for its own duration — script
-    // revisions appear in the document, and the gate is off again afterwards.
+    // A CONSENTED build enables the gate only for its own duration, then turns it off.
     try {
         const document = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, true);
         const scriptRevisions = document.filesTouched.flatMap((history) =>

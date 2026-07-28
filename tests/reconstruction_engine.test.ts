@@ -201,9 +201,7 @@ test("test_reconstruct_all_returns_three_s3_histories", () => {
     assert.equal(test.revisions.length, 1);
 });
 
-// s4-overwrite-file engine specs live in reconstruction_engine_s4.test.ts (split
-// out to keep this file under the 250-line module cap).
+// s4-overwrite-file engine specs live in reconstruction_engine_s4.test.ts (split out to keep this file under the 250-line module cap).
 
-// Rendering specs live in reconstruction_render.test.ts; CLI specs in
-// reconstruction_cli.test.ts.
+// Rendering specs live in reconstruction_render.test.ts; CLI specs in reconstruction_cli.test.ts.
 

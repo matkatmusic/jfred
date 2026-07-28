@@ -1,6 +1,4 @@
-// The per-file timeline of file-history backup points behind the sidecar: which backup blob
-// captured each tracked file at which instant, and the lookups (after / at-or-before / point-after)
-// the sidecar's synthetic-Write producers select seeds with.
+// Per-file timeline of backup points; provides temporal lookups for sidecar seed selection.
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getFileHistorySnapshot } from "./structures/file-history.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -9,9 +7,7 @@ import { getCorpusState } from "./reconstruction_corpus.ts";
 
 export type BackupPoint = { backupTime: Date; backupFileName: Path | null; sessionId?: Uuid };
 
-// The transcript's working directory, used to make the snapshots' cwd-relative paths
-// absolute. file-history-snapshot records carry none, so scan for the first record that
-// has a cwd (the envelope records do).
+// Snapshots lack cwd; find it from the first envelope record that carries one.
 export function findCwd(records: TranscriptRecord[]): Path | undefined {
     for (const record of records) {
         const cwd = (record as { cwd?: Path }).cwd;
@@ -22,10 +18,7 @@ export function findCwd(records: TranscriptRecord[]): Path | undefined {
     return undefined;
 }
 
-// Per absolute path, the time-ordered backup points across every file-history snapshot.
-// Memoized per records identity in the corpus (pure group — the snapshots are records, not disk),
-// keyed by the cwd the paths were resolved against: every repair pass of every reconstructed file
-// re-enters here, and the timeline only depends on (records, cwd).
+// Memoized per (records, cwd): every repair pass re-enters here.
 export function buildBackupTimeline(
     records: TranscriptRecord[],
     cwd: Path | undefined,
@@ -67,8 +60,7 @@ function computeBackupTimeline(
     return timeline;
 }
 
-// The blob name of the first snapshot of `target` taken strictly after `when` whose
-// backup is non-null (a null backup is version 1, which holds no blob).
+// First non-null backup blob of `target` strictly after `when`.
 export function findBackupAfter(
     timeline: Map<string, BackupPoint[]>,
     cwd: Path | undefined,
@@ -82,9 +74,7 @@ export function findBackupAfter(
     return next?.backupFileName ?? undefined;
 }
 
-// The latest backup point of `target` whose backup is non-null and whose snapshot was taken at or
-// before `when` — the pre-edit on-disk content for an Edit-first file. Returns the BackupPoint (the
-// seed needs its backupTime), or undefined when none precedes the edit.
+// Latest non-null backup of `target` at or before `when` (pre-edit seed content).
 export function findBackupAtOrBefore(
     timeline: Map<string, BackupPoint[]>,
     cwd: Path | undefined,
@@ -101,10 +91,7 @@ export function findBackupAtOrBefore(
     return chosen;
 }
 
-// The first non-null backup point of `target` taken strictly after `when` — the pre-edit content when
-// the file-history snapshot capturing it was timestamped just AFTER the edit's tool-use time (m6: a
-// user edit and the edit that follows it land in the same turn, so the pre-edit snapshot lands 22ms
-// after the edit record). The BackupPoint variant of findBackupAfter (the seed needs its backupTime).
+// Like findBackupAfter but returns the full BackupPoint (seed needs backupTime).
 export function findBackupPointAfter(
     timeline: Map<string, BackupPoint[]>,
     cwd: Path | undefined,

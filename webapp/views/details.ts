@@ -1,5 +1,4 @@
-// Details pane (item 66). Task 92 split it four ways; this module keeps the left-pane file list
-// and the message + commit renderers, which touch the static #details-* skeleton in index.html.
+// Details pane (item 66): left-pane file list plus message/commit renderers; touches the static #details-* skeleton in index.html.
 
 import { el } from "../app-dom.ts";
 import { revealDetailsPane } from "../inspector.ts";
@@ -27,8 +26,7 @@ import {
 } from "./details-diff.ts";
 import { renderFileTreeNode, type FileTreeCallbacks } from "./sidebar.ts";
 
-// Only the paths this node changed, never the whole project. Reads buildFilesSidebarViewModel so
-// the two trees agree, and dedupes by path so a twice-edited file shows ONE leaf, its last change.
+// Only this node's changed paths, deduped by path so a twice-edited file shows ONE leaf, mirroring buildFilesSidebarViewModel.
 function buildTouchedFileEntries(changes: FileChange[], wireDocument: WireTimelineDocument): FileSidebarEntry[] {
     const sidebarEntriesByTarget = new Map(
         buildFilesSidebarViewModel(wireDocument).map((entry) => [entry.target, entry]),
@@ -49,15 +47,13 @@ function buildTouchedFileEntries(changes: FileChange[], wireDocument: WireTimeli
             renameBadgeLabel: undefined,
         });
     }
-    // The copies are mandatory: `known` entries are the SAME objects the Files sidebar holds, so
-    // relabeling in place would rewrite the sidebar's badges (task 91).
+    // Copies are mandatory: `known` entries are the SAME objects the Files sidebar holds; relabeling corrupts its badges (task 91).
     const entries = [...entriesByTarget.values()].map((entry) => ({ ...entry }));
     applyRenameBadgeLabels(entries);
     return entries;
 }
 
-// Returned in DOM order, so renderDetailsCommitMode's `items[0]!.click()` opens the first file the
-// user actually sees (item 84 follow-up).
+// Returned in DOM order, so renderDetailsCommitMode's `items[0]!.click()` opens the first file the user actually sees (item 84 follow-up).
 // old:
 // function appendFileList(left: HTMLElement, changes: FileChange[], context: DetailsContext): HTMLElement[] {
 //     return changes.map((change) => {
@@ -90,11 +86,9 @@ function showClickedFileDiff(
 }
 
 function appendFileList(left: HTMLElement, changes: FileChange[], context: DetailsContext): HTMLElement[] {
-    // Keyed by displayPath because the tree's entries carry the entry-time name and onFileClick
-    // echoes that back (task 127); last change per path wins, matching buildTouchedFileEntries.
+    // Keyed by displayPath since the tree echoes that name back (task 127); last change per path wins, matching buildTouchedFileEntries.
     const changeByPath = new Map(changes.map((change) => [change.displayPath, change]));
-    // Re-callable so the full-contents toggle can re-fetch this file's diff at the current stored
-    // context width (item 75).
+    // Re-callable so the full-contents toggle can re-fetch this file's diff at the current stored context width (item 75).
     const showFileDiff = async (change: FileChange) => {
         // task 56 follow-up: a base-commit beacon's diff is empty — show the committed bytes.
         if (checkChangeIdIsGitBaseline(change.changeId)) {

@@ -40,8 +40,7 @@ export type LinkMaps = {
     toolIdToLines: Map<string, number[]>;
 };
 
-// Per-transcript link maps, computed once per rawLines array: each record uuid -> its own
-// line, and each toolu_… id -> every line whose text carries it (tool_use + tool_result).
+// Per-transcript link maps, computed once per rawLines array: each uuid and each toolu_… id map to their line(s).
 const linkMapsCache = new WeakMap<string[], LinkMaps>();
 
 export function computeLinkMaps(rawLines: string[]): LinkMaps {
@@ -92,17 +91,7 @@ export function findTrackedBackupEntry(record: WireValue, blobName: string): Wir
 // The backupTime dates the file state the backup captured, so it resolves a blob version to a revision.
 export function findBackupTimeForBlob(record: WireValue, blobName: string): string | undefined {
     return findTrackedBackupEntry(record, blobName)?.backupTime;
-    // (item 23) body moved into findTrackedBackupEntry, which also surfaces the tracked path:
-    // const backups = record?.snapshot?.trackedFileBackups;
-    // if (backups === undefined) {
-    //     return undefined;
-    // }
-    // for (const entry of Object.values(backups)) {
-    //     if (entry.backupFileName === blobName) {
-    //         return entry.backupTime;
-    //     }
-    // }
-    // return undefined;
+    // (item 23) body moved into findTrackedBackupEntry, which also surfaces the tracked path.
 }
 
 // ISO timestamp strings compare correctly, per the computeContentAtTime convention.

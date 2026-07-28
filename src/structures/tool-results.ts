@@ -3,9 +3,7 @@ import { getContentBlocks } from "./content-blocks.ts";
 import { BlockType, ToolName } from "./vocabulary.ts";
 import { Path } from "./domain.ts";
 
-// tool_use.input shapes (recon/08, recon/09; Read/Edit from s2). file_path is a
-// Path; input hydration has no consumer yet, so these are declared but not
-// constructed.
+// tool_use.input shapes (recon/08, recon/09; Read/Edit from s2). file_path is a Path; input hydration has no consumer yet, so these are declared but not constructed.
 export type BashInput = { command: string; description: string };
 export type WriteInput = { content: string; file_path: Path };
 export type ReadInput = { file_path: Path };
@@ -25,10 +23,7 @@ export type BashResult = {
     stdout: string;
 };
 
-// A unified-diff hunk inside a structuredPatch. s1 produced none (a create has
-// no diff); s2-move-file's Edit results reveal the shape. Line ranges are plain
-// numbers and `lines` is the raw diff text (`+`/`-`/` ` prefixed) — free-form
-// values with no narrower domain type.
+// A unified-diff hunk inside a structuredPatch. s1 produced none (a create has no diff); s2-move-file's Edit results reveal the shape. Line ranges are plain numbers and `lines` is the raw diff text (`+`/`-`/` ` prefixed) — free-form values with no narrower domain type.
 export type StructuredPatchHunk = {
     oldStart: number;
     oldLines: number;
@@ -46,8 +41,7 @@ export type WriteResult = {
     userModified: boolean;
 };
 
-// The Read result wraps the file's content and line metadata in a nested `file`
-// object (recon: s2). filePath is hydrated into a Path.
+// The Read result wraps the file's content and line metadata in a nested `file` object (recon: s2). filePath is hydrated into a Path.
 export type ReadFile = {
     filePath: Path;
     content: string;
@@ -61,9 +55,7 @@ export type ReadResult = {
     file: ReadFile;
 };
 
-// The Edit result carries the before/after strings and a non-empty
-// structuredPatch (recon: s2). filePath is hydrated into a Path; originalFile is
-// present as a string in s2 (a later scenario may omit it — see s2 notes).
+// The Edit result carries the before/after strings and a non-empty structuredPatch (recon: s2). filePath is hydrated into a Path; originalFile is present as a string in s2 (a later scenario may omit it — see s2 notes).
 export type EditResult = {
     filePath: Path;
     oldString: string;
@@ -80,8 +72,7 @@ export type ResolvedToolResult =
     | { toolName: ToolName.Read; result: ReadResult }
     | { toolName: ToolName.Edit; result: EditResult };
 
-// Thrown when a tool result resolves to a tool name outside the s1 vocabulary,
-// so an unmodeled tool's result cannot pass silently (fog-of-war guard).
+// Thrown when a tool result resolves to a tool name outside the s1 vocabulary, so an unmodeled tool's result cannot pass silently (fog-of-war guard).
 export class UnknownToolNameError extends Error {
     readonly toolName: string;
 
@@ -103,8 +94,7 @@ function addToolUseNames(
     }
 }
 
-// Build a map from tool_use id -> tool name across all assistant records, so a
-// tool result (which references a tool_use_id) can be attributed to its tool.
+// Build a map from tool_use id -> tool name across all assistant records, so a tool result (which references a tool_use_id) can be attributed to its tool.
 export function indexToolUseNamesById(
     records: TranscriptRecord[],
 ): Map<string, string> {
@@ -115,9 +105,7 @@ export function indexToolUseNamesById(
     return nameById;
 }
 
-// The tool name behind this user record's tool_result block, or undefined when the record
-// carries none (exported for callers that must filter by tool BEFORE resolving — resolution
-// throws UnknownToolNameError on unmodeled tools by design).
+// The tool name behind this user record's tool_result block, or undefined when the record carries none (exported for callers that must filter by tool BEFORE resolving — resolution throws UnknownToolNameError on unmodeled tools by design).
 export function resolveToolNameForRecord(
     record: TranscriptRecord,
     nameById: Map<string, string>,
@@ -130,15 +118,13 @@ export function resolveToolNameForRecord(
     return undefined;
 }
 
-// Hydrate a Write result's filePath from its wire string into a Path; the rest
-// of the fields are content/flags with no narrower domain type.
+// Hydrate a Write result's filePath from its wire string into a Path; the rest of the fields are content/flags with no narrower domain type.
 function hydrateWriteResult(raw: unknown): WriteResult {
     const result = raw as WriteResult & { filePath: string };
     return { ...result, filePath: new Path(result.filePath) };
 }
 
-// Hydrate a Read result's nested file.filePath into a Path, returning a fresh
-// object so the raw record is never mutated.
+// Hydrate a Read result's nested file.filePath into a Path, returning a fresh object so the raw record is never mutated.
 function hydrateReadResult(raw: unknown): ReadResult {
     const result = raw as ReadResult & { file: ReadFile & { filePath: string } };
     return {
@@ -147,8 +133,7 @@ function hydrateReadResult(raw: unknown): ReadResult {
     };
 }
 
-// Hydrate an Edit result's filePath into a Path; structuredPatch and the
-// before/after strings are free-form values carried through unchanged.
+// Hydrate an Edit result's filePath into a Path; structuredPatch and the before/after strings are free-form values carried through unchanged.
 function hydrateEditResult(raw: unknown): EditResult {
     const result = raw as EditResult & { filePath: string };
     return { ...result, filePath: new Path(result.filePath) };
@@ -170,8 +155,7 @@ function resolveToolResult(toolName: string, raw: unknown): ResolvedToolResult {
     throw new UnknownToolNameError(toolName);
 }
 
-// Resolve and type the tool result attached to a user record, or undefined when
-// the record carries no toolUseResult, no resolvable tool name, or an errored run.
+// Resolve and type the tool result attached to a user record, or undefined when the record carries no toolUseResult, no resolvable tool name, or an errored run.
 export function getToolResultForUserRecord(
     record: TranscriptRecord,
     nameById: Map<string, string>,
@@ -180,8 +164,7 @@ export function getToolResultForUserRecord(
     if (!raw) {
         return undefined;
     }
-    // An errored or rejected run reports a plain string ("Error: File does not exist.",
-    // "User rejected tool use") instead of a structured payload — nothing to type.
+    // An errored or rejected run reports a plain string ("Error: File does not exist.", "User rejected tool use") instead of a structured payload — nothing to type.
     if (typeof raw === "string") {
         return undefined;
     }

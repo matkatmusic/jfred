@@ -36,8 +36,7 @@ test("test_findTimelineNodeIndexForRawLine_finds_step_owning_line", () => {
 });
 
 test("test_findTimelineNodeIndexForRawLine_prefers_changeId_over_message_uuid", () => {
-    // A snapshot line embeds both a changeId and the triggering prompt's uuid (s43 line 110); the
-    // line is about the file change, so the agent turn must win.
+    // A snapshot line also carries a prompt uuid; the file-change id wins since that's what the line describes.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const agentNodeIndex = nodes.findIndex((node: { kind: string; snapshots?: { length: number } }) =>
         node.kind === AGENT_TURN_NODE_KIND && node.snapshots!.length > 0);
@@ -67,8 +66,7 @@ test("test_findTimelineNodeIndexForRawLine_returns_minus_one_when_no_step_matche
 });
 
 test("test_find_node_for_raw_line_maps_hook_attachment_to_its_tool_call", () => {
-    // Line 48 is a PostToolUse hook attachment: Prev/Next must land on the mkdir tool row, never
-    // an earlier prompt step.
+    // A hook-attachment line must resolve to its tool call's row, not the earlier prompt step.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     const nodeIndex = findTimelineNodeIndexForRawLine(nodes, s39SeedRawLines[48]!);
     assert.ok(nodeIndex >= 0);
@@ -77,8 +75,7 @@ test("test_find_node_for_raw_line_maps_hook_attachment_to_its_tool_call", () => 
 });
 
 test("test_find_node_for_raw_line_keeps_selection_on_snapshot_lines", () => {
-    // Reported bug: lines 49/50 carry the Step-3 prompt's uuid as snapshot.messageId, and the
-    // bare-substring match wrongly selected Step 3.
+    // Reported bug: lines 49/50 carry the Step-3 prompt's uuid as snapshot.messageId, and the bare-substring match wrongly selected Step 3.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     assert.equal(findTimelineNodeIndexForRawLine(nodes, s39SeedRawLines[49]!), -1);
     assert.equal(findTimelineNodeIndexForRawLine(nodes, s39SeedRawLines[50]!), -1);

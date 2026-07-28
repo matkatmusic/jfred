@@ -1,18 +1,10 @@
-// Tasks 295/296: the two lists of source folders the Layer 1 page reads from — the JSONL
-// transcripts and the file-history snapshots. State only; webapp/layer1-path-picker.ts owns the
-// dialog that edits them and webapp/layer1-page.ts owns when they are re-read.
+// Tasks 295/296: the two lists of source folders the Layer 1 page reads from — the JSONL transcripts and the file-history snapshots. State only; webapp/layer1-path-picker.ts owns the dialog that edits them and webapp/layer1-page.ts owns when they are re-read.
 //
-// A project folder IMPLIES where its transcripts and snapshots normally live, and that derived
-// folder is what a first-time list holds. `touched` is what stops a re-derive from throwing away a
-// list the user has since edited (plans/layer1-mockup.html:1495-1512).
+// A project folder IMPLIES where its transcripts and snapshots normally live, and that derived folder is what a first-time list holds. `touched` is what stops a re-derive from throwing away a list the user has since edited (plans/layer1-mockup.html:1495-1512).
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 
-// Re-spelled here rather than imported from src/structures/vocabulary.ts's SourceKind: webapp/
-// cannot import from src/, the same constraint TIME_SOURCE_VALUES in layer1-sources.ts already
-// lives under — and, like that one, it is a const object rather than a TS `enum` because webapp/
-// modules are also loaded by node's type-stripping test runner, which rejects `enum`. The VALUES
-// are the wire's, so `kind=` on /api/scan-source needs no translation table.
+// Re-spelled here rather than imported from src/structures/vocabulary.ts's SourceKind: webapp/ cannot import from src/, the same constraint TIME_SOURCE_VALUES in layer1-sources.ts already lives under — and, like that one, it is a const object rather than a TS `enum` because webapp/ modules are also loaded by node's type-stripping test runner, which rejects `enum`. The VALUES are the wire's, so `kind=` on /api/scan-source needs no translation table.
 export const SourceKind = {
     jsonl: "jsonl",
     fileHistory: "filehistory",
@@ -31,8 +23,7 @@ const BUTTON_LABEL_BY_KIND: Record<SourceKind, string> = {
 
 interface SourceList {
     paths: string[];
-    // False while the list is still whatever the project folder derives; true once the user has
-    // committed a list of their own, from the picker, the URL or the saved settings.
+    // False while the list is still whatever the project folder derives; true once the user has committed a list of their own, from the picker, the URL or the saved settings.
     touched: boolean;
 }
 
@@ -41,8 +32,7 @@ const listsByKind: Record<SourceKind, SourceList> = {
     [SourceKind.fileHistory]: { paths: [], touched: false },
 };
 
-// The server's own two roots, from GET /api/config. Empty until seedSourceDefaults answers — the
-// real page's stand-in for the mockup's hardcoded deriveFor.
+// The server's own two roots, from GET /api/config. Empty until seedSourceDefaults answers — the real page's stand-in for the mockup's hardcoded deriveFor.
 let serverProjectsDir = "";
 let serverFileHistoryDir = "";
 
@@ -50,17 +40,14 @@ export function readSourcePaths(kind: SourceKind): readonly string[] {
     return listsByKind[kind].paths;
 }
 
-// Store a list and report whether it actually changed, so a picker that was opened and closed
-// without an edit does not arm the Save button.
+// Store a list and report whether it actually changed, so a picker that was opened and closed without an edit does not arm the Save button.
 export function writeSourcePaths(kind: SourceKind, paths: string[]): boolean {
     const changed = paths.join("\n") !== listsByKind[kind].paths.join("\n");
     listsByKind[kind] = { paths, touched: true };
     return changed;
 }
 
-// Read the server's roots ONCE, so the derived defaults below are real paths rather than guesses.
-// A failure is not fatal: the lists stay empty, the buttons print (0), and the user can still pick
-// folders by hand.
+// Read the server's roots ONCE, so the derived defaults below are real paths rather than guesses.  A failure is not fatal: the lists stay empty, the buttons print (0), and the user can still pick folders by hand.
 export async function seedSourceDefaults(): Promise<void> {
     try {
         const response = await fetch("/api/config");
@@ -75,10 +62,7 @@ export async function seedSourceDefaults(): Promise<void> {
     }
 }
 
-// Claude Code's own project-folder name for a working directory: EVERY non-alphanumeric character
-// becomes "-", not just the separators. Verified against all 42 folders under ~/.claude/projects by
-// re-deriving each from the `cwd` its own transcripts record — 42 matches, 0 misses. A "/"-only
-// rule is what left the spaces in "claude code src" intact and named a folder that does not exist.
+// Claude Code's own project-folder name for a working directory: EVERY non-alphanumeric character becomes "-", not just the separators. Verified against all 42 folders under ~/.claude/projects by re-deriving each from the `cwd` its own transcripts record — 42 matches, 0 misses. A "/"-only rule is what left the spaces in "claude code src" intact and named a folder that does not exist.
 function encodeProjectFolderName(projectFolder: string): string {
     return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
@@ -94,9 +78,7 @@ function deriveDefaultPaths(kind: SourceKind, projectFolder: string): string[] {
     return [`${serverProjectsDir}/${encodeProjectFolderName(projectFolder)}`];
 }
 
-// Re-derive every untouched list from the CURRENT project folder, then print each list's size on
-// its button — so a new project folder brings its own defaults with it and both counts are legible
-// without the dialog having to be opened.
+// Re-derive every untouched list from the CURRENT project folder, then print each list's size on its button — so a new project folder brings its own defaults with it and both counts are legible without the dialog having to be opened.
 export function syncSourceButtons(): void {
     const projectFolder = getInputById("dir").value.trim().replace(/\/$/, "");
     for (const kind of Object.values(SourceKind)) {

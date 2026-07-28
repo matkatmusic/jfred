@@ -20,8 +20,7 @@ import {
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
-// Find the first resolved tool result of a given tool across a transcript's
-// records. Generic helper so each tool test does not re-spell the index/scan.
+// Find the first resolved tool result of a given tool across a transcript's records. Generic helper so each tool test does not re-spell the index/scan.
 function findToolResult(file: string, toolName: ToolName) {
     const records = loadRecords(file);
     const nameById = indexToolUseNamesById(records);
@@ -56,9 +55,7 @@ test("test_write_result_carries_originalFile_and_empty_structuredPatch", () => {
 });
 
 test("test_bash_result_carries_stdout_and_stderr", () => {
-    // Scenario: the Bash tool's structured result is typed with its s1 fields.
-    // Steps:
-    // find a Bash tool result attached to a user record in s1.
+    // Scenario: the Bash tool's structured result is typed with its s1 fields.  Steps: find a Bash tool result attached to a user record in s1.
     const bashResult = findToolResult(S1_JSONL, ToolName.Bash) as
         | BashResult
         | undefined;
@@ -73,10 +70,7 @@ test("test_bash_result_carries_stdout_and_stderr", () => {
 });
 
 test("test_read_result_carries_file_with_path_and_line_counts", () => {
-    // Scenario: the Read tool's structured result (new in s2) is typed with its
-    // nested `file` object, whose filePath is hydrated into a Path.
-    // Steps:
-    // find the Read tool result attached to a user record in s2.
+    // Scenario: the Read tool's structured result (new in s2) is typed with its nested `file` object, whose filePath is hydrated into a Path.  Steps: find the Read tool result attached to a user record in s2.
     const readResult = findToolResult(S2_JSONL, ToolName.Read) as
         | ReadResult
         | undefined;
@@ -93,11 +87,7 @@ test("test_read_result_carries_file_with_path_and_line_counts", () => {
 });
 
 test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
-    // Scenario: the Edit tool's structured result (new in s2) is typed with its
-    // hydrated filePath and a real, non-empty structuredPatch hunk — the shape
-    // deferred since s1 (a create has no diff).
-    // Steps:
-    // find the Edit tool result attached to a user record in s2.
+    // Scenario: the Edit tool's structured result (new in s2) is typed with its hydrated filePath and a real, non-empty structuredPatch hunk — the shape deferred since s1 (a create has no diff).  Steps: find the Edit tool result attached to a user record in s2.
     const editResult = findToolResult(S2_JSONL, ToolName.Edit) as
         | EditResult
         | undefined;
@@ -110,8 +100,7 @@ test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
     assert.equal(typeof editResult.oldString, "string");
     assert.equal(typeof editResult.newString, "string");
     assert.equal(typeof editResult.replaceAll, "boolean");
-    // its structuredPatch carries at least one hunk with numeric line ranges and
-    // a string[] of diff lines.
+    // its structuredPatch carries at least one hunk with numeric line ranges and a string[] of diff lines.
     assert.ok(editResult.structuredPatch.length > 0);
     const hunk = editResult.structuredPatch[0]!;
     assert.equal(typeof hunk.oldStart, "number");
@@ -121,11 +110,7 @@ test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
 });
 
 test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
-    // Scenario: a FAILED tool run reports a plain string toolUseResult ("Error: File does not
-    // exist.") instead of a structured payload — there is nothing to type, so resolution
-    // yields undefined instead of crashing on the missing payload fields.
-    // Steps:
-    // one session holding a Read whose result is the error string.
+    // Scenario: a FAILED tool run reports a plain string toolUseResult ("Error: File does not exist.") instead of a structured payload — there is nothing to type, so resolution yields undefined instead of crashing on the missing payload fields.  Steps: one session holding a Read whose result is the error string.
     const tree = makeSourceTree("-errored-read");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const erroredRead = buildErroredToolResultRecordPair(

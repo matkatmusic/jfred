@@ -1,7 +1,4 @@
-// Lineage: follow a file across renames so one history spans the path change.
-// A renamed file is ONE history keyed by its final (surviving) path; a content
-// event and the rename that moves it collapse into that single lineage. The
-// event/revision model lives in reconstruction_engine.ts. Design: that file.
+// Track a file across renames into one unified history.
 
 import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
@@ -50,8 +47,7 @@ export function eventBelongsToLineage(
     return resolveFinalPath(contentPathOf(event), renameChain).equals(finalTarget);
 }
 
-// Distinct final paths across all events (rename sources collapse into their
-// destination), so each lineage is keyed once by the path it ends life at.
+// Unique lineage keys: rename sources collapse to their final destination.
 export function distinctFinalPaths(
     events: FileEvent[],
     renameChain: Map<string, Path>,

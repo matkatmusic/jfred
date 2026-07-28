@@ -1,6 +1,4 @@
-// Beaconless script-execution detection, split from reconstruction_script_stage.ts (task 115).
-// When a script modifies a file but no user-edit beacon echoes the result, the modification is
-// detected by running the script forward; runs CHAIN through the target's rolling content.
+// Beaconless script-execution detection, split from reconstruction_script_stage.ts (task 115).  When a script modifies a file but no user-edit beacon echoes the result, the modification is detected by running the script forward; runs CHAIN through the target's rolling content.
 
 import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
@@ -17,14 +15,10 @@ import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import { refForTarget, runTouchesTarget } from "./reconstruction_script_probe.ts";
 
-// The target's known state on its chained lineage: the sandbox key it lives under and its content
-// after the last injected run.
+// The target's known state on its chained lineage: the sandbox key it lives under and its content after the last injected run.
 type RollingTargetState = { key: string; content: string };
 
-// The post-execution content of `target` after `run`, or undefined when the run doesn't change it.
-// With no rolling state this is the direct gate (the run names the target or provably touches it);
-// with rolling state the run is re-executed against a sandbox seeded with the target's current
-// content — a script-born file never appears in the run's own cached pre-state (s85's glob rename).
+// The post-execution content of `target` after `run`, or undefined when the run doesn't change it.  With no rolling state this is the direct gate (the run names the target or provably touches it); with rolling state the run is re-executed against a sandbox seeded with the target's current content — a script-born file never appears in the run's own cached pre-state (s85's glob rename).
 function runOutcomeForTarget(
     run: ScriptRun,
     target: Path,
@@ -33,8 +27,7 @@ function runOutcomeForTarget(
     seedContent: LineageContentBefore | undefined,
     rolling: RollingTargetState | undefined,
 ): RollingTargetState | undefined {
-    // Item 68: a read-only run can never produce an outcome; bail before any sandbox work
-    // (the rolling branch below would otherwise spawn a sandbox per chained run).
+    // Item 68: a read-only run can never produce an outcome; bail before any sandbox work (the rolling branch below would otherwise spawn a sandbox per chained run).
     if (!scriptCodeMayWriteFiles(run.code)) return undefined;
     if (rolling === undefined) {
         const basename = target.toString().split("/").pop() ?? "";
@@ -62,11 +55,7 @@ function runOutcomeForTarget(
     return { key: rolling.key, content };
 }
 
-// When a script modifies a file but no user-edit beacon echoes the result (e.g. multi-session
-// baseline+main where the baseline Write predates the script run), detect the modification by
-// running the script and inject a ScriptExecutionEvent directly. Runs CHAIN: once one run births
-// or changes the target, every later run is executed against the target's rolling content, so a
-// move-then-rename pair yields two events even though the rename never names the born file.
+// When a script modifies a file but no user-edit beacon echoes the result (e.g. multi-session baseline+main where the baseline Write predates the script run), detect the modification by running the script and inject a ScriptExecutionEvent directly. Runs CHAIN: once one run births or changes the target, every later run is executed against the target's rolling content, so a move-then-rename pair yields two events even though the rename never names the born file.
 export function beaconlessScriptExecutions(
     target: Path,
     runs: ScriptRun[],

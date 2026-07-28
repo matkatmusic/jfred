@@ -1,5 +1,4 @@
-// Document-shape extensions consumed by the revision-timeline view, exercised end-to-end
-// through the s84/s85 multi-JSONL project fixtures.
+// Document-shape extensions consumed by the revision-timeline view, exercised end-to-end through the s84/s85 multi-JSONL project fixtures.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,8 +21,7 @@ test("test_conversation_messages_carry_session_id", () => {
 });
 
 test("test_step_snapshots_carry_session_id", () => {
-    // Synthetic changeIds (re-stamped / off-branch revisions) match no tool_use block and stay
-    // unattributed — those are exactly the steps whose changedPaths resolves to [].
+    // Synthetic changeIds match no tool_use block and stay unattributed — those are the steps whose changedPaths resolves to [].
     const distinctIds = new Set(
         s84Document.steps.map((step) => step.sessionId?.toString()).filter((id) => id !== undefined),
     );

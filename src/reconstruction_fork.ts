@@ -1,10 +1,4 @@
-// Structural discovery of rewound branches that the `last-prompt` head path misses: an abandoned
-// branch that edited a file but whose tip is named by no last-prompt record (the rewind re-prompted
-// from the fork point, so no head ever pointed at the abandoned tip). The only structural signal is
-// the parentUuid fork — a record parenting ≥2 genuine user prompts. This is the home for that forest
-// logic, kept out of reconstruction_branch.ts and reconstruction_tree.ts (both at the 250-line cap).
-// The ConversationBranch type is imported type-only, so there is no runtime import cycle with
-// reconstruction_branch.ts. See plans/s13/s13-reconstruction-plan.md.
+// Discovers rewound branches via parentUuid forks that head-based scanning misses.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
@@ -19,9 +13,7 @@ import {
     isGenuineUserPrompt,
 } from "./reconstruction_prompts.ts";
 
-// The rewound branches discovered structurally from the parentUuid forks, none of which is already
-// represented by an existing (head-based) tip. Purely additive: the dedup guard skips any abandoned
-// subtree that already holds an existing tip, so head-based scenarios (S7/S8/S11/S12) gain nothing.
+// Finds structural rewound branches not already represented by head-based tips.
 export function findStructuralRewoundBranches(
     records: TranscriptRecord[],
     existingTips: Set<string>,
@@ -30,17 +22,14 @@ export function findStructuralRewoundBranches(
     const found: ConversationBranch[] = [];
     const forkPoints = findPromptForkPoints(records);
     for (const [forkIndex, forkPoint] of forkPoints.entries()) {
-        // task 163: the fork walk is the structural half of branch-tip scanning — announce it so
-        // transcripts whose only rewinds are structural (no head-based tips) still show motion.
+        // task 163: report progress so structural-only transcripts still show motion.
         reportReconstructionProgress("scanning branch tips", forkIndex + 1, forkPoints.length);
         found.push(...rewoundBranchesAtFork(records, forkPoint, claimed));
     }
     return found;
 }
 
-// The abandoned branches at one fork: its genuine-prompt children ordered by time, the latest being
-// the surviving-side continuation (skipped), each earlier one an abandoned branch (when not deduped).
-// Adds every kept branch's tip to `claimed` so a later fork cannot re-discover the same tip.
+// Collects abandoned branches at one fork, skipping the latest child (surviving side).
 function rewoundBranchesAtFork(
     records: TranscriptRecord[],
     forkPoint: Uuid,
@@ -62,8 +51,7 @@ function rewoundBranchesAtFork(
     return branches;
 }
 
-// One abandoned prompt's rewound branch, or undefined when the dedup guard rejects it (its subtree
-// already holds a represented tip) or it has no conversational tip.
+// Returns the abandoned branch, or undefined if already claimed or no tip.
 function buildRewoundBranchForPrompt(
     records: TranscriptRecord[],
     forkPoint: Uuid,
@@ -107,16 +95,11 @@ function isPromptChildOf(record: TranscriptRecord, forkPoint: Uuid): boolean {
     return isGenuineUserPrompt(record);
 }
 
-// The record's epoch-ms timestamp (0 when absent), for ascending child ordering.
 function promptTime(record: TranscriptRecord): number {
     return record.timestamp?.getTime() ?? 0;
 }
 
-// True when any record in the abandoned prompt's subtree is already a claimed tip — the regression
-// guard that prevents double-counting branches the head path already enumerated. The prompt itself is
-// intentionally NOT treated as its own claimed tip: in S14 the abandoned prompt is also a last-prompt
-// head, so a self-match would block discovery of the deeper real `farewell` tip. collectDescendantUuids
-// excludes `start`, so S7/S8/S11/S12 (whose claimed head tip is a descendant) stay skipped.
+// Dedup guard: skip subtrees already covered by head-based branch discovery.
 function subtreeHoldsClaimedTip(
     records: TranscriptRecord[],
     abandonedPrompt: Uuid,

@@ -32,8 +32,7 @@ function buildCwdRecord(cwd: string): TranscriptRecord {
     return { type: RecordType.user, cwd: new Path(cwd) } as unknown as TranscriptRecord;
 }
 
-// Snapshots key their backups by the path relative to cwd; a redirect's target is absolute.
-// fillRedirectContent resolves the snapshot path against cwd so the two match.
+// Snapshots key backups by cwd-relative path but a redirect's target is absolute; fillRedirectContent resolves against cwd to match.
 test("test_fill_matches_a_cwd_relative_snapshot_path_to_an_absolute_target", () => {
     const cwd = "/work/dir";
     const records = [
@@ -81,8 +80,7 @@ function buildEditEvent(target: string, when: string): EditEvent {
     };
 }
 
-// A branch-leading Edit has its creating Write off-branch, so the seed prepends the pre-edit backup
-// as a synthetic Write and the Edit splices onto real lines instead of an empty base.
+// A branch-leading Edit has its creating Write off-branch, so the seed prepends the pre-edit backup as a synthetic Write.
 test("test_seed_prepends_a_write_base_from_the_at_or_before_backup", () => {
     const cwd = "/work/dir";
     const records = [
@@ -130,8 +128,7 @@ test("test_seed_passes_through_when_no_backup_precedes_the_edit", () => {
     assert.equal(seeded[0], edit);
 });
 
-// A backup just AFTER the edit is still a valid pre-edit base: in m6 the user edit and the edit
-// consuming it share a turn, so the pre-edit snapshot lands ~22ms late.
+// A backup just AFTER the edit is still valid: m6's shared turn makes the snapshot land ~22ms late.
 test("test_seed_recovers_later_backup_when_includeAfter_true", () => {
     const cwd = "/work/dir";
     const records = [

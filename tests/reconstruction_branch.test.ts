@@ -75,8 +75,7 @@ function snapshotRec(
     } as unknown as TranscriptRecord;
 }
 
-// R = root checkpoint; Wa = the write turn's head (working tree changes to file@2 here);
-// Hc = a conversation-only rewind back to R that writes nothing (working tree stays file@2).
+// R = root checkpoint; Wa = write turn's head (tree changes to file@2); Hc = conv-only rewind, writes nothing.
 function buildConversationRewindRecords(): TranscriptRecord[] {
     return [
         rec(RecordType.user, "R", null),
@@ -130,8 +129,7 @@ test("test_select_live_branch_follows_restored_code_after_code_rewind", () => {
     assert.deepEqual(uuids, ["R", "Wb"]);
 });
 
-// A conv-only rewind leaves the working tree alone, so the re-snapshot repeats the SAME version and
-// the SAME real backup — unlike a code restore, which bumps the version with a null backup.
+// A conv-only rewind repeats the SAME version and real backup; a code restore bumps it with a null backup instead.
 function buildConversationOnlyRewindRealBackupRecords(): TranscriptRecord[] {
     return [
         rec(RecordType.user, "R", null),
@@ -152,8 +150,7 @@ test("test_find_conversation_branches_survives_working_tree_when_conv_only_refre
     assert.ok(!branches.some((b) => b.isSurviving && b.tip.toString() === "Hc"));
 });
 
-// The rewrite's backup shares Wa's path-hash and differs only in the @v4 suffix, so the content
-// signature changes and the working-tree owner must advance.
+// The rewrite's backup shares Wa's path-hash but differs in the @v4 suffix, so the working-tree owner must advance.
 function buildCodeRestoreThenRewriteRecords(): TranscriptRecord[] {
     return [
         rec(RecordType.user, "R", null),

@@ -1,12 +1,6 @@
-// Task 279/288: drag the File Nav pane's right edge to resize it. `--filenav-w` is written ONCE,
-// on release, because `.filenav` is a flex sibling of `main.timelines` — writing it per move
-// relaid out the ~156,000px canvas every frame. Per move the drag writes `--filenav-drag-w`, read
-// only by the absolutely-positioned grip, and `.stagewrap.resizing` pins the timeline's width so
-// the growing nav translates it instead of re-solving the flex row.
-//
-// ponytail: rejected `resize: horizontal` on `.filenav`, which is zero JS — it grabs only at the
-// bottom-right corner rather than along the edge the user asked for, and it writes the element's
-// own width, which no other rule can read.
+// Task 279/288: `--filenav-w` writes ONCE on release, not per move, since move-per-write relaid out the ~156,000px canvas every frame.
+
+// ponytail: rejected `resize: horizontal` on `.filenav` — it grabs just the corner, and no other rule can read its width.
 
 import { getRequiredElementById } from "./app-dom.ts";
 
@@ -23,8 +17,7 @@ function readFileNavWidthAtPointer(stagewrap: HTMLElement, clientX: number): num
     return clampFileNavWidth(clientX - stagewrap.getBoundingClientRect().left);
 }
 
-// Preview-only property: only the absolutely-positioned grip reads it, so a move repaints one
-// element instead of relaying out the canvas (task 288).
+// Preview-only: only the absolutely-positioned grip reads it, so a move repaints one element, not the whole canvas (task 288).
 function previewFileNavWidth(stagewrap: HTMLElement, clientX: number): void {
     stagewrap.style.setProperty("--filenav-drag-w", `${readFileNavWidthAtPointer(stagewrap, clientX)}px`);
 }
@@ -44,8 +37,7 @@ function commitFileNavWidth(stagewrap: HTMLElement, clientX: number): void {
     stagewrap.classList.remove("resizing");
 }
 
-// Move/release listen on the WINDOW because a fast drag outruns a 7px handle, and
-// `setPointerCapture` is not implemented by happy-dom, which the tests run on.
+// Move/release listen on the WINDOW since a fast drag outruns the 7px handle; happy-dom (the test runner) lacks `setPointerCapture`.
 function wireGripDrag(
     grip: HTMLElement,
     onMove: (event: MouseEvent) => void,
@@ -80,15 +72,13 @@ export function wireFileNavResize(): void {
     );
 }
 
-// Task 292: committed per MOVE, unlike the width drag — the canvas is not a flex sibling here, so
-// there is no big repaint to defer.
+// Task 292: committed per MOVE, unlike the width drag — no flex sibling here means no big repaint to defer.
 const MIN_PANE_SHARE = 15;
 const MAX_PANE_SHARE = 85;
 
 function resizeFileNavPanes(filenav: HTMLElement, clientY: number): void {
     const box = filenav.getBoundingClientRect();
-    // A zero-height pane cannot happen in a browser, but happy-dom reports 0 for every box — guard
-    // so a test drag writes a share rather than NaN.
+    // happy-dom reports a zero-height box for every pane; guard so test drags write a share, not NaN.
     const share = box.height === 0 ? MIN_PANE_SHARE : ((clientY - box.top) / box.height) * 100;
     filenav.style.setProperty("--files-share", String(Math.min(MAX_PANE_SHARE, Math.max(MIN_PANE_SHARE, share))));
 }

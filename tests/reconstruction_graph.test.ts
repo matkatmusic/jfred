@@ -16,8 +16,7 @@ function buildWriteBlock(toolId: string, filePath: string, content: string): Rec
     return { type: BlockType.tool_use, id: toolId, name: ToolName.Write, input: { file_path: filePath, content } };
 }
 
-// A synthetic assistant record carrying one Write tool_use (the file-changing turn the graph models).
-// `toolId` becomes the turn's changeId; uuid/parent place it in the conversation tree.
+// A synthetic assistant record carrying one Write tool_use (the file-changing turn the graph models).  `toolId` becomes the turn's changeId; uuid/parent place it in the conversation tree.
 function buildWriteRecord(
     toolId: string,
     uuid: string,
@@ -60,9 +59,7 @@ function buildLinearRecords(): TranscriptRecord[] {
     ];
 }
 
-// A rewind fork (mirrors S12 shape with writes on both branches): a rewound branch that writes two
-// files at 16:09, then a conversation-only rewind to root and a surviving branch that writes two files
-// at 16:10. No snapshots → the surviving head is the final last-prompt (Et).
+// A rewind fork (mirrors S12 shape with writes on both branches): a rewound branch that writes two files at 16:09, then a conversation-only rewind to root and a surviving branch that writes two files at 16:10. No snapshots → the surviving head is the final last-prompt (Et).
 function buildForkedRecords(): TranscriptRecord[] {
     return [
         buildUserRecord("R", null, "2026-01-01T16:00:00Z"),
@@ -76,8 +73,7 @@ function buildForkedRecords(): TranscriptRecord[] {
     ];
 }
 
-// assignTurnLetters letters every file-changing turn by timestamp order, starting at "B" ("A" is
-// reserved for the conversation root), regardless of the records' supplied order.
+// assignTurnLetters letters every file-changing turn by timestamp order, starting at "B" ("A" is reserved for the conversation root), regardless of the records' supplied order.
 test("test_assign_turn_letters_numbers_file_turns_from_B_in_timestamp_order", () => {
     // Three writes supplied OUT of timestamp order.
     const records = [
@@ -92,8 +88,7 @@ test("test_assign_turn_letters_numbers_file_turns_from_B_in_timestamp_order", ()
     assert.equal(letters.get("u3"), "D");
 });
 
-// buildFileDag groups every turn under the file it touched, ordered files by first touch and turns by
-// version; the letters are the SAME as assignTurnLetters (one letter per turn, shared by both graphs).
+// buildFileDag groups every turn under the file it touched, ordered files by first touch and turns by version; the letters are the SAME as assignTurnLetters (one letter per turn, shared by both graphs).
 test("test_build_file_dag_groups_by_target_with_shared_letters", () => {
     const records = [
         buildWriteRecord("u1", "Wa", "R", "/work/a.py", "a\n", "2026-01-01T16:01:00Z"),
@@ -123,8 +118,7 @@ test("test_build_conversation_dag_is_linear_when_no_fork", () => {
     assert.deepEqual(dag.trunk.map((turn) => turn.letter), ["B", "C"]);
 });
 
-// With a rewind that changed files on both sides, buildConversationDag FORKS into two branch wrappers
-// ordered oldest-first (the rewound branch's turns are older), each carrying only its post-fork turns.
+// With a rewind that changed files on both sides, buildConversationDag FORKS into two branch wrappers ordered oldest-first (the rewound branch's turns are older), each carrying only its post-fork turns.
 test("test_build_conversation_dag_forks_into_rewound_and_surviving", () => {
     const dag = buildConversationDag(buildForkedRecords());
     // The root is the conversation root R.
@@ -140,9 +134,7 @@ test("test_build_conversation_dag_forks_into_rewound_and_surviving", () => {
     assert.deepEqual(dag.branches[1]!.turns.map((turn) => turn.letter), ["D", "E"]);
 });
 
-// S13's surviving branch only Read (zero post-fork file turns) while the abandoned branch edited a
-// file. The fork must still render: the file-less surviving branch is KEPT as a branch (so the DAG
-// shows two branches and roots at the rewind point 8faab841), not collapsed into a misleading trunk.
+// S13's surviving branch only Read (zero post-fork file turns) while the abandoned branch edited a file. The fork must still render: the file-less surviving branch is KEPT as a branch (so the DAG shows two branches and roots at the rewind point 8faab841), not collapsed into a misleading trunk.
 test("test_a_file_less_surviving_branch_is_kept_when_a_rewound_branch_exists", () => {
     // Build the conversationDAG for the real S13 transcript.
     const dag = buildConversationDag(loadRecords(S13_JSONL));
@@ -157,8 +149,7 @@ test("test_a_file_less_surviving_branch_is_kept_when_a_rewound_branch_exists", (
     assert.equal(surviving.turns.length, 0);
 });
 
-// The file-less surviving branch sorts BELOW the rewound branch that has a real turn — matching S11's
-// oldest-first / rewound-above-surviving ordering (an empty branch has no time, so it renders last).
+// The file-less surviving branch sorts BELOW the rewound branch that has a real turn — matching S11's oldest-first / rewound-above-surviving ordering (an empty branch has no time, so it renders last).
 test("test_an_empty_surviving_branch_sorts_below_a_rewound_branch_with_turns", () => {
     // Build the conversationDAG for the real S13 transcript.
     const dag = buildConversationDag(loadRecords(S13_JSONL));

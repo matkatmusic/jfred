@@ -1,5 +1,4 @@
-// Task 198 (spec S2): the anchor is a timeline's FIRST full-content beacon; earlier byteless
-// mentions are pre-anchor stubs that must refuse byte-consuming operations.
+// Task 198 (spec S2): the anchor is a timeline's first full-content beacon; earlier byteless mentions must refuse byte-consuming operations.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -96,8 +95,7 @@ test("test_requireNodeContent_refuses_presumed_user_edit_node", () => {
 
 type EvidenceClassFixture = { projectDir: string; alphaPath: string };
 
-// One session touching alpha.py five ways at 10:01-10:05: partial read and originalFile-less edit
-// are stubs; write, complete read echo and populated-originalFile edit are beacons.
+// One session touches alpha.py five ways: partial read and originalFile-less edit are stubs; the rest are beacons.
 function makeEvidenceClassFixture(): EvidenceClassFixture {
     const tree = makeSourceTree("-anchor-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");

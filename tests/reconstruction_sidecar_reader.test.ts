@@ -56,8 +56,7 @@ function writeBlobForSession(treeRoot: string, sessionId: string, blobName: stri
     writeFileSync(join(blobDir, blobName), content);
 }
 
-// Spec-S4 two-source fixture: same blob name in both trees, so only per-source resolution reads
-// both correctly.
+// Spec-S4 two-source fixture: same blob name in both trees, so only per-source resolution reads both correctly.
 const SHARED_BLOB_NAME = "aaaa0000@v1";
 function makeTwoSourceFixture(): {
     treeA: { treeRoot: string; projectDir: string };

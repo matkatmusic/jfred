@@ -1,10 +1,6 @@
-// A minimal Chrome DevTools Protocol driver for the Layer 1 visual loop: launch headless Chrome,
-// open one page, evaluate expressions in it, and capture screenshots.
+// Minimal CDP driver: launch headless Chrome, eval expressions, capture screenshots.
 //
-// ponytail: plain Node + the global WebSocket against system Chrome, NOT puppeteer. The recipe was
-// already proven for this repo (task 96) and adding a browser-automation dependency to drive five
-// clicks is the kind of weight this project has repeatedly refused. Everything Chrome needs lives
-// in one throwaway --user-data-dir so a run can never inherit a previous run's state.
+// ponytail: plain Node + the global WebSocket against system Chrome, NOT puppeteer. The recipe was already proven for this repo (task 96) and adding a browser-automation dependency to drive five clicks is the kind of weight this project has repeatedly refused. Everything Chrome needs lives in one throwaway --user-data-dir so a run can never inherit a previous run's state.
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -21,8 +17,7 @@ export function pause(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-// A port the OS just confirmed is free, by binding it and letting go. Racy in theory; in practice
-// the only other thing on this machine claiming ports in the next second is the viewer we start.
+// Racy but fine: only the viewer competes for ports in the next instant.
 export function findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
         const probe = createServer();
@@ -49,8 +44,7 @@ export async function waitForHttp(url: string, timeoutMs: number): Promise<void>
     throw new Error(`nothing answered ${url} within ${timeoutMs}ms`);
 }
 
-// Poll an expression in the page until it is truthy. Standalone rather than a method so the retry
-// loop is not a third level of nesting inside openHeadlessPage's returned object.
+// Standalone to avoid triple nesting inside openHeadlessPage.
 export async function pollUntilTruthy(
     evaluate: <T>(expression: string) => Promise<T>,
     expression: string,
@@ -104,9 +98,7 @@ function launchChrome(debugPort: number, profileDir: string, width: number, heig
     ], { stdio: "ignore" });
 }
 
-// Launch Chrome, attach to one page, and hand back the four operations the loop drives it with.
-// Launch and close happen inside ONE process run: a browser daemon does not survive between Bash
-// calls, so a run that leaves Chrome up leaks it.
+// Launch Chrome, attach one page; caller must close before the process exits.
 export async function openHeadlessPage(width: number, height: number): Promise<HeadlessPage> {
     const debugPort = await findFreePort();
     const profileDir = mkdtempSync(join(tmpdir(), "layer1-visual-"));
@@ -143,8 +135,7 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
 
     await send("Page.enable");
     await send("Runtime.enable");
-    // The window-size flag sizes the OS window; this sizes the LAYOUT viewport, which is what every
-    // bounding box the assertions read is measured against.
+    // Sets the layout viewport that bounding-box assertions measure against.
     await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 
     async function evaluate<T>(expression: string): Promise<T> {
@@ -172,12 +163,11 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
         async close(): Promise<void> {
             socket.close();
             chrome.kill("SIGKILL");
-            // Chrome's helper processes keep writing into the profile for a beat after the parent is
-            // killed, so deleting it immediately raced them and threw ENOTEMPTY on the second cold
-            // run. Wait for the process to be reaped, then let rm retry over the stragglers.
+            // Helpers outlive the parent briefly; wait + retry avoids ENOTEMPTY.
             await new Promise<void>((resolve) => chrome.once("exit", () => resolve()));
             await pause(300);
             rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
         },
     };
 }
+

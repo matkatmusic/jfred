@@ -73,10 +73,7 @@ test("test_commit_nodes_derive_from_git_operations_without_tool_calls", () => {
 });
 
 test("test_commit_nodes_derive_from_git_operations", () => {
-    // Scenario: when the document ships gitOperations, the pick hard-stops come from its commit
-    // operations — carrying the commit message — not from commitMarkers.
-    // Steps:
-    // build a minimal document whose ONLY commit signal is a gitOperations entry.
+    // Scenario: when the document ships gitOperations, the pick hard-stops come from its commit operations — carrying the commit message — not from commitMarkers.  Steps: build a minimal document whose ONLY commit signal is a gitOperations entry.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -112,10 +109,7 @@ test("test_commit_nodes_derive_from_git_operations", () => {
 });
 
 test("test_commit_nodes_fall_back_to_commit_markers", () => {
-    // Scenario: an older cached document has NO gitOperations field; its commitMarkers must
-    // still produce the commit hard-stops (and agent turns still expose an empty operations list).
-    // Steps:
-    // build a minimal document with a commitMarker and no gitOperations key.
+    // Scenario: an older cached document has NO gitOperations field; its commitMarkers must still produce the commit hard-stops (and agent turns still expose an empty operations list).  Steps: build a minimal document with a commitMarker and no gitOperations key.
     const document = {
         messages: [{
             uuid: "prompt-1",

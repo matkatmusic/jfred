@@ -1,7 +1,4 @@
-// Details-pane find widget (task 127) — thin DOM wiring over details-find-model.ts: the
-// #details-find input + n/N counter + prev/next buttons in the right pane's header row.
-// Matches are found over #details-right-body's text nodes and painted with the CSS Custom
-// Highlight API (no DOM mutation, so hljs spans and diff grids keep their own markup).
+// Details-pane find widget (task 127) — thin DOM wiring over details-find-model.ts: the #details-find input + n/N counter + prev/next buttons in the right pane's header row.  Matches are found over #details-right-body's text nodes and painted with the CSS Custom Highlight API (no DOM mutation, so hljs spans and diff grids keep their own markup).
 
 import {
     computeMatchCounterLabel,
@@ -26,8 +23,7 @@ function collectRightPaneTextNodes(): Text[] {
     return textNodes;
 }
 
-// Paint all matches + the current one; counter/scroll still work when the Custom Highlight
-// API is unavailable, there is just no paint.
+// Paint all matches + the current one; counter/scroll still work when the Custom Highlight API is unavailable, there is just no paint.
 function applyFindHighlights(): void {
     if (CSS.highlights === undefined) {
         return;
@@ -62,8 +58,7 @@ function runDetailsFind(term: string): void {
     updateFindCounterAndScroll();
 }
 
-// Step to the next (+1) / previous (-1) match, wrapping; re-searches first when the pane was
-// re-rendered since the last search (resetDetailsFind emptied the ranges).
+// Step to the next (+1) / previous (-1) match, wrapping; re-searches first when the pane was re-rendered since the last search (resetDetailsFind emptied the ranges).
 function stepDetailsFind(delta: number): void {
     if (matchRanges.length === 0) {
         runDetailsFind((document.getElementById("details-find-input") as HTMLInputElement).value);
@@ -73,8 +68,7 @@ function stepDetailsFind(delta: number): void {
     updateFindCounterAndScroll();
 }
 
-// Drop all match state and paint — called before every right-pane re-render (its Ranges die
-// with the replaced DOM). The input's text is kept so Enter re-runs against the new content.
+// Drop all match state and paint — called before every right-pane re-render (its Ranges die with the replaced DOM). The input's text is kept so Enter re-runs against the new content.
 export function resetDetailsFind(): void {
     matchRanges = [];
     currentMatchIndex = -1;
@@ -88,9 +82,7 @@ export function resetDetailsFind(): void {
     }
 }
 
-// One-time chrome wiring (app.ts bootstrap): input searches as you type; Enter / Shift+Enter
-// and the < / > buttons step through matches; the Fork-style ✕ (shown once a term is entered)
-// clears the term and its highlights.
+// One-time chrome wiring (app.ts bootstrap): input searches as you type; Enter / Shift+Enter and the < / > buttons step through matches; the Fork-style ✕ (shown once a term is entered) clears the term and its highlights.
 export function initDetailsFind(): void {
     const input = document.getElementById("details-find-input") as HTMLInputElement;
     const clearButton = document.getElementById("details-find-clear") as HTMLButtonElement;

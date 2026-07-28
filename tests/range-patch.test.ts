@@ -1,6 +1,4 @@
-// renderRangePatch: a picked contiguous step range exports as ONE git-apply-able unified diff.
-// The acceptance gate is a real `git apply` round-trip — the patch applied onto the materialized
-// before-state must reproduce the after-state byte for byte.
+// renderRangePatch: a picked contiguous step range exports as ONE git-apply-able unified diff.  The acceptance gate is a real `git apply` round-trip — the patch applied onto the materialized before-state must reproduce the after-state byte for byte.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -18,12 +16,10 @@ import {
     listRepositoryFiles,
 } from "./utilities.ts";
 
-// Built once — every test here reads the same s85 reconstruction (one session, real git commits,
-// moves). Step snapshots are skeletons now; a step's files are resolved on demand from the histories.
+// Built once — every test here reads the same s85 reconstruction (one session, real git commits, moves). Step snapshots are skeletons now; a step's files are resolved on demand from the histories.
 const { document: s85Document, stepFileHistories: s85Histories } = buildProjectReconstruction(S85_JSONL_PATHS, undefined);
 
-// The { path: content } map for a 1-based step, resolved from the compact histories (the on-demand
-// replacement for the removed per-step `files` map).
+// The { path: content } map for a 1-based step, resolved from the compact histories (the on-demand replacement for the removed per-step `files` map).
 function filesAtStep(stepNumber: number): Record<string, string> {
     return resolveFilesAtStep(s85Histories, s85Document.steps[stepNumber - 1]!.when);
 }
@@ -70,11 +66,7 @@ test("test_range_patch_applies_cleanly_and_reproduces_after_state", () => {
 });
 
 test("test_range_patch_rejects_indices_out_of_range", () => {
-    // Scenario: out-of-range or inverted step indexes are rejected loudly, never clamped.
-    // Steps:
-    // assert renderRangePatch throws on fromStep < 1.
-    // assert it throws on toStep > steps.length.
-    // assert it throws on fromStep > toStep.
+    // Scenario: out-of-range or inverted step indexes are rejected loudly, never clamped.  Steps: assert renderRangePatch throws on fromStep < 1.  assert it throws on toStep > steps.length.  assert it throws on fromStep > toStep.
     const stepCount = s85Document.steps.length;
     assert.throws(() => renderRangePatch(s85Histories, s85Document.steps, 0, 1));
     assert.throws(() => renderRangePatch(s85Histories, s85Document.steps, 1, stepCount + 1));
@@ -82,14 +74,7 @@ test("test_range_patch_rejects_indices_out_of_range", () => {
 });
 
 test("test_range_patch_covers_renamed_files_in_s85", () => {
-    // Scenario: a range spanning s85's move operations patches in the moved-to files. Since task
-    // 155 the engine models these moves as TRUE rename revisions (source history merges into the
-    // destination), so the patch must create every destination AND carry the moved-away source's
-    // own diff block (its rename/removal) — sources no longer persist as untouched originals.
-    // Steps:
-    // find the first step that tracks a core_* destination; patch from the step before it to the end.
-    // assert the patch creates each core_* destination.
-    // assert the moved-away source gets its own diff block (task 155 rename revisions).
+    // Scenario: a range spanning s85's move operations patches in the moved-to files. Since task 155 the engine models these moves as TRUE rename revisions (source history merges into the destination), so the patch must create every destination AND carry the moved-away source's own diff block (its rename/removal) — sources no longer persist as untouched originals.  Steps: find the first step that tracks a core_* destination; patch from the step before it to the end.  assert the patch creates each core_* destination.  assert the moved-away source gets its own diff block (task 155 rename revisions).
     const moveStep = s85Document.steps.find((step) =>
         Object.keys(filesAtStep(step.index)).some((path) => path.includes("core_one.py")),
     );
@@ -102,11 +87,7 @@ test("test_range_patch_covers_renamed_files_in_s85", () => {
 });
 
 test("test_resolveStepFiles_returns_the_repo_map_at_a_step_and_rejects_out_of_range", () => {
-    // Scenario: /api/step-files' core — the repo file map at a 1-based step, resolved on demand from the
-    // histories, equal to the same step's files; out-of-range steps throw (the server maps throws to 400).
-    // Steps:
-    // resolve the last step's files via resolveStepFiles; assert it equals filesAtStep and is non-empty.
-    // assert step 0 and step (count+1) each throw.
+    // Scenario: /api/step-files' core — the repo file map at a 1-based step, resolved on demand from the histories, equal to the same step's files; out-of-range steps throw (the server maps throws to 400).  Steps: resolve the last step's files via resolveStepFiles; assert it equals filesAtStep and is non-empty.  assert step 0 and step (count+1) each throw.
     const stepCount = s85Document.steps.length;
     const filesAtLast = resolveStepFiles(s85Histories, s85Document.steps, stepCount);
     assert.deepEqual(filesAtLast, filesAtStep(stepCount));
@@ -116,8 +97,7 @@ test("test_resolveStepFiles_returns_the_repo_map_at_a_step_and_rejects_out_of_ra
 });
 
 test("test_step_files_endpoint_parses_positive_step", () => {
-    // Scenario: /api/step-files' trust boundary — `step` is a required 1-based positive integer, the
-    // server maps every other value to a 400 via a loud throw.
+    // Scenario: /api/step-files' trust boundary — `step` is a required 1-based positive integer, the server maps every other value to a 400 via a loud throw.
     assert.deepEqual(parseStepFilesQuery(new URLSearchParams("step=3")), { step: 3 });
     assert.throws(() => parseStepFilesQuery(new URLSearchParams("")));
     assert.throws(() => parseStepFilesQuery(new URLSearchParams("step=0")));
@@ -125,12 +105,7 @@ test("test_step_files_endpoint_parses_positive_step", () => {
 });
 
 test("test_range_patch_endpoint_returns_patch_text", () => {
-    // Scenario: /api/range-patch's trust boundary — the query parser (the endpoint's only logic
-    // beyond the already-tested build + render composition) accepts 1-based positive integers and
-    // rejects everything else loudly (the server maps throws to 400).
-    // Steps:
-    // parse a valid query; assert the numeric pair comes back.
-    // assert missing, non-integer, fractional, and sub-1 params each throw.
+    // Scenario: /api/range-patch's trust boundary — the query parser (the endpoint's only logic beyond the already-tested build + render composition) accepts 1-based positive integers and rejects everything else loudly (the server maps throws to 400).  Steps: parse a valid query; assert the numeric pair comes back.  assert missing, non-integer, fractional, and sub-1 params each throw.
     const parsed = parseRangePatchQuery(new URLSearchParams("fromStep=2&toStep=5"));
     assert.deepEqual(parsed, { fromStep: 2, toStep: 5 });
     assert.throws(() => parseRangePatchQuery(new URLSearchParams("toStep=5")));

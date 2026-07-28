@@ -1,7 +1,4 @@
-// Sidecar: a `>`/`>>` redirect leaves no content in the JSONL, but the snapshot taken next after it
-// names the backup blob holding the file's full new content. Blobs live at
-// <root>/<sessionId>/<backupFileName>, which already embeds hash@vN, so no hashing is needed.
-// The reader is injected so the engine stays pure and tests use an in-memory map.
+// Redirects leave no JSONL content; the reader fetches full content from file-history backup blobs so the engine stays pure.
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
@@ -19,8 +16,7 @@ import type { FileEvent, WriteEvent } from "./reconstruction_engine.ts";
 // sessionId names the owning file-history dir: a merged multi-session transcript reuses `@vN` blob names.
 export type BackupReader = (backupFileName: Path, sessionId?: Uuid) => string;
 
-// An edit-first file's creating Write lives on an abandoned branch (spec 39), so a synthetic Write
-// from the backup at or before the edit is prepended to give the edit real lines to splice onto.
+// Spec 39: an edit-first Write is abandoned, so a synthetic backup Write lets the edit splice onto real content.
 export function seedEditBaseFromBackup(
     records: TranscriptRecord[],
     events: FileEvent[],
@@ -37,8 +33,7 @@ export function seedEditBaseFromBackup(
     return seed ? [seed, ...events] : events;
 }
 
-// Undefined when no backup blob precedes `when` (version 1 holds no blob). The changeId is the blob
-// name, keeping the synthetic seed out of the graphs — spec 40 attributes a base to the REAL Write.
+// Undefined when no backup precedes `when`; changeId is the blob name, keeping spec 40's base on the REAL Write.
 export function backupSeedWriteFor(
     records: TranscriptRecord[],
     target: Path,
@@ -63,9 +58,7 @@ export function backupSeedWriteFor(
     };
 }
 
-// backupSeedWriteFor stamps a seed with the BACKUP's own instant, which can fall at/after the edit
-// (s64, s19/s23/m6) or before a mid-window `--base-commit` beacon (task 224); clamping both ends
-// keeps the ladder non-decreasing. With no valid slot, "a seed precedes the edit it seeds" wins.
+// Clamps a backup-stamped seed between the previous point and its edit so the timestamp ladder never goes backwards.
 export function clampSeedBetweenPreviousAndEdit(
     seed: WriteEvent,
     editTime: Date,
@@ -80,8 +73,7 @@ export function clampSeedBetweenPreviousAndEdit(
     return { ...seed, timestamp: new Date(placed) };
 }
 
-// Reverses an edit to recover its pre-edit base when the sidecar holds no at-or-before full content
-// (s28: a scoped rename leaves no per-file Write, so the post-edit backup is the only full content).
+// Recovers an edit's pre-edit base from the post-edit backup when no at-or-before content exists (s28 scoped renames).
 export function backupAfterWriteFor(
     records: TranscriptRecord[],
     target: Path,
@@ -103,8 +95,7 @@ export function backupAfterWriteFor(
     };
 }
 
-// Time-ascending, because the version matching an ELIDED beacon is NOT necessarily the latest (a
-// later Edit produces a newer blob) — the caller must scan versions and validate by content (s28).
+// Time-ascending: the version matching an ELIDED beacon isn't always latest, so callers must validate by content (s28).
 export function backupWritesFor(
     records: TranscriptRecord[],
     target: Path,
@@ -129,8 +120,7 @@ export function backupWritesFor(
     return writes;
 }
 
-// Completes a TERMINAL truncated user-edit beacon (s27). Selecting the newest non-null point rather
-// than a timestamp-relative one sidesteps m6's ms-timing fragility.
+// Completes a TERMINAL truncated user-edit beacon (s27) using the newest point, sidestepping m6's ms-timing fragility.
 export function latestBackupWriteFor(
     records: TranscriptRecord[],
     target: Path,
@@ -140,8 +130,7 @@ export function latestBackupWriteFor(
     return writes[writes.length - 1];
 }
 
-// A redirect with no resolvable backup keeps its empty content — defensive, and should not happen
-// for a tracked file.
+// A redirect with no resolvable backup keeps its empty content, defensive since a tracked file should always resolve.
 export function fillRedirectContent(
     records: TranscriptRecord[],
     events: FileEvent[],

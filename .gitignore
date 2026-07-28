@@ -158,3 +158,4 @@ demo-baseline/projects/baseline-demo/repo/
 
 # Local dev config: Layer 1 cold-start defaults (see debugConfig.example.json)
 .config/
+node_modules

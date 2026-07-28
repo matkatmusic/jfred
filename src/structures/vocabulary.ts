@@ -1,7 +1,4 @@
-// The s1 transcript's discriminant vocabulary — every string enum, in one canonical home, each
-// paired with the runtime set of its wire strings (Object.values). Each member's value IS the wire
-// string (enum-class style), so parsing is a validated cast, not a transform. Every structure file
-// imports the discriminants it needs from here.
+// Every string enum in one home; a member's value IS the wire string, so parsing is a validated cast.
 
 // Record `type` values; later scenarios extend this set.
 export enum RecordType {
@@ -35,8 +32,7 @@ export enum BlockType {
 
 export const KNOWN_CONTENT_BLOCK_TYPES: BlockType[] = Object.values(BlockType);
 
-// The MCP members' values are the full `mcp__<server>__<tool>` wire strings; each carries its
-// script source as `input.code`.
+// The MCP members' values are the full `mcp__<server>__<tool>` wire strings; each carries its script source as `input.code`.
 export enum ToolName {
     Bash = "Bash",
     Write = "Write",
@@ -47,8 +43,7 @@ export enum ToolName {
     CtxBatchExecute = "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
 }
 
-// Tools that execute a script, so they can change many tracked files with no per-file Write/Edit.
-// Lives here so extraction and the script-execution stage share it without an import cycle.
+// Tools that execute a script, so they change many tracked files with no per-file Write/Edit.
 export const EXECUTOR_TOOL_NAMES = new Set<string>([
     ToolName.Bash,
     ToolName.CtxExecute,
@@ -56,8 +51,7 @@ export const EXECUTOR_TOOL_NAMES = new Set<string>([
     ToolName.CtxBatchExecute,
 ]);
 
-// Discriminant only; per-kind payload fields are deferred (edited_text_file's filename/snippet
-// are read via getAttachmentEntry).
+// Discriminant only; per-kind payload fields are deferred (edited_text_file's filename/snippet are read via getAttachmentEntry).
 export enum AttachmentPayloadType {
     hook_success = "hook_success",
     hook_system_message = "hook_system_message",
@@ -78,8 +72,7 @@ export enum AttachmentPayloadType {
 
 export const ATTACHMENT_PAYLOAD_TYPES: AttachmentPayloadType[] = Object.values(AttachmentPayloadType);
 
-// TS types erase at runtime, so the parse gate and the hydrator share these field-name lists
-// instead of each re-spelling them.
+// TS types erase at runtime, so the parse gate and hydrator share these field-name lists.
 
 // The id-typed envelope fields, hydrated into Uuid by parseRecord.
 export const ENVELOPE_ID_KEYS = ["uuid", "parentUuid", "sessionId"] as const;
@@ -98,11 +91,9 @@ export const ENVELOPE_KEYS = [
     "slug",
 ] as const;
 
-// Not a wire string: this names the reconstruction engine's own event kinds. It lives here so
-// every enum has a single canonical home (coding-requirements §2).
+// Not a wire string: the engine's own event kinds, kept here so every enum has one home.
 
-// The evidence kinds the reconstruction engine replays; scriptExecution is a full-content revision
-// from a recorded run, distinct from `rename`'s path move.
+// Evidence kinds the engine replays; scriptExecution is full content, distinct from `rename`'s path move.
 export enum EventKind {
     write = "write",
     delete = "delete",
@@ -115,8 +106,7 @@ export enum EventKind {
     scriptExecution = "script-execution",
 }
 
-// Step 1's per-line classification: anything not `ignore` is kept, named richly enough that a later
-// stage parses without re-classifying.
+// Step 1's per-line classification: anything not `ignore` is kept, named richly enough that a later stage parses without re-classifying.
 export enum Verdict {
     write = "write",
     edit = "edit",
@@ -131,8 +121,7 @@ export enum Verdict {
 
 export const KNOWN_VERDICTS: Verdict[] = Object.values(Verdict);
 
-// Layered-timeline node classes: beacon = verified full content; preAnchorStub = byteless, display
-// only; presumedUserEdit = an unexplained adjacent-pair diff, since only evidence convicts.
+// Node classes: beacon = verified content; preAnchorStub = byteless; presumedUserEdit = unexplained adjacent-pair diff.
 export enum LayeredNodeKind {
     beacon = "beacon",
     preAnchorStub = "pre-anchor-stub",
@@ -143,8 +132,7 @@ export enum LayeredNodeKind {
 
 export const KNOWN_LAYERED_NODE_KINDS: LayeredNodeKind[] = Object.values(LayeredNodeKind);
 
-// Endpoint matches are necessary but NOT sufficient: a ladder holding unrecoverable revisions has
-// gaps and must not read as a pass.
+// Endpoint matches are necessary but NOT sufficient: a ladder with unrecoverable revisions still has gaps.
 export enum SweepVerdict {
     ok = "ok",
     gaps = "gaps",
@@ -158,15 +146,13 @@ export enum TraceDetailMode {
     full = "full",
 }
 
-// The surviving branch holds the on-disk working tree; a rewound branch forked at a rewind point
-// and was abandoned.
+// The surviving branch holds the on-disk working tree; a rewound branch forked at a rewind point and was abandoned.
 export enum BranchRole {
     surviving = "surviving",
     rewound = "rewound",
 }
 
-// The /api/document payload's discriminant: build it, or first ask the user to consent to running
-// the transcript's scripts.
+// The /api/document payload's discriminant: build it, or first ask the user to consent to running the transcript's scripts.
 export enum DocumentResponseKind {
     document = "document",
     consentRequired = "consent-required",

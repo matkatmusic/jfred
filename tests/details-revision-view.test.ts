@@ -1,5 +1,4 @@
-// Pure view-model tests for the Revision View's focus + range helpers (item 84). Fixtures are
-// wire-shaped literals — what the browser sees after fetch + JSON.parse.
+// Pure view-model tests for the Revision View's focus + range helpers; fixtures are wire-shaped literals from fetch + JSON.parse.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -120,8 +119,7 @@ test("test_computeOwningNodeIndexes_skips_cards_no_node_owns", () => {
 
 test("test_computeOwningNodeIndexes_skips_an_owner_whose_snapshots_are_empty", () => {
     const cards = buildRevisionCards(THREE_REVISION_HISTORY);
-    // computeRangeSummary Math.min()s snapshot step indexes, so an empty-snapshot owner would
-    // yield fromStepIndex=Infinity and send a garbage /api/range-patch request.
+    // computeRangeSummary Math.min()s snapshot step indexes, so an empty-snapshot owner would yield fromStepIndex=Infinity and send a garbage /api/range-patch request.
     assert.deepEqual(computeOwningNodeIndexes(cards, ONE_SNAPSHOT_EMPTY_NODE_OWNING_A_REVISION, [0]), []);
 });
 

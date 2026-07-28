@@ -1,5 +1,4 @@
-// An unexplained diff between adjacent verified states is a presumed user edit; the engine never
-// invents an attribution.
+// An unexplained diff between adjacent verified states is a presumed user edit; the engine never invents an attribution.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

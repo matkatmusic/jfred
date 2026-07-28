@@ -1,7 +1,4 @@
-// The §a cross-source identity join (spec S5a, design plans/166-multi-source-design.md): which
-// same-rel-path files join across roots, the content-agreement gate, and the clone-on-write path
-// remap. Imported one-way by reconstruction_multi_source.ts (250-line cap split), which owns
-// dedupe/interleave/root-resolution and passes the resolved session roots in.
+// §a cross-source identity join: content-agreement gate and clone-on-write path remap.
 
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -11,16 +8,12 @@ import { extractFileEvents } from "./reconstruction_extract.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import { checkJoinContentAgreement, noteJoinedPathConflicts } from "./reconstruction_multi_source_gate.ts";
 
-// The session id off a record's envelope (file-history-snapshot records carry none) — the same
-// cast pattern the sidecar reader uses. Lives here so the module pair's imports stay one-way.
+// Extract sessionId from envelope; lives here to keep module imports one-way.
 export function sessionIdOf(record: TranscriptRecord): Uuid | undefined {
     return (record as { sessionId?: Uuid }).sessionId;
 }
 
-// Recursive copy-on-write walk: every string (and Path) occurrence of `from` becomes `to`;
-// Date/Uuid ride by reference; arrays/objects are rebuilt. MUST never mutate — the input records
-// live in loadProjectRecords' LRU cache, and a later sources-less build of the same transcripts
-// must see the original paths.
+// Recursive COW walk replacing `from` with `to`; never mutates cached input records.
 // ponytail: string-replace also rewrites the path where it appears inside file CONTENT strings;
 // acceptable for path-space coherence, revisit if a ground truth ever embeds a root path in
 // content it wants preserved verbatim.
@@ -48,8 +41,7 @@ function cloneValueReplacingPath(value: unknown, from: string, to: string): unkn
     return value;
 }
 
-// Clone one record with every reference to `fromPath` rewritten to `toPath`, re-stamped with the
-// original's transcript source (a stampless clone would break per-source file-history resolution).
+// Clone record rewriting fromPath to toPath, preserving transcript source stamp.
 export function cloneRecordReplacingPath(record: TranscriptRecord, fromPath: Path, toPath: Path): TranscriptRecord {
     const clone = cloneValueReplacingPath(record, fromPath.toString(), toPath.toString()) as TranscriptRecord;
     const source = getRecordSource(record);
@@ -96,15 +88,13 @@ function collectRelativePathMap(records: TranscriptRecord[], root: string): Map<
     return relativeToAbsolute;
 }
 
-// The first event in the (time-ordered) records referencing the absolute path — the joining
-// source's §a content evidence.
+// The first event in the (time-ordered) records referencing the absolute path — the joining source's §a content evidence.
 function findFirstEventForPath(records: TranscriptRecord[], absolutePath: string): FileEvent | undefined {
     return extractFileEvents(records).find((event) =>
         pathsOfEvent(event).some((eventPath) => eventPath.toString() === absolutePath));
 }
 
-// The distinct session roots in first-appearance order over the merged stream — the earliest
-// root owning a rel-path becomes that file's primary.
+// Session roots in first-appearance order; earliest root owns each rel-path.
 function computeRootOrder(records: TranscriptRecord[], sessionRoots: Map<string, Path>): string[] {
     const rootOrder: string[] = [];
     for (const record of records) {
@@ -117,8 +107,7 @@ function computeRootOrder(records: TranscriptRecord[], sessionRoots: Map<string,
     return rootOrder;
 }
 
-// rel-path -> primary absolute path across every root earlier than laterIndex, earliest owner
-// winning.
+// rel-path -> primary absolute path across every root earlier than laterIndex, earliest owner winning.
 function collectPrimaryPaths(
     records: TranscriptRecord[],
     sessionRoots: Map<string, Path>,
@@ -162,9 +151,7 @@ function remapLaterRootRecords(
     });
 }
 
-// One rel-path's join attempt: gate the later root's first evidence against the primary root's
-// reconstructed state, and remap the later root's records on agreement. Returns the (possibly
-// unchanged) working records.
+// Gate later root's evidence against primary, remap on agreement.
 function tryJoinRelativePath(
     workingRecords: TranscriptRecord[],
     sources: SourceEntry[],
@@ -186,9 +173,7 @@ function tryJoinRelativePath(
         workingRecords, sessionRoots, laterRoot, new Path(laterAbsolute), new Path(primary.absolute));
 }
 
-// §a — join same-rel-path files across roots when their content evidence agrees. A failed gate
-// leaves both path spaces untouched (separate per-root timelines — sibling-repo divergence must
-// never merge).
+// §a — join same-rel-path files across roots when content evidence agrees.
 export function joinCrossSourceFileIdentities(
     records: TranscriptRecord[],
     sources: SourceEntry[],
@@ -210,8 +195,7 @@ export function joinCrossSourceFileIdentities(
     return workingRecords;
 }
 
-// One later root's §a pass: attempt a join for every rel-path it shares with an earlier root,
-// recording each joined primary path into joinedPrimaries.
+// Join every rel-path the later root shares with an earlier root.
 function joinPathsOfLaterRoot(
     workingRecords: TranscriptRecord[],
     sources: SourceEntry[],

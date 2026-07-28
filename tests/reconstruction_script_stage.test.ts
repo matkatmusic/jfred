@@ -30,14 +30,12 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 // A reader with no backups to offer — every pre-state seed comes from the authored Writes.
 const emptyReader: BackupReader = () => "";
 
-// test_runForTarget_matches_a_run_that_touches_the_target_without_naming_it: moved to
-// tests/reconstruction_script_probe.test.ts (task 192 — runForTarget's new module home).
+// test_runForTarget_matches_a_run_that_touches_the_target_without_naming_it: moved to tests/reconstruction_script_probe.test.ts (task 192 — runForTarget's new module home).
 
 const COMMENT = "# names normalized via rename script";
 
 function reconstructLedger() {
-    // Task 165: loadTranscript stamps each record's on-disk SOURCE, which the reader needs to
-    // find the captured sidecars — source-less records fall back to live ~/.claude/file-history.
+    // Task 165: the reader needs each record's on-disk source to find sidecars; source-less records fall back to live file-history.
     const records = jsonlPathsForScenario("s37").flatMap((path) => loadTranscript(path.toString()).records);
     const reader = buildSidecarReader(records)!;
     const histories = reconstructAll(records, reader);
@@ -81,8 +79,7 @@ test("test_beaconlessScriptExecution_injects_a_birth_for_a_script_created_file",
 });
 
 test("test_beaconlessScriptExecution_chains_a_later_run_over_a_script_created_file", () => {
-    // The chained gate must inject BOTH the birth and the later rewrite, even though run 2's own
-    // sandbox never contained the script-born file.
+    // The chained gate must inject both the birth and the rewrite, though run 2's sandbox never held the script-born file.
     const moveScript = 'import shutil\nshutil.move("one.py", "core_one.py")\n';
     const renameScript = 'import glob\nfor p in glob.glob("core_*.py"):\n'
         + '    text = open(p).read()\n'
@@ -98,9 +95,7 @@ test("test_beaconlessScriptExecution_chains_a_later_run_over_a_script_created_fi
     assert.ok((events[1] as { content: string }).content.includes("def alpha(x):"));
 });
 
-// C5c/C7 — the engine COMPUTES the post-script content rather than splicing a backup, so the
-// revision carries every rename (including the `tot_*` subs from the run-time CSV) but not the
-// out-of-band comment.
+// C5c/C7 — the engine computes post-script content rather than splicing a backup, so renames apply but stray comments do not.
 test("test_s37_ledger_has_a_script_execution_revision_renamed_without_the_comment", () => {
     const ledger = reconstructLedger();
     const scriptRev = ledger.revisions.find(
@@ -115,8 +110,7 @@ test("test_s37_ledger_has_a_script_execution_revision_renamed_without_the_commen
 });
 
 test("test_injectScriptExecutions_stamps_the_same_changeId_across_replays", () => {
-    // The two replays call the stage independently, so the synthetic event must carry the same
-    // changeId both times or their events never join (TASKS.md item 34).
+    // Both replays call the stage independently, so the synthetic event must carry the same changeId or their events never join.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -134,8 +128,7 @@ test("test_injectScriptExecutions_stamps_the_same_changeId_across_replays", () =
 });
 
 test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
-    // An analysis run with no write primitive must not spawn a sandbox; it memoizes as
-    // { pre: empty, post: undefined } (TASKS.md item 68).
+    // An analysis run with no write primitive must not spawn a sandbox; it memoizes as empty pre, undefined post.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/ledger.py", content: "def add(): pass\n" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print(len(open("ledger.py").read()))\n' }, "2026-01-01T00:00:02Z"),
@@ -158,8 +151,7 @@ test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
 });
 
 
-// Task 191 follow-up: the label shows the windowed count AGAINST the total pool, so a watcher can
-// see how close the advancing replay window is to the dataset's full run count.
+// Task 191 follow-up: the label shows the windowed count against the total pool, so a watcher sees replay progress.
 test("test_script_stage_label_shows_windowed_count_of_total", () => {
     assert.equal(
         formatScriptStageLabel(3, 10, new Path("/tmp/x.py")),

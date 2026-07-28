@@ -14,8 +14,7 @@ import {
 
 // --- renderDiffWithContext: the webapp diff text (unified hunks + context) ----
 
-// A 10-line create, then an edit replacing only line 5 — enough surrounding lines
-// that the 3-line context window excludes the file's head and tail.
+// A 10-line create, then an edit replacing only line 5 — enough surrounding lines that the 3-line context window excludes the file's head and tail.
 function createLongFileThenEditMiddle(): FileRevision[] {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");
@@ -36,16 +35,14 @@ function createLongFileThenEditMiddle(): FileRevision[] {
 }
 
 test("test_context_diff_keeps_revision_kind_header_per_block", () => {
-    // Scenario: each revision still opens with its human-oriented kind header (the client's
-    // per-revision block delimiter), before any numeric hunks.
+    // Scenario: each revision still opens with its human-oriented kind header (the client's per-revision block delimiter), before any numeric hunks.
     const out = renderDiffWithContext(createLongFileThenEditMiddle());
     assert.ok(out.includes("@@ created @ 2026-01-01T00:00:00.000Z @@"));
     assert.ok(out.includes("@@ changed @ 2026-01-01T00:01:00.000Z @@"));
 });
 
 test("test_context_diff_surrounds_a_middle_change_with_three_context_lines", () => {
-    // Scenario: a change in the middle of a 10-line file gets a standard unified hunk with
-    // 3 unchanged lines above and below, 1-based line numbers in the header.
+    // Scenario: a change in the middle of a 10-line file gets a standard unified hunk with 3 unchanged lines above and below, 1-based line numbers in the header.
     const out = renderDiffWithContext(createLongFileThenEditMiddle());
     // the hunk spans old lines 2-8 (context 2,3,4 + change at 5 + context 6,7,8).
     assert.ok(out.includes("@@ -2,7 +2,7 @@"));
@@ -62,9 +59,7 @@ test("test_context_diff_surrounds_a_middle_change_with_three_context_lines", () 
 });
 
 test("test_context_diff_full_context_shows_lines_the_default_omits", () => {
-    // Scenario: the same middle-of-a-10-line-file edit, rendered with fullContext=true.
-    // Full context widens the hunk to the whole file, so the head (line 1) and tail
-    // (line 10) the default ±3 window drops are now present as context body lines.
+    // Scenario: the same middle-of-a-10-line-file edit, rendered with fullContext=true.  Full context widens the hunk to the whole file, so the head (line 1) and tail (line 10) the default ±3 window drops are now present as context body lines.
     const defaultText = renderDiffWithContext(createLongFileThenEditMiddle());
     const fullText = renderDiffWithContext(createLongFileThenEditMiddle(), true);
     // The default block drops the distant head/tail.
@@ -88,8 +83,7 @@ test("test_context_diff_renders_a_creation_as_one_all_addition_hunk", () => {
 });
 
 test("test_context_diff_splits_far_apart_changes_into_separate_hunks", () => {
-    // Scenario: two changes more than 2*3 lines apart in a 20-line file produce two numeric
-    // hunks under one revision header.
+    // Scenario: two changes more than 2*3 lines apart in a 20-line file produce two numeric hunks under one revision header.
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");
     const originalLines = Array.from({ length: 20 }, (_, index) => `row ${index + 1}`);
