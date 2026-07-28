@@ -155,3 +155,4 @@ __pycache__/
 
 # task 56: repo extracted at `npm run demo:baseline` time — the committed artifact is repo.git.tar
 demo-baseline/projects/baseline-demo/repo/
+scripts/visual/out/
