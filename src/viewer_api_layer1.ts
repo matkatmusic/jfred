@@ -54,6 +54,8 @@ export interface Layer1WirePair {
     path: Path;
     commits: Layer1WireCommit[];
     onDisk: Layer1WireInstant;
+    // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
+    created?: Layer1WireInstant;
 }
 
 // One bucket row: a path and the single instant that places it.
@@ -96,8 +98,22 @@ function reportStage(reportProgress: ProgressSink, label: string, current?: numb
 // fixed padding and consume no ruler, so these node rows are the whole of what task 251 measures,
 // and the ruler is charged for exactly them. Order is load-bearing twice over: it decides which
 // tied node takes the upper row, and it makes the returned offsets readable positionally below.
+// The file's birth, or none when it cannot be believed. A birth LATER than the file's own first
+// commit is a checkout or copy time — the file demonstrably existed before then — and drawing it
+// would put a `created at` node part-way down the bubble instead of at its top (user, 2026-07-27).
+// Every clone reports this: `git clone` stamps today's birthtime on files committed years ago.
+function readPairCreatedInstant(pair: PairHistory): Instant | undefined {
+    const created = pair.file.createdAt;
+    const firstCommit = pair.commits[0]?.instant;
+    if (created === undefined || (firstCommit !== undefined && created.getTime() > firstCommit.getTime())) {
+        return undefined;
+    }
+    return created;
+}
+
 function listPairNodeLadder(pair: PairHistory): NodeLadder {
-    return [...pair.commits.map((commit) => commit.instant), pair.file.mtime];
+    const created = readPairCreatedInstant(pair);
+    return [...(created === undefined ? [] : [created]), ...pair.commits.map((commit) => commit.instant), pair.file.mtime];
 }
 
 // One pair on the wire, its nodes taking the offsets the layout measured for THIS pair's ladder.
@@ -105,12 +121,15 @@ function listPairNodeLadder(pair: PairHistory): NodeLadder {
 // the same oldest-first order and the on-disk node is the last entry — by construction, not by a
 // lookup, which is what lets two nodes sharing an instant come back on different rows.
 function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer1WirePair {
+    const created = readPairCreatedInstant(pair);
+    const firstCommit = created === undefined ? 0 : 1;
     return {
         path: pair.file.relativePath,
+        ...(created === undefined ? {} : { created: { instant: created, axisPx: nodeOffsetsPx[0]! } }),
         commits: pair.commits.map((commit, node) => ({
             hash: commit.hash,
             instant: commit.instant,
-            axisPx: nodeOffsetsPx[node]!,
+            axisPx: nodeOffsetsPx[firstCommit + node]!,
         })),
         onDisk: { instant: pair.file.mtime, axisPx: nodeOffsetsPx.at(-1)! },
     };

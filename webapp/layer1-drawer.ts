@@ -82,10 +82,9 @@ async function openNodeDrawer(node: HTMLElement): Promise<void> {
 export function wireNodeDrawer(): void {
     getRequiredElementById("stage").addEventListener("click", (event) => {
         const node = findClickedNode(event.target as HTMLElement);
-        // Every n-commit node and every n-disk node opens the drawer: Layer 1 draws exactly ONE
-        // on-disk node per pair, so the task's "only the LATEST disk node is clickable" caveat is
-        // about a created-at node this layer does not draw — there is nothing to gate here yet.
-        if (node === undefined) {
+        // Task 298: a `created at` node is drawn only when the birth PRE-DATES the mtime, so it is
+        // never the latest on-disk state and there are no bytes to show for it.
+        if (node === undefined || node.classList.contains("n-created")) {
             return;
         }
         void openNodeDrawer(node);

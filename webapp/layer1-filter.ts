@@ -22,7 +22,8 @@ function readWireInstant(text: string): Date {
 // node. Identical to src/viewer_api_layer1.ts's listPairNodeLadder, over the wire's shapes rather
 // than the domain's — the order is load-bearing, because the offsets come back positionally.
 function listWirePairLadder(pair: WirePair): NodeLadder {
-    return [...pair.commits.map((commit) => commit.instant), pair.onDisk.instant].map(readWireInstant);
+    const created = pair.created === undefined ? [] : [pair.created.instant];
+    return [...created, ...pair.commits.map((commit) => commit.instant), pair.onDisk.instant].map(readWireInstant);
 }
 
 // A node re-placed: same instant, new offset. Spreading the node keeps `hash` on a commit without
@@ -48,9 +49,13 @@ function placeOrphanOnAxis(tickOffsetsPx: Map<number, number>, orphan: WireOrpha
 // the on-disk node is the last entry — by construction, which is what lets two nodes sharing an
 // instant come back on different rows.
 function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair {
+    const firstCommit = pair.created === undefined ? 0 : 1;
     return {
         ...pair,
-        commits: pair.commits.map((commit: WireCommit, node) => placeNodeAtPixels(commit, nodeOffsetsPx[node]!)),
+        // Spread conditionally: a `created: undefined` KEY is not the same as an absent one to a
+        // deep-equality check, and the unfiltered view omits it entirely.
+        ...(pair.created === undefined ? {} : { created: placeNodeAtPixels(pair.created, nodeOffsetsPx[0]!) }),
+        commits: pair.commits.map((commit: WireCommit, node) => placeNodeAtPixels(commit, nodeOffsetsPx[firstCommit + node]!)),
         onDisk: placeNodeAtPixels(pair.onDisk, nodeOffsetsPx.at(-1)!),
     };
 }

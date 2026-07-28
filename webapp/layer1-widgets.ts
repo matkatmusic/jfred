@@ -14,6 +14,9 @@ import type { WireOrphan, WirePair } from "./layer1-wire.ts";
 // than a widget, which is most of the overprinting in the reported screenshot.
 const SHORT_HASH_LENGTH = 8;
 
+// Task 257's rule, on the inert node itself (mockup 955-971).
+export const CREATED_NODE_TITLE = "created-at is not the latest on-disk state — nothing to show";
+
 // Hand CSS one finished ruler offset. Every placement rule still lives in layer1-styles.css — this
 // is the only value JS contributes to layout.
 export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
@@ -44,7 +47,7 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     // The ladder in wire order — commits oldest-first, on-disk last (src/viewer_api_layer1.ts's
     // listPairNodeLadder). Held whole rather than just its offsets so task 259 can read the
     // instants back off it and group the nodes that share one.
-    const ladder = [...pair.commits, pair.onDisk];
+    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk];
     const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
@@ -52,6 +55,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     // Task 259's markers go in BEFORE the nodes: neither carries a z-index, so DOM order is what
     // keeps the rectangle behind the dots and their labels (`.node`'s own z-index: 6 is above both).
     lane.append(el("div", { class: "lrail" }), ...buildTieGroupMarkers(ladder, startPx));
+    if (pair.created !== undefined) {
+        appendAxisNode(lane, pair.created.axisPx - startPx, "n-disk n-created", "created at", CREATED_NODE_TITLE);
+    }
     for (const commit of pair.commits) {
         // Short label, full hash on hover — see SHORT_HASH_LENGTH.
         appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);

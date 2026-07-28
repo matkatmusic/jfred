@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
@@ -125,11 +125,23 @@ test("test_walkCurrentFileState_reports_tracked_and_untracked_files_but_not_igno
 });
 
 test("test_walkCurrentFileState_reports_the_files_mtime", () => {
-    // Scenario: each entry carries the file's mtime as a Date (the Layer-1 timestamp; birthtime
-    // is deliberately never read).
+    // Scenario: each entry carries the file's mtime as a Date — the Layer-1 timestamp.
     const root = makeFixtureFolder();
     const readme = walkCurrentFileState(new Path(root)).find((file) => file.relativePath.toString() === "README.md");
     assert.ok(readme !== undefined);
     assert.ok(readme.mtime instanceof Date);
     assert.equal(readme.mtime.getTime(), statSync(join(root, "README.md")).mtime.getTime());
+});
+
+// Task 298: `createdAt` is the birth instant, believed ONLY when it precedes the mtime.
+test("test_walkCurrentFileState_reports_createdAt_only_when_the_birth_precedes_the_mtime", () => {
+    const root = makeFixtureFolder();
+    const born = statSync(join(root, "README.md")).birthtime;
+    utimesSync(join(root, "README.md"), born, new Date(born.getTime() + 60_000));
+    utimesSync(join(root, "src/app.ts"), born, new Date(born.getTime() - 60_000));
+    const walked = walkCurrentFileState(new Path(root));
+    const modifiedLater = walked.find((file) => file.relativePath.toString() === "README.md");
+    const modifiedEarlier = walked.find((file) => file.relativePath.toString() === "src/app.ts");
+    assert.equal(modifiedLater?.createdAt?.getTime(), born.getTime());
+    assert.equal(modifiedEarlier?.createdAt, undefined);
 });

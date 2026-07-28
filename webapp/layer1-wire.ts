@@ -27,6 +27,8 @@ export interface WirePair {
     // Oldest first, as the endpoint emits them.
     commits: WireCommit[];
     onDisk: WireInstant;
+    // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
+    created?: WireInstant;
 }
 
 export interface WireOrphan extends WireInstant {

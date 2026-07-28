@@ -1,6 +1,6 @@
 // Layer 1 on-disk file walk (task 230, spec S18): the `current file state` — every file under
 // the project folder, path relative to that folder, with its mtime. mtime is the Layer-1
-// timestamp everywhere (S18: birthtime is not portable, so it is never read). `.git` and
+// timestamp everywhere; birthtime is read only when trustworthy (task 298, readCreatedInstant). `.git` and
 // `node_modules` are excluded unconditionally; ignored paths are honored — a folder the user
 // points at may legitimately have no .gitignore, which is not an error.
 //
@@ -17,10 +17,18 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
 
-// One file on disk: its path relative to the project folder, and its mtime.
+// One file on disk: its path relative to the project folder, and its timestamps.
 export interface DiskFileState {
     relativePath: Path;
     mtime: Date;
+    createdAt?: Date;
+}
+
+// macOS/APFS records a real birthtime; ext4 frequently reports epoch 0 or echoes the mtime, and a
+// copied file can claim a birth LATER than its mtime. Each of those yields no created node.
+function readCreatedInstant(stats: { birthtime: Date; mtime: Date }): Date | undefined {
+    const birth = stats.birthtime.getTime();
+    return birth > 0 && birth < stats.mtime.getTime() ? stats.birthtime : undefined;
 }
 
 // Never walked, with or without a .gitignore (S18).
@@ -109,7 +117,8 @@ function collectFolderFiles(projectFolder: Path, relativeFolder: string, rules: 
         if (!entry.isFile()) {
             continue;
         }
-        found.push({ relativePath: new Path(relativePath), mtime: statSync(join(absoluteFolder, entry.name)).mtime });
+        const stats = statSync(join(absoluteFolder, entry.name));
+        found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, createdAt: readCreatedInstant(stats) });
     }
 }
 
@@ -151,7 +160,7 @@ function statWorkingTreePaths(projectFolder: Path, relativePaths: string[]): Dis
         }
         const stats = statSync(join(projectFolder.toString(), relativePath), { throwIfNoEntry: false });
         if (stats?.isFile() === true) {
-            found.push({ relativePath: new Path(relativePath), mtime: stats.mtime });
+            found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, createdAt: readCreatedInstant(stats) });
         }
     }
     return found;
