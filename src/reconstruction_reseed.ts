@@ -1,16 +1,6 @@
-// Backup-driven event-list transforms for the STALE-EDIT-BASE family: rewrite a file's reconstructed
-// event list using content recovered from the file-history sidecar, BEFORE replay. Reader-only (the
-// caller guards on `reader`, so reader-free reconstruction is byte-for-byte untouched):
-//   - seedStaleEditBases: splice a synthetic Write before a MID-stream Edit whose reconstructed base
-//     drifted from the disk it was computed against. Two disjoint triggers:
-//       * a STALE hunk-context base (spec 39 generalised to s19/s23/m6) — the edit's hunk context no
-//         longer matches the reconstructed base, so it would splice onto wrong lines; or
-//       * an OUT-OF-WINDOW uncaptured manual change (s34) — the hunk context still matches, but the real
-//         pre-edit disk carried a trailing append (NO beacon, NO tool_use) outside the hunk window,
-//         recovered by content from the at/before backup and forward-validated (never fabricated).
-// The beacon-completion family (completeTruncatedBeacon / completeElidedBeacons, s27/s28) lives in
-// reconstruction_beacons.ts — split, never condense, to keep both files within the 250-line cap.
-// Design: plans/s27/…, plans/s28/…, plans/s34/s34-reconstruction-plan.md §"The fix".
+// Backup-driven event-list transforms for the STALE-EDIT-BASE family: splice a synthetic Write before
+// a mid-stream Edit whose reconstructed base drifted from the disk it was computed against. Reader-only,
+// so reader-free reconstruction is byte-for-byte untouched. Design: plans/s34/s34-reconstruction-plan.md.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
@@ -23,19 +13,15 @@ import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_engine.ts";
 
-// --- stale mid-stream edit bases (s19 / s23) -------------------------------------------------------
 
-// The reconstructed base text (each line's latest value) the events before an edit produce.
 function reconstructedBaseText(priorEvents: FileEvent[]): string[] {
     return lastLinesOf(replayEvents(priorEvents)).map(
         (entry) => entry.values[entry.values.length - 1]!.line,
     );
 }
 
-// Whether an edit's first hunk splices cleanly onto `base`: each context/removed line must equal the base
-// line at its position; a mismatch — or a position past the base — means it lands on wrong lines. Shared
-// by editBaseIsStale (the hunk-context staleness test) and outOfWindowEditSeed (forward-validation that a
-// candidate backup is the real pre-edit disk state, not a poison/wrong blob).
+// A mismatch — or a position past the base — means the hunk would land on wrong lines; also used as
+// forward-validation that a candidate backup is the real pre-edit disk, not a poison blob.
 function firstHunkMatchesBase(event: EditEvent, base: string[]): boolean {
     const firstHunk = event.hunks[0];
     if (firstHunk === undefined) {
@@ -54,15 +40,11 @@ function firstHunkMatchesBase(event: EditEvent, base: string[]): boolean {
     return true;
 }
 
-// Whether an edit's first hunk references base content the events before it did NOT reconstruct: the hunk
-// splices onto wrong lines, so the base is reseeded from the backup. Generalises s19 (base too SHORT) to
-// s23 (a user edit absorbed only into the post-code-rewind backup; same length).
+// Generalises s19 (base too SHORT) to s23 (a user edit absorbed only into the post-rewind backup).
 function editBaseIsStale(event: EditEvent, priorEvents: FileEvent[]): boolean {
     return !firstHunkMatchesBase(event, reconstructedBaseText(priorEvents));
 }
 
-// The latest timestamp among `priorEvents` that touch `target` — the moment of the last state the engine
-// already captured for the file. undefined when the file has no prior event on this lineage.
 function lastPriorTimeFor(target: Path, priorEvents: FileEvent[]): Date | undefined {
     let latest: Date | undefined;
     for (const event of priorEvents) {
@@ -76,20 +58,12 @@ function lastPriorTimeFor(target: Path, priorEvents: FileEvent[]): Date | undefi
     return latest;
 }
 
-// A synthetic Write of an edit's literal pre-edit content (its result's `originalFile`), or undefined when
-// the result omitted it. This is the exact pre-edit disk — used to recover an out-of-hunk-window trailing
-// append the reconstructed base missed (s40: the user's "# reviewed by ops" line). The changeId is
-// synthetic so the seed stays out of the graphs (spec 40); the timestamp is the edit's, which
-// clampSeedBetweenPreviousAndEdit pulls to just before the edit when this seed is used.
-// The changeId prefix stamped onto an `originalFile` reseed Write (see originalFileSeedFor). Synthetic,
-// so the seed stays out of the graphs; exported so consumers that must UN-wrap it back to the real edit
-// changeId (reconstruction_json's session attribution) share this one literal.
+// Synthetic prefix keeps an `originalFile` reseed Write out of the graphs; exported so consumers that
+// un-wrap it back to the real edit changeId (session attribution) share this one literal.
 export const ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX = "originalFile:";
 
 function originalFileSeedFor(event: EditEvent): WriteEvent | undefined {
-    // `== null` catches both the absent field (scenarios) and a literal null (real Edit results record
-    // originalFile as null when there is no pre-edit content); either way there is nothing to seed from,
-    // so return undefined rather than build a seed with null content (which crashes splitLines).
+    // `== null` catches both the absent field and a literal null; a seed with null content crashes splitLines.
     if (event.originalFile == null) {
         return undefined;
     }
@@ -102,13 +76,8 @@ function originalFileSeedFor(event: EditEvent): WriteEvent | undefined {
     };
 }
 
-// s34: an Edit whose hunk context matches the reconstructed base (so editBaseIsStale is FALSE) but whose
-// real pre-edit disk state carried an UNCAPTURED manual change OUTSIDE the hunk window (a trailing append
-// left no `edited_text_file` beacon and no tool_use). The drift is invisible to the hunk-context test, so
-// detect it by content: a file-history backup taken AFTER the last captured event yet AT/BEFORE the edit,
-// whose content differs from the reconstructed base AND onto which the hunk still splices cleanly
-// (forward-validation — a wrong/poison backup is rejected, never fabricated). Returns that backup as the
-// synthetic reseed Write, else undefined.
+// s34: an uncaptured manual change OUTSIDE the hunk window is invisible to the hunk-context test, so it
+// is detected by content and forward-validated — a wrong/poison backup is rejected, never fabricated.
 function outOfWindowEditSeed(
     records: TranscriptRecord[],
     event: EditEvent,
@@ -116,15 +85,9 @@ function outOfWindowEditSeed(
     reader: BackupReader,
 ): WriteEvent | undefined {
     const base = reconstructedBaseText(priorEvents);
-    // Two sources for the real pre-edit disk, each forward-validated the same way (the candidate must
-    // EXTEND the reconstructed base by a trailing append — base is its prefix — AND the hunk must still
-    // splice cleanly; a mid-file divergence is a STALE older version, s70, and is rejected, never
-    // fabricated). The at/before file-history backup (s34: the uncaptured append predates the edit), then
-    // the edit's OWN `originalFile` — the literal pre-edit content (s40: the user's "# reviewed by ops"
-    // append was snapshotted 46ms AFTER the subtotal Edit, so no at/before backup holds it, but the edit
-    // result records the exact pre-edit file). originalFile is exact, so it cannot false-match a later
-    // backup the way a strictly-after backup would. clampSeedBetweenPreviousAndEdit re-times it to before the
-    // edit, so the recovered append becomes its own revision (s40 step-4) and the edit replays on it (step-5).
+    // Both candidates must EXTEND the base by a trailing append AND still splice cleanly; a mid-file
+    // divergence is a stale older version (s70) and is rejected. The at/before backup covers s34; the
+    // edit's own `originalFile` covers s40, where the append was snapshotted after the Edit.
     const backup = backupSeedWriteFor(records, event.target, event.timestamp, reader);
     const original = originalFileSeedFor(event);
     for (const seed of [backup, original]) {
@@ -144,11 +107,8 @@ function outOfWindowEditSeed(
     return undefined;
 }
 
-// The pre-edit base recovered by reversing `event` off its after-backup, forward-validated: the reversed
-// base must be a clean splice target for the edit's first hunk, else the after-backup is the wrong blob and
-// we fall through. Recovers s28's renamed-no-preview catalog_view.py, which exists in no standalone backup
-// (the at-or-before backup is the pre-rename version, and the only full post-rename content is the
-// after-backup carrying the preview Edit). Reader-only; never fabricated.
+// Recovers s28's renamed-no-preview base, which exists in no standalone backup; the reversed base must
+// splice cleanly or the after-backup is the wrong blob and we fall through.
 function reversedEditBaseSeed(
     records: TranscriptRecord[],
     event: EditEvent,

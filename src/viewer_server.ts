@@ -1,6 +1,5 @@
-// Thin HTTP wiring over viewer_api.ts — the localhost app (`npm run app`). Binds 127.0.0.1
-// ONLY: this is a debugging surface for the user's own machine, never exposed. All logic lives
-// in viewer_api.ts; this file only parses requests, dispatches, and serializes responses.
+// Thin HTTP wiring over viewer_api.ts (`npm run app`). Binds 127.0.0.1 ONLY: a debugging surface
+// for the user's own machine, never exposed. All logic lives in viewer_api.ts.
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
@@ -43,9 +42,8 @@ import { Path, Uuid } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-// A fresh stamp per process launch, handed to the client via GET /api/config: when it changes the
-// client knows the server was relaunched and drops its remembered script-consent choices, which
-// otherwise survive in the browser's per-tab sessionStorage. A launch nonce, so a plain string.
+// A change tells the client the server relaunched, so it drops the script-consent choices that
+// otherwise survive in the browser's per-tab sessionStorage.
 const SERVER_BOOT_ID = randomUUID();
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(import.meta.dirname, "..", "webapp", "dist");
@@ -61,16 +59,14 @@ const CONTENT_TYPES: Record<string, string> = {
 
 const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--resetSandboxMemo] [--resetDocumentCache]";
 
-// Parse the flags USAGE lists: `--projects-dir` is MANDATORY (there is no default scan root),
-// `--port` defaults to 7343, `--file-history-dir` to the item-46 derivation chain, and the two
-// reset flags delete the disk sandbox memo / document cache (item 79) before load.
+// `--projects-dir` is MANDATORY: there is no default scan root.
 function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean } {
     const dirIndex = argv.indexOf("--projects-dir");
     if (dirIndex < 0 || argv[dirIndex + 1] === undefined) {
         throw new Error(USAGE);
     }
     setProjectsDir(argv[dirIndex + 1]!);
-    // item 46: after --projects-dir, so an explicit dir survives the folder switch's reset.
+    // Item 46: after --projects-dir, so an explicit dir survives the folder switch's reset.
     const fileHistoryIndex = argv.indexOf("--file-history-dir");
     if (fileHistoryIndex >= 0 && argv[fileHistoryIndex + 1] !== undefined) {
         setFileHistoryDir(argv[fileHistoryIndex + 1]!);
@@ -87,8 +83,7 @@ function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: bool
     };
 }
 
-// Serve `/`, `/webapp_old.html` (the pre-redesign page, task 204), and `/app/*` from
-// webapp/dist/ then webapp/, refusing any resolved path outside those roots.
+// Serves from webapp/dist/ then webapp/, refusing any resolved path outside those roots.
 function serveStaticFile(response: ServerResponse, urlPath: string): void {
     const relative = computeStaticFileRelative(urlPath);
     const resolved = realpathSync(resolveStaticFilePath(relative, WEBAPP_DIST_DIR, WEBAPP_DIR));
@@ -102,10 +97,8 @@ function serveStaticFile(response: ServerResponse, urlPath: string): void {
     sendText(response, 200, readFileSync(resolved, "utf8"), contentType);
 }
 
-// POST /api/config — switch the scan root and/or the file-history root at runtime. Existence
-// validation only: these are typed/pasted paths from the UI of a localhost app on the user's
-// own machine. Order matters: the projects switch clears the file-history override (item 46's
-// re-derive-on-switch), so an explicit fileHistoryDir in the SAME body is applied after it.
+// Order matters: the projects switch clears the file-history override (item 46), so an explicit
+// fileHistoryDir in the SAME body must be applied after it.
 function applyConfigUpdate(response: ServerResponse, body: string): void {
     const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
     if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
@@ -184,7 +177,7 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
         } else if (url.pathname === "/api/layered-graph") {
             handleLayeredGraphRequest(response, url.searchParams);
         } else if (dispatchLayer1Route(request, response, url)) {
-            // Handled by the Layer 1 group (viewer_server_layer1_routes.ts); nothing more to do.
+            // Handled by viewer_server_layer1_routes.ts.
         } else if (url.pathname === "/api/file-ladder") {
             handleFileLadderRequest(response, url.searchParams);
         } else if (url.pathname === "/api/document") {
@@ -192,8 +185,7 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
         } else if (url.pathname === "/api/raw") {
             serveRawTranscript(response, url.searchParams);
         } else if (url.pathname === "/api/blob") {
-            // Always 200 + { exists, content } — the client branches on `exists`; a malformed
-            // name throws into the outer catch (400) like every other trust-boundary refusal.
+            // Always 200 + { exists, content }: the client branches on `exists`.
             const session = new Uuid(requireParam(url.searchParams, "session"));
             const name = new Path(requireParam(url.searchParams, "name"));
             sendJson(response, 200, readBlobSnapshot(session, name));
@@ -216,27 +208,24 @@ function handleRequest(request: IncomingMessage, response: ServerResponse): void
 const { port, resetSandboxMemo, resetDocumentCache } = parseServerArgs(process.argv.slice(2));
 // App posture: impure stages OFF until a consented build turns them on for its own duration.
 setImpureExecutionAllowed(false);
-// Item 11: only the viewer app opts in to the disk-backed sandbox memo — restarts stop
-// re-paying a spawn per distinct python run (CLI + tests stay memory-only).
+// Item 11: only the viewer opts in to the disk-backed memo, so restarts stop re-paying a spawn
+// per distinct python run; CLI and tests stay memory-only.
 const sandboxMemoPath = new Path(join(import.meta.dirname, "..", ".cache", "sandbox-memo.json"));
-// --resetSandboxMemo: delete the memo BEFORE configuring persistence (which loads it), so this run
-// starts empty and reconstructs everything from scratch — a forced cold load for measurement.
+// Delete BEFORE configuring persistence, which loads it — a forced cold load for measurement.
 if (resetSandboxMemo) {
     resetSandboxMemoOnDisk(sandboxMemoPath);
 }
 configureSandboxMemoPersistence(sandboxMemoPath);
-// Item 79: opt in to the disk-backed built-document cache so a respawn reads back the ~87 MB / 7.8 min
-// reconstruction instead of rebuilding it (CLI + tests stay memory-only).
+// Item 79: a respawn reads back the ~87 MB / 7.8 min reconstruction instead of rebuilding it.
 const documentCacheDir = new Path(join(import.meta.dirname, "..", ".cache", "built-documents"));
-// --resetDocumentCache: delete the cache dir BEFORE configuring, for a forced cold rebuild.
+// Delete the cache dir BEFORE configuring, for a forced cold rebuild.
 if (resetDocumentCache) {
     resetDocumentCacheOnDisk(documentCacheDir);
 }
 configureDocumentCachePersistence(documentCacheDir);
 const server = createServer(handleRequest);
-// A cold non-streaming /api/document build can exceed Node's default ~300s request timeout,
-// which closes the socket mid-build; the eventual sendJson then throws ERR_HTTP_HEADERS_SENT
-// uncaught and kills the process. Localhost-only single-user server — no slow-client risk.
+// A cold /api/document build can exceed Node's default ~300s timeout, closing the socket mid-build
+// so the eventual sendJson throws ERR_HTTP_HEADERS_SENT and kills the process.
 server.requestTimeout = 0;
 server.listen(port, "127.0.0.1", () => {
     console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);

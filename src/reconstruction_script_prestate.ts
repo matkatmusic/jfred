@@ -1,6 +1,4 @@
-// Script-execution replay, pre-execution analysis: the static read-only gate (TASKS.md item 68)
-// and the pre-execution file-state seeding for a run. Run detection lives in
-// reconstruction_script_execution.ts; the sandbox itself in reconstruction_script_sandbox.ts.
+// The static read-only gate (TASKS.md item 68) plus pre-execution file-state seeding for a run.
 
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
@@ -29,7 +27,6 @@ import {
     incrementReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
-// --- static read-only detection (TASKS.md item 68) --------------------------------------------------
 
 // Python stdlib roots a read-only analysis script may import without becoming a writer. Any
 // other import marks the script may-write: a seeded local module can run write code at import
@@ -105,7 +102,6 @@ export function scriptCodeMayWriteFiles(code: string): boolean {
     return false;
 }
 
-// The absolute path of the tracked file whose basename matches `basename`, from any tool_use block.
 function resolvePathByBasename(records: TranscriptRecord[], basename: string): Path | undefined {
     for (const record of records) {
         for (const block of getContentBlocks(record)) {
@@ -117,7 +113,6 @@ function resolvePathByBasename(records: TranscriptRecord[], basename: string): P
     return undefined;
 }
 
-// --- pre-execution state ----------------------------------------------------------------------------
 
 // All file-path-like quoted strings in the script source (e.g. "billing.py", "renames.csv").
 export function parseScriptFileRefs(code: string): string[] {
@@ -125,12 +120,11 @@ export function parseScriptFileRefs(code: string): string[] {
     return [...new Set(matches.map((m) => m.slice(1, -1)))];
 }
 
-// A callback that returns a file's reconstructed content just before `before`, or undefined
-// when the lineage has no revision strictly before that instant.
+// Undefined when the lineage has no revision strictly before that instant.
 export type LineageContentBefore = (target: Path, before: Date) => string | undefined;
 
-// The name the script uses for this file from the run's cwd: the cwd-relative path when the
-// file lives under cwd (preserving subdirectories like "tests/"), else the flat basename.
+// The name the script itself uses: cwd-relative when the file lives under cwd (so subdirectories
+// survive), else the flat basename.
 export function computeScriptStateKey(filePath: Path, runCwd: Path | undefined): string {
     if (runCwd !== undefined) {
         const cwdRelativePath = relative(runCwd.toString(), filePath.toString());
@@ -141,9 +135,8 @@ export function computeScriptStateKey(filePath: Path, runCwd: Path | undefined):
     return pathBasename(filePath.toString());
 }
 
-// The pre-execution state of every file the run could touch, keyed by the path the script uses
-// from its cwd: every file Written before the run (at its rename-resolved current name), plus any
-// file the script source references that only a backup knows.
+// Every file Written before the run at its rename-resolved current name, plus any file the script
+// references that only a backup knows, keyed by the name the script uses from its cwd.
 export function getPreExecutionState(
     run: ScriptRun,
     records: TranscriptRecord[],
@@ -155,10 +148,8 @@ export function getPreExecutionState(
     const events = extractFileEvents(records);
     const renameChain = buildRenameChain(events);
     const state = new Map<string, string>();
-    // task 192 Phase 3: collect each CURRENT path's LAST eligible authored Write first, then
-    // resolve content ONCE per path. The delete+set on replace keeps the map's iteration
-    // order equal to each path's final-Write order, so two current paths collapsing to one
-    // computeScriptStateKey keep the exact winner the per-event walk produced.
+    // Task 192 Phase 3: the delete+set on replace keeps iteration order equal to each path's
+    // final-Write order, so two paths collapsing to one state key keep the same winner.
     const latestWritesByCurrentPath = new Map<string, { currentPath: Path; write: WriteEvent }>();
     for (const event of events) {
         if (event.kind !== EventKind.write) continue;

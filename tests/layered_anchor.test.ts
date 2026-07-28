@@ -1,8 +1,5 @@
-// Task 198 (spec S2): layer-1 anchor selection + pre-anchor byte-op refusal. The anchor is a
-// timeline's FIRST full-content beacon (commit blob, snapshot, Write body, complete Read echo,
-// populated originalFile); earlier byteless mentions are pre-anchor stubs that refuse
-// byte-consuming operations. Fixtures load through loadTranscript (multi-source-test-helpers),
-// never hand-cast records.
+// Task 198 (spec S2): the anchor is a timeline's FIRST full-content beacon; earlier byteless
+// mentions are pre-anchor stubs that must refuse byte-consuming operations.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -30,7 +27,7 @@ import {
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
-// A fixed evidence pointer for hand-built nodes (phase-A tests never dereference it).
+// Phase-A tests never dereference this pointer.
 const STUB_EVIDENCE = { sessionFile: new Path("/tmp/a.jsonl"), line: 1 };
 
 function buildStubNode(instant: Date): PreAnchorStubNode {
@@ -46,9 +43,7 @@ function buildTimeline(nodes: TimelineNode[]): Timeline {
 }
 
 test("test_selectAnchorNode_returns_first_beacon_of_timeline", () => {
-    // Scenario: the anchor is the FIRST beacon in instant order, not any later one.
-    // Steps:
-    // a timeline of stub, stub, beacon A, beacon B (instants ascending).
+    // The anchor is the FIRST beacon in instant order, not any later one.
     const anchorBeacon = buildBeaconNode(new Date("2026-07-24T10:03:00.000Z"), "anchor bytes\n");
     const laterBeacon = buildBeaconNode(new Date("2026-07-24T10:04:00.000Z"), "later bytes\n");
     const timeline = buildTimeline([
@@ -57,30 +52,24 @@ test("test_selectAnchorNode_returns_first_beacon_of_timeline", () => {
         anchorBeacon,
         laterBeacon,
     ]);
-    // the anchor is the first beacon.
     assert.equal(selectAnchorNode(timeline), anchorBeacon);
 });
 
 test("test_selectAnchorNode_returns_undefined_when_timeline_has_no_beacon", () => {
-    // Scenario: a timeline of byteless mentions only has no anchor yet.
-    // Steps:
-    // a timeline holding two stubs and nothing else.
+    // A timeline of byteless mentions only has no anchor yet.
     const timeline = buildTimeline([
         buildStubNode(new Date("2026-07-24T10:01:00.000Z")),
         buildStubNode(new Date("2026-07-24T10:02:00.000Z")),
     ]);
-    // no full-content evidence -> no anchor.
     assert.equal(selectAnchorNode(timeline), undefined);
 });
 
 test("test_requireNodeContent_returns_beacon_content", () => {
-    // Scenario: a beacon carries verified bytes and hands them out.
     const beacon = buildBeaconNode(new Date("2026-07-24T10:01:00.000Z"), "verified bytes\n");
     assert.equal(requireNodeContent(beacon), "verified bytes\n");
 });
 
 test("test_requireNodeContent_returns_end_state_content", () => {
-    // Scenario: the on-disk end-state node carries bytes too.
     const endState: EndStateNode = {
         kind: LayeredNodeKind.endState,
         instant: new Date("2026-07-24T10:09:00.000Z"),
@@ -104,16 +93,11 @@ test("test_requireNodeContent_refuses_presumed_user_edit_node", () => {
     assert.throws(() => requireNodeContent(gap), /presumed-user-edit.*byte/);
 });
 
-// --- Phase B: the evidence classes the loader maps to beacons vs stubs ------------------------
 
 type EvidenceClassFixture = { projectDir: string; alphaPath: string };
 
-// One session touching alpha.py five ways, instants ascending:
-// 10:01 partial Read (lines 1-1 of 3)      -> stub (byteless mention)
-// 10:02 Edit WITHOUT originalFile          -> stub (byteless mention)
-// 10:03 Write "line one\nline two\n"       -> beacon (the anchor)
-// 10:04 complete Read echo (2 of 2 lines)  -> beacon
-// 10:05 Edit WITH originalFile             -> beacon carrying the pre-edit bytes
+// One session touching alpha.py five ways at 10:01-10:05: partial read and originalFile-less edit
+// are stubs; write, complete read echo and populated-originalFile edit are beacons.
 function makeEvidenceClassFixture(): EvidenceClassFixture {
     const tree = makeSourceTree("-anchor-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
@@ -161,7 +145,6 @@ function makeEvidenceClassFixture(): EvidenceClassFixture {
     return { projectDir: tree.projectDir, alphaPath };
 }
 
-// Alpha's single-session timeline out of the loaded fixture graph.
 function loadAlphaTimeline(fixture: EvidenceClassFixture): Timeline {
     const graph = loadLayeredProject(new Path(fixture.projectDir), {});
     const alpha = graph.entities.find(
@@ -173,50 +156,37 @@ function loadAlphaTimeline(fixture: EvidenceClassFixture): Timeline {
 }
 
 test("test_partial_read_echo_stays_a_pre_anchor_stub", () => {
-    // Scenario: a Read that echoes only a window of the file is a byteless mention.
-    // Steps:
-    // load the fixture; the 10:01 node came from the partial Read.
+    // A Read that echoes only a window of the file is a byteless mention.
     const timeline = loadAlphaTimeline(makeEvidenceClassFixture());
     assert.equal(timeline.nodes[0]!.kind, LayeredNodeKind.preAnchorStub);
 });
 
 test("test_edit_without_originalFile_stays_a_pre_anchor_stub", () => {
-    // Scenario: an Edit whose result reports no originalFile carries no full content.
-    // Steps:
-    // load the fixture; the 10:02 node came from the originalFile-less Edit.
+    // An Edit whose result reports no originalFile carries no full content.
     const timeline = loadAlphaTimeline(makeEvidenceClassFixture());
     assert.equal(timeline.nodes[1]!.kind, LayeredNodeKind.preAnchorStub);
 });
 
 test("test_complete_read_echo_becomes_a_beacon", () => {
-    // Scenario: a Read echoing the WHOLE file (line 1 through totalLines) is verified full content.
-    // Steps:
-    // load the fixture; the 10:04 node came from the complete Read.
+    // A Read echoing the WHOLE file (line 1 through totalLines) is verified full content.
     const timeline = loadAlphaTimeline(makeEvidenceClassFixture());
     const node = timeline.nodes[3]!;
     assert.equal(node.kind, LayeredNodeKind.beacon);
-    // the beacon hands out exactly the echoed bytes.
     assert.equal(requireNodeContent(node), "line one\nline two\n");
 });
 
 test("test_edit_with_populated_originalFile_becomes_a_beacon", () => {
-    // Scenario: an Edit result's populated originalFile is the literal pre-edit file — full content.
-    // Steps:
-    // load the fixture; the 10:05 node came from the Edit whose originalFile is populated.
+    // An Edit result's populated originalFile is the literal pre-edit file — full content.
     const timeline = loadAlphaTimeline(makeEvidenceClassFixture());
     const node = timeline.nodes[4]!;
     assert.equal(node.kind, LayeredNodeKind.beacon);
-    // the beacon carries the pre-edit bytes the result reported.
     assert.equal(requireNodeContent(node), "line one\nline two\n");
 });
 
 test("test_anchor_skips_pre_anchor_stubs_before_first_full_content_evidence", () => {
-    // Scenario: with two byteless mentions before the Write, the anchor is the Write beacon.
-    // Steps:
-    // load the fixture timeline (partial read, byteless edit, write, complete read, populated edit).
+    // With two byteless mentions before the Write, the anchor is the Write beacon.
     const timeline = loadAlphaTimeline(makeEvidenceClassFixture());
     assert.equal(timeline.nodes.length, 5);
-    // the anchor is the 10:03 Write beacon, not either earlier stub.
     const anchor = selectAnchorNode(timeline);
     assert.ok(anchor);
     assert.equal(anchor?.instant.toISOString(), "2026-07-24T10:03:00.000Z");

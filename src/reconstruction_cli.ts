@@ -182,7 +182,6 @@ export function runCli(argv: string[]): string {
 function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefined): string {
     // Strict mode throws instead of skipping, so skippedLines is always empty here — a parse
     // error in ANY transcript aborts the run (spec S4b keeps the CLI strict, task-119 decision).
-    // spec S4b: const { records } = loadTranscript(options.jsonlPath);
     const recordLists = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath, sink).records);
     const sources = getPathOverrides().sources;
     if (sources !== undefined) {

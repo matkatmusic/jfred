@@ -42,8 +42,6 @@ const fileTreeDocument = {
 
 test("test_buildFilesSidebarViewModel_lists_targets_with_revision_counts", () => {
     // Scenario: the Files sidebar lists every surviving touched file with its revision count.
-    // Steps:
-    // build the sidebar view-model from the commit-walk document (alpha 2 revs, beta 1 rev).
     const entries = buildFilesSidebarViewModel(commitWalkDocument);
     assert.deepEqual(entries, [
         { target: "alpha.py", revisionCount: 2, isDeleted: false, originalPath: undefined, renameBadgeLabel: undefined },
@@ -74,10 +72,7 @@ const scriptMoveDocument = {
 test("test_buildFilesSidebarViewModel_badges_a_script_move_from_the_runs_rename_pairs", () => {
     // Scenario (task 145): core_one.py's history has no rename revision, but a script run's
     // renamedPaths proves one.py -> core_one.py — the entry still gets its rename badge.
-    // Steps:
-    // build the sidebar view-model from the script-move document.
     const entries = buildFilesSidebarViewModel(scriptMoveDocument);
-    // the destination entry's origin comes from the run's pair, badge disambiguated as usual.
     assert.equal(entries[0]?.originalPath, "/tmp/proj/one.py");
     assert.equal(entries[0]?.renameBadgeLabel, "one.py");
 });
@@ -93,46 +88,30 @@ test("test_buildFilesSidebarViewModel_reports_no_origin_without_rename_evidence"
 
 test("test_buildFilesSidebarViewModel_flags_a_file_whose_last_revision_is_a_delete", () => {
     // Scenario: a file deleted and never recreated is reported as deleted, so the tree can dim it.
-    // Steps:
-    // build the sidebar view-model from the item-77 document.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
-    // find the entry whose history ends in a delete revision.
     const gone = entries.find((entry) => entry.target === "/tmp/proj/src/gone.py");
-    // it is reported deleted.
     assert.equal(gone?.isDeleted, true);
 });
 
 test("test_buildFilesSidebarViewModel_does_not_flag_a_file_recreated_after_a_delete", () => {
     // Scenario: m4's write->delete->write recreate ends alive, so it must NOT be reported deleted.
     // This guards against testing "any delete revision" instead of the LAST one.
-    // Steps:
-    // build the sidebar view-model from the item-77 document.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
-    // find the file that was deleted and then written again.
     const recreated = entries.find((entry) => entry.target === "/tmp/proj/README.md");
-    // its last revision is a write, so it is alive.
     assert.equal(recreated?.isDeleted, false);
 });
 
 test("test_buildFilesSidebarViewModel_reports_the_original_path_of_a_renamed_file", () => {
     // Scenario: a renamed file is ONE history keyed at its final path (reconstruction_lineage.ts);
     // the pane still needs the path it started life at, for the rename badge.
-    // Steps:
-    // build the sidebar view-model from the item-77 document.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
-    // find the renamed file, keyed at its FINAL path.
     const renamed = entries.find((entry) => entry.target === "/tmp/proj/src/renamed.py");
-    // its first rename revision's `from` is the path it was born at.
     assert.equal(renamed?.originalPath, "/tmp/proj/src/original.py");
 });
 
 test("test_buildFilesSidebarViewModel_reports_no_original_path_for_a_never_renamed_file", () => {
     // Scenario: a file that was never renamed must carry no badge.
-    // Steps:
-    // build the sidebar view-model from the item-77 document.
     const entries = buildFilesSidebarViewModel(fileTreeDocument);
-    // find a file with no rename revision.
     const gone = entries.find((entry) => entry.target === "/tmp/proj/src/gone.py");
-    // no original path is reported.
     assert.equal(gone?.originalPath, undefined);
 });

@@ -1,6 +1,4 @@
-// findGitOperations against hand-built records (split from git-operations.test.ts, 250-line cap):
-// how a commit operation reads its own tool_result — the resultHash capture forms and the
-// compound `&&` segment split. The scenario-document extractions stay in git-operations.test.ts.
+// Split from git-operations.test.ts for the 250-line cap; scenario-document extractions stay there.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,8 +6,6 @@ import { findGitOperations } from "../src/reconstruction_git_operations.ts";
 import { BlockType, GitOperationKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
-// An assistant record carrying one Bash tool_use running `command` under block id `toolUseId`
-// (item 66: minimal-record builder, same shape as reconstruction_git_evidence.test.ts's).
 function buildBashToolUseRecord(command: string, toolUseId: string, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,

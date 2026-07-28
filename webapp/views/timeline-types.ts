@@ -1,7 +1,5 @@
-// Timeline view-model wire types + node types (split from timeline.ts, task 92).
-// Wire-string discriminants mirror src/structures/vocabulary.ts — the webapp is a plain-JS
-// browser runtime that cannot import the TS enums; the tests assert equivalence against the real
-// enum members.
+// Wire-string discriminants mirror src/structures/vocabulary.ts — the webapp is a plain-JS browser
+// runtime that cannot import the TS enums; tests assert equivalence against the real members.
 
 import type { LineNode, WireLineVerdict } from "./timeline-line-nodes.ts";
 export const COMMIT_NODE_KIND = "commit";
@@ -12,22 +10,19 @@ export const TOOL_CALL_NODE_KIND = "tool-call";
 export const USER_ROLE = "user";
 export const EDIT_EVENT_KIND = "edit";
 export const COMMIT_OPERATION_KIND = "commit";
-// Item 77: the two EventKind wire strings the Files tree reads (a delete dims the row, a rename
-// gives it its origin badge). Mirrored as consts like the kinds above — the webapp cannot import
-// the TS enums; tests assert equivalence against the real vocabulary.ts members.
+// The two EventKind wire strings the Files tree reads: a delete dims the row, a rename badges it.
 export const DELETE_EVENT_KIND = "delete";
 export const RENAME_EVENT_KIND = "rename";
 
-// ── local wire + view-model types ────────────────────────────────────────────────────────────────
 // The document arrives via fetch + JSON.parse, so ids/paths/dates are plain strings on the wire;
 // these declare only the fields this view reads.
 
 export type WireRename = { from: string; to: string };
-// A revision's per-line model (the engine's LineEntry); carried on the wire so the file-history view can
-// render each revision's text from its own lines (no per-step file snapshot needed).
+// Carried on the wire so the file-history view renders each revision from its own lines, with no
+// per-step file snapshot needed.
 export type WireLineEntry = { values: { line: string }[] };
-// unrecoverable (task 119): present when the engine could not replay this revision — its lines
-// are the previous revision's carried forward, flagged with the failure reason.
+// `unrecoverable` means the engine could not replay this revision: its lines are the previous
+// revision's carried forward.
 export type WireRevision = { kind: string; changeId: string; timestamp: string; rename?: WireRename; lines?: WireLineEntry[]; unrecoverable?: { reason: string } };
 export type WireFileHistory = { target: string; revisions: WireRevision[] };
 // isOrphaned is the engine's per-record branch-membership stamp (true = rewound/abandoned

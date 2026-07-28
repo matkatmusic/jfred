@@ -1,7 +1,5 @@
-// The document's scriptRuns[] (task 67): every recorded script run with the files its consented
-// sandbox execution changed — captured from executeRunOnce's pre/post states and carried onto
-// the wire so the timeline's script-run rows can show what each run did. s25 (multi-file script
-// rename) is the fixture: one Bash run rewrites several files in a single execution.
+// The document's scriptRuns[] (task 67): each recorded run plus the files its consented sandbox
+// execution changed. Fixture s25 is one Bash run rewriting several files in a single execution.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -33,13 +31,8 @@ function buildConsentedS25Document(): ReconstructionDocument {
 }
 
 test("test_declined_build_lists_script_runs_with_empty_changed_paths", () => {
-    // Scenario: a declined build (exec gate explicitly off — the gate DEFAULTS ON for CLI/tests,
-    // only the viewer server boots it off) still lists every recorded run — the consent dialog
-    // needs the code — but reports nothing changed, because nothing may execute.
-    // Steps:
-    // build the s25 document with the gate forced off, restoring the test-process default after.
-    // assert the runs are listed, each with code and a Date timestamp.
-    // assert every run's changedPaths is exactly [].
+    // A declined build still lists every run (the consent dialog needs the code) but reports nothing
+    // changed. The gate DEFAULTS ON for CLI/tests, so it is restored afterwards.
     setImpureExecutionAllowed(false);
     let document: ReconstructionDocument;
     try {
@@ -56,12 +49,7 @@ test("test_declined_build_lists_script_runs_with_empty_changed_paths", () => {
 });
 
 test("test_consented_build_reports_script_changed_paths", () => {
-    // Scenario: a consented build executes the runs, so the multi-file rename run reports the
-    // files its sandbox execution changed.
-    // Steps:
-    // build the s25 document under the exec gate (the viewer's consented-build lifecycle).
-    // assert at least one run changed 2+ files (s25's script rewrites several in one run).
-    // assert every reported path is a Path domain object.
+    // A consented build executes the runs, so s25's multi-file rename reports 2+ changed files.
     const document = buildConsentedS25Document();
     const modifyingRuns = document.scriptRuns.filter((run) => run.changedPaths.length >= 2);
     assert.ok(modifyingRuns.length >= 1);
@@ -69,20 +57,14 @@ test("test_consented_build_reports_script_changed_paths", () => {
 });
 
 test("test_match_rename_pairs_pairs_deleted_source_with_created_destination_by_content", () => {
-    // Scenario (task 143): a shutil.move reports both sides — the deleted source and the
-    // created destination. Identical content across the pair proves the move.
-    // Steps:
-    // a pre state holds one.py (content A) and keep.py; the post state holds core_one.py
-    // with A and keep.py edited in place.
+    // Task 143: a shutil.move reports both sides, and identical content across the pair proves it.
     const preState = new Map([["one.py", "A"], ["keep.py", "K"]]);
     const postState = new Map([["core_one.py", "A"], ["keep.py", "K2"]]);
-    // assert exactly the one.py -> core_one.py pair is matched.
     assert.deepEqual(matchRenamePairs(preState, postState), [{ fromKey: "one.py", toKey: "core_one.py" }]);
 });
 
 test("test_match_rename_pairs_pairs_each_source_once_on_duplicate_content", () => {
-    // Scenario (task 143): two deleted files with identical content but only one created
-    // destination — the destination claims ONE source; the other deletion stays a deletion.
+    // Task 143: with two identical deleted files and one destination, the other stays a deletion.
     const preState = new Map([["a.py", "same"], ["b.py", "same"]]);
     const postState = new Map([["c.py", "same"]]);
     const pairs = matchRenamePairs(preState, postState);
@@ -91,19 +73,15 @@ test("test_match_rename_pairs_pairs_each_source_once_on_duplicate_content", () =
 });
 
 test("test_match_rename_pairs_ignores_content_edits_in_place", () => {
-    // Scenario (task 143): a file present in both states with different content is a
-    // modification, never a rename side.
+    // Task 143: a file present in both states with different content is a modification.
     const preState = new Map([["a.py", "old"]]);
     const postState = new Map([["a.py", "new"]]);
     assert.deepEqual(matchRenamePairs(preState, postState), []);
 });
 
 test("test_s85_move_run_collapses_rename_pairs_and_reports_them", () => {
-    // Scenario (task 143): s85's move run shutil.move()s one/two/three.py to core_*.py. The
-    // sandbox diff used to report all 6 paths ("modified 6 file(s)"); a rename pair is ONE
-    // move, so changedPaths collapses to the 3 destinations and the pairs ride alongside.
-    // Steps:
-    // build the consented s85 document.
+    // Task 143: the sandbox diff used to report all 6 paths; a rename pair is ONE move, so
+    // changedPaths collapses to the 3 destinations and the pairs ride alongside.
     setImpureExecutionAllowed(true);
     let document: ReconstructionDocument;
     try {
@@ -111,29 +89,21 @@ test("test_s85_move_run_collapses_rename_pairs_and_reports_them", () => {
     } finally {
         setImpureExecutionAllowed(false);
     }
-    // find the move run: the one run reporting rename pairs.
     const moveRun = document.scriptRuns.find((run) => run.renamedPaths.length > 0);
     assert.ok(moveRun !== undefined);
-    // assert the 3 moves are reported as pairs, sources named one/two/three.py.
     assert.equal(moveRun.renamedPaths.length, 3);
     const fromBasenames = moveRun.renamedPaths.map((pair) => computeBasename(pair.from.toString())).sort();
     assert.deepEqual(fromBasenames, ["one.py", "three.py", "two.py"]);
     const toBasenames = moveRun.renamedPaths.map((pair) => computeBasename(pair.to.toString())).sort();
     assert.deepEqual(toBasenames, ["core_one.py", "core_three.py", "core_two.py"]);
-    // assert changedPaths holds ONLY the destinations — "modified 3 file(s)", not 6.
     assert.equal(moveRun.changedPaths.length, 3);
     const changedBasenames = moveRun.changedPaths.map((changed) => computeBasename(changed.toString())).sort();
     assert.deepEqual(changedBasenames, ["core_one.py", "core_three.py", "core_two.py"]);
 });
 
 test("test_script_changed_paths_name_files_the_document_tracks", () => {
-    // Scenario: the paths a run reports changed are the same files the reconstruction tracks —
-    // the webapp joins them to filesTouched, so the two must agree at least by basename (the
-    // sandbox's state keys may be cwd-relative before resolution; basename is the stable join).
-    // Steps:
-    // build the consented s25 document.
-    // collect the basenames of every filesTouched target.
-    // assert every changedPath's basename is among them.
+    // The webapp joins changedPaths to filesTouched by BASENAME, because the sandbox's state keys
+    // may still be cwd-relative before resolution.
     const document = buildConsentedS25Document();
     const trackedBasenames = new Set(
         document.filesTouched.map((history) => computeBasename(history.target.toString())),

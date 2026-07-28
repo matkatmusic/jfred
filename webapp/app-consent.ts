@@ -1,6 +1,5 @@
-// The script-execution consent dialog (plan 3.2): every recorded script shown verbatim,
-// running is opt-in, declining still yields a (degraded) document. Pure view-model helpers
-// live in app-consent-model.ts.
+// Script-execution consent dialog: running recorded scripts is opt-in, declining still
+// yields a degraded document.
 
 import { el } from "./app-dom.ts";
 import { storeConsentChoice } from "./app-choices.ts";
@@ -18,10 +17,8 @@ import {
 import { renderRoute } from "./app-router.ts";
 import { renderCodeInto } from "./highlight.ts";
 
-// One script's row in the consent dialog: local timestamp (+ cwd when recorded) over its
-// python-highlighted code; scripts taller than the preview clip get an Expand toggle (item 70).
-// Shell lines carrying inline code (`python3 -c "…"`) highlight just the quoted body, in the
-// interpreter's language, with the wrapper left as plain text.
+// Shell lines carrying inline code (`python3 -c "…"`) highlight only the quoted body, in the
+// interpreter's language.
 function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     const pre = el("pre");
     const inline = splitInlineInterpreterCode(script.code);
@@ -47,8 +44,7 @@ function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     return row;
 }
 
-// Expand-all/collapse-all over the SAME per-block <details> state the triangles use:
-// if any block is closed the click opens all, otherwise it closes all.
+// Shares the per-block <details> state the triangles use: any block closed means open all.
 function toggleReadOnlyBlocksVisibility(box: HTMLElement): void {
     const detailsBlocks = [...box.querySelectorAll<HTMLDetailsElement>("details.consent-readonly-block")];
     const shouldOpen = detailsBlocks.some((block) => !block.open);
@@ -63,7 +59,6 @@ function appendReadOnlyScriptsBlock(box: HTMLElement, scripts: WireConsentScript
     ]));
 }
 
-// Keep each row's own Expand/Collapse button label in step with the global toggle.
 function updateRowExpandButtonLabel(pre: HTMLPreElement, shouldExpand: boolean): void {
     const row = pre.parentElement;
     if (row !== null) {
@@ -74,16 +69,11 @@ function updateRowExpandButtonLabel(pre: HTMLPreElement, shouldExpand: boolean):
     }
 }
 
-// The consent dialog (plan 3.2): every script's code shown verbatim; running is opt-in;
-// declining still yields a (degraded) document. The choice is remembered per project for
-// this browser session only. Read-only scripts (item 69) collapse into per-run <details>
-// blocks; the Show/hide button opens/closes all of them at once.
+// The choice is remembered per project for this browser session only.
 export function renderConsentDialog(container: HTMLElement, project: string, scripts: WireConsentScript[]): void {
     const readOnlyCount = scripts.filter((script) => script.readOnly === true).length;
     const modifyingCount = scripts.length - readOnlyCount;
     const countSplit = readOnlyCount > 0 ? ` — ${modifyingCount} modifying, ${readOnlyCount} read-only` : "";
-    // item 73: decide moved above the header build — the decision buttons now live in the
-    // sticky header instead of a bottom .consent-actions row.
     const decide = (choice: string) => {
         storeConsentChoice(project, choice);
         renderRoute();
@@ -95,8 +85,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
     const nextButton = el("button", { class: "toolbar-btn", text: "Next >" }) as HTMLButtonElement;
     const navCounter = el("span", { class: "muted consent-nav-counter" });
     const expandAllButton = el("button", { class: "toolbar-btn", text: "Expand All" }) as HTMLButtonElement;
-    // item 73: sticky header — the message, decision buttons, and script navigation stay
-    // visible while the previews scroll (styles.css .consent-header).
+    // Sticky so decisions and navigation stay reachable while previews scroll.
     const header = el("div", { class: "consent-header" }, [
         el("h2", { text: `This reconstruction contains ${scripts.length} recorded script execution(s)${countSplit}` }),
         el("div", { class: "consent-header-row" }, [
@@ -105,9 +94,6 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
     ]);
     const box = el("div", { class: "consent-box" }, [
         header,
-        // item 73: was — the message rendered as a plain first child and scrolled away with
-        // the previews; it now lives in the sticky header above:
-        // el("h2", { text: `This reconstruction contains ${scripts.length} recorded script execution(s)${countSplit}` }),
         el("div", { class: "muted", text: "Re-running them reproduces script-made file states. Nothing runs without your say-so." }),
     ]);
     if (readOnlyCount > 0) {
@@ -124,19 +110,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
             appendReadOnlyScriptsBlock(box, block.scripts);
         }
     }
-    // item 73: was — decide + the decision buttons rendered at the BOTTOM of the script list
-    // and scrolled out of reach; both buttons now live in the sticky header above:
-    // const decide = (choice: string) => {
-    //     storeConsentChoice(project, choice);
-    //     renderRoute();
-    // };
-    // box.append(el("div", { class: "consent-actions" }, [
-    //     el("button", { class: "toolbar-btn consent-run", text: "Run scripts for this reconstruction", onclick: () => decide("1") }),
-    //     el("button", { class: "toolbar-btn", text: "Continue without running", onclick: () => decide("0") }),
-    // ]));
-    // item 73: Prev/Next walk the VISIBLE script rows — modifying rows always, read-only rows
-    // only while their <details> block is open. Rows sit in scripts[] order (grouping is
-    // contiguous and order-preserving), so allConsentRows()[i] corresponds to scripts[i].
+    // Grouping is contiguous and order-preserving, so allConsentRows()[i] matches scripts[i].
     const allConsentRows = () => [...box.querySelectorAll<HTMLElement>(".consent-script")];
     const collectVisibleConsentRows = () => allConsentRows()
         .filter((row) => row.closest("details:not([open])") === null);
@@ -145,8 +119,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
     const updateScriptNavState = () => {
         const visibleRows = collectVisibleConsentRows();
         if (selectedRow === undefined || !visibleRows.includes(selectedRow)) {
-            // The selected row's block closed (or nothing was selectable yet): fall back to
-            // the first visible row so the rectangle never sits on a hidden script.
+            // Fall back to the first visible row so the selection never sits on a hidden script.
             selectedRow = visibleRows[0];
         }
         for (const row of allConsentRows()) {
@@ -175,18 +148,12 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
     };
     prevButton.onclick = () => navigateConsentScript(-1);
     nextButton.onclick = () => navigateConsentScript(1);
-    // <details> toggle events don't bubble but ARE observable in the capture phase, and they
-    // fire for programmatic open changes too — one listener covers the per-block triangles,
-    // the Show/hide button, and Expand All.
+    // <details> toggle events don't bubble but are observable in the capture phase, and fire
+    // for programmatic open changes too, so one listener covers every expand path.
     box.addEventListener("toggle", () => updateScriptNavState(), true);
     updateScriptNavState();
-    // item 72/73: Expand All expands or collapses every script preview and read-only <details>
-    // block at once. item 73 moved the button into the sticky consent header (the static
-    // #toggle-all skeleton is hidden while consent shows — see below). onclick property
-    // assignment (not addEventListener) so re-renders never stack handlers. Re-query the DOM
-    // on every click — the per-row Expand buttons and the read-only Show/hide button mutate
-    // the same expanded state between clicks.
-    // const toggleAllButton = document.getElementById("toggle-all") as HTMLButtonElement;
+    // Re-query the DOM on every click: per-row Expand and Show/hide mutate the same state
+    // between clicks. onclick (not addEventListener) so re-renders never stack handlers.
     const toggleAllButton = expandAllButton;
     const collectExpandables = () => ({
         previews: [...box.querySelectorAll<HTMLPreElement>(".consent-script pre")]
@@ -198,7 +165,6 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
         const anyCollapsed = previews.some((pre) => !pre.classList.contains("expanded"))
             || readOnlyBlocks.some((block) => !block.open);
         const nothingExpandable = previews.length === 0 && readOnlyBlocks.length === 0;
-        // With nothing expandable the button is inert; "Expand All" is the least-misleading label.
         toggleAllButton.textContent = anyCollapsed || nothingExpandable ? "Expand All" : "Collapse All";
     };
     toggleAllButton.onclick = () => {
@@ -213,8 +179,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
         updateToggleAllLabel();
     };
     updateToggleAllLabel();
-    // item 73: the header row owns Expand All during consent; hide the skeleton button so two
-    // Expand All buttons never show at once. renderRoute un-hides it on every navigation.
+    // Hide the skeleton button so two Expand All buttons never show at once; renderRoute un-hides it.
     (document.getElementById("toggle-all") as HTMLButtonElement).hidden = true;
     container.append(box);
 }

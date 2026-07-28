@@ -60,37 +60,28 @@ function listSelectedFolderNames(container: HTMLElement): string[] {
 test("test_shift_clicking_a_second_folder_reports_the_union_of_both_folders_files", async () => {
     // Scenario (task 255): shift-clicking adds a folder to the selection instead of replacing it,
     // so the timeline shows the files of BOTH — nested subfolders included, siblings excluded.
-    // Steps:
-    // render the nav, click `keep`, then shift-click `drop`.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
-    // the second report is the union of the two folders' files, and `other`'s file is not in it.
     assert.deepEqual([...reported[1]!].sort(), ["src/drop/c.ts", "src/keep/a.ts", "src/keep/deep/d.ts"]);
 });
 
 test("test_shift_clicking_a_second_folder_leaves_both_rows_marked_selected", async () => {
     // Scenario (task 255): the pane must SHOW both filters, otherwise the stage is filtered to two
     // folders while the nav claims one.
-    // Steps:
-    // render the nav, click `keep`, then shift-click `drop`.
     const { container } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
-    // both rows stay marked.
     assert.deepEqual(listSelectedFolderNames(container), ["drop", "keep"]);
 });
 
 test("test_shift_clicking_a_selected_folder_again_drops_only_that_folder", async () => {
     // Scenario (task 255): shift-click toggles, so releasing one of two selected folders must leave
     // the other one driving the filter rather than clearing everything.
-    // Steps:
-    // render the nav, select `keep` and `drop`, then shift-click `keep` again.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
     shiftClickFolder(container, "keep");
-    // only `drop` is left, in the report and on the rows.
     assert.deepEqual(reported[2], ["src/drop/c.ts"]);
     assert.deepEqual(listSelectedFolderNames(container), ["drop"]);
 });
@@ -98,13 +89,10 @@ test("test_shift_clicking_a_selected_folder_again_drops_only_that_folder", async
 test("test_a_plain_click_after_a_multi_select_replaces_the_whole_selection", async () => {
     // Scenario (task 255 guard): task 253's exclusive click must survive — a plain click on a third
     // folder drops both selected ones rather than joining them.
-    // Steps:
-    // render the nav, select `keep` and `drop`, then plain-click `other`.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "drop");
     findFolderSummary(container, "other").click();
-    // the report holds only the third folder's file, and it is the only marked row.
     assert.deepEqual(reported[2], ["src/other/e.ts"]);
     assert.deepEqual(listSelectedFolderNames(container), ["other"]);
 });
@@ -112,11 +100,8 @@ test("test_a_plain_click_after_a_multi_select_replaces_the_whole_selection", asy
 test("test_a_selected_parent_and_child_folder_report_each_file_once", async () => {
     // Scenario (task 255): `deep` sits inside `keep`, so both selected at once overlap on d.ts. The
     // union is de-duplicated — a repeated path would be filtered twice downstream.
-    // Steps:
-    // render the nav, click `keep`, then shift-click its nested `deep`.
     const { container, reported } = await renderNavWithFolderSpy();
     findFolderSummary(container, "keep").click();
     shiftClickFolder(container, "deep");
-    // d.ts appears once.
     assert.deepEqual([...reported[1]!].sort(), ["src/keep/a.ts", "src/keep/deep/d.ts"]);
 });

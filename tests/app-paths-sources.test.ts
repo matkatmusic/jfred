@@ -32,8 +32,6 @@ test("test_refresh_prefills_source_rows_from_merged_entry", async () => {
     // Scenario (task 177): GET /api/project-paths returns an entry with two sources (one with
     // all three fields, one with only projectsDir) — refreshing the section renders one
     // .source-row per entry, prefilled from its fields.
-    // Steps:
-    // boot a fresh DOM, stub /api/project-paths with a two-source entry.
     setupWebappDom();
     stubFetchRoutes({
         "/api/project-paths": {
@@ -46,14 +44,11 @@ test("test_refresh_prefills_source_rows_from_merged_entry", async () => {
     });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
-    // two rows render, in entry order.
     const rows = [...getRequiredElementById("project-sources-list").querySelectorAll(".source-row")];
     assert.equal(rows.length, 2);
-    // the first row carries all three prefilled values.
     assert.equal((rows[0]!.querySelector(".source-projects-dir") as HTMLInputElement).value, "/roots/alpha/projects");
     assert.equal((rows[0]!.querySelector(".source-file-history-dir") as HTMLInputElement).value, "/roots/alpha/fh");
     assert.equal((rows[0]!.querySelector(".source-root") as HTMLInputElement).value, "/roots/alpha");
-    // the second row carries only its projects dir, the optional fields blank.
     assert.equal((rows[1]!.querySelector(".source-projects-dir") as HTMLInputElement).value, "/roots/beta/projects");
     assert.equal((rows[1]!.querySelector(".source-file-history-dir") as HTMLInputElement).value, "");
     assert.equal((rows[1]!.querySelector(".source-root") as HTMLInputElement).value, "");
@@ -61,16 +56,12 @@ test("test_refresh_prefills_source_rows_from_merged_entry", async () => {
 
 test("test_add_button_appends_an_empty_source_row", async () => {
     // Scenario (task 177): with zero sources, clicking "Add source" appends one empty row.
-    // Steps:
-    // boot a fresh DOM, refresh with zero sources.
     setupWebappDom();
     stubFetchRoutes({ "/api/project-paths": { repo: "/repos/p" } });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
     assert.equal(getRequiredElementById("project-sources-list").querySelectorAll(".source-row").length, 0);
-    // click "Add source".
     getRequiredElementById("project-sources-add").click();
-    // exactly one row exists, empty.
     const rows = [...getRequiredElementById("project-sources-list").querySelectorAll(".source-row")];
     assert.equal(rows.length, 1);
     assert.equal((rows[0]!.querySelector(".source-projects-dir") as HTMLInputElement).value, "");
@@ -79,8 +70,6 @@ test("test_add_button_appends_an_empty_source_row", async () => {
 test("test_remove_button_deletes_its_row", async () => {
     // Scenario (task 177): with two rows rendered, clicking the first row's remove button
     // deletes only that row — one row remains, and it is the second entry.
-    // Steps:
-    // boot a fresh DOM, refresh with two sources.
     setupWebappDom();
     stubFetchRoutes({
         "/api/project-paths": {
@@ -91,9 +80,7 @@ test("test_remove_button_deletes_its_row", async () => {
     await refreshProjectPathsSection("proj-a");
     const rowsBefore = [...getRequiredElementById("project-sources-list").querySelectorAll(".source-row")];
     assert.equal(rowsBefore.length, 2);
-    // click the first row's remove button.
     (rowsBefore[0]!.querySelector(".source-remove") as HTMLElement).click();
-    // one row remains and it is the second (beta) entry.
     const rowsAfter = [...getRequiredElementById("project-sources-list").querySelectorAll(".source-row")];
     assert.equal(rowsAfter.length, 1);
     assert.equal((rowsAfter[0]!.querySelector(".source-projects-dir") as HTMLInputElement).value, "/roots/beta/projects");
@@ -103,28 +90,21 @@ test("test_apply_posts_entered_sources_list", async () => {
     // Scenario (task 177): refreshing with zero sources, adding two rows, and filling their
     // fields (row 1: projectsDir + root; row 2: projectsDir only) — clicking Apply posts the
     // entered list, with row 2 omitting its empty optional keys entirely.
-    // Steps:
-    // boot a fresh DOM, refresh with zero sources.
     setupWebappDom();
     stubFetchRoutes({ "/api/project-paths": {} });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
-    // add two rows.
     const addButton = getRequiredElementById("project-sources-add");
     addButton.click();
     addButton.click();
     const rows = [...getRequiredElementById("project-sources-list").querySelectorAll(".source-row")];
     assert.equal(rows.length, 2);
-    // fill row 1: projectsDir + root.
     (rows[0]!.querySelector(".source-projects-dir") as HTMLInputElement).value = "/roots/alpha/projects";
     (rows[0]!.querySelector(".source-root") as HTMLInputElement).value = "/roots/alpha";
-    // fill row 2: projectsDir only.
     (rows[1]!.querySelector(".source-projects-dir") as HTMLInputElement).value = "/roots/beta/projects";
     const recordedCalls = recordFetchCalls();
-    // click Apply.
     getRequiredElementById("project-paths-apply").click();
     await flushAsyncWork();
-    // the POST to /api/project-paths carries the entered sources list, row 2 minimal.
     const pathsPost = recordedCalls.find((call) => call.url.includes("/api/project-paths") && call.init?.method === "POST");
     assert.ok(pathsPost !== undefined, "a POST to /api/project-paths was recorded");
     const body = JSON.parse(String(pathsPost!.init!.body)) as { entry: { sources?: unknown } };
@@ -137,14 +117,11 @@ test("test_apply_posts_entered_sources_list", async () => {
 test("test_apply_with_no_source_rows_omits_sources_field", async () => {
     // Scenario (task 177): with no rows added, the POSTed entry has no `sources` key at all —
     // legacy entries stay legacy.
-    // Steps:
-    // boot a fresh DOM, refresh with zero sources, leave the list empty.
     setupWebappDom();
     stubFetchRoutes({ "/api/project-paths": {} });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
     const recordedCalls = recordFetchCalls();
-    // click Apply with no rows.
     getRequiredElementById("project-paths-apply").click();
     await flushAsyncWork();
     const pathsPost = recordedCalls.find((call) => call.url.includes("/api/project-paths") && call.init?.method === "POST");

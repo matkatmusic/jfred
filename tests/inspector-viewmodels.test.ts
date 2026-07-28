@@ -71,24 +71,17 @@ test("test_extract_readable_text_returns_non_json_lines_verbatim", () => {
 test("test_revision_link_route_carries_revision_anchor", () => {
     // Scenario: a revision link with a revision number routes to the file-history view
     // anchored at that revision — the same /rev/<n> shape routeToFileHistory-based routes use.
-    // Steps:
-    // compute the route for a resolved link with revisionNumber 3.
     const route = computeRevisionLinkRoute("proj-a", { target: "/tmp/app.py", revisionNumber: 3 });
-    // assert the file-history route with the /rev/3 anchor.
     assert.equal(route, "#/project/proj-a/file/%2Ftmp%2Fapp.py/rev/3");
 });
 
 test("test_revision_link_route_without_revision_number_omits_anchor", () => {
     // Scenario: a link that resolved to a file but no single revision routes to the plain
     // file-history view (no /rev segment).
-    // Steps:
-    // compute the route for a link with no revisionNumber.
     const route = computeRevisionLinkRoute("proj-a", { target: "/tmp/app.py", revisionNumber: undefined });
-    // assert the bare file-history route.
     assert.equal(route, "#/project/proj-a/file/%2Ftmp%2Fapp.py");
 });
 
-// ── blob-snapshot helpers (TASKS item 23) ───────────────────────────────────
 
 test("test_find_tracked_backup_entry_returns_the_tracked_path_and_backup_time", () => {
     // Scenario: a file-history-snapshot record tracks a backup whose blob name matches — the

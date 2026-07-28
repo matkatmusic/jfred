@@ -1,108 +1,71 @@
-// The Layer 1 page's jump-to-bubble box (task 261). Split out of layer1-page.ts for the same reason
-// layer1-zoom.ts was: that file is at the repo's 250-line cap, and nothing else on the page reads a
-// search term.
+// The Layer 1 page's jump-to-bubble box. Exists because the render is 808 widgets across ~156,000 px,
+// so hunting for a named bubble by hand is the slow step; a `?focus=<path>` deep link was rejected by
+// the user 2026-07-25 as harder than typing a name.
 //
-// WHY this exists: the agreed verification handoff is that Claude names ONE bubble and the user
-// checks it by eye. The real render is 808 widgets across ~156,000 px, so HUNTING for that bubble is
-// the slow step that undermines the handoff. A `?focus=<path>` deep link was considered and REJECTED
-// by the user 2026-07-25 — copying a long URL out of CLI output is harder than typing a name — so
-// this is a text box only.
-//
-// ponytail: the scroll is native `scrollIntoView({ block: "center", inline: "center" })`, used in
-// ~12 other places in this webapp, NOT offsetTop/offsetLeft arithmetic. That choice is what makes
-// the zoom control a non-issue: `offsetTop` inside the zoomed `.canvas` is UNSCALED, so hand-rolled
-// math would land wrong at any level other than 100%, whereas native `zoom` participates in layout
-// and scrollIntoView is defined against the laid-out box. Both axes and both centred in one call —
-// a bubble is placed vertically by its `--axis-px` margin-top and horizontally by its column index
-// in `.stage`, so a single-axis scroll would leave it off screen sideways.
+// ponytail: the scroll is native `scrollIntoView`, not offsetTop/offsetLeft arithmetic — `offsetTop`
+// inside the zoomed `.canvas` is UNSCALED, so hand-rolled math would land wrong at any zoom but 100%.
 
 import { getRequiredElementById } from "./app-dom.ts";
 
-// The term the counter is currently counting through, and how far through it we are. Held at module
-// scope because the cycle is the feature: submitting the SAME term again must advance to the next
-// match rather than re-landing on the first.
+// Module scope because the cycle is the feature: submitting the SAME term again must advance to the
+// next match rather than re-landing on the first.
 let cycledTerm = "";
 let cycleIndex = 0;
 
-// What is currently lit, so landing on something else darkens it. A LIST because a landing lights
-// the row AND its owning bubble (plans/layer1-mockup.html's `highlight([box, ...extra])`).
+// A LIST because a landing lights the row AND its owning bubble.
 let litElements: HTMLElement[] = [];
 
-// Fired on `document` whenever a jump lands, carrying the element it landed on. The page's own
-// notification that the SELECTION moved — layer1-leader-visibility.ts listens for it to keep that
-// element's dashed leader line up.
+// Fired on `document` when a jump lands; layer1-leader-visibility.ts listens to keep that element's
+// dashed leader line up.
 export const LANDED_EVENT = "layer1-landed";
 
-// Every bubble's name element, in render order. `.fname` is where BOTH matchable strings live: its
-// text is the basename (task 245 shortened the visible label to that) and its `data-path` is the
-// full repo-relative path (task 280 moved it off `title`, which rendered as an unstyled native
-// tooltip the user rejected in favour of an in-page hover reveal).
+// `.fname` is where BOTH matchable strings live: its text is the basename, its `data-path` the full
+// repo-relative path.
 function listNameElements(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")];
 }
 
-// ponytail: ONE case-insensitive substring test over "<full path>" covers every required input.
-// `launch.json` matches `.vscode/launch.json` because a basename is a substring of its own path
-// (requirement 1), and `.vscode/launch` narrows a colliding basename to one bubble for free
-// (requirement 2's bonus) — no separate basename branch, no separate path branch. The data-path
-// falls back to the visible text for the orphan buckets, whose labels carry no path.
+// ponytail: ONE case-insensitive substring test over the full path covers both a bare basename and a
+// path fragment — no separate branch for either. Falls back to the text for label-only buckets.
 function matchesSearchTerm(nameElement: HTMLElement, lowerTerm: string): boolean {
     const haystack = nameElement.dataset.path ?? nameElement.textContent ?? "";
     return haystack.toLowerCase().includes(lowerTerm);
 }
 
-// The bubbles a term names, oldest-first. A collision is NOT an error (requirement 2): this repo
-// alone renders six `launch.json`/`tasks.json` bubbles, so an ambiguous term yields a LIST that
-// repeat-submit cycles through, rather than a rejection.
+// A collision is NOT an error: an ambiguous term yields a LIST that repeat-submit cycles through.
 function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
     return listNameElements()
         .filter((nameElement) => matchesSearchTerm(nameElement, lowerTerm))
         .map((nameElement) => nameElement.closest(".filebox") as HTMLElement);
 }
 
-// Light the element a jump landed on, and darken whatever was lit before: exactly ONE thing on the
-// page carries `.found` at any moment (user, 2026-07-26). Exported because a ruler-tick click
-// (tasks 283/267) lights the same way — it lands on a `.node` or a bucket `li` rather than always a
-// `.filebox`, which is why nothing here reads the element's kind.
-//
-// The highlight is PERSISTENT. It used to switch itself off after 1.5 s so it could not be mistaken
-// for the bubble's own styling; the user's 2026-07-26 instruction is the opposite — "leave the
-// bubble's highlighted effect active instead of fading out quickly" — so the timer is gone and the
-// light moves only when something else is landed on, or when the find box is emptied.
+// Exactly ONE thing on the page carries `.found` at a time, and the highlight is PERSISTENT (user,
+// 2026-07-26). Exported because a ruler-tick click lands on a `.node` or bucket `li` and lights the
+// same way, which is why nothing here reads the element's kind.
 export function highlightLandedElement(landed: HTMLElement): void {
     for (const lit of litElements) {
         lit.classList.remove("found");
     }
-    // The owning bubble is lit TOO, never instead (user, 2026-07-27, on the expanded ruler row's
-    // file list): the row says which moment, the bubble says which file. `closest` returns the
-    // element itself when it already IS the bubble, so the Set collapses the find box's case.
+    // The owning bubble is lit TOO, never instead (user, 2026-07-27). `closest` returns the element
+    // itself when it already IS the bubble, so the Set collapses the find box's case.
     litElements = [...new Set([landed, landed.closest(".filebox")].filter((element) => element !== null))] as HTMLElement[];
     for (const lit of litElements) {
         lit.classList.add("found");
     }
-    // The leader lines are drawn on demand (user, 2026-07-26) and a landing is a SELECTION, so the
-    // line for what was landed on stays up until the next landing. A DOM event rather than a call
-    // into layer1-leader-visibility.ts: layer1-ruler-click.ts already imports THIS module, so an
-    // import in the other direction would close a cycle for what is one notification.
-    // `window.CustomEvent`, not the bare global: under the tests' happy-dom the page's document
-    // only accepts events built by ITS window, and node's own global CustomEvent is a different
-    // class. In a browser the two are the same object, so this costs nothing.
+    // A DOM event rather than calling layer1-leader-visibility.ts, which would close an import
+    // cycle. `window.CustomEvent`, not the bare global: happy-dom's document only accepts events
+    // built by ITS window, and node's global CustomEvent is a different class.
     document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
-// Never a silent no-op (requirement 5): every submit reports here, whether it landed or not. Its
-// OWN element, not the header's #crumb (task 273): the crumb also carries the stage's pair and
-// orphan counts, so writing a search into it destroyed those, and nothing put them back when the
-// search was abandoned. A dedicated element makes clearing this readout one empty string.
+// Never a silent no-op: every submit reports here. Its OWN element, not the header's #crumb, which
+// also carries the stage's pair and orphan counts that a search would destroy.
 function reportFindStatus(message: string): void {
     getRequiredElementById("find-status").textContent = message;
 }
 
-// Advance the cycle for `term` by `step` (+1 next, -1 previous) and return the match to land on, or
-// undefined when nothing matches. A CHANGED term restarts at the first match whichever direction
-// asked for it — a first search has no position to step from. `+ matches.length` before the modulo
-// is what makes -1 wrap to the LAST match instead of yielding a negative index (task 271): JS's %
-// keeps the sign of its left operand.
+// `+ matches.length` before the modulo is what makes step -1 wrap to the LAST match instead of
+// yielding a negative index: JS's % keeps the sign of its left operand.
 function selectMatchAtStep(term: string, step: number): HTMLElement | undefined {
     const matches = findMatchingBubbles(term.toLowerCase());
     if (matches.length === 0) {
@@ -118,23 +81,15 @@ function selectMatchAtStep(term: string, step: number): HTMLElement | undefined 
     return landed;
 }
 
-// Scroll a found bubble into view and light it. Shared by the typed box and the File Nav click so
-// neither can drift from the other's landing behaviour.
-//
-// Task 277: `block: "start"`, NOT "center". A `.filebox` is as tall as its own ladder span
-// (`margin-top` = --axis-px, `.lane`'s `min-height` = --span-px + 18px), so a file with a long
-// history is thousands of px tall and centring that box vertically puts its top — its name, its
-// first node — far above the viewport. That reads as "the jump only scrolled sideways", which is
-// exactly what the user reported. `inline: "center"` stays: horizontal centring was always correct,
-// because a bubble is placed sideways by its column index in `.stage`.
+// Shared by the typed box and the File Nav click so neither can drift from the other's landing.
+// `block: "start"`, NOT "center": a `.filebox` is as tall as its own ladder span, so centring it
+// vertically puts its name and first node far above the viewport.
 function landOnBubble(bubble: HTMLElement): void {
     bubble.scrollIntoView({ block: "start", inline: "center" });
     highlightLandedElement(bubble);
 }
 
-// Jump to the next (or, with step -1, the previous) bubble named by `term`. Exported for the test,
-// which drives this rather than the keystroke so the cycle can be stepped without re-deriving what
-// a happy-dom KeyboardEvent needs.
+// Jump to the next (or, with step -1, the previous) bubble named by `term`.
 export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement | undefined {
     const trimmed = term.trim();
     if (trimmed === "") {
@@ -147,18 +102,13 @@ export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement |
     return landed;
 }
 
-// Jump to the bubble owning EXACTLY `path` (task 278). The File Nav's caller, not the typed box's:
-// a leaf knows the exact path it represents, so it needs no substring match, no cycle counter and
-// no "n of N" crumb — clicking one file twice must land the same bubble twice. Routing a click
-// through jumpToNamedBubble made a repeat click advance to the next match instead, and for
-// `.gitignore`, whose root path is a substring of every nested one, no substring rule could ever
-// have picked the right bubble.
+// The File Nav's caller, not the typed box's: a leaf knows its exact path, so it needs no substring
+// match and no cycle — routing it through jumpToNamedBubble advanced on every repeat click.
 export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
     const owner = listNameElements().find((nameElement) => nameElement.dataset.path === path);
     if (owner === undefined) {
-        // Never a silent no-op: an ORPHAN path is listed in the File Nav but has no bubble of its
-        // own — it lives in one of the two buckets — so the click must say that rather than look
-        // broken.
+        // Never a silent no-op: an ORPHAN path is listed in the File Nav but lives in a bucket with
+        // no bubble of its own, so the click must say that rather than look broken.
         reportFindStatus(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
         return undefined;
     }
@@ -167,10 +117,8 @@ export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
     return landed;
 }
 
-// Task 273: put the box back to its untouched state. All three pieces of a live search are dropped
-// together — the readout, the lit element and the cycle position — because leaving any one of them
-// keeps some part of an abandoned search on screen or in effect. Emptying the box is now the ONLY
-// thing that darkens the page, since the highlight no longer expires on its own.
+// All three pieces of a live search drop together, because leaving any one keeps part of an
+// abandoned search on screen or in effect. The only thing that darkens the page.
 function clearFindState(): void {
     for (const lit of litElements) {
         lit.classList.remove("found");
@@ -181,9 +129,8 @@ function clearFindState(): void {
     reportFindStatus("");
 }
 
-// Wire the box. Enter submits and steps forward; the two buttons step the same cycle in either
-// direction (task 271) from whatever the box currently holds, which is why they read `box.value`
-// rather than carrying a term of their own.
+// The two buttons step the same cycle from whatever the box currently holds, which is why they read
+// `box.value` rather than carrying a term of their own.
 export function wireFindFileBox(): void {
     const box = getRequiredElementById("find-file") as HTMLInputElement;
     box.addEventListener("keydown", (event) => {

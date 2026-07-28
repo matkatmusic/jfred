@@ -1,10 +1,6 @@
-// Revision-timeline view (#/project/<name>/timeline): the render orchestrator — one row per
-// reconstruction step across EVERY JSONL in the project, strictly chronological, with git-commit
-// nodes as pick hard-stops. The DOM-free view-model lives in the timeline-*.ts modules
-// (timeline-types / -nodes / -changes / -commit-files / -picks / -labels / -file-tree /
-// -sessions); the DOM render groups live in the timeline-render-*.ts modules (-context /
-// -inspectors / -selectbar / -chips / -rows / -selection), all sharing one
-// TimelineRenderContext built here (task 92 split).
+// Revision-timeline render orchestrator: one row per reconstruction step across every JSONL,
+// strictly chronological, with git-commit nodes as pick hard-stops. View-model lives in
+// timeline-*.ts, DOM groups in timeline-render-*.ts, sharing the context built here.
 
 import { el } from "../app-dom.ts";
 import { fetchDocument, fetchJson, fetchRawRecords } from "../app-fetch.ts";
@@ -56,9 +52,8 @@ import {
 } from "./timeline-types.ts";
 import type { DetailsContext } from "./details-model.ts";
 
-// task 93: the /file/ drawer route (app-drawer.ts) renders THE Revision View, which needs the
-// current render pass's DetailsContext. renderTimelineView always runs before
-// renderSubRouteDrawer (app-router.ts), so this is set whenever that route fires.
+// The /file/ drawer route needs this pass's DetailsContext; renderTimelineView always runs
+// before renderSubRouteDrawer, so it is set whenever that route fires.
 export let activeDetailsContext: DetailsContext | undefined;
 
 function selectTimelineRowAndFlash(context: TimelineRenderContext, nodeIndex: number): void {
@@ -72,8 +67,7 @@ function selectTimelineRowAndFlash(context: TimelineRenderContext, nodeIndex: nu
 
 async function openRecordInspectorForChangeId(context: TimelineRenderContext, changeId: string): Promise<void> {
     const located = await findTranscriptLineForChangeId(context, changeId);
-    // Synthetic changeIds (user-edit / evidence splices) match no JSONL line. Say so
-    // in the right column rather than opening the inspector on nothing.
+    // Synthetic changeIds (user-edit / evidence splices) match no JSONL line.
     if (located === undefined) {
         openInspectorPane().append(
             el("div", { class: "muted", text: "no transcript line for this revision (synthetic change id)" }),
@@ -87,13 +81,9 @@ function renderFileDetails(target: string, detailsContext: DetailsContext): void
     void renderDetailsFileMode(target, detailsContext);
 }
 
-// The project-wide revision timeline (#/project/<name>/timeline[/session/<jsonl>]) — the default
-// view a drawer JSONL link opens. anchorJsonl scrolls to that session's first node.
-// anchorLine (optional, 0-based raw line of anchorJsonl): scroll to the owning step, open the
-// inspector on it.
+// anchorJsonl scrolls to that session's first node; anchorLine is a 0-based raw line of it.
 export async function renderTimelineView(container: HTMLElement, project: string, anchorJsonl?: string, anchorLine?: string): Promise<void> {
-    // task 194: the reconstruction-mode decision comes on its OWN view, before any build work
-    // is kicked off (before the console overlay, empty timeline, and file-nav are shown).
+    // The reconstruction-mode decision gets its own view, before any build work is kicked off.
     if (getModeChoice(project) === null) {
         await renderModeSelectionView(container, project);
         return;
@@ -107,20 +97,13 @@ export async function renderTimelineView(container: HTMLElement, project: string
         renderConsentDialog(container, project, result.consentRequired);
         return;
     }
-    // app.ts ships the streamed document as an opaque Record; this view reads the timeline fields.
     const reconstructionDocument = result.document as WireTimelineDocument;
-    // fetchDocument hid its indicator on resolve, but the synchronous view-model build below runs over
-    // the whole (large) document — that is the unresponsive, blank gap the user sees between
-    // "transferring document" and "Building timeline". Put an indeterminate indicator back up and yield
-    // one frame so the browser paints it first; the shimmer is transform-based, so it keeps animating on
-    // the compositor even while this thread is blocked building the view-model. (item 82)
+    // The synchronous view-model build below blocks the thread, so re-show an indicator and yield
+    // a frame; the shimmer is transform-based and keeps animating on the compositor.
     showLoadingProgress("preparing timeline…", Number.NaN);
     await waitForNextAnimationFrame();
     const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, checkAllLinesIsOn());
     const listing = (await fetchJson<WireProjectListing[]>("/api/projects")).find((entry) => entry.name === project);
-    // (item 66) old local closure, lifted into the exported view-model helper findJsonlForSession:
-    // const findJsonlForSession = (sessionId: string | undefined) =>
-    //     listing?.jsonlFiles.find((file) => file.fileName.startsWith(sessionId!))?.fileName;
 
     const sessionColors = new Map<string, string>();
     for (const node of nodes) {
@@ -133,26 +116,22 @@ export async function renderTimelineView(container: HTMLElement, project: string
         sessionColors.set(node.sessionId, `var(${SESSION_LANE_VARIABLES[sessionColors.size % SESSION_LANE_VARIABLES.length]})`);
     }
 
-    // The pane header's summary + expand-all button are STATIC skeleton elements outside
-    // `container` (index.html); each render rewrites them.
+    // The pane header's summary and expand-all button are static skeleton elements outside
+    // `container`, so each render rewrites them.
     const numberedNodes = nodes.filter((node) => node.stepNumber !== undefined);
     const touchedCount = new Set(nodes.flatMap((node) => (node.fileChanges ?? []).map((change) => change.path))).size;
     document.getElementById("timeline-summary")!.textContent =
         `${sessionColors.size} session${sessionColors.size === 1 ? "" : "s"} · ${numberedNodes.length} steps · ${touchedCount} files`;
-    // task 119: the partial-reconstruction banner beside the summary (mounted only when partial).
     renderReconstructionBanner(reconstructionDocument);
 
-    // ── selection state + bar ──
     const barText = el("span", {});
     const ruleHint = el("span", { class: "timeline-rule", text: "picks must be contiguous — commits are hard stops" });
-    // The selectbar is the static #timeline-selectbar strip under the rows (fork layout);
-    // visibility is the mockup's .visible class, driven by updateSelectbar.
+    // Visibility is the .visible class, driven by updateSelectbar.
     const selectbar = document.getElementById("timeline-selectbar")!;
     selectbar.hidden = false;
     selectbar.classList.remove("visible");
 
-    // The one shared render context (task 92): per-render state, DOM anchors, and the
-    // cross-group calls the timeline-render-* modules make through it.
+    // The one shared render context every timeline-render-* module calls through.
     const context: TimelineRenderContext = {
         project,
         nodes,
@@ -182,7 +161,6 @@ export async function renderTimelineView(container: HTMLElement, project: string
         updateSelectbar: () => updateSelectbar(context),
         refreshFileNavButtons: () => {},               // no-op until wireFileNavButtons runs
         updateToggleLabel: () => {},                   // no-op until wireToggleAllButton runs
-        // Built once per render; the details pane drives the timeline back through these callbacks.
         detailsContext: {
             project,
             document: reconstructionDocument,

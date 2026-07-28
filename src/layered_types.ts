@@ -1,15 +1,10 @@
-// From-scratch layered reconstruction — domain types (task 195, spec S1). TypeScript port of
-// the decision ledger `from-scratch-reconstruction.hpp` (the .hpp stays sketch-only). Behavior
-// (loading, lineage walking, layer computation) arrives with later tasks; this module is the
-// data model those tasks share.
+// TypeScript port of the decision ledger `from-scratch-reconstruction.hpp`, which stays sketch-only.
 
 import { Path } from "./structures/domain.ts";
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
 
-// A point on the shared UTC-ms axis (hpp Q7/Q9): JSONL timestamps land as-is (ms, the master
-// clock); git committer seconds are widened ×1000 by the loader; same-second ties break by
-// content order. Hydrated only from recorded evidence, never `new Date()` "now". The project
-// convention is the built-in Date for time values — the alias keeps the hpp vocabulary.
+// Shared UTC-ms axis: JSONL ms is the master clock, git committer seconds are widened ×1000 by the
+// loader, and values are hydrated only from recorded evidence, never `new Date()` "now".
 export type Instant = Date;
 
 // Evidence pointer "<jsonl>:L67" — also the provenance namespace: snapshot references

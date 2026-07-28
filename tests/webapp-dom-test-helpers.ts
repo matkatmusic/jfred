@@ -1,18 +1,13 @@
-// Shared browser-environment setup for webapp DOM tests (task 122). node --test runs in plain
-// Node, so the happy-dom window plus the vendor-script globals (xterm's Terminal/FitAddon) are
-// installed here BEFORE any webapp module is dynamically imported.
+// node --test runs in plain Node, so the happy-dom window and vendor globals must be installed
+// here BEFORE any webapp module is dynamically imported.
 
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 
-// The pristine global fetch, captured at module load BEFORE any test replaces it. forwardFetchToOrigin
-// below builds on THIS rather than on whatever globalThis.fetch currently is: called after
-// stubFetchRoutes, it would otherwise forward through the stub and get canned 404s back.
+// Captured before any test replaces fetch; forwarding through a later stub would return canned 404s.
 const NATIVE_FETCH = globalThis.fetch;
 
-// The minimal xterm surface app-console.ts exercises (ensureProgressTerminal, logProgress,
-// fitProgressColumns). Every method is a no-op; writeln invokes its completion callback so the
-// scroll-in-callback pattern still runs.
+// writeln must invoke its completion callback so app-console's scroll-in-callback pattern still runs.
 class FakeXtermTerminal {
     open(_parent: unknown): void {}
     writeln(_text: string, done?: () => void): void {
@@ -29,8 +24,7 @@ class FakeXtermTerminal {
     resize(_columns: number, _rows: number): void {}
 }
 
-// The vendor addon-fit script exposes a namespace object { FitAddon: class }; proposeDimensions
-// returning undefined makes fitProgressColumns a no-op.
+// proposeDimensions returning undefined makes fitProgressColumns a no-op.
 class FakeXtermFitAddon {
     fit(): void {}
     proposeDimensions(): undefined {
@@ -38,26 +32,21 @@ class FakeXtermFitAddon {
     }
 }
 
-// ensureProgressTerminal only observes the console element to re-fit columns — the observer's
-// behavior is never under test, so a deterministic no-op fake beats happy-dom's implementation.
+// Observer behavior is never under test, so a deterministic no-op beats happy-dom's implementation.
 class FakeResizeObserver {
     observe(_target: unknown): void {}
     unobserve(_target: unknown): void {}
     disconnect(): void {}
 }
 
-// Extract the real header/console markup so every id the webapp looks up exists with its real
-// attributes (including the popovers' initial `hidden`). The page under test is the preserved
-// pre-redesign webapp_old.html (task 204 renamed index.html; the layered page will claim
-// index.html later — task 205).
+// Uses the real markup so every id exists with its real attributes (including popovers' `hidden`).
 function readIndexHtmlBodyMarkup(): string {
     const html = readFileSync(new URL("../webapp/webapp_old.html", import.meta.url), "utf8");
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window, publish it (plus the xterm fakes) as globals, and load the
-// real index.html body. Safe to call once per test: each call replaces every global, and stale
-// listeners from a previous window resolve ids against a document no test looks at again.
+// Safe to call once per test: each call replaces every global, so stale listeners resolve against
+// a document no later test looks at.
 export function setupWebappDom(): void {
     // Port 7343 matches the real viewer server default so location.origin looks authentic.
     const browserWindow = new Window({ url: "http://localhost:7343/" });

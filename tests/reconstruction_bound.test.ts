@@ -73,10 +73,7 @@ function makeBoundFixture(options: { withFinalPrompt: boolean; withSidechainProm
 
 test("test_bound_reports_total_revision_count", () => {
     // Scenario: the total revision count covers the FULL stream regardless of where the bound cuts.
-    // Steps:
-    // alpha is revised three times across the fixture (write, edit, edit); beta once.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
-    // Bounding at alpha's first revision still reports all three revisions.
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.totalRevisions, 3);
 });
@@ -86,11 +83,8 @@ test("test_bound_truncates_after_containing_turn_end", () => {
     // same-turn LATER revision (10:02) must stay in when revision 1 (10:01) is chosen.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
-    // Kept: prompt1 + the write pair + the same-turn edit pair = 5 records (cut before prompt2).
     assert.equal(bound.records.length, 5);
-    // The same-turn edit record IS included.
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));
-    // The bound instant is the turn-end boundary prompt's stamp (task 192, Phase 6).
     assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:05:00.000Z");
 });
 
@@ -99,9 +93,6 @@ test("test_bound_instant_reports_turn_end_not_last_record", () => {
     // ACTUAL turn-end boundary the wall-clock filter used, not the stamp of whatever record
     // happened to be retained last — merged multi-JSONL streams are grouped by input file,
     // not globally sorted, so the last array element's stamp can be an arbitrary instant.
-    // Steps:
-    // Two sessions interleave; alpha's turn (session A) ends at promptA2 10:08.
-    // Session B writes beta at 10:05 — the last RETAINED record, stamped before 10:08.
     const tree = makeSourceTree("-bound-instant");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
@@ -123,7 +114,6 @@ test("test_bound_instant_reports_turn_end_not_last_record", () => {
         buildPromptRecord("prompt-a2", writeAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
     ]);
     const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
-    // The last retained record is beta's 10:05 result — the bound must still report 10:08.
     assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:08:00.000Z");
 });
 
@@ -139,7 +129,6 @@ test("test_bound_later_ordinal_truncates_before_next_prompt", () => {
     // Scenario: revision 3 lives in turn 2; the cut lands just before prompt3.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 3);
-    // Everything but the trailing prompt3 is kept (10 of 11 records).
     assert.equal(bound.records.length, records.length - 1);
 });
 
@@ -194,12 +183,10 @@ test("test_cli_until_revision_bounds_all_views", () => {
     ]);
     const jsonlPath = join(tree.projectDir, "until.jsonl");
     const fhsLoc = join(tree.treeRoot, "file-history");
-    // The bounded run reconstructs only up to the end of alpha's turn: beta never appears.
     const bounded = runCli([jsonlPath, "--until-revision", alphaPath, "--fhsLoc", fhsLoc, "--json"]);
     assert.ok(bounded.includes("alpha_until.py"));
     assert.ok(!bounded.includes("beta_until.py"));
     setPathOverrides({});
-    // The control run without the flag sees both files.
     const full = runCli([jsonlPath, "--fhsLoc", fhsLoc, "--json"]);
     assert.ok(full.includes("alpha_until.py"));
     assert.ok(full.includes("beta_until.py"));
@@ -214,7 +201,6 @@ test("test_bound_ignores_sidechain_prompts", () => {
     // the cut still lands before prompt2, keeping the sidechain prompt AND the same-turn edit.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: true });
     const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
-    // Kept: prompt1 + write pair + sidechain prompt + edit pair = 6 records.
     assert.equal(bound.records.length, 6);
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));
 });

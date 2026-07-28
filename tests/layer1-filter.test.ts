@@ -1,15 +1,6 @@
-// Task 253: a folder filter must show only the selected folder's files AND recompute the ruler over
-// them, so the canvas shrinks to the selected files' own timestamp range instead of keeping the
-// full-project offsets.
-//
-// The expected pixel values below are written out by hand from the axis's documented rules rather
-// than produced by calling layOutNodeLadders here — a test that recomputes with the code under test
-// would pass no matter what that code did. The rules (webapp/layer1-ruler-axis.ts): a gap is
-// 2.5 px/hour, clamped into [16, 120], then raised to the EARLIER instant's stacked-row demand of
-// rows x 22 px. Every gap in this fixture is one or two hours, i.e. 2.5-5 px linear, so the 16 px
-// floor takes over and the 22 px content floor then outranks it — which makes every gap 22 px, or
-// 44 px leaving an instant where one pair stacks two nodes. That predictability is why the fixture
-// uses whole-hour instants.
+// Expected pixels are hand-derived from the axis's rules, never produced by calling
+// layOutNodeLadders here — recomputing with the code under test would pass whatever it did. Every
+// gap in this fixture is 1-2 hours, so the 22 px content floor wins, or 44 px where a pair stacks.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -18,9 +9,8 @@ import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// Full ISO-8601 UTC, because the re-layout hydrates these to Date and writes them back with
-// toISOString() — any other spelling would come back changed and the deep-equal test would fail for
-// a reason that has nothing to do with filtering.
+// Full ISO-8601 UTC, because the re-layout round-trips these through Date.toISOString(); any other
+// spelling would come back changed and fail the deep-equal test for reasons unrelated to filtering.
 const EARLY = "2026-07-01T08:00:00.000Z";
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";
@@ -31,11 +21,8 @@ const T5 = "2026-07-01T15:00:00.000Z";
 const T6 = "2026-07-01T16:00:00.000Z";
 const T7 = "2026-07-01T17:00:00.000Z";
 
-// Two folders under one shared `src/` prefix. `src/drop/` deliberately owns BOTH the earliest
-// instant (c.ts's first commit) and the latest (gone.ts), so dropping it has to move the ruler's
-// start AND its end — a filter that reused the server's offsets would fail on both counts.
-// `src/keep/b.ts` commits and lands on disk at the same instant, which is the case that needs two
-// stacked rows at one tick.
+// `src/drop/` deliberately owns BOTH the earliest and latest instants, so a filter that reused the
+// server's offsets fails on both; `src/keep/b.ts` ties a commit and an mtime at one instant.
 const KEEP_TARGETS = ["src/keep/a.ts", "src/keep/b.ts", "src/keep/deep/d.ts", "src/keep/extra.ts"];
 
 const FULL_VIEW: WireLayer1View = {
@@ -47,11 +34,8 @@ const FULL_VIEW: WireLayer1View = {
     ],
     gitOrphans: [{ path: "src/drop/gone.ts", instant: T7, axisPx: 198 }],
     diskOrphans: [{ path: "src/keep/extra.ts", instant: T2, axisPx: 66 }],
-    // eventCount is task 275's per-instant node tally across every bubble. T2 and T3 each carry two
-    // (T2 is a.ts's second commit plus the extra.ts disk orphan; T3 is b.ts committing and landing
-    // on disk in the same moment), and every other instant is drawn by exactly one node. The filter
-    // RE-MEASURES these rather than carrying them over, so the expectations below drop with the
-    // records they counted.
+    // The filter RE-MEASURES eventCount rather than carrying it over, so these expectations drop
+    // with the records they counted.
     ruler: [EARLY, T0, T1, T2, T3, T4, T5, T6, T7].map((instant, index) => ({
         instant,
         axisPx: [0, 22, 44, 66, 88, 132, 154, 176, 198][index]!,
@@ -66,50 +50,34 @@ function findPair(view: WireLayer1View, path: string) {
 }
 
 test("test_filtering_to_a_folder_keeps_only_that_folders_files", () => {
-    // Scenario (task 253): a folder selection filters all three record kinds, not just the pairs.
-    // Steps:
-    // filter the view to the four targets under src/keep/.
+    // A folder selection filters all three record kinds, not just the pairs.
     const filtered = filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS);
-    // the src/drop/ pair is gone and the src/keep/ pairs remain.
     assert.deepEqual(filtered.pairs.map((pair) => pair.path), ["src/keep/a.ts", "src/keep/b.ts", "src/keep/deep/d.ts"]);
-    // the git orphan, which lives under src/drop/, is gone.
     assert.deepEqual(filtered.gitOrphans, []);
-    // the disk orphan, which lives under src/keep/, survives.
     assert.deepEqual(filtered.diskOrphans.map((orphan) => orphan.path), ["src/keep/extra.ts"]);
 });
 
 test("test_filtering_keeps_files_in_nested_subfolders", () => {
-    // Scenario (task 253): "that folder's files" includes every subfolder below it.
-    // Steps:
-    // filter to src/keep/, whose target list includes the file one directory deeper.
+    // "That folder's files" includes every subfolder below it.
     const filtered = filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS);
-    // the nested file is still there.
     assert.ok(filtered.pairs.some((pair) => pair.path === "src/keep/deep/d.ts"));
 });
 
 test("test_filtering_matches_a_target_exactly_and_not_by_prefix", () => {
-    // Scenario (task 253): the caller resolves a folder to its leaf paths, so this function compares
-    // whole paths. A startsWith test here would let `src/keep/a.ts` also drag in `src/keep/a.ts.bak`
-    // — the substring class of bug task 278 removed from the find-file box.
-    // Steps:
-    // add a pair whose path merely EXTENDS a selected target.
+    // A startsWith test would let `src/keep/a.ts` drag in `src/keep/a.ts.bak` — the substring class
+    // of bug task 278 removed from the find-file box.
     const withLookalike: WireLayer1View = {
         ...FULL_VIEW,
         pairs: [...FULL_VIEW.pairs, { path: "src/keep/a.ts.bak", commits: [{ hash: "za", instant: T1, axisPx: 44 }], onDisk: { instant: T1, axisPx: 44 } }],
     };
-    // filter on the original targets, which do NOT name it.
     const filtered = filterLayer1ViewByTargets(withLookalike, KEEP_TARGETS);
-    // it is excluded.
     assert.ok(!filtered.pairs.some((pair) => pair.path === "src/keep/a.ts.bak"));
 });
 
 test("test_the_filtered_ruler_holds_only_the_surviving_instants", () => {
-    // Scenario (task 253): the ruler is recomputed over the filtered set, so an instant no surviving
-    // record sits at must leave it entirely.
-    // Steps:
-    // filter to src/keep/.
+    // The ruler is recomputed over the filtered set, so an instant no surviving record sits at must
+    // leave it entirely.
     const filtered = filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS);
-    // exactly the six instants the survivors occupy remain, ascending.
     assert.deepEqual(filtered.ruler.map((tick) => tick.instant), [T0, T1, T2, T3, T5, T6]);
 });
 

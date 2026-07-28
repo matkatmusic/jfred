@@ -34,45 +34,30 @@ import {
     ARTIFACT_CACHE_CAPACITY,
 } from "./viewer_api_records.ts";
 
-// The build's post-parse stage announcements, in the order buildProjectDocument runs them. Tests
-// compare against these constants, never string literals (coding-req §2 — one vocabulary home).
+// Stage labels live here so tests compare against constants, never string literals (coding-req §2).
 export const PROGRESS_LABEL_READING_SIDECAR = "reading sidecar backups";
 export const PROGRESS_LABEL_CONSTRUCTING_BRANCHES = "constructing branches";
 export const PROGRESS_LABEL_BUILDING_DOCUMENT = "building document";
 
-// Emitted right BEFORE the two synchronous blocking steps the build's progress sink can't see
-// into: JSON.stringify of the whole document (server) and its transfer. A single
-// stringify/transfer can't be subdivided, so an honest label before each is what keeps the
-// client from freezing on the previous line (item 82 — the 67 MB document is seconds of
-// silent stringify + a browser-side parse of the same size).
+// Item 82: emitted before the unsubdividable stringify/transfer so the client doesn't look frozen.
 export const PROGRESS_LABEL_SERIALIZING_DOCUMENT = "serializing document";
 
-// byteLength is a genuine numeric measure, not a domain value, so it stays primitive (coding-req §1).
+// byteLength is a numeric measure, not a domain value, so it stays primitive (coding-req §1).
 export function formatSendingDocumentLabel(byteLength: number): string {
     return `sending document (${(byteLength / 1_000_000).toFixed(1)} MB)`;
 }
 
-// One-or-many JSONLs -> the wire document AND its compact step-file histories (returned separately;
-// the histories never ride the wire). Exactly the CLI --json composition, generalized to a merged
-// multi-JSONL record stream (the coverage checker's proven pattern). The optional `sources` list
-// (spec S4a) makes the sidecar reader resolve each session's blobs from its OWN source's
-// file-history dir — absent, the single-root chain applies exactly as before.
+// Spec S4a: the optional `sources` list makes the sidecar reader resolve each session's blobs from
+// its OWN source's file-history dir; absent, the single-root chain applies as before.
 export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest): BuiltReconstruction {
-    // The per-record walk belongs to the caller's own loadProjectRecords call (the /api/document
-    // route always pre-walks); the build emits stages and deep-engine progress only.
-    // skippedLines rides to the wire document (the webapp's partial-reconstruction gaps).
     const loaded = loadProjectRecords(jsonlPaths);
     const { skippedLines } = loaded;
-    // Spec S5a: with declared sources the record stream goes through the multi-source stages
-    // (dedupe → interleave → identity join) before any engine work. The merge builds a NEW
-    // array, so the per-records WeakMap memos run cold on multi-source builds.
+    // Spec S5a: the merge builds a NEW array, so per-records WeakMap memos run cold on multi-source builds.
     // ponytail: memoize per (stamp, sources) if profiling ever shows it.
     const merged = sources === undefined || sources.length === 0
         ? loaded.records
         : mergeMultiSourceRecords(groupRecordsBySession(loaded.records), sources);
-    // task 194: bounded mode — truncate the merged stream at the bound file's nth-revision
-    // turn end (task-193 semantics) BEFORE any engine work, exactly like the CLI's
-    // --until-revision cut (reconstruction_cli.ts applies it pre-reconstruction too).
+    // Task 194: the bound cut must happen BEFORE any engine work, like the CLI's --until-revision.
     const records = bound === undefined
         ? merged
         : truncateRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
@@ -86,37 +71,29 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
     return buildReconstructionDocument(records, branched, reader, target, skippedLines);
 }
 
-// The wire document alone — the back-compat surface every non-range-patch caller uses (the histories
-// are an implementation detail only the range-patch / step-files routes need).
+// The wire document alone — the back-compat surface every non-range-patch caller uses.
 export function buildProjectDocument(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink): ReconstructionDocument {
     return buildProjectReconstruction(jsonlPaths, target, onProgress).document;
 }
 
-// One recorded script run plus the consent dialog's read-only verdict: the same conservative
-// classifier execution uses (item 68) — uncertain code counts as may-write, i.e. Modifying.
+// Item 68: the read-only verdict uses the conservative classifier — uncertain code counts as may-write.
 export type ConsentScript = ScriptRun & { readOnly: boolean };
 
 export type DocumentDecision =
     | { kind: DocumentResponseKind.consentRequired; scripts: ConsentScript[] }
     | { kind: DocumentResponseKind.document };
 
-// Decide whether a document build must first ask the user to consent to running the transcript's
-// scripts: consent is required only when script runs exist AND consent wasn't given. The scripts
-// ride along so the client can show each one's code in the consent dialog.
+// The scripts ride along so the consent dialog can show each one's code.
 export function decideDocumentResponse(records: TranscriptRecord[], allowScripts: boolean): DocumentDecision {
     const scripts = findScriptExecutionRuns(records);
     if (scripts.length > 0 && !allowScripts) {
-        // The dialog marks read-only scripts; the flag rides the wire with each script (item 69).
         const taggedScripts = scripts.map((run) => ({ ...run, readOnly: !scriptCodeMayWriteFiles(run.code) }));
         return { kind: DocumentResponseKind.consentRequired, scripts: taggedScripts };
     }
     return { kind: DocumentResponseKind.document };
 }
 
-// Task 56: the pre-baseline question payload for the wire, or undefined when the gate does
-// not apply. It applies only when the ACTIVE project overrides carry a base commit (item 46)
-// and the client has not yet sent a preBaseline choice — asked BEFORE the consent gate (the
-// scope-of-work decision precedes the run-scripts decision, and it needs no record scan).
+// Task 56: asked BEFORE the consent gate — the scope-of-work decision precedes the run-scripts one.
 export type BaselineQuestion = {
     kind: DocumentResponseKind.baselineQuestionRequired;
     baseCommit: string;
@@ -143,19 +120,11 @@ export function decideBaselineQuestion(choiceMade: boolean): BaselineQuestion | 
 
 export const PROGRESS_LABEL_ARTIFACT_CACHE_HIT = "reusing cached document artifact";
 
-// Built documents per (transcript-set stamp, consent, target). allowScripts is in the key
-// because consented and degraded builds yield different documents and must never share an
-// entry. target is in the key only to keep the /api/document?target= contract intact — the
-// webapp never sends it, so in practice this holds one entry per (project, consent).
+// allowScripts is in the key because consented and degraded builds yield different documents.
 const builtDocumentCache = new Map<string, BuiltReconstruction>();
 
-// Build a document under the consent decision: the exec gate is on only for a consented build's
-// own (synchronous) duration, and always off afterwards — the server's resting posture. A declined
-// build still yields a document, just degraded (no script-derived revisions). A cache hit returns
-// before the gate/sink lifecycle: nothing impure runs when no build runs.
-// Build (or reuse) the document AND its step-file histories under the consent decision. The cached
-// value carries both, so range-patch / step-files requests reuse the compact histories instead of
-// re-reconstructing (the histories are never serialized onto the wire).
+// The exec gate is on only for a consented build's synchronous duration; a cache hit returns before
+// the gate/sink lifecycle so nothing impure runs when no build runs.
 export function buildReconstructionWithConsent(
     jsonlPaths: Path[],
     target: Path | undefined,
@@ -167,23 +136,16 @@ export function buildReconstructionWithConsent(
     bound?: RevisionBoundRequest,
 ): BuiltReconstruction {
     const targetKey = target === undefined ? "" : target.toString();
-    // task 194: a bounded and a full build must never share a cache entry (same reason as the
-    // consent and pre-baseline flags below).
     const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
-    // item 46: const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${targetKey}`;
-    // The stamp reads the ACTIVE overrides — callers applyProjectOverrides first; a config-file
-    // edit between requests changes the stamp and misses the cache, which is the point.
-    // task 56: the pre-baseline choice is in the key — a trimmed and a full build must never
-    // share an entry (same reason allowScripts is here).
+    // Bounded/full and trimmed/full builds must never share an entry; the stamp reads the ACTIVE
+    // overrides, so a config edit between requests misses the cache on purpose.
     const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
     const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
     if (cachedBuild !== undefined) {
         reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
         return cachedBuild;
     }
-    // item 79: an in-memory miss may still hit the disk cache after a server respawn — hydrate it,
-    // repopulate the in-memory cache, and skip the multi-minute rebuild. No-op when the CLI/tests
-    // leave the disk cache unconfigured.
+    // Item 79: after a server respawn the disk cache saves a multi-minute rebuild.
     const diskBuild = readDocumentFromDiskCache(cacheKey);
     if (diskBuild !== undefined) {
         reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
@@ -192,26 +154,19 @@ export function buildReconstructionWithConsent(
         return diskBuild;
     }
     setImpureExecutionAllowed(allowScripts);
-    // task 56: same lifecycle as the exec gate — the trim is on only for this build's duration.
     setPreBaselineReconstructionAllowed(reconstructPreBaseline);
-    // The deep engine stages (script sandbox runs, per-file reconstruction) announce through the
-    // build-scoped module sink — same lifecycle as the exec gate: on for the build, off after.
     setReconstructionProgressSink(onProgress);
     try {
-        // Spec S6: the viewer's declared sources ride the process-wide overrides (set by
-        // applyProjectOverrides / applyCliPathOverrides before any build).
+        // Spec S6: sources ride the process-wide overrides, set by the caller before any build.
         const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
-        // task 56: stamp trimmed builds so the timeline knows to start at the baseline node.
         // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
         if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {
             built.document.preBaselineSkipped = true;
         }
-        // The build's new sandbox spawns were persisted per batch; flush the final tail so nothing is
-        // lost before the response (batched persist is the O(N²)-write fix — item Step 6).
+        // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
         flushSandboxMemoToDisk();
         builtDocumentCache.set(cacheKey, built);
         evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
-        // item 79: persist to disk so a server respawn reads this back (hydrated) instead of rebuilding.
         writeDocumentToDiskCache(cacheKey, built);
         return built;
     } finally {

@@ -19,7 +19,6 @@ import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { jsonlPathsForScenario } from "./fixtures.ts";
 
-// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`.
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -36,12 +35,9 @@ const emptyReader: BackupReader = () => "";
 
 const COMMENT = "# names normalized via rename script";
 
-// The merged s37 records and an on-disk sidecar reader for its session.
 function reconstructLedger() {
-    // task 165: load through loadTranscript so records carry their on-disk SOURCE — the
-    // reader's sibling derivation needs it to resolve the captured scenarios/file-history
-    // sidecars; source-less records silently fall back to the live ~/.claude/file-history
-    // (green on the capture machine, absent on CI).
+    // Task 165: loadTranscript stamps each record's on-disk SOURCE, which the reader needs to
+    // find the captured sidecars — source-less records fall back to live ~/.claude/file-history.
     const records = jsonlPathsForScenario("s37").flatMap((path) => loadTranscript(path.toString()).records);
     const reader = buildSidecarReader(records)!;
     const histories = reconstructAll(records, reader);
@@ -55,8 +51,7 @@ function reconstructLedger() {
 }
 
 test("test_discoverScriptCreatedPaths_returns_files_that_exist_only_after_a_run", () => {
-    // Steps:
-    // build records with a run whose script writes "out.txt" (never Written/Edited elsewhere).
+    // "out.txt" is never Written or Edited elsewhere, so only the run can account for it.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -65,15 +60,12 @@ test("test_discoverScriptCreatedPaths_returns_files_that_exist_only_after_a_run"
             "2026-01-01T00:00:02Z",
         ),
     ];
-    // discover created paths.
     const created = discoverScriptCreatedPaths(records, emptyReader);
-    // assert the list contains the cwd-resolved out.txt and nothing junk.
     assert.deepEqual(created.map((path) => path.toString()), ["/proj/out.txt"]);
 });
 
 test("test_beaconlessScriptExecution_injects_a_birth_for_a_script_created_file", () => {
-    // Steps:
-    // reconstruct out.txt's events over the same records (no prior events for it).
+    // out.txt has no prior events, so the injected birth is its only one.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -83,16 +75,14 @@ test("test_beaconlessScriptExecution_injects_a_birth_for_a_script_created_file",
         ),
     ];
     const events = injectScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
-    // assert injectScriptExecutions returns one scriptExecution event carrying the created content.
     assert.equal(events.length, 1);
     assert.equal(events[0]!.kind, EventKind.scriptExecution);
     assert.equal((events[0] as { content: string }).content, "created\n");
 });
 
 test("test_beaconlessScriptExecution_chains_a_later_run_over_a_script_created_file", () => {
-    // Scenario: run 1 births core_one.py via shutil.move; run 2 rewrites every core_*.py via glob.
-    // The chained gate must inject BOTH effects: the birth, then the rename applied to the birth
-    // content — even though run 2's own sandbox never contained the script-born file.
+    // The chained gate must inject BOTH the birth and the later rewrite, even though run 2's own
+    // sandbox never contained the script-born file.
     const moveScript = 'import shutil\nshutil.move("one.py", "core_one.py")\n';
     const renameScript = 'import glob\nfor p in glob.glob("core_*.py"):\n'
         + '    text = open(p).read()\n'
@@ -108,10 +98,9 @@ test("test_beaconlessScriptExecution_chains_a_later_run_over_a_script_created_fi
     assert.ok((events[1] as { content: string }).content.includes("def alpha(x):"));
 });
 
-// C5c/C7 — the script run is reconstructed as a script-execution revision of ledger.py: the engine
-// COMPUTES the post-script content (the validated forward transform) rather than splicing a backup. The
-// revision carries every rename (including the two undocumented `tot_*` subs recovered from the run-time
-// CSV) and does NOT carry the out-of-band `# names normalized via rename script` comment.
+// C5c/C7 — the engine COMPUTES the post-script content rather than splicing a backup, so the
+// revision carries every rename (including the `tot_*` subs from the run-time CSV) but not the
+// out-of-band comment.
 test("test_s37_ledger_has_a_script_execution_revision_renamed_without_the_comment", () => {
     const ledger = reconstructLedger();
     const scriptRev = ledger.revisions.find(
@@ -126,11 +115,8 @@ test("test_s37_ledger_has_a_script_execution_revision_renamed_without_the_commen
 });
 
 test("test_injectScriptExecutions_stamps_the_same_changeId_across_replays", () => {
-    // Scenario: the step-timeline replay and the file-history replay each call the stage
-    // independently over the same records; the synthetic event must carry the identical
-    // changeId both times so the two replays' events join (TASKS.md item 34).
-    // Steps:
-    // build records with a run whose script writes "out.txt" (never Written/Edited elsewhere).
+    // The two replays call the stage independently, so the synthetic event must carry the same
+    // changeId both times or their events never join (TASKS.md item 34).
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -139,28 +125,22 @@ test("test_injectScriptExecutions_stamps_the_same_changeId_across_replays", () =
             "2026-01-01T00:00:02Z",
         ),
     ];
-    // inject twice with identical inputs — one call per replay.
     const firstReplayEvents = injectScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
     const secondReplayEvents = injectScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
-    // assert both replays produced the scriptExecution event.
     assert.equal(firstReplayEvents.length, 1);
     assert.equal(secondReplayEvents.length, 1);
     assert.equal(firstReplayEvents[0]!.kind, EventKind.scriptExecution);
-    // assert the changeIds are identical across the two replays.
     assert.equal(firstReplayEvents[0]!.changeId.toString(), secondReplayEvents[0]!.changeId.toString());
 });
 
 test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
-    // Scenario: a recorded analysis run with no write primitive must not spawn a sandbox —
-    // its execution memoizes as { pre: empty, post: undefined } (TASKS.md item 68).
-    // Steps:
-    // record a Write plus a read-only counting script over it.
+    // An analysis run with no write primitive must not spawn a sandbox; it memoizes as
+    // { pre: empty, post: undefined } (TASKS.md item 68).
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/ledger.py", content: "def add(): pass\n" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print(len(open("ledger.py").read()))\n' }, "2026-01-01T00:00:02Z"),
     ];
     const run = findScriptExecutionRuns(records)[0]!;
-    // execute the run while counting sandbox-spawn and read-only-skip announcements.
     const spawnLabels: string[] = [];
     const skipLabels: string[] = [];
     setReconstructionProgressSink((event) => {
@@ -169,7 +149,6 @@ test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
     });
     try {
         const execution = executeRunOnce(run, records, emptyReader);
-        // assert the sandbox never spawned, the skip announced itself, and post is undefined.
         assert.equal(execution.post, undefined);
         assert.equal(spawnLabels.length, 0);
         assert.equal(skipLabels.length, 1);
@@ -179,15 +158,12 @@ test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
 });
 
 
-// Task 191 follow-up: the stage label shows the windowed count AGAINST the total pool
-// ("2559 of 2871 runs"), so a watcher can see how close the advancing replay window is to the
-// dataset's full run count. Both variants: with and without a --target suffix.
+// Task 191 follow-up: the label shows the windowed count AGAINST the total pool, so a watcher can
+// see how close the advancing replay window is to the dataset's full run count.
 test("test_script_stage_label_shows_windowed_count_of_total", () => {
-    // A target-scoped stage pass names the file after the counts.
     assert.equal(
         formatScriptStageLabel(3, 10, new Path("/tmp/x.py")),
         "script stage: 3 of 10 runs for /tmp/x.py",
     );
-    // An all-files pass carries no target suffix.
     assert.equal(formatScriptStageLabel(3, 10, undefined), "script stage: 3 of 10 runs");
 });

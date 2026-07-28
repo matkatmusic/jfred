@@ -1,25 +1,15 @@
-// The Layer 1 page's minimap (task 246): the whole render shrunk into a corner plot, plus a
-// rectangle marking the slice the scrollport is over.
+// The Layer 1 page's minimap (task 246).
 //
-// happy-dom implements NO layout — every rect is 0x0 at 0,0 and every client/scroll extent is 0 —
-// so the measurements the module reads are stubbed onto the individual elements here and the
-// assertions are made against the inline styles it WRITES. That is the whole contract worth
-// pinning: the arithmetic that turns content px into plot px, and the fact that it is driven by
-// measured boxes rather than by the zoom level (which is what keeps the map correct under the zoom
-// control — see webapp/layer1-minimap.ts).
+// happy-dom implements NO layout — every rect is 0x0 and every extent is 0 — so measurements are
+// stubbed per element and assertions read the inline styles the module WRITES.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { drawLayer1Minimap, fitMinimapScale } from "../webapp/layer1-minimap.ts";
 
-// The stubbed pane: a 1000x250 render seen through a 200x100 scrollport, mapped into a 100x50 plot.
-//
-// The two ratios are deliberately DIFFERENT — x is 0.1 and y is 0.2. The original fixture was
-// 1000x500 into 100x50, where both came out at exactly 0.1, and a fixture whose axes agree cannot
-// tell a per-axis scale from a single uniform one: the module shipped with one `Math.min` scale and
-// the tests passed anyway. On the real render (~156,000 px wide, a few thousand tall) that squashed
-// every mark into the top fifth of the plot. Keep these ratios unequal.
+// Keep the two axis ratios UNEQUAL (x 0.1, y 0.2): a fixture whose axes agree cannot tell a
+// per-axis scale from a single uniform one, and a uniform scale shipped undetected once.
 const CONTENT_WIDTH_PX = 1000;
 const CONTENT_HEIGHT_PX = 250;
 const PANE_WIDTH_PX = 200;
@@ -34,8 +24,7 @@ interface StubbedRect {
     heightPx: number;
 }
 
-// Give one element a fixed box. happy-dom defines these on the PROTOTYPE as getters, so an own
-// property on the instance shadows them for this element alone.
+// happy-dom defines these on the PROTOTYPE as getters, so an own property shadows them per element.
 function stubMeasurements(element: Element, sizes: Record<string, number>, rect: StubbedRect): void {
     for (const [property, value] of Object.entries(sizes)) {
         Object.defineProperty(element, property, { value, configurable: true });
@@ -61,9 +50,8 @@ function appendWidget(className: string, rect: StubbedRect): void {
     document.getElementById("stage")!.append(widget);
 }
 
-// A page carrying two widgets — one pair bubble and one orphan bucket — with the pane and plot
-// measurements above. The pane's own rect sits at the viewport origin so a widget's client-space
-// left/top IS its content-space left/top when nothing is scrolled.
+// The pane's rect sits at the viewport origin so a widget's client-space left/top IS its
+// content-space left/top when nothing is scrolled.
 function openMappedPage(): HTMLElement {
     setupLayer1Dom();
     const pane = findRequiredElement("main.timelines");
@@ -84,65 +72,42 @@ function readPlacement(element: HTMLElement): string[] {
 }
 
 test("test_minimap_scale_fits_each_axis_to_its_own_extent", () => {
-    // Scenario (task 246, corrected 2026-07-26 on user report): each axis is scaled to ITS OWN
-    // extent so the render fills the plot in both directions. A single uniform scale — the tighter
-    // axis winning, which is what plans/layer1-mockup.html does and what shipped — collapses the
-    // other axis to a sliver whenever the render's aspect ratio is far from the plot's, which on the
-    // real ~156,000 px-wide canvas meant every mark crammed into the top fifth of the box.
-    // Steps:
-    // a render twice as wide as it is tall, in a SQUARE plot: the axes must disagree, x tighter.
+    // Each axis scales to ITS OWN extent: a single uniform scale crammed every mark into the top
+    // fifth of the box on the real ~156,000 px-wide canvas.
     assert.deepEqual(fitMinimapScale(1000, 500, 100, 100), { xPerContentPx: 0.1, yPerContentPx: 0.2 });
-    // the mirror case — a render twice as TALL — must simply swap them, never reuse the smaller.
     assert.deepEqual(fitMinimapScale(500, 1000, 100, 100), { xPerContentPx: 0.2, yPerContentPx: 0.1 });
-    // an unrendered page reports every extent as 0; both scales must be numbers, not Infinity.
+    // An unrendered page reports every extent as 0; both scales must be numbers, not Infinity.
     assert.deepEqual(fitMinimapScale(0, 0, 100, 50), { xPerContentPx: 100, yPerContentPx: 50 });
 });
 
 test("test_minimap_draws_one_scaled_mark_per_widget", () => {
-    // Scenario (task 246): every bubble on the canvas appears on the map at its own scaled-down
-    // position, with the orphan buckets distinguishable from the pair widgets.
-    // Steps:
-    // draw the map over a two-widget render.
     openMappedPage();
     drawLayer1Minimap();
     const marks = [...document.querySelectorAll(".mm-box")] as HTMLElement[];
     assert.equal(marks.length, 2);
-    // the pair bubble lands at a TENTH of its content x and a FIFTH of its content y — the two axes
-    // scale independently, so 100,50 becomes 10,10 and the 168x40 box becomes 16.8x8.
+    // The two axes scale independently, so 100,50 becomes 10,10 and 168x40 becomes 16.8x8.
     assert.deepEqual(readPlacement(marks[0]!), ["10px", "10px", "16.8px", "8px"]);
-    // the bucket keeps its own class. Its 10x10 box scales to 1x2, so the 1.5 px minimum floors the
-    // WIDTH only — the floor is applied per axis, and the height clears it on its own.
     assert.equal(marks[1]!.className, "mm-box bucket");
+    // The 1.5 px minimum is applied PER AXIS, so it floors the width only.
     assert.deepEqual(readPlacement(marks[1]!), ["60px", "20px", "1.5px", "2px"]);
-    // the viewport rectangle is the LAST child, so it paints over the marks rather than under them.
+    // The viewport rectangle must be the LAST child so it paints over the marks.
     assert.equal(findRequiredElement(".mm-plot").lastElementChild?.id, "mm-view");
 });
 
 test("test_minimap_viewport_rectangle_follows_the_pane_scroll", () => {
-    // Scenario (task 246): the pane's scrollbars only appear mid-scroll, so the rectangle is the
-    // only at-rest indication of where in the render the reader is standing. It must track a scroll
-    // WITHOUT a re-render — the marks do not move, only the rectangle does.
-    // Steps:
-    // draw the map, then scroll the pane and let its own scroll event drive the update.
+    // The rectangle must track a scroll WITHOUT a re-render — only it moves, not the marks.
     const pane = openMappedPage();
     drawLayer1Minimap();
-    // the 200x100 scrollport maps to 20x20 — 0.1 across, 0.2 down.
     assert.deepEqual(readPlacement(findRequiredElement(".mm-view")), ["0px", "0px", "20px", "20px"]);
     pane.scrollLeft = 300;
     pane.scrollTop = 100;
     pane.dispatchEvent(new window.Event("scroll"));
-    // each offset scaled by its OWN axis: 300 across at 0.1, 100 down at 0.2. The size is the
-    // scrollport, unchanged by scrolling.
+    // Each offset scaled by its OWN axis: 300 across at 0.1, 100 down at 0.2.
     assert.deepEqual(readPlacement(findRequiredElement(".mm-view")), ["30px", "20px", "20px", "20px"]);
 });
 
 test("test_clicking_the_minimap_centres_the_pane_on_that_point", () => {
-    // Scenario (task 246): the map doubles as a navigation control — a click jumps the pane to that
-    // part of the render, CENTRED rather than top-left-aligned, so the clicked point is what the
-    // reader ends up looking at.
-    // Steps:
-    // capture what the pane is ASKED to scroll to — happy-dom's own scrollTo clamps against its
-    // internal (unstubbed, therefore zero) content extent, so the request is the observable here.
+    // Assert on the REQUEST: happy-dom's scrollTo clamps against its unstubbed, zero content extent.
     const pane = openMappedPage();
     let requested: ScrollToOptions | undefined;
     Object.defineProperty(pane, "scrollTo", {
@@ -152,13 +117,11 @@ test("test_clicking_the_minimap_centres_the_pane_on_that_point", () => {
         },
     });
     drawLayer1Minimap();
-    // click a point 50 plot-px across and 20 down.
     findRequiredElement(".mm-plot").dispatchEvent(
         new window.MouseEvent("click", { clientX: 50, clientY: 20, bubbles: true }),
     );
-    // each axis is un-scaled by its OWN factor: 50 / 0.1 = content x 500, less half the 200 px
-    // scrollport; 20 / 0.2 = content y 100, less half of 100. Dividing both by the x scale — which a
-    // single uniform scale would do — would land at y 150, off the bottom of a 250 px render.
+    // The click is CENTRED and un-scaled per axis; dividing both by the x scale would land at
+    // y 150, off the bottom of a 250 px render.
     assert.equal(requested?.left, 400);
     assert.equal(requested?.top, 50);
 });

@@ -7,7 +7,6 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { currentText, computeDiffBlockHeader } from "./reconstruction_render.ts";
 import { runGitUnifiedDiff, DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES } from "./render_git_diff.ts";
 
-// --- Context diff (the webapp's diff text): unified hunks with line numbers ---
 
 const DIFF_CONTEXT_LINE_COUNT = 3;
 
@@ -112,10 +111,6 @@ function appendGitHunksForRevision(
     contextLines: number,
 ): void {
     // item 51: pure-TS hunk generation, replaced by real git below (function context).
-    // const alignedLines = computeAlignedDiffLines(previous, revision);
-    // for (const range of computeHunkRanges(alignedLines)) {
-    //     blockLines.push(renderHunk(alignedLines.slice(range.start, range.end + 1)));
-    // }
     const beforeLines = previous === undefined ? [] : previous.lines.map(currentText);
     const afterLines = revision.lines.map(currentText);
     const hunks = runGitUnifiedDiff(beforeLines, afterLines, contextLines);
@@ -145,7 +140,6 @@ export function renderDiffWithContext(revisions: FileRevision[], fullContext: bo
     return blocks.join("\n");
 }
 
-// --- Standard unified diff (git-apply-able) — separate from renderDiff's human-oriented blocks ---
 
 // Split patchable text into lines, tracking whether it ends with a newline (git needs the
 // `\ No newline at end of file` marker to reproduce byte-exact content). "" is zero lines.

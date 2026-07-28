@@ -68,19 +68,15 @@ function readAxisOffsetPx(element: HTMLElement): number {
 test("test_file_widgets_are_offset_in_history_start_instant_order", async () => {
     // Scenario (task 207, spec S8): each file widget is offset onto the shared vertical axis by
     // the instant its history starts, so widget order follows start instant — not input order.
-    // Steps:
-    // load the two-file two-session graph (entities deliberately listed newest-first).
     setupLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildTwoFileTwoSessionGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
     await flushAsyncWork();
-    // the earlier-starting file renders first, pinned to the axis origin.
     const widgets = listRenderedWidgets();
     assert.equal(widgets.length, 2);
     assert.equal(widgets[0]?.querySelector(".layered-file-name")?.textContent, "/w/older.py");
     assert.equal(readAxisOffsetPx(widgets[0]!), 0);
-    // the later-starting file is offset by its 10:05 ruler position, measured from that origin.
     assert.equal(widgets[1]?.querySelector(".layered-file-name")?.textContent, "/w/newer.py");
     assert.equal(readAxisOffsetPx(widgets[1]!), 12.5);
     assert.ok(readAxisOffsetPx(widgets[0]!) < readAxisOffsetPx(widgets[1]!));
@@ -89,20 +85,15 @@ test("test_file_widgets_are_offset_in_history_start_instant_order", async () => 
 test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () => {
     // Scenario (task 208, spec S8): a dashed cross-lane line appears at every instant S5 marked
     // as corroborated, and nowhere else — a file with no corroboration draws none.
-    // Steps:
-    // load the two-file graph with older.py's 10:02 instant marked corroborated.
     setupLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildCorroboratedGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
     await flushAsyncWork();
-    // older.py draws exactly one dashed line, at the corroborated instant's widget-relative offset.
     const [olderWidget, newerWidget] = listRenderedWidgets();
     const lines = [...olderWidget!.querySelectorAll(".layered-corroboration")] as HTMLElement[];
     assert.deepEqual(lines.map(readAxisOffsetPx), [5]);
-    // the line spans the lanes rather than sitting inside one of them.
     assert.equal(lines[0]!.parentElement?.className, "layered-lanes");
-    // newer.py has no corroboration, so it draws no line at all.
     assert.equal(newerWidget!.querySelectorAll(".layered-corroboration").length, 0);
 });
 
@@ -114,17 +105,13 @@ test("test_file_widget_holds_one_lane_per_observing_session", async () => {
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
     await flushAsyncWork();
-    // older.py was observed by both sessions; newer.py by one.
     const [olderWidget, newerWidget] = listRenderedWidgets();
     const olderLanes = [...olderWidget!.querySelectorAll(".layered-lane")] as HTMLElement[];
     assert.deepEqual(olderLanes.map((lane) => lane.dataset.session), ["a.jsonl", "b.jsonl"]);
     assert.equal(newerWidget!.querySelectorAll(".layered-lane").length, 1);
-    // lane a's two nodes sit at the 10:00 and 10:03 ruler marks, measured from older.py's start.
     const laneNodes = [...olderLanes[0]!.querySelectorAll(".layered-node")] as HTMLElement[];
     assert.deepEqual(laneNodes.map(readAxisOffsetPx), [0, 7.5]);
-    // lane b's single 10:02 node sits at 5 px on the SAME widget-relative ruler.
     const laneBNodes = [...olderLanes[1]!.querySelectorAll(".layered-node")] as HTMLElement[];
     assert.deepEqual(laneBNodes.map(readAxisOffsetPx), [5]);
-    // the widget's span reaches its latest node so the lanes are tall enough to hold them.
     assert.equal(olderWidget!.style.getPropertyValue("--axis-span-px"), "7.5");
 });
