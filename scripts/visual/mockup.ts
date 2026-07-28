@@ -14,6 +14,7 @@ import {
     RENDER_SIGNATURE, check, checkChrome, checkDrawer, checkNavRows, checkOrdering, checkRulerRow,
     checkScale, checkSnapshotNodes, failures, shapeOf, shoot,
 } from "./mockup-checks.ts";
+import { checkBubbleFlash, checkSessionSearch } from "./mockup-checks-nav.ts";
 
 const MOCKUP_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../plans/layer2-mockup");
 const VIEWPORT_WIDTH = 1600;
@@ -53,6 +54,8 @@ async function runChecks(page: HeadlessPage): Promise<void> {
     await shoot(page, "02-layer2");
 
     await checkRulerRow(page);
+    await checkBubbleFlash(page);
+    await checkSessionSearch(page);
     await checkDrawer(page);
 
     await page.evaluate(`document.getElementById('dclose').click(); ${LAYER_BUTTON(1)}.click()`);
