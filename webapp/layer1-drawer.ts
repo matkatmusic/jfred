@@ -20,10 +20,15 @@ function findClickedNode(target: HTMLElement): HTMLElement | undefined {
 }
 
 // What the drawer asks for and says about one node. A commit node carries its full 40-char hash on
-// `title` (buildPairWidget sets it); an on-disk node has none and reads the working tree instead.
+// the DOT's `title` (webapp/layer1-widgets.ts's appendAxisNode sets it on both the dot and its
+// label); an on-disk node has none and reads the working tree instead.
+//
+// An EMPTY title reads as "no commit", not as a commit with a blank hash: the route treats a blank
+// `hash=` as the on-disk form and then refuses for a missing `dir`, so a request built from one is
+// guaranteed to fail with an error that names the wrong parameter.
 function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string } {
     const basename = path.split("/").pop() ?? path;
-    const hash = node.classList.contains("n-commit") ? node.title : undefined;
+    const hash = node.classList.contains("n-commit") && node.title !== "" ? node.title : undefined;
     if (hash === undefined) {
         return {
             params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),

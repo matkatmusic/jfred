@@ -641,3 +641,5 @@
   .dbody { display: flex; align-items: flex-start; gap: 12px; }
   .dbody .dgutter { flex: none; text-align: right; color: var(--muted); user-select: none; }
   .dbody .dcode { flex: 1; min-width: 0; }
+  /* A binary file has no text to number, so it gets a sentence instead of a body (task 294). */
+  .dbody .dbinary { color: var(--muted); font-style: italic; }

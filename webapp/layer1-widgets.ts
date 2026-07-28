@@ -24,9 +24,13 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 // One dot plus its label, both pinned to the same widget-relative offset. `titleText` is optional so
 // the "on disk" node, which has nothing longer to reveal, is unaffected; el() omits an undefined
 // attribute, so a hover title costs one key and no new code path.
+// The DOT carries the title too, not just the label: webapp/layer1-drawer.ts reads a commit node's
+// full hash off the element the click resolved to, which is always the dot. With it only on the
+// label the drawer saw an empty hash, asked for `git show :<path>`, and the route answered the
+// on-disk form's "missing query param: dir" (user, 2026-07-27).
 function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string, titleText?: string): void {
     lane.append(
-        setAxisPx(el("i", { class: `node ${nodeClass}` }), axisPx),
+        setAxisPx(el("i", { class: `node ${nodeClass}`, title: titleText }), axisPx),
         setAxisPx(el("span", { class: "nlabel", text, title: titleText }), axisPx),
     );
 }

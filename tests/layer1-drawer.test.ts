@@ -8,7 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
@@ -74,4 +74,70 @@ test("a click on anything that is not a node leaves the drawer shut", async () =
     await settlePendingFetches();
 
     assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
+});
+
+const COMMIT_HASH = "5636d8ecb1a24f0e9c7d3a1b8e5f402716c9d8aa";
+const MARKDOWN_PATH = "archive/interim-run-scenario/skill/SKILL.md";
+
+// A commit bubble: the dot carries the FULL hash on its title, which is what the drawer reads to
+// build `git show <hash>:<path>`. buildPairWidget puts it on the dot and its label alike.
+function buildCommitNodeStage(hashTitle: string): HTMLElement {
+    const node = el("i", { class: "node n-commit", title: hashTitle });
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "SKILL.md", "data-path": MARKDOWN_PATH }),
+        el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: hashTitle.slice(0, 8), title: hashTitle })]),
+    ]));
+    return node;
+}
+
+test("a commit node asks git for the blob at its own hash", async () => {
+    // User, 2026-07-27: the drawer read the hash off the LABEL-only title, saw "", and asked for
+    // `git show :<path>` — which the route reads as the on-disk form and refuses for a missing
+    // `dir`. The reported error named the wrong parameter entirely, so this pins the URL.
+    setupLayer1Dom();
+    stubAnimationFrame();
+    let asked = "";
+    Object.assign(globalThis, {
+        fetch: async (url: unknown): Promise<Response> => {
+            asked = String(url);
+            return { ok: true, status: 200, json: async () => ({ content: "# Title\n\ntext\n" }), text: async () => "" } as unknown as Response;
+        },
+    });
+    getInputById("repo").value = "/repo";
+    const node = buildCommitNodeStage(COMMIT_HASH);
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    assert.equal(params.get("hash"), COMMIT_HASH);
+    assert.equal(params.get("repo"), "/repo");
+    assert.equal(params.get("path"), MARKDOWN_PATH);
+    assert.equal(params.has("dir"), false);
+    assert.equal(getRequiredElementById("dpath").textContent, "SKILL.md — at commit 5636d8ec");
+    // The markdown renders as text rather than being refused.
+    assert.equal(getRequiredElementById("dbody").querySelector(".dgutter")?.textContent, "1\n2\n3");
+});
+
+test("a commit node with no hash on it falls back to the working tree, never to `git show :path`", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    let asked = "";
+    Object.assign(globalThis, {
+        fetch: async (url: unknown): Promise<Response> => {
+            asked = String(url);
+            return { ok: true, status: 200, json: async () => ({ content: "x\n" }), text: async () => "" } as unknown as Response;
+        },
+    });
+    getInputById("dir").value = "/project";
+    const node = buildCommitNodeStage("");
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    assert.equal(params.get("dir"), "/project");
+    assert.equal(params.has("hash"), false);
 });

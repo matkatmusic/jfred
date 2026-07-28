@@ -13,8 +13,32 @@
 import { el } from "./app-dom.ts";
 import { renderCodeInto } from "./highlight.ts";
 
+// How much of the head of a file is enough to tell text from bytes. A binary file's first kilobyte
+// effectively always carries a NUL or an undecodable byte; a text file's never does.
+const BINARY_SNIFF_LENGTH = 1024;
+// The route reads every file as UTF-8, so a byte that is not valid UTF-8 arrives as U+FFFD. One
+// stray replacement character is legitimate in real text, a tenth of the sample is not.
+const BINARY_REPLACEMENT_SHARE = 0.1;
+
+// Is this the decoded text of a file, or the wreckage of a binary one read as UTF-8?
+export function looksBinary(content: string): boolean {
+    const head = content.slice(0, BINARY_SNIFF_LENGTH);
+    if (head.includes("\u0000")) {
+        return true;
+    }
+    const replacements = head.length - head.replaceAll("\ufffd", "").length;
+    return head.length > 0 && replacements / head.length > BINARY_REPLACEMENT_SHARE;
+}
+
 // Fill `host` (the drawer's #dbody) with `content`, numbered and syntax-highlighted for `path`.
 export function renderFileContentInto(host: HTMLElement, content: string, path: string): void {
+    // A PNG rendered as numbered lines is thousands of rows of mojibake that say nothing about the
+    // file and take a visible moment to lay out (user, 2026-07-27). Say what it is instead; showing
+    // the image itself is task 299.
+    if (looksBinary(content)) {
+        host.replaceChildren(el("div", { class: "dbinary", text: "Binary file — not shown as text." }));
+        return;
+    }
     const lines = content.split("\n");
     // A file's trailing newline would otherwise number an empty last row that is not in the file.
     if (lines.length > 1 && lines[lines.length - 1] === "") {
