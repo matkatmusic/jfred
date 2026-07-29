@@ -9,7 +9,8 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
 // A cycle, but safe: both modules only DECLARE functions at load, so neither runs before the other is populated.
-import { listEventsAtRow, rememberRowOffsets, toggleExpandedRow } from "./layer1-tick-files.ts";
+import { listEventsAtRow, rememberRow, toggleExpandedRow } from "./layer1-tick-files.ts";
+import type { RulerRow } from "./layer1-ruler-rows.ts";
 
 // Not a fuzzy-match window: a float rounding step, far below the 1 px that would pull in another instant.
 const AXIS_MATCH_EPSILON_PX = 1e-6;
@@ -54,12 +55,12 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
     return listElementsDrawnAtAxisPx(axisPx)[0];
 }
 
-// `axisPxList` is every entry the row absorbed, because a merged row stands for several instants.
-export function makeRulerTickClickable(tick: HTMLElement, axisPxList: number[]): HTMLElement {
-    rememberRowOffsets(tick, axisPxList);
+// `row` carries every entry the tick absorbed, because a merged row stands for several instants.
+export function makeRulerTickClickable(tick: HTMLElement, row: RulerRow): HTMLElement {
+    rememberRow(tick, row);
     tick.addEventListener("click", () => {
         // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.
-        const events = listEventsAtRow(axisPxList);
+        const events = listEventsAtRow(row.axisPxList);
         if (events.length > 1) {
             toggleExpandedRow(tick, events);
             return;

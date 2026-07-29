@@ -20,7 +20,7 @@ import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, ren
 import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
-import { markMultiEventTicks, wireTickExpansion } from "./layer1-tick-files.ts";
+import { closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
 import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
@@ -30,7 +30,7 @@ import { wireZoomControls } from "./layer1-zoom.ts";
 function renderRulerTicks(ruler: WireRulerTick[]): void {
     // A row carries every offset it ABSORBED, since a merged row's click must see all their events.
     const ticks = listRulerRows(ruler).map((row) =>
-        makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row.axisPxList));
+        makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row));
     getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
 
@@ -78,9 +78,15 @@ let folderTargets: string[] = [];
 
 // Both callbacks capture the unfiltered `view`, so every click re-filters from the full payload.
 export function renderLayer1View(view: WireLayer1View): void {
-    const redrawFiltered = (): void => renderLayer1Stage(
-        filterLayer1ViewByTargets(view, intersectFilterTargets(folderTargets, listSessionFilterTargets())),
-    );
+    // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
+    const redrawStage = (): void => renderLayer1Stage(filterLayer1ViewByTargets(
+        view, intersectFilterTargets(folderTargets, listSessionFilterTargets()), readRulerExpansion(),
+    ));
+    const redrawFiltered = (): void => {
+        closeRulerExpansion();
+        redrawStage();
+    };
+    onExpansionRelayout(redrawStage);
     renderLayer1FileNav(view, (targets) => {
         folderTargets = targets;
         redrawFiltered();
@@ -114,6 +120,7 @@ export async function loadLayer1View(): Promise<void> {
     getRequiredElementById("stage").replaceChildren();
     getRequiredElementById("filenav-tree").replaceChildren();
     folderTargets = [];
+    closeRulerExpansion();
     resetSessionSelection();
     showLayer1Progress("starting");
     try {

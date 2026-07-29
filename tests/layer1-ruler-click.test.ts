@@ -164,7 +164,8 @@ test("test_a_ruler_row_only_an_orphan_bucket_holds_is_still_clickable", async ()
 test("test_every_drawn_ruler_row_is_clickable", async () => {
     // No drawn row may be inert: a lone event jumps, a shared one expands into its names.
     await loadPageWithView(buildSharedInstantView());
-    for (const axisPx of [EARLY_PX, SHARED_PX, HELD_PX, LATE_PX]) {
+    // Task 300: expanding re-lays-out every offset, so the expanding row is clicked LAST.
+    for (const axisPx of [EARLY_PX, HELD_PX, LATE_PX, SHARED_PX]) {
         const requests = recordScrollRequests();
         clickRulerTickAt(axisPx);
         const answered = requests.length + readExpandedNames().length;
