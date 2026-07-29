@@ -411,9 +411,10 @@
      transient hover over many elements and the other is the single persistent selection. */
   .node.found::before, .node.found::after,
   .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px;
-    width: 4px; border: 2px solid var(--sel-edge); }
-  .node.found::before, .node.aimed::before { right: 100%; margin-right: 2px; border-right: none; }
-  .node.found::after, .node.aimed::after { left: 100%; margin-left: 2px; border-left: none; }
+    /* Task 327: hug the dot — the right bracket must end before .nlabel's 14px start. */
+    width: 3px; border: 2px solid var(--sel-edge); }
+  .node.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
+  .node.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
   .bucket li.found, .bucket li.aimed { outline: 2px solid var(--sel-edge); outline-offset: 1px;
     border-radius: 3px; }
 
@@ -461,11 +462,15 @@
   .pane-grip { flex: none; height: 7px; margin: -3px 0; cursor: row-resize; z-index: 3;
     background: transparent; }
   .pane-grip:hover, .pane-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
+  /* Sticky against .navpane's scroll (user, 2026-07-29): the title row must not scroll with the list. */
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-    display: flex; align-items: center; gap: 6px; }
+    display: flex; align-items: center; gap: 6px;
+    position: sticky; top: 0; z-index: 4; background: var(--surface); }
   .filenav-title button { margin-left: auto; padding: 1px 7px; font-size: 10px;
     letter-spacing: normal; text-transform: none; }
+  /* Task 326: the toggle paints like every other .current button on the page. */
+  .filenav-title button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
 
   /* Task 292: one JSONL. The selected colour is `--c-script`, the same token the range bar and the
      wash use, so the pane and the band it drew read as one control. */
@@ -611,6 +616,9 @@
   .dtools { display: flex; gap: 4px; flex: none; }
   .dtools[hidden] { display: none; }
   .dtools button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  /* Task 324: the pair label between the base and target arrow pairs. */
+  .dpair { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); padding: 0 4px; }
+  .dfull-toggle { font-size: 11px; color: var(--ink2); display: inline-flex; align-items: center; gap: 4px; }
   /* Task 299: the image pane; `.fit` is the first-render state — the whole image on screen. */
   .dbody .dimgwrap { flex: 1; align-self: stretch; display: grid; place-items: center; }
   .dbody .dimgwrap img.fit { max-width: 100%; max-height: 100%; }

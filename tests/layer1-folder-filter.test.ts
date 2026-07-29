@@ -2,6 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
@@ -43,7 +44,7 @@ test("test_clicking_a_folder_reports_every_file_at_or_below_it", () => {
 });
 
 test("test_clicking_a_folder_leaves_the_native_details_toggle_working", () => {
-    // Scenario (task 253): a folder row is a native <summary> whose default action toggles <details>; filtering must not cancel that.
+    // Task 253: a folder row's native <summary> toggle must survive the filter click.
     return renderNavWithFolderSpy().then(({ container }) => {
         // Off `window`, not the bare global: setupLayer1Dom only publishes a hand-picked set of constructors onto globalThis, excluding MouseEvent.
         const event = new window.MouseEvent("click", { bubbles: true, cancelable: true });
@@ -81,5 +82,46 @@ test("test_selecting_a_folder_marks_only_that_row_selected", () => {
         const selected = [...container.querySelectorAll(".selected")];
         assert.equal(selected.length, 1);
         assert.equal(selected[0]?.textContent, "drop");
+    });
+});
+
+// Task 326: file rows join the nav-selection union that "Show Only Selected" filters by.
+function findFileItem(container: HTMLElement, target: string): HTMLElement {
+    const item = [...container.querySelectorAll<HTMLElement>(".file-item")]
+        .find((candidate) => candidate.dataset.target === target);
+    assert.ok(item !== undefined, `no File Nav file row for ${target}`);
+    return item as HTMLElement;
+}
+
+test("test_plain_clicking_a_file_reports_just_that_file", () => {
+    return renderNavWithFolderSpy().then(({ container, reported }) => {
+        findFileItem(container, "src/keep/a.ts").click();
+        assert.deepEqual(reported[0], ["src/keep/a.ts"]);
+    });
+});
+
+test("test_shift_clicking_files_accumulates_and_mixes_with_folders", () => {
+    return renderNavWithFolderSpy().then(({ container, reported }) => {
+        const shiftClick = (element: HTMLElement) =>
+            element.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
+        shiftClick(findFileItem(container, "src/keep/a.ts"));
+        shiftClick(findFileItem(container, "src/drop/c.ts"));
+        assert.deepEqual([...reported[1]!].sort(), ["src/drop/c.ts", "src/keep/a.ts"]);
+        shiftClick(findFolderSummary(container, "keep"));
+        assert.deepEqual([...reported[2]!].sort(), ["src/drop/c.ts", "src/keep/a.ts", "src/keep/deep/d.ts"]);
+        // Shift-clicking a selected file removes it from the union.
+        shiftClick(findFileItem(container, "src/drop/c.ts"));
+        assert.deepEqual([...reported[3]!].sort(), ["src/keep/a.ts", "src/keep/deep/d.ts"]);
+    });
+});
+
+test("test_shift_clicking_a_file_does_not_fire_the_file_open_callback", () => {
+    return renderNavWithFolderSpy().then(({ container }) => {
+        // The DOM is module-scoped, so an earlier test's open-report must be wiped before asserting silence.
+        getRequiredElementById("find-status").textContent = "";
+        findFileItem(container, "src/keep/a.ts")
+            .dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
+        // renderNavWithFolderSpy wires onFileClick to the real jump, which reports into #find-status.
+        assert.equal(getRequiredElementById("find-status").textContent, "");
     });
 });

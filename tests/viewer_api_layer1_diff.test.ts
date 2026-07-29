@@ -84,8 +84,9 @@ test("test_layer1_diff_endpoint_widens_context_to_the_whole_file_on_context_full
     runGit(repoDir, "commit -q -m wide-second");
     const wideSecondHash = runGit(repoDir, "rev-parse HEAD").trim();
     const defaultRequest = { repo: repoDir, path: wideFile, baseHash: wideFirstHash, targetHash: wideSecondHash };
-    assert.ok(!requestLayer1Diff(defaultRequest).diff.includes(farLine));
-    assert.ok(requestLayer1Diff({ ...defaultRequest, context: "full" }).diff.includes(` ${farLine}`));
+    // Whole-line match: "far line 1" is a substring of the in-context "far line 10".
+    assert.ok(!requestLayer1Diff(defaultRequest).diff.includes(` ${farLine}\n`));
+    assert.ok(requestLayer1Diff({ ...defaultRequest, context: "full" }).diff.includes(` ${farLine}\n`));
 });
 
 test("test_layer1_diff_endpoint_refuses_bad_hashes_and_escaping_paths", () => {

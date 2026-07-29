@@ -120,7 +120,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
             clearFileSelectionIn(selectionRoot);
         }
         summary.classList.toggle(SELECTED_CLASS, !wasSelected);
-        onFolderClick(listSelectedFolderTargets(selectionRoot));
+        onFolderClick(listSelectedNavTargets(selectionRoot));
     });
 }
 
@@ -133,6 +133,13 @@ function listSelectedFolderTargets(selectionRoot: HTMLElement): string[] {
         }
     }
     return [...union];
+}
+
+// Task 326: selected file rows join the folder union so both feed one nav-selection filter.
+function listSelectedNavTargets(selectionRoot: HTMLElement): string[] {
+    const fileTargets = [...selectionRoot.querySelectorAll<HTMLElement>(`.file-item.${SELECTED_CLASS}`)]
+        .map((item) => item.dataset.target ?? "");
+    return [...new Set([...listSelectedFolderTargets(selectionRoot), ...fileTargets])];
 }
 
 // Recurses on `entry` rather than `kind`, since `entry` is what the leaf renderer requires.
@@ -149,6 +156,7 @@ function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbac
         class: entry.isDeleted ? "file-item deleted" : "file-item",
         text: node.name,
         title: entry.isDeleted ? `${entry.target} (deleted)` : entry.target,
+        "data-target": entry.target,
     }, []);
     const segments = coverage?.get(entry.target);
     if (segments === undefined) {
@@ -164,9 +172,17 @@ function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbac
             title: `renamed from ${entry.originalPath}`,
         }));
     }
-    item.addEventListener("click", () => {
+    item.addEventListener("click", (event) => {
+        // Task 326: shift toggles the row into the selection without opening its drawer (folders' gesture).
+        if (event.shiftKey) {
+            item.classList.toggle(SELECTED_CLASS);
+            callbacks.onFolderClick?.(listSelectedNavTargets(selectionRoot));
+            return;
+        }
         clearFileSelectionIn(selectionRoot);
         item.classList.add(SELECTED_CLASS);
+        // Every selection change reports, so a stale folder filter can never outlive its marks.
+        callbacks.onFolderClick?.(listSelectedNavTargets(selectionRoot));
         callbacks.onFileClick(entry.target);
     });
     return item;

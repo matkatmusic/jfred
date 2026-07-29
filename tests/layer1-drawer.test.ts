@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
 import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
 const DISK_FILE_PATH = "src/demo.ts";
@@ -176,7 +177,9 @@ test("shift-clicking a second node on the same lane asks the diff route, older s
     assert.equal(params.get("repo"), "/repo");
     assert.ok(commitNode.classList.contains("diff-base"));
     assert.ok(diskNode.classList.contains("diff-target"));
-    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — a1b2c3d4 → on disk");
+    // Task 324's header split: the name stays in dpath, the pair rides the label between the arrow pairs.
+    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts");
+    assert.equal(getRequiredElementById("dpairlabel").textContent, "a1b2c3d4 - on disk");
     // The default side-by-side render: the classic grid with numbered gutter cells and an add wash.
     const body = getRequiredElementById("dbody");
     assert.ok(body.querySelector(".diff-cols"), body.innerHTML);
@@ -240,4 +243,76 @@ test("a commit node with no hash on it falls back to the working tree, never to 
     const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
     assert.equal(params.get("dir"), "/project");
     assert.equal(params.has("hash"), false);
+});
+
+test("task 325: a File Nav leaf click selects the on-disk node and opens the drawer", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT } });
+    const node = buildDiskNodeStage();
+    wireNodeDrawer();
+
+    openDiskNodeForPath(DISK_FILE_PATH);
+    await settlePendingFetches();
+
+    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
+    assert.ok(node.classList.contains("found"));
+});
+
+const MIDDLE_HASH = "b2c3d4e5f60718293a4b5c6d7e8f9012345678aa";
+
+// A three-node lane so a pair (first, last) leaves the middle free for arrow steps.
+function buildThreeNodeStage(): { commitNode: HTMLElement; middleNode: HTMLElement; diskNode: HTMLElement } {
+    const commitNode = el("i", { class: "node n-commit", title: LANE_HASH });
+    commitNode.style.setProperty("--axis-px", "10");
+    const middleNode = el("i", { class: "node n-commit", title: MIDDLE_HASH });
+    middleNode.style.setProperty("--axis-px", "25");
+    const diskNode = el("i", { class: "node n-disk" });
+    diskNode.style.setProperty("--axis-px", "40");
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
+        el("div", { class: "lane" }, [commitNode, middleNode, diskNode]),
+    ]));
+    return { commitNode, middleNode, diskNode };
+}
+
+test("task 324: the base arrow steps the base node and refuses to collide with the target", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    const asked: string[] = [];
+    Object.assign(globalThis, {
+        fetch: async (url: unknown): Promise<Response> => {
+            asked.push(String(url));
+            const payload = String(url).includes("layer1-diff")
+                ? { diff: "@@ -1 +1,2 @@\n shared\n+added line" }
+                : { content: DISK_FILE_CONTENT };
+            return { ok: true, status: 200, json: async () => payload, text: async () => "" } as unknown as Response;
+        },
+    });
+    getInputById("dir").value = "/project";
+    getInputById("repo").value = "/repo";
+    const { commitNode, middleNode, diskNode } = buildThreeNodeStage();
+    wireNodeDrawer();
+
+    diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+    commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
+    await settlePendingFetches();
+    getRequiredElementById("dbnext").click();
+    await settlePendingFetches();
+
+    const lastDiffAsk = asked.filter((url) => url.includes("layer1-diff")).at(-1)!;
+    assert.equal(new URLSearchParams(lastDiffAsk.slice(lastDiffAsk.indexOf("?") + 1)).get("baseHash"), MIDDLE_HASH);
+    assert.ok(middleNode.classList.contains("diff-base"));
+    assert.equal(commitNode.classList.contains("diff-base"), false);
+    assert.ok(diskNode.classList.contains("diff-target"));
+    // The next base step would land on the target, so the arrow disables; target-prev likewise.
+    assert.equal((getRequiredElementById("dbnext") as HTMLButtonElement).disabled, true);
+    assert.equal((getRequiredElementById("dtprev") as HTMLButtonElement).disabled, true);
+    assert.equal((getRequiredElementById("dtnext") as HTMLButtonElement).disabled, true);
+    assert.equal((getRequiredElementById("dbprev") as HTMLButtonElement).disabled, false);
+    // Pair mode shows the pair arrows and hides the single-node pair (task 324).
+    assert.equal(getRequiredElementById("pairtools").hidden, false);
+    assert.equal(getRequiredElementById("dprev").hidden, true);
 });

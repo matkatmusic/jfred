@@ -97,12 +97,14 @@ export function intersectFilterTargets(folders: readonly string[], sessions: rea
 
 // Module state because the nav's redraw would wipe a selection the session pane still re-applies.
 let folderTargets: string[] = [];
+// Task 326: the folder selection filters the stage only while this toggle is on.
+let onlySelectedIsOn = false;
 
 // Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
 export function renderLayer1View(view: WireLayer1View): Promise<void> {
     // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
     const redrawStage = (): void => void renderLayer1Stage(filterLayer1ViewByTargets(
-        view, intersectFilterTargets(folderTargets, listSessionFilterTargets()), readRulerExpansion(),
+        view, intersectFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
     ));
     const redrawFiltered = (): void => {
         closeRulerExpansion();
@@ -113,6 +115,13 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
         folderTargets = targets;
         redrawFiltered();
     });
+    // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
+    const onlySelectedButton = getRequiredElementById("filenav-only-selected");
+    onlySelectedButton.onclick = () => {
+        onlySelectedIsOn = !onlySelectedIsOn;
+        onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
+        redrawFiltered();
+    };
     const stageDrawn = renderLayer1Stage(view);
     // The pane keeps only transcripts that touched one of these files.
     setKnownProjectPaths(getInputById("dir").value.trim(), [
@@ -143,6 +152,9 @@ export async function loadLayer1View(): Promise<void> {
     getRequiredElementById("stage").replaceChildren();
     getRequiredElementById("filenav-tree").replaceChildren();
     folderTargets = [];
+    // Task 326: a fresh project must never start silently filtered.
+    onlySelectedIsOn = false;
+    getRequiredElementById("filenav-only-selected").classList.remove("current");
     closeRulerExpansion();
     resetSessionSelection();
     showLayer1Progress("starting");
