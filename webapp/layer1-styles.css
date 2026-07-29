@@ -634,6 +634,7 @@
   .mlist div:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
   .mlist div.picked { background: var(--sel-edge); color: #fff; }
   .mlist .mempty { color: var(--muted); cursor: default; }
+  .mhint { font: 11px system-ui; color: var(--muted); padding-top: 6px; }
   .mbuttons { display: flex; gap: 6px; align-items: center; padding-top: 9px; }
   .mspacer { flex: 1; }
   /* The folder held none of what this list is for. In front of the list, gone on its own a few
