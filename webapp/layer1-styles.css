@@ -594,9 +594,16 @@
   .drawer.open { width: 50%; display: flex; flex-direction: column; }
   .drawer .dhead { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
     border-bottom: 1px solid var(--border); }
-  .drawer .dhead button { margin-left: auto; }
-  .drawer .dpath { font: 600 12px ui-monospace, Menlo, monospace; color: var(--c-snap);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drawer .dhead #dclose { margin-left: auto; }
+  .drawer .dpath { flex: 1; min-width: 0; font: 600 12px ui-monospace, Menlo, monospace;
+    color: var(--c-snap); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Tasks 299/305: ONE header control strip — image zoom for an image, diff controls for a pair. */
+  .dtools { display: flex; gap: 4px; flex: none; }
+  .dtools[hidden] { display: none; }
+  .dtools button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  /* Task 299: the image pane; `.fit` is the first-render state — the whole image on screen. */
+  .dbody .dimgwrap { flex: 1; align-self: stretch; display: grid; place-items: center; }
+  .dbody .dimgwrap img.fit { max-width: 100%; max-height: 100%; }
   .drawer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted);
     border-bottom: 1px solid var(--border); }
   .drawer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;

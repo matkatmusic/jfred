@@ -66,6 +66,28 @@ test("a click on anything that is not a node leaves the drawer shut", async () =
     assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
 });
 
+test("an image node renders an img off the binary route instead of fetching text", async () => {
+    // Task 299: no JSON fetch happens — the img's src IS the request.
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubFetchRoutes({});
+    const node = el("i", { class: "node n-disk" });
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "logo.png", "data-path": "assets/logo.png" }),
+        el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: "on disk" })]),
+    ]));
+    getInputById("dir").value = "/project";
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    const image = getRequiredElementById("dbody").querySelector("img");
+    assert.ok(image?.getAttribute("src")?.includes("binary=1"), image?.outerHTML);
+    assert.ok(image?.getAttribute("src")?.includes("logo.png"));
+    assert.equal(getRequiredElementById("imgtools").hidden, false);
+});
+
 const COMMIT_HASH = "5636d8ecb1a24f0e9c7d3a1b8e5f402716c9d8aa";
 const MARKDOWN_PATH = "archive/interim-run-scenario/skill/SKILL.md";
 

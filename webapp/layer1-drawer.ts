@@ -1,13 +1,14 @@
-// Task 257.5: the Detail View drawer — clicking a node shows that file's bytes at that instant.  Delegated on #stage and wired ONCE from bootLayer1Page: every bubble is rebuilt on each render, so per-node listeners would have to be re-attached every time (wireLeaderVisibility's precedent).
+// Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { renderFileContentInto } from "./layer1-file-view.ts";
+import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
 
 const SHORT_HASH_LENGTH = 8;
 
-// The node a click landed on, or undefined for a click on anything else. The label opens the drawer too (mockup 755-772): the dot alone is a few pixels wide, and a node's label is its own name. A label's dot is its previous sibling — appendAxisNode appends the pair in that order.
+// The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
     const hit = target.closest(".node, .nlabel");
     const node = hit?.classList.contains("nlabel") === true ? hit.previousElementSibling : hit;
@@ -15,9 +16,9 @@ function findClickedNode(target: HTMLElement): HTMLElement | undefined {
     return node?.classList.contains("node") === true ? node as HTMLElement : undefined;
 }
 
-// What the drawer asks for and says about one node. A commit node carries its full 40-char hash on the DOT's `title` (webapp/layer1-widgets.ts's appendAxisNode sets it on both the dot and its label); an on-disk node has none and reads the working tree instead.
+// A commit node carries its full hash on the dot's `title`; an on-disk node has none.
 //
-// An EMPTY title reads as "no commit", not as a commit with a blank hash: the route treats a blank `hash=` as the on-disk form and then refuses for a missing `dir`, so a request built from one is guaranteed to fail with an error that names the wrong parameter.
+// An empty title means "no commit" — a blank `hash=` would 400 naming the wrong parameter.
 function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string } {
     const basename = path.split("/").pop() ?? path;
     const hash = node.classList.contains("n-commit") && node.title !== "" ? node.title : undefined;
@@ -38,7 +39,7 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
 async function openNodeDrawer(node: HTMLElement): Promise<void> {
     const nameElement = node.closest(".filebox")?.querySelector(".fname") as HTMLElement | null;
     const path = nameElement?.dataset.path;
-    // Task 280 put the full path on the bubble's `.fname` data-path; without one there is no file to fetch (a bucket row), so the click is not a drawer click.
+    // Task 280: the full path lives on `.fname` data-path; without one (a bucket row) there is nothing to fetch.
     if (path === undefined) {
         return;
     }
@@ -47,15 +48,22 @@ async function openNodeDrawer(node: HTMLElement): Promise<void> {
     header.textContent = detail.head;
     header.title = path;
     getRequiredElementById("dmeta").textContent = detail.meta;
-    // Clicking a node to inspect it IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks, so the reader never has to learn two.
+    // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
     highlightLandedElement(node);
     getRequiredElementById("drawer").classList.add("open");
-    // The drawer SHRINKS the timeline pane, so the node just clicked can end up behind the ruler or off the edge. Re-centre against the POST-reflow layout, never the pre-open one — which is also why .drawer carries no width transition.
+    // The drawer shrinks the pane, so re-centre against the POST-reflow layout (also why .drawer has no width transition).
     requestAnimationFrame(() => {
         node.scrollIntoView({ block: "nearest", inline: "center" });
         drawLayer1Minimap();
     });
     const body = getRequiredElementById("dbody");
+    setDrawerTools(isImagePath(path) ? "img" : "none");
+    // Task 299: an image renders as a picture straight off the binary route — no text fetch at all.
+    if (isImagePath(path)) {
+        detail.params.set("binary", "1");
+        renderImageInto(body, `/api/layer1-file?${detail.params}`);
+        return;
+    }
     body.textContent = "loading…";
     const response = await fetch(`/api/layer1-file?${detail.params}`);
     // A refusal answers 400 with the message as the body — show it where the file would have been.
@@ -67,7 +75,14 @@ async function openNodeDrawer(node: HTMLElement): Promise<void> {
     renderFileContentInto(body, (await response.json() as { content: string }).content, path);
 }
 
+// ONE control strip (tasks 299/305): the header shows the tools for what the body holds.
+export function setDrawerTools(tools: "img" | "diff" | "none"): void {
+    getRequiredElementById("imgtools").hidden = tools !== "img";
+    document.getElementById("difftools")?.toggleAttribute("hidden", tools !== "diff");
+}
+
 export function wireNodeDrawer(): void {
+    wireImageZoomTools();
     getRequiredElementById("stage").addEventListener("click", (event) => {
         const node = findClickedNode(event.target as HTMLElement);
         // A created-at node is never the latest on-disk state, so it has no bytes to show.
