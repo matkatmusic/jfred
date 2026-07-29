@@ -4,8 +4,16 @@ import { getFileHistorySnapshot } from "./structures/file-history.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
+import { getRecordSource } from "./parse/loadTranscript.ts";
 
-export type BackupPoint = { backupTime: Date; backupFileName: Path | null; sessionId?: Uuid };
+// `line` is absent for fabricated records, which carry no transcript source.
+export type BackupPoint = {
+    backupTime: Date;
+    backupFileName: Path | null;
+    sessionId?: Uuid;
+    version: number;
+    line?: number;
+};
 
 // Snapshots lack cwd; find it from the first envelope record that carries one.
 export function findCwd(records: TranscriptRecord[]): Path | undefined {
@@ -47,10 +55,17 @@ function computeBackupTimeline(
         if (!message) {
             continue;
         }
+        const recordLine = getRecordSource(record)?.lineNumber;
         for (const [path, backup] of message.snapshot.trackedFileBackups.entries()) {
             const key = resolveAgainstCwd(cwd, path);
             const points = timeline.get(key) ?? [];
-            points.push({ backupTime: backup.backupTime, backupFileName: backup.backupFileName, sessionId: session });
+            points.push({
+                backupTime: backup.backupTime,
+                backupFileName: backup.backupFileName,
+                sessionId: session,
+                version: backup.version,
+                line: recordLine,
+            });
             timeline.set(key, points);
         }
     }
