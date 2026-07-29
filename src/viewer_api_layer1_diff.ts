@@ -3,7 +3,7 @@
 // `baseHash`/`targetHash` pick commit blobs from `repo`; an absent hash means the working tree under `dir`.
 
 import { type ServerResponse } from "node:http";
-import { runGitUnifiedDiff } from "./render_git_diff.ts";
+import { FULL_FILE_CONTEXT_LINES, runGitUnifiedDiff } from "./render_git_diff.ts";
 import { readLayer1FileBytes } from "./viewer_api_layer1_file.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 
@@ -20,5 +20,7 @@ function splitContentLines(bytes: Buffer): string[] {
 export function handleLayer1DiffRequest(response: ServerResponse, query: URLSearchParams): void {
     const baseLines = splitContentLines(readLayer1FileBytes(query, "baseHash"));
     const targetLines = splitContentLines(readLayer1FileBytes(query, "targetHash"));
-    sendJson(response, 200, { diff: runGitUnifiedDiff(baseLines, targetLines) });
+    // Task 320: the drawer's full-content toggle widens the diff to the whole file.
+    const contextLines = query.get("context") === "full" ? FULL_FILE_CONTEXT_LINES : undefined;
+    sendJson(response, 200, { diff: runGitUnifiedDiff(baseLines, targetLines, contextLines) });
 }

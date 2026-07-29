@@ -175,12 +175,15 @@
     <aside class="drawer" id="drawer">
       <div class="dhead"><div class="dpath" id="dpath"></div>
         <!-- tasks 299/305: ONE header control strip — zoom for an image, diff for a pair -->
+        <!-- task 323: cycle the selection through the file's timeline; disabled at the ends -->
+        <span class="dtools"><button id="dprev" title="previous revision">↑</button><button id="dnext" title="next revision">↓</button></span>
         <span class="dtools" id="imgtools" hidden>
           <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
         </span>
         <span class="dtools" id="difftools" hidden>
           <button data-mode="side">diff side-by-side</button><button data-mode="inline">diff inline</button>
-          <button data-mode="full">full content</button><button id="dexport">export as patch</button>
+          <!-- task 320: a TOGGLE that widens the diff to the whole file, not a third mode -->
+          <button id="dfull">full content</button><button id="dexport">export as patch</button>
         </span>
         <button id="dclose">Close</button></div>
       <div class="dmeta" id="dmeta"></div>

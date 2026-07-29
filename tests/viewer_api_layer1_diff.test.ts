@@ -70,6 +70,24 @@ test("test_layer1_diff_endpoint_answers_empty_for_identical_sides", () => {
     assert.equal(diff, "");
 });
 
+// Task 320: a far-away line only appears as context when the full-context toggle widens the diff.
+test("test_layer1_diff_endpoint_widens_context_to_the_whole_file_on_context_full", () => {
+    const farLine = "far line 1";
+    const sharedLines = Array.from({ length: 10 }, (_, index) => `far line ${index + 1}`);
+    const wideFile = "wide.txt";
+    writeFileSync(join(repoDir, wideFile), [...sharedLines, "changed once"].join("\n") + "\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m wide-first");
+    const wideFirstHash = runGit(repoDir, "rev-parse HEAD").trim();
+    writeFileSync(join(repoDir, wideFile), [...sharedLines, "changed twice"].join("\n") + "\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m wide-second");
+    const wideSecondHash = runGit(repoDir, "rev-parse HEAD").trim();
+    const defaultRequest = { repo: repoDir, path: wideFile, baseHash: wideFirstHash, targetHash: wideSecondHash };
+    assert.ok(!requestLayer1Diff(defaultRequest).diff.includes(farLine));
+    assert.ok(requestLayer1Diff({ ...defaultRequest, context: "full" }).diff.includes(` ${farLine}`));
+});
+
 test("test_layer1_diff_endpoint_refuses_bad_hashes_and_escaping_paths", () => {
     assert.throws(
         () => requestLayer1Diff({ repo: repoDir, path: FIXTURE_FILE, baseHash: "HEAD; rm -rf /", targetHash: firstHash }),

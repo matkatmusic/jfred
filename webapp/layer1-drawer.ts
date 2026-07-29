@@ -46,10 +46,22 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
     };
 }
 
+// Task 323: the file's timeline IS the lane's DOM order; n-created has no bytes so cycling skips it.
+function findAdjacentNode(offset: 1 | -1): HTMLElement | undefined {
+    if (anchor === undefined) {
+        return undefined;
+    }
+    const nodes = [...anchor.node.parentElement?.querySelectorAll(".node:not(.n-created)") ?? []] as HTMLElement[];
+    return nodes[nodes.indexOf(anchor.node) + offset];
+}
+
 async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     // A plain click resets to a one-node selection (task 305) and anchors the next shift-click.
     clearDiffPair();
     anchor = { node, path };
+    // Task 323: STOP at the timeline's ends — a missing neighbour disables that arrow, no wrap.
+    (getRequiredElementById("dprev") as HTMLButtonElement).disabled = findAdjacentNode(-1) === undefined;
+    (getRequiredElementById("dnext") as HTMLButtonElement).disabled = findAdjacentNode(1) === undefined;
     const detail = describeNode(node, path);
     const header = getRequiredElementById("dpath");
     header.textContent = detail.head;
@@ -102,6 +114,15 @@ export function wireNodeDrawer(): void {
         }
         void openNodeDrawer(node, path);
     });
+    // Task 323: cycling never leaves the lane, so the anchored path carries over.
+    for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
+        getRequiredElementById(id).addEventListener("click", () => {
+            const neighbour = findAdjacentNode(offset);
+            if (neighbour !== undefined && anchor !== undefined) {
+                void openNodeDrawer(neighbour, anchor.path);
+            }
+        });
+    }
     getRequiredElementById("dclose").addEventListener("click", () => {
         getRequiredElementById("drawer").classList.remove("open");
         clearDiffPair();
