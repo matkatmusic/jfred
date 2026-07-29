@@ -15,6 +15,10 @@ import {
     checkScale, checkSnapshotNodes, failures, shapeOf, shoot,
 } from "./mockup-checks.ts";
 import { checkBubbleFlash, checkSessionSearch } from "./mockup-checks-nav.ts";
+import {
+    checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
+    checkPairArrows, checkShowOnlySelected,
+} from "./mockup-checks-diff.ts";
 
 const MOCKUP_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../plans/layer2-mockup");
 const VIEWPORT_WIDTH = 1600;
@@ -57,6 +61,16 @@ async function runChecks(page: HeadlessPage): Promise<void> {
     await checkBubbleFlash(page);
     await checkSessionSearch(page);
     await checkDrawer(page);
+
+    // Tasks #324/#325/#326; each restores what it changed, so the round-trip below still matches.
+    await checkDiffPair(page);
+    await checkPairArrows(page);
+    await checkDiffTools(page);
+    await checkCrossBubbleRefusal(page);
+    await shoot(page, "03-diff-pair");
+    await checkNavOpensDiskNode(page);
+    await checkShowOnlySelected(page);
+    await checkNavBugs(page);
 
     await page.evaluate(`document.getElementById('dclose').click(); ${LAYER_BUTTON(1)}.click()`);
     await page.waitFor(`document.querySelectorAll('.n-snap').length === 0`, 10_000);
