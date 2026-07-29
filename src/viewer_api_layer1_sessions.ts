@@ -1,13 +1,16 @@
-// GET /api/layer1-sessions?jsonl=<folder>&jsonl=<folder> — one summary row per transcript found under the picked JSONL source folders, which is what fills Layer 1's JSONLs pane and places its range bars (task 292).
+// GET /api/layer1-sessions — one summary row per transcript under the picked JSONL folders (task 292).
 //
-// Every failure here is a SKIP, never a throw: the pane is an accessory to the timeline, so one corrupt transcript must not blank the whole list.
+// Every failure is a SKIP, never a throw: one corrupt transcript must not blank the whole list.
 
 import { existsSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
+import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { readFirstUserPrompt } from "./reconstruction_prompts.ts";
 import { Path } from "./structures/domain.ts";
+import { DocumentResponseKind } from "./structures/vocabulary.ts";
 import { SourceKind } from "./structures/vocabulary_view.ts";
+import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { listSourceFilesUnder } from "./viewer_api_layer1_sources.ts";
 import { computeReconstructionPrescan } from "./viewer_api_prescan.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
@@ -16,6 +19,9 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 
 // A title is one line in a narrow pane — the mockup's width holds ~70 characters.
 const SESSION_TITLE_LIMIT = 70;
+
+// Named so tests assert the same string the stream emits (task 304).
+export const LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING = "scanning JSONL files";
 
 export interface Layer1WireSession {
     file: string;       // basename, e.g. "0f3c9a7e.jsonl"
@@ -26,7 +32,7 @@ export interface Layer1WireSession {
     paths: string[];    // every file path the session touched
 }
 
-// The window a session's range bar spans. Session-meta lines carry no timestamp, so a transcript with none at all has no place on the axis — undefined drops it from the pane.
+// The window a range bar spans; a transcript with no timestamps has no axis place — undefined drops it.
 function measureSessionWindow(records: TranscriptRecord[]): { started: Date; ended: Date } | undefined {
     const times = records.flatMap((record) => record.timestamp === undefined ? [] : [record.timestamp.getTime()]);
     if (times.length === 0) {
@@ -39,7 +45,7 @@ function measureSessionWindow(records: TranscriptRecord[]): { started: Date; end
     };
 }
 
-// One row, or undefined when the file yields nothing placeable — including when loading or scanning throws on a record shape the parser has never seen.
+// One row, or undefined when the file yields nothing placeable — including on any parse throw.
 function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
     try {
         const { records } = loadProjectRecords([jsonlPath]);
@@ -61,32 +67,49 @@ function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
     }
 }
 
-// Every session under every picked folder, de-duplicated by absolute path (two folders may nest or repeat) and ordered by start instant. toISOString is fixed-width UTC, so a string compare IS the chronological one.
-export function buildLayer1Sessions(folders: readonly string[]): Layer1WireSession[] {
-    const sessionsByPath = new Map<string, Layer1WireSession>();
+// Every transcript under every picked folder, de-duplicated by absolute path (two folders may nest or repeat).
+function listTranscriptFiles(folders: readonly string[]): Path[] {
+    const byPath = new Map<string, Path>();
     for (const folder of folders) {
-        // A DERIVED default source folder (~/.claude/projects/<mangled dir>) need not exist yet: that is an empty pane for a project with no sessions, not a bad request.
+        // A DERIVED default source folder need not exist yet: empty pane, not a bad request.
         if (!existsSync(folder)) {
             continue;
         }
         for (const jsonlPath of listSourceFilesUnder(new Path(folder), SourceKind.jsonl)) {
-            if (sessionsByPath.has(jsonlPath.toString())) {
-                continue;
-            }
-            const session = summarizeSession(jsonlPath);
-            if (session !== undefined) {
-                sessionsByPath.set(jsonlPath.toString(), session);
-            }
+            byPath.set(jsonlPath.toString(), jsonlPath);
         }
     }
-    return [...sessionsByPath.values()].sort((left, right) => left.started.localeCompare(right.started));
+    return [...byPath.values()];
 }
 
-// `jsonl` is REPEATABLE — one value per picked source folder. Zero is a 400: an empty pane and "the client forgot to say which folders" must not look the same to the page.
+// Ordered by start instant (ISO string compare IS chronological); the slow per-file parse is the counted unit (task 304).
+export function buildLayer1Sessions(folders: readonly string[], reportProgress: ProgressSink = () => {}): Layer1WireSession[] {
+    const files = listTranscriptFiles(folders);
+    const sessions: Layer1WireSession[] = [];
+    files.forEach((jsonlPath, index) => {
+        reportProgress({
+            kind: DocumentResponseKind.progress,
+            label: LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING,
+            current: index + 1,
+            total: files.length,
+        });
+        const session = summarizeSession(jsonlPath);
+        if (session !== undefined) {
+            sessions.push(session);
+        }
+    });
+    return sessions.sort((left, right) => left.started.localeCompare(right.started));
+}
+
+// `jsonl` repeats per folder; zero is a 400. `progress=1` streams NDJSON exactly like /api/layer1-view.
 export function handleLayer1SessionsRequest(response: ServerResponse, query: URLSearchParams): void {
     const folders = query.getAll("jsonl");
     if (folders.length === 0) {
         throw new Error("missing query param: jsonl");
     }
-    sendJson(response, 200, { sessions: buildLayer1Sessions(folders) });
+    if (query.get("progress") !== "1") {
+        sendJson(response, 200, { sessions: buildLayer1Sessions(folders) });
+        return;
+    }
+    streamNdjsonBuild(response, (writeNdjsonLine) => ({ sessions: buildLayer1Sessions(folders, writeNdjsonLine) }));
 }

@@ -66,7 +66,7 @@ export function wireLayer1CancelButton(): void {
 // One chunk's complete lines: returns the terminal view if present; an error line throws immediately.
 //
 // ponytail: only the LAST progress line of a chunk reaches the DOM. One reader.read() typically delivers many of the 832 lines at once and the intermediate ones are never painted, so this is one `.at(-1)` rather than 832 style writes.
-function applyStreamLines<ViewType>(lines: string[]): ViewType | undefined {
+function applyStreamLines<ViewType>(lines: string[], onProgress: ProgressPainter): ViewType | undefined {
     const progressLines: Layer1StreamLine[] = [];
     let view: ViewType | undefined = undefined;
     for (const line of lines) {
@@ -82,13 +82,13 @@ function applyStreamLines<ViewType>(lines: string[]): ViewType | undefined {
     }
     const latest = progressLines.at(-1);
     if (latest !== undefined) {
-        showLayer1Progress(latest.label ?? "", latest.current, latest.total);
+        onProgress(latest.label ?? "", latest.current, latest.total);
     }
     return view;
 }
 
 // Read the NDJSON stream, painting progress; throws on error line or non-2xx, returns undefined when cancelled.
-export async function readLayer1ViewStream<ViewType>(url: string): Promise<ViewType | undefined> {
+export async function readLayer1ViewStream<ViewType>(url: string, onProgress: ProgressPainter = showLayer1Progress): Promise<ViewType | undefined> {
     const controller = new AbortController();
     activeLoadController = controller;
     try {
@@ -107,7 +107,7 @@ export async function readLayer1ViewStream<ViewType>(url: string): Promise<ViewT
             }
             let lines: string[];
             ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
-            view = applyStreamLines<ViewType>(lines) ?? view;
+            view = applyStreamLines<ViewType>(lines, onProgress) ?? view;
         }
         if (view === undefined) {
             // The view is always last, so this means the connection dropped mid-build — name it loudly.

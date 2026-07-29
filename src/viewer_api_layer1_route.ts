@@ -9,7 +9,7 @@ import { CommitTimeSource } from "./structures/vocabulary_view.ts";
 import { buildLayer1View } from "./viewer_api_layer1.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
-// Validated here so a bad folder is a 400, not an ENOENT; no allowlist, this reads the user's own machine.
+// Validated here so a bad folder is a 400, not an ENOENT; no allowlist — the user's own machine.
 export function requireExistingFolderParam(query: URLSearchParams, name: string): Path {
     const value = requireParam(query, name);
     if (!existsSync(value)) {
@@ -21,7 +21,7 @@ export function requireExistingFolderParam(query: URLSearchParams, name: string)
     return new Path(value);
 }
 
-// An absent or blank ref means the active branch; the ref never reaches a shell, so no regex is needed.
+// Absent or blank ref means the active branch; the ref never reaches a shell, so no regex.
 export function resolveRequestedRef(query: URLSearchParams): string {
     const requested = query.get("ref");
     if (requested === null) {
@@ -38,28 +38,28 @@ function resolveRequestedTimeSource(query: URLSearchParams): CommitTimeSource {
     return query.get("time") === CommitTimeSource.author ? CommitTimeSource.author : CommitTimeSource.committer;
 }
 
-// Same NDJSON framing as /api/document; copies viewer_server_routes.ts instead of a stream helper since the build is synchronous.
-function streamLayer1View(response: ServerResponse, projectFolder: Path, repoDir: Path, ref: string, timeSource: CommitTimeSource): void {
+// Same NDJSON framing as /api/document; shared by /api/layer1-view and /api/layer1-sessions (task 304).
+export function streamNdjsonBuild(response: ServerResponse, build: (writeNdjsonLine: (value: unknown) => void) => unknown): void {
     response.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8" });
     response.socket?.setNoDelay(true);   // sync build between writes — do not let Nagle batch the lines
     const writeNdjsonLine = (value: unknown): void => {
-        // The synchronous build never yields, so client-abort is detected via the next write failing (EPIPE) rather than a close event.
+        // The synchronous build never yields, so client-abort surfaces as the next write failing (EPIPE).
         if (response.destroyed || response.socket === null || response.socket.destroyed || !response.socket.writable) {
             throw new Error("client disconnected — build cancelled");
         }
         response.write(JSON.stringify(value) + "\n");
-        // res.write corks and uncorks on nextTick, which never fires mid-build, so uncork explicitly here to flush each line immediately.
+        // res.write uncorks on nextTick, which never fires mid-build; uncork now so each line flushes.
         response.socket?.uncork();
     };
     try {
-        response.end(JSON.stringify(buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource)) + "\n");
+        response.end(JSON.stringify(build(writeNdjsonLine)) + "\n");
     } catch (error) {
-        // Deliberate asymmetry: a bad dir/repo 400s before any header is written, but a bad ref becomes a terminal error line.
+        // Deliberate asymmetry: bad params 400 before any header; a mid-build failure is a terminal error line.
         response.end(JSON.stringify({ kind: DocumentResponseKind.error, label: String(error) }) + "\n");
     }
 }
 
-// Both folder checks run first so a bad dir/repo throws before any header, letting the outer catch still 400 it.
+// Both folder checks run first: a bad dir/repo throws before any header, so the outer catch 400s.
 export function handleLayer1ViewRequest(response: ServerResponse, query: URLSearchParams): void {
     const projectFolder = requireExistingFolderParam(query, "dir");
     const repoDir = requireExistingFolderParam(query, "repo");
@@ -69,5 +69,5 @@ export function handleLayer1ViewRequest(response: ServerResponse, query: URLSear
         sendJson(response, 200, buildLayer1View(projectFolder, repoDir, ref, undefined, timeSource));
         return;
     }
-    streamLayer1View(response, projectFolder, repoDir, ref, timeSource);
+    streamNdjsonBuild(response, (writeNdjsonLine) => buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource));
 }
