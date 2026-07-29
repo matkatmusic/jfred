@@ -7,7 +7,7 @@
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
-import { listElementsDrawnAtAxisPx } from "./layer1-ruler-click.ts";
+import { listElementsDrawnAtAxisPx, snapshotStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 
 // One thing DRAWN at a row's instants: owning file, its own label, and the element the click lands on.
@@ -62,12 +62,12 @@ function describeDrawnElement(element: HTMLElement): TickEvent {
 }
 
 // Everything drawn at the instants ONE printed row stands for, in the order the lookup found it.
-export function listEventsAtRow(axisPxList: number[]): TickEvent[] {
+export function listEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[] = snapshotStageBubbles()): TickEvent[] {
     const events: TickEvent[] = [];
     // De-duped on the ELEMENT, else a same-offset merged row lists one element twice.
     const seen = new Set<HTMLElement>();
     for (const axisPx of axisPxList) {
-        for (const element of listElementsDrawnAtAxisPx(axisPx)) {
+        for (const element of listElementsDrawnAtAxisPx(axisPx, snapshot)) {
             if (seen.has(element)) {
                 continue;
             }
@@ -134,12 +134,11 @@ function reopenExpandedRow(): void {
     }
 }
 
-// Underline rows that would EXPAND (mockup 687); runs AFTER the stage is in the DOM.
-//
-// ponytail: one walk of the stage per row. Over this repo that is ~436 rows against ~800 bubbles on each render, and it is O(rows x elements) — measurable but paid once, against a view that takes ~10 s to fetch. UPGRADE PATH if it shows: one walk collecting elements into a Map<axisPx, HTMLElement[]>, which every caller of listElementsDrawnAtAxisPx could then read.
+// Underline rows that would EXPAND (mockup 687); one shared snapshot (task 309) after the stage is drawn.
 export function markMultiEventTicks(): void {
+    const snapshot = snapshotStageBubbles();
     for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
-        if (listEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? []).length > 1) {
+        if (listEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? [], snapshot).length > 1) {
             tick.classList.add("multi");
         }
     }

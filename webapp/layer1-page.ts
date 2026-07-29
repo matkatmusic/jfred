@@ -10,7 +10,7 @@ import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
-import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
@@ -41,8 +41,15 @@ function renderLeaderLines(ruler: WireInstant[]): void {
     );
 }
 
-// Exported so a folder filter can redraw the timeline without redrawing the File Nav, which would wipe its selection.
-export function renderLayer1Stage(view: WireLayer1View): void {
+// Task 309: chunked appends with painted counts, so a big render never reads as a hang.
+const STAGE_CHUNK_WIDGETS = 100;
+
+// Bumped by every render so a superseded chunked pass stops instead of interleaving DOM writes.
+let stageRenderPass = 0;
+
+// Exported for filter redraws; a single-chunk (test-sized) view completes synchronously, no await runs.
+export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
+    const pass = ++stageRenderPass;
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
     renderRulerTicks(view.ruler);
@@ -51,10 +58,25 @@ export function renderLayer1Stage(view: WireLayer1View): void {
         buildOrphanBucket("No on-disk match", view.gitOrphans),
         buildOrphanBucket("No repository match", view.diskOrphans),
     ];
-    getRequiredElementById("stage").replaceChildren(
-        ...buildStagePairs(view.pairs),
-        ...buckets.filter((bucket) => bucket !== undefined),
-    );
+    const widgets = [...buildStagePairs(view.pairs), ...buckets.filter((bucket) => bucket !== undefined)];
+    const stage = getRequiredElementById("stage");
+    stage.replaceChildren();
+    for (let done = 0; done < widgets.length; done += STAGE_CHUNK_WIDGETS) {
+        stage.append(...widgets.slice(done, done + STAGE_CHUNK_WIDGETS));
+        // Only a multi-chunk render paints between chunks; a small one must never flash the loadbar.
+        if (widgets.length <= STAGE_CHUNK_WIDGETS) {
+            continue;
+        }
+        showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
+            Math.min(done + STAGE_CHUNK_WIDGETS, widgets.length), widgets.length);
+        await waitForPaintedFrame();
+        if (pass !== stageRenderPass) {
+            return;
+        }
+    }
+    if (widgets.length > STAGE_CHUNK_WIDGETS) {
+        hideLayer1Progress();
+    }
     // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
     markMultiEventTicks();
     renderSessionRanges(listSelectedSessions(), view.ruler);
@@ -76,10 +98,10 @@ export function intersectFilterTargets(folders: readonly string[], sessions: rea
 // Module state because the nav's redraw would wipe a selection the session pane still re-applies.
 let folderTargets: string[] = [];
 
-// Both callbacks capture the unfiltered `view`, so every click re-filters from the full payload.
-export function renderLayer1View(view: WireLayer1View): void {
+// Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
+export function renderLayer1View(view: WireLayer1View): Promise<void> {
     // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
-    const redrawStage = (): void => renderLayer1Stage(filterLayer1ViewByTargets(
+    const redrawStage = (): void => void renderLayer1Stage(filterLayer1ViewByTargets(
         view, intersectFilterTargets(folderTargets, listSessionFilterTargets()), readRulerExpansion(),
     ));
     const redrawFiltered = (): void => {
@@ -91,7 +113,7 @@ export function renderLayer1View(view: WireLayer1View): void {
         folderTargets = targets;
         redrawFiltered();
     });
-    renderLayer1Stage(view);
+    const stageDrawn = renderLayer1Stage(view);
     // The pane keeps only transcripts that touched one of these files.
     setKnownProjectPaths(getInputById("dir").value.trim(), [
         ...view.pairs.map((pair) => pair.path),
@@ -100,6 +122,7 @@ export function renderLayer1View(view: WireLayer1View): void {
     ]);
     // Fetched after the stage is up rather than delaying it: the timeline is the page.
     void loadLayer1Sessions().then(() => renderSessionPane(redrawFiltered));
+    return stageDrawn;
 }
 
 // replaceState, not pushState: re-loading the same page is not a navigation.
@@ -130,7 +153,7 @@ export async function loadLayer1View(): Promise<void> {
             crumb.textContent = "load cancelled";
             return;
         }
-        renderLayer1View(view);
+        await renderLayer1View(view);
     } catch (error) {
         // The crumb is the whole error surface; no alert(), because native dialogs block headless automation.
         crumb.textContent = String(error);

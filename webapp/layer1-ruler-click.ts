@@ -33,19 +33,34 @@ function listBubbles(): HTMLElement[] {
 // `li` is here because a bucket renders a plain list and no `.node` (task 266).
 const BUBBLE_ROW_SELECTOR = ".node, li";
 
+// One bubble's drawn rows with their offsets read once, so repeated lookups skip the DOM walk.
+export interface BubbleSnapshot {
+    bubble: HTMLElement;
+    bubblePx: number;
+    rows: { row: HTMLElement; rowPx: number }[];
+}
+
+// Task 309: per-ruler-row stage walks cost ~1.3 s over 900 bubbles; a shared snapshot pays once.
+export function snapshotStageBubbles(): BubbleSnapshot[] {
+    return listBubbles().map((bubble) => ({
+        bubble,
+        bubblePx: readAxisPx(bubble),
+        rows: [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)]
+            .map((row) => ({ row, rowPx: readAxisPx(row) })),
+    }));
+}
+
 // Rows of a bubble that BEGINS at the instant sort before rows of bubbles merely holding it.
-export function listElementsDrawnAtAxisPx(axisPx: number): HTMLElement[] {
+export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapshot[] = snapshotStageBubbles()): HTMLElement[] {
     const beginningHere: HTMLElement[] = [];
     const merelyHolding: HTMLElement[] = [];
-    for (const bubble of listBubbles()) {
-        const bubblePx = readAxisPx(bubble);
-        const rows = [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)]
-            .filter((row) => axisMatches(bubblePx + readAxisPx(row), axisPx));
+    for (const { bubble, bubblePx, rows } of snapshot) {
+        const matching = rows.filter(({ rowPx }) => axisMatches(bubblePx + rowPx, axisPx)).map(({ row }) => row);
         if (!axisMatches(bubblePx, axisPx)) {
-            merelyHolding.push(...rows);
+            merelyHolding.push(...matching);
             continue;
         }
-        beginningHere.push(...(rows.length > 0 ? rows : [bubble]));
+        beginningHere.push(...(matching.length > 0 ? matching : [bubble]));
     }
     return [...beginningHere, ...merelyHolding];
 }
