@@ -69,5 +69,5 @@ async function appendChangedFileDiff(body: HTMLElement, entry: ScriptRunFileEntr
         body.append(el("div", { class: "dempty", text: `no diff recorded for revision #${entry.revisionNumber} of ${entry.path}` }));
         return;
     }
-    appendColumnsDiff(body, block);
+    appendColumnsDiff(body, block, entry.path);
 }

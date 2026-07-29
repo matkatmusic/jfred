@@ -73,7 +73,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
         // t124:Q2 — a placeholder's lines are the prior revision carried forward, so a computed diff reads "(no content change)". Show the failure reason instead.
         if (card.unrecoverableReason !== undefined) {
             const previousBlock = index > 0 ? (await getDiffBlocks(fullContentsIsOn()))[index - 1] : undefined;
-            showUnrecoverableInDetails(label, card.unrecoverableReason, previousBlock, () => void showCardDiff(card, index));
+            showUnrecoverableInDetails(label, target, card.unrecoverableReason, previousBlock, () => void showCardDiff(card, index));
             return;
         }
         // task 56 follow-up: a base-commit beacon's diff is empty — show the committed bytes.
@@ -96,7 +96,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
             showTextInDetails(label, fallbackText);
             return;
         }
-        showDiffInDetails(label, block!, () => void showCardDiff(card, index));
+        showDiffInDetails(label, target, block!, () => void showCardDiff(card, index));
     };
     // item 84: one card's right-column render in a chosen mode. A card's OWN click always means diff — only an incoming focus can ask for content or record.
     const showCardInMode = (card: RevisionCard, index: number, mode: RevisionViewMode) => {
@@ -143,7 +143,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
             showTextInDetails(label, "(file unchanged across the picked revisions)");
             return;
         }
-        showDiffInDetails(label, block.block, () => void showRangeDiff());
+        showDiffInDetails(label, target, block.block, () => void showRangeDiff());
     };
     // Never re-enter renderDetailsFileMode to repaint: it would rebuild the cards and drop both the selection and the focus. Flip the glyphs in place, then re-decide the right column.
     const toggleRangeCard = (index: number) => {

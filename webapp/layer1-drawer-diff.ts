@@ -108,7 +108,7 @@ async function renderDiffBody(): Promise<void> {
         return;
     }
     body.replaceChildren();
-    (mode === DrawerDiffMode.inline ? appendInlineDiff : appendColumnsDiff)(body, shownDiffText);
+    (mode === DrawerDiffMode.inline ? appendInlineDiff : appendColumnsDiff)(body, shownDiffText, shownPair.path);
 }
 
 async function openDiffDrawer(pair: DiffPair): Promise<void> {

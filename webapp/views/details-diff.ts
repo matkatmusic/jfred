@@ -42,7 +42,7 @@ export function clearRightPaneBody(): HTMLElement {
 }
 
 // The shown diff, kept for toggle re-renders; `reload` re-fetches since full-context is a different response (item 75).
-let shownDiff: { label: string; diffText: string; reload: () => void; unrecoverableReason?: string } | undefined;
+let shownDiff: { label: string; path: string; diffText: string; reload: () => void; unrecoverableReason?: string } | undefined;
 
 // Plain explanatory text in the right pane (rename-only revisions, missing blocks).
 export function showTextInDetails(label: string, text: string): void {
@@ -79,7 +79,7 @@ function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
 }
 
 // task 126: ⚠ banner then the previous revision's diff; the reason rides shownDiff so toggles keep the banner.
-export function showUnrecoverableInDetails(label: string, reason: string, previousDiffText: string | undefined, reload: () => void): void {
+export function showUnrecoverableInDetails(label: string, path: string, reason: string, previousDiffText: string | undefined, reload: () => void): void {
     if (previousDiffText === undefined) {
         shownDiff = undefined;
         setRightPaneLabel(label);
@@ -89,12 +89,12 @@ export function showUnrecoverableInDetails(label: string, reason: string, previo
         body.append(el("pre", { class: "diff-text", text: "(no previous revision to show — this is the first revision)" }));
         return;
     }
-    showDiffInDetails(label, previousDiffText, reload, reason);
+    showDiffInDetails(label, path, previousDiffText, reload, reason);
 }
 
 // One diff in the persisted toggle's layout; #dm-columns / #dm-inline re-render the SAME diff.
-export function showDiffInDetails(label: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
-    shownDiff = { label, diffText, reload, unrecoverableReason };
+export function showDiffInDetails(label: string, path: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
+    shownDiff = { label, path, diffText, reload, unrecoverableReason };
     setRightPaneLabel(label);
     const mode = mapStoredDiffModeToToggle(readStoredDiffMode());
     const toggle = document.getElementById("diff-mode-toggle")!;
@@ -108,7 +108,7 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
     const switchDiffMode = (label2: DiffToggleLabel) => {
         writeStoredDiffMode(label2);
         if (shownDiff !== undefined) {
-            showDiffInDetails(shownDiff.label, shownDiff.diffText, shownDiff.reload, shownDiff.unrecoverableReason);
+            showDiffInDetails(shownDiff.label, shownDiff.path, shownDiff.diffText, shownDiff.reload, shownDiff.unrecoverableReason);
         }
     };
     // Full contents widens git context, so it re-fetches via reload rather than re-rendering.
@@ -123,10 +123,10 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
         appendUnrecoverableBanner(body, unrecoverableReason);
     }
     if (mode === "columns") {
-        appendColumnsDiff(body, diffText);
+        appendColumnsDiff(body, diffText, path);
         return;
     }
-    appendInlineDiff(body, diffText);
+    appendInlineDiff(body, diffText, path);
 }
 
 // The revision-timeline diff blocks of one file, freshly fetched (same /api/diff request the file-history view issues, consent flag included).
@@ -153,5 +153,5 @@ export async function showRevisionDiffInDetails(change: FileChange, blocks: stri
         showTextInDetails(change.displayPath, fallbackText);
         return;
     }
-    showDiffInDetails(change.displayPath, block!, reload);
+    showDiffInDetails(change.displayPath, change.displayPath, block!, reload);
 }

@@ -2,9 +2,29 @@
 
 import { el } from "./app-dom.ts";
 import { SplitRowKind, computeInlineRows, computeSplitRows } from "./diff-vs-base-model.ts";
+import { computeLanguageForPath } from "./highlight.ts";
+
+// Colour one cell's code through the vendored hljs global; plain text without it (renderCodeInto's guard).
+function renderCellCode(cell: HTMLElement, code: string, language: string | undefined): void {
+    if (language === undefined || typeof hljs === "undefined" || hljs.getLanguage(language) === undefined) {
+        cell.textContent = code;
+        return;
+    }
+    // hljs HTML-escapes the source text itself, so this is not an injection surface.
+    cell.innerHTML = hljs.highlight(code, { language, ignoreIllegals: true }).value;
+}
+
+// An inline row keeps its raw ± marker as plain text; only the code after it gains tokens.
+function appendMarkedCode(cell: HTMLElement, text: string, language: string | undefined): void {
+    const marker = text !== "" && "+- ".includes(text[0]!) ? text[0]! : "";
+    const code = el("span");
+    renderCellCode(code, text.slice(marker.length), language);
+    cell.append(marker, code);
+}
 
 // One .diff-line per unified line, gutter number + raw text; dels number the old side, hunk headers show ⋯.
-export function appendInlineDiff(body: HTMLElement, diffText: string): void {
+export function appendInlineDiff(body: HTMLElement, diffText: string, path: string): void {
+    const language = computeLanguageForPath(path);
     const pane = el("div", { class: "diff" });
     for (const row of computeInlineRows(diffText)) {
         const line = el("div", { class: "diff-line" });
@@ -21,10 +41,13 @@ export function appendInlineDiff(body: HTMLElement, diffText: string): void {
             lineNumberText = row.newLineNumber;
         }
         const gutterText = row.lineClass === "diff-line-hunk" ? "⋯" : lineNumberText === undefined ? "" : String(lineNumberText);
-        line.append(
-            el("span", { class: "diff-ln", text: gutterText }),
-            el("span", { class: "diff-body", text: row.text }),
-        );
+        const lineBody = el("span", { class: "diff-body" });
+        if (row.lineClass === "diff-line-hunk") {
+            lineBody.textContent = row.text;
+        } else {
+            appendMarkedCode(lineBody, row.text, language);
+        }
+        line.append(el("span", { class: "diff-ln", text: gutterText }), lineBody);
         pane.append(line);
     }
     body.append(pane);
@@ -42,7 +65,7 @@ function mapSplitCellClass(lineClass: string): string {
 }
 
 // One side's ln+body cell pair in the two-column grid; empty cells keep alignment.
-function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineNumber?: number; text: string } | undefined, side: number): void {
+function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineNumber?: number; text: string } | undefined, side: number, language: string | undefined): void {
     const sideClass = side === 1 ? " dc-right" : "";
     if (cell === undefined) {
         grid.append(
@@ -52,14 +75,17 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
         return;
     }
     const cellClass = mapSplitCellClass(cell.lineClass);
+    const cellBody = el("span", { class: `dc-body ${cellClass}`.trim() });
+    renderCellCode(cellBody, cell.text, language);
     grid.append(
         el("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
-        el("span", { class: `dc-body ${cellClass}`.trim(), text: cell.text }),
+        cellBody,
     );
 }
 
 // The two-column diff grid; full rows span it as hunk headers, pair rows emit ln+body cells per side.
-export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
+export function appendColumnsDiff(body: HTMLElement, diffText: string, path: string): void {
+    const language = computeLanguageForPath(path);
     const grid = el("div", { class: "diff-cols" });
     for (const row of computeSplitRows(diffText)) {
         if (row.kind === SplitRowKind.full) {
@@ -67,7 +93,7 @@ export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
             continue;
         }
         [row.left, row.right].forEach((cell, side) => {
-            appendSplitCellPair(grid, cell, side);
+            appendSplitCellPair(grid, cell, side, language);
         });
     }
     body.append(grid);
