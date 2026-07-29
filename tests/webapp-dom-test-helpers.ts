@@ -1,4 +1,4 @@
-// node --test runs in plain Node, so happy-dom window and vendor globals must be installed before any webapp module imports.
+// Plain Node under node --test: install happy-dom window and vendor globals before webapp imports.
 
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
@@ -62,7 +62,7 @@ export function setupWebappDom(): void {
         ResizeObserver: FakeResizeObserver,
         Terminal: FakeXtermTerminal,
         FitAddon: { FitAddon: FakeXtermFitAddon },
-        // The find widget's CSS Custom Highlight API (task 127): happy-dom has no CSS global; a Map covers the set/delete calls.
+        // Task 127: happy-dom has no CSS global; a Map covers the highlight set/delete calls.
         CSS: { highlights: new Map() },
     });
     browserWindow.document.body.innerHTML = readIndexHtmlBodyMarkup();
@@ -74,7 +74,7 @@ function readLayeredHtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the layered page (task 205): setupWebappDom's globals minus xterm/ResizeObserver/CSS fakes, unused by the skeleton.
+// Fresh happy-dom window for the layered page (task 205), minus fakes the skeleton never uses.
 export function setupLayeredDom(): void {
     const browserWindow = new Window({ url: "http://localhost:7343/" });
     Object.assign(globalThis, {
@@ -95,7 +95,7 @@ function readLayer1HtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the Layer 1 View page (task 237); `search` seeds URL query, its input surface.
+// Fresh happy-dom window for the Layer 1 page (task 237); `search` seeds the URL query.
 export function setupLayer1Dom(search: string = ""): void {
     const browserWindow = new Window({ url: `http://localhost:7343/app/layer1.html${search}` });
     Object.assign(globalThis, {
@@ -106,6 +106,8 @@ export function setupLayer1Dom(search: string = ""): void {
         HTMLElement: browserWindow.HTMLElement,
         HTMLInputElement: browserWindow.HTMLInputElement,
         HTMLButtonElement: browserWindow.HTMLButtonElement,
+        // Task 309: the chunked stage render awaits a painted frame between chunks.
+        requestAnimationFrame: browserWindow.requestAnimationFrame.bind(browserWindow),
     });
     browserWindow.document.body.innerHTML = readLayer1HtmlBodyMarkup();
 }
@@ -116,7 +118,7 @@ function readDebugHtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the debug page (task 183); `search` seeds the URL query string for deep-link tests.
+// Fresh happy-dom window for the debug page (task 183); `search` seeds deep-link queries.
 export function setupDebugDom(search: string = ""): void {
     const browserWindow = new Window({ url: `http://localhost:7343/app/debug.html${search}` });
     Object.assign(globalThis, {
@@ -157,7 +159,7 @@ export function stubFetchRoutes(routesByPathname: Record<string, unknown>): void
     Object.assign(globalThis, { fetch: buildStubbedFetch(routesByPathname) });
 }
 
-// A Response with a real ReadableStream of NDJSON for pages reading a progress stream, not JSON (Layer 1's `?progress=1` path).
+// A Response streaming real NDJSON for pages reading progress (Layer 1's `?progress=1` path).
 function enqueueOnceThenClose(encoded: Uint8Array): (controller: ReadableStreamDefaultController) => void {
     return (controller) => {
         controller.enqueue(encoded);
@@ -183,7 +185,7 @@ export function stubStreamRoute(pathname: string, lines: unknown[]): void {
     Object.assign(globalThis, { fetch: buildStubbedStreamFetch(pathname, lines) });
 }
 
-// Point the page's relative fetches at a live server (task 238, spec S18), since node's native fetch rejects relative urls.
+// Task 238 (spec S18): route relative fetches to a live server; node fetch rejects relative urls.
 export function forwardFetchToOrigin(origin: string): void {
     Object.assign(globalThis, {
         fetch: (url: unknown, options?: RequestInit): Promise<Response> =>

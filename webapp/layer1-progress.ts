@@ -24,6 +24,14 @@ export function paintLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: s
     fill.style.width = `${(current / total) * 100}%`;
 }
 
+// Task 309: the client-side render stage's label, exported so tests assert the emitted string.
+export const LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE = "drawing the timeline";
+
+// Task 309: resolves after the browser paints, so a chunked render's progress frames reach the screen.
+export function waitForPaintedFrame(): Promise<void> {
+    return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
 // Show or advance the main strip.
 export function showLayer1Progress(label: string, current?: number, total?: number): void {
     getRequiredElementById("loadbar").removeAttribute("hidden");
