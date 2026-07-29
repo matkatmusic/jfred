@@ -105,6 +105,8 @@ export async function loadLayer1View(): Promise<void> {
     const crumb = getRequiredElementById("crumb");
     if (!params.has("dir") || !params.has("repo")) {
         crumb.textContent = "pick a project folder and a git repo";
+        // There is no build to report, so boot's opening strip must not be left hanging.
+        hideLayer1Progress();
         return;
     }
     // Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
@@ -127,6 +129,8 @@ export async function loadLayer1View(): Promise<void> {
 export async function bootLayer1Page(): Promise<void> {
     // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
     fillSourceBoxesFromUrl();
+    // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
+    showLayer1Progress("starting");
     // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
     wirePathPickers(() => {
         markSettingsDirty();

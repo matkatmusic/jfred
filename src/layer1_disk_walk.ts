@@ -1,5 +1,4 @@
-// Layer 1 on-disk file walk: mtime-stamped paths via git when available, manual walk otherwise.
-// Birthtime is read only when trustworthy — see readCreatedInstant.
+// Layer 1 on-disk file walk: mtime-stamped paths via git when available, manual walk otherwise.  Birthtime is read only when trustworthy — see readCreatedInstant.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -13,8 +12,7 @@ export interface DiskFileState {
     createdAt?: Date;
 }
 
-// macOS/APFS records a real birthtime; ext4 frequently reports epoch 0 or echoes the mtime, and a
-// copied file can claim a birth LATER than its mtime. Each of those yields no created node.
+// macOS/APFS records a real birthtime; ext4 frequently reports epoch 0 or echoes the mtime, and a copied file can claim a birth LATER than its mtime. Each of those yields no created node.
 function readCreatedInstant(stats: { birthtime: Date; mtime: Date }): Date | undefined {
     const birth = stats.birthtime.getTime();
     return birth > 0 && birth < stats.mtime.getTime() ? stats.birthtime : undefined;
