@@ -112,8 +112,8 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
     assert.deepEqual(listMatching("#ruler .tick").map(readAxisOffsetPx), RULER.map((tick) => tick.axisPx));
     // Task 275: the "(n)" count comes off the wire rather than being derived here.
     assert.deepEqual(listMatching("#ruler .tick").map((tick) => tick.textContent), [
-        "06-01 09:00:00.00 (1)", "06-01 14:30:00.00 (1)", "07-20 16:00:00.00 (1)",
-        "07-23 19:40:00.00 (1)", "07-24 08:15:00.00 (1)",
+        "06-01 09:00:00.000 (1)", "06-01 14:30:00.000 (1)", "07-20 16:00:00.000 (1)",
+        "07-23 19:40:00.000 (1)", "07-24 08:15:00.000 (1)",
     ]);
 });
 
@@ -153,7 +153,7 @@ test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", asy
     assert.deepEqual(listTextOf(diskBucket, "li span"), [DISK_ORPHAN.path]);
     assert.equal(readAxisOffsetPx(diskBucket), DISK_ORPHAN.axisPx);
     // Task 276: seconds and hundredths are required, since minute precision made distinct instants render as identical, duplicate-looking text.
-    assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40:00.00"]);
+    assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40:00.000"]);
 });
 
 test("test_empty_bucket_is_omitted_and_zero_pairs_shows_the_no_pairs_message", async () => {
