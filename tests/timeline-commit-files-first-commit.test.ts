@@ -14,9 +14,7 @@ import {
 } from "../src/structures/vocabulary.ts";
 import { findCommitNodeIndexes } from "./timeline-test-helpers.ts";
 
-// First-commit document (task 87): the only work happens mid-turn before the commit, so the
-// chips' owning reply bubble (00:40) sorts AFTER the commit row (00:30); a second change (00:50)
-// happens after the commit. A gitBase baseline step seeds orders.py before everything.
+// First-commit document (task 87): the only work happens mid-turn before the commit, so the chips' owning reply bubble (00:40) sorts AFTER the commit row (00:30); a second change (00:50) happens after the commit. A gitBase baseline step seeds orders.py before everything.
 
 const firstCommitDocument = {
     messages: [{
@@ -59,10 +57,7 @@ const firstCommitDocument = {
 };
 
 test("test_deriveCommitChangedFiles_absorbs_trailing_bubble_for_first_commit", () => {
-    // Scenario: the FIRST commit's chips live on the reply bubble sorted after it (snapshot
-    // attribution); the forward absorb lists them instead of "No files changed" (task 87).
-    // Steps:
-    // build the timeline and take the first (only) commit.
+    // Scenario: the FIRST commit's chips live on the reply bubble sorted after it (snapshot attribution); the forward absorb lists them instead of "No files changed" (task 87).  Steps: build the timeline and take the first (only) commit.
     const { nodes } = buildTurnTimelineViewModel(firstCommitDocument);
     const [commitIndex] = findCommitNodeIndexes(nodes);
     // assert the pre-commit change (00:25 <= 00:30) is absorbed from the trailing bubble.
@@ -71,10 +66,7 @@ test("test_deriveCommitChangedFiles_absorbs_trailing_bubble_for_first_commit", (
 });
 
 test("test_deriveCommitChangedFiles_excludes_changes_made_after_the_commit", () => {
-    // Scenario: the forward absorb takes ONLY chips whose change instant is at-or-before the
-    // commit — work done after the commit (00:50 > 00:30) stays out.
-    // Steps:
-    // build the timeline and take the commit.
+    // Scenario: the forward absorb takes ONLY chips whose change instant is at-or-before the commit — work done after the commit (00:50 > 00:30) stays out.  Steps: build the timeline and take the commit.
     const { nodes } = buildTurnTimelineViewModel(firstCommitDocument);
     const [commitIndex] = findCommitNodeIndexes(nodes);
     // assert the post-commit change is not listed.
@@ -83,10 +75,7 @@ test("test_deriveCommitChangedFiles_excludes_changes_made_after_the_commit", () 
 });
 
 test("test_deriveCommitChangedFiles_never_lists_git_baseline_chips", () => {
-    // Scenario: baseline seeds are pre-session repo state, never part of a commit's delta —
-    // the baseline node sorts before the first commit but its chips must not be listed.
-    // Steps:
-    // build the timeline and take the commit.
+    // Scenario: baseline seeds are pre-session repo state, never part of a commit's delta — the baseline node sorts before the first commit but its chips must not be listed.  Steps: build the timeline and take the commit.
     const { nodes } = buildTurnTimelineViewModel(firstCommitDocument);
     const [commitIndex] = findCommitNodeIndexes(nodes);
     // assert the gitBase-seeded path is not listed.
@@ -95,10 +84,7 @@ test("test_deriveCommitChangedFiles_never_lists_git_baseline_chips", () => {
 });
 
 test("test_deriveCommitChangedFiles_forward_walk_stops_at_next_commit", () => {
-    // Scenario: the forward absorb never crosses the NEXT commit row — a qualifying chip sitting
-    // beyond it belongs to that later commit's window.
-    // Steps:
-    // add a second commit between the first commit and the trailing bubble.
+    // Scenario: the forward absorb never crosses the NEXT commit row — a qualifying chip sitting beyond it belongs to that later commit's window.  Steps: add a second commit between the first commit and the trailing bubble.
     const document = {
         ...firstCommitDocument,
         gitOperations: [...firstCommitDocument.gitOperations, {
@@ -119,10 +105,7 @@ test("test_deriveCommitChangedFiles_forward_walk_stops_at_next_commit", () => {
 });
 
 test("test_findContributingNodeIndexes_includes_trailing_bubble", () => {
-    // Scenario: the commit's contributing-row highlight includes the trailing bubble the forward
-    // absorb took chips from (task 87 — the walk and the highlight must agree).
-    // Steps:
-    // build the timeline, take the commit, and locate the trailing reply bubble.
+    // Scenario: the commit's contributing-row highlight includes the trailing bubble the forward absorb took chips from (task 87 — the walk and the highlight must agree).  Steps: build the timeline, take the commit, and locate the trailing reply bubble.
     const { nodes } = buildTurnTimelineViewModel(firstCommitDocument);
     const [commitIndex] = findCommitNodeIndexes(nodes);
     const replyIndex = nodes.findIndex((node) => node.uuid === "reply-1");

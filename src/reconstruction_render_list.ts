@@ -1,6 +1,4 @@
-// Default list view for the reconstruction engine: one block per touched file
-// with its numbered entries (kind, line count or rename/copy detail, short time,
-// short change id). Pure over FileHistory[]. Design: reconstruction_engine.ts.
+// Default list view for the reconstruction engine: one block per touched file with its numbered entries (kind, line count or rename/copy detail, short time, short change id). Pure over FileHistory[]. Design: reconstruction_engine.ts.
 
 import type {
     BranchedReconstruction,
@@ -14,8 +12,7 @@ import type { Path } from "./structures/domain.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
 import { renderDiff, renderVerbose } from "./reconstruction_render.ts";
 
-// Render histories in the verbose/diff mode, each under its `### <path>` header. (Moved from
-// reconstruction_cli.ts with filterByTarget/renderChosen — task 192 line-cap split.)
+// Render histories in the verbose/diff mode, each under its `### <path>` header. (Moved from reconstruction_cli.ts with filterByTarget/renderChosen — task 192 line-cap split.)
 function renderHistories(
     histories: FileHistory[],
     render: (revisions: FileRevision[]) => string,
@@ -35,8 +32,7 @@ export function filterByTarget(
     return histories.filter((history) => history.target.toString() === target.toString());
 }
 
-// Render a chosen set of histories in the selected view (list/verbose/diff), narrowed to --target
-// when one is given. Shared by every branch view so the flags compose uniformly.
+// Render a chosen set of histories in the selected view (list/verbose/diff), narrowed to --target when one is given. Shared by every branch view so the flags compose uniformly.
 export function renderChosen(histories: FileHistory[], options: CliOptions): string {
     const chosen = filterByTarget(histories, options.target);
     if (options.diff) {
@@ -152,8 +148,7 @@ function renderHistoryBlock(history: FileHistory): string {
     return `${header}\n${entries.join("\n")}`;
 }
 
-// The default view: each touched file with its numbered entries (kind, line
-// count or rename arrow, short time, short change id).
+// The default view: each touched file with its numbered entries (kind, line count or rename arrow, short time, short change id).
 export function renderHistoryList(histories: FileHistory[]): string {
     if (histories.length === 0) {
         return "no files touched";
@@ -166,8 +161,7 @@ function summarizeBranchFiles(histories: FileHistory[]): string {
     return histories.map((history) => getBaseName(history.target)).join(", ");
 }
 
-// One summary line per branch (like `git branch`): kind, tip short id, for a rewound branch also
-// its rewind point, then the files it touched. Used by the CLI `--list-branches` view.
+// One summary line per branch (like `git branch`): kind, tip short id, for a rewound branch also its rewind point, then the files it touched. Used by the CLI `--list-branches` view.
 export function renderBranchSummary(branched: BranchedReconstruction): string {
     const lines: string[] = [];
     if (branched.survivingTip !== undefined) {

@@ -1,6 +1,4 @@
-// Script-execution replay: event types, run detection, and indirection resolution. The pre-execution
-// analysis/state seeding lives in reconstruction_script_prestate.ts, the sandbox execution + memo in
-// reconstruction_script_sandbox.ts, and the validation/injection stage in reconstruction_script_stage.ts.
+// Script-execution replay: event types, run detection, and indirection resolution.
 
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -10,11 +8,7 @@ import { getCorpusState } from "./reconstruction_corpus.ts";
 import { indexWrittenContentByBasename, resolveScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 
-// The proven post-execution state of a script run for one target file: the forward transform already
-// applied to the pre-script content. Injected as a synthetic authored event at the run's timestamp and
-// replayed as a full-content revision (like userEdit / overwrite). `content` is precomputed (not subs
-// re-applied at replay) so the revision is independent of replay ordering / earlier beacon completion.
-// One event per target file.
+// A script run's proven post-execution content, injected as a synthetic full-content revision; precomputed so replay order can't affect it.
 export type ScriptExecutionEvent = {
     kind: EventKind.scriptExecution;
     changeId: Uuid;
@@ -23,26 +17,14 @@ export type ScriptExecutionEvent = {
     timestamp: Date;
 };
 
-// --- run detection ----------------------------------------------------------------------------------
 
-// What the sandbox could execute a run's code AS (task 192): python runs go through the
-// `python3 __script__.py` sandbox; bash runs cannot (shell code under python3 always crashed
-// to post:undefined), so the execution layer skips their pre-state build and sandbox spawn
-// outright. Derived from the ORIGINATING tool block, never inferred from the code text —
-// except that a bash run resolved through indirection to a written .py body becomes python
-// (the s34/s37 `python3 apply.py` mechanism).
+// Task 192: bash runs skip the python3 sandbox; kind derives from tool block, unless indirection resolves to a .py body.
 export enum ScriptExecutorKind {
     python = "python",
     bash = "bash",
 }
 
-// A recorded script-execution run: the script source it ran, when, the directory it ran from
-// (the MCP executor's input.cwd when present, else the record's cwd), the transcript
-// file:line the run was parsed from (absent for synthetic test records), the id of the
-// tool_use block that produced the run (absent for synthetic runs) — the session-attributable
-// source a synthetic script-execution changeId embeds — and the executor kind the sandbox
-// gate keys on (task 192). executorKind is optional so synthetic test runs default to the
-// pre-gate behavior: an absent kind executes like python.
+// `cwd` is the MCP executor's input.cwd, else the record's; an absent executorKind executes like python (pre-gate behavior).
 export type ScriptRun = {
     code: string;
     timestamp: Date;
@@ -52,22 +34,16 @@ export type ScriptRun = {
     executorKind?: ScriptExecutorKind;
 };
 
-// Prefix marking a synthetic script-execution changeId. Follows the originalFile: precedent
-// (reconstruction_reseed.ts): a prefixed id that resolveSyntheticChangeIdToSourceId can unwrap.
+// Follows the originalFile: precedent — a prefixed id resolveSyntheticChangeIdToSourceId unwraps.
 export const SCRIPT_RUN_CHANGE_ID_PREFIX = "scriptRun:";
 
-// Deterministic changeId for a synthetic script-execution event. Both the step-timeline replay
-// and the file-history replay derive it from the same records, so their events join — the fix
-// for per-replay randomUUID ids that could never match (TASKS.md item 34). The source segment
-// (tool_use id, or epoch-ms timestamp for a run no tool_use produced) never contains ":", so
-// the first ":" after the prefix always terminates it even when the target path is unusual.
+// Deterministic so step-timeline and file-history replays produce joinable ids (item 34); the source segment never contains ':'.
 export function computeScriptExecutionChangeId(run: ScriptRun, target: Path): Uuid {
     const sourceSegment = run.toolUseId?.toString() ?? String(run.timestamp.getTime());
     return new Uuid(`${SCRIPT_RUN_CHANGE_ID_PREFIX}${sourceSegment}:${target.toString()}`);
 }
 
-// The session-attributable source id inside a scriptRun: changeId, or undefined when the id is
-// not a scriptRun: id (real record uuids, originalFile: seeds, and blob refs pass through).
+// Undefined for non-scriptRun ids, so record uuids, originalFile: seeds and blob refs pass through.
 export function resolveScriptRunChangeIdToSourceId(changeId: string): string | undefined {
     if (!changeId.startsWith(SCRIPT_RUN_CHANGE_ID_PREFIX)) {
         return undefined;
@@ -77,14 +53,12 @@ export function resolveScriptRunChangeIdToSourceId(changeId: string): string | u
     return separatorIndex === -1 ? rest : rest.slice(0, separatorIndex);
 }
 
-// " [file.jsonl:123]" for a run parsed from a transcript line, or "" for a synthetic run —
-// appended to progress labels so a console line points at the exact JSONL line being processed.
+// Appended to progress labels so a console line points at the exact JSONL line being processed.
 export function formatRunSource(run: ScriptRun): string {
     return formatRecordSourceToken(run.source);
 }
 
-// The runnable source a script-execution block carries: `input.code` (MCP execute) or `input.command`
-// (Bash). undefined for a non-executor tool, or an executor carrying neither.
+// `input.code` (MCP execute) or `input.command` (Bash); undefined for a non-executor tool.
 function scriptCodeOf(block: ToolUseBlock): string | undefined {
     if (!EXECUTOR_TOOL_NAMES.has(block.name)) {
         return undefined;
@@ -93,12 +67,10 @@ function scriptCodeOf(block: ToolUseBlock): string | undefined {
     return input.code ?? input.command;
 }
 
-// True when a tool_use is a script-execution run (a Bash or MCP-execution tool carrying script source).
 export function isScriptExecutionRun(block: ToolUseBlock): boolean {
     return scriptCodeOf(block) !== undefined;
 }
 
-// The script-execution runs carried by one record's tool_use blocks (at the record's timestamp).
 function runsInRecord(record: TranscriptRecord): ScriptRun[] {
     const timestamp = record.timestamp;
     if (!(timestamp instanceof Date)) {
@@ -115,8 +87,7 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
         if (code !== undefined) {
             const blockCwd = (block.input as { cwd?: string }).cwd;
             const cwd = blockCwd !== undefined ? new Path(blockCwd) : recordCwd;
-            // task 192: the ORIGINATING tool decides the executor kind (MCP ctx tools are
-            // python code-execution; only the Bash shell yields bash).
+            // Task 192: only the Bash shell yields bash; MCP ctx tools are python code-execution.
             const executorKind = block.name === ToolName.Bash ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
             runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind });
         }
@@ -124,10 +95,7 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
     return runs;
 }
 
-// Every script-execution run in the transcript, in record order, each with its source and timestamp.
-// A run that invokes a written script file is resolved to that file's body (resolveScriptIndirection).
-// Memoized per records identity in the corpus (pure group): the result depends on the records alone,
-// and the per-file repair chain calls this once per reconstructed file.
+// A run invoking a written script file resolves to that file's body; memoized since repair chain calls this per file.
 export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[] {
     const state = getCorpusState(records);
     if (state.scriptRuns !== undefined) {

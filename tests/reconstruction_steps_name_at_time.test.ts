@@ -21,17 +21,13 @@ function realReader(records: ReturnType<typeof loadRecords>): BackupReader | und
     return sessionId ? createSidecarReader(sessionId, getDefaultFileHistoryRoot()) : undefined;
 }
 
-// Whether any key of the snapshot is the file with this exact basename (the engine keys by absolute temp
-// path; basename equality avoids the suffix collision where `test_s2_original.py` ends with
-// `s2_original.py`).
+// Whether any key of the snapshot is the file with this exact basename (the engine keys by absolute temp path; basename equality avoids the suffix collision where `test_s2_original.py` ends with `s2_original.py`).
 function hasFileNamed(snapshot: RepoSnapshot, basename: string): boolean {
     return [...snapshot.keys()].some((path) => path.toString().split("/").pop() === basename);
 }
 
 test("test_reconstructStepStates_keys_a_premove_file_by_its_old_name", () => {
-    // Behavior: at the pre-move step (the file was written but the mv has not run yet), the snapshot keys
-    // the file under its OLD name `s2_original.py`, and the future name `s2_moved.py` is absent.
-    // Step: reconstruct every step's repo snapshot for s2.
+    // Behavior: at the pre-move step (the file was written but the mv has not run yet), the snapshot keys the file under its OLD name `s2_original.py`, and the future name `s2_moved.py` is absent.  Step: reconstruct every step's repo snapshot for s2.
     const records = loadRecords(S2_JSONL);
     const steps = reconstructStepStates(records, realReader(records));
     // Step: the first step is the pre-move write (before the mv).
@@ -42,9 +38,7 @@ test("test_reconstructStepStates_keys_a_premove_file_by_its_old_name", () => {
 });
 
 test("test_reconstructStepStates_keys_a_postmove_file_by_its_new_name", () => {
-    // Behavior: at the final step (after the mv), the snapshot keys the file under its NEW name
-    // `s2_moved.py`, and the old name `s2_original.py` is gone.
-    // Step: reconstruct every step's repo snapshot for s2.
+    // Behavior: at the final step (after the mv), the snapshot keys the file under its NEW name `s2_moved.py`, and the old name `s2_original.py` is gone.  Step: reconstruct every step's repo snapshot for s2.
     const records = loadRecords(S2_JSONL);
     const steps = reconstructStepStates(records, realReader(records));
     // Step: the last step is the final disk state (after the mv).
@@ -55,10 +49,7 @@ test("test_reconstructStepStates_keys_a_postmove_file_by_its_new_name", () => {
 });
 
 test("test_reconstructStepStates_is_unchanged_for_a_rename_free_scenario", () => {
-    // Behavior: s19 has no rename, so name-at-time resolves to the file's only name at every step — the
-    // step keys are identical to the rename-free baseline (scenario19.py, then both files once the test
-    // file is written).
-    // Step: reconstruct every step's repo snapshot for s19.
+    // Behavior: s19 has no rename, so name-at-time resolves to the file's only name at every step — the step keys are identical to the rename-free baseline (scenario19.py, then both files once the test file is written).  Step: reconstruct every step's repo snapshot for s19.
     const records = loadRecords(S19_JSONL);
     const steps = reconstructStepStates(records, realReader(records));
     // Verify: the first step keys only scenario19.py...

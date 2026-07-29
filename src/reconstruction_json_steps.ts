@@ -1,6 +1,4 @@
-// Step-snapshot builders for the JSON document: skeleton step rows (index/when/changeIds/changedPaths)
-// plus the changeId -> path / sessionId indexes they resolve through. Split from reconstruction_json.ts
-// (task 92); the document assembly stays there.
+// Skeleton step-snapshot builders and changeId-to-path/session indexes for the JSON document.
 
 import type { Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -13,9 +11,7 @@ import { ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX } from "./reconstruction_reseed.ts"
 import { resolveScriptRunChangeIdToSourceId } from "./reconstruction_script_execution.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
-// A step snapshot is a SKELETON: index/when/changeIds/changedPaths only, no file contents. A step's
-// file text is resolved on demand from the separately-returned stepFileHistories (resolveFilesAtStep),
-// so the document stays small enough to JSON.stringify (the >512 MB RangeError fix).
+// Skeleton only — file text resolved on demand to avoid the 512 MB RangeError.
 export type StepSnapshot = {
     index: number;
     when: Date;
@@ -24,11 +20,7 @@ export type StepSnapshot = {
     sessionId: Uuid | undefined;
 };
 
-// A changeId(string) -> source sessionId index. Two id namespaces resolve here, so a step's changeIds
-// can be attributed to the session that evidenced them: every tool_use block's id, and every record's
-// own uuid (a user-edit evidence splice carries a file-history-snapshot RECORD uuid as its changeId —
-// s40 step 5). The namespaces are disjoint (toolu_… / cse_… vs RFC-4122), so adding record uuids never
-// shadows a tool_use id. Synthetic changeIds that match neither (e.g. a `<blob>@vN` ref) resolve to nothing.
+// Maps changeIds to their source sessionId via tool_use block ids and record uuids.
 function indexToolUseBlockIdsToSessionId(record: TranscriptRecord, sessionId: Uuid, byChangeId: Map<string, Uuid>): void {
     for (const block of getContentBlocks(record)) {
         if (block.type === BlockType.tool_use) {
@@ -51,11 +43,7 @@ function indexChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uu
     return byChangeId;
 }
 
-// Un-wrap a synthetic changeId to the source id the index knows. An `originalFile` seed stamps
-// `originalFile:<real edit changeId>` (reconstruction_reseed); stripping the prefix exposes the real
-// tool_use id (s40 step 3). A `scriptRun:<tool_use id>:<target>` script-execution id
-// (reconstruction_script_execution) unwraps to its tool_use id the same way (item 34). A plain
-// changeId — real, or a record-uuid evidence splice — is returned as-is.
+// Strips synthetic prefixes (originalFile:, scriptRun:) to recover the real changeId.
 function resolveSyntheticChangeIdToSourceId(changeId: string): string {
     if (changeId.startsWith(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX)) {
         return changeId.slice(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX.length);
@@ -67,8 +55,7 @@ function resolveSyntheticChangeIdToSourceId(changeId: string): string {
     return changeId;
 }
 
-// A changeId(string) -> final path(string) index across every reconstructed file, so a step's
-// changeIds can be resolved to the file paths they touched.
+// Maps each changeId to the final path of the file it touched.
 function indexChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
     const byChangeId = new Map<string, string>();
     for (const history of histories) {
@@ -79,10 +66,6 @@ function indexChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
     return byChangeId;
 }
 
-// The skeleton step snapshots AND the compact branch-agnostic histories they derive from, returned
-// together so a reader can resolve any one step's file text on demand (resolveFilesAtStep) without the
-// document ever carrying per-step file contents. `surviving` lets a caller that already reconstructed
-// the surviving branch (the document builder's BranchedReconstruction) share it; absent, it is derived.
 function findSessionIdForChangeIds(changeIds: Uuid[], sessionOf: Map<string, Uuid>): Uuid | undefined {
     return changeIds
         .map((id) => sessionOf.get(resolveSyntheticChangeIdToSourceId(id.toString())))
@@ -100,11 +83,7 @@ export function buildStepSnapshots(
     const sessionOf = indexChangeIdsToSessionIds(records);
     const steps = changes.map((change, index) => {
         const changeIds = change.changeIds;
-        // ponytail: best-effort — a step's triggering changeId is not always a surviving revision's
-        // changeId (the engine re-stamps revisions during beacon/reseed completion), so off-branch or
-        // re-stamped steps resolve to []. changeIds is the reliable pointer; changedPaths is the hint.
-        // Script-execution changeIds are deterministic (scriptRun:<source>:<target>, item 34), so the
-        // step-timeline and file-history replays stamp the same id and those steps DO resolve.
+        // ponytail: best-effort — a step's triggering changeId is not always a surviving revision's changeId (the engine re-stamps revisions during beacon/reseed completion), so off-branch or re-stamped steps resolve to []. changeIds is the reliable pointer; changedPaths is the hint.  Script-execution changeIds are deterministic (scriptRun:<source>:<target>, item 34), so the step-timeline and file-history replays stamp the same id and those steps DO resolve.
         const changedPaths = [
             ...new Set(changeIds.map((id) => pathOf.get(id.toString())).filter((p): p is string => p !== undefined)),
         ];

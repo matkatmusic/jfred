@@ -1,8 +1,4 @@
-// Multi-source record merging (specs S4b/S5a, design plans/166-multi-source-design.md §b/§c):
-// the stages between per-source record loading and the existing engine — record-level dedupe
-// (§c1), wall-clock interleave (§c3), per-session root resolution (§b), and the merge
-// composition. The §a identity join lives in reconstruction_multi_source_join.ts (250-line cap
-// split; this module imports it one-way).
+// Multi-source merging: dedupe, wall-clock interleave, per-session root resolution.
 
 import { dirname } from "node:path";
 import { Path } from "./structures/domain.ts";
@@ -21,9 +17,7 @@ function computeRecordIdentityKey(record: TranscriptRecord): string | undefined 
     return `${sessionId.toString()} ${record.uuid.toString()}`;
 }
 
-// §c1 — record-level dedupe by (sessionId, uuid), first occurrence winning (replica copies are
-// strict prefix growth, so the union of records IS the longer copy). Records missing either
-// identity field always pass through. `seen` is shared across lists by the merge composition.
+// §c1: dedupe by (sessionId, uuid); first wins.
 export function dedupeRecordsBySessionAndUuid(
     records: TranscriptRecord[],
     seen: Set<string> = new Set<string>(),
@@ -42,9 +36,7 @@ export function dedupeRecordsBySessionAndUuid(
     return kept;
 }
 
-// Per-record sort keys for one list: a record's own timestamp, else the carried-forward previous
-// one, else the list's FIRST stamped timestamp (unstamped leading records stay glued in front of
-// their session). A list with no timestamps at all sorts last.
+// Sort key: own timestamp, else carried-forward, else first stamped.
 function computeListSortKeys(records: TranscriptRecord[]): number[] {
     const firstStamped = records.find((record) => record.timestamp !== undefined);
     let carriedKey = firstStamped?.timestamp?.getTime() ?? Number.POSITIVE_INFINITY;
@@ -56,8 +48,7 @@ function computeListSortKeys(records: TranscriptRecord[]): number[] {
     });
 }
 
-// The index of the not-yet-exhausted list whose next record has the smallest sort key; ties
-// resolve to the earlier list (deterministic).
+// Pick the list with the smallest next sort key.
 function chooseEarliestList(recordLists: TranscriptRecord[][], sortKeys: number[][], positions: number[]): number {
     let chosenList = -1;
     for (let listIndex = 0; listIndex < recordLists.length; listIndex++) {
@@ -74,8 +65,7 @@ function chooseEarliestList(recordLists: TranscriptRecord[][], sortKeys: number[
     return chosenList;
 }
 
-// §c3 — strict wall-clock interleave of per-session record lists, each list's internal order
-// preserved.
+// §c3 — strict wall-clock interleave of per-session record lists, each list's internal order preserved.
 export function interleaveRecordsByTimestamp(recordLists: TranscriptRecord[][]): TranscriptRecord[] {
     const sortKeys = recordLists.map(computeListSortKeys);
     const positions = recordLists.map(() => 0);
@@ -89,8 +79,7 @@ export function interleaveRecordsByTimestamp(recordLists: TranscriptRecord[][]):
     return merged;
 }
 
-// The (possibly new) group a record belongs to: its session's group, else the group of the
-// record before it (unstamped snapshot records stay glued to their neighbors).
+// Unstamped records stay glued to their neighbor's session group.
 function selectGroupForRecord(
     record: TranscriptRecord,
     groups: TranscriptRecord[][],
@@ -128,8 +117,7 @@ export function groupRecordsBySession(records: TranscriptRecord[]): TranscriptRe
     return groups;
 }
 
-// The declared root of the source that recorded this record, or undefined when no declared
-// source matches (§b1: the source's projects root is dirname(dirname(<jsonl path>))).
+// §b1: source's projects root is dirname(dirname(jsonl path)).
 function findDeclaredRootForRecord(record: TranscriptRecord, sources: SourceEntry[]): Path | undefined {
     const recordSource = getRecordSource(record);
     if (recordSource === undefined) {
@@ -167,9 +155,7 @@ export function computeSessionRoots(records: TranscriptRecord[], sources: Source
     return roots;
 }
 
-// The public composition (design §c order): dedupe each list against one shared seen-set, then
-// interleave by wall clock, then join cross-source identities. One list under one root degrades
-// to the identity transform.
+// §c composition: dedupe, interleave by wall clock, join cross-source identities.
 export function mergeMultiSourceRecords(recordLists: TranscriptRecord[][], sources: SourceEntry[]): TranscriptRecord[] {
     const seen = new Set<string>();
     const dedupedLists = recordLists.map((list) => dedupeRecordsBySessionAndUuid(list, seen));

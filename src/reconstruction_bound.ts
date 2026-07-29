@@ -1,10 +1,4 @@
-// task 193: bounded reconstruction up to a file's nth revision. The bound is implemented as
-// INPUT truncation — the merged record stream is cut at the end of the chosen revision's
-// containing agent turn, so the sidecar reader, the script-run pool, and every view are
-// bounded by construction and no engine internals change. Turns are per-session: the turn
-// end is the OWNING session's next genuine prompt (interleaved parallel-session streams —
-// jot, RevEng — carry other sessions' prompts mid-turn), and the cut is by wall clock so
-// every session's in-window records survive.
+// task 193: bounded reconstruction via input truncation at the nth revision's turn end.
 
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -15,20 +9,14 @@ import type { FileEvent } from "./reconstruction_engine.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
 
-// The truncation result: the (possibly cut) record stream, the target's total revision count
-// across the FULL stream (reported so the user can pick the next ordinal), and the turn-end
-// boundary instant the wall-clock filter used (undefined when the chosen revision sits in the
-// final turn — nothing cut). Task 192 Phase 6: the boundary instant, NOT the last retained
-// array element's stamp — merged streams are grouped by input JSONL, not globally sorted.
+// Cut stream, total revision count, and wall-clock boundary instant (undefined if final turn).
 export type RevisionBound = {
     records: TranscriptRecord[];
     totalRevisions: number;
     boundInstant: Date | undefined;
 };
 
-// A caller's request for a bounded build (task 194: the webapp's bounded mode rides the
-// document request as boundFile/boundNth and lands here): truncate at `file`'s `ordinal`-th
-// revision turn end — the same semantics as the CLI's --until-revision/--nth.
+// task 194: webapp bounded-mode request — truncate at file's ordinal-th revision turn end.
 export type RevisionBoundRequest = {
     file: Path;
     ordinal: number;
@@ -45,8 +33,7 @@ export function listEventPaths(event: FileEvent): Path[] {
     return [event.target];
 }
 
-// The target's revisions = every file event naming it, in extractFileEvents' timestamp order.
-// Exact-path equality, matching the --target/--file selector's contract.
+// Filter events touching target by exact-path equality in timestamp order.
 function selectEventsTouchingPath(events: FileEvent[], target: Path): FileEvent[] {
     const targetKey = target.toString();
     return events.filter((event) =>
@@ -54,8 +41,7 @@ function selectEventsTouchingPath(events: FileEvent[], target: Path): FileEvent[
     );
 }
 
-// A turn boundary is a genuine typed-in prompt on the MAIN chain — a subagent's opening prompt
-// (isSidechain) happens inside the parent's turn and must not end it.
+// Only main-chain genuine prompts end a turn; sidechain prompts do not.
 function isTurnBoundary(record: TranscriptRecord): boolean {
     if (record.isSidechain === true) {
         return false;
@@ -70,9 +56,7 @@ function recordCarriesToolUse(record: TranscriptRecord, changeKey: string): bool
     );
 }
 
-// The sessionId of the record that produced `event`: a user-edit's changeId is the attachment
-// record's own uuid, every other kind's changeId is a tool_use block id. Undefined when no
-// record matches (falls back to a session-agnostic turn walk).
+// Find the session that produced this event via its changeId (uuid or tool_use id).
 function findEventSessionId(records: TranscriptRecord[], event: FileEvent): Uuid | undefined {
     const changeKey = event.changeId.toString();
     for (const record of records) {
@@ -86,9 +70,7 @@ function findEventSessionId(records: TranscriptRecord[], event: FileEvent): Uuid
     return undefined;
 }
 
-// The end of the OWNING session's turn: the first of ITS turn-boundary prompts STRICTLY after
-// `after` (a prompt stamped at the event instant stays inside the turn). Undefined when the
-// turn runs to the end of the stream. Without an owner session the walk is session-agnostic.
+// First turn-boundary prompt strictly after `after` in the owning session; undefined at stream end.
 function findTurnEndBoundary(
     records: TranscriptRecord[],
     after: Date,
@@ -112,9 +94,7 @@ function findTurnEndBoundary(
     return undefined;
 }
 
-// Wall-clock cut: a stamped record survives iff it lies strictly before the turn-end instant
-// (other sessions' in-window records included); a stamp-less record (session meta) survives by
-// its position before the boundary prompt.
+// Stamped records survive if strictly before the boundary instant; unstamped survive by index.
 function recordIsWithinBound(
     record: TranscriptRecord,
     index: number,
@@ -126,9 +106,7 @@ function recordIsWithinBound(
     return index < boundary.index;
 }
 
-// Cut the record stream at the end of the agent turn containing the target's nth revision
-// (1-based). Throws when the target has no revisions or the ordinal is out of range — the
-// message carries the total so the caller can pick a valid ordinal next time.
+// Truncate records at the turn containing the target's nth revision; throws on missing/out-of-range.
 export function truncateRecordsAtRevisionTurnEnd(
     records: TranscriptRecord[],
     target: Path,
@@ -151,8 +129,7 @@ export function truncateRecordsAtRevisionTurnEnd(
     return { records: kept, totalRevisions: revisions.length, boundInstant: boundary.instant };
 }
 
-// CLI glue: a no-op without --until-revision; otherwise truncate and report the pick-your-n
-// summary on stderr (stdout stays pure for --json consumers).
+// No-op without --until-revision; otherwise truncate and report summary on stderr.
 export function applyRevisionBound(records: TranscriptRecord[], options: CliOptions): TranscriptRecord[] {
     if (options.untilRevision === undefined) {
         return records;
@@ -164,3 +141,4 @@ export function applyRevisionBound(records: TranscriptRecord[], options: CliOpti
     );
     return bound.records;
 }
+

@@ -1,8 +1,4 @@
-// Task 202 (spec S5): the DERIVED merged view of one ReconstructionEntity. The per-session
-// SessionTimelines stay the stored truth (Q13) — this module orders their nodes on the one
-// instant axis, keeps ONE on-disk end state instead of one per session, re-derives the
-// presumption gaps against the merged neighbours, and marks nodes whose bytes two distinct
-// sessions both observed (the input for spec S8's dashed cross-lane lines).
+// Task 202 (spec S5): merged multi-session view — shared axis, one end state, re-derived gaps, corroboration marks.
 
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
@@ -28,9 +24,7 @@ function checkNodeIsEndState(node: TimelineNode): node is EndStateNode {
     return node.kind === LayeredNodeKind.endState;
 }
 
-// Whether the merge re-derives this node instead of carrying the per-session one over: end
-// states dedupe to one (one file, one disk), and gaps are recomputed because another session's
-// beacon may explain a diff the owning session could not.
+// End states and gaps are re-derived at merge level, not carried per-session.
 function checkNodeIsRederived(node: TimelineNode): boolean {
     if (checkNodeIsEndState(node)) {
         return true;
@@ -50,10 +44,8 @@ function listOwnedEvidenceNodes(entity: ReconstructionEntity): OwnedNode[] {
     return entity.sessionTimelines.flatMap(listSessionEvidenceNodes);
 }
 
-// The entity's one end state: task 199 appends the same on-disk state to every session
-// timeline, so the first one found is it.
-// ponytail: every session read one disk — a per-session end-state disagreement would be a
-// loader bug, not a merge case to model.
+// All sessions share the same on-disk end state; first match suffices.
+// ponytail: every session read one disk — a per-session end-state disagreement would be a loader bug, not a merge case to model.
 function findMergedEndStateNode(entity: ReconstructionEntity): EndStateNode | undefined {
     for (const sessionTimeline of entity.sessionTimelines) {
         const endState = sessionTimeline.timeline.nodes.find(checkNodeIsEndState);
@@ -64,8 +56,7 @@ function findMergedEndStateNode(entity: ReconstructionEntity): EndStateNode | un
     return undefined;
 }
 
-// The DISTINCT sessions that observed each byte content. Byteless nodes (stubs, gaps, script
-// runs) observe nothing, so they never enter a group.
+// Groups byte-carrying nodes by content, mapping each to the distinct sessions that saw it.
 function listSessionsByContent(owned: OwnedNode[]): Map<string, Path[]> {
     const sessionsByContent = new Map<string, Path[]>();
     for (const entry of owned) {
@@ -85,10 +76,7 @@ function listSessionsByContent(owned: OwnedNode[]): Map<string, Path[]> {
     return sessionsByContent;
 }
 
-// The sessions whose bytes corroborate this node: none unless at least two DISTINCT sessions
-// observed the content (one session repeating itself corroborates nothing — spec S5's
-// degenerate case), otherwise the group minus this node's own session. A node owned by no
-// session (the end state) subtracts nothing, so every observer corroborates it.
+// Returns other sessions that independently observed the same content (requires two or more).
 function listCorroboratingSessions(
     node: TimelineNode,
     ownSession: Path | undefined,
@@ -104,10 +92,7 @@ function listCorroboratingSessions(
     return sessions.filter((session) => session.toString() !== ownSession?.toString());
 }
 
-// One entity's merged multi-session view: every session's evidence on the shared axis, the one
-// end state appended POSITIONALLY last (spec S2's rule, unchanged by the merge), merged-level
-// presumption gaps, and corroboration marks. Spec S8 calls this per entity — there is no
-// graph-level wrapper by design.
+// Merges all session timelines for one entity onto a shared axis with corroboration marks.
 export function mergeSessionTimelines(entity: ReconstructionEntity): MergedTimeline {
     const owned = listOwnedEvidenceNodes(entity);
     const ownerBySessionNode = new Map<TimelineNode, Path>(
@@ -127,3 +112,4 @@ export function mergeSessionTimelines(entity: ReconstructionEntity): MergedTimel
     });
     return { nodes };
 }
+

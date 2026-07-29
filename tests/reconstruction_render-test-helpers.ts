@@ -13,8 +13,7 @@ export function born(line: string, when: Date): LineEntry {
     return { oldLineNum: DOES_NOT_EXIST_YET, values: [{ line, timestamp: when }] };
 }
 
-// A minimal two-revision history (create 2 lines, then delete) to render against,
-// built from literals so these stay pure unit tests with no transcript.
+// A minimal two-revision history (create 2 lines, then delete) to render against, built from literals so these stay pure unit tests with no transcript.
 export function createThenDelete(): FileRevision[] {
     const created = new Date("2026-01-01T00:00:00Z");
     const deleted = new Date("2026-01-01T00:01:00Z");
@@ -43,8 +42,7 @@ export function createThenAppendRevs(): FileRevision[] {
 export const FROM = new Path("/abs/s2_original.py");
 export const TO = new Path("/abs/s2_moved.py");
 
-// A create -> rename -> edit(add goodbye) history for the moved file, from
-// literals so these stay pure unit tests.
+// A create -> rename -> edit(add goodbye) history for the moved file, from literals so these stay pure unit tests.
 export function createRenameEdit(): FileRevision[] {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");

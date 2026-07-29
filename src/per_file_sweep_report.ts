@@ -1,28 +1,21 @@
-// The per-file sweep's pure half (task 186, spec S11): candidate selection out of git's
-// name-status output, the per-candidate verdict, and the markdown results table that lands in
-// plans/166-per-file-target.md. No I/O and no engine here — scripts/per_file_sweep.ts drives
-// the reconstruction and calls these.
+// Pure sweep logic: candidate selection, verdict, and markdown table (no I/O).
 
 import { Path } from "./structures/domain.ts";
 import { SweepVerdict } from "./structures/vocabulary.ts";
 
-// One candidate's result. `revisions` is the recovered ladder length; `unrecoverable` counts the
-// revisions the engine could not replay (FileRevision.unrecoverable) — the S11 "gaps itemized as
-// findings, not omissions" signal.
+// `unrecoverable` counts revisions the engine could not replay (S11 gap signal).
 export interface SweepRow {
     file: Path;
     revisions: number;
     baselineBlobMatched: boolean;
     diskMatched: boolean;
     unrecoverable: number;
-    // Wall-clock seconds this candidate took, so a partial run's remaining cost is measurable
-    // (the first candidate pays the shared script-run/lineage warm-up; later ones do not).
+    // Wall-clock seconds; first candidate includes shared warm-up cost.
     seconds: number;
     note: string;
 }
 
-// The `git diff --name-status <commit>` line for one path: the status letter(s) first, the path
-// LAST (a rename line is `R100\told\tnew`, whose candidate is the destination).
+// Parses one name-status line; for renames the candidate is the destination path.
 function parseNameStatusLine(line: string): { status: string; file: Path } | undefined {
     const fields = line.split("\t");
     if (fields.length < 2) {
@@ -32,8 +25,7 @@ function parseNameStatusLine(line: string): { status: string; file: Path } | und
     return { status, file: new Path(fields[fields.length - 1]!) };
 }
 
-// The candidates of one status letter (`M`, `A`, `D`) out of git's name-status output, in git's
-// order.
+// The candidates of one status letter (`M`, `A`, `D`) out of git's name-status output, in git's order.
 export function selectCandidatesByStatus(nameStatusText: string, status: string): Path[] {
     const candidates: Path[] = [];
     for (const line of nameStatusText.split("\n")) {
@@ -49,8 +41,7 @@ export function selectCandidatesByStatus(nameStatusText: string, status: string)
     return candidates;
 }
 
-// The row's verdict. Endpoint matches are necessary but NOT sufficient (spec S11's user
-// correction): a ladder with unrecoverable revisions is `gaps`, never `ok`.
+// Endpoint matches alone are not sufficient; unrecoverable revisions yield `gaps`.
 export function classifySweepRow(row: SweepRow): SweepVerdict {
     if (row.revisions === 0) {
         return SweepVerdict.none;
@@ -96,3 +87,4 @@ export function formatSweepTable(rows: SweepRow[]): string {
     const body = rows.map((row) => `| ${renderSweepRow(row)} |`);
     return [header, alignment, ...body].join("\n");
 }
+

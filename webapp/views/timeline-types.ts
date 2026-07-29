@@ -1,7 +1,4 @@
-// Timeline view-model wire types + node types (split from timeline.ts, task 92).
-// Wire-string discriminants mirror src/structures/vocabulary.ts — the webapp is a plain-JS
-// browser runtime that cannot import the TS enums; the tests assert equivalence against the real
-// enum members.
+// Wire-string discriminants mirror src/structures/vocabulary.ts since the webapp can't import TS enums; tests assert equivalence against real members.
 
 import type { LineNode, WireLineVerdict } from "./timeline-line-nodes.ts";
 export const COMMIT_NODE_KIND = "commit";
@@ -12,29 +9,21 @@ export const TOOL_CALL_NODE_KIND = "tool-call";
 export const USER_ROLE = "user";
 export const EDIT_EVENT_KIND = "edit";
 export const COMMIT_OPERATION_KIND = "commit";
-// Item 77: the two EventKind wire strings the Files tree reads (a delete dims the row, a rename
-// gives it its origin badge). Mirrored as consts like the kinds above — the webapp cannot import
-// the TS enums; tests assert equivalence against the real vocabulary.ts members.
+// The two EventKind wire strings the Files tree reads: a delete dims the row, a rename badges it.
 export const DELETE_EVENT_KIND = "delete";
 export const RENAME_EVENT_KIND = "rename";
 
-// ── local wire + view-model types ────────────────────────────────────────────────────────────────
-// The document arrives via fetch + JSON.parse, so ids/paths/dates are plain strings on the wire;
-// these declare only the fields this view reads.
+// Arrives via fetch + JSON.parse, so ids/paths/dates are plain wire strings; these declare only fields this view reads.
 
 export type WireRename = { from: string; to: string };
-// A revision's per-line model (the engine's LineEntry); carried on the wire so the file-history view can
-// render each revision's text from its own lines (no per-step file snapshot needed).
+// Carried on the wire so the file-history view renders each revision from its own lines; no per-step snapshot needed.
 export type WireLineEntry = { values: { line: string }[] };
-// unrecoverable (task 119): present when the engine could not replay this revision — its lines
-// are the previous revision's carried forward, flagged with the failure reason.
+// `unrecoverable` means the engine could not replay this revision: its lines are the previous revision's carried forward.
 export type WireRevision = { kind: string; changeId: string; timestamp: string; rename?: WireRename; lines?: WireLineEntry[]; unrecoverable?: { reason: string } };
 export type WireFileHistory = { target: string; revisions: WireRevision[] };
-// isOrphaned is the engine's per-record branch-membership stamp (true = rewound/abandoned
-// branch); optional because an older cached document lacks the field (gitOperations convention).
+// isOrphaned is the engine's branch-membership stamp; optional since older cached documents lack the field (gitOperations convention).
 export type WireMessage = { role: string; timestamp: string; sessionId?: string; uuid: string; text: string; isOrphaned?: boolean };
-// A skeleton step snapshot: no `files` map (the >512 MB wire-size fix) — a step's file text is fetched
-// on demand from /api/step-files when a chip is clicked.
+// A skeleton step snapshot (no `files` map, the >512 MB fix); file text is fetched on demand from /api/step-files.
 export type WireStepSnapshot = {
     index: number;
     when: string;
@@ -49,17 +38,13 @@ export type WireGitOperation = {
     timestamp: string;
     sessionId?: string;
     uuid?: string;
-    // The commit's short hash from its tool_result text (item 66); absent on non-commit
-    // operations, older cached documents, and commits whose result echoed no hash.
+    // The commit's short hash from its tool_result text (item 66); absent when non-commit, cached, or hashless.
     resultHash?: string;
-    // True when the command's own tool_result errored (task 103) — the timeline's red FAILED
-    // badge; absent on success and on older cached documents.
+    // True when the command's tool_result errored (task 103) — drives the timeline's red FAILED badge.
     isError?: boolean;
 };
 export type WireCommitMarker = { timestamp: string; sessionId?: string };
-// One non-file-edit tool call (item 55): summary is its one-line command/path/pattern; uuid is
-// the record the row's line label and { } button resolve through; toolUseId joins the call to
-// its hook attachments and tool_result lines.
+// One non-file-edit tool call (item 55): summary is its command/path; uuid resolves the row's label and button; toolUseId joins attachments.
 export type WireToolCall = {
     toolName: string;
     summary: string;
@@ -70,8 +55,7 @@ export type WireToolCall = {
     // Engine-stamped branch membership (optional: older cached documents lack it).
     isOrphaned?: boolean;
 };
-// One script run and the files its consented sandbox execution changed (task 67); changedPaths
-// is [] on a declined build. toolUseId joins the run to its Bash/MCP tool-call row.
+// Script run and files its sandbox execution changed (task 67); changedPaths is [] when declined; toolUseId joins the tool-call row.
 export type WireScriptRun = {
     toolUseId?: string;
     timestamp: string;
@@ -93,21 +77,16 @@ export type WireTimelineDocument = {
     scriptRuns?: WireScriptRun[];
     // Optional (same convention): user-given session names from `custom-title` records.
     sessionTitles?: Record<string, string>;
-    // Optional (same convention): lines the tolerant parse skipped (task 119) — the timeline's
-    // dashed gap rows group them by contiguous run.
+    // Optional (same convention): lines the tolerant parse skipped (task 119) — dashed gap rows group them by contiguous run.
     skippedLines?: { filePath: string; lineNumber: number; timestamp?: string; reason: string }[];
-    // Optional (same convention): every failure the engine survived (task 119) — the partial-
-    // reconstruction banner's counts and tooltip reasons.
+    // Optional (same convention): every failure the engine survived (task 119) — the partial- reconstruction banner's counts and tooltip reasons.
     failures?: { scope: string; stage: string; target?: string; reason: string }[];
-    // Optional (same convention): the user declined pre-baseline reconstruction (task 56) — the
-    // git-baseline node becomes the timeline's first shown step.
+    // Optional (same convention): the user declined pre-baseline reconstruction (task 56) — the git-baseline node becomes the timeline's first shown step.
     preBaselineSkipped?: boolean;
     lineVerdicts?: WireLineVerdict[];
 };
 
-// indexRevisionsByChangeId's entries: one changeId resolved to its displayable revision facts.
-// displayPath is the name the file had AT that revision (task 127) — path stays the final
-// target because every lookup/fetch keys on it.
+// indexRevisionsByChangeId maps a changeId to its revision facts; displayPath is the name at that revision, path stays the fetch key.
 export type RevisionIndexEntry = {
     path: string;
     displayPath: string;
@@ -118,10 +97,7 @@ export type RevisionIndexEntry = {
 };
 export type RevisionIndex = Map<string, RevisionIndexEntry>;
 
-// deriveFileChanges' chips: one displayable file change per distinct path; `when` is the owning
-// snapshot's instant (the chip row's timestamp, item 55).
-// displayPath is the entry-time name for display only (task 127) — path stays the lookup and
-// fetch key.
+// deriveFileChanges' chips: one file change per path; `when` is the snapshot's instant; displayPath is entry-time only, path is fetch key.
 export type FileChange = {
     path: string;
     displayPath: string;
@@ -138,10 +114,7 @@ export type SnapshotInstant = { sessionId?: string; when: string };
 // A raw transcript position the inspector can open: (jsonl, its lines, 0-based line index).
 export type TranscriptLocation = { jsonlName: string; rawLines: string[]; line: number };
 
-// One conversation turn (user prompt or agent reply); synthetic trailing agent turns carry no uuid.
-// stepNumber / fileChanges are stamped on after sorting (assignStepNumbers, deriveNodeFileChanges),
-// hence optional. isOrphaned is copied from the engine's per-record wire stamp at node
-// construction (message.isOrphaned); synthetic turns carry none.
+// One conversation turn; synthetic trailing agent turns carry no uuid, stepNumber, fileChanges, or isOrphaned since those are stamped after sorting.
 export type TurnNode = {
     kind: typeof USER_TURN_NODE_KIND | typeof AGENT_TURN_NODE_KIND;
     when: string;
@@ -154,8 +127,7 @@ export type TurnNode = {
     stepNumber?: number;
     fileChanges?: FileChange[];
     isOrphaned?: boolean;
-    // True on the synthetic turn holding gitBase: baseline steps (task 86) — the row renders as
-    // a regular message whose role pill reads "git-derived baseline".
+    // True on the synthetic turn holding the git-derived baseline; the row's role pill reads "git-derived baseline".
     isGitBaseline?: boolean;
     detail?: undefined;
     resultHash?: undefined;
@@ -199,9 +171,7 @@ export type CommitNode = {
     resultHash?: string;
     // True when the commit command's tool_result errored (task 103) — the row's FAILED badge.
     isError?: boolean;
-    // task 121: the recorded base-commit row absorbs the git-derived baseline — it carries the
-    // baseline flag, the baseline summary text, the absorbed beacon snapshots, and the seeded
-    // file chips deriveNodeFileChanges stamps from them. All absent on plain commit rows.
+    // task 121: the base-commit row absorbs the git-derived baseline flag, summary, snapshots, and file chips; absent on plain commits.
     isGitBaseline?: boolean;
     text?: string;
     snapshots?: WireStepSnapshot[];
@@ -217,8 +187,7 @@ export type CommitNode = {
     scriptRun?: undefined;
 };
 
-// One un-bubbled tool-call row (item 55; deriveToolCallNodes): `* <summary> * [{ }] <TS> L:n`.
-// Never numbered, never pickable; sorts chronologically among the turns it ran between.
+// One un-bubbled tool-call row (item 55); never numbered or pickable, sorts chronologically among the turns it ran between.
 export type ToolCallNode = {
     kind: typeof TOOL_CALL_NODE_KIND;
     when: string;
@@ -229,12 +198,9 @@ export type ToolCallNode = {
     toolUseId: string;
     // Copied from the engine's per-record wire stamp — a tool row on a rewound branch dims too.
     isOrphaned?: boolean;
-    // True when this row is a FAILED git command's Bash call (task 103): stamped by joining the
-    // node's record uuid to the document's errored gitOperations — the row's FAILED badge.
+    // True when this row's Bash call is a FAILED git command (task 103); joined to gitOperations for the FAILED badge.
     isError?: boolean;
-    // The script run this row executed, when its sandbox execution modified files (task 67):
-    // joined by toolUseId in deriveToolCallNodes — drives the row badge and the Details pane's
-    // script + before/after mode. Absent for read-only runs and non-script tool calls.
+    // Script run this row executed when its sandbox modified files (task 67); drives the row badge and Details pane's mode.
     scriptRun?: WireScriptRun;
     isGitBaseline?: undefined;
     text?: undefined;

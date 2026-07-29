@@ -1,18 +1,12 @@
-// Shared browser-environment setup for webapp DOM tests (task 122). node --test runs in plain
-// Node, so the happy-dom window plus the vendor-script globals (xterm's Terminal/FitAddon) are
-// installed here BEFORE any webapp module is dynamically imported.
+// node --test runs in plain Node, so happy-dom window and vendor globals must be installed before any webapp module imports.
 
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 
-// The pristine global fetch, captured at module load BEFORE any test replaces it. forwardFetchToOrigin
-// below builds on THIS rather than on whatever globalThis.fetch currently is: called after
-// stubFetchRoutes, it would otherwise forward through the stub and get canned 404s back.
+// Captured before any test replaces fetch; forwarding through a later stub would return canned 404s.
 const NATIVE_FETCH = globalThis.fetch;
 
-// The minimal xterm surface app-console.ts exercises (ensureProgressTerminal, logProgress,
-// fitProgressColumns). Every method is a no-op; writeln invokes its completion callback so the
-// scroll-in-callback pattern still runs.
+// writeln must invoke its completion callback so app-console's scroll-in-callback pattern still runs.
 class FakeXtermTerminal {
     open(_parent: unknown): void {}
     writeln(_text: string, done?: () => void): void {
@@ -29,8 +23,7 @@ class FakeXtermTerminal {
     resize(_columns: number, _rows: number): void {}
 }
 
-// The vendor addon-fit script exposes a namespace object { FitAddon: class }; proposeDimensions
-// returning undefined makes fitProgressColumns a no-op.
+// proposeDimensions returning undefined makes fitProgressColumns a no-op.
 class FakeXtermFitAddon {
     fit(): void {}
     proposeDimensions(): undefined {
@@ -38,26 +31,20 @@ class FakeXtermFitAddon {
     }
 }
 
-// ensureProgressTerminal only observes the console element to re-fit columns — the observer's
-// behavior is never under test, so a deterministic no-op fake beats happy-dom's implementation.
+// Observer behavior is never under test, so a deterministic no-op beats happy-dom's implementation.
 class FakeResizeObserver {
     observe(_target: unknown): void {}
     unobserve(_target: unknown): void {}
     disconnect(): void {}
 }
 
-// Extract the real header/console markup so every id the webapp looks up exists with its real
-// attributes (including the popovers' initial `hidden`). The page under test is the preserved
-// pre-redesign webapp_old.html (task 204 renamed index.html; the layered page will claim
-// index.html later — task 205).
+// Uses the real markup so every id exists with its real attributes (including popovers' `hidden`).
 function readIndexHtmlBodyMarkup(): string {
     const html = readFileSync(new URL("../webapp/webapp_old.html", import.meta.url), "utf8");
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window, publish it (plus the xterm fakes) as globals, and load the
-// real index.html body. Safe to call once per test: each call replaces every global, and stale
-// listeners from a previous window resolve ids against a document no test looks at again.
+// Safe to call once per test: each call replaces every global, so stale listeners resolve against an abandoned document.
 export function setupWebappDom(): void {
     // Port 7343 matches the real viewer server default so location.origin looks authentic.
     const browserWindow = new Window({ url: "http://localhost:7343/" });
@@ -75,8 +62,7 @@ export function setupWebappDom(): void {
         ResizeObserver: FakeResizeObserver,
         Terminal: FakeXtermTerminal,
         FitAddon: { FitAddon: FakeXtermFitAddon },
-        // The find widget's CSS Custom Highlight API (task 127): happy-dom has no CSS global;
-        // a Map covers the set/delete calls resetDetailsFind and paintMatches make.
+        // The find widget's CSS Custom Highlight API (task 127): happy-dom has no CSS global; a Map covers the set/delete calls.
         CSS: { highlights: new Map() },
     });
     browserWindow.document.body.innerHTML = readIndexHtmlBodyMarkup();
@@ -88,8 +74,7 @@ function readLayeredHtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the layered page (task 205): the setupWebappDom globals
-// minus the xterm/ResizeObserver/CSS fakes — the layered skeleton uses none of them.
+// Build a fresh happy-dom window for the layered page (task 205): setupWebappDom's globals minus xterm/ResizeObserver/CSS fakes, unused by the skeleton.
 export function setupLayeredDom(): void {
     const browserWindow = new Window({ url: "http://localhost:7343/" });
     Object.assign(globalThis, {
@@ -110,9 +95,7 @@ function readLayer1HtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the Layer 1 View page (task 237). `search` seeds the page
-// URL's query string, which IS that page's input surface (?dir=&repo=&ref=). `history` is
-// published because the page mirrors its header boxes back into the URL via replaceState.
+// Build a fresh happy-dom window for the Layer 1 View page (task 237); `search` seeds URL query, its input surface.
 export function setupLayer1Dom(search: string = ""): void {
     const browserWindow = new Window({ url: `http://localhost:7343/app/layer1.html${search}` });
     Object.assign(globalThis, {
@@ -133,8 +116,7 @@ function readDebugHtmlBodyMarkup(): string {
     return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Build a fresh happy-dom window for the debug page (task 183). `search` seeds the page URL's
-// query string (deep-link tests), e.g. "?project=proj&file=%2Fw%2Falpha.py".
+// Build a fresh happy-dom window for the debug page (task 183); `search` seeds the URL query string for deep-link tests.
 export function setupDebugDom(search: string = ""): void {
     const browserWindow = new Window({ url: `http://localhost:7343/app/debug.html${search}` });
     Object.assign(globalThis, {
@@ -159,9 +141,7 @@ function respondJson(payload: unknown, ok: boolean, status: number): Response {
     } as unknown as Response;
 }
 
-// The stubbed fetch: canned JSON payloads keyed by request pathname. Query strings are
-// deliberately ignored — the blob-presence probes vary only in their query. Unknown pathnames
-// answer 404 with a body naming the gap so a missing stub fails loudly instead of hanging.
+// The stubbed fetch: canned JSON keyed by pathname, ignoring query strings; unknown pathnames answer 404 naming the gap loudly.
 function buildStubbedFetch(routesByPathname: Record<string, unknown>): (url: unknown) => Promise<Response> {
     return async (url: unknown): Promise<Response> => {
         const { pathname } = new URL(String(url), "http://localhost:7343");
@@ -177,10 +157,7 @@ export function stubFetchRoutes(routesByPathname: Record<string, unknown>): void
     Object.assign(globalThis, { fetch: buildStubbedFetch(routesByPathname) });
 }
 
-// A Response whose body is a real ReadableStream of NDJSON, for a page that reads a progress stream
-// rather than a JSON body (the Layer 1 page's `?progress=1` path). Each value in `lines` becomes one
-// JSON line; they are delivered as ONE chunk, which is also the realistic case — the server's build
-// is synchronous, so many lines land per reader.read().
+// A Response with a real ReadableStream of NDJSON for pages reading a progress stream, not JSON (Layer 1's `?progress=1` path).
 function enqueueOnceThenClose(encoded: Uint8Array): (controller: ReadableStreamDefaultController) => void {
     return (controller) => {
         controller.enqueue(encoded);
@@ -201,16 +178,12 @@ function buildStubbedStreamFetch(pathname: string, lines: unknown[]): (url: unkn
     };
 }
 
-// Replace global fetch with one that answers `pathname` with a canned NDJSON stream. Query strings
-// are ignored, exactly as stubFetchRoutes does, so a caller appending `&progress=1` still matches.
+// Replace global fetch with one answering `pathname` with a canned NDJSON stream, ignoring query strings like stubFetchRoutes.
 export function stubStreamRoute(pathname: string, lines: unknown[]): void {
     Object.assign(globalThis, { fetch: buildStubbedStreamFetch(pathname, lines) });
 }
 
-// Point the page's RELATIVE fetches at a live server (task 238, spec S18). node's native fetch
-// rejects a relative url, so an end-to-end DOM test cannot otherwise reach a spawned viewer. Only
-// the ORIGIN is supplied by the harness: the pathname, the query, the route, the git reads and the
-// response are all real, which is what separates an acceptance test from a second render test.
+// Point the page's relative fetches at a live server (task 238, spec S18), since node's native fetch rejects relative urls.
 export function forwardFetchToOrigin(origin: string): void {
     Object.assign(globalThis, {
         fetch: (url: unknown, options?: RequestInit): Promise<Response> =>
@@ -218,8 +191,7 @@ export function forwardFetchToOrigin(origin: string): void {
     });
 }
 
-// Let fire-and-forget promise chains (void populateProjectsMenu, the presence-probe
-// Promise.all) settle: three macrotask turns cover fetch -> json -> completion handler.
+// Let fire-and-forget promise chains settle: three macrotask turns cover fetch, json, and completion handler steps.
 export async function flushAsyncWork(): Promise<void> {
     for (let turn = 0; turn < 3; turn++) {
         await new Promise((resolve) => setTimeout(resolve, 0));

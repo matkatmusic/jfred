@@ -1,5 +1,4 @@
-// Projects tree (#/): every project in the active folder, most recently active first
-// (the server's scan order), narrowable by a live name filter.
+// Projects tree (#/): every project in the active folder, most recently active first (the server's scan order), narrowable by a live name filter.
 
 import { el as elUntyped } from "../app-dom.ts";
 import { fetchJson } from "../app-fetch.ts";
@@ -13,9 +12,7 @@ type WireProject = { name: string; jsonlFiles: WireJsonlFile[] };
 type ElAttributes = Record<string, string | (() => void)>;
 const el = elUntyped as (tag: string, attrs?: ElAttributes, children?: HTMLElement[]) => HTMLElement;
 
-// Pure view model for the projects view (no DOM): the listing rows whose project name
-// contains the filter text, case-insensitive. An empty filter keeps every row
-// (includes("") is always true — no branch needed).
+// Pure view model for the projects view (no DOM): the listing rows whose project name contains the filter text, case-insensitive. An empty filter keeps every row (includes("") is always true — no branch needed).
 export function filterProjectsByName<ProjectType extends { name: string }>(projects: ProjectType[], filterText: string): ProjectType[] {
     const loweredFilterText = filterText.toLowerCase();
     return projects.filter((project) => project.name.toLowerCase().includes(loweredFilterText));

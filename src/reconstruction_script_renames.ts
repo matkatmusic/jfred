@@ -1,7 +1,4 @@
-// Script-run rename recovery: renames performed inside an executed script (Bash or MCP
-// ctx_execute) leave no per-record tool_use event; the only in-transcript evidence is the
-// `old -> new` mapping the script prints. This module parses that printed stdout into
-// rename events. Extraction proper (records -> events) lives in reconstruction_extract.ts.
+// No tool_use event marks a script rename; this module parses the printed `old -> new` line into rename events.
 
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -12,14 +9,10 @@ import type { FileEvent } from "./reconstruction_engine.ts";
 import { codeLiteralMoveCall, renameArrowLine } from "./regex_expressions.ts";
 import { isJunkStateKey } from "./reconstruction_script_sandbox.ts";
 
-// A move the sandbox diff proves at the state-key level (task 143): `fromKey` vanished from
-// the pre state and `toKey` appeared in the post state with byte-identical content — a
-// shutil.move reports both sides as changed paths, but it is ONE move.
+// A shutil.move reports both sides as changed paths, but it is ONE move.
 export type ScriptRenameKeyPair = { fromKey: string; toKey: string };
 
-// Pair each created key with the first still-unclaimed deleted key holding byte-identical
-// pre content. Junk keys (pycache) never pair; a key present in both states is a
-// modification, never a rename side.
+// Junk keys never pair, and a key present in both states is a modification, never a rename side.
 export function matchRenamePairs(pre: Map<string, string>, post: Map<string, string>): ScriptRenameKeyPair[] {
     const deletedKeys: string[] = [];
     for (const key of pre.keys()) {
@@ -38,17 +31,11 @@ export function matchRenamePairs(pre: Map<string, string>, post: Map<string, str
     return pairs;
 }
 
-// One executor tool_use as the rename channels need it: its id (the changeId of any rename it
-// evidences), run instant, cwd for path resolution, and — for MCP ctx_execute — its script code.
 type ExecutorRun = { id: Uuid; timestamp: Date; cwd: Path | undefined; code: string | undefined };
 
-// One possible rename before the phantom guard has ruled on it: resolved endpoints stamped at the
-// run instant. Candidates from BOTH evidence channels (printed stdout, code literals) pool here so
-// the guard can rule in EXECUTOR-timestamp order, not record (readdir) order.
+// Both evidence channels pool here so the guard rules in EXECUTOR-timestamp order, not readdir order.
 type RenameCandidate = { changeId: Uuid; from: Path; to: Path; timestamp: Date };
 
-// The plain text of an executor's tool result across the shapes it takes: a Bash result object (`.stdout`),
-// an MCP ctx_execute result (an array of `{type:"text", text}` blocks), or a bare string.
 function toolResultText(record: TranscriptRecord): string {
     const raw = (record as { toolUseResult?: unknown }).toolUseResult;
     if (typeof raw === "string") {
@@ -64,22 +51,12 @@ function toolResultText(record: TranscriptRecord): string {
     return "";
 }
 
-// The final path segment of a "/"-separated path string.
 function basenameOf(value: string): string {
     const slash = value.lastIndexOf("/");
     return slash >= 0 ? value.slice(slash + 1) : value;
 }
 
-// Renames performed by an EXECUTED script (Bash or MCP ctx_execute), recovered from the run's printed stdout:
-// the transcript captures each `old -> new` line the script prints. A `shutil.move`/`os.rename` inside the
-// code is invisible to extraction (it is not a Bash `mv`), so the printed mapping is the only in-transcript
-// evidence of the move; parsing it into rename events lets the renamed-to path reconstruct as its source's
-// lineage (buildRenameChain/distinctFinalPaths). Two guards keep it honest: the source basename must have been
-// written/edited earlier (drops coincidental `x.y -> z.y` prose), and `renameArrowLine` only accepts
-// dot-extension filenames on BOTH sides — so a function-rename print (`f_one -> alpha`) and the echoed
-// f-string code (`{name}.py -> …`) never match.
-// One tool_use block's contribution to the pre-scan: Write/Edit targets feed the written-basename
-// guard set; executor runs register their run instant and cwd under the block's tool_use id.
+// Recovers script-internal renames from the printed `old -> new` line, since shutil.move/os.rename leave no tool_use event; guarded against false-positive matches.
 function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date | undefined, recordCwd: Path | undefined, executors: Map<string, ExecutorRun>, writtenBasenames: Set<string>): void {
     if (block.type !== BlockType.tool_use) {
         return;
@@ -97,15 +74,7 @@ function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date 
     }
 }
 
-// One tool_result block: mark its run COMPLETED (the result is the proof the code actually ran)
-// and parse the printed `old -> new` lines of a known executor run into rename CANDIDATES.
-// The written-source phantom guard no longer rules here — records load in readdir order, not
-// execution order, so a chained rename could be judged before the run that wrote its source.
-// acceptRenameCandidatesInTimestampOrder rules once all candidates are pooled.
-// Candidates stamp at the RESULT record's instant, not the tool_use's: the tool_use instant is
-// only when the run was REQUESTED — s87's consent-delayed MCP move sat pending for 6 minutes
-// while interleaved Bash runs proved the file had not moved yet. By the result instant the
-// execution has provably finished, so every interleaved event orders before it.
+// Candidates stamp at the RESULT instant, not the tool_use's, since a consent-delayed MCP move can sit pending for minutes.
 function collectRenameCandidatesFromToolResult(block: ContentBlock, record: TranscriptRecord, executors: Map<string, ExecutorRun>, completionInstantByExecutorId: Map<string, Date>, candidates: RenameCandidate[]): void {
     if (block.type !== BlockType.tool_result) {
         return;
@@ -133,10 +102,7 @@ function collectRenameCandidatesFromToolResult(block: ContentBlock, record: Tran
     }
 }
 
-// The code-literal channel (s87 step 89): a COMPLETED run whose code contains a two-string-literal
-// `shutil.move("a.py", "b.py")` / `os.rename(...)` call evidences that rename even when the run
-// prints no arrow line. Uncompleted runs contribute nothing (never fabricate); the variable form
-// `shutil.move(src, dst)` never matches the literal regex.
+// Code-literal channel (s87 step 89): a COMPLETED run's two-string-literal `shutil.move(...)`/`os.rename(...)` call evidences a rename even with no arrow line.
 function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRun, completionInstantByExecutorId: Map<string, Date>, candidates: RenameCandidate[]): void {
     if (executor.code === undefined) {
         return;
@@ -156,11 +122,7 @@ function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRun, comp
     }
 }
 
-// Rule on the pooled candidates in EXECUTOR-timestamp order with a chain-aware phantom guard:
-// a rename's source basename must be a Write/Edit target OR the destination of an already-accepted
-// (earlier) rename — so run 2 moving run 1's move-born destination is accepted no matter which
-// record loaded first. A (changeId, from, to) seen twice (a run evidencing the same move via both
-// channels) counts once.
+// A rename's source basename must be a Write/Edit target or an accepted rename's destination, so chains work regardless of order.
 function acceptRenameCandidatesInTimestampOrder(candidates: RenameCandidate[], writtenBasenames: Set<string>): FileEvent[] {
     const sortedCandidates = [...candidates].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     const knownSourceBasenames = new Set(writtenBasenames);
@@ -188,9 +150,9 @@ function acceptRenameCandidatesInTimestampOrder(candidates: RenameCandidate[], w
 }
 
 export function extractScriptRenameEvents(records: TranscriptRecord[]): FileEvent[] {
-    // executor tool_use id -> its run instant, cwd, and code (MCP carries input.cwd/input.code; Bash uses the record cwd).
+    // MCP carries input.cwd/input.code; Bash uses the record cwd.
     const executors = new Map<string, ExecutorRun>();
-    // basenames of every file a Write/Edit targeted — a rename source must be one of these (phantom guard).
+    // Phantom guard: a rename source must be a basename some Write/Edit targeted.
     const writtenBasenames = new Set<string>();
     for (const record of records) {
         const timestamp = record.timestamp;

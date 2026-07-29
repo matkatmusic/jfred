@@ -1,14 +1,10 @@
-// Partial-reconstruction health sink: a module-level log of every failure the engine survived
-// (skipped stages, unrecoverable events, dead document phases), drained into the wire document
-// so the webapp can mark what was NOT recovered. Always on — entries only exist on failure.
-// ponytail: global sink like reconstruction_provenance.ts — thread a sink instead only if the
-// engine ever reconstructs sessions concurrently.
+// Module-level sink of survived failures, drained into the wire document for the webapp.
+// ponytail: global sink like reconstruction_provenance.ts — thread a sink instead only if the engine ever reconstructs sessions concurrently.
 
 import type { Path } from "./structures/domain.ts";
 import { FailureScope } from "./structures/vocabulary.ts";
 
-// One survived failure: which scope caught it, the stage/phase function name, the file it
-// affects (when one applies), and a one-line human reason.
+// One survived failure: scope, stage, optional target file, and reason.
 export type ReconstructionFailure = {
     scope: FailureScope;
     stage: string;
@@ -30,8 +26,7 @@ export function drainReconstructionFailures(): ReconstructionFailure[] {
     return drained;
 }
 
-// Empty the buffer without returning it (call at the start of a build so a previous build's
-// aborted leftovers cannot leak in).
+// Prevents a prior aborted build's leftovers from leaking into the next.
 export function clearReconstructionFailures(): void {
     buffer = [];
 }

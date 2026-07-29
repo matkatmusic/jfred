@@ -11,9 +11,7 @@ export function routeToConversation(project: string, jsonl: string, anchorLine?:
 export function routeToFileHistory(project: string, target: string): string {
     return `${routeToProject(project)}/file/${encodeURIComponent(target)}`;
 }
-// anchorJsonl (optional): scroll the timeline to that session's first node.
-// anchorLine (optional, 0-based raw JSONL line, requires anchorJsonl): scroll to the step owning
-// that line and open the JSON inspector on it.
+// anchorJsonl (optional): scroll the timeline to that session's first node.  anchorLine (optional, 0-based raw JSONL line, requires anchorJsonl): scroll to the step owning that line and open the JSON inspector on it.
 export function routeToTimeline(project: string, anchorJsonl?: string, anchorLine?: string | number): string {
     const base = `${routeToProject(project)}/timeline`;
     if (anchorJsonl === undefined) {
@@ -31,9 +29,7 @@ export function parseRouteSegments(): string[] {
         .map(decodeURIComponent);
 }
 
-// True when the parsed hash segments carry the revision timeline underneath: EVERY project
-// route does (user decision 2026-07-06) — the timeline is a loaded project's base view, and
-// jsonl/file sub-routes render as drawers over it.
+// True when the parsed hash segments carry the revision timeline underneath: EVERY project route does (user decision 2026-07-06) — the timeline is a loaded project's base view, and jsonl/file sub-routes render as drawers over it.
 export function checkRouteIsTimeline(segments: string[]): boolean {
     return segments[0] === "project";
 }

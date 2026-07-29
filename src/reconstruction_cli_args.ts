@@ -1,9 +1,6 @@
-// Argv parsing for the reconstruction CLI: the CliOptions shape, the flag parser, and the item-46
-// path-override application. Split out of reconstruction_cli.ts (250-line cap); the render/dispatch
-// half stays there.
+// Split out of reconstruction_cli.ts to stay under the 250-line cap; render/dispatch stays there.
 
 import { basename, dirname } from "node:path";
-// item 46: import { Path } from "./structures/domain.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import {
     hydrateProjectPaths,
@@ -16,15 +13,12 @@ import {
 } from "./reconstruction_overrides.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 
-// item 46: const USAGE =
-// item 46:     "usage: reconstruction_cli <transcript.jsonl> [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords]";
 export const USAGE =
     "usage: reconstruction_cli <transcript.jsonl> [more.jsonl …] [--target|--file <path>] [--count-steps|--step <n>] [--verbose|--diff] [--graphConvo|--graphFile|--surviving|--list-branches|--branch <id>] [--json] [--allRecords] [--progress|--progress-all] [--file-history-loc|--fhsLoc <dir>] [--cwd <dir>] [--repo <dir>] [--base-commit <hash>] [--no-pre-baseline] [--until-revision <path> [--nth <n>]]";
 
 export type CliOptions = {
     jsonlPath: string;
-    // Spec S4b: every positional is a transcript; jsonlPath stays the first (the config-lookup
-    // and error paths key on it).
+    // Every positional is a transcript; jsonlPath stays the first because config lookup keys on it.
     jsonlPaths: string[];
     target: Path | undefined;
     branch: string | undefined;
@@ -38,27 +32,21 @@ export type CliOptions = {
     graphFile: boolean;
     json: boolean;
     allRecords: boolean;
-    // task 191: progress-to-stderr verbosity. `progress` = stage labels only; `progressAll`
-    // adds the counted per-item events (and implies `progress`).
+    // `progress` = stage labels only; `progressAll` adds per-item events and implies `progress`.
     progress: boolean;
     progressAll: boolean;
     fileHistoryRoot: Path | undefined;
     projectCwd: Path | undefined;
     repoDir: Path | undefined;
     baseCommit: Uuid | undefined;
-    // task 223: the CLI equivalent of the viewer's "No" to the pre-baseline question —
-    // `--no-pre-baseline` makes the base-commit beacon supersede everything at-or-before it,
-    // so a re-seeded iteration reconstructs only forward from its seed.
+    // When false the base-commit beacon supersedes everything at-or-before it, so a re-seeded iteration reconstructs only forward from its seed.
     preBaseline: boolean;
-    // task 193: bound the whole reconstruction at the end of the turn containing this file's
-    // nth revision (untilNth is 1-based, defaulting to the first revision).
+    // Bounds the run at the end of the turn containing this file's nth revision (1-based).
     untilRevision: Path | undefined;
     untilNth: number;
 };
 
-// Pull a value-taking flag (e.g. `--target <path>`) out of argv: return its value (undefined when
-// absent) and argv with both the flag and its value removed, so the positional transcript-path scan
-// never mistakes a flag value for the path.
+// Removes both flag and value so the positional transcript-path scan never mistakes a value for it.
 function extractValueFlag(
     argv: string[],
     flag: string,
@@ -72,9 +60,7 @@ function extractValueFlag(
     return { value, rest };
 }
 
-// The graph flags: honor explicit --graphConvo/--graphFile; otherwise default BOTH on when the CLI was
-// given no other intent (no selector and no content-view modifier) — the new global bare default that
-// prints both DAGs for every scenario.
+// Both DAGs are the bare default: they turn on only when no selector or content-view flag was given.
 function resolveGraphFlags(
     rest: string[],
     branch: string | undefined,
@@ -96,8 +82,6 @@ function resolveGraphFlags(
     return { convo: true, file: true };
 }
 
-// Parse argv: a required transcript path, the value-taking flags (--target, --branch), and the
-// boolean view flags. Throws the usage message when no transcript path is given.
 export function parseArgs(argv: string[]): CliOptions {
     const targetFlag = extractValueFlag(argv, "--target");
     const fileAlias = targetFlag.value === undefined ? extractValueFlag(targetFlag.rest, "--file") : targetFlag;
@@ -113,9 +97,7 @@ export function parseArgs(argv: string[]): CliOptions {
     if (nthFlag.value !== undefined && untilRevisionFlag.value === undefined) {
         throw new Error(USAGE);
     }
-    // item 46: const rest = stepFlag.rest;
     const rest = nthFlag.rest;
-    // item 46 / spec S4b: const jsonlPath = rest.find((arg) => !arg.startsWith("--"));
     const jsonlPaths = rest.filter((arg) => !arg.startsWith("--"));
     const jsonlPath = jsonlPaths[0];
     if (!jsonlPath) {
@@ -160,8 +142,7 @@ export function parseArgs(argv: string[]): CliOptions {
     };
 }
 
-// Parse the `--nth <n>` value into a 1-based revision ordinal; absent means the first revision.
-// A present-but-non-integer (or < 1) value is a usage error, mirroring parseStepNumber.
+// Absent means the first revision; non-integer or < 1 is a usage error, mirroring parseStepNumber.
 function parseOrdinal(value: string | undefined): number {
     if (value === undefined) {
         return 1;
@@ -176,10 +157,7 @@ function parseOrdinal(value: string | undefined): number {
     return ordinal;
 }
 
-// Apply the path overrides for this run: the transcript's projects-folder config entry
-// (projectsDir = dirname(dirname(jsonl)), project = basename(dirname(jsonl))) is the base, and any
-// direct CLI flags win per-field (item 46). fileHistoryRoot has no config-file field — folder-level
-// file-history discovery is the viewer's job — so it arrives only via its flag.
+// The transcript's config entry is the base; direct CLI flags win per-field. fileHistoryRoot arrives only via its flag.
 export function applyCliPathOverrides(options: CliOptions): void {
     const projectDir = dirname(options.jsonlPath);
     const entry = readProjectPathsConfig(new Path(dirname(projectDir)))[basename(projectDir)];
@@ -200,16 +178,12 @@ export function applyCliPathOverrides(options: CliOptions): void {
     if (options.baseCommit !== undefined) {
         merged.baseCommit = options.baseCommit;
     }
-    // task 223: set unconditionally (not only when declined) — the gate is module state shared
-    // with the viewer, so an in-process CLI run must never inherit a previous run's answer.
+    // Set unconditionally: shared module state must never inherit a prior run's value.
     setPreBaselineReconstructionAllowed(options.preBaseline);
     setPathOverrides(merged);
 }
 
-// Spec S4b: the run's declared sources — the config entry's `sources` list when the transcript's
-// project declares one; else, for positionals spanning more than one DISTINCT projects root, one
-// bare {projectsDir} source per root (positional order) so per-source sibling file-history
-// resolution works with zero config. Single-root single-transcript runs stay sources-less.
+// Multi-root runs get one bare source per distinct projects root, enabling per-source file-history resolution with zero config.
 function resolveCliSources(
     options: CliOptions,
     entry: WireProjectPaths | undefined,
@@ -231,8 +205,7 @@ function resolveCliSources(
     return distinctRoots.map((projectsRoot) => ({ projectsDir: new Path(projectsRoot) }));
 }
 
-// Parse the `--step <n>` value into a 1-based step number, or undefined when the flag is absent. A
-// present-but-non-integer value is a usage error (caught here so the positional path scan never sees it).
+// Non-integer values are a usage error, caught here so the positional path scan never sees them.
 function parseStepNumber(value: string | undefined): number | undefined {
     if (value === undefined) {
         return undefined;

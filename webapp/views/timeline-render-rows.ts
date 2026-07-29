@@ -1,6 +1,4 @@
-// Timeline row construction (task 92 split from timeline.ts): the batched one-.tl-row-per-node
-// build loop behind the progress overlay. The per-cell builders (fork gutter, commit cells,
-// triangle, { } button, bubble) live in timeline-render-row-cells.ts (task 121 split, 250-line cap).
+// Timeline row construction (task 92 split from timeline.ts): the batched one-.tl-row-per-node build loop behind the progress overlay. The per-cell builders (fork gutter, commit cells, triangle, { } button, bubble) live in timeline-render-row-cells.ts (task 121 split, 250-line cap).
 
 import { el } from "../app-dom.ts";
 import { hideLoadingProgress, showLoadingProgress } from "../app-progress.ts";
@@ -42,20 +40,13 @@ import {
 
 // ── rows: one .tl-row per node (mockup renderTimeline) ──
 export async function buildTimelineRows(context: TimelineRenderContext, container: HTMLElement): Promise<void> {
-    // Session-start markers: an interleaved multi-JSONL project otherwise never shows where
-    // a later session began (item 66 follow-up, user-reported on s58).
+    // Session-start markers: an interleaved multi-JSONL project otherwise never shows where a later session began (item 66 follow-up, user-reported on s58).
     const sessionStartsByIndex = new Map(
         findSessionStartIndexes(context.nodes).map((start) => [start.nodeIndex, start.sessionId]),
     );
-    // task 119: dashed gap rows for skipped transcript lines, bucketed by the node index each
-    // renders before (bucket nodes.length lands after the loop).
+    // task 119: dashed gap rows for skipped transcript lines, bucketed by the node index each renders before (bucket nodes.length lands after the loop).
     const gapRowBuckets = computeGapRowBuckets(context.reconstructionDocument, context.nodes);
-    // Large timelines build in yielding batches behind a centered progress overlay so the
-    // multi-second synchronous DOM build (500+ rows) no longer looks frozen (item 78). Small
-    // timelines take neither overlay nor yield — the loop stays a straight synchronous pass.
-    // Rows accumulate in a DETACHED fragment and are appended to `container` only once the whole
-    // build finishes: the half-built timeline must never show behind the overlay — the progress
-    // bar stands alone until the timeline is ready (item 78 follow-up, user-reported).
+    // Large timelines build in yielding batches behind a centered progress overlay so the multi-second synchronous DOM build (500+ rows) no longer looks frozen (item 78). Small timelines take neither overlay nor yield — the loop stays a straight synchronous pass.  Rows accumulate in a DETACHED fragment and are appended to `container` only once the whole build finishes: the half-built timeline must never show behind the overlay — the progress bar stands alone until the timeline is ready (item 78 follow-up, user-reported).
     const showBuildProgress = checkTimelineNeedsProgressOverlay(context.nodes.length);
     const rowFragment = document.createDocumentFragment();
     if (showBuildProgress) {
@@ -100,13 +91,11 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
             class: `tl-text ${computeRoleClass(node.kind)}${node.isSystem === true ? " system" : ""}`,
             text: computeRowSummaryText(node),
         }));
-        // task 103: a FAILED git command's rows (commit node / Bash tool-call row) badge red —
-        // failed commands are badged, never suppressed.
+        // task 103: a FAILED git command's rows (commit node / Bash tool-call row) badge red — failed commands are badged, never suppressed.
         if (node.isError === true) {
             line.append(el("span", { class: "failed-badge", text: "FAILED" }));
         }
-        // task 158: the tip of an abandoned branch announces where the dead branch ENDS — the
-        // orphan dimming alone doesn't.
+        // task 158: the tip of an abandoned branch announces where the dead branch ENDS — the orphan dimming alone doesn't.
         if (checkNodeIsAbandonedBranchTip(context.nodes, index)) {
             line.append(el("span", { class: "abandoned-badge", text: "(abandoned)" }));
         }
@@ -117,8 +106,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         line.append(el("span", { class: "tl-ts", text: formatRowTimestamp(node.when) }));
         line.append(el("span", { class: "tl-pos", text: context.lineLabels.get(index) ?? "" }));
         line.append(el("span", { class: "tl-uuid", text: node.sessionId === undefined ? "" : computeSessionShortLabel(node.sessionId) }));
-        // commits are repo events: no JSONL record; task 135: synthetic uuid-less rows (the
-        // git-derived baseline turn) have no record either.
+        // commits are repo events: no JSONL record; task 135: synthetic uuid-less rows (the git-derived baseline turn) have no record either.
         if (checkRowCarriesJsonRecordButton(node)) {
             appendJsonRecordButton(context, line, index);
         }
@@ -127,8 +115,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
         });
         main.append(line);
 
-        // Expandable rows carry the mockup bubble: the full text, plus the file-chips block on
-        // agent turns and the merged baseline commit row (the kept renderFileButtonRow machinery).
+        // Expandable rows carry the mockup bubble: the full text, plus the file-chips block on agent turns and the merged baseline commit row (the kept renderFileButtonRow machinery).
         if (checkRowIsExpandable(node)) {
             appendExpandedBubble(context, node, index, previewPane, main, row);
         }

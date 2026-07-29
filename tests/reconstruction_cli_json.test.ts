@@ -1,5 +1,4 @@
-// Integration tests for the CLI's --json / --allRecords output (Steps 5–6 of the JSON-output plan).
-// Each runs runCli and JSON.parse's the result, the same shape as tests/reconstruction_cli_s19_steps.test.ts.
+// Integration tests for the CLI's --json / --allRecords output (Steps 5–6 of the JSON-output plan).  Each runs runCli and JSON.parse's the result, the same shape as tests/reconstruction_cli_s19_steps.test.ts.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -26,8 +25,7 @@ test("test_cli_json_branch_tip_is_a_string", () => {
 });
 
 test("test_cli_json_document_steps_carry_no_file_contents", () => {
-    // Behavior: the full --json document's step snapshots are SKELETONS — no inlined per-step file map
-    // (the >512 MB wire-size fix). File text is resolved per step via --step / the step-files API.
+    // Behavior: the full --json document's step snapshots are SKELETONS — no inlined per-step file map (the >512 MB wire-size fix). File text is resolved per step via --step / the step-files API.
     const document = JSON.parse(runCli([S19_JSONL, "--json"]));
     // Verify: steps exist but carry no `files`.
     assert.ok(document.steps.length > 0);

@@ -1,5 +1,4 @@
-// Timeline file chips (task 92 split from timeline.ts): the letter+color chip, the active-chip
-// highlight, and the per-file button row on an expanded agent turn.
+// Timeline file chips: the letter+color chip, the active-chip highlight, and the per-file button row on an expanded agent turn.
 
 import { el } from "../app-dom.ts";
 import { RevisionViewMode } from "./details-model.ts";
@@ -8,12 +7,6 @@ import { computeSnapshotJumpRoute } from "./timeline-changes.ts";
 import { openTurnInspector } from "./timeline-render-inspectors.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import type { CommitNode, FileChange, TranscriptLocation, TurnNode } from "./timeline-types.ts";
-// (item 84) old: splitDiffBlocks (./file-history.ts), renderDiffText (./diff-vs-base.ts) and
-// renderCodeInto (../highlight.ts) were imported for showFilePreview / showRevisionDiff. Both
-// renderers are retired — the Revision View (details.ts) does this rendering now, and still
-// imports all three itself.
-// import { renderDiffText } from "./diff-vs-base.ts";
-// import { renderCodeInto } from "../highlight.ts";
 
 // The letter half of a chip's letter+color badge (color alone never carries the meaning).
 function computeOpLetter(change: FileChange): string {
@@ -63,77 +56,16 @@ export function clearActiveChip(context: TimelineRenderContext): void {
     context.activeChip = null;
 }
 
-// The chip whose file the Details pane is showing stays highlighted (item 84).
+// The chip whose file the Details pane is showing stays highlighted.
 export function markChipActive(context: TimelineRenderContext, chipElement: HTMLElement): void {
     clearActiveChip(context);
     context.activeChip = chipElement;
     chipElement.classList.add("active");
 }
 
-// (item 84) old: toggleDrawerButton — click-again-to-close, shared by the two drawer-opening
-// file buttons. Retired with showFilePreview/showRevisionDiff: every chip button now opens the
-// Revision View, and the Files-treeview entry — which the chip now IS — never closed on a
-// second click. markChipActive above keeps the highlight half.
-// const toggleDrawerButton = (chipElement: HTMLElement): boolean => {
-//     const pane = document.getElementById("inspector")!;
-//     if (chipElement === activeChip) {
-//         if (!pane.classList.contains("hidden")) {
-//             pane.classList.add("hidden");
-//             clearActiveChip();
-//             return true;
-//         }
-//     }
-//     clearActiveChip();
-//     activeChip = chipElement;
-//     chipElement.classList.add("active");
-//     return false;
-// };
-
-// (item 84) old: showRevisionDiff — the +/- button's own revision-diff renderer, and a second
-// implementation of details.ts's showRevisionDiffInDetails: same /api/diff?mode=revisions call,
-// same splitDiffBlocks, same computeRevisionDiffFallbackText, two hand-rolled changeId lookups,
-// two fetch caches. +/- now calls renderDetailsFileMode focused on its revision, whose card
-// default render IS this diff — the details.ts copy survives as the single implementation.
-// const showRevisionDiff = async (change: FileChange, chipElement: HTMLElement): Promise<void> => {
-//     if (toggleDrawerButton(chipElement)) {
-//         return;
-//     }
-//     const drawer = openInspectorPane();
-//     document.getElementById("inspector")!.classList.add("file-preview-drawer");
-//     const history = reconstructionDocument.filesTouched.find((entry) =>
-//         entry.revisions.some((revision) => revision.changeId === change.changeId));
-//     if (history === undefined) {
-//         drawer.append(el("div", { class: "muted", text: "no surviving revision for this change (rewound branch)" }));
-//         return;
-//     }
-//     const revisionNumber = history.revisions.findIndex((revision) => revision.changeId === change.changeId);
-//     const params = buildConsentParams();
-//     params.set("file", history.target);
-//     params.set("mode", "revisions");
-//     const blocks = splitDiffBlocks(await fetchText(`/api/diff?${params}`));
-//     const diffPane = el("div", { class: "timeline-preview" });
-//     // (item 47) old: renderDiffText(diffPane, blocks[revisionNumber] ?? "(no diff block for this revision)");
-//     const fallbackText = computeRevisionDiffFallbackText(blocks[revisionNumber], change);
-//     if (fallbackText === undefined) {
-//         renderDiffText(diffPane, blocks[revisionNumber]!);
-//     } else {
-//         diffPane.append(el("div", { class: "muted", text: fallbackText }));
-//     }
-//     drawer.append(
-//         el("div", { class: "timeline-preview-head", text: `${change.path} · diff for revision ${revisionNumber + 1} (vs previous)` }),
-//         diffPane,
-//     );
-// };
-
-// The { } button's click body (extracted from renderFileButtonRow).
 function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
     event.stopPropagation();
-    // (item 55, closing item 53) old: openTurnInspector(node, previewPane); —
-    // reverted item 47b: the chip opens its file's OWN causing line (e.g. the
-    // Write tool_use), user-decided; synthetic changeIds keep the turn fallback.
-    // (item 84) old: openTranscriptInspectorSynced(causingLocation); — the record
-    // now paints inside the Revision View, rev cards standing. The fallback stays
-    // HERE: it needs `node`, which the Revision View has no notion of.
+    // The turn fallback stays here since it needs `node`, which the Revision View has no notion of.
     if (causingLocation === undefined) {
         openTurnInspector(context, node, previewPane);
         return;
@@ -142,8 +74,6 @@ function showCausingRecordForChip(event: Event, context: TimelineRenderContext, 
     renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.record });
 }
 
-// The { } chip (task 135 extraction): rendered only when the file's causing line resolved —
-// renderFileButtonRow guards, this just builds the button.
 function appendCausingRecordChipButton(buttons: HTMLElement[], context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation, change: FileChange, changeId: string): void {
     buttons.push(el("span", {
         class: "timeline-chip timeline-chip-action",
@@ -153,16 +83,12 @@ function appendCausingRecordChipButton(buttons: HTMLElement[], context: Timeline
     }));
 }
 
-// The +/- button's click body (extracted from renderFileButtonRow).
 function showRevisionDiffForChip(event: Event, context: TimelineRenderContext, change: FileChange, changeId: string): void {
     event.stopPropagation();
     markChipActive(context, event.currentTarget as HTMLElement);
-    // (item 84) old: showRevisionDiff(change, event.currentTarget as HTMLElement);
-    // Clicking a card IS how you view its diff — diff is the card's own default.
     renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.diff });
 }
 
-// The 📷 button (extracted from renderFileButtonRow's jumpRoute arm).
 function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRenderContext, change: FileChange, changeId: string): void {
     buttons.push(el("span", {
         class: "timeline-chip timeline-chip-action",
@@ -171,30 +97,18 @@ function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRende
         onclick: (event: Event) => {
             event.stopPropagation();
             markChipActive(context, event.currentTarget as HTMLElement);
-            // (item 84 follow-up) old: location.hash = jumpRoute; — navigating to the
-            // File History route reloaded the whole page (progress bar and all) just to
-            // show a revision the bottom pane can already show. Same destination as the
-            // chip name, in the pane, no page load.
+            // Renders in the pane rather than setting location.hash, which reloaded the whole page.
             renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.content });
         },
     }));
 }
 
-// One file's button row: [ name ] [{ }] [+/-] [📷] <TS> L:n — revision state, the file's OWN
-// causing line, the revision's computed diff, the snapshot jump, and the causing line's
-// timestamp + label (item 55). The action buttons need a resolvable changeId.
-// item 84: every button here is a deep-link into THE Revision View (details.ts's
-// renderDetailsFileMode) — button X ≡ `click the treeview entry → click this revision's card →
-// click the card's X`. They differ only in the right-column mode they ask for. 📷 renders only
-// for snapshot-backed revisions (task 94: backup-blob changeIds, gated inside
-// computeSnapshotJumpRoute) — its presence IS the "this revision HAS a File History Snapshot"
-// indicator, no longer an any-resolvable-changeId over-fire.
+// One file's button row: each button deep-links into the Revision View, differing only in the mode requested.
 export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNode | CommitNode, nodeIndex: number, change: FileChange, previewPane: HTMLElement): HTMLElement {
     const causingLocation = context.chipLineLocations.get(`${nodeIndex}:${change.path}`);
     const buttons = [renderFileChip(change, (event: Event) => {
         event.stopPropagation();
         markChipActive(context, event.currentTarget as HTMLElement);
-        // (item 84) old: showFilePreview(node, change, event.currentTarget as HTMLElement);
         // A chip with no changeId names no revision — open on #1, the treeview's own default.
         if (change.changeId === undefined) {
             renderDetailsFileMode(change.path, context.detailsContext);
@@ -203,11 +117,9 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
         renderDetailsFileMode(change.path, context.detailsContext, { changeId: change.changeId, mode: RevisionViewMode.content });
     })];
     if (change.changeId !== undefined) {
-        // Narrowed once: TypeScript does not carry a property narrowing into the callbacks
-        // below, and the project's style bans the non-null assertion that would paper over it.
+        // Narrowed once: TypeScript won't carry this narrowing into callbacks below, and non-null assertions are banned here.
         const changeId = change.changeId;
-        // task 135: no causing line resolved (synthetic gitbase: changeId) — the { } chip
-        // would only show "no transcript line for this step"; skip it.
+        // A synthetic `gitbase:` changeId has no causing line, so the { } chip shows nothing useful.
         if (causingLocation !== undefined) {
             appendCausingRecordChipButton(buttons, context, node, previewPane, causingLocation, change, changeId);
         }
@@ -217,17 +129,13 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
             text: "+/-",
             onclick: (event: Event) => showRevisionDiffForChip(event, context, change, changeId),
         }));
-        // The route is computed as a PRESENCE TEST, not to navigate: it resolves to undefined
-        // when this revision has no File History Snapshot (task 94: non-blob changeIds are
-        // rejected inside computeSnapshotJumpRoute), and the button's absence is how the row
-        // says so (user-decided). Not every revision has one.
+        // Computed as a presence test: undefined means no File History Snapshot, so the button's absence signals that (user-decided).
         const jumpRoute = computeSnapshotJumpRoute(context.project, context.reconstructionDocument.filesTouched, change);
         if (jumpRoute !== undefined) {
             appendSnapshotJumpButton(buttons, context, change, changeId);
         }
     }
-    // The chip row's meta (item 55): the snapshot's timestamp, plus the causing line's
-    // L:n label when it resolved (same numbering as the details pane).
+    // The L:n label uses the same numbering as the details pane.
     buttons.push(el("span", { class: "timeline-time", text: new Date(change.when).toLocaleTimeString() }));
     if (causingLocation !== undefined) {
         buttons.push(el("span", {

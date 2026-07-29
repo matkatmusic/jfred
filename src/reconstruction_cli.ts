@@ -1,8 +1,4 @@
-// Runnable entry point for the reconstruction engine. Reconstructs every file a
-// transcript touches (or one --target) and prints the history (--verbose) or its
-// changes (--diff). Defaults to showing ALL conversation branches; --surviving,
-// --list-branches and --branch <id> select among them. Design:
-// plans/reconstruction-engine-design.md.
+// Runnable entry point: reconstructs a transcript's files and prints history or diffs, across all branches by default; see plans/reconstruction-engine-design.md.
 
 import { fileURLToPath } from "node:url";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
@@ -61,8 +57,7 @@ import {
 import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { mergeMultiSourceRecords } from "./reconstruction_multi_source.ts";
 
-// renderHistories / filterByTarget / renderChosen: moved to reconstruction_render_list.ts
-// (task 192 — this file crossed the 250-line cap when the targeted fast path arrived).
+// renderHistories / filterByTarget / renderChosen moved to reconstruction_render_list.ts (task 192): this file hit the 250-line cap.
 
 // The selectable branch ids for the `--branch` error message: "surviving" plus each rewound tip.
 function listAvailableBranchIds(branched: BranchedReconstruction): string {
@@ -76,8 +71,7 @@ function listAvailableBranchIds(branched: BranchedReconstruction): string {
     return ids.join(", ");
 }
 
-// Render exactly one branch, selected by `--branch <id>` (a tip short id, or the literal
-// "surviving"). Throws the usage message plus the available ids when the id matches no branch.
+// Render one branch by `--branch <id>` (a tip id or "surviving"); throws usage plus available ids when none match.
 function renderOneBranch(
     branched: BranchedReconstruction,
     options: CliOptions,
@@ -89,8 +83,7 @@ function renderOneBranch(
     return renderChosen(histories, options);
 }
 
-// Render one code-change step's full-repo snapshot, selected by `--step <n>` (1-based). Throws the usage
-// message plus the valid range when the step number is out of bounds.
+// Render one code-change step's full-repo snapshot by `--step <n>` (1-based); throws usage plus valid range if out of bounds.
 function renderStep(
     records: TranscriptRecord[],
     reader: BackupReader | undefined,
@@ -103,17 +96,14 @@ function renderStep(
     return renderRepoSnapshot(steps[stepNumber - 1]!);
 }
 
-// Render the reconstruction as JSON, composing with the existing selectors. --allRecords dumps every
-// parsed record enriched with the engine's per-line classification; --step emits one step's file map;
-// --branch / --list-branches narrow as their text twins do; bare --json emits the full document.
+// Render the reconstruction as JSON, composing with the existing selectors: --allRecords, --step, --branch, --list-branches, or the full document.
 function renderJson(
     records: TranscriptRecord[],
     reader: BackupReader | undefined,
     options: CliOptions,
 ): string {
     if (options.allRecords) {
-        // Full body + the engine's per-line classification on each record (the deep-dump twin of the
-        // document's compact lineVerdicts). Length stays records.length; line-aligned by array order.
+        // Full body plus per-line classification (deep-dump twin of the document's compact lineVerdicts); length stays records.length, line-aligned by order.
         const enriched = records.map((record) => ({
             ...record,
             verdict: recordVerdict(record),
@@ -122,16 +112,14 @@ function renderJson(
         return JSON.stringify(enriched, null, 2);
     }
     if (options.stepNumber !== undefined) {
-        // The step's files are resolved on demand from the compact histories (skeleton steps carry no
-        // file map anymore) — the same { path: content } object as before.
+        // The step's files resolve on demand from the compact histories (skeleton steps carry no file map anymore).
         const { steps, stepFileHistories } = buildStepSnapshots(records, reader);
         if (options.stepNumber < 1 || options.stepNumber > steps.length) {
             throw new Error(`${USAGE}\nstep must be in 1..${steps.length}`);
         }
         return JSON.stringify(resolveFilesAtStep(stepFileHistories, steps[options.stepNumber - 1]!.when), null, 2);
     }
-    // task 192: (surviving, one target) never needs the all-branch/all-file pass — route it
-    // through the target-scoped engine path before reconstructBranches can start.
+    // task 192: (surviving, one target) skips the all-branch/all-file pass, routing through the target-scoped engine path instead.
     if (isTargetedSurvivingRequest(options)) {
         return JSON.stringify(listTargetedSurvivingHistories(records, reader, options.target!), null, 2);
     }
@@ -149,24 +137,20 @@ function renderJson(
     return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target).document, null, 2);
 }
 
-// Load the transcript and render the chosen view. The bare default (no flags) prints both DAGs; the
-// graph flags take precedence, then the branch selectors, then the surviving content view (the
-// back-compat path for --surviving and for --verbose/--diff with no selector).
+// Load transcript and render the chosen view.
 export function runCli(argv: string[]): string {
     const traced = parseTraceArgs(argv);
     if (traced !== undefined) return runTrace(traced);
     const options = parseArgs(argv);
     applyCliPathOverrides(options);
-    // task 119: a previous in-process run's aborted leftovers must not leak into this run's
-    // failure notes (the tests drive runCli repeatedly in one process).
+    // task 119: a previous run's aborted leftovers must not leak into this run's failure notes (tests drive runCli repeatedly).
     clearReconstructionFailures();
     resetReconstructionCounters();
     const sink = options.progress ? buildStderrProgressSink(options.progressAll) : undefined;
     setReconstructionProgressSink(sink);
     try {
         const rendered = renderTranscriptView(options, sink);
-        // task 192: the work-counter report rides stderr like the progress stream (NOT the
-        // sink — the progress contract test pins the sink's line sequences).
+        // task 192: the work-counter report rides stderr like the progress stream, not the sink (contract test pins its sequences).
         if (sink !== undefined) process.stderr.write(`${formatReconstructionCountersLine()}\n`);
         return rendered;
     } finally {
@@ -175,24 +159,17 @@ export function runCli(argv: string[]): string {
     }
 }
 
-// The post-parse body of runCli: load every transcript, merge, build the sidecar reader, and
-// dispatch to the selected view. `sink` reaches loadTranscript explicitly (the module-level
-// engine sink cannot be imported from there — reconstruction_progress.ts imports the
-// ProgressSink type FROM loadTranscript, so the reverse import would be circular).
+// Post-parse body: load, merge, build sidecar reader, and dispatch.
 function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefined): string {
-    // Strict mode throws instead of skipping, so skippedLines is always empty here — a parse
-    // error in ANY transcript aborts the run (spec S4b keeps the CLI strict, task-119 decision).
-    // spec S4b: const { records } = loadTranscript(options.jsonlPath);
+    // Strict mode: a parse error in any transcript aborts the run (spec S4b).
     const recordLists = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath, sink).records);
     const sources = getPathOverrides().sources;
     if (sources !== undefined) {
         reportReconstructionProgress(`merging ${recordLists.length} transcripts across ${sources.length} sources`);
     }
-    // With declared (or multi-root derived) sources the stream goes through the multi-source
-    // stages; one sources-less list is exactly the legacy single-transcript records.
+    // With declared (or multi-root derived) sources the stream goes through multi-source stages; sources-less is the legacy single-transcript path.
     const merged = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
-    // task 193: --until-revision truncates the stream at the containing turn's end BEFORE the
-    // sidecar reader and engine see it, so every view below is bounded uniformly.
+    // task 193: --until-revision truncates the stream before the sidecar reader and engine see it, bounding every view uniformly.
     const records = applyRevisionBound(merged, options);
     reportReconstructionProgress("building sidecar backup reader");
     const reader = buildSidecarReader(records, sources);

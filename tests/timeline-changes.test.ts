@@ -1,4 +1,4 @@
-// file-change chips, revision indexing, patch splitting (timeline-changes.ts) — wire-shape inputs; shared fixtures in timeline-test-helpers.ts.
+// Shared fixtures live in timeline-test-helpers.ts.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,12 +24,7 @@ import {
 } from "./timeline-test-helpers.ts";
 
 test("test_timeline_file_changes_carry_event_kinds", () => {
-    // Scenario: a rename step's file chip carries the rename event kind and where the file came
-    // from. Uses s2-move-file: s85's "moves" are engine-modeled as destination creations with no
-    // rename revisions (see implementation notes), so the assertion runs against a true rename.
-    // Steps:
-    // build s2's turn timeline; find a fileChange with the rename kind.
-    // assert it names both the renamed-from and renamed-to paths.
+    // Uses s2-move-file: s85's "moves" model as destination creations, so only s2 exercises a true rename.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const fileChanges = nodes
         .filter((node: { kind: string }) => node.kind === AGENT_TURN_NODE_KIND)
@@ -42,11 +37,7 @@ test("test_timeline_file_changes_carry_event_kinds", () => {
 });
 
 test("test_split_patch_by_file_returns_one_block_per_file", () => {
-    // Scenario: the range-diff inspector shows only the clicked file — the full patch splits on
-    // `diff --git ` headers into one block per file, each keyed by its b/ path.
-    // Steps:
-    // render a real multi-file patch for s85's first three steps.
-    // split it; assert one block per `diff --git` header, keys unique, and re-joining loses nothing.
+    // The range-diff inspector shows only the clicked file, so the patch splits into one block per `diff --git ` header.
     const { document: rawS85Document, stepFileHistories: rawS85Histories } = buildProjectReconstruction(S85_JSONL_PATHS, undefined);
     const patch = renderRangePatch(rawS85Histories, rawS85Document.steps, 1, 3);
     const blocks = splitPatchByFile(patch);
@@ -61,11 +52,7 @@ test("test_split_patch_by_file_returns_one_block_per_file", () => {
 });
 
 test("test_file_changes_carry_their_change_id", () => {
-    // Scenario: each file chip needs the changeId of the revision it displays, so the per-file
-    // { } button can resolve the JSONL line that caused the revision and the +/- button can
-    // resolve the revision's diff block.
-    // Steps:
-    // build s2's turn timeline.
+    // Each chip needs its revision's changeId so the { } and +/- buttons can resolve the causing line and diff.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const revisionIndex = indexRevisionsByChangeId(s2Document);
     let checked = 0;
@@ -74,10 +61,8 @@ test("test_file_changes_carry_their_change_id", () => {
             if (change.changeId === undefined) {
                 continue;
             }
-            // the changeId belongs to one of the node's own snapshots...
             assert.ok(node.snapshots!.some((snapshot: { changeIds: string[] }) =>
                 snapshot.changeIds.includes(change.changeId!)));
-            // ...and resolves to this chip's path.
             assert.equal(revisionIndex.get(change.changeId)!.path, change.path);
             checked += 1;
         }
@@ -87,11 +72,7 @@ test("test_file_changes_carry_their_change_id", () => {
 });
 
 test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", () => {
-    // Scenario: a chip whose changeId is a SNAPSHOT-BACKED revision's changeId (a backup blob
-    // name, `<hex>@vN`) routes to the file-history view anchored at that revision (1-based
-    // /rev/<n>, item 19; task 94 narrowed the button to snapshot-backed revisions).
-    // Steps:
-    // a surviving history whose second revision was seeded from a File History Snapshot blob.
+    // A chip whose changeId is a backup blob name (`<hex>@vN`) routes to the file-history view at that revision's 1-based number.
     const filesTouched = [{
         target: "/tmp/geo_report.py",
         revisions: [
@@ -99,7 +80,6 @@ test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", ()
             { kind: EventKind.edit, changeId: "3fa9c2d1@v4", timestamp: "2026-07-01T10:05:00Z" },
         ],
     }];
-    // the blob-changeId chip routes to that revision's 1-based number.
     const change = { path: "/tmp/geo_report.py", changeId: "3fa9c2d1@v4" };
     assert.equal(
         computeSnapshotJumpRoute("s84", filesTouched, change),
@@ -108,39 +88,28 @@ test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", ()
 });
 
 test("test_compute_snapshot_jump_route_returns_undefined_for_tool_evidenced_changeids", () => {
-    // Scenario: task 94 — a `toolu_…` changeId RESOLVES to a surviving revision, but that
-    // revision is tool-evidenced, not backed by a File History Snapshot: the 📷 button must
-    // not render, so the route must be undefined (this is exactly the pre-task-94 over-fire).
-    // Steps:
-    // a real surviving revision whose changeId is a tool_use id (s84's first revision is one).
+    // Task 94: a `toolu_…` changeId is tool-evidenced, not snapshot-backed, so the 📷 button must not render.
     const history = s84Document.filesTouched[0]!;
     const change = { path: history.target, changeId: history.revisions[0]!.changeId };
     // precondition: the changeId is NOT a backup blob name — otherwise this test proves nothing.
     assert.ok(!/@v\d+$/.test(change.changeId));
-    // the resolvable-but-snapshotless changeId yields no route.
     assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
 });
 
 test("test_compute_snapshot_jump_route_returns_undefined_without_a_changeid", () => {
-    // Scenario: a changedPaths-hint chip carries no changeId — no jump button.
+    // A changedPaths-hint chip carries no changeId, so there is no jump button.
     const change = { path: "whatever.py", changeId: undefined };
     assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
 });
 
 test("test_compute_snapshot_jump_route_returns_undefined_for_unresolvable_changeids", () => {
-    // Scenario: a re-stamped synthetic changeId (item 25) matches no surviving revision —
-    // no jump button rather than a dead link.
+    // A re-stamped synthetic changeId matches no surviving revision — no button beats a dead link.
     const change = { path: "whatever.py", changeId: "00000000-0000-4000-8000-000000000000" };
     assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
 });
 
 test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => {
-    // Scenario: task 103 — a FAILED git command still emits its rows (never suppressed), but
-    // both row kinds must carry isError so the timeline badges them FAILED: the commit node
-    // copies its operation's stamp, and the Bash tool-call row joins to the errored operation
-    // by its record uuid. An error-free tool call stays unstamped.
-    // Steps:
-    // a document with one FAILED compound (add+commit, one Bash record u1) and one clean ls.
+    // Task 103: a failed git command still emits its rows; both kinds carry isError, Bash joins by uuid.
     const document = {
         filesTouched: [],
         rewoundFilesTouched: [],
@@ -157,10 +126,8 @@ test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => 
         ],
     };
     const { nodes } = buildTurnTimelineViewModel(document);
-    // the commit hard-stop carries the FAILED stamp.
     const commitNode = nodes.find((node) => node.kind === COMMIT_NODE_KIND);
     assert.equal(commitNode!.isError, true);
-    // the failed Bash call's row is stamped; the clean ls row is not.
     const toolCallErrors = nodes
         .filter((node) => node.kind === TOOL_CALL_NODE_KIND)
         .map((node) => node.isError);
@@ -168,23 +135,17 @@ test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => 
 });
 
 test("test_file_changes_carry_snapshot_timestamp", () => {
-    // Scenario: chip rows show a per-chip timestamp — each FileChange carries the `when` of the
-    // snapshot that contributed it.
-    // Steps:
-    // build the seed-session timeline and take the files bubble.
+    // Chip rows show a per-chip timestamp: each FileChange carries the `when` of the snapshot that contributed it.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     const filesBubble = nodes.find((node) =>
         node.kind === AGENT_TURN_NODE_KIND && node.text === "" && (node.fileChanges ?? []).length === 2);
-    // every chip's `when` is one of the bubble's snapshot instants.
     const snapshotWhens = new Set(filesBubble!.snapshots!.map((snapshot) => snapshot.when));
     for (const change of filesBubble!.fileChanges!) {
         assert.ok(snapshotWhens.has(change.when));
     }
 });
 
-// ── task 127: entry-time display paths ──────────────────────────────────────────────────────
-// A one-file document whose history is [edit under the original name, rename to the final name]
-// — the minimal shape reproducing the s87 "pre-rename entry shows core_inventory.py" bug.
+// The minimal shape reproducing the s87 "pre-rename entry shows core_inventory.py" bug (task 127).
 const renamedFileDocument: WireTimelineDocument = {
     filesTouched: [{
         target: "/repo/core_inventory.py",
@@ -200,24 +161,15 @@ const renamedFileDocument: WireTimelineDocument = {
 };
 
 test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
-    // Scenario: a file edited under its original name, then renamed. The revision BEFORE the
-    // rename must display the original name; the rename revision displays the new name.
-    // Steps:
-    // index the two-revision renamed-file document.
+    // A revision before a rename displays the file's name at that time, while its lookup path stays the final target.
     const index = indexRevisionsByChangeId(renamedFileDocument);
-    // the pre-rename revision displays the name the file had THEN...
     assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
-    // ...while its lookup path stays the final target.
     assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");
-    // the rename revision displays the post-rename name (unchanged behavior).
     assert.equal(index.get("c2")!.displayPath, "/repo/core_inventory.py");
 });
 
 test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", () => {
-    // Scenario: a chip resolved from a pre-rename revision carries the entry-time name for
-    // display while keeping the final path as its lookup key.
-    // Steps:
-    // resolve a step whose only changeId is the pre-rename revision.
+    // A chip from a pre-rename revision shows the entry-time name but keeps the final path as its lookup key.
     const index = indexRevisionsByChangeId(renamedFileDocument);
     const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: ["c1"], changedPaths: [] };
     const changes = deriveFileChanges(step, index);
@@ -227,10 +179,7 @@ test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", 
 });
 
 test("test_deriveFileChanges_fallback_chips_display_their_own_path", () => {
-    // Scenario: a changedPaths-hint chip resolves through no revision — its display name is
-    // simply its path.
-    // Steps:
-    // resolve a step with no resolvable changeIds and one changedPaths hint.
+    // A changedPaths-hint chip resolves through no revision, so its display name is its path.
     const index = indexRevisionsByChangeId(renamedFileDocument);
     const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: [], changedPaths: ["/repo/orders.py"] };
     const changes = deriveFileChanges(step, index);
@@ -240,9 +189,6 @@ test("test_deriveFileChanges_fallback_chips_display_their_own_path", () => {
 });
 
 test("test_gitBaseChangeIdPrefix_mirrors_engine_constant", () => {
-    // Scenario: the webapp's local gitBase: wire-string mirror must equal the engine's
-    // BASE_COMMIT_CHANGE_ID_PREFIX (single-source vocabulary, asserted like the enum mirrors).
-    // Steps:
-    // assert the two constants are the same string.
+    // Single-source vocabulary: the webapp's mirror must equal the engine's constant.
     assert.equal(GIT_BASE_CHANGE_ID_PREFIX, BASE_COMMIT_CHANGE_ID_PREFIX);
 });

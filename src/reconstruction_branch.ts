@@ -1,10 +1,4 @@
-// Conversation-branch model. A rewind forks the parentUuid tree; each `last-prompt` record's
-// `leafUuid` names a conversation head. The surviving branch is the one holding the on-disk working
-// tree (usually the final head; see findSurvivingHead); abandoned heads (deduped to maximal tips)
-// are rewound branches that forked at a rewind point. Selecting a branch keeps its tip's ancestor
-// chain plus uuid-less meta records. The generic parentUuid/head walkers live in
-// reconstruction_tree.ts; working-tree-owner detection in reconstruction_worktree.ts. See
-// plans/s7/s7-reconstruction-plan.md and plans/s8/s8-reconstruction-plan.md.
+// Conversation-branch model: rewind forks, surviving vs abandoned head selection, branch record filtering.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid, type Path } from "./structures/domain.ts";
@@ -29,18 +23,14 @@ import type {
     FileHistory,
 } from "./reconstruction_engine.ts";
 
-// A branch through the conversation's parentUuid tree, named by its tip (a last-prompt leafUuid).
-// The surviving branch is the one the final last-prompt points to; a rewound branch forked at
-// rewindPoint and was abandoned. rewindPoint is undefined for the surviving branch.
+// A parentUuid-tree branch named by its tip; surviving if final, rewound if abandoned.
 export type ConversationBranch = {
     tip: Uuid;
     rewindPoint: Uuid | undefined;
     isSurviving: boolean;
 };
 
-// The surviving head: normally the final last-prompt head, but when a conversation-only rewind left
-// the working tree on a branch the final head can't reach, the head at-or-above the working-tree
-// owner instead. Falls back to the final head when there is no snapshot / no tracked-set change.
+// Picks the working-tree-owning head when a rewind left it off the final head's chain.
 function findSurvivingHead(records: TranscriptRecord[]): Uuid | undefined {
     const heads = collectHeadUuids(records);
     if (heads.length === 0) {
@@ -65,11 +55,7 @@ function findSurvivingHead(records: TranscriptRecord[]): Uuid | undefined {
     return workingTreeHead;
 }
 
-// True when the final-head branch produces any file event of its own (its trunk holds the creating
-// Writes). When it does, the on-disk working tree is already attributed to the surviving branch and a
-// working-tree owner found off-branch is an abandoned post-rewind change, not the surviving tree — so
-// the override must NOT redirect (S14). When it is empty, the on-disk files came from an off-branch
-// Write and the override correctly redirects to the owner's head (S8/S9/S10).
+// S14: skip owner-redirect when the final-head branch has its own file events.
 function survivingBranchRecordsFileChange(
     records: TranscriptRecord[],
     finalHead: Uuid,
@@ -77,9 +63,7 @@ function survivingBranchRecordsFileChange(
     return extractFileEvents(selectBranchRecords(records, finalHead)).length > 0;
 }
 
-// Enumerate the conversation's branches: the surviving branch (the final head) and zero or more
-// rewound branches (abandoned heads deduped to maximal tips, each tagged with its rewind point).
-// Returns [] when there is no surviving head — the callers fall back to all-records reconstruction.
+// Returns surviving + rewound branches; empty when no surviving head exists.
 export function findConversationBranches(
     records: TranscriptRecord[],
 ): ConversationBranch[] {
@@ -96,8 +80,7 @@ export function findConversationBranches(
     reportReconstructionProgress("collecting abandoned heads");
     const abandonedTips = collectAbandonedHeads(records, survivingSet);
     for (const [tipIndex, tip] of abandonedTips.entries()) {
-        // task 163: the rewind-point walk per tip is the enumeration's real work — announce it
-        // so the "constructing branches" stage shows motion before the first per-target line.
+        // task 163: report per-tip progress so the branch-construction stage shows motion.
         reportReconstructionProgress("scanning branch tips", tipIndex + 1, abandonedTips.length);
         const rewindPoint = findRewindPoint(records, tip, survivingSet);
         branches.push({ tip, rewindPoint, isSurviving: false });
@@ -115,8 +98,7 @@ export function findConversationBranches(
 // corpus: moved to reconstruction_corpus.ts (item 14)
 // const branchSelections = new WeakMap<TranscriptRecord[], Map<string, TranscriptRecord[]>>();
 
-// Select the records on one branch: its tip's ancestor chain plus every uuid-less meta/header
-// record. Falls back to all records when the tip resolves to nothing (cannot identify the branch).
+// Selects tip's ancestor chain plus uuid-less meta records; falls back to all records.
 export function selectBranchRecords(
     records: TranscriptRecord[],
     tip: Uuid,
@@ -161,16 +143,13 @@ function computeBranchRecords(
 // corpus: moved to reconstruction_corpus.ts (item 14)
 // const liveBranchSelections = new WeakMap<TranscriptRecord[], TranscriptRecord[]>();
 
-// Select the surviving trunk's records (every session tree's final chain + meta). Falls back to
-// all records when there is no last-prompt head — preserving pre-S7 behavior for any unmarked
-// transcript.
+// Surviving trunk records; falls back to all records when no last-prompt head exists.
 export function selectLiveBranch(
     records: TranscriptRecord[],
 ): TranscriptRecord[] {
     const survivingHead = findSurvivingHead(records);
     if (survivingHead === undefined) {
-        // No surviving head: fall back to all records WITHOUT caching (the corpus's liveBranch
-        // stays undefined = not cached).
+        // No surviving head: fall back to all records WITHOUT caching (the corpus's liveBranch stays undefined = not cached).
         return records;
     }
     // corpus: moved to reconstruction_corpus.ts (item 14)
@@ -194,9 +173,7 @@ export function selectLiveBranch(
     return selected;
 }
 
-// The uuid strings on the surviving trunk (across every session tree) — the canonical "which
-// records are shared trunk" set a caller uses to find a rewound branch's diverging (post-rewind)
-// records. Empty when there is no surviving head.
+// Surviving trunk uuid strings across all session trees; empty without a surviving head.
 export function collectSurvivingUuids(
     records: TranscriptRecord[],
 ): Set<string> {
@@ -207,15 +184,12 @@ export function collectSurvivingUuids(
     return collectSurvivingTrunkUuids(records, survivingHead);
 }
 
-// A branch tip shortened for display and selection: the first 8 chars of its uuid string. The one
-// canonical short-id home — the CLI uses it both to render branch ids and to match `--branch <id>`.
-// (Distinct from the renderer's changeId shortener, which trims a `toolu_` prefix.)
+// Canonical short-id: first 8 chars of a branch tip's uuid string.
 export function shortUuid(uuid: Uuid): string {
     return uuid.toString().slice(0, 8);
 }
 
-// Find one branch's histories by id: the literal "surviving" selects the surviving branch; any
-// other id matches a rewound branch whose tip short id equals it. undefined when none matches.
+// Looks up branch histories by id: "surviving" or a rewound tip's short uuid.
 export function findBranchById(
     branched: BranchedReconstruction,
     id: string,
@@ -230,10 +204,7 @@ export function findBranchById(
     return match.histories;
 }
 
-// Find a file the surviving branch deletes (its rm target), if any — lets a caller
-// default the target when one isn't named explicitly. (Moved from reconstruction_engine.ts,
-// task 163: the engine sat at the 250-line cap; this branch-scoped query lives with
-// selectLiveBranch, its only non-generic dependency.)
+// Return the first file deleted on the surviving branch, if any, as a default target.
 export function findDeletedTarget(
     records: TranscriptRecord[],
 ): Path | undefined {

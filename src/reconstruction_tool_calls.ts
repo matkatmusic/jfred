@@ -1,8 +1,4 @@
-// The document's toolCalls[] (item 55): every non-file-edit tool call in the transcript, for the
-// timeline's un-bubbled `* <summary> * [{ }] <TS> L:n` rows. Two sources: tool_use blocks from
-// assistant records, and the rewritten command a PreToolUse hook actually ran when it differs
-// from the tool_use's own command (s39's rtk-rewrite hook turns `ls …` into `rtk ls …` — both
-// rows render). Write/Edit calls are represented as file chips, never rows.
+// The document's toolCalls[] (item 55): every non-file-edit tool call in the transcript, for the timeline's un-bubbled `* <summary> * [{ }] <TS> L:n` rows. Two sources: tool_use blocks from assistant records, and the rewritten command a PreToolUse hook actually ran when it differs from the tool_use's own command (s39's rtk-rewrite hook turns `ls …` into `rtk ls …` — both rows render). Write/Edit calls are represented as file chips, never rows.
 
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import { Uuid } from "./structures/domain.ts";
@@ -11,11 +7,7 @@ import { getContentBlocks } from "./structures/content-blocks.ts";
 import { getAttachmentEntry } from "./structures/session-meta.ts";
 import { collectOrphanedUuids } from "./reconstruction_orphans.ts";
 
-// One tool call, parsed for the timeline: the tool's name, a one-line summary of what it did
-// (command / file path / pattern), when and which session ran it (for chronological placement),
-// the record's own uuid (the viewer resolves the row's JSONL line through it), and the tool_use
-// id (hook attachments and tool_results carry it verbatim, so the inspector's raw-line sync can
-// map those lines back to the row).
+// One tool call, parsed for the timeline: the tool's name, a one-line summary of what it did (command / file path / pattern), when and which session ran it (for chronological placement), the record's own uuid (the viewer resolves the row's JSONL line through it), and the tool_use id (hook attachments and tool_results carry it verbatim, so the inspector's raw-line sync can map those lines back to the row).
 export type ToolCall = {
     toolName: string;
     summary: string;
@@ -23,8 +15,7 @@ export type ToolCall = {
     sessionId: Uuid | undefined;
     uuid: Uuid;
     toolUseId: Uuid;
-    // True when the call's record sits on a rewound (abandoned) conversation branch — the
-    // timeline dims its row alongside the branch's turns (collectOrphanedUuids).
+    // True when the call's record sits on a rewound (abandoned) conversation branch — the timeline dims its row alongside the branch's turns (collectOrphanedUuids).
     isOrphaned: boolean;
 };
 
@@ -50,8 +41,7 @@ export function computeToolCallSummary(block: { input: unknown }): string {
     return "";
 }
 
-// The rewritten command inside a hook attachment's stdout, or undefined when the attachment is
-// not a command rewrite (hook-run attachments like SessionStart/Stop have no updatedInput).
+// The rewritten command inside a hook attachment's stdout, or undefined when the attachment is not a command rewrite (hook-run attachments like SessionStart/Stop have no updatedInput).
 function parseHookRewrittenCommand(stdout: unknown): string | undefined {
     if (typeof stdout !== "string") {
         return undefined;
@@ -103,9 +93,7 @@ function appendToolUseRow(
     });
 }
 
-// Every non-file-edit tool call in the transcript, in record order: pass 1 emits tool_use rows
-// and indexes every block's summary by toolUseId; pass 2 emits one extra row per PreToolUse
-// command rewrite whose command differs from the tool_use's own.
+// Every non-file-edit tool call in the transcript, in record order: pass 1 emits tool_use rows and indexes every block's summary by toolUseId; pass 2 emits one extra row per PreToolUse command rewrite whose command differs from the tool_use's own.
 export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
     const orphanedUuids = collectOrphanedUuids(records);
     const calls: ToolCall[] = [];
@@ -124,8 +112,7 @@ export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
             appendToolUseRow(calls, block, summary, timestamp, record.sessionId, recordUuid, orphanedUuids);
         }
     }
-    // ponytail: only command rewrites get extra rows; input rewrites of non-command tools stay
-    // invisible until a scenario needs them.
+    // ponytail: only command rewrites get extra rows; input rewrites of non-command tools stay invisible until a scenario needs them.
     const rewrittenToolUseIds = new Set<string>();
     for (const record of records) {
         const entry = getAttachmentEntry(record);

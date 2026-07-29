@@ -1,5 +1,4 @@
-// Tests for the generic LRU primitives shared by the engine's sandbox memo and the viewer's
-// artifact caches: a Map read that refreshes recency, and capacity eviction.
+// Tests for the generic LRU primitives shared by the engine's sandbox memo and the viewer's artifact caches: a Map read that refreshes recency, and capacity eviction.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

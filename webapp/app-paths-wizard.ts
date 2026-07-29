@@ -1,8 +1,4 @@
-// ─── task 159: the Paths settings wizard state machine (plans/159-paths-wizard-mockup.md).
-// The popover's faces: the summary panel (default), #wizard-screen-1…5 (wrapping the
-// pre-wizard controls, ids preserved), and the Finish face reusing #project-paths-apply /
-// #project-paths-store as the 137-style store prompt. Cancel/Esc abandons with nothing
-// posted; screen 3 answered "no" skips 4 AND 5 (no repo ⇒ no baseline).
+// ─── task 159: the Paths settings wizard state machine (plans/159-paths-wizard-mockup.md).  The popover's faces: the summary panel (default), #wizard-screen-1…5 (wrapping the pre-wizard controls, ids preserved), and the Finish face reusing #project-paths-apply / #project-paths-store as the 137-style store prompt. Cancel/Esc abandons with nothing posted; screen 3 answered "no" skips 4 AND 5 (no repo ⇒ no baseline).
 
 import { storeBaselineChoice } from "./app-choices.ts";
 import { getInputById } from "./app-dom.ts";
@@ -57,8 +53,7 @@ function prepareRepoScreen(): void {
     getInputById("wizard-repo-no").checked = !hasRepo;
 }
 
-// Screen 4: a stored base commit preselects "Pick one"; the default label resolves async
-// (stored/session baseline, else the repo tip — app-paths-summary.ts).
+// Screen 4: a stored base commit preselects "Pick one"; the default label resolves async (stored/session baseline, else the repo tip — app-paths-summary.ts).
 function prepareCommitScreen(projectName: string | undefined): void {
     const hasStored = getInputById("base-commit-display").value !== "";
     getInputById("wizard-commit-pick").checked = hasStored;
@@ -70,8 +65,7 @@ function prepareCommitScreen(projectName: string | undefined): void {
         .catch(() => { label.textContent = "Default: (repo unreadable)"; });
 }
 
-// Screen 5 needs no prepare: the DOM default ("No", per the mockup) stands, and the radios
-// keep the last checked answer within the session until Finish stores it in the mirror.
+// Screen 5 needs no prepare: the DOM default ("No", per the mockup) stands, and the radios keep the last checked answer within the session until Finish stores it in the mirror.
 function prepareScreen(screenNumber: number, projectName: string | undefined): void {
     if (screenNumber === 2) prepareFileHistoryScreen();
     if (screenNumber === 3) prepareRepoScreen();
@@ -95,8 +89,7 @@ function showFinishFace(): void {
     showPopoverFace("wizard-finish");
 }
 
-// Screen 3 answered "no": drop the repo AND base commit so the project reconstructs exactly
-// as with no reveng-paths entry (mockup resolved ambiguity 4).
+// Screen 3 answered "no": drop the repo AND base commit so the project reconstructs exactly as with no reveng-paths entry (mockup resolved ambiguity 4).
 function clearRepoFields(): void {
     getInputById("repo-dir-input").value = "";
     getInputById("base-commit-display").value = "";
@@ -132,8 +125,7 @@ function retreatWizard(): void {
     showCurrentScreen();
 }
 
-// Cancel/Esc: abandon the run with nothing posted (same as closing the pre-wizard popover
-// without Apply — the next open re-prefills from the server).
+// Cancel/Esc: abandon the run with nothing posted (same as closing the pre-wizard popover without Apply — the next open re-prefills from the server).
 function cancelWizardRun(): void {
     activeRun = undefined;
     getPathsPopover().hidden = true;
@@ -148,8 +140,7 @@ function beginWizardRun(screenNumbers: number[], projectName: string | undefined
     showCurrentScreen();
 }
 
-// "Run full wizard…" / first launch. Without a project the per-project screens 2–5 have no
-// entry to edit, so the run is screen 1 only.
+// "Run full wizard…" / first launch. Without a project the per-project screens 2–5 have no entry to edit, so the run is screen 1 only.
 export function startFullWizard(projectName: string | undefined): void {
     beginWizardRun(projectName === undefined ? [1] : ALL_SCREEN_NUMBERS, projectName);
 }
@@ -164,8 +155,7 @@ export function startSingleScreenEdit(screenNumber: number, projectName: string 
     beginWizardRun([screenNumber], projectName);
 }
 
-// First-launch trigger: initializeHeader left the projects-dir input empty only when the
-// server reported no configured folder — run the full wizard (app.ts calls this post-boot).
+// First-launch trigger: initializeHeader left the projects-dir input empty only when the server reported no configured folder — run the full wizard (app.ts calls this post-boot).
 export function maybeStartFirstLaunchWizard(): void {
     if (getInputById("projects-dir-input").value !== "") {
         return;
@@ -175,9 +165,7 @@ export function maybeStartFirstLaunchWizard(): void {
 
 // ─── finish (the 137-style store prompt: Apply-to-session-only / Store-for-this-project) ───
 
-// Both finish buttons complete the run. This listener registers BEFORE the buttons' onclick
-// (postProjectPaths, assigned by refreshProjectPathsSection), so the baseline mirror is
-// stored before the POST's collectEntryFromFields reads it.
+// Both finish buttons complete the run. This listener registers BEFORE the buttons' onclick (postProjectPaths, assigned by refreshProjectPathsSection), so the baseline mirror is stored before the POST's collectEntryFromFields reads it.
 function completeWizardRun(): void {
     if (activeRun === undefined) {
         return;
@@ -202,8 +190,7 @@ function findRouteProjectName(): string | undefined {
     return segments[0] === "project" ? segments[1] : undefined;
 }
 
-// Every Paths… open resets to the summary face (an abandoned mid-run face never sticks);
-// refreshProjectPathsSection re-renders the rows again once its prefill fetch lands.
+// Every Paths… open resets to the summary face (an abandoned mid-run face never sticks); refreshProjectPathsSection re-renders the rows again once its prefill fetch lands.
 function handlePathsButtonOpen(): void {
     if (getPathsPopover().hidden) {
         return;   // the click toggled the popover closed

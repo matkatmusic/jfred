@@ -1,6 +1,4 @@
-// Spec S7c (task 178): coverage-checker discovery of multi-source captures. A scenario dir holding
-// `source-*/projects` trees (s88+) yields the trees' jsonls + one bare {projectsDir} source per tree,
-// ignoring the flat auto-capture duplicates at the scenario root; a flat scenario dir is unchanged.
+// Spec S7c (task 178): coverage-checker discovery of multi-source captures. A scenario dir holding `source-*/projects` trees (s88+) yields the trees' jsonls + one bare {projectsDir} source per tree, ignoring the flat auto-capture duplicates at the scenario root; a flat scenario dir is unchanged.
 
 import { test, after } from "node:test";
 import assert from "node:assert/strict";

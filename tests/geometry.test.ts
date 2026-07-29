@@ -1,7 +1,4 @@
-// The geometry probe's two contracts: it must stay a valid template literal, and the bucket
-// headings it teaches the assertions must be the ones layer1-page.ts actually renders. The second
-// is the drift this file exists to catch — a renamed heading would otherwise silently disable the
-// bucket-title rule rather than fail it.
+// The geometry probe's two contracts: it must stay a valid template literal, and the bucket headings it teaches the assertions must be the ones layer1-page.ts actually renders. The second is the drift this file exists to catch — a renamed heading would otherwise silently disable the bucket-title rule rather than fail it.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

@@ -1,5 +1,4 @@
-// Task 119: the wire document's partial-reconstruction fields (skippedLines / failures).
-// Split from tests/reconstruction_json.test.ts (250-line cap); same loadRecords + S19_JSONL shape.
+// Task 119: the wire document's partial-reconstruction fields (skippedLines / failures).  Split from tests/reconstruction_json.test.ts (250-line cap); same loadRecords + S19_JSONL shape.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -30,8 +29,7 @@ const records = loadRecords(S19_JSONL);
 const reader = realReader(records);
 
 test("test_buildReconstructionDocument_carries_skipped_lines_through", () => {
-    // Behavior: the tolerant parse's skipped lines ride the wire document unchanged (the webapp's
-    // timeline gap rows come from them).
+    // Behavior: the tolerant parse's skipped lines ride the wire document unchanged (the webapp's timeline gap rows come from them).
     const branched = reconstructBranches(records, reader);
     const skipped: SkippedLine[] = [
         { filePath: new Path(S19_JSONL), lineNumber: 7, reason: 'unknown record type "future-nonsense"' },
@@ -43,8 +41,7 @@ test("test_buildReconstructionDocument_carries_skipped_lines_through", () => {
 });
 
 test("test_buildReconstructionDocument_drains_failures_into_document", () => {
-    // Behavior: failures noted before the document assembly (engine stages run earlier in the
-    // build) are drained into document.failures — and drained means gone: a second build has none.
+    // Behavior: failures noted before the document assembly (engine stages run earlier in the build) are drained into document.failures — and drained means gone: a second build has none.
     const branched = reconstructBranches(records, reader);
     clearReconstructionFailures();
     noteReconstructionFailure({ scope: FailureScope.fileStage, stage: "testStage", reason: "fabricated" });

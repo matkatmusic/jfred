@@ -1,0 +1,3606 @@
+[
+  {
+    "filename": "archive/timeline-changes-retired-orphan-proxies.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "src/reconstruction_lineage_memo.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "src/reconstruction_overrides.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      28,
+      44,
+      47,
+      50,
+      57,
+      61,
+      64,
+      87,
+      114
+    ]
+  },
+  {
+    "filename": "src/reconstruction_parse_lines.ts",
+    "lineNumbersPerFile": [
+      1,
+      18,
+      28,
+      57,
+      63,
+      72,
+      87,
+      98,
+      109,
+      126
+    ]
+  },
+  {
+    "filename": "src/reconstruction_progress.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      25,
+      36
+    ]
+  },
+  {
+    "filename": "src/reconstruction_prompts.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      27,
+      39,
+      53
+    ]
+  },
+  {
+    "filename": "src/reconstruction_provenance.ts",
+    "lineNumbersPerFile": [
+      1,
+      8
+    ]
+  },
+  {
+    "filename": "src/reconstruction_render.ts",
+    "lineNumbersPerFile": [
+      1,
+      17,
+      116
+    ]
+  },
+  {
+    "filename": "src/reconstruction_render_list.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      35,
+      151,
+      164
+    ]
+  },
+  {
+    "filename": "src/reconstruction_renderable.ts",
+    "lineNumbersPerFile": [
+      1,
+      20,
+      25,
+      28,
+      33,
+      44,
+      55,
+      61,
+      85,
+      93
+    ]
+  },
+  {
+    "filename": "src/reconstruction_replay.ts",
+    "lineNumbersPerFile": [
+      1,
+      25,
+      36,
+      58,
+      73,
+      87,
+      100,
+      118,
+      176,
+      187
+    ]
+  },
+  {
+    "filename": "src/reconstruction_replay_edit.ts",
+    "lineNumbersPerFile": [
+      1,
+      27,
+      53,
+      85,
+      99,
+      128,
+      154,
+      170,
+      181,
+      193
+    ]
+  },
+  {
+    "filename": "src/reconstruction_reseed.ts",
+    "lineNumbersPerFile": [
+      21,
+      58,
+      75,
+      126,
+      154,
+      164
+    ]
+  },
+  {
+    "filename": "src/reconstruction_revisions.ts",
+    "lineNumbersPerFile": [
+      1,
+      19
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_beaconless.ts",
+    "lineNumbersPerFile": [
+      1,
+      18,
+      21,
+      30,
+      58
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_execution.ts",
+    "lineNumbersPerFile": [
+      21,
+      98
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_indirection.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      18,
+      49,
+      119,
+      133
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_move_events.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      24,
+      50
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_prestate.ts",
+    "lineNumbersPerFile": [
+      31,
+      63,
+      80,
+      121,
+      133
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_probe.ts",
+    "lineNumbersPerFile": [
+      1,
+      16,
+      33
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_renames.ts",
+    "lineNumbersPerFile": [
+      59,
+      125
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_sandbox.ts",
+    "lineNumbersPerFile": [
+      52,
+      70,
+      165,
+      174
+    ]
+  },
+  {
+    "filename": "src/reconstruction_script_stage.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      65,
+      137
+    ]
+  },
+  {
+    "filename": "src/reconstruction_sidecar_reader.ts",
+    "lineNumbersPerFile": [
+      1,
+      24,
+      44,
+      68,
+      79,
+      93,
+      103,
+      112,
+      145,
+      147,
+      151
+    ]
+  },
+  {
+    "filename": "src/reconstruction_target.ts",
+    "lineNumbersPerFile": [
+      1,
+      21,
+      28,
+      58,
+      66
+    ]
+  },
+  {
+    "filename": "src/reconstruction_tool_calls.ts",
+    "lineNumbersPerFile": [
+      1,
+      10,
+      18,
+      44,
+      96
+    ]
+  },
+  {
+    "filename": "src/reconstruction_trace.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      66,
+      72,
+      87,
+      111,
+      131,
+      143,
+      153,
+      169,
+      175
+    ]
+  },
+  {
+    "filename": "src/reconstruction_tree.ts",
+    "lineNumbersPerFile": [
+      1,
+      54,
+      70,
+      86,
+      133,
+      159
+    ]
+  },
+  {
+    "filename": "src/reconstruction_trunk.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      23,
+      33,
+      57,
+      70,
+      113,
+      131
+    ]
+  },
+  {
+    "filename": "src/reconstruction_trunk_absorb.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      12,
+      42,
+      50,
+      102,
+      155
+    ]
+  },
+  {
+    "filename": "src/reconstruction_user_edit.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      15,
+      22,
+      42
+    ]
+  },
+  {
+    "filename": "src/reconstruction_worktree.ts",
+    "lineNumbersPerFile": [
+      1,
+      11,
+      14,
+      27,
+      38
+    ]
+  },
+  {
+    "filename": "src/regex_expressions.ts",
+    "lineNumbersPerFile": [
+      6,
+      8,
+      24,
+      27,
+      32,
+      49,
+      52,
+      55,
+      60,
+      66,
+      71,
+      76,
+      82,
+      85,
+      88,
+      94,
+      97,
+      100,
+      105,
+      112,
+      118,
+      121,
+      127,
+      133,
+      138,
+      141,
+      151,
+      154,
+      160,
+      166
+    ]
+  },
+  {
+    "filename": "src/regex_script_detection.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      8,
+      11,
+      16,
+      22,
+      29,
+      35,
+      41
+    ]
+  },
+  {
+    "filename": "src/render_git_diff.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      9,
+      12,
+      19
+    ]
+  },
+  {
+    "filename": "src/structures/content-blocks.ts",
+    "lineNumbersPerFile": [
+      16,
+      32,
+      45,
+      65,
+      87,
+      101
+    ]
+  },
+  {
+    "filename": "src/structures/domain.ts",
+    "lineNumbersPerFile": [
+      1,
+      20
+    ]
+  },
+  {
+    "filename": "src/structures/envelope.ts",
+    "lineNumbersPerFile": [
+      4,
+      6,
+      23
+    ]
+  },
+  {
+    "filename": "src/structures/file-history.ts",
+    "lineNumbersPerFile": [
+      53
+    ]
+  },
+  {
+    "filename": "src/structures/line-model.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "src/structures/path-resolve.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "src/structures/session-meta.ts",
+    "lineNumbersPerFile": [
+      5,
+      20,
+      40,
+      91
+    ]
+  },
+  {
+    "filename": "src/structures/tool-results.ts",
+    "lineNumbersPerFile": [
+      6,
+      26,
+      44,
+      58,
+      75,
+      97,
+      108,
+      121,
+      127,
+      158,
+      167
+    ]
+  },
+  {
+    "filename": "src/structures/vocabulary_view.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9
+    ]
+  },
+  {
+    "filename": "src/viewer_api.ts",
+    "lineNumbersPerFile": [
+      1,
+      135
+    ]
+  },
+  {
+    "filename": "src/viewer_api_diffs.ts",
+    "lineNumbersPerFile": [
+      1,
+      20,
+      49,
+      83,
+      96,
+      104,
+      115
+    ]
+  },
+  {
+    "filename": "src/viewer_api_ladder.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      40
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1.ts",
+    "lineNumbersPerFile": [
+      21,
+      32,
+      47,
+      88,
+      129
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_defaults.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      8,
+      18
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_file.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      15,
+      31,
+      41,
+      51
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_refs.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      21,
+      38,
+      47,
+      60
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_route.ts",
+    "lineNumbersPerFile": [
+      12,
+      24,
+      46,
+      57,
+      62
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_sessions.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      29,
+      42,
+      64,
+      68,
+      85
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_settings.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      13,
+      35,
+      56,
+      61
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layer1_sources.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      13,
+      21,
+      47,
+      59
+    ]
+  },
+  {
+    "filename": "src/viewer_api_layered.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      20,
+      24,
+      31,
+      49
+    ]
+  },
+  {
+    "filename": "src/viewer_api_prescan.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      32,
+      59
+    ]
+  },
+  {
+    "filename": "src/viewer_api_projects.ts",
+    "lineNumbersPerFile": [
+      32,
+      88,
+      156
+    ]
+  },
+  {
+    "filename": "src/viewer_api_records.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      27,
+      30,
+      33,
+      36,
+      63,
+      72,
+      93
+    ]
+  },
+  {
+    "filename": "src/viewer_api_repo.ts",
+    "lineNumbersPerFile": [
+      1,
+      57,
+      88,
+      125
+    ]
+  },
+  {
+    "filename": "src/viewer_api_sources.ts",
+    "lineNumbersPerFile": [
+      15,
+      39
+    ]
+  },
+  {
+    "filename": "src/viewer_server_layer1_routes.ts",
+    "lineNumbersPerFile": [
+      3
+    ]
+  },
+  {
+    "filename": "src/viewer_server_routes.ts",
+    "lineNumbersPerFile": [
+      66,
+      71,
+      88,
+      92,
+      97,
+      113,
+      128,
+      146,
+      148,
+      150,
+      159,
+      178
+    ]
+  },
+  {
+    "filename": "tests/app-header.test.ts",
+    "lineNumbersPerFile": [
+      24,
+      32,
+      73,
+      87,
+      99,
+      114,
+      127,
+      139,
+      152,
+      167
+    ]
+  },
+  {
+    "filename": "tests/app-paths-project.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      10,
+      24,
+      61,
+      69,
+      77
+    ]
+  },
+  {
+    "filename": "tests/app-paths-summary.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      27,
+      49
+    ]
+  },
+  {
+    "filename": "tests/app-paths-wizard.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      20,
+      33,
+      51,
+      66,
+      84,
+      105,
+      154,
+      168
+    ]
+  },
+  {
+    "filename": "tests/app-progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      23,
+      35,
+      53,
+      67
+    ]
+  },
+  {
+    "filename": "tests/app-router.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      20,
+      34,
+      48
+    ]
+  },
+  {
+    "filename": "tests/assertions.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/audit-unmodeled-fields.test.ts",
+    "lineNumbersPerFile": [
+      11,
+      42
+    ]
+  },
+  {
+    "filename": "tests/baseline-question.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      16,
+      37,
+      43
+    ]
+  },
+  {
+    "filename": "tests/cache_lru.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/cdp.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/check_scenario_coverage.test.ts",
+    "lineNumbersPerFile": [
+      50,
+      107,
+      115,
+      122,
+      129,
+      136,
+      143,
+      163
+    ]
+  },
+  {
+    "filename": "tests/content-blocks.test.ts",
+    "lineNumbersPerFile": [
+      28,
+      45,
+      66
+    ]
+  },
+  {
+    "filename": "tests/coverage_ledger.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/coverage_scenarios.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/debug-app.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      24,
+      36,
+      45,
+      55,
+      85,
+      96,
+      107,
+      118
+    ]
+  },
+  {
+    "filename": "tests/details-find-model.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      18,
+      26,
+      34
+    ]
+  },
+  {
+    "filename": "tests/details-revision-cards.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      21,
+      50,
+      61,
+      68
+    ]
+  },
+  {
+    "filename": "tests/details-script-run.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      7
+    ]
+  },
+  {
+    "filename": "tests/details-viewmodels.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      20,
+      53,
+      70,
+      78,
+      103
+    ]
+  },
+  {
+    "filename": "tests/domain.test.ts",
+    "lineNumbersPerFile": [
+      6,
+      18
+    ]
+  },
+  {
+    "filename": "tests/exec-gate.test.ts",
+    "lineNumbersPerFile": [
+      40,
+      71,
+      91,
+      128
+    ]
+  },
+  {
+    "filename": "tests/file-history.test.ts",
+    "lineNumbersPerFile": [
+      27
+    ]
+  },
+  {
+    "filename": "tests/fixtures.test.ts",
+    "lineNumbersPerFile": [
+      7
+    ]
+  },
+  {
+    "filename": "tests/fixtures.ts",
+    "lineNumbersPerFile": [
+      1,
+      9,
+      14,
+      31,
+      48,
+      54,
+      87,
+      112,
+      117,
+      121,
+      126,
+      132
+    ]
+  },
+  {
+    "filename": "tests/geometry.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/git-baseline-branching.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      18,
+      32
+    ]
+  },
+  {
+    "filename": "tests/git-operations-results.test.ts",
+    "lineNumbersPerFile": [
+      17,
+      27,
+      57,
+      71
+    ]
+  },
+  {
+    "filename": "tests/inspector-snapshots.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      14,
+      41,
+      55
+    ]
+  },
+  {
+    "filename": "tests/inspector-viewmodels.test.ts",
+    "lineNumbersPerFile": [
+      29,
+      37,
+      70,
+      77,
+      101,
+      132
+    ]
+  },
+  {
+    "filename": "tests/inspector.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      16
+    ]
+  },
+  {
+    "filename": "tests/layer1-acceptance.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      17,
+      37,
+      39,
+      53,
+      63,
+      69,
+      78,
+      87,
+      96,
+      103
+    ]
+  },
+  {
+    "filename": "tests/layer1-drawer.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      14,
+      22,
+      32,
+      49,
+      72,
+      83
+    ]
+  },
+  {
+    "filename": "tests/layer1-file-view.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      38
+    ]
+  },
+  {
+    "filename": "tests/layer1-filenav-resize.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      16,
+      44,
+      52,
+      60,
+      69,
+      78,
+      84,
+      93
+    ]
+  },
+  {
+    "filename": "tests/layer1-filenav-search.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      19,
+      36,
+      61
+    ]
+  },
+  {
+    "filename": "tests/layer1-filenav.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      22,
+      27,
+      41,
+      49,
+      59,
+      67
+    ]
+  },
+  {
+    "filename": "tests/layer1-filter-jump.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      26,
+      37,
+      47,
+      56,
+      64
+    ]
+  },
+  {
+    "filename": "tests/layer1-filter.test.ts",
+    "lineNumbersPerFile": [
+      72
+    ]
+  },
+  {
+    "filename": "tests/layer1-find-file-helpers.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      7,
+      12,
+      18,
+      26,
+      32,
+      49
+    ]
+  },
+  {
+    "filename": "tests/layer1-find-file.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      30,
+      41,
+      47,
+      64,
+      72,
+      111,
+      126,
+      140,
+      149
+    ]
+  },
+  {
+    "filename": "tests/layer1-folder-filter.test.ts",
+    "lineNumbersPerFile": [
+      46
+    ]
+  },
+  {
+    "filename": "tests/layer1-jump-buckets.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9,
+      13,
+      17,
+      37,
+      45,
+      56
+    ]
+  },
+  {
+    "filename": "tests/layer1-leader-hover.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      5,
+      17,
+      26,
+      37,
+      44,
+      58,
+      63,
+      77,
+      86,
+      104,
+      113,
+      124,
+      137
+    ]
+  },
+  {
+    "filename": "tests/layer1-leader-visibility.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      5,
+      28,
+      87,
+      97,
+      106,
+      117,
+      124,
+      135
+    ]
+  },
+  {
+    "filename": "tests/layer1-minimap.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      70,
+      117
+    ]
+  },
+  {
+    "filename": "tests/layer1-page-leaders.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9,
+      16,
+      23,
+      57,
+      65,
+      73
+    ]
+  },
+  {
+    "filename": "tests/layer1-page-spans.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9,
+      16,
+      22,
+      29,
+      47,
+      55,
+      65
+    ]
+  },
+  {
+    "filename": "tests/layer1-page.test.ts",
+    "lineNumbersPerFile": [
+      121,
+      146
+    ]
+  },
+  {
+    "filename": "tests/layer1-path-picker.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      14,
+      25
+    ]
+  },
+  {
+    "filename": "tests/layer1-progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      16,
+      20,
+      44,
+      56,
+      71
+    ]
+  },
+  {
+    "filename": "tests/layer1-ranges.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      11,
+      50,
+      66
+    ]
+  },
+  {
+    "filename": "tests/layer1-ruler-axis.test.ts",
+    "lineNumbersPerFile": [
+      48,
+      72,
+      80,
+      87,
+      94,
+      108
+    ]
+  },
+  {
+    "filename": "tests/layer1-sessions.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      18,
+      35,
+      112,
+      119
+    ]
+  },
+  {
+    "filename": "tests/layer1-settings.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      103
+    ]
+  },
+  {
+    "filename": "tests/layer1-source-paths.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      12,
+      16
+    ]
+  },
+  {
+    "filename": "tests/layer1-sources.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      19,
+      35,
+      64,
+      81
+    ]
+  },
+  {
+    "filename": "tests/layer1-tie-groups.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      19,
+      27,
+      41,
+      49
+    ]
+  },
+  {
+    "filename": "tests/layer1-view-test-helpers.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/layer1-zoom.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      72
+    ]
+  },
+  {
+    "filename": "tests/layer1_commit_history.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      32,
+      47,
+      55,
+      65,
+      71
+    ]
+  },
+  {
+    "filename": "tests/layer1_disk_walk.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      39,
+      45,
+      53,
+      70,
+      91,
+      100
+    ]
+  },
+  {
+    "filename": "tests/layer1_pairing.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      11,
+      25,
+      36,
+      44,
+      54
+    ]
+  },
+  {
+    "filename": "tests/layer1_repo_tree.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      39,
+      58,
+      67,
+      74,
+      82,
+      91
+    ]
+  },
+  {
+    "filename": "tests/layer1_view_progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      38,
+      52,
+      60,
+      74
+    ]
+  },
+  {
+    "filename": "tests/layered-app.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      51,
+      61,
+      75,
+      89,
+      98,
+      106,
+      130,
+      140
+    ]
+  },
+  {
+    "filename": "tests/layered_git_beacons.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      43,
+      64,
+      77,
+      79
+    ]
+  },
+  {
+    "filename": "tests/layered_instants.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      17,
+      24,
+      33,
+      42,
+      51,
+      60
+    ]
+  },
+  {
+    "filename": "tests/layered_lineage.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      34,
+      91,
+      133
+    ]
+  },
+  {
+    "filename": "tests/layered_merge.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      68,
+      88,
+      103,
+      117,
+      132,
+      153,
+      167
+    ]
+  },
+  {
+    "filename": "tests/layered_snapshot_beacons.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      14,
+      19,
+      34,
+      57
+    ]
+  },
+  {
+    "filename": "tests/layered_types.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/list_capture_free_tests.test.ts",
+    "lineNumbersPerFile": [
+      27
+    ]
+  },
+  {
+    "filename": "tests/loadTranscript-tolerant.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      28,
+      42,
+      52,
+      58
+    ]
+  },
+  {
+    "filename": "tests/loadTranscript.test.ts",
+    "lineNumbersPerFile": [
+      8,
+      19,
+      30,
+      40,
+      54
+    ]
+  },
+  {
+    "filename": "tests/loading-progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      37,
+      86,
+      93
+    ]
+  },
+  {
+    "filename": "tests/multi-source-test-helpers.ts",
+    "lineNumbersPerFile": [
+      1,
+      25,
+      75,
+      91,
+      133,
+      161,
+      191
+    ]
+  },
+  {
+    "filename": "tests/parseRecord.test.ts",
+    "lineNumbersPerFile": [
+      10,
+      25,
+      40
+    ]
+  },
+  {
+    "filename": "tests/per_file_sweep.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      22,
+      32,
+      51
+    ]
+  },
+  {
+    "filename": "tests/per_file_sweep_report.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      67,
+      101
+    ]
+  },
+  {
+    "filename": "tests/project.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      31
+    ]
+  },
+  {
+    "filename": "tests/range-patch.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      19,
+      22,
+      69,
+      77,
+      90,
+      100,
+      108
+    ]
+  },
+  {
+    "filename": "tests/reconstruction-coverage.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      33,
+      53,
+      77,
+      86,
+      92,
+      99,
+      121
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_bash_events.test.ts",
+    "lineNumbersPerFile": [
+      30,
+      42,
+      84,
+      86
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_bound_sessions.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      19
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_branch.test.ts",
+    "lineNumbersPerFile": [
+      132
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_branches.test.ts",
+    "lineNumbersPerFile": [
+      66
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_cli.test.ts",
+    "lineNumbersPerFile": [
+      12,
+      14,
+      26,
+      117,
+      126,
+      149,
+      174,
+      199
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_cli_args.test.ts",
+    "lineNumbersPerFile": [
+      32,
+      59,
+      75,
+      118,
+      146,
+      174,
+      180
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_cli_json.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      28
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_counters.test.ts",
+    "lineNumbersPerFile": [
+      19,
+      40,
+      52
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_document_cache.test.ts",
+    "lineNumbersPerFile": [
+      65
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_extract.test.ts",
+    "lineNumbersPerFile": [
+      10
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_fork.test.ts",
+    "lineNumbersPerFile": [
+      24,
+      34,
+      47
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_git_evidence.test.ts",
+    "lineNumbersPerFile": [
+      33,
+      46,
+      98,
+      137
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_git_staged.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      75
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_graph.test.ts",
+    "lineNumbersPerFile": [
+      19,
+      62,
+      76,
+      91,
+      121,
+      137,
+      152
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_graph_render.test.ts",
+    "lineNumbersPerFile": [
+      17,
+      81,
+      117
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_health.test.ts",
+    "lineNumbersPerFile": [
+      17
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_json_health.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      44
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_line_verdicts.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      23,
+      35,
+      48
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_lineage.test.ts",
+    "lineNumbersPerFile": [
+      62
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_lineage_horizon.test.ts",
+    "lineNumbersPerFile": [
+      27,
+      37,
+      48,
+      59,
+      72,
+      88,
+      104,
+      116,
+      133,
+      149
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_lineage_inputs.test.ts",
+    "lineNumbersPerFile": [
+      23
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_lineage_memo.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      55
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_memo.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      25,
+      36,
+      42,
+      48,
+      56,
+      62,
+      73,
+      109,
+      124,
+      138,
+      147,
+      159
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_multi_source.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      38,
+      54,
+      74,
+      100,
+      115
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_multi_source_gate.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      40
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_multi_source_join.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      23,
+      37,
+      47
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_orphans.test.ts",
+    "lineNumbersPerFile": [
+      8,
+      24
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_overrides.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      47,
+      63,
+      70,
+      86,
+      114,
+      122,
+      160,
+      170,
+      190
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      37,
+      48,
+      56,
+      72,
+      100
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_provenance_wiring.test.ts",
+    "lineNumbersPerFile": [
+      17,
+      29
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_render-test-helpers.ts",
+    "lineNumbersPerFile": [
+      16,
+      45
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_render_unified.test.ts",
+    "lineNumbersPerFile": [
+      17,
+      45,
+      62,
+      86
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_repeated_work.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      23,
+      59,
+      73,
+      83,
+      92,
+      111
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_replay.test.ts",
+    "lineNumbersPerFile": [
+      114,
+      132
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_replay_edit.test.ts",
+    "lineNumbersPerFile": [
+      10,
+      23,
+      48,
+      58,
+      68
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_reseed.test.ts",
+    "lineNumbersPerFile": [
+      29,
+      42
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_beaconless.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      53
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_memo.test.ts",
+    "lineNumbersPerFile": [
+      16
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_move_events.test.ts",
+    "lineNumbersPerFile": [
+      26,
+      53,
+      71,
+      94,
+      111
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_probe.test.ts",
+    "lineNumbersPerFile": [
+      14
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_renames.test.ts",
+    "lineNumbersPerFile": [
+      37,
+      48,
+      52,
+      64,
+      93,
+      113,
+      122
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_runs.test.ts",
+    "lineNumbersPerFile": [
+      42,
+      81,
+      94,
+      112
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_sandbox.test.ts",
+    "lineNumbersPerFile": [
+      11,
+      58,
+      74,
+      84
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_script_stage.test.ts",
+    "lineNumbersPerFile": [
+      82,
+      98,
+      113
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_sidecar_clamp.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      10,
+      22,
+      29,
+      36,
+      38,
+      43,
+      50
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_steps_changes.test.ts",
+    "lineNumbersPerFile": [
+      30,
+      64,
+      95
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_steps_name_at_time.test.ts",
+    "lineNumbersPerFile": [
+      24,
+      30,
+      41,
+      52
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_target.test.ts",
+    "lineNumbersPerFile": [
+      24,
+      41,
+      68,
+      79,
+      97,
+      111
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_trace.test.ts",
+    "lineNumbersPerFile": [
+      73
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_tree.test.ts",
+    "lineNumbersPerFile": [
+      143
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_trunk.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      11,
+      31,
+      45,
+      52,
+      59,
+      76
+    ]
+  },
+  {
+    "filename": "tests/reconstruction_user_edit.test.ts",
+    "lineNumbersPerFile": [
+      13,
+      18,
+      34
+    ]
+  },
+  {
+    "filename": "tests/recordKeys.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      9,
+      76,
+      89,
+      103
+    ]
+  },
+  {
+    "filename": "tests/regex_script_detection.test.ts",
+    "lineNumbersPerFile": [
+      8,
+      16,
+      29
+    ]
+  },
+  {
+    "filename": "tests/render_git_diff.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      21,
+      39,
+      57
+    ]
+  },
+  {
+    "filename": "tests/route-predicates.test.ts",
+    "lineNumbersPerFile": [
+      9,
+      30,
+      35
+    ]
+  },
+  {
+    "filename": "tests/run.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/scenario_coverage.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/script-run-changes.test.ts",
+    "lineNumbersPerFile": [
+      33,
+      81
+    ]
+  },
+  {
+    "filename": "tests/script-run-details-view.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      45,
+      61
+    ]
+  },
+  {
+    "filename": "tests/session-meta.test.ts",
+    "lineNumbersPerFile": [
+      27,
+      38,
+      52,
+      71
+    ]
+  },
+  {
+    "filename": "tests/states.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/timeline-changes-baseline.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      9,
+      18
+    ]
+  },
+  {
+    "filename": "tests/timeline-changes-merged-chips.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      47,
+      63
+    ]
+  },
+  {
+    "filename": "tests/timeline-changes.test.ts",
+    "lineNumbersPerFile": [
+      40,
+      55,
+      75,
+      164
+    ]
+  },
+  {
+    "filename": "tests/timeline-commit-files-first-commit.test.ts",
+    "lineNumbersPerFile": [
+      17,
+      60,
+      69,
+      78,
+      87,
+      108
+    ]
+  },
+  {
+    "filename": "tests/timeline-commit-files.test.ts",
+    "lineNumbersPerFile": [
+      21,
+      30,
+      41,
+      51,
+      103,
+      111
+    ]
+  },
+  {
+    "filename": "tests/timeline-file-tree-sidebar.test.ts",
+    "lineNumbersPerFile": [
+      9,
+      49,
+      68,
+      97
+    ]
+  },
+  {
+    "filename": "tests/timeline-filter-model-session-titles.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      33,
+      39,
+      45,
+      50
+    ]
+  },
+  {
+    "filename": "tests/timeline-filter-model.test.ts",
+    "lineNumbersPerFile": [
+      43,
+      50,
+      62,
+      71,
+      77,
+      82,
+      89,
+      95,
+      101,
+      109,
+      117,
+      129,
+      136,
+      142,
+      148,
+      154,
+      160,
+      165,
+      172,
+      194,
+      200
+    ]
+  },
+  {
+    "filename": "tests/timeline-labels-pills.test.ts",
+    "lineNumbersPerFile": [
+      45,
+      63,
+      79,
+      90,
+      110,
+      118
+    ]
+  },
+  {
+    "filename": "tests/timeline-labels-summary.test.ts",
+    "lineNumbersPerFile": [
+      21,
+      111,
+      140,
+      147
+    ]
+  },
+  {
+    "filename": "tests/timeline-labels-tags.test.ts",
+    "lineNumbersPerFile": [
+      68
+    ]
+  },
+  {
+    "filename": "tests/timeline-line-nodes.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      40,
+      61,
+      78
+    ]
+  },
+  {
+    "filename": "tests/timeline-nodes-commits.test.ts",
+    "lineNumbersPerFile": [
+      76,
+      112
+    ]
+  },
+  {
+    "filename": "tests/timeline-nodes-git-baseline.test.ts",
+    "lineNumbersPerFile": [
+      10,
+      39,
+      50,
+      58,
+      71,
+      79,
+      116,
+      133,
+      144,
+      156,
+      164
+    ]
+  },
+  {
+    "filename": "tests/timeline-nodes-session-ends.test.ts",
+    "lineNumbersPerFile": [
+      20,
+      64,
+      100,
+      132,
+      187
+    ]
+  },
+  {
+    "filename": "tests/timeline-nodes-tool-calls.test.ts",
+    "lineNumbersPerFile": [
+      41,
+      62,
+      74,
+      90,
+      97
+    ]
+  },
+  {
+    "filename": "tests/timeline-nodes.test.ts",
+    "lineNumbersPerFile": [
+      25,
+      34,
+      44,
+      54,
+      56,
+      66,
+      88,
+      90,
+      113,
+      130,
+      145
+    ]
+  },
+  {
+    "filename": "tests/timeline-picks.test.ts",
+    "lineNumbersPerFile": [
+      24,
+      46,
+      68,
+      84,
+      93,
+      110,
+      150,
+      155
+    ]
+  },
+  {
+    "filename": "tests/timeline-render-inspectors.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      14,
+      21,
+      28,
+      33
+    ]
+  },
+  {
+    "filename": "tests/timeline-render-row-cells.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      8
+    ]
+  },
+  {
+    "filename": "tests/timeline-sessions-progress.test.ts",
+    "lineNumbersPerFile": [
+      13,
+      20,
+      26,
+      39
+    ]
+  },
+  {
+    "filename": "tests/timeline-test-helpers.ts",
+    "lineNumbersPerFile": [
+      1,
+      27,
+      33,
+      122
+    ]
+  },
+  {
+    "filename": "tests/tool-results.test.ts",
+    "lineNumbersPerFile": [
+      23,
+      58,
+      73,
+      90,
+      113
+    ]
+  },
+  {
+    "filename": "tests/utilities.test.ts",
+    "lineNumbersPerFile": [
+      10,
+      22
+    ]
+  },
+  {
+    "filename": "tests/utilities.ts",
+    "lineNumbersPerFile": [
+      21,
+      29,
+      58,
+      67,
+      95
+    ]
+  },
+  {
+    "filename": "tests/viewer-api-blob-snapshots.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      60,
+      65,
+      74,
+      77
+    ]
+  },
+  {
+    "filename": "tests/viewer-api-diffs.test.ts",
+    "lineNumbersPerFile": [
+      31
+    ]
+  },
+  {
+    "filename": "tests/viewer-api-overrides.test.ts",
+    "lineNumbersPerFile": [
+      33,
+      48,
+      74,
+      101,
+      135
+    ]
+  },
+  {
+    "filename": "tests/viewer-api-projects.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      20,
+      63,
+      81,
+      86,
+      130
+    ]
+  },
+  {
+    "filename": "tests/viewer-artifact-cache.test.ts",
+    "lineNumbersPerFile": [
+      76
+    ]
+  },
+  {
+    "filename": "tests/viewer-consent.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      27,
+      40,
+      47,
+      54,
+      68,
+      76,
+      83,
+      90,
+      112,
+      119,
+      126
+    ]
+  },
+  {
+    "filename": "tests/viewer-console-links.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      45,
+      52
+    ]
+  },
+  {
+    "filename": "tests/viewer-inspector.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      25,
+      32,
+      41,
+      51,
+      57
+    ]
+  },
+  {
+    "filename": "tests/viewer-progress.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      45,
+      70,
+      83,
+      92,
+      102,
+      121,
+      133,
+      142,
+      159,
+      168
+    ]
+  },
+  {
+    "filename": "tests/viewer-project-views.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      15,
+      37,
+      69
+    ]
+  },
+  {
+    "filename": "tests/viewer-repo-commits.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      17,
+      30,
+      38
+    ]
+  },
+  {
+    "filename": "tests/viewer-static.test.ts",
+    "lineNumbersPerFile": [
+      19,
+      27
+    ]
+  },
+  {
+    "filename": "tests/viewer-test-helpers.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_ladder.test.ts",
+    "lineNumbersPerFile": [
+      66,
+      73,
+      89,
+      112
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      34,
+      38,
+      40,
+      45,
+      56
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_defaults.test.ts",
+    "lineNumbersPerFile": [
+      3,
+      12,
+      44,
+      67
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_file.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      23,
+      28,
+      61,
+      70,
+      77,
+      82
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_refs.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      16,
+      20,
+      32,
+      88
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_route.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      17,
+      40,
+      49,
+      60,
+      76
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_sessions.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      15,
+      27,
+      123
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layer1_settings.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_layered.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      94
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_prescan.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      27,
+      72
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_projects.test.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "tests/viewer_api_sources.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      31,
+      36,
+      49
+    ]
+  },
+  {
+    "filename": "tests/viewer_server.test.ts",
+    "lineNumbersPerFile": [
+      1,
+      11,
+      56
+    ]
+  },
+  {
+    "filename": "tests/vocabulary.test.ts",
+    "lineNumbersPerFile": [
+      16,
+      37,
+      48,
+      61,
+      82,
+      97,
+      104
+    ]
+  },
+  {
+    "filename": "tests/webapp-dom-test-helpers.ts",
+    "lineNumbersPerFile": [
+      1,
+      65,
+      77,
+      98,
+      119,
+      160,
+      186
+    ]
+  },
+  {
+    "filename": "webapp/app-baseline-question.ts",
+    "lineNumbersPerFile": [
+      1,
+      14
+    ]
+  },
+  {
+    "filename": "webapp/app-choices.ts",
+    "lineNumbersPerFile": [
+      1,
+      37,
+      42,
+      63
+    ]
+  },
+  {
+    "filename": "webapp/app-consent-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      14,
+      30,
+      34,
+      42,
+      50,
+      76,
+      82
+    ]
+  },
+  {
+    "filename": "webapp/app-console.ts",
+    "lineNumbersPerFile": [
+      7,
+      20,
+      55,
+      60,
+      64,
+      68,
+      75,
+      85,
+      108,
+      149,
+      166
+    ]
+  },
+  {
+    "filename": "webapp/app-dom.ts",
+    "lineNumbersPerFile": [
+      3,
+      11,
+      23
+    ]
+  },
+  {
+    "filename": "webapp/app-drawer.ts",
+    "lineNumbersPerFile": [
+      12,
+      22,
+      45,
+      58
+    ]
+  },
+  {
+    "filename": "webapp/app-fetch.ts",
+    "lineNumbersPerFile": [
+      8,
+      37,
+      69,
+      78,
+      83,
+      86,
+      93,
+      97,
+      111,
+      113,
+      133,
+      139,
+      158,
+      165
+    ]
+  },
+  {
+    "filename": "webapp/app-header.ts",
+    "lineNumbersPerFile": [
+      1,
+      9,
+      15,
+      29,
+      32,
+      35,
+      53,
+      73,
+      91,
+      100,
+      111,
+      114,
+      140
+    ]
+  },
+  {
+    "filename": "webapp/app-mode-select.ts",
+    "lineNumbersPerFile": [
+      1,
+      49
+    ]
+  },
+  {
+    "filename": "webapp/app-ndjson.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "webapp/app-paths-project.ts",
+    "lineNumbersPerFile": [
+      34,
+      48,
+      67,
+      83,
+      101,
+      132,
+      134,
+      153,
+      169,
+      184,
+      187,
+      204
+    ]
+  },
+  {
+    "filename": "webapp/app-paths-sources.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      16,
+      38,
+      61
+    ]
+  },
+  {
+    "filename": "webapp/app-paths-summary.ts",
+    "lineNumbersPerFile": [
+      1,
+      71,
+      83,
+      94,
+      105
+    ]
+  },
+  {
+    "filename": "webapp/app-paths-wizard.ts",
+    "lineNumbersPerFile": [
+      1,
+      56,
+      68,
+      92,
+      128,
+      143,
+      158,
+      168,
+      193
+    ]
+  },
+  {
+    "filename": "webapp/app-router.ts",
+    "lineNumbersPerFile": [
+      54
+    ]
+  },
+  {
+    "filename": "webapp/app-routes.ts",
+    "lineNumbersPerFile": [
+      14,
+      32
+    ]
+  },
+  {
+    "filename": "webapp/app.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      58,
+      72
+    ]
+  },
+  {
+    "filename": "webapp/debug-app.ts",
+    "lineNumbersPerFile": [
+      1,
+      32,
+      45,
+      55,
+      73,
+      91
+    ]
+  },
+  {
+    "filename": "webapp/highlight.ts",
+    "lineNumbersPerFile": [
+      1,
+      27
+    ]
+  },
+  {
+    "filename": "webapp/inspector-json.ts",
+    "lineNumbersPerFile": [
+      1,
+      33,
+      49,
+      59,
+      70,
+      96,
+      115
+    ]
+  },
+  {
+    "filename": "webapp/inspector-snapshots.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      15,
+      43
+    ]
+  },
+  {
+    "filename": "webapp/inspector-text.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      17,
+      43
+    ]
+  },
+  {
+    "filename": "webapp/inspector.ts",
+    "lineNumbersPerFile": [
+      1,
+      28,
+      41,
+      111,
+      116,
+      123,
+      137,
+      145,
+      148,
+      152,
+      154,
+      180
+    ]
+  },
+  {
+    "filename": "webapp/layer1-drawer.ts",
+    "lineNumbersPerFile": [
+      1,
+      10,
+      18,
+      20,
+      41,
+      50,
+      53,
+      73
+    ]
+  },
+  {
+    "filename": "webapp/layer1-file-view.ts",
+    "lineNumbersPerFile": [
+      3,
+      5,
+      10,
+      12,
+      27,
+      37
+    ]
+  },
+  {
+    "filename": "webapp/layer1-filenav-resize.ts",
+    "lineNumbersPerFile": [
+      75
+    ]
+  },
+  {
+    "filename": "webapp/layer1-filenav.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      19,
+      24,
+      29,
+      36,
+      38,
+      40,
+      42,
+      54,
+      56
+    ]
+  },
+  {
+    "filename": "webapp/layer1-filter.ts",
+    "lineNumbersPerFile": [
+      1,
+      21,
+      51,
+      60
+    ]
+  },
+  {
+    "filename": "webapp/layer1-find-file.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      33,
+      47,
+      52,
+      68,
+      111
+    ]
+  },
+  {
+    "filename": "webapp/layer1-jump-buckets.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      11,
+      21,
+      26
+    ]
+  },
+  {
+    "filename": "webapp/layer1-leader-hover.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      19,
+      27,
+      40
+    ]
+  },
+  {
+    "filename": "webapp/layer1-leader-visibility.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      5,
+      15,
+      18,
+      21,
+      29,
+      36,
+      50,
+      59,
+      67,
+      74
+    ]
+  },
+  {
+    "filename": "webapp/layer1-minimap.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9,
+      12,
+      22,
+      24,
+      30,
+      48,
+      61,
+      69,
+      80,
+      91,
+      113,
+      116,
+      126,
+      135
+    ]
+  },
+  {
+    "filename": "webapp/layer1-path-picker.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      12,
+      51,
+      60,
+      70,
+      98
+    ]
+  },
+  {
+    "filename": "webapp/layer1-progress.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      14,
+      32,
+      56,
+      76
+    ]
+  },
+  {
+    "filename": "webapp/layer1-ranges.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      9,
+      41,
+      61,
+      69,
+      75,
+      80
+    ]
+  },
+  {
+    "filename": "webapp/layer1-refs.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      21,
+      43,
+      54,
+      58,
+      78,
+      82,
+      86
+    ]
+  },
+  {
+    "filename": "webapp/layer1-ruler-axis.ts",
+    "lineNumbersPerFile": [
+      14,
+      17,
+      27,
+      32,
+      52,
+      84,
+      93
+    ]
+  },
+  {
+    "filename": "webapp/layer1-ruler-rows.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      5,
+      7,
+      15,
+      24,
+      36,
+      44,
+      52,
+      66
+    ]
+  },
+  {
+    "filename": "webapp/layer1-sessions.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      11,
+      13,
+      17,
+      27,
+      49,
+      61,
+      84,
+      102,
+      115,
+      128
+    ]
+  },
+  {
+    "filename": "webapp/layer1-settings.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      8,
+      20,
+      27,
+      62,
+      74,
+      83,
+      100
+    ]
+  },
+  {
+    "filename": "webapp/layer1-source-paths.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      7,
+      26,
+      35,
+      43,
+      50,
+      65,
+      81
+    ]
+  },
+  {
+    "filename": "webapp/layer1-sources.ts",
+    "lineNumbersPerFile": [
+      1,
+      8,
+      20,
+      29,
+      45,
+      52,
+      65
+    ]
+  },
+  {
+    "filename": "webapp/layer1-tick-files.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      11,
+      18,
+      21,
+      24,
+      29,
+      36,
+      48,
+      62,
+      74,
+      93,
+      105,
+      118
+    ]
+  },
+  {
+    "filename": "webapp/layer1-tie-groups.ts",
+    "lineNumbersPerFile": [
+      3,
+      5,
+      18,
+      32
+    ]
+  },
+  {
+    "filename": "webapp/layer1-time-toggle.ts",
+    "lineNumbersPerFile": [
+      1,
+      17
+    ]
+  },
+  {
+    "filename": "webapp/layer1-widgets.ts",
+    "lineNumbersPerFile": [
+      17,
+      26,
+      39
+    ]
+  },
+  {
+    "filename": "webapp/layer1-wire.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      14,
+      31
+    ]
+  },
+  {
+    "filename": "webapp/layer1-zoom.ts",
+    "lineNumbersPerFile": [
+      1,
+      7,
+      15,
+      20,
+      26
+    ]
+  },
+  {
+    "filename": "webapp/layered-app.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      34,
+      41,
+      45,
+      69,
+      83,
+      93,
+      98,
+      106,
+      128,
+      138,
+      147,
+      160,
+      169,
+      185
+    ]
+  },
+  {
+    "filename": "webapp/views/conversation.ts",
+    "lineNumbersPerFile": [
+      1,
+      12,
+      21,
+      48,
+      53,
+      139
+    ]
+  },
+  {
+    "filename": "webapp/views/details-baseline.ts",
+    "lineNumbersPerFile": [
+      1,
+      17
+    ]
+  },
+  {
+    "filename": "webapp/views/details-diff.ts",
+    "lineNumbersPerFile": [
+      1,
+      44,
+      69,
+      81,
+      152,
+      167,
+      186,
+      218
+    ]
+  },
+  {
+    "filename": "webapp/views/details-find-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      3,
+      6,
+      29
+    ]
+  },
+  {
+    "filename": "webapp/views/details-find.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      61,
+      71,
+      85
+    ]
+  },
+  {
+    "filename": "webapp/views/details-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      22,
+      27,
+      37,
+      41,
+      44,
+      51,
+      57,
+      79,
+      101,
+      113,
+      123,
+      145,
+      155,
+      173
+    ]
+  },
+  {
+    "filename": "webapp/views/details-revision-cards.ts",
+    "lineNumbersPerFile": [
+      1,
+      48,
+      53
+    ]
+  },
+  {
+    "filename": "webapp/views/details-revision-view.ts",
+    "lineNumbersPerFile": [
+      1,
+      57,
+      60,
+      73,
+      101,
+      115,
+      117,
+      123,
+      148,
+      193
+    ]
+  },
+  {
+    "filename": "webapp/views/details-script-run-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      20,
+      29
+    ]
+  },
+  {
+    "filename": "webapp/views/details-script-run.ts",
+    "lineNumbersPerFile": [
+      1,
+      29,
+      60
+    ]
+  },
+  {
+    "filename": "webapp/views/diff-vs-base-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      49,
+      111,
+      114,
+      125,
+      157,
+      160,
+      163
+    ]
+  },
+  {
+    "filename": "webapp/views/diff-vs-base.ts",
+    "lineNumbersPerFile": [
+      1,
+      33,
+      52,
+      73
+    ]
+  },
+  {
+    "filename": "webapp/views/download.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "webapp/views/file-history-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      9,
+      14,
+      19,
+      35,
+      50,
+      56,
+      71,
+      74,
+      79,
+      99,
+      109
+    ]
+  },
+  {
+    "filename": "webapp/views/project.ts",
+    "lineNumbersPerFile": [
+      1,
+      26,
+      58,
+      65,
+      81,
+      105
+    ]
+  },
+  {
+    "filename": "webapp/views/projects.ts",
+    "lineNumbersPerFile": [
+      1,
+      15
+    ]
+  },
+  {
+    "filename": "webapp/views/raw-lines.ts",
+    "lineNumbersPerFile": [
+      1,
+      10,
+      17,
+      25
+    ]
+  },
+  {
+    "filename": "webapp/views/reconstruction-coverage.ts",
+    "lineNumbersPerFile": [
+      1,
+      23,
+      48,
+      60,
+      70,
+      84
+    ]
+  },
+  {
+    "filename": "webapp/views/reconstruction-render.ts",
+    "lineNumbersPerFile": [
+      1,
+      14,
+      32,
+      48
+    ]
+  },
+  {
+    "filename": "webapp/views/sidebar-coverage.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      18,
+      26,
+      38
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-baseline-host.ts",
+    "lineNumbersPerFile": [
+      1,
+      11,
+      25,
+      47
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-changes.ts",
+    "lineNumbersPerFile": [
+      1,
+      16,
+      19,
+      22,
+      30,
+      40,
+      54,
+      84,
+      117,
+      137,
+      163,
+      168,
+      190
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-commit-files.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      14,
+      63,
+      67
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-file-badges.ts",
+    "lineNumbersPerFile": [
+      1,
+      6,
+      9,
+      35,
+      52,
+      61,
+      67
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-file-tree.ts",
+    "lineNumbersPerFile": [
+      1,
+      17,
+      19,
+      23,
+      43,
+      48,
+      60,
+      86,
+      113,
+      143
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-filter-model.ts",
+    "lineNumbersPerFile": [
+      1,
+      45,
+      59,
+      73,
+      98,
+      119,
+      135,
+      147,
+      155
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-line-nodes.ts",
+    "lineNumbersPerFile": [
+      1,
+      9,
+      21,
+      28,
+      55
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-node-derive.ts",
+    "lineNumbersPerFile": [
+      1,
+      13,
+      34,
+      41
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-nodes.ts",
+    "lineNumbersPerFile": [
+      1,
+      28,
+      53,
+      64,
+      69,
+      98,
+      131,
+      150,
+      161,
+      173,
+      187,
+      190
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-picks.ts",
+    "lineNumbersPerFile": [
+      1,
+      5,
+      16,
+      35,
+      66,
+      79
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-context.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-filterbar.ts",
+    "lineNumbersPerFile": [
+      1,
+      41,
+      46,
+      56,
+      80,
+      126,
+      133
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-row-cells.ts",
+    "lineNumbersPerFile": [
+      1,
+      37,
+      44,
+      52,
+      90,
+      129
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-rows.ts",
+    "lineNumbersPerFile": [
+      1,
+      43,
+      47,
+      49,
+      94,
+      98,
+      109,
+      118
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-selectbar.ts",
+    "lineNumbersPerFile": [
+      1
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-render-selection.ts",
+    "lineNumbersPerFile": [
+      1,
+      29,
+      45,
+      54,
+      62,
+      80,
+      101
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline-types.ts",
+    "lineNumbersPerFile": [
+      47,
+      58,
+      84,
+      89,
+      100,
+      117,
+      201,
+      203
+    ]
+  },
+  {
+    "filename": "webapp/views/timeline.ts",
+    "lineNumbersPerFile": [
+      165,
+      204
+    ]
+  }
+]

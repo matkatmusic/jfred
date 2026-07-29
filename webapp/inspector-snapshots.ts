@@ -1,5 +1,4 @@
-// Snapshot drawer + blob-presence probes, split from inspector.ts (task 115). Presence is
-// probed once per browser session and cached; the drawer splits the Details pane JSON/blob.
+// Snapshot drawer + blob-presence probes, split from inspector.ts (task 115). Presence is probed once per browser session and cached; the drawer splits the Details pane JSON/blob.
 
 import { fetchJson } from "./app-fetch.ts";
 import {
@@ -10,12 +9,10 @@ import {
 } from "./inspector-links.ts";
 import { el } from "./inspector-json.ts";
 
-// Whether each probed blob is on disk, keyed "<session>|<blobName>" — fetched once per
-// browser session (a blob file never changes once written).
+// Whether each probed blob is on disk, keyed "<session>|<blobName>" — fetched once per browser session (a blob file never changes once written).
 export const blobPresenceByKey = new Map<string, boolean | undefined>();
 
-// Bumped at every showLine render; a settled presence probe re-renders ONLY when the pane
-// still shows the line it probed for (its captured count is still the current one).
+// Bumped at every showLine render; a settled presence probe re-renders ONLY when the pane still shows the line it probed for (its captured count is still the current one).
 let showLineRenderCount = 0;
 
 // Advance the render counter for a new showLine render and return the new count.
@@ -43,8 +40,7 @@ export function buildSnapshotDrawer(pane: HTMLElement, entry: WireTrackedBackup,
     return drawer;
 }
 
-// Fetch each named blob's presence, record it, and re-show the SAME line once every probe
-// settles — but only when the pane still shows the line the probes were started for.
+// Fetch each named blob's presence, record it, and re-show the SAME line once every probe settles — but only when the pane still shows the line the probes were started for.
 function fetchBlobPresenceAndRerenderLine(unprobedNames: string[], sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
     Promise.all(unprobedNames.map(async (name) => {
         const probed = await fetchJson(computeBlobRequestUrl(sessionId, name)) as WireBlobResponse;

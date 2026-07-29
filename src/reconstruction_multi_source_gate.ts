@@ -1,6 +1,4 @@
-// The §a content-agreement gate (spec S5a, design plans/166-multi-source-design.md): does the
-// joining source's first content evidence for a file match the state the already-merged timeline
-// reconstructs at that instant? Split from reconstruction_multi_source_join.ts (250-line cap).
+// §a content-agreement gate for multi-source joins.
 
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -13,9 +11,7 @@ import { lastRevisionAtOrBefore, lastRevisionStrictlyBefore, linesTextOf } from 
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { EventKind, FailureScope } from "./structures/vocabulary.ts";
 
-// A single trailing newline stripped — the engine's line model drops a file's final newline
-// (a trailing "\n" does not create an empty line entry), so evidence text must be compared
-// in the same normal form.
+// Engine drops final newline; evidence must match that form.
 function stripSingleTrailingNewline(text: string): string {
     if (text.endsWith("\n")) {
         return text.slice(0, -1);
@@ -35,10 +31,8 @@ function extractHunkPreSideText(hunk: StructuredPatchHunk): string {
     return preSideLines.join("\n");
 }
 
-// Evidence channels implemented: Edit originalFile (exact pre-edit disk → strict equality) and
-// Edit hunk pre-side containment.
-// ponytail: the design's third channel (file-history backup blob) is not read yet — a non-Edit
-// first evidence refuses the join; add the blob channel when a fixture needs it.
+// Evidence channels: Edit originalFile (strict equality) and hunk pre-side containment.
+// ponytail: the design's third channel (file-history backup blob) is not read yet — a non-Edit first evidence refuses the join; add the blob channel when a fixture needs it.
 export function checkJoinContentAgreement(
     earlierRecords: TranscriptRecord[],
     primaryPath: Path,
@@ -67,11 +61,7 @@ function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolea
     return edit.hunks.every((hunk) => stateText.includes(extractHunkPreSideText(hunk)));
 }
 
-// §c4 (spec S5, task 176) — conflict notes, not errors: after a join, every edit on the joined
-// path whose pre-state evidence disagrees with the merged timeline's state strictly before it
-// surfaces as a task-119 health-sink conflict note; reconstruction continues untouched. A
-// mismatch the engine already explains (a backup-seeded stale base reconstructs an agreeing
-// prior revision) stays silent.
+// §c4: surface pre-state mismatches on joined paths as health-sink conflict notes.
 export function noteJoinedPathConflicts(
     mergedRecords: TranscriptRecord[],
     primaryPath: Path,

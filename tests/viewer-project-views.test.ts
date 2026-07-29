@@ -1,6 +1,4 @@
-// Tests for the conversation, project, and projects-listing view models
-// (webapp/views/conversation.ts, project.ts, projects.ts — plain ES modules, DOM-free).
-// See tests/viewer-test-helpers.ts for the fixture rationale.
+// Tests for the conversation, project, and projects-listing view models (webapp/views/conversation.ts, project.ts, projects.ts — plain ES modules, DOM-free).  See tests/viewer-test-helpers.ts for the fixture rationale.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,9 +12,7 @@ import { S19_JSONL } from "./fixtures.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 
 test("test_conversation_viewmodel_shows_scenario_turns", () => {
-    // Scenario: the conversation view model's turns are exactly document.messages (genuine user
-    // prompts + text-bearing assistant replies), in order — and the first user prompt's text
-    // matches the raw JSONL line, so the view model can't silently drop or reorder turns.
+    // Scenario: the conversation view model's turns are exactly document.messages (genuine user prompts + text-bearing assistant replies), in order — and the first user prompt's text matches the raw JSONL line, so the view model can't silently drop or reorder turns.
     const document = buildS19ClientDocument();
     const viewModel = buildConversationViewModel(document);
     const turns = viewModel.entries.filter((entry: any) => entry.kind === "message");
@@ -38,8 +34,7 @@ test("test_conversation_viewmodel_shows_scenario_turns", () => {
 });
 
 test("test_conversation_viewmodel_interleaves_collapsed_stubs", () => {
-    // Scenario: between two adjacent turns, the view model lists stub entries whose uuids are
-    // exactly the lineVerdicts uuids between those messages' lines.
+    // Scenario: between two adjacent turns, the view model lists stub entries whose uuids are exactly the lineVerdicts uuids between those messages' lines.
     const document = buildS19ClientDocument();
     const viewModel = buildConversationViewModel(document);
     // find the first pair of adjacent message entries with at least one stub between them.
@@ -71,10 +66,7 @@ test("test_conversation_viewmodel_interleaves_collapsed_stubs", () => {
 });
 
 test("test_filterProjectsByName_matches_case_insensitive_substring", () => {
-    // Scenario: filtering a project listing by a mixed-case fragment keeps exactly
-    // the projects whose name contains that fragment, ignoring case.
-    // Steps:
-    // a listing holds three projects with distinct names.
+    // Scenario: filtering a project listing by a mixed-case fragment keeps exactly the projects whose name contains that fragment, ignoring case.  Steps: a listing holds three projects with distinct names.
     const projectListing = [{ name: "alpha-app" }, { name: "Beta-Tool" }, { name: "gamma-app" }];
     // filter with a fragment that case-insensitively matches only the second project.
     const filteredProjects = filterProjectsByName(projectListing, "beta");
@@ -83,9 +75,7 @@ test("test_filterProjectsByName_matches_case_insensitive_substring", () => {
 });
 
 test("test_filterProjectsByName_returns_all_projects_for_empty_filter", () => {
-    // Scenario: an empty filter string keeps the whole listing, in order.
-    // Steps:
-    // a listing holds two projects.
+    // Scenario: an empty filter string keeps the whole listing, in order.  Steps: a listing holds two projects.
     const projectListing = [{ name: "alpha-app" }, { name: "Beta-Tool" }];
     // filter with the empty string (the input's initial state).
     const filteredProjects = filterProjectsByName(projectListing, "");
@@ -94,8 +84,7 @@ test("test_filterProjectsByName_returns_all_projects_for_empty_filter", () => {
 });
 
 test("test_file_state_viewmodel_unifies_multi_jsonl", () => {
-    // Scenario: s53 (two concurrent-agent transcripts) — the project view model's files-touched
-    // list covers files originating from BOTH JSONLs.
+    // Scenario: s53 (two concurrent-agent transcripts) — the project view model's files-touched list covers files originating from BOTH JSONLs.
     const paths = jsonlPathsForScenario("s53");
     const perTranscriptTargets = paths.map((path) =>
         JSON.parse(JSON.stringify(buildProjectDocument([path], undefined)))

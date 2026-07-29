@@ -1,10 +1,4 @@
-// Right-pane JSON inspector: the selected JSONL line pretty-printed as actual JSON text
-// (curly braces and all), syntax-highlighted — the presentation the legacy JFReD diff viewer
-// used (web-shared/json-inspector.js), rebuilt without innerHTML: the text is tokenized and
-// appended as text nodes + spans, so page content can never inject markup.
-// Prev/Next walk the transcript line by line; uuid and toolu_… string values are jump-links
-// to the linked line (a uuid jumps to the record it names; a tool id jumps to its use/result
-// counterpart). Navigation also notifies the calling view so it can scroll/highlight along.
+// Right-pane JSON inspector: the selected JSONL line pretty-printed as actual JSON text (curly braces and all), syntax-highlighted — the presentation the legacy JFReD diff viewer used (web-shared/json-inspector.js), rebuilt without innerHTML: the text is tokenized and appended as text nodes + spans, so page content can never inject markup.  Prev/Next walk the transcript line by line; uuid and toolu_… string values are jump-links to the linked line (a uuid jumps to the record it names; a tool id jumps to its use/result counterpart). Navigation also notifies the calling view so it can scroll/highlight along.
 
 import { fetchJson, peekCachedDocument } from "./app-fetch.ts";
 import { parseRouteSegments } from "./app-routes.ts";
@@ -31,9 +25,7 @@ import {
 import { extractReadableText } from "./inspector-text.ts";
 import { renderCodeInto } from "./highlight.ts";
 
-// Whether the inspector body renders formatted text instead of highlighted JSON. Module-level
-// so the choice sticks across lines and re-opens for the browser session (same pattern as
-// diff-vs-base's diffDisplayMode). ponytail: session-only; localStorage if ever wanted.
+// Whether the inspector body renders formatted text instead of highlighted JSON. Module-level so the choice sticks across lines and re-opens for the browser session (same pattern as diff-vs-base's diffDisplayMode). ponytail: session-only; localStorage if ever wanted.
 let inspectorShowsFormattedText = false;
 
 // item 66: the collapse-rail is retired — the fork layout's #split-td splitter resizes the
@@ -46,8 +38,7 @@ let inspectorShowsFormattedText = false;
 //     button.title = collapsed ? "Expand inspector" : "Collapse inspector";
 // }
 
-// Show the Details pane without touching its contents — the diff/file modes (views/details.ts)
-// reveal first, then paint their own columns.
+// Show the Details pane without touching its contents — the diff/file modes (views/details.ts) reveal first, then paint their own columns.
 export function revealDetailsPane(): void {
     document.getElementById("inspector")!.classList.remove("hidden");
 }
@@ -117,24 +108,19 @@ function buildHighlightedJsonBody(
     );
 }
 
-// task 141: the nav counter, 0-based with its inclusive index range — "line 0 / 98" read as
-// index-over-count. 0-based stays the app-wide convention (timeline /at/<line> anchors and the
-// rev cards' "L:n" labels are raw-line indexes).
+// task 141: the nav counter, 0-based with its inclusive index range — "line 0 / 98" read as index-over-count. 0-based stays the app-wide convention (timeline /at/<line> anchors and the rev cards' "L:n" labels are raw-line indexes).
 export function formatInspectorLineCounter(lineIndex: number, lineCount: number): string {
     return `line ${lineIndex} of 0–${lineCount - 1}`;
 }
 
-// task 142: Prev/Next enablement mirrors whether a jump target exists — index 0 has no Prev,
-// the last raw line has no Next (the buttons previously stayed enabled and clamped silently).
+// task 142: Prev/Next enablement mirrors whether a jump target exists — index 0 has no Prev, the last raw line has no Next (the buttons previously stayed enabled and clamped silently).
 export function computeInspectorNavDisabledStates(lineIndex: number, lineCount: number): { prevIsDisabled: boolean; nextIsDisabled: boolean } {
     return { prevIsDisabled: lineIndex === 0, nextIsDisabled: lineIndex === lineCount - 1 };
 }
 
 // Assemble the Prev / line-counter / Next navigation row plus any tool-flow buttons.
 function buildInspectorNavigationRow(clamped: number, rawLines: string[], showLine: (line: number) => void, toolButtons: HTMLElement[]): HTMLElement {
-    // task 142: the row is rebuilt on every showLine, so the disabled states re-compute per
-    // line. Property assignment, not an el() attribute — setAttribute("disabled", "false")
-    // would still disable.
+    // task 142: the row is rebuilt on every showLine, so the disabled states re-compute per line. Property assignment, not an el() attribute — setAttribute("disabled", "false") would still disable.
     const disabledStates = computeInspectorNavDisabledStates(clamped, rawLines.length);
     const prevButton = el("button", { class: "row-btn", text: "◀ Prev", onclick: () => showLine(clamped - 1) }) as HTMLButtonElement;
     prevButton.disabled = disabledStates.prevIsDisabled;
@@ -148,8 +134,7 @@ function buildInspectorNavigationRow(clamped: number, rawLines: string[], showLi
     ]);
 }
 
-// Open the inspector on `line` of a transcript. onJumpToLine (optional) is called with every
-// shown line so the calling view can scroll/highlight in step; it must not reopen the inspector.
+// Open the inspector on `line` of a transcript. onJumpToLine (optional) is called with every shown line so the calling view can scroll/highlight in step; it must not reopen the inspector.
 export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLine }: {
     jsonlName: string;
     rawLines: string[];
@@ -157,26 +142,20 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
     onJumpToLine?: (line: number) => void;
 }) {
     const maps = computeLinkMaps(rawLines);
-    // Revision links resolve through the project's already-cached unified document — never a
-    // build. On routes with no cached document, changeId values simply render unlinked.
+    // Revision links resolve through the project's already-cached unified document — never a build. On routes with no cached document, changeId values simply render unlinked.
     const project = findCurrentProject();
     const filesTouched = project === undefined ? [] : (peekCachedDocument(project)?.filesTouched ?? []) as WireFileHistory[];
-    // Revision links navigate: the router renders file history as a drawer over the timeline
-    // (renderSubRouteDrawer) and the URL reflects it, so revision links are shareable.
+    // Revision links navigate: the router renders file history as a drawer over the timeline (renderSubRouteDrawer) and the URL reflects it, so revision links are shareable.
     const openRevision = (revisionLink: WireRevisionLink) => {
         location.hash = computeRevisionLinkRoute(project!, revisionLink);
     };
-    // The shown transcript's session id, by the timeline's file-naming convention: the JSONL
-    // is named "<sessionId>.jsonl". Blob presence probes and snapshot reads are owner-keyed
-    // on it (a blob name only means something under its owning session's dir).
+    // The shown transcript's session id, by the timeline's file-naming convention: the JSONL is named "<sessionId>.jsonl". Blob presence probes and snapshot reads are owner-keyed on it (a blob name only means something under its owning session's dir).
     const sessionId = jsonlName.replace(/\.jsonl$/, "");
-    // Raise (or refill) the bottom snapshot drawer with one blob's verbatim content, splitting
-    // the Details pane: JSON above, blob below.
+    // Raise (or refill) the bottom snapshot drawer with one blob's verbatim content, splitting the Details pane: JSON above, blob below.
     const openSnapshotDrawer = async (blobName: string, entry: WireTrackedBackup) => {
         const result = await fetchJson(computeBlobRequestUrl(sessionId, blobName)) as WireBlobResponse;
         const pane = document.getElementById("inspector")!;
-        // item 66: was `pane.querySelector(".inspector-content")` — the content column is now
-        // the static #details-right-body skeleton element.
+        // item 66: was `pane.querySelector(".inspector-content")` — the content column is now the static #details-right-body skeleton element.
         const content = document.getElementById("details-right-body");
         if (content === null) {
             return;
@@ -198,9 +177,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
         } catch {
             value = rawLines[clamped]!;
         }
-        // Probe the on-disk presence of this record's tracked backups (unknowns only), then
-        // re-render the SAME line once every probe settles — progressive enhancement: the
-        // first paint shows those tokens plain, never a flicker loop.
+        // Probe the on-disk presence of this record's tracked backups (unknowns only), then re-render the SAME line once every probe settles — progressive enhancement: the first paint shows those tokens plain, never a flicker loop.
         const trackedBackups = (value as WireRecord | null)?.snapshot?.trackedFileBackups;
         if (trackedBackups !== undefined) {
             probeTrackedBackupPresence(trackedBackups, sessionId, renderCountAtStart, showLine, clamped);

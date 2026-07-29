@@ -1,5 +1,4 @@
-// Diff-vs-Base view (#/project/<name>/file/<path>/vsbase): the file's first revision against a
-// selected revision. Side-by-side/inline toggle, revision selector with URL sync, line-number gutters.
+// Diff-vs-Base view (#/project/<name>/file/<path>/vsbase): the file's first revision against a selected revision. Side-by-side/inline toggle, revision selector with URL sync, line-number gutters.
 
 import { el as elFromApp } from "../app-dom.ts";
 import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
@@ -31,10 +30,7 @@ const el = elFromApp as (
 // Minimal wire shape of the revisions this view reads off the file-history view model.
 type WireRevisionSummary = { kind: string };
 
-// localStorage access is guarded: the node test runner imports this module with no DOM. The
-// guard checks `window`, not `localStorage` — on Node 26 even `typeof localStorage` (and a
-// try/catch around it) fires the ExperimentalWarning, because touching the global getter at
-// all is what warns (item 36a).
+// localStorage access is guarded: the node test runner imports this module with no DOM. The guard checks `window`, not `localStorage` — on Node 26 even `typeof localStorage` (and a try/catch around it) fires the ExperimentalWarning, because touching the global getter at all is what warns (item 36a).
 function readStoredDiffMode(): string | null | undefined {
     // if (typeof localStorage === "undefined") {  // item 36a: typeof localStorage itself warns
     if (typeof window === "undefined") {
@@ -53,9 +49,7 @@ function writeStoredDiffMode(mode: DiffDisplayModeValue): void {
 
 let diffDisplayMode = resolveInitialDiffDisplayMode(readStoredDiffMode());
 
-// Inline view as a 3-column grid: old number | new number | raw unified line (item 40); the
-// text column wraps instead of overflowing the pane (item 39). Hunk-header rows span all
-// columns as muted "@@ -a,b +c,d @@" text, matching the split view (item 36c).
+// Inline view as a 3-column grid: old number | new number | raw unified line (item 40); the text column wraps instead of overflowing the pane (item 39). Hunk-header rows span all columns as muted "@@ -a,b +c,d @@" text, matching the split view (item 36c).
 function renderInlineDiffLines(pane: HTMLElement, diffText: string): void {
     // item 40: the un-numbered per-line divs, replaced by the numbered grid below.
     // for (const line of diffText.split("\n")) {
@@ -76,9 +70,7 @@ function renderInlineDiffLines(pane: HTMLElement, diffText: string): void {
     pane.append(grid);
 }
 
-// The split grid: 4 columns (old number | old text | new number | new text). Full rows span
-// all columns; pair rows emit a gutter + text cell per side (empty divs keep the grid aligned
-// when one side is absent).
+// The split grid: 4 columns (old number | old text | new number | new text). Full rows span all columns; pair rows emit a gutter + text cell per side (empty divs keep the grid aligned when one side is absent).
 function appendSplitCell(grid: HTMLElement, cell: { lineNumber?: number; lineClass: string; text: string } | undefined): void {
     if (cell === undefined) {
         grid.append(el("div", { class: "diff-line-num" }), el("div", {}));
@@ -158,8 +150,7 @@ export async function renderDiffVsBaseView(
         if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
         renderDiffText(diffPane, await fetchText(`/api/diff?${params}`));
     };
-    // URL sync lives in the listener, not loadDiff, so the initial render never rewrites a bare
-    // /vsbase URL.
+    // URL sync lives in the listener, not loadDiff, so the initial render never rewrites a bare /vsbase URL.
     revisionSelect.addEventListener("change", async () => {
         await loadDiff();
         history.replaceState(null, "", `${routeToFileHistory(project, target)}/vsbase/${Number(revisionSelect.value) + 1}`);

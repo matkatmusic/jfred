@@ -1,8 +1,6 @@
-// The task-297 saved-project settings file: a missing or corrupt one is "nothing saved", and a save
-// is read-modify-write so a second project never evicts the first.
+// The task-297 saved-project settings file: a missing or corrupt one is "nothing saved", and a save is read-modify-write so a second project never evicts the first.
 //
-// In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here
-// may touch the real home.
+// In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here may touch the real home.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -59,8 +57,7 @@ test("test_layer1_settings_save_then_read_round_trips_the_project", () => {
 });
 
 test("test_layer1_settings_second_project_leaves_the_first_intact", () => {
-    // Scenario: read-modify-write — saving project B must not drop project A's entry, only move
-    // lastDir onto B.
+    // Scenario: read-modify-write — saving project B must not drop project A's entry, only move lastDir onto B.
     redirectSettingsToFreshFile();
     const first = makeProjectSettings("/tmp/first-app");
     const second = makeProjectSettings("/tmp/second-app");

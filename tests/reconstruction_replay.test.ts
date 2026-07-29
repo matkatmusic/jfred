@@ -111,8 +111,7 @@ test("test_overwrite_event_against_present_file_is_an_overwrite", () => {
     assert.equal(revisions[1]!.lines[0]!.values[0]!.line, "replaced content");
 });
 
-// An unsupported event kind no longer kills the file: replay survives it as an
-// unrecoverable placeholder revision naming the kind in its reason.
+// An unsupported event kind no longer kills the file: replay survives it as an unrecoverable placeholder revision naming the kind in its reason.
 test("test_replayEvents_emits_unrecoverable_placeholder_when_an_event_kind_is_unsupported", () => {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");
@@ -130,8 +129,7 @@ test("test_replayEvents_emits_unrecoverable_placeholder_when_an_event_kind_is_un
     assert.equal(revisions[1]!.timestamp, t1);
 });
 
-// The placeholder carries the previous revision's lines forward (a believed state,
-// not real content), so a later valid event still replays against it.
+// The placeholder carries the previous revision's lines forward (a believed state, not real content), so a later valid event still replays against it.
 test("test_unrecoverable_placeholder_carries_previous_lines_forward", () => {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");

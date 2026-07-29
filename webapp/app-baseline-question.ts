@@ -1,9 +1,4 @@
-// The task-56 pre-baseline question dialog: when a project's reveng-paths.json supplies a
-// base commit (item 46), the server asks — before any build — whether file states that
-// precede that commit should be reconstructed at all. "No" makes the baseline commit the
-// timeline's first shown step (the engine drops the work the beacon supersedes); "Yes"
-// reconstructs exactly as before. The choice is remembered per project for this browser
-// session only, mirroring the script-consent dialog (app-consent.ts).
+// The task-56 pre-baseline question dialog: when a project's reveng-paths.json supplies a base commit (item 46), the server asks — before any build — whether file states that precede that commit should be reconstructed at all. "No" makes the baseline commit the timeline's first shown step (the engine drops the work the beacon supersedes); "Yes" reconstructs exactly as before. The choice is remembered per project for this browser session only, mirroring the script-consent dialog (app-consent.ts).
 
 import { el } from "./app-dom.ts";
 import { storeBaselineChoice } from "./app-choices.ts";
@@ -16,8 +11,7 @@ export function formatShortCommitHash(commitHash: string): string {
 }
 
 export function renderBaselineQuestionDialog(container: HTMLElement, project: string, question: WireBaselineQuestion): void {
-    // Mirrors the consent dialog's decide: store the answer, re-render the route — the
-    // re-issued /api/document request carries the choice as the preBaseline param.
+    // Mirrors the consent dialog's decide: store the answer, re-render the route — the re-issued /api/document request carries the choice as the preBaseline param.
     const decide = (choice: string) => {
         storeBaselineChoice(project, choice);
         renderRoute();

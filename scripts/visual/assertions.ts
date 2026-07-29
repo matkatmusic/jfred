@@ -1,19 +1,13 @@
-// The assertion layer: the four Layer 1 failure modes this project keeps re-reporting, expressed as
-// checks over one state's geometry dump rather than over the DOM. Reading a dump rather than the
-// live page is what makes a violation reproducible — the artifact that failed is on disk.
+// Regression guards for four recurring Layer 1 visual failure modes.
 //
-// Every check is a REGRESSION GUARD. Each one names a bug that shipped, passed its unit tests, and
-// was found by eye afterwards (tasks 245-250 overlapping bubbles, task 245 label overprinting,
-// task 284 bucket titles in the tick list, task 277 the jump that only scrolled sideways).
+// Checks: overlapping bubbles, label overprint, bucket-title leak, off-screen jumps.
 
 import { BUCKET_TITLES, type Box, type Measured, type StateGeometry } from "./geometry.ts";
 
-// Sub-pixel slack. Rects come back rounded to 1/100 px and adjacent borders legitimately touch, so
-// only a real overlap wider than this counts.
+// Sub-pixel slack: adjacent borders legitimately touch, so only overlaps wider than this count.
 const OVERLAP_EPSILON = 0.5;
 
-// How much taller than one line an element may be before it is called wrapped. 1.6x clears normal
-// line-height rounding without reaching a genuine second line.
+// 1.6x clears line-height rounding without reaching a genuine second line.
 const WRAP_HEIGHT_RATIO = 1.6;
 
 export interface Violation {
@@ -35,8 +29,7 @@ function describe(measured: Measured): string {
     return `${name} "${measured.text.trim()}" at ${x},${y} ${w}x${h}`;
 }
 
-// The rects after `index` that collide with the one at `index`, stopping as soon as a candidate
-// starts past its right edge — which is only sound because `sorted` is ordered by x.
+// Collisions after `index`, stopping when candidates start past its right edge (requires x-sorted input).
 function listCollisionsAfter(sorted: Measured[], index: number): [Measured, Measured][] {
     const current = sorted[index]!;
     const pairs: [Measured, Measured][] = [];
@@ -56,10 +49,7 @@ function listCollidingPairs(measured: Measured[]): [Measured, Measured][] {
     return sorted.flatMap((_, index) => listCollisionsAfter(sorted, index));
 }
 
-// Rule 1: two things drawn on top of each other. Nodes are grouped by LANE because two dots at one
-// instant are meant to be stacked on their own 22 px rows (tasks 251/259) — an overlap there means
-// the tie-group stacking failed. Bubbles are checked against each other because a negative
-// `--axis-px` offset is what drew one over its neighbour (tasks 247-249).
+// Rule 1: overlapping nodes per lane (tasks 251/259) or bubbles (tasks 247-249).
 export function findOverlaps(geometry: StateGeometry): Violation[] {
     const byLane = new Map<number, Measured[]>();
     for (const node of geometry.nodes) {
@@ -74,10 +64,7 @@ export function findOverlaps(geometry: StateGeometry): Violation[] {
     }));
 }
 
-// Rule 2: a commit row's text is wrapped, or it runs out of its own bubble and paints over another.
-// `.nlabel` is `white-space: nowrap` and is NOT clipped, so a label wider than its 168 px bubble
-// overprints its neighbours — the exact reason the commit hash was shortened to 8 characters.
-// `.fname` is deliberately ellipsised and is not checked for width.
+// Rule 2: wrapped or spilled commit-row text; `.nlabel` is nowrap/unclipped so long text overprints neighbours.
 export function findTextOverflow(geometry: StateGeometry): Violation[] {
     const wrapped = geometry.labels
         .filter((label) => label.lineHeight > 0 && label.box.h > label.lineHeight * WRAP_HEIGHT_RATIO)
@@ -105,10 +92,7 @@ export function findTextOverflow(geometry: StateGeometry): Violation[] {
     return [...wrapped, ...spilled];
 }
 
-// Rule 3: a bubble labelled with an orphan BUCKET heading instead of the file it stands for. A real
-// pair bubble always carries the full repo-relative path on `data-path` (task 280) and never prints
-// a bucket heading; the tick list's buttons are checked the same way, since task 284's list is built
-// from the bubbles and inherited the same confusion.
+// Rule 3: bubble or tick-list entry showing a bucket heading instead of a file path (tasks 280/284).
 export function findBucketTitleLabels(geometry: StateGeometry): Violation[] {
     const isBucketTitle = (text: string) => BUCKET_TITLES.some((title) => title === text.trim());
     const mislabelled = geometry.fnames
@@ -128,10 +112,7 @@ export function findBucketTitleLabels(geometry: StateGeometry): Violation[] {
     return [...mislabelled, ...inTickList];
 }
 
-// Rule 4: what a jump landed on is not actually on screen. The container is `#timelines`, not the
-// window: the stage is ~156,000 px wide inside a scroll pane, so a bubble can be perfectly placed in
-// the document and still be nowhere the reader can see. Checked only when something is lit, since
-// `.found` is what a landing sets and no jump means nothing to verify.
+// Rule 4: verify the lit bubble is within the scroll pane's visible viewport.
 export function findOffscreenLandings(geometry: StateGeometry): Violation[] {
     const pane = geometry.scroller;
     const where = `${pane.x},${pane.y} ${pane.w}x${pane.h}`;
@@ -153,3 +134,4 @@ export function checkStateGeometry(geometry: StateGeometry): Violation[] {
         ...findOffscreenLandings(geometry),
     ];
 }
+

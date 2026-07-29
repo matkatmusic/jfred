@@ -1,9 +1,4 @@
-// Item 79: opt-in disk persistence for the viewer's builtDocumentCache. A server respawn otherwise
-// re-runs a measured ~468 s / 87 MB reconstruction because the in-memory cache is gone. Persisting
-// each BuiltReconstruction ({ document, stepFileHistories }) — hydrated back into real domain objects
-// on read — lets every route (timeline, range-patch, step-files, diff) read from disk in sub-second
-// time after a respawn. Opt-in exactly like item 11's sandbox memo: only viewer_server.ts configures a
-// directory; the CLI + tests leave it undefined and stay memory-only.
+// Opt-in disk persistence for BuiltReconstruction; avoids costly rebuilds after server respawn.
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -11,17 +6,13 @@ import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { BuiltReconstruction } from "./reconstruction_json.ts";
 
-// Bump on any change to the persisted shape OR the tag format below; files carrying a different
-// version are ignored (a cache miss) and overwritten by the next rebuild (the cacheKey, hence the
-// filename, is unchanged), so a shape change can never deserialize into corruption.
+// Bump on persisted-shape changes; mismatched versions are treated as cache misses.
 const SCHEMA_VERSION = 3;   // 3: lineVerdicts gained source (task 160); 2: scriptRuns (task 67)
 
-// The wrapper key that marks a serialized domain object. No real persisted field is named this, so a
-// revived object can never be a false positive.
+// Marker key for serialized domain objects; no real field shares this name.
 const DOMAIN_TAG = "__domain";
 
-// Which domain class a tagged value rebuilds into. Local to this module — a disk-cache detail, never
-// part of the JSONL wire vocabulary (structures/vocabulary.ts), so it does not belong there.
+// Domain class tags for disk-cache serialization only; not part of the wire vocabulary.
 enum DomainType {
     path = "Path",
     uuid = "Uuid",
@@ -30,11 +21,7 @@ enum DomainType {
 
 type TaggedDomainValue = { [DOMAIN_TAG]: DomainType; value: string | number };
 
-// JSON.stringify runs a value's toJSON() BEFORE handing the result to the replacer, so by the time a
-// plain replacer sees a Path/Uuid/Date the value is already a bare string and its class is lost. We
-// reach PAST toJSON through the holder: `this[key]` is the ORIGINAL object, before toJSON flattened it,
-// so we can test its class and tag it. This is exactly why a value-only replacer cannot work (the
-// item 79 design note). Non-arrow function so `this` binds to the holder object/array.
+// Uses holder `this[key]` to read original class before toJSON flattens it; must be non-arrow.
 function tagDomainValue(this: Record<string, unknown>, key: string, value: unknown): unknown {
     const original = this[key];
     if (original instanceof Path) {
@@ -53,8 +40,7 @@ function isTaggedDomainValue(value: unknown): value is TaggedDomainValue {
     return typeof value === "object" && value !== null && DOMAIN_TAG in value;
 }
 
-// The JSON reviver runs children before parents, so a tagged leaf is a real domain object before the
-// object containing it is handed up. Rebuilds the class the tag names.
+// Reviver rebuilds tagged leaves into domain classes (children revive before parents).
 function reviveDomainValue(_key: string, value: unknown): unknown {
     if (!isTaggedDomainValue(value)) {
         return value;
@@ -85,11 +71,8 @@ export function hydrateBuild(text: string): BuiltReconstruction | undefined {
     return parsed.build;
 }
 
-// Each built document is ~87 MB on the large project; 4 files ≈ 350 MB — enough for a few
-// (project, consent, transcript-state) combinations resident without unbounded disk growth. Exported
-// so the eviction test references it instead of a magic number, and so it survives in-place tuning.
-// ponytail: coarse mtime-ordered eviction, not true LRU; raise the cap or track recency in memory if a
-// dev keeps more live projects warm than this at once.
+// Cap on persisted cache files; exported so eviction tests reference it directly.
+// ponytail: coarse mtime-ordered eviction, not true LRU; raise the cap or track recency in memory if a dev keeps more live projects warm than this at once.
 export const DOCUMENT_CACHE_CAPACITY = 4;
 
 // undefined = memory-only (CLI + tests). Only viewer_server.ts sets a directory.
@@ -99,8 +82,7 @@ export function configureDocumentCachePersistence(directory: Path | undefined): 
     cacheDirectory = directory;
 }
 
-// Delete the whole cache directory so the next run starts cold. force = no error if absent. The server
-// calls this before configure when launched with --resetDocumentCache.
+// Wipe cache directory so the next run rebuilds from scratch.
 export function resetDocumentCacheOnDisk(directory: Path): void {
     rmSync(directory.toString(), { recursive: true, force: true });
 }
@@ -142,9 +124,7 @@ export function writeDocumentToDiskCache(cacheKey: string, built: BuiltReconstru
     }
 }
 
-// Keep at most DOCUMENT_CACHE_CAPACITY files; delete the oldest by mtime. The filesystem already
-// tracks recency, so no in-memory structure is needed — the newest writes match the transcript states
-// currently being viewed; the oldest are dead orphans from since-grown transcripts.
+// Evict oldest files by mtime when count exceeds DOCUMENT_CACHE_CAPACITY.
 function evictOldestBeyondCapacity(directory: Path): void {
     const files = readdirSync(directory.toString()).filter((name) => name.endsWith(".json"));
     if (files.length <= DOCUMENT_CACHE_CAPACITY) {

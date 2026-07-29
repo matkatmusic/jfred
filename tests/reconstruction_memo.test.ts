@@ -1,7 +1,4 @@
-// Tests for the pass-dedup memos (fix-1 bandaid): branch selection and top-level
-// reconstructFileOver return the SAME instances for the same inputs, so the document build's
-// repeated passes stop re-running deterministic work — and the exec-gate flip invalidates the
-// reconstruction memo (a declined build's histories must never serve a consented build).
+// Tests for the pass-dedup memos (fix-1 bandaid): branch selection and top-level reconstructFileOver return the SAME instances for the same inputs, so the document build's repeated passes stop re-running deterministic work — and the exec-gate flip invalidates the reconstruction memo (a declined build's histories must never serve a consented build).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,8 +22,7 @@ function buildChainRecord(type: RecordType, uuid: string, parent: string | null)
     return { type, uuid: new Uuid(uuid), parentUuid: parent === null ? null : new Uuid(parent) } as TranscriptRecord;
 }
 
-// A fully-linear conversation: every uuid'd record sits on the surviving trunk, and the
-// last-prompt head marker is uuid-less (always kept) — so branch selection drops nothing.
+// A fully-linear conversation: every uuid'd record sits on the surviving trunk, and the last-prompt head marker is uuid-less (always kept) — so branch selection drops nothing.
 function buildLinearTrunkRecords(): TranscriptRecord[] {
     return [
         buildChainRecord(RecordType.user, "A", null),
@@ -37,23 +33,19 @@ function buildLinearTrunkRecords(): TranscriptRecord[] {
 }
 
 test("test_selectLiveBranch_returns_the_input_array_when_nothing_is_dropped", () => {
-    // Scenario: when the surviving trunk covers every record, the live-branch "selection" is
-    // the whole transcript; returning a fresh filtered copy gave it a new identity and defeated
-    // every identity-keyed memo on the document build's second pass (steps use the full array).
+    // Scenario: when the surviving trunk covers every record, the live-branch "selection" is the whole transcript; returning a fresh filtered copy gave it a new identity and defeated every identity-keyed memo on the document build's second pass (steps use the full array).
     const records = buildLinearTrunkRecords();
     assert.equal(selectLiveBranch(records), records);
 });
 
 test("test_selectBranchRecords_returns_the_input_array_when_the_tip_covers_every_record", () => {
-    // Scenario: same identity contract for per-tip selection — a tip whose ancestor chain plus
-    // the uuid-less meta records span the whole transcript must return the input array itself.
+    // Scenario: same identity contract for per-tip selection — a tip whose ancestor chain plus the uuid-less meta records span the whole transcript must return the input array itself.
     const records = buildLinearTrunkRecords();
     assert.equal(selectBranchRecords(records, new Uuid("C")), records);
 });
 
 test("test_selectLiveBranch_still_filters_when_records_are_dropped", () => {
-    // Scenario: a rewound session (S19) has abandoned-branch records — the live selection must
-    // remain a strict subset, NOT the input array; the identity collapse is content-equal only.
+    // Scenario: a rewound session (S19) has abandoned-branch records — the live selection must remain a strict subset, NOT the input array; the identity collapse is content-equal only.
     const { records } = loadTranscript(S19_JSONL);
     const live = selectLiveBranch(records);
     assert.notEqual(live, records);
@@ -61,15 +53,13 @@ test("test_selectLiveBranch_still_filters_when_records_are_dropped", () => {
 });
 
 test("test_selectLiveBranch_returns_the_same_array_instance_for_the_same_records", () => {
-    // Scenario: branch selection is memoized per records-array identity, so downstream
-    // identity-keyed caches (script executions, file histories) hit across document passes.
+    // Scenario: branch selection is memoized per records-array identity, so downstream identity-keyed caches (script executions, file histories) hit across document passes.
     const { records } = loadTranscript(S19_JSONL);
     assert.equal(selectLiveBranch(records), selectLiveBranch(records));
 });
 
 test("test_reconstructAll_reuses_memoized_histories_across_passes", () => {
-    // Scenario: two reconstructAll passes over the same records (the document build's pass 1
-    // and pass 5) share the memoized per-file revisions instead of recomputing them.
+    // Scenario: two reconstructAll passes over the same records (the document build's pass 1 and pass 5) share the memoized per-file revisions instead of recomputing them.
     const { records } = loadTranscript(S19_JSONL);
     const first = reconstructAll(records);
     const second = reconstructAll(records);
@@ -80,8 +70,7 @@ test("test_reconstructAll_reuses_memoized_histories_across_passes", () => {
 });
 
 test("test_reconstruction_memo_is_invalidated_when_the_exec_gate_flips", () => {
-    // Scenario: histories reconstructed with the gate on must not be served after it turns off
-    // (and vice versa) — the gate changes what injectScriptExecutions may produce.
+    // Scenario: histories reconstructed with the gate on must not be served after it turns off (and vice versa) — the gate changes what injectScriptExecutions may produce.
     assert.equal(isImpureExecutionAllowed(), true);
     const { records } = loadTranscript(S19_JSONL);
     const gateOn = reconstructAll(records);
@@ -94,8 +83,7 @@ test("test_reconstruction_memo_is_invalidated_when_the_exec_gate_flips", () => {
     }
 });
 
-// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`
-// (mirrors the setup in tests/reconstruction_script_stage.test.ts).
+// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp` (mirrors the setup in tests/reconstruction_script_stage.test.ts).
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -118,9 +106,7 @@ function buildScriptRunRecords(): TranscriptRecord[] {
 const emptyReader: BackupReader = () => "";
 
 test("test_execution_memo_is_invalidated_when_the_exec_gate_flips", () => {
-    // Scenario: a consented build's sandbox results must not be served into a declined rebuild
-    // of the same records array (and vice versa) — the executions memo joins the same
-    // reader/exec-gate validity rule as the history and lineage-seed memos.
+    // Scenario: a consented build's sandbox results must not be served into a declined rebuild of the same records array (and vice versa) — the executions memo joins the same reader/exec-gate validity rule as the history and lineage-seed memos.
     assert.equal(isImpureExecutionAllowed(), true);
     const records = buildScriptRunRecords();
     const run = findScriptExecutionRuns(records)[0]!;
@@ -135,9 +121,7 @@ test("test_execution_memo_is_invalidated_when_the_exec_gate_flips", () => {
 });
 
 test("test_derived_caches_rebuild_when_the_pre_baseline_flag_flips", () => {
-    // Scenario (task 151): a "No" build's executions (and histories) must not be served into a
-    // "Yes" rebuild of the same records array, and vice versa — the pre-baseline flag joins the
-    // reader/exec-gate validity rule for the derived-cache group.
+    // Scenario (task 151): a "No" build's executions (and histories) must not be served into a "Yes" rebuild of the same records array, and vice versa — the pre-baseline flag joins the reader/exec-gate validity rule for the derived-cache group.
     const records = buildScriptRunRecords();
     const run = findScriptExecutionRuns(records)[0]!;
     const allowed = executeRunOnce(run, records, emptyReader);
@@ -151,9 +135,7 @@ test("test_derived_caches_rebuild_when_the_pre_baseline_flag_flips", () => {
 });
 
 test("test_execution_memo_is_reused_for_the_same_records_and_reader", () => {
-    // Scenario: with the same records array, the same reader, and an unchanged gate, the second
-    // call must return the SAME RunExecution instance — the memo still hits (each sandbox run
-    // costs ~100ms; the document build multiplies call sites).
+    // Scenario: with the same records array, the same reader, and an unchanged gate, the second call must return the SAME RunExecution instance — the memo still hits (each sandbox run costs ~100ms; the document build multiplies call sites).
     const records = buildScriptRunRecords();
     const run = findScriptExecutionRuns(records)[0]!;
     const first = executeRunOnce(run, records, emptyReader);
@@ -162,9 +144,7 @@ test("test_execution_memo_is_reused_for_the_same_records_and_reader", () => {
 });
 
 test("test_branch_selections_survive_an_exec_gate_flip", () => {
-    // Scenario: branch selections are pure functions of the records alone — the exec gate must
-    // NOT invalidate them (pins the corpus's two-group validity split: records-pure selections
-    // vs reader/gate-validated derived caches).
+    // Scenario: branch selections are pure functions of the records alone — the exec gate must NOT invalidate them (pins the corpus's two-group validity split: records-pure selections vs reader/gate-validated derived caches).
     const { records } = loadTranscript(S19_JSONL);
     const before = selectLiveBranch(records);
     try {
@@ -176,8 +156,7 @@ test("test_branch_selections_survive_an_exec_gate_flip", () => {
 });
 
 test("test_derived_caches_are_invalidated_when_the_reader_identity_changes", () => {
-    // Scenario: two distinct reader closures — even behaviorally identical ones — must not share
-    // memoized histories: the derived-cache group is keyed on the reader's IDENTITY.
+    // Scenario: two distinct reader closures — even behaviorally identical ones — must not share memoized histories: the derived-cache group is keyed on the reader's IDENTITY.
     const { records } = loadTranscript(S19_JSONL);
     const readerA: BackupReader = () => "";
     const readerB: BackupReader = () => "";

@@ -1,9 +1,4 @@
-// The per-file DEBUG viewer's server surface (task 183): GET /api/file-ladder serves one
-// file's revision ladder from the merged multi-source reconstruction — the proven
-// surviving-branch fast path (task 182/192) — and, without a file param, the list of final
-// paths to pick from. A debug surface: engine internals (kind, changeId, unrecoverable notes)
-// ride the wire by design. HTTP wiring stays in viewer_server.ts (precedent:
-// viewer_api_layered.ts).
+// The per-file DEBUG viewer's server surface (task 183): GET /api/file-ladder serves one file's revision ladder from the merged multi-source reconstruction — the proven surviving-branch fast path (task 182/192) — and, without a file param, the list of final paths to pick from. A debug surface: engine internals (kind, changeId, unrecoverable notes) ride the wire by design. HTTP wiring stays in viewer_server.ts (precedent: viewer_api_layered.ts).
 
 import { type ServerResponse } from "node:http";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
@@ -21,8 +16,7 @@ import { requireParam, sendJson } from "./viewer_server_routes.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 
-// The project's merged multi-source record stream plus its sidecar reader — the same
-// composition buildProjectReconstruction uses (viewer_api.ts), minus the engine build.
+// The project's merged multi-source record stream plus its sidecar reader — the same composition buildProjectReconstruction uses (viewer_api.ts), minus the engine build.
 function prepareMergedProjectRecords(projectName: string): { records: TranscriptRecord[]; reader: BackupReader | undefined } {
     applyProjectOverrides(projectName);
     const { records } = loadProjectRecords(resolveJsonlPaths(projectName, null));
@@ -34,8 +28,7 @@ function prepareMergedProjectRecords(projectName: string): { records: Transcript
 }
 
 // The final paths a ladder request can target, from the surviving records' rename lineage.
-// ponytail: script-born paths only a sandbox run discovers are absent from this LIST; a
-// deep-linked ladder request still finds them (the fast path appends script moves itself).
+// ponytail: script-born paths only a sandbox run discovers are absent from this LIST; a deep-linked ladder request still finds them (the fast path appends script moves itself).
 function listFinalPaths(records: TranscriptRecord[]): string[] {
     const events = extractFileEvents(selectLiveBranch(records));
     const renameChain = buildRenameChain(events);
@@ -44,10 +37,7 @@ function listFinalPaths(records: TranscriptRecord[]): string[] {
         .sort();
 }
 
-// GET /api/file-ladder?project=<name>[&file=<path>] — without file, { files }: the pickable
-// final paths; with file, that file's FileHistory (JSON-clean: Path/Uuid via toJSON, Dates to
-// ISO strings). An unknown file throws into the server's outer catch (400), the same refusal
-// posture as every other trust-boundary route.
+// GET /api/file-ladder?project=<name>[&file=<path>] — without file, { files }: the pickable final paths; with file, that file's FileHistory (JSON-clean: Path/Uuid via toJSON, Dates to ISO strings). An unknown file throws into the server's outer catch (400), the same refusal posture as every other trust-boundary route.
 export function handleFileLadderRequest(response: ServerResponse, query: URLSearchParams): void {
     const projectName = requireParam(query, "project");
     const fileValue = query.get("file");

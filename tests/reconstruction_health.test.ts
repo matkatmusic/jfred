@@ -14,8 +14,7 @@ function failureFor(stage: string): Parameters<typeof noteReconstructionFailure>
 }
 
 test("test_noteReconstructionFailure_is_returned_by_drain_and_buffer_empties", () => {
-    // Behavior: a noted failure comes back from the first drain, and draining empties the
-    // buffer — a second drain returns nothing.
+    // Behavior: a noted failure comes back from the first drain, and draining empties the buffer — a second drain returns nothing.
     clearReconstructionFailures();
     noteReconstructionFailure(failureFor("fillRedirectContent"));
     const drained = drainReconstructionFailures();

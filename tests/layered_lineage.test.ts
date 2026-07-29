@@ -1,7 +1,4 @@
-// Task 203 (spec S6): typed rename/copy edges built from the engine's extracted mv/cp events,
-// lineage DERIVED by walking RenameEdges end-to-end (never stored as a group), and a copy's
-// genesis bytes read from the source's merged timeline at the copy instant — with both sides of
-// a copy fork keeping their own, independent lineage.
+// Task 203 (spec S6): typed rename/copy edges built from the engine's extracted mv/cp events, lineage DERIVED by walking RenameEdges end-to-end (never stored as a group), and a copy's genesis bytes read from the source's merged timeline at the copy instant — with both sides of a copy fork keeping their own, independent lineage.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -34,8 +31,7 @@ function makeRenameEvent(from: string, to: string, instantMs: number): RenameEve
     };
 }
 
-// The engine's cp event shape; seedLines is empty at extraction time (the cp result carries no
-// content) — the layered graph derives the genesis instead.
+// The engine's cp event shape; seedLines is empty at extraction time (the cp result carries no content) — the layered graph derives the genesis instead.
 function makeCopyEvent(from: string, to: string, instantMs: number): CopyEvent {
     return {
         kind: EventKind.copy,
@@ -92,8 +88,7 @@ test("test_lineage_edges_carry_timestamps_and_jsonl_evidence", () => {
     assert.equal(copies[0]!.timestampOfCopy.getTime(), 2000);
     assert.deepEqual(copies[0]!.evidence, makeEvidence(9));
 
-    // Endpoints with no content evidence of their own still get exactly one entity each, and
-    // the rename destination is the SAME object the copy source points at.
+    // Endpoints with no content evidence of their own still get exactly one entity each, and the rename destination is the SAME object the copy source points at.
     assert.deepEqual([...entitiesByPath.keys()].sort(), ["/w/a.py", "/w/b.py", "/w/copy.py"]);
     assert.equal(renames[0]!.renamedTo, copies[0]!.copiedFrom);
 });
@@ -135,8 +130,7 @@ test("test_copy_fork_leaves_both_lineages_independent", () => {
     );
     const fork = copies[0]!.bornCopy;
 
-    // A copy is a fork, not a sequence: neither side enters the other's lineage, and no
-    // RenameEdge was created for it.
+    // A copy is a fork, not a sequence: neither side enters the other's lineage, and no RenameEdge was created for it.
     assert.equal(renames.length, 0);
     assert.deepEqual(lineageOf(source, renames), [source]);
     assert.deepEqual(lineageOf(fork, renames), [fork]);

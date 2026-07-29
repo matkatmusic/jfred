@@ -1,6 +1,4 @@
-// findGitOperations against hand-built records (split from git-operations.test.ts, 250-line cap):
-// how a commit operation reads its own tool_result — the resultHash capture forms and the
-// compound `&&` segment split. The scenario-document extractions stay in git-operations.test.ts.
+// Split from git-operations.test.ts for the 250-line cap; scenario-document extractions stay there.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,8 +6,6 @@ import { findGitOperations } from "../src/reconstruction_git_operations.ts";
 import { BlockType, GitOperationKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
-// An assistant record carrying one Bash tool_use running `command` under block id `toolUseId`
-// (item 66: minimal-record builder, same shape as reconstruction_git_evidence.test.ts's).
 function buildBashToolUseRecord(command: string, toolUseId: string, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -18,8 +14,7 @@ function buildBashToolUseRecord(command: string, toolUseId: string, timestamp: s
     } as unknown as TranscriptRecord;
 }
 
-// A user record carrying the tool_result for `toolUseId`, whose content is the command's printed
-// output text (the shape git commit's `[branch hash] message` summary arrives in).
+// A user record carrying the tool_result for `toolUseId`; its content is the command's printed output text (e.g. git's summary line).
 function buildToolResultRecord(toolUseId: string, resultText: string, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.user,
@@ -29,12 +24,7 @@ function buildToolResultRecord(toolUseId: string, resultText: string, timestamp:
 }
 
 test("test_commit_operations_carry_result_hash", () => {
-    // Scenario: a successful `git commit`'s tool_result text carries the short hash in git's
-    // `[branch hash] message` summary line; findGitOperations must capture that hash on the
-    // commit's GitOperation as resultHash so the viewer can render `GIT COMMIT [hash]`.
-    // Steps:
-    // build one assistant record running `git commit -m "fix: x"` under block id toolu_hash1.
-    // build one user record whose tool_result for toolu_hash1 prints git's summary line.
+    // Scenario: a git commit result line carries the short hash; findGitOperations sets resultHash so the viewer renders `GIT COMMIT [hash]`.
     const records = [
         buildBashToolUseRecord('git commit -m "fix: x"', "toolu_hash1", "2026-01-01T00:00:01Z"),
         buildToolResultRecord("toolu_hash1", "[master 4fa08d2] fix: x\n 1 file changed, 1 insertion(+)", "2026-01-01T00:00:02Z"),
@@ -49,11 +39,7 @@ test("test_commit_operations_carry_result_hash", () => {
 });
 
 test("test_commit_operations_carry_result_hash_from_bare_hex_token", () => {
-    // Scenario: scenario captures pipe git's summary away and echo their own line containing the
-    // short hash (s84 prints `ok 928eaa9`); with no `[branch hash]` line present, a whole-word
-    // 7-to-40-char hex token in the commit's own result is still unambiguously the hash.
-    // Steps:
-    // build one assistant record running `git commit -m "baseline"` under block id toolu_hash2.
+    // Scenario: with no `[branch hash]` line (s84 prints `ok 928eaa9`), a whole-word 7-to-40-char hex token is still the hash.
     const records = [
         buildBashToolUseRecord('git commit -m "baseline"', "toolu_hash2", "2026-01-01T00:00:01Z"),
         // build one user record whose tool_result prints the scenario-style `ok <hash>` line.
@@ -68,11 +54,7 @@ test("test_commit_operations_carry_result_hash_from_bare_hex_token", () => {
 });
 
 test("test_commit_operations_without_result_output_have_no_hash", () => {
-    // Scenario: a commit whose tool_result text carries no `[branch hash]` summary line (e.g.
-    // output was piped away) yields a commit operation with NO resultHash — the viewer's pill
-    // falls back to a dash.
-    // Steps:
-    // build the same commit record, but a tool_result whose text has no `[branch hash]` line.
+    // Scenario: a commit result with no `[branch hash]` line (output piped away) yields NO resultHash, leaving the pill a dash.
     const records = [
         buildBashToolUseRecord('git commit -m "fix: x"', "toolu_hash1", "2026-01-01T00:00:01Z"),
         buildToolResultRecord("toolu_hash1", "ok done", "2026-01-01T00:00:02Z"),
@@ -86,9 +68,7 @@ test("test_commit_operations_without_result_output_have_no_hash", () => {
 });
 
 test("test_compound_command_yields_one_operation_per_git_segment", () => {
-    // Scenario: one Bash call chains two git commands with `&&` (task 89). Each segment gets its
-    // own operation — the commit must not vanish into the add, the add's detail must not carry
-    // the compound tail, and only the commit segment reads the shared tool_result's hash.
+    // Scenario: one Bash call chains two git commands with `&&` (task 89); each segment gets its own operation and detail.
     const records = [
         buildBashToolUseRecord('git add a.py && git commit -m "fix: x"', "toolu_compound1", "2026-01-01T00:00:01Z"),
         buildToolResultRecord("toolu_compound1", "[master 4fa08d2] fix: x\n 2 files changed", "2026-01-01T00:00:02Z"),

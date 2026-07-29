@@ -18,11 +18,7 @@ import {
 } from "./timeline-test-helpers.ts";
 
 test("test_deriveCommitChangedFiles_unions_files_since_previous_commit", () => {
-    // Scenario: a commit's changed-file list is the union of every file change on the surviving
-    // rows between it and the previous commit (or the timeline start) — the mockup's
-    // findContributingRows data.
-    // Steps:
-    // build the commit-walk timeline and take the FIRST commit.
+    // Scenario: a commit's changed-file list is the union of every file change on the surviving rows between it and the previous commit (or the timeline start) — the mockup's findContributingRows data.  Steps: build the commit-walk timeline and take the FIRST commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
     // assert its changed files union alpha.py and beta.py (the two surviving replies before it).
@@ -31,10 +27,7 @@ test("test_deriveCommitChangedFiles_unions_files_since_previous_commit", () => {
 });
 
 test("test_deriveCommitChangedFiles_stops_at_previous_commit", () => {
-    // Scenario: the walk back from a commit stops at the previous commit EXCLUSIVE — files
-    // committed earlier never leak into the later commit's list.
-    // Steps:
-    // build the commit-walk timeline and take the SECOND commit.
+    // Scenario: the walk back from a commit stops at the previous commit EXCLUSIVE — files committed earlier never leak into the later commit's list.  Steps: build the commit-walk timeline and take the SECOND commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const commitIndexes = findCommitNodeIndexes(nodes);
     const changes = deriveCommitChangedFiles(nodes, commitIndexes[1]!);
@@ -45,10 +38,7 @@ test("test_deriveCommitChangedFiles_stops_at_previous_commit", () => {
 });
 
 test("test_deriveCommitChangedFiles_skips_orphaned_nodes", () => {
-    // Scenario: orphaned (rewound-branch) rows never contribute to a commit's changed files —
-    // their edits were rewound before the commit happened.
-    // Steps:
-    // build the commit-walk timeline and take the first commit (the orphans sit just before it).
+    // Scenario: orphaned (rewound-branch) rows never contribute to a commit's changed files — their edits were rewound before the commit happened.  Steps: build the commit-walk timeline and take the first commit (the orphans sit just before it).
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
     // assert neither rewound-branch file appears.
@@ -58,10 +48,7 @@ test("test_deriveCommitChangedFiles_skips_orphaned_nodes", () => {
 });
 
 test("test_deriveCommitChangedFiles_dedupes_paths_keeping_latest", () => {
-    // Scenario: when two rows before one commit touch the SAME path, the commit lists the path
-    // once, keeping the occurrence closest to the commit (the latest revision).
-    // Steps:
-    // build a minimal document: two replies each revising alpha.py, then one commit.
+    // Scenario: when two rows before one commit touch the SAME path, the commit lists the path once, keeping the occurrence closest to the commit (the latest revision).  Steps: build a minimal document: two replies each revising alpha.py, then one commit.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -113,21 +100,15 @@ test("test_deriveCommitChangedFiles_dedupes_paths_keeping_latest", () => {
 });
 
 test("test_findContributingNodeIndexes_marks_nodes_touching_commit_files", () => {
-    // Scenario: selecting a commit highlights every surviving row (since the previous commit)
-    // whose file changes overlap the commit's changed files — the mockup's `.contrib` rows.
-    // Steps:
-    // build the commit-walk timeline and take the first commit.
+    // Scenario: selecting a commit highlights every surviving row (since the previous commit) whose file changes overlap the commit's changed files — the mockup's `.contrib` rows.  Steps: build the commit-walk timeline and take the first commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
-    // assert exactly replyA (index 1) and replyB (index 2) contribute — never the prompt or the
-    // orphaned replies.
+    // assert exactly replyA (index 1) and replyB (index 2) contribute — never the prompt or the orphaned replies.
     assert.deepEqual(findContributingNodeIndexes(nodes, firstCommitIndex!), [1, 2]);
 });
 
 test("test_findContributingNodeIndexes_returns_empty_for_no_overlap", () => {
-    // Scenario: a commit preceded by rows that changed no files highlights nothing.
-    // Steps:
-    // build a minimal document: prompt, snapshot-less reply, then a commit.
+    // Scenario: a commit preceded by rows that changed no files highlights nothing.  Steps: build a minimal document: prompt, snapshot-less reply, then a commit.
     const document = {
         messages: [{
             uuid: "prompt-1",

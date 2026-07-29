@@ -1,9 +1,4 @@
-// ─── centered loading-progress overlay ───────────────────────────────────────
-// One reusable centered bar shown during the two long phases of opening a project: the server-side
-// reconstruction stream (driven by fetchDocument's determinate progress lines) and the client-side
-// timeline row build (item 78, driven from views/timeline.ts). Created once, appended on demand.
-// task 164: mounted INSIDE #timeline-pane (not document.body) so only the timeline is blocked —
-// the console, inspector, and header stay usable while a project loads.
+// Mounted inside #timeline-pane so the console, inspector, and header stay usable during a load.
 
 import { el } from "./app-dom.ts";
 
@@ -20,9 +15,7 @@ let loadingProgressElements: {
 let loadingProgressStartMs = 0;
 let loadingProgressCurrentPhase = 0;
 
-// The ordered phases the loading indicator advances through. Labels are matched by substring
-// against the real server/client progress vocabulary (item 82). An unmatched label returns
-// undefined so the caller keeps the last known phase rather than regressing the bar.
+// Ordered phases matched by label substring; an unmatched label keeps the last phase rather than regressing the bar.
 export const LOAD_PHASES = [
     "Resolving transcripts",
     "Parsing records",
@@ -57,11 +50,7 @@ export function classifyLoadPhase(label: string): number | undefined {
     return undefined;
 }
 
-// task 164: the box's cancel affordance — Cancel swaps to an in-DOM confirm row (never
-// window.confirm: native dialogs block headless automation, app-header.ts convention).
-// "Yes, cancel" navigates to the project picker: the overlay only exists during a
-// project-route load, so assigning "#/" always fires hashchange -> renderRoute, which
-// aborts the in-flight load (app-router.ts) — navigation IS the cancellation, one code path.
+// In-DOM confirm row, not window.confirm; navigating to "#/" aborts the in-flight load.
 function buildCancelControls(): HTMLElement[] {
     const cancelButton = el("button", { class: "toolbar-btn timeline-progress-cancel", text: "Cancel" });
     const confirmYesButton = el("button", { class: "toolbar-btn timeline-progress-confirm-yes", text: "Yes, cancel" });
@@ -92,10 +81,7 @@ function updateElapsedLabel(): void {
     }
 }
 
-// Show or update the always-visible loading indicator: a phase header (name · phase N of M) with a
-// ticking elapsed clock, a phase bar, the current stage label, and a stage bar. A finite `fraction`
-// fills the stage bar determinately; a non-finite one (a countless/blocking stage) shimmers instead,
-// so even a silent multi-second step (67 MB stringify/parse) never reads as frozen (item 82).
+// A non-finite `fraction` shimmers instead of filling, so a silent multi-second stage never reads as frozen.
 export function showLoadingProgress(label: string, fraction: number): void {
     if (loadingProgressElements === null) {
         const phaseLabel = el("div", { class: "timeline-progress-phase" });

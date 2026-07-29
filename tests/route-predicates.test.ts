@@ -1,5 +1,4 @@
-// Tests for the hash-route predicates in webapp/app.js. Segments arrive exactly as
-// parseRouteSegments produces them: decoded, empty segments dropped.
+// Tests for the hash-route predicates in webapp/app.js. Segments arrive exactly as parseRouteSegments produces them: decoded, empty segments dropped.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,9 +6,7 @@ import { checkRouteIsTimeline } from "../webapp/app-routes.ts";
 import { checkNavigationStartsNewProjectLoad } from "../webapp/app-router.ts";
 
 test("test_check_route_is_timeline_accepts_every_project_route", () => {
-    // Scenario: the timeline is ALWAYS a loaded project's base view (user decision 2026-07-06) —
-    // every #/project/* route gets the overlay-inspector layout, jsonl and file sub-routes
-    // included (they render as drawers over the timeline).
+    // Scenario: the timeline is ALWAYS a loaded project's base view (user decision 2026-07-06) — every #/project/* route gets the overlay-inspector layout, jsonl and file sub-routes included (they render as drawers over the timeline).
     assert.equal(checkRouteIsTimeline(["project", "s84", "timeline"]), true);
     assert.equal(checkRouteIsTimeline(["project", "s84", "timeline", "session", "abc"]), true);
     assert.equal(checkRouteIsTimeline(["project", "s84"]), true);
@@ -30,14 +27,12 @@ test("test_check_navigation_starts_new_project_load_on_project_change", () => {
 });
 
 test("test_check_navigation_starts_new_project_load_on_first_project_load", () => {
-    // Scenario: before any project load the console holds only landing-page output; the
-    // first project load clears it so the console shows exactly that load.
+    // Scenario: before any project load the console holds only landing-page output; the first project load clears it so the console shows exactly that load.
     assert.equal(checkNavigationStartsNewProjectLoad(undefined, "project-a"), true);
 });
 
 test("test_check_navigation_keeps_console_within_one_project", () => {
-    // Scenario: sub-route hops (timeline → file → jsonl) inside one project belong to the
-    // same load story — never clear.
+    // Scenario: sub-route hops (timeline → file → jsonl) inside one project belong to the same load story — never clear.
     assert.equal(checkNavigationStartsNewProjectLoad("project-a", "project-a"), false);
 });
 

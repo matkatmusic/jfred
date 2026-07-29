@@ -1,7 +1,4 @@
-// Spec S5a (task 175) §a identity-join ladder tests: same root-relative path across differing
-// absolute roots joins into ONE revision ladder when content evidence agrees, stays separate when
-// it diverges, and interleaves strictly by wall clock. Split from
-// reconstruction_multi_source.test.ts (250-line cap).
+// Spec S5a (task 175) §a identity-join ladder tests: same root-relative path across differing absolute roots joins into ONE revision ladder when content evidence agrees, stays separate when it diverges, and interleaves strictly by wall clock. Split from reconstruction_multi_source.test.ts (250-line cap).
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -23,11 +20,7 @@ function readRevisionLines(revision: FileRevision): string[] {
 }
 
 test("test_same_relative_path_with_content_agreement_joins_into_one_history", () => {
-    // Scenario (§a): the same file at differing absolute paths (same root-relative path)
-    // edited in two sources, with agreeing content evidence, merges into ONE revision ladder.
-    // Steps:
-    // source A writes <alpha>/app.py "line one" at t1.
-    // source B edits <beta>/app.py at t2; its originalFile matches A's reconstructed state.
+    // Scenario (§a): the same file at differing absolute paths (same root-relative path) edited in two sources, with agreeing content evidence, merges into ONE revision ladder.  Steps: source A writes <alpha>/app.py "line one" at t1.  source B edits <beta>/app.py at t2; its originalFile matches A's reconstructed state.
     const fixture = makeTwoSourceEditFixture("line one\n");
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     // Test action: reconstruct under the PRIMARY (earlier) root's absolute path.
@@ -41,9 +34,7 @@ test("test_same_relative_path_with_content_agreement_joins_into_one_history", ()
 });
 
 test("test_same_relative_path_with_content_disagreement_keeps_two_histories", () => {
-    // Scenario (§a): sibling-repo divergence — same rel-path but B's pre-state evidence does
-    // NOT match A's reconstructed state → the join is refused and each root keeps its own
-    // per-root timeline.
+    // Scenario (§a): sibling-repo divergence — same rel-path but B's pre-state evidence does NOT match A's reconstructed state → the join is refused and each root keeps its own per-root timeline.
     const fixture = makeTwoSourceEditFixture("divergent\n");
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     const targets = reconstructAll(merged).map((history) => history.target.toString());
@@ -53,10 +44,7 @@ test("test_same_relative_path_with_content_disagreement_keeps_two_histories", ()
 });
 
 test("test_cross_source_interleave_orders_revisions_by_wall_clock", () => {
-    // Scenario (§c3 + §d): an alternating alpha/beta edit stream on the joined file must
-    // produce one ladder whose revisions are strictly wall-clock ordered.
-    // Steps: A writes t1 → B edits t2 (evidence = post-t1 state) → A edits t3 (evidence =
-    // post-t2 state, mirroring the on-disk reality of a synced alternating stream).
+    // Scenario (§c3 + §d): an alternating alpha/beta edit stream on the joined file must produce one ladder whose revisions are strictly wall-clock ordered.  Steps: A writes t1 → B edits t2 (evidence = post-t1 state) → A edits t3 (evidence = post-t2 state, mirroring the on-disk reality of a synced alternating stream).
     const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
         buildEditRecordPair(
             {

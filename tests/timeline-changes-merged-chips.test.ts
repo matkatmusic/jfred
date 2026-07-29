@@ -1,8 +1,4 @@
-// task 133: merged-chip dedupe on one turn (timeline-changes.ts mergeSnapshotFileChanges) —
-// two snapshots holding DISTINCT revisions of the SAME file must each keep their chip
-// (baseline-demo: an external user-edit's chip swallowed the agent Edit's), while a repeat of
-// the SAME revision still collapses. Lives beside timeline-changes.test.ts (that file sits at
-// the 250-line hook cap; timeline-changes-baseline.test.ts is the split precedent).
+// task 133: merged-chip dedupe on one turn (timeline-changes.ts mergeSnapshotFileChanges) — two snapshots holding DISTINCT revisions of the SAME file must each keep their chip (baseline-demo: an external user-edit's chip swallowed the agent Edit's), while a repeat of the SAME revision still collapses. Lives beside timeline-changes.test.ts (that file sits at the 250-line hook cap; timeline-changes-baseline.test.ts is the split precedent).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,8 +10,7 @@ const INVENTORY_TARGET = "/w/inventory.py";
 const USER_EDIT_CHANGE_ID = "user-edit-change-1";
 const AGENT_EDIT_CHANGE_ID = "toolu_edit_change_2";
 
-// The two revisions of the one file: an external user-edit then an agent Edit — the
-// baseline-demo shape whose second chip was swallowed by the path-keyed merge dedupe.
+// The two revisions of the one file: an external user-edit then an agent Edit — the baseline-demo shape whose second chip was swallowed by the path-keyed merge dedupe.
 const TWO_REVISIONS = [
     { kind: EventKind.userEdit, changeId: USER_EDIT_CHANGE_ID, timestamp: "2026-07-17T23:44:01.904Z" },
     { kind: EventKind.edit, changeId: AGENT_EDIT_CHANGE_ID, timestamp: "2026-07-17T23:44:09.283Z" },
@@ -49,11 +44,7 @@ function buildAgentTurnNode(snapshots: WireStepSnapshot[]): TimelineNode {
 }
 
 test("test_two_snapshots_with_distinct_revisions_of_one_file_keep_both_chips", () => {
-    // Scenario (task 133): a turn owning an external user-edit snapshot AND an agent Edit
-    // snapshot of the SAME file shows BOTH chips — the later revision's chip must not be
-    // swallowed by the earlier one.
-    // Steps:
-    // index the two-revision document.
+    // Scenario (task 133): a turn owning an external user-edit snapshot AND an agent Edit snapshot of the SAME file shows BOTH chips — the later revision's chip must not be swallowed by the earlier one.  Steps: index the two-revision document.
     const document = buildTwoRevisionDocument();
     const revisionIndex = indexRevisionsByChangeId(document);
     // one agent turn owning both snapshots, in event order.
@@ -69,10 +60,7 @@ test("test_two_snapshots_with_distinct_revisions_of_one_file_keep_both_chips", (
 });
 
 test("test_repeated_changeid_across_snapshots_still_collapses", () => {
-    // Scenario (task 133): the SAME revision echoing across two snapshots on one turn still
-    // collapses to a single chip — the fix widens the dedupe key to path+changeId, not off.
-    // Steps:
-    // index the two-revision document.
+    // Scenario (task 133): the SAME revision echoing across two snapshots on one turn still collapses to a single chip — the fix widens the dedupe key to path+changeId, not off.  Steps: index the two-revision document.
     const document = buildTwoRevisionDocument();
     const revisionIndex = indexRevisionsByChangeId(document);
     // one agent turn owning two snapshots that repeat the SAME changeId.

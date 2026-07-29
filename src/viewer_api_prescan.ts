@@ -1,9 +1,4 @@
-// GET /api/prescan (task 194): the cheap pre-reconstruction scan behind the webapp's
-// reconstruction-mode selection view — every touched file with the instant of its FIRST
-// modifying event. Parse-only, no engine build: extraction-level events (Write/Edit/rename/
-// copy/append/overwrite/user-edit beacons) are cheap and exact; script touches are attributed
-// STATICALLY via the basename-mention channel (the runForTarget cheap channel) and flagged as
-// candidates — sandbox replay is the only proof and it is consent-gated and expensive.
+// GET /api/prescan (task 194): the cheap pre-reconstruction scan behind the webapp's reconstruction-mode selection view — every touched file with the instant of its FIRST modifying event. Parse-only, no engine build: extraction-level events (Write/Edit/rename/ copy/append/overwrite/user-edit beacons) are cheap and exact; script touches are attributed STATICALLY via the basename-mention channel (the runForTarget cheap channel) and flagged as candidates — sandbox replay is the only proof and it is consent-gated and expensive.
 
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
@@ -17,9 +12,7 @@ import { requireParam, sendJson } from "./viewer_server_routes.ts";
 import type { FileEvent } from "./reconstruction_engine.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 
-// One touched file on the wire: the ISO instant of its first modifying event, and whether that
-// first event is a statically-attributed script run (a candidate, not replay-proven) rather
-// than an exact extraction-level event.
+// One touched file on the wire: the ISO instant of its first modifying event, and whether that first event is a statically-attributed script run (a candidate, not replay-proven) rather than an exact extraction-level event.
 export type PrescanFileEntry = {
     path: string;
     firstEventInstant: string;
@@ -36,11 +29,7 @@ function recordFirstExactEvent(event: FileEvent, firstEventByPath: Map<string, F
     }
 }
 
-// A run whose code mentions a known file's basename BEFORE that file's current first event
-// becomes the file's first-event candidate. Order-independent: any earlier mentioning run
-// replaces a later one, so the map converges on the earliest. Files touched ONLY by scripts
-// have no extraction-level path to enumerate, so they cannot appear here at all — proving
-// them needs replay (layer-10 territory, out of a cheap pre-scan's scope).
+// A run whose code mentions a known file's basename BEFORE that file's current first event becomes the file's first-event candidate. Order-independent: any earlier mentioning run replaces a later one, so the map converges on the earliest. Files touched ONLY by scripts have no extraction-level path to enumerate, so they cannot appear here at all — proving them needs replay (layer-10 territory, out of a cheap pre-scan's scope).
 function markEarlierScriptMentions(run: ScriptRun, firstEventByPath: Map<string, FirstEvent>): void {
     for (const [pathKey, firstEvent] of firstEventByPath) {
         if (run.timestamp < firstEvent.instant && run.code.includes(basename(pathKey))) {
@@ -67,8 +56,7 @@ export function computeReconstructionPrescan(records: TranscriptRecord[]): Presc
         }));
 }
 
-// GET /api/prescan?project=<name>[&jsonl=<file>] — the same resolve/load front half as
-// /api/document, then the parse-only scan. No consent gate: nothing executes here.
+// GET /api/prescan?project=<name>[&jsonl=<file>] — the same resolve/load front half as /api/document, then the parse-only scan. No consent gate: nothing executes here.
 export function handlePrescanRequest(response: ServerResponse, query: URLSearchParams): void {
     const projectName = requireParam(query, "project");
     applyProjectOverrides(projectName);

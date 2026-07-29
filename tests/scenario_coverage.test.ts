@@ -1,9 +1,4 @@
-// Content-based, re-run-stable scenario regression: for every executed scenario with captured `.step_states`,
-// reconstruct its engine steps and prove every captured step folder is reproduced byte-for-byte by some
-// engine step. This replaces the old per-scenario fixture tests (which hard-coded run-specific uuids, line
-// numbers, and rendered text and broke on every re-run). New scenarios are picked up automatically. The
-// known engine-gap scenarios (rename family, git-baseline s40+, parser-crashing compact family) fail RED on
-// purpose — that is genuine engine signal, not stale-test noise. Tool internals: scripts/check_scenario_coverage.ts.
+// Content-based, re-run-stable scenario regression: for every executed scenario with captured `.step_states`, reconstruct its engine steps and prove every captured step folder is reproduced byte-for-byte by some engine step. This replaces the old per-scenario fixture tests (which hard-coded run-specific uuids, line numbers, and rendered text and broke on every re-run). New scenarios are picked up automatically. The known engine-gap scenarios (rename family, git-baseline s40+, parser-crashing compact family) fail RED on purpose — that is genuine engine signal, not stale-test noise. Tool internals: scripts/check_scenario_coverage.ts.
 
 import test from "node:test";
 import assert from "node:assert/strict";

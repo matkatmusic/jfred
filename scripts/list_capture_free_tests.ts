@@ -1,30 +1,20 @@
-// Prints the test files that run WITHOUT the executed scenario captures, one repo-relative path
-// per line. The captures (scenarios/executed/, 109MB of raw session transcripts) are deliberately
-// gitignored in the scenarios submodule — they hold machine-local data and are never published —
-// so a bare clone (CI) has no JSONLs. A test needs the captures exactly when its relative-import
-// closure reaches a capture-dependent module; those files are excluded here, everything else runs.
-// `npm run test:ci` feeds this list to the node test runner; `npm test` stays the full local suite.
+// Lists tests runnable without gitignored scenario captures; `npm run test:ci` uses this.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// fixtures.ts resolves scenario JSONLs at import time and throws on a captureless clone, so ANY
-// test whose import closure reaches it cannot load there.
+// fixtures.ts throws at import time without captures, so anything reaching it is excluded.
 const captureDependentModules: ReadonlySet<string> = new Set([
     resolve(repositoryRoot, "tests/fixtures.ts"),
 ]);
 
-// coverage_scenarios.ts scans scenarios/executed/ LAZILY (only when its functions are called), so
-// merely reaching it transitively — e.g. via check_scenario_coverage.ts helpers run on synthetic
-// repos — is harmless. Only a test that imports it directly enumerates the captured scenarios.
-// ponytail: direct-import heuristic; a helper that CALLED the scan at import time would slip
-// through, and CI would then fail loudly on that file — tighten to call-site analysis if that happens.
+// coverage_scenarios.ts scans lazily, so only direct importers need captures.
+// ponytail: direct-import heuristic; a helper that CALLED the scan at import time would slip through, and CI would then fail loudly on that file — tighten to call-site analysis if that happens.
 const lazyCaptureScanModule = resolve(repositoryRoot, "scripts/coverage_scenarios.ts");
 
-// The existing relative imports of one source file, resolved to absolute paths. Matches both
-// `from "./x.ts"` (imports and re-exports) and bare side-effect `import "./x.ts"` forms.
+// Resolves relative imports (from and bare side-effect forms) to absolute paths.
 function listRelativeImportPaths(sourceFilePath: string): string[] {
     const sourceText = readFileSync(sourceFilePath, "utf8");
     const importMatches = [...sourceText.matchAll(/(?:from|import)\s+"(\.[^"]+)"/g)];
@@ -67,8 +57,7 @@ export function checkDirectlyImportsCaptureScan(testFilePath: string): boolean {
     return listRelativeImportPaths(testFilePath).includes(lazyCaptureScanModule);
 }
 
-// True when the test file needs no captures under either signal: its import closure never reaches
-// fixtures.ts, and it does not directly import the lazy capture scanner.
+// True when the test needs no captures under either signal.
 export function checkTestFileIsCaptureFree(testFilePath: string): boolean {
     if (checkImportsReachCaptures(testFilePath)) {
         return false;
@@ -100,3 +89,4 @@ if (process.argv[1] !== undefined) {
         }
     }
 }
+

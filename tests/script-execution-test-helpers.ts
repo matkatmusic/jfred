@@ -4,8 +4,7 @@ import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
 
-// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`,
-// with the record-level `cwd` transcripts carry.
+// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`, with the record-level `cwd` transcripts carry.
 export function buildToolRecord(
     name: ToolName,
     input: Record<string, unknown>,

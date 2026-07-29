@@ -26,11 +26,7 @@ function buildCwdRecord(cwd: string): TranscriptRecord {
     return { type: RecordType.user, cwd: new Path(cwd) } as unknown as TranscriptRecord;
 }
 
-// Task 224: a mid-window `--base-commit` seed places a `gitBase:` write holding the COMMIT's blob just
-// before the next edit. That blob is not the disk the edit was computed against, so the edit's base is
-// stale and `seedStaleEditBases` reseeds it from the at-or-before file-history backup — a backup stamped
-// EARLIER than the beacon it is pushed after. The seed must not carry that older stamp into the event
-// list, or the replayed ladder goes backwards in time.
+// Task 224: a mid-window `--base-commit` seed places a `gitBase:` write holding the COMMIT's blob just before the next edit. That blob is not the disk the edit was computed against, so the edit's base is stale and `seedStaleEditBases` reseeds it from the at-or-before file-history backup — a backup stamped EARLIER than the beacon it is pushed after. The seed must not carry that older stamp into the event list, or the replayed ladder goes backwards in time.
 test("test_stale_edit_seed_never_lands_before_the_event_it_follows", () => {
     const cwd = "/work/dir";
     const target = "/work/dir/plate_cli.py";
@@ -43,9 +39,7 @@ test("test_stale_edit_seed_never_lands_before_the_event_it_follows", () => {
     const backupContent = "hello\nworld\n";
     const reader: BackupReader = (name) =>
         name.toString() === "04b5333dde2392bd@v2" ? backupContent : "WRONG";
-    // Event one: the `gitBase:` beacon standing in for the mid-window base-commit seed. It carries the
-    // COMMIT's blob, which does NOT match the following edit's hunk context — that is what makes the
-    // edit's reconstructed base stale.
+    // Event one: the `gitBase:` beacon standing in for the mid-window base-commit seed. It carries the COMMIT's blob, which does NOT match the following edit's hunk context — that is what makes the edit's reconstructed base stale.
     const beacon: WriteEvent = {
         kind: EventKind.write,
         changeId: new Uuid("gitBase:1156e75f"),

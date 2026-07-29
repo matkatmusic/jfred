@@ -1,7 +1,4 @@
-// DOM tests for buildMissingRevisionCard (tasks 129 + 130): the unrecoverable placeholder
-// card says which revision (of how many) failed to apply which operation, keeps the raw
-// engine error reachable as the hover title, and carries ONLY the jump + { } actions
-// (content/export/patch would lie for a carried-forward placeholder).
+// DOM tests for buildMissingRevisionCard (tasks 129 + 130): the unrecoverable placeholder card says which revision (of how many) failed to apply which operation, keeps the raw engine error reachable as the hover title, and carries ONLY the jump + { } actions (content/export/patch would lie for a carried-forward placeholder).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -21,8 +18,7 @@ function buildUnrecoverableCard(): RevisionCard {
     };
 }
 
-// The details context the two action buttons resolve through; every call is recorded so a
-// test can assert exactly which route a click took.
+// The details context the two action buttons resolve through; every call is recorded so a test can assert exactly which route a click took.
 function buildStubContext(openedChangeIds: string[], selectedRows: number[]): DetailsContext {
     return {
         nodes: [],
@@ -51,9 +47,7 @@ async function buildMissingCardInFreshDom(openedChangeIds: string[], selectedRow
 }
 
 test("test_missing_card_shows_failure_summary_not_raw_error", async () => {
-    // Scenario: the .why line is the user-useful summary (task 129), not the raw replay error.
-    // Steps:
-    // build the card for rev 8 of a 12-revision file whose edit failed to replay.
+    // Scenario: the .why line is the user-useful summary (task 129), not the raw replay error.  Steps: build the card for rev 8 of a 12-revision file whose edit failed to replay.
     const card = await buildMissingCardInFreshDom([], []);
     const why = card.querySelector(".why");
     assert.ok(why !== null, ".why line exists");
@@ -64,19 +58,14 @@ test("test_missing_card_shows_failure_summary_not_raw_error", async () => {
 });
 
 test("test_missing_card_keeps_raw_error_as_hover_title", async () => {
-    // Scenario: the raw engine error stays reachable for debugging via the hover title.
-    // Steps:
-    // build the card, find the .why line.
+    // Scenario: the raw engine error stays reachable for debugging via the hover title.  Steps: build the card, find the .why line.
     const card = await buildMissingCardInFreshDom([], []);
     // assert the title attribute carries the raw reason verbatim.
     assert.equal(card.querySelector(".why")!.getAttribute("title"), RAW_ENGINE_ERROR);
 });
 
 test("test_missing_card_has_only_jump_and_json_buttons", async () => {
-    // Scenario: the card carries exactly the two task-130 actions and { } routes through
-    // context.openRecordForChangeId with the card's changeId.
-    // Steps:
-    // build the card recording every action-route call.
+    // Scenario: the card carries exactly the two task-130 actions and { } routes through context.openRecordForChangeId with the card's changeId.  Steps: build the card recording every action-route call.
     const openedChangeIds: string[] = [];
     const card = await buildMissingCardInFreshDom(openedChangeIds, []);
     // exactly two buttons, in reading order: jump then { }.

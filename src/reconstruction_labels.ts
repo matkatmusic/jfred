@@ -1,7 +1,4 @@
-// Shared display-label helpers for the reconstruction renderers: a change id shortened for printing
-// and a path's base name. The one canonical home for both, imported directly by the list renderer and
-// the graph renderer (no re-export shim — coding-requirements §2). Distinct from `shortUuid`
-// (reconstruction_branch.ts), which shortens a branch tip's uuid.
+// Display-label helpers: shortened change ids and path base names for renderers.
 
 import type { Path, Uuid } from "./structures/domain.ts";
 import { toolUseIdPrefix } from "./regex_expressions.ts";

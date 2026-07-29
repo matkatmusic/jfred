@@ -39,9 +39,7 @@ function collectProgressLabels(action: () => void): string[] {
 }
 
 test("test_bash_run_skips_prestate_and_sandbox", () => {
-    // Scenario: a Bash-origin run (compound shell, may-write verbs) must not build
-    // pre-state or enter the python3 sandbox — its result stays post:undefined, exactly
-    // what the crashing sandbox produced before the gate.
+    // Scenario: a Bash-origin run (compound shell, may-write verbs) must not build pre-state or enter the python3 sandbox — its result stays post:undefined, exactly what the crashing sandbox produced before the gate.
     resetReconstructionCounters();
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/hook.sh", content: "echo hi\n" }, "2026-01-01T00:00:01Z"),
@@ -80,8 +78,7 @@ test("test_python_run_still_executes", () => {
 });
 
 test("test_bash_indirection_to_python_file_executes", () => {
-    // Scenario: a Bash `python3 apply.py` run whose invoked .py file has a Written body is
-    // python-executable — indirection promotes its executor kind (the s34/s37 mechanism).
+    // Scenario: a Bash `python3 apply.py` run whose invoked .py file has a Written body is python-executable — indirection promotes its executor kind (the s34/s37 mechanism).
     const body = 'open("data.txt", "w").write("scripted\\n")\n';
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/apply.py", content: body }, "2026-01-01T00:00:01Z"),
@@ -94,10 +91,7 @@ test("test_bash_indirection_to_python_file_executes", () => {
 });
 
 test("test_run_execution_key_carries_instant_executor_and_code", () => {
-    // Scenario: the executionsByRun memo key is `${instantMs}|${executorKind}|${code}`, with an
-    // absent executor kind defaulting to python (the synthetic-test-run rule from task 192).
-    // Steps:
-    // a recorded python run's key reproduces the exact format executeRunOnce memoizes under.
+    // Scenario: the executionsByRun memo key is `${instantMs}|${executorKind}|${code}`, with an absent executor kind defaulting to python (the synthetic-test-run rule from task 192).  Steps: a recorded python run's key reproduces the exact format executeRunOnce memoizes under.
     const records = [
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print("x")\n' }, "2026-01-01T00:00:02Z"),
     ];
@@ -115,8 +109,7 @@ test("test_run_execution_key_carries_instant_executor_and_code", () => {
 });
 
 test("test_bash_static_rename_evidence_survives_gate", () => {
-    // Scenario: a bash `mv` run is skipped by the sandbox gate, but its statically
-    // extracted rename evidence still lands in the reconstructed history.
+    // Scenario: a bash `mv` run is skipped by the sandbox gate, but its statically extracted rename evidence still lands in the reconstructed history.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/a.py", content: "a = 1\n" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z"),

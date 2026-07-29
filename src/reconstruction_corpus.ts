@@ -1,12 +1,4 @@
-// The per-transcript-set cache state for one reconstruction: every memo that is keyed on a
-// records-array identity lives here, in two validity groups. Branch selections are pure
-// functions of the records alone and never invalidate. Derived caches depend on the sidecar
-// reader identity AND the exec-gate flag AND the task-56 pre-baseline flag; a change to any
-// discards the whole group (a declined build's results must never serve a consented one, and
-// vice versa). Guards
-// (the lineage replay-frame stack, activeLineageReplayCutoff, resolving) are execution-stack
-// state, not cache state — they stay in their own modules. Design: plans/items14-23-26-33-close.md
-// (Phase 4, item 14).
+// Per-records cache with two validity groups: stable branch selections and reader-gated derived caches.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BackupPoint } from "./reconstruction_backup_timeline.ts";
@@ -19,8 +11,7 @@ import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { isPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 
-// The reader/exec-gate-validated cache group: per-file histories (reconstructFileOver),
-// lineage-seed texts (getLineageContentBefore), and sandbox executions (executeRunOnce).
+// The reader/exec-gate-validated cache group: per-file histories (reconstructFileOver), lineage-seed texts (getLineageContentBefore), and sandbox executions (executeRunOnce).
 export type DerivedCaches = {
     reader: BackupReader | undefined;
     impureAllowed: boolean;
@@ -47,8 +38,7 @@ export type CorpusState = {
 
 const corpusStates = new WeakMap<TranscriptRecord[], CorpusState>();
 
-// An empty derived-cache group stamped with the reader and the CURRENT exec-gate and
-// pre-baseline flag values.
+// An empty derived-cache group stamped with the reader and the CURRENT exec-gate and pre-baseline flag values.
 function buildDerivedCaches(reader: BackupReader | undefined): DerivedCaches {
     return {
         reader,
@@ -79,9 +69,7 @@ export function getCorpusState(records: TranscriptRecord[]): CorpusState {
     return state;
 }
 
-// The derived-cache group, rebuilt empty whenever the reader identity or the exec-gate flag
-// differ from the values the group was stamped with (the one validity rule, applied uniformly —
-// including to executions).
+// Rebuilds derived caches when reader, exec-gate, or pre-baseline flag changed.
 export function getDerivedCaches(
     records: TranscriptRecord[],
     reader: BackupReader | undefined,

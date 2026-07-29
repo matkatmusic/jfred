@@ -1,22 +1,11 @@
-// Safe memoization of nested lineage replays (task 162). A replay's result can depend on
-// execution-stack state in exactly two ways: a cycle-guard hit inside its subtree (an ancestor's
-// in-flight key answered `undefined`), and the never-widening replay window narrowing it. This
-// module tracks, per in-flight replay frame, every cycleKey the frame's subtree queried, and which
-// frames a guard hit degraded ("poisoned") — so reconstruction_branches.ts can cache exactly the
-// replays whose results are PROVEN stack-independent, and serve a cached result only when a fresh
-// compute would take the identical path. The frame stack REPLACES the old `seedingLineages` Set
-// (same cycle-guard role, keys now ordered). Sole import: the counters module (itself
-// import-free), which tallies replay requests/serves here because the two hook points
-// (recordLineageKeyQuery, noteLineageCacheServe) are each called exactly once per
-// replayLineageContentBefore entry/serve and reconstruction_branches.ts sits at its line cap.
+// Safe memoization of nested lineage replays (task 162). A replay's result can depend on execution-stack state in exactly two ways: a cycle-guard hit inside its subtree (an ancestor's in-flight key answered `undefined`), and the never-widening replay window narrowing it. This module tracks, per in-flight replay frame, every cycleKey the frame's subtree queried, and which frames a guard hit degraded ("poisoned") — so reconstruction_branches.ts can cache exactly the replays whose results are PROVEN stack-independent, and serve a cached result only when a fresh compute would take the identical path. The frame stack REPLACES the old `seedingLineages` Set (same cycle-guard role, keys now ordered). Sole import: the counters module (itself import-free), which tallies replay requests/serves here because the two hook points (recordLineageKeyQuery, noteLineageCacheServe) are each called exactly once per replayLineageContentBefore entry/serve and reconstruction_branches.ts sits at its line cap.
 
 import {
     ReconstructionCounter,
     incrementReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
-// A cacheable lineage-seed result: the seeded text plus every cycleKey the computation queried
-// (transitively). Valid to serve only while none of those keys is in flight.
+// Cached seed text plus the transitive set of queried cycle keys.
 export type LineageSeedEntry = { text: string | undefined; queriedKeys: ReadonlySet<string> };
 
 type LineageReplayFrame = { cycleKey: string; queriedKeys: Set<string>; poisoned: boolean };
@@ -32,8 +21,7 @@ export function isLineageKeyOnReplayStack(cycleKey: string): boolean {
     return activeFrames.some((frame) => frame.cycleKey === cycleKey);
 }
 
-// Every replay entry records its key into every in-flight frame: each ancestor's result now
-// depends on what this key resolves to.
+// Propagate this key into every ancestor frame's dependency set.
 export function recordLineageKeyQuery(cycleKey: string): void {
     incrementReconstructionCounter(ReconstructionCounter.lineageReplayRequests);
     for (const frame of activeFrames) {
@@ -41,11 +29,7 @@ export function recordLineageKeyQuery(cycleKey: string): void {
     }
 }
 
-// A cycle-guard hit on `cycleKey` degrades every frame pushed AFTER that key's own frame — they
-// observed `undefined` where a clean compute would have seen a real seed. The key's own frame
-// reproduces the same hit on a fresh compute (its subtree is deterministic), so it stays
-// cacheable. Defensive: an absent key (findIndex -1) poisons every frame rather than risk caching
-// a stack-dependent result.
+// Poison every frame above the hit key's own frame; absent key poisons all defensively.
 export function recordLineageGuardHit(cycleKey: string): void {
     const hitIndex = activeFrames.findIndex((frame) => frame.cycleKey === cycleKey);
     for (let index = hitIndex + 1; index < activeFrames.length; index += 1) {
@@ -53,16 +37,12 @@ export function recordLineageGuardHit(cycleKey: string): void {
     }
 }
 
-// The file path of a cycle key — everything before the LAST "|" (the instant suffix; a path
-// may itself contain "|" but never ends the key).
+// Extract the file path prefix before the last "|" instant suffix.
 function extractLineagePathOfCycleKey(cycleKey: string): string {
     return cycleKey.slice(0, cycleKey.lastIndexOf("|"));
 }
 
-// Whether a cached entry may be served: no FILE it queried is currently in flight — at any
-// instant, not just the recorded one. Task 220's horizon keys serve an entry at instants other
-// than the one it was computed at; a fresh compute there would cycle-guard against an in-flight
-// replay of the same file regardless of instant, so the refusal must match on the path alone.
+// Refuse if any file the entry queried has an in-flight replay, at any instant.
 function checkNoQueriedKeyInFlight(entry: LineageSeedEntry): boolean {
     const inFlightPaths = new Set(
         activeFrames.map((frame) => extractLineagePathOfCycleKey(frame.cycleKey)),
@@ -75,8 +55,7 @@ function checkNoQueriedKeyInFlight(entry: LineageSeedEntry): boolean {
     return true;
 }
 
-// The cached entry for cycleKey, but only when a replay whose window kept its instant could
-// serve it verbatim; null otherwise (miss, dependency in flight, or window-narrowed replay).
+// Return cached entry if window-preserved and no queried key is in flight.
 export function findServableLineageSeed(
     seedsByKey: Map<string, LineageSeedEntry>,
     cycleKey: string,
@@ -105,10 +84,7 @@ export function noteLineageCacheServe(entry: LineageSeedEntry): void {
     }
 }
 
-// Run one replay computation inside its own frame. Returns the computed text plus the cacheable
-// entry — null when a guard hit degraded the computation (stack-dependent, must not be stored).
-// A throwing compute pops the frame and propagates (the surviving ancestors' accumulated queries
-// stay valid: the throw is deterministic for the subtree).
+// Execute compute in a fresh frame; returns null cacheable if poisoned by a guard hit.
 export function runLineageReplayFrame(
     cycleKey: string,
     compute: () => string | undefined,
@@ -126,8 +102,7 @@ export function runLineageReplayFrame(
     }
 }
 
-// Store a proven stack-independent entry — but only for a replay whose window kept its instant
-// (a window-narrowed result is not intrinsic to its (target, before) key).
+// Cache only when the replay window preserved the entry's instant.
 export function storeLineageSeedWhenCacheable(
     seedsByKey: Map<string, LineageSeedEntry>,
     cycleKey: string,
@@ -143,9 +118,7 @@ export function storeLineageSeedWhenCacheable(
     seedsByKey.set(cycleKey, cacheable);
 }
 
-// Whether entering the replay window for `before` kept that instant: enterLineageReplayWindow
-// never widens, so the active cutoff equals `before` exactly when no earlier cutoff was already
-// active. `previousCutoff` is enterLineageReplayWindow's return value.
+// True when the active replay window has not narrowed past `before`.
 export function doesReplayWindowKeepInstant(previousCutoff: Date | undefined, before: Date): boolean {
     if (previousCutoff === undefined) {
         return true;

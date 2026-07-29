@@ -11,12 +11,7 @@ import { buildToolRecord } from "./script-execution-test-helpers.ts";
 const emptyReader: BackupReader = () => "";
 
 test("test_runForTarget_matches_a_run_that_touches_the_target_without_naming_it", () => {
-    // Scenario: a script renames functions across files found via glob.glob, so the target's
-    // basename never appears in the script source; the gate must still match the run because
-    // executing it changes the target's content.
-    // Steps:
-    // build records with a Write of /proj/core_one.py and a run whose script rewrites
-    // every core_*.py via glob (no literal "core_one.py" in the source).
+    // Scenario: a script renames functions across files found via glob.glob, so the target's basename never appears in the script source; the gate must still match the run because executing it changes the target's content.  Steps: build records with a Write of /proj/core_one.py and a run whose script rewrites every core_*.py via glob (no literal "core_one.py" in the source).
     const globScript = 'import glob\nfor p in glob.glob("core_*.py"):\n'
         + '    text = open(p).read()\n'
         + '    open(p, "w").write(text.replace("f_one", "alpha"))\n';

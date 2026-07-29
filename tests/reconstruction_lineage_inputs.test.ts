@@ -1,5 +1,4 @@
-// tests/reconstruction_lineage_inputs.test.ts — the static half of the task-220 horizon:
-// the strictly-before instant search and the per-target static lineage inputs.
+// tests/reconstruction_lineage_inputs.test.ts — the static half of the task-220 horizon: the strictly-before instant search and the per-target static lineage inputs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -21,8 +20,7 @@ test("test_find_latest_instant_before_returns_last_strictly_earlier_instant", ()
 });
 
 test("test_static_inputs_collect_own_instants_and_lineage_paths", () => {
-    // Scenario: two Writes of the target and one Write of an unrelated file — the target's
-    // static inputs carry exactly its own two instants, and its path string.
+    // Scenario: two Writes of the target and one Write of an unrelated file — the target's static inputs carry exactly its own two instants, and its path string.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
         buildToolRecord(ToolName.Write, { file_path: "/proj/unrelated.txt", content: "g\n" }, "2026-01-01T00:00:02Z", "/proj"),

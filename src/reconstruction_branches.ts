@@ -1,9 +1,4 @@
-// Branch-aware reconstruction. The branch-agnostic CORE (`reconstructFileOver` /
-// `reconstructFilesOver`) reconstructs over EXACTLY the records it is given — no branch selection —
-// so any one conversation branch can be reconstructed in isolation. The public surviving-branch API
-// (`reconstructFile` / `reconstructAll` in reconstruction_engine.ts) pre-selects the surviving
-// branch and calls this core. (Split out of reconstruction_engine.ts to keep both files within the
-// 250-line cap — split, never condense.) Design: plans/s7/s7-reconstruction-plan.md.
+// Branch-aware reconstruction core, split from reconstruction_engine.ts for the 250-line cap.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
@@ -56,18 +51,9 @@ import type {
     FileRevision,
 } from "./reconstruction_engine.ts";
 
-// One file's reconstruction memoized per records-array identity. reconstructFileOver is
-// deterministic for (records, target, reader, exec-gate), and the document build re-requests the
-// same file's history once per pass. Only PURE top-level calls are cached — a call inside copy
-// seeding (`resolving` non-empty) or lineage seeding (a replay frame active) is
-// stack-dependent (the cycle guards alter what it can see) and computes fresh, exactly as before.
-// corpus: moved to reconstruction_corpus.ts (item 14)
+// Per-file reconstruction memo; only pure top-level calls are cached (stack-dependent calls compute fresh).
 
-// The branch-agnostic core: reconstruct one file's history over EXACTLY the records given (no branch
-// selection here) — follow any rename to its final path, keep only that lineage's events, seed any
-// copy from its source, then replay. resolving holds the destination paths currently being seeded,
-// so a copy cycle (cp a b; cp b a) breaks instead of recursing forever. reader fills bash-redirect
-// content from the file-history sidecar before replay (undefined for S1-S4).
+// Reconstruct one file over the given records; resolving breaks copy cycles.
 export function reconstructFileOver(
     records: TranscriptRecord[],
     target: Path,
@@ -89,8 +75,7 @@ export function reconstructFileOver(
     return revisions;
 }
 
-// Run one chain stage, falling back to its unmodified input when it throws — the file keeps
-// every state computed so far and the failure is noted for the wire document.
+// Run one chain stage, falling back to unmodified input on throw; failure is noted.
 function runStageTolerantly(
     stage: string,
     target: Path,
@@ -116,8 +101,7 @@ function computeFileRevisionsOver(
     reader?: BackupReader,
 ): FileRevision[] {
     const extracted = extractFileEvents(records);
-    // task 155: sandbox-proven script moves join the chain so a moved source's lineage
-    // resolves to its destination; stage-tolerant like every impure stage.
+    // task 155: sandbox-proven script moves join the chain for lineage resolution.
     const events = reader
         ? runStageTolerantly("appendScriptMoveRenames", target, extracted, () => appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader)))
         : extracted;
@@ -126,22 +110,15 @@ function computeFileRevisionsOver(
     const lineage = events.filter((event) =>
         eventBelongsToLineage(event, finalTarget, renameChain),
     );
-    // task 119: every chain stage runs through runStageTolerantly — a throwing stage (a dead
-    // sidecar blob, an unreadable repo) degrades to its input events instead of killing the file.
-    // The pre-chain steps above are pure record/event walks (the per-file backstop covers them);
-    // replayEvents has its own per-event net.
-    // task 119: const baselined = seedBaseCommitBeacon(records, lineage, finalTarget);
+    // task 119: each stage degrades to its input on throw instead of killing the file.
     const baselined = runStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, () => seedBaseCommitBeacon(records, lineage, finalTarget));
-    // item 46: const seeded = seedCopyEvents(records, lineage, resolving, reader);
-    // task 119: const seeded = seedCopyEvents(records, baselined, resolving, reader);
+    // item 46: const seeded = seedCopyEvents(records, lineage, resolving, reader); task 119: const seeded = seedCopyEvents(records, baselined, resolving, reader);
     const seeded = runStageTolerantly("seedCopyEvents", finalTarget, baselined, () => seedCopyEvents(records, baselined, resolving, reader));
     // task 119: const filled = reader ? fillRedirectContent(records, seeded, reader) : seeded;
     const filled = reader ? runStageTolerantly("fillRedirectContent", finalTarget, seeded, () => fillRedirectContent(records, seeded, reader)) : seeded;
     // task 119: const based = reader ? seedEditBaseFromBackup(records, filled, reader) : filled;
     const based = reader ? runStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, () => seedEditBaseFromBackup(records, filled, reader)) : filled;
-    // task 119: const scripted = reader
-    // task 119:     ? injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader))
-    // task 119:     : based;
+    // task 119: const scripted = reader task 119:     ? injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader)) task 119:     : based;
     const scripted = reader
         ? runStageTolerantly("injectScriptExecutions", finalTarget, based, () => injectScriptExecutions(records, based, reader, finalTarget, getLineageContentBefore(records, reader)))
         : based;
@@ -193,19 +170,16 @@ function seedOneCopy(
     return { ...event, seedLines: linesTextOf(atCopy) };
 }
 
-// Lineage-seed texts memoized per records identity, keyed by relevant-input horizon (task 220).
-// Proof rules: reconstruction_lineage_memo.ts (task 162); validity re-check: getDerivedCaches.
+// Lineage-seed texts memoized per records identity, keyed by horizon (task 220, task 162).
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
 function computeSeededText(revisionBefore: FileRevision | undefined): string | undefined {
     if (revisionBefore === undefined) return undefined;
-    // splitLines drops one trailing newline, so restore it — the stage's byte-exact
-    // beacon compare fails without it.
+    // splitLines drops one trailing newline, so restore it — the stage's byte-exact beacon compare fails without it.
     return linesTextOf(revisionBefore).join("\n") + "\n";
 }
 
-// Replay the target's own reconstruction up to `before` — the callback body of
-// getLineageContentBefore, extracted to module scope.
+// Replay the target's own reconstruction up to `before` — the callback body of getLineageContentBefore, extracted to module scope.
 function replayLineageContentBefore(
     records: TranscriptRecord[],
     reader: BackupReader,
@@ -222,8 +196,7 @@ function replayLineageContentBefore(
     const seedKey = computeLineageSeedHorizonKey(records, reader, target, before);
     const previousCutoff = enterLineageReplayWindow(before);
     try {
-        // Cache reads/writes are valid only for replays the memo module can PROVE identical to a
-        // fresh compute (window kept its instant, no queried dependency in flight) — task 162.
+        // Cache valid only when memo module proves replay identical to fresh compute (task 162).
         const windowKeptInstant = doesReplayWindowKeepInstant(previousCutoff, before);
         const servableEntry = findServableLineageSeed(seedsByKey, seedKey, windowKeptInstant);
         if (servableEntry !== null) {

@@ -6,9 +6,7 @@ import {
 } from "../structures/vocabulary.ts";
 import { Path, Uuid } from "../structures/domain.ts";
 
-// Thrown when a transcript line carries a `type` outside the known s1
-// vocabulary. Surfacing this loudly prevents a fog-of-war violation (a record
-// shape we have not modeled) from passing silently.
+// Fail loudly on unmodeled record types to prevent silent fog-of-war violations.
 export class UnknownRecordTypeError extends Error {
     readonly recordType: string;
 
@@ -28,17 +26,14 @@ function isKnownRecordType(value: unknown): value is RecordType {
     return KNOWN_TYPE_SET.has(value);
 }
 
-// parentUuid can be null at the conversation root; hydration leaves null in
-// place (ENVELOPE_ID_KEYS is the shared envelope id-field list from envelope.ts).
+// Null parentUuid (conversation root) is intentionally left as-is.
 function hydrateIdKey(record: Record<string, unknown>, key: string): void {
     if (typeof record[key] === "string") {
         record[key] = new Uuid(record[key] as string);
     }
 }
 
-// Hydrate the domain-typed envelope fields (ids → Uuid, cwd → Path,
-// timestamp → Date) in place, so the runtime record matches EnvelopeBase. Only
-// fields actually present are touched; session-meta records carry only a subset.
+// Convert wire strings to domain types (Uuid, Path, Date) in place.
 function hydrateEnvelope(record: Record<string, unknown>): void {
     for (const key of ENVELOPE_ID_KEYS) {
         hydrateIdKey(record, key);
@@ -51,9 +46,7 @@ function hydrateEnvelope(record: Record<string, unknown>): void {
     }
 }
 
-// Parse one JSONL line into a typed transcript record, validating that its
-// `type` is a known s1 record type (throws UnknownRecordTypeError otherwise) and
-// hydrating its envelope domain fields from their wire strings.
+// Parse and validate one JSONL line, hydrating envelope fields to domain types.
 export function parseRecord(line: string): TranscriptRecord {
     const parsed = JSON.parse(line) as Record<string, unknown> & {
         type?: unknown;
@@ -64,4 +57,5 @@ export function parseRecord(line: string): TranscriptRecord {
     hydrateEnvelope(parsed);
     return parsed as TranscriptRecord;
 }
+
 

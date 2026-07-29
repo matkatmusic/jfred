@@ -1,7 +1,4 @@
-// Task 196 (spec S1): loadLayeredProject — source discovery (explicit paths win) and per-file
-// ReconstructionEntitys with per-session SessionTimelines built from JSONL rows. Fixtures are
-// fabricated wire records loaded through loadTranscript (multi-source-test-helpers), never
-// hand-cast objects.
+// Task 196 (spec S1): source discovery and per-file entities. Fixtures are wire records loaded via loadTranscript, never hand-cast objects.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -34,8 +31,7 @@ type LayeredFixture = {
     sessionARecords: import("../src/structures/envelope.ts").TranscriptRecord[];
 };
 
-// Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py;
-// session B (b.jsonl) writes beta.py.
+// Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py; session B (b.jsonl) writes beta.py.
 function makeLayeredFixture(): LayeredFixture {
     const tree = makeSourceTree("-layered-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
@@ -67,7 +63,6 @@ function makeLayeredFixture(): LayeredFixture {
     return { projectDir: tree.projectDir, treeRoot: tree.treeRoot, workspaceRoot, alphaPath, betaPath, sessionARecords };
 }
 
-// The entity whose filename matches `target`, asserting it exists.
 function findEntity(entities: ReconstructionEntity[], target: string): ReconstructionEntity {
     const entity = entities.find((candidate) => candidate.filename.toString() === target);
     assert.ok(entity, `no entity for ${target}`);
@@ -75,12 +70,9 @@ function findEntity(entities: ReconstructionEntity[], target: string): Reconstru
 }
 
 test("test_discoverJsonlPaths_scans_top_level_jsonl_files", () => {
-    // Scenario: with no override, discovery lists the folder's top-level .jsonl files, name-sorted.
-    // Steps:
-    // a project folder holding a.jsonl and b.jsonl plus a non-jsonl file.
+    // With no override, discovery lists the folder's top-level .jsonl files, name-sorted.
     const fixture = makeLayeredFixture();
     writeFileSync(join(fixture.projectDir, "notes.txt"), "not a transcript\n");
-    // discovery returns exactly the two jsonls in name order.
     const discovered = discoverJsonlPaths(new Path(fixture.projectDir), undefined);
     assert.deepEqual(
         discovered.map((path) => path.toString()),
@@ -89,37 +81,27 @@ test("test_discoverJsonlPaths_scans_top_level_jsonl_files", () => {
 });
 
 test("test_discoverJsonlPaths_override_wins_over_folder_scan", () => {
-    // Scenario: an explicit jsonlPaths override is returned verbatim — the folder is not scanned.
-    // Steps:
-    // a folder with two jsonls but an override naming one unrelated path.
+    // An explicit jsonlPaths override is returned verbatim — the folder is not scanned.
     const fixture = makeLayeredFixture();
     const override = [new Path("/somewhere/else/c.jsonl")];
-    // the override comes back untouched.
     const discovered = discoverJsonlPaths(new Path(fixture.projectDir), override);
     assert.deepEqual(discovered, override);
 });
 
 test("test_resolveEvidenceRoots_explicit_paths_win", () => {
-    // Scenario: explicit repoPath/snapshotPaths overrides are returned unchanged.
-    // Steps:
-    // records exist but overrides name both roots.
+    // Explicit repoPath/snapshotPaths overrides win over anything the records imply.
     const fixture = makeLayeredFixture();
     const repoOverride = new Path("/explicit/repo");
     const snapshotOverride = [new Path("/explicit/file-history")];
     const roots = resolveEvidenceRoots(fixture.sessionARecords, { repoPath: repoOverride, snapshotPaths: snapshotOverride });
-    // both overrides win.
     assert.equal(roots.repoPath, repoOverride);
     assert.deepEqual(roots.snapshotPaths, snapshotOverride);
 });
 
 test("test_resolveEvidenceRoots_discovers_from_records_without_overrides", () => {
-    // Scenario: without overrides, the repo root falls back to the records' first cwd and the
-    // snapshot root to the transcript-derived sibling file-history directory.
-    // Steps:
-    // records loaded from the fixture tree (source-stamped by loadTranscript).
+    // Without overrides, repo root falls back to records' first cwd; snapshot root falls back to the sibling file-history dir.
     const fixture = makeLayeredFixture();
     const roots = resolveEvidenceRoots(fixture.sessionARecords, {});
-    // repo root = the recorded cwd; snapshot root = the sibling file-history dir.
     assert.equal(roots.repoPath?.toString(), fixture.workspaceRoot);
     assert.deepEqual(
         roots.snapshotPaths.map((path) => path.toString()),
@@ -128,16 +110,11 @@ test("test_resolveEvidenceRoots_discovers_from_records_without_overrides", () =>
 });
 
 test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
-    // Scenario: the graph holds exactly one entity per evidenced absolute path, each holding its
-    // owning session's timeline with nodes in instant order.
-    // Steps:
-    // load the two-session fixture folder.
+    // One entity per evidenced absolute path, each holding its session's nodes in instant order.
     const fixture = makeLayeredFixture();
     const graph = loadLayeredProject(new Path(fixture.projectDir), {});
-    // exactly the two evidenced files appear.
     assert.equal(graph.entities.length, 2);
-    // alpha's entity holds ONE session timeline (session A): the write beacon, then the edit —
-    // ALSO a beacon since task 198 (its populated originalFile is full-content evidence).
+    // Alpha's edit is ALSO a beacon since task 198: its populated originalFile is full content.
     const alpha = findEntity(graph.entities, fixture.alphaPath);
     assert.equal(alpha.sessionTimelines.length, 1);
     const alphaNodes = alpha.sessionTimelines[0]!.timeline.nodes;
@@ -145,35 +122,29 @@ test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
     assert.equal(alphaNodes[0]!.kind, LayeredNodeKind.beacon);
     assert.equal(alphaNodes[1]!.kind, LayeredNodeKind.beacon);
     assert.ok(alphaNodes[0]!.instant.getTime() < alphaNodes[1]!.instant.getTime());
-    // beta's entity holds session B's single write beacon.
     const beta = findEntity(graph.entities, fixture.betaPath);
     assert.equal(beta.sessionTimelines.length, 1);
     assert.equal(beta.sessionTimelines[0]!.timeline.nodes.length, 1);
     assert.equal(beta.sessionTimelines[0]!.timeline.nodes[0]!.kind, LayeredNodeKind.beacon);
-    // the fixture records no mv/cp, so the S6 typed edges stay empty.
+    // The fixture records no mv/cp, so the S6 typed edges stay empty.
     assert.deepEqual(graph.renames, []);
     assert.deepEqual(graph.copies, []);
     assert.deepEqual(graph.scriptLinks, []);
 });
 
 test("test_loadLayeredProject_explicit_jsonl_override_limits_sources", () => {
-    // Scenario: an explicit jsonlPaths override restricts loading to the named sessions.
-    // Steps:
-    // load with only session A's jsonl.
+    // An explicit jsonlPaths override restricts loading to the named sessions.
     const fixture = makeLayeredFixture();
     const graph = loadLayeredProject(new Path(fixture.projectDir), {
         jsonlPaths: [new Path(join(fixture.projectDir, "a.jsonl"))],
     });
-    // beta.py (evidenced only by session B) is absent.
+    // beta.py, evidenced only by session B, is absent.
     assert.equal(graph.entities.length, 1);
     assert.equal(graph.entities[0]!.filename.toString(), fixture.alphaPath);
 });
 
 test("test_loadLayeredProject_beacon_carries_write_content_and_evidence_line", () => {
-    // Scenario: a Write row becomes a beacon holding the written bytes and a JsonlRef naming its
-    // session file and source line.
-    // Steps:
-    // load the fixture and take alpha's first node.
+    // A Write row becomes a beacon holding the bytes plus a JsonlRef naming its file and line.
     const fixture = makeLayeredFixture();
     const graph = loadLayeredProject(new Path(fixture.projectDir), {});
     const alpha = findEntity(graph.entities, fixture.alphaPath);
@@ -182,7 +153,6 @@ test("test_loadLayeredProject_beacon_carries_write_content_and_evidence_line", (
     if (beacon.kind !== LayeredNodeKind.beacon) {
         return;
     }
-    // the beacon holds the Write body and points at a real line of a.jsonl.
     assert.equal(beacon.content, "line one\n");
     assert.ok(beacon.evidence);
     assert.equal(beacon.evidence?.sessionFile.toString(), join(fixture.projectDir, "a.jsonl"));

@@ -1,8 +1,4 @@
-// Layer 2 snapshot beacons (task 201, spec S4): every non-null file-history backup point
-// becomes a verified BeaconNode. Resolution is per-OWNING-session (Q12): the backup timeline
-// stamps each point with the sessionId that took it, and that id is passed to the BackupReader
-// — the same `abc123@vN` blob name recurs across sessions with different bytes, so a global
-// name lookup would be wrong. Merging these onto session timelines is S5/task 202's job.
+// Resolve per-session backup points into BeaconNodes; global lookup fails because blob names collide across sessions.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { LayeredNodeKind } from "./structures/vocabulary.ts";
@@ -10,8 +6,7 @@ import { buildBackupTimeline, findCwd, type BackupPoint } from "./reconstruction
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { BeaconNode } from "./layered_types.ts";
 
-// The beacons for one path's backup points, in backupTime order (the timeline pre-sorts).
-// A null backupFileName is version 1, which holds no blob — skipped, never handed to the reader.
+// Null backupFileName means version 1 (blobless) — skip those, emit beacons for the rest.
 function buildBeaconsFromBackupPoints(points: BackupPoint[], reader: BackupReader): BeaconNode[] {
     const beacons: BeaconNode[] = [];
     for (const point of points) {
@@ -29,8 +24,7 @@ function buildBeaconsFromBackupPoints(points: BackupPoint[], reader: BackupReade
     return beacons;
 }
 
-// The Layer 2 beacons per absolute file path: every snapshot blob the records evidence, resolved
-// through its owning session's sidecar. Paths whose snapshots are all blobless get no entry.
+// Collect per-file beacons from backup blobs; paths with only blobless snapshots are omitted.
 export function collectSnapshotBeaconNodes(
     records: TranscriptRecord[],
     reader: BackupReader,
@@ -45,3 +39,4 @@ export function collectSnapshotBeaconNodes(
     }
     return beaconsByFile;
 }
+

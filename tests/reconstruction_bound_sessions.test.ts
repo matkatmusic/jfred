@@ -1,5 +1,4 @@
-// task 193: the per-session turn-walk half of the bound tests, split from
-// reconstruction_bound.test.ts (task 192 pushed that file past the 250-line cap).
+// task 193: the per-session turn-walk half of the bound tests, split from reconstruction_bound.test.ts (task 192 pushed that file past the 250-line cap).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -17,13 +16,7 @@ import {
 } from "./multi-source-test-helpers.ts";
 
 test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () => {
-    // Scenario: two sessions ran CONCURRENTLY, so the merged time-ordered stream interleaves
-    // their turns. The turn end must be the OWNING session's next prompt — another session's
-    // prompt landing mid-turn must not cut session A's turn short — and the cut is by wall
-    // clock, so the other session's records inside the window stay in.
-    // Merged stream:
-    //   promptA1 10:00 | write alpha (A) 10:01 | promptB1 (B) 10:03 | edit alpha (A) 10:04
-    //   | write beta (B) 10:05 | promptA2 (A) 10:08 | write gamma (B) 10:09
+    // Scenario: two sessions ran CONCURRENTLY, so the merged time-ordered stream interleaves their turns. The turn end must be the OWNING session's next prompt — another session's prompt landing mid-turn must not cut session A's turn short — and the cut is by wall clock, so the other session's records inside the window stay in.  Merged stream: promptA1 10:00 | write alpha (A) 10:01 | promptB1 (B) 10:03 | edit alpha (A) 10:04 | write beta (B) 10:05 | promptA2 (A) 10:08 | write gamma (B) 10:09
     const tree = makeSourceTree("-bound-interleaved");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");

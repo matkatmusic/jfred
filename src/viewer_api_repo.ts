@@ -1,7 +1,4 @@
-// The task-137 repo/commit-picker server surface: list a repo's commits for the Paths
-// popover's visual pick list, count how many recorded file paths resolve inside a candidate
-// commit's tree (the soft mismatch warning), and read/apply/store one project's path entry.
-// HTTP wiring stays in viewer_server.ts; this file parses, dispatches, and serializes.
+// The task-137 repo/commit-picker server surface: list a repo's commits for the Paths popover's visual pick list, count how many recorded file paths resolve inside a candidate commit's tree (the soft mismatch warning), and read/apply/store one project's path entry.  HTTP wiring stays in viewer_server.ts; this file parses, dispatches, and serializes.
 
 import { execSync } from "node:child_process";
 import { statSync } from "node:fs";
@@ -57,9 +54,7 @@ export function countPathsInTree(relativePaths: string[], treePaths: Set<string>
     return { matchedCount, totalCount: relativePaths.length };
 }
 
-// The recorded targets that live under the recorded project root, as repo-relative paths —
-// the relative-path agreement the engine's cwd remap relies on (readCommitFileContent keys
-// commit-content lookups by relativePath).
+// The recorded targets that live under the recorded project root, as repo-relative paths — the relative-path agreement the engine's cwd remap relies on (readCommitFileContent keys commit-content lookups by relativePath).
 function computeRecordedRelativePaths(records: TranscriptRecord[]): string[] {
     const recordedRoot = findFirstRecordCwd(records);
     if (recordedRoot === undefined) {
@@ -90,9 +85,7 @@ export function computeCommitPathMatch(records: TranscriptRecord[], repoDir: Pat
     return countPathsInTree(computeRecordedRelativePaths(records), treePaths);
 }
 
-// The repo query param, resolved against the server's cwd (the jfred root) so both absolute
-// paths (the native picker) and jfred-root-relative paths (existing reveng-paths.json
-// entries, the task-56 convention) work. A non-directory is a loud 400 at the call site.
+// The repo query param, resolved against the server's cwd (the jfred root) so both absolute paths (the native picker) and jfred-root-relative paths (existing reveng-paths.json entries, the task-56 convention) work. A non-directory is a loud 400 at the call site.
 function resolveRepoParam(query: URLSearchParams): Path {
     const requested = resolve(requireParam(query, "repo"));
     if (!statSync(requested, { throwIfNoEntry: false })?.isDirectory()) {
@@ -129,8 +122,7 @@ export function handleRepoCommitMatchRequest(response: ServerResponse, query: UR
 // The POST /api/project-paths body: the full entry to apply, and whether to also store it.
 type WireProjectPathsUpdate = { project: string; entry: WireProjectPaths; persist: boolean };
 
-// Apply one posted update: session always; reveng-paths.json only on persist (the opt-in
-// step — no silent writes). Answers the merged entry.
+// Apply one posted update: session always; reveng-paths.json only on persist (the opt-in step — no silent writes). Answers the merged entry.
 function applyProjectPathsUpdate(response: ServerResponse, body: string): void {
     const update = JSON.parse(body) as WireProjectPathsUpdate;
     setSessionProjectPaths(update.project, update.entry);
@@ -140,8 +132,7 @@ function applyProjectPathsUpdate(response: ServerResponse, body: string): void {
     sendJson(response, 200, getMergedProjectPaths(update.project));
 }
 
-// GET: the project's merged entry (stored config + session overrides). POST: apply the
-// posted entry (the handleConfigUpdate body-accumulation pattern).
+// GET: the project's merged entry (stored config + session overrides). POST: apply the posted entry (the handleConfigUpdate body-accumulation pattern).
 export function handleProjectPathsRequest(request: IncomingMessage, response: ServerResponse, query: URLSearchParams): void {
     if (request.method !== "POST") {
         sendJson(response, 200, getMergedProjectPaths(requireParam(query, "project")));

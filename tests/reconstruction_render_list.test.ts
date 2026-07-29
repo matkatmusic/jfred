@@ -6,8 +6,7 @@ import { EventKind } from "../src/structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
-// A copy genesis revision for s3_copy.py (two lines, copy provenance), local to
-// this list-view test file.
+// A copy genesis revision for s3_copy.py (two lines, copy provenance), local to this list-view test file.
 const copyRevisionFixture: FileRevision = {
     kind: EventKind.copy,
     changeId: new Uuid("toolu_01JD5DoUCPtnnQrnJpSDmHwf"),

@@ -1,41 +1,25 @@
-// Task 253: the Layer 1 timeline's folder filter — the view that a File Nav folder selection draws.
-//
-// Filtering cannot just hide bubbles. `axisPx` is an ACCUMULATED offset (webapp/layer1-ruler-axis.ts):
-// every gap adds to the ones before it, so removing an instant moves every later node. Leaving the
-// endpoint's offsets in place would keep the canvas at the full-project height with the dropped
-// files' time still reserved as blank space — the opposite of what task 253 asks for. So the
-// survivors go back through the SAME layout the endpoint ran, which is why that module lives in
-// webapp/: one implementation, no chance of the filtered ruler disagreeing with the full one.
-//
-// Both functions here are pure view -> view: the page hands the result to its existing renderer.
+// Task 253: axisPx is an accumulated offset, so filtering re-runs the SAME layout as the endpoint rather than hiding bubbles.
 
 import { layOutNodeLadders, type NodeLadder } from "./layer1-ruler-axis.ts";
 import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair } from "./layer1-wire.ts";
 
-// The one place the wire's ISO text becomes a Date. Every instant below is round-tripped through
-// this and back out with toISOString(), so the endpoint's own spelling is what the page re-emits.
+// The one place the wire's ISO text becomes a Date, so the endpoint's own spelling is re-emitted.
 function readWireInstant(text: string): Date {
     return new Date(text);
 }
 
-// One pair's ladder, in the order the page draws it: every commit oldest-first, then the on-disk
-// node. Identical to src/viewer_api_layer1.ts's listPairNodeLadder, over the wire's shapes rather
-// than the domain's — the order is load-bearing, because the offsets come back positionally.
+// Mirrors src/viewer_api_layer1.ts's listPairNodeLadder; order is load-bearing since offsets come back positionally.
 function listWirePairLadder(pair: WirePair): NodeLadder {
     const created = pair.created === undefined ? [] : [pair.created.instant];
     return [...created, ...pair.commits.map((commit) => commit.instant), pair.onDisk.instant].map(readWireInstant);
 }
 
-// A node re-placed: same instant, new offset. Spreading the node keeps `hash` on a commit without
-// this needing to know which kind it was handed.
+// Spreading keeps `hash` on a commit without this needing to know which kind it was handed.
 function placeNodeAtPixels<Node extends WireInstant>(node: Node, axisPx: number): Node {
     return { ...node, axisPx };
 }
 
-// Look one instant's TICK offset up — a bucket row flows inside its bucket rather than being pinned
-// to the axis, so an orphan reads the tick and never a stacked node row. Every instant asked for
-// here was part of the layout's own input, so a miss is a bug in this module rather than bad input:
-// fail loudly instead of drawing a row at a silent zero (src/viewer_api_layer1.ts does the same).
+// An orphan reads the TICK offset, never a stacked row; a missing instant is a bug, not a silent zero.
 function placeOrphanOnAxis(tickOffsetsPx: Map<number, number>, orphan: WireOrphan): WireOrphan {
     const axisPx = tickOffsetsPx.get(readWireInstant(orphan.instant).getTime());
     if (axisPx === undefined) {
@@ -44,10 +28,7 @@ function placeOrphanOnAxis(tickOffsetsPx: Map<number, number>, orphan: WireOrpha
     return placeNodeAtPixels(orphan, axisPx);
 }
 
-// A pair's nodes taking the offsets measured for THIS pair's ladder. `nodeOffsetsPx` is parallel to
-// listWirePairLadder's output, so the commits read off the front in the same oldest-first order and
-// the on-disk node is the last entry — by construction, which is what lets two nodes sharing an
-// instant come back on different rows.
+// `nodeOffsetsPx` is parallel to listWirePairLadder's output: commits oldest-first, on-disk last.
 function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair {
     const firstCommit = pair.created === undefined ? 0 : 1;
     return {
@@ -60,11 +41,7 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
     };
 }
 
-// Re-run the endpoint's ruler layout over whatever records this view still holds, returning a fresh
-// view whose instants are unchanged and whose every offset is measured from those records alone.
-// Mirrors src/viewer_api_layer1.ts's assembly: pair ladders FIRST and in `pairs` order, so
-// ladderOffsetsPx[index] is pair `index`'s own rows; each orphan follows as a ONE-node ladder, so it
-// still bounds the ruler without being charged a stacked row.
+// Mirrors src/viewer_api_layer1.ts: pair ladders come first, so ladderOffsetsPx[index] is pair index's rows; orphans follow as one-node ladders.
 export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
     const layout = layOutNodeLadders([
         ...view.pairs.map(listWirePairLadder),
@@ -76,8 +53,7 @@ export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
         pairs: view.pairs.map((pair, index) => placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!)),
         gitOrphans: view.gitOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
         diskOrphans: view.diskOrphans.map((orphan) => placeOrphanOnAxis(tickOffsetsPx, orphan)),
-        // eventCount is re-measured by the layout above, not carried over from the unfiltered view:
-        // a folder filter removes bubbles, so the events left at an instant are genuinely fewer.
+        // eventCount is re-measured here, not carried from the unfiltered view: a folder filter removes bubbles, so counts per instant shrink.
         ruler: layout.ticks.map((tick) => ({
             instant: tick.instant.toISOString(),
             axisPx: tick.offsetPx,
@@ -86,16 +62,7 @@ export function relayOutLayer1View(view: WireLayer1View): WireLayer1View {
     };
 }
 
-// The view a folder selection draws. `targets` is the selected folder's LEAF paths, already resolved
-// by the File Nav — an empty list means no filter and restores everything.
-//
-// Membership is exact, never a prefix test on the path string: the caller resolved the folder to
-// whole paths, and a startsWith here would let `src/keep/a.ts` also match `src/keep/a.ts.bak` — the
-// substring class of bug task 278 removed from the find-file box.
-//
-// The empty case still goes through the re-layout rather than returning `view` untouched: one code
-// path, and the round-trip landing back on the endpoint's own offsets is the check that the page and
-// the server have not drifted apart.
+// `targets` holds LEAF paths (empty = no filter); membership is exact, never prefix, so `a.ts.bak` can't match `a.ts` (task 278).
 export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[]): WireLayer1View {
     if (targets.length === 0) {
         return relayOutLayer1View(view);

@@ -1,7 +1,4 @@
-// Extraction: turn a transcript's records into ordered file events (records ->
-// events). Each tool_use becomes at most one event (Write -> create, Bash rm ->
-// delete, Bash mv -> rename, Edit -> splice). The event model and replay live in
-// reconstruction_engine.ts / reconstruction_replay.ts. Design: the engine file.
+// Extraction: transcript records to ordered file events.
 
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import type { ToolUseBlock } from "./structures/content-blocks.ts";
@@ -39,8 +36,7 @@ function writeEventFrom(block: ToolUseBlock, timestamp: Date): WriteEvent {
 // The per-Edit detail from its result record: structuredPatch hunks + the literal pre-edit content.
 type EditDetail = { hunks: StructuredPatchHunk[]; originalFile: string };
 
-// Turn an Edit tool_use into an edit event, attaching the structuredPatch hunks and pre-edit content
-// reported for it (looked up by tool_use id), or undefined when none are found.
+// Build an edit event from its structuredPatch detail, if available.
 function editEventFrom(
     block: ToolUseBlock,
     timestamp: Date,
@@ -61,9 +57,7 @@ function editEventFrom(
     };
 }
 
-// Map a tool_use block to a file event (Write -> create, Bash rm/mv/git mv -> delete/
-// rename, Edit -> in-place splice). `cwd` is the record's working directory, used to resolve
-// a rename's relative paths to absolute.
+// Map a tool_use block to file events based on tool type.
 function toFileEvents(
     block: ToolUseBlock,
     timestamp: Date,
@@ -89,9 +83,7 @@ function collectEventsFromRecord(
     events: FileEvent[],
     detailById: Map<string, EditDetail>,
 ): void {
-    // The single keep/ignore gate: a record the classifier marks `ignore` carries no file evidence,
-    // so it can produce no event. Today this is a no-op (extraction already only emits from
-    // Write/Edit/Bash-file-op/user-edit records); Phase C admits the script-rename run through it.
+    // Skip records the classifier marks as `ignore`.
     if (recordVerdict(record) === Verdict.ignore) {
         return;
     }
@@ -112,8 +104,7 @@ function collectEventsFromRecord(
     }
 }
 
-// Map each Edit's tool_use id -> its structuredPatch hunks and pre-edit content, read from the user
-// record that reports the result (toolUseResult), keyed back via tool_use_id.
+// Index each Edit result's hunks and pre-edit content by tool_use id.
 function indexEditDetailByToolUseId(
     records: TranscriptRecord[],
 ): Map<string, EditDetail> {
@@ -146,12 +137,7 @@ function collectEditDetailFromRecord(
     }
 }
 
-// Extract every file event across the transcript, ordered by timestamp. Bash/Write/Edit evidence comes from
-// per-record extraction; script-run renames (Bash or MCP) are recovered separately from the runs' printed
-// stdout, since the move happens inside script code that leaves no per-record tool_use event.
-// Memoized per records identity in the corpus (pure group): the result depends on the records alone, and
-// the per-file repair chain re-enters here for every reconstructed file and every pre-execution replay.
-// Callers only filter/map the shared array — no pass mutates it or its events.
+// Extract all file events from the transcript, memoized per corpus identity.
 export function extractFileEvents(records: TranscriptRecord[]): FileEvent[] {
     const state = getCorpusState(records);
     if (state.fileEvents !== undefined) {

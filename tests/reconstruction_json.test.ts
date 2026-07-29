@@ -1,5 +1,4 @@
-// Unit tests for the pure JSON builders (src/reconstruction_json.ts), Steps 1–4 of the JSON-output
-// plan. Same shape as tests/reconstruction_steps_changes.test.ts: loadRecords + S19_JSONL.
+// Unit tests for the pure JSON builders (src/reconstruction_json.ts), Steps 1-4 of the JSON-output plan.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -35,12 +34,10 @@ const reader = realReader(records);
 
 test("test_extractConversationMessages_keeps_genuine_user_prompts", () => {
     // Behavior: every user message returned is a genuine prompt; tool-result user records are dropped.
-    // Step: extract messages, then look at the user-role ones.
     const messages = extractConversationMessages(records);
     const userRecords = records.filter((r) => r.type === RecordType.user);
     const genuine = userRecords.filter((r) => isGenuineUserPrompt(r));
     const nonPrompt = userRecords.find((r) => !isGenuineUserPrompt(r));
-    // Verify: each returned user message corresponds to a genuine prompt, and a non-prompt is absent.
     const returnedUserMessages = messages.filter((m) => m.role === RecordType.user);
     const returnedUserUuids = returnedUserMessages.map((m) => m.uuid?.toString());
     assert.equal(returnedUserUuids.length, genuine.length);
@@ -53,7 +50,6 @@ test("test_extractConversationMessages_keeps_assistant_text_replies", () => {
     // Behavior: assistant replies with text are kept; a pure tool_use assistant turn (no text) is omitted.
     const messages = extractConversationMessages(records);
     const assistantMessages = messages.filter((m) => m.role === RecordType.assistant);
-    // Verify: every assistant message carries non-empty text.
     assert.ok(assistantMessages.length > 0);
     for (const message of assistantMessages) {
         assert.notEqual(message.text, "");
@@ -62,13 +58,11 @@ test("test_extractConversationMessages_keeps_assistant_text_replies", () => {
 
 test("test_extractMessageText_reads_plain_string_user_content", () => {
     // Behavior: a user record whose message.content is a plain string yields that string as text.
-    // Step: find such a record among the genuine prompts.
     const messages = extractConversationMessages(records);
     const stringPrompt = records.find((r) => {
         const message = r.message as { content?: unknown } | undefined;
         return isGenuineUserPrompt(r) && typeof message?.content === "string";
     });
-    // Verify: its extracted message text equals the raw string content.
     if (stringPrompt !== undefined) {
         const raw = (stringPrompt.message as { content: string }).content;
         const built = messages.find((m) => m.uuid?.toString() === stringPrompt.uuid?.toString());
@@ -83,7 +77,6 @@ test("test_extractMessageText_joins_assistant_text_blocks", () => {
         const message = r.message as { content?: unknown } | undefined;
         return r.type === RecordType.assistant && Array.isArray(message?.content);
     });
-    // Verify: its text is the join of the record's text blocks (no tool_use noise).
     if (blockAssistant !== undefined) {
         const blocks = (blockAssistant.message as { content: { type: string; text?: string }[] }).content;
         const textBlocks = blocks.filter((b) => b.type === BlockType.text);
@@ -100,7 +93,6 @@ test("test_summarizeBranches_marks_surviving_branch_not_rewound", () => {
     // Behavior: the surviving branch is not rewound.
     const branches = summarizeBranches(records);
     const surviving = branches.filter((b) => b.isSurviving);
-    // Verify: at least one surviving branch, and each has wasRewound === false.
     assert.ok(surviving.length >= 1);
     for (const branch of surviving) {
         assert.equal(branch.wasRewound, false);
@@ -111,17 +103,14 @@ test("test_summarizeBranches_marks_abandoned_branch_rewound", () => {
     // Behavior: S19 has a rewound (abandoned) branch with a rewindPoint.
     const branches = summarizeBranches(records);
     const abandoned = branches.find((b) => !b.isSurviving);
-    // Verify: it is flagged rewound and carries a rewindPoint.
     assert.ok(abandoned !== undefined);
     assert.equal(abandoned!.wasRewound, true);
     assert.notEqual(abandoned!.rewindPoint, undefined);
 });
 
 test("test_buildStepSnapshots_produce_skeleton_steps_without_file_contents", () => {
-    // Behavior: a step snapshot carries index/when/changeIds/changedPaths but NO `files` map — the
-    // per-step file contents are the O(steps × live-bytes) blow-up the wire-size fix removes.
+    // A step snapshot has no `files` map — per-step file contents were the wire-size blow-up this fix removes.
     const { steps } = buildStepSnapshots(records, reader, undefined);
-    // Verify: skeleton fields present, files absent (compile-time: StepSnapshot has no `files`).
     assert.ok(steps.length > 0);
     for (const step of steps) {
         assert.equal(typeof step.index, "number");
@@ -133,11 +122,9 @@ test("test_buildStepSnapshots_produce_skeleton_steps_without_file_contents", () 
 });
 
 test("test_buildReconstructionDocument_returns_branch_agnostic_histories_alongside_document", () => {
-    // Behavior: the compact histories the steps derive from are returned NEXT TO the document, never as a
-    // document field (a document field would be serialized onto the wire — the whole point of the fix).
+    // Compact histories return NEXT TO the document, never as a document field, which would defeat the wire-size fix.
     const branched = reconstructBranches(records, reader);
     const result = buildReconstructionDocument(records, branched, reader, undefined);
-    // Verify: histories present alongside, and NOT a property of the wire document.
     assert.ok(result.stepFileHistories.length > 0);
     assert.ok(result.stepFileHistories.every((history) => Array.isArray(history.revisions)));
     assert.equal((result.document as Record<string, unknown>)["stepFileHistories"], undefined);
@@ -146,7 +133,6 @@ test("test_buildReconstructionDocument_returns_branch_agnostic_histories_alongsi
 test("test_buildStepSnapshots_aligns_steps_with_change_ids", () => {
     // Behavior: one entry per step; index is 1-based and changeIds is a non-empty Uuid[].
     const { steps } = buildStepSnapshots(records, reader, undefined);
-    // Verify.
     assert.ok(steps.length > 0);
     steps.forEach((step, i) => {
         assert.equal(step.index, i + 1);
@@ -155,15 +141,11 @@ test("test_buildStepSnapshots_aligns_steps_with_change_ids", () => {
 });
 
 test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_files", () => {
-    // Behavior: changedPaths is a best-effort changeId->path hint. Every resolved entry is one of the
-    // document's touched files (never a stray path), and the join resolves at least one step (proving it
-    // works) — but off-branch / re-stamped steps may resolve to [] since their changeId is not a surviving
-    // revision's changeId.
+    // changedPaths is a best-effort changeId->path hint; off-branch/re-stamped steps may resolve to [] since their changeId isn't surviving.
     const branched = reconstructBranches(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     const touched = new Set(document.filesTouched.map((h: FileHistory) => h.target.toString()));
     let resolvedAny = false;
-    // Verify: every changedPath entry is within filesTouched; entries are deduped; the join resolves ≥1 step.
     for (const step of document.steps) {
         assert.equal(step.changedPaths.length, new Set(step.changedPaths).size);
         for (const path of step.changedPaths) {
@@ -176,14 +158,12 @@ test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_file
     assert.ok(resolvedAny);
 });
 
-// (task 134) the three buildLineVerdicts tests moved with their subject to
-// tests/reconstruction_line_verdicts.test.ts.
+// (task 134) the three buildLineVerdicts tests moved with their subject to tests/reconstruction_line_verdicts.test.ts.
 
 test("test_buildReconstructionDocument_step_count_matches_countStepsInTranscript", () => {
     // Behavior: the document's step count matches the engine's step counter.
     const branched = reconstructBranches(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
-    // Verify.
     assert.equal(document.steps.length, countStepsInTranscript(records, reader));
 });
 
@@ -191,7 +171,6 @@ test("test_buildReconstructionDocument_includes_messages_branches_and_files", ()
     // Behavior: messages, branches, filesTouched are all populated for S19.
     const branched = reconstructBranches(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
-    // Verify.
     assert.ok(document.messages.length > 0);
     assert.ok(document.branches.length > 0);
     assert.ok(document.filesTouched.length > 0);
@@ -201,10 +180,8 @@ test("test_buildReconstructionDocument_includes_line_verdicts_for_every_record",
     // Behavior: lineVerdicts has one entry per parsed record.
     const branched = reconstructBranches(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
-    // Verify.
     assert.equal(document.lineVerdicts.length, records.length);
 });
 
-// The task-119 skippedLines/failures document tests live in tests/reconstruction_json_health.test.ts
-// (250-line cap split).
+// The task-119 skippedLines/failures document tests live in tests/reconstruction_json_health.test.ts (250-line cap split).
 

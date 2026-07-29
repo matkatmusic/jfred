@@ -1,10 +1,4 @@
-// Per-line reconstruction engine (clean-room rebuild of "Engine B"): the model
-// and the public reconstruction API that turns a transcript into each touched
-// file's history. Extraction (records -> events) lives in reconstruction_extract.ts,
-// replay (events -> revisions) in reconstruction_replay.ts, lineage (following a
-// file across renames) in reconstruction_lineage.ts; rendering in
-// reconstruction_render.ts; the runnable entry in reconstruction_cli.ts.
-// Design: plans/reconstruction-engine-design.md.
+// Core reconstruction model: transcript records to per-file revision history.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
@@ -29,21 +23,16 @@ import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 // A single sighting of a line's content at a point in time.
 export type LineValue = { line: string; timestamp: Date };
 
-// A line within a revision: its content history at this position, plus a
-// back-pointer to the index it held in the previous revision (DOES_NOT_EXIST_YET = born here).
+// oldLineNum back-points to the previous revision; DOES_NOT_EXIST_YET = born here.
 export type LineEntry = { oldLineNum: number; values: LineValue[] };
 
 // The source and destination of a rename (the two paths an mv connects).
 export type RenameInfo = { from: Path; to: Path };
 
-// The source and destination of a copy (the two paths a cp connects). Same shape
-// as RenameInfo but a distinct concept: a copy duplicates, a rename moves.
+// Like RenameInfo but a copy duplicates; a rename moves.
 export type CopyInfo = { from: Path; to: Path };
 
-// A whole-file snapshot at a timestamp. kind records which evidence kind produced
-// it; changeId identifies the source operation (derived from its tool_use id).
-// rename is set only on a rename revision (its from/to paths); copy is set only
-// on a copy (genesis) revision.
+// Whole-file snapshot; rename/copy fields set only on those revision kinds.
 export type FileRevision = {
     kind: EventKind;
     changeId: Uuid;
@@ -51,8 +40,7 @@ export type FileRevision = {
     lines: LineEntry[];
     rename?: RenameInfo;
     copy?: CopyInfo;
-    // Present when this revision could not be reconstructed: the replay of its event threw and
-    // its lines are the previous revision's carried forward, not real content.
+    // Set when replay threw; lines are carried forward from the previous revision.
     unrecoverable?: { reason: string };
 };
 
@@ -76,9 +64,7 @@ export type DeleteEvent = {
     timestamp: Date;
 };
 
-// An in-place Edit; its structuredPatch hunks drive the line splice. `originalFile` is the literal
-// pre-edit file content the Edit result reports (when present — a later scenario may omit it); it is the
-// exact pre-edit disk, used to recover an out-of-hunk-window append the reconstructed base missed (s40).
+// originalFile is the pre-edit disk content, used to recover out-of-hunk-window appends (s40).
 export type EditEvent = {
     kind: EventKind.edit;
     changeId: Uuid;
@@ -97,10 +83,7 @@ export type RenameEvent = {
     timestamp: Date;
 };
 
-// A copy (Bash cp): a NEW file whose genesis content is the source's content as
-// of the copy. seedLines holds those source line texts; it is empty from
-// extraction and filled during reconstruction (the cp result carries no
-// content). The source file lives on as its own history — a copy is not a move.
+// seedLines: empty from extraction, filled during reconstruction from the source file.
 export type CopyEvent = {
     kind: EventKind.copy;
     changeId: Uuid;
@@ -110,10 +93,7 @@ export type CopyEvent = {
     timestamp: Date;
 };
 
-// A bash `>>` append: prior lines survive, the new tail is genesis. content is the
-// file's full post-append text, recovered from the file-history sidecar (the redirect
-// leaves no content in the JSONL); it is empty from extraction and filled during
-// reconstruction. See plans/s5/s5-reconstruction-plan.md.
+// content: full post-append text from sidecar; empty from extraction, filled during replay.
 export type AppendEvent = {
     kind: EventKind.append;
     changeId: Uuid;
@@ -122,8 +102,7 @@ export type AppendEvent = {
     timestamp: Date;
 };
 
-// A bash `>` overwrite: a wholesale full-content revision (S4 overwrite, produced by a
-// redirect). content is recovered from the sidecar like AppendEvent.
+// Bash `>` redirect; content recovered from sidecar like AppendEvent.
 export type OverwriteEvent = {
     kind: EventKind.overwrite;
     changeId: Uuid;
@@ -132,11 +111,7 @@ export type OverwriteEvent = {
     timestamp: Date;
 };
 
-// A user's out-of-band edit to a file on disk (NOT an agent tool call): captured as an
-// `edited_text_file` attachment whose snippet carries the full post-edit content. Modeled as a
-// full-content revision (like an overwrite) but kept a distinct kind for honest provenance in the
-// render. content is the snippet's text with its `<n>\t` line-number prefixes stripped. See
-// plans/s15/s15-reconstruction-plan.md.
+// Out-of-band disk edit from `edited_text_file` attachment; distinct kind preserves provenance.
 export type UserEditEvent = {
     kind: EventKind.userEdit;
     changeId: Uuid;
@@ -158,9 +133,7 @@ export type FileEvent =
 
 // --- Reconstruction: the public API ------------------------------------------
 
-// Reconstruct one file's history on the surviving branch: pre-select the surviving conversation
-// branch (a no-op when the transcript has no rewind), then reconstruct over those records via the
-// branch-agnostic core in reconstruction_branches.ts. Generic over the target.
+// Pre-selects the surviving branch, then delegates to reconstructFileOver.
 export function reconstructFile(
     records: TranscriptRecord[],
     target: Path,
@@ -169,8 +142,7 @@ export function reconstructFile(
     return reconstructFileOver(selectLiveBranch(records), target, new Set<string>(), reader);
 }
 
-// Reconstruct every file the transcript touches on the surviving branch (pre-select, then
-// reconstruct over those records — a no-op when there is no rewind).
+// Pre-selects the surviving branch, then reconstructs all files.
 export function reconstructAll(
     records: TranscriptRecord[],
     reader?: BackupReader,
@@ -183,40 +155,33 @@ export function reconstructAll(
 
 // --- Branch-aware reconstruction: surviving + retrievable rewound branches -----
 
-// One rewound branch's file changes: the histories of files it changed after its rewind point,
-// tagged with where it forked (rewindPoint) and its tip (its identity, like a branch name).
+// Files changed after a rewind point on a single rewound branch.
 export type RewoundBranchHistory = {
     rewindPoint: Uuid;
     tip: Uuid;
     histories: FileHistory[];
 };
 
-// The full branch-aware reconstruction: the surviving files plus every rewound branch's changes.
-// survivingTip names the surviving branch's tip (its identity, for the branch listing / headers);
-// it is undefined only for an unmarked transcript with no last-prompt head.
+// Branch-aware result: surviving files plus rewound branches.
 export type BranchedReconstruction = {
     survivingTip: Uuid | undefined;
     surviving: FileHistory[];
     rewound: RewoundBranchHistory[];
 };
 
-// Reconstruct the surviving files plus every rewound (unmerged) branch's changes, so a rewound
-// branch's file history stays retrievable like `git log` on a branch that was never merged.
+// Surviving files plus every unmerged rewound branch's file changes.
 export function reconstructBranches(
     records: TranscriptRecord[],
     reader?: BackupReader,
 ): BranchedReconstruction {
-    // task 191: cover the silent stretch after the sidecar-reader stage (the tip-scan events
-    // below are counted, so stage-level --progress would otherwise show nothing here).
+    // task 191: emit progress here so --progress doesn't go silent between sidecar and tip-scan.
     reportReconstructionProgress(`finding conversation branches across ${records.length} records`);
     const branches = findConversationBranches(records);
     const survivingBranch = branches.find((branch) => branch.isSurviving);
     const surviving = reconstructAll(records, reader);
     const rewoundBranches = branches.filter((branch) => !branch.isSurviving);
     const rewoundHistories = rewoundBranches.map((branch, branchIndex) => {
-        // task 163: announce each rewound branch's position — the per-target counters inside
-        // reconstructFilesOver carry no branch-level motion. The `reconstructing ` prefix keeps
-        // the webapp classifier in phase 4.
+        // task 163: report branch-level progress; prefix must be "reconstructing " for webapp phase 4.
         reportReconstructionProgress("reconstructing rewound branch", branchIndex + 1, rewoundBranches.length);
         return buildRewoundBranchHistory(records, branch, reader);
     });
@@ -224,8 +189,7 @@ export function reconstructBranches(
     return { survivingTip: survivingBranch?.tip, surviving, rewound };
 }
 
-// Reconstruct one rewound branch, scoped to the files it changed after its rewind point. Returns
-// undefined when the branch's diverging portion changed no file (a trivial tangent like a Read/ls).
+// Returns undefined when the branch's diverging portion changed no files.
 function buildRewoundBranchHistory(
     records: TranscriptRecord[],
     branch: ConversationBranch,
@@ -247,4 +211,5 @@ function buildRewoundBranchHistory(
     );
     return { rewindPoint: branch.rewindPoint!, tip: branch.tip, histories };
 }
+
 

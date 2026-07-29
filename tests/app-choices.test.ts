@@ -1,5 +1,4 @@
-// The task-194 reconstruction-mode choice: per-project sessionStorage round-trip, and the
-// server-relaunch boot-id sweep forgetting it like every other per-project choice.
+// The task-194 reconstruction-mode choice: per-project sessionStorage round-trip, and the server-relaunch boot-id sweep forgetting it like every other per-project choice.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

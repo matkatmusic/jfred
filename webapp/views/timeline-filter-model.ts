@@ -1,6 +1,4 @@
-// Timeline event-type filter (task 114) — pure model: mode vocabulary + the node predicate.
-// DOM-free so tests exercise it directly (same split as timeline-picks.ts / details-model.ts);
-// the DOM consumer is timeline-render-filterbar.ts.
+// Timeline event-type filter (task 114) — pure model: mode vocabulary + the node predicate.  DOM-free so tests exercise it directly (same split as timeline-picks.ts / details-model.ts); the DOM consumer is timeline-render-filterbar.ts.
 
 import { SCRIPT_EXECUTION_EVENT_KIND, findSessionStartIndexes } from "./timeline-labels.ts";
 import {
@@ -12,8 +10,7 @@ import {
     type TimelineNode,
 } from "./timeline-types.ts";
 
-// View-only vocabulary (not wire vocabulary — stays out of src/structures/vocabulary.ts;
-// frozen-const pattern per SplitRowKind in diff-vs-base-model.ts).
+// View-only vocabulary (not wire vocabulary — stays out of src/structures/vocabulary.ts; frozen-const pattern per SplitRowKind in diff-vs-base-model.ts).
 export const TIMELINE_FILTER_MODES = Object.freeze({
     all: "all",
     conversation: "conversation",
@@ -24,8 +21,7 @@ export const TIMELINE_FILTER_MODES = Object.freeze({
 } as const);
 export type TimelineFilterMode = (typeof TIMELINE_FILTER_MODES)[keyof typeof TIMELINE_FILTER_MODES];
 
-// Ordered [mode, button label] pairs the filter bar renders left-to-right; All leads because
-// it is the default.
+// Ordered [mode, button label] pairs the filter bar renders left-to-right; All leads because it is the default.
 export const TIMELINE_FILTER_BUTTONS: readonly (readonly [TimelineFilterMode, string])[] = Object.freeze([
     [TIMELINE_FILTER_MODES.all, "All"],
     [TIMELINE_FILTER_MODES.conversation, "Conversation"],
@@ -46,8 +42,7 @@ function checkNodeIsConversationTurn(node: TimelineNode): boolean {
     return false;
 }
 
-// Same script-detection rule as the "Script" role pill (computeRolePillLabel): a tool-call row
-// that executed a script, or an agent turn whose file chips carry a script-made revision.
+// Same script-detection rule as the "Script" role pill (computeRolePillLabel): a tool-call row that executed a script, or an agent turn whose file chips carry a script-made revision.
 function checkNodeRanScript(node: TimelineNode): boolean {
     if (node.kind === TOOL_CALL_NODE_KIND) {
         if (node.scriptRun !== undefined) {
@@ -61,8 +56,7 @@ function checkNodeRanScript(node: TimelineNode): boolean {
     return false;
 }
 
-// A file-modifying row carries file-change chips, or is a script run the sandbox proved
-// modified files (scriptRun.changedPaths is [] on read-only/declined runs).
+// A file-modifying row carries file-change chips, or is a script run the sandbox proved modified files (scriptRun.changedPaths is [] on read-only/declined runs).
 function checkNodeModifiesFiles(node: TimelineNode): boolean {
     const fileChanges = node.fileChanges ?? [];
     if (fileChanges.length > 0) {
@@ -76,8 +70,7 @@ function checkNodeModifiesFiles(node: TimelineNode): boolean {
     return false;
 }
 
-// The filter predicate: does `node` stay visible under `mode`? Session-end terminators stay
-// visible in every mode — they anchor each session's extent in a filtered timeline.
+// The filter predicate: does `node` stay visible under `mode`? Session-end terminators stay visible in every mode — they anchor each session's extent in a filtered timeline.
 export function checkNodeMatchesFilterMode(node: TimelineNode, mode: TimelineFilterMode): boolean {
     if (mode === TIMELINE_FILTER_MODES.all) {
         return true;
@@ -102,8 +95,7 @@ export function checkNodeMatchesFilterMode(node: TimelineNode, mode: TimelineFil
 
 // ── keyword search (task 127) ────────────────────────────────────────────────────────────────
 
-// Everything a row can visibly say, lowercased once: turn text, tool name/summary, commit
-// detail + hash, and each file chip's names (final, entry-time, renamed-from).
+// Everything a row can visibly say, lowercased once: turn text, tool name/summary, commit detail + hash, and each file chip's names (final, entry-time, renamed-from).
 function computeNodeSearchHaystack(node: TimelineNode): string {
     const parts: string[] = [];
     if (node.text !== undefined) {
@@ -124,11 +116,7 @@ function computeNodeSearchHaystack(node: TimelineNode): string {
     return parts.join("\n").toLowerCase();
 }
 
-// task 148: session titles are searchable. Each titled session contributes ONE extra
-// haystack — on its FIRST node — so typing a custom title jumps to the row directly under
-// that session's header marker (findSessionStartIndexes inserts the marker before that
-// node). Only the first node: every row of a session matching its title would turn the
-// search into a session filter, which is not the jump-to-header behavior.
+// task 148: session titles are searchable. Each titled session contributes ONE extra haystack — on its FIRST node — so typing a custom title jumps to the row directly under that session's header marker (findSessionStartIndexes inserts the marker before that node). Only the first node: every row of a session matching its title would turn the search into a session filter, which is not the jump-to-header behavior.
 export function computeSessionTitleByNodeIndex(nodes: TimelineNode[], sessionTitles: Record<string, string> | undefined): Map<number, string> {
     const titleByNodeIndex = new Map<number, string>();
     if (sessionTitles === undefined) {
@@ -144,11 +132,7 @@ export function computeSessionTitleByNodeIndex(nodes: TimelineNode[], sessionTit
     return titleByNodeIndex;
 }
 
-// The search predicate: does `node` stay visible under `term`? Blank matches everything;
-// otherwise a case-insensitive substring test over the node's visible text — plus the
-// node's session title when the caller attached one (task 148). Deliberately NO
-// session-end exemption (unlike the mode predicate): a terminator carries no text, so a real
-// term hides it.
+// The search predicate: does `node` stay visible under `term`? Blank matches everything; otherwise a case-insensitive substring test over the node's visible text — plus the node's session title when the caller attached one (task 148). Deliberately NO session-end exemption (unlike the mode predicate): a terminator carries no text, so a real term hides it.
 export function checkNodeMatchesSearchTerm(node: TimelineNode, term: string, sessionTitle?: string): boolean {
     const normalizedTerm = term.trim().toLowerCase();
     if (normalizedTerm === "") {
@@ -160,8 +144,7 @@ export function checkNodeMatchesSearchTerm(node: TimelineNode, term: string, ses
     return computeNodeSearchHaystack(node).includes(normalizedTerm);
 }
 
-// A row stays visible iff it passes BOTH the active mode button and the search term.
-// sessionTitle (task 148) feeds only the search side — a title never overrides the mode.
+// A row stays visible iff it passes BOTH the active mode button and the search term.  sessionTitle (task 148) feeds only the search side — a title never overrides the mode.
 export function checkNodePassesFilters(node: TimelineNode, mode: TimelineFilterMode, term: string, sessionTitle?: string): boolean {
     if (!checkNodeMatchesFilterMode(node, mode)) {
         return false;
@@ -169,10 +152,7 @@ export function checkNodePassesFilters(node: TimelineNode, mode: TimelineFilterM
     return checkNodeMatchesSearchTerm(node, term, sessionTitle);
 }
 
-// The search's jump list: the node indexes surviving the combined predicate, in timeline
-// order. Entry #1 of the results is the first index; N (the counter denominator) is the
-// list's length. sessionTitleByNodeIndex (task 148) attaches each titled session's title
-// to its first node.
+// The search's jump list: the node indexes surviving the combined predicate, in timeline order. Entry #1 of the results is the first index; N (the counter denominator) is the list's length. sessionTitleByNodeIndex (task 148) attaches each titled session's title to its first node.
 export function computeMatchingNodeIndexes(nodes: TimelineNode[], mode: TimelineFilterMode, term: string, sessionTitleByNodeIndex?: Map<number, string>): number[] {
     const matchingIndexes: number[] = [];
     for (const [index, node] of nodes.entries()) {

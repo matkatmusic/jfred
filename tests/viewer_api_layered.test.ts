@@ -1,6 +1,4 @@
-// Server test for task 206 (spec S7/S8 plumbing): GET /api/layered-graph?project=<name>
-// serves loadLayeredProject's graph as JSON. Spawned-process pattern (viewer_server.ts listens
-// at import time — precedent: tests/viewer_server.test.ts), pointed at a real fixture tree.
+// Server test for task 206 (spec S7/S8 plumbing): GET /api/layered-graph?project=<name> serves loadLayeredProject's graph as JSON. Spawned-process pattern (viewer_server.ts listens at import time — precedent: tests/viewer_server.test.ts), pointed at a real fixture tree.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -93,10 +91,7 @@ test("test_layered_graph_endpoint_returns_the_fixture_graph_json", async () => {
         assert.deepEqual(graph.renames, []);
         assert.deepEqual(graph.copies, []);
         assert.deepEqual(graph.scriptLinks, []);
-        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text
-        // the nodes carry — that key agreement is the whole contract, since the page looks an
-        // offset up by a node's `instant` string. The earliest instant sits at the origin; the
-        // capped-gap arithmetic itself is covered by tests/layer1-ruler-axis.test.ts.
+        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text the nodes carry — that key agreement is the whole contract, since the page looks an offset up by a node's `instant` string. The earliest instant sits at the origin; the capped-gap arithmetic itself is covered by tests/layer1-ruler-axis.test.ts.
         assert.deepEqual(graph.axisOffsetsPx, { [nodes[0]!.instant]: 0 });
     } finally {
         child.kill();

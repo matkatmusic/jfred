@@ -15,8 +15,7 @@ import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vo
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
 
-// Path overrides are process-wide module state — never let one test's overrides leak
-// into the next (item 46).
+// Path overrides are process-wide module state — never let one test's overrides leak into the next (item 46).
 afterEach(() => {
     setPathOverrides({});
 });
@@ -31,8 +30,7 @@ function buildBashRecord(command: string, timestamp: string, cwd?: string): Tran
     } as unknown as TranscriptRecord;
 }
 
-// A `git -C <dir> commit` names its repo in the command; a bare `git commit` falls back to the
-// record cwd; a `git add` is not a commit.
+// A `git -C <dir> commit` names its repo in the command; a bare `git commit` falls back to the record cwd; a `git add` is not a commit.
 test("test_findGitCommitEvents_reads_the_repo_dir_from_dash_C_or_the_record_cwd", () => {
     const records = [
         buildBashRecord('git -C /tmp/repo commit -m "baseline"', "2026-01-01T00:00:01Z", "/elsewhere"),
@@ -45,8 +43,7 @@ test("test_findGitCommitEvents_reads_the_repo_dir_from_dash_C_or_the_record_cwd"
     assert.equal(commits[1]!.cwd?.toString(), "/tmp/repo");
 });
 
-// A commit chained behind another command with `&&` is still a commit event (task 89), and its
-// `-C` dir is read from the commit's OWN segment, not the compound's head.
+// A commit chained behind another command with `&&` is still a commit event (task 89), and its `-C` dir is read from the commit's OWN segment, not the compound's head.
 test("test_findGitCommitEvents_sees_a_commit_inside_a_compound_command", () => {
     const records = [
         buildBashRecord('git add a.py && git -C /tmp/repo commit -m "x"', "2026-01-01T00:00:01Z", "/elsewhere"),
@@ -57,8 +54,7 @@ test("test_findGitCommitEvents_sees_a_commit_inside_a_compound_command", () => {
 });
 
 test("test_readCommittedFileContent_returns_the_blob_at_a_recorded_commit", () => {
-    // Steps:
-    // create a temp git repo with one committed file.
+    // Steps: create a temp git repo with one committed file.
     const repo = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const committedBytes = "def f_two(x):\n    return x + 2\n# reviewed by ops\n";
@@ -99,10 +95,7 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 const emptyReader: BackupReader = () => "";
 
 test("test_gitCommitEvidence_places_an_unexplained_diff_between_the_move_and_the_rename_run", () => {
-    // Scenario (s85 in miniature): a move run births core_two.py, a rename run rewrites it via
-    // glob, and a `# reviewed by ops` comment exists ONLY in the post-rename commit blob. The
-    // stage must splice a user-edit carrying the comment between the move and the rename, and
-    // rebuild the rename event's content so the comment survives it.
+    // Scenario (s85 in miniature): a move run births core_two.py, a rename run rewrites it via glob, and a `# reviewed by ops` comment exists ONLY in the post-rename commit blob. The stage must splice a user-edit carrying the comment between the move and the rename, and rebuild the rename event's content so the comment survives it.
     const repo = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const moved = '"""Module two."""\n\n\ndef f_two(x):\n    return x + 2\n';
@@ -141,9 +134,7 @@ test("test_gitCommitEvidence_places_an_unexplained_diff_between_the_move_and_the
 });
 
 test("test_readCommittedFileContent_falls_back_to_a_preserved_repo_when_the_recorded_cwd_decays", () => {
-    // Scenario (s85's regression): macOS purged the recorded temp cwd's repo, but the scenario
-    // capture preserved a clone of it next to the transcript. The reader must serve the committed
-    // blob from the preserved repo, still resolving the file's path relative to the RECORDED cwd.
+    // Scenario (s85's regression): macOS purged the recorded temp cwd's repo, but the scenario capture preserved a clone of it next to the transcript. The reader must serve the committed blob from the preserved repo, still resolving the file's path relative to the RECORDED cwd.
     const preserved = mkdtempSync(join(tmpdir(), "reveng-git-"));
     const decayed = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
@@ -179,8 +170,7 @@ test("test_readCommittedFileContent_returns_undefined_for_a_missing_repo", () =>
 });
 
 test("test_read_committed_file_content_tries_each_fallback_repo_dir", () => {
-    // Steps:
-    // build repo B — a relocated mirror of the recorded repo — holding one commit of orders.py.
+    // Steps: build repo B — a relocated mirror of the recorded repo — holding one commit of orders.py.
     const repoB = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const committedBytes = "def place_order(item):\n    return item\n";
@@ -208,8 +198,7 @@ test("test_read_committed_file_content_tries_each_fallback_repo_dir", () => {
 });
 
 test("test_find_fallback_repo_dirs_orders_override_before_preserved", () => {
-    // Steps:
-    // build a transcript dir that ALSO carries a preserved repo clone (a .git next to the jsonl).
+    // Steps: build a transcript dir that ALSO carries a preserved repo clone (a .git next to the jsonl).
     const transcriptDir = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         mkdirSync(join(transcriptDir, ".git"));

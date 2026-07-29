@@ -1,6 +1,4 @@
-// Sessions-sidebar, fork-lane, and build-progress view-model (split from timeline.ts, task 92):
-// grouping timeline rows by session, the orphan lane runs, row expandability, Prev/Next file
-// navigation, and the large-timeline progress-overlay math (item 78).
+// Sessions-sidebar, fork-lane, and build-progress view-model (split from timeline.ts, task 92).
 
 import { computeSessionShortLabel } from "./timeline-labels.ts";
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
@@ -11,14 +9,11 @@ import {
     type TimelineNode,
 } from "./timeline-types.ts";
 
-// The /api/projects listing shape this sidebar joins sessions against (moved from
-// timeline-types.ts — this module is its only consumer).
+// The /api/projects listing shape this sidebar joins sessions against.
 export type WireJsonlFile = { fileName: string };
 export type WireProjectListing = { name: string; jsonlFiles: WireJsonlFile[] };
 
-// The project JSONL whose file name starts with the session id (JSONLs are named after their
-// session uuid); undefined when unattributed or when the listing has no match. Lifted out of
-// renderTimelineView (item 66) so the Sessions sidebar view-model can resolve it too.
+// JSONLs are named after their session uuid, so a prefix match identifies the file.
 export function findJsonlForSession(listing: WireProjectListing | undefined, sessionId: string | undefined): string | undefined {
     if (sessionId === undefined) {
         return undefined;
@@ -26,7 +21,7 @@ export function findJsonlForSession(listing: WireProjectListing | undefined, ses
     return listing?.jsonlFiles.find((file) => file.fileName.startsWith(sessionId))?.fileName;
 }
 
-// One Sessions-sidebar entry per distinct attributed session, in first-appearance order.
+// One entry per distinct attributed session, in first-appearance order.
 export type SessionSidebarEntry = {
     sessionId: string;
     shortLabel: string;
@@ -35,8 +30,7 @@ export type SessionSidebarEntry = {
     firstNodeIndex: number;
 };
 
-// The Sessions sidebar's entries (item 66): group the timeline rows by sessionId (unattributed
-// rows belong to no session), counting rows and remembering the first row for flash-scroll.
+// Unattributed rows belong to no session; the first row index is remembered for flash-scroll.
 export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: WireProjectListing | undefined): SessionSidebarEntry[] {
     const entries: SessionSidebarEntry[] = [];
     const entriesBySessionId = new Map<string, SessionSidebarEntry>();
@@ -62,8 +56,7 @@ export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: Wi
     return entries;
 }
 
-// The fork gutter's lane-2 spans (item 66): one {startIndex, endIndex} per CONTIGUOUS run of
-// orphaned rows — the run's first row draws the fork curve, its last the merge-back end.
+// One span per contiguous run of orphaned rows: first row draws the fork curve, last the merge-back end.
 export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: number; endIndex: number }[] {
     const runs: { startIndex: number; endIndex: number }[] = [];
     let currentRun: { startIndex: number; endIndex: number } | undefined;
@@ -82,9 +75,7 @@ export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: numbe
     return runs;
 }
 
-// task 158: the LAST row of an abandoned (rewound) branch — an orphaned node whose next node
-// of the SAME session is not orphaned, or that has no later same-session node. Same-session
-// scoping so an interleaved surviving session's row landing after the tip can't mask it.
+// Task 158: last row of a rewound branch, scoped to the same session so it can't be masked later.
 export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: number): boolean {
     const node = nodes[index]!;
     if (node.isOrphaned !== true) {
@@ -98,23 +89,19 @@ export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: numb
     return true;
 }
 
-// Whether a row gets a tri + bubble (item 66): commit and session-end rows are thin one-liners
-// (locked decision 4); every turn and tool-call row expands. The one commit exception (task
-// 121): the merged git-derived baseline row expands to show its file chips.
+// Commit/session-end rows are thin one-liners; the merged git-derived baseline row is the exception, expanding for file chips (task 121).
 export function checkRowIsExpandable(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return node.isGitBaseline === true;
     }
-    // task 134: raw-line rows are thin one-liners like the pre-filter-chips view.
+    // Task 134: raw-line rows are thin one-liners like the pre-filter-chips view.
     if (node.kind === LINE_NODE_KIND) {
         return false;
     }
     return node.kind !== SESSION_END_NODE_KIND;
 }
 
-// Nearest agent turn carrying file chips, walking from fromIndex in direction (task 85's
-// header Prev/Next). fromIndex -1 means "before the first row"; undefined means no
-// candidate in that direction.
+// Task 85's header Prev/Next: fromIndex -1 means "before the first row".
 export function findAdjacentFileTouchedIndex(
     nodes: TimelineNode[],
     fromIndex: number,
@@ -129,14 +116,12 @@ export function findAdjacentFileTouchedIndex(
     return undefined;
 }
 
-// A row's { } button opens its JSONL record — commits are repo events with no record, and a
-// synthetic node (the git-derived baseline turn, task 135) has no transcript line behind it.
+// Commits are repo events with no record; a synthetic git-derived baseline node has no transcript line either (task 135).
 export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
     if (node.kind === COMMIT_NODE_KIND) {
         return false;
     }
-    // task 160: every raw-line row is inspectable — uuid-less ones (summary lines) open by
-    // their source line instead of a uuid scan.
+    // Task 160: uuid-less raw lines (summaries) open by source line instead of a uuid scan.
     if (node.kind === LINE_NODE_KIND) {
         return true;
     }
@@ -146,8 +131,7 @@ export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
     return true;
 }
 
-// The next/previous visible row, one step at a time (task 131's header line-stepper — with the
-// task-134 all-lines toggle on this is one JSONL line per click). undefined = already at the end.
+// Task 131's header line-stepper; undefined means already at the end.
 export function findAdjacentRowIndex(nodes: TimelineNode[], fromIndex: number, direction: 1 | -1): number | undefined {
     const target = fromIndex + direction;
     if (target < 0) {
@@ -159,32 +143,25 @@ export function findAdjacentRowIndex(nodes: TimelineNode[], fromIndex: number, d
     return target;
 }
 
-// Fixed session-lane palette, assigned by first appearance; a session keeps its color for the
-// whole list (never re-cycled mid-list).
+// Assigned by first appearance so a session keeps its color for the whole list.
 export const SESSION_LANE_VARIABLES = ["--accent", "--green", "--orange", "--lane-violet", "--lane-teal"];
 export const ORPHAN_LANE_COLOR = "var(--muted)";
 
-// A timeline this many rows or larger gets the build-progress overlay + chunked
-// rendering; smaller ones build synchronously (item 78). Exported so the boundary
-// tests track this value instead of hardcoding it (it is tuned in place).
+// Exported so the boundary tests track this tuned-in-place value instead of hardcoding it.
 export const LARGE_TIMELINE_ROW_COUNT = 100;
 
 // Rows built per animation frame during a chunked (large-timeline) build.
 export const TIMELINE_BUILD_BATCH_SIZE = 10;
 
-// True when a timeline is large enough to build in yielding batches behind a
-// progress overlay instead of one synchronous pass.
 export function checkTimelineNeedsProgressOverlay(rowCount: number): boolean {
     return rowCount >= LARGE_TIMELINE_ROW_COUNT;
 }
 
-// The overlay's text line, e.g. "Building timeline… 250 / 1200 rows".
 export function computeTimelineBuildProgressLabel(rowsBuilt: number, totalRows: number): string {
     return `Building timeline… ${rowsBuilt} / ${totalRows} rows`;
 }
 
-// The progress bar's fill fraction (0..1). A zero total counts as fully built (1)
-// so an empty build never divides by zero.
+// A zero total counts as fully built so an empty build never divides by zero.
 export function computeTimelineProgressFraction(rowsBuilt: number, totalRows: number): number {
     if (totalRows === 0) {
         return 1;
@@ -192,8 +169,7 @@ export function computeTimelineProgressFraction(rowsBuilt: number, totalRows: nu
     return rowsBuilt / totalRows;
 }
 
-// Resolve on the next animation frame so a just-applied DOM update paints before
-// the next batch of rows blocks the main thread again (item 78).
+// Resolve next frame so a just-applied DOM update paints before the next row batch blocks main thread (item 78).
 export function waitForNextAnimationFrame(): Promise<void> {
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }

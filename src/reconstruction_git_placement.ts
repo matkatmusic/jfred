@@ -1,6 +1,4 @@
-// --- the placement stage ----------------------------------------------------------------------------
-// Reconstruction stage: splice a committed blob's unexplained pure-addition diff onto the lineage
-// as a synthetic user edit at the earliest evidence-consistent point (s85).
+// Placement stage: splice committed-blob diffs as synthetic user edits (s85).
 
 import { randomUUID } from "node:crypto";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
@@ -33,15 +31,12 @@ function isFullContentEvent(event: FileEvent): event is FullContentEvent {
         || event.kind === EventKind.scriptExecution;
 }
 
-// The recorded run whose instant stamps `event`, or undefined (a script-execution event is always
-// injected at its run's timestamp, so the instant is the join key).
+// Find the run whose timestamp matches this event's instant.
 function runAtInstant(runs: ScriptRun[], event: FileEvent): ScriptRun | undefined {
     return runs.find((run) => run.timestamp.getTime() === event.timestamp.getTime());
 }
 
-// Replay `content` through the runs behind `events`, seeding each run's sandbox with the rolling
-// content; returns the final content and each event's recomputed content, or undefined when any
-// event has no run or the run drops the file.
+// Replay content through successive script runs, returning final and per-event results.
 function replayRunsOver(
     content: string,
     eventIndices: number[],
@@ -70,17 +65,14 @@ function replayRunsOver(
     return { final: rolling, rewrites };
 }
 
-// The instant halfway between an event and its successor (or the commit) — "strictly after" the
-// base event and "strictly before" the next.
+// Timestamp halfway between event[index] and its successor.
 function midpointAfter(events: FileEvent[], index: number, fallbackEnd: Date): Date {
     const start = events[index]!.timestamp.getTime();
     const end = index + 1 < events.length ? events[index + 1]!.timestamp.getTime() : fallbackEnd.getTime();
     return new Date(Math.floor((start + end) / 2));
 }
 
-// Try splicing the additions right after `events[baseIndex]`: re-anchor them onto that event's
-// content, replay every later pre-commit run over the edited content, and accept only when the
-// replayed end-state reproduces the committed blob byte-exactly.
+// Splice additions after baseIndex; accept only if forward replay reproduces the blob exactly.
 function placementAfter(
     baseIndex: number,
     additions: LineAddition[],
@@ -121,8 +113,7 @@ function placementAfter(
     return result;
 }
 
-// Place one evidence blob's unexplained diff onto the lineage, or undefined when the blob is
-// absent, already explained, not a pure addition, or no placement survives forward re-execution.
+// Place one blob's unexplained pure-addition diff onto the lineage, if possible.
 function placeOneBlobDiff(
     blob: string,
     evidenceInstant: Date,
@@ -175,8 +166,7 @@ function placeOneCommitDiff(
     return placeOneBlobDiff(blob, commit.timestamp, events, runs, target, records, reader);
 }
 
-// The staged (index) blob behind the LAST recorded `git add <target>`, when one exists. Only the
-// last add is trusted: the index holds one blob per path — whatever the most recent add staged.
+// Place the staged blob from the last recorded `git add` for this target.
 function placeStagedBlobDiff(
     records: TranscriptRecord[],
     events: FileEvent[],
@@ -193,13 +183,7 @@ function placeStagedBlobDiff(
     return placeOneBlobDiff(blob, lastAdd.timestamp, events, runs, target, records, reader);
 }
 
-// Reconstruction stage: when a recorded `git commit`'s (or, failing that, a recorded
-// `git add`'s STAGED) blob for `target` differs from the lineage content at the evidence instant
-// by pure line additions no event explains, splice those additions as a synthetic user edit at
-// the earliest point from which forward re-execution of the remaining runs reproduces the blob
-// byte-exactly (s85: the out-of-band comment lands between the move and the rename runs; s87:
-// the driver's duplicate comment exists ONLY in the staged blob — `git add` with no commit).
-// Every absence — no commits/adds, no repo, no blob, no valid placement — is a silent no-op.
+// Splice unexplained pure-addition diffs from git commits/adds as synthetic edits (s85, s87).
 export function placeGitCommitEvidence(
     records: TranscriptRecord[],
     events: FileEvent[],

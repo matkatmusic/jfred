@@ -1,5 +1,4 @@
-// Static-request path mapping (task 204): `/` and `/webapp_old.html` both serve the preserved
-// pre-redesign page; `/app/*` strips to plain asset names resolved dist-first.
+// Static-request path mapping (task 204): `/` and `/webapp_old.html` both serve the preserved pre-redesign page; `/app/*` strips to plain asset names resolved dist-first.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

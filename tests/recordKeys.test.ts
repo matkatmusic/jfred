@@ -1,6 +1,4 @@
-// The field-level fog-of-war gate (src/parse/recordKeys.ts): every observed real-session
-// (type, field) pair is modeled, and an unmodeled key still throws. Split from
-// loadTranscript.test.ts (250-line cap).
+// The field-level fog-of-war gate (src/parse/recordKeys.ts): every observed real-session (type, field) pair is modeled, and an unmodeled key still throws. Split from loadTranscript.test.ts (250-line cap).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,12 +6,7 @@ import { parseTranscriptLine } from "../src/parse/loadTranscript.ts";
 import { UnmodeledFieldError } from "../src/parse/recordKeys.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 
-// Every (record type, top-level field) pair the 2026-07-05 corpus audit of real
-// ~/Programming/jot-recovery/claude-data/projects transcripts surfaced as unmodeled
-// (re-verified 2026-07-07). Sample values mirror the observed wire shapes; each field
-// cites one evidence file:line from the corpus. None is scenario-reproducible: the
-// fields ride only on subagent runs, API retries, Esc-interrupts, permission denials,
-// queued prompts, image pastes, web-bridge sessions, or version-transient spellings.
+// Every (record type, top-level field) pair the 2026-07-05 corpus audit of real ~/Programming/jot-recovery/claude-data/projects transcripts surfaced as unmodeled (re-verified 2026-07-07). Sample values mirror the observed wire shapes; each field cites one evidence file:line from the corpus. None is scenario-reproducible: the fields ride only on subagent runs, API retries, Esc-interrupts, permission denials, queued prompts, image pastes, web-bridge sessions, or version-transient spellings.
 const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown>> = {
     [RecordType.assistant]: {
         // cb96ea5f…/subagents/agent-ad5fe73d9db452bf5.jsonl:3
@@ -64,8 +57,7 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         url: "https://claude.ai/code/session_01UY6cbNkU1YsiHzZGtdKhbo",
         // 0f13baeb-e90d-420b-b946-7892241e5fc4.jsonl:121 (subtype turn_duration)
         pendingBackgroundAgentCount: 1,
-        // 5eb74e0f-bbb0-43b8-b7ee-db92f171ee40.jsonl:13 (CC 2.1.181-197 spelling of
-        // the modeled preventedContinuation)
+        // 5eb74e0f-bbb0-43b8-b7ee-db92f171ee40.jsonl:13 (CC 2.1.181-197 spelling of the modeled preventedContinuation)
         preventContinuation: true,
         // 9a9af9cb-d140-40b3-809c-30cc63c35923.jsonl:33
         session_id: "9a9af9cb-d140-40b3-809c-30cc63c35923",
@@ -81,9 +73,7 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
 };
 
 test("test_parseTranscriptLine_accepts_fields_observed_in_real_sessions", () => {
-    // Scenario: real transcripts carry metadata fields the scenario captures never
-    // produced (see OBSERVED_REAL_SESSION_FIELD_SAMPLES). The field gate must model
-    // every observed (type, field) pair instead of tolerating it via the viewer bypass.
+    // Scenario: real transcripts carry metadata fields the scenario captures never produced (see OBSERVED_REAL_SESSION_FIELD_SAMPLES). The field gate must model every observed (type, field) pair instead of tolerating it via the viewer bypass.
     for (const [recordType, fields] of Object.entries(OBSERVED_REAL_SESSION_FIELD_SAMPLES)) {
         for (const [fieldName, sampleValue] of Object.entries(fields)) {
             // build a minimal record of that type carrying just the observed field.
@@ -96,11 +86,7 @@ test("test_parseTranscriptLine_accepts_fields_observed_in_real_sessions", () => 
 });
 
 test("test_parseTranscriptLine_accepts_fork_context_ref_records", () => {
-    // Scenario: real subagent transcripts (subagents/agent-*.jsonl) open with a
-    // fork-context-ref record naming the forked agent and its parent session
-    // (2026-07-05 corpus audit; e.g. 540aa36b…/subagents/agent-a4363e1e9ecf2042d.jsonl:1).
-    // Steps:
-    // build the observed record shape — type + agentId/parentSessionId/parentLastUuid/contextLength.
+    // Scenario: real subagent transcripts (subagents/agent-*.jsonl) open with a fork-context-ref record naming the forked agent and its parent session (2026-07-05 corpus audit; e.g. 540aa36b…/subagents/agent-a4363e1e9ecf2042d.jsonl:1).  Steps: build the observed record shape — type + agentId/parentSessionId/parentLastUuid/contextLength.
     const line = JSON.stringify({
         type: RecordType.forkContextRef,
         agentId: "a4363e1e9ecf2042d",
@@ -114,10 +100,7 @@ test("test_parseTranscriptLine_accepts_fork_context_ref_records", () => {
 });
 
 test("test_parseTranscriptLine_rejects_unmodeled_top_level_key", () => {
-    // Scenario: a record carrying a top-level key absent from the s1 field
-    // inventory is rejected loudly (field-level fog-of-war guard).
-    // Steps:
-    // build a valid mode record with one extra, unmodeled key.
+    // Scenario: a record carrying a top-level key absent from the s1 field inventory is rejected loudly (field-level fog-of-war guard).  Steps: build a valid mode record with one extra, unmodeled key.
     const line = JSON.stringify({
         type: "mode",
         sessionId: "s",

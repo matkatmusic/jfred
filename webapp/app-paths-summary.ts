@@ -1,8 +1,4 @@
-// ─── task 159: the Paths popover's summary rows + the wizard's screen-4 default-commit label.
-// The summary panel is the popover's default face (plans/159-paths-wizard-mockup.md §b); the
-// same rows (minus the Edit buttons) fill the Finish face. The state machine that the Edit
-// buttons jump into lives in app-paths-wizard.ts — passed in as a callback so the import
-// direction stays wizard → summary.
+// ─── task 159: the Paths popover's summary rows + the wizard's screen-4 default-commit label.  The summary panel is the popover's default face (plans/159-paths-wizard-mockup.md §b); the same rows (minus the Edit buttons) fill the Finish face. The state machine that the Edit buttons jump into lives in app-paths-wizard.ts — passed in as a callback so the import direction stays wizard → summary.
 
 import { getBaselineChoice } from "./app-choices.ts";
 import { el, getInputById } from "./app-dom.ts";
@@ -16,8 +12,7 @@ type SummaryRow = { label: string; value: string; screenNumber: number };
 // The Edit-button jump the wizard supplies (startSingleScreenEdit).
 export type StartScreenEdit = (screenNumber: number, projectName: string | undefined) => void;
 
-// The two /api/repo-commits row fields the tip label needs (client copy, the
-// app-paths-sources.ts precedent).
+// The two /api/repo-commits row fields the tip label needs (client copy, the app-paths-sources.ts precedent).
 type WireRepoCommitTip = { hash: string; subject: string };
 
 // The pre-baseline row's display text, from the task-56 sessionStorage mirror.
@@ -73,8 +68,7 @@ function buildSummaryRow(row: SummaryRow, projectName: string | undefined, start
     return el("div", { class: "summary-row" }, children);
 }
 
-// Rebuild the summary panel's rows from the popover's CURRENT field values. Rows 3–5 render
-// only with a project; each Edit jumps to its single wizard screen via `startEdit`.
+// Rebuild the summary panel's rows from the popover's CURRENT field values. Rows 3–5 render only with a project; each Edit jumps to its single wizard screen via `startEdit`.
 export function renderPathsSummary(projectName: string | undefined, startEdit: StartScreenEdit): void {
     const rows = computeSummaryRows(projectName).map((row) => buildSummaryRow(row, projectName, startEdit));
     document.getElementById("paths-summary-rows")!.replaceChildren(...rows);
@@ -86,8 +80,7 @@ export function renderFinishRows(projectName: string | undefined): void {
     document.getElementById("wizard-finish-rows")!.replaceChildren(...rows);
 }
 
-// The gitBase:<hash> beacon inside the already-loaded document, when the session recorded a
-// baseline commit (s85-style). Never triggers a build — peeks the cache only.
+// The gitBase:<hash> beacon inside the already-loaded document, when the session recorded a baseline commit (s85-style). Never triggers a build — peeks the cache only.
 function findSessionRecordedBaselineHash(projectName: string | undefined): string | undefined {
     if (projectName === undefined) {
         return undefined;
@@ -98,8 +91,7 @@ function findSessionRecordedBaselineHash(projectName: string | undefined): strin
     return beacon === undefined ? undefined : extractGitBaseCommitHash(beacon);
 }
 
-// The repo's tip described from /api/repo-commits' newest row — the resolved default-branch
-// tip, never a hardcoded branch name (mockup resolved ambiguity 3).
+// The repo's tip described from /api/repo-commits' newest row — the resolved default-branch tip, never a hardcoded branch name (mockup resolved ambiguity 3).
 async function describeRepoTip(): Promise<string> {
     const repo = getInputById("repo-dir-input").value;
     const rows = await fetchJson<WireRepoCommitTip[]>(`/api/repo-commits?repo=${encodeURIComponent(repo)}`);
@@ -110,8 +102,7 @@ async function describeRepoTip(): Promise<string> {
     return `Default: ${formatShortCommitHash(tip.hash)} "${tip.subject}" (repo tip)`;
 }
 
-// Screen 4's default-radio label: the stored/session-recorded baseline when one exists, else
-// the repo tip (fetched). The wizard stamps the resolving placeholder before awaiting this.
+// Screen 4's default-radio label: the stored/session-recorded baseline when one exists, else the repo tip (fetched). The wizard stamps the resolving placeholder before awaiting this.
 export async function resolveDefaultCommitLabel(projectName: string | undefined): Promise<string> {
     const stored = getInputById("base-commit-display").value;
     if (stored !== "") {

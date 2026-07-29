@@ -1,8 +1,6 @@
-// View models for the diff-vs-base view: unified diff text -> split/inline row structures,
-// plus the shared diff display-mode vocabulary and its stored-value resolution. Pure — no DOM.
+// View models for the diff-vs-base view: unified diff text -> split/inline row structures, plus the shared diff display-mode vocabulary and its stored-value resolution. Pure — no DOM.
 
-// Discriminates split-view rows: full-width (hunk headers, preamble, non-diff text) vs
-// left/right pairs inside a hunk.
+// Discriminates split-view rows: full-width (hunk headers, preamble, non-diff text) vs left/right pairs inside a hunk.
 export const SplitRowKind = Object.freeze({ full: "full", pair: "pair" } as const);
 
 type SplitCell = { text: string; lineClass: string; lineNumber?: number };
@@ -39,8 +37,7 @@ function buildSplitCell(text: string, lineClass: string, lineNumber: number | un
     return cell;
 }
 
-// Pushes one zipped deletion/addition pair row; either side may be undefined when the runs
-// have unequal lengths.
+// Pushes one zipped deletion/addition pair row; either side may be undefined when the runs have unequal lengths.
 function pushPendingPairRow(rows: SplitRow[], pendingDeletions: SplitCell[], pendingAdditions: SplitCell[], pairIndex: number): void {
     rows.push({
         kind: SplitRowKind.pair,
@@ -49,9 +46,7 @@ function pushPendingPairRow(rows: SplitRow[], pendingDeletions: SplitCell[], pen
     });
 }
 
-// Unified diff text -> rows for the two-column split view. Deletion/addition runs are zipped
-// row-by-row; the one-char unified prefix is stripped inside hunk cells; "@@ -a,b +c,d @@"
-// headers seed the per-side line-number counters shown in the gutters.
+// Unified diff text -> rows for the two-column split view. Deletion/addition runs are zipped row-by-row; the one-char unified prefix is stripped inside hunk cells; "@@ -a,b +c,d @@" headers seed the per-side line-number counters shown in the gutters.
 export function computeSplitRows(diffText: string): SplitRow[] {
     const rows: SplitRow[] = [];
     let pendingDeletions: SplitCell[] = [];
@@ -113,12 +108,10 @@ export function computeSplitRows(diffText: string): SplitRow[] {
     return rows;
 }
 
-// One rendered inline-view line; number fields are set only when a numeric hunk header has
-// seeded that side's counter (item 40).
+// One rendered inline-view line; number fields are set only when a numeric hunk header has seeded that side's counter (item 40).
 export type InlineRow = { text: string; lineClass: string; oldLineNumber?: number; newLineNumber?: number };
 
-// Assigns both gutter numbers to a context line inside a hunk (each side only when its counter
-// is seeded) and returns the advanced counters.
+// Assigns both gutter numbers to a context line inside a hunk (each side only when its counter is seeded) and returns the advanced counters.
 function assignContextLineNumbers(row: InlineRow, oldLineCounter: number | undefined, newLineCounter: number | undefined): { oldLineCounter: number | undefined; newLineCounter: number | undefined } {
     if (oldLineCounter !== undefined) {
         row.oldLineNumber = oldLineCounter++;
@@ -129,9 +122,7 @@ function assignContextLineNumbers(row: InlineRow, oldLineCounter: number | undef
     return { oldLineCounter, newLineCounter };
 }
 
-// Unified diff text -> inline rows in original line order, raw prefixes kept. "@@ -a,b +c,d @@"
-// headers seed the per-side counters; "-" advances old only, "+" advances new only, context
-// inside a hunk advances both; preamble lines and headers carry no numbers.
+// Unified diff text -> inline rows in original line order, raw prefixes kept. "@@ -a,b +c,d @@" headers seed the per-side counters; "-" advances old only, "+" advances new only, context inside a hunk advances both; preamble lines and headers carry no numbers.
 export function computeInlineRows(diffText: string): InlineRow[] {
     const rows: InlineRow[] = [];
     let insideHunk = false;
@@ -163,16 +154,13 @@ export function computeInlineRows(diffText: string): InlineRow[] {
     return rows;
 }
 
-// Which layout every diff pane uses. Module-level so the choice sticks across re-renders, and
-// mirrored to localStorage so it survives reloads (item 10f).
+// Which layout every diff pane uses. Module-level so the choice sticks across re-renders, and mirrored to localStorage so it survives reloads (item 10f).
 export const DiffDisplayMode = Object.freeze({ split: "split", inline: "inline" } as const);
 export type DiffDisplayModeValue = (typeof DiffDisplayMode)[keyof typeof DiffDisplayMode];
-// Exported (item 66): the Details pane's Columns/Inline toggle persists through the SAME key
-// and value vocabulary, so both diff surfaces share one remembered preference.
+// Exported (item 66): the Details pane's Columns/Inline toggle persists through the SAME key and value vocabulary, so both diff surfaces share one remembered preference.
 export const DIFF_MODE_STORAGE_KEY = "diffDisplayMode";
 
-// A stored value resolves to a mode: only the exact "inline" wire string opts out of the
-// split default (null / garbage / absent all mean split).
+// A stored value resolves to a mode: only the exact "inline" wire string opts out of the split default (null / garbage / absent all mean split).
 export function resolveInitialDiffDisplayMode(storedValue: string | null | undefined): DiffDisplayModeValue {
     if (storedValue === DiffDisplayMode.inline) {
         return DiffDisplayMode.inline;

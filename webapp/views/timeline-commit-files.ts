@@ -1,11 +1,9 @@
-// A commit row's changed-file list and contributing-row highlight set (split from timeline.ts,
-// task 92): the two-direction walk around a commit node, skipping baseline seeds and orphans.
+// A commit row's changed-file list and contributing-row highlight set (split from timeline.ts, task 92): the two-direction walk around a commit node, skipping baseline seeds and orphans.
 
 import { GIT_BASE_CHANGE_ID_PREFIX } from "./timeline-changes.ts";
 import { COMMIT_NODE_KIND, type FileChange, type TimelineNode } from "./timeline-types.ts";
 
-// True when the chip is a base-commit baseline seed (tasks 86/87): baseline state is
-// pre-session, never part of a commit's delta.
+// True when the chip is a base-commit baseline seed (tasks 86/87): baseline state is pre-session, never part of a commit's delta.
 function checkChangeIsGitBaseline(change: FileChange): boolean {
     if (change.changeId === undefined) {
         return false;
@@ -13,15 +11,7 @@ function checkChangeIsGitBaseline(change: FileChange): boolean {
     return change.changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX);
 }
 
-// A commit's changed-file list (item 66, mockup logic): walk back from the commit to the
-// previous commit EXCLUSIVE (or the timeline start), collecting every surviving row's file
-// changes; each path is listed once, keeping the occurrence CLOSEST to the commit (its latest
-// revision). Then walk FORWARD to the next commit EXCLUSIVE, absorbing only chips whose change
-// instant is at-or-before the commit — pre-commit work whose owning reply bubble sorts after the
-// commit row (task 87: the first commit otherwise shows "No files changed"). Baseline (gitBase)
-// chips are never a commit's delta and are skipped in both directions.
-// Feeds a forward-walk row's chips into the collector, skipping chips whose change instant is
-// after the commit (task 87's at-or-before gate).
+// A commit's changed-file list (item 66, mockup logic): walk back from the commit to the previous commit EXCLUSIVE (or the timeline start), collecting every surviving row's file changes; each path is listed once, keeping the occurrence CLOSEST to the commit (its latest revision). Then walk FORWARD to the next commit EXCLUSIVE, absorbing only chips whose change instant is at-or-before the commit — pre-commit work whose owning reply bubble sorts after the commit row (task 87: the first commit otherwise shows "No files changed"). Baseline (gitBase) chips are never a commit's delta and are skipped in both directions.  Feeds a forward-walk row's chips into the collector, skipping chips whose change instant is after the commit (task 87's at-or-before gate).
 function collectChangesAtOrBeforeCommit(node: TimelineNode, commitWhen: string, collectChange: (change: FileChange) => void): void {
     for (const change of node.fileChanges ?? []) {
         if (change.when > commitWhen) {
@@ -70,14 +60,11 @@ export function deriveCommitChangedFiles(nodes: TimelineNode[], commitIndex: num
     return changes;
 }
 
-// The rows a selected commit highlights (`.contrib`, item 66): the same two-direction walk as
-// deriveCommitChangedFiles, including every surviving row whose qualifying file changes overlap
-// the commit's changed paths. Indexes return ascending.
+// The rows a selected commit highlights (`.contrib`, item 66): the same two-direction walk as deriveCommitChangedFiles, including every surviving row whose qualifying file changes overlap the commit's changed paths. Indexes return ascending.
 export function findContributingNodeIndexes(nodes: TimelineNode[], commitIndex: number): number[] {
     const commitWhen = nodes[commitIndex]!.when;
     const changedPaths = new Set(deriveCommitChangedFiles(nodes, commitIndex).map((change) => change.path));
-    // A chip contributes when it is not a baseline seed, happened at-or-before the commit (always
-    // true for backward rows — owners sit at-or-after their snapshots), and touches a changed path.
+    // A chip contributes when it is not a baseline seed, happened at-or-before the commit (always true for backward rows — owners sit at-or-after their snapshots), and touches a changed path.
     const checkChangeContributes = (change: FileChange): boolean => {
         if (checkChangeIsGitBaseline(change)) {
             return false;

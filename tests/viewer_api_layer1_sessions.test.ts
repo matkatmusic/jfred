@@ -1,9 +1,6 @@
-// GET /api/layer1-sessions and GET /api/scan-source (tasks 292 / 296): the JSONLs pane's rows and
-// the picker's "is this folder empty of what I want" check.
+// GET /api/layer1-sessions and GET /api/scan-source (tasks 292 / 296): the JSONLs pane's rows and the picker's "is this folder empty of what I want" check.
 //
-// The fixture is two hand-written transcripts with STATED instants — one NESTED, so the recursive
-// walk is proven — whose file order is the OPPOSITE of their chronological order, so the route's
-// ascending sort cannot pass by accidentally echoing walk order.
+// The fixture is two hand-written transcripts with STATED instants — one NESTED, so the recursive walk is proven — whose file order is the OPPOSITE of their chronological order, so the route's ascending sort cannot pass by accidentally echoing walk order.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -15,8 +12,7 @@ import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
 import { SESSION_A, SESSION_B, buildPromptRecord, buildWriteRecordPair } from "./multi-source-test-helpers.ts";
 import type { Layer1WireSession } from "../src/viewer_api_layer1_sessions.ts";
 
-// 17400, 17900, 18400, 18900, 19400, 19900 and 20400 are taken by other server test files —
-// parallel test files must never collide.
+// 17400, 17900, 18400, 18900, 19400, 19900 and 20400 are taken by other server test files — parallel test files must never collide.
 const SCRATCH_PORT = 20900 + (process.pid % 500);
 
 const NESTED_STARTED = "2026-07-24T09:00:00.000Z";
@@ -28,8 +24,7 @@ function writeJsonlFixture(path: string, records: object[]): void {
     writeFileSync(path, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
 }
 
-// a/one.jsonl opens with a Write (so its first `user` record is a TOOL RESULT, proving the title
-// skips those) and is the EARLIER session; two.jsonl sits at the root and is the later one.
+// a/one.jsonl opens with a Write (so its first `user` record is a TOOL RESULT, proving the title skips those) and is the EARLIER session; two.jsonl sits at the root and is the later one.
 function makeSessionsFixture(): { sourceDir: string; onePath: string; twoPath: string } {
     const sourceDir = mkdtempSync(join(tmpdir(), "layer1-sessions-"));
     mkdirSync(join(sourceDir, "a"));
@@ -125,8 +120,7 @@ test("test_scan_source_reports_zero_for_a_folder_with_no_transcripts", async () 
 });
 
 test("test_scan_source_counts_every_regular_file_for_the_file_history_kind", async () => {
-    // A snapshot store's names are hashes with no common extension, so any regular file counts;
-    // only the empty folder can answer 0 for this kind.
+    // A snapshot store's names are hashes with no common extension, so any regular file counts; only the empty folder can answer 0 for this kind.
     assert.ok(await requestScanCount(sourceDir, "filehistory") >= 1);
     assert.equal(await requestScanCount(emptyDir, "filehistory"), 0);
 });

@@ -1,5 +1,4 @@
-// Staged (git add) blobs as evidence (s87): `git add` with no later commit leaves content
-// NOWHERE else — the driver's external edit exists ONLY in the repo's index.
+// Staged (git add) blobs as evidence (s87): `git add` with no later commit leaves content NOWHERE else — the driver's external edit exists ONLY in the repo's index.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,8 +38,7 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 const emptyReader: BackupReader = () => "";
 
 test("test_findGitAddEvents_parses_explicit_paths_and_compound_segments", () => {
-    // Steps:
-    // a bare `git add <file>`, an add inside a compound command, and path-less forms (-A, .).
+    // Steps: a bare `git add <file>`, an add inside a compound command, and path-less forms (-A, .).
     const records = [
         buildBashRecord("git add reporting_core.py", "2026-01-01T00:20:19Z", "/tmp/repo"),
         buildBashRecord('git add apply_renames.py && git -C /tmp/repo commit -m "x"', "2026-01-01T00:30:45Z", "/tmp/repo"),
@@ -56,8 +54,7 @@ test("test_findGitAddEvents_parses_explicit_paths_and_compound_segments", () => 
 });
 
 test("test_readStagedFileContent_returns_the_index_blob_not_the_worktree", () => {
-    // Steps:
-    // stage one version of a file, then change the worktree copy WITHOUT re-adding.
+    // Steps: stage one version of a file, then change the worktree copy WITHOUT re-adding.
     const repo = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const stagedBytes = "def report(store):\n    return store\n# reviewed by ops\n# reviewed by ops\n";
@@ -75,10 +72,7 @@ test("test_readStagedFileContent_returns_the_index_blob_not_the_worktree", () =>
 });
 
 test("test_gitStagedEvidence_places_an_unexplained_diff_using_the_index_blob", () => {
-    // Scenario (s87 in miniature): a move run births core_two.py, a rename run rewrites it, and a
-    // `# reviewed by ops` comment exists ONLY in the blob staged by a later `git add` — there is
-    // NO commit. The stage must splice a user-edit carrying the comment between the move and the
-    // rename run, and rebuild the run event's content so the comment survives it.
+    // Scenario (s87 in miniature): a move run births core_two.py, a rename run rewrites it, and a `# reviewed by ops` comment exists ONLY in the blob staged by a later `git add` — there is NO commit. The stage must splice a user-edit carrying the comment between the move and the rename run, and rebuild the run event's content so the comment survives it.
     const repo = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const moved = '"""Module two."""\n\n\ndef f_two(x):\n    return x + 2\n';

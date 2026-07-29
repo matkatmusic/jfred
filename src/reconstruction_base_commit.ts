@@ -1,18 +1,4 @@
-// The item-46 base-commit beacon stage: when the user configures `repoDir` + `baseCommit`
-// overrides, the named commit's tree is TIER-1 ground truth for a file's starting content —
-// this stage splices a WriteEvent of the committed bytes at the commit's committer timestamp
-// into the lineage before any reader-gated stage runs. Because the beacon is ordered by
-// timestamp, the MID-SESSION-SUPERSEDES rule falls out of ordinary replay: any transcript
-// event after the commit time overwrites the baseline, and a mid-session commit lands
-// mid-stream, superseding only what came before it.
-//
-// This stage deliberately does NOT gate on `isImpureExecutionAllowed()` — that gate guards
-// shell-outs derived from TRANSCRIPT-recorded commands (untrusted input); here the repo and
-// commit are the user's own explicit configuration, which IS the consent to read them.
-//
-// Known scope limit: only transcript-TOUCHED files gain beacons — target enumeration comes
-// from extracted events, so a file that exists only in the base commit has no history to
-// splice into. That matches the engine's charter (reconstruct the files the session touched).
+// Splices a tier-1 WriteEvent from the configured base commit into each file's event lineage.
 
 import { execSync } from "node:child_process";
 import { relative } from "node:path";
@@ -26,27 +12,19 @@ import { noteStage } from "./reconstruction_provenance.ts";
 
 export const BASE_COMMIT_CHANGE_ID_PREFIX = "gitBase:";
 
-// Task 56: whether events preceding the base-commit beacon are still replayed. true =
-// today's behavior (splice among them). false = the user's "No" to the pre-baseline
-// question: the beacon supersedes them, so they are dropped before replay. Module state
-// on the exec-gate precedent — builds are synchronous and serialized; the viewer sets it
-// per request and resets to true afterwards (the CLI never touches it).
+// Task 56: controls whether pre-beacon events are replayed or dropped.
 let preBaselineReconstructionAllowed = true;
 
 export function setPreBaselineReconstructionAllowed(allowed: boolean): void {
     preBaselineReconstructionAllowed = allowed;
 }
 
-// task 151: the corpus stamps the derived-cache group with this flag (beside the exec gate) —
-// histories and executions computed under one answer must never serve the other.
+// Task 151: cache-group key — different answers must not share derived caches.
 export function isPreBaselineReconstructionAllowed(): boolean {
     return preBaselineReconstructionAllowed;
 }
 
-// The declined-baseline cutoff instant, memoized per repo|commit pair (task 151): script runs
-// at-or-before it are superseded by the beacon (seedBaseCommitBeacon keeps only events strictly
-// after the commit time), so executeRunOnce skips them. undefined while pre-baseline
-// reconstruction is allowed, or when no baseline is configured/readable.
+// Task 151: memoized cutoff instant; runs at-or-before it are skipped.
 let skippedBaselineCutoffCache: { cachedFor: string; cutoff: Date | undefined } | undefined;
 
 export function computeSkippedBaselineCutoff(): Date | undefined {
@@ -67,9 +45,7 @@ export function computeSkippedBaselineCutoff(): Date | undefined {
     return skippedBaselineCutoffCache.cutoff;
 }
 
-// Whether a script run at `timestamp` is superseded by a declined baseline (task 151): "No" to
-// the pre-baseline question makes the beacon supersede everything at-or-before the commit
-// instant, so executing such a run is provably wasted work (executeRunOnce's skip gate).
+// Task 151: true when this run is superseded by a declined baseline.
 export function checkTimestampPrecedesSkippedBaseline(timestamp: Date): boolean {
     const cutoff = computeSkippedBaselineCutoff();
     if (cutoff === undefined) {
@@ -78,14 +54,12 @@ export function checkTimestampPrecedesSkippedBaseline(timestamp: Date): boolean 
     return timestamp.getTime() <= cutoff.getTime();
 }
 
-// Deterministic changeId (item-34 scriptRun: precedent) so every replay of the same
-// baseline agrees: gitBase:<hash>:<target>.
+// Deterministic changeId so every replay of the same baseline agrees.
 export function computeBaseCommitChangeId(baseCommit: Uuid, target: Path): Uuid {
     return new Uuid(`${BASE_COMMIT_CHANGE_ID_PREFIX}${baseCommit.toString()}:${target.toString()}`);
 }
 
-// The committer timestamp of <commit> in <repoDir> (git show -s --format=%cI), or
-// undefined when the repo/commit is unreadable (silent-degradation channel semantics).
+// Returns the committer timestamp, or undefined if unreadable.
 export function readCommitTimestamp(repoDir: Path, baseCommit: Uuid): Date | undefined {
     try {
         const isoInstant = execSync(`git show -s --format=%cI ${JSON.stringify(baseCommit.toString())}`, {
@@ -102,8 +76,7 @@ export function readCommitTimestamp(repoDir: Path, baseCommit: Uuid): Date | und
     }
 }
 
-// The committed bytes of <relativePath> at <commit>, or undefined when absent
-// (mirrors readCommittedFileContent's execSync + JSON.stringify quoting).
+// Returns the file content at the given commit, or undefined if absent.
 export function readCommitFileContent(repoDir: Path, baseCommit: Uuid, relativePath: string): string | undefined {
     try {
         return execSync(`git show ${baseCommit.toString()}:${JSON.stringify(relativePath)}`, {
@@ -115,8 +88,7 @@ export function readCommitFileContent(repoDir: Path, baseCommit: Uuid, relativeP
     }
 }
 
-// The first record carrying a cwd — the recorded project root the repo layout is
-// relative to.
+// Returns the first record's cwd as the project root.
 export function findFirstRecordCwd(records: TranscriptRecord[]): Path | undefined {
     for (const record of records) {
         const cwd = (record as { cwd?: Path }).cwd;
@@ -127,10 +99,7 @@ export function findFirstRecordCwd(records: TranscriptRecord[]): Path | undefine
     return undefined;
 }
 
-// Reconstruction stage: when repoDir+baseCommit overrides are set and the commit's
-// tree holds this target, splice a tier-1 WriteEvent of the committed bytes at the
-// commit's timestamp. Every absence (no overrides, no recorded cwd, target outside
-// the project root, unreadable commit, file not in commit) returns events unchanged.
+// Splices a tier-1 beacon WriteEvent if the base commit contains this target.
 export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEvent[], target: Path): FileEvent[] {
     const { repoDir, baseCommit } = getPathOverrides();
     if (repoDir === undefined) {
@@ -154,9 +123,7 @@ export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEv
     }
     const timestamp = readCommitTimestamp(repoDir, baseCommit);
     if (timestamp === undefined) {
-        // A baseline IS recorded but its commit cannot be read — the configured repo moved or was
-        // cleaned. Unlike the benign guards above (normal no-baseline sessions), this is missing
-        // evidence, so it is noted for the wire document before the usual silent degradation.
+        // Commit unreadable despite being configured — note as missing evidence.
         noteReconstructionFailure({ scope: FailureScope.fileStage, stage: "seedBaseCommitBeacon", target, reason: "git baseline commit unreadable (recorded repo missing)" });
         return events;
     }
@@ -166,13 +133,11 @@ export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEv
     }
     const changeId = computeBaseCommitChangeId(baseCommit, target);
     const beacon: WriteEvent = { kind: EventKind.write, changeId, target, content, timestamp };
-    // Insert before the first event strictly after the beacon's timestamp (end when none),
-    // splicing into a COPY of the input.
+    // Insert before the first event after the beacon's timestamp.
     const followerIndex = events.findIndex((event) => event.timestamp.getTime() > timestamp.getTime());
     const insertionIndex = followerIndex === -1 ? events.length : followerIndex;
     if (!preBaselineReconstructionAllowed) {
-        // Task 56: the beacon supersedes everything at-or-before its insertion point — drop
-        // those events so replay never does the work the baseline already answers for.
+        // Task 56: drop pre-baseline events the beacon supersedes.
         const trimmed = [beacon, ...events.slice(insertionIndex)];
         noteStage({
             stage: "seedBaseCommitBeacon",

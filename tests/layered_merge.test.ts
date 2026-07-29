@@ -1,7 +1,4 @@
-// Task 202 (spec S5): the per-entity merged multi-session view — nodes from every session
-// ordered on the one instant axis, one end state (not one per session), presumption gaps
-// re-derived at merged level, and corroboration marks where two DISTINCT sessions observed the
-// same bytes (the input for spec S8's dashed cross-lane lines).
+// Task 202 (spec S5): the per-entity merged multi-session view — nodes from every session ordered on the one instant axis, one end state (not one per session), presumption gaps re-derived at merged level, and corroboration marks where two DISTINCT sessions observed the same bytes (the input for spec S8's dashed cross-lane lines).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -68,8 +65,7 @@ function listContents(nodes: { node: TimelineNode }[]): string {
 }
 
 test("test_merge_interleaves_two_sessions_by_instant", () => {
-    // Scenario: session A's nodes bracket session B's; the merged order is by instant, and each
-    // node keeps the session that observed it.
+    // Scenario: session A's nodes bracket session B's; the merged order is by instant, and each node keeps the session that observed it.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeBeacon(1000, "a1"), makeBeacon(3000, "a3")]),
         makeSessionTimeline(SESSION_B_FILE, [makeBeacon(2000, "b2")]),
@@ -89,8 +85,7 @@ test("test_merge_interleaves_two_sessions_by_instant", () => {
 });
 
 test("test_merge_marks_same_bytes_across_sessions_as_corroborating", () => {
-    // Scenario: two sessions observed the same bytes at different instants — each node names the
-    // other session as corroboration, never itself.
+    // Scenario: two sessions observed the same bytes at different instants — each node names the other session as corroboration, never itself.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeBeacon(1000, "same")]),
         makeSessionTimeline(SESSION_B_FILE, [makeBeacon(2000, "same")]),
@@ -105,8 +100,7 @@ test("test_merge_marks_same_bytes_across_sessions_as_corroborating", () => {
 });
 
 test("test_merge_leaves_single_session_uncorroborated", () => {
-    // Scenario: the degenerate case — one session, two nodes with identical bytes. Corroboration
-    // needs two DISTINCT sessions, so nothing is marked.
+    // Scenario: the degenerate case — one session, two nodes with identical bytes. Corroboration needs two DISTINCT sessions, so nothing is marked.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeBeacon(1000, "dup"), makeBeacon(2000, "dup")]),
     ]);
@@ -120,8 +114,7 @@ test("test_merge_leaves_single_session_uncorroborated", () => {
 });
 
 test("test_merge_keeps_one_end_state_node", () => {
-    // Scenario: task 199 appended the same on-disk end state to BOTH session timelines. The
-    // merged view holds exactly one, last, owned by no session.
+    // Scenario: task 199 appended the same on-disk end state to BOTH session timelines. The merged view holds exactly one, last, owned by no session.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeBeacon(1000, "a1"), makeEndState(9000, "final")]),
         makeSessionTimeline(SESSION_B_FILE, [makeBeacon(2000, "b2"), makeEndState(9000, "final")]),
@@ -136,9 +129,7 @@ test("test_merge_keeps_one_end_state_node", () => {
 });
 
 test("test_merge_rederives_presumption_gaps_across_sessions", () => {
-    // Scenario: session A could not explain x -> z and left a gap; session B's beacon sits
-    // between them. The merged view drops A's stale gap and re-derives one gap per differing
-    // adjacent pair (x -> y, y -> z), owned by no session.
+    // Scenario: session A could not explain x -> z and left a gap; session B's beacon sits between them. The merged view drops A's stale gap and re-derives one gap per differing adjacent pair (x -> y, y -> z), owned by no session.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [
             makeBeacon(1000, "x"),
@@ -159,8 +150,7 @@ test("test_merge_rederives_presumption_gaps_across_sessions", () => {
 });
 
 test("test_merge_keeps_byteless_stubs_uncorroborated", () => {
-    // Scenario: a pre-anchor stub carries no bytes, so it survives the merge with its session
-    // attribution and can never corroborate or be corroborated.
+    // Scenario: a pre-anchor stub carries no bytes, so it survives the merge with its session attribution and can never corroborate or be corroborated.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeStub(500), makeBeacon(1000, "same")]),
         makeSessionTimeline(SESSION_B_FILE, [makeBeacon(2000, "same")]),
@@ -174,8 +164,7 @@ test("test_merge_keeps_byteless_stubs_uncorroborated", () => {
 });
 
 test("test_merge_corroborates_end_state_with_every_session_that_saw_its_bytes", () => {
-    // Scenario: both sessions observed the bytes the file still holds on disk — the end state
-    // (owned by no session) is corroborated by both.
+    // Scenario: both sessions observed the bytes the file still holds on disk — the end state (owned by no session) is corroborated by both.
     const entity = makeEntity([
         makeSessionTimeline(SESSION_A_FILE, [makeBeacon(1000, "final"), makeEndState(9000, "final")]),
         makeSessionTimeline(SESSION_B_FILE, [makeBeacon(2000, "final"), makeEndState(9000, "final")]),

@@ -1,6 +1,4 @@
-// Pure JSON builders: turn the engine's reconstruction objects into plain serializable shapes for the
-// CLI's --json output (parallels reconstruction_render.ts for the text views). MUST NOT import from
-// reconstruction_cli.ts — one-way dependency, no cycle. The renderJson dispatch lives in the CLI.
+// JSON builders for --json output. MUST NOT import from reconstruction_cli.ts.
 
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -33,13 +31,11 @@ export type ConversationMessage = {
     timestamp: Date | undefined;
     text: string;
     sessionId: Uuid | undefined;
-    // True when the record sits on a rewound (abandoned) conversation branch — the timeline dims
-    // the whole exchange, user prompts included (collectOrphanedUuids).
+    // True when the record sits on a rewound (abandoned) branch.
     isOrphaned: boolean;
 };
 
-// The displayed text of a user prompt or assistant reply: a plain-string content is the text itself;
-// an array content is its TextBlocks joined. "" when the record carries no text.
+// Extracts displayed text from a record; joins TextBlocks or returns "".
 function extractMessageText(record: TranscriptRecord): string {
     const message = record.message as { content?: unknown } | undefined;
     if (message !== undefined && typeof message.content === "string") {
@@ -64,9 +60,7 @@ function buildConversationMessage(record: TranscriptRecord, orphanedUuids: Set<s
     };
 }
 
-// The conversation as the user sees it: genuine typed-in user prompts (engine's isGenuineUserPrompt,
-// which rejects tool-result / isMeta / `/exit` user records) plus assistant replies that have displayed
-// text (pure tool_use turns carry no text and are skipped).
+// Genuine user prompts and assistant replies with visible text.
 export function extractConversationMessages(records: TranscriptRecord[]): ConversationMessage[] {
     const orphanedUuids = collectOrphanedUuids(records);
     const messages: ConversationMessage[] = [];
@@ -98,20 +92,13 @@ export function summarizeBranches(records: TranscriptRecord[]): BranchSummary[] 
     }));
 }
 
-// When a `git commit` ran and which session ran it — detected purely from the transcript
-// (findGitCommitEvents; no exec gate, no on-disk repo). Commit markers are the timeline's pick
-// hard-stops. NOTE: evidence-spliced commit revisions carry RANDOM changeIds that match no JSONL
-// line — markers, not changeIds, are the only commit signal usable by the viewer.
+// Transcript-detected git commits; markers (not changeIds) are the viewer's commit signal.
 export type CommitMarker = {
     timestamp: Date;
     sessionId: Uuid | undefined;
 };
 
-// Every session's user-given name, keyed by session id — from the `custom-title` records
-// users create when naming sessions ({type:"custom-title", customTitle, sessionId}). The
-// timeline's session-start markers read "Session <title> started: <id>" from this; sessions
-// never named simply have no entry. Plain string-keyed Record on the wire (the StepSnapshot
-// `files` precedent).
+// User-given session names keyed by session id, from custom-title records.
 export function findSessionTitles(records: TranscriptRecord[]): Record<string, string> {
     const titlesBySessionId: Record<string, string> = {};
     for (const record of records) {
@@ -139,24 +126,16 @@ export type ReconstructionDocument = {
     scriptRuns: ScriptRunFileChanges[];
     // Every line the tolerant parse skipped — the webapp's timeline gap rows.
     skippedLines: SkippedLine[];
-    // task 56: true only when the user declined pre-baseline reconstruction (viewer-stamped,
-    // never by the CLI) — the timeline starts at the git-baseline node.
+    // task 56: true when user declined pre-baseline reconstruction (viewer-stamped).
     preBaselineSkipped?: boolean;
-    // Every failure the engine survived while building THIS document. Known limitation: per-file
-    // revision memos are cached per records-array, so a warm rebuild over cached revisions
-    // re-reports only per-revision `unrecoverable` flags (cached inside the revision objects),
-    // not stage notes; the viewer also caches the whole document per stamp, so in practice the
-    // first (real) build's failures are what users see.
+    // Failures the engine survived while building this document.
     failures: ReconstructionFailure[];
 };
 
-// The wire document AND the compact step-file histories, returned as SEPARATE values: the histories are
-// never a document field, so JSON.stringify(document) stays small (the >512 MB RangeError fix). A server
-// caches both; the histories resolve any one step's file text on demand (resolveFilesAtStep).
+// Document and step-file histories kept separate to avoid the >512 MB RangeError.
 export type BuiltReconstruction = { document: ReconstructionDocument; stepFileHistories: FileHistory[] };
 
-// Run one document sub-phase, degrading to a fallback value when it throws so every file
-// state already computed still ships.
+// Degrades a throwing sub-phase to its fallback so partial results still ship.
 function buildPhaseTolerantly<T>(phase: string, fallback: T, run: () => T): T {
     try {
         return run();
@@ -177,17 +156,13 @@ export function buildReconstructionDocument(
         target === undefined
             ? branched.surviving
             : branched.surviving.filter((history) => history.target.equals(target));
-    // Rewound (abandoned-branch) histories, unwrapped from their branch tags — the timeline marks
-    // steps orphaned when their changeIds resolve only here. Filtered like filesTouched.
+    // Abandoned-branch histories, unwrapped from branch tags; filtered like filesTouched.
     const rewoundHistories = branched.rewound.flatMap((branch) => branch.histories);
     const rewoundFilesTouched =
         target === undefined
             ? rewoundHistories
             : rewoundHistories.filter((history) => history.target.equals(target));
-    // Sequenced (not an inline object literal) so each sub-phase announces before it runs and the
-    // console's line timestamps attribute the build time to the right phase.
-    // task 119: each sub-phase runs through buildPhaseTolerantly — a throwing phase degrades to
-    // its empty fallback instead of killing the whole document.
+    // task 119: each sub-phase uses buildPhaseTolerantly to degrade gracefully.
     reportReconstructionProgress("extracting conversation messages");
     // task 119: const messages = extractConversationMessages(records);
     const messages = buildPhaseTolerantly("extractConversationMessages", [], () => extractConversationMessages(records));
@@ -201,8 +176,7 @@ export function buildReconstructionDocument(
         { steps: [], stepFileHistories: [] },
         () => buildStepSnapshots(records, reader, branched.surviving),
     );
-    // Task 181: --target narrows the step timeline like it narrows filesTouched — a step that
-    // never touched the target is another file's history, not part of this ladder.
+    // task 181: --target narrows step timeline to only steps touching the target.
     const steps =
         target === undefined
             ? allSteps
@@ -236,8 +210,7 @@ export function buildReconstructionDocument(
         toolCalls,
         scriptRuns,
         skippedLines,
-        // Drained LAST so stage/file notes accumulated during reconstructBranches (earlier in the
-        // build) ride along with the phase notes above.
+        // Drained LAST so stage/file notes accumulated during reconstructBranches (earlier in the build) ride along with the phase notes above.
         failures: drainReconstructionFailures(),
     };
     return { document, stepFileHistories };

@@ -1,17 +1,8 @@
-// The per-file sweep runner (task 186, spec S11): runs the proven task-182 per-file path
-// (`--branch surviving --file <path>` + `--repo/--base-commit` seeding) over a list of candidate
-// files and emits the S11 results table. Running the 68-file M phase with it is task 187.
+// Per-file sweep runner (S11): reconstructs each candidate file individually.
 //
-// ONE process, ONE records array, N targets — deliberately, not one CLI spawn per file: the
-// expensive machinery (script-run injection, lineage replay) memoizes per records-ARRAY identity
-// (see plans/166-per-file-target.md attempt 4), so a shared array pays that cost once instead of
-// 68 times.
+// Shares one records array so memoized work pays its cost once.
 //
-// Usage (from anywhere; defaults target the jot recovery sources):
-//   npx tsx scripts/per_file_sweep.ts [--repo <dir>] [--base-commit <hash>] [--projects <dir>]
-//        [--fhsLoc <dir>] [--status M|A|D] [--out <jsonl>] [--table <md>] [--limit <n>]
-// Results append to --out one JSON line per candidate (so a killed run resumes), and --table is
-// rewritten from every row after each candidate.
+// Usage: npx tsx scripts/per_file_sweep.ts [--repo DIR] [--out JSONL] [--table MD]
 
 import { execFileSync, execSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -31,8 +22,7 @@ import { Path } from "../src/structures/domain.ts";
 import type { FileRevision } from "../src/reconstruction_engine.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
-// Repo-root-relative defaults so the output lands beside the S8 doc wherever the script is run
-// from (scripts/ -> jfred -> RevEng).
+// Defaults resolve to RevEng root so output lands beside the S8 doc.
 const REVENG_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const JOT_BASELINE_COMMIT = "793e65241902f276caf5f5c28d539269e7d36d11";
 
@@ -87,8 +77,7 @@ function listCandidates(settings: SweepSettings): Path[] {
     return candidates.slice(0, settings.limit);
 }
 
-// Every top-level transcript in the projects folder, in name order (session-id subdirectories
-// hold sidecars, not transcripts — same rule as layered_load.ts).
+// Top-level .jsonl transcripts in name order; subdirectories hold sidecars, not transcripts.
 function listTranscriptPaths(projects: Path): Path[] {
     return readdirSync(projects.toString())
         .filter((name) => name.endsWith(".jsonl"))
@@ -96,8 +85,7 @@ function listTranscriptPaths(projects: Path): Path[] {
         .map((name) => new Path(join(projects.toString(), name)));
 }
 
-// The reconstruction inputs, loaded ONCE: the overrides the CLI would set for the same flags,
-// the merged record stream, and the sidecar reader over it.
+// Loads all transcripts once; shared records array lets memoization pay cost once.
 function loadSweepInputs(settings: SweepSettings): { records: TranscriptRecord[]; reader: ReturnType<typeof buildSidecarReader> } {
     const transcripts = listTranscriptPaths(settings.projects).map((path) => path.toString());
     const options = parseArgs([
@@ -134,8 +122,7 @@ function readBaselineBlobSha(settings: SweepSettings, relativePath: Path): strin
     }
 }
 
-// Today's bytes of the candidate in the working tree, or undefined when it no longer exists (the
-// D phase's normal case).
+// Returns working-tree text, or undefined if the file was deleted (D-phase normal case).
 function readWorkingTreeText(settings: SweepSettings, relativePath: Path): string | undefined {
     const onDisk = join(settings.repo.toString(), relativePath.toString());
     if (!existsSync(onDisk)) {
@@ -144,9 +131,7 @@ function readWorkingTreeText(settings: SweepSettings, relativePath: Path): strin
     return readFileSync(onDisk, "utf8");
 }
 
-// The row for one candidate: run the fast path, then check both endpoints and count the
-// revisions the engine could not replay. A throw becomes a zero-revision row carrying the
-// message — one bad candidate must never end the sweep.
+// Builds one SweepRow; catches throws so one bad candidate never kills the sweep.
 function buildSweepRow(
     settings: SweepSettings,
     records: TranscriptRecord[],
@@ -175,9 +160,7 @@ function buildSweepRow(
     const diskText = readWorkingTreeText(settings, relativePath);
     return {
         file: relativePath,
-        // Spec S11 asks whether the baseline blob is PRESENT, not whether it is revision 0: the
-        // git seed lands by committer instant, so a file whose ladder starts before the baseline
-        // commit carries it mid-ladder (real-data shape — .claude-plugin/marketplace.json).
+        // Baseline blob may appear mid-ladder, not at revision 0, due to git-seed timing.
         baselineBlobMatched: baselineSha !== undefined
             && revisions.some((revision) => hashBlobOfText(renderRevisionText(revision)) === baselineSha),
         revisions: revisions.length,
@@ -230,3 +213,4 @@ export function runSweep(argv: string[]): void {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     runSweep(process.argv.slice(2));
 }
+

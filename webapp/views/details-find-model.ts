@@ -1,16 +1,10 @@
-// Details-pane find widget (task 127) — pure model: match finding over text-node values plus
-// the n/N cursor arithmetic. DOM-free so tests exercise it directly (same split as
-// timeline-filter-model.ts); the DOM consumer is details-find.ts.
+// Details-pane find widget (task 127) — pure model: match finding over text-node values plus the n/N cursor arithmetic. DOM-free so tests exercise it directly (same split as timeline-filter-model.ts); the DOM consumer is details-find.ts.
 
-// One find-widget match inside the details right pane's text: which text node (in TreeWalker
-// document order) and the [start, end) character span inside its value.
+// One find-widget match inside the details right pane's text: which text node (in TreeWalker document order) and the [start, end) character span inside its value.
 export type TextNodeMatch = { nodeIndex: number; start: number; end: number };
 
-// Every case-insensitive occurrence of `term` across the pane's text-node values, in document
-// order. Blank terms match nothing (the widget's idle state).
-// ponytail: a match spanning two text nodes (e.g. across hljs spans) is not found; rebuild
-// over concatenated values with a node-offset map if that ever matters.
-// Every occurrence of `normalizedTerm` inside one value, appended in offset order.
+// Every case-insensitive occurrence of `term` across the pane's text-node values, in document order. Blank terms match nothing (the widget's idle state).
+// ponytail: a match spanning two text nodes (e.g. across hljs spans) is not found; rebuild over concatenated values with a node-offset map if that ever matters.  Every occurrence of `normalizedTerm` inside one value, appended in offset order.
 function appendMatchesInValue(matches: TextNodeMatch[], nodeIndex: number, value: string, normalizedTerm: string): void {
     const lowerValue = value.toLowerCase();
     let start = lowerValue.indexOf(normalizedTerm);
@@ -32,8 +26,7 @@ export function findMatchesInTextNodeValues(values: string[], term: string): Tex
     return matches;
 }
 
-// The next current-match index after stepping `delta` (+1 next / -1 prev), wrapping at both
-// ends; -1 when there are no matches.
+// The next current-match index after stepping `delta` (+1 next / -1 prev), wrapping at both ends; -1 when there are no matches.
 export function computeWrappedMatchIndex(current: number, total: number, delta: number): number {
     if (total === 0) {
         return -1;

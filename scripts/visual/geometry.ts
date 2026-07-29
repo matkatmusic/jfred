@@ -1,12 +1,8 @@
-// The serialized DOM geometry dump the visual loop captures at every state, and the in-page
-// expression that produces it. The shape and the probe live in ONE file so the assertions can never
-// read a field the probe stopped emitting.
+// Geometry shape and probe co-located so assertions stay in sync with the dump.
 //
-// Every box is a getBoundingClientRect in VIEWPORT coordinates, which is what makes the dump
-// comparable across zoom levels: native CSS `zoom` participates in layout, so a rect already carries
-// the scaling that offsetTop/offsetLeft would not.
+// Boxes use viewport coords (getBoundingClientRect), comparable across zoom levels.
 //
-// TRAP: the probe is a template literal, so it must contain no backtick and no dollar-brace.
+// TRAP: the probe is a template literal, so no backtick or dollar-brace.
 
 export interface Box {
     x: number;
@@ -15,8 +11,7 @@ export interface Box {
     h: number;
 }
 
-// One measured element. `ownerPath` is the `data-path` of the bubble it belongs to, so a label or a
-// dot can be reported against the file it describes rather than as an anonymous rectangle.
+// `ownerPath` traces a label/dot back to its parent bubble's file path.
 export interface Measured {
     group: string;
     cls: string;
@@ -49,13 +44,10 @@ export interface StateGeometry {
     found: Measured[];
 }
 
-// The two orphan bucket headings. A bubble that prints one of these as its file name is the
-// bucket-title-instead-of-a-path failure the assertions hunt for; they are also the strings
-// layer1-page.ts's buildOrphanBucket is called with.
+// Bucket headings assertions check for the title-instead-of-path bug.
 export const BUCKET_TITLES = ["No on-disk match", "No repository match"] as const;
 
-// Collect every rectangle the assertions read, in one page turn. Elements are grouped by role
-// rather than dumped as one flat list, because every assertion is scoped to one role.
+// Collects all assertion-relevant rects in one page turn, grouped by role.
 export const GEOMETRY_PROBE = `(() => {
     const round = (value) => Math.round(value * 100) / 100;
     const rect = (element) => {
@@ -104,3 +96,4 @@ export const GEOMETRY_PROBE = `(() => {
         found: collect('.found', 'found'),
     };
 })()`;
+

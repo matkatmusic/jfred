@@ -1,11 +1,6 @@
-// The Layer 1 visual verification loop, end to end and from cold: build the webapp, kill whatever
-// holds the viewer port, start a fresh viewer on a free one, drive headless Chrome through every
-// scripted state capturing a screenshot and a geometry dump at each, then run the assertion layer
-// over those dumps.
+// End-to-end visual verification: build, launch viewer, drive Chrome, assert geometry.
 //
-// Usage:  node --import tsx scripts/visual/run.ts [label]
-// Artifacts land in scripts/visual/out/<label>/ and the exit code is the verdict — 0 clean, 1 on any
-// violation — so the loop can be re-run until it passes without reading its output.
+// Usage: node --import tsx scripts/visual/run.ts [label]
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -17,36 +12,28 @@ import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
 import { GEOMETRY_PROBE, type StateGeometry } from "./geometry.ts";
 import { VISUAL_STATES } from "./states.ts";
 
-// The port the project's own `npm run app` uses. Killed before every run because a stale viewer
-// still answering there has repeatedly been mistaken for the feature being broken.
+// Kill stale viewer on this port before each run to avoid false negatives.
 const CONVENTIONAL_PORT = 7343;
 
-// 1600x1000 is a real laptop viewport. The window matters: every assertion about what is on screen
-// is measured against it, so changing it changes what "off screen" means.
+// Assertions measure against this viewport; changing it redefines "off screen".
 const VIEWPORT_WIDTH = 1600;
 const VIEWPORT_HEIGHT = 1000;
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// Layer 1 compares a working tree against a git repo, so this repo is its own real-data fixture:
-// ~800 pair bubbles across a ~156,000 px stage, which is the render every reported bug came from.
-// debugConfig.json, when present, is what the browser opens on — so the harness opens on it too
-// (user, 2026-07-27), or the two verify different renders. Absent, this falls back to the repo
-// itself, which is what it always used.
+// Uses debugConfig.json defaults if present, else this repo as its own fixture.
 const DEBUG_DEFAULTS = computeLayer1Defaults();
 const VIEW_DIR = DEBUG_DEFAULTS.dir ?? JFRED_ROOT;
 const VIEW_REPO = DEBUG_DEFAULTS.repo ?? JFRED_ROOT;
 
-// The viewer requires a projects dir even though Layer 1 reads none; the checked-in demo bundle
-// keeps a cold start off the user's live ~/.claude/projects.
+// Layer 1 ignores projects dir; demo bundle avoids touching ~/.claude/projects.
 const PROJECTS_DIR = join(JFRED_ROOT, "demo", "projects");
 
 function killPort(port: number): void {
     execSync(`lsof -ti tcp:${port} | xargs kill -9 2>/dev/null || true`, { stdio: "ignore", shell: "/bin/sh" });
 }
 
-// Compile webapp/*.ts into webapp/dist, so a renderer edit is actually in the page being driven.
-// Without this the loop would verify the PREVIOUS build and report a fix that never shipped.
+// Build webapp so the loop verifies the current source, not a stale dist.
 function buildWebapp(): void {
     execSync("node_modules/.bin/tsc -p tsconfig.webapp.json", { cwd: JFRED_ROOT, stdio: "inherit" });
 }
@@ -146,8 +133,8 @@ async function main(): Promise<number> {
     }
 }
 
-// Only when invoked as the script, so the test can import the pure helpers above without launching
-// a browser.
+// Only when invoked as the script, so the test can import the pure helpers above without launching a browser.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exitCode = await main();
 }
+

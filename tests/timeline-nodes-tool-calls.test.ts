@@ -38,11 +38,7 @@ import {
 // });
 
 test("test_git_operations_render_as_standalone_tool_call_rows_not_turn_rows", () => {
-    // Scenario (item 55): git commands are un-bubbled tool-call rows between the conversation
-    // bubbles, never rows inside agent-turn bubbles. Each of s85's five recorded git operations
-    // is a Bash tool_use, so a tool-call node shares its exact instant and session.
-    // Steps:
-    // build s85's turn timeline.
+    // Scenario (item 55): git commands are un-bubbled tool-call rows between the conversation bubbles, never rows inside agent-turn bubbles. Each of s85's five recorded git operations is a Bash tool_use, so a tool-call node shares its exact instant and session.  Steps: build s85's turn timeline.
     const { nodes } = buildTurnTimelineViewModel(s85Document);
     // assert NO agent turn owns git operations anymore (the retired attachment stays retired).
     const agentNodes = nodes.filter((node: { kind: string }) => node.kind === AGENT_TURN_NODE_KIND);
@@ -63,10 +59,7 @@ test("test_git_operations_render_as_standalone_tool_call_rows_not_turn_rows", ()
 // ─── tool-call rows (item 55): every non-file-edit tool call is an un-bubbled timeline node ─────
 
 test("test_document_ships_tool_calls_on_the_wire", () => {
-    // Scenario: the wire document carries toolCalls[] so the timeline can render tool rows.
-    // Steps:
-    // assert the seed session ships its six calls (git init, ls, rtk ls, mkdir, git add,
-    // rtk git add) with string-serialized fields.
+    // Scenario: the wire document carries toolCalls[] so the timeline can render tool rows.  Steps: assert the seed session ships its six calls (git init, ls, rtk ls, mkdir, git add, rtk git add) with string-serialized fields.
     assert.ok(s39SeedDocument.toolCalls.length >= 6);
     for (const call of s39SeedDocument.toolCalls) {
         assert.equal(typeof call.uuid, "string");
@@ -78,11 +71,7 @@ test("test_document_ships_tool_calls_on_the_wire", () => {
 });
 
 test("test_tool_call_nodes_sort_between_reply_and_files_bubble", () => {
-    // Scenario: s39's reply "Setting up the repo…" precedes its tool calls; the four commands
-    // before the Writes must render as rows between the reply bubble and the files bubble, the
-    // post-Write git add rows between the files bubble and the session end.
-    // Steps:
-    // build the seed-session timeline.
+    // Scenario: s39's reply "Setting up the repo…" precedes its tool calls; the four commands before the Writes must render as rows between the reply bubble and the files bubble, the post-Write git add rows between the files bubble and the session end.  Steps: build the seed-session timeline.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     const findToolRow = (prefix: string) => nodes.findIndex((node) =>
         node.kind === TOOL_CALL_NODE_KIND && node.summary!.startsWith(prefix));
@@ -98,18 +87,14 @@ test("test_tool_call_nodes_sort_between_reply_and_files_bubble", () => {
     assert.ok(findToolRow("ls /private/") < findToolRow("rtk ls "));
     assert.ok(findToolRow("rtk ls ") < findToolRow("mkdir -p"));
     assert.ok(findToolRow("mkdir -p") < filesBubbleIndex);
-    // the post-Write git add (and its rtk rewrite) sit after the files bubble, BEFORE the
-    // session end — the end node closes the session after everything in it.
+    // the post-Write git add (and its rtk rewrite) sit after the files bubble, BEFORE the session end — the end node closes the session after everything in it.
     assert.ok(filesBubbleIndex < findToolRow("git add"));
     assert.ok(findToolRow("git add") < findToolRow("rtk git add"));
     assert.ok(findToolRow("rtk git add") < sessionEndIndex);
 });
 
 test("test_tool_call_nodes_are_never_numbered", () => {
-    // Scenario: tool rows are not steps — numbering must skip them (like commit nodes), so the
-    // seed session keeps its six numbered steps ending with the session end.
-    // Steps:
-    // build the seed-session timeline.
+    // Scenario: tool rows are not steps — numbering must skip them (like commit nodes), so the seed session keeps its six numbered steps ending with the session end.  Steps: build the seed-session timeline.
     const { nodes } = buildTurnTimelineViewModel(s39SeedDocument);
     // assert every tool-call node is unnumbered.
     for (const node of nodes.filter((entry) => entry.kind === TOOL_CALL_NODE_KIND)) {

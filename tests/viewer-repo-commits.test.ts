@@ -1,5 +1,4 @@
-// Tests for the task-137 repo/commit-picker server surface (src/viewer_api_repo.ts): the
-// git-log wire parser, the commit-tree membership counter, and the real-repo commit listing.
+// Tests for the task-137 repo/commit-picker server surface (src/viewer_api_repo.ts): the git-log wire parser, the commit-tree membership counter, and the real-repo commit listing.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -15,10 +14,7 @@ import {
 import { Path } from "../src/structures/domain.ts";
 
 test("test_parseGitLogOutput_splits_hash_date_subject", () => {
-    // Behavior: each git-log line is <hash>\t<date>\t<subject>; the subject may itself
-    // contain further tabs and must survive intact; a trailing blank line is ignored.
-    // Steps:
-    // two well-formed lines, the second with a tab inside the subject, plus a trailing newline.
+    // Behavior: each git-log line is <hash>\t<date>\t<subject>; the subject may itself contain further tabs and must survive intact; a trailing blank line is ignored.  Steps: two well-formed lines, the second with a tab inside the subject, plus a trailing newline.
     const hashA = "a".repeat(40);
     const hashB = "b".repeat(40);
     const output = `${hashA}\t2026-07-21\tfirst subject\n${hashB}\t2026-07-20\tsecond\tsubject\n`;
@@ -31,10 +27,7 @@ test("test_parseGitLogOutput_splits_hash_date_subject", () => {
 });
 
 test("test_countPathsInTree_counts_membership", () => {
-    // Behavior: the soft-warning math — how many of the project's recorded relative paths
-    // exist in the picked commit's tree.
-    // Steps:
-    // three recorded paths, two of them present in the tree set.
+    // Behavior: the soft-warning math — how many of the project's recorded relative paths exist in the picked commit's tree.  Steps: three recorded paths, two of them present in the tree set.
     const counts = countPathsInTree(["a.py", "sub/b.py", "missing.py"], new Set(["a.py", "sub/b.py"]));
     assert.deepEqual(counts, { matchedCount: 2, totalCount: 3 });
     // an empty recorded set counts nothing.
@@ -42,10 +35,7 @@ test("test_countPathsInTree_counts_membership", () => {
 });
 
 test("test_listRepoCommits_reads_a_real_repo_newest_first", () => {
-    // Behavior: listRepoCommits shells out to git log in the given repo and returns one row
-    // per commit, newest first, with full 40-hex hashes.
-    // Steps:
-    // a throwaway repo with two commits (the reconstruction_base_commit.test.ts recipe).
+    // Behavior: listRepoCommits shells out to git log in the given repo and returns one row per commit, newest first, with full 40-hex hashes.  Steps: a throwaway repo with two commits (the reconstruction_base_commit.test.ts recipe).
     const repoDir = mkdtempSync(join(tmpdir(), "reveng-repo-commits-"));
     writeFileSync(join(repoDir, "a.txt"), "one\n");
     execSync("git init -q -b main", { cwd: repoDir });

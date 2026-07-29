@@ -1,7 +1,4 @@
-// View-model tests for the script-run timeline/details wiring (task 67): the wire document's
-// scriptRuns join onto tool-call nodes, and the Details pane's script-run view model resolves
-// each changed file to the revision whose diff shows the run's before/after. Fixtures are
-// wire-shaped literals (what the browser sees after fetch + JSON.parse).
+// View-model tests for the script-run timeline/details wiring (task 67): the wire document's scriptRuns join onto tool-call nodes, and the Details pane's script-run view model resolves each changed file to the revision whose diff shows the run's before/after. Fixtures are wire-shaped literals (what the browser sees after fetch + JSON.parse).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -26,8 +23,7 @@ function buildSingleHistoryDocument(target: string, revisions: WireFileHistory["
 }
 
 test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
-    // Scenario: only a run the sandbox proved modified files rides its tool-call row — a
-    // read-only run (empty changedPaths) and a document without scriptRuns stamp nothing.
+    // Scenario: only a run the sandbox proved modified files rides its tool-call row — a read-only run (empty changedPaths) and a document without scriptRuns stamp nothing.
     const document = buildWireDocument({
         toolCalls: [
             { toolName: "Bash", summary: "python3 rename.py", timestamp: "2026-07-01T10:00:00Z", uuid: "u1", toolUseId: "toolu_1" },
@@ -46,8 +42,7 @@ test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
 });
 
 test("test_buildScriptRunDetailsViewModel_resolves_files_to_revisions", () => {
-    // Scenario: a changed path with a scriptRun:<toolUseId>: revision resolves to that revision
-    // (1-based); a path no history tracks resolves to nothing and renders as a note.
+    // Scenario: a changed path with a scriptRun:<toolUseId>: revision resolves to that revision (1-based); a path no history tracks resolves to nothing and renders as a note.
     const revisions = [
         { kind: "write", changeId: "toolu_0", timestamp: "2026-07-01T09:00:00Z" },
         { kind: "script-execution", changeId: "scriptRun:toolu_1:/p/a.py", timestamp: "2026-07-01T10:00:00Z" },
@@ -63,9 +58,7 @@ test("test_buildScriptRunDetailsViewModel_resolves_files_to_revisions", () => {
 });
 
 test("test_buildScriptRunDetailsViewModel_falls_back_to_first_revision_at_or_after_run", () => {
-    // Scenario: beacon-evidenced script effects carry no scriptRun: changeId (s25), so the file
-    // resolves to the FIRST revision at/after the run instant — the run's own effect — and, when
-    // every revision precedes the run, to the LAST (the state the run acted on).
+    // Scenario: beacon-evidenced script effects carry no scriptRun: changeId (s25), so the file resolves to the FIRST revision at/after the run instant — the run's own effect — and, when every revision precedes the run, to the LAST (the state the run acted on).
     const revisions = [
         { kind: "write", changeId: "toolu_0", timestamp: "2026-07-01T09:00:00Z" },
         { kind: "edit", changeId: "a.py@v2", timestamp: "2026-07-01T10:05:00Z" },

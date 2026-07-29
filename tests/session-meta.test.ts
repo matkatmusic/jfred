@@ -12,9 +12,7 @@ import { loadRecords } from "./utilities.ts";
 import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
 
 test("test_mode_record_exposes_mode_value", () => {
-    // Scenario: the `mode` record exposes its mode value ("normal" in s1).
-    // Steps:
-    // find the first mode record in s1.
+    // Scenario: the `mode` record exposes its mode value ("normal" in s1).  Steps: find the first mode record in s1.
     const mode = loadRecords(S1_JSONL).map(getModeEntry).find(Boolean);
     if (!mode) {
         assert.fail("expected a mode record in s1");
@@ -26,10 +24,7 @@ test("test_mode_record_exposes_mode_value", () => {
 });
 
 test("test_bridge_session_record_exposes_uuid_ids", () => {
-    // Scenario: a `bridge-session` record exposes both its sessionId and its
-    // (non-RFC-4122) bridgeSessionId as Uuid domain objects.
-    // Steps:
-    // find the first bridge-session record in s1.
+    // Scenario: a `bridge-session` record exposes both its sessionId and its (non-RFC-4122) bridgeSessionId as Uuid domain objects.  Steps: find the first bridge-session record in s1.
     const bridge = loadRecords(S1_JSONL).map(getBridgeSessionEntry).find(Boolean);
     if (!bridge) {
         assert.fail("expected a bridge-session record in s1");
@@ -40,10 +35,7 @@ test("test_bridge_session_record_exposes_uuid_ids", () => {
 });
 
 test("test_last_prompt_record_exposes_lastPrompt", () => {
-    // Scenario: a `last-prompt` record that carries prompt text exposes a
-    // non-empty lastPrompt string (s1 has 3 such records plus 1 pointer-only).
-    // Steps:
-    // find a last-prompt record whose lastPrompt text is populated.
+    // Scenario: a `last-prompt` record that carries prompt text exposes a non-empty lastPrompt string (s1 has 3 such records plus 1 pointer-only).  Steps: find a last-prompt record whose lastPrompt text is populated.
     const entries = loadRecords(S1_JSONL).map(getLastPromptEntry).filter(Boolean);
     const withText = entries.find((entry) => entry?.lastPrompt !== undefined);
     if (!withText) {
@@ -57,10 +49,7 @@ test("test_last_prompt_record_exposes_lastPrompt", () => {
 });
 
 test("test_attachment_payload_type_is_within_s1_vocabulary", () => {
-    // Scenario: every attachment record's payload `type` is one of the 6
-    // attachment payload kinds observed in s1.
-    // Steps:
-    // collect the attachment payload types present in s1.
+    // Scenario: every attachment record's payload `type` is one of the 6 attachment payload kinds observed in s1.  Steps: collect the attachment payload types present in s1.
     const allowed = new Set<string>(ATTACHMENT_PAYLOAD_TYPES);
     const s1Records = loadRecords(S1_JSONL);
     const attachmentEntries = s1Records.map(getAttachmentEntry);
@@ -79,12 +68,7 @@ test("test_attachment_payload_type_is_within_s1_vocabulary", () => {
 });
 
 test("test_attachment_payload_type_covers_s2_kinds", () => {
-    // Scenario: every s2 attachment payload `type` is recognized vocabulary — no
-    // kind in the transcript falls outside AttachmentPayloadType. (Which specific
-    // kinds occur is run-specific, so we assert coverage, not presence of any
-    // particular kind.)
-    // Steps:
-    // collect the attachment payload types present in s2.
+    // Scenario: every s2 attachment payload `type` is recognized vocabulary — no kind in the transcript falls outside AttachmentPayloadType. (Which specific kinds occur is run-specific, so we assert coverage, not presence of any particular kind.)  Steps: collect the attachment payload types present in s2.
     const allowed = new Set<string>(ATTACHMENT_PAYLOAD_TYPES);
     const s2Records = loadRecords(S2_JSONL);
     const attachmentEntries = s2Records.map(getAttachmentEntry);

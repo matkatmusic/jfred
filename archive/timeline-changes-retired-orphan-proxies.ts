@@ -1,7 +1,4 @@
-// Archived from webapp/views/timeline-changes.ts (task 121 line-cap trim): the retired
-// pre-engine-stamped-isOrphaned snapshot-proxy checks. The engine now stamps branch membership
-// per record on the wire (message.isOrphaned / toolCall.isOrphaned), copied at node
-// construction — these commented-out bodies are preserved here verbatim.
+// Archived from webapp/views/timeline-changes.ts (task 121 line-cap trim): the retired pre-engine-stamped-isOrphaned snapshot-proxy checks. The engine now stamps branch membership per record on the wire (message.isOrphaned / toolCall.isOrphaned), copied at node construction — these commented-out bodies are preserved here verbatim.
 
 // old (pre engine-stamped isOrphaned): the per-step snapshot proxy — a step counted orphaned
 // when its changeIds resolved only to rewound-branch revisions.

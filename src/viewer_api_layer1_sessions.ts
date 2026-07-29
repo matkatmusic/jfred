@@ -1,9 +1,6 @@
-// GET /api/layer1-sessions?jsonl=<folder>&jsonl=<folder> — one summary row per transcript found
-// under the picked JSONL source folders, which is what fills Layer 1's JSONLs pane and places its
-// range bars (task 292).
+// GET /api/layer1-sessions?jsonl=<folder>&jsonl=<folder> — one summary row per transcript found under the picked JSONL source folders, which is what fills Layer 1's JSONLs pane and places its range bars (task 292).
 //
-// Every failure here is a SKIP, never a throw: the pane is an accessory to the timeline, so one
-// corrupt transcript must not blank the whole list.
+// Every failure here is a SKIP, never a throw: the pane is an accessory to the timeline, so one corrupt transcript must not blank the whole list.
 
 import { existsSync } from "node:fs";
 import { type ServerResponse } from "node:http";
@@ -29,8 +26,7 @@ export interface Layer1WireSession {
     paths: string[];    // every file path the session touched
 }
 
-// The window a session's range bar spans. Session-meta lines carry no timestamp, so a transcript
-// with none at all has no place on the axis — undefined drops it from the pane.
+// The window a session's range bar spans. Session-meta lines carry no timestamp, so a transcript with none at all has no place on the axis — undefined drops it from the pane.
 function measureSessionWindow(records: TranscriptRecord[]): { started: Date; ended: Date } | undefined {
     const times = records.flatMap((record) => record.timestamp === undefined ? [] : [record.timestamp.getTime()]);
     if (times.length === 0) {
@@ -43,8 +39,7 @@ function measureSessionWindow(records: TranscriptRecord[]): { started: Date; end
     };
 }
 
-// One row, or undefined when the file yields nothing placeable — including when loading or scanning
-// throws on a record shape the parser has never seen.
+// One row, or undefined when the file yields nothing placeable — including when loading or scanning throws on a record shape the parser has never seen.
 function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
     try {
         const { records } = loadProjectRecords([jsonlPath]);
@@ -66,14 +61,11 @@ function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
     }
 }
 
-// Every session under every picked folder, de-duplicated by absolute path (two folders may nest or
-// repeat) and ordered by start instant. toISOString is fixed-width UTC, so a string compare IS the
-// chronological one.
+// Every session under every picked folder, de-duplicated by absolute path (two folders may nest or repeat) and ordered by start instant. toISOString is fixed-width UTC, so a string compare IS the chronological one.
 export function buildLayer1Sessions(folders: readonly string[]): Layer1WireSession[] {
     const sessionsByPath = new Map<string, Layer1WireSession>();
     for (const folder of folders) {
-        // A DERIVED default source folder (~/.claude/projects/<mangled dir>) need not exist yet:
-        // that is an empty pane for a project with no sessions, not a bad request.
+        // A DERIVED default source folder (~/.claude/projects/<mangled dir>) need not exist yet: that is an empty pane for a project with no sessions, not a bad request.
         if (!existsSync(folder)) {
             continue;
         }
@@ -90,8 +82,7 @@ export function buildLayer1Sessions(folders: readonly string[]): Layer1WireSessi
     return [...sessionsByPath.values()].sort((left, right) => left.started.localeCompare(right.started));
 }
 
-// `jsonl` is REPEATABLE — one value per picked source folder. Zero is a 400: an empty pane and "the
-// client forgot to say which folders" must not look the same to the page.
+// `jsonl` is REPEATABLE — one value per picked source folder. Zero is a 400: an empty pane and "the client forgot to say which folders" must not look the same to the page.
 export function handleLayer1SessionsRequest(response: ServerResponse, query: URLSearchParams): void {
     const folders = query.getAll("jsonl");
     if (folders.length === 0) {

@@ -12,8 +12,7 @@ import {
     type ProjectListing,
 } from "./viewer_api_projects.ts";
 
-// One listing's JSONLs appended (de-duplicated by resolved path — a source may repeat the
-// active projects dir), resolved through the same trust boundary as the active dir's files.
+// One listing's JSONLs appended (de-duplicated by resolved path — a source may repeat the active projects dir), resolved through the same trust boundary as the active dir's files.
 function appendListingJsonlPaths(
     projectsDir: Path,
     listing: ProjectListing,
@@ -37,11 +36,7 @@ function collectOneSourceJsonlPaths(source: SourceEntry, seenPaths: Set<string>,
     }
 }
 
-// The resolved JSONL path(s) for a project: one named file, or every JSONL in the project (the
-// unified view) when no file name is given. Spec S6: a project entry declaring `sources` serves
-// the union of ALL sources' project JSONLs instead — the declared list is authoritative, so the
-// config author lists every source including the primary (legacy entries keep the single-dir
-// scan).
+// The resolved JSONL path(s) for a project: one named file, or every JSONL in the project (the unified view) when no file name is given. Spec S6: a project entry declaring `sources` serves the union of ALL sources' project JSONLs instead — the declared list is authoritative, so the config author lists every source including the primary (legacy entries keep the single-dir scan).
 export function resolveJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
     if (jsonlName !== null) {
         return [resolveProjectFile(getProjectsDir(), projectName, jsonlName)];

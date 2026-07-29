@@ -27,8 +27,7 @@ function realReader(records: ReturnType<typeof loadRecords>): BackupReader | und
 }
 
 test("test_snapshotFileText_returns_engine_text_for_a_file_present_at_a_step", () => {
-    // Behavior: at the first step scenario19.py exists with the bare add definition, so snapshotFileText
-    // finds it by its repo-relative path.
+    // Behavior: at the first step scenario19.py exists with the bare add definition, so snapshotFileText finds it by its repo-relative path.
     const records = loadRecords(S19_JSONL);
     const steps = reconstructStepStates(records, realReader(records));
     // Verify: the first step's scenario19.py text is the bare add definition.
@@ -44,8 +43,7 @@ test("test_snapshotFileText_returns_undefined_for_a_file_absent_at_a_step", () =
 });
 
 test("test_someStepReproduces_is_true_when_an_engine_step_matches_ground_truth", () => {
-    // Behavior: a ground-truth folder holding scenario19.py == the bare add definition is reproduced by the
-    // first engine step.
+    // Behavior: a ground-truth folder holding scenario19.py == the bare add definition is reproduced by the first engine step.
     const records = loadRecords(S19_JSONL);
     const steps = reconstructStepStates(records, realReader(records));
     const groundTruth = new Map([["scenario19.py", ADD_ONLY]]);
@@ -63,8 +61,7 @@ test("test_someStepReproduces_is_false_when_no_engine_step_matches_ground_truth"
 });
 
 test("test_reconstructStepChanges_has_one_entry_per_reconstructStepStates_step", () => {
-    // Behavior: reconstructStepChanges is aligned 1:1 with reconstructStepStates — same count, ascending
-    // change-times, each step triggered by at least one changeId.
+    // Behavior: reconstructStepChanges is aligned 1:1 with reconstructStepStates — same count, ascending change-times, each step triggered by at least one changeId.
     const records = loadRecords(S19_JSONL);
     const reader = realReader(records);
     const steps = reconstructStepStates(records, reader);
@@ -81,8 +78,7 @@ test("test_reconstructStepChanges_has_one_entry_per_reconstructStepStates_step",
 });
 
 test("test_reconstructStepChanges_changeId_resolves_to_a_real_record_uuid_in_s19", () => {
-    // Behavior: a step's triggering changeId is the producing record's uuid, so it resolves against the
-    // transcript's record uuids.
+    // Behavior: a step's triggering changeId is the producing record's uuid, so it resolves against the transcript's record uuids.
     const records = loadRecords(S19_JSONL);
     const changes = reconstructStepChanges(records, realReader(records));
     const recordUuids = new Set(
@@ -96,10 +92,7 @@ test("test_reconstructStepChanges_changeId_resolves_to_a_real_record_uuid_in_s19
 });
 
 test("test_reconstructStepTimeline_returns_histories_and_change_metadata_without_per_step_states", () => {
-    // Behavior: reconstructStepTimeline exposes the compact per-file histories the steps derive from and
-    // one change entry per distinct change instant, WITHOUT materializing a repo snapshot for every step
-    // (the O(steps × live-bytes) blow-up the wire-size fix removes). S19 touches two files, one revised
-    // more than once, so histories has ≥2 entries and changes has ≥3 instants.
+    // Behavior: reconstructStepTimeline exposes the compact per-file histories the steps derive from and one change entry per distinct change instant, WITHOUT materializing a repo snapshot for every step (the O(steps × live-bytes) blow-up the wire-size fix removes). S19 touches two files, one revised more than once, so histories has ≥2 entries and changes has ≥3 instants.
     const records = loadRecords(S19_JSONL);
     const timeline = reconstructStepTimeline(records, realReader(records));
     // Verify: histories are the compact FileHistory form...

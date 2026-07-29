@@ -1,6 +1,4 @@
-// Raw-lines view (#/project/<name>/jsonl/<file>/lines): the transcript's numbered lines with
-// the legacy filter modes (Show All / File Only / Edits Only) plus a substring filter.
-// Clicking a line opens the JSON inspector.
+// Raw-lines view (#/project/<name>/jsonl/<file>/lines): the transcript's numbered lines with the legacy filter modes (Show All / File Only / Edits Only) plus a substring filter.  Clicking a line opens the JSON inspector.
 
 import { el as elUntyped } from "../app-dom.ts";
 import { fetchDocument, fetchRawRecords } from "../app-fetch.ts";
@@ -9,16 +7,14 @@ import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 
-// Wire shapes for the pieces of the /api/document payload this view reads (ids/dates arrive as
-// plain strings over the wire, so these stay local rather than importing engine types).
+// Wire shapes for the pieces of the /api/document payload this view reads (ids/dates arrive as plain strings over the wire, so these stay local rather than importing engine types).
 type WireRevision = { changeId: string };
 type WireFileHistory = { revisions: WireRevision[] };
 type WireLineVerdict = { line: number; verdict: string };
 type WireDocument = { filesTouched: WireFileHistory[]; lineVerdicts: WireLineVerdict[] };
 type RawLineEntry = { line: number; verdict: string; text: string };
 
-// Locally-typed view of app.ts's DOM builder (app.ts is being typed separately; its untyped
-// `children = []` default infers never[], which rejects every child).
+// Locally-typed view of app.ts's DOM builder (app.ts is being typed separately; its untyped `children = []` default infers never[], which rejects every child).
 type ElAttributes = Record<string, string | ((event: Event) => void)>;
 const el = elUntyped as <K extends keyof HTMLElementTagNameMap>(
     tag: K,
@@ -26,10 +22,7 @@ const el = elUntyped as <K extends keyof HTMLElementTagNameMap>(
     children?: HTMLElement[],
 ) => HTMLElementTagNameMap[K];
 
-// Pure filter over the document's per-line verdicts. mode: "all" | "file" (verdict marks file
-// relevance, i.e. not "ignore") | "edits" (the line carries a revision's changeId — the plan's
-// steps[].changeIds are re-stamped uuids that rarely match raw lines, so the changeId scan is
-// the honest edit set).
+// Pure filter over the document's per-line verdicts. mode: "all" | "file" (verdict marks file relevance, i.e. not "ignore") | "edits" (the line carries a revision's changeId — the plan's steps[].changeIds are re-stamped uuids that rarely match raw lines, so the changeId scan is the honest edit set).
 export function buildRawLinesViewModel(
     document: WireDocument,
     rawLines: string[],
@@ -80,8 +73,7 @@ export async function renderRawLinesView(container: HTMLElement, project: string
     const documentJson = result.document!;
     const rawLines = await fetchRawRecords(project, jsonl);
 
-    // Inspector navigation scrolls the visible row list in step (a filtered-out line just
-    // has no row to highlight).
+    // Inspector navigation scrolls the visible row list in step (a filtered-out line just has no row to highlight).
     const highlightLine = (line: number): void => {
         const row = listPane.querySelector(`[data-line="${line}"]`);
         if (row === null) return;

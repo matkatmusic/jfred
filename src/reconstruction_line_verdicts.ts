@@ -1,6 +1,4 @@
-// Per-line verdicts: the engine's classification of every transcript line, line-aligned to the
-// parsed records array. Moved out of reconstruction_json.ts (its one canonical home, no
-// re-export shim) when task 134 pushed that file past the 250-line cap.
+// Per-line engine verdicts, split from reconstruction_json.ts for the 250-line cap.
 
 import type { Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -18,14 +16,11 @@ export type LineVerdict = {
     // task 134: the timeline's raw-line rows sort by timestamp and tint by session lane.
     timestamp: Date | undefined;
     sessionId: Uuid | undefined;
-    // task 160: where the record physically sits — its transcript file and 1-based line —
-    // so the webapp's { } button can open uuid-less rows (summary lines) by line. undefined
-    // when the records were parsed outside loadTranscript (no source was recorded).
+    // task 160: physical location so the webapp can open uuid-less rows by line.
     source: RecordSource | undefined;
 };
 
-// The engine's per-line classification, line-aligned to the parsed records array. Pure surfacing of
-// recordVerdict + isGenuineUserPrompt (both per-record, no transcript context) — no new logic.
+// Surfaces recordVerdict + isGenuineUserPrompt per record, line-aligned.
 export function buildLineVerdicts(records: TranscriptRecord[]): LineVerdict[] {
     return records.map((record, index) => ({
         line: index,

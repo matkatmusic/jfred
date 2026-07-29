@@ -44,15 +44,13 @@ export class FileBackupMap {
         );
     }
 
-    // Re-emit the wire object form ({ "<path>": backup }) so the snapshot
-    // round-trips losslessly to JSONL.
+    // Re-emit the wire object form ({ "<path>": backup }) so the snapshot round-trips losslessly to JSONL.
     toJSON(): Record<string, FileHistoryBackup> {
         return Object.fromEntries(this.#byPath);
     }
 }
 
-// The file-state payload carried by a `file-history-snapshot` record. It maps a
-// file path to that file's current backup pointer at the time of the snapshot.
+// The file-state payload carried by a `file-history-snapshot` record. It maps a file path to that file's current backup pointer at the time of the snapshot.
 export type FileHistorySnapshot = {
     messageId: Uuid;
     timestamp: Date;
@@ -103,8 +101,7 @@ function hydrateSnapshot(raw: unknown): FileHistorySnapshot {
     };
 }
 
-// Return the typed, hydrated file-history-snapshot view of a record, or undefined
-// when the record is not a file-history-snapshot.
+// Return the typed, hydrated file-history-snapshot view of a record, or undefined when the record is not a file-history-snapshot.
 export function getFileHistorySnapshot(
     record: TranscriptRecord,
 ): FileHistorySnapshotMessage | undefined {
