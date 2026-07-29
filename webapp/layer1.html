@@ -15,7 +15,7 @@
 <script src="/app/vendor/highlight.min.js"></script>
 </head>
 <body>
-<div class="viz-root">
+<div class="viz-root" data-layer="1">
   <header>
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
@@ -36,11 +36,11 @@
       <button id="zoom-in" title="Zoom in">+</button>
       <button id="zoom-reset">Reset</button>
     </div>
+    <!-- Task 314: [2] toggles snapshots client-side (task 312 always ships them); [3] dropped. -->
     <div class="layerbar">
       <span class="lbl">Layer:</span>
-      <button class="current">1</button>
-      <button class="uncomputed" title="Layer 2 adds JSONL-derived start points">2</button>
-      <button class="uncomputed" title="Layer 3 adds file-history snapshots">3</button>
+      <button class="current" data-layer="1">1</button>
+      <button data-layer="2" title="Layer 2 adds file-history snapshots">2</button>
     </div>
     <!-- Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find
          it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives

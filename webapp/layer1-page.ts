@@ -7,6 +7,7 @@ import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resiz
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
@@ -200,6 +201,7 @@ export async function bootLayer1Page(): Promise<void> {
     void confirmRepoAndFillRefs();
     wireLayer1CancelButton();
     wireZoomControls();
+    wireLayerToggle();
     wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();
