@@ -656,3 +656,46 @@
   .dbody .dcode { flex: 1; min-width: 0; }
   /* A binary file has no text to number, so it gets a sentence instead of a body (task 294). */
   .dbody .dbinary { color: var(--muted); font-style: italic; }
+
+  /* Task 305: the classic Revision Viewer's renderers (webapp/diff-render.ts), on this page's tokens. */
+  .drawer { --mono: ui-monospace, Menlo, monospace;
+    --add-bg: color-mix(in srgb, var(--c-snap) 14%, transparent);
+    --del-bg: color-mix(in srgb, var(--c-user) 14%, transparent);
+    --hunk-bg: color-mix(in srgb, var(--ink) 8%, transparent);
+    --green: var(--c-snap); --red: var(--c-user); --accent: var(--c-commit); }
+  .dbody .diff { flex: 1; font-family: var(--mono); font-size: 11px; min-width: max-content; }
+  .dbody .diff-line { display: flex; white-space: pre; }
+  .dbody .diff-ln { flex: 0 0 36px; text-align: right; padding-right: 6px; color: var(--muted);
+    user-select: none; }
+  .dbody .diff-body { padding-left: 8px; }
+  .dbody .diff-line.add { background: var(--add-bg); }
+  .dbody .diff-line.add .diff-body { color: var(--green); }
+  .dbody .diff-line.del { background: var(--del-bg); }
+  .dbody .diff-line.del .diff-body { color: var(--red); }
+  .dbody .diff-line.hunk { background: var(--hunk-bg); color: var(--accent); }
+  .dbody .diff-cols { flex: 1; display: grid; font-family: var(--mono); font-size: 11px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr); }
+  .dbody .dc-ln { text-align: right; padding-right: 6px; color: var(--muted); user-select: none; }
+  .dbody .dc-body { padding-left: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dbody .dc-ln.dc-right { border-left: 1px solid var(--border); }
+  .dbody .dc-del { background: var(--del-bg); }
+  .dbody .dc-body.dc-del { color: var(--red); }
+  .dbody .dc-add { background: var(--add-bg); }
+  .dbody .dc-body.dc-add { color: var(--green); }
+  .dbody .dc-hunk { grid-column: 1 / -1; background: var(--hunk-bg); color: var(--accent);
+    padding-left: 8px; white-space: pre-wrap; }
+
+  /* Task 305: the pair reads as a DIRECTION — base ringed in the user colour, target in the
+     selection colour, each badged in the empty gutter left of its dot (mockup). */
+  .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--c-user); }
+  .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
+  .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
+    top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);
+    font: 700 8px system-ui; color: #fff; padding: 1px 4px; border-radius: 3px; }
+  .node.diff-base::before { content: "base"; background: var(--c-user); }
+  .node.diff-target::before { content: "target"; background: var(--sel-edge); }
+
+  /* Task 305: a cross-bubble shift-click is refused OUT LOUD. */
+  .dtoast { position: fixed; right: 18px; bottom: 18px; z-index: 60; background: var(--c-anchor);
+    color: #fff; font: 600 11px system-ui; padding: 6px 12px; border-radius: 16px; }
+  .dtoast[hidden] { display: none; }

@@ -5,8 +5,12 @@ import { highlightLandedElement } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { renderFileContentInto } from "./layer1-file-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
+import { clearDiffPair, extendDiffSelection, nodeCommitHash, setDrawerTools, wireDiffTools } from "./layer1-drawer-diff.ts";
 
 const SHORT_HASH_LENGTH = 8;
+
+// Task 305: the last plainly-clicked node — the diff pair's anchor.
+let anchor: { node: HTMLElement; path: string } | undefined;
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
@@ -16,12 +20,18 @@ function findClickedNode(target: HTMLElement): HTMLElement | undefined {
     return node?.classList.contains("node") === true ? node as HTMLElement : undefined;
 }
 
+// The full path lives on the owning bubble's `.fname` data-path (task 280); a bucket row has none.
+function findNodePath(node: HTMLElement): string | undefined {
+    const nameElement = node.closest(".filebox")?.querySelector(".fname") as HTMLElement | null;
+    return nameElement?.dataset.path;
+}
+
 // A commit node carries its full hash on the dot's `title`; an on-disk node has none.
 //
 // An empty title means "no commit" — a blank `hash=` would 400 naming the wrong parameter.
 function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string } {
     const basename = path.split("/").pop() ?? path;
-    const hash = node.classList.contains("n-commit") && node.title !== "" ? node.title : undefined;
+    const hash = nodeCommitHash(node);
     if (hash === undefined) {
         return {
             params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
@@ -36,13 +46,10 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
     };
 }
 
-async function openNodeDrawer(node: HTMLElement): Promise<void> {
-    const nameElement = node.closest(".filebox")?.querySelector(".fname") as HTMLElement | null;
-    const path = nameElement?.dataset.path;
-    // Task 280: the full path lives on `.fname` data-path; without one (a bucket row) there is nothing to fetch.
-    if (path === undefined) {
-        return;
-    }
+async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
+    // A plain click resets to a one-node selection (task 305) and anchors the next shift-click.
+    clearDiffPair();
+    anchor = { node, path };
     const detail = describeNode(node, path);
     const header = getRequiredElementById("dpath");
     header.textContent = detail.head;
@@ -75,24 +82,30 @@ async function openNodeDrawer(node: HTMLElement): Promise<void> {
     renderFileContentInto(body, (await response.json() as { content: string }).content, path);
 }
 
-// ONE control strip (tasks 299/305): the header shows the tools for what the body holds.
-export function setDrawerTools(tools: "img" | "diff" | "none"): void {
-    getRequiredElementById("imgtools").hidden = tools !== "img";
-    document.getElementById("difftools")?.toggleAttribute("hidden", tools !== "diff");
-}
-
 export function wireNodeDrawer(): void {
     wireImageZoomTools();
+    wireDiffTools();
     getRequiredElementById("stage").addEventListener("click", (event) => {
         const node = findClickedNode(event.target as HTMLElement);
         // A created-at node is never the latest on-disk state, so it has no bytes to show.
         if (node === undefined || node.classList.contains("n-created")) {
             return;
         }
-        void openNodeDrawer(node);
+        const path = findNodePath(node);
+        if (path === undefined) {
+            return;
+        }
+        // Task 305: shift extends the anchored selection into a two-node diff pair.
+        if ((event as MouseEvent).shiftKey && anchor !== undefined && getRequiredElementById("drawer").classList.contains("open")) {
+            void extendDiffSelection(anchor, node, path);
+            return;
+        }
+        void openNodeDrawer(node, path);
     });
     getRequiredElementById("dclose").addEventListener("click", () => {
         getRequiredElementById("drawer").classList.remove("open");
+        clearDiffPair();
+        anchor = undefined;
         drawLayer1Minimap();
     });
 }

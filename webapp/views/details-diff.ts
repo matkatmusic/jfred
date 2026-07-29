@@ -1,10 +1,10 @@
-// Details pane right-column rendering (split from details.ts, task 92): the shared #details-* pane plumbing plus the text / content / diff renders. Diff rendering reuses diff-vs-base's row view-models with the mockup's .diff / .diff-cols markup; showTextInDetails, showContentInDetails, and showDiffInDetails live together because they share the module's shownDiff toggle state.
+// Details pane right-column rendering (task 92): pane plumbing plus text/content/diff renders sharing the shownDiff toggle state.
 
 import { el } from "../app-dom.ts";
 import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
 import { fetchText } from "../app-fetch.ts";
 import { resetDetailsFind } from "./details-find.ts";
-import { SplitRowKind, computeInlineRows, computeSplitRows } from "./diff-vs-base-model.ts";
+import { appendColumnsDiff, appendInlineDiff } from "../diff-render.ts";
 import { findRevisionForChangeId, splitDiffBlocks } from "./file-history-model.ts";
 import { computeRevisionDiffFallbackText } from "./timeline-labels.ts";
 import { type FileChange } from "./timeline-types.ts";
@@ -41,7 +41,7 @@ export function clearRightPaneBody(): HTMLElement {
     return body;
 }
 
-// The diff the right pane currently shows, kept for toggle re-renders. `reload` re-fetches (a full-context diff is a DIFFERENT server response, so the full-contents toggle cannot re-render from the current text — item 75).
+// The shown diff, kept for toggle re-renders; `reload` re-fetches since full-context is a different response (item 75).
 let shownDiff: { label: string; diffText: string; reload: () => void; unrecoverableReason?: string } | undefined;
 
 // Plain explanatory text in the right pane (rename-only revisions, missing blocks).
@@ -66,7 +66,7 @@ export function showContentInDetails(target: string, revisionNumber: number, con
     clearRightPaneBody().append(pane);
 }
 
-// task 126: the placeholder's banner stack — the timeline header's ⚠ banner styling (.recon-banner), the carried-forward note, and the section title above the previous revision's diff.
+// task 126: the placeholder's banner stack — ⚠ banner, carried-forward note, previous-revision section title.
 function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
     body.append(
         el("div", { class: "recon-banner" }, [
@@ -78,7 +78,7 @@ function appendUnrecoverableBanner(body: HTMLElement, reason: string): void {
     );
 }
 
-// task 126: an unrecoverable placeholder's pane — the ⚠ banner, then the PREVIOUS revision's own diff (what the placeholder carries forward). The reason rides shownDiff so the columns/inline toggle re-renders keep the banner.
+// task 126: ⚠ banner then the previous revision's diff; the reason rides shownDiff so toggles keep the banner.
 export function showUnrecoverableInDetails(label: string, reason: string, previousDiffText: string | undefined, reload: () => void): void {
     if (previousDiffText === undefined) {
         shownDiff = undefined;
@@ -92,79 +92,7 @@ export function showUnrecoverableInDetails(label: string, reason: string, previo
     showDiffInDetails(label, previousDiffText, reload, reason);
 }
 
-// The mockup's inline diff: one .diff-line per unified line, gutter number + raw text.
-// Numbers come from diff-vs-base's computeInlineRows (dels count the old side, everything
-// else the new side; hunk headers show ⋯).
-function appendInlineDiff(body: HTMLElement, diffText: string): void {
-    const pane = el("div", { class: "diff" });
-    for (const row of computeInlineRows(diffText)) {
-        const line = el("div", { class: "diff-line" });
-        let lineNumberText: number | undefined;
-        if (row.lineClass === "diff-line-hunk") {
-            line.classList.add("hunk");
-        } else if (row.lineClass === "diff-line-add") {
-            line.classList.add("add");
-            lineNumberText = row.newLineNumber;
-        } else if (row.lineClass === "diff-line-del") {
-            line.classList.add("del");
-            lineNumberText = row.oldLineNumber;
-        } else {
-            lineNumberText = row.newLineNumber;
-        }
-        const gutterText = row.lineClass === "diff-line-hunk" ? "⋯" : lineNumberText === undefined ? "" : String(lineNumberText);
-        line.append(
-            el("span", { class: "diff-ln", text: gutterText }),
-            el("span", { class: "diff-body", text: row.text }),
-        );
-        pane.append(line);
-    }
-    body.append(pane);
-}
-
-// A split cell's mockup class: dc-del / dc-add / plain context.
-function mapSplitCellClass(lineClass: string): string {
-    if (lineClass === "diff-line-del") {
-        return "dc-del";
-    }
-    if (lineClass === "diff-line-add") {
-        return "dc-add";
-    }
-    return "";
-}
-
-// One side's ln+body cell pair in the two-column grid (empty cells keep alignment).
-function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineNumber?: number; text: string } | undefined, side: number): void {
-    const sideClass = side === 1 ? " dc-right" : "";
-    if (cell === undefined) {
-        grid.append(
-            el("span", { class: `dc-ln${sideClass}` }),
-            el("span", { class: "dc-body" }),
-        );
-        return;
-    }
-    const cellClass = mapSplitCellClass(cell.lineClass);
-    grid.append(
-        el("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
-        el("span", { class: `dc-body ${cellClass}`.trim(), text: cell.text }),
-    );
-}
-
-// The mockup's two-column diff grid, driven by diff-vs-base's computeSplitRows: full rows span the grid as hunk headers; pair rows emit ln+body cells per side (empty cells keep alignment).  Exported for the script-run mode's stacked per-file diffs (task 67).
-export function appendColumnsDiff(body: HTMLElement, diffText: string): void {
-    const grid = el("div", { class: "diff-cols" });
-    for (const row of computeSplitRows(diffText)) {
-        if (row.kind === SplitRowKind.full) {
-            grid.append(el("span", { class: "dc-hunk", text: row.text }));
-            continue;
-        }
-        [row.left, row.right].forEach((cell, side) => {
-            appendSplitCellPair(grid, cell, side);
-        });
-    }
-    body.append(grid);
-}
-
-// One diff in the right pane, in whichever layout the persisted toggle selects. #dm-columns / #dm-inline re-render the SAME diff and persist through diff-vs-base's storage vocabulary.
+// One diff in the persisted toggle's layout; #dm-columns / #dm-inline re-render the SAME diff.
 export function showDiffInDetails(label: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
     shownDiff = { label, diffText, reload, unrecoverableReason };
     setRightPaneLabel(label);
@@ -183,7 +111,7 @@ export function showDiffInDetails(label: string, diffText: string, reload: () =>
             showDiffInDetails(shownDiff.label, shownDiff.diffText, shownDiff.reload, shownDiff.unrecoverableReason);
         }
     };
-    // Full contents changes the fetched diff (wider git context), so it re-fetches via reload rather than re-rendering the current text.
+    // Full contents widens git context, so it re-fetches via reload rather than re-rendering.
     fullButton.onclick = () => {
         writeStoredFullContents(!fullContentsIsOn());
         reload();
@@ -215,7 +143,7 @@ export async function fetchRevisionDiffBlocks(project: string, target: string, f
     return splitDiffBlocks(await fetchText(`/api/diff?${params}`));
 }
 
-// One file change's revision diff in the right pane: its changeId resolves to a 1-based revision through the document's histories, that revision's block renders as a diff, and the no-hunk cases (renames, missing blocks) render their fallback explanation instead.
+// One change's revision diff: changeId resolves to a revision block; no-hunk cases render their fallback text.
 export async function showRevisionDiffInDetails(change: FileChange, blocks: string[], filesTouched: WireFileHistory[], reload: () => void): Promise<void> {
     const link = change.changeId === undefined ? undefined : findRevisionForChangeId(filesTouched, change.changeId, undefined);
     const block = link?.revisionNumber === undefined ? undefined : blocks[link.revisionNumber - 1];

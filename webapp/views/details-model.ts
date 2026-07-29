@@ -4,7 +4,7 @@ import {
     DIFF_MODE_STORAGE_KEY,
     DiffDisplayMode,
     resolveInitialDiffDisplayMode,
-} from "./diff-vs-base-model.ts";
+} from "../diff-vs-base-model.ts";
 import {
     COMMIT_NODE_KIND,
     type TimelineNode,

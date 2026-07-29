@@ -170,11 +170,18 @@
         <span class="dtools" id="imgtools" hidden>
           <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
         </span>
+        <span class="dtools" id="difftools" hidden>
+          <button data-mode="side">diff side-by-side</button><button data-mode="inline">diff inline</button>
+          <button data-mode="full">full content</button><button id="dexport">export as patch</button>
+        </span>
         <button id="dclose">Close</button></div>
       <div class="dmeta" id="dmeta"></div>
       <div class="dbody" id="dbody"></div>
     </aside>
   </div>
+
+  <!-- task 305: the cross-bubble refusal toast -->
+  <div class="dtoast" id="dtoast" hidden></div>
 
   <!-- Tasks 295/296: ONE dialog serves both source lists — same widget, same rules, different title
        and different array. `position: fixed` and centred over everything, so it is in front of the

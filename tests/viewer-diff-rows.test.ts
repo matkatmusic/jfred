@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeInlineRows, computeSplitRows, DiffDisplayMode, resolveInitialDiffDisplayMode, SplitRowKind } from "../webapp/views/diff-vs-base-model.ts";
+import { computeInlineRows, computeSplitRows, DiffDisplayMode, resolveInitialDiffDisplayMode, SplitRowKind } from "../webapp/diff-vs-base-model.ts";
 
 test("test_computeSplitRows_renders_context_line_in_both_columns", () => {
     // A context line must read identically on both sides, numbered from each side's header seed.
