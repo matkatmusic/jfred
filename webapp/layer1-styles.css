@@ -707,6 +707,8 @@
   /* Task 305: the pair reads as a DIRECTION — base ringed in the user colour, target in the
      selection colour, each badged in the empty gutter left of its dot (mockup). */
   .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--c-user); }
+  /* Task 315: solid --c-snap dot; `.node.` scopes the fill to the dot, sparing the label. */
+  .node.n-snap { background: var(--c-snap); }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

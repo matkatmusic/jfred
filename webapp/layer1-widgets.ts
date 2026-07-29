@@ -3,7 +3,7 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
-import type { WireOrphan, WirePair } from "./layer1-wire.ts";
+import type { WireOrphan, WirePair, WireSnapshot } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -16,7 +16,7 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
     return node;
 }
 
-// The dot must carry the title too: layer1-drawer.ts reads a commit's full hash off the clicked element, always the dot.
+// The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
 function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string, titleText?: string): void {
     lane.append(
         setAxisPx(el("i", { class: `node ${nodeClass}`, title: titleText }), axisPx),
@@ -24,9 +24,24 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
     );
 }
 
+// Task 315: identity on `data-` attrs (task 280), on both elements; `n-snap` on both is task 314's hide handle.
+function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSnapshot): void {
+    const identity = {
+        "data-version": String(snapshot.version),
+        "data-session-file": snapshot.sessionFile,
+        "data-line": snapshot.line === undefined ? undefined : String(snapshot.line),
+    };
+    lane.append(
+        setAxisPx(el("i", { class: "node n-snap", ...identity }), axisPx),
+        setAxisPx(el("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸`, ...identity }), axisPx),
+    );
+}
+
 function buildPairWidget(pair: WirePair): HTMLElement {
-    // Spans earliest to latest regardless of kind: a pre-commit mtime gave a negative offset, drawing the node over the header.
-    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk];
+    // Snapshots appended last, exactly as the server orders the ladder, so tie-group runs and the span both stay right.
+    const snapshots = pair.snapshots ?? [];
+    // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
+    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots];
     const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
@@ -40,6 +55,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
         appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
     }
     appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
+    for (const snapshot of snapshots) {
+        appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
+    }
     return setAxisPx(el("div", { class: "filebox" }, [
         // Task 280: full path lives on `data-path`; find box and File Nav's exact-path jump read that same attribute as identity.
         el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
