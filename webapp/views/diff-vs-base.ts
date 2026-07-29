@@ -17,7 +17,7 @@ import {
     resolveInitialDiffDisplayMode,
     SplitRowKind,
     type DiffDisplayModeValue,
-} from "./diff-vs-base-model.ts";
+} from "../diff-vs-base-model.ts";
 import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, type WireDocument as WireFileHistoryDocument } from "./file-history-model.ts";
 
 // app.ts is typed in parallel; a precise local signature for `el` until then.

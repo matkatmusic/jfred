@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildRevisionCards, computeDetailsHeaderText, mapStoredDiffModeToToggle, resolveInitialFullContentsChoice } from "../webapp/views/details-model.ts";
 import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, type TimelineNode } from "../webapp/views/timeline-types.ts";
-import { DiffDisplayMode } from "../webapp/views/diff-vs-base-model.ts";
+import { DiffDisplayMode } from "../webapp/diff-vs-base-model.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 test("test_computeDetailsHeaderText_formats_message_nodes", () => {
