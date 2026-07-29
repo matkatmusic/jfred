@@ -16,9 +16,9 @@ export type SnapshotPlacement = {
     backupFileName: Path;
 };
 
-// Snapshot records are cumulative, so one backup entry repeats across many records.
-function buildDedupeKey(owner: Uuid, backupFileName: Path, backupTime: Date): string {
-    return `${owner.toString()}|${backupFileName.toString()}|${backupTime.getTime()}`;
+// Snapshot records are cumulative and may re-stamp the same blob with a later backupTime; the blob is the identity.
+function buildDedupeKey(owner: Uuid, backupFileName: Path): string {
+    return `${owner.toString()}|${backupFileName.toString()}`;
 }
 
 // A null backupFileName holds no blob; an unresolvable owner could never be read back.
@@ -39,7 +39,7 @@ function buildPlacementsFromBackupPoints(
         if (owner === undefined) {
             continue;
         }
-        const dedupeKey = buildDedupeKey(owner, backupFileName, point.backupTime);
+        const dedupeKey = buildDedupeKey(owner, backupFileName);
         // Keeping the FIRST occurrence keeps the line where the snapshot was actually taken.
         if (seenKeys.has(dedupeKey)) {
             continue;
