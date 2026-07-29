@@ -10,7 +10,7 @@ import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
-import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
+import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
@@ -124,7 +124,13 @@ export async function loadLayer1View(): Promise<void> {
     resetSessionSelection();
     showLayer1Progress("starting");
     try {
-        renderLayer1View(await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`));
+        const view = await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`);
+        if (view === undefined) {
+            // Task 302: an aborted stream is a clean stop, reported plainly rather than as an error.
+            crumb.textContent = "load cancelled";
+            return;
+        }
+        renderLayer1View(view);
     } catch (error) {
         // The crumb is the whole error surface; no alert(), because native dialogs block headless automation.
         crumb.textContent = String(error);
@@ -154,6 +160,7 @@ export async function bootLayer1Page(): Promise<void> {
         void loadLayer1View();
     });
     void confirmRepoAndFillRefs();
+    wireLayer1CancelButton();
     wireZoomControls();
     wireFileNavResize();
     wireBucketJumpButtons();

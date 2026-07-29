@@ -18,7 +18,7 @@ export const LAYER1_PROGRESS_LABEL_READING_HISTORY = "reading file history";
 export const LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY = "placing repository-only files";
 export const LAYER1_PROGRESS_LABEL_RESOLVING_RULER = "resolving the ruler";
 
-// The S18 ruler accumulates, so an offset can't be derived from its own instant; the page gets the finished number.
+// The S18 ruler accumulates, so an offset can't come from its own instant; the page gets the finished number.
 export interface Layer1WireInstant {
     instant: Instant;
     axisPx: number;
@@ -29,7 +29,7 @@ export interface Layer1WireCommit extends Layer1WireInstant {
 }
 
 export interface Layer1WireRulerTick extends Layer1WireInstant {
-    // Nodes drawn at this instant across every bubble; measured by layOutNodeLadders so a client-side folder-filter re-layout produces the same number.
+    // Nodes drawn at this instant across every bubble; measured by layOutNodeLadders so client re-layout matches.
     eventCount: number;
 }
 
@@ -46,7 +46,7 @@ export interface Layer1WireOrphan extends Layer1WireInstant {
     path: Path;
 }
 
-// The two orphan sets are mirror images; a swap is invisible to task-238 test and must never happen (S18 contract).
+// The two orphan sets are mirror images; a swap is invisible to task-238's test and must never happen.
 export interface Layer1WireView {
     pairs: Layer1WirePair[];
     gitOrphans: Layer1WireOrphan[];
@@ -69,7 +69,7 @@ function reportStage(reportProgress: ProgressSink, label: string, current?: numb
     reportProgress({ kind: DocumentResponseKind.progress, label, current, total });
 }
 
-// A birth later than the file's own first commit is a checkout or copy time, so it draws no node.
+// A birth later than the file's first commit is a checkout or copy time, so no node.
 function readPairCreatedInstant(pair: PairHistory): Instant | undefined {
     const created = pair.file.createdAt;
     const firstCommit = pair.commits[0]?.instant;
@@ -101,7 +101,7 @@ function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer
     };
 }
 
-// Every instant here was part of the resolve input; a miss is a bug — fail loudly, not silent zero.
+// Every instant here was resolve input; a miss is a bug — fail loudly, not silent zero.
 function placeInstantOnAxis(offsets: Map<number, number>, instant: Instant): Layer1WireInstant {
     const axisPx = offsets.get(instant.getTime());
     if (axisPx === undefined) {
@@ -142,7 +142,7 @@ export function buildLayer1View(
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
     const diskFiles = walkCurrentFileState(projectFolder);
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_TREE);
-    // Runs before any history read so a bad ref throws once, not degrading into empty ladders; only `trackedFiles` is paired.
+    // Runs before any history read so a bad ref throws once; only `trackedFiles` is paired.
     const repoTree = readRepoTreeAtRef(repoDir, ref);
     const pairing = pairDiskFilesAgainstRepoPaths(diskFiles, repoTree.trackedFiles);
     // One `git log` per path is where this route's ~10 s goes. ponytail: unbatched, batch if rate matters.
@@ -159,7 +159,8 @@ export function buildLayer1View(
         ...pairHistories.map(listPairNodeLadder),
         ...gitOrphanPlacements.map((placement) => [placement.instant]),
         ...pairing.diskOrphans.map((file) => [file.mtime]),
-    ]);
+        // Task 303: per-ladder count so the ~900-ladder resolve never reads as a hang.
+    ], new Map(), (done, total) => reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER, done, total));
     // Ticks, not node rows: a bucket is placed at its instant's own position on the shared ruler.
     const offsets = new Map(layout.ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {

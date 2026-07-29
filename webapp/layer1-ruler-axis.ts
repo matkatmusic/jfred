@@ -11,10 +11,10 @@ export const RULER_PIXELS_PER_HOUR = 2.5;
 // User-locked 2026-07-25: keeps a months-long history on one screen.
 export const RULER_GAP_CAP_PIXELS = 120;
 
-// User-locked 2026-07-25: the `.node` dot is 15 px tall, so smaller gaps let nodes overprint; a measured ladder outranks this.
+// User-locked 2026-07-25: the 15 px `.node` dot overprints below this; a measured ladder outranks it.
 export const RULER_MIN_GAP_PIXELS = 16;
 
-// Derived from webapp/layer1.html: 20 px outer dot + 2 px hairline; redo if node size, ring, or label font changes.
+// Derived from webapp/layer1.html (20 px dot + 2 px hairline); redo if node size or font changes.
 export const RULER_NODE_ROW_PIXELS = 22;
 
 export interface RulerPosition {
@@ -24,12 +24,12 @@ export interface RulerPosition {
     eventCount: number;
 }
 
-// One bubble's nodes on the axis, in draw order; a bucket row is a one-instant ladder that bounds the ruler.
+// One bubble's nodes on the axis, in draw order; a bucket row is a one-instant ladder.
 export type NodeLadder = Instant[];
 
 export interface RulerLayout {
     ticks: RulerPosition[];
-    // Parallel to the ladders handed in, not keyed by instant, since a ladder's two nodes can share instant yet differ.
+    // Parallel to the ladders handed in, not keyed by instant: two nodes can share an instant yet differ.
     ladderOffsetsPx: number[][];
 }
 
@@ -83,7 +83,7 @@ function countRowsPerInstant(ladders: NodeLadder[]): Map<number, number> {
     return rowsPerInstant;
 }
 
-// Takes a bare instant list rather than a ladder: answers one ladder's row demand and task 275's flattened event count.
+// Takes a bare instant list, not a ladder: serves row demand and task 275's flattened event count.
 function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
     const perInstant = new Map<number, number>();
     for (const instant of nodes) {
@@ -92,7 +92,7 @@ function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
     return perInstant;
 }
 
-// A commit and an mtime landing on the same second is routine; drawing both at one offset is reported overprinting.
+// A commit and an mtime sharing a second is routine; one shared offset is reported overprinting.
 function assignRowSlots(ladder: NodeLadder): number[] {
     const filledRows = new Map<number, number>();
     return ladder.map((instant) => {
@@ -102,8 +102,11 @@ function assignRowSlots(ladder: NodeLadder): number[] {
     });
 }
 
+// Task 303: a plain optional callback, so the server can count without the client re-layout gaining a progress dependency.
+export type LadderPlacedCallback = (done: number, total: number) => void;
+
 // Task 251: ruler spacing is measured from what bubbles must show, so their contents are never squashed together.
-export function layOutNodeLadders(ladders: NodeLadder[], extraGapPx: Map<number, number> = new Map()): RulerLayout {
+export function layOutNodeLadders(ladders: NodeLadder[], extraGapPx: Map<number, number> = new Map(), onLadderPlaced?: LadderPlacedCallback): RulerLayout {
     const rowsPerInstant = countRowsPerInstant(ladders);
     const everyNode = ladders.flat();
     const ticks = accumulateOffsets(
@@ -116,7 +119,10 @@ export function layOutNodeLadders(ladders: NodeLadder[], extraGapPx: Map<number,
     return {
         ticks,
         // `?? 0` is unreachable — every ladder instant went into `ticks` above; it only satisfies Map.get's type.
-        ladderOffsetsPx: ladders.map((ladder) => assignRowSlots(ladder).map((slot, node) =>
-            (tickOffsets.get(ladder[node]!.getTime()) ?? 0) + slot * RULER_NODE_ROW_PIXELS)),
+        ladderOffsetsPx: ladders.map((ladder, index) => {
+            onLadderPlaced?.(index + 1, ladders.length);
+            return assignRowSlots(ladder).map((slot, node) =>
+                (tickOffsets.get(ladder[node]!.getTime()) ?? 0) + slot * RULER_NODE_ROW_PIXELS);
+        }),
     };
 }

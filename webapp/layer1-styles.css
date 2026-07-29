@@ -124,6 +124,13 @@
   .loadbar-fill { height: 100%; width: 0; background: var(--sel-edge); transition: width .12s linear; }
   .loadbar-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
     white-space: nowrap; }
+  .loadbar button { font-size: 11px; padding: 1px 8px; }
+  .loadbar-confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
+    color: var(--ink2); white-space: nowrap; }
+  .loadbar-confirm[hidden] { display: none; }
+  /* Task 304: the JSONLs pane's scan bar — the loadbar idiom sized for a narrow pane. */
+  .pane-loadbar { flex-wrap: wrap; padding: 8px 10px; border-bottom: none; }
+  .pane-loadbar .loadbar-label { white-space: normal; }
 
   .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
   /* A flex row, not padding-left + an absolute ruler: the gutter must be a real column so it
