@@ -70,6 +70,20 @@ test("test_listRulerRows_folds_a_tick_that_would_overprint_the_row_above_it", ()
     assert.ok(4 - 0 < TICK_LABEL_MIN_GAP_PX);
 });
 
+test("test_listRulerRows_merged_row_keeps_entries_whose_nodes_sit_below_its_label", () => {
+    // Task 306: distinct ms instants share one centisecond label; nodes at absorbed entries draw BELOW the printed row.
+    const rows = listRulerRows([
+        { instant: "2026-07-20T19:19:03.441Z", axisPx: 0, eventCount: 1 },
+        { instant: "2026-07-20T19:19:03.443Z", axisPx: 22, eventCount: 1 },
+        { instant: "2026-07-20T19:19:03.446Z", axisPx: 44, eventCount: 1 },
+    ]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.text, "07-20 19:19:03.44 (3)");
+    // The geometry is honest: the last absorbed entry (and its node and leader) is 44px below the label.
+    assert.deepEqual(rows[0]!.axisPxList, [0, 22, 44]);
+    assert.deepEqual(rows[0]!.instants.length, 3);
+});
+
 test("test_listRulerRows_refuses_an_entry_with_no_event_count", () => {
     // A missing count is a producer bug: it must fail loudly, not print "(undefined)" or "(NaN)".
     const malformed = { instant: "2026-06-01T09:00:00.000Z", axisPx: 0 } as WireRulerTick;
