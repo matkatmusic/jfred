@@ -70,6 +70,15 @@ test("test_buildLayer1View_announces_every_countless_stage_in_execution_order", 
     assert.equal(events.every((event) => event.kind === DocumentResponseKind.progress), true);
 });
 
+test("test_buildLayer1View_reports_a_counted_event_per_resolved_ladder", () => {
+    // Scenario (task 303): the ruler resolve was the silent stretch; each placed ladder now advances a counter.
+    const counted = listCountedEventsLabelled(recordProgressWhileBuilding(), LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
+    assert.ok(counted.length >= 1);
+    // the counter runs 1..N over the ladders and reaches its total.
+    assert.deepEqual(counted.map((event) => event.current), counted.map((_, index) => index + 1));
+    assert.equal(counted.at(-1)!.current, counted.at(-1)!.total);
+});
+
 test("test_buildLayer1View_needs_no_sink_at_all", () => {
     // Scenario: the sink is optional, so every pre-existing caller (and the plain non-streaming route) keeps compiling and running untouched.  Steps: build the view with three arguments, exactly as the plain route does.
     const view = buildLayer1View(new Path(makeFixtureDiskFolder()), new Path(makeFixtureRepo()), "HEAD");
