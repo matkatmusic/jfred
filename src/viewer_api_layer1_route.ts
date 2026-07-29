@@ -7,6 +7,7 @@ import { Path } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary.ts";
 import { CommitTimeSource } from "./structures/vocabulary_view.ts";
 import { buildLayer1View } from "./viewer_api_layer1.ts";
+import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
 // Validated here so a bad folder is a 400, not an ENOENT; no allowlist — the user's own machine.
@@ -65,9 +66,11 @@ export function handleLayer1ViewRequest(response: ServerResponse, query: URLSear
     const repoDir = requireExistingFolderParam(query, "repo");
     const ref = resolveRequestedRef(query);
     const timeSource = resolveRequestedTimeSource(query);
+    // Task 312: the repeatable ?jsonl= /api/layer1-sessions already takes; absent means no snapshots.
+    const sessionFiles = listTranscriptFiles(query.getAll("jsonl"));
     if (query.get("progress") !== "1") {
-        sendJson(response, 200, buildLayer1View(projectFolder, repoDir, ref, undefined, timeSource));
+        sendJson(response, 200, buildLayer1View(projectFolder, repoDir, ref, undefined, timeSource, sessionFiles));
         return;
     }
-    streamNdjsonBuild(response, (writeNdjsonLine) => buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource));
+    streamNdjsonBuild(response, (writeNdjsonLine) => buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource, sessionFiles));
 }

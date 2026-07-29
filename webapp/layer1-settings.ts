@@ -84,7 +84,7 @@ export async function restoreSavedSettings(): Promise<boolean> {
     if (chosen.jsonl !== undefined && !url.has("jsonl")) {
         writeSourcePaths(SourceKind.jsonl, [...chosen.jsonl]);
     }
-    if (chosen.fileHistory !== undefined && !url.has("filehistory")) {
+    if (chosen.fileHistory !== undefined && !url.has("snapshots")) {
         writeSourcePaths(SourceKind.fileHistory, [...chosen.fileHistory]);
     }
     return true;

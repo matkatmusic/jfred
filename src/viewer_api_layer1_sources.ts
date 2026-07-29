@@ -2,7 +2,7 @@
 //
 // The two live together because the scan IS the walk stopped at the first hit: the picker only needs to refuse an EMPTY folder, so a 12,000-file snapshot store must never be enumerated to answer it.
 
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
@@ -42,6 +42,21 @@ export function listSourceFilesUnder(root: Path, kind: SourceKind, limit = Numbe
 
 export function countSourceFilesUnder(root: Path, kind: SourceKind, limit: number): number {
     return listSourceFilesUnder(root, kind, limit).length;
+}
+
+// Every transcript under every picked folder, de-duplicated by absolute path (two folders may nest or repeat).
+export function listTranscriptFiles(folders: readonly string[]): Path[] {
+    const byPath = new Map<string, Path>();
+    for (const folder of folders) {
+        // A DERIVED default source folder need not exist yet: empty list, not a bad request.
+        if (!existsSync(folder)) {
+            continue;
+        }
+        for (const jsonlPath of listSourceFilesUnder(new Path(folder), SourceKind.jsonl)) {
+            byPath.set(jsonlPath.toString(), jsonlPath);
+        }
+    }
+    return [...byPath.values()];
 }
 
 // `kind` arrives from a URL, so an unknown spelling is a 400 naming it rather than a silent fall-through to "count everything" (coding-requirements §4: compare enum members).
