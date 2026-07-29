@@ -1,9 +1,9 @@
-// The Layer 1 page's progress strip and its NDJSON stream reader (S18 feedback fixes, step 4c).  Kept out of layer1-page.ts so that file stays near its ~250-line neighbours, and out of app-fetch.ts's orbit entirely: that module pulls in app-console.ts, app-progress.ts and the document cache at module scope, which is the whole-classic-app dependency this page deliberately avoids. Only the dependency-free splitter in app-ndjson.ts is shared.
+// Layer 1 progress strip and NDJSON reader; kept out of app-fetch.ts's classic-app dependency orbit on purpose.
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { splitNdjsonChunk } from "./app-ndjson.ts";
 
-// One line of the /api/layer1-view?progress=1 stream. Progress and error lines carry `kind`; the terminal view carries none, exactly as /api/document frames its own stream. The two kind strings are spelled here rather than imported because webapp/ may not import src/ — the same duplication app-fetch.ts already lives with.
+// One stream line: progress/error lines carry `kind`, the terminal view none; strings duplicated since webapp/ cannot import src/.
 interface Layer1StreamLine {
     kind?: "progress" | "error";
     label?: string;
@@ -11,25 +11,59 @@ interface Layer1StreamLine {
     total?: number;
 }
 
-// Show or advance the strip. A counted event fills it; a countless stage shows the label alone and leaves the fill where it was, so a stage with no N does not read as a reset to zero.
-export function showLayer1Progress(label: string, current?: number, total?: number): void {
-    getRequiredElementById("loadbar").removeAttribute("hidden");
+// Where one progress line lands: the main strip by default, a pane-local bar when the caller passes its own.
+export type ProgressPainter = (label: string, current?: number, total?: number) => void;
+
+// Paint one fill+label pair; a countless stage shows the label alone so it never reads as a reset.
+export function paintLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: string, current?: number, total?: number): void {
     if (current === undefined || total === undefined || total <= 0) {
-        getRequiredElementById("loadbar-label").textContent = label;
+        labelHost.textContent = label;
         return;
     }
-    getRequiredElementById("loadbar-label").textContent = `${label} — ${current} / ${total}`;
-    getRequiredElementById("loadbar-fill").style.width = `${(current / total) * 100}%`;
+    labelHost.textContent = `${label} — ${current} / ${total}`;
+    fill.style.width = `${(current / total) * 100}%`;
 }
 
-// Hide the strip and reset it, so the next load starts empty rather than resuming the last one.
+// Show or advance the main strip.
+export function showLayer1Progress(label: string, current?: number, total?: number): void {
+    getRequiredElementById("loadbar").removeAttribute("hidden");
+    paintLoadbar(getRequiredElementById("loadbar-fill"), getRequiredElementById("loadbar-label"), label, current, total);
+}
+
+// Hide and reset the strip — fill, label AND cancel confirm — so the next load starts empty.
 export function hideLayer1Progress(): void {
     getRequiredElementById("loadbar").setAttribute("hidden", "");
     getRequiredElementById("loadbar-fill").style.width = "0";
     getRequiredElementById("loadbar-label").textContent = "";
+    getRequiredElementById("loadbar-confirm").setAttribute("hidden", "");
+    getRequiredElementById("loadbar-cancel").removeAttribute("hidden");
 }
 
-// One decoded chunk's complete lines: the terminal view when this chunk held it, otherwise undefined. An error line throws immediately — the caller has a single failure path.
+// The in-flight load's controller. Module state: the button and the stream reader meet nowhere else.
+let activeLoadController: AbortController | undefined = undefined;
+
+export function cancelLayer1Load(): void {
+    activeLoadController?.abort();
+}
+
+// Task 302: Cancel with in-DOM confirm, task-164 wording; aborts the fetch since this page is not hash-routed.
+export function wireLayer1CancelButton(): void {
+    const cancel = getRequiredElementById("loadbar-cancel");
+    const confirmRow = getRequiredElementById("loadbar-confirm");
+    cancel.addEventListener("click", () => {
+        cancel.setAttribute("hidden", "");
+        confirmRow.removeAttribute("hidden");
+    });
+    getRequiredElementById("loadbar-confirm-no").addEventListener("click", () => {
+        confirmRow.setAttribute("hidden", "");
+        cancel.removeAttribute("hidden");
+    });
+    getRequiredElementById("loadbar-confirm-yes").addEventListener("click", () => {
+        cancelLayer1Load();
+    });
+}
+
+// One chunk's complete lines: returns the terminal view if present; an error line throws immediately.
 //
 // ponytail: only the LAST progress line of a chunk reaches the DOM. One reader.read() typically delivers many of the 832 lines at once and the intermediate ones are never painted, so this is one `.at(-1)` rather than 832 style writes.
 function applyStreamLines<ViewType>(lines: string[]): ViewType | undefined {
@@ -53,28 +87,38 @@ function applyStreamLines<ViewType>(lines: string[]): ViewType | undefined {
     return view;
 }
 
-// Read the NDJSON stream, advancing the bar as lines arrive, and return the terminal view. Throws on a terminal error line AND on a non-2xx response, so the one caller has a single failure path: a 400 from a bad `dir`/`repo` never opens a stream at all. Named `read…`, not `stream…`, to keep it distinct from the server function of that name in src/viewer_api_layer1_route.ts.
-export async function readLayer1ViewStream<ViewType>(url: string): Promise<ViewType> {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(await response.text());
-    }
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let remainder = "";
-    let view: ViewType | undefined = undefined;
-    for (;;) {
-        const { value, done } = await reader.read();
-        if (done) {
-            break;
+// Read the NDJSON stream, painting progress; throws on error line or non-2xx, returns undefined when cancelled.
+export async function readLayer1ViewStream<ViewType>(url: string): Promise<ViewType | undefined> {
+    const controller = new AbortController();
+    activeLoadController = controller;
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) {
+            throw new Error(await response.text());
         }
-        let lines: string[];
-        ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
-        view = applyStreamLines<ViewType>(lines) ?? view;
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let remainder = "";
+        let view: ViewType | undefined = undefined;
+        for (;;) {
+            const { value, done } = await reader.read();
+            if (done) {
+                break;
+            }
+            let lines: string[];
+            ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
+            view = applyStreamLines<ViewType>(lines) ?? view;
+        }
+        if (view === undefined) {
+            // The view is always last, so this means the connection dropped mid-build — name it loudly.
+            throw new Error("the Layer 1 stream ended before the view arrived");
+        }
+        return view;
+    } catch (error) {
+        // An abort is a clean stop the user asked for, never a crumb error.
+        if (controller.signal.aborted) {
+            return undefined;
+        }
+        throw error;
     }
-    if (view === undefined) {
-        // Every successful build ends with the view, so this means the connection dropped mid-build — worth naming rather than rendering an empty page that looks like a repo with no files.
-        throw new Error("the Layer 1 stream ended before the view arrived");
-    }
-    return view;
 }
