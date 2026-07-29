@@ -23,6 +23,8 @@ export interface RulerRow {
     text: string;
     // Task 284: the offsets of every ABSORBED entry, this row's own first. A merged row stands for several instants, and an expansion built from `axisPx` alone could only ever see the surviving entry's own events — under-reporting the row exactly the way its count used to.
     axisPxList: number[];
+    // Task 300: absorbed instants, parallel to axisPxList; the LAST carries an expansion's extra height.
+    instants: string[];
 }
 
 // One row while it is still collecting entries, before its count is spelled into its text.
@@ -31,6 +33,7 @@ interface RowTally {
     label: string;
     eventCount: number;
     axisPxList: number[];
+    instants: string[];
 }
 
 // One entry's event count. Every ruler entry is produced by layOutNodeLadders, which measures the count from the SAME ladders it measures the offsets from, so a missing one is a bug in the producer rather than bad input — fail loudly instead of printing "(undefined)" or, once a merge adds it to a running total, "(NaN)". Same rule as layer1-filter.ts's placeOrphanOnAxis and src/viewer_api_layer1.ts's placeInstantOnAxis on the same class of miss.
@@ -60,6 +63,7 @@ function absorbIntoPreviousRow(tallies: RowTally[], tick: WireRulerTick, label: 
     }
     previous.eventCount += readEventCount(tick);
     previous.axisPxList.push(tick.axisPx);
+    previous.instants.push(tick.instant);
     return true;
 }
 
@@ -71,11 +75,12 @@ export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
         if (absorbIntoPreviousRow(tallies, tick, label)) {
             continue;
         }
-        tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick), axisPxList: [tick.axisPx] });
+        tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick), axisPxList: [tick.axisPx], instants: [tick.instant] });
     }
     return tallies.map((row) => ({
         axisPx: row.axisPx,
         text: `${row.label} (${row.eventCount})`,
         axisPxList: row.axisPxList,
+        instants: row.instants,
     }));
 }

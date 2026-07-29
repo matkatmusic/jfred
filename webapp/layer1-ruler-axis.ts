@@ -49,16 +49,18 @@ function orderDistinctInstants(instants: Instant[]): Instant[] {
     return [...byEpochMs.values()].sort((a, b) => a.getTime() - b.getTime());
 }
 
-// `measureContentFloorPx` is asked about the earlier instant of each gap: rows hang below their instant, so the gap leaving pays.
+// The gap LEAVING an instant pays for its rows; `extraGapPx` (task 300) is added on top of the winner.
 function accumulateOffsets(
     ordered: Instant[],
     measureContentFloorPx: (instant: Instant) => number,
     eventCounts: Map<number, number>,
+    extraGapPx: Map<number, number>,
 ): RulerPosition[] {
     let offsetPx = 0;
     let previous: Instant | undefined = undefined;
     return ordered.map((instant) => {
-        offsetPx += previous === undefined ? 0 : measureGapPixels(previous, instant, measureContentFloorPx(previous));
+        offsetPx += previous === undefined ? 0 : measureGapPixels(previous, instant, measureContentFloorPx(previous))
+            + (extraGapPx.get(previous.getTime()) ?? 0);
         previous = instant;
         // `?? 0` is unreachable — `ordered` is `eventCounts`' own key set; it only satisfies the possibly-undefined type of Map.get.
         return { instant, offsetPx, eventCount: eventCounts.get(instant.getTime()) ?? 0 };
@@ -67,7 +69,7 @@ function accumulateOffsets(
 
 // Entry point for bare instants; every gap falls back on the 16 px heuristic. Layer 1 uses layOutNodeLadders instead.
 export function resolveInstantOffsets(instants: Instant[]): RulerPosition[] {
-    return accumulateOffsets(orderDistinctInstants(instants), () => 0, countNodesPerInstant(instants));
+    return accumulateOffsets(orderDistinctInstants(instants), () => 0, countNodesPerInstant(instants), new Map());
 }
 
 // Per-ladder MAX, not an overall tally: bubbles sit side by side, so only nodes inside the same bubble stack.
@@ -101,13 +103,14 @@ function assignRowSlots(ladder: NodeLadder): number[] {
 }
 
 // Task 251: ruler spacing is measured from what bubbles must show, so their contents are never squashed together.
-export function layOutNodeLadders(ladders: NodeLadder[]): RulerLayout {
+export function layOutNodeLadders(ladders: NodeLadder[], extraGapPx: Map<number, number> = new Map()): RulerLayout {
     const rowsPerInstant = countRowsPerInstant(ladders);
     const everyNode = ladders.flat();
     const ticks = accumulateOffsets(
         orderDistinctInstants(everyNode),
         (instant) => (rowsPerInstant.get(instant.getTime()) ?? 1) * RULER_NODE_ROW_PIXELS,
         countNodesPerInstant(everyNode),
+        extraGapPx,
     );
     const tickOffsets = new Map(ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {

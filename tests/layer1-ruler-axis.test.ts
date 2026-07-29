@@ -45,7 +45,7 @@ test("test_resolveInstantOffsets_floors_a_one_minute_gap_at_16_px", () => {
 });
 
 test("test_resolveInstantOffsets_preserves_ascending_order_from_unsorted_input", () => {
-    // Instants arrive from several sources (commits, disk mtimes) in no order; ruler must read strictly ascending in time and pixels.
+    // Instants arrive unordered from several sources; the ruler must read strictly ascending.
     const positions = resolveInstantOffsets(makeInstantsAtHours([200, 0, 8, 20]));
     assert.deepEqual(
         positions.map((position) => position.instant.getTime()),
@@ -69,7 +69,7 @@ test("test_resolveInstantOffsets_places_a_pre_first_commit_disk_orphan_at_zero",
 // A ladder is the same shape as an instant list, so makeInstantsAtHours doubles as its builder.
 
 test("test_layOutNodeLadders_gives_two_nodes_of_one_bubble_at_one_instant_their_own_rows", () => {
-    // The reported defect: a commit and the file's mtime on the same second resolved to one offset, hiding hash label.
+    // Reported defect: a commit and mtime on the same second shared one offset, hiding the hash label.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0, RULER_NODE_ROW_PIXELS]]);
@@ -77,21 +77,21 @@ test("test_layOutNodeLadders_gives_two_nodes_of_one_bubble_at_one_instant_their_
 });
 
 test("test_layOutNodeLadders_charges_the_next_gap_for_the_rows_stacked_at_an_instant", () => {
-    // Rows hang below their instant, so the leaving gap pays for them, else the next node draws atop used row.
+    // Rows hang below their instant, so the leaving gap pays for them.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 1])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 2 * RULER_NODE_ROW_PIXELS]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0, 22, 44]]);
 });
 
 test("test_layOutNodeLadders_charges_nothing_for_a_tie_across_two_different_bubbles", () => {
-    // Measuring a tie globally would inflate the ruler on every project where two files were committed together, which is common.
+    // A global tie measure would inflate the ruler whenever two files share a commit.
     const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([0]), makeInstantsAtHours([1])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
     assert.deepEqual(layout.ladderOffsetsPx, [[0], [0], [22]]);
 });
 
 test("test_layOutNodeLadders_replaces_the_16_px_heuristic_with_one_measured_node_row", () => {
-    // The old 16 px floor left no room for the label; the floor now matches the row a node needs.
+    // The old 16 px floor left no room for the label; now one node row.
     const layout = layOutNodeLadders([makeInstantsAtHours([0]), makeInstantsAtHours([1 / 60])]);
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, RULER_NODE_ROW_PIXELS]);
     assert.notEqual(RULER_NODE_ROW_PIXELS, RULER_MIN_GAP_PIXELS);
@@ -105,7 +105,7 @@ test("test_layOutNodeLadders_leaves_a_gap_already_wider_than_its_rows_in_proport
 });
 
 test("test_layOutNodeLadders_lets_measured_rows_outrank_the_120_px_gap_cap", () => {
-    // Capping a charged gap would clip rows off the axis, so content wins and the cap bounds only linear growth.
+    // Capping a charged gap would clip rows, so content wins; the cap bounds linear growth only.
     const layout = layOutNodeLadders([makeInstantsAtHours([0, 0, 0, 0, 0, 0, 6 * 7 * 24])]);
     assert.equal(layout.ticks.at(-1)!.offsetPx, 6 * RULER_NODE_ROW_PIXELS);
     assert.ok(6 * RULER_NODE_ROW_PIXELS > RULER_GAP_CAP_PIXELS);
@@ -122,6 +122,13 @@ test("test_layOutNodeLadders_counts_every_node_at_an_instant_across_all_bubbles"
     assert.deepEqual(layout.ticks.map((tick) => tick.eventCount), [4, 2]);
     // Not the number the ruler was spaced by: the gap is the tallest single bubble's stack, two.
     assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 2 * RULER_NODE_ROW_PIXELS]);
+});
+
+test("test_layOutNodeLadders_adds_extra_gap_pixels_after_the_charged_instant_only", () => {
+    // Task 300: an expanded row's list height shifts everything BELOW its instant, nothing above.
+    const instants = makeInstantsAtHours([0, 12, 24]);
+    const layout = layOutNodeLadders([instants], new Map([[instants[1]!.getTime(), 40]]));
+    assert.deepEqual(layout.ticks.map((tick) => tick.offsetPx), [0, 30, 100]);
 });
 
 test("test_resolveInstantOffsets_counts_the_events_it_collapsed_into_each_position", () => {
