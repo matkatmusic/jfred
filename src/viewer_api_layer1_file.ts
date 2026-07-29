@@ -1,4 +1,4 @@
-// GET /api/layer1-file (task 257): one file at one moment — commit form `?repo=&path=&hash=`, on-disk form `?dir=&path=`.
+// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313).
 //
 // Task 299: `&binary=1` answers raw bytes with an image content-type; the default stays `{ content }` as UTF-8.
 //
@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join, resolve, sep } from "node:path";
 import { Path } from "./structures/domain.ts";
+import { isSnapshotFileRequest, readSnapshotFileContent } from "./viewer_api_layer1_snapshot.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
 // Checked before the hash reaches git; delete if viewer_api_repo.ts ever exports its identical pattern.
@@ -62,6 +63,11 @@ export function readLayer1FileBytes(query: URLSearchParams, hashParam: string = 
 
 // Answers `{ content }`, or raw bytes when `binary=1`; failures throw so the server's outer catch 400s them.
 export function handleLayer1FileRequest(response: ServerResponse, query: URLSearchParams): void {
+    // Task 313: the snapshot form serves text from the owning session's sidecar, never a git/disk read.
+    if (isSnapshotFileRequest(query)) {
+        sendJson(response, 200, { content: readSnapshotFileContent(query) });
+        return;
+    }
     const bytes = readLayer1FileBytes(query);
     if (query.get("binary") === "1") {
         response.writeHead(200, { "Content-Type": resolveContentType(new Path(requireParam(query, "path"))) });
