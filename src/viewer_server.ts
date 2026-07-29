@@ -219,6 +219,8 @@ configureDocumentCachePersistence(documentCacheDir);
 const server = createServer(handleRequest);
 // A cold build can exceed Node's ~300s timeout, killing the process with ERR_HTTP_HEADERS_SENT.
 server.requestTimeout = 0;
+// Localhost-only: disable the 5s idle close whose FIN races undici's connection reuse into ECONNRESET.
+server.keepAliveTimeout = 0;
 server.listen(port, "127.0.0.1", () => {
     console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);
 });

@@ -160,7 +160,7 @@ export function buildLayer1View(
         ...gitOrphanPlacements.map((placement) => [placement.instant]),
         ...pairing.diskOrphans.map((file) => [file.mtime]),
         // Task 303: per-ladder count so the ~900-ladder resolve never reads as a hang.
-    ], (done, total) => reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER, done, total));
+    ], new Map(), (done, total) => reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER, done, total));
     // Ticks, not node rows: a bucket is placed at its instant's own position on the shared ruler.
     const offsets = new Map(layout.ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
     return {
