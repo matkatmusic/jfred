@@ -10,7 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
 import { SESSION_A, SESSION_B, buildPromptRecord, buildWriteRecordPair } from "./multi-source-test-helpers.ts";
-import { LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING, type Layer1WireSession } from "../src/viewer_api_layer1_sessions.ts";
+import { LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING } from "../src/viewer_api_layer1_sessions.ts";
+import type { WireSession } from "../webapp/layer1-wire.ts";
 
 // 17400/17900/18400/18900/19400/19900/20400 are taken by other server tests — parallel files must never collide.
 const SCRATCH_PORT = 20900 + (process.pid % 500);
@@ -63,11 +64,11 @@ after(() => {
     child?.kill();
 });
 
-async function requestSessions(folders: string[]): Promise<Layer1WireSession[]> {
+async function requestSessions(folders: string[]): Promise<WireSession[]> {
     const query = new URLSearchParams(folders.map((folder) => ["jsonl", folder]));
     const response = await fetch(`http://127.0.0.1:${SCRATCH_PORT}/api/layer1-sessions?${query.toString()}`);
     assert.equal(response.status, 200);
-    return (await response.json() as { sessions: Layer1WireSession[] }).sessions;
+    return (await response.json() as { sessions: WireSession[] }).sessions;
 }
 
 async function requestScanCount(folder: string, kind: string): Promise<number> {
@@ -111,7 +112,7 @@ test("test_layer1_sessions_stream_counts_each_file_then_ends_with_the_plain_payl
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /ndjson/);
     const lines = (await response.text()).split("\n").filter((line) => line !== "")
-        .map((line) => JSON.parse(line) as { kind?: string; label?: string; current?: number; total?: number; sessions?: Layer1WireSession[] });
+        .map((line) => JSON.parse(line) as { kind?: string; label?: string; current?: number; total?: number; sessions?: WireSession[] });
     // the fixture holds two transcripts, so the counter runs 1..2 with the exported label...
     const counted = lines.filter((line) => line.kind === "progress");
     assert.deepEqual(counted.map((line) => line.current), [1, 2]);

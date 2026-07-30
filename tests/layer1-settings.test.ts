@@ -6,7 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "../webapp/layer1-settings.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SAVED_PROJECT = {

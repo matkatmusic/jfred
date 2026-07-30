@@ -1,19 +1,7 @@
 // Task 286: the Layer 1 header's branch and commit dropdowns. They exist only once the repo box is confirmed to name a real git repo — GET /api/layer1-refs answering ok IS that confirmation, so no separate "is this a repo" endpoint exists. Both selects WRITE into the pre-existing #ref text box rather than replacing it: a raw hash must still be typeable, and #ref is the endpoint's param.
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
-
-// The /api/layer1-refs wire shape, re-declared because webapp/ cannot import from src/.
-interface WireRefCommit {
-    hash: string;
-    date: string;
-    subject: string;
-}
-
-interface WireLayer1Refs {
-    branches: string[];
-    head: string;
-    commits: WireRefCommit[];
-}
+import type { Layer1RefsView, RepoCommitRow } from "./layer1-wire.ts";
 
 // 75 characters of subject, the number the user specified; #commit is sized in `ch` to match.
 const SUBJECT_WIDTH = 75;
@@ -32,19 +20,19 @@ function getSelectById(id: string): HTMLSelectElement {
 }
 
 // Mockup line 1207's expression: short hash, padded subject, date — monospace, so the columns line up down the list.
-function describeCommit(commit: WireRefCommit): string {
+function describeCommit(commit: RepoCommitRow): string {
     const subject = commit.subject.padEnd(SUBJECT_WIDTH).slice(0, SUBJECT_WIDTH);
     return `${commit.hash.slice(0, 8)}  ${subject}  ${commit.date}`;
 }
 
-function fillBranchOptions(refs: WireLayer1Refs, ref: string): void {
+function fillBranchOptions(refs: Layer1RefsView, ref: string): void {
     const select = getSelectById("branch");
     select.replaceChildren(...refs.branches.map((name) => el("option", { value: name, text: name })));
     // The ref box wins when it names a branch — that is what the view on screen was built against; otherwise the branch the repo is actually checked out on.
     select.value = refs.branches.includes(ref) ? ref : refs.head;
 }
 
-function fillCommitOptions(commits: WireRefCommit[], ref: string): void {
+function fillCommitOptions(commits: RepoCommitRow[], ref: string): void {
     const select = getSelectById("commit");
     // The empty first option means "whatever the ref box already says" — a branch name, or nothing.
     select.replaceChildren(
@@ -74,7 +62,7 @@ export async function confirmRepoAndFillRefs(): Promise<void> {
         row.classList.remove("repo-ok");
         return;
     }
-    const refs = await response.json() as WireLayer1Refs;
+    const refs = await response.json() as Layer1RefsView;
     fillBranchOptions(refs, ref);
     fillCommitOptions(refs.commits, ref);
     row.classList.add("repo-ok");

@@ -5,11 +5,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { type ServerResponse } from "node:http";
+import { EventEmitter } from "node:events";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { handleLayer1DiffRequest } from "../src/viewer_api_layer1_diff.ts";
+import { RecordType } from "../src/structures/vocabulary.ts";
+import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "../src/viewer_api_layer1_diff.ts";
+import { makeTempDir } from "./overrides-test-helpers.ts";
 
 const FIRST_TEXT = "shared line\nfirst only\n";
 const SECOND_TEXT = "shared line\nsecond only\n";
@@ -95,6 +98,75 @@ test("test_layer1_diff_endpoint_widens_context_to_the_whole_file_on_context_full
     // Whole-line match: "far line 1" is a substring of the in-context "far line 10".
     assert.ok(!requestLayer1Diff(defaultRequest).diff.includes(` ${farLine}\n`));
     assert.ok(requestLayer1Diff({ ...defaultRequest, context: "full" }).diff.includes(` ${farLine}\n`));
+});
+
+// Task 329: sides as CONTENT STRINGS — any source that can produce a string diffs through this route.
+function requestContentDiff(payload: object): { status: number; diff: string } {
+    let status = 0;
+    let body = "";
+    const response = {
+        writeHead: (code: number) => { status = code; },
+        end: (text: string) => { body = text; },
+    } as unknown as ServerResponse;
+    const request = new EventEmitter() as unknown as IncomingMessage;
+    handleLayer1DiffContentRequest(request, response);
+    (request as unknown as EventEmitter).emit("data", Buffer.from(JSON.stringify(payload)));
+    (request as unknown as EventEmitter).emit("end");
+    return { status, diff: (JSON.parse(body) as { diff: string }).diff };
+}
+
+test("test_layer1_diff_content_endpoint_diffs_two_strings", () => {
+    const { status, diff } = requestContentDiff({ base: "shared\nold line\n", target: "shared\nnew line\n" });
+    assert.equal(status, 200);
+    assert.ok(diff.includes("-old line"), diff);
+    assert.ok(diff.includes("+new line"), diff);
+});
+
+test("test_layer1_diff_content_endpoint_answers_the_whole_file_for_identical_sides_at_context_full", () => {
+    const { diff } = requestContentDiff({ base: "one\ntwo\n", target: "one\ntwo\n", context: "full" });
+    assert.deepEqual(diff.split("\n"), ["@@ -1,2 +1,2 @@", " one", " two"]);
+});
+
+// Task 329: a snapshot is a diff SIDE — its bytes come from the owning session's sidecar blob.
+test("test_layer1_diff_endpoint_diffs_a_snapshot_side_against_the_working_tree", () => {
+    const sessionId = "b21d84c5-0000-0000-0000-000000000001";
+    const relativePath = "src/util.ts";
+    const treeRoot = makeTempDir();
+    const projectDir = mkdtempSync(join(tmpdir(), "layer1-diff-snap-project-"));
+    mkdirSync(join(projectDir, "src"), { recursive: true });
+    writeFileSync(join(projectDir, relativePath), "shared line\ndisk only\n");
+    const jsonlDir = join(treeRoot, "projects", "-demo");
+    mkdirSync(jsonlDir, { recursive: true });
+    const records = [
+        { type: RecordType.user, cwd: projectDir, sessionId, message: { role: "user", content: "hi" } },
+        {
+            type: RecordType.fileHistorySnapshot,
+            messageId: "m-1",
+            isSnapshotUpdate: false,
+            snapshot: {
+                messageId: "m-1",
+                timestamp: "2026-06-03T10:30:00.000Z",
+                trackedFileBackups: {
+                    [join(projectDir, relativePath)]: { backupFileName: "abc123@v2", version: 2, backupTime: "2026-06-03T10:30:00.000Z" },
+                },
+            },
+        },
+    ];
+    const jsonlPath = join(jsonlDir, `${sessionId}.jsonl`);
+    writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    mkdirSync(join(treeRoot, "file-history", sessionId), { recursive: true });
+    writeFileSync(join(treeRoot, "file-history", sessionId, "abc123@v2"), "shared line\nsnapshot only\n");
+
+    const { status, diff } = requestLayer1Diff({
+        dir: projectDir,
+        path: relativePath,
+        baseSnapshotSession: jsonlPath,
+        baseSessionId: sessionId,
+        baseVersion: "2",
+    });
+    assert.equal(status, 200);
+    assert.ok(diff.includes("-snapshot only"), diff);
+    assert.ok(diff.includes("+disk only"), diff);
 });
 
 test("test_layer1_diff_endpoint_refuses_bad_hashes_and_escaping_paths", () => {

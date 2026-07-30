@@ -1,7 +1,8 @@
 // Task 253: axisPx accumulates, so filtering re-runs the endpoint's SAME layout rather than hiding bubbles.
 
-import { layOutNodeLadders, type NodeLadder, type RulerLayout } from "./layer1-ruler-axis.ts";
+import { layOutNodeLadders, type RulerLayout } from "./layer1-ruler-axis.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
+import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire.ts";
 import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick, WireSnapshot } from "./layer1-wire.ts";
 
 // Task 300: an expanded ruler row's file list, fed into layout so rows and bubbles below shift down.
@@ -15,24 +16,7 @@ function readWireInstant(text: string): Date {
     return new Date(text);
 }
 
-// Mirrors src/viewer_api_layer1.ts's listPairNodeLadder; order is load-bearing since offsets come back positionally.
-function listWirePairLadder(pair: WirePair): NodeLadder {
-    const created = pair.created === undefined ? [] : [pair.created.instant];
-    // Snapshots APPENDED, matching the server: the ladder is a multiset, so no existing offset moves.
-    return [...created, ...pair.commits.map((commit) => commit.instant), pair.onDisk.instant,
-        ...listWireSnapshotInstants(pair.snapshots)].map(readWireInstant);
-}
-
-// A disk orphan's own node leads, its snapshots follow — the server's third ladder group exactly.
-function listWireOrphanLadder(orphan: WireOrphan): NodeLadder {
-    return [orphan.instant, ...listWireSnapshotInstants(orphan.snapshots)].map(readWireInstant);
-}
-
-function listWireSnapshotInstants(snapshots: WireSnapshot[] | undefined): string[] {
-    return (snapshots ?? []).map((snapshot) => snapshot.instant);
-}
-
-// Parallel to listWireSnapshotInstants' output, positional not a lookup.
+// Parallel to the snapshot ladder's output, positional not a lookup.
 function placeSnapshotsOnAxis(snapshots: WireSnapshot[] | undefined, tailOffsetsPx: number[]): WireSnapshot[] {
     return (snapshots ?? []).map((snapshot, node) => placeNodeAtPixels(snapshot, tailOffsetsPx[node]!));
 }
@@ -95,9 +79,9 @@ function measureExpansionGapPx(draft: RulerLayout, expansion: RulerExpansion | u
 // Task 300: a draft pass learns which row absorbs the expanded instant, the real pass adds its height.
 export function relayOutLayer1View(view: WireLayer1View, expansion?: RulerExpansion): WireLayer1View {
     const ladders = [
-        ...view.pairs.map(listWirePairLadder),
+        ...view.pairs.map((pair) => listPairLadderInstants(pair).map(readWireInstant)),
         ...view.gitOrphans.map((orphan) => [readWireInstant(orphan.instant)]),
-        ...view.diskOrphans.map(listWireOrphanLadder),
+        ...view.diskOrphans.map((orphan) => listOrphanLadderInstants(orphan).map(readWireInstant)),
     ];
     const diskOrphanLadderBase = view.pairs.length + view.gitOrphans.length;
     const extraGapPx = measureExpansionGapPx(layOutNodeLadders(ladders), expansion);

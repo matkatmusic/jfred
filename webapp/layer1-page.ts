@@ -2,6 +2,8 @@
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
+import { showDetailViewForFiles, wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
+import { rememberDrawnView, rememberNavTargets } from "./layer1-diff-wash.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
@@ -50,6 +52,8 @@ let stageRenderPass = 0;
 
 // Exported for filter redraws; a single-chunk (test-sized) view completes synchronously, no await runs.
 export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
+    // The wash and range steps read the DRAWN view, so every filter/expansion redraw re-arms it.
+    rememberDrawnView(view);
     const pass = ++stageRenderPass;
     getRequiredElementById("crumb").textContent =
         `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
@@ -126,12 +130,17 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     };
     renderLayer1FileNav(view, (targets) => {
         folderTargets = targets;
+        rememberNavTargets(targets);
         // Growing a multi-selection means "show only these", so arm the toggle; its click redraws.
         if (!onlySelectedIsOn && document.querySelectorAll("#filenav-tree .selected").length > 1) {
             onlySelectedButton.click();
-            return;
+        } else {
+            redrawFiltered();
         }
-        redrawFiltered();
+        // Task 329: any selection fills the drawer — one DiffView per file, 1..N uniformly.
+        if (targets.length >= 1) {
+            showDetailViewForFiles(view, targets);
+        }
     });
     const stageDrawn = renderLayer1Stage(view);
     // The pane keeps only transcripts that touched one of these files.
@@ -163,6 +172,7 @@ export async function loadLayer1View(): Promise<void> {
     getRequiredElementById("stage").replaceChildren();
     getRequiredElementById("filenav-tree").replaceChildren();
     folderTargets = [];
+    rememberNavTargets([]);
     // Task 326: a fresh project must never start silently filtered.
     onlySelectedIsOn = false;
     getRequiredElementById("filenav-only-selected").classList.remove("current");
@@ -214,6 +224,7 @@ export async function bootLayer1Page(): Promise<void> {
     wireFindFileBox();
     // All three are delegated, since every bubble, tick and leader is replaced on each render.
     wireNodeDrawer();
+    wireMultiFileDrawer();
     wireTickExpansion();
     wireLeaderVisibility();
     wireFolderPickers(() => {

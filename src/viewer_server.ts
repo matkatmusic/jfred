@@ -34,6 +34,7 @@ import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
 import { handleFileLadderRequest } from "./viewer_api_ladder.ts";
 import { dispatchLayer1Route } from "./viewer_server_layer1_routes.ts";
+import { enableFixtureMode } from "./viewer_api_layer1_fixture.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
 import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
@@ -55,7 +56,7 @@ const CONTENT_TYPES: Record<string, string> = {
     ".png": "image/png",
 };
 
-const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--resetSandboxMemo] [--resetDocumentCache]";
+const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--fixture] [--resetSandboxMemo] [--resetDocumentCache]";
 
 // `--projects-dir` is MANDATORY: there is no default scan root.
 function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean } {
@@ -68,6 +69,10 @@ function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: bool
     const fileHistoryIndex = argv.indexOf("--file-history-dir");
     if (fileHistoryIndex >= 0 && argv[fileHistoryIndex + 1] !== undefined) {
         setFileHistoryDir(argv[fileHistoryIndex + 1]!);
+    }
+    // Task 330: --projects-dir stays mandatory even here; the fixture routes just ignore its contents.
+    if (argv.includes("--fixture")) {
+        enableFixtureMode();
     }
     const portIndex = argv.indexOf("--port");
     const port = portIndex >= 0 ? Number(argv[portIndex + 1]) : DEFAULT_PORT;

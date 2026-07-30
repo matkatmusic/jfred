@@ -5,11 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JFRED — Layer 1 View</title>
 <link rel="stylesheet" href="/app/layer1-styles.css">
-<!-- Task 294: the Detail View drawer's syntax highlighting. The SAME vendored highlight.js the
-     classic page loads (webapp_old.html) and the same webapp/highlight.ts wrapper the Revision
-     View already calls — no second tokeniser. The theme sheets come AFTER layer1-styles.css so
-     the token colours win inside `.hljs`, and the script is a plain tag so `hljs` is a global
-     before the deferred layer1-page.js module runs. -->
+<!--
+  Task 294: drawer highlighting reuses the vendored highlight.js; theme sheets load after layer1-styles.css.
+-->
 <link rel="stylesheet" href="/app/vendor/highlight-github.min.css" media="(prefers-color-scheme: light)">
 <link rel="stylesheet" href="/app/vendor/highlight-github-dark.min.css" media="(prefers-color-scheme: dark)">
 <script src="/app/vendor/highlight.min.js"></script>
@@ -19,11 +17,9 @@
   <header>
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
-    <!-- Task 282: which git stamp places a bubble. Two commits rewritten in one rebase share a
-         committer instant while their author instants are days apart, so the reading is chosen per
-         view rather than assumed. The instants are resolved server-side, so flipping this re-loads
-         the view — the existing loadbar reports that build. Each button's id suffix IS the value
-         written to ?time=, so the wiring is a lookup rather than a translation table. -->
+    <!--
+      Task 282: committer vs author placement; flipping re-loads the view, each button's id suffix is the ?time= value.
+    -->
     <div class="timebar">
       <span class="lbl">Time:</span>
       <button id="time-committer" class="current">committer</button>
@@ -36,32 +32,31 @@
       <button id="zoom-in" title="Zoom in">+</button>
       <button id="zoom-reset">Reset</button>
     </div>
-    <!-- Task 314: [2] toggles snapshots client-side (task 312 always ships them); [3] dropped. -->
+    <!--
+      Task 314: [2] toggles snapshots client-side (task 312 always ships them); [3] dropped.
+    -->
     <div class="layerbar">
       <span class="lbl">Layer:</span>
       <button class="current" data-layer="1">1</button>
       <button data-layer="2" title="Layer 2 adds file-history snapshots">2</button>
     </div>
-    <!-- Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find
-         it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives
-         that bucket, character for character — layer1-jump-buckets.ts locates the bucket by it.
-         Task 285: this row now also carries the find-bubble widget. Both are navigation controls —
-         one jumps to a bucket, the other jumps to a named bubble — so they belong on one row
-         instead of the buttons sitting in the header while the find box was buried among the
-         source paths. -->
+    <!--
+      Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives that bucket, character for character — layer1-jump-buckets.ts locates the bucket by it.  Task 285: this row now also carries the find-bubble widget. Both are navigation controls — one jumps to a bucket, the other jumps to a named bubble — so they belong on one row instead of the buttons sitting in the header while the find box was buried among the source paths.
+    -->
     <div class="jumpbar">
       <span class="lbl">Jump to:</span>
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
       <label>Find bubble
         <input id="find-file" type="text" size="22"></label>
-      <!-- Task 271: explicit cycle controls. Enter still submits and still advances; these make the
-           cycle visible and add the direction it never had. -->
+      <!--
+        Task 271: explicit cycle controls. Enter still submits and still advances; these make the cycle visible and add the direction it never had.
+      -->
       <button id="find-prev" title="Previous match">‹</button>
       <button id="find-next" title="Next match">›</button>
-      <!-- Task 273: the find box's own readout. It used to be written into the header's #crumb,
-           which also carries the stage's pair and orphan counts — so a search destroyed those, and
-           emptying the box left the dead result behind with nothing able to restore them. -->
+      <!--
+        Task 273: the find box's own readout. It used to be written into the header's #crumb, which also carries the stage's pair and orphan counts — so a search destroyed those, and emptying the box left the dead result behind with nothing able to restore them.
+      -->
       <span class="find-status" id="find-status"></span>
     </div>
   </header>
@@ -70,21 +65,17 @@
     <label>Project folder
       <input id="dir" type="text" size="34" value="">
       <button class="pick" data-for="dir">Open…</button></label>
-    <!-- Tasks 295/296: two lists, one dialog. Each button prints how many folders its list holds,
-         so neither has to be opened to be read. Task 297's button reports whether either has moved
-         since the last save. -->
+    <!--
+      Tasks 295/296: two lists, one dialog. Each button prints how many folders its list holds, so neither has to be opened to be read. Task 297's button reports whether either has moved since the last save.
+    -->
     <button id="pick-jsonl">JSONL sources</button>
     <button id="pick-fh">File History Snapshots</button>
     <button id="save-settings" disabled>Save project settings</button>
     <span class="savednote" id="saved-note"></span>
   </div>
-  <!-- Task 286: two rows, not one. The project folder is what is on DISK; everything on this row
-       describes the REPOSITORY that disk state is read against. Splitting them also stops the
-       100ch commit dropdown pushing the folder box off the row. The branch and commit pickers stay
-       hidden until webapp/layer1-refs.ts confirms the path IS a git repo and adds `.repo-ok`.
-       `#ref` SURVIVES as a text box: a raw hash must still be typeable, and it is the existing
-       ?ref= query param — the commit dropdown WRITES into it rather than replacing it, which is
-       also why layer1-sources.ts's SOURCE_PARAM_IDS needs no change. -->
+  <!--
+    Task 286: two rows, not one. The project folder is what is on DISK; everything on this row describes the REPOSITORY that disk state is read against. Splitting them also stops the 100ch commit dropdown pushing the folder box off the row. The branch and commit pickers stay hidden until webapp/layer1-refs.ts confirms the path IS a git repo and adds `.repo-ok`.  `#ref` SURVIVES as a text box: a raw hash must still be typeable, and it is the existing ?ref= query param — the commit dropdown WRITES into it rather than replacing it, which is also why layer1-sources.ts's SOURCE_PARAM_IDS needs no change.
+  -->
   <div class="sources repo">
     <label>Git repo
       <input id="repo" type="text" size="34" value="">
@@ -103,9 +94,9 @@
     <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
     <span><i style="border:1px dashed var(--c-script);background:color-mix(in srgb, var(--c-script) 11%, transparent)"></i> JSONL range</span>
   </div>
-  <!-- Task 302: sits DIRECTLY above the timeline (user-locked placement), and carries the Cancel
-       that aborts the in-flight build — task 164's confirm pattern, adapted from hash-navigation
-       to an AbortController since this page is not hash-routed. -->
+  <!--
+    Task 302: sits DIRECTLY above the timeline (user-locked placement), and carries the Cancel that aborts the in-flight build — task 164's confirm pattern, adapted from hash-navigation to an AbortController since this page is not hash-routed.
+  -->
   <div class="loadbar" id="loadbar" hidden>
     <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
     <span class="loadbar-label" id="loadbar-label"></span>
@@ -116,36 +107,37 @@
     </span>
   </div>
 
-  <!-- Task 246: .stagewrap does not scroll, so the minimap inside it stays pinned to the pane's
-       lower-left corner while the canvas scrolls under it. Putting the minimap inside
-       `main.timelines` instead would have it scroll away with the render. -->
+  <!--
+    Task 246: .stagewrap does not scroll, so the minimap inside it stays pinned to the pane's lower-left corner while the canvas scrolls under it. Putting the minimap inside `main.timelines` instead would have it scroll away with the render.
+  -->
   <div class="stagewrap" id="stagewrap">
-    <!-- Task 252: the File Nav — every identified file, including the repo files with no on-disk
-         presence. A flex sibling of the scroll container, so it sits to the LEFT of the sticky
-         ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the
-         tree on every load, reusing the same tree the main webapp's Files pane renders. -->
+    <!--
+      Task 252: the File Nav — every identified file, including the repo files with no on-disk presence. A flex sibling of the scroll container, so it sits to the LEFT of the sticky ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the tree on every load, reusing the same tree the main webapp's Files pane renders.
+    -->
     <aside class="filenav">
       <section class="navpane" id="pane-files">
         <div class="filenav-title">File Nav
-          <!-- task 326: filters the timeline to the selected folders' files while toggled on -->
+          <!--
+            task 326: filters the timeline to the selected folders' files while toggled on
+          -->
           <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
         </div>
-        <!-- Task 281: the nav's OWN search box. It narrows this tree and nothing else — the
-             find-bubble box above scrolls the timeline, which is a different job, so neither box
-             reads the other's text. Inside the <aside> so it moves and resizes with the pane. -->
+        <!--
+          Task 281: the nav's OWN search box. It narrows this tree and nothing else — the find-bubble box above scrolls the timeline, which is a different job, so neither box reads the other's text. Inside the <aside> so it moves and resizes with the pane.
+        -->
         <div class="filenav-search">
           <input id="filenav-search" type="text" placeholder="search files...">
           <button id="filenav-search-clear" title="Clear the file search">×</button>
         </div>
         <div id="filenav-tree"></div>
       </section>
-      <!-- Task 292: the horizontal split between the two panes. A sibling of both, so dragging it
-           re-shares the <aside>'s height rather than scrolling inside either list. -->
+      <!--
+        Task 292: the horizontal split between the two panes. A sibling of both, so dragging it re-shares the <aside>'s height rather than scrolling inside either list.
+      -->
       <div class="pane-grip" id="navpane-grip" title="Drag to resize"></div>
-      <!-- Task 292: the project's JSONLs. Same picker behaviour as the folder tree — a click
-           filters the timeline to the files that session touched, a re-click clears, shift extends.
-           Each surviving file keeps its WHOLE history; the band drawn over the canvas is what says
-           which stretch of it the session is answerable for. -->
+      <!--
+        Task 292: the project's JSONLs. Same picker behaviour as the folder tree — a click filters the timeline to the files that session touched, a re-click clears, shift extends.  Each surviving file keeps its WHOLE history; the band drawn over the canvas is what says which stretch of it the session is answerable for.
+      -->
       <section class="navpane" id="pane-sessions">
         <div class="filenav-title">JSONLs
           <button id="clear-sessions" disabled>All sessions</button>
@@ -153,16 +145,15 @@
         <div id="sessions"></div>
       </section>
     </aside>
-    <!-- Task 279: the File Nav's drag handle. A sibling of the pane rather than a child of it,
-         because .filenav is `overflow: auto` — a handle inside it would scroll away with the file
-         list. It is positioned by the same --filenav-w the pane's width reads, so it tracks the
-         edge it resizes. -->
+    <!--
+      Task 279: the File Nav's drag handle. A sibling of the pane rather than a child of it, because .filenav is `overflow: auto` — a handle inside it would scroll away with the file list. It is positioned by the same --filenav-w the pane's width reads, so it tracks the edge it resizes.
+    -->
     <div class="filenav-grip" id="filenav-grip"></div>
     <main class="timelines" id="timelines"><div class="canvas">
       <div class="leaders" id="leaders"></div>
-      <!-- Task 292: two layers, not one. The wash rides BEHIND the bubbles so a file's whole
-           history still reads through it; the bars ride in FRONT, in the empty lane left of the
-           stage, so a 7 px marker never covers a bubble. -->
+      <!--
+        Task 292: two layers, not one. The wash rides BEHIND the bubbles so a file's whole history still reads through it; the bars ride in FRONT, in the empty lane left of the stage, so a 7 px marker never covers a bubble.
+      -->
       <div class="washes" id="washes"></div>
       <div class="ranges" id="ranges"></div>
     <div class="ruler" id="ruler"><div class="rail"></div></div>
@@ -171,44 +162,44 @@
     <div class="minimap"><span class="mm-title">minimap</span>
       <div class="mm-plot" id="mm-plot"><div class="mm-view" id="mm-view"></div></div>
     </div>
-    <!-- Task 257: the Detail View drawer — the file's bytes at the clicked node's moment. A third
-         flex child of .stagewrap rather than an overlay, so opening it SHRINKS the timeline pane
-         instead of covering the render it is describing; webapp/layer1-drawer.ts re-centres the
-         clicked node against the post-reflow layout, which is why .drawer carries no width
-         transition. #dbody is a div, not a <pre>: layer1-file-view.ts renders numbered lines. -->
+    <!--
+      Task 257: the Detail View drawer — the file's bytes at the clicked node's moment. A third flex child of .stagewrap rather than an overlay, so opening it SHRINKS the timeline pane instead of covering the render it is describing; webapp/layer1-drawer.ts re-centres the clicked node against the post-reflow layout, which is why .drawer carries no width transition. #dbody is a div, not a <pre>: layer1-file-view.ts renders numbered lines.
+    -->
     <aside class="drawer" id="drawer">
       <div class="dhead"><div class="dpath" id="dpath"></div>
-        <!-- tasks 299/305: ONE header control strip — zoom for an image, diff for a pair -->
-        <!-- task 323: cycle the selection through the file's timeline; disabled at the ends -->
+        <!--
+          tasks 299/305: ONE header control strip — zoom for an image, diff for a pair
+        -->
+        <!--
+          task 323: cycle the selection through the file's timeline; disabled at the ends
+        -->
         <span class="dtools"><button id="dprev" title="previous revision">↑</button><button id="dnext" title="next revision">↓</button></span>
-        <!-- task 324: pair mode — first arrow pair moves the BASE node, second the TARGET -->
-        <span class="dtools" id="pairtools" hidden>
-          <button id="dbprev" title="previous base revision">↑</button><button id="dbnext" title="next base revision">↓</button>
-          <span class="dpair" id="dpairlabel"></span>
-          <button id="dtprev" title="previous target revision">↑</button><button id="dtnext" title="next target revision">↓</button>
-        </span>
+        <!--
+          task 329: pair rows retired — each DiffView pane carries its own arrows and diff tools
+        -->
         <span class="dtools" id="imgtools" hidden>
           <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
         </span>
+        <!--
+          task 329: multi-file mode — drives every per-file section at once
+        -->
+        <span class="dtools" id="dmulti" hidden>
+          <button id="dcollapse-all">collapse all</button><button id="dshow-all">show all</button>
+        </span>
         <button id="dclose">Close</button></div>
-      <!-- task 324: the diff tools live on their own header row; task 320's full content is a checkbox toggle -->
-      <div class="dhead" id="dhead2"><span class="dtools" id="difftools" hidden>
-          <button data-mode="side">diff side-by-side</button><button data-mode="inline">diff inline</button>
-          <label class="dfull-toggle"><input type="checkbox" id="dfull"> full content</label>
-          <button id="dexport">export as patch</button>
-        </span></div>
       <div class="dmeta" id="dmeta"></div>
       <div class="dbody" id="dbody"></div>
     </aside>
   </div>
 
-  <!-- task 305: the cross-bubble refusal toast -->
+  <!--
+    task 305: the cross-bubble refusal toast
+  -->
   <div class="dtoast" id="dtoast" hidden></div>
 
-  <!-- Tasks 295/296: ONE dialog serves both source lists — same widget, same rules, different title
-       and different array. `position: fixed` and centred over everything, so it is in front of the
-       timeline rather than scrolling with it. It edits a COPY: [cancel] drops the draft, [set and
-       close] commits it and rebuilds the view. -->
+  <!--
+    Tasks 295/296: ONE dialog serves both source lists — same widget, same rules, different title and different array. `position: fixed` and centred over everything, so it is in front of the timeline rather than scrolling with it. It edits a COPY: [cancel] drops the draft, [set and close] commits it and rebuilds the view.
+  -->
   <div class="modal-wrap" id="pathpicker" hidden>
     <div class="modal">
       <div class="mtitle" id="pp-title"></div>

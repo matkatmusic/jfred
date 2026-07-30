@@ -6,17 +6,12 @@ import { spawnSync } from "node:child_process";
 import { type ServerResponse } from "node:http";
 import { Path } from "./structures/domain.ts";
 import { requireExistingFolderParam, resolveRequestedRef } from "./viewer_api_layer1_route.ts";
-import { parseGitLogOutput, type RepoCommitRow } from "./viewer_api_repo.ts";
+import { parseGitLogOutput } from "./viewer_api_repo.ts";
+import type { Layer1RefsView } from "../webapp/layer1-wire.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 
 // User-locked at 200 (2026-07-27): the dropdown is a head window, not a history browser.
 export const LAYER1_REF_COMMIT_LIMIT = 200;
-
-export interface Layer1RefsView {
-    branches: string[];        // local branch names, the checked-out one first
-    head: string;              // the branch name the repo is currently on
-    commits: RepoCommitRow[];  // newest first, capped at LAYER1_REF_COMMIT_LIMIT
-}
 
 // Every git call here is spawnSync in ARGUMENT-ARRAY form (task 235): `ref` arrives from a URL, so it must never reach a shell. `failure` is the caller's message because the two failures mean different things to the page — see the two call sites.
 function readGitOutput(repoDir: Path, args: string[], failure: string): string {

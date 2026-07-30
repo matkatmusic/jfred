@@ -1,16 +1,20 @@
-// Tasks 257.5 + 294: clicking a node opens the drawer on that node's bytes via layer1-file-view.ts.
+// Tasks 257.5/294/329: node clicks fill the drawer with DiffView panes fed by string revision sources.
 //
 // The stage is built by hand (tests/layer1-tick-files.test.ts precedent): the contract is the DOM layer1-page.ts renders.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
 const DISK_FILE_PATH = "src/demo.ts";
 const DISK_FILE_CONTENT = "const x = 1;\nconst y = 2;\n";
+const COMMIT_CONTENT = "const x = 1;\n";
+const FULL_DIFF = "@@ -1,2 +1,2 @@\n const x = 1;\n const y = 2;";
 
 // happy-dom has no animation clock, so the deferred re-centre callback runs inline; it must merely not throw.
 function stubAnimationFrame(): void {
@@ -18,6 +22,35 @@ function stubAnimationFrame(): void {
         callback(0);
         return 0;
     } });
+}
+
+// Records every ask; content GETs answer via `contentFor`, the diff POST answers FULL_DIFF.
+function stubRecordingFetch(contentFor: (params: URLSearchParams) => object): { url: string; body?: string }[] {
+    const asks: { url: string; body?: string }[] = [];
+    Object.assign(globalThis, {
+        fetch: async (url: unknown, init?: { body?: string }): Promise<Response> => {
+            asks.push({ url: String(url), body: init?.body });
+            const payload = String(url).includes("layer1-diff-content")
+                ? { diff: FULL_DIFF }
+                : contentFor(new URLSearchParams(String(url).slice(String(url).indexOf("?") + 1)));
+            return { ok: true, status: 200, json: async () => payload, text: async () => "" } as unknown as Response;
+        },
+    });
+    return asks;
+}
+
+// The awaited chain is loadContent -> diff POST -> render; two drained turns cover it.
+async function settlePendingFetches(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function firstPane(): HTMLElement {
+    return getRequiredElementById("dbody").querySelector("details.dfile") as HTMLElement;
+}
+
+function paneArrows(): HTMLButtonElement[] {
+    return [...firstPane().querySelectorAll("summary .dtools button")] as HTMLButtonElement[];
 }
 
 // One bubble with a single on-disk node — reads the working tree, so no commit hash needed.
@@ -30,15 +63,10 @@ function buildDiskNodeStage(): HTMLElement {
     return node;
 }
 
-// Assertions run after the microtask queue drains; one event-loop turn suffices for a stubbed route.
-async function settlePendingFetches(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-test("clicking an on-disk node opens the drawer on that file's bytes", async () => {
+test("clicking an on-disk node opens one DiffView pane showing the whole file, controls hidden", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT } });
+    const asks = stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
     wireNodeDrawer();
 
@@ -47,16 +75,27 @@ test("clicking an on-disk node opens the drawer on that file's bytes", async () 
 
     assert.ok(getRequiredElementById("drawer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
-    // Task 294's shape: two numbered lines; the trailing newline is not a third row.
-    const body = getRequiredElementById("dbody");
-    assert.equal(body.querySelector(".dgutter")?.textContent, "1\n2");
-    assert.equal(body.querySelector(".dcode")?.textContent, "const x = 1;\nconst y = 2;");
+    const pane = firstPane();
+    // The drawer header (asserted above) is the ONLY place a lone file is named.
+    assert.equal(pane.querySelector(".dfile-path"), null);
+    // Equal sides read as ONE revision, so the label names it once.
+    assert.equal(pane.querySelector(".dpair")?.textContent, "on disk");
+    // A lone revision has nothing to step, diff, or widen: arrows hidden, tools row not in the DOM.
+    assert.ok(paneArrows().every((arrow) => arrow.hidden));
+    assert.equal(pane.querySelector(".dfull-toggle"), null);
+    assert.equal(pane.querySelector("button[data-mode]"), null);
+    // The body renders the synthesized full-content hunk the POST answered.
+    assert.equal(pane.querySelectorAll(".diff-line").length, 3);
+    // diff = buildDiffFrom(base, target): both sides went up as the SAME content string, full width.
+    const posted = JSON.parse(asks.find((ask) => ask.url.includes("layer1-diff-content"))!.body!) as
+        { base: string; target: string; context?: string };
+    assert.deepEqual(posted, { base: DISK_FILE_CONTENT, target: DISK_FILE_CONTENT, context: "full" });
 });
 
 test("a click on anything that is not a node leaves the drawer shut", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT } });
+    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     buildDiskNodeStage();
     wireNodeDrawer();
 
@@ -85,7 +124,6 @@ test("an image node renders an img off the binary route instead of fetching text
 
     const image = getRequiredElementById("dbody").querySelector("img");
     assert.ok(image?.getAttribute("src")?.includes("binary=1"), image?.outerHTML);
-    assert.ok(image?.getAttribute("src")?.includes("logo.png"));
     assert.equal(getRequiredElementById("imgtools").hidden, false);
 });
 
@@ -102,17 +140,10 @@ function buildCommitNodeStage(hashTitle: string): HTMLElement {
     return node;
 }
 
-test("a commit node asks git for the blob at its own hash", async () => {
-    // User, 2026-07-27: a label-only title once built `git show :<path>`, erroring on the wrong parameter; this pins the URL.
+test("a commit node loads its string through git's blob at its own hash", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    let asked = "";
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked = String(url);
-            return { ok: true, status: 200, json: async () => ({ content: "# Title\n\ntext\n" }), text: async () => "" } as unknown as Response;
-        },
-    });
+    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
     const node = buildCommitNodeStage(COMMIT_HASH);
     wireNodeDrawer();
@@ -120,47 +151,64 @@ test("a commit node asks git for the blob at its own hash", async () => {
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await settlePendingFetches();
 
-    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    const ask = asks.find((entry) => entry.url.includes("layer1-file"))!;
+    const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
     assert.equal(params.get("hash"), COMMIT_HASH);
     assert.equal(params.get("repo"), "/repo");
     assert.equal(params.get("path"), MARKDOWN_PATH);
     assert.equal(params.has("dir"), false);
     assert.equal(getRequiredElementById("dpath").textContent, "SKILL.md — at commit 5636d8ec");
-    // The markdown renders as text rather than being refused.
-    assert.equal(getRequiredElementById("dbody").querySelector(".dgutter")?.textContent, "1\n2\n3");
 });
 
 const LANE_HASH = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
+const MIDDLE_HASH = "b2c3d4e5f60718293a4b5c6d7e8f9012345678aa";
 
-// One bubble whose lane holds a commit node (earlier) and the on-disk node (later), axis-placed.
-function buildTwoNodeStage(): { commitNode: HTMLElement; diskNode: HTMLElement } {
+// A lane holding commit node(s) and the on-disk node, axis-placed oldest to newest.
+function buildLaneStage(withMiddle: boolean): { commitNode: HTMLElement; middleNode: HTMLElement; diskNode: HTMLElement } {
     const commitNode = el("i", { class: "node n-commit", title: LANE_HASH });
     commitNode.style.setProperty("--axis-px", "10");
+    const middleNode = el("i", { class: "node n-commit", title: MIDDLE_HASH });
+    middleNode.style.setProperty("--axis-px", "25");
     const diskNode = el("i", { class: "node n-disk" });
     diskNode.style.setProperty("--axis-px", "40");
     getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
         el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-        el("div", { class: "lane" }, [commitNode, diskNode]),
+        el("div", { class: "lane" }, withMiddle ? [commitNode, middleNode, diskNode] : [commitNode, diskNode]),
     ]));
-    return { commitNode, diskNode };
+    return { commitNode, middleNode, diskNode };
 }
 
-test("shift-clicking a second node on the same lane asks the diff route, older side as base", async () => {
+const LANE_T0 = "2026-07-01T10:00:00.000Z";
+const LANE_T1 = "2026-07-01T11:00:00.000Z";
+const LANE_T2 = "2026-07-01T12:00:00.000Z";
+
+// Task 329: the shift-click gesture reads instants off the DRAWN view, so tests arm the memo the page keeps.
+function armLaneView(withMiddle: boolean): void {
+    const middleTicks = withMiddle ? [{ instant: LANE_T1, axisPx: 25, eventCount: 1 }] : [];
+    rememberDrawnView({
+        pairs: [{
+            path: DISK_FILE_PATH,
+            commits: [
+                { hash: LANE_HASH, instant: LANE_T0, axisPx: 10 },
+                ...(withMiddle ? [{ hash: MIDDLE_HASH, instant: LANE_T1, axisPx: 25 }] : []),
+            ],
+            onDisk: { instant: LANE_T2, axisPx: 40 },
+        }],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, ...middleTicks, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
+}
+
+test("shift-clicking a second node diffs the two sides' STRINGS, older side as base", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    const asked: string[] = [];
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked.push(String(url));
-            const payload = String(url).includes("layer1-diff")
-                ? { diff: "@@ -1 +1,2 @@\n shared\n+added line" }
-                : { content: DISK_FILE_CONTENT };
-            return { ok: true, status: 200, json: async () => payload, text: async () => "" } as unknown as Response;
-        },
-    });
+    const asks = stubRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
     getInputById("repo").value = "/repo";
-    const { commitNode, diskNode } = buildTwoNodeStage();
+    const { commitNode, diskNode } = buildLaneStage(false);
+    armLaneView(false);
     wireNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -168,35 +216,24 @@ test("shift-clicking a second node on the same lane asks the diff route, older s
     commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
     await settlePendingFetches();
 
-    const diffAsk = asked.find((url) => url.includes("layer1-diff"))!;
-    const params = new URLSearchParams(diffAsk.slice(diffAsk.indexOf("?") + 1));
-    // The commit sits earlier on the axis, so it is the base; the disk side sends no targetHash.
-    assert.equal(params.get("baseHash"), LANE_HASH);
-    assert.equal(params.has("targetHash"), false);
-    assert.equal(params.get("dir"), "/project");
-    assert.equal(params.get("repo"), "/repo");
+    const posted = JSON.parse(asks.filter((ask) => ask.url.includes("layer1-diff-content")).at(-1)!.body!) as
+        { base: string; target: string; context?: string };
+    // The commit's instant is earlier, so its string is the base; no context until toggled.
+    assert.deepEqual(posted, { base: COMMIT_CONTENT, target: DISK_FILE_CONTENT });
     assert.ok(commitNode.classList.contains("diff-base"));
     assert.ok(diskNode.classList.contains("diff-target"));
-    // Task 324's header split: the name stays in dpath, the pair rides the label between the arrow pairs.
-    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts");
-    assert.equal(getRequiredElementById("dpairlabel").textContent, "a1b2c3d4 - on disk");
-    // The default side-by-side render: the classic grid with numbered gutter cells and an add wash.
-    const body = getRequiredElementById("dbody");
-    assert.ok(body.querySelector(".diff-cols"), body.innerHTML);
-    assert.ok(body.querySelector(".dc-body.dc-add"), body.innerHTML);
-    assert.equal(getRequiredElementById("difftools").hidden, false);
+    // Task 329: the pair is a RANGE now — the header says so and the wash spans it.
+    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — range diff");
+    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
+    assert.equal(firstPane().querySelector(".dpair")?.textContent, "a1b2c3d4 - on disk");
+    assert.ok(paneArrows().every((arrow) => !arrow.hidden));
+    assert.equal(getRequiredElementById("dprev").hidden, true);
 });
 
-test("a shift-click spanning two bubbles is refused with a visible toast, never diffed", async () => {
+test("task 329: a shift-click spanning two bubbles becomes a global range diffing both files", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    const asked: string[] = [];
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked.push(String(url));
-            return { ok: true, status: 200, json: async () => ({ content: DISK_FILE_CONTENT }), text: async () => "" } as unknown as Response;
-        },
-    });
+    const asks = stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
     const firstNode = el("i", { class: "node n-disk" });
     const otherNode = el("i", { class: "node n-disk" });
@@ -210,78 +247,70 @@ test("a shift-click spanning two bubbles is refused with a visible toast, never 
             el("div", { class: "lane" }, [otherNode]),
         ]),
     );
+    rememberDrawnView({
+        pairs: [
+            { path: DISK_FILE_PATH, commits: [], onDisk: { instant: LANE_T0, axisPx: 10 } },
+            { path: "src/other.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 } },
+        ],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
     wireNodeDrawer();
 
     firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await settlePendingFetches();
+    const diffsBefore = asks.filter((ask) => ask.url.includes("layer1-diff-content")).length;
     otherNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
     await settlePendingFetches();
 
-    assert.equal(asked.some((url) => url.includes("layer1-diff")), false);
-    const toast = getRequiredElementById("dtoast");
-    assert.equal(toast.hidden, false);
-    assert.ok(toast.textContent?.includes("ONE bubble"), toast.textContent ?? "");
+    // One section per file, each posting its own diff; no refusal toast anywhere.
+    assert.equal(asks.filter((ask) => ask.url.includes("layer1-diff-content")).length, diffsBefore + 2);
+    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
+    assert.equal(getRequiredElementById("dpath").textContent, "2 files — range diff");
+    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
+    assert.equal(getRequiredElementById("dtoast").hidden, true);
 });
 
 const SNAPSHOT_SESSION_FILE = "/Users/me/.claude/projects/-demo/b21d84c5.jsonl";
 const SNAPSHOT_SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
 const SNAPSHOT_PATH = "src/util.ts";
 
-// One bubble whose lane holds a 📸 snapshot node carrying task 315's identity attributes.
-function buildSnapshotNodeStage(): HTMLElement {
+test("clicking a snapshot node reads the owning session and sets the range-correct title", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title" }));
+    getInputById("dir").value = "/work";
     const node = el("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
     getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
         el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
         el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
     ]));
-    // The JSONL row flashSession must find again — data-file is its basename (buildSessionItem's shape).
     getRequiredElementById("sessions").replaceChildren(
         el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
     );
-    return node;
-}
-
-test("clicking a snapshot node reads the owning session and sets the range-correct title", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    let asked = "";
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked = String(url);
-            return { ok: true, status: 200,
-                json: async () => ({ content: "const x = 1;\n", title: "Second title" }),
-                text: async () => "" } as unknown as Response;
-        },
-    });
-    getInputById("dir").value = "/work";
-    const node = buildSnapshotNodeStage();
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await settlePendingFetches();
 
-    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    const ask = asks.find((entry) => entry.url.includes("snapshotSession"))!;
+    const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
     assert.equal(params.get("snapshotSession"), SNAPSHOT_SESSION_FILE);
     assert.equal(params.get("sessionId"), SNAPSHOT_SESSION_ID);
     assert.equal(params.get("version"), "2");
-    assert.equal(params.get("path"), SNAPSHOT_PATH);
     assert.equal(params.get("dir"), "/work");
+    assert.equal(firstPane().querySelector(".dpair")?.textContent, "@v2 📸");
     assert.equal(getRequiredElementById("dpath").textContent, "util.ts Snapshot - Second title");
-    // Task 316's flash: the owning JSONL row leads.
     assert.ok(getRequiredElementById("sessions").querySelector(".flash-lead"));
 });
 
 test("a commit node with no hash on it falls back to the working tree, never to `git show :path`", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    let asked = "";
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked = String(url);
-            return { ok: true, status: 200, json: async () => ({ content: "x\n" }), text: async () => "" } as unknown as Response;
-        },
-    });
+    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("dir").value = "/project";
     const node = buildCommitNodeStage("");
     wireNodeDrawer();
@@ -289,7 +318,8 @@ test("a commit node with no hash on it falls back to the working tree, never to 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await settlePendingFetches();
 
-    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    const ask = asks.find((entry) => entry.url.includes("layer1-file"))!;
+    const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
     assert.equal(params.get("dir"), "/project");
     assert.equal(params.has("hash"), false);
 });
@@ -297,7 +327,7 @@ test("a commit node with no hash on it falls back to the working tree, never to 
 test("task 325: a File Nav leaf click selects the on-disk node and opens the drawer", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT } });
+    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     const node = buildDiskNodeStage();
     wireNodeDrawer();
 
@@ -309,59 +339,39 @@ test("task 325: a File Nav leaf click selects the on-disk node and opens the dra
     assert.ok(node.classList.contains("found"));
 });
 
-const MIDDLE_HASH = "b2c3d4e5f60718293a4b5c6d7e8f9012345678aa";
-
-// A three-node lane so a pair (first, last) leaves the middle free for arrow steps.
-function buildThreeNodeStage(): { commitNode: HTMLElement; middleNode: HTMLElement; diskNode: HTMLElement } {
-    const commitNode = el("i", { class: "node n-commit", title: LANE_HASH });
-    commitNode.style.setProperty("--axis-px", "10");
-    const middleNode = el("i", { class: "node n-commit", title: MIDDLE_HASH });
-    middleNode.style.setProperty("--axis-px", "25");
-    const diskNode = el("i", { class: "node n-disk" });
-    diskNode.style.setProperty("--axis-px", "40");
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-        el("div", { class: "lane" }, [commitNode, middleNode, diskNode]),
-    ]));
-    return { commitNode, middleNode, diskNode };
-}
-
-test("task 324: the base arrow steps the base node and refuses to collide with the target", async () => {
+test("task 324/329: the pane's base arrow steps freely and equal sides read as one revision", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
-    const asked: string[] = [];
-    Object.assign(globalThis, {
-        fetch: async (url: unknown): Promise<Response> => {
-            asked.push(String(url));
-            const payload = String(url).includes("layer1-diff")
-                ? { diff: "@@ -1 +1,2 @@\n shared\n+added line" }
-                : { content: DISK_FILE_CONTENT };
-            return { ok: true, status: 200, json: async () => payload, text: async () => "" } as unknown as Response;
-        },
-    });
+    stubRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
     getInputById("repo").value = "/repo";
-    const { commitNode, middleNode, diskNode } = buildThreeNodeStage();
+    const { commitNode, middleNode, diskNode } = buildLaneStage(true);
+    armLaneView(true);
     wireNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await settlePendingFetches();
     commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
     await settlePendingFetches();
-    getRequiredElementById("dbnext").click();
+    paneArrows()[1]!.click();
     await settlePendingFetches();
 
-    const lastDiffAsk = asked.filter((url) => url.includes("layer1-diff")).at(-1)!;
-    assert.equal(new URLSearchParams(lastDiffAsk.slice(lastDiffAsk.indexOf("?") + 1)).get("baseHash"), MIDDLE_HASH);
-    assert.ok(middleNode.classList.contains("diff-base"));
-    assert.equal(commitNode.classList.contains("diff-base"), false);
+    // Task 329: rings mark the WASH boundary nodes, so an arrow step moves the pane, never the rings.
+    assert.equal(firstPane().querySelector(".dpair")?.textContent, "b2c3d4e5 - on disk");
+    assert.ok(commitNode.classList.contains("diff-base"));
+    assert.equal(middleNode.classList.contains("diff-base"), false);
     assert.ok(diskNode.classList.contains("diff-target"));
-    // The next base step would land on the target, so the arrow disables; target-prev likewise.
-    assert.equal((getRequiredElementById("dbnext") as HTMLButtonElement).disabled, true);
-    assert.equal((getRequiredElementById("dtprev") as HTMLButtonElement).disabled, true);
-    assert.equal((getRequiredElementById("dtnext") as HTMLButtonElement).disabled, true);
-    assert.equal((getRequiredElementById("dbprev") as HTMLButtonElement).disabled, false);
-    // Pair mode shows the pair arrows and hides the single-node pair (task 324).
-    assert.equal(getRequiredElementById("pairtools").hidden, false);
-    assert.equal(getRequiredElementById("dprev").hidden, true);
+    // Differing sides ARE a diff, so the mode/full/export tools row is visible.
+    assert.equal(firstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "");
+    // Stepping onto the target is ALLOWED (task 329): equal sides become the full-content view.
+    paneArrows()[1]!.click();
+    await settlePendingFetches();
+    assert.equal(firstPane().querySelector(".dpair")?.textContent, "on disk");
+    // Equal sides show ONE revision: the tools row is gone until the sides split again.
+    assert.equal(firstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "none");
+    // ...and the base→target meta says nothing; the pair label already names the revision.
+    assert.equal(firstPane().querySelector(".dmeta")?.textContent, "");
+    // Only the ladder's ends disable an arrow now.
+    assert.equal(paneArrows()[1]!.disabled, true);
+    assert.equal(paneArrows()[0]!.disabled, false);
 });

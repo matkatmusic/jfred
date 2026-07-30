@@ -11,7 +11,8 @@ import {
     resetSessionSelection,
     setKnownProjectPaths,
 } from "../webapp/layer1-sessions.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
 
 const PROJECT_FOLDER = "/Users/you/code/demo-app";

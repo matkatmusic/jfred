@@ -6,7 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { openPicker, wirePathPickers } from "../webapp/layer1-path-picker.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const PICKED_FOLDER = "/Users/you/Programming/jot-recovery/claude-data/projects";

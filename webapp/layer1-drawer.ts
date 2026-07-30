@@ -3,9 +3,11 @@
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
-import { renderFileContentInto } from "./layer1-file-view.ts";
+import { DiffPaneMode } from "./layer1-diff-pane.ts";
+import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
-import { clearDiffPair, extendDiffSelection, nodeCommitHash, setDrawerTools, wireDiffTools } from "./layer1-drawer-diff.ts";
+import { clearDiffPair, describeNodeStep, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { extendDiffSelection } from "./layer1-drawer-multi.ts";
 import { flashSession } from "./layer1-sessions.ts";
 
 const SHORT_HASH_LENGTH = 8;
@@ -45,7 +47,8 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
                 dir: getInputById("dir").value.trim(),
             }),
             head: `${basename} Snapshot`,
-            meta: `${path}   ·   file-history @v${node.dataset.version ?? ""} of ${flashFile}`,
+            // 328.3: the header names the file ONCE; this row is provenance only.
+            meta: `file-history @v${node.dataset.version ?? ""} of ${flashFile}`,
             flashFile,
         };
     }
@@ -54,13 +57,13 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
         return {
             params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
             head: `${basename} — Current on-disk state`,
-            meta: `${path}   ·   working tree`,
+            meta: "working tree",
         };
     }
     return {
         params: new URLSearchParams({ repo: getInputById("repo").value.trim(), path, hash }),
         head: `${basename} — at commit ${hash.slice(0, SHORT_HASH_LENGTH)}`,
-        meta: `${path}   ·   git show ${hash}:${path}`,
+        meta: `git show ${hash}`,
     };
 }
 
@@ -78,8 +81,11 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     clearDiffPair();
     anchor = { node, path };
     // Task 323: STOP at the timeline's ends — a missing neighbour disables that arrow, no wrap.
-    (getRequiredElementById("dprev") as HTMLButtonElement).disabled = findAdjacentNode(-1) === undefined;
-    (getRequiredElementById("dnext") as HTMLButtonElement).disabled = findAdjacentNode(1) === undefined;
+    for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
+        const arrow = getRequiredElementById(id) as HTMLButtonElement;
+        arrow.hidden = false;
+        arrow.disabled = findAdjacentNode(offset) === undefined;
+    }
     const detail = describeNode(node, path);
     const header = getRequiredElementById("dpath");
     header.textContent = detail.head;
@@ -93,34 +99,35 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
         node.scrollIntoView({ block: "nearest", inline: "center" });
         drawLayer1Minimap();
     });
-    const body = getRequiredElementById("dbody");
     setDrawerTools(isImagePath(path) ? "img" : "none");
     // Task 299: an image renders as a picture straight off the binary route — no text fetch at all.
     if (isImagePath(path)) {
+        getRequiredElementById("dmulti").hidden = true;
         detail.params.set("binary", "1");
-        renderImageInto(body, `/api/layer1-file?${detail.params}`);
+        renderImageInto(getRequiredElementById("dbody"), `/api/layer1-file?${detail.params}`);
         return;
     }
-    body.textContent = "loading…";
-    const response = await fetch(`/api/layer1-file?${detail.params}`);
-    // A refusal answers 400 with the message as the body — show it where the file would have been.
-    if (!response.ok) {
-        body.textContent = await response.text();
-        return;
-    }
-    const payload = await response.json() as { content: string; title?: string };
-    // Task 317: the snapshot's header title arrives with the bytes; flash the JSONL it came from.
+    // Task 329: a node IS a DiffView with equal sides — the whole file, revision controls hidden.
+    displayDetailView([buildDiffView(path, [describeNodeStep(node, path)], {
+        revisionControlsShown: false,
+        mode: DiffPaneMode.inline,
+        fullContents: true,
+        baseIndex: 0,
+        targetIndex: 0,
+    })]);
+    // Task 317: a snapshot's header still carries the title in effect at its line; flash its JSONL.
     if (detail.flashFile !== undefined) {
-        header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
+        const response = await fetch(`/api/layer1-file?${detail.params}`);
+        if (response.ok) {
+            const payload = await response.json() as { title?: string };
+            header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
+        }
         flashSession(detail.flashFile);
     }
-    // `path` is what picks the highlighter's language (task 294).
-    renderFileContentInto(body, payload.content, path);
 }
 
 export function wireNodeDrawer(): void {
     wireImageZoomTools();
-    wireDiffTools();
     getRequiredElementById("stage").addEventListener("click", (event) => {
         const node = findClickedNode(event.target as HTMLElement);
         // A created-at node is never the latest on-disk state, so it has no bytes to show.
@@ -133,7 +140,7 @@ export function wireNodeDrawer(): void {
         }
         // Task 305: shift extends the anchored selection into a two-node diff pair.
         if ((event as MouseEvent).shiftKey && anchor !== undefined && getRequiredElementById("drawer").classList.contains("open")) {
-            void extendDiffSelection(anchor, node, path);
+            extendDiffSelection(anchor, node, path);
             return;
         }
         void openNodeDrawer(node, path);
@@ -149,6 +156,7 @@ export function wireNodeDrawer(): void {
     }
     getRequiredElementById("dclose").addEventListener("click", () => {
         getRequiredElementById("drawer").classList.remove("open");
+        getRequiredElementById("dmulti").hidden = true;
         clearDiffPair();
         anchor = undefined;
         drawLayer1Minimap();

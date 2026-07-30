@@ -1,21 +1,17 @@
 // Task 312 (spec S19): snapshot placements as Layer 1 wire nodes, keyed the way the view keys files.
 
 import { collectSnapshotPlacements, type SnapshotPlacement } from "./layer1_snapshots.ts";
+import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary.ts";
-import type { Layer1WireInstant } from "./viewer_api_layer1.ts";
+import type { WireSnapshotOf } from "../webapp/layer1-wire.ts";
 
 // Named so tests assert the same string the route emits.
 export const LAYER1_PROGRESS_LABEL_READING_SNAPSHOTS = "reading file-history snapshots";
 
-// A snapshot node off the wire; @vN is per session, so sessionId identifies it.
-export interface Layer1WireSnapshot extends Layer1WireInstant {
-    version: number;
-    sessionId: Uuid;
-    sessionFile: Path;
-    line?: number;
-}
+// The server instantiation of the wire snapshot: Date instant, domain Path/Uuid.
+export type Layer1WireSnapshot = WireSnapshotOf<Instant, Path, Uuid>;
 
 // The separator is load-bearing: a bare startsWith lets "/tmp/ab" pass against "/tmp/a".
 export function relativizeToProjectFolder(projectFolder: Path, absolutePath: string): string | undefined {

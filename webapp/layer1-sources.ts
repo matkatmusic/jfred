@@ -1,7 +1,8 @@
 // The Layer 1 page's three header source boxes (?dir=&repo=&ref=) and their folder pickers. Split out of layer1-page.ts, which sat exactly at the ~250-line ceiling its neighbours hold while several more Layer 1 features still had to wire into its boot (tasks 246, 256, 260, 261) — the same reason layer1-progress.ts and layer1-zoom.ts were split out before it. Nothing here draws: this module only reads, seeds and picks into the boxes.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
+import { CommitTimeSource, SourceKind } from "./layer1-wire.ts";
 
 // Task 312: both source lists travel as repeated params, keeping a Layer 2 view one shareable link.
 const LIST_PARAM_BY_KIND = {
@@ -12,9 +13,9 @@ const LIST_PARAM_BY_KIND = {
 // The three header boxes; the ids match layer1.html and the names match the endpoint's params.
 const SOURCE_PARAM_IDS = ["dir", "repo", "ref"] as const;
 
-// Which git stamp places a bubble (task 282). These bare strings mirror `CommitTimeSource` in src/structures/vocabulary.ts, re-spelled because webapp/ cannot import from src/ — the same constraint that re-declares `Instant` atop layer1-ruler-axis.ts.
-export const TIME_SOURCE_VALUES = ["committer", "author"] as const;
-let selectedTimeSource: string = TIME_SOURCE_VALUES[0];
+// Which git stamp places a bubble (task 282); derived from the single-sourced CommitTimeSource.
+export const TIME_SOURCE_VALUES = Object.values(CommitTimeSource);
+let selectedTimeSource: string = TIME_SOURCE_VALUES[0]!;
 
 export function readTimeSource(): string {
     return selectedTimeSource;
@@ -34,7 +35,7 @@ export function readSourceParams(): URLSearchParams {
         }
     }
     // Only the non-default reading is written, so a default view's URL — and every link already shared — stays exactly as it was.
-    if (selectedTimeSource !== TIME_SOURCE_VALUES[0]) {
+    if (selectedTimeSource !== TIME_SOURCE_VALUES[0]!) {
         params.set("time", selectedTimeSource);
     }
     // append, never set: both lists are repeatable.

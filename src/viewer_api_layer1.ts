@@ -5,13 +5,13 @@ import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts"
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
 import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
-import { collectViewSnapshotsByRelativePath, listSnapshotInstants, placeSnapshotsOnAxis, type Layer1WireSnapshot } from "./layer1_snapshot_wire.ts";
+import { collectViewSnapshotsByRelativePath, listSnapshotInstants, placeSnapshotsOnAxis } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
-import { Path } from "./structures/domain.ts";
+import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary.ts";
-import { CommitTimeSource } from "./structures/vocabulary_view.ts";
+import { CommitTimeSource, type WireInstantOf, type WireCommitOf, type WireRulerTickOf, type WirePairOf, type WireOrphanOf, type WireLayer1ViewOf } from "../webapp/layer1-wire.ts";
 
 // Named so tests assert the same strings the route emits rather than re-typing them.
 export const LAYER1_PROGRESS_LABEL_WALKING_FOLDER = "walking project folder";
@@ -20,44 +20,13 @@ export const LAYER1_PROGRESS_LABEL_READING_HISTORY = "reading file history";
 export const LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY = "placing repository-only files";
 export const LAYER1_PROGRESS_LABEL_RESOLVING_RULER = "resolving the ruler";
 
-// The S18 ruler accumulates, so an offset can't come from its own instant; the page gets the finished number.
-export interface Layer1WireInstant {
-    instant: Instant;
-    axisPx: number;
-}
-
-export interface Layer1WireCommit extends Layer1WireInstant {
-    hash: string;
-}
-
-export interface Layer1WireRulerTick extends Layer1WireInstant {
-    // Nodes drawn at this instant across every bubble; measured by layOutNodeLadders so client re-layout matches.
-    eventCount: number;
-}
-
-// Commits are oldest first; `onDisk` is S18's final node.
-export interface Layer1WirePair {
-    path: Path;
-    commits: Layer1WireCommit[];
-    onDisk: Layer1WireInstant;
-    // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
-    created?: Layer1WireInstant;
-    // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
-    snapshots?: Layer1WireSnapshot[];
-}
-
-export interface Layer1WireOrphan extends Layer1WireInstant {
-    path: Path;
-    snapshots?: Layer1WireSnapshot[];
-}
-
-// The two orphan sets are mirror images; a swap is invisible to task-238's test and must never happen.
-export interface Layer1WireView {
-    pairs: Layer1WirePair[];
-    gitOrphans: Layer1WireOrphan[];
-    diskOrphans: Layer1WireOrphan[];
-    ruler: Layer1WireRulerTick[];
-}
+// Server instantiation of the wire vocabulary (webapp/layer1-wire.ts): Date instants, domain Path/Uuid.
+export type Layer1WireInstant = WireInstantOf<Instant>;
+export type Layer1WireCommit = WireCommitOf<Instant>;
+export type Layer1WireRulerTick = WireRulerTickOf<Instant>;
+export type Layer1WirePair = WirePairOf<Instant, Path, Uuid>;
+export type Layer1WireOrphan = WireOrphanOf<Instant, Path, Uuid>;
+export type Layer1WireView = WireLayer1ViewOf<Instant, Path, Uuid>;
 
 interface GitOrphanPlacement {
     path: Path;
@@ -84,7 +53,7 @@ function readPairCreatedInstant(pair: PairHistory): Instant | undefined {
     return created;
 }
 
-// Order is load-bearing: it decides which tied node takes the upper row, and makes the returned offsets readable positionally.
+// Reads PairHistory, not the wire pair; its ORDER mirrors listPairLadderInstants in webapp/layer1-wire.ts.
 function listPairNodeLadder(pair: PairHistory, snapshots?: SnapshotPlacement[]): NodeLadder {
     const created = readPairCreatedInstant(pair);
     return [

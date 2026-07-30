@@ -152,12 +152,12 @@ function listDescendantTargets(node: FileTreeNode): string[] {
 
 // Basename only, with the full path in the tooltip: the full path was truncated to uselessness.
 function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
+    // The name gets its own span so IT ellipsises — never the (n) revcount after it.
     const item = el("div", {
         class: entry.isDeleted ? "file-item deleted" : "file-item",
-        text: node.name,
         title: entry.isDeleted ? `${entry.target} (deleted)` : entry.target,
         "data-target": entry.target,
-    }, []);
+    }, [el("span", { class: "file-label", text: node.name })]);
     const segments = coverage?.get(entry.target);
     if (segments === undefined) {
         item.append(el("span", { class: "revcount", text: `(${entry.revisionCount})` }));
