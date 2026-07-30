@@ -1,228 +1,39 @@
-// Task 305: shift-click a second node on the same bubble's lane to diff two revisions in the drawer.
+// Task 305/329: shared revision-step helpers; the shift-click range gesture lives in layer1-drawer-multi.ts.
 
-import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
-import { appendColumnsDiff, appendInlineDiff } from "./diff-render.ts";
-
-const SHORT_HASH_LENGTH = 8;
-const TOAST_MILLISECONDS = 2600;
-
-// The drawer's own display modes; task 320 made "full content" a context toggle, not a mode.
-const DrawerDiffMode = Object.freeze({ side: "side", inline: "inline" } as const);
-type DrawerDiffModeValue = (typeof DrawerDiffMode)[keyof typeof DrawerDiffMode];
-
-type DiffSide = { node: HTMLElement; hash: string | undefined };
-type DiffPair = { path: string; base: DiffSide; target: DiffSide };
-
-let shownPair: DiffPair | undefined;
-let shownDiffText = "";
-let mode: DrawerDiffModeValue = DrawerDiffMode.side;
-// Task 320: widens the fetched diff to whole-file context; survives across pairs like the Revision Viewer's toggle.
-let fullContents = false;
-let toastTimer: ReturnType<typeof setTimeout> | undefined;
+import { getRequiredElementById } from "./app-dom.ts";
+import { type DiffStep } from "./layer1-diff-pane.ts";
+import { clearDiffWash } from "./layer1-diff-wash.ts";
+import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
 
 // A commit node carries its full hash on the dot's `title`; anything else diffs as the working tree.
 export function nodeCommitHash(node: HTMLElement): string | undefined {
     return node.classList.contains("n-commit") && node.title !== "" ? node.title : undefined;
 }
 
-// One control strip (tasks 299/305/324): pair mode swaps single-node arrows for base/target pairs and row 2.
-export function setDrawerTools(tools: "img" | "diff" | "none"): void {
-    getRequiredElementById("imgtools").hidden = tools !== "img";
-    getRequiredElementById("difftools").hidden = tools !== "diff";
-    getRequiredElementById("dhead2").hidden = tools !== "diff";
-    getRequiredElementById("pairtools").hidden = tools !== "diff";
-    getRequiredElementById("dprev").hidden = tools === "diff";
-    getRequiredElementById("dnext").hidden = tools === "diff";
+// Any lane node as a revision source: commit blob, session snapshot, or the on-disk state.
+export function describeNodeStep(node: HTMLElement, path: string): DiffStep {
+    const hash = nodeCommitHash(node);
+    if (hash !== undefined) {
+        return describeCommitStep(path, hash);
+    }
+    if (node.classList.contains("n-snap")) {
+        return describeSnapshotStep(path, {
+            sessionFile: node.dataset.sessionFile ?? "",
+            sessionId: node.dataset.sessionId ?? "",
+            version: Number(node.dataset.version ?? 0),
+        });
+    }
+    return describeDiskStep(path);
 }
 
-// The refusal is VISIBLE, never a silent no-op (task 305).
-function flashToast(text: string): void {
-    const toast = getRequiredElementById("dtoast");
-    toast.textContent = text;
-    toast.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.hidden = true; }, TOAST_MILLISECONDS);
+// Task 329 retired the drawer's fixed pair rows; only the image strip remains header chrome.
+export function setDrawerTools(tools: "img" | "none"): void {
+    getRequiredElementById("imgtools").hidden = tools !== "img";
 }
 
 export function clearDiffPair(): void {
-    shownPair = undefined;
+    clearDiffWash();
     for (const marked of document.querySelectorAll(".diff-base, .diff-target")) {
         marked.classList.remove("diff-base", "diff-target");
     }
-}
-
-// A node's place on its lane's time axis (layer1-widgets.ts's --axis-px).
-function readAxisPx(node: HTMLElement): number {
-    return Number(node.style.getPropertyValue("--axis-px")) || 0;
-}
-
-function describeSideName(side: DiffSide): string {
-    return side.hash === undefined ? "on disk" : side.hash.slice(0, SHORT_HASH_LENGTH);
-}
-
-function buildDiffParams(pair: DiffPair): URLSearchParams {
-    const params = new URLSearchParams({ path: pair.path });
-    if (pair.base.hash !== undefined) params.set("baseHash", pair.base.hash);
-    if (pair.target.hash !== undefined) params.set("targetHash", pair.target.hash);
-    if (pair.base.hash === undefined || pair.target.hash === undefined) {
-        params.set("dir", getInputById("dir").value.trim());
-    }
-    if (pair.base.hash !== undefined || pair.target.hash !== undefined) {
-        params.set("repo", getInputById("repo").value.trim());
-    }
-    if (fullContents) {
-        params.set("context", "full");
-    }
-    return params;
-}
-
-function paintModeButtons(): void {
-    for (const button of getRequiredElementById("difftools").querySelectorAll<HTMLElement>("button[data-mode]")) {
-        button.classList.toggle("current", button.dataset.mode === mode);
-    }
-    (getRequiredElementById("dfull") as HTMLInputElement).checked = fullContents;
-}
-
-// Task 324: the step target for one side — lane DOM order, skipping the byte-less created node.
-function findPairNeighbour(side: "base" | "target", offset: 1 | -1): HTMLElement | undefined {
-    if (shownPair === undefined) {
-        return undefined;
-    }
-    const sideNode = shownPair[side].node;
-    const nodes = [...sideNode.parentElement?.querySelectorAll(".node:not(.n-created)") ?? []] as HTMLElement[];
-    const neighbour = nodes[nodes.indexOf(sideNode) + offset];
-    // STOP at the lane ends, and base/target never collide.
-    const other = shownPair[side === "base" ? "target" : "base"].node;
-    return neighbour === other ? undefined : neighbour;
-}
-
-function paintPairArrows(): void {
-    for (const [id, side, offset] of [["dbprev", "base", -1], ["dbnext", "base", 1], ["dtprev", "target", -1], ["dtnext", "target", 1]] as const) {
-        (getRequiredElementById(id) as HTMLButtonElement).disabled = findPairNeighbour(side, offset) === undefined;
-    }
-}
-
-function renderDiffBody(): void {
-    if (shownPair === undefined) {
-        return;
-    }
-    paintModeButtons();
-    const body = getRequiredElementById("dbody");
-    if (shownDiffText === "") {
-        body.replaceChildren(el("div", { class: "dbinary", text: "No text differences between these revisions." }));
-        return;
-    }
-    body.replaceChildren();
-    (mode === DrawerDiffMode.inline ? appendInlineDiff : appendColumnsDiff)(body, shownDiffText, shownPair.path);
-}
-
-// Fetches the pair's diff at the current context width into shownDiffText; false on failure (error text shown).
-async function loadDiffText(pair: DiffPair): Promise<boolean> {
-    const body = getRequiredElementById("dbody");
-    body.textContent = "loading…";
-    const response = await fetch(`/api/layer1-diff?${buildDiffParams(pair)}`);
-    if (!response.ok) {
-        body.textContent = await response.text();
-        return false;
-    }
-    shownDiffText = (await response.json() as { diff: string }).diff;
-    return true;
-}
-
-async function openDiffDrawer(pair: DiffPair): Promise<void> {
-    // Task 324's header: row 1 = name, base arrows, `<base> - <target>`, target arrows.
-    const header = getRequiredElementById("dpath");
-    header.textContent = pair.path.split("/").pop() ?? pair.path;
-    header.title = pair.path;
-    getRequiredElementById("dpairlabel").textContent = `${describeSideName(pair.base)} - ${describeSideName(pair.target)}`;
-    getRequiredElementById("dmeta").textContent = `${pair.path}   ·   base ${describeSideName(pair.base)} → target ${describeSideName(pair.target)}`;
-    setDrawerTools("diff");
-    paintPairArrows();
-    getRequiredElementById("drawer").classList.add("open");
-    if (await loadDiffText(pair)) {
-        renderDiffBody();
-    }
-}
-
-// The tail every pair entry shares: marks, state, drawer render.
-async function showDiffPair(baseNode: HTMLElement, targetNode: HTMLElement, path: string): Promise<void> {
-    clearDiffPair();
-    // The pair's marks replace the single-selection `.found` marks.
-    for (const lit of document.querySelectorAll(".found")) {
-        lit.classList.remove("found");
-    }
-    baseNode.classList.add("diff-base");
-    targetNode.classList.add("diff-target");
-    shownPair = {
-        path,
-        base: { node: baseNode, hash: nodeCommitHash(baseNode) },
-        target: { node: targetNode, hash: nodeCommitHash(targetNode) },
-    };
-    await openDiffDrawer(shownPair);
-}
-
-// The second, shift-clicked node; the pair's direction comes from axis position, never click order.
-export async function extendDiffSelection(anchor: { node: HTMLElement; path: string }, node: HTMLElement, path: string): Promise<void> {
-    if (anchor.node.closest(".filebox") !== node.closest(".filebox")) {
-        flashToast(`diff needs two nodes on ONE bubble — ${anchor.path.split("/").pop()} is selected`);
-        return;
-    }
-    if (anchor.node === node) {
-        return;
-    }
-    const [baseNode, targetNode] = readAxisPx(anchor.node) <= readAxisPx(node) ? [anchor.node, node] : [node, anchor.node];
-    await showDiffPair(baseNode, targetNode, path);
-}
-
-// Task 324: one arrow step; a refused step is already a disabled button, so no toast needed.
-function stepPairSide(side: "base" | "target", offset: 1 | -1): void {
-    const neighbour = findPairNeighbour(side, offset);
-    if (neighbour === undefined || shownPair === undefined) {
-        return;
-    }
-    const moved = { base: shownPair.base.node, target: shownPair.target.node, [side]: neighbour };
-    void showDiffPair(moved.base, moved.target, shownPair.path);
-}
-
-// "export as patch": headers + hunks make one git-apply-able file patch (task 218's shape).
-function exportPatch(): void {
-    if (shownPair === undefined || shownDiffText === "") {
-        flashToast("no differences to export");
-        return;
-    }
-    const path = shownPair.path;
-    const patch = `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n${shownDiffText}\n`;
-    const link = el("a") as HTMLAnchorElement;
-    link.href = URL.createObjectURL(new Blob([patch], { type: "text/x-patch" }));
-    link.download = `${path.split("/").pop()}.patch`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-}
-
-// Wired once (wireNodeDrawer); the buttons live in the drawer header's #difftools strip.
-export function wireDiffTools(): void {
-    for (const button of getRequiredElementById("difftools").querySelectorAll<HTMLElement>("button[data-mode]")) {
-        button.addEventListener("click", () => {
-            mode = button.dataset.mode as DrawerDiffModeValue;
-            renderDiffBody();
-        });
-    }
-    // Task 320: full content is a context-width toggle — the diff stays shown, refetched wider/narrower.
-    getRequiredElementById("dfull").addEventListener("change", () => {
-        fullContents = (getRequiredElementById("dfull") as HTMLInputElement).checked;
-        if (shownPair === undefined) {
-            return;
-        }
-        const pair = shownPair;
-        void loadDiffText(pair).then((loaded) => {
-            if (loaded) {
-                renderDiffBody();
-            }
-        });
-    });
-    // Task 324: the four pair arrows, wired once like the mode buttons.
-    for (const [id, side, offset] of [["dbprev", "base", -1], ["dbnext", "base", 1], ["dtprev", "target", -1], ["dtnext", "target", 1]] as const) {
-        getRequiredElementById(id).addEventListener("click", () => stepPairSide(side, offset));
-    }
-    getRequiredElementById("dexport").addEventListener("click", exportPatch);
 }

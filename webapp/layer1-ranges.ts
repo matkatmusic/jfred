@@ -4,6 +4,7 @@
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 import { RULER_NODE_ROW_PIXELS } from "./layer1-ruler-axis.ts";
+import { spawnWash } from "./layer1-wash.ts";
 import type { WireRulerTick, WireSession } from "./layer1-wire.ts";
 
 // Where an ARBITRARY instant sits on an axis built from events. Clamped at both ends: a session that opened before the first recorded event still has to start somewhere on screen.
@@ -38,9 +39,8 @@ function buildMark(className: string, fromPx: number, spanPx: number): HTMLEleme
     return node;
 }
 
-// The WASH closes on the first and last EVENT inside the session's window (user, 2026-07-27), half a row clear of each so the dots and their labels sit inside it rather than on its edge. A session whose window catches no event gets a bar and no wash — there is nothing for it to close on.
-//
-// ponytail: the foot assumes ONE node row at the last covered tick, because the wire carries no per-instant row count. On a tick that stacks two nodes the wash ends half a row short; put the row count on WireRulerTick if that is ever reported.
+// Wash closes half a row past the first/last covered event; no covered event means no wash.
+// ponytail: foot assumes ONE node row per tick; put a row count on WireRulerTick if ever reported.
 function buildSessionWash(session: WireSession, ticks: readonly WireRulerTick[]): HTMLElement | undefined {
     const startedMs = Date.parse(session.started);
     const endedMs = Date.parse(session.ended);
@@ -55,7 +55,9 @@ function buildSessionWash(session: WireSession, ticks: readonly WireRulerTick[])
     }
     const topPx = firstCovered.axisPx - RULER_NODE_ROW_PIXELS / 2;
     const footPx = lastCovered.axisPx + RULER_NODE_ROW_PIXELS / 2;
-    return buildMark("range-wash", topPx, footPx - topPx);
+    const wash = spawnWash(topPx, footPx, "var(--c-script)");
+    wash.classList.add("range-wash");
+    return wash;
 }
 
 // A gutter row whose position falls inside a picked session's band is marked, so the ruler says which timestamps the session is answerable for. Read off the ELEMENT's own `--axis-px` rather than off its instants: the bands are already in axis pixels, and a merged row stands for several instants but sits at exactly one offset.

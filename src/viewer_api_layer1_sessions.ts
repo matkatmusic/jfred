@@ -14,21 +14,13 @@ import { computeReconstructionPrescan } from "./viewer_api_prescan.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
+import type { WireSession } from "../webapp/layer1-wire.ts";
 
 // A title is one line in a narrow pane — the mockup's width holds ~70 characters.
 const SESSION_TITLE_LIMIT = 70;
 
 // Named so tests assert the same string the stream emits (task 304).
 export const LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING = "scanning JSONL files";
-
-export interface Layer1WireSession {
-    file: string;       // basename, e.g. "0f3c9a7e.jsonl"
-    fullPath: string;   // absolute path — the wire identity the pane de-duplicates and selects on
-    title: string;      // first user prompt, trimmed and truncated; "" when the session has none
-    started: string;    // ISO instant of the FIRST record
-    ended: string;      // ISO instant of the LAST record
-    paths: string[];    // every file path the session touched
-}
 
 // The window a range bar spans; a transcript with no timestamps has no axis place — undefined drops it.
 function measureSessionWindow(records: TranscriptRecord[]): { started: Date; ended: Date } | undefined {
@@ -44,7 +36,7 @@ function measureSessionWindow(records: TranscriptRecord[]): { started: Date; end
 }
 
 // One row, or undefined when the file yields nothing placeable — including on any parse throw.
-function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
+function summarizeSession(jsonlPath: Path): WireSession | undefined {
     try {
         const { records } = loadProjectRecords([jsonlPath]);
         const window = measureSessionWindow(records);
@@ -66,9 +58,9 @@ function summarizeSession(jsonlPath: Path): Layer1WireSession | undefined {
 }
 
 // Ordered by start instant (ISO string compare IS chronological); the slow per-file parse is the counted unit (task 304).
-export function buildLayer1Sessions(folders: readonly string[], reportProgress: ProgressSink = () => {}): Layer1WireSession[] {
+export function buildLayer1Sessions(folders: readonly string[], reportProgress: ProgressSink = () => {}): WireSession[] {
     const files = listTranscriptFiles(folders);
-    const sessions: Layer1WireSession[] = [];
+    const sessions: WireSession[] = [];
     files.forEach((jsonlPath, index) => {
         reportProgress({
             kind: DocumentResponseKind.progress,

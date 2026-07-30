@@ -1,26 +1,26 @@
-// Headless checks for the Layer 1 + Layer 2 MOCKUP at ../plans/layer2-mockup/ — not the app.
+// Headless checks for the Layer 1 + Layer 2 acceptance lines of tasks #299-#307.
 //
-// Sibling of run.ts, not a replacement: run.ts boots src/viewer_server.ts and walks the REAL viewer
-// through six states with reconstructed data; this serves three static files and checks the Layer 2
-// acceptance lines of tasks #299-#307. Both borrow the same cdp.ts driver.
+// Task 330: re-pointed from the static mockup at the REAL page, booted in --fixture mode.
 //
-// A static server, not `file://` — the mockup is ES modules now, and modules do not load off file://.
+// The check functions run unchanged; each that fails is CLASSIFIED in implementation-notes-task-330.md.
 
-import { spawn } from "node:child_process";
-import { dirname, join } from "node:path";
+import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import {
     RENDER_SIGNATURE, check, checkChrome, checkDrawer, checkNavRows, checkOrdering, checkRulerRow,
     checkScale, checkSnapshotNodes, failures, shapeOf, shoot,
 } from "./mockup-checks.ts";
-import { checkBubbleFlash, checkSessionSearch } from "./mockup-checks-nav.ts";
+import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
     checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
     checkPairArrows, checkShowOnlySelected,
 } from "./mockup-checks-diff.ts";
 
-const MOCKUP_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../plans/layer2-mockup");
+const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+// --projects-dir stays mandatory but the fixture routes ignore it; any existing folder does.
+const PROJECTS_DIR = join(JFRED_ROOT, "scripts");
 const VIEWPORT_WIDTH = 1600;
 const VIEWPORT_HEIGHT = 1000;
 
@@ -51,8 +51,7 @@ async function runChecks(page: HeadlessPage): Promise<void> {
     await checkScale(page);
     await checkOrdering(page);
     await checkSnapshotNodes(page, indexAnchor);
-    // Its axis OFFSET does move — a new instant above it lengthens the ladder (#251). Its own anchor
-    // and node rows must not.
+    // Its axis OFFSET may move (#251), but its own anchor and node rows must not.
     check("#304 a file with NO snapshots renders exactly as at Layer 1",
         await page.evaluate<string>(shapeOf("README.md")) === readmeAtLayer1, readmeAtLayer1);
     await shoot(page, "02-layer2");
@@ -71,6 +70,7 @@ async function runChecks(page: HeadlessPage): Promise<void> {
     await checkNavOpensDiskNode(page);
     await checkShowOnlySelected(page);
     await checkNavBugs(page);
+    await checkMultiFileDrawer(page);
 
     await page.evaluate(`document.getElementById('dclose').click(); ${LAYER_BUTTON(1)}.click()`);
     await page.waitFor(`document.querySelectorAll('.n-snap').length === 0`, 10_000);
@@ -78,21 +78,38 @@ async function runChecks(page: HeadlessPage): Promise<void> {
         await page.evaluate<string>(RENDER_SIGNATURE) === layer1);
 }
 
+function killPort(port: number): void {
+    execSync(`lsof -ti tcp:${port} | xargs kill -9 2>/dev/null || true`, { stdio: "ignore", shell: "/bin/sh" });
+}
+
+// Build so the page serves the current webapp, then boot the real viewer in fixture mode.
+function buildWebapp(): void {
+    execSync("node_modules/.bin/tsc -p tsconfig.webapp.json", { cwd: JFRED_ROOT, stdio: "inherit" });
+}
+
+async function startViewer(port: number): Promise<ChildProcess> {
+    const server = spawn("node_modules/.bin/tsx", [
+        "src/viewer_server.ts", "--projects-dir", PROJECTS_DIR, "--port", String(port), "--fixture",
+    ], { cwd: JFRED_ROOT, stdio: "ignore" });
+    await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
+    return server;
+}
+
 async function main(): Promise<void> {
+    buildWebapp();
     const port = await findFreePort();
-    const server = spawn("python3", ["-m", "http.server", String(port), "--bind", "127.0.0.1"],
-        { cwd: MOCKUP_DIR, stdio: "ignore" });
+    killPort(port);
+    const server = await startViewer(port);
     const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
     try {
-        await waitForHttp(`http://127.0.0.1:${port}/index.html`, 15_000);
-        await page.navigate(`http://127.0.0.1:${port}/index.html`);
-        // A fixture that fails its own self-check throws before anything renders, so this wait is
-        // also the assertion that the fixture loaded at all.
-        await page.waitFor("document.querySelectorAll('.filebox').length > 0", 15_000);
+        await page.navigate(`http://127.0.0.1:${port}/app/layer1.html`);
+        // The fixture settings auto-boot the page with no real folder; wait for the first bubble.
+        await page.waitFor("document.querySelectorAll('.filebox').length > 0", 30_000);
         await runChecks(page);
     } finally {
         await page.close();
         server.kill("SIGKILL");
+        killPort(port);
     }
     console.log(failures.length
         ? `\n${failures.length} FAILED:\n  ${failures.join("\n  ")}`

@@ -6,7 +6,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
-import { SourceKind } from "./structures/vocabulary_view.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { requireExistingFolderParam } from "./viewer_api_layer1_route.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 

@@ -5,7 +5,8 @@
 import { el, getRequiredElementById } from "./app-dom.ts";
 import { paintLoadbar, readLayer1ViewStream } from "./layer1-progress.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
-import { readSourcePaths, SourceKind } from "./layer1-source-paths.ts";
+import { readSourcePaths } from "./layer1-source-paths.ts";
+import { SourceKind } from "./layer1-wire.ts";
 import type { WireSession } from "./layer1-wire.ts";
 
 let sessions: WireSession[] = [];

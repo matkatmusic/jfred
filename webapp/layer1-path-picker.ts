@@ -3,7 +3,8 @@
 // It edits a COPY: [cancel] drops the draft, [set and close] is what commits and rebuilds. That is what makes a mis-click on [−] recoverable without an undo stack.
 
 import { el, getRequiredElementById } from "./app-dom.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
+import { SourceKind } from "./layer1-wire.ts";
 
 const PICKER_TITLE_BY_KIND: Record<SourceKind, string> = {
     [SourceKind.jsonl]: "JSONL Source Paths",

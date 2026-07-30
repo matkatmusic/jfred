@@ -1,15 +1,17 @@
-/* JSONL Viewer — item 66 Fork-style port. Component look ported from fork-style-mockup.html
-   (the approved visual spec); every color routes through the :root variables below so the
-   OS light/dark setting keeps working (the mockup was dark-only — dark values are the
-   mockup's exact colors, light values are analogues from the existing light palette).
-   The pre-port stylesheet is archived at webapp/archive/styles-pre-item66.css. */
+/*
+  JSONL Viewer — item 66 Fork-style port. Component look ported from fork-style-mockup.html (the approved visual spec); every color routes through the :root variables below so the OS light/dark setting keeps working (the mockup was dark-only — dark values are the mockup's exact colors, light values are analogues from the existing light palette).  The pre-port stylesheet is archived at webapp/archive/styles-pre-item66.css.
+*/
 
 :root {
     color-scheme: light dark;
-    /* fonts (theme-independent) */
+    /*
+      fonts (theme-independent)
+    */
     --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     --ui: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-    /* light palette (default) */
+    /*
+      light palette (default)
+    */
     --bg: #f5f6f8;
     --panel: #eceef3;
     --control: #e2e5ec;
@@ -27,11 +29,14 @@
     --badge-accent-bg: rgba(10, 102, 194, 0.12);
     --error-bg: rgba(198, 40, 40, 0.08);
     --anchor: #e65100;
-    /* timeline session-lane extras (accent/green/orange are lanes 1-3) */
+    /*
+      timeline session-lane extras (accent/green/orange are lanes 1-3)
+    */
     --lane-violet: #6d3ab8;
     --lane-teal: #0e7490;
-    /* item 66 fork-style vars: light analogues of the mockup's dark values —
-       --sel a saturated blue, --sel-hover a subtle tint, add/del/hunk translucent tints */
+    /*
+      item 66 fork-style vars: light analogues of the mockup's dark selection and diff tints.
+    */
     --sel: #0a66c2;
     --sel-hover: #e2e5ec;
     --add-bg: rgba(26, 127, 55, 0.14);
@@ -60,7 +65,9 @@
         --anchor: #ff6d00;
         --lane-violet: #b39ddb;
         --lane-teal: #4dd0e1;
-        /* item 66 fork-style vars: the mockup's exact dark colors */
+        /*
+          item 66 fork-style vars: the mockup's exact dark colors
+        */
         --sel: #1f4e8c;
         --sel-hover: #262c37;
         --add-bg: rgba(63, 185, 80, 0.16);
@@ -80,12 +87,15 @@ body {
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-/* The body switched from mono to the mockup's UI font; code-bearing surfaces of the kept
-   views stay monospace. */
+/*
+  The body switched from mono to the mockup's UI font; code-bearing surfaces of the kept views stay monospace.
+*/
 pre, code, .diff-text, .diff-split, .diff-inline, .raw-line, .inspector-json, .inspector-text,
 .revision-content, .timeline-preview, .filter-bar, .jsonl-row, .tree-file, .project-row { font-family: var(--mono); }
 
-/* Mockup's shared button chrome — unclassed buttons (#toggle-all, #dm-*, .tl-json …). */
+/*
+  Mockup's shared button chrome — unclassed buttons (#toggle-all, #dm-*, .tl-json …).
+*/
 button {
     background: var(--control);
     border: 1px solid var(--border-strong);
@@ -97,7 +107,9 @@ button {
 }
 button:hover { background: var(--sel-hover); border-color: var(--accent); }
 
-/* ─── Toolbar + popovers ──────────────────────────────────────── */
+/*
+  ─── Toolbar + popovers ────────────────────────────────────────
+*/
 .toolbar {
     display: flex; align-items: center; gap: 8px;
     position: relative;
@@ -127,7 +139,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .toolbar-btn:hover:not(:disabled), .row-btn:hover:not(:disabled) { background: var(--control-hover); border-color: var(--accent); }
 .toolbar-btn:disabled, .row-btn:disabled, button:disabled { opacity: 0.5; cursor: default; }
 .row-btn { font-size: 11px; padding: 1px 7px; }
-/* task 144: the script-run pane's selected file button — the rev-card selection look. */
+/*
+  task 144: the script-run pane's selected file button — the rev-card selection look.
+*/
 .row-btn.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--panel)); }
 .popover {
     position: absolute;
@@ -152,7 +166,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #paths-popover { min-width: 360px; padding: 10px; }
 #paths-popover .dir-label { display: block; font-size: 10px; }
 #paths-popover .dir-input { display: block; width: 100%; margin: 2px 0 10px; }
-/* task 159: the Paths wizard — summary rows, screen questions, radio choices, nav row */
+/*
+  task 159: the Paths wizard — summary rows, screen questions, radio choices, nav row
+*/
 .wizard-question { margin: 0 0 8px; font-size: 12px; color: var(--text); }
 .wizard-choice { display: block; margin: 2px 0; font-size: 12px; color: var(--text); }
 .summary-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; font-size: 12px; }
@@ -163,7 +179,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #wizard-nav { display: flex; justify-content: flex-end; gap: 8px; }
 #wizard-nav #wizard-back { margin-right: auto; }
 #wizard-finish-rows { margin-bottom: 10px; }
-/* task 137: the per-project commit pick list — scrollable, .menu-item row styling */
+/*
+  task 137: the per-project commit pick list — scrollable, .menu-item row styling
+*/
 #commit-pick-list { max-height: 14em; overflow-y: auto; margin: 2px 0 10px; }
 .commit-pick-row {
     padding: 4px 12px;
@@ -175,7 +193,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .commit-pick-row:hover { background: var(--sel); color: #fff; }
 #commit-match-warning { display: block; font-size: 10px; margin: 0 0 10px; }
 
-/* ─── Layout: sidebar | rightcol ──────────────────────────────── */
+/*
+  ─── Layout: sidebar | rightcol ────────────────────────────────
+*/
 .layout { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 .sidebar {
     flex: 0 0 240px;
@@ -184,7 +204,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     overflow-y: auto;
     padding: 4px 0;
 }
-/* #split-sd resizes the sidebar (same makeSplitter as the details pane); hide it with the drawer */
+/*
+  #split-sd resizes the sidebar (same makeSplitter as the details pane); hide it with the drawer
+*/
 .layout:has(.sidebar.hidden) #split-sd { display: none; }
 #rightcol { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -196,31 +218,42 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     text-transform: uppercase;
     color: var(--muted);
 }
-/* Item 77: the Files pane is a tree. A folder is a native <details open> (no toggle JS).
-   Task 123 (Fork-style): decorations live in fixed-width columns so names at one depth
-   share a left edge; each .file-folder-kids wrapper indents one step and draws the
-   vertical guide line; chevron only on folder rows; folders as prominent as files. */
+/*
+  Item 77: the Files pane is a tree. A folder is a native <details open> (no toggle JS).  Task 123 (Fork-style): decorations live in fixed-width columns so names at one depth share a left edge; each .file-folder-kids wrapper indents one step and draws the vertical guide line; chevron only on folder rows; folders as prominent as files.
+*/
 .file-item {
     padding: 3px 10px;
     font-family: var(--mono);
     font-size: 11px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    align-items: baseline;
     cursor: pointer;
     color: var(--text);
+    user-select: none;
 }
-/* File icon in a fixed column, offset by an empty 13px chevron column so file names
-   align with sibling folder names. */
+/*
+  Only the label shrinks, with an ellipsis; the (n) revcount keeps its room.
+*/
+.file-item .file-label {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/*
+  File icon in a fixed column, offset by an empty 13px chevron column so file names align with sibling folder names.
+*/
 .file-item::before {
     content: "📄";
     display: inline-block;
+    flex: none;
     width: 21px;
     margin-left: 13px;
 }
 .file-item:hover { background: var(--sel-hover); }
 .file-item.selected { background: var(--sel); color: #fff; }
-.file-item .revcount { color: var(--muted); margin-left: 6px; }
+.file-item .revcount { color: var(--muted); margin-left: 6px; flex: none; }
 .file-item.selected .revcount { color: #bcd0ea; }
 .file-folder > summary {
     padding: 3px 10px;
@@ -231,10 +264,12 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     cursor: pointer;
     white-space: nowrap;
     list-style: none;
+    user-select: none;
 }
 .file-folder > summary::-webkit-details-marker { display: none; }
-/* Own chevron + folder icon in one fixed 34px column (native marker hidden above so the
-   column width is deterministic across browsers). */
+/*
+  Own chevron + folder icon in one fixed 34px column (native marker hidden above so the column width is deterministic across browsers).
+*/
 .file-folder > summary::before {
     content: "▸ 📁";
     display: inline-block;
@@ -243,10 +278,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 }
 .file-folder[open] > summary::before { content: "▾ 📁"; }
 .file-folder > summary:hover { background: var(--sel-hover); }
-/* One indent step per depth; the left border IS the vertical guide, sitting under the
-   parent's chevron. Summary text starts at 10+34=44px; a child file's text at
-   16+10+13+21=60px; a child folder's at 16+10+34=60px — every child name exactly one
-   16px step right of its parent's, uniformly for files and folders. */
+/*
+  One indent step per depth; the left border IS the vertical guide, sitting under the parent's chevron. Summary text starts at 10+34=44px; a child file's text at 16+10+13+21=60px; a child folder's at 16+10+34=60px — every child name exactly one 16px step right of its parent's, uniformly for files and folders.
+*/
 .file-folder > .file-folder-kids {
     margin-left: 16px;
     border-left: 1px solid var(--guide);
@@ -273,18 +307,23 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .file-folder > summary::before { content: "📁"; margin-right: 5px; }
 .file-folder > *:not(summary) { padding-left: 10px; }
 */
-/* A file deleted and never recreated: still browsable, but shown as gone. */
+/*
+  A file deleted and never recreated: still browsable, but shown as gone.
+*/
 .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
-/* Where a rename moved the file from (its history is keyed at the final path). */
-.file-item .rename-badge { color: var(--orange); margin-left: 6px; font-size: 10px; }
+/*
+  Where a rename moved the file from (its history is keyed at the final path).
+*/
+.file-item .rename-badge { color: var(--orange); margin-left: 6px; font-size: 10px; flex: none; }
 .file-item.selected .rename-badge { color: #bcd0ea; }
 .session-item { padding: 3px 10px 3px 18px; cursor: pointer; }
 .session-item:hover { background: var(--sel-hover); }
 .session-item .sess-file { font-family: var(--mono); font-size: 11px; color: var(--text); }
 .session-item .sess-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .session-item .sess-meta .sess-uuid { color: var(--orange); }
-/* Interim (until the Phase-6 fork sidebar lands): the old renderProjectDrawer content
-   still renders inside .sidebar with these item styles. */
+/*
+  Interim (until the Phase-6 fork sidebar lands): the old renderProjectDrawer content still renders inside .sidebar with these item styles.
+*/
 .drawer-section-title { color: var(--muted); font-size: 11px; margin: 10px 0 2px; padding: 0 8px; text-transform: uppercase; }
 .drawer-item {
     display: block; padding: 1px 8px; border-left: 3px solid transparent;
@@ -294,11 +333,14 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .drawer-item:hover { background: var(--sel-hover); text-decoration: none; }
 .drawer-item.active { background: var(--control); border-left-color: var(--accent); color: var(--accent); }
 .drawer-file { padding-left: 16px; }
-/* Task 185: the JSONL list occupies at most half the File Nav column and scrolls within
-   itself, so the files tree below keeps the rest of the column. */
+/*
+  Task 185: the JSONL list occupies at most half the File Nav column and scrolls within itself, so the files tree below keeps the rest of the column.
+*/
 .drawer-jsonl-list { max-height: 50%; overflow-y: auto; }
 
-/* ─── Splitters ───────────────────────────────────────────────── */
+/*
+  ─── Splitters ─────────────────────────────────────────────────
+*/
 .splitter-h {
     flex: 0 0 5px;
     cursor: row-resize;
@@ -315,7 +357,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 }
 .splitter-h:hover, .splitter-v:hover { background: var(--accent); }
 
-/* ─── Timeline pane ───────────────────────────────────────────── */
+/*
+  ─── Timeline pane ─────────────────────────────────────────────
+*/
 #timeline-pane {
     flex: 0 0 42%;
     min-height: 80px;
@@ -337,7 +381,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #timeline-pane-header .pane-title { padding: 0; }
 #timeline-summary { flex: 1 1 auto; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* #view: the timeline rows scroll here (also hosts the projects list on #/). */
+/*
+  #view: the timeline rows scroll here (also hosts the projects list on #/).
+*/
 .view-pane { flex: 1 1 auto; overflow-y: auto; position: relative; min-width: 0; }
 
 @keyframes rowflash {
@@ -349,7 +395,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .tl-main { flex: 1 1 auto; min-width: 0; }
 .tl-row.orphan .tl-main { opacity: 0.5; }
 
-/* branch-graph gutter */
+/*
+  branch-graph gutter
+*/
 .tl-graph { position: relative; flex: 0 0 30px; }
 .g-rail { position: absolute; top: 0; bottom: 0; width: 2px; }
 .g-rail.g-l1 { left: 9px; background: var(--accent); }
@@ -366,7 +414,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 }
 .g-dot.g-l1 { left: 4px; background: var(--accent); }
 .g-dot.g-l2 { left: 16px; background: var(--orange); }
-/* commit/session-end dots: border ring, transparent fill (the old SVG rail's hollow dots) */
+/*
+  commit/session-end dots: border ring, transparent fill (the old SVG rail's hollow dots)
+*/
 .g-dot.g-hollow { background: transparent; border-color: currentColor; }
 .g-fork {
     position: absolute;
@@ -379,7 +429,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     border-top-right-radius: 10px;
 }
 
-/* contiguous-pick rail */
+/*
+  contiguous-pick rail
+*/
 .tl-pick { flex: 0 0 16px; text-align: center; }
 .tl-pick input { cursor: pointer; accent-color: var(--accent); }
 #timeline-selectbar {
@@ -394,18 +446,24 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 }
 #timeline-selectbar.visible { display: flex; }
 #timeline-selectbar span { flex: 1 1 auto; }
-/* pick-legality message (existing pick machinery, re-homed into the selectbar) */
+/*
+  pick-legality message (existing pick machinery, re-homed into the selectbar)
+*/
 .timeline-rule { color: var(--red); font-size: 12px; opacity: 0; transition: opacity 0.25s; }
 .timeline-rule.show { opacity: 1; }
 
-/* contributing-node highlight while a commit is selected */
+/*
+  contributing-node highlight while a commit is selected
+*/
 .tl-row.contrib .tl-line {
     box-shadow: inset 3px 0 0 var(--orange);
     background: color-mix(in srgb, var(--orange) 9%, transparent);
 }
 .tl-row.contrib.selected .tl-line { background: var(--sel); }
 
-/* commit rows */
+/*
+  commit rows
+*/
 .commit-label {
     flex: 0 0 auto;
     font-family: var(--mono);
@@ -424,8 +482,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     border-radius: 8px;
     padding: 0 6px;
 }
-/* task 103: the red FAILED badge on rows whose git command's tool_result errored.
-   task 158: shared by the "(abandoned)" pill on the last row of an abandoned branch. */
+/*
+  task 103: the red FAILED badge on rows whose git command's tool_result errored.  task 158: shared by the "(abandoned)" pill on the last row of an abandoned branch.
+*/
 .failed-badge, .abandoned-badge {
     flex: 0 0 auto;
     font-family: var(--mono);
@@ -436,7 +495,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     border-radius: 8px;
     padding: 0 6px;
 }
-/* task 67: the script-run Details mode's left panel — the run's own source, scrollable. */
+/*
+  task 67: the script-run Details mode's left panel — the run's own source, scrollable.
+*/
 .script-source {
     font-family: var(--mono);
     font-size: 12px;
@@ -447,7 +508,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     min-height: 0;
     flex: 1 1 auto;
 }
-/* task 67: informational twin of .failed-badge — a script run's sandbox-proven file count. */
+/*
+  task 67: informational twin of .failed-badge — a script run's sandbox-proven file count.
+*/
 .script-files-badge {
     flex: 0 0 auto;
     font-family: var(--mono);
@@ -486,11 +549,14 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     font-family: var(--mono);
     font-size: 11px;
 }
-/* mockup role colors mapped to the theme vars (in-plan decision) */
+/*
+  mockup role colors mapped to the theme vars (in-plan decision)
+*/
 .tl-text.role-user { color: var(--accent); }
 .tl-text.role-assistant { color: var(--lane-violet); }
-/* session-start marker row (item 66 follow-up): a thin session-colored rule naming the
-   session that begins at the next row — interleaved multi-JSONL projects need it */
+/*
+  session-start marker row (item 66 follow-up): a thin session-colored rule naming the session that begins at the next row — interleaved multi-JSONL projects need it
+*/
 .tl-session-start {
     display: flex;
     align-items: center;
@@ -506,7 +572,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .tl-session-start::after { content: ""; flex: 0 0 24px; border-top: 1px solid currentColor; }
 .tl-session-start::after { flex: 1 1 auto; }
 
-/* pill-style role tag opening user/agent rows (item 66 follow-up) */
+/*
+  pill-style role tag opening user/agent rows (item 66 follow-up)
+*/
 .role-pill {
     flex: 0 0 auto;
     font-family: var(--mono);
@@ -526,10 +594,14 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .tl-text.role-script { color: var(--lane-teal); }
 .tl-text.role-commit { color: var(--text); }
 .tl-text.role-end { color: var(--muted); font-style: italic; }
-/* task 160: raw-line rows' classification text — distinct from tool (orange), end (muted), and default text. */
+/*
+  task 160: raw-line rows' classification text — distinct from tool (orange), end (muted), and default text.
+*/
 .tl-text.role-line { color: var(--lane-violet); }
 .tl-row.selected .tl-text { color: #fff; }
-/* harness-generated command/reminder turns read dimmer */
+/*
+  harness-generated command/reminder turns read dimmer
+*/
 .tl-text.system { opacity: 0.55; }
 .tl-ts { flex: 0 0 150px; text-align: right; color: var(--muted); font-size: 11px; }
 .tl-pos { flex: 0 0 82px; text-align: right; color: var(--muted); font-size: 11px; }
@@ -566,7 +638,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .tl-bubble.role-tool { border-left-color: var(--orange); background: color-mix(in srgb, var(--orange) 10%, var(--panel)); }
 .tl-bubble.role-script { border-left-color: var(--lane-teal); background: color-mix(in srgb, var(--lane-teal) 10%, var(--panel)); }
 
-/* Projects-list route (#/): no timeline chrome — #view + the console fill the column. */
+/*
+  Projects-list route (#/): no timeline chrome — #view + the console fill the column.
+*/
 #rightcol:not(.project-route) #timeline-pane-header,
 #rightcol:not(.project-route) #timeline-selectbar,
 #rightcol:not(.project-route) #split-td,
@@ -575,7 +649,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #rightcol:not(.project-route) #timeline-pane { flex: 1 1 auto; }
 #rightcol:not(.project-route) .view-pane { padding: 12px 16px; }
 
-/* ─── Details pane (#inspector) ───────────────────────────────── */
+/*
+  ─── Details pane (#inspector) ─────────────────────────────────
+*/
 .details-pane {
     flex: 1 1 auto;
     min-height: 80px;
@@ -585,10 +661,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     background: var(--bg);
 }
 .details-pane.hidden { display: none; }
-/* item 66 bug: while the Details pane is hidden (consent prompt, nothing selected yet),
-   nothing in the #rightcol column grows — the timeline pane stops at its 42% basis and the
-   console floats mid-window. Let the timeline absorb the free height and drop the dead
-   splitter. !important so a prior splitter drag's inline flex can't reintroduce the gap. */
+/*
+  item 66 bug: while the Details pane is hidden (consent prompt, nothing selected yet), nothing in the #rightcol column grows — the timeline pane stops at its 42% basis and the console floats mid-window. Let the timeline absorb the free height and drop the dead splitter. !important so a prior splitter drag's inline flex can't reintroduce the gap.
+*/
 #rightcol:has(.details-pane.hidden) #split-td { display: none; }
 #rightcol:has(.details-pane.hidden) #timeline-pane { flex: 1 1 auto !important; }
 #details-header {
@@ -626,8 +701,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     white-space: nowrap;
 }
 #details-right-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
-/* task 127: the right pane's find widget (input + n/N counter + prev/next), between the
-   label and the diff-mode toggle */
+/*
+  task 127: the right pane's find widget (input + n/N counter + prev/next), between the label and the diff-mode toggle
+*/
 #details-find { flex: 0 0 auto; display: inline-flex; gap: 4px; align-items: center; }
 #details-find input {
     width: 14ch;
@@ -688,7 +764,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     gap: 6px;
     margin-bottom: 4px;
 }
-/* revision-card op badges (mockup): text pills, unlike the square chip .op-badge below */
+/*
+  revision-card op badges (mockup): text pills, unlike the square chip .op-badge below
+*/
 .rev-card .op-badge {
     width: auto; height: auto;
     font-size: 9px;
@@ -702,7 +780,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .op-edit { background: #1f5a99; }
 .op-user-edit { background: #7a4bb0; }
 .op-overwrite { background: #a35217; }
-/* the remaining EventKind pills, hued like their timeline letter badges (task 88) */
+/*
+  the remaining EventKind pills, hued like their timeline letter badges (task 88)
+*/
 .op-delete { background: #9c2b2b; }
 .op-rename { background: #5d4b9e; }
 .op-copy { background: #2c6e35; }
@@ -712,7 +792,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .rev-actions { display: flex; flex-wrap: wrap; gap: 3px; }
 .rev-actions button { font-size: 9px; padding: 1px 5px; }
 
-/* ─── Fork diff renderers (details pane) ──────────────────────── */
+/*
+  ─── Fork diff renderers (details pane) ────────────────────────
+*/
 .diff { font-family: var(--mono); font-size: 11px; padding: 4px 0; min-width: max-content; }
 .diff-line { display: flex; white-space: pre; }
 .diff-ln {
@@ -731,13 +813,16 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 
 .diff-cols {
     display: grid;
-    /* item 74: minmax(0,1fr) (was minmax(160px,1fr)) + no min-width:max-content so the grid
-       stays inside #details-right instead of forcing horizontal scroll on long lines. */
+    /*
+      item 74: minmax(0,1fr) (was minmax(160px,1fr)) + no min-width:max-content so the grid stays inside #details-right instead of forcing horizontal scroll on long lines.
+    */
     grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
     font-family: var(--mono);
     font-size: 11px;
     padding: 4px 0;
-    /* min-width: max-content; */
+    /*
+      min-width: max-content;
+    */
 }
 .dc-ln {
     text-align: right;
@@ -745,7 +830,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     color: var(--muted);
     user-select: none;
 }
-/* item 74: wrap long lines instead of overflowing the pane (was white-space: pre). */
+/*
+  item 74: wrap long lines instead of overflowing the pane (was white-space: pre).
+*/
 .dc-body { padding-left: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dc-ln.dc-right { border-left: 1px solid var(--border); }
 .dc-del { background: var(--del-bg); }
@@ -757,12 +844,16 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     background: var(--hunk-bg);
     color: var(--accent);
     padding-left: 8px;
-    /* item 74: wrap long hunk headers too (was white-space: pre). */
+    /*
+      item 74: wrap long hunk headers too (was white-space: pre).
+    */
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
-/* ─── Console row + collapse bar ──────────────────────────────── */
+/*
+  ─── Console row + collapse bar ────────────────────────────────
+*/
 #console-row {
     flex: 0 0 261px; /* 15 rows × 15px xterm default + ~28px header/padding, +7px so the last row's descenders (p q j g y) aren't clipped */
     min-height: 60px;
@@ -785,7 +876,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     letter-spacing: 0.08em;
 }
 #console-header .toolbar-btn { font-size: 10px; padding: 1px 7px; text-transform: none; letter-spacing: normal; }
-/* the persistent xterm mount — a STATIC skeleton element renderRoute never wipes */
+/*
+  the persistent xterm mount — a STATIC skeleton element renderRoute never wipes
+*/
 .progress-console {
     flex: 1 1 auto;
     min-height: 0;
@@ -812,7 +905,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 #rightcol.console-collapsed #split-dc { display: none; }
 #rightcol.console-collapsed #console-bar { display: flex; }
 
-/* ─── Shared bits ─────────────────────────────────────────────── */
+/*
+  ─── Shared bits ───────────────────────────────────────────────
+*/
 .hidden { display: none; }
 .muted { color: var(--muted); font-size: 11px; }
 .error-box {
@@ -820,7 +915,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     padding: 8px 12px; margin: 12px 0; white-space: pre-wrap; font-family: var(--mono);
 }
 
-/* ─── Projects list (#/) ──────────────────────────────────────── */
+/*
+  ─── Projects list (#/) ────────────────────────────────────────
+*/
 .project-row {
     display: flex; gap: 10px; align-items: baseline;
     padding: 4px 8px; border-left: 3px solid transparent; cursor: pointer;
@@ -828,16 +925,21 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .project-row:hover { background: var(--control); border-left-color: var(--accent); }
 .project-count { color: var(--muted); font-size: 11px; }
 
-/* ─── Project view: two panes (legacy summary view) ───────────── */
+/*
+  ─── Project view: two panes (legacy summary view) ─────────────
+*/
 .two-pane { display: flex; gap: 16px; align-items: flex-start; }
 .two-pane > div { flex: 1; min-width: 0; }
 .tree-dir { color: var(--muted); font-size: 11px; margin-top: 8px; word-break: break-all; }
-/* (item 77) GONE: .tree-file / .tree-file:hover were referenced by no TS — renderProjectDrawer
-   renders its leaves as `.drawer-item .drawer-file`. Preserved in webapp/archive/styles-pre-item66.css. */
+/*
+  (item 77) GONE: .tree-file / .tree-file:hover were referenced by no TS — renderProjectDrawer renders its leaves as `.drawer-item .drawer-file`. Preserved in webapp/archive/styles-pre-item66.css.
+*/
 .jsonl-row { display: flex; gap: 10px; align-items: baseline; padding: 2px 8px; cursor: pointer; }
 .jsonl-row:hover { background: var(--control); }
 
-/* ─── Consent dialog ──────────────────────────────────────────── */
+/*
+  ─── Consent dialog ────────────────────────────────────────────
+*/
 .consent-box { border: 1px solid var(--orange); border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
 .consent-box h2 { color: var(--orange); font-size: 13px; margin-bottom: 8px; }
 .consent-script { margin: 8px 0; }
@@ -846,16 +948,18 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 200px; overflow-y: auto;
 }
 .consent-script pre.expanded { max-height: none; }
-/* Inline-interpreter body span (splitInlineInterpreterCode): blend the highlighted <span>
-   into its parent <pre> instead of rendering the hljs theme's own block box. */
+/*
+  Inline-interpreter body span (splitInlineInterpreterCode): blend the highlighted <span> into its parent <pre> instead of rendering the hljs theme's own block box.
+*/
 .consent-script pre .hljs { background: transparent; padding: 0; display: inline; }
 .consent-script button { margin-top: 4px; }
 .consent-readonly-block summary { cursor: pointer; margin: 8px 0; }
 /* item 73: was — the decision buttons rendered in a bottom row; they moved into the header:
 .consent-actions { display: flex; gap: 10px; margin-top: 10px; } */
 .consent-run { border-color: var(--orange); color: var(--orange); }
-/* item 73: sticky consent header — the message, decision buttons, and script navigation stay
-   visible while the previews scroll. Negative margins span the box's 12px/16px padding. */
+/*
+  item 73: sticky consent header — the message, decision buttons, and script navigation stay visible while the previews scroll. Negative margins span the box's 12px/16px padding.
+*/
 .consent-header {
     position: sticky;
     top: 0;
@@ -866,13 +970,19 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     border-bottom: 1px solid var(--border);
 }
 .consent-header-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-/* The gap in the item-73 header design: decision buttons left, navigation cluster right. */
+/*
+  The gap in the item-73 header design: decision buttons left, navigation cluster right.
+*/
 .consent-jump-top { margin-left: auto; }
 .consent-nav-counter { font-size: 11px; }
-/* item 73: selection rectangle on the script row Prev/Next navigated to. */
+/*
+  item 73: selection rectangle on the script row Prev/Next navigated to.
+*/
 .consent-script.consent-selected { outline: 2px solid var(--orange); outline-offset: 2px; }
 
-/* ─── Conversation view (details-pane sub-route) ──────────────── */
+/*
+  ─── Conversation view (details-pane sub-route) ────────────────
+*/
 .branch-strip { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
 .branch-chip {
     font-size: 11px; padding: 1px 8px; border-radius: 10px;
@@ -895,12 +1005,14 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 }
 .stub-row:hover { background: var(--control); color: var(--text); }
 .edit-marker { color: var(--orange); font-size: 11px; padding: 0 8px; }
-/* item 38: outline-offset -2px draws the ring inside the element's own box — a plain outline
-   paints outside it and gets its left edge clipped by scroll containers with no left padding
-   (.inspector-content). */
+/*
+  item 38: outline-offset -2px draws the ring inside the element's own box — a plain outline paints outside it and gets its left edge clipped by scroll containers with no left padding (.inspector-content).
+*/
 .anchored { outline: 2px solid var(--anchor); outline-offset: -2px; }
 
-/* ─── File history view (details-pane sub-route) ──────────────── */
+/*
+  ─── File history view (details-pane sub-route) ────────────────
+*/
 .revision-row { border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; padding: 8px 12px; font-family: var(--mono); font-size: 12px; }
 .revision-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .revision-kind {
@@ -916,7 +1028,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
    var(--code-bg) stays the single background authority */
 .hljs { background: transparent; }
 
-/* ─── Raw lines / legacy diff views (details-pane sub-routes) ─── */
+/*
+  ─── Raw lines / legacy diff views (details-pane sub-routes) ───
+*/
 .filter-bar { display: flex; gap: 10px; align-items: center; margin: 8px 0; font-size: 12px; }
 .filter-bar select, .filter-bar input {
     background: var(--control); color: var(--text); border: 1px solid var(--border-strong);
@@ -930,7 +1044,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .diff-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .diff-line-add { color: var(--green); }
 .diff-line-del { color: var(--red); }
-/* Item 36c: hunk headers show their "@@ -a,b +c,d @@" text, muted, spanning the full row. */
+/*
+  Item 36c: hunk headers show their "@@ -a,b +c,d @@" text, muted, spanning the full row.
+*/
 .diff-line-hunk { color: var(--muted); margin: 4px 0 2px; }
 .diff-split { display: grid; grid-template-columns: max-content 1fr max-content 1fr; column-gap: 8px; font-size: 12px; }
 .diff-split > div { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -942,20 +1058,25 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .diff-inline .diff-line-num { color: var(--muted); text-align: right; user-select: none; }
 .diff-view-toggle { margin-bottom: 4px; }
 
-/* ─── Transcript inspector internals (inspector.ts) ───────────── */
+/*
+  ─── Transcript inspector internals (inspector.ts) ─────────────
+*/
 .details-pane h2 { color: var(--accent); font-size: 12px; margin-bottom: 6px; font-family: var(--mono); }
 .inspector-content { flex: 1; min-width: 0; overflow-y: auto; padding: 0 8px; }
-/* task 147: sticky inside #details-right-body so Prev/Next stay visible while the JSON
-   scrolls. Opaque --bg (the .details-pane background) hides text passing under; the old
-   margin-bottom gap becomes padding so scrolled text can't peek through it. */
+/*
+  task 147: sticky inside #details-right-body so Prev/Next stay visible while the JSON scrolls. Opaque --bg (the .details-pane background) hides text passing under; the old margin-bottom gap becomes padding so scrolled text can't peek through it.
+*/
 .inspector-nav { display: flex; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 1; background: var(--bg); padding-bottom: 6px; }
 .jump-link { text-decoration: underline dotted; cursor: pointer; }
-/* Item 10h: the history jump button sits inside the JSON <pre>; give it button typography.
-   task 132: inline-block so it sits on the same line as the backupFileName path. */
+/*
+  Item 10h: the history jump button sits inside the JSON <pre>; give it button typography.  task 132: inline-block so it sits on the same line as the backupFileName path.
+*/
 .snapshot-history-btn { display: inline-block; margin: 0 0 0 8px; font-family: system-ui, sans-serif; }
 .inspector-json { white-space: pre-wrap; word-break: break-word; overflow-x: auto; font-size: 12px; line-height: 1.5; }
 .inspector-text { white-space: pre-wrap; word-break: break-word; overflow-x: auto; font-size: 12px; line-height: 1.5; }
-/* Long string values collapse to their first 7 wrapped lines behind a […] toggle. */
+/*
+  Long string values collapse to their first 7 wrapped lines behind a […] toggle.
+*/
 .json-collapsed {
     display: -webkit-box; -webkit-box-orient: vertical;
     -webkit-line-clamp: 7; line-clamp: 7; overflow: hidden;
@@ -966,18 +1087,23 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .json-number { color: var(--orange); }
 .json-null, .json-bool { color: var(--red); }
 .inspector-close { align-self: center; }
-/* Drawer content wraps instead of scrolling horizontally. */
+/*
+  Drawer content wraps instead of scrolling horizontally.
+*/
 .details-pane.file-preview-drawer .timeline-preview {
     white-space: pre-wrap; overflow-wrap: anywhere; max-height: none;
 }
-/* Snapshot drawer (TASKS item 23): the pane splits — JSON above, the raised blob content
-   below, each scrolling on its own (item 10g: the content column must BE a flex column). */
+/*
+  Snapshot drawer (TASKS item 23): the pane splits — JSON above, the raised blob content below, each scrolling on its own (item 10g: the content column must BE a flex column).
+*/
 .details-pane.snapshot-drawer .inspector-content { display: flex; flex-direction: column; }
 .details-pane.snapshot-drawer .inspector-json { max-height: 50%; overflow-y: auto; flex: 0 1 auto; }
 .snapshot-pane { border-top: 1px solid var(--border); overflow-y: auto; flex: 1 1 0; min-height: 0; }
 .snapshot-pane .snapshot-pane-header { display: flex; gap: 8px; align-items: center; }
 
-/* ─── Timeline file chips + preview (kept render helpers) ─────── */
+/*
+  ─── Timeline file chips + preview (kept render helpers) ───────
+*/
 .timeline-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .timeline-chip-row { display: flex; gap: 6px; align-items: center; }
 .timeline-chip-action { padding: 2px 8px; font-family: var(--mono); }
@@ -986,7 +1112,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px;
     padding: 2px 8px 2px 3px; cursor: pointer; font-family: var(--mono);
 }
-/* the chip whose file the preview drawer is showing */
+/*
+  the chip whose file the preview drawer is showing
+*/
 .timeline-chip.active {
     border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent);
     background: var(--badge-accent-bg);
@@ -1012,22 +1140,23 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     color: var(--muted); font-size: 11px;
 }
 
-/* Item 78: build-progress overlay for large timelines.
-   task 164: absolute inside #timeline-pane (position: relative above) — only the timeline is
-   blocked; the console, inspector, and header stay usable while a project loads. */
+/*
+  Item 78: build-progress overlay for large timelines.  task 164: absolute inside #timeline-pane (position: relative above) — only the timeline is blocked; the console, inspector, and header stay usable while a project loads.
+*/
 .timeline-progress-overlay {
     position: absolute;
     inset: 0;
     z-index: 50;
-    /* The backdrop passes clicks through to the pane; the box below re-enables pointer events
-       so its Cancel/confirm buttons stay clickable (task 164). */
+    /*
+      The backdrop passes clicks through to the pane; the box below re-enables pointer events so its Cancel/confirm buttons stay clickable (task 164).
+    */
     pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Translucent backdrop: #view is empty during both the reconstruction stream and the
-       row build (renderRoute clears it; the timeline is built in a detached fragment), so the
-       half-built timeline never shows. */
+    /*
+      Translucent backdrop: #view is empty during both the reconstruction stream and the row build (renderRoute clears it; the timeline is built in a detached fragment), so the half-built timeline never shows.
+    */
     background: color-mix(in srgb, var(--bg) 70%, transparent);
 }
 .timeline-progress-box {
@@ -1044,7 +1173,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     font: 13px var(--ui);
     pointer-events: auto;   /* task 164: the Cancel/confirm buttons live here */
 }
-/* task 164: the box's cancel affordance and its in-DOM confirm row. */
+/*
+  task 164: the box's cancel affordance and its in-DOM confirm row.
+*/
 .timeline-progress-cancel { align-self: flex-end; }
 .timeline-progress-confirm {
     display: flex;
@@ -1052,7 +1183,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     align-items: center;
     justify-content: flex-end;
 }
-/* Long stage labels (e.g. "reconstructing /very/long/path.py") ellipsize instead of widening the box. */
+/*
+  Long stage labels (e.g. "reconstructing /very/long/path.py") ellipsize instead of widening the box.
+*/
 .timeline-progress-label {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1071,7 +1204,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     background: var(--accent);
     transition: width 0.1s linear;
 }
-/* item 82: header row (phase name · phase N of M  +  ticking elapsed clock) above the two bars. */
+/*
+  item 82: header row (phase name · phase N of M  +  ticking elapsed clock) above the two bars.
+*/
 .timeline-progress-header {
     display: flex;
     justify-content: space-between;
@@ -1086,8 +1221,9 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
 .timeline-progress-elapsed {
     font-variant-numeric: tabular-nums;
 }
-/* Indeterminate stage bar: a faint base fill plus a sliding gradient so a countless/blocking stage
-   (the 67 MB serialize/parse) visibly moves instead of freezing (item 82). */
+/*
+  Indeterminate stage bar: a faint base fill plus a sliding gradient so a countless/blocking stage (the 67 MB serialize/parse) visibly moves instead of freezing (item 82).
+*/
 .timeline-progress-track.indeterminate .timeline-progress-fill {
     width: 100% !important;
     opacity: 0.16;
@@ -1105,20 +1241,28 @@ button:hover { background: var(--sel-hover); border-color: var(--accent); }
     100% { transform: translateX(330%); }
 }
 
-/* Timeline event-type filter (task 114) */
+/*
+  Timeline event-type filter (task 114)
+*/
 #timeline-filter-bar { margin: 4px 8px 0; }
-/* task 127: the keyword search box — two ~9-letter words + the 🔍 emoji wide */
+/*
+  task 127: the keyword search box — two ~9-letter words + the 🔍 emoji wide
+*/
 .timeline-search { width: 20ch; }
-/* task 127: the explicit ✕ clear buttons (Fork-style, shown once a term is entered); the
-   native webkit cancel ✕ is hidden so the inputs don't show two */
+/*
+  task 127: the explicit ✕ clear buttons (Fork-style, shown once a term is entered); the native webkit cancel ✕ is hidden so the inputs don't show two
+*/
 input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .search-clear, .search-step { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; }
 .search-clear:hover, .search-step:hover { color: var(--text); }
 .search-step { font-size: 9px; }
-/* task 127: the timeline search's n/N counter — current result / results found (shown only
-   while a term is entered) */
+/*
+  task 127: the timeline search's n/N counter — current result / results found (shown only while a term is entered)
+*/
 .search-count { color: var(--muted); font-size: 11px; }
-/* task 127: the row the search is currently landed on (▲/▼ walk this marker) */
+/*
+  task 127: the row the search is currently landed on (▲/▼ walk this marker)
+*/
 .tl-row.tl-search-current { outline: 1px solid #c9a227; outline-offset: -1px; }
 #details-find button.search-clear { background: none; border: none; padding: 0 2px; }
 #timeline-filter-bar .toolbar-btn.active,
@@ -1129,19 +1273,23 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 }
 .tl-row.tl-filtered-out { display: none; }
 
-/* ─── Partial reconstruction (task 119): banner, gap rows, missing rev-cards, coverage strips ── */
+/*
+  ─── Partial reconstruction (task 119): banner, gap rows, missing rev-cards, coverage strips ──
+*/
 .recon-banner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--error-bg); border-bottom: 1px solid var(--border); font-size: 12.5px; }
 .recon-banner .warn { color: var(--orange); font-weight: 600; }
 .tl-gap-row { background: var(--error-bg); border-top: 1px dashed var(--red); border-bottom: 1px dashed var(--red); color: var(--red); font-size: 12px; padding: 3px 8px 3px 38px; /* clears the 30px graph gutter */ }
 .rev-card.missing { border-style: dashed; border-color: var(--red); background: transparent; opacity: 0.75; }
 .rev-card.missing .rev-head { color: var(--red); }
 .rev-card.missing .why { color: var(--muted); font-size: 10.5px; margin-top: 4px; max-width: 130px; }
-/* Declared after .rev-card.missing so a clicked placeholder still shows the selection accent
-   (equal specificity — source order decides; keeps the dashed missing style). */
+/*
+  Declared after .rev-card.missing so a clicked placeholder still shows the selection accent (equal specificity — source order decides; keeps the dashed missing style).
+*/
 .rev-card.missing.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--panel)); opacity: 1; }
 .covbar { display: flex; gap: 2px; }
 .covbar span { flex: 1; min-width: 3px; max-width: 26px; height: 12px; border-radius: 2px; background: var(--green); opacity: 0.85; }
 .covbar span.miss { background: var(--red); cursor: pointer; }
-/* In flow right under its file row, not absolute: the sidebar has no positioned ancestor, and
-   .popover's own top/right would otherwise anchor it to the viewport. */
+/*
+  In flow right under its file row, not absolute: the sidebar has no positioned ancestor, and .popover's own top/right would otherwise anchor it to the viewport.
+*/
 .cov-popover { position: static; max-width: 330px; margin: 4px 12px 8px 18px; padding: 10px 12px; font-size: 12px; white-space: normal; }

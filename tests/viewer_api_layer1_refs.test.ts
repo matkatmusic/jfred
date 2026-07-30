@@ -9,7 +9,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { handleLayer1RefsRequest, LAYER1_REF_COMMIT_LIMIT, type Layer1RefsView } from "../src/viewer_api_layer1_refs.ts";
+import { handleLayer1RefsRequest, LAYER1_REF_COMMIT_LIMIT } from "../src/viewer_api_layer1_refs.ts";
+import type { Layer1RefsView } from "../webapp/layer1-wire.ts";
 
 const FIRST_COMMIT_INSTANT = "2026-07-01T10:00:00Z";
 const SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";

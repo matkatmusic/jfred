@@ -3,7 +3,8 @@
 // The unload prompt is the browser's own; a page cannot word it, which is why "discard" is the reader leaving anyway rather than a third button of ours.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
+import { SourceKind } from "./layer1-wire.ts";
 
 // One saved project. `dir` is also the key it is stored under, so saving project A never disturbs project B.
 interface Layer1ProjectSettings {

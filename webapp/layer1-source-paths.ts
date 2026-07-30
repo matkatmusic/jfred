@@ -3,13 +3,7 @@
 // A project folder IMPLIES where its transcripts and snapshots normally live, and that derived folder is what a first-time list holds. `touched` is what stops a re-derive from throwing away a list the user has since edited (plans/layer1-mockup.html:1495-1512).
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-
-// Re-spelled here rather than imported from src/structures/vocabulary.ts's SourceKind: webapp/ cannot import from src/, the same constraint TIME_SOURCE_VALUES in layer1-sources.ts already lives under — and, like that one, it is a const object rather than a TS `enum` because webapp/ modules are also loaded by node's type-stripping test runner, which rejects `enum`. The VALUES are the wire's, so `kind=` on /api/scan-source needs no translation table.
-export const SourceKind = {
-    jsonl: "jsonl",
-    fileHistory: "filehistory",
-} as const;
-export type SourceKind = (typeof SourceKind)[keyof typeof SourceKind];
+import { SourceKind } from "./layer1-wire.ts";
 
 // The button each list reports its count on, and the URL param each list travels as.
 const BUTTON_ID_BY_KIND: Record<SourceKind, string> = {
