@@ -69,7 +69,7 @@ test("test_filtering_matches_a_target_exactly_and_not_by_prefix", () => {
 });
 
 test("test_the_filtered_ruler_holds_only_the_surviving_instants", () => {
-    // The ruler is recomputed over the filtered set, so an instant no surviving record sits at must leave it entirely.
+    // The ruler is recomputed over the filtered set; instants with no surviving record leave it.
     const filtered = filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS);
     assert.deepEqual(filtered.ruler.map((tick) => tick.instant), [T0, T1, T2, T3, T5, T6]);
 });
@@ -108,9 +108,18 @@ test("test_two_nodes_of_one_pair_at_the_same_instant_still_take_different_rows",
 
 test("test_an_empty_selection_restores_every_record_at_its_original_offset", () => {
     // Task 253: clearing the filter takes the SAME re-layout, so it must land on the endpoint's offsets.
-    const restored = filterLayer1ViewByTargets(FULL_VIEW, []);
+    const restored = filterLayer1ViewByTargets(FULL_VIEW, undefined);
     // every record comes back at the offsets the fixture arrived with.
     assert.deepEqual(restored, FULL_VIEW);
+});
+
+test("test_a_filter_that_matches_nothing_draws_zero_files", () => {
+    // Task 326: two active pickers with no overlap must EMPTY the stage, never show everything.
+    const filtered = filterLayer1ViewByTargets(FULL_VIEW, []);
+    assert.equal(filtered.pairs.length, 0);
+    assert.equal(filtered.gitOrphans.length, 0);
+    assert.equal(filtered.diskOrphans.length, 0);
+    assert.equal(filtered.ruler.length, 0);
 });
 
 test("test_the_relayout_does_not_mutate_the_view_it_is_given", () => {
@@ -122,15 +131,12 @@ test("test_the_relayout_does_not_mutate_the_view_it_is_given", () => {
 });
 
 test("test_two_pickers_intersect_and_an_empty_one_does_not_filter", async () => {
-    // Scenario (task 292): the File Nav's folders and the JSONLs pane are two independent filters
-    // over one file list, and the mockup's rule is `inSelection && touchedBySelection`. An EMPTY
-    // list means that picker is not filtering — reading it as "select nothing" would blank the
-    // stage the moment either picker was left alone.
-    // Imported here rather than at the top: layer1-page.ts boots at module scope, so a top-level
-    // import would wire the whole page for a test about one pure function.
+    // Tasks 292+326: an idle picker never filters; dynamic import because layer1-page.ts boots at module scope.
     setupLayer1Dom();
     const { intersectFilterTargets } = await import("../webapp/layer1-page.ts");
-    // Steps: one picker idle, the other holding a selection.
+    // Steps: both pickers idle means no filter at all, spelled undefined.
+    assert.equal(intersectFilterTargets([], []), undefined);
+    // one picker idle, the other holding a selection.
     assert.deepEqual(intersectFilterTargets([], ["a.ts", "b.ts"]), ["a.ts", "b.ts"]);
     assert.deepEqual(intersectFilterTargets(["a.ts"], []), ["a.ts"]);
     // both holding one: only what they agree on survives.

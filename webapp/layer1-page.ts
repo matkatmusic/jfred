@@ -83,8 +83,11 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     drawLayer1Minimap();
 }
 
-// A file is drawn only when both pickers admit it; an empty list means that picker isn't filtering.
-export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] {
+// Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.
+export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] | undefined {
+    if (folders.length === 0 && sessions.length === 0) {
+        return undefined;
+    }
     if (folders.length === 0) {
         return [...sessions];
     }

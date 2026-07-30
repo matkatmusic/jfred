@@ -70,6 +70,14 @@ test("test_layer1_diff_endpoint_answers_empty_for_identical_sides", () => {
     assert.equal(diff, "");
 });
 
+// User bug 2026-07-29: full content on an identical pair showed nothing; it must show the whole file.
+test("test_layer1_diff_endpoint_answers_the_whole_file_as_context_for_identical_sides_at_context_full", () => {
+    const { diff } = requestLayer1Diff({ repo: repoDir, path: FIXTURE_FILE, baseHash: firstHash, targetHash: firstHash, context: "full" });
+    const lines = diff.split("\n");
+    assert.equal(lines[0], "@@ -1,2 +1,2 @@", diff);
+    assert.deepEqual(lines.slice(1), [" shared line", " first only"], diff);
+});
+
 // Task 320: a far-away line only appears as context when the full-context toggle widens the diff.
 test("test_layer1_diff_endpoint_widens_context_to_the_whole_file_on_context_full", () => {
     const farLine = "far line 1";

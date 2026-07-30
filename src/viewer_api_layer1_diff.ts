@@ -16,11 +16,20 @@ function splitContentLines(bytes: Buffer): string[] {
     return lines;
 }
 
-// Answers { diff }; empty when identical, failures 400 via the server's catch.
+// Identical sides emit no git hunk, so full context synthesizes one: the whole file as context lines.
+function buildAllContextHunk(lines: string[]): string {
+    if (lines.length === 0) {
+        return "";
+    }
+    return [`@@ -1,${lines.length} +1,${lines.length} @@`, ...lines.map((line) => ` ${line}`)].join("\n");
+}
+
+// Answers { diff }; empty when identical (unless context=full), failures 400 via the server's catch.
 export function handleLayer1DiffRequest(response: ServerResponse, query: URLSearchParams): void {
     const baseLines = splitContentLines(readLayer1FileBytes(query, "baseHash"));
     const targetLines = splitContentLines(readLayer1FileBytes(query, "targetHash"));
     // Task 320: the drawer's full-content toggle widens the diff to the whole file.
-    const contextLines = query.get("context") === "full" ? FULL_FILE_CONTEXT_LINES : undefined;
-    sendJson(response, 200, { diff: runGitUnifiedDiff(baseLines, targetLines, contextLines) });
+    const wantsFullContext = query.get("context") === "full";
+    const diff = runGitUnifiedDiff(baseLines, targetLines, wantsFullContext ? FULL_FILE_CONTEXT_LINES : undefined);
+    sendJson(response, 200, { diff: diff === "" && wantsFullContext ? buildAllContextHunk(targetLines) : diff });
 }

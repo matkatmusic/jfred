@@ -84,9 +84,9 @@ export function relayOutLayer1View(view: WireLayer1View, expansion?: RulerExpans
     };
 }
 
-// Task 278: `targets` holds LEAF paths (empty = no filter); matching is exact, never prefix.
-export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[], expansion?: RulerExpansion): WireLayer1View {
-    if (targets.length === 0) {
+// Tasks 278+326: exact LEAF-path matching; undefined = no filter, an empty list draws an empty stage.
+export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[] | undefined, expansion?: RulerExpansion): WireLayer1View {
+    if (targets === undefined) {
         return relayOutLayer1View(view, expansion);
     }
     const selected = new Set(targets);
