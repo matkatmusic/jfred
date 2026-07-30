@@ -18,17 +18,19 @@ test("test_fixture_data_module_imports_without_throwing", () => {
 test("test_fixture_view_axis_offsets_accumulate", () => {
     // Scenario: every axisPx comes from ONE layOutNodeLadders call, so offsets must only ever rise.
     const view = buildFixtureLayer1View();
+    const assertAscends = (path: unknown, label: string, run: number[]): void => {
+        for (let node = 1; node < run.length; node += 1) {
+            assert.ok(run[node]! >= run[node - 1]!, `${path} ${label} node ${node} descends`);
+        }
+    };
     for (const pair of view.pairs) {
-        // A pair's node ladder is created?, commits (oldest first), on-disk, snapshots — axisPx ascends down it.
-        const ladder = [
+        // Snapshots are APPENDED, never interleaved (listPairNodeLadder), so each run ascends separately.
+        assertAscends(pair.path, "prefix", [
             ...(pair.created === undefined ? [] : [pair.created.axisPx]),
             ...pair.commits.map((commit) => commit.axisPx),
             pair.onDisk.axisPx,
-            ...(pair.snapshots ?? []).map((snapshot) => snapshot.axisPx),
-        ];
-        for (let node = 1; node < ladder.length; node += 1) {
-            assert.ok(ladder[node]! >= ladder[node - 1]!, `${pair.path} node ${node} descends`);
-        }
+        ]);
+        assertAscends(pair.path, "snapshots", (pair.snapshots ?? []).map((snapshot) => snapshot.axisPx));
     }
     // Each ruler tick sits at or below the next: the shared axis is monotonic across every bubble.
     for (let tick = 1; tick < view.ruler.length; tick += 1) {

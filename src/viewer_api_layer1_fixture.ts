@@ -45,7 +45,8 @@ function buildFixtureSessions(): WireSession[] {
         title: session.titles[0]?.title ?? "",
         started: new Date(ms(session.started)).toISOString(),
         ended: new Date(ms(session.ended)).toISOString(),
-        paths: session.paths,
+        // Real transcripts record ABSOLUTE paths; the pane relativizes against the project folder.
+        paths: session.paths.map((path) => `${FIXTURE_DIR}/${path}`),
     })).sort((left, right) => left.started.localeCompare(right.started));
 }
 

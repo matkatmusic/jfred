@@ -5,8 +5,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
 const DISK_FILE_PATH = "src/demo.ts";
@@ -176,6 +178,29 @@ function buildLaneStage(withMiddle: boolean): { commitNode: HTMLElement; middleN
     return { commitNode, middleNode, diskNode };
 }
 
+const LANE_T0 = "2026-07-01T10:00:00.000Z";
+const LANE_T1 = "2026-07-01T11:00:00.000Z";
+const LANE_T2 = "2026-07-01T12:00:00.000Z";
+
+// Task 329: the shift-click gesture reads instants off the DRAWN view, so tests arm the memo the page keeps.
+function armLaneView(withMiddle: boolean): void {
+    const middleTicks = withMiddle ? [{ instant: LANE_T1, axisPx: 25, eventCount: 1 }] : [];
+    rememberDrawnView({
+        pairs: [{
+            path: DISK_FILE_PATH,
+            commits: [
+                { hash: LANE_HASH, instant: LANE_T0, axisPx: 10 },
+                ...(withMiddle ? [{ hash: MIDDLE_HASH, instant: LANE_T1, axisPx: 25 }] : []),
+            ],
+            onDisk: { instant: LANE_T2, axisPx: 40 },
+        }],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, ...middleTicks, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
+}
+
 test("shift-clicking a second node diffs the two sides' STRINGS, older side as base", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
@@ -183,6 +208,7 @@ test("shift-clicking a second node diffs the two sides' STRINGS, older side as b
     getInputById("dir").value = "/project";
     getInputById("repo").value = "/repo";
     const { commitNode, diskNode } = buildLaneStage(false);
+    armLaneView(false);
     wireNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -192,19 +218,19 @@ test("shift-clicking a second node diffs the two sides' STRINGS, older side as b
 
     const posted = JSON.parse(asks.filter((ask) => ask.url.includes("layer1-diff-content")).at(-1)!.body!) as
         { base: string; target: string; context?: string };
-    // The commit sits earlier on the axis, so its string is the base; no context until toggled.
+    // The commit's instant is earlier, so its string is the base; no context until toggled.
     assert.deepEqual(posted, { base: COMMIT_CONTENT, target: DISK_FILE_CONTENT });
     assert.ok(commitNode.classList.contains("diff-base"));
     assert.ok(diskNode.classList.contains("diff-target"));
-    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts");
+    // Task 329: the pair is a RANGE now — the header says so and the wash spans it.
+    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — range diff");
+    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
     assert.equal(firstPane().querySelector(".dpair")?.textContent, "a1b2c3d4 - on disk");
-    // The pair pane defaults side-by-side and shows its revision controls.
-    assert.ok(firstPane().querySelector(".diff-cols"));
     assert.ok(paneArrows().every((arrow) => !arrow.hidden));
     assert.equal(getRequiredElementById("dprev").hidden, true);
 });
 
-test("a shift-click spanning two bubbles is refused with a visible toast, never diffed", async () => {
+test("task 329: a shift-click spanning two bubbles becomes a global range diffing both files", async () => {
     setupLayer1Dom();
     stubAnimationFrame();
     const asks = stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
@@ -221,6 +247,16 @@ test("a shift-click spanning two bubbles is refused with a visible toast, never 
             el("div", { class: "lane" }, [otherNode]),
         ]),
     );
+    rememberDrawnView({
+        pairs: [
+            { path: DISK_FILE_PATH, commits: [], onDisk: { instant: LANE_T0, axisPx: 10 } },
+            { path: "src/other.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 } },
+        ],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
     wireNodeDrawer();
 
     firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -229,10 +265,12 @@ test("a shift-click spanning two bubbles is refused with a visible toast, never 
     otherNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
     await settlePendingFetches();
 
-    assert.equal(asks.filter((ask) => ask.url.includes("layer1-diff-content")).length, diffsBefore);
-    const toast = getRequiredElementById("dtoast");
-    assert.equal(toast.hidden, false);
-    assert.ok(toast.textContent?.includes("ONE bubble"), toast.textContent ?? "");
+    // One section per file, each posting its own diff; no refusal toast anywhere.
+    assert.equal(asks.filter((ask) => ask.url.includes("layer1-diff-content")).length, diffsBefore + 2);
+    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
+    assert.equal(getRequiredElementById("dpath").textContent, "2 files — range diff");
+    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
+    assert.equal(getRequiredElementById("dtoast").hidden, true);
 });
 
 const SNAPSHOT_SESSION_FILE = "/Users/me/.claude/projects/-demo/b21d84c5.jsonl";
@@ -308,6 +346,7 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     getInputById("dir").value = "/project";
     getInputById("repo").value = "/repo";
     const { commitNode, middleNode, diskNode } = buildLaneStage(true);
+    armLaneView(true);
     wireNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -317,8 +356,10 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     paneArrows()[1]!.click();
     await settlePendingFetches();
 
-    assert.ok(middleNode.classList.contains("diff-base"));
-    assert.equal(commitNode.classList.contains("diff-base"), false);
+    // Task 329: rings mark the WASH boundary nodes, so an arrow step moves the pane, never the rings.
+    assert.equal(firstPane().querySelector(".dpair")?.textContent, "b2c3d4e5 - on disk");
+    assert.ok(commitNode.classList.contains("diff-base"));
+    assert.equal(middleNode.classList.contains("diff-base"), false);
     assert.ok(diskNode.classList.contains("diff-target"));
     // Differing sides ARE a diff, so the mode/full/export tools row is visible.
     assert.equal(firstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "");

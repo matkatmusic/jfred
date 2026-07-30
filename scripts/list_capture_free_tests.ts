@@ -1,5 +1,5 @@
 // Lists tests runnable without gitignored scenario captures; `npm run test:ci` uses this.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,7 +21,8 @@ function listRelativeImportPaths(sourceFilePath: string): string[] {
     const importedPaths: string[] = [];
     for (const importMatch of importMatches) {
         const resolvedPath = resolve(dirname(sourceFilePath), importMatch[1]!);
-        if (existsSync(resolvedPath)) {
+        // Files only: canned code STRINGS can match the regex (fixture content's `from "./parse"` names a real folder).
+        if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) {
             importedPaths.push(resolvedPath);
         }
     }
