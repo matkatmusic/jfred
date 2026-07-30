@@ -75,7 +75,9 @@ export const GEOMETRY_PROBE = `(() => {
         };
     };
     const collect = (selector, group) =>
-        [...document.querySelectorAll(selector)].map((element) => describe(element, group));
+        [...document.querySelectorAll(selector)]
+            .filter((element) => element.getClientRects().length > 0)
+            .map((element) => describe(element, group));
     const scroller = document.getElementById('timelines');
     const root = document.querySelector('.viz-root');
     return {

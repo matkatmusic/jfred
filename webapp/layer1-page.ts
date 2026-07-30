@@ -7,6 +7,7 @@ import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resiz
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
@@ -83,8 +84,11 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     drawLayer1Minimap();
 }
 
-// A file is drawn only when both pickers admit it; an empty list means that picker isn't filtering.
-export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] {
+// Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.
+export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] | undefined {
+    if (folders.length === 0 && sessions.length === 0) {
+        return undefined;
+    }
     if (folders.length === 0) {
         return [...sessions];
     }
@@ -97,20 +101,36 @@ export function intersectFilterTargets(folders: readonly string[], sessions: rea
 
 // Module state because the nav's redraw would wipe a selection the session pane still re-applies.
 let folderTargets: string[] = [];
+// Task 326: the folder selection filters the stage only while this toggle is on.
+let onlySelectedIsOn = false;
 
 // Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
 export function renderLayer1View(view: WireLayer1View): Promise<void> {
     // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
     const redrawStage = (): void => void renderLayer1Stage(filterLayer1ViewByTargets(
-        view, intersectFilterTargets(folderTargets, listSessionFilterTargets()), readRulerExpansion(),
+        view, intersectFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
     ));
     const redrawFiltered = (): void => {
         closeRulerExpansion();
         redrawStage();
     };
     onExpansionRelayout(redrawStage);
+    // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
+    const onlySelectedButton = getRequiredElementById("filenav-only-selected");
+    // A re-render builds a fresh button, so its class is derived from the surviving module state.
+    onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
+    onlySelectedButton.onclick = () => {
+        onlySelectedIsOn = !onlySelectedIsOn;
+        onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
+        redrawFiltered();
+    };
     renderLayer1FileNav(view, (targets) => {
         folderTargets = targets;
+        // Growing a multi-selection means "show only these", so arm the toggle; its click redraws.
+        if (!onlySelectedIsOn && document.querySelectorAll("#filenav-tree .selected").length > 1) {
+            onlySelectedButton.click();
+            return;
+        }
         redrawFiltered();
     });
     const stageDrawn = renderLayer1Stage(view);
@@ -143,6 +163,9 @@ export async function loadLayer1View(): Promise<void> {
     getRequiredElementById("stage").replaceChildren();
     getRequiredElementById("filenav-tree").replaceChildren();
     folderTargets = [];
+    // Task 326: a fresh project must never start silently filtered.
+    onlySelectedIsOn = false;
+    getRequiredElementById("filenav-only-selected").classList.remove("current");
     closeRulerExpansion();
     resetSessionSelection();
     showLayer1Progress("starting");
@@ -185,6 +208,7 @@ export async function bootLayer1Page(): Promise<void> {
     void confirmRepoAndFillRefs();
     wireLayer1CancelButton();
     wireZoomControls();
+    wireLayerToggle();
     wireFileNavResize();
     wireBucketJumpButtons();
     wireFindFileBox();

@@ -1,6 +1,13 @@
 // The Layer 1 page's three header source boxes (?dir=&repo=&ref=) and their folder pickers. Split out of layer1-page.ts, which sat exactly at the ~250-line ceiling its neighbours hold while several more Layer 1 features still had to wire into its boot (tasks 246, 256, 260, 261) — the same reason layer1-progress.ts and layer1-zoom.ts were split out before it. Nothing here draws: this module only reads, seeds and picks into the boxes.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { readSourcePaths, SourceKind, writeSourcePaths } from "./layer1-source-paths.ts";
+
+// Task 312: both source lists travel as repeated params, keeping a Layer 2 view one shareable link.
+const LIST_PARAM_BY_KIND = {
+    [SourceKind.jsonl]: "jsonl",
+    [SourceKind.fileHistory]: "snapshots",
+} as const;
 
 // The three header boxes; the ids match layer1.html and the names match the endpoint's params.
 const SOURCE_PARAM_IDS = ["dir", "repo", "ref"] as const;
@@ -30,6 +37,12 @@ export function readSourceParams(): URLSearchParams {
     if (selectedTimeSource !== TIME_SOURCE_VALUES[0]) {
         params.set("time", selectedTimeSource);
     }
+    // append, never set: both lists are repeatable.
+    for (const kind of Object.values(SourceKind)) {
+        for (const path of readSourcePaths(kind)) {
+            params.append(LIST_PARAM_BY_KIND[kind], path);
+        }
+    }
     return params;
 }
 
@@ -46,6 +59,13 @@ export function fillSourceBoxesFromUrl(): void {
     const time = params.get("time");
     if (time !== null && TIME_SOURCE_VALUES.some((value) => value === time)) {
         selectTimeSource(time);
+    }
+    // An EMPTY list is never written: writeSourcePaths sets `touched`, killing the derived default.
+    for (const kind of Object.values(SourceKind)) {
+        const listed = params.getAll(LIST_PARAM_BY_KIND[kind]);
+        if (listed.length > 0) {
+            writeSourcePaths(kind, listed);
+        }
     }
 }
 

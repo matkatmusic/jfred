@@ -5,6 +5,8 @@ import { walkCurrentFileState, type DiskFileState } from "./layer1_disk_walk.ts"
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
 import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import { collectViewSnapshotsByRelativePath, listSnapshotInstants, placeSnapshotsOnAxis, type Layer1WireSnapshot } from "./layer1_snapshot_wire.ts";
+import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
@@ -40,10 +42,13 @@ export interface Layer1WirePair {
     onDisk: Layer1WireInstant;
     // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
     created?: Layer1WireInstant;
+    // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
+    snapshots?: Layer1WireSnapshot[];
 }
 
 export interface Layer1WireOrphan extends Layer1WireInstant {
     path: Path;
+    snapshots?: Layer1WireSnapshot[];
 }
 
 // The two orphan sets are mirror images; a swap is invisible to task-238's test and must never happen.
@@ -80,15 +85,23 @@ function readPairCreatedInstant(pair: PairHistory): Instant | undefined {
 }
 
 // Order is load-bearing: it decides which tied node takes the upper row, and makes the returned offsets readable positionally.
-function listPairNodeLadder(pair: PairHistory): NodeLadder {
+function listPairNodeLadder(pair: PairHistory, snapshots?: SnapshotPlacement[]): NodeLadder {
     const created = readPairCreatedInstant(pair);
-    return [...(created === undefined ? [] : [created]), ...pair.commits.map((commit) => commit.instant), pair.file.mtime];
+    return [
+        ...(created === undefined ? [] : [created]),
+        ...pair.commits.map((commit) => commit.instant),
+        pair.file.mtime,
+        // Appended, never interleaved: layOutNodeLadders reads a ladder as a multiset, so every existing offset is untouched.
+        ...listSnapshotInstants(snapshots),
+    ];
 }
 
 // `nodeOffsetsPx` is parallel to listPairNodeLadder's output, positional not a lookup, letting two nodes sharing an instant land differently.
-function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer1WirePair {
+function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[], snapshots?: SnapshotPlacement[]): Layer1WirePair {
     const created = readPairCreatedInstant(pair);
     const firstCommit = created === undefined ? 0 : 1;
+    const onDiskIndex = firstCommit + pair.commits.length;
+    const placedSnapshots = placeSnapshotsOnAxis(snapshots, nodeOffsetsPx.slice(onDiskIndex + 1));
     return {
         path: pair.file.relativePath,
         ...(created === undefined ? {} : { created: { instant: created, axisPx: nodeOffsetsPx[0]! } }),
@@ -97,7 +110,8 @@ function placePairNodesOnAxis(pair: PairHistory, nodeOffsetsPx: number[]): Layer
             instant: commit.instant,
             axisPx: nodeOffsetsPx[firstCommit + node]!,
         })),
-        onDisk: { instant: pair.file.mtime, axisPx: nodeOffsetsPx.at(-1)! },
+        onDisk: { instant: pair.file.mtime, axisPx: nodeOffsetsPx[onDiskIndex]! },
+        ...(placedSnapshots.length === 0 ? {} : { snapshots: placedSnapshots }),
     };
 }
 
@@ -138,6 +152,7 @@ export function buildLayer1View(
     ref: string,
     reportProgress: ProgressSink = () => {},
     timeSource: CommitTimeSource = CommitTimeSource.committer,
+    sessionFiles: readonly Path[] = [],
 ): Layer1WireView {
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
     const diskFiles = walkCurrentFileState(projectFolder);
@@ -153,26 +168,38 @@ export function buildLayer1View(
         pairHistories.push({ file, commits: listPairCommitHistory(repoDir, file.relativePath, ref, timeSource) });
     }
     const gitOrphanPlacements = listGitOrphanPlacements(repoDir, pairing.gitOrphans, ref, reportProgress, timeSource);
+    // Task 312: an empty session list loops zero times, so a Layer 1 build reports no extra stage.
+    const snapshotsByPath = collectViewSnapshotsByRelativePath(projectFolder, sessionFiles, reportProgress);
+    const snapshotsFor = (path: Path): SnapshotPlacement[] | undefined => snapshotsByPath.get(path.toString());
     reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
-    // Pair ladders come first in `pairHistories` order, so `ladderOffsetsPx[index]` is that pair's rows; an orphan is a one-node ladder.
+    // Pair ladders come first, so `ladderOffsetsPx[index]` is that pair's rows; a git orphan is one node.
     const layout = layOutNodeLadders([
-        ...pairHistories.map(listPairNodeLadder),
+        ...pairHistories.map((pair) => listPairNodeLadder(pair, snapshotsFor(pair.file.relativePath))),
         ...gitOrphanPlacements.map((placement) => [placement.instant]),
-        ...pairing.diskOrphans.map((file) => [file.mtime]),
+        ...pairing.diskOrphans.map((file) => [file.mtime, ...listSnapshotInstants(snapshotsFor(file.relativePath))]),
         // Task 303: per-ladder count so the ~900-ladder resolve never reads as a hang.
     ], new Map(), (done, total) => reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER, done, total));
     // Ticks, not node rows: a bucket is placed at its instant's own position on the shared ruler.
     const offsets = new Map(layout.ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
+    // A disk orphan's own node is ladder slot 0, which IS the tick offset; its snapshots stack below it.
+    const diskOrphanLadderBase = pairHistories.length + gitOrphanPlacements.length;
     return {
-        pairs: pairHistories.map((pair, index) => placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!)),
+        pairs: pairHistories.map((pair, index) =>
+            placePairNodesOnAxis(pair, layout.ladderOffsetsPx[index]!, snapshotsFor(pair.file.relativePath))),
         gitOrphans: orderRowsByInstant(gitOrphanPlacements.map((placement) => ({
             path: placement.path,
             ...placeInstantOnAxis(offsets, placement.instant),
         }))),
-        diskOrphans: orderRowsByInstant(pairing.diskOrphans.map((file) => ({
-            path: file.relativePath,
-            ...placeInstantOnAxis(offsets, file.mtime),
-        }))),
+        diskOrphans: orderRowsByInstant(pairing.diskOrphans.map((file, index) => {
+            const nodeOffsetsPx = layout.ladderOffsetsPx[diskOrphanLadderBase + index]!;
+            const placedSnapshots = placeSnapshotsOnAxis(snapshotsFor(file.relativePath), nodeOffsetsPx.slice(1));
+            return {
+                path: file.relativePath,
+                instant: file.mtime,
+                axisPx: nodeOffsetsPx[0]!,
+                ...(placedSnapshots.length === 0 ? {} : { snapshots: placedSnapshots }),
+            };
+        })),
         ruler: layout.ticks.map((tick) => ({
             instant: tick.instant,
             axisPx: tick.offsetPx,

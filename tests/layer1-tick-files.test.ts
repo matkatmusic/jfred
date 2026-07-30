@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el } from "../webapp/app-dom.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-files.ts";
+import { flashSession } from "../webapp/layer1-sessions.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Absolute ruler offsets, exactly as the endpoint ships them.
@@ -78,6 +79,64 @@ test("test_listEventsAtRow_reads_a_merged_rows_absorbed_instants_too", () => {
     drawTwoBubblesSharingOneInstant();
     assert.deepEqual(listEventsAtRow([EARLY_PX, SHARED_PX]).map((event) => event.kind),
         ["a1b2c3d", "on disk", "e4f5a6b"]);
+});
+
+// Task 315's snapshot node: `n-snap` dot + `@vN 📸` label, owning JSONL on `data-session-file`.
+function buildSnapshotNode(axisPx: number, version: number, sessionFile: string): HTMLElement[] {
+    const identity = { "data-session-file": sessionFile, "data-version": String(version) };
+    return [
+        setAxisPx(el("i", { class: "node n-snap", ...identity }), axisPx),
+        setAxisPx(el("span", { class: "nlabel n-snap", text: `@v${version} 📸` }), axisPx),
+    ];
+}
+
+function seedSessionRows(...files: string[]): void {
+    const host = document.getElementById("sessions")!;
+    host.replaceChildren(...files.map((file) => {
+        const item = el("div", { class: "session-item" });
+        item.dataset.file = file;
+        return item;
+    }));
+}
+
+test("test_listEventsAtRow_reads_a_snapshot_rows_version_label_and_owning_session", () => {
+    // Task 316: a snapshot row is `<filename> @vN 📸` and carries the JSONL its bytes came from.
+    drawStage(() => [buildPairBubble("src/index.ts", SHARED_PX, buildSnapshotNode(0, 2, "sess-a.jsonl"))]);
+    const [event] = listEventsAtRow([SHARED_PX]);
+    assert.equal(event!.kind, "@v2 📸");
+    assert.equal(event!.session, "sess-a.jsonl");
+});
+
+test("test_flashSession_highlights_the_owning_row_as_lead_without_selecting_it", () => {
+    setupLayer1Dom();
+    seedSessionRows("other.jsonl", "owner.jsonl");
+    flashSession("owner.jsonl");
+    const owner = document.querySelector('[data-file="owner.jsonl"]')!;
+    assert.ok(owner.classList.contains("flash"));
+    assert.ok(owner.classList.contains("flash-lead"));
+    assert.ok(!owner.classList.contains("selected"), "flash must not filter the view");
+    assert.ok(!document.querySelector('[data-file="other.jsonl"]')!.classList.contains("flash"));
+});
+
+test("test_flashSession_clears_the_previous_lead_so_two_clicks_leave_one", () => {
+    // The trap the mockup found: a stale lead marker survives a second click unless every call clears it.
+    setupLayer1Dom();
+    seedSessionRows("a.jsonl", "b.jsonl");
+    flashSession("a.jsonl");
+    flashSession("b.jsonl");
+    assert.equal(document.querySelectorAll(".flash-lead").length, 1);
+    assert.ok(document.querySelector('[data-file="b.jsonl"]')!.classList.contains("flash-lead"));
+});
+
+test("test_flashSession_removes_the_highlight_after_the_fade", (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    setupLayer1Dom();
+    seedSessionRows("owner.jsonl");
+    flashSession("owner.jsonl");
+    t.mock.timers.tick(2600);
+    const owner = document.querySelector('[data-file="owner.jsonl"]')!;
+    assert.ok(!owner.classList.contains("flash"));
+    assert.ok(!owner.classList.contains("flash-lead"));
 });
 
 test("test_listEventsAtRow_names_an_orphan_by_its_own_row_and_not_its_buckets_heading", () => {

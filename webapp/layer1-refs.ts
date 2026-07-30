@@ -2,7 +2,7 @@
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 
-// The /api/layer1-refs wire shape, re-declared because webapp/ cannot import from src/ — the same constraint that re-spells CommitTimeSource in layer1-sources.ts.
+// The /api/layer1-refs wire shape, re-declared because webapp/ cannot import from src/.
 interface WireRefCommit {
     hash: string;
     date: string;
@@ -55,7 +55,7 @@ function fillCommitOptions(commits: WireRefCommit[], ref: string): void {
     select.value = commits.some((commit) => commit.hash === ref) ? ref : "";
 }
 
-// Read #repo, ask the endpoint for its branches and head-window of commits, and reveal the pickers.  Any refusal — empty box, a path that is not a repo, a bad ref — just removes `.repo-ok`, so the dropdowns silently do not appear (the mockup's behaviour). The crumb already carries the view route's own errors; a second error surface here would double-report the same bad path.
+// Fill the pickers from /api/layer1-refs; ANY refusal just removes `.repo-ok` so the dropdowns stay hidden.
 export async function confirmRepoAndFillRefs(): Promise<void> {
     const row = getRepoRow();
     const repo = getInputById("repo").value.trim();
@@ -64,7 +64,12 @@ export async function confirmRepoAndFillRefs(): Promise<void> {
         return;
     }
     const ref = getInputById("ref").value.trim();
-    const response = await fetch(`/api/layer1-refs?${new URLSearchParams({ repo, ref })}`);
+    // A dead server must read as "repo not confirmed", never an unhandled rejection (boot voids this call).
+    const response = await fetch(`/api/layer1-refs?${new URLSearchParams({ repo, ref })}`).catch(() => undefined);
+    if (response === undefined) {
+        row.classList.remove("repo-ok");
+        return;
+    }
     if (!response.ok) {
         row.classList.remove("repo-ok");
         return;

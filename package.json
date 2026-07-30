@@ -1,28 +1,29 @@
 {
-    "name": "jfred",
-    "version": "0.1.0",
-    "private": true,
-    "type": "module",
-    "description": "Reconstruct file change history from Claude Code session JSONL files (clean-room).",
-    "license": "GPL-3.0-only",
-    "scripts": {
-        "pretest": "sh scripts/extract_scenario_git_tars.sh",
-        "test": "node --import tsx --test tests/*.test.ts",
-        "test:ci": "node --import tsx --test $(node --import tsx scripts/list_capture_free_tests.ts)",
-        "typecheck": "tsc --noEmit",
-        "build:webapp": "tsc -p tsconfig.webapp.json",
-        "visual": "node --import tsx scripts/visual/run.ts",
-        "visual:mockup": "node --import tsx scripts/visual/mockup.ts",
-        "app": "npm run build:webapp && tsx src/viewer_server.ts --projects-dir \"$HOME/.claude/projects\"",
-        "demo": "npm run build:webapp && tar -xf demo/repo.git.tar -C demo/projects/s87-demo-composite && tsx src/viewer_server.ts --projects-dir demo/projects --file-history-dir demo/file-history",
-        "demo:baseline": "npm run build:webapp && tar -xf demo-baseline/repo.git.tar -C demo-baseline/projects/baseline-demo && tsx src/viewer_server.ts --projects-dir demo-baseline/projects --file-history-dir demo-baseline/file-history"
-    },
-    "devDependencies": {
-        "@types/node": "^22.20.0",
-        "@xterm/addon-fit": "^0.11.0",
-        "@xterm/xterm": "^6.0.0",
-        "happy-dom": "^20.11.0",
-        "tsx": "^4.19.0",
-        "typescript": "^5.7.0"
-    }
+  "name": "jfred",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reconstruct file change history from Claude Code session JSONL files (clean-room).",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "pretest": "sh scripts/extract_scenario_git_tars.sh",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:ci": "node --import tsx --test $(node --import tsx scripts/list_capture_free_tests.ts)",
+    "typecheck": "tsc --noEmit",
+    "build:webapp": "tsc -p tsconfig.webapp.json",
+    "visual": "node --import tsx scripts/visual/run.ts",
+    "visual:mockup": "node --import tsx scripts/visual/mockup.ts",
+    "app": "npm run build:webapp && tsx src/viewer_server.ts --projects-dir \"$HOME/.claude/projects\"",
+    "demo": "npm run build:webapp && tar -xf demo/repo.git.tar -C demo/projects/s87-demo-composite && tsx src/viewer_server.ts --projects-dir demo/projects --file-history-dir demo/file-history",
+    "demo:baseline": "npm run build:webapp && tar -xf demo-baseline/repo.git.tar -C demo-baseline/projects/baseline-demo && tsx src/viewer_server.ts --projects-dir demo-baseline/projects --file-history-dir demo-baseline/file-history",
+    "visual:layer2": "node --import tsx scripts/visual/layer2.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "happy-dom": "^20.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
 }

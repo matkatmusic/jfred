@@ -70,6 +70,33 @@ test("test_layer1_diff_endpoint_answers_empty_for_identical_sides", () => {
     assert.equal(diff, "");
 });
 
+// User bug 2026-07-29: full content on an identical pair showed nothing; it must show the whole file.
+test("test_layer1_diff_endpoint_answers_the_whole_file_as_context_for_identical_sides_at_context_full", () => {
+    const { diff } = requestLayer1Diff({ repo: repoDir, path: FIXTURE_FILE, baseHash: firstHash, targetHash: firstHash, context: "full" });
+    const lines = diff.split("\n");
+    assert.equal(lines[0], "@@ -1,2 +1,2 @@", diff);
+    assert.deepEqual(lines.slice(1), [" shared line", " first only"], diff);
+});
+
+// Task 320: a far-away line only appears as context when the full-context toggle widens the diff.
+test("test_layer1_diff_endpoint_widens_context_to_the_whole_file_on_context_full", () => {
+    const farLine = "far line 1";
+    const sharedLines = Array.from({ length: 10 }, (_, index) => `far line ${index + 1}`);
+    const wideFile = "wide.txt";
+    writeFileSync(join(repoDir, wideFile), [...sharedLines, "changed once"].join("\n") + "\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m wide-first");
+    const wideFirstHash = runGit(repoDir, "rev-parse HEAD").trim();
+    writeFileSync(join(repoDir, wideFile), [...sharedLines, "changed twice"].join("\n") + "\n");
+    runGit(repoDir, "add -A");
+    runGit(repoDir, "commit -q -m wide-second");
+    const wideSecondHash = runGit(repoDir, "rev-parse HEAD").trim();
+    const defaultRequest = { repo: repoDir, path: wideFile, baseHash: wideFirstHash, targetHash: wideSecondHash };
+    // Whole-line match: "far line 1" is a substring of the in-context "far line 10".
+    assert.ok(!requestLayer1Diff(defaultRequest).diff.includes(` ${farLine}\n`));
+    assert.ok(requestLayer1Diff({ ...defaultRequest, context: "full" }).diff.includes(` ${farLine}\n`));
+});
+
 test("test_layer1_diff_endpoint_refuses_bad_hashes_and_escaping_paths", () => {
     assert.throws(
         () => requestLayer1Diff({ repo: repoDir, path: FIXTURE_FILE, baseHash: "HEAD; rm -rf /", targetHash: firstHash }),

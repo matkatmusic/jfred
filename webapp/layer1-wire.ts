@@ -17,6 +17,14 @@ export interface WireRulerTick extends WireInstant {
     eventCount: number;
 }
 
+// Task 312: a snapshot node off the wire; @vN is per session, so sessionId identifies it.
+export interface WireSnapshot extends WireInstant {
+    version: number;
+    sessionId: string;
+    sessionFile: string;
+    line?: number;
+}
+
 export interface WirePair {
     path: string;
     // Oldest first, as the endpoint emits them.
@@ -24,10 +32,13 @@ export interface WirePair {
     onDisk: WireInstant;
     // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
     created?: WireInstant;
+    // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
+    snapshots?: WireSnapshot[];
 }
 
 export interface WireOrphan extends WireInstant {
     path: string;
+    snapshots?: WireSnapshot[];
 }
 
 // One session transcript from /api/layer1-sessions (task 292). `started`/`ended` are the session's FIRST and LAST record — deliberately not the instants of the files it touched, because the band has to be able to open before the first write and close after the last one.

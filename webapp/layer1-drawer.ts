@@ -6,6 +6,7 @@ import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { renderFileContentInto } from "./layer1-file-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearDiffPair, extendDiffSelection, nodeCommitHash, setDrawerTools, wireDiffTools } from "./layer1-drawer-diff.ts";
+import { flashSession } from "./layer1-sessions.ts";
 
 const SHORT_HASH_LENGTH = 8;
 
@@ -29,8 +30,25 @@ function findNodePath(node: HTMLElement): string | undefined {
 // A commit node carries its full hash on the dot's `title`; an on-disk node has none.
 //
 // An empty title means "no commit" — a blank `hash=` would 400 naming the wrong parameter.
-function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string } {
+function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
     const basename = path.split("/").pop() ?? path;
+    // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
+    if (node.classList.contains("n-snap")) {
+        const sessionFile = node.dataset.sessionFile ?? "";
+        const flashFile = sessionFile.split("/").pop() ?? sessionFile;
+        return {
+            params: new URLSearchParams({
+                snapshotSession: sessionFile,
+                sessionId: node.dataset.sessionId ?? "",
+                version: node.dataset.version ?? "",
+                path,
+                dir: getInputById("dir").value.trim(),
+            }),
+            head: `${basename} Snapshot`,
+            meta: `${path}   ·   file-history @v${node.dataset.version ?? ""} of ${flashFile}`,
+            flashFile,
+        };
+    }
     const hash = nodeCommitHash(node);
     if (hash === undefined) {
         return {
@@ -46,10 +64,22 @@ function describeNode(node: HTMLElement, path: string): { params: URLSearchParam
     };
 }
 
+// Task 323: the file's timeline IS the lane's DOM order; n-created has no bytes so cycling skips it.
+function findAdjacentNode(offset: 1 | -1): HTMLElement | undefined {
+    if (anchor === undefined) {
+        return undefined;
+    }
+    const nodes = [...anchor.node.parentElement?.querySelectorAll(".node:not(.n-created)") ?? []] as HTMLElement[];
+    return nodes[nodes.indexOf(anchor.node) + offset];
+}
+
 async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     // A plain click resets to a one-node selection (task 305) and anchors the next shift-click.
     clearDiffPair();
     anchor = { node, path };
+    // Task 323: STOP at the timeline's ends — a missing neighbour disables that arrow, no wrap.
+    (getRequiredElementById("dprev") as HTMLButtonElement).disabled = findAdjacentNode(-1) === undefined;
+    (getRequiredElementById("dnext") as HTMLButtonElement).disabled = findAdjacentNode(1) === undefined;
     const detail = describeNode(node, path);
     const header = getRequiredElementById("dpath");
     header.textContent = detail.head;
@@ -78,8 +108,14 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
         body.textContent = await response.text();
         return;
     }
+    const payload = await response.json() as { content: string; title?: string };
+    // Task 317: the snapshot's header title arrives with the bytes; flash the JSONL it came from.
+    if (detail.flashFile !== undefined) {
+        header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
+        flashSession(detail.flashFile);
+    }
     // `path` is what picks the highlighter's language (task 294).
-    renderFileContentInto(body, (await response.json() as { content: string }).content, path);
+    renderFileContentInto(body, payload.content, path);
 }
 
 export function wireNodeDrawer(): void {
@@ -102,6 +138,15 @@ export function wireNodeDrawer(): void {
         }
         void openNodeDrawer(node, path);
     });
+    // Task 323: cycling never leaves the lane, so the anchored path carries over.
+    for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
+        getRequiredElementById(id).addEventListener("click", () => {
+            const neighbour = findAdjacentNode(offset);
+            if (neighbour !== undefined && anchor !== undefined) {
+                void openNodeDrawer(neighbour, anchor.path);
+            }
+        });
+    }
     getRequiredElementById("dclose").addEventListener("click", () => {
         getRequiredElementById("drawer").classList.remove("open");
         clearDiffPair();

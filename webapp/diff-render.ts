@@ -76,7 +76,9 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
     }
     const cellClass = mapSplitCellClass(cell.lineClass);
     const cellBody = el("span", { class: `dc-body ${cellClass}`.trim() });
-    renderCellCode(cellBody, cell.text, language);
+    // Task 319: every split cell leads with its +/-/space marker, kept outside the highlighted code.
+    const sign = cellClass === "dc-del" ? "-" : cellClass === "dc-add" ? "+" : " ";
+    appendMarkedCode(cellBody, sign + cell.text, language);
     grid.append(
         el("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
         cellBody,

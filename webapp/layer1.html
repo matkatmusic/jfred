@@ -15,7 +15,7 @@
 <script src="/app/vendor/highlight.min.js"></script>
 </head>
 <body>
-<div class="viz-root">
+<div class="viz-root" data-layer="1">
   <header>
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
@@ -36,11 +36,11 @@
       <button id="zoom-in" title="Zoom in">+</button>
       <button id="zoom-reset">Reset</button>
     </div>
+    <!-- Task 314: [2] toggles snapshots client-side (task 312 always ships them); [3] dropped. -->
     <div class="layerbar">
       <span class="lbl">Layer:</span>
-      <button class="current">1</button>
-      <button class="uncomputed" title="Layer 2 adds JSONL-derived start points">2</button>
-      <button class="uncomputed" title="Layer 3 adds file-history snapshots">3</button>
+      <button class="current" data-layer="1">1</button>
+      <button data-layer="2" title="Layer 2 adds file-history snapshots">2</button>
     </div>
     <!-- Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find
          it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives
@@ -98,6 +98,7 @@
   <div class="legend">
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
     <span><i style="border:3px double var(--c-disk);background:transparent"></i> on-disk</span>
+    <span><i style="background:var(--c-snap)"></i> 📸 file-history snapshot (Layer 2)</span>
     <span><i style="border:3px dotted var(--muted);background:transparent"></i> created at</span>
     <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
     <span><i style="border:1px dashed var(--c-script);background:color-mix(in srgb, var(--c-script) 11%, transparent)"></i> JSONL range</span>
@@ -125,7 +126,10 @@
          tree on every load, reusing the same tree the main webapp's Files pane renders. -->
     <aside class="filenav">
       <section class="navpane" id="pane-files">
-        <div class="filenav-title">File Nav</div>
+        <div class="filenav-title">File Nav
+          <!-- task 326: filters the timeline to the selected folders' files while toggled on -->
+          <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
+        </div>
         <!-- Task 281: the nav's OWN search box. It narrows this tree and nothing else — the
              find-bubble box above scrolls the timeline, which is a different job, so neither box
              reads the other's text. Inside the <aside> so it moves and resizes with the pane. -->
@@ -175,14 +179,24 @@
     <aside class="drawer" id="drawer">
       <div class="dhead"><div class="dpath" id="dpath"></div>
         <!-- tasks 299/305: ONE header control strip — zoom for an image, diff for a pair -->
+        <!-- task 323: cycle the selection through the file's timeline; disabled at the ends -->
+        <span class="dtools"><button id="dprev" title="previous revision">↑</button><button id="dnext" title="next revision">↓</button></span>
+        <!-- task 324: pair mode — first arrow pair moves the BASE node, second the TARGET -->
+        <span class="dtools" id="pairtools" hidden>
+          <button id="dbprev" title="previous base revision">↑</button><button id="dbnext" title="next base revision">↓</button>
+          <span class="dpair" id="dpairlabel"></span>
+          <button id="dtprev" title="previous target revision">↑</button><button id="dtnext" title="next target revision">↓</button>
+        </span>
         <span class="dtools" id="imgtools" hidden>
           <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
         </span>
-        <span class="dtools" id="difftools" hidden>
-          <button data-mode="side">diff side-by-side</button><button data-mode="inline">diff inline</button>
-          <button data-mode="full">full content</button><button id="dexport">export as patch</button>
-        </span>
         <button id="dclose">Close</button></div>
+      <!-- task 324: the diff tools live on their own header row; task 320's full content is a checkbox toggle -->
+      <div class="dhead" id="dhead2"><span class="dtools" id="difftools" hidden>
+          <button data-mode="side">diff side-by-side</button><button data-mode="inline">diff inline</button>
+          <label class="dfull-toggle"><input type="checkbox" id="dfull"> full content</label>
+          <button id="dexport">export as patch</button>
+        </span></div>
       <div class="dmeta" id="dmeta"></div>
       <div class="dbody" id="dbody"></div>
     </aside>

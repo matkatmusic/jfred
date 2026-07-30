@@ -36,12 +36,19 @@ test("inline rows highlight the code after the ± marker for a .ts path", () => 
     assert.equal(host.querySelector(".diff-line.hunk .diff-body")?.querySelector("span"), null);
 });
 
-test("split cells highlight their prefix-stripped code for a .ts path", () => {
+test("split cells lead with their marker and highlight only the code behind it", () => {
     const host = makeHost();
     stubHljs();
     appendColumnsDiff(host, TS_DIFF, "src/demo.ts");
     const addCell = host.querySelector(".dc-body.dc-add")!;
+    // Task 319: every split text cell leads with its +/-/space marker (mockup parity).
+    assert.equal(addCell.textContent, "+const added = 2;");
     assert.equal(addCell.querySelector("span.hljs-keyword")?.textContent, "const added = 2;");
+    const contextCell = host.querySelector(".dc-body:not(.dc-add):not(.dc-del)")!;
+    assert.equal(contextCell.textContent, " const shared = 1;");
+    // The right-side filler cell opposite the lone addition stays empty.
+    const bodies = [...host.querySelectorAll(".dc-body")];
+    assert.ok(bodies.some((cell) => cell.textContent === ""));
 });
 
 test("without the hljs global both layouts fall back to plain text", () => {
@@ -51,5 +58,5 @@ test("without the hljs global both layouts fall back to plain text", () => {
     appendColumnsDiff(host, TS_DIFF, "src/demo.ts");
     assert.equal(host.querySelector(".hljs-keyword"), null);
     assert.equal(host.querySelector(".diff-line.add .diff-body")?.textContent, "+const added = 2;");
-    assert.equal(host.querySelector(".dc-body.dc-add")?.textContent, "const added = 2;");
+    assert.equal(host.querySelector(".dc-body.dc-add")?.textContent, "+const added = 2;");
 });

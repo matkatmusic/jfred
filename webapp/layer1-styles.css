@@ -66,7 +66,8 @@
   .layerbar .lbl, .timebar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
   .layerbar button, .timebar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
   .layerbar button.current, .timebar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
-  .layerbar button.uncomputed { border-style: dashed; color: var(--muted); }
+  /* Layer toggle is show/hide only: .n-snap elements hide below Layer 2; offsets never shift. */
+  .viz-root:not([data-layer="2"]) .n-snap { display: none; }
 
   /* The whole Layer 1 input surface: the project folder on its own row, then the repository row
      (task 286) carrying the repo path, its confirmation flag and the two ref pickers. */
@@ -411,9 +412,10 @@
      transient hover over many elements and the other is the single persistent selection. */
   .node.found::before, .node.found::after,
   .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px;
-    width: 4px; border: 2px solid var(--sel-edge); }
-  .node.found::before, .node.aimed::before { right: 100%; margin-right: 2px; border-right: none; }
-  .node.found::after, .node.aimed::after { left: 100%; margin-left: 2px; border-left: none; }
+    /* Task 327: hug the dot — the right bracket must end before .nlabel's 14px start. */
+    width: 3px; border: 2px solid var(--sel-edge); }
+  .node.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
+  .node.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
   .bucket li.found, .bucket li.aimed { outline: 2px solid var(--sel-edge); outline-offset: 1px;
     border-radius: 3px; }
 
@@ -461,11 +463,15 @@
   .pane-grip { flex: none; height: 7px; margin: -3px 0; cursor: row-resize; z-index: 3;
     background: transparent; }
   .pane-grip:hover, .pane-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
+  /* Sticky against .navpane's scroll (user, 2026-07-29): the title row must not scroll with the list. */
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-    display: flex; align-items: center; gap: 6px; }
+    display: flex; align-items: center; gap: 6px;
+    position: sticky; top: 0; z-index: 4; background: var(--surface); }
   .filenav-title button { margin-left: auto; padding: 1px 7px; font-size: 10px;
     letter-spacing: normal; text-transform: none; }
+  /* Task 326: the toggle paints like every other .current button on the page. */
+  .filenav-title button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
 
   /* Task 292: one JSONL. The selected colour is `--c-script`, the same token the range bar and the
      wash use, so the pane and the band it drew read as one control. */
@@ -478,6 +484,12 @@
   .session-item .smeta { display: block; font-size: 9.5px; color: var(--muted); padding-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .session-item.selected .smeta { color: var(--ink2); }
+  /* Task 316: the fade highlight; --c-echo, deliberately NOT the --c-script a SELECTED session wears. */
+  .session-item.flash { animation: session-flash var(--flash-ms, 2600ms) ease-out forwards; }
+  @keyframes session-flash {
+    from { background: color-mix(in srgb, var(--c-echo) 60%, transparent); border-color: var(--c-echo); }
+    to   { background: transparent; border-color: transparent; }
+  }
   .navempty { font-size: 11px; color: var(--muted); padding: 6px 12px; }
 
   /* Task 281: the nav's own search box. The input's font/padding/border/radius/focus values are
@@ -611,6 +623,9 @@
   .dtools { display: flex; gap: 4px; flex: none; }
   .dtools[hidden] { display: none; }
   .dtools button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  /* Task 324: the pair label between the base and target arrow pairs. */
+  .dpair { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); padding: 0 4px; }
+  .dfull-toggle { font-size: 11px; color: var(--ink2); display: inline-flex; align-items: center; gap: 4px; }
   /* Task 299: the image pane; `.fit` is the first-render state — the whole image on screen. */
   .dbody .dimgwrap { flex: 1; align-self: stretch; display: grid; place-items: center; }
   .dbody .dimgwrap img.fit { max-width: 100%; max-height: 100%; }
@@ -698,6 +713,8 @@
   /* Task 305: the pair reads as a DIRECTION — base ringed in the user colour, target in the
      selection colour, each badged in the empty gutter left of its dot (mockup). */
   .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--c-user); }
+  /* Task 315: solid --c-snap dot; `.node.` scopes the fill to the dot, sparing the label. */
+  .node.n-snap { background: var(--c-snap); }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);
