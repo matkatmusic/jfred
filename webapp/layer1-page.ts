@@ -115,17 +115,24 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
         redrawStage();
     };
     onExpansionRelayout(redrawStage);
-    renderLayer1FileNav(view, (targets) => {
-        folderTargets = targets;
-        redrawFiltered();
-    });
     // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
     const onlySelectedButton = getRequiredElementById("filenav-only-selected");
+    // A re-render builds a fresh button, so its class is derived from the surviving module state.
+    onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
     onlySelectedButton.onclick = () => {
         onlySelectedIsOn = !onlySelectedIsOn;
         onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
         redrawFiltered();
     };
+    renderLayer1FileNav(view, (targets) => {
+        folderTargets = targets;
+        // Growing a multi-selection means "show only these", so arm the toggle; its click redraws.
+        if (!onlySelectedIsOn && document.querySelectorAll("#filenav-tree .selected").length > 1) {
+            onlySelectedButton.click();
+            return;
+        }
+        redrawFiltered();
+    });
     const stageDrawn = renderLayer1Stage(view);
     // The pane keeps only transcripts that touched one of these files.
     setKnownProjectPaths(getInputById("dir").value.trim(), [
