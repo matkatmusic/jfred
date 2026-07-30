@@ -65,7 +65,7 @@ export function readLayer1FileBytes(query: URLSearchParams, hashParam: string = 
 export function handleLayer1FileRequest(response: ServerResponse, query: URLSearchParams): void {
     // Task 313: the snapshot form serves text from the owning session's sidecar, never a git/disk read.
     if (isSnapshotFileRequest(query)) {
-        sendJson(response, 200, { content: readSnapshotFileContent(query) });
+        sendJson(response, 200, readSnapshotFileContent(query));
         return;
     }
     const bytes = readLayer1FileBytes(query);

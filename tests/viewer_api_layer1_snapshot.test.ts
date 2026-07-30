@@ -67,8 +67,38 @@ test("test_snapshot_form_reads_owning_session_bytes_for_a_shared_blob_name", () 
     const sessionTwo = writeSession(treeRoot, SESSION_TWO, "2026-07-24T08:00:00.000Z");
     writeBlob(treeRoot, SESSION_TWO, "bytes B\n");
 
-    assert.equal(readSnapshotFileContent(snapshotQuery(sessionOne, SESSION_ONE)), "bytes A\n");
-    assert.equal(readSnapshotFileContent(snapshotQuery(sessionTwo, SESSION_TWO)), "bytes B\n");
+    assert.equal(readSnapshotFileContent(snapshotQuery(sessionOne, SESSION_ONE)).content, "bytes A\n");
+    assert.equal(readSnapshotFileContent(snapshotQuery(sessionTwo, SESSION_TWO)).content, "bytes B\n");
+});
+
+// Task 317: a session renamed part-way through must attribute each snapshot to the title over ITS line.
+test("test_snapshot_form_returns_the_customTitle_in_effect_at_the_snapshot_line", () => {
+    const treeRoot = makeTempDir();
+    const sessionId = SESSION_ONE;
+    const projectDir = join(treeRoot, "projects", "-demo");
+    mkdirSync(projectDir, { recursive: true });
+    mkdirSync(join(treeRoot, "file-history"), { recursive: true });
+    // Two titles bracketing two snapshots: v1 sits under the first title, v2 under the second.
+    const records = [
+        buildSessionCwdRecord(sessionId),
+        { type: RecordType.customTitle, customTitle: "First title" },
+        buildSnapshotRecord("blobV1", 1, "2026-06-03T10:00:00.000Z"),
+        { type: RecordType.customTitle, customTitle: "Second title" },
+        buildSnapshotRecord("blobV2", 2, "2026-06-03T11:00:00.000Z"),
+    ];
+    const jsonlPath = join(projectDir, `${sessionId}.jsonl`);
+    writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    const blobDir = join(treeRoot, "file-history", sessionId);
+    mkdirSync(blobDir, { recursive: true });
+    writeFileSync(join(blobDir, "blobV1"), "one\n");
+    writeFileSync(join(blobDir, "blobV2"), "two\n");
+    const session = new Path(jsonlPath);
+
+    const forVersion = (version: string): { content: string; title: string } => readSnapshotFileContent(
+        new URLSearchParams({ snapshotSession: session.toString(), sessionId, version, path: RELATIVE_PATH, dir: CWD }),
+    );
+    assert.deepEqual(forVersion("1"), { content: "one\n", title: "First title" });
+    assert.deepEqual(forVersion("2"), { content: "two\n", title: "Second title" });
 });
 
 test("test_snapshot_form_refuses_a_session_id_that_escapes_the_root", () => {

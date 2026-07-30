@@ -28,6 +28,7 @@ function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, te
 function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSnapshot): void {
     const identity = {
         "data-version": String(snapshot.version),
+        "data-session-id": snapshot.sessionId,
         "data-session-file": snapshot.sessionFile,
         "data-line": snapshot.line === undefined ? undefined : String(snapshot.line),
     };
@@ -59,7 +60,7 @@ function buildPairWidget(pair: WirePair): HTMLElement {
         appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
     }
     return setAxisPx(el("div", { class: "filebox" }, [
-        // Task 280: full path lives on `data-path`; find box and File Nav's exact-path jump read that same attribute as identity.
+        // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
         el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
         el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
         lane,

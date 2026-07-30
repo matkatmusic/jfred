@@ -223,6 +223,55 @@ test("a shift-click spanning two bubbles is refused with a visible toast, never 
     assert.ok(toast.textContent?.includes("ONE bubble"), toast.textContent ?? "");
 });
 
+const SNAPSHOT_SESSION_FILE = "/Users/me/.claude/projects/-demo/b21d84c5.jsonl";
+const SNAPSHOT_SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
+const SNAPSHOT_PATH = "src/util.ts";
+
+// One bubble whose lane holds a 📸 snapshot node carrying task 315's identity attributes.
+function buildSnapshotNodeStage(): HTMLElement {
+    const node = el("i", { class: "node n-snap", "data-version": "2",
+        "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
+        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
+    ]));
+    // The JSONL row flashSession must find again — data-file is its basename (buildSessionItem's shape).
+    getRequiredElementById("sessions").replaceChildren(
+        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
+    );
+    return node;
+}
+
+test("clicking a snapshot node reads the owning session and sets the range-correct title", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    let asked = "";
+    Object.assign(globalThis, {
+        fetch: async (url: unknown): Promise<Response> => {
+            asked = String(url);
+            return { ok: true, status: 200,
+                json: async () => ({ content: "const x = 1;\n", title: "Second title" }),
+                text: async () => "" } as unknown as Response;
+        },
+    });
+    getInputById("dir").value = "/work";
+    const node = buildSnapshotNodeStage();
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    const params = new URLSearchParams(asked.slice(asked.indexOf("?") + 1));
+    assert.equal(params.get("snapshotSession"), SNAPSHOT_SESSION_FILE);
+    assert.equal(params.get("sessionId"), SNAPSHOT_SESSION_ID);
+    assert.equal(params.get("version"), "2");
+    assert.equal(params.get("path"), SNAPSHOT_PATH);
+    assert.equal(params.get("dir"), "/work");
+    assert.equal(getRequiredElementById("dpath").textContent, "util.ts Snapshot - Second title");
+    // Task 316's flash: the owning JSONL row leads.
+    assert.ok(getRequiredElementById("sessions").querySelector(".flash-lead"));
+});
+
 test("a commit node with no hash on it falls back to the working tree, never to `git show :path`", async () => {
     setupLayer1Dom();
     stubAnimationFrame();

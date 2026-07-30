@@ -36,7 +36,7 @@ export function titleInEffectAtLine(titles: SessionTitleRange[], line: number): 
 }
 
 // File order makes ranges ascending; every range is kept because deduping is the Nav row's job.
-function collectTitleRanges(records: TranscriptRecord[]): SessionTitleRange[] {
+export function collectTitleRanges(records: TranscriptRecord[]): SessionTitleRange[] {
     const titles: SessionTitleRange[] = [];
     for (const record of records) {
         if (record.type !== RecordType.customTitle) {
