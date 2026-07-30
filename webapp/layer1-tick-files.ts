@@ -7,6 +7,7 @@
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
+import { flashSession } from "./layer1-sessions.ts";
 import { listElementsDrawnAtAxisPx, snapshotStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 
@@ -15,6 +16,8 @@ export interface TickEvent {
     path: string;
     kind: string;
     element: HTMLElement;
+    // Task 316: the owning JSONL, present only on a snapshot node, so its row can flash on click.
+    session?: string;
 }
 
 // Task 300: the ONE open row (first instant + measured list height); survives its own re-render.
@@ -58,7 +61,7 @@ function describeDrawnElement(element: HTMLElement): TickEvent {
     }
     // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
     const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
-    return { path: readOwningPath(element), kind: label ?? "", element };
+    return { path: readOwningPath(element), kind: label ?? "", element, session: element.dataset.sessionFile };
 }
 
 // Everything drawn at the instants ONE printed row stands for, in the order the lookup found it.
@@ -93,6 +96,9 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
             // The same jump a single-event tick makes (layer1-ruler-click.ts): "nearest" vertically, "center" horizontally.
             event.element.scrollIntoView({ block: "nearest", inline: "center" });
             highlightLandedElement(event.element);
+            if (event.session !== undefined) {
+                flashSession(event.session);
+            }
         },
     });
 }
@@ -138,8 +144,13 @@ function reopenExpandedRow(): void {
 export function markMultiEventTicks(): void {
     const snapshot = snapshotStageBubbles();
     for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
-        if (listEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? [], snapshot).length > 1) {
+        const events = listEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? [], snapshot);
+        if (events.length > 1) {
             tick.classList.add("multi");
+        }
+        // Task 316: a row standing ONLY for snapshots hides below Layer 2, like the nodes it lists.
+        if (events.length > 0 && events.every((event) => event.element.matches(".n-snap"))) {
+            tick.classList.add("n-snap");
         }
     }
     // Task 300: the expansion outlives its own re-render, so the open row is rebuilt on the fresh ticks.

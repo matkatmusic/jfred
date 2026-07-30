@@ -484,6 +484,12 @@
   .session-item .smeta { display: block; font-size: 9.5px; color: var(--muted); padding-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .session-item.selected .smeta { color: var(--ink2); }
+  /* Task 316: the fade highlight; --c-echo, deliberately NOT the --c-script a SELECTED session wears. */
+  .session-item.flash { animation: session-flash var(--flash-ms, 2600ms) ease-out forwards; }
+  @keyframes session-flash {
+    from { background: color-mix(in srgb, var(--c-echo) 60%, transparent); border-color: var(--c-echo); }
+    to   { background: transparent; border-color: transparent; }
+  }
   .navempty { font-size: 11px; color: var(--muted); padding: 6px 12px; }
 
   /* Task 281: the nav's own search box. The input's font/padding/border/radius/focus values are

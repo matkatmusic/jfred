@@ -90,6 +90,35 @@ export async function loadLayer1Sessions(): Promise<void> {
     }
 }
 
+// Task 316: fade-highlight (not select) the JSONL rows a snapshot came from; task 317 is the second caller.
+const FLASH_MS = 2600;
+// Best match leads first and gets `flash-lead`, the marker a headless run reads to see which answered.
+export function flashSession(...files: string[]): void {
+    const pane = getRequiredElementById("sessions");
+    for (const lit of pane.querySelectorAll(".flash, .flash-lead")) {
+        lit.classList.remove("flash", "flash-lead");
+    }
+    const items = [...pane.querySelectorAll<HTMLElement>(".session-item")];
+    const rows = files
+        .map((file) => items.find((item) => item.dataset.file === file))
+        .filter((row): row is HTMLElement => row !== undefined);
+    for (const row of rows) {
+        // Restart the fade on a re-click: an animation only replays once the class has been off for a layout.
+        row.classList.remove("flash");
+        void row.offsetWidth;
+        row.style.setProperty("--flash-ms", `${FLASH_MS}ms`);
+        row.classList.add("flash");
+        setTimeout(() => row.classList.remove("flash"), FLASH_MS);
+    }
+    const lead = rows[0];
+    if (lead === undefined) {
+        return;
+    }
+    lead.classList.add("flash-lead");
+    setTimeout(() => lead.classList.remove("flash-lead"), FLASH_MS);
+    lead.scrollIntoView?.({ block: "nearest" });
+}
+
 // Plain click picks one; a re-click on the only pick clears; shift toggles just this one.
 function applySessionClick(fullPath: string, extend: boolean): void {
     if (extend) {
@@ -114,6 +143,7 @@ function buildSessionItem(session: WireSession, onChange: () => void): HTMLEleme
     ]);
     item.title = `${session.title}\n${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}\n`
         + session.paths.join("\n");
+    item.dataset.file = session.file; // Task 316: how flashSession finds this row again.
     item.addEventListener("click", (event) => {
         applySessionClick(session.fullPath, event.shiftKey);
         onChange();
