@@ -97,7 +97,8 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
             event.element.scrollIntoView({ block: "nearest", inline: "center" });
             highlightLandedElement(event.element);
             if (event.session !== undefined) {
-                flashSession(event.session);
+                // flashSession keys rows by basename (like the drawer), so a full path never matches.
+                flashSession(event.session.split("/").pop() ?? event.session);
             }
         },
     });
