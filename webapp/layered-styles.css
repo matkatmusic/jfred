@@ -1,6 +1,6 @@
-/* Layered page skeleton layout (task 205, spec S7): header row, then drawer | timeline |
-   right-pane columns; the right half stacks Details over Changes. Region proportions follow
-   plans/mvp-app-mockup.html; visual polish arrives with S8+. */
+/*
+  Layered page skeleton layout (task 205, spec S7): header row, then drawer | timeline | right-pane columns; the right half stacks Details over Changes. Region proportions follow plans/mvp-app-mockup.html; visual polish arrives with S8+.
+*/
 
 * { box-sizing: border-box; margin: 0; }
 html, body { height: 100%; }
@@ -37,8 +37,9 @@ body {
 .layered-drawer h3 { font-size: 11px; text-transform: uppercase; margin: 8px 0 4px; }
 .layered-drawer-item { padding: 2px 4px; cursor: pointer; }
 
-/* Timeline canvas takes the left half; the right pane the other half (S7). The legend sits
-   above the ONLY scrolling child (S12), so it stays in view while the timeline scrolls. */
+/*
+  Timeline canvas takes the left half; the right pane the other half (S7). The legend sits above the ONLY scrolling child (S12), so it stays in view while the timeline scrolls.
+*/
 .layered-timeline {
     flex: 1;
     display: flex;
@@ -51,8 +52,9 @@ body {
     padding: 10px;
 }
 
-/* Always-visible legend (task 212, spec S12). Swatch colors are placeholders until S8's
-   visual pass; the shapes follow plans/mvp-app-mockup.html. */
+/*
+  Always-visible legend (task 212, spec S12). Swatch colors are placeholders until S8's visual pass; the shapes follow plans/mvp-app-mockup.html.
+*/
 .layered-legend {
     display: flex;
     flex-wrap: wrap;
@@ -70,11 +72,9 @@ body {
 .legend-script { border: 3px solid #c9366b; background: transparent; }
 .legend-echo { background: #6b7280; border-radius: 2px; }
 .legend-disk { border: 2px double #111827; background: transparent; }
-/* Per-file widgets on the shared vertical axis (task 207, spec S8; migrated to --axis-px by task
-   239 for spec S18). layered-app.ts emits ONE finished ruler offset per element (--axis-px per
-   widget and per node, --axis-span-px per widget) because S18's capped-gap ruler accumulates and
-   no fixed CSS scale can express it; every placement rule still lives here, so no JS layout pass
-   exists. */
+/*
+  Per-file widgets on the shared vertical axis (task 207, spec S8; migrated to --axis-px by task 239 for spec S18). layered-app.ts emits ONE finished ruler offset per element (--axis-px per widget and per node, --axis-span-px per widget) because S18's capped-gap ruler accumulates and no fixed CSS scale can express it; every placement rule still lives here, so no JS layout pass exists.
+*/
 .layered-canvas {
     display: flex;
     align-items: flex-start;
@@ -94,8 +94,9 @@ body {
     white-space: nowrap;
 }
 .layered-lanes { position: relative; display: flex; gap: 8px; }
-/* Dashed cross-lane corroboration line (task 208, spec S8): sits on the lanes container so it
-   spans every lane, at the same axis offset the lane dots use. */
+/*
+  Dashed cross-lane corroboration line (task 208, spec S8): sits on the lanes container so it spans every lane, at the same axis offset the lane dots use.
+*/
 .layered-corroboration {
     position: absolute;
     left: 0;
@@ -111,7 +112,9 @@ body {
     min-height: calc(var(--axis-span-px, 0) * 1px + 24px);
     border-left: 1.5px solid rgba(0, 0, 0, 0.15);
 }
-/* The lane's session name comes straight off its data attribute — no label element to build. */
+/*
+  The lane's session name comes straight off its data attribute — no label element to build.
+*/
 .layered-lane::before {
     content: attr(data-session);
     display: block;
@@ -136,6 +139,51 @@ body {
 .kind-end-state { border: 2px double #111827; background: #fff; }
 .kind-presumed-user-edit { background: #e07f3f; }
 .kind-script-run { border: 3px solid #c9366b; background: transparent; }
+
+/*
+  Node-KIND icon+color map (task 339): separate axis; confidence overlays as a ring, never a fill swap.
+*/
+/*
+  No rewind entry: that's a dim+dashed-elbow treatment on an existing node (L8 mockup), settled 2026-07-30, not a kind.
+*/
+.layered-node[class*="node-type-"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+}
+.node-type-tool-result { background: #1b8f8f; }
+.node-type-tool-result::before { content: "r"; }
+.node-type-tool-call { background: #0d6e6e; }
+.node-type-tool-call::before { content: "t"; }
+.node-type-extracted-edit { background: #4d8c1f; }
+.node-type-extracted-edit::before { content: "e"; }
+.node-type-script-execution { background: #b8860b; }
+.node-type-script-execution::before { content: "x"; }
+.node-type-script-execution-result { background: #d9a441; }
+.node-type-script-execution-result::before { content: "x"; }
+.node-type-commit { background: #7a3fe0; }
+.node-type-commit::before { content: "c"; }
+.node-type-snapshot { background: #0fa36b; font-size: 8px; }
+.node-type-snapshot::before { content: "📷"; }
+.node-type-branch-split { background: #4f46c7; }
+.node-type-branch-split::before { content: "y"; }
+.node-type-user-prompt { background: #a6408a; }
+.node-type-user-prompt::before { content: "u"; }
+.node-type-agent-response { background: #47607a; }
+.node-type-agent-response::before { content: "a"; }
+/*
+  "s" per record type's own wire value ("system"); neither s nor i is in use elsewhere yet.
+*/
+.node-type-system-info { background: #6b4a2f; }
+.node-type-system-info::before { content: "s"; }
+/*
+  Loud red on purpose (Step 3): a diagnostic signal for an unmodeled RecordType, not decoration.
+*/
+.node-type-unknown { background: #d92b2b; }
+.node-type-unknown::before { content: "?"; }
 
 .layered-right {
     flex: 1;
