@@ -3,7 +3,7 @@
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
 import { showDetailViewForFiles, wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { readNavTargets, rememberDrawnView, rememberNavTargets } from "./layer1-diff-wash.ts";
+import { readNavTargets, rememberDrawnView, rememberNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
@@ -85,8 +85,10 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     }
     // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
     markMultiEventTicks();
+    // renderSessionRanges replaces #washes wholesale, so the surviving wash kinds repaint AFTER it, every render.
     renderSessionRanges(listSelectedSessions(), view.ruler);
     renderNavWash(view, readNavTargets());
+    repaintDiffWash(view.ruler);
     drawLayer1Minimap();
 }
 
@@ -133,12 +135,8 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     renderLayer1FileNav(view, (targets) => {
         folderTargets = targets;
         rememberNavTargets(targets);
-        // Growing a multi-selection means "show only these", so arm the toggle; its click redraws.
-        if (!onlySelectedIsOn && document.querySelectorAll("#filenav-tree .selected").length > 1) {
-            onlySelectedButton.click();
-        } else {
-            redrawFiltered();
-        }
+        // Task 333: a multi-selection stays on the FULL timeline; the nav wash alone shows where it falls.
+        redrawFiltered();
         // Task 329: any selection fills the drawer — one DiffView per file, 1..N uniformly.
         if (targets.length >= 1) {
             showDetailViewForFiles(view, targets);

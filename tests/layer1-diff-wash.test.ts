@@ -2,13 +2,49 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hasInstantInRange, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
+import { clearDiffWash, hasInstantInRange, paintDiffWash, repaintDiffWash, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";
 const T2 = "2026-07-01T12:00:00.000Z";
 const T3 = "2026-07-01T13:00:00.000Z";
 const T4 = "2026-07-01T14:00:00.000Z";
+
+const RULER: WireRulerTick[] = [
+    { instant: T1, axisPx: 20, eventCount: 1 },
+    { instant: T3, axisPx: 120, eventCount: 1 },
+];
+
+// Task 333: renderSessionRanges replaces #washes wholesale on every stage re-render.
+function simulateStageRerenderWipingWashes(): void {
+    document.getElementById("washes")!.replaceChildren();
+}
+
+test("paintDiffWash draws one .diff-wash spanning base to target", () => {
+    setupLayer1Dom();
+    paintDiffWash(T1, T3, RULER);
+    assert.equal(document.querySelectorAll("#washes .diff-wash").length, 1);
+});
+
+test("repaintDiffWash restores the diff wash after an unrelated stage re-render wipes #washes", () => {
+    setupLayer1Dom();
+    paintDiffWash(T1, T3, RULER);
+    simulateStageRerenderWipingWashes();
+    assert.equal(document.querySelectorAll("#washes .diff-wash").length, 0);
+    repaintDiffWash(RULER);
+    assert.equal(document.querySelectorAll("#washes .diff-wash").length, 1);
+});
+
+test("clearDiffWash forgets the range, so a later repaint stays a no-op", () => {
+    setupLayer1Dom();
+    paintDiffWash(T1, T3, RULER);
+    clearDiffWash();
+    simulateStageRerenderWipingWashes();
+    repaintDiffWash(RULER);
+    assert.equal(document.querySelectorAll("#washes .diff-wash").length, 0);
+});
 
 test("a range holding many nodes picks the first and last inside", () => {
     // Five chronological steps, wash T1..T3: pair = first and last steps inside the range.

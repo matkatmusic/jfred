@@ -81,7 +81,11 @@ export function axisPixelsForInstant(instant: string, ruler: readonly WireRulerT
     return exact === undefined ? resolveAxisPixelsAt(Date.parse(instant), ruler) : exact.axisPx;
 }
 
+// The last range painted, so a stage re-render (which wipes #washes wholesale) can repaint it.
+let diffWashRange: { baseInstant: string; targetInstant: string } | undefined;
+
 export function clearDiffWash(): void {
+    diffWashRange = undefined;
     for (const wash of document.querySelectorAll(".diff-wash, .wash-edge")) {
         wash.remove();
     }
@@ -100,9 +104,7 @@ function labelWashEdgeTick(axisPx: number, edge: "base" | "target"): void {
     nearest?.append(el("div", { class: `wash-edge ${edge}`, text: `selected diff range ${edge}` }));
 }
 
-// Half a row clear of both boundary nodes, exactly as the session wash closes on its covered events.
-export function paintDiffWash(baseInstant: string, targetInstant: string, ruler: readonly WireRulerTick[]): void {
-    clearDiffWash();
+function drawDiffWash(baseInstant: string, targetInstant: string, ruler: readonly WireRulerTick[]): void {
     const topPx = axisPixelsForInstant(baseInstant, ruler) - RULER_NODE_ROW_PIXELS / 2;
     const footPx = axisPixelsForInstant(targetInstant, ruler) + RULER_NODE_ROW_PIXELS / 2;
     const wash = spawnWash(topPx, footPx, "var(--sel-edge)");
@@ -110,4 +112,18 @@ export function paintDiffWash(baseInstant: string, targetInstant: string, ruler:
     getRequiredElementById("washes").append(wash);
     labelWashEdgeTick(axisPixelsForInstant(baseInstant, ruler), "base");
     labelWashEdgeTick(axisPixelsForInstant(targetInstant, ruler), "target");
+}
+
+// Half a row clear of both boundary nodes, exactly as the session wash closes on its covered events.
+export function paintDiffWash(baseInstant: string, targetInstant: string, ruler: readonly WireRulerTick[]): void {
+    clearDiffWash();
+    diffWashRange = { baseInstant, targetInstant };
+    drawDiffWash(baseInstant, targetInstant, ruler);
+}
+
+// Every stage render replaces #washes wholesale; repaint the remembered range so it survives.
+export function repaintDiffWash(ruler: readonly WireRulerTick[]): void {
+    if (diffWashRange !== undefined) {
+        drawDiffWash(diffWashRange.baseInstant, diffWashRange.targetInstant, ruler);
+    }
 }

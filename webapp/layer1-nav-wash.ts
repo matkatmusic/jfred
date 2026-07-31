@@ -38,7 +38,7 @@ export function renderNavWash(view: WireLayer1View, targets: readonly string[]):
     }
     const topPx = axisPixelsForInstant(range.oldest, view.ruler) - RULER_NODE_ROW_PIXELS / 2;
     const footPx = axisPixelsForInstant(range.newest, view.ruler) + RULER_NODE_ROW_PIXELS / 2;
-    const wash = spawnWash(topPx, footPx, "var(--c-echo)");
+    const wash = spawnWash(topPx, footPx, "var(--c-commit)");
     wash.classList.add("nav-wash");
     getRequiredElementById("washes").append(wash);
 }

@@ -436,11 +436,12 @@
   .minimap .mm-title { position: absolute; top: -8px; left: 8px; padding: 0 4px; font-size: 9px;
     color: var(--muted); background: var(--page); }
   /*
-    Every mark is absolutely placed by webapp/layer1-minimap.ts; `overflow: hidden` is what keeps a rounding overshoot from painting outside the frame.
+    Marks are abspos by layer1-minimap.ts; `overflow: hidden` stops rounding overshoot painting outside the frame.
   */
   .mm-plot { position: relative; width: 100%; height: 100%; overflow: hidden; }
   .mm-box { position: absolute; background: var(--box); opacity: .55; border-radius: 1px; }
   .mm-box.bucket { background: var(--muted); }
+  .mm-wash { position: absolute; background: var(--wash-color); opacity: .45; border-radius: 1px; }
   .mm-view { position: absolute; border: 1.5px solid var(--sel-edge);
     background: color-mix(in srgb, var(--sel-edge) 14%, transparent); border-radius: 2px; }
 

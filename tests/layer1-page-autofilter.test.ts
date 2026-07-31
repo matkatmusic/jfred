@@ -1,4 +1,4 @@
-// Feature (2026-07-29): growing the File Nav selection past one item auto-arms "Show Only Selected".
+// Task 333: a growing File Nav selection stays on the FULL timeline; auto-arming "Show Only Selected" was rejected.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -28,11 +28,6 @@ const FULL_VIEW = {
 function openLayer1Page(): void {
     setupLayer1Dom();
     renderLayer1View(FULL_VIEW);
-    // The toggle state survives at module scope, so each test opens with it disarmed.
-    const armed = document.getElementById("filenav-only-selected") as HTMLElement;
-    if (armed.classList.contains("current")) {
-        armed.click();
-    }
 }
 
 // A File Nav row matched by title/text, as tests/layer1-filter-jump.test.ts does.
@@ -51,31 +46,43 @@ function onlySelectedButton(): HTMLElement {
     return document.getElementById("filenav-only-selected") as HTMLElement;
 }
 
-test("test_single_selection_leaves_the_toggle_off_and_the_stage_unfiltered", () => {
-    // Scenario: one selected item is not a multi-selection, so nothing auto-arms.  Steps: open the page and shift-click one file.
+function shownPaths(): (string | undefined)[] {
+    return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")].map((n) => n.dataset.path).sort();
+}
+
+test("test_a_single_selection_leaves_the_toggle_off_and_the_stage_unfiltered", () => {
     openLayer1Page();
     shiftClick(findNavRow(".file-item", "src/keep/a.ts"));
     assert.equal(onlySelectedButton().classList.contains("current"), false);
     assert.equal(document.querySelectorAll("#stage .filebox").length, 3);
 });
 
-test("test_growing_the_selection_past_one_item_arms_the_toggle_and_filters", () => {
-    // The second shift-click makes a multi-selection: toggle auto-arms, stage filters to it.
+test("test_growing_the_selection_past_one_item_does_not_arm_the_toggle_or_filter_the_stage", () => {
     openLayer1Page();
     shiftClick(findNavRow(".file-item", "src/keep/a.ts"));
     shiftClick(findNavRow(".file-item", "src/keep/b.ts"));
-    assert.equal(onlySelectedButton().classList.contains("current"), true);
-    const shown = [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")].map((n) => n.dataset.path);
-    assert.deepEqual(shown.sort(), ["src/keep/a.ts", "src/keep/b.ts"]);
+    assert.equal(onlySelectedButton().classList.contains("current"), false);
+    // The FULL timeline stays up — all three files, not just the two selected.
+    assert.deepEqual(shownPaths(), ["src/drop/c.ts", "src/keep/a.ts", "src/keep/b.ts"]);
 });
 
-test("test_an_armed_toggle_is_not_rearmed_or_cleared_by_further_selection_changes", () => {
-    // Once armed, shrinking the selection back to one item leaves the toggle armed.
+test("test_a_multi_selection_paints_a_nav_wash_over_the_full_timeline", () => {
     openLayer1Page();
     shiftClick(findNavRow(".file-item", "src/keep/a.ts"));
     shiftClick(findNavRow(".file-item", "src/keep/b.ts"));
+    assert.equal(document.querySelectorAll("#washes .nav-wash").length, 1);
+});
+
+test("test_manually_toggling_show_only_selected_neither_destroys_the_nav_wash_nor_drops_it_on_toggle_off", () => {
+    openLayer1Page();
+    shiftClick(findNavRow(".file-item", "src/keep/a.ts"));
     shiftClick(findNavRow(".file-item", "src/keep/b.ts"));
+    onlySelectedButton().click();
     assert.equal(onlySelectedButton().classList.contains("current"), true);
-    const shown = [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")].map((n) => n.dataset.path);
-    assert.deepEqual(shown, ["src/keep/a.ts"]);
+    assert.deepEqual(shownPaths(), ["src/keep/a.ts", "src/keep/b.ts"]);
+    assert.equal(document.querySelectorAll("#washes .nav-wash").length, 1);
+    onlySelectedButton().click();
+    assert.equal(onlySelectedButton().classList.contains("current"), false);
+    assert.deepEqual(shownPaths(), ["src/drop/c.ts", "src/keep/a.ts", "src/keep/b.ts"]);
+    assert.equal(document.querySelectorAll("#washes .nav-wash").length, 1);
 });
