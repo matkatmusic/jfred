@@ -64,7 +64,7 @@ export function readNodeInstant(view: WireLayer1View, path: string, node: HTMLEl
 }
 
 // A node's instant always owns a ruler tick; a merged or re-laid row falls back to interpolation.
-function axisPixelsForInstant(instant: string, ruler: readonly WireRulerTick[]): number {
+export function axisPixelsForInstant(instant: string, ruler: readonly WireRulerTick[]): number {
     const exact = ruler.find((tick) => tick.instant === instant);
     return exact === undefined ? resolveAxisPixelsAt(Date.parse(instant), ruler) : exact.axisPx;
 }

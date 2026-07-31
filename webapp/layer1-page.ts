@@ -3,7 +3,7 @@
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
 import { showDetailViewForFiles, wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { rememberDrawnView, rememberNavTargets } from "./layer1-diff-wash.ts";
+import { readNavTargets, rememberDrawnView, rememberNavTargets } from "./layer1-diff-wash.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
@@ -13,6 +13,7 @@ import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { renderNavWash } from "./layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
@@ -85,6 +86,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
     markMultiEventTicks();
     renderSessionRanges(listSelectedSessions(), view.ruler);
+    renderNavWash(view, readNavTargets());
     drawLayer1Minimap();
 }
 
