@@ -1,4 +1,4 @@
-// Task 252: the Layer 1 File Nav must list EVERY identified file — the paired files, the repo files with no on-disk presence, and the on-disk files the repo does not have — using the webapp's existing file tree rather than a second one written for this page.
+// Task 252: the File Nav must list every identified file, using the webapp's existing file tree.
 //
 // The nav builder is called DIRECTLY rather than through a page boot: the behaviour under test is the payload -> entries mapping and the tree it renders, so a stubbed NDJSON stream would only widen the failure surface.
 
@@ -17,9 +17,10 @@ const NAV_VIEW = {
 };
 
 async function renderNavIntoNewContainer(): Promise<HTMLElement> {
-    const { renderFileNavInto } = await import("../webapp/layer1-filenav.ts");
+    const { renderFileNavInto, resetFileNavCollapseState } = await import("../webapp/layer1-filenav.ts");
+    resetFileNavCollapseState();
     const container = document.createElement("div");
-    // Folder clicks are tests/layer1-folder-filter.test.ts's subject; this file is about what the pane LISTS, so the selection callback is a no-op here.
+    // Folder clicks are layer1-folder-filter.test.ts's subject; this file only cares what the pane lists.
     renderFileNavInto(container, NAV_VIEW, () => {});
     return container;
 }

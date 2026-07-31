@@ -86,15 +86,35 @@ export function renderForkSidebar(drawer: HTMLElement, sessions: SessionSidebarE
     }
 }
 
-// A native <details open> per folder, so the pane needs no toggle JS and no collapse state.
-export function renderFileTreeNode(node: FileTreeNode, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
+// Task 332: only the File Nav passes this; the other two callers keep every folder always open.
+export type FolderCollapseState = {
+    collapsedPaths: ReadonlySet<string>;
+    onToggle: (folderPath: string, isOpen: boolean) => void;
+};
+
+// A native <details> per folder; open by default unless a passed-in collapse state says otherwise.
+export function renderFileTreeNode(
+    node: FileTreeNode,
+    callbacks: FileTreeCallbacks,
+    selectionRoot: HTMLElement,
+    coverage?: CoverageByTarget,
+    collapse?: FolderCollapseState,
+    path: string = "",
+): HTMLElement {
     if (node.kind === FOLDER_NODE_KIND) {
-        // `open: ""` because el's attrs are string-valued and a present `open` attribute expands a <details>.
+        // Full path from the stripped root; node.name alone is only this one level's segment.
+        const folderPath = path === "" ? node.name : `${path}/${node.name}`;
         const kids = el("div", { class: "file-folder-kids" },
-            node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage)));
+            node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage, collapse, folderPath)));
         const summary = el("summary", { class: FOLDER_NAME_CLASS, text: node.name });
         attachFolderClick(summary, node, callbacks, selectionRoot);
-        return el("details", { class: "file-folder", open: "" }, [summary, kids]);
+        const isOpen = !(collapse?.collapsedPaths.has(folderPath) ?? false);
+        return el("details", {
+            class: "file-folder",
+            open: isOpen ? "" : undefined,
+            ontoggle: collapse === undefined ? undefined :
+                (event: Event) => collapse.onToggle(folderPath, (event.currentTarget as HTMLDetailsElement).open),
+        }, [summary, kids]);
     }
     return renderFileTreeLeaf(node, node.entry!, callbacks, selectionRoot, coverage);
 }

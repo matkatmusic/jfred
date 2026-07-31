@@ -1,11 +1,17 @@
 // Task 297: the Save-project-settings button and the restore that reads its file back.
 //
-// Two rules carry the risk. A FAILED save must leave the button armed — a page that reports "saved" when nothing was written is worse than one that never saves. And a ?dir=/?repo= link must beat the saved file, or a shared link silently renders somebody else's project.
+// A FAILED save must leave the button armed, and a ?dir=/?repo= link must beat the saved file.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "../webapp/layer1-settings.ts";
+import {
+    getCollapsedFoldersForProject,
+    markSettingsDirty,
+    restoreSavedSettings,
+    saveFolderCollapseState,
+    wireSettingsSave,
+} from "../webapp/layer1-settings.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -101,7 +107,7 @@ test("the saved file fills the boxes and the two source lists", async () => {
 });
 
 test("a link wins for the fields it names, and only those", async () => {
-    // Precedence is PER FIELD. A ?dir=&repo= link must render what it names — but it says nothing about the source lists, and blanking the whole restore over it is what left the headless harness, which always navigates with a query string, on one derived JSONL folder.
+    // Precedence is PER FIELD: a ?dir=&repo= link renders those fields but says nothing about the source lists.
     setupLayer1Dom("?dir=/Users/you/code/other-app&repo=/Users/you/code/other-app");
     stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     getInputById("dir").value = "/Users/you/code/other-app";
@@ -146,4 +152,45 @@ test("a saved project beats the debugConfig defaults", async () => {
 
     assert.equal(getInputById("dir").value, SAVED_PROJECT.dir);
     assert.deepEqual([...readSourcePaths(SourceKind.jsonl)], SAVED_PROJECT.jsonl);
+});
+
+test("restoring settings makes every saved project's collapsed folders available", async () => {
+    setupLayer1Dom();
+    const dirA = SAVED_PROJECT.dir;
+    const dirB = "/Users/you/code/other-app";
+    stubSettingsRoute({
+        lastDir: dirA,
+        projects: {
+            [dirA]: { ...SAVED_PROJECT, collapsedFolders: ["src/x"] },
+            [dirB]: { ...SAVED_PROJECT, dir: dirB },
+        },
+    }, true);
+
+    await restoreSavedSettings();
+
+    assert.deepEqual(getCollapsedFoldersForProject(dirA), ["src/x"]);
+    assert.deepEqual(getCollapsedFoldersForProject(dirB), []);
+    assert.deepEqual(getCollapsedFoldersForProject("unknown-dir"), []);
+});
+
+test("saving folder collapse state posts dir and the folder list", async () => {
+    setupLayer1Dom();
+    const route = stubSettingsRoute(null, true);
+    getInputById("dir").value = SAVED_PROJECT.dir;
+
+    saveFolderCollapseState(["src/a", "src/b"]);
+    await settle();
+
+    assert.deepEqual(route.posted(), [{ dir: SAVED_PROJECT.dir, collapsedFolders: ["src/a", "src/b"] }]);
+});
+
+test("saving folder collapse state with no project open posts nothing", async () => {
+    setupLayer1Dom();
+    const route = stubSettingsRoute(null, true);
+    getInputById("dir").value = "";
+
+    saveFolderCollapseState(["src/a"]);
+    await settle();
+
+    assert.deepEqual(route.posted(), []);
 });

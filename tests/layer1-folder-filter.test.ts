@@ -21,7 +21,8 @@ const NAV_VIEW = {
 
 // Render the nav into a detached container, recording every folder selection it reports.
 async function renderNavWithFolderSpy(): Promise<{ container: HTMLElement; reported: string[][] }> {
-    const { renderFileNavInto } = await import("../webapp/layer1-filenav.ts");
+    const { renderFileNavInto, resetFileNavCollapseState } = await import("../webapp/layer1-filenav.ts");
+    resetFileNavCollapseState();
     const container = document.createElement("div");
     const reported: string[][] = [];
     renderFileNavInto(container, NAV_VIEW, (targets) => reported.push(targets));

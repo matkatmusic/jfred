@@ -4,9 +4,10 @@
 //
 // Its own module rather than more of webapp/layer1-page.ts, which is at the repo's 250-line cap.
 
-import { getRequiredElementById } from "./app-dom.ts";
+import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { getCollapsedFoldersForProject, saveFolderCollapseState } from "./layer1-settings.ts";
 import { jumpToBubbleAtPath } from "./layer1-find-file.ts";
-import { renderFileTreeNode } from "./views/sidebar.ts";
+import { renderFileTreeNode, type FolderCollapseState } from "./views/sidebar.ts";
 import { buildFileTree } from "./views/timeline-file-tree.ts";
 
 // The /api/layer1-view slice the nav reads; declared structurally since importing layer1-page.ts back would cycle.
@@ -46,18 +47,37 @@ export function openDiskNodeForPath(path: string, attempt: number = 0): void {
     }
 }
 
+// Collapsed folders for the open project; reseeded per project load, mutated in place by toggles.
+let collapsedFolderPaths = new Set<string>();
+
+// Exported so a direct-render test can reset state an earlier test in the same file left behind.
+export function resetFileNavCollapseState(initial: Iterable<string> = []): void {
+    collapsedFolderPaths = new Set(initial);
+}
+
+function persistFolderToggle(folderPath: string, isOpen: boolean): void {
+    if (isOpen) {
+        collapsedFolderPaths.delete(folderPath);
+    } else {
+        collapsedFolderPaths.add(folderPath);
+    }
+    saveFolderCollapseState([...collapsedFolderPaths]);
+}
+
 // `container` is also the selection root; `onFolderSelect` reports folder selections; `query` filters entries pre-tree.
 export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void, query: string = ""): void {
     const needle = query.trim().toLowerCase();
     const matched = listFileNavEntries(view).filter((entry) => entry.target.toLowerCase().includes(needle));
+    const collapse: FolderCollapseState = { collapsedPaths: collapsedFolderPaths, onToggle: persistFolderToggle };
     container.replaceChildren(
         ...buildFileTree(matched).map((node) =>
-            renderFileTreeNode(node, { onFileClick: openDiskNodeForPath, onFolderClick: onFolderSelect }, container)),
+            renderFileTreeNode(node, { onFileClick: openDiskNodeForPath, onFolderClick: onFolderSelect }, container, undefined, collapse)),
     );
 }
 
 // The page-facing wrapper; handlers wired by assignment so a re-render never stacks stale listeners.
 export function renderLayer1FileNav(view: FileNavView, onFolderSelect: (targets: string[]) => void): void {
+    resetFileNavCollapseState(getCollapsedFoldersForProject(getInputById("dir").value.trim()));
     const tree = getRequiredElementById("filenav-tree");
     const box = getRequiredElementById("filenav-search") as HTMLInputElement;
     box.oninput = () => renderFileNavInto(tree, view, onFolderSelect, box.value);
