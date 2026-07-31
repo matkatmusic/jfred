@@ -1,4 +1,4 @@
-// The task-297 saved-project settings file: a missing or corrupt one is "nothing saved", and a save is read-modify-write so a second project never evicts the first.
+// The task-297 saved-project settings file: missing or corrupt reads as "nothing saved"; save is read-modify-write.
 //
 // In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here may touch the real home.
 
@@ -73,4 +73,27 @@ test("test_layer1_settings_refuses_a_project_with_no_dir", () => {
     // `dir` is the storage key, so an empty one would write a junk "" entry rather than fail.
     redirectSettingsToFreshFile();
     assert.throws(() => saveLayer1Project(makeProjectSettings("")), /non-empty dir/);
+});
+
+test("test_saving_collapsed_folders_alone_preserves_the_saved_header_fields", () => {
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    const project = makeProjectSettings(dir);
+    saveLayer1Project(project);
+    saveLayer1Project({ dir, collapsedFolders: ["src/nested"] });
+    const saved = readLayer1Settings().projects[dir]!;
+    assert.equal(saved.repo, project.repo);
+    assert.equal(saved.branch, project.branch);
+    assert.equal(saved.ref, project.ref);
+    assert.deepEqual(saved.jsonl, project.jsonl);
+    assert.deepEqual(saved.fileHistory, project.fileHistory);
+    assert.deepEqual(saved.collapsedFolders, ["src/nested"]);
+});
+
+test("test_saving_header_settings_preserves_previously_saved_collapsed_folders", () => {
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    saveLayer1Project({ dir, collapsedFolders: ["src/nested"] });
+    saveLayer1Project(makeProjectSettings(dir));
+    assert.deepEqual(readLayer1Settings().projects[dir]!.collapsedFolders, ["src/nested"]);
 });

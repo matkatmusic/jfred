@@ -1,4 +1,4 @@
-// GET + POST /api/layer1-settings — the per-project Layer 1 header record (task 297): the project folder, its repo, the ref, and the two picked source lists, so re-opening the page restores the last project instead of re-typing it.
+// GET + POST /api/layer1-settings — per-project Layer 1 header record (task 297) for restoring the last project.
 //
 // The file lives in the user's HOME, never in the repo: a settings file is per-user state and must not turn up as a git diff.
 
@@ -18,6 +18,7 @@ export interface Layer1ProjectSettings {
     ref: string;
     jsonl: string[];
     fileHistory: string[];
+    collapsedFolders?: string[];
 }
 
 export interface Layer1Settings {
@@ -42,13 +43,13 @@ export function readLayer1Settings(): Layer1Settings {
     }
 }
 
-// Read-modify-write, keyed by the project's own `dir`, so saving project A never drops project B.
-export function saveLayer1Project(project: Layer1ProjectSettings): void {
+// Read-modify-write, keyed by `dir`, merged onto any existing entry so partial saves never drop other fields.
+export function saveLayer1Project(project: Partial<Layer1ProjectSettings> & { dir: string }): void {
     if (typeof project.dir !== "string" || project.dir === "") {
         throw new Error("body must carry a non-empty dir");
     }
     const settings = readLayer1Settings();
-    settings.projects[project.dir] = project;
+    settings.projects[project.dir] = { ...settings.projects[project.dir], ...project } as Layer1ProjectSettings;
     settings.lastDir = project.dir;
     writeFileSync(settingsFilePath.toString(), JSON.stringify(settings, null, 2));
 }
@@ -64,7 +65,7 @@ export function handleLayer1SettingsUpdate(request: IncomingMessage, response: S
     request.on("data", (chunk: Buffer) => { body += chunk.toString(); });
     request.on("end", () => {
         try {
-            saveLayer1Project(JSON.parse(body) as Layer1ProjectSettings);
+            saveLayer1Project(JSON.parse(body) as Partial<Layer1ProjectSettings> & { dir: string });
             sendJson(response, 200, { saved: true });
         } catch (error) {
             sendJson(response, 400, { error: String(error) });

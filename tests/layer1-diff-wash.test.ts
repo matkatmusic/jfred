@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
+import { hasInstantInRange, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";
@@ -33,4 +33,24 @@ test("a file born after the range resolves to undefined", () => {
 test("boundary instants are inclusive on both edges", () => {
     // Steps sitting exactly ON the wash edges belong to the range.
     assert.deepEqual(resolveRangeStepIndexes([T1, T2, T3], T1, T3), { baseIndex: 0, targetIndex: 2 });
+});
+
+test("hasInstantInRange is true when at least one instant lands inside the range", () => {
+    // Steps: T0 and T4 sit outside T1..T3; T2 sits inside — one hit is enough.
+    assert.equal(hasInstantInRange([T0, T2, T4], T1, T3), true);
+});
+
+test("hasInstantInRange is false when every instant falls outside the range", () => {
+    // Steps: both T3 and T4 post-date the T0..T1 range — no hit at all.
+    assert.equal(hasInstantInRange([T3, T4], T0, T1), false);
+});
+
+test("hasInstantInRange treats boundary instants as inside", () => {
+    // Steps: T1 sits exactly ON the range's own start edge — inclusive, so it counts.
+    assert.equal(hasInstantInRange([T1], T1, T3), true);
+});
+
+test("hasInstantInRange is false for an empty step list", () => {
+    // Steps: no instants at all — a path with no ladder never touches a range.
+    assert.equal(hasInstantInRange([], T0, T4), false);
 });

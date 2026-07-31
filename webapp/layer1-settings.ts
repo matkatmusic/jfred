@@ -1,6 +1,6 @@
-// Task 297: the Layer 1 page's saved project settings — the project folder, the repo and its branch/commit, and the two source lists — written to the server's config file on demand and read back once at boot (plans/layer1-mockup.html:1574-1594, where localStorage stood in for the file).
+// Task 297: the Layer 1 page's saved project settings, written on demand and read back once at boot.
 //
-// The unload prompt is the browser's own; a page cannot word it, which is why "discard" is the reader leaving anyway rather than a third button of ours.
+// The unload prompt is the browser's own; "discard" is just the reader leaving anyway.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
@@ -14,9 +14,31 @@ interface Layer1ProjectSettings {
     ref: string;
     jsonl: string[];
     fileHistory: string[];
+    collapsedFolders?: string[];
 }
 
 let settingsDirty = false;
+
+// Every saved project from the boot GET, so a project visited earlier is available without a second fetch.
+let cachedProjectSettings: Record<string, Layer1ProjectSettings> = {};
+
+export function getCollapsedFoldersForProject(dir: string): string[] {
+    return cachedProjectSettings[dir]?.collapsedFolders ?? [];
+}
+
+// Folder-collapse state auto-saves independent of the dirty/Save-button flow, since it is navigation state, not a form field.
+export function saveFolderCollapseState(collapsedFolders: string[]): void {
+    const dir = getInputById("dir").value.trim();
+    if (dir === "") {
+        return;
+    }
+    cachedProjectSettings[dir] = { ...cachedProjectSettings[dir], dir, collapsedFolders } as Layer1ProjectSettings;
+    void fetch("/api/layer1-settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dir, collapsedFolders }),
+    }).catch(() => {});
+}
 
 // Something the saved record covers has moved: arm the button and drop the "saved" note, which is now describing an older state than the one on screen.
 export function markSettingsDirty(): void {
@@ -72,6 +94,7 @@ export async function restoreSavedSettings(): Promise<boolean> {
         projects?: Record<string, Layer1ProjectSettings>;
         defaults?: Partial<Layer1ProjectSettings>;
     };
+    cachedProjectSettings = saved.projects ?? {};
     // A saved project beats the debugConfig.json defaults, which beat nothing at all. Each field falls back independently, so a config naming only `dir` still contributes that one box.
     const project = saved.lastDir == null ? undefined : saved.projects?.[saved.lastDir];
     const chosen = project ?? saved.defaults;
