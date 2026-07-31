@@ -4,7 +4,7 @@ import { getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode, type DiffStep } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
-import { paintDiffWash, readDrawnView, readNavTargets, readNodeInstant, resolveRangeStepIndexes } from "./layer1-diff-wash.ts";
+import { hasInstantInRange, paintDiffWash, readDrawnView, readNavTargets, readNodeInstant, resolveRangeStepIndexes } from "./layer1-diff-wash.ts";
 import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -73,6 +73,18 @@ export function createDetailViewsForFiles(view: WireLayer1View, files: string[],
     });
 }
 
+// A path belongs in the wash's swept-in set iff one of its OWN diffable steps lands inside the range.
+function pathTouchesRange(view: WireLayer1View, path: string, range: DiffWashRange): boolean {
+    return hasInstantInRange(listDatedSteps(view, path).map((entry) => entry.instant), range.baseInstant, range.targetInstant);
+}
+
+// Task 336: every pair/disk-orphan path with a step inside the range, plus whatever the caller always wants shown.
+export function resolveWashFileList(view: WireLayer1View, range: DiffWashRange, alwaysInclude: string[]): string[] {
+    const candidates = [...view.pairs.map((pair) => pair.path), ...view.diskOrphans.map((orphan) => orphan.path)];
+    const swept = candidates.filter((path) => pathTouchesRange(view, path, range));
+    return [...new Set([...swept, ...alwaysInclude])].sort();
+}
+
 // The File Nav entry point: chrome, then the two-step pipeline above.
 export function showDetailViewForFiles(view: WireLayer1View, targets: string[]): void {
     clearDiffPair();
@@ -116,7 +128,7 @@ export function extendDiffSelection(anchor: { node: HTMLElement; path: string },
     baseNode.classList.add("diff-base");
     targetNode.classList.add("diff-target");
     paintDiffWash(baseInstant, targetInstant, view.ruler);
-    const files = [...new Set([...readNavTargets(), anchor.path, path])].sort();
+    const files = resolveWashFileList(view, { baseInstant, targetInstant }, [...readNavTargets(), anchor.path, path]);
     const header = getRequiredElementById("dpath");
     header.textContent = files.length === 1
         ? `${files[0]!.split("/").pop()} — range diff`

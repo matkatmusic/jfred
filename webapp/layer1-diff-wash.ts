@@ -27,12 +27,17 @@ export function readNavTargets(): string[] {
     return navTargets;
 }
 
+// The one inside-the-range test every caller below shares: is ms within [from, to], inclusive?
+function fallsInRange(ms: number, fromMs: number, toMs: number): boolean {
+    return ms >= fromMs && ms <= toMs;
+}
+
 // base = first step inside the range, target = last inside; an empty range holds its preceding state.
 export function resolveRangeStepIndexes(instants: string[], baseInstant: string, targetInstant: string): { baseIndex: number; targetIndex: number } | undefined {
     const fromMs = Date.parse(baseInstant);
     const toMs = Date.parse(targetInstant);
     const stepsMs = instants.map((instant) => Date.parse(instant));
-    const baseIndex = stepsMs.findIndex((ms) => ms >= fromMs && ms <= toMs);
+    const baseIndex = stepsMs.findIndex((ms) => fallsInRange(ms, fromMs, toMs));
     if (baseIndex >= 0) {
         let targetIndex = baseIndex;
         while (targetIndex + 1 < stepsMs.length && stepsMs[targetIndex + 1]! <= toMs) {
@@ -47,6 +52,13 @@ export function resolveRangeStepIndexes(instants: string[], baseInstant: string,
     }
     // Every step post-dates the range: the file had no state inside it.
     return undefined;
+}
+
+// Task 336: does ANY instant land inside the range — the file-list sweep test, not a step-picking one.
+export function hasInstantInRange(instants: string[], baseInstant: string, targetInstant: string): boolean {
+    const fromMs = Date.parse(baseInstant);
+    const toMs = Date.parse(targetInstant);
+    return instants.some((instant) => fallsInRange(Date.parse(instant), fromMs, toMs));
 }
 
 // A lane node resolved to its wire instant: hash for a commit, version+session for a snapshot, else on-disk.
