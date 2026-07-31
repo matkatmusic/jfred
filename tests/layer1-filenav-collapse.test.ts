@@ -89,8 +89,9 @@ test("test_a_collapsed_folder_survives_a_search_box_rerender", async () => {
     const nested = findDetailsNamed(tree, "nested");
     nested.open = false;
 
+    // Both files must survive the filter, or the stripped common prefix leaves no folders to assert on.
     const searchBox = document.getElementById("filenav-search") as HTMLInputElement;
-    searchBox.value = "kept";
+    searchBox.value = ".ts";
     searchBox.dispatchEvent(new window.Event("input"));
 
     assert.ok(!findDetailsNamed(tree, "nested").hasAttribute("open"));
