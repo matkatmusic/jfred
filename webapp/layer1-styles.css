@@ -58,7 +58,7 @@
     font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
 
   /*
-    Task 282's time toggle shares .layerbar's rules: both are a label plus mutually-exclusive buttons, so a second rule set would be two things to keep in step. It carries NO `margin-left: auto` of its own — a third auto margin would re-split the header's free space and move the zoom and layer groups the user already signed off.
+    Task 282: time toggle reuses .layerbar rules; own margin-left:auto would re-split header spacing.
   */
   .layerbar, .timebar { display: flex; align-items: center; gap: 4px; }
   .layerbar { margin-left: auto; }
@@ -76,7 +76,7 @@
   .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
   /*
-    Task 286: the branch and commit pickers exist only once the path is confirmed to BE a git repo, so they are hidden until webapp/layer1-refs.ts adds `.repo-ok`. A path that is not a repository simply shows no pickers — the view route's own 400 already reports it in the crumb, and a second error surface for the same mistake would say it twice.
+    Task 286: pickers hidden until layer1-refs.ts adds `.repo-ok`; non-repo path shows none, error already in crumb.
   */
   .sources.repo .repo-flag, .sources.repo .repo-only { display: none; }
   .sources.repo.repo-ok .repo-flag { display: inline; }
@@ -239,13 +239,14 @@
   */
   .filebox .fname { position: absolute; top: 7px; left: 12px;
     max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
-    font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap; }
+    font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap;
+    user-select: none; }
   /*
     Task 280/270: hovering a truncated name reveals the whole path IN PAGE. `max-width: none` + `overflow: visible` is the whole reveal — the name is already abspos and `white-space: nowrap`, so lifting the bound lets it run past the bubble's 168 px instead of ellipsising.  The background and z-index are not decoration: `.stage`'s bubbles sit 26 px apart, so a revealed path paints straight over its neighbours without an opaque backdrop behind it.  z-index 7 is DERIVED, not chosen — above `.node`'s 6 so the revealed name covers the neighbouring bubbles' dots and labels, below `.ruler`'s 8 so it still scrolls under the sticky gutter rather than over it. `margin-left` cancels the padding so the text does not shift sideways under the cursor as it is revealed. No JS: this is a pure :hover state.  User-confirmed 2026-07-26 as the answer to task 270: this reveal, not a wrapped resting name, is how a long name becomes readable.  Task 287: the revealed path used to keep `.filebox .fname`'s `--c-snap` — the colour EVERY bubble's name uses — so at one y coordinate a revealed long path read as a single continuous run of green monospace mixed with the names of the bubbles it was painted over, and the reader could not tell where it ended. `--c-user` is the orange the user asked for (2026-07-26, "I prefer the text color change to orange in dark mode"); it is defined in all three token blocks and no `.node` class on this page paints with it, so the revealed name cannot be read as a node type.
   */
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
-  .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); }
+  .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
 
   .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
   .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }
