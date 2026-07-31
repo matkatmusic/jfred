@@ -6,7 +6,7 @@
 
 import { el, getRequiredElementById } from "./app-dom.ts";
 
-// A 168 px bubble in a 176 px plot of a 156,000 px render scales to under a tenth of a pixel, which browsers drop. 1.5 px keeps every widget on the map as a visible speck.
+// A 168 px bubble scales to under a tenth of a pixel; 1.5 px keeps every widget visible.
 const MINIMUM_MARK_PX = 1.5;
 
 // A box in CONTENT coordinates: the scrollport's padding-box origin, which is the same origin scrollLeft/scrollTop count from, so a scroll offset and a widget offset are directly comparable.
@@ -27,7 +27,7 @@ interface MinimapScale {
     yPerContentPx: number;
 }
 
-// The Math.max guards a division by zero on the pre-render page (no widgets yet) and under happy-dom, which implements no layout and reports every extent as 0.
+// Math.max guards a divide-by-zero pre-render, or under happy-dom's zero layout.
 export function fitMinimapScale(
     contentWidthPx: number,
     contentHeightPx: number,
@@ -64,6 +64,14 @@ function positionInPlot(target: HTMLElement, box: ContentBoxPx, scale: MinimapSc
     target.style.top = `${box.topPx * scale.yPerContentPx}px`;
     target.style.width = `${Math.max(box.widthPx * scale.xPerContentPx, MINIMUM_MARK_PX)}px`;
     target.style.height = `${Math.max(box.heightPx * scale.yPerContentPx, MINIMUM_MARK_PX)}px`;
+}
+
+// One `.wash` band's minimap mark: same measurement path as a `.filebox` mark, plus a copy of its tint.
+function buildWashMark(wash: Element, pane: HTMLElement, paneRect: DOMRect, scale: MinimapScale): HTMLElement {
+    const mark = el("div", { class: "mm-wash" });
+    positionInPlot(mark, measureInContent(wash, pane, paneRect), scale);
+    mark.style.setProperty("--wash-color", (wash as HTMLElement).style.getPropertyValue("--wash-color"));
+    return mark;
 }
 
 // One rendered widget's content-space box. `paneRect` is passed in rather than re-read per widget: the real render has 833 of them and the pane's own box does not move between them.
@@ -131,6 +139,9 @@ export function drawLayer1Minimap(): void {
     plot.dataset["scaleX"] = String(scale.xPerContentPx);
     plot.dataset["scaleY"] = String(scale.yPerContentPx);
     const paneRect = pane.getBoundingClientRect();
+    // Washes paint BEHIND file marks, mirroring the real canvas's `.washes { z-index: -1 }` stacking.
+    const washMarks = [...document.querySelectorAll("#washes .wash")].map((wash) =>
+        buildWashMark(wash, pane, paneRect, scale));
     const marks = [...document.querySelectorAll(".filebox")].map((widget) => {
         // The two orphan buckets are `.filebox.bucket`; they read as muted on the map exactly as they do on the canvas, so a speck is identifiable without hovering it.
         const mark = el("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box" });
@@ -138,7 +149,7 @@ export function drawLayer1Minimap(): void {
         return mark;
     });
     // The viewport rectangle is re-appended LAST so it paints over the marks.
-    plot.replaceChildren(...marks, getRequiredElementById("mm-view"));
+    plot.replaceChildren(...washMarks, ...marks, getRequiredElementById("mm-view"));
     syncMinimapViewport();
     wireMinimapListeners();
     observeCanvasResize();
