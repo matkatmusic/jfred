@@ -140,11 +140,19 @@ function handleFolderPickRequest(response: ServerResponse, query: URLSearchParam
     const result = spawnSync("osascript", [
         // The server is a background process — without activate the dialog opens behind the browser.
         "-e", 'tell application "System Events" to activate',
-        "-e", `POSIX path of (choose folder with prompt "Select folder"${seed})`,
+        "-e", `set chosenFolders to (choose folder with prompt "Select folder"${seed} with multiple selections allowed)`,
+        "-e", "set posixPaths to {}",
+        "-e", "repeat with f in chosenFolders",
+        "-e", "set end of posixPaths to POSIX path of f",
+        "-e", "end repeat",
+        "-e", "set AppleScript's text item delimiters to linefeed",
+        "-e", "posixPaths as text",
     ], { encoding: "utf8" });
-    // Non-zero = user cancelled (-128) or osascript failed; both are "no pick" to the client.
-    const picked = result.status === 0 ? result.stdout.trim().replace(/\/$/, "") : "";
-    sendJson(response, 200, { path: picked });
+    // Non-zero = user cancelled (-128) or osascript failed; both are "no picks" to the client.
+    const paths = result.status === 0
+        ? result.stdout.split("\n").map((line) => line.trim().replace(/\/$/, "")).filter((line) => line !== "")
+        : [];
+    sendJson(response, 200, { paths });
 }
 
 function serveRawTranscript(response: ServerResponse, query: URLSearchParams): void {

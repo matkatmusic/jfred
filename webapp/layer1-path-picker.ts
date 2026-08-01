@@ -10,7 +10,7 @@ const PICKER_TITLE_BY_KIND: Record<SourceKind, string> = {
     [SourceKind.jsonl]: "JSONL Source Paths",
     [SourceKind.fileHistory]: "File History Snapshot Paths",
 };
-// What the folder held none of. Named per kind, because "no JSONL files found" over a snapshot list would be describing the wrong thing.
+// What the folder held none of, named per kind so the message matches the list.
 const EMPTY_ALERT_BY_KIND: Record<SourceKind, string> = {
     [SourceKind.jsonl]: "no JSONL files found",
     [SourceKind.fileHistory]: "no snapshots found",
@@ -49,7 +49,7 @@ export function openPicker(kind: SourceKind): void {
     renderPicker();
 }
 
-// In front of the list, gone on its own a few seconds later — the folder is refused, not the user.
+// Shown briefly above the list, then auto-clears — the folder is refused, not the user.
 function flashEmptyAlert(kind: SourceKind): void {
     const alert = getRequiredElementById("pp-alert");
     alert.textContent = EMPTY_ALERT_BY_KIND[kind];
@@ -74,17 +74,23 @@ async function addPickedFolder(): Promise<void> {
     if (!response.ok) {
         return;
     }
-    const { path } = await response.json() as { path: string };
-    if (path === "" || draftPaths.includes(path)) {
-        return;
+    const { paths } = await response.json() as { paths: string[] };
+    let lastAddedIndex = -1;
+    for (const path of paths) {
+        if (path === "" || draftPaths.includes(path)) {
+            continue;
+        }
+        if (await countFilesUnder(path, draftKind) === 0) {
+            flashEmptyAlert(draftKind);
+            continue;
+        }
+        draftPaths.push(path);
+        lastAddedIndex = draftPaths.length - 1;
     }
-    if (await countFilesUnder(path, draftKind) === 0) {
-        flashEmptyAlert(draftKind);
-        return;
+    if (lastAddedIndex >= 0) {
+        draftPick = lastAddedIndex;
+        renderPicker();
     }
-    draftPaths.push(path);
-    draftPick = draftPaths.length - 1;
-    renderPicker();
 }
 
 function removePickedFolder(): void {
