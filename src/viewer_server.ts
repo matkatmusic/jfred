@@ -152,7 +152,8 @@ function handleFolderPickRequest(response: ServerResponse, query: URLSearchParam
     const paths = result.status === 0
         ? result.stdout.split("\n").map((line) => line.trim().replace(/\/$/, "")).filter((line) => line !== "")
         : [];
-    sendJson(response, 200, { paths });
+    // `path` stays for callers filling a single input (app-header.ts, layer1-sources.ts); `paths` is the full multi-select result.
+    sendJson(response, 200, { path: paths[0] ?? "", paths });
 }
 
 function serveRawTranscript(response: ServerResponse, query: URLSearchParams): void {
