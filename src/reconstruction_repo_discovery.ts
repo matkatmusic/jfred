@@ -9,7 +9,7 @@ import type { SourceEntry } from "./reconstruction_overrides.ts";
 // Vendor trees and git's own internals are never worth descending into.
 const SKIPPED_DIR_NAMES = new Set([".git", "node_modules"]);
 
-// Every directory at or below rootDir (including itself) that is a git repo (has a .git entry, dir or file). Depth-first, sorted per-directory for deterministic ordering.
+// Every git repo at or below rootDir, depth-first, sorted per directory.
 export function discoverNestedRepos(rootDir: Path): Path[] {
     const found: Path[] = [];
     walkForGitRepos(rootDir.toString(), found);
@@ -17,6 +17,10 @@ export function discoverNestedRepos(rootDir: Path): Path[] {
 }
 
 function walkForGitRepos(dir: string, found: Path[]): void {
+    // A configured cwd need not exist on this machine; readdirSync would throw ENOENT.
+    if (!existsSync(dir)) {
+        return;
+    }
     if (existsSync(join(dir, ".git"))) {
         found.push(new Path(dir));
     }
@@ -30,7 +34,7 @@ function walkForGitRepos(dir: string, found: Path[]): void {
     }
 }
 
-// Claude Code's own project-folder name for a working directory: every non-alphanumeric character becomes "-" (mirrors webapp/layer1-source-paths.ts's encodeProjectFolderName — webapp cannot import from src/, so the verified formula is duplicated here rather than shared).
+// Claude Code's project-folder name: every non-alphanumeric character becomes "-".  Duplicated from webapp/layer1-source-paths.ts because webapp cannot import from src/.
 function encodeProjectFolderName(projectFolder: string): string {
     return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
