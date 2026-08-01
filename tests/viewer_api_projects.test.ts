@@ -1,10 +1,11 @@
-// Static-request path mapping (task 204): `/` and `/webapp_old.html` both serve the preserved pre-redesign page; `/app/*` strips to plain asset names resolved dist-first.
+// Static-request path mapping (task 204): root/webapp_old serve pre-redesign pages; `/app/*` strips to dist-first asset names.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
-import { computeStaticFileRelative, resolveStaticFilePath } from "../src/viewer_api_projects.ts";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { computeStaticFileRelative, listSubagentTranscripts, resolveStaticFilePath } from "../src/viewer_api_projects.ts";
 
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(WEBAPP_DIR, "dist");
@@ -34,4 +35,27 @@ test("webapp_old_resolves_to_existing_source_file", () => {
     const resolved = resolveStaticFilePath("webapp_old.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
     assert.equal(resolved, resolve(WEBAPP_DIR, "webapp_old.html"));
     assert.ok(existsSync(resolved));
+});
+
+test("listSubagentTranscripts_returns_empty_when_subagents_dir_missing", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "reveng-subagents-"));
+    assert.deepEqual(listSubagentTranscripts(projectDir, "session-a"), []);
+});
+
+test("listSubagentTranscripts_finds_only_agent_jsonl_files", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "reveng-subagents-"));
+    const subagentsDir = join(projectDir, "session-a", "subagents");
+    mkdirSync(subagentsDir, { recursive: true });
+    writeFileSync(join(subagentsDir, "agent-foo.jsonl"), "");
+    writeFileSync(join(subagentsDir, "notes.txt"), "");
+    const entries = listSubagentTranscripts(projectDir, "session-a");
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]!.fileName.toString(), join("session-a", "subagents", "agent-foo.jsonl"));
+});
+
+test("listSubagentTranscripts_ignores_loose_files_outside_subagents_dir", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "reveng-subagents-"));
+    mkdirSync(join(projectDir, "session-a"), { recursive: true });
+    writeFileSync(join(projectDir, "session-a", "agent-foo.jsonl"), "");
+    assert.deepEqual(listSubagentTranscripts(projectDir, "session-a"), []);
 });

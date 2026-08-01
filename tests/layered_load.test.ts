@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
 import {
@@ -157,4 +157,33 @@ test("test_loadLayeredProject_beacon_carries_write_content_and_evidence_line", (
     assert.ok(beacon.evidence);
     assert.equal(beacon.evidence?.sessionFile.toString(), join(fixture.projectDir, "a.jsonl"));
     assert.ok((beacon.evidence?.line ?? 0) > 0);
+});
+
+test("test_loadLayeredProject_includes_fork_subagent_file_events", () => {
+    // Task 375/338: a Write made inside a /btw fork subagent must not be silently dropped.
+    const fixture = makeLayeredFixture();
+    const forkedPath = join(fixture.workspaceRoot, "forked.py");
+    const forkWrite = buildWriteRecordPair(
+        { sessionId: "agent-fork-1", cwd: fixture.workspaceRoot, timestamp: "2026-07-24T10:04:00.000Z", toolId: "toolu_fork_w1", parentUuid: null },
+        forkedPath,
+        "forked content\n",
+    );
+    const subagentsDir = join(fixture.projectDir, "a", "subagents");
+    mkdirSync(subagentsDir, { recursive: true });
+    const forkContextRefLine = JSON.stringify({
+        type: "fork-context-ref",
+        agentId: "fork-1",
+        parentSessionId: "a",
+        parentLastUuid: "prompt-1",
+        contextLength: 100,
+    });
+    writeFileSync(
+        join(subagentsDir, "agent-fork-1.jsonl"),
+        [forkContextRefLine, ...forkWrite.records.map((r) => JSON.stringify(r))].join("\n") + "\n",
+    );
+    const graph = loadLayeredProject(new Path(fixture.projectDir), {});
+    const forkedEntity = findEntity(graph.entities, forkedPath);
+    assert.equal(forkedEntity.sessionTimelines.length, 1);
+    assert.equal(forkedEntity.sessionTimelines[0]!.timeline.nodes.length, 1);
+    assert.equal(forkedEntity.sessionTimelines[0]!.timeline.nodes[0]!.kind, LayeredNodeKind.beacon);
 });

@@ -1,8 +1,9 @@
 // S1 source discovery + S2 node mapping + task 199 timeline completion.
 
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
+import { listSubagentTranscripts } from "./viewer_api_projects.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findFirstRecordCwd } from "./reconstruction_base_commit.ts";
 import { resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
@@ -171,6 +172,13 @@ function buildEntities(nodesByFileThenSession: Map<string, Map<string, TimelineN
     return entities;
 }
 
+// A session's own fork-subagent transcripts, if any (task 375/338).
+function subagentPathsFor(projectFolder: Path, sessionJsonlPath: Path): Path[] {
+    const sessionId = basename(sessionJsonlPath.toString(), ".jsonl");
+    return listSubagentTranscripts(projectFolder.toString(), sessionId)
+        .map((entry) => new Path(join(projectFolder.toString(), entry.fileName.toString())));
+}
+
 // Entry point: loads all sessions and builds the per-file entity graph.
 export function loadLayeredProject(projectFolder: Path, overrides: LayeredSourceOverrides): ReconstructionGraph {
     const nodesByFileThenSession = new Map<string, Map<string, TimelineNode[]>>();
@@ -178,6 +186,10 @@ export function loadLayeredProject(projectFolder: Path, overrides: LayeredSource
     for (const jsonlPath of discoverJsonlPaths(projectFolder, overrides.jsonlPaths)) {
         const { records } = loadTranscript(jsonlPath.toString());
         collectSessionNodes(records, jsonlPath, nodesByFileThenSession, lineageEvidence);
+        for (const subagentPath of subagentPathsFor(projectFolder, jsonlPath)) {
+            const { records: subagentRecords } = loadTranscript(subagentPath.toString());
+            collectSessionNodes(subagentRecords, subagentPath, nodesByFileThenSession, lineageEvidence);
+        }
     }
     // buildLineageEdges adds an entity for any rename/copy endpoint the node walk never saw.
     const entitiesByPath = new Map(

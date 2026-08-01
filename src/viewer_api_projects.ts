@@ -29,7 +29,7 @@ export type ProjectListing = {
 // Synthetic project for loose .jsonl files sitting directly in the scanned folder.
 export const ROOT_PROJECT_NAME = "(root)";
 
-// The app's runtime-switchable scan root (POST /api/config swaps it). There is NO default: the server refuses to start without --projects-dir, so reading it while unset is a bug.  item 46: let activeProjectsDir = new Path(join(homedir(), ".claude", "projects"));
+// Runtime-switchable scan root; no default, requires --projects-dir.  item 46: let activeProjectsDir = new Path(join(homedir(), ".claude", "projects"));
 let activeProjectsDir: Path | undefined;
 
 export function getProjectsDir(): Path {
@@ -85,7 +85,7 @@ export function getMergedProjectPaths(projectName: string): WireProjectPaths {
     return { ...readProjectPathsConfig(getProjectsDir())[projectName], ...sessionProjectPaths.get(projectName) };
 }
 
-// item 46: set the engine's path overrides for this request — the project's merged entry (stored config + task-137 session overrides) plus the viewer's effective file-history dir when the entry sets none. Every project-scoped route calls this BEFORE any build work; overrides are process-wide module state, so each request overwrites the previous request's (builds are synchronous and the server serializes them).
+// item 46: sets engine path overrides per request (merged config + effective file-history dir); process-wide state, called before build.
 export function applyProjectOverrides(projectName: string): void {
     const wireEntry = getMergedProjectPaths(projectName);
     const overrides = hydrateProjectPaths(wireEntry);
@@ -99,17 +99,32 @@ export function applyProjectOverrides(projectName: string): void {
     setPathOverrides(overrides);
 }
 
-// The .jsonl entries directly inside `dir`, newest first.
-function listJsonlFiles(dir: string): JsonlFileEntry[] {
+// Entries directly inside `dir` matching `matches`, newest first.
+function collectJsonlEntries(dir: string, matches: (name: string) => boolean): JsonlFileEntry[] {
     const entries: JsonlFileEntry[] = [];
     for (const name of readdirSync(dir)) {
-        if (!name.endsWith(".jsonl")) continue;
+        if (!matches(name)) continue;
         const stats = statSync(join(dir, name));
         if (!stats.isFile()) continue;
         entries.push({ fileName: new Path(name), sizeBytes: stats.size, modifiedAt: stats.mtime });
     }
     entries.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
     return entries;
+}
+
+// The .jsonl entries directly inside `dir`, newest first.
+function listJsonlFiles(dir: string): JsonlFileEntry[] {
+    return collectJsonlEntries(dir, (name) => name.endsWith(".jsonl"));
+}
+
+// Fork-subagent transcripts under <sessionId>/subagents/ (task 375/338) — listJsonlFiles never recurses into them.
+export function listSubagentTranscripts(projectDir: string, sessionId: string): JsonlFileEntry[] {
+    const subagentsDir = join(projectDir, sessionId, "subagents");
+    if (!existsSync(subagentsDir) || !statSync(subagentsDir).isDirectory()) {
+        return [];
+    }
+    return collectJsonlEntries(subagentsDir, (name) => name.startsWith("agent-") && name.endsWith(".jsonl"))
+        .map((entry) => ({ ...entry, fileName: new Path(join(sessionId, "subagents", entry.fileName.toString())) }));
 }
 
 // A project's most recent JSONL activity, for sorting; a JSONL-less project sorts last.
