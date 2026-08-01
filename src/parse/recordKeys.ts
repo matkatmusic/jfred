@@ -73,6 +73,8 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
         // subagent identity; Esc-interrupt marker; tool-result back-reference; denied permission prompt; pasted images; queued-prompt priority (audit 2026-07-05).
         "agentId", "interruptedMessageId", "sourceToolUseID", "toolDenialKind",
         "imagePasteIds", "queuePriority",
+        // Newer-CC marker: this tool result ends the assistant turn (audit 2026-07-31).
+        "toolEndsTurn",
     ),
 };
 
