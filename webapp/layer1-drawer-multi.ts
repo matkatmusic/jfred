@@ -38,6 +38,53 @@ export function listDiffableSteps(view: WireLayer1View, path: string): DiffStep[
     return listDatedSteps(view, path).map((entry) => entry.step);
 }
 
+// Task 356: brackets a run's instant between the nearest before/after steps on path's ladder.
+export function bracketRunInstant(
+    view: WireLayer1View, path: string, runInstant: string,
+): { baseIndex: number; targetIndex: number } | undefined {
+    const dated = listDatedSteps(view, path);
+    if (dated.length === 0) {
+        return undefined;
+    }
+    const runTime = Date.parse(runInstant);
+    let lastBefore = -1;
+    for (let index = dated.length - 1; index >= 0; index -= 1) {
+        if (Date.parse(dated[index]!.instant) <= runTime) { lastBefore = index; break; }
+    }
+    const firstAfter = dated.findIndex((entry) => Date.parse(entry.instant) >= runTime);
+    return {
+        baseIndex: lastBefore === -1 ? 0 : lastBefore,
+        targetIndex: firstAfter === -1 ? dated.length - 1 : firstAfter,
+    };
+}
+
+// Task 356: every pair path carrying a scriptRuns entry for `toolUseId` — the shared-drawer lookup.
+export function pathsForScriptRun(view: WireLayer1View, toolUseId: string): string[] {
+    return view.pairs
+        .filter((pair) => (pair.scriptRuns ?? []).some((run) => run.toolUseId === toolUseId))
+        .map((pair) => pair.path);
+}
+
+// Task 356: one before/after DiffView pane per affected path, bracketed on the run's own instant.
+export function buildScriptRunDiffPanes(
+    view: WireLayer1View, runInstant: string, affectedPaths: string[],
+): HTMLElement[] {
+    return affectedPaths.map((path) => {
+        const bracket = bracketRunInstant(view, path, runInstant);
+        const steps = listDiffableSteps(view, path);
+        if (bracket === undefined) {
+            return buildDiffView(path, [], {
+                revisionControlsShown: false, mode: DiffPaneMode.inline, fullContents: false,
+                baseIndex: 0, targetIndex: 0, emptyText: "No verified state to diff against.",
+            });
+        }
+        return buildDiffView(path, steps, {
+            revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
+            baseIndex: bracket.baseIndex, targetIndex: bracket.targetIndex,
+        });
+    });
+}
+
 // One file's pane inside a range: its base/target derive from the wash, or an empty-range body.
 function buildRangeView(view: WireLayer1View, path: string, range: DiffWashRange): HTMLElement {
     const dated = listDatedSteps(view, path);

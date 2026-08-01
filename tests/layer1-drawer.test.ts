@@ -8,7 +8,7 @@ import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
-import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import type { WireLayer1View, WireScriptRun } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
 
 const DISK_FILE_PATH = "src/demo.ts";
@@ -421,4 +421,99 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     // Only the ladder's ends disable an arrow now.
     assert.equal(paneArrows()[1]!.disabled, true);
     assert.equal(paneArrows()[0]!.disabled, false);
+});
+
+// Task 356: a shared script-run drawer, keyed by toolUseId rather than (node, path).
+const T0 = LANE_T0;
+const T2 = LANE_T2;
+const SCRIPT_TOOL_USE_ID = "toolu_ren_1";
+const SCRIPT_RUN: WireScriptRun = {
+    instant: T0, axisPx: 0, toolUseId: SCRIPT_TOOL_USE_ID,
+    executorKind: "python", code: 'open("rename_inv.py").read()', label: "rename_inv.py",
+};
+
+function armScriptRunView(): void {
+    rememberDrawnView({
+        pairs: [
+            { path: "src/a.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [SCRIPT_RUN] },
+            { path: "src/b.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [SCRIPT_RUN] },
+        ],
+        gitOrphans: [], diskOrphans: [],
+        ruler: [{ instant: T0, axisPx: 0, eventCount: 1 }, { instant: T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
+}
+
+function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement; connector: HTMLElement } {
+    const nodeA = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+    const nodeB = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+    const connector = el("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+    getRequiredElementById("stage").replaceChildren(
+        el("div", { class: "filebox" }, [
+            el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
+            el("div", { class: "lane" }, [nodeA]),
+        ]),
+        connector,
+        el("div", { class: "filebox" }, [
+            el("div", { class: "fname", text: "b.ts", "data-path": "src/b.ts" }),
+            el("div", { class: "lane" }, [nodeB]),
+        ]),
+    );
+    return { nodeA, nodeB, connector };
+}
+
+test("task 356: clicking a script-run node opens the shared drawer with the resolved body", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    const { nodeA } = buildScriptRunStage();
+    armScriptRunView();
+    wireNodeDrawer();
+
+    nodeA.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
+    assert.equal(getRequiredElementById("dbody").querySelector(".scriptbody")?.textContent, SCRIPT_RUN.code);
+    // One diff pane per affected path (src/a.ts and src/b.ts both carry this toolUseId).
+    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
+});
+
+test("task 356: clicking the shared connector opens the SAME drawer as clicking a node", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    const { connector } = buildScriptRunStage();
+    armScriptRunView();
+    wireNodeDrawer();
+
+    connector.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
+});
+
+test("task 356: an unlabeled script run (no static filename) still opens, with a generated header", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    const unlabeled: WireScriptRun = { ...SCRIPT_RUN, toolUseId: "toolu_inline", label: undefined };
+    rememberDrawnView({
+        pairs: [{ path: "src/a.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [unlabeled] }],
+        gitOrphans: [], diskOrphans: [],
+        ruler: [{ instant: T2, axisPx: 40, eventCount: 1 }],
+    } as WireLayer1View);
+    rememberNavTargets([]);
+    const node = el("i", { class: "node n-script", "data-tool-use-id": "toolu_inline" });
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
+        el("div", { class: "lane" }, [node]),
+    ]));
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    assert.equal(getRequiredElementById("dpath").textContent, "python run");
 });

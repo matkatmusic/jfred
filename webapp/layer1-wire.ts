@@ -23,6 +23,23 @@ export interface WireSnapshotOf<I, P, U> extends WireInstantOf<I> {
     line?: number;
 }
 
+// Wire spelling of ScriptExecutorKind (src/reconstruction_script_execution.ts) — drives the never-provable idiom.
+export const WireScriptExecutorKind = {
+    python: "python",
+    bash: "bash",
+} as const;
+export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
+
+// Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
+export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
+    toolUseId: U;
+    executorKind: WireScriptExecutorKind;
+    // The resolved body (resolveScriptIndirection already ran engine-side) — the client never re-resolves it.
+    code: string;
+    // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
+    label?: string;
+}
+
 export interface WirePairOf<I, P, U> {
     path: P;
     // Oldest first, as the endpoint emits them.
@@ -32,6 +49,8 @@ export interface WirePairOf<I, P, U> {
     created?: WireInstantOf<I>;
     // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
     snapshots?: WireSnapshotOf<I, P, U>[];
+    // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
+    scriptRuns?: WireScriptRunOf<I, P, U>[];
 }
 
 export interface WireOrphanOf<I, P, U> extends WireInstantOf<I> {
@@ -52,6 +71,7 @@ export type WireInstant = WireInstantOf<string>;
 export type WireCommit = WireCommitOf<string>;
 export type WireRulerTick = WireRulerTickOf<string>;
 export type WireSnapshot = WireSnapshotOf<string, string, string>;
+export type WireScriptRun = WireScriptRunOf<string, string, string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;
 export type WireLayer1View = WireLayer1ViewOf<string, string, string>;
@@ -92,7 +112,7 @@ export const SourceKind = {
 } as const;
 export type SourceKind = (typeof SourceKind)[keyof typeof SourceKind];
 
-// Pair ladder ORDER (task 331): created, commits, on-disk, snapshots; raw `I`.
+// Pair ladder ORDER (task 331): created, commits, on-disk, snapshots, script runs; raw `I`.
 export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
     const created = pair.created === undefined ? [] : [pair.created.instant];
     return [
@@ -100,6 +120,7 @@ export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] 
         ...pair.commits.map((commit) => commit.instant),
         pair.onDisk.instant,
         ...(pair.snapshots ?? []).map((snapshot) => snapshot.instant),
+        ...(pair.scriptRuns ?? []).map((run) => run.instant),
     ];
 }
 

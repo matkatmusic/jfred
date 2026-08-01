@@ -1,13 +1,14 @@
 // Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
 
-import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearDiffPair, describeNodeStep, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
-import { extendDiffSelection } from "./layer1-drawer-multi.ts";
+import { buildScriptRunDiffPanes, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
+import { readDrawnView } from "./layer1-diff-wash.ts";
 import { flashSession } from "./layer1-sessions.ts";
 
 const SHORT_HASH_LENGTH = 8;
@@ -126,12 +127,50 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     }
 }
 
+// Task 356: identity is toolUseId, not (node, path) — one shared drawer for every bubble the run touches.
+async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void> {
+    const view = readDrawnView();
+    if (view === undefined || toolUseId === undefined) {
+        return;
+    }
+    const paths = pathsForScriptRun(view, toolUseId);
+    const run = view.pairs
+        .flatMap((pair) => pair.scriptRuns ?? [])
+        .find((entry) => entry.toolUseId === toolUseId);
+    if (run === undefined) {
+        return;
+    }
+    clearDiffPair();
+    for (const id of ["dprev", "dnext"] as const) {
+        getRequiredElementById(id).hidden = true;
+    }
+    const header = getRequiredElementById("dpath");
+    header.textContent = run.label ?? `${run.executorKind} run`;
+    header.title = paths.join("\n");
+    getRequiredElementById("dmeta").textContent = `${run.executorKind} run · ${paths.length} affected file(s)`;
+    getRequiredElementById("drawer").classList.add("open");
+    setDrawerTools("none");
+    const scriptBody = el("pre", { class: "scriptbody", text: run.code });
+    displayDetailView([scriptBody, ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+}
+
 export function wireNodeDrawer(): void {
     wireImageZoomTools();
     getRequiredElementById("stage").addEventListener("click", (event) => {
+        // Task 356: a connector is not a `.node` — route it before findClickedNode swallows the click.
+        const connector = (event.target as HTMLElement).closest<HTMLElement>(".script-connector");
+        if (connector !== null) {
+            void openScriptRunDrawer(connector.dataset.toolUseId);
+            return;
+        }
         const node = findClickedNode(event.target as HTMLElement);
         // A created-at node is never the latest on-disk state, so it has no bytes to show.
         if (node === undefined || node.classList.contains("n-created")) {
+            return;
+        }
+        // Task 356: a script node's identity is toolUseId, so it never needs findNodePath.
+        if (node.classList.contains("n-script")) {
+            void openScriptRunDrawer(node.dataset.toolUseId);
             return;
         }
         const path = findNodePath(node);

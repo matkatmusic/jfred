@@ -30,7 +30,13 @@ export function runTouchesTarget(
     return contentAfter !== undefined && contentAfter !== contentBefore;
 }
 
-// The latest run at or before `when` whose source mentions `target`'s basename — or, when no run names it, the latest whose EXECUTION provably changes it. False positives are harmless — the forward test rejects them. Substring stays primary so existing scenarios keep their run selection.
+// A run's SOURCE names `target` by basename substring — static only, no execution.
+function runSourceNamesPath(run: ScriptRun, target: Path): boolean {
+    const basename = target.toString().split("/").pop() ?? "";
+    return basename !== "" && run.code.includes(basename);
+}
+
+// The latest run at or before `when` naming `target`, else the latest whose execution provably changes it.
 export function runForTarget(
     runs: ScriptRun[],
     target: Path,
@@ -39,11 +45,10 @@ export function runForTarget(
     reader: BackupReader,
     seedContent?: LineageContentBefore,
 ): ScriptRun | undefined {
-    const basename = target.toString().split("/").pop() ?? "";
     let chosen: ScriptRun | undefined;
     for (const run of runs) {
         if (run.timestamp.getTime() > when.getTime()) continue;
-        if (run.code.includes(basename)) chosen = run;
+        if (runSourceNamesPath(run, target)) chosen = run;
     }
     if (chosen !== undefined) return chosen;
     for (const run of runs) {
@@ -51,4 +56,9 @@ export function runForTarget(
         if (runTouchesTarget(run, target, records, reader, seedContent)) chosen = run;
     }
     return chosen;
+}
+
+// Task 356: static-scan inverse of runForTarget; empty means unlabeled, never guessed.
+export function affectedPathsForRun(run: ScriptRun, candidatePaths: Path[]): Path[] {
+    return candidatePaths.filter((target) => runSourceNamesPath(run, target));
 }
