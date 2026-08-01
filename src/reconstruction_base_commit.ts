@@ -7,6 +7,7 @@ import { EventKind, FailureScope } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_engine.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
+import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 
@@ -99,22 +100,68 @@ export function findFirstRecordCwd(records: TranscriptRecord[]): Path | undefine
     return undefined;
 }
 
+// task 365: the source (with a root) whose root is the longest ancestor-or-equal prefix of target.
+function findLongestEnclosingSource(sources: SourceEntry[], target: Path): { source: SourceEntry; root: Path } | undefined {
+    const targetString = target.toString();
+    let best: { source: SourceEntry; root: Path } | undefined;
+    for (const source of sources) {
+        if (source.root === undefined) {
+            continue;
+        }
+        const rootString = source.root.toString();
+        const isEnclosing = targetString === rootString || targetString.startsWith(rootString + "/");
+        if (!isEnclosing) {
+            continue;
+        }
+        if (best === undefined || rootString.length > best.root.toString().length) {
+            best = { source, root: source.root };
+        }
+    }
+    return best;
+}
+
+// task 365: resolves beacon repo/commit/root per-source when `sources[]` is configured, else today's global values unchanged.
+export function resolveBaseCommitEvidenceForTarget(
+    records: TranscriptRecord[],
+    target: Path,
+): { repoDir: Path; baseCommit: Uuid; relativeRoot: Path } | undefined {
+    const overrides = getPathOverrides();
+    if (overrides.sources === undefined || overrides.sources.length === 0) {
+        if (overrides.repoDir === undefined) {
+            return undefined;
+        }
+        if (overrides.baseCommit === undefined) {
+            return undefined;
+        }
+        const relativeRoot = findFirstRecordCwd(records);
+        if (relativeRoot === undefined) {
+            return undefined;
+        }
+        return { repoDir: overrides.repoDir, baseCommit: overrides.baseCommit, relativeRoot };
+    }
+    const enclosing = findLongestEnclosingSource(overrides.sources, target);
+    if (enclosing === undefined) {
+        return undefined;
+    }
+    const repoDir = enclosing.source.repoDir ?? overrides.repoDir;
+    if (repoDir === undefined) {
+        return undefined;
+    }
+    const baseCommit = enclosing.source.baseCommit ?? overrides.baseCommit;
+    if (baseCommit === undefined) {
+        return undefined;
+    }
+    return { repoDir, baseCommit, relativeRoot: enclosing.root };
+}
+
 // Splices a tier-1 beacon WriteEvent if the base commit contains this target.
 export function seedBaseCommitBeacon(records: TranscriptRecord[], events: FileEvent[], target: Path): FileEvent[] {
-    const { repoDir, baseCommit } = getPathOverrides();
-    if (repoDir === undefined) {
+    const evidence = resolveBaseCommitEvidenceForTarget(records, target);
+    if (evidence === undefined) {
         return events;
     }
-    if (baseCommit === undefined) {
-        return events;
-    }
-    const recordedRoot = findFirstRecordCwd(records);
-    if (recordedRoot === undefined) {
-        return events;
-    }
-    // ponytail: assumes the repo root IS the recorded cwd — pass a config repoRelativeRoot
-    // if a nested-repo scenario ever appears.
-    const relativePath = relative(recordedRoot.toString(), target.toString());
+    const { repoDir, baseCommit, relativeRoot } = evidence;
+    const relativePath = relative(relativeRoot.toString(), target.toString());
     if (relativePath === "") {
         return events;
     }

@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
+import { discoverSourceEntriesForProjectRoot } from "./reconstruction_repo_discovery.ts";
 
 // The overrides. All optional; an absent field means "use today's default".
 export type PathOverrides = {
@@ -37,15 +38,23 @@ export function serializePathOverrides(): string {
             projectsDir: source.projectsDir.toString(),
             fileHistoryDir: source.fileHistoryDir?.toString(),
             root: source.root?.toString(),
+            repoDir: source.repoDir?.toString(),
+            baseCommit: source.baseCommit?.toString(),
         })),
     });
 }
 
-// The per-project config file sitting INSIDE the projects folder (scanProjects only lists directories and .jsonl files, so the config never shows up as a project).
+// Per-project config file inside the projects folder; scanProjects ignores it since it lists only dirs and .jsonl files.
 export const PROJECT_PATHS_CONFIG_NAME = "reveng-paths.json";
 
 // Wire shape of one entry in a project's `sources` list (spec S3): one conversation-log folder plus its optional file-history folder and workspace root. Paths resolve exactly like every other reveng-paths.json path (task-56 trap: jfred-root-relative or absolute, taken verbatim).
-export type WireSourceEntry = { projectsDir: string; fileHistoryDir?: string; root?: string };
+export type WireSourceEntry = {
+    projectsDir: string;
+    fileHistoryDir?: string;
+    root?: string;
+    repoDir?: string;
+    baseCommit?: string;
+};
 
 // Wire shape of one project's entry in <projectsDir>/reveng-paths.json. fileHistory is the per-project explicit file-history-snapshots override (task 137); sources is the multi-source list (spec S3).
 export type WireProjectPaths = {
@@ -59,11 +68,23 @@ export type WireProjectPaths = {
 };
 
 // One hydrated source (spec S3/S4): where a source's JSONLs live, optionally where its file-history blobs live, and optionally the workspace root its file paths are relative to. An absent root means "auto-detect from JSONL cwds" (design §b) — resolved by later pipeline stages, never at parse time.
-export type SourceEntry = { projectsDir: Path; fileHistoryDir?: Path; root?: Path };
+export type SourceEntry = {
+    projectsDir: Path;
+    fileHistoryDir?: Path;
+    root?: Path;
+    repoDir?: Path;   // task 365: the nested repo this source's git evidence resolves against
+    baseCommit?: Uuid; // task 365: the tier-1 beacon commit for repoDir, per-source
+};
 
-// A project's sources list (spec S3). A legacy entry (no `sources` key) is the one-entry degenerate case: the config's own projects dir, carrying the legacy fileHistory override.
+// A project's sources list (spec S3); task 365: nested-repo auto-discovery wins over the legacy single-source fallback.
 export function hydrateProjectSources(configProjectsDir: Path, wire: WireProjectPaths): SourceEntry[] {
     if (wire.sources === undefined) {
+        if (wire.cwd !== undefined) {
+            const discoveredSources = discoverSourceEntriesForProjectRoot(new Path(wire.cwd));
+            if (discoveredSources.length > 0) {
+                return discoveredSources;
+            }
+        }
         const legacySource: SourceEntry = { projectsDir: configProjectsDir };
         if (wire.fileHistory !== undefined) {
             legacySource.fileHistoryDir = new Path(wire.fileHistory);
@@ -79,12 +100,18 @@ export function hydrateProjectSources(configProjectsDir: Path, wire: WireProject
         if (wireSource.root !== undefined) {
             sourceEntry.root = new Path(wireSource.root);
         }
+        if (wireSource.repoDir !== undefined) {
+            sourceEntry.repoDir = new Path(wireSource.repoDir);
+        }
+        if (wireSource.baseCommit !== undefined) {
+            sourceEntry.baseCommit = new Uuid(wireSource.baseCommit);
+        }
         sourceEntries.push(sourceEntry);
     }
     return sourceEntries;
 }
 
-// The whole config file: project dir name -> entry. {} when the file does not exist; malformed JSON throws (a typo must be loud, not a silently ignored override).
+// Project dir name -> entry map; {} if missing, malformed JSON throws so typos are never silently ignored.
 export function readProjectPathsConfig(projectsDir: Path): Record<string, WireProjectPaths> {
     const configPath = join(projectsDir.toString(), PROJECT_PATHS_CONFIG_NAME);
     if (!existsSync(configPath)) {
