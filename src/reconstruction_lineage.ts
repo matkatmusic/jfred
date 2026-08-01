@@ -15,14 +15,20 @@ export function buildRenameChain(events: FileEvent[]): Map<string, Path> {
     return next;
 }
 
-// Follow the rename chain to the path the file ends life at.
+// Follows the rename chain; seen-set stops a recorded undo (mv a b; mv b a) from looping forever.
 export function resolveFinalPath(
     path: Path,
     renameChain: Map<string, Path>,
 ): Path {
     let current = path;
+    const seen = new Set<string>([current.toString()]);
     while (renameChain.has(current.toString())) {
-        current = renameChain.get(current.toString())!;
+        const next = renameChain.get(current.toString())!;
+        if (seen.has(next.toString())) {
+            return current;
+        }
+        seen.add(next.toString());
+        current = next;
     }
     return current;
 }
