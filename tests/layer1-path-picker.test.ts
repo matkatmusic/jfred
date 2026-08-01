@@ -12,12 +12,14 @@ import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const PICKED_FOLDER = "/Users/you/Programming/jot-recovery/claude-data/projects";
 
-// A stub whose /api/scan-source answer is chosen per test: `found` is what decides whether the picked folder is admitted at all.
+// `found` is the /api/scan-source answer deciding whether the picked folder is admitted.
 function stubPickerRoutes(pickedPath: string, found: number): void {
     Object.assign(globalThis, {
         fetch: async (url: unknown): Promise<Response> => {
             const pathname = new URL(String(url), "http://localhost:7343").pathname;
-            const body = pathname === "/api/pick-folder" ? { path: pickedPath } : { found };
+            // Mirrors the real /api/pick-folder: `paths` is the multi-select result, empty on cancel.
+            const pickedPaths = pickedPath === "" ? [] : [pickedPath];
+            const body = pathname === "/api/pick-folder" ? { path: pickedPaths[0] ?? "", paths: pickedPaths } : { found };
             return { ok: true, status: 200, json: async () => body, text: async () => "" } as unknown as Response;
         },
     });
