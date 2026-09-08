@@ -160,3 +160,5 @@ demo-baseline/projects/baseline-demo/repo/
 .config/
 node_modules
 scripts/visual/out/
+**/.DS_Store
+plans/tackle-metrics.jsonl
