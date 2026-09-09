@@ -256,6 +256,8 @@
   .n-commit { border-radius: 4px; background: var(--c-commit); }
   .n-disk { background: transparent; border: 3px double var(--c-disk); }
   .n-created { border-style: dotted; border-color: var(--muted); }
+  /* Task 376 (S21 item 5): straight port of layered-styles.css:138 — never-provable's dashed hollow ring. */
+  .kind-pre-anchor-stub { background: transparent; border: 2px dashed #9ca3af; }
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
 
