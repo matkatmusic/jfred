@@ -58,6 +58,8 @@ export function resetSessionSelection(): void {
     selectedPaths.clear();
     sessions = [];
     knownProjectPaths = new Set();
+    // Task 363: empty the pane's DOM now, so the prior project's rows never show during the new build.
+    getRequiredElementById("sessions").replaceChildren();
 }
 
 // Fetch sessions under the picked JSONL folders; no folders = no fetch. Refusals report INTO the pane only.
