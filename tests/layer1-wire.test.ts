@@ -6,7 +6,6 @@ import {
     CommitTimeSource,
     SourceKind,
     WireScriptExecutorKind,
-    WireConfidenceState,
     listPairLadderInstants,
     type WirePairOf,
 } from "../webapp/layer1-wire.ts";
@@ -44,18 +43,6 @@ test("test_pair_ladder_orders_created_commits_disk_then_snapshots", () => {
 test("test_wire_script_executor_kind_values_are_the_wire_spellings", () => {
     assert.equal(WireScriptExecutorKind.python, "python");
     assert.equal(WireScriptExecutorKind.bash, "bash");
-});
-
-test("test_wire_confidence_state_values_are_the_wire_spellings", () => {
-    // The seven display-only states; camel keys map to the hyphenated wire spellings.
-    assert.equal(WireConfidenceState.verified, "verified");
-    assert.equal(WireConfidenceState.derived, "derived");
-    assert.equal(WireConfidenceState.mismatch, "mismatch");
-    assert.equal(WireConfidenceState.reseeded, "reseeded");
-    assert.equal(WireConfidenceState.neverProvable, "never-provable");
-    assert.equal(WireConfidenceState.injectedUnverified, "injected-unverified");
-    assert.equal(WireConfidenceState.originalFailed, "original-failed");
-    assert.equal(Object.values(WireConfidenceState).length, 7);
 });
 
 test("test_pair_ladder_appends_script_runs_after_snapshots", () => {
