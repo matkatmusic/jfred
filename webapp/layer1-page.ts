@@ -22,7 +22,7 @@ import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths } from "./layer1-sessions.ts";
 import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
-import { seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
+import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
@@ -156,6 +156,8 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
 
 // replaceState, not pushState: re-loading the same page is not a navigation.
 export async function loadLayer1View(): Promise<void> {
+    // Task 364: a switch to a different project folder drops the previous project's source lists first.
+    resetSourcePathsOnProjectChange();
     // Runs before the params are read: an untouched source list is re-derived from the project box.
     syncSourceButtons();
     const params = readSourceParams();
