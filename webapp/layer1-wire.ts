@@ -30,18 +30,6 @@ export const WireScriptExecutorKind = {
 } as const;
 export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
 
-// Task 376: the seven display-only confidence states; camel keys, hyphenated wire spellings mirror SourceKind.
-export const WireConfidenceState = {
-    verified: "verified",
-    derived: "derived",
-    mismatch: "mismatch",
-    reseeded: "reseeded",
-    neverProvable: "never-provable",
-    injectedUnverified: "injected-unverified",
-    originalFailed: "original-failed",
-} as const;
-export type WireConfidenceState = (typeof WireConfidenceState)[keyof typeof WireConfidenceState];
-
 // Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
 export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
     toolUseId: U;
@@ -50,8 +38,6 @@ export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
     code: string;
     // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
     label?: string;
-    // Task 376: display-only confidence overlay; absent until a later task computes it server-side.
-    confidenceState?: WireConfidenceState;
 }
 
 export interface WirePairOf<I, P, U> {
