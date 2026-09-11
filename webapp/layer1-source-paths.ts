@@ -1,6 +1,4 @@
-// Tasks 295/296: the two lists of source folders the Layer 1 page reads from — the JSONL transcripts and the file-history snapshots. State only; webapp/layer1-path-picker.ts owns the dialog that edits them and webapp/layer1-page.ts owns when they are re-read.
-//
-// A project folder IMPLIES where its transcripts and snapshots normally live, and that derived folder is what a first-time list holds. `touched` is what stops a re-derive from throwing away a list the user has since edited (plans/layer1-mockup.html:1495-1512).
+// Tasks 295/296: source folder lists for JSONL transcripts and file-history snapshots, derived from the project folder until edited.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { SourceKind } from "./layer1-wire.ts";
@@ -17,7 +15,7 @@ const BUTTON_LABEL_BY_KIND: Record<SourceKind, string> = {
 
 interface SourceList {
     paths: string[];
-    // False while the list is still whatever the project folder derives; true once the user has committed a list of their own, from the picker, the URL or the saved settings.
+    // True once the user sets their own list; false while it is only derived from the project folder.
     touched: boolean;
 }
 
@@ -81,5 +79,23 @@ export function syncSourceButtons(): void {
         }
         getRequiredElementById(BUTTON_ID_BY_KIND[kind]).textContent =
             `${BUTTON_LABEL_BY_KIND[kind]} (${listsByKind[kind].paths.length})`;
+    }
+}
+
+// Task 364: the project folder listsByKind currently describes, so a switch to another folder drops the previous project's lists.
+let listsProjectFolder: string | undefined = undefined;
+
+export function resetSourcePathsOnProjectChange(): void {
+    const projectFolder = getInputById("dir").value.trim().replace(/\/$/, "");
+    if (listsProjectFolder === undefined) {
+        listsProjectFolder = projectFolder;
+        return;
+    }
+    if (projectFolder === listsProjectFolder) {
+        return;
+    }
+    listsProjectFolder = projectFolder;
+    for (const kind of Object.values(SourceKind)) {
+        listsByKind[kind] = { paths: [], touched: false };
     }
 }
