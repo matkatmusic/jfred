@@ -71,8 +71,8 @@ test("test_a_snapshot_free_pair_is_unchanged_from_layer_1", async () => {
     assert.equal(listMatching("#stage .lane")[0]!.style.getPropertyValue("--span-px"), String(ON_DISK.axisPx - COMMIT.axisPx));
 });
 
-test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_tie_group", async () => {
-    // Scenario (mockup src/index.ts @v3): a snapshot on the on-disk instant takes the tie group's next row slot — its axisPx differs from the disk node's — and the dashed tie-group rectangle is drawn over the run.
+test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_group_of_same_timestamp_nodes", async () => {
+    // Scenario (mockup src/index.ts @v3): a snapshot on the on-disk instant takes the same-timestamp group's next row slot — its axisPx differs from the disk node's — and the dashed nodes-with-same-timestamp rectangle is drawn over the run.
     const pair = { path: "src/index.ts", commits: [COMMIT], onDisk: TIED_ON_DISK, snapshots: [TIED_SNAP] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, TIED_ON_DISK));
     const startPx = COMMIT.axisPx;
@@ -82,7 +82,7 @@ test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_ti
     assert.equal(snapOffset, TIED_SNAP.axisPx - startPx);
     assert.notEqual(diskOffset, snapOffset);
     // the "same instant" rectangle spans the disk node down to the snapshot.
-    const tie = listMatching("#stage .tiegroup")[0]!;
+    const tie = listMatching("#stage .nodes-with-same-timestamp")[0]!;
     assert.equal(readAxisOffsetPx(tie), TIED_ON_DISK.axisPx - startPx);
     assert.equal(tie.style.getPropertyValue("--span-px"), String(TIED_SNAP.axisPx - TIED_ON_DISK.axisPx));
 });

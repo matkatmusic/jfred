@@ -2,7 +2,7 @@
 
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
-import { buildTieGroupMarkers } from "./layer1-tie-groups.ts";
+import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
 import type { WireOrphan, WirePair, WireSnapshot } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
@@ -39,7 +39,7 @@ function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSna
 }
 
 function buildPairWidget(pair: WirePair): HTMLElement {
-    // Snapshots appended last, exactly as the server orders the ladder, so tie-group runs and the span both stay right.
+    // Snapshots appended last, exactly as the server orders the ladder, so nodes-with-same-timestamp runs and the span both stay right.
     const snapshots = pair.snapshots ?? [];
     // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
     const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots];
@@ -48,7 +48,7 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
     lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
     // Task 259's markers go in before the nodes; with no z-index, DOM order keeps the rectangle behind the dots.
-    lane.append(el("div", { class: "lrail" }), ...buildTieGroupMarkers(ladder, startPx));
+    lane.append(el("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
     if (pair.created !== undefined) {
         appendAxisNode(lane, pair.created.axisPx - startPx, "n-disk n-created", "created at", CREATED_NODE_TITLE);
     }
