@@ -21,7 +21,7 @@ import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths } from "./layer1-sessions.ts";
-import { markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
+import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
@@ -111,6 +111,8 @@ export function intersectFilterTargets(folders: readonly string[], sessions: rea
 let folderTargets: string[] = [];
 // Task 326: the folder selection filters the stage only while this toggle is on.
 let onlySelectedIsOn = false;
+// Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
+let appliedProjectDir: string | undefined = undefined;
 
 // Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
 export function renderLayer1View(view: WireLayer1View): Promise<void> {
@@ -158,6 +160,12 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
 export async function loadLayer1View(): Promise<void> {
     // Task 364: a switch to a different project folder drops the previous project's source lists first.
     resetSourcePathsOnProjectChange();
+    // Task 366: after the wipe and before defaults derive, load the newly-named project's saved settings.
+    const currentDir = getInputById("dir").value.trim();
+    if (appliedProjectDir !== undefined && currentDir !== appliedProjectDir) {
+        await applySavedSettingsForCurrentDir();
+    }
+    appliedProjectDir = currentDir;
     // Runs before the params are read: an untouched source list is re-derived from the project box.
     syncSourceButtons();
     const params = readSourceParams();
@@ -189,10 +197,12 @@ export async function loadLayer1View(): Promise<void> {
             return;
         }
         await renderLayer1View(view);
-    } catch (error) {
+    }
+ catch (error) {
         // The crumb is the whole error surface; no alert(), because native dialogs block headless automation.
         crumb.textContent = String(error);
-    } finally {
+    }
+ finally {
         hideLayer1Progress();
     }
 }
