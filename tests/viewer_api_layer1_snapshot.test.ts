@@ -94,9 +94,12 @@ test("test_snapshot_form_returns_the_customTitle_in_effect_at_the_snapshot_line"
     writeFileSync(join(blobDir, "blobV2"), "two\n");
     const session = new Path(jsonlPath);
 
-    const forVersion = (version: string): { content: string; title: string } => readSnapshotFileContent(
-        new URLSearchParams({ snapshotSession: session.toString(), sessionId, version, path: RELATIVE_PATH, dir: CWD }),
-    );
+    const forVersion = (version: string): { content: string; title: string } => {
+        const { content, title } = readSnapshotFileContent(
+            new URLSearchParams({ snapshotSession: session.toString(), sessionId, version, path: RELATIVE_PATH, dir: CWD }),
+        );
+        return { content, title };
+    };
     assert.deepEqual(forVersion("1"), { content: "one\n", title: "First title" });
     assert.deepEqual(forVersion("2"), { content: "two\n", title: "Second title" });
 });

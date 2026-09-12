@@ -10,6 +10,8 @@ import { clearDiffPair, describeNodeStep, nodeCommitHash, setDrawerTools } from 
 import { buildScriptRunDiffPanes, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { flashSession } from "./layer1-sessions.ts";
+import { renderHighlightedJson } from "./inspector-json.ts";
+import type { WireValue } from "./inspector-links.ts";
 
 const SHORT_HASH_LENGTH = 8;
 
@@ -30,9 +32,7 @@ function findNodePath(node: HTMLElement): string | undefined {
     return nameElement?.dataset.path;
 }
 
-// A commit node carries its full hash on the dot's `title`; an on-disk node has none.
-//
-// An empty title means "no commit" — a blank `hash=` would 400 naming the wrong parameter.
+// A commit node carries its hash on the dot's `title`; empty means no commit.
 function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
     const basename = path.split("/").pop() ?? path;
     // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
@@ -75,6 +75,26 @@ function findAdjacentNode(offset: 1 | -1): HTMLElement | undefined {
     }
     const nodes = [...anchor.node.parentElement?.querySelectorAll(".node:not(.n-created)") ?? []] as HTMLElement[];
     return nodes[nodes.indexOf(anchor.node) + offset];
+}
+
+// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON, reusing inspector-json.ts; empty maps drop links (follow-up task).
+function appendRawJsonReveal(record: unknown): void {
+    const jsonPre = renderHighlightedJson(
+        JSON.stringify(record, null, 4), record as WireValue, 0,
+        { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
+        () => {}, [], () => {},
+    );
+    const jsonBox = el("div", { class: "node-json" }, [jsonPre]);
+    jsonBox.hidden = true;
+    const jsonToggle = el("button", {
+        class: "json-toggle",
+        text: "[{ }]",
+        title: "Show raw transcript JSON",
+        onclick: () => {
+ jsonBox.hidden = !jsonBox.hidden; 
+},
+    });
+    getRequiredElementById("dbody").append(jsonToggle, jsonBox);
 }
 
 async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
@@ -120,8 +140,12 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     if (detail.flashFile !== undefined) {
         const response = await fetch(`/api/layer1-file?${detail.params}`);
         if (response.ok) {
-            const payload = await response.json() as { title?: string };
+            const payload = await response.json() as { title?: string; record?: unknown };
             header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
+            // Task 213: only a snapshot carries a transcript line, so only here does the reveal appear.
+            if (payload.record !== undefined) {
+                appendRawJsonReveal(payload.record);
+            }
         }
         flashSession(detail.flashFile);
     }
