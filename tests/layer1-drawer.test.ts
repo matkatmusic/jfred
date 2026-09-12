@@ -1,6 +1,4 @@
-// Tasks 257.5/294/329: node clicks fill the drawer with DiffView panes fed by string revision sources.
-//
-// The stage is built by hand (tests/layer1-tick-files.test.ts precedent): the contract is the DOM layer1-page.ts renders.
+// Node clicks fill the drawer with DiffView panes; the stage is built by hand, matching layer1-page.ts's DOM.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -516,4 +514,66 @@ test("task 356: an unlabeled script run (no static filename) still opens, with a
     await settlePendingFetches();
 
     assert.equal(getRequiredElementById("dpath").textContent, "python run");
+});
+
+test("task 213: a snapshot node reveals a [{ }] button that toggles its raw transcript JSON", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
+    stubRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title", record: rawRecord }));
+    getInputById("dir").value = "/work";
+    const node = el("i", { class: "node n-snap", "data-version": "2",
+        "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
+    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
+        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
+        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
+    ]));
+    getRequiredElementById("sessions").replaceChildren(
+        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
+    );
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    // Step: the reveal button is present and its JSON body starts hidden.
+    const toggle = getRequiredElementById("dbody").querySelector(".json-toggle") as HTMLButtonElement;
+    assert.ok(toggle, "a snapshot node should get a [{ }] button");
+    const jsonBox = getRequiredElementById("dbody").querySelector(".node-json") as HTMLElement;
+    assert.equal(jsonBox.hidden, true);
+    // Step: clicking the button reveals the highlighted-JSON pre carrying the record text.
+    toggle.click();
+    assert.equal(jsonBox.hidden, false);
+    assert.ok(jsonBox.querySelector("pre.inspector-json"));
+    assert.ok(jsonBox.textContent?.includes("hello raw json"));
+    // Step: clicking the button again hides the JSON body.
+    toggle.click();
+    assert.equal(jsonBox.hidden, true);
+});
+
+test("task 213: a commit node shows no [{ }] button (it has no transcript line)", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
+    getInputById("repo").value = "/repo";
+    const node = buildCommitNodeStage(COMMIT_HASH);
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
+});
+
+test("task 213: an on-disk node shows no [{ }] button (it has no transcript line)", async () => {
+    setupLayer1Dom();
+    stubAnimationFrame();
+    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    const node = buildDiskNodeStage();
+    wireNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await settlePendingFetches();
+
+    assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
 });

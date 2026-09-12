@@ -4,9 +4,10 @@ import { resolve, sep } from "node:path";
 import { collectSnapshotPlacements, type SnapshotPlacement } from "./layer1_snapshots.ts";
 import { collectTitleRanges, titleInEffectAtLine } from "./layer1_sessions.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
-import { loadTranscript } from "./parse/loadTranscript.ts";
+import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
 import { createSidecarReader, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
+import type { TranscriptRecord } from "./structures/envelope.ts";
 import { requireParam } from "./viewer_server_routes.ts";
 
 // Trust boundary: a session id reaches the filesystem as a path segment, so refuse `.`, `/`, `\`.
@@ -49,7 +50,7 @@ export function isSnapshotFileRequest(query: URLSearchParams): boolean {
 }
 
 // Task 317: the blob's bytes, plus the customTitle in effect at the snapshot's LINE (not first or last).
-export function readSnapshotFileContent(query: URLSearchParams): { content: string; title: string } {
+export function readSnapshotFileContent(query: URLSearchParams): { content: string; title: string; record: TranscriptRecord | undefined } {
     const sessionId = requireParam(query, "sessionId");
     if (!SESSION_ID_PATTERN.test(sessionId)) {
         throw new Error(`not a session id: ${sessionId}`);
@@ -72,5 +73,7 @@ export function readSnapshotFileContent(query: URLSearchParams): { content: stri
     }
     const content = createSidecarReader(owner, root)(placement.backupFileName);
     const title = titleInEffectAtLine(collectTitleRanges(records), placement.line ?? 0) ?? "untitled session";
-    return { content, title };
+    // Task 213: the snapshot-line record feeds the drawer [{ }] reveal, via toJSON.
+    const record = records.find((entry) => getRecordSource(entry)?.lineNumber === placement.line);
+    return { content, title, record };
 }
