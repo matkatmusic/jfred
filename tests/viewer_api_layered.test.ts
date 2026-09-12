@@ -91,7 +91,7 @@ test("test_layered_graph_endpoint_returns_the_fixture_graph_json", async () => {
         assert.deepEqual(graph.renames, []);
         assert.deepEqual(graph.copies, []);
         assert.deepEqual(graph.scriptLinks, []);
-        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text the nodes carry — that key agreement is the whole contract, since the page looks an offset up by a node's `instant` string. The earliest instant sits at the origin; the capped-gap arithmetic itself is covered by tests/layer1-ruler-axis.test.ts.
+        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text the nodes carry — that key agreement is the whole contract, since the page looks an offset up by a node's `instant` string. The earliest instant sits at the origin; the maximum-vertical-gap-between-ruler-rows arithmetic itself is covered by tests/layer1-ruler-axis.test.ts.
         assert.deepEqual(graph.axisOffsetsPx, { [nodes[0]!.instant]: 0 });
     } finally {
         child.kill();

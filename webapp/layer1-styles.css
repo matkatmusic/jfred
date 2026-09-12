@@ -262,7 +262,7 @@
   /*
     Task 259: two nodes at ONE instant sit on stacked 22 px rows (task 251); this rectangle says they were simultaneous, which giving them their own rows had otherwise destroyed. The geometry is DERIVED from `.node` above, not chosen: a node is centred on its --axis-px and its painted box (15 px plus a 2.5 px ring) reaches 10 px past that in every direction, so -11px/+22px clears the run's first and last rows with a 1 px hairline. `left: -11px` clears the dots, which translate(-50%) puts 10 px left of the lane's x=0. No z-index and no pointer-events: the marker is appended before the nodes, so DOM order already paints it underneath them and their labels, and nothing in a lane is clickable.
   */
-  .lane .tiegroup { position: absolute; left: -11px; right: 0;
+  .lane .nodes-with-same-timestamp { position: absolute; left: -11px; right: 0;
     top: calc(var(--axis-px) * 1px - 11px); height: calc(var(--span-px) * 1px + 22px);
     border: 1.5px solid var(--c-anchor); border-radius: 10px; background: var(--seg-a); }
 

@@ -73,7 +73,7 @@ body {
 .legend-echo { background: #6b7280; border-radius: 2px; }
 .legend-disk { border: 2px double #111827; background: transparent; }
 /*
-  Per-file widgets on the shared vertical axis (task 207, spec S8; migrated to --axis-px by task 239 for spec S18). layered-app.ts emits ONE finished ruler offset per element (--axis-px per widget and per node, --axis-span-px per widget) because S18's capped-gap ruler accumulates and no fixed CSS scale can express it; every placement rule still lives here, so no JS layout pass exists.
+  Per-file widgets on the shared vertical axis (task 207, spec S8; migrated to --axis-px by task 239 for spec S18). layered-app.ts emits ONE finished ruler offset per element (--axis-px per widget and per node, --axis-span-px per widget) because S18's maximum-vertical-gap-between-ruler-rows ruler accumulates and no fixed CSS scale can express it; every placement rule still lives here, so no JS layout pass exists.
 */
 .layered-canvas {
     display: flex;

@@ -1,4 +1,4 @@
-// The layered-graph server surface (task 206, spec S7/S8 plumbing): serve loadLayeredProject's graph for one project to the layered page. HTTP wiring stays in viewer_server.ts; this file parses the query, resolves the project, and serializes (precedent: viewer_api_repo.ts).
+// Layered-graph server surface: parse the query, resolve the project, serialize loadLayeredProject's graph.
 
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ import { Path } from "./structures/domain.ts";
 import { getProjectsDir, scanProjects } from "./viewer_api_projects.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
-// The graph as the layered page consumes it: every stored field, plus each entity's spec-S8 corroborated instants. The stored truth stays the per-session timelines (Q13) — this addition is derived, and travels only because the page cannot compute it.
+// The graph as the layered page consumes it: stored fields plus derived spec-S8 corroborated instants.
 interface WireLayeredEntity extends ReconstructionEntity {
     corroboratedInstants: Instant[];
 }
@@ -28,7 +28,7 @@ function listCorroboratedInstants(entity: ReconstructionEntity): Instant[] {
         .map((merged) => merged.node.instant);
 }
 
-// The S18 capped-gap ruler ACCUMULATES — an instant's pixel offset depends on every earlier gap, so it cannot be derived from that instant alone and CSS cannot express it the way S8's `--axis-ms` was (task 239). resolveInstantOffsets runs once here over the WHOLE graph, so every widget, node dot and corroboration line shares one axis; the page then emits a single finished number per element and layered-styles.css still does all the placing.
+// The S18 maximum-vertical-gap-between-ruler-rows ruler ACCUMULATES — an instant's pixel offset depends on every earlier gap, so it cannot be derived from that instant alone and CSS cannot express it the way S8's `--axis-ms` was (task 239). resolveInstantOffsets runs once here over the WHOLE graph, so every widget, node dot and corroboration line shares one axis; the page then emits a single finished number per element and layered-styles.css still does all the placing.
 function mapInstantsToAxisPixels(entities: WireLayeredEntity[]): Record<string, number> {
     const instants = entities.flatMap((entity) => [
         ...entity.corroboratedInstants,

@@ -13,7 +13,7 @@ gives the owning module, its DOM id / CSS class, and one line on what it is. Lay
 | source boxes, source pickers | JSONL source pickers (modal) | layer1-path-picker.ts, layer1-source-paths.ts, layer1-sources.ts | modal `#pathpicker` (`.modal-wrap`); triggers `#pick-jsonl`, `#pick-fh`; rows `#pp-list` | One dialog editing both source-folder lists (JSONL + file-history) |
 | timeline, stage, canvas | Timeline stage | layer1-page.ts (host), layer1-widgets.ts (contents) | `#stage` (`.stage`) in `main#timelines > .canvas`, wrapped by `#stagewrap` | Main horizontal canvas of per-file bubble columns |
 | bubbles, file columns | Bubbles | layer1-widgets.ts | `.filebox` (orphan `.filebox.bucket`); name `.fname`, sub `.sub` | One column per file / orphan bucket |
-| lanes | Lanes | layer1-widgets.ts | `.lane` (rail `.lrail`, tie group `.tiegroup`) | Vertical time-lane inside each bubble |
+| lanes | Lanes | layer1-widgets.ts | `.lane` (rail `.lrail`, same-timestamp group `.nodes-with-same-timestamp`) | Vertical time-lane inside each bubble |
 | nodes, dots, markers | Nodes | layer1-widgets.ts | `.node` / `.nlabel` (`.n-commit`, `.n-disk`, `.n-snap`, `.n-created`) | Revision markers + labels on a lane |
 | ruler, gutter, ticks | Ruler / gutter | layer1-ruler-axis.ts, layer1-ruler-rows.ts, layer1-ruler-click.ts, layer1-tick-files.ts | `#ruler` (`.ruler`, sticky); rail `.ruler .rail`; ticks `.tick` (`.inrange/.multi/.expanded`) | Left sticky time ruler with tick marks/labels |
 | leaders, leader lines | Leaders | layer1-leader-hover.ts, layer1-leader-visibility.ts | `#leaders` (`.leaders`); each `.leader` (`.shown`, `.aimed`) | Horizontal lines aligning ruler ticks to bubbles on hover/find |
