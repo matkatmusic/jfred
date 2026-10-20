@@ -90,7 +90,8 @@ export function listCaptureFreeTestPaths(): string[] {
   const captureFreePaths: string[] = [];
   for (const testFileName of testFileNames) {
     const testFilePath = join(testsDirectory, testFileName);
-    if (isTestFileCaptureFree(testFilePath)) {
+    const isCaptureFree = isTestFileCaptureFree(testFilePath);
+    if (isCaptureFree) {
       captureFreePaths.push(relative(repositoryRoot, testFilePath));
     }
   }
@@ -98,7 +99,8 @@ export function listCaptureFreeTestPaths(): string[] {
 }
 
 if (process.argv[1] !== undefined) {
-  if (resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const isMainModule = resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  if (isMainModule) {
     for (const captureFreePath of listCaptureFreeTestPaths()) {
       console.log(captureFreePath);
     }

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { flushAsyncWork, setupLayeredDom } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, initLayeredDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The element with `id`, asserting it exists.
@@ -25,7 +25,7 @@ function describeBareFile(fileName: string): {
 
 test("test_layered_page_renders_all_skeleton_regions", async () => {
     // Scenario: index.html carries every S7 region; the Changes pane starts hidden.  Steps: load the layered page body into a fresh DOM.
-    setupLayeredDom();
+    initLayeredDom();
     await import("../webapp/layered-app.ts");
     // drawer with its two nav sections, canvas, details, and changes are all present.
     getById("layered-drawer");
@@ -39,7 +39,7 @@ test("test_layered_page_renders_all_skeleton_regions", async () => {
 
 test("test_toggleLayeredDrawer_collapses_and_restores_drawer", async () => {
     // Scenario: the drawer collapse round-trips via the `collapsed` class.  Steps: load the page and toggle twice.
-    setupLayeredDom();
+    initLayeredDom();
     const { toggleLayeredDrawer } = await import("../webapp/layered-app.ts");
     const drawer = getById("layered-drawer");
     toggleLayeredDrawer();
@@ -50,7 +50,7 @@ test("test_toggleLayeredDrawer_collapses_and_restores_drawer", async () => {
 
 test("test_drawer_toggle_button_wires_to_toggle", async () => {
     // Scenario: bootLayeredApp wires the header button to the drawer toggle.  Steps: load the page and boot explicitly (module-scope boot ran against an earlier test DOM).
-    setupLayeredDom();
+    initLayeredDom();
     const { bootLayeredApp } = await import("../webapp/layered-app.ts");
     bootLayeredApp();
     // clicking the button collapses the drawer.
@@ -60,7 +60,7 @@ test("test_drawer_toggle_button_wires_to_toggle", async () => {
 
 test("test_renderLayeredDrawer_lists_sessions_files_and_widgets", async () => {
     // Scenario: rendering the drawer fills the session list, the file nav, and one placeholder widget per file in the canvas.  Steps: render two sessions and two files.
-    setupLayeredDom();
+    initLayeredDom();
     const { renderLayeredDrawer } = await import("../webapp/layered-app.ts");
     renderLayeredDrawer(["a.jsonl", "b.jsonl"], ["alpha.py", "beta.py"].map(describeBareFile));
     // two session items, two file-nav items, two canvas widgets carrying the file names.
@@ -74,7 +74,7 @@ test("test_renderLayeredDrawer_lists_sessions_files_and_widgets", async () => {
 
 test("test_file_nav_click_scrolls_to_its_widget", async () => {
     // Scenario: clicking a file in the drawer scrolls to its canvas widget (S7).  Steps: render, then stub scrollIntoView on each widget to observe the call.
-    setupLayeredDom();
+    initLayeredDom();
     const { renderLayeredDrawer } = await import("../webapp/layered-app.ts");
     renderLayeredDrawer([], ["alpha.py", "beta.py"].map(describeBareFile));
     let scrolledTo = "";
@@ -88,7 +88,7 @@ test("test_file_nav_click_scrolls_to_its_widget", async () => {
 
 test("test_revealChangesPane_toggles_hidden_with_selection", async () => {
     // Scenario: the Changes pane shows only while a segment is selected.  Steps: reveal with a selection, then hide without one.
-    setupLayeredDom();
+    initLayeredDom();
     const { revealChangesPane } = await import("../webapp/layered-app.ts");
     revealChangesPane(true);
     assert.equal(getById("layered-changes").hidden, false);
@@ -105,7 +105,7 @@ function buildWireGraphFixture(): object {
 
 test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {
     // Scenario (task 206): the page fetches /api/layered-graph on load and fills the drawer — session names are the distinct sessionFile basenames, file names the entity filenames.  Steps: stub the endpoint with a one-entity wire graph and run the loader for project "p1".
-    setupLayeredDom();
+    initLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildWireGraphFixture() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
@@ -117,7 +117,7 @@ test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {
 
 test("test_boot_without_a_project_param_keeps_the_empty_skeleton", async () => {
     // Scenario (task 206): a bare page load (no ?project=) fetches nothing and renders empty.
-    setupLayeredDom();
+    initLayeredDom();
     stubFetchRoutes({});
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     // the helper's window URL carries no ?project=, so the default argument resolves to null.
@@ -129,7 +129,7 @@ test("test_boot_without_a_project_param_keeps_the_empty_skeleton", async () => {
 
 test("test_legend_sits_above_the_scrolled_timeline_area", () => {
     // Scenario (task 212, spec S12): the legend lives in the timeline area but OUTSIDE the scrolled container, preceding it — so scrolling the timeline leaves the legend in view.
-    setupLayeredDom();
+    initLayeredDom();
     const legend = getById("layered-legend");
     const scroll = getById("layered-timeline-scroll");
     const timeline = getById("layered-timeline");
@@ -148,7 +148,7 @@ test("test_legend_sits_above_the_scrolled_timeline_area", () => {
 
 test("test_legend_names_every_layered_node_class", () => {
     // Scenario (task 212): the legend carries the mockup's node vocabulary (plans/mvp-app-mockup.html) so every rendered node class is decodable.
-    setupLayeredDom();
+    initLayeredDom();
     const legendText = getById("layered-legend").textContent ?? "";
     for (const label of ["anchor", "commit", "snapshot", "presumed user edit", "script run",
         "full-content echo", "on-disk", "ignored"]) {

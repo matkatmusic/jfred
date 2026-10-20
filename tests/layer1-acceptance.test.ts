@@ -1,4 +1,4 @@
-// Task 238 (spec S18): the MILESTONE ACCEPTANCE TEST. Every other Layer 1 test exercises one half — the endpoint against a fixture, or the page against a canned view. This one runs the whole path: a real folder and a real UNRELATED repo, through the real GET /api/layer1-view on a spawned viewer, into the real page render in happy-dom. The page's relative fetch is forwarded to the live origin (forwardFetchToOrigin); nothing about the view is canned.  Pixel offsets are deliberately NOT asserted here — tests/viewer_api_layer1_placement.test.ts owns placement. This file asserts the user's acceptance criterion: two buckets, zero pairs, and every path in the correct bucket.
+// Task 238: the acceptance test runs a real folder and repo through the live view route into the page.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -6,9 +6,9 @@ import type { ChildProcess } from "node:child_process";
 import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
 import {
     SUBMODULE_FIXTURE_FOLDER,
-    makeSubmoduleFixtureRoot,
-    makeUnrelatedFixtureDiskFolder,
-    makeUnrelatedFixtureRepo,
+    createSubmoduleFixtureRoot,
+    createUnrelatedFixtureDiskFolder,
+    createUnrelatedFixtureRepo,
 } from "./layer1-unrelated-fixture-helpers.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installOriginForwardingFetch } from "./webapp-fetch-test-helpers.ts";
@@ -16,10 +16,10 @@ import { installOriginForwardingFetch } from "./webapp-fetch-test-helpers.ts";
 // Own port range: 18900+ and 19400+ are claimed by the two viewer_api_layer1 files, each reserving 500 through `process.pid % 500`.
 const SCRATCH_PORT = 19900 + (process.pid % 500);
 
-const diskDir = makeUnrelatedFixtureDiskFolder();
-const repoDir = makeUnrelatedFixtureRepo();
+const diskDir = createUnrelatedFixtureDiskFolder();
+const repoDir = createUnrelatedFixtureRepo();
 // ONE root serving as both the project folder and the repo — the submodule-exclusion case.
-const submoduleRoot = makeSubmoduleFixtureRoot();
+const submoduleRoot = createSubmoduleFixtureRoot();
 
 let child: ChildProcess | undefined = undefined;
 

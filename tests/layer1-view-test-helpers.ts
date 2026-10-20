@@ -1,4 +1,4 @@
-// Shared fixture/server harness for the two layer1-view test files (S18); each spawns its own server since node:test can't share one.
+// Shared fixture and viewer-server harness for the layer1-view test files.
 
 import assert from "node:assert/strict";
 import { execSync, spawn, type ChildProcess } from "node:child_process";
@@ -92,14 +92,14 @@ function markWhenListeningLineArrives(chunk: Buffer, markListening: () => void):
 
 function waitUntilListening(started: ChildProcess): Promise<void> {
   return new Promise((resolveStarted, rejectStarted) => {
-    function handleStdoutChunk(chunk: Buffer): void {
+    function readStdoutChunk(chunk: Buffer): void {
       markWhenListeningLineArrives(chunk, resolveStarted);
     }
-    function handleEarlyExit(code: number | null): void {
+    function reportEarlyExit(code: number | null): void {
       rejectStarted(new Error(`server exited early: ${code}`));
     }
-    started.stdout?.on("data", handleStdoutChunk);
-    started.on("exit", handleEarlyExit);
+    started.stdout?.on("data", readStdoutChunk);
+    started.on("exit", reportEarlyExit);
   });
 }
 

@@ -72,7 +72,7 @@ function readLayeredHtmlBodyMarkup(): string {
 }
 
 // Fresh happy-dom window for the layered page (task 205), minus fakes the skeleton never uses.
-export function setupLayeredDom(): void {
+export function initLayeredDom(): void {
   const browserWindow = new Window({ url: "http://localhost:7343/" });
   Object.assign(globalThis, {
     window: browserWindow,
@@ -116,7 +116,7 @@ function readDebugHtmlBodyMarkup(): string {
 }
 
 // Fresh happy-dom window for the debug page (task 183); `search` seeds deep-link queries.
-export function setupDebugDom(search: string = ""): void {
+export function initDebugDom(search: string = ""): void {
   const browserWindow = new Window({ url: `http://localhost:7343/app/debug.html${search}` });
   Object.assign(globalThis, {
     window: browserWindow,

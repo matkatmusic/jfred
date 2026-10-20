@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayeredDom } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, initLayeredDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Task 239/S18: fixture states finished ruler offsets directly instead of re-deriving the cap; see viewer_api_layered.test.ts.
@@ -54,7 +54,7 @@ function readAxisOffsetPx(element: HTMLElement): number {
 
 test("test_file_widgets_are_offset_in_history_start_instant_order", async () => {
     // Task 207 (spec S8): widgets offset onto the shared axis by start instant, so order follows start instant.
-    setupLayeredDom();
+    initLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildTwoFileTwoSessionGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
@@ -70,7 +70,7 @@ test("test_file_widgets_are_offset_in_history_start_instant_order", async () => 
 
 test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () => {
     // Task 208 (spec S8): dashed lines appear only at instants S5 marked corroborated, nowhere else.
-    setupLayeredDom();
+    initLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildCorroboratedGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
@@ -84,7 +84,7 @@ test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () =>
 
 test("test_file_widget_holds_one_lane_per_observing_session", async () => {
     // Task 207 (spec S8): one lane per observing session inside a widget, nodes offset from the widget's start instant.
-    setupLayeredDom();
+    initLayeredDom();
     stubFetchRoutes({ "/api/layered-graph": buildTwoFileTwoSessionGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");

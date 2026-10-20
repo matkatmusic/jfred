@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupDebugDom } from "./webapp-dom-test-helpers.ts";
+import { initDebugDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The element with `id`, asserting it exists.
@@ -14,7 +14,7 @@ function getById(id: string): HTMLElement {
 
 test("test_debug_page_renders_file_list_and_status_regions", async () => {
     // Scenario: debug.html carries the skeleton regions.  Steps: load the debug page body into a fresh DOM (no project param — boot stays fetch-free).
-    setupDebugDom();
+    initDebugDom();
     await import("../webapp/debug-app.ts");
     // the status line and the file-selection list are both present.
     getById("debug-status");
@@ -23,7 +23,7 @@ test("test_debug_page_renders_file_list_and_status_regions", async () => {
 
 test("test_renderDebugFileList_builds_deep_link_anchors", async () => {
     // Scenario: each listed file is an anchor deep-linking to this page with project + file params.  Steps: render one file into the list.
-    setupDebugDom();
+    initDebugDom();
     const { renderDebugFileList } = await import("../webapp/debug-app.ts");
     renderDebugFileList("proj", ["/w/alpha.py"]);
     // the entry is an <a> whose href round-trips the deep link and whose text names the path.
@@ -35,7 +35,7 @@ test("test_renderDebugFileList_builds_deep_link_anchors", async () => {
 
 test("test_debug_boot_without_project_shows_guidance", async () => {
     // Scenario: with no ?project the page explains how to open it instead of fetching.  Steps: boot over a paramless URL.
-    setupDebugDom();
+    initDebugDom();
     const { bootDebugApp } = await import("../webapp/debug-app.ts");
     await bootDebugApp();
     // the status names the missing project selection.
@@ -44,7 +44,7 @@ test("test_debug_boot_without_project_shows_guidance", async () => {
 
 test("test_debug_boot_with_project_fetches_and_renders_file_list", async () => {
     // Scenario: ?project=proj fetches the ladder file list and renders the deep-link anchors.  Steps: boot over a project URL with the list response stubbed.
-    setupDebugDom("?project=proj");
+    initDebugDom("?project=proj");
     stubFetchRoutes({ "/api/file-ladder": { files: ["/w/alpha.py"] } });
     const { bootDebugApp } = await import("../webapp/debug-app.ts");
     await bootDebugApp();
@@ -72,7 +72,7 @@ test("test_debug_boot_with_deep_linked_file_renders_the_ladder", async () => {
     // and reports the count.
     // Steps:
     // boot over a deep-linked URL with the ladder response stubbed.
-    setupDebugDom("?project=proj&file=%2Fw%2Falpha.py");
+    initDebugDom("?project=proj&file=%2Fw%2Falpha.py");
     stubFetchRoutes({ "/api/file-ladder": LADDER_PAYLOAD });
     const { bootDebugApp } = await import("../webapp/debug-app.ts");
     await bootDebugApp();
@@ -84,7 +84,7 @@ test("test_debug_boot_with_deep_linked_file_renders_the_ladder", async () => {
 
 test("test_renderDebugLadder_attributes_each_revision_to_its_source_and_time", async () => {
     // Scenario: every revision row names the event kind that produced it, its changeId, and its timestamp — the debug viewer's source attribution.  Steps: render the two-revision ladder.
-    setupDebugDom();
+    initDebugDom();
     const { renderDebugLadder } = await import("../webapp/debug-app.ts");
     renderDebugLadder(LADDER_PAYLOAD);
     // the first entry attributes itself to the write event and carries that revision's timestamp.
@@ -95,7 +95,7 @@ test("test_renderDebugLadder_attributes_each_revision_to_its_source_and_time", a
 
 test("test_renderDebugLadder_shows_the_seed_hash_only_on_base_commit_revisions", async () => {
     // Scenario: a `gitBase:<hash>:<target>` changeId surfaces its commit hash; an ordinary changeId shows no seed row.  Steps: render the two-revision ladder.
-    setupDebugDom();
+    initDebugDom();
     const { renderDebugLadder } = await import("../webapp/debug-app.ts");
     renderDebugLadder(LADDER_PAYLOAD);
     // only the seeded revision carries a seed, and it names the commit hash alone.
@@ -106,7 +106,7 @@ test("test_renderDebugLadder_shows_the_seed_hash_only_on_base_commit_revisions",
 
 test("test_renderDebugLadder_shows_conflict_notes_on_unrecoverable_revisions", async () => {
     // Scenario: a revision the engine could not replay shows its reason instead of passing as a clean revision.  Steps: render the two-revision ladder.
-    setupDebugDom();
+    initDebugDom();
     const { renderDebugLadder } = await import("../webapp/debug-app.ts");
     renderDebugLadder(LADDER_PAYLOAD);
     // exactly the unrecoverable revision carries the note, and it names the reason.
@@ -117,7 +117,7 @@ test("test_renderDebugLadder_shows_conflict_notes_on_unrecoverable_revisions", a
 
 test("test_debug_boot_with_failed_fetch_reports_the_failure", async () => {
     // Scenario: a failed list fetch surfaces in the status line instead of a silent empty page.  Steps: boot over a project URL with NO stub for the route (the stub answers 404).
-    setupDebugDom("?project=proj");
+    initDebugDom("?project=proj");
     stubFetchRoutes({});
     const { bootDebugApp } = await import("../webapp/debug-app.ts");
     await bootDebugApp();

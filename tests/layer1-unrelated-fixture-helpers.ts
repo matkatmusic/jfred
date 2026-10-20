@@ -11,8 +11,8 @@ export const UNRELATED_SECOND_COMMIT_INSTANT = "2026-07-01T15:00:00Z";
 export const UNRELATED_FIRST_DISK_MTIME = "2026-07-02T09:00:00Z";
 export const UNRELATED_SECOND_DISK_MTIME = "2026-07-02T12:00:00Z";
 
-// Every path is absent from makeUnrelatedFixtureRepo, so pairing yields zero pairs, populating both buckets — S18's acceptance criterion.
-export function makeUnrelatedFixtureDiskFolder(): string {
+// Every path is absent from createUnrelatedFixtureRepo, so pairing yields zero pairs, populating both buckets.
+export function createUnrelatedFixtureDiskFolder(): string {
   const diskDir = mkdtempSync(join(tmpdir(), "layer1-unrelated-dir-"));
   writeFileWithPinnedMtime(diskDir, "notes.txt", "disk only\n", UNRELATED_FIRST_DISK_MTIME);
   writeFileWithPinnedMtime(diskDir, "todo.md", "disk only too\n", UNRELATED_SECOND_DISK_MTIME);
@@ -20,7 +20,7 @@ export function makeUnrelatedFixtureDiskFolder(): string {
 }
 
 // Two single-file commits avoid tie-resolved ordering; nested docs/readme.md proves buckets list repo-relative paths, not basenames.
-export function makeUnrelatedFixtureRepo(): string {
+export function createUnrelatedFixtureRepo(): string {
   const repoDir = mkdtempSync(join(tmpdir(), "layer1-unrelated-repo-"));
   executeGitCommand(repoDir, "init -q");
   writeFileSync(join(repoDir, "alpha.py"), "print('repo only')\n");
@@ -36,7 +36,7 @@ export function makeUnrelatedFixtureRepo(): string {
 // dir === repo makes a gitlink and disk-walk path collide, so submodule exclusion is observable; git needs allow-local-clone enabled.
 export const SUBMODULE_FIXTURE_FOLDER = "vendor/lib";
 
-export function makeSubmoduleFixtureRoot(): string {
+export function createSubmoduleFixtureRoot(): string {
   const innerDir = mkdtempSync(join(tmpdir(), "layer1-submodule-inner-"));
   executeGitCommand(innerDir, "init -q");
   writeFileSync(join(innerDir, "inner.txt"), "belongs to another repository\n");
