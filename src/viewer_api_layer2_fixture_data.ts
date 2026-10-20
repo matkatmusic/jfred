@@ -1,9 +1,9 @@
-// Task 354: Layer 2 fixture data: the file-history snapshots, split out of viewer_api_layer1_fixture_data.ts.  Loading this module also runs the shared bulk generator, which appends to the layer 1 arrays too.
+// Layer 2 fixture data: file-history snapshots; loading this module also runs the shared bulk generator.
 
 import { Path } from "./structures/domain.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import { buildBulkFixture } from "./viewer_api_fixture_bulk.ts";
-import { COMMITS, DISK, SESSIONS, ms, sessionFileFor, sessionIdFor } from "./viewer_api_layer1_fixture_data.ts";
+import { COMMITS, DISK, SESSIONS, buildSessionFile, buildSessionId, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 
 export interface FixtureSnapshot { path: string; version: string; at: string; session: string; line: number; }
 
@@ -22,16 +22,25 @@ export const SNAPSHOTS: FixtureSnapshot[] = [
 buildBulkFixture({ commits: COMMITS, disk: DISK, sessions: SESSIONS, snapshots: SNAPSHOTS });
 
 // The snapshot placements for one path, ascending — the SnapshotPlacement shape the wire builder wants.
-export function fixtureSnapshotPlacements(path: string): SnapshotPlacement[] {
-  return SNAPSHOTS.filter((s) => s.path === path)
-    .map((s) => ({
+export function listFixtureSnapshotPlacements(path: string): SnapshotPlacement[] {
+  const placements: SnapshotPlacement[] = [];
+  for (const s of SNAPSHOTS) {
+    if (s.path !== path) {
+      continue;
+    }
+    placements.push({
       path: new Path(s.path),
       version: Number(s.version.replace("@v", "")),
-      instant: new Date(ms(s.at)),
-      sessionId: sessionIdFor(s.session),
-      sessionFile: sessionFileFor(s.session),
+      instant: new Date(parseMs(s.at)),
+      sessionId: buildSessionId(s.session),
+      sessionFile: buildSessionFile(s.session),
       line: s.line,
       backupFileName: new Path(`${s.session}-${s.version}`),
-    }))
-    .sort((left, right) => left.instant.getTime() - right.instant.getTime());
+    });
+  }
+  return placements.sort(compareByInstant);
+}
+
+function compareByInstant(left: SnapshotPlacement, right: SnapshotPlacement): number {
+  return left.instant.getTime() - right.instant.getTime();
 }

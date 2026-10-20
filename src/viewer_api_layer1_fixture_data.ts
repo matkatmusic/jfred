@@ -1,9 +1,9 @@
-// Task 330: THE DATA. Ported wholesale from plans/layer2-mockup/fixture.js — no clock, no randomness.  Every instant is a literal or arithmetic on one, so the fixture view is byte-stable across renders.  The bulk rows are appended by viewer_api_layer2_fixture_data.ts when it loads.
+// Layer 1 fixture data, ported from plans/layer2-mockup/fixture.js; bulk rows are appended by the layer 2 module.
 
 import { Path, Uuid } from "./structures/domain.ts";
 
-export const ms = (iso: string): number => Date.parse(iso);
-export const basename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
+export const parseMs = (iso: string): number => Date.parse(iso);
+export const getBasename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
 // Fake absolute paths the fixture settings hand the page, so it auto-boots with no real folder.
 export const FIXTURE_DIR = "/fixture/demo/worktree";
@@ -67,18 +67,29 @@ export const SESSIONS: FixtureSession[] = [
 ];
 
 // The title in effect AT a position — not the session's first and not its last (task #305).
-export function titleAt(file: string, line: number): string {
-  const session = SESSIONS.find((entry) => entry.file === file);
-  return session?.titles.find((range) => line >= range.from && line <= range.to)?.title ?? "untitled session";
+export function findTitleAt(file: string, line: number): string {
+  for (const session of SESSIONS) {
+    if (session.file !== file) {
+      continue;
+    }
+    for (const range of session.titles) {
+      const isInRange = line >= range.from && line <= range.to;
+      if (isInRange) {
+        return range.title;
+      }
+    }
+    break;
+  }
+  return "untitled session";
 }
 
 // A stable per-session Uuid; the wire needs an id but the fixture reads no real transcript.
-export function sessionIdFor(file: string): Uuid {
+export function buildSessionId(file: string): Uuid {
   return new Uuid(`fixture-${file.replace(/\.jsonl$/, "")}`);
 }
 
 // A fake absolute transcript path whose basename equals the fixture session file name.
-export function sessionFileFor(file: string): Path {
+export function buildSessionFile(file: string): Path {
   return new Path(`${FIXTURE_JSONL_DIR}/${file}`);
 }
 
