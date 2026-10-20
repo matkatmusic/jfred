@@ -40,7 +40,8 @@ export function sendFixtureFile(response: ServerResponse, query: URLSearchParams
   const path = requireParam(query, "path");
   const node = buildFixtureNode(query);
   const content = contentLines(path, node).join("\n");
-  if (query.get("binary") === "1") {
+  const isBinary = query.get("binary") === "1";
+  if (isBinary) {
     response.writeHead(200, { "Content-Type": "application/octet-stream" });
     response.end(Buffer.from(content));
     return;

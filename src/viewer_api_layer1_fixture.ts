@@ -25,7 +25,8 @@ export function isFixtureMode(): boolean {
 // ---- the eight canned routes ----
 
 function sendFixtureView(response: ServerResponse, query: URLSearchParams): void {
-  if (query.get("progress") !== "1") {
+  const isProgressStream = query.get("progress") === "1";
+  if (!isProgressStream) {
     sendJson(response, 200, buildFixtureLayer1View());
     return;
   }
@@ -74,7 +75,8 @@ function buildFixtureSessionsPayload(): { sessions: WireSession[] } {
 }
 
 function sendFixtureSessions(response: ServerResponse, query: URLSearchParams): void {
-  if (query.get("progress") !== "1") {
+  const isProgressStream = query.get("progress") === "1";
+  if (!isProgressStream) {
     sendJson(response, 200, buildFixtureSessionsPayload());
     return;
   }
@@ -89,12 +91,12 @@ function buildFixtureSettings(): Layer1Settings & { defaults: Record<string, nev
   return { lastDir: FIXTURE_DIR, projects: { [FIXTURE_DIR]: project }, defaults: {} };
 }
 
-function ignoreFixtureChunk(): void {
+function readFixtureChunk(): void {
 }
 
 function receiveFixtureSettings(request: IncomingMessage, response: ServerResponse): void {
   const sendSaved = (): void => sendJson(response, 200, { saved: true });
-  request.on("data", ignoreFixtureChunk);
+  request.on("data", readFixtureChunk);
   request.on("end", sendSaved);
 }
 

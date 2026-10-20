@@ -70,7 +70,8 @@ export function buildFixtureLayer1View(): Layer1WireView {
   const pairedPaths: string[] = [];
   const gitOrphans: { path: Path; instant: Date }[] = [];
   for (const path of listRepoPaths()) {
-    if (diskPaths.has(path)) {
+    const hasDiskFile = diskPaths.has(path);
+    if (hasDiskFile) {
       pairedPaths.push(path);
     }
     else {

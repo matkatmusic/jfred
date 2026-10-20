@@ -25,7 +25,9 @@ function formatIso(t: number): string {
 
 // Knuth's constant, so neighbouring indexes do not produce neighbouring-looking hashes.
 function buildFakeHash(n: number): string {
-  return ((n * 2654435761) % 4294967296).toString(16).padStart(8, "0").slice(0, 8);
+  const hex = ((n * 2654435761) % 4294967296).toString(16);
+  const padded = hex.padStart(8, "0");
+  return padded.slice(0, 8);
 }
 
 function listWantedSnapshotTimes(i: number, born: number, secondCommitAt: number, mtime: number): number[] {
@@ -84,16 +86,18 @@ function isOnTitleLine(owner: FixtureSession, line: number): boolean {
 }
 
 // ---- fixture self-check: born <= snapshot <= mtime, inside the session window, on a title line ----
-function checkFixtureOrder(target: BulkFixtureTarget): void {
+function assertFixtureOrder(target: BulkFixtureTarget): void {
   const diskByPath = new Map<string, FixtureDisk>();
   for (const d of target.disk) {
-    if (!diskByPath.has(d.path)) {
+    const isSeen = diskByPath.has(d.path);
+    if (!isSeen) {
       diskByPath.set(d.path, d);
     }
   }
   const sessionByFile = new Map<string, FixtureSession>();
   for (const x of target.sessions) {
-    if (!sessionByFile.has(x.file)) {
+    const isSeen = sessionByFile.has(x.file);
+    if (!isSeen) {
       sessionByFile.set(x.file, x);
     }
   }
@@ -102,27 +106,33 @@ function checkFixtureOrder(target: BulkFixtureTarget): void {
     const disk = diskByPath.get(s.path);
     const owner = sessionByFile.get(s.session);
     const where = `${s.path} ${s.version} (${s.session})`;
+    const snapshotMs = parseMs(s.at);
     if (!disk) {
       bad.push(`${where}: no DISK entry`);
     }
-    else if (parseMs(s.at) < parseMs(disk.born)) {
-      bad.push(`${where}: before born ${disk.born}`);
-    }
-    else if (parseMs(s.at) > parseMs(disk.at)) {
-      bad.push(`${where}: after mtime ${disk.at}`);
+    else {
+      const isBeforeBorn = snapshotMs < parseMs(disk.born);
+      const isAfterMtime = snapshotMs > parseMs(disk.at);
+      if (isBeforeBorn) {
+        bad.push(`${where}: before born ${disk.born}`);
+      }
+      else if (isAfterMtime) {
+        bad.push(`${where}: after mtime ${disk.at}`);
+      }
     }
     if (!owner) {
       bad.push(`${where}: owning session is missing`);
       continue;
     }
-    const isBeforeWindow = parseMs(s.at) < parseMs(owner.started);
-    const isAfterWindow = parseMs(s.at) > parseMs(owner.ended);
+    const isBeforeWindow = snapshotMs < parseMs(owner.started);
+    const isAfterWindow = snapshotMs > parseMs(owner.ended);
     const isOutsideWindow = isBeforeWindow || isAfterWindow;
     const hasTitles = owner.titles.length > 0;
+    const isOffTitles = hasTitles && !isOnTitleLine(owner, s.line);
     if (isOutsideWindow) {
       bad.push(`${where}: outside its session's window`);
     }
-    else if (hasTitles && !isOnTitleLine(owner, s.line)) {
+    else if (isOffTitles) {
       bad.push(`${where}: line ${s.line} is in no title range`);
     }
   }
@@ -133,5 +143,5 @@ function checkFixtureOrder(target: BulkFixtureTarget): void {
 
 export function buildBulkFixture(target: BulkFixtureTarget): void {
   generateBulkRows(target);
-  checkFixtureOrder(target);
+  assertFixtureOrder(target);
 }
