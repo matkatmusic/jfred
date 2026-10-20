@@ -1,5 +1,4 @@
-// The assertion groups for the Layer 2 mockup run. Split out of mockup.ts, which owns the server,
-// the page and the order they run in — this file only knows what "correct" looks like.
+// Assertion groups for the Layer 2 mockup run; mockup.ts owns the server, page and order.
 
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,8 +17,7 @@ export function check(name: string, ok: boolean, detail: unknown = ""): void {
     }
 }
 
-// The bubble's identity as the page draws it: its anchor instant and its node rows, in order. Two
-// renders that agree on this are the same render — which is what "Layer 1 is unchanged" must mean.
+// The bubble's identity as the page draws it: its anchor instant and its node rows, in order. Two renders that agree on this are the same render — which is what "Layer 1 is unchanged" must mean.
 export const shapeOf = (path: string) =>
     `(b => b.dataset.instant + ':' + [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/'))
      (document.querySelector('.filebox[data-path="${path}"]'))`;
@@ -49,15 +47,33 @@ export async function checkNavRows(page: HeadlessPage): Promise<void> {
     const rows = await page.evaluate<{ file: string; kids: string[] }[]>(
         `[...document.querySelectorAll('.session-item')].map(i => ({
             file: i.dataset.file, kids: [...i.children].map(c => c.className + '|' + c.textContent) }))`);
-    const wellFormed = (kids: string[]) => (kids[0] ?? "").startsWith("sname")
-        && (kids[kids.length - 1] ?? "").startsWith("smeta")
-        && kids.slice(1, -1).every(k => k.startsWith("stitle"));
+    const wellFormed = (kids: string[]) => {
+        const firstIsName = (kids[0] ?? "").startsWith("sname");
+        const lastIsMeta = (kids[kids.length - 1] ?? "").startsWith("smeta");
+        let middleAreTitles = true;
+        for (const kid of kids.slice(1, -1)) {
+            if (!kid.startsWith("stitle")) 
+middleAreTitles = false;
+        }
+        return firstIsName && lastIsMeta && middleAreTitles;
+    };
+    let everyRowWellFormed = rows.length > 0;
+    for (const row of rows) {
+        if (!wellFormed(row.kids)) 
+everyRowWellFormed = false;
+    }
     check("#306 every row reads sname, then title(s), then the timestamp",
-        rows.length > 0 && rows.every(r => wellFormed(r.kids)), rows.slice(0, 4));
+        everyRowWellFormed, rows.slice(0, 4));
     check("#306 a titled session leads with its title",
         rows[0]?.kids[1] === "stitle|seed the demo app", rows[0]?.kids);
+    let secondRowTitleCount = 0;
+    for (const kid of rows[1]?.kids ?? []) {
+        if (kid.startsWith("stitle")) 
+secondRowTitleCount += 1;
+    }
+    const secondRowHasTwoTitles = secondRowTitleCount === 2;
     check("#306 a twice-renamed session prints BOTH titles",
-        (rows[1]?.kids ?? []).filter(k => k.startsWith("stitle")).length === 2, rows[1]?.kids);
+        secondRowHasTwoTitles, rows[1]?.kids);
     check("#306 an unnamed session prints no title row at all",
         rows[2]?.file === "7ce50a19.jsonl" && rows[2]?.kids.length === 2, rows[2]);
 }
@@ -73,8 +89,7 @@ export async function checkScale(page: HeadlessPage): Promise<void> {
     check("#300 the stage scrolls VERTICALLY (>3 viewports)", extent.h > extent.vh * 3, extent);
 }
 
-// The ordering rules the fixture's own self-check enforces, re-checked from outside it: a load that
-// silently skipped the assert would otherwise still look green here.
+// Re-checks the fixture's own ordering rules from outside, so a skipped self-check cannot look green.
 export async function checkOrdering(page: HeadlessPage): Promise<void> {
     const broken = await page.evaluate<{ born: string[]; mtime: string[]; coTimed: number }>(`(() => {
         const { COMMITS, DISK, SNAPSHOTS } = window.__fixture;
@@ -100,19 +115,25 @@ export async function checkSnapshotNodes(page: HeadlessPage, indexAnchor: string
     const labels = await page.evaluate<string[]>(
         `[...document.querySelectorAll('.nlabel')].map(n => n.textContent).filter(t => t.includes('📸'))`);
     const total = await page.evaluate<number>(`window.__fixture.SNAPSHOTS.length`);
+    const labelCountMatchesTotal = labels.length === total;
+    const versionedLabelPattern = /^@v\d 📸$/;
+    let everyLabelIsVersioned = true;
+    for (const label of labels) {
+        const labelIsVersioned = versionedLabelPattern.test(label);
+        if (!labelIsVersioned) everyLabelIsVersioned = false;
+    }
     check("#301 one '@vN 📸' label per snapshot in the fixture",
-        labels.length === total && labels.every(t => /^@v\d 📸$/.test(t)), { drawn: labels.length, total });
+        labelCountMatchesTotal && everyLabelIsVersioned, { drawn: labels.length, total });
     check("#301 every snapshot node is clickable",
         await page.evaluate<boolean>(
             `[...document.querySelectorAll('.n-snap')].every(n => n.classList.contains('hot'))`));
     check("#301 the legend carries a snapshot row",
         await page.evaluate<boolean>(
             `[...document.querySelectorAll('.legend span')].some(s => s.textContent.includes('📸'))`));
-    check("#259 a snapshot tied with the on-disk node joins a tie group",
+    check("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
         await page.evaluate<number>(
-            `document.querySelectorAll('[data-path="src/index.ts"] .tiegroup').length`) === 1);
-    // The anchor CANNOT move: `born` is itself a node and no snapshot may pre-date it. What the
-    // pre-commit snapshot does instead is take a ruler entry above every commit.
+            `document.querySelectorAll('[data-path="src/index.ts"] .nodes-with-same-timestamp').length`) === 1);
+    // The anchor CANNOT move: `born` is itself a node and no snapshot may pre-date it. What the pre-commit snapshot does instead is take a ruler entry above every commit.
     check("#301 the bubble anchor stays on `created at`",
         await page.evaluate<string>(
             `document.querySelector('[data-path="src/index.ts"]').dataset.instant`) === indexAnchor);
@@ -151,8 +172,7 @@ export async function checkRulerRow(page: HeadlessPage): Promise<void> {
         const selected = document.querySelectorAll('.session-item.selected').length;
         return { file: f.dataset.file, ms: f.style.getPropertyValue('--flash-ms'), selected };
     })()`);
-    // The bug the user hit on module_36: a path plus an instant names TWO nodes when a commit and a
-    // snapshot share a second, so clicking one row lit both. Only what was clicked may be marked.
+    // The bug the user hit on module_36: a path plus an instant names TWO nodes when a commit and a snapshot share a second, so clicking one row lit both. Only what was clicked may be marked.
     const marked = await page.evaluate<string[]>(
         `[...document.querySelectorAll('.nlabel.found')].map(n => n.dataset.event)`);
     check("#302 a snapshot row selects ONLY its snapshot, not the commit beside it",
