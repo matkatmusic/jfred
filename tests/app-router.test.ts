@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Boot a fresh DOM with a stubbed projects listing and import the router under test. The dynamic import keeps every webapp module load AFTER the happy-dom globals exist.
 async function importRouterInFreshDom(): Promise<typeof import("../webapp/app-router.ts")> {

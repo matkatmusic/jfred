@@ -1,22 +1,16 @@
-// The dashed leader lines are drawn ON DEMAND (user, 2026-07-26): "I am curious to see what the timeline looks like if dashed leader lines are only drawn when the user mouses over a ruler timestamp, [or] mouses over or selects a bubble [or] a node. For all other scroll events in the timeline, no dashed lines should be drawn."
-//
-// What is asserted is the `shown` CLASS, exactly as tests/layer1-leader-hover.test.ts asserts `aimed`: layer1-styles.css is what turns the class into an opacity, happy-dom implements no cascade, and a measured opacity would be measuring happy-dom rather than the page.
-//
-// No getBoundingClientRect stub is needed here — unlike the `aimed` hover, showing a line has no visibility gate, so this behaviour is fully observable without layout.
+// The dashed leader lines are drawn ON DEMAND (user, 2026-07-26): "I am curious to see what the timeline looks like if dashed leader lines are only drawn when the user mouses over a ruler timestamp, [or] mouses over or selects a bubble [or] a node. For all other scroll events in the timeline, no dashed lines should be drawn."  What is asserted is the `shown` CLASS, exactly as tests/layer1-leader-hover.test.ts asserts `aimed`: layer1-styles.css is what turns the class into an opacity, happy-dom implements no cascade, and a measured opacity would be measuring happy-dom rather than the page.  No getBoundingClientRect stub is needed here — unlike the `aimed` hover, showing a line has no visibility gate, so this behaviour is fully observable without layout.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
     instant: string;
     axisPx: number;
 }
 
-// SHARED_PX is the crux, the same one the sibling hover test uses: the second bubble BEGINS there
-// while the first merely holds an interior commit node on it. So "hover the node" and "hover the
-// bubble" are DIFFERENT offsets on the first bubble and the SAME one on the second, which is what
-// catches a lookup that forgot to add a widget-relative offset back onto its bubble's base.
+// SHARED_PX is the crux, the same one the sibling hover test uses: the second bubble BEGINS there while the first merely holds an interior commit node on it. So "hover the node" and "hover the bubble" are DIFFERENT offsets on the first bubble and the SAME one on the second, which is what catches a lookup that forgot to add a widget-relative offset back onto its bubble's base.
 const EARLY_PX = 10;
 const SHARED_PX = 40;
 const LATE_PX = 110;

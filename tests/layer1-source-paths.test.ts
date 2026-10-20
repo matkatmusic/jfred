@@ -1,12 +1,11 @@
-// Tasks 295/296: the two source lists and the defaults a project folder implies.
-//
-// The `touched` rule is the whole point of this file: a list the user has committed must survive a re-derive, and a list they have not must follow the project folder. Getting that backwards either silently discards their picks or pins them to a stale project.
+// Tasks 295/296: the two source lists and the defaults a project folder implies.  The `touched` rule is the whole point of this file: a list the user has committed must survive a re-derive, and a list they have not must follow the project folder. Getting that backwards either silently discards their picks or pins them to a stale project.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const PROJECTS_DIR = "/Users/you/.claude/projects";
 const FILE_HISTORY_DIR = "/Users/you/.claude/file-history";

@@ -1,10 +1,9 @@
-// Task 264: the dashed leader line belongs to the RULER ENTRY, not to the bubble. Split from tests/layer1-page.test.ts, which is at the 250-line cap — same reason tests/layer1-page-spans.ts was split off before it.
-//
-// The bug these pin: the leader used to be `.filebox::before`, so it was drawn once per BUBBLE.  Bubbles sharing a start instant each painted their own overlapping copy, and once the line had to be long enough to reach the sticky gutter from anywhere on the canvas (task 262 round two), 805 copies of a 500,000 px dashed border made the page unusably slow (task 263). One line per ruler entry, spanning the canvas behind everything, is both the correctness fix the user asked for and the performance fix.
+// Task 264: the dashed leader line belongs to the RULER ENTRY, not to the bubble. Split from tests/layer1-page.test.ts, which is at the 250-line cap — same reason tests/layer1-page-spans.ts was split off before it.  The bug these pin: the leader used to be `.filebox::before`, so it was drawn once per BUBBLE.  Bubbles sharing a start instant each painted their own overlapping copy, and once the line had to be long enough to reach the sticky gutter from anywhere on the canvas (task 262 round two), 805 copies of a 500,000 px dashed border made the page unusably slow (task 263). One line per ruler entry, spanning the canvas behind everything, is both the correctness fix the user asked for and the performance fix.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // `eventCount` is task 275's per-instant count. Not optional: layer1-ruler-rows.ts refuses a ruler entry without one (the count is printed in every row), so a fixture missing it fails the whole load with "ruler entry ... carries no event count" and the page draws nothing at all.
 interface FixtureInstant {

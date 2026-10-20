@@ -6,7 +6,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
     instant: string;

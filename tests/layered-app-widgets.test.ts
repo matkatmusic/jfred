@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayeredDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayeredDom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Task 239/S18: fixture states finished ruler offsets directly instead of re-deriving the cap; see viewer_api_layered.test.ts.
 const FIXTURE_AXIS_OFFSETS_PX = {

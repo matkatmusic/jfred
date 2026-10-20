@@ -1,12 +1,9 @@
-// Task 290, second half (user, 2026-07-26): "when you mouse over a leader line and the node(s) or bubble(s) it is pointing to is/are in the visible part of the timeline, highlight those nodes and make the dashed leader line's color change to the same highlight color used for nodes and bubbles."
-//
-// What is asserted is the `aimed` CLASS. layer1-styles.css is what recolours the dashes and marks the targets from it, so the class IS this module's contract — happy-dom implements no cascade, and a measured colour would be measuring happy-dom (same reasoning as tests/layer1-ruler-click.test.ts).
-//
-// happy-dom also implements no LAYOUT, so getBoundingClientRect answers an all-zero rect for every element and the visibility gate would say false for everything — the feature is unobservable without a stub. Every test here patches that prototype method AFTER booting, exactly as tests/layer1-ruler-click.test.ts patches scrollIntoView, because setupLayer1Dom builds a FRESH window per test and an earlier window's prototype is not the one this page's elements use.
+// Task 290, second half (user, 2026-07-26): "when you mouse over a leader line and the node(s) or bubble(s) it is pointing to is/are in the visible part of the timeline, highlight those nodes and make the dashed leader line's color change to the same highlight color used for nodes and bubbles."  What is asserted is the `aimed` CLASS. layer1-styles.css is what recolours the dashes and marks the targets from it, so the class IS this module's contract — happy-dom implements no cascade, and a measured colour would be measuring happy-dom (same reasoning as tests/layer1-ruler-click.test.ts).  happy-dom also implements no LAYOUT, so getBoundingClientRect answers an all-zero rect for every element and the visibility gate would say false for everything — the feature is unobservable without a stub. Every test here patches that prototype method AFTER booting, exactly as tests/layer1-ruler-click.test.ts patches scrollIntoView, because setupLayer1Dom builds a FRESH window per test and an earlier window's prototype is not the one this page's elements use.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // One placed moment as the endpoint ships it: absolute ruler offsets, no time arithmetic anywhere.
 interface FixtureInstant {

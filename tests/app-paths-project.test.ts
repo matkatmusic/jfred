@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const FIRST_COMMIT_HASH = "a".repeat(40);
 const SECOND_COMMIT_HASH = "b".repeat(40);

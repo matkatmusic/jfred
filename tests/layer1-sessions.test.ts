@@ -1,6 +1,4 @@
-// Task 292: the JSONLs pane's selection rules and the filter targets they produce.
-//
-// Pinned because "a re-click on the ONLY pick clears it" is the half that is easy to drop.
+// Task 292: the JSONLs pane's selection rules and the filter targets they produce.  Pinned because "a re-click on the ONLY pick clears it" is the half that is easy to drop.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -13,7 +11,8 @@ import {
 } from "../webapp/layer1-sessions.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const PROJECT_FOLDER = "/Users/you/code/demo-app";
 // Transcripts record ABSOLUTE paths; the fixture is absolute so the relative translation is exercised, not assumed.

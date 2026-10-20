@@ -1,10 +1,9 @@
-// Tasks 247/248/249: a pair widget must span from its EARLIEST node instant to its LATEST, whichever KIND each of those happens to be. Split from tests/layer1-page.test.ts, which is at the 250-line cap; that file covers what a widget renders, this one covers how far it reaches.
-//
-// The bug these pin: `startPx` was `pair.commits[0].axisPx` unconditionally, so a file whose on-disk mtime PREDATES its first commit produced a negative `onDisk.axisPx - startPx`. The disk node is absolutely positioned in the lane with `translate(-50%, -50%)`, so a negative offset drew it above the lane's top — over the widget's own filename/sub header, or clear outside the bubble.
+// Tasks 247/248/249: a pair widget must span from its EARLIEST node instant to its LATEST, whichever KIND each of those happens to be. Split from tests/layer1-page.test.ts, which is at the 250-line cap; that file covers what a widget renders, this one covers how far it reaches.  The bug these pin: `startPx` was `pair.commits[0].axisPx` unconditionally, so a file whose on-disk mtime PREDATES its first commit produced a negative `onDisk.axisPx - startPx`. The disk node is absolutely positioned in the lane with `translate(-50%, -50%)`, so a negative offset drew it above the lane's top — over the widget's own filename/sub header, or clear outside the bubble.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // The pair's on-disk state, placed BEFORE either commit — the inverted case. A real 40-character hash, matching tests/layer1-page.test.ts: a short fake would pass a broken truncation unchanged.
 const DISK_FIRST_ON_DISK = { instant: "2026-06-01T09:00:00.000Z", axisPx: 10 };

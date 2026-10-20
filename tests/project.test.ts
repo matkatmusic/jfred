@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { setupWebappDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const MANY_JSONLS = Array.from({ length: 40 }, (_, index) => ({
     fileName: `session-${String(index).padStart(2, "0")}.jsonl`,

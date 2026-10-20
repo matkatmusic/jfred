@@ -1,10 +1,9 @@
-// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.
-//
-// The counted-line test drives readLayer1ViewStream directly: loadLayer1View's finally resets the strip, erasing what it painted.
+// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.  The counted-line test drives readLayer1ViewStream directly: loadLayer1View's finally resets the strip, erasing what it painted.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom, stubStreamRoute } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { readLayer1ViewStream } from "../webapp/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.

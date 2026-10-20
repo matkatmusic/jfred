@@ -3,83 +3,34 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
-import type { WireLayer1View, WireScriptRun } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
-
-const DISK_FILE_PATH = "src/demo.ts";
-const DISK_FILE_CONTENT = "const x = 1;\nconst y = 2;\n";
-const COMMIT_CONTENT = "const x = 1;\n";
-const FULL_DIFF = "@@ -1,2 +1,2 @@\n const x = 1;\n const y = 2;";
-
-// happy-dom has no animation clock, so the deferred re-centre callback runs inline; it must merely not throw.
-function stubAnimationFrame(): void {
-    Object.assign(globalThis, { requestAnimationFrame: (callback: FrameRequestCallback) => {
-        callback(0);
-        return 0;
-    } });
-}
-
-// Records every ask; content GETs answer via `contentFor`, the diff POST answers FULL_DIFF.
-function stubRecordingFetch(contentFor: (params: URLSearchParams) => object): { url: string; body?: string }[] {
-    const asks: { url: string; body?: string }[] = [];
-    Object.assign(globalThis, {
-        fetch: async (url: unknown, init?: { body?: string }): Promise<Response> => {
-            asks.push({ url: String(url), body: init?.body });
-            const payload = String(url).includes("layer1-diff-content")
-                ? { diff: FULL_DIFF }
-                : contentFor(new URLSearchParams(String(url).slice(String(url).indexOf("?") + 1)));
-            return { ok: true, status: 200, json: async () => payload, text: async () => "" } as unknown as Response;
-        },
-    });
-    return asks;
-}
-
-// The awaited chain is loadContent -> diff POST -> render; two drained turns cover it.
-async function settlePendingFetches(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function firstPane(): HTMLElement {
-    return getRequiredElementById("dbody").querySelector("details.dfile") as HTMLElement;
-}
-
-function paneArrows(): HTMLButtonElement[] {
-    return [...firstPane().querySelectorAll("summary .dtools button")] as HTMLButtonElement[];
-}
-
-// One bubble with a single on-disk node — reads the working tree, so no commit hash needed.
-function buildDiskNodeStage(): HTMLElement {
-    const node = el("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: "on disk" })]),
-    ]));
-    return node;
-}
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import {
+    COMMIT_CONTENT, DISK_FILE_CONTENT, DISK_FILE_PATH, FULL_DIFF, buildDiskNodeStage, getFirstPane,
+    installAnimationFrameStub, installRecordingFetch, listPaneArrows, waitForPendingFetches,
+} from "./layer1-drawer-test-helpers.ts";
 
 test("clicking an on-disk node opens one DiffView pane showing the whole file, controls hidden", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    installAnimationFrameStub();
+    const asks = installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     assert.ok(getRequiredElementById("drawer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
-    const pane = firstPane();
+    const pane = getFirstPane();
     // The drawer header (asserted above) is the ONLY place a lone file is named.
     assert.equal(pane.querySelector(".dfile-path"), null);
     // Equal sides read as ONE revision, so the label names it once.
     assert.equal(pane.querySelector(".dpair")?.textContent, "on disk");
     // A lone revision has nothing to step, diff, or widen: arrows hidden, tools row not in the DOM.
-    assert.ok(paneArrows().every((arrow) => arrow.hidden));
+    assert.ok(listPaneArrows().every((arrow) => arrow.hidden));
     assert.equal(pane.querySelector(".dfull-toggle"), null);
     assert.equal(pane.querySelector("button[data-mode]"), null);
     // The body renders the synthesized full-content hunk the POST answered.
@@ -92,37 +43,16 @@ test("clicking an on-disk node opens one DiffView pane showing the whole file, c
 
 test("a click on anything that is not a node leaves the drawer shut", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
+    installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     buildDiskNodeStage();
     wireNodeDrawer();
 
     getRequiredElementById("stage").querySelector(".fname")!
         .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
-});
-
-test("an image node renders an img off the binary route instead of fetching text", async () => {
-    // Task 299: no JSON fetch happens — the img's src IS the request.
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubFetchRoutes({});
-    const node = el("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "logo.png", "data-path": "assets/logo.png" }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: "on disk" })]),
-    ]));
-    getInputById("dir").value = "/project";
-    wireNodeDrawer();
-
-    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    const image = getRequiredElementById("dbody").querySelector("img");
-    assert.ok(image?.getAttribute("src")?.includes("binary=1"), image?.outerHTML);
-    assert.equal(getRequiredElementById("imgtools").hidden, false);
 });
 
 const COMMIT_HASH = "5636d8ecb1a24f0e9c7d3a1b8e5f402716c9d8aa";
@@ -140,14 +70,14 @@ function buildCommitNodeStage(hashTitle: string): HTMLElement {
 
 test("a commit node loads its string through git's blob at its own hash", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
+    installAnimationFrameStub();
+    const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
     const node = buildCommitNodeStage(COMMIT_HASH);
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     const ask = asks.find((entry) => entry.url.includes("layer1-file"))!;
     const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
@@ -158,210 +88,16 @@ test("a commit node loads its string through git's blob at its own hash", async 
     assert.equal(getRequiredElementById("dpath").textContent, "SKILL.md — at commit 5636d8ec");
 });
 
-const LANE_HASH = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
-const MIDDLE_HASH = "b2c3d4e5f60718293a4b5c6d7e8f9012345678aa";
-
-// A lane holding commit node(s) and the on-disk node, axis-placed oldest to newest.
-function buildLaneStage(withMiddle: boolean): { commitNode: HTMLElement; middleNode: HTMLElement; diskNode: HTMLElement } {
-    const commitNode = el("i", { class: "node n-commit", title: LANE_HASH });
-    commitNode.style.setProperty("--axis-px", "10");
-    const middleNode = el("i", { class: "node n-commit", title: MIDDLE_HASH });
-    middleNode.style.setProperty("--axis-px", "25");
-    const diskNode = el("i", { class: "node n-disk" });
-    diskNode.style.setProperty("--axis-px", "40");
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-        el("div", { class: "lane" }, withMiddle ? [commitNode, middleNode, diskNode] : [commitNode, diskNode]),
-    ]));
-    return { commitNode, middleNode, diskNode };
-}
-
-const LANE_T0 = "2026-07-01T10:00:00.000Z";
-const LANE_T1 = "2026-07-01T11:00:00.000Z";
-const LANE_T2 = "2026-07-01T12:00:00.000Z";
-
-// Task 329: the shift-click gesture reads instants off the DRAWN view, so tests arm the memo the page keeps.
-function armLaneView(withMiddle: boolean): void {
-    const middleTicks = withMiddle ? [{ instant: LANE_T1, axisPx: 25, eventCount: 1 }] : [];
-    rememberDrawnView({
-        pairs: [{
-            path: DISK_FILE_PATH,
-            commits: [
-                { hash: LANE_HASH, instant: LANE_T0, axisPx: 10 },
-                ...(withMiddle ? [{ hash: MIDDLE_HASH, instant: LANE_T1, axisPx: 25 }] : []),
-            ],
-            onDisk: { instant: LANE_T2, axisPx: 40 },
-        }],
-        gitOrphans: [],
-        diskOrphans: [],
-        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, ...middleTicks, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
-    } as WireLayer1View);
-    rememberNavTargets([]);
-}
-
-test("shift-clicking a second node diffs the two sides' STRINGS, older side as base", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
-    getInputById("dir").value = "/project";
-    getInputById("repo").value = "/repo";
-    const { commitNode, diskNode } = buildLaneStage(false);
-    armLaneView(false);
-    wireNodeDrawer();
-
-    diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-    commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
-    await settlePendingFetches();
-
-    const posted = JSON.parse(asks.filter((ask) => ask.url.includes("layer1-diff-content")).at(-1)!.body!) as
-        { base: string; target: string; context?: string };
-    // The commit's instant is earlier, so its string is the base; no context until toggled.
-    assert.deepEqual(posted, { base: COMMIT_CONTENT, target: DISK_FILE_CONTENT });
-    assert.ok(commitNode.classList.contains("diff-base"));
-    assert.ok(diskNode.classList.contains("diff-target"));
-    // Task 329: the pair is a RANGE now — the header says so and the wash spans it.
-    assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — range diff");
-    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
-    assert.equal(firstPane().querySelector(".dpair")?.textContent, "a1b2c3d4 - on disk");
-    assert.ok(paneArrows().every((arrow) => !arrow.hidden));
-    assert.equal(getRequiredElementById("dprev").hidden, true);
-});
-
-test("task 329: a shift-click spanning two bubbles becomes a global range diffing both files", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
-    getInputById("dir").value = "/project";
-    const firstNode = el("i", { class: "node n-disk" });
-    const otherNode = el("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-            el("div", { class: "lane" }, [firstNode]),
-        ]),
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
-            el("div", { class: "lane" }, [otherNode]),
-        ]),
-    );
-    rememberDrawnView({
-        pairs: [
-            { path: DISK_FILE_PATH, commits: [], onDisk: { instant: LANE_T0, axisPx: 10 } },
-            { path: "src/other.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 } },
-        ],
-        gitOrphans: [],
-        diskOrphans: [],
-        ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
-    } as WireLayer1View);
-    rememberNavTargets([]);
-    wireNodeDrawer();
-
-    firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-    const diffsBefore = asks.filter((ask) => ask.url.includes("layer1-diff-content")).length;
-    otherNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
-    await settlePendingFetches();
-
-    // One section per file, each posting its own diff; no refusal toast anywhere.
-    assert.equal(asks.filter((ask) => ask.url.includes("layer1-diff-content")).length, diffsBefore + 2);
-    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
-    assert.equal(getRequiredElementById("dpath").textContent, "2 files — range diff");
-    assert.ok(getRequiredElementById("washes").querySelector(".diff-wash"));
-    assert.equal(getRequiredElementById("dtoast").hidden, true);
-});
-
-test("task 336: the wash sweeps in every file with a step inside the range, not just the two clicked", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
-    getInputById("dir").value = "/project";
-    const firstNode = el("i", { class: "node n-disk" });
-    const otherNode = el("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-            el("div", { class: "lane" }, [firstNode]),
-        ]),
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
-            el("div", { class: "lane" }, [otherNode]),
-        ]),
-    );
-    rememberDrawnView({
-        pairs: [
-            { path: DISK_FILE_PATH, commits: [], onDisk: { instant: LANE_T0, axisPx: 10 } },
-            { path: "src/other.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 } },
-            // Untouched by any click, but its own step (LANE_T1) sits inside LANE_T0..LANE_T2.
-            { path: "src/swept.ts", commits: [], onDisk: { instant: LANE_T1, axisPx: 25 } },
-            // Untouched, and its step post-dates the range entirely — must stay out of the drawer.
-            { path: "src/excluded.ts", commits: [], onDisk: { instant: "2026-07-01T13:00:00.000Z", axisPx: 60 } },
-        ],
-        gitOrphans: [],
-        diskOrphans: [],
-        ruler: [
-            { instant: LANE_T0, axisPx: 10, eventCount: 1 },
-            { instant: LANE_T1, axisPx: 25, eventCount: 1 },
-            { instant: LANE_T2, axisPx: 40, eventCount: 1 },
-        ],
-    } as WireLayer1View);
-    rememberNavTargets([]);
-    wireNodeDrawer();
-
-    firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-    otherNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
-    await settlePendingFetches();
-
-    // 3 panes: the two clicked files plus the swept-in one; the out-of-range file never shows up.
-    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 3);
-    assert.equal(getRequiredElementById("dpath").textContent, "3 files — range diff");
-});
-
-const SNAPSHOT_SESSION_FILE = "/Users/me/.claude/projects/-demo/b21d84c5.jsonl";
-const SNAPSHOT_SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
-const SNAPSHOT_PATH = "src/util.ts";
-
-test("clicking a snapshot node reads the owning session and sets the range-correct title", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title" }));
-    getInputById("dir").value = "/work";
-    const node = el("i", { class: "node n-snap", "data-version": "2",
-        "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
-    ]));
-    getRequiredElementById("sessions").replaceChildren(
-        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
-    );
-    wireNodeDrawer();
-
-    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    const ask = asks.find((entry) => entry.url.includes("snapshotSession"))!;
-    const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
-    assert.equal(params.get("snapshotSession"), SNAPSHOT_SESSION_FILE);
-    assert.equal(params.get("sessionId"), SNAPSHOT_SESSION_ID);
-    assert.equal(params.get("version"), "2");
-    assert.equal(params.get("dir"), "/work");
-    assert.equal(firstPane().querySelector(".dpair")?.textContent, "@v2 📸");
-    assert.equal(getRequiredElementById("dpath").textContent, "util.ts Snapshot - Second title");
-    assert.ok(getRequiredElementById("sessions").querySelector(".flash-lead"));
-});
-
 test("a commit node with no hash on it falls back to the working tree, never to `git show :path`", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
-    const asks = stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
+    installAnimationFrameStub();
+    const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("dir").value = "/project";
     const node = buildCommitNodeStage("");
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     const ask = asks.find((entry) => entry.url.includes("layer1-file"))!;
     const params = new URLSearchParams(ask.url.slice(ask.url.indexOf("?") + 1));
@@ -371,209 +107,42 @@ test("a commit node with no hash on it falls back to the working tree, never to 
 
 test("task 325: a File Nav leaf click selects the on-disk node and opens the drawer", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
+    installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     const node = buildDiskNodeStage();
     wireNodeDrawer();
 
     openDiskNodeForPath(DISK_FILE_PATH);
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     assert.ok(getRequiredElementById("drawer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
     assert.ok(node.classList.contains("found"));
 });
 
-test("task 324/329: the pane's base arrow steps freely and equal sides read as one revision", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
-    getInputById("dir").value = "/project";
-    getInputById("repo").value = "/repo";
-    const { commitNode, middleNode, diskNode } = buildLaneStage(true);
-    armLaneView(true);
-    wireNodeDrawer();
-
-    diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-    commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
-    await settlePendingFetches();
-    paneArrows()[1]!.click();
-    await settlePendingFetches();
-
-    // Task 329: rings mark the WASH boundary nodes, so an arrow step moves the pane, never the rings.
-    assert.equal(firstPane().querySelector(".dpair")?.textContent, "b2c3d4e5 - on disk");
-    assert.ok(commitNode.classList.contains("diff-base"));
-    assert.equal(middleNode.classList.contains("diff-base"), false);
-    assert.ok(diskNode.classList.contains("diff-target"));
-    // Differing sides ARE a diff, so the mode/full/export tools row is visible.
-    assert.equal(firstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "");
-    // Stepping onto the target is ALLOWED (task 329): equal sides become the full-content view.
-    paneArrows()[1]!.click();
-    await settlePendingFetches();
-    assert.equal(firstPane().querySelector(".dpair")?.textContent, "on disk");
-    // Equal sides show ONE revision: the tools row is gone until the sides split again.
-    assert.equal(firstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "none");
-    // ...and the base→target meta says nothing; the pair label already names the revision.
-    assert.equal(firstPane().querySelector(".dmeta")?.textContent, "");
-    // Only the ladder's ends disable an arrow now.
-    assert.equal(paneArrows()[1]!.disabled, true);
-    assert.equal(paneArrows()[0]!.disabled, false);
-});
-
-// Task 356: a shared script-run drawer, keyed by toolUseId rather than (node, path).
-const T0 = LANE_T0;
-const T2 = LANE_T2;
-const SCRIPT_TOOL_USE_ID = "toolu_ren_1";
-const SCRIPT_RUN: WireScriptRun = {
-    instant: T0, axisPx: 0, toolUseId: SCRIPT_TOOL_USE_ID,
-    executorKind: "python", code: 'open("rename_inv.py").read()', label: "rename_inv.py",
-};
-
-function armScriptRunView(): void {
-    rememberDrawnView({
-        pairs: [
-            { path: "src/a.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [SCRIPT_RUN] },
-            { path: "src/b.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [SCRIPT_RUN] },
-        ],
-        gitOrphans: [], diskOrphans: [],
-        ruler: [{ instant: T0, axisPx: 0, eventCount: 1 }, { instant: T2, axisPx: 40, eventCount: 1 }],
-    } as WireLayer1View);
-    rememberNavTargets([]);
-}
-
-function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement; connector: HTMLElement } {
-    const nodeA = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-    const nodeB = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-    const connector = el("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-    getRequiredElementById("stage").replaceChildren(
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
-            el("div", { class: "lane" }, [nodeA]),
-        ]),
-        connector,
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "b.ts", "data-path": "src/b.ts" }),
-            el("div", { class: "lane" }, [nodeB]),
-        ]),
-    );
-    return { nodeA, nodeB, connector };
-}
-
-test("task 356: clicking a script-run node opens the shared drawer with the resolved body", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
-    const { nodeA } = buildScriptRunStage();
-    armScriptRunView();
-    wireNodeDrawer();
-
-    nodeA.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
-    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
-    assert.equal(getRequiredElementById("dbody").querySelector(".scriptbody")?.textContent, SCRIPT_RUN.code);
-    // One diff pane per affected path (src/a.ts and src/b.ts both carry this toolUseId).
-    assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
-});
-
-test("task 356: clicking the shared connector opens the SAME drawer as clicking a node", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
-    const { connector } = buildScriptRunStage();
-    armScriptRunView();
-    wireNodeDrawer();
-
-    connector.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
-});
-
-test("task 356: an unlabeled script run (no static filename) still opens, with a generated header", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
-    const unlabeled: WireScriptRun = { ...SCRIPT_RUN, toolUseId: "toolu_inline", label: undefined };
-    rememberDrawnView({
-        pairs: [{ path: "src/a.ts", commits: [], onDisk: { instant: T2, axisPx: 40 }, scriptRuns: [unlabeled] }],
-        gitOrphans: [], diskOrphans: [],
-        ruler: [{ instant: T2, axisPx: 40, eventCount: 1 }],
-    } as WireLayer1View);
-    rememberNavTargets([]);
-    const node = el("i", { class: "node n-script", "data-tool-use-id": "toolu_inline" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
-        el("div", { class: "lane" }, [node]),
-    ]));
-    wireNodeDrawer();
-
-    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    assert.equal(getRequiredElementById("dpath").textContent, "python run");
-});
-
-test("task 213: a snapshot node reveals a [{ }] button that toggles its raw transcript JSON", async () => {
-    setupLayer1Dom();
-    stubAnimationFrame();
-    const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
-    stubRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title", record: rawRecord }));
-    getInputById("dir").value = "/work";
-    const node = el("i", { class: "node n-snap", "data-version": "2",
-        "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
-    ]));
-    getRequiredElementById("sessions").replaceChildren(
-        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
-    );
-    wireNodeDrawer();
-
-    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
-
-    // Step: the reveal button is present and its JSON body starts hidden.
-    const toggle = getRequiredElementById("dbody").querySelector(".json-toggle") as HTMLButtonElement;
-    assert.ok(toggle, "a snapshot node should get a [{ }] button");
-    const jsonBox = getRequiredElementById("dbody").querySelector(".node-json") as HTMLElement;
-    assert.equal(jsonBox.hidden, true);
-    // Step: clicking the button reveals the highlighted-JSON pre carrying the record text.
-    toggle.click();
-    assert.equal(jsonBox.hidden, false);
-    assert.ok(jsonBox.querySelector("pre.inspector-json"));
-    assert.ok(jsonBox.textContent?.includes("hello raw json"));
-    // Step: clicking the button again hides the JSON body.
-    toggle.click();
-    assert.equal(jsonBox.hidden, true);
-});
-
 test("task 213: a commit node shows no [{ }] button (it has no transcript line)", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: COMMIT_CONTENT }));
+    installAnimationFrameStub();
+    installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
     const node = buildCommitNodeStage(COMMIT_HASH);
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
 });
 
 test("task 213: an on-disk node shows no [{ }] button (it has no transcript line)", async () => {
     setupLayer1Dom();
-    stubAnimationFrame();
-    stubRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+    installAnimationFrameStub();
+    installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
     wireNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settlePendingFetches();
+    await waitForPendingFetches();
 
     assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
 });

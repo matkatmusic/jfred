@@ -1,18 +1,17 @@
-// Task 238 (spec S18): the MILESTONE ACCEPTANCE TEST. Every other Layer 1 test exercises one half — the endpoint against a fixture, or the page against a canned view. This one runs the whole path: a real folder and a real UNRELATED repo, through the real GET /api/layer1-view on a spawned viewer, into the real page render in happy-dom. The page's relative fetch is forwarded to the live origin (forwardFetchToOrigin); nothing about the view is canned.
-//
-// Pixel offsets are deliberately NOT asserted here — tests/viewer_api_layer1_placement.test.ts owns placement. This file asserts the user's acceptance criterion: two buckets, zero pairs, and every path in the correct bucket.
+// Task 238 (spec S18): the MILESTONE ACCEPTANCE TEST. Every other Layer 1 test exercises one half — the endpoint against a fixture, or the page against a canned view. This one runs the whole path: a real folder and a real UNRELATED repo, through the real GET /api/layer1-view on a spawned viewer, into the real page render in happy-dom. The page's relative fetch is forwarded to the live origin (forwardFetchToOrigin); nothing about the view is canned.  Pixel offsets are deliberately NOT asserted here — tests/viewer_api_layer1_placement.test.ts owns placement. This file asserts the user's acceptance criterion: two buckets, zero pairs, and every path in the correct bucket.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
+import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
 import {
     SUBMODULE_FIXTURE_FOLDER,
     makeSubmoduleFixtureRoot,
     makeUnrelatedFixtureDiskFolder,
     makeUnrelatedFixtureRepo,
-    startFixtureViewer,
-} from "./layer1-view-test-helpers.ts";
-import { forwardFetchToOrigin, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+} from "./layer1-unrelated-fixture-helpers.ts";
+import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { installOriginForwardingFetch } from "./webapp-fetch-test-helpers.ts";
 
 // Own port range: 18900+ and 19400+ are claimed by the two viewer_api_layer1 files, each reserving 500 through `process.pid % 500`.
 const SCRATCH_PORT = 19900 + (process.pid % 500);
@@ -32,15 +31,11 @@ after(() => {
     child?.kill();
 });
 
-// Boot the page against the LIVE endpoint and wait for its render to finish.
-//
-// bootLayer1Page() must run for EVERY document, not once: it is what seeds the header boxes from the page URL, and loadLayer1View reads those BOXES rather than the URL — an unseeded document makes it bail at its own missing-dir/repo guard and render nothing. node's module cache runs the module's own top-level boot only on the first import, so every later test needs this call.
-//
-// loadLayer1View is then awaited rather than flushAsyncWork()'d: that helper is three zero-delay macrotask turns, written for a stub that resolves immediately, and a real HTTP round trip plus the endpoint's git subprocesses will not reliably fit inside it. boot's own fire-and-forget load renders the same view, so the two cannot disagree.
+// Boot the page against the LIVE endpoint and wait for its render to finish.  bootLayer1Page() must run for EVERY document, not once: it is what seeds the header boxes from the page URL, and loadLayer1View reads those BOXES rather than the URL — an unseeded document makes it bail at its own missing-dir/repo guard and render nothing. node's module cache runs the module's own top-level boot only on the first import, so every later test needs this call.  loadLayer1View is then awaited rather than flushAsyncWork()'d: that helper is three zero-delay macrotask turns, written for a stub that resolves immediately, and a real HTTP round trip plus the endpoint's git subprocesses will not reliably fit inside it. boot's own fire-and-forget load renders the same view, so the two cannot disagree.
 async function renderPageAgainstLiveEndpoint(dir: string = diskDir, repo: string = repoDir): Promise<void> {
     const search = `?dir=${encodeURIComponent(dir)}&repo=${encodeURIComponent(repo)}`;
     setupLayer1Dom(search);
-    forwardFetchToOrigin(`http://127.0.0.1:${SCRATCH_PORT}`);
+    installOriginForwardingFetch(`http://127.0.0.1:${SCRATCH_PORT}`);
     const { bootLayer1Page, loadLayer1View } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
     await loadLayer1View();

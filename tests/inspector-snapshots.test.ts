@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom, stubFetchRoutes } from "./webapp-dom-test-helpers.ts";
+import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Load the module under test AFTER the happy-dom globals exist — its import chain reaches app-fetch/inspector-json, which expect the browser globals.
 async function importInspectorSnapshots(): Promise<typeof import("../webapp/inspector-snapshots.ts")> {
