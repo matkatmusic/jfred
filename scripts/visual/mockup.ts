@@ -7,7 +7,7 @@ import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "
 import {
   // RENDER_SIGNATURE (task 352: only the retired 1 -> 2 -> 1 check used it)
   check, validateChrome, validateNavRows, validateOrdering,
-  validateScale, failures, shapeOf, saveScreenshot,
+  validateScale, failures, buildShapeProbe, saveScreenshot,
 } from "./mockup-checks.ts";
 import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
@@ -41,7 +41,7 @@ async function executeChecks(page: HeadlessPage): Promise<void> {
   // const layer1 = await page.evaluate<string>(RENDER_SIGNATURE);
   const indexAnchor = await page.evaluate<string>(
     `document.querySelector('[data-path="src/index.ts"]').dataset.instant`);
-  const readmeAtLayer1 = await page.evaluate<string>(shapeOf("README.md"));
+  const readmeAtLayer1 = await page.evaluate<string>(buildShapeProbe("README.md"));
   // check("#304 Layer 1 draws no snapshot node",
   //     await page.evaluate<number>(`document.querySelectorAll('.n-snap').length`) === 0);
   await saveScreenshot(page, "01-layer1");
@@ -52,7 +52,7 @@ async function executeChecks(page: HeadlessPage): Promise<void> {
   await validateSnapshotNodes(page, indexAnchor);
   // Its axis OFFSET may move (#251), but its own anchor and node rows must not.
   check("#304 a file with NO snapshots renders exactly as at Layer 1",
-    await page.evaluate<string>(shapeOf("README.md")) === readmeAtLayer1, readmeAtLayer1);
+    await page.evaluate<string>(buildShapeProbe("README.md")) === readmeAtLayer1, readmeAtLayer1);
   await saveScreenshot(page, "02-layer2");
 
   await validateRulerRow(page);

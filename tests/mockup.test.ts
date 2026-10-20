@@ -1,12 +1,11 @@
-// Capture-free tests for the Layer 2 mockup checker. No Chrome, no server — these cover the pure
-// pieces (the tally and the probe builders) so a typo in a selector shows up in `npm test`.
+// Capture-free tests for the Layer 2 mockup checker. No Chrome, no server — these cover the pure pieces (the tally and the probe builders) so a typo in a selector shows up in `npm test`.
 
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { RENDER_SIGNATURE, check, failures, shapeOf } from "../scripts/visual/mockup-checks.ts";
+import { RENDER_SIGNATURE, check, failures, buildShapeProbe } from "../scripts/visual/mockup-checks.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MOCKUP_DIR = join(HERE, "../../plans/layer2-mockup");
@@ -21,8 +20,8 @@ test("check records only the failures", () => {
     failures.length = before;
 });
 
-test("shapeOf targets the filebox, never the .fname that shares its data-path", () => {
-    assert.match(shapeOf("src/util.ts"), /\.filebox\[data-path="src\/util\.ts"\]/);
+test("buildShapeProbe targets the filebox, never the .fname that shares its data-path", () => {
+    assert.match(buildShapeProbe("src/util.ts"), /\.filebox\[data-path="src\/util\.ts"\]/);
 });
 
 test("the render signature reads every filebox's path, offset and node rows", () => {
@@ -46,8 +45,7 @@ test("the fixture exports what app.js imports", () => {
     }
 });
 
-// The rule the user caught twice by eye. The fixture throws on load if it breaks, but that only
-// helps someone who opens the page — this fails the suite instead.
+// The rule the user caught twice by eye. The fixture throws on load if it breaks, but that only helps someone who opens the page — this fails the suite instead.
 test("every snapshot sits between its file's born and its mtime", async () => {
     const { DISK, SNAPSHOTS, ms } = await import(join(MOCKUP_DIR, "fixture.js"));
     for (const snapshot of SNAPSHOTS) {

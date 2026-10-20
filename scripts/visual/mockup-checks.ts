@@ -18,7 +18,7 @@ export function check(name: string, ok: boolean, detail: unknown = ""): void {
 }
 
 // A bubble's identity: its anchor instant and node rows, in order.
-export const shapeOf = (path: string) =>
+export const buildShapeProbe =(path: string) =>
   `(b => b.dataset.instant + ':' + [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/'))
      (document.querySelector('.filebox[data-path="${path}"]'))`;
 
@@ -48,19 +48,21 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
   const rows = await page.evaluate<{ file: string; kids: string[] }[]>(
     `[...document.querySelectorAll('.session-item')].map(i => ({
             file: i.dataset.file, kids: [...i.children].map(c => c.className + '|' + c.textContent) }))`);
-  const wellFormed = (kids: string[]) => {
+  const isWellFormed = (kids: string[]) => {
     const firstIsName = (kids[0] ?? "").startsWith("sname");
     const lastIsMeta = (kids[kids.length - 1] ?? "").startsWith("smeta");
     let middleAreTitles = true;
     for (const kid of kids.slice(1, -1)) {
-      if (!kid.startsWith("stitle"))
+      const kidIsTitle = kid.startsWith("stitle");
+      if (!kidIsTitle)
         middleAreTitles = false;
     }
     return firstIsName && lastIsMeta && middleAreTitles;
   };
   let everyRowWellFormed = rows.length > 0;
   for (const row of rows) {
-    if (!wellFormed(row.kids))
+    const rowIsWellFormed = isWellFormed(row.kids);
+    if (!rowIsWellFormed)
       everyRowWellFormed = false;
   }
   check("#306 every row reads sname, then title(s), then the timestamp",
@@ -69,7 +71,8 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
     rows[0]?.kids[1] === "stitle|seed the demo app", rows[0]?.kids);
   let secondRowTitleCount = 0;
   for (const kid of rows[1]?.kids ?? []) {
-    if (kid.startsWith("stitle"))
+    const kidIsTitle = kid.startsWith("stitle");
+    if (kidIsTitle)
       secondRowTitleCount += 1;
   }
   const secondRowHasTwoTitles = secondRowTitleCount === 2;

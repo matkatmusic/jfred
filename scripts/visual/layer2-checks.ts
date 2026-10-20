@@ -60,7 +60,9 @@ async function validateSnapshotNodes(page: HeadlessPage, payload: ViewPayload): 
   let bare: string | undefined;
   for (const pair of payload.pairs) {
     const pairHasNoSnapshots = (pair.snapshots?.length ?? 0) === 0;
-    if (pairHasNoSnapshots && bare === undefined) {
+    const bareNotYetFound = bare === undefined;
+    const isFirstBarePair = pairHasNoSnapshots && bareNotYetFound;
+    if (isFirstBarePair) {
       bare = pair.path;
     }
   }

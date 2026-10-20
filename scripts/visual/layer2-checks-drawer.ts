@@ -14,12 +14,12 @@ export async function saveScreenshot(page: HeadlessPage, name: string): Promise<
   writeFileSync(join(OUT_DIR, `layer2-${name}.png`), Buffer.from(await page.screenshot(), "base64"));
 }
 
-function ignoreWaitTimeout(): void {
+function clearWaitTimeout(): void {
 }
 
 // The flash fades after 2.6s; poll briefly so a read never races its arrival.
 async function readFlashFile(page: HeadlessPage): Promise<string | null> {
-  await page.waitFor(`document.querySelector('.session-item.flash')`, 2_000).catch(ignoreWaitTimeout);
+  await page.waitFor(`document.querySelector('.session-item.flash')`, 2_000).catch(clearWaitTimeout);
   return page.evaluate<string | null>(`document.querySelector('.session-item.flash')?.dataset.file ?? null`);
 }
 
@@ -29,13 +29,15 @@ async function findSnapshotRow(page: HeadlessPage): Promise<{ snap: string; coun
   for (let i = 0; i < ticks; i++) {
     await page.evaluate(`document.querySelectorAll('#ruler .tick.multi')[${i}].click()`);
     await page.waitFor(`document.querySelectorAll('.tickfiles button').length > 0`, 5_000)
-      .catch(ignoreWaitTimeout);
+      .catch(clearWaitTimeout);
     const rows = await page.evaluate<string[]>(
       `[...document.querySelectorAll('.tickfiles button')].map(b => b.textContent)`);
     let snap: string | undefined;
     for (const row of rows) {
       const rowHasSnapshot = row.includes("📸");
-      if (rowHasSnapshot && snap === undefined) {
+      const snapNotYetFound = snap === undefined;
+      const isFirstSnapshotRow = rowHasSnapshot && snapNotYetFound;
+      if (isFirstSnapshotRow) {
         snap = row;
       }
     }
@@ -50,8 +52,11 @@ async function findSnapshotRow(page: HeadlessPage): Promise<{ snap: string; coun
 
 export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload): Promise<void> {
   const found = await findSnapshotRow(page);
-  check("#316 an expandable ruler row lists a snapshot as '<file> @vN 📸'",
-    found !== null && /📸$/.test(found.snap), found);
+  const snapshotLabelPattern = /📸$/;
+  const foundRowExists = found !== null;
+  const labelEndsWithSnapshot = snapshotLabelPattern.test(found?.snap ?? "");
+  const rowListsSnapshot = foundRowExists && labelEndsWithSnapshot;
+  check("#316 an expandable ruler row lists a snapshot as '<file> @vN 📸'", rowListsSnapshot, found);
   if (found === null) {
     return;
   }
