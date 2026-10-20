@@ -1,4 +1,4 @@
-// Headless checks for the Layer 1 and Layer 2 acceptance lines of tasks #299-#307, on the real page in fixture mode.
+// Headless Layer 1 and Layer 2 acceptance checks (tasks #299-#307) on the real page.
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import {
   // RENDER_SIGNATURE (task 352: only the retired 1 -> 2 -> 1 check used it)
-  check, checkChrome, checkDrawer, checkNavRows, checkOrdering, checkRulerRow,
-  checkScale, checkSnapshotNodes, failures, shapeOf, shoot,
+  check, validateChrome, validateNavRows, validateOrdering,
+  validateScale, failures, shapeOf, saveScreenshot,
 } from "./mockup-checks.ts";
+import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
   checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
@@ -35,36 +36,36 @@ async function openLayer2(page: HeadlessPage): Promise<void> {
 }
 
 async function executeChecks(page: HeadlessPage): Promise<void> {
-  await checkChrome(page);
-  await checkNavRows(page);
+  await validateChrome(page);
+  await validateNavRows(page);
   // const layer1 = await page.evaluate<string>(RENDER_SIGNATURE);
   const indexAnchor = await page.evaluate<string>(
     `document.querySelector('[data-path="src/index.ts"]').dataset.instant`);
   const readmeAtLayer1 = await page.evaluate<string>(shapeOf("README.md"));
   // check("#304 Layer 1 draws no snapshot node",
   //     await page.evaluate<number>(`document.querySelectorAll('.n-snap').length`) === 0);
-  await shoot(page, "01-layer1");
+  await saveScreenshot(page, "01-layer1");
 
   await openLayer2(page);
-  await checkScale(page);
-  await checkOrdering(page);
-  await checkSnapshotNodes(page, indexAnchor);
+  await validateScale(page);
+  await validateOrdering(page);
+  await validateSnapshotNodes(page, indexAnchor);
   // Its axis OFFSET may move (#251), but its own anchor and node rows must not.
   check("#304 a file with NO snapshots renders exactly as at Layer 1",
     await page.evaluate<string>(shapeOf("README.md")) === readmeAtLayer1, readmeAtLayer1);
-  await shoot(page, "02-layer2");
+  await saveScreenshot(page, "02-layer2");
 
-  await checkRulerRow(page);
+  await validateRulerRow(page);
   await checkBubbleFlash(page);
   await checkSessionSearch(page);
-  await checkDrawer(page);
+  await validateDrawer(page);
 
   // Tasks #324/#325/#326; each restores what it changed, so the round-trip below still matches.
   await checkDiffPair(page);
   await checkPairArrows(page);
   await checkDiffTools(page);
   await checkCrossBubbleRefusal(page);
-  await shoot(page, "03-diff-pair");
+  await saveScreenshot(page, "03-diff-pair");
   await checkNavOpensDiskNode(page);
   await checkShowOnlySelected(page);
   await checkNavBugs(page);
@@ -93,7 +94,7 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   return server;
 }
 
-async function main(): Promise<void> {
+async function executeMain(): Promise<void> {
   buildWebapp();
   const port = await findFreePort();
   stopPort(port);
@@ -116,4 +117,4 @@ async function main(): Promise<void> {
   process.exit(failures.length ? 1 : 0);
 }
 
-await main();
+await executeMain();
