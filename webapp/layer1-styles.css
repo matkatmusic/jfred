@@ -66,9 +66,9 @@
   .layerbar button, .timebar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
   .layerbar button.current, .timebar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
   /*
-    Layer toggle is show/hide only: .n-snap elements hide below Layer 2; offsets never shift.
+    Retired by task 352 (the show row, task 360, replaces it). Was: .n-snap elements hid below Layer 2.
+    .viz-root:not([data-layer="2"]) .n-snap { display: none; }
   */
-  .viz-root:not([data-layer="2"]) .n-snap { display: none; }
 
   /*
     Layer 1's input surface: project-folder row, then the task-286 repository row with flag and ref pickers.

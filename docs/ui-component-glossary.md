@@ -2,7 +2,7 @@
 
 When you name a UI part, use the **Canonical** name (or an alias listed here). Each row
 gives the owning module, its DOM id / CSS class, and one line on what it is. Layer 1 page
-= `layer1.html`; top container `div.viz-root[data-layer="1"]`; boot/wire module
+= `layer1.html`; top container `div.viz-root`; boot/wire module
 `layer1-page.ts`.
 
 | Your name(s) | Canonical | Module | DOM id / CSS class | What it is |
@@ -25,7 +25,7 @@ gives the owning module, its DOM id / CSS class, and one line on what it is. Lay
 | git header row, diff viewer row #3, DiffView sections | DiffView sections / header rows | layer1-diff-view.ts | per-file `<details>.dfile`; header `.dhead.dfile-head` (`.dpath.dfile-path`); pair label `.dpair`; arrows `.dtools`; full-content `.dfull-toggle` | Drawer's per-file header rows + one collapsible section per file |
 | diff pane, diff rows | Diff pane | layer1-diff-pane.ts, diff-render.ts | mounts into `#dbody`; binary notice `.dbinary`; toast `#dtoast` (`.dtoast`) | Renders side/inline diff for a step pair |
 | find box, search box | Find box | layer1-find-file.ts | input `#find-file`; `#find-prev`/`#find-next`; readout `#find-status`; in `.jumpbar` | Searches bubble names, cycles matches, scrolls to the bubble |
-| layer switcher, layer buttons | Layer switcher | layer1-layer-toggle.ts | `.layerbar button[data-layer]` (`.current` = active) | Switches Layer 1 ↔ Layer 2 (Layer 2 adds file-history snapshots) |
+| layer switcher, layer buttons | Layer switcher | layer1-layer-toggle.ts | none (markup commented out) | RETIRED by task 352: the markup is commented out, pending the task 360 show row. Snapshot nodes now always show |
 | zoom | Zoom bar | layer1-zoom.ts | `.zoombar` | Zoom control for the stage |
 | time toggle, committer/author | Time toggle | layer1-time-toggle.ts | `.timebar` | Toggles committer vs author time |
 | jump buttons | Jump-to-bucket | layer1-jump-buckets.ts | `.jumpbar button[data-bucket]` | Scrolls timeline to a named bucket |
