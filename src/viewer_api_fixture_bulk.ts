@@ -1,14 +1,20 @@
-// Shared bulk generator and self-check for every layer's fixture data.
+// Shared bulk generator for every layer's fixture data; the self-checks live in viewer_api_fixture_check.ts.
 
+import { assertFixture } from "./viewer_api_fixture_check.ts";
+import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";
 import type { FixtureCommit, FixtureDisk, FixtureSession } from "./viewer_api_layer1_fixture_data.ts";
 import { getBasename, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureSnapshot } from "./viewer_api_layer2_fixture_data.ts";
+import { buildEditEvent, buildReadEvent, type FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
+import type { FixtureScriptRun } from "./viewer_api_layer4_fixture_data.ts";
 
 export interface BulkFixtureTarget {
   commits: FixtureCommit[];
   disk: FixtureDisk[];
   sessions: FixtureSession[];
   snapshots: FixtureSnapshot[];
+  edits: FixtureEvent[];
+  scriptRuns: FixtureScriptRun[];
 }
 
 // ---- bulk fixture: ~90 bubbles and ~400 instants, so BOTH scroll axes are real (generated) ----
@@ -18,6 +24,7 @@ const BULK_DIRS = ["src/api", "src/ui/panels", "src/ui/widgets", "lib/parse", "t
 const BULK_EXTS = ["ts", "ts", "tsx", "py", "sh", "md"];
 const BULK_FILES = 84;
 const BULK_BORN0 = parseMs("2026-06-05T09:00:00Z");
+const EDIT_FREE_EVERY = 6;
 
 function formatIso(t: number): string {
   return new Date(t).toISOString();
@@ -45,6 +52,18 @@ function listWantedSnapshotTimes(i: number, born: number, secondCommitAt: number
   return wanted;
 }
 
+// Every sixth file stays free of Read/Edit nodes, so the page always has bubbles that match layer 2 exactly.
+function generateBulkEvents(target: BulkFixtureTarget, i: number, path: string, born: number, file: string): void {
+  const isEditFree = i % EDIT_FREE_EVERY === EDIT_FREE_EVERY - 1;
+  if (isEditFree) {
+    return;
+  }
+  const base = listTemplateLines(path);
+  const readLine = 20 + (i % 10);
+  target.edits.push(buildReadEvent({ path, at: formatIso(born + HOUR_MS), session: file, line: readLine }, base));
+  target.edits.push(buildEditEvent({ path, at: formatIso(born + 2 * HOUR_MS), session: file, line: readLine + 4 }, base, 3 + (i % 5)));
+}
+
 function generateBulkRows(target: BulkFixtureTarget): void {
   const bulkSessions = new Map<string, { paths: string[]; from: number; to: number }>();
   for (let i = 0; i < BULK_FILES; i += 1) {
@@ -64,6 +83,7 @@ function generateBulkRows(target: BulkFixtureTarget): void {
     for (let v = 0; v < wanted.length; v += 1) {
       target.snapshots.push({ path, version: `@v${v + 1}`, at: formatIso(wanted[v]!), session: file, line: 40 + v * 60 });
     }
+    generateBulkEvents(target, i, path, born, file);
     const group = bulkSessions.get(file) ?? { paths: [], from: born, to: mtime };
     group.paths.push(path);
     group.to = Math.max(group.to, mtime);
@@ -75,73 +95,7 @@ function generateBulkRows(target: BulkFixtureTarget): void {
   }
 }
 
-function isOnTitleLine(owner: FixtureSession, line: number): boolean {
-  for (const title of owner.titles) {
-    const isInRange = line >= title.from && line <= title.to;
-    if (isInRange) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ---- fixture self-check: born <= snapshot <= mtime, inside the session window, on a title line ----
-function assertFixtureOrder(target: BulkFixtureTarget): void {
-  const diskByPath = new Map<string, FixtureDisk>();
-  for (const d of target.disk) {
-    const isSeen = diskByPath.has(d.path);
-    if (!isSeen) {
-      diskByPath.set(d.path, d);
-    }
-  }
-  const sessionByFile = new Map<string, FixtureSession>();
-  for (const x of target.sessions) {
-    const isSeen = sessionByFile.has(x.file);
-    if (!isSeen) {
-      sessionByFile.set(x.file, x);
-    }
-  }
-  const bad: string[] = [];
-  for (const s of target.snapshots) {
-    const disk = diskByPath.get(s.path);
-    const owner = sessionByFile.get(s.session);
-    const where = `${s.path} ${s.version} (${s.session})`;
-    const snapshotMs = parseMs(s.at);
-    if (!disk) {
-      bad.push(`${where}: no DISK entry`);
-    }
-    else {
-      const isBeforeBorn = snapshotMs < parseMs(disk.born);
-      const isAfterMtime = snapshotMs > parseMs(disk.at);
-      if (isBeforeBorn) {
-        bad.push(`${where}: before born ${disk.born}`);
-      }
-      else if (isAfterMtime) {
-        bad.push(`${where}: after mtime ${disk.at}`);
-      }
-    }
-    if (!owner) {
-      bad.push(`${where}: owning session is missing`);
-      continue;
-    }
-    const isBeforeWindow = snapshotMs < parseMs(owner.started);
-    const isAfterWindow = snapshotMs > parseMs(owner.ended);
-    const isOutsideWindow = isBeforeWindow || isAfterWindow;
-    const hasTitles = owner.titles.length > 0;
-    const isOffTitles = hasTitles && !isOnTitleLine(owner, s.line);
-    if (isOutsideWindow) {
-      bad.push(`${where}: outside its session's window`);
-    }
-    else if (isOffTitles) {
-      bad.push(`${where}: line ${s.line} is in no title range`);
-    }
-  }
-  if (bad.length > 0) {
-    throw new Error(`fixture is out of order:\n  ${bad.join("\n  ")}`);
-  }
-}
-
 export function buildBulkFixture(target: BulkFixtureTarget): void {
   generateBulkRows(target);
-  assertFixtureOrder(target);
+  assertFixture(target);
 }

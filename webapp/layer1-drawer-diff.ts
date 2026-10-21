@@ -1,9 +1,33 @@
 // Task 305/329: shared revision-step helpers; the shift-click range gesture lives in layer1-drawer-multi.ts.
 
-import { getRequiredElementById } from "./app-dom.ts";
+import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { type DiffStep } from "./layer1-diff-pane.ts";
 import { clearDiffWash } from "./layer1-diff-wash.ts";
-import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
+import { describeCommitStep, describeDiskStep, describeEditSide, describeSnapshotStep } from "./layer1-revision-sources.ts";
+import { WireEditKind } from "./layer1-wire.ts";
+
+// Task 343: an Edit/Write node (`n-edit`) or a Read beacon (`n-read`).
+export function isEditNode(node: HTMLElement): boolean {
+    return node.classList.contains("n-edit") || node.classList.contains("n-read");
+}
+
+// Task 343: first-fetch params, head and meta for an Edit/Write/Read node's drawer.
+export function describeEditDrawer(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile: string } {
+    const kind = node.dataset.kind ?? "";
+    const sessionFile = node.dataset.sessionFile ?? "";
+    const flashFile = sessionFile.split("/").pop() ?? sessionFile;
+    return {
+        params: new URLSearchParams({
+            editChangeId: node.dataset.changeId ?? "",
+            side: "target",
+            path,
+            dir: getInputById("dir").value.trim(),
+        }),
+        head: `${path.split("/").pop() ?? path} ${kind.charAt(0).toUpperCase()}${kind.slice(1)}`,
+        meta: `${node.dataset.confidence ?? ""} · ${kind} of ${flashFile}`,
+        flashFile,
+    };
+}
 
 // A commit node carries its full hash on the dot's `title`; anything else diffs as the working tree.
 export function nodeCommitHash(node: HTMLElement): string | undefined {
@@ -22,6 +46,10 @@ export function describeNodeStep(node: HTMLElement, path: string): DiffStep {
             sessionId: node.dataset.sessionId ?? "",
             version: Number(node.dataset.version ?? 0),
         });
+    }
+    if (isEditNode(node)) {
+        const isRead = node.dataset.kind === WireEditKind.read;
+        return describeEditSide(path, node.dataset.changeId ?? "", "target", isRead ? "as read" : "after");
     }
     return describeDiskStep(path);
 }

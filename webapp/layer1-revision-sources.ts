@@ -31,6 +31,21 @@ export function describeDiskStep(path: string): DiffStep {
     return { marker: "on disk", buildParams, loadContent: loadViaFileRoute(buildParams) };
 }
 
+// Task 343: one side of an Edit/Write/Read node, replayed by the server; the changeId is the node's identity.
+export function describeEditSide(path: string, changeId: string, side: "base" | "target", marker: string): DiffStep {
+    const buildParams = (): URLSearchParams => new URLSearchParams({
+        editChangeId: changeId,
+        side,
+        path,
+        dir: getInputById("dir").value.trim(),
+    });
+    return { marker, buildParams, loadContent: loadViaFileRoute(buildParams) };
+}
+
+export function describeEditSteps(path: string, changeId: string): DiffStep[] {
+    return [describeEditSide(path, changeId, "base", "before"), describeEditSide(path, changeId, "target", "after")];
+}
+
 export type SnapshotIdentity = { sessionFile: string; sessionId: string; version: number };
 
 export function describeSnapshotStep(path: string, snapshot: SnapshotIdentity): DiffStep {

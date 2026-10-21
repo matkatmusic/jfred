@@ -3,7 +3,7 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import type { WireOrphan, WirePair, WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, type WireEdit, type WireOrphan, type WirePair, type WireSnapshot } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -38,11 +38,32 @@ function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSna
     );
 }
 
+// Task 343: the dot class hides the node; confidence is a ring class, never a fill swap.
+function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit): void {
+    const isRead = edit.kind === WireEditKind.read;
+    const kindClass = isRead ? "n-read" : "n-edit";
+    const identity = {
+        title: edit.confidence,
+        "data-change-id": edit.changeId,
+        "data-kind": edit.kind,
+        "data-confidence": edit.confidence,
+        "data-instant": edit.instant,
+        "data-session-id": edit.sessionId,
+        "data-session-file": edit.sessionFile,
+        "data-line": edit.line === undefined ? undefined : String(edit.line),
+    };
+    lane.append(
+        setAxisPx(el("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
+        setAxisPx(el("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
+    );
+}
+
 function buildPairWidget(pair: WirePair): HTMLElement {
-    // Snapshots appended last, exactly as the server orders the ladder, so nodes-with-same-timestamp runs and the span both stay right.
+    // Snapshots and edits go last, as the server orders the ladder, so same-timestamp runs and the span stay right.
     const snapshots = pair.snapshots ?? [];
+    const edits = pair.edits ?? [];
     // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
-    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots];
+    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits];
     const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
@@ -58,6 +79,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
     for (const snapshot of snapshots) {
         appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
+    }
+    for (const edit of edits) {
+        appendEditNode(lane, edit.axisPx - startPx, edit);
     }
     return setAxisPx(el("div", { class: "filebox" }, [
         // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.

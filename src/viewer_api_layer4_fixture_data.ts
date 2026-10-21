@@ -1,7 +1,7 @@
-// Layer 4 fixture data: canned script runs and their resolved bodies; loading this module also checks them.
+// Layer 4 fixture data: canned script runs and their resolved bodies.
 
 import { WireScriptExecutorKind } from "../webapp/layer1-wire.ts";
-import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
+// import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 
 export const SCRIPT_RUN_NODE_KIND = "scriptRun";
 
@@ -33,20 +33,21 @@ export function findFixtureScriptRun(toolUseId: string): FixtureScriptRun {
   throw new Error(`no fixture script run ${toolUseId}`);
 }
 
-function assertScriptRunsInSessions(): void {
-  for (const run of SCRIPT_RUNS) {
-    const runMs = parseMs(run.at);
-    let isInWindow = false;
-    for (const session of SESSIONS) {
-      const isOwner = session.file === run.session;
-      if (isOwner) {
-        isInWindow = runMs >= parseMs(session.started) && runMs <= parseMs(session.ended);
-      }
-    }
-    if (!isInWindow) {
-      throw new Error(`script run ${run.toolUseId} is outside session ${run.session}`);
-    }
-  }
-}
-
-assertScriptRunsInSessions();
+// Moved to viewer_api_fixture_check.ts (task 343), which runs it from the bulk loader.
+// function assertScriptRunsInSessions(): void {
+//   for (const run of SCRIPT_RUNS) {
+//     const runMs = parseMs(run.at);
+//     let isInWindow = false;
+//     for (const session of SESSIONS) {
+//       const isOwner = session.file === run.session;
+//       if (isOwner) {
+//         isInWindow = runMs >= parseMs(session.started) && runMs <= parseMs(session.ended);
+//       }
+//     }
+//     if (!isInWindow) {
+//       throw new Error(`script run ${run.toolUseId} is outside session ${run.session}`);
+//     }
+//   }
+// }
+//
+// assertScriptRunsInSessions();

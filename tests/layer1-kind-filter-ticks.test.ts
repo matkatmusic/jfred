@@ -28,7 +28,7 @@ function buildNode(kindClass: string, label: string): HTMLElement[] {
 // One bubble: a node per kind at the shared instant, plus its ruler tick.
 function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElement {
     setupLayer1Dom();
-    renderShowRowWithKindFilter(BOX_VIEW);
+    renderShowRowWithKindFilter(BOX_VIEW, () => {});
     const nodes = kindClasses.flatMap((kindClass) => buildNode(kindClass, kindClass));
     document.getElementById("stage")!.replaceChildren(setAxisPx(el("div", { class: "filebox" }, [
         el("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),

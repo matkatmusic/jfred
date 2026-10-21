@@ -10,6 +10,7 @@ import {
 } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureCommit } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
+import { buildFixtureEditsPayload } from "./viewer_api_layer3_fixture_replay.ts";
 import type { Layer1ProjectSettings, Layer1Settings } from "./viewer_api_layer1_settings.ts";
 import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
@@ -22,7 +23,7 @@ export function isFixtureMode(): boolean {
   return fixtureModeOn;
 }
 
-// ---- the eight canned routes ----
+// ---- the nine canned routes ----
 
 function sendFixtureView(response: ServerResponse, query: URLSearchParams): void {
   const isProgressStream = query.get("progress") === "1";
@@ -83,7 +84,19 @@ function sendFixtureSessions(response: ServerResponse, query: URLSearchParams): 
   streamNdjsonBuild(response, buildFixtureSessionsPayload);
 }
 
-function buildFixtureSettings(): Layer1Settings & { defaults: Record<string, never> } {
+function ignoreFixtureProgress(): void {
+}
+
+function sendFixtureEdits(response: ServerResponse, query: URLSearchParams): void {
+  const isProgressStream = query.get("progress") === "1";
+  if (!isProgressStream) {
+    sendJson(response, 200, buildFixtureEditsPayload(ignoreFixtureProgress));
+    return;
+  }
+  streamNdjsonBuild(response, buildFixtureEditsPayload);
+}
+
+function buildFixtureSettings():Layer1Settings & { defaults: Record<string, never> } {
   const project: Layer1ProjectSettings = {
     dir: FIXTURE_DIR, repo: FIXTURE_REPO, branch: BRANCHES[0]!, ref: BRANCHES[0]!,
     jsonl: [FIXTURE_JSONL_DIR], fileHistory: [],
@@ -122,6 +135,9 @@ export function dispatchLayer1FixtureRoute(request: IncomingMessage, response: S
   }
   else if (url.pathname === "/api/layer1-sessions") {
     sendFixtureSessions(response, url.searchParams);
+  }
+  else if (url.pathname === "/api/layer1-edits") {
+    sendFixtureEdits(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-file") {
     sendFixtureFile(response, url.searchParams);

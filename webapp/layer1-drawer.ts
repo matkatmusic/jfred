@@ -6,7 +6,8 @@ import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
-import { clearDiffPair, describeNodeStep, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { clearDiffPair, describeEditDrawer, describeNodeStep, isEditNode, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { describeEditSteps } from "./layer1-revision-sources.ts";
 import { buildScriptRunDiffPanes, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { flashSession } from "./layer1-sessions.ts";
@@ -34,6 +35,9 @@ function findNodePath(node: HTMLElement): string | undefined {
 
 // A commit node carries its hash on the dot's `title`; empty means no commit.
 function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
+    if (isEditNode(node)) {
+        return describeEditDrawer(node, path);
+    }
     const basename = path.split("/").pop() ?? path;
     // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
     if (node.classList.contains("n-snap")) {
@@ -128,13 +132,16 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
         renderImageInto(getRequiredElementById("dbody"), `/api/layer1-file?${detail.params}`);
         return;
     }
-    // Task 329: a node IS a DiffView with equal sides — the whole file, revision controls hidden.
-    displayDetailView([buildDiffView(path, [describeNodeStep(node, path)], {
-        revisionControlsShown: false,
+    // An Edit/Write node shows its two replayed sides; any other node shows the whole file.
+    const steps = node.classList.contains("n-edit")
+        ? describeEditSteps(path, node.dataset.changeId ?? "")
+        : [describeNodeStep(node, path)];
+    displayDetailView([buildDiffView(path, steps, {
+        revisionControlsShown: steps.length > 1,
         mode: DiffPaneMode.inline,
-        fullContents: true,
+        fullContents: steps.length === 1,
         baseIndex: 0,
-        targetIndex: 0,
+        targetIndex: steps.length - 1,
     })]);
     // Task 317: a snapshot's header still carries the title in effect at its line; flash its JSONL.
     if (detail.flashFile !== undefined) {

@@ -23,6 +23,37 @@ export interface WireSnapshotOf<I, P, U> extends WireInstantOf<I> {
     line?: number;
 }
 
+// Task 343: which tool made an Edit/Write/Read node.
+export const WireEditKind = {
+    edit: "edit",
+    write: "write",
+    read: "read",
+} as const;
+export type WireEditKind = (typeof WireEditKind)[keyof typeof WireEditKind];
+
+// Task 343: only the confidence states layer 3 emits; the other four arrive with their layers.
+export const WireConfidence = {
+    verified: "verified",
+    derived: "derived",
+    reseeded: "reseeded",
+} as const;
+export type WireConfidence = (typeof WireConfidence)[keyof typeof WireConfidence];
+
+// Task 343: an Edit/Write/Read node; changeId is the tool_use id, so it identifies the node across sessions.
+export interface WireEditOf<I, P, U> extends WireInstantOf<I> {
+    kind: WireEditKind;
+    changeId: U;
+    confidence: WireConfidence;
+    sessionId: U;
+    sessionFile: P;
+    line?: number;
+}
+
+// Task 343: /api/layer1-edits answers without axisPx: the endpoint cannot place nodes, the client does.
+export interface WireEditsViewOf<I, P, U> {
+    pairs: { path: P; edits: Omit<WireEditOf<I, P, U>, "axisPx">[] }[];
+}
+
 // Wire spelling of ScriptExecutorKind (src/reconstruction_script_execution.ts) — drives the never-provable idiom.
 export const WireScriptExecutorKind = {
     python: "python",
@@ -49,6 +80,8 @@ export interface WirePairOf<I, P, U> {
     created?: WireInstantOf<I>;
     // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
     snapshots?: WireSnapshotOf<I, P, U>[];
+    // Task 343: absent until the Edit box is ticked, so an edit-free pair's shape is unchanged.
+    edits?: WireEditOf<I, P, U>[];
     // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
     scriptRuns?: WireScriptRunOf<I, P, U>[];
 }
@@ -72,6 +105,8 @@ export type WireCommit = WireCommitOf<string>;
 export type WireRulerTick = WireRulerTickOf<string>;
 export type WireSnapshot = WireSnapshotOf<string, string, string>;
 export type WireScriptRun = WireScriptRunOf<string, string, string>;
+export type WireEdit = WireEditOf<string, string, string>;
+export type WireEditsView = WireEditsViewOf<string, string, string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;
 export type WireLayer1View = WireLayer1ViewOf<string, string, string>;
@@ -112,7 +147,7 @@ export const SourceKind = {
 } as const;
 export type SourceKind = (typeof SourceKind)[keyof typeof SourceKind];
 
-// Pair ladder ORDER (task 331): created, commits, on-disk, snapshots, script runs; raw `I`.
+// Pair ladder ORDER (task 331): created, commits, on-disk, snapshots, edits (task 343), script runs; raw `I`.
 export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
     const created = pair.created === undefined ? [] : [pair.created.instant];
     return [
@@ -120,6 +155,7 @@ export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] 
         ...pair.commits.map((commit) => commit.instant),
         pair.onDisk.instant,
         ...(pair.snapshots ?? []).map((snapshot) => snapshot.instant),
+        ...(pair.edits ?? []).map((edit) => edit.instant),
         ...(pair.scriptRuns ?? []).map((run) => run.instant),
     ];
 }

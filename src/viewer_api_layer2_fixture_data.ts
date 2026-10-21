@@ -4,6 +4,8 @@ import { Path } from "./structures/domain.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import { buildBulkFixture } from "./viewer_api_fixture_bulk.ts";
 import { COMMITS, DISK, SESSIONS, buildSessionFile, buildSessionId, parseMs } from "./viewer_api_layer1_fixture_data.ts";
+import { EDITS } from "./viewer_api_layer3_fixture_data.ts";
+import { SCRIPT_RUNS } from "./viewer_api_layer4_fixture_data.ts";
 
 export interface FixtureSnapshot { path: string; version: string; at: string; session: string; line: number; }
 
@@ -19,7 +21,7 @@ export const SNAPSHOTS: FixtureSnapshot[] = [
     version: "@v1", at: "2026-07-23T19:55:00Z", session: "d4a06b8f.jsonl", line: 30 },
 ];
 
-buildBulkFixture({ commits: COMMITS, disk: DISK, sessions: SESSIONS, snapshots: SNAPSHOTS });
+buildBulkFixture({ commits: COMMITS, disk: DISK, sessions: SESSIONS, snapshots: SNAPSHOTS, edits: EDITS, scriptRuns: SCRIPT_RUNS });
 
 // The snapshot placements for one path, ascending — the SnapshotPlacement shape the wire builder wants.
 export function listFixtureSnapshotPlacements(path: string): SnapshotPlacement[] {

@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import {
     CommitTimeSource,
     SourceKind,
+    WireConfidence,
+    WireEditKind,
     WireScriptExecutorKind,
     listPairLadderInstants,
     type WirePairOf,
@@ -38,6 +40,25 @@ test("test_pair_ladder_orders_created_commits_disk_then_snapshots", () => {
     };
     // created → commits (oldest first) → onDisk → snapshots appended.
     assert.deepEqual(listPairLadderInstants(pair), ["created", "commit-old", "commit-new", "onDisk", "snap-1", "snap-2"]);
+});
+
+test("test_pair_ladder_places_edits_after_snapshots_and_before_script_runs", () => {
+    const edit = { instant: "edit-1", axisPx: 2, kind: WireEditKind.edit, changeId: "toolu_1", confidence: WireConfidence.verified,
+        sessionId: "s", sessionFile: "f.jsonl" };
+    const pair: WirePairOf<string, string, string> = {
+        path: "src/a.ts",
+        commits: [],
+        onDisk: { instant: "onDisk", axisPx: 0 },
+        snapshots: [{ instant: "snap-1", axisPx: 1, version: 1, sessionId: "s", sessionFile: "f.jsonl" }],
+        edits: [edit],
+        scriptRuns: [{ instant: "run-1", axisPx: 3, toolUseId: "toolu_2", executorKind: "python", code: "print(1)" }],
+    };
+    assert.deepEqual(listPairLadderInstants(pair), ["onDisk", "snap-1", "edit-1", "run-1"]);
+});
+
+test("test_edit_kind_and_confidence_values_are_the_wire_spellings", () => {
+    assert.deepEqual(Object.values(WireEditKind), ["edit", "write", "read"]);
+    assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded"]);
 });
 
 test("test_wire_script_executor_kind_values_are_the_wire_spellings", () => {

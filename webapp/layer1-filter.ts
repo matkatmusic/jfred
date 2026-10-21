@@ -3,7 +3,7 @@
 import { layOutNodeLadders, type RulerLayout } from "./layer1-ruler-axis.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire.ts";
-import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick, WireSnapshot } from "./layer1-wire.ts";
+import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
 
 // Task 300: an expanded ruler row's file list, fed into layout so rows and bubbles below shift down.
 export interface RulerExpansion {
@@ -16,9 +16,9 @@ function readWireInstant(text: string): Date {
     return new Date(text);
 }
 
-// Parallel to the snapshot ladder's output, positional not a lookup.
-function placeSnapshotsOnAxis(snapshots: WireSnapshot[] | undefined, tailOffsetsPx: number[]): WireSnapshot[] {
-    return (snapshots ?? []).map((snapshot, node) => placeNodeAtPixels(snapshot, tailOffsetsPx[node]!));
+// Parallel to the ladder's output for these nodes, positional not a lookup.
+function placeNodesOnAxis<Node extends WireInstant>(nodes: Node[] | undefined, tailOffsetsPx: number[]): Node[] {
+    return (nodes ?? []).map((node, index) => placeNodeAtPixels(node, tailOffsetsPx[index]!));
 }
 
 // Spreading keeps `hash` on a commit without this needing to know which kind it was handed.
@@ -45,7 +45,8 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
         ...(pair.created === undefined ? {} : { created: placeNodeAtPixels(pair.created, nodeOffsetsPx[0]!) }),
         commits: pair.commits.map((commit: WireCommit, node) => placeNodeAtPixels(commit, nodeOffsetsPx[firstCommit + node]!)),
         onDisk: placeNodeAtPixels(pair.onDisk, nodeOffsetsPx[onDiskIndex]!),
-        ...(pair.snapshots === undefined ? {} : { snapshots: placeSnapshotsOnAxis(pair.snapshots, nodeOffsetsPx.slice(onDiskIndex + 1)) }),
+        ...(pair.snapshots === undefined ? {} : { snapshots: placeNodesOnAxis(pair.snapshots, nodeOffsetsPx.slice(onDiskIndex + 1)) }),
+        ...(pair.edits === undefined ? {} : { edits: placeNodesOnAxis(pair.edits, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length)) }),
     };
 }
 
@@ -53,7 +54,7 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
 function placeDiskOrphanOnAxis(orphan: WireOrphan, nodeOffsetsPx: number[]): WireOrphan {
     return {
         ...placeNodeAtPixels(orphan, nodeOffsetsPx[0]!),
-        ...(orphan.snapshots === undefined ? {} : { snapshots: placeSnapshotsOnAxis(orphan.snapshots, nodeOffsetsPx.slice(1)) }),
+        ...(orphan.snapshots === undefined ? {} : { snapshots: placeNodesOnAxis(orphan.snapshots, nodeOffsetsPx.slice(1)) }),
     };
 }
 

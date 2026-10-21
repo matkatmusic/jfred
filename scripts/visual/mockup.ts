@@ -10,6 +10,7 @@ import {
   validateScale, failures, buildShapeProbe, saveScreenshot,
 } from "./mockup-checks.ts";
 import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
+import { checkLayer3 } from "./layer3-checks.ts";
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
   checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
@@ -35,7 +36,9 @@ async function openLayer2(page: HeadlessPage): Promise<void> {
   // reportCheck("#304 [2] carries .current and [1] does not", await page.evaluate<boolean>(CURRENT_ONLY_ON_2));
 }
 
-async function executeChecks(page: HeadlessPage): Promise<void> {
+async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void> {
+  // Task 343: first, ahead of the old checks that crash on window.__fixture; it ends on a fresh page.
+  await checkLayer3(page, pageUrl);
   await validateChrome(page);
   await validateNavRows(page);
   // const layer1 = await page.evaluate<string>(RENDER_SIGNATURE);
@@ -101,10 +104,11 @@ async function executeMain(): Promise<void> {
   const server = await launchViewer(port);
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   try {
-    await page.navigate(`http://127.0.0.1:${port}/app/layer1.html`);
+    const pageUrl = `http://127.0.0.1:${port}/app/layer1.html`;
+    await page.navigate(pageUrl);
     // The fixture settings auto-boot the page with no real folder; wait for the first bubble.
     await page.waitFor("document.querySelectorAll('.filebox').length > 0", 30_000);
-    await executeChecks(page);
+    await executeChecks(page, pageUrl);
   }
   finally {
     await page.close();

@@ -74,6 +74,10 @@ function computeSeed(text: string): number {
   return accumulator;
 }
 
+export function listTemplateLines(path: string): string[] {
+  return [...TEMPLATES[getLanguage(path)]!];
+}
+
 // One node's bytes, derived from its identity: a stamped line, a modified line, and a maybe added/removed one.
 export function listContentLines(path: string, node: FixtureRevisionNode): string[] {
   const isScriptRun = node.kind === SCRIPT_RUN_NODE_KIND;
@@ -81,7 +85,7 @@ export function listContentLines(path: string, node: FixtureRevisionNode): strin
     return [...findFixtureScriptRun(node.toolUseId ?? "").code];
   }
   const language = getLanguage(path);
-  const lines = [...TEMPLATES[language]!];
+  const lines = listTemplateLines(path);
   const stamp = buildRevisionStamp(node);
   const seed = computeSeed(stamp);
   const note = LINE_COMMENT[language];

@@ -1,4 +1,4 @@
-// Task 330 (spec S18/S19): fixture mode — the real Layer 1 page served from canned payloads.  Capture-free: reads only the ported fixture arrays and the pure axis layout, never ~/.claude or git.
+// Task 330 (S18/S19): fixture mode serves the real Layer 1 page from canned payloads, never reading ~/.claude or git.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -58,6 +58,12 @@ test("test_util_ts_carries_v2_from_two_different_sessions", () => {
     const bytes = versionTwos.map((snapshot) =>
         listContentLines("src/util.ts", { kind: "snapshot", version: "@v2", session: basename(snapshot.sessionFile.toString()) }).join("\n"));
     assert.notEqual(bytes[0], bytes[1], "the two @v2 revisions have different bytes");
+});
+
+test("test_the_base_fixture_view_stays_free_of_edits", () => {
+    // Scenario: edits arrive only from /api/layer1-edits, so no pair of the base view carries the key.
+    const view = buildFixtureLayer1View();
+    assert.ok(view.pairs.every((pair) => !("edits" in pair)), "no pair carries an edits key");
 });
 
 test("test_identical_sides_with_full_context_answer_the_synthesized_hunk", () => {

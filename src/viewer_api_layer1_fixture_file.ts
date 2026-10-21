@@ -6,6 +6,7 @@ import { buildLayer1DiffPayload } from "./viewer_api_layer1_diff.ts";
 import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
+import { readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
 import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
@@ -42,6 +43,11 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
 }
 
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
+  const editChangeId = query.get("editChangeId");
+  if (editChangeId !== null) {
+    sendJson(response, 200, readFixtureEditFile(editChangeId, requireParam(query, "side")));
+    return;
+  }
   const path = requireParam(query, "path");
   const node = buildFixtureNode(query);
   const content = listContentLines(path, node).join("\n");

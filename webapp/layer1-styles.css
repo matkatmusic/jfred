@@ -8,6 +8,7 @@
     --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,.10);
     --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834;
     --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
+    --c-edit: #4d8c1f; --c-read: #1b8f8f;
     --seg-a: rgba(27,175,122,.12);
     --sel-edge: #1baf7a; --box: #d98a2b;
   }
@@ -19,6 +20,7 @@
       --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
       --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
       --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+      --c-edit: #62a331; --c-read: #2fa5a5;
       --seg-a: rgba(25,158,112,.15);
       --sel-edge: #199e70; --box: #b57427;
     }
@@ -30,6 +32,7 @@
     --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
     --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
     --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+    --c-edit: #62a331; --c-read: #2fa5a5;
     --seg-a: rgba(25,158,112,.15);
     --sel-edge: #199e70; --box: #b57427;
   }
@@ -66,7 +69,7 @@
   .layerbar button, .timebar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
   .layerbar button.current, .timebar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
   /*
-    Retired by task 352 (the show row, task 360, replaces it). Was: .n-snap elements hid below Layer 2.
+    Retired by task 352; task 360 replaces it. Was:
     .viz-root:not([data-layer="2"]) .n-snap { display: none; }
   */
   /*
@@ -79,6 +82,8 @@
   .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created),
   .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created) + .nlabel,
   .viz-root[data-hidden-kinds~="snapshot"] .n-snap,
+  .viz-root[data-hidden-kinds~="edit"] .n-edit,
+  .viz-root[data-hidden-kinds~="edit"] .n-read,
   .viz-root[data-hidden-kinds~="script-run"] .n-script,
   .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
   .viz-root #ruler .tick.kind-hidden { display: none; }
@@ -111,7 +116,7 @@
   .sources input:focus, .jumpbar input:focus { outline: none; border-color: var(--sel-edge); }
 
   /*
-    Task 271/273: the find box's own readout, now on the jump bar (task 285). `min-width: 0` + ellipsis is what makes a long matched path shorten instead of overflowing: `.jumpbar` is a `flex-basis: 100%` row, so with the default `flex-shrink: 1` this readout is the item that gives. The cycle buttons need no rule of their own here — `.jumpbar button` already gives them exactly the 3px/8px padding `.sources` had to state explicitly, and the negative margin that went with it only existed to close `.sources`'s 14 px gap.
+    Task 271/273: find box readout on the jump bar; ellipsis shortens long paths instead of overflowing.
   */
   .jumpbar .find-status { font-size: 11.5px; color: var(--muted); min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -134,11 +139,12 @@
   .show-row .sw-commit { background: var(--c-commit); border-radius: 4px; }
   .show-row .sw-disk { border: 3px double var(--c-disk); background: transparent; }
   .show-row .sw-snapshot { background: var(--c-snap); }
+  .show-row .sw-edit { background: var(--c-edit); border-radius: 3px; }
   .show-row .sw-created { border: 3px dotted var(--muted); background: transparent; }
   .show-row .sw-script-run { background: var(--c-script); }
 
   /*
-    The build takes ~10 s on a real project, so the page reports it. ponytail: a flow-positioned strip between the legend and the scroll container, NOT an overlay — `main.timelines` is a scroll container, so `position: absolute; inset: 0` would drift out of the viewport the moment the user scrolled. webapp/app-progress.ts is deliberately not reused: its CSS lives in styles.css (which this page never loads) against a disjoint token set (--bg/--panel/--accent vs this page's --page/--surface/--sel-edge), and its cancel button hardcodes `location.hash = "#/"` — meaningless on a page that is not hash-routed.
+    Build progress strip sits in the page flow, not an overlay: main.timelines scrolls, so absolute positioning would drift.
   */
   .loadbar { display: flex; align-items: center; gap: 10px; padding: 6px 16px;
     border-bottom: 1px solid var(--border); background: var(--surface); }
@@ -163,18 +169,18 @@
 
   .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
   /*
-    A flex row, not padding-left + an absolute ruler: the gutter must be a real column so it can be `position: sticky` and survive horizontal scroll. `align-items` is left at its `stretch` default so the ruler's height follows the tallest widget.  ponytail: zoom is the NATIVE `zoom` property, never `transform: scale()`. `zoom` participates in layout, so this scroll container's scrollable area shrinks with the content; `transform` would leave the page scrolling over a huge empty region when zoomed out. It also scales font size, so tick labels shrink in step with the gaps between them — which is why the page's 13 px tick-label collision skip stays correct at every level and the ruler needs no re-render.  `isolation` makes this an UNCONDITIONAL stacking context, which the leader line on `.filebox::before` requires: `zoom` creates one only when it is not 1, so without this the leader's `z-index: -1` would escape to the root at 100% zoom, paint behind `.viz-root`'s opaque background and be invisible. Scoped here, the leader lands behind the bubbles and above the page background — and `.ruler`'s z-index 8 still covers it.  Task 290: `--lane-y` is DERIVED, not chosen — it is `.filebox`'s 2px border plus its 50px `padding-top`, i.e. the distance from a bubble's border-box top (which IS `--axis-px`, see `.filebox`'s `margin-top`) down to `.lane`'s top, where the `--axis-px: 0` node sits. Both `.ruler .tick` and `.leader` are positioned against `--axis-px` alone, so without this they landed exactly that far ABOVE the dots they mark. Declared on `.canvas` because it is the nearest common ancestor of BOTH consumers (`.leader` inside `.leaders`, `.ruler .tick` inside `.ruler`), so one declaration reaches both and neither can be moved without the other.  Moving `.fname`/`.sub`'s `top` or their font sizes redoes `.filebox`'s derived `padding-top` and therefore this number too — task 270 briefly made it 70px.  Task 292: `--rail-x` moved UP here from `.ruler` for the same reason `--lane-y` lives here — the gutter's width and the range bars' left edge are now two consumers of one number, and `.ranges` is not inside `.ruler`. `.ruler` inherits it, so its own rules are unchanged.
+    Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
   */
   .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
     isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; }
 
   /*
-    left: 0 pins the gutter to the scrollport's left edge under horizontal scroll; it still scrolls VERTICALLY with the content, which it must — a tick marks a node's row. The background is load-bearing: widgets scroll UNDER it — so the gutter is EXACTLY as wide as its rail, --rail-x plus the rail's own 2 px border, one source for both. Gutter px PAST the rail paint over that much of the leader line, which is why a dash looked like it stopped 14 px short of the ruler (task 262); those 14 px are `.canvas`'s gap now, so no widget moved.  Task 276 widened both — the label is now "MM-DD HH:MM:SS.hh" (17 characters at 10 px), and --rail-x keeps the same 10 px of clearance between the label's right edge and the rail that the 70/80 pair had.  Task 275 widened them again, and the width is DERIVED: the row now reads "MM-DD HH:MM:SS.hh (n)" and a merged row (task 268) sums the counts it absorbed, so allow three digits — 23 characters. ui-monospace/Menlo advances 0.6em, so 23 x 10 x 0.6 = 138 px, rounded to 140. `white-space: nowrap` is the actual guarantee the user asked for ("put the (num) on the same line as the timestamp, don't wrap it"): the width keeps the label off the rail, nowrap keeps it on one line even if a count ever exceeds three digits. --rail-x again keeps 10 px of clearance.
+    left: 0 pins the gutter under horizontal scroll; its width is --rail-x plus the rail border.
   */
   .ruler { position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
   /*
-    Task 290: `+ var(--lane-y)` drops the label onto the node's own row. See `.canvas` for the derivation; changed in the same step as `.leader` because moving only one would make the gutter's timestamps disagree with the dashed lines.
+    Task 290: `+ var(--lane-y)` drops the label onto the node's own row, matching `.leader`.
   */
   .ruler .tick { position: absolute; left: 0; width: 140px; text-align: right; top: calc(var(--axis-px) * 1px + var(--lane-y));
     font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -183,44 +189,36 @@
   .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
 
   /*
-    padding-top is DERIVED, not chosen: `.sub` is abspos at top:24px with a 15 px line box (10px x the inherited 1.5), so the header ends at y 39. The lane starts at padding-top and its `--axis-px: 0` node is translate(-50%,-50%)-centred there, reaching 10 px above it (7.5 px half-height + its 2.5 px ring). 39 + 10 = 49, so 50 px is the first value that clears the header — this is what stopped the short-hash label overprinting "on disk" (task 247). Move `.fname`/`.sub`'s `top`, or their font sizes, and this value must be redone.  `margin-top` is deliberately NOT compensated: it keeps the border-box top edge at --axis-px, which is the exact ruler position the leader line below aims at.
+    padding-top is derived: header ends at y 39, first node reaches 10 px above lane, so 50 px clears.
   */
   /*
-    Task 277: `scroll-margin-top` is what keeps a jumped-to bubble's name off the pane's top edge.  layer1-find-file.ts aligns with `block: "start"` (centring a bubble thousands of px tall put its top above the viewport), and without this the landed bubble's border sits flush against the legend. Purely cosmetic breathing room — it does not move the bubble, only where the scroll stops.
+    Task 277: `scroll-margin-top` keeps a jumped-to bubble's name off the pane's top edge.
   */
   .filebox { position: relative; flex: none; min-width: 168px; scroll-margin-top: 14px;
     margin-top: calc(var(--axis-px) * 1px);
     border: 2px solid var(--box); border-radius: 14px;
     /*
-      Task 292: half-transparent so the JSONL wash behind it reads THROUGH the bubble (user, 2026-07-27) — otherwise the one place the range matters most, over the files it touched, is the one place it cannot be seen.
+      Task 292: half-transparent so the JSONL wash behind it shows through the bubble.
     */
     background: color-mix(in srgb, var(--surface) 52%, transparent); padding: 50px 12px 14px; }
 
   /*
-    Task 250: trace a bubble back to its timestamp on the sticky gutter. `top: -2px` cancels the 2 px border so the line sits on the border-box top edge, which is `margin-top` = --axis-px = precisely the ruler tick for the bubble's first instant. `right: 100%` starts it at the bubble's left edge and it runs LEFTWARD past canvas x=0; `.ruler` is sticky at the scrollport's left edge, opaque and at z-index 8, so it paints over the excess and the leader appears to begin at the gutter's right edge at EVERY horizontal scroll position — no JS, no measurement, no re-render. Leftward overflow is unreachable in LTR so `.timelines` gains no phantom scroll area, and abspos boxes are excluded from `min-width: max-content` so the canvas is not widened.  The width is ONE VIEWPORT, not the distance to the gutter: a bubble the reader can see is by definition less than a scrollport width right of the pinned gutter, so a viewport's worth always spans the visible gap and needs no measurement.
-
-    THAT WAS WRONG, and one viewport is the bug the user re-reported on 2026-07-26 (task 262 round two). It holds only for a bubble that is ON SCREEN. A leader is painted for EVERY bubble, including the ones scrolled off to the RIGHT, and one of those ends a viewport to the left of its own off-screen bubble — which lands in the MIDDLE of the visible canvas. The result is dashes hanging in mid-air on rows with no bubble in sight, reading exactly as "the dashed line does not reach the ruler". Round one (the 14 px gutter overpaint below) was a real defect but a different one, and fixing it could not have fixed this.
-
-    So the length must cross canvas x=0 from ANY bubble, not just a visible one, which means it has to beat the canvas's own width rather than the viewport's. ponytail: a flat ceiling well above the ~156,000 px this repo renders at 805 widgets, NOT divided by `--zoom` — `zoom` scales it along with everything else, and at the 0.1 minimum this still covers 50,000 rendered px. If a project ever renders wider than this, publish the canvas width as a custom property in layer1-page.ts and use it here; nothing else about the leader changes.
+    Task 250: the leader line traces a bubble to its gutter timestamp.
   */
   /*
-    The leader lines now belong to the RULER, not to the bubbles (task 264). One line per ruler entry, spanning the whole canvas, shared by every bubble that has a node at that instant — rather than one per bubble, which drew a fresh overlapping copy for each of the 805 bubbles and made the page unusably slow once each copy had to be long enough to reach the gutter (#263).
-
-    `inset: 0` against `.canvas` — NOT `.stage` — is what lets a line reach the gutter with no length guess at all: `.stage` starts to the right of the sticky ruler, so a line anchored there could never span the gap that #262 was about. z-index -1 keeps them behind the bubbles, and `.canvas`'s `isolation: isolate` is what stops that escaping to the root (see the .canvas rule).
-
-    top is the entry's own `--axis-px` PLUS `--lane-y`, because `--axis-px` alone is NOT where a node sits. Task 265 claimed it was — "a node is placed at `axisPx - startPx` inside a bubble whose own offset is `startPx`, so its absolute canvas y is exactly `axisPx`" — but that derivation omits everything between the bubble's border-box top and `.lane`'s top. The bubble's border-box top is `canvasTop + startPx` (its `margin-top`); `.lane` is the first in-flow child, so it begins after `.filebox`'s 2px border and its 50px `padding-top`, at `canvasTop + startPx + 52`; a node inside it is at `axisPx - startPx`, so its centre is `canvasTop + axisPx + 52`. Task 265 therefore did NOT achieve what it documents — the line landed 52 px high, on the bubble's box top, which is the bug the user re-reported as task 290.  `--lane-y` (declared on `.canvas`, where the 2 + 50 derivation is written out) is exactly that gap, and adding it here is what finally puts the line on the NODES.
+    Task 264: one leader line per ruler entry; `top` adds `--lane-y` to land on the nodes.
   */
   /*
-    `.leaders` KEEPS `pointer-events: none` — it is a full-canvas overlay and would otherwise swallow every click on the bubbles beneath it — so the hover target is `.leader` alone (task 290, second half). `height: 8px` is there only to give the pointer something to hit: the visible line is the `border-top`, which stays on the element's top edge, so the box grows DOWNWARD and nothing moves, and without it the hit area is the 1 px border and the hover is unusable in practice. `.aimed` and not `.found`: `.found` is the ONE persistent selection a click leaves behind (tasks 283/267), while this is a transient set of several elements that appears and vanishes with the pointer, so the two states must not share a class.
+    `.leaders` keeps `pointer-events: none` so clicks reach bubbles; only `.leader` is hoverable (task 290).
   */
   /*
-    ON DEMAND (user, 2026-07-26): "dashed leader lines are only drawn when the user mouses over a ruler timestamp, [or] mouses over or selects a bubble [or] a node. For all other scroll events in the timeline, no dashed lines should be drawn." So the resting state is opacity 0 and layer1-leader-visibility.ts raises the ONE line the pointer or the selection asks for.  OPACITY, not display/visibility: the line stays laid out, so showing one is a repaint and never a re-layout of a canvas holding ~680 of them — the cost class task 263 was about. `.aimed` shows a line too, so task 290's hover-the-line highlight still works on the line it lit.
+    On demand: the resting state is opacity 0; layer1-leader-visibility.ts shows the one line asked for. Opacity avoids a re-layout.
   */
   .leaders { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
   .leader { position: absolute; left: 0; right: 0; top: calc(var(--axis-px) * 1px + var(--lane-y));
     height: 8px; pointer-events: auto; border-top: 1px dashed var(--baseline); opacity: 0; }
   /*
-    A drawn line is a `--sel-edge` line, matching plans/layer1-mockup.html's single `.leader.on` rule (user, 2026-07-27). `--baseline` above is the at-rest colour of a line nobody has asked for, and at opacity 0 it is never seen — so leaving `.shown` grey made a revealed line read as page furniture rather than as the answer to what was just hovered or selected.
+    A drawn line is a `--sel-edge` line, matching plans/layer1-mockup.html's `.leader.on` rule.
   */
   .leader.shown, .leader.aimed { opacity: 1; border-top-color: var(--sel-edge); }
 
@@ -248,7 +246,7 @@
   .range::before { top: -1px; }
   .range::after { bottom: -1px; }
   /*
-    The gutter is opaque and always on screen, so it carries the range too — a band alone is hidden wherever a bubble sits over it.
+    The gutter is always on screen, so it carries the range too.
   */
   .ruler .tick.inrange { color: var(--c-script); }
   /*
@@ -259,16 +257,14 @@
   .ruler .tick .wash-edge.target { color: var(--sel-edge); }
 
   /*
-    max-width bounds the label to the bubble: the box is a fixed 168 px but this label is abspos + nowrap, so without it a long name overprints the neighbouring bubbles (task 245). 100% is the padding box (164 px on a 168 px bubble); minus the 12 px `left` and a matching 12 px on the right it spans exactly the content width and ellipsises inside its own border. The trailing ellipsis is only correct because the renderer now passes the BASENAME — on a full path the shared leading directory would survive and the distinguishing tail would be what got cut.
-
-    Task 270 briefly wrapped this name onto a second clamped line. REVERTED on user feedback 2026-07-26: "the previous truncated + mouse-over-to-show-full name works better than the word-wrapped version". One ellipsised line at rest, full name on hover (the rule below) is the settled treatment — the reveal is what makes a long name readable, not the resting state.
+    max-width bounds the label to the bubble (task 245). One ellipsised line at rest; hover shows all.
   */
   .filebox .fname { position: absolute; top: 7px; left: 12px;
     max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap;
     user-select: none; }
   /*
-    Task 280/270: hovering a truncated name reveals the whole path IN PAGE. `max-width: none` + `overflow: visible` is the whole reveal — the name is already abspos and `white-space: nowrap`, so lifting the bound lets it run past the bubble's 168 px instead of ellipsising.  The background and z-index are not decoration: `.stage`'s bubbles sit 26 px apart, so a revealed path paints straight over its neighbours without an opaque backdrop behind it.  z-index 7 is DERIVED, not chosen — above `.node`'s 6 so the revealed name covers the neighbouring bubbles' dots and labels, below `.ruler`'s 8 so it still scrolls under the sticky gutter rather than over it. `margin-left` cancels the padding so the text does not shift sideways under the cursor as it is revealed. No JS: this is a pure :hover state.  User-confirmed 2026-07-26 as the answer to task 270: this reveal, not a wrapped resting name, is how a long name becomes readable.  Task 287: the revealed path used to keep `.filebox .fname`'s `--c-snap` — the colour EVERY bubble's name uses — so at one y coordinate a revealed long path read as a single continuous run of green monospace mixed with the names of the bubbles it was painted over, and the reader could not tell where it ended. `--c-user` is the orange the user asked for (2026-07-26, "I prefer the text color change to orange in dark mode"); it is defined in all three token blocks and no `.node` class on this page paints with it, so the revealed name cannot be read as a node type.
+    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.ruler` (8).
   */
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
@@ -286,7 +282,7 @@
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
 
   /*
-    Task 259: two nodes at ONE instant sit on stacked 22 px rows (task 251); this rectangle says they were simultaneous, which giving them their own rows had otherwise destroyed. The geometry is DERIVED from `.node` above, not chosen: a node is centred on its --axis-px and its painted box (15 px plus a 2.5 px ring) reaches 10 px past that in every direction, so -11px/+22px clears the run's first and last rows with a 1 px hairline. `left: -11px` clears the dots, which translate(-50%) puts 10 px left of the lane's x=0. No z-index and no pointer-events: the marker is appended before the nodes, so DOM order already paints it underneath them and their labels, and nothing in a lane is clickable.
+    Task 259: this rectangle marks nodes at one instant. Its geometry is derived from `.node` above.
   */
   .lane .nodes-with-same-timestamp { position: absolute; left: -11px; right: 0;
     top: calc(var(--axis-px) * 1px - 11px); height: calc(var(--span-px) * 1px + 22px);
@@ -304,19 +300,19 @@
   .nopairs { color: var(--muted); font-size: 11.5px; padding: 34px 8px 0; }
 
   /*
-    Task 256: the orphan-bucket jump shortcuts. `flex-basis: 100%` drops the bar onto its own wrapped header row (header is already `flex-wrap: wrap`) rather than sharing the first one: .zoombar and .layerbar split that row's free space with two `margin-left: auto`, and a third group on it would unpin .layerbar from the right edge. Its own row also means these labels are full bucket titles — the strings the reader matches against the headings on the canvas.
+    Task 256: orphan-bucket jump shortcuts. `flex-basis: 100%` gives the bar its own header row.
   */
   .jumpbar { display: flex; align-items: center; gap: 6px; flex-basis: 100%; }
   .jumpbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
   .jumpbar button { padding: 3px 8px; }
 
   /*
-    Task 261: the bubble the "Find bubble" box just scrolled to. The ring is drawn with `outline` rather than by changing `border`, because .filebox's border is 2px and part of its layout — a wider border would nudge the bubble's own box and change the very geometry the user opened this page to inspect. `outline` is painted outside the border box and takes no space, and the `outline-offset` lifts it clear of the 14px corner radius. The class is PERSISTENT: it used to switch itself off ~1.5 s later, but the user's 2026-07-26 instruction is the opposite ("leave the bubble's highlighted effect active instead of fading out quickly"), so exactly one element on the page carries `.found` and the light only moves when something else is landed on.
+    Task 261: the bubble the "Find bubble" box scrolled to. `outline` takes no layout space.
   */
   .filebox.found { outline: 3px solid var(--sel-edge); outline-offset: 3px;
     background: color-mix(in srgb, var(--sel-edge) 12%, var(--surface)); }
   /*
-    Tasks 283/267: what a ruler-tick click landed on when the instant belonged to a NODE rather than to a bubble that begins there. Same `var(--sel-edge)` as `.filebox.found` above so the page speaks ONE highlight language, and — task 261's convention — nothing here is a `border` on the target itself, which would move the very geometry this page exists to inspect.  The mark is `[ ]` (user, 2026-07-26): a bracket is a bordered box with one side dropped, so `::before` is the box minus its right border and `::after` the box minus its left. The numbers are DERIVED from `.node` above: a node's box is 15px and its 2.5px `--surface` ring reaches 10px from its centre, so `right: 100%` + a 2px gap puts the bracket clear of the ring, and -6px/-6px makes it taller than the ring on both sides. A bucket `li` is a text row 1px from its neighbours, not a dot, so it keeps a plain ring — brackets sized for a 15px dot would print over the rows above and below it.  `.aimed` paints the same marks as `.found` (task 290, second half) so a leader hover and a tick click say the same thing about the same node; the classes stay separate only because one is a transient hover over many elements and the other is the single persistent selection.
+    Tasks 283/267: a tick click on a node paints `[ ]` brackets in `var(--sel-edge)`. `.aimed` paints the same marks.
   */
   .node.found::before, .node.found::after,
   .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px;
@@ -330,19 +326,19 @@
     border-radius: 3px; }
 
   /*
-    Task 246: the minimap, pinned to the LOWER-LEFT of the timeline pane. .stagewrap is the non-scrolling positioning parent AROUND the scroll container — `position: absolute` inside `main.timelines` itself would resolve against the scrolled CONTENT and slide away. It is the column's one growing child, so `min-height: 0` is what keeps `.timelines` scrolling rather than stretching the whole page; `display: flex` hands it the pane's full box.  Task 279: the File Nav's width, declared HERE because it is the nearest common ancestor of both the pane that is this wide and the minimap that must clear it — one value, so a drag cannot move one without the other. webapp/layer1-filenav-resize.ts overwrites it inline on this element.  Task 288 (follow-up): `overflow: hidden` is what the mid-drag rules below rely on — while the nav grows, the timeline pane is pinned to the width it already had and is simply pushed rightward, so its far edge goes past the wrapper and must be clipped, not allowed to widen the page.
+    Task 246: .stagewrap is the minimap's parent and holds the File Nav width (task 279).
   */
   .stagewrap { --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
     display: flex; overflow: hidden; }
 
   /*
-    Task 288 (follow-up, user 2026-07-26): "I would like to see the file nav pane refresh even though the timeline is not refreshing during the resizing event." So mid-drag the pane DOES follow the pointer — it reads the preview property the grip reads. What made the original drag unusable was not the nav moving, it was `main.timelines` being resized: a flex re-solve every frame relaid out its ~156,000px canvas of ~800 widgets. Freezing the timeline at the width it already had (`flex: none` + the width JS captured on pointerdown) takes it out of the flex solve, so the growing nav TRANSLATES it instead of relaying it out. That is the whole reason this is affordable; drop `.resizing` and the lag comes straight back.
+    Task 288: mid-drag the nav follows the pointer; the timeline keeps its width.
   */
   .stagewrap.resizing .filenav { width: var(--filenav-drag-w); }
   .stagewrap.resizing .timelines { flex: none; width: var(--timeline-w); }
 
   /*
-    Task 252: the File Nav — every identified file, including the repo files with no on-disk presence. A flex sibling of `main.timelines`, so it is left of the sticky ruler with no involvement in the zoomed canvas. `overflow: auto` gives it its own scroll: a real project lists ~800 files and the pane must not stretch the page column.  Task 292: the aside is now a flex COLUMN of two panes, so the scroll moved from it onto each `.navpane` — one list must be able to reach its end without dragging the other off screen.  `min-height: 0` is what stops the column being sized by its content instead of by the row.  `--files-share` is the split the horizontal grip writes, out of 100.
+    Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
   */
   .filenav { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
     overflow: hidden; min-height: 0; --files-share: 50;
@@ -371,7 +367,7 @@
   .filenav-title button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
 
   /*
-    Task 292: one JSONL. The selected colour is `--c-script`, the same token the range bar and the wash use, so the pane and the band it drew read as one control.
+    Task 292: one JSONL. Selected uses `--c-script`, like the range bar and the wash.
   */
   .session-item { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); margin: 0 8px 3px;
     padding: 3px 5px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
@@ -393,7 +389,7 @@
   .navempty { font-size: 11px; color: var(--muted); padding: 6px 12px; }
 
   /*
-    Task 281: the nav's own search box. The input's font/padding/border/radius/focus values are `.sources input`'s verbatim (lines 71-73) — the page now has two search boxes and two visual treatments would read as two unrelated widgets. They are repeated rather than shared because a common selector would have to reach across two unrelated blocks for four declarations.  `position: sticky` is load-bearing: `.filenav` is `overflow: auto` and a real project lists ~800 files, so a box in normal flow scrolls out of reach exactly when it is wanted. It sticks to the pane's top edge and needs the opaque background to cover the rows passing under it.  `min-width: 0` on the input lets it shrink with the draggable pane instead of forcing the clear button out of the row.
+    Task 281: the nav's search box copies `.sources input`'s values and sticks to the pane top.
   */
   .filenav-search { display: flex; gap: 4px; padding: 0 10px 6px;
     position: sticky; top: 0; z-index: 1; background: var(--surface); }
@@ -404,19 +400,16 @@
   .filenav-search button { flex: none; padding: 3px 8px; }
 
   /*
-    Task 279: the drag handle, straddling the pane's right edge — 6 px wide and centred on it, so the whole edge is grabbable rather than one corner. `position: absolute` against .stagewrap puts it in the same coordinate space as .minimap and keeps it out of the flex row, so grabbing it cannot itself change the layout it is measuring. z-index 21 is one above .minimap's 20: the minimap is `left`-positioned to clear the pane, so at the narrowest widths the two can meet and the handle must stay grabbable.  Task 288: the nested `var()` fallback is the whole preview/commit split. While the button is down, webapp/layer1-filenav-resize.ts writes `--filenav-drag-w` — a property NOTHING but this `left` reads — so a move repaints one 6 px absolutely-positioned element instead of relaying out `.filenav`, its flex sibling `main.timelines` and the ~156,000 px canvas of ~800 widgets inside it. The shared `--filenav-w` is written once, on release, and the preview property is removed, which is what hands this `left` back to the committed width; leaving it set would pin the grip to the drag's last position forever. The grip is the only thing that may move per frame, so it IS the drag preview and `.dragging` just borrows the hover treatment — no new element.
+    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimap's 20.
   */
   .filenav-grip { position: absolute; top: 0; bottom: 0;
     left: calc(var(--filenav-drag-w, var(--filenav-w)) - 3px);
     width: 6px; z-index: 21; cursor: col-resize; }
   .filenav-grip:hover, .filenav-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
 
-  /* Task 252: the shared file tree's rules (webapp/styles.css:199-280), retargeted at this page's
-     tokens — layer1.html does not load styles.css, and adding its --mono/--text/--sel/--sel-hover/
-     --guide/--orange here to carry six rules verbatim is the larger change. A folder is a native
-     <details open>, so the pane needs no toggle JS; decorations sit in fixed-width columns so names
-     at one depth share a left edge. The rename-badge and coverage-strip rules are deliberately NOT
-     brought across: Layer 1 sets neither originalPath nor coverage, so they would be dead. */
+  /*
+    Task 252: the shared file tree's rules (webapp/styles.css:199-280), retargeted at this page's tokens.
+  */
   .file-item { padding: 3px 10px; font: 11px ui-monospace, Menlo, monospace; white-space: nowrap;
     display: flex; align-items: baseline; cursor: pointer; color: var(--ink); user-select: none; }
   /*
@@ -432,10 +425,9 @@
     A repo file with no on-disk presence: still listed, shown as gone.
   */
   .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
-  /* display: flex so the triangle can sit ahead of the ::before folder icon. The triangle is a real
-     <span> on this page only (webapp/views/sidebar.ts's attachFolderClick) because clicking it must
-     open the folder WITHOUT selecting it, and a pseudo-element cannot be an event target; `order`
-     is what keeps the rendered glyph order "▸ 📁" while the span stays the summary's first child. */
+  /*
+    display: flex so the triangle sits ahead of the ::before folder icon; `order` keeps the glyph order.
+  */
   .file-folder > summary { padding: 3px 10px; font: 600 11px ui-monospace, Menlo, monospace;
     color: var(--ink); cursor: pointer; white-space: nowrap; list-style: none; display: flex;
     user-select: none; }
@@ -448,13 +440,13 @@
   .file-folder[open] > summary > .file-folder-toggle::before { content: "▾"; }
   .file-folder > summary:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
   /*
-    Task 253: the folder driving the current timeline filter. Same treatment as .file-item.selected above so the pane speaks one selection language; re-clicking it clears the filter. Only Layer 1 filters by folder, so this rule has no counterpart in webapp/styles.css.
+    Task 253: the folder driving the timeline filter looks like .file-item.selected; re-clicking clears it.
   */
   .file-folder > summary.selected { background: var(--sel-edge); color: #fff; }
   .file-folder > .file-folder-kids { margin-left: 16px; border-left: 1px solid var(--grid); }
 
   /*
-    Task 269: `left` clears BOTH the File Nav and the sticky ruler gutter. The minimap is absolute against .stagewrap, so its origin is the nav's left edge, not the timeline pane's: the pane's width is now the shared `--filenav-w` property (task 279) rather than a repeated literal, so a drag of the File Nav's edge moves the minimap with it. 152px is the gutter (`.ruler`'s `--rail-x` 150px after task 275, plus the rail's own 2px border), and 12px is the inset. The gutter number still repeats `.ruler`'s value because a property set there is not in scope here — widen the gutter and this literal must be widened in step, or the minimap slides back over it.
+    Task 269: `left` clears the File Nav and the ruler gutter (152px).
   */
   .minimap { position: absolute; left: calc(var(--filenav-w) + 152px + 12px); bottom: 12px; z-index: 20;
     width: 176px; height: 124px; padding: 6px; cursor: crosshair;
@@ -473,13 +465,13 @@
     background: color-mix(in srgb, var(--sel-edge) 14%, transparent); border-radius: 2px; }
 
   /*
-    Task 260: a tick is a navigation control, so it must read as one before it is clicked. The hover state changes colour only — the tick is abspos and `transform`-centred on its own offset, so anything that altered its box would shift the label off the instant it marks.
+    Task 260: a tick is a navigation control. Hover changes colour only, so the label stays put.
   */
   .ruler .tick { cursor: pointer; }
   .ruler .tick:hover { color: var(--ink); text-decoration: underline; }
 
   /*
-    Task 284: a tick shared by more than one event expands into the files touched at that instant instead of silently jumping to whichever the lookup found first. The list lives IN the gutter, not over the canvas (user, 2026-07-26): `.ruler` is opaque and z-index 8, so it paints cleanly over the canvas it overhangs while the timestamps stay put. `width: max-content` past the 140px rail is deliberate — a path is longer than the gutter is wide.  An OPEN row is not a SELECTED row: bold means selected and nothing else, so an open row is announced by the list hanging under it, which no other row has.
+    Task 284: a shared tick expands into the files touched at that instant.
   */
   .ruler .tick.multi { text-decoration: underline dotted; }
   .ruler .tick.expanded { color: var(--ink); }
@@ -491,7 +483,7 @@
   .tickfiles button:hover { background: color-mix(in srgb, var(--sel-edge) 20%, transparent); color: var(--ink); }
 
   /*
-    Task 257: the Detail View drawer, the right half of the pane. A flex sibling of the timeline rather than an overlay, so opening it SHRINKS the scrollport instead of covering the render it describes. NO width transition: webapp/layer1-drawer.ts re-centres the clicked node against the POST-reflow pane, and a re-centre measured mid-animation aims at a width already stale.
+    Task 257: the Detail View drawer is a flex sibling, so opening it shrinks the scrollport. No width transition.
   */
   .drawer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
     background: var(--surface); }
@@ -550,20 +542,20 @@
   */
   .dbody > details.dfile:only-child .dfile-body { max-height: none; }
   /*
-    Only a pair's own nodes open the drawer — a bucket row is a plain list item with no bytes of its own to show — so the affordance is scoped to `.lane`, which only a pair widget draws.
+    Only a pair's own nodes open the drawer, so the affordance is scoped to `.lane`.
   */
   .lane .node, .lane .nlabel { cursor: pointer; }
   .lane .nlabel:hover { color: var(--ink); text-decoration: underline dotted; }
   /*
-    A `created at` node is inert (task 298), so it must not offer the affordance either. Its label is the dot's NEXT sibling, not its child, which is why the class alone cannot reach it.
+    A `created at` node is inert (task 298), so it offers no affordance.
   */
   .lane .n-created, .lane .n-created + .nlabel { cursor: default; }
   .lane .n-created + .nlabel:hover { color: inherit; text-decoration: none; }
   /*
-    The drawer's body (webapp/layer1-file-view.ts): a plain line-number column beside ONE hljs-highlighted block, so the highlighter sees the whole file and a multi-line string is tokenised once (task 294). Both children inherit `.dbody`'s font, line-height and `white-space: pre`, which is what keeps the two columns' rows level.
+    The drawer's body (webapp/layer1-file-view.ts): a line-number column beside one highlighted block (task 294).
   */
   /*
-    Tasks 295/296/297: the shared source-path dialog and the Save button's note. `position: fixed` against the viewport, not against `.stagewrap` — the dialog must sit in front of the timeline and never scroll with it.
+    Tasks 295/296/297: the source-path dialog and the Save note. `position: fixed` keeps the dialog above the timeline.
   */
   .savednote { font-size: 10.5px; color: var(--sel-edge); }
   .modal-wrap { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
@@ -575,7 +567,7 @@
   .mlist { height: 190px; overflow: auto; background: var(--page); border: 1px solid var(--border);
     border-radius: 7px; padding: 4px; }
   /*
-    A row is as wide as its path and never ellipsised — `.mlist`'s `overflow: auto` then scrolls horizontally, so a long source path can be read in full. `min-width: 100%` keeps the hover and selected backgrounds spanning the visible row rather than stopping at the text.
+    A row is as wide as its path; `.mlist` scrolls sideways. `min-width: 100%` keeps backgrounds full width.
   */
   .mlist div { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2);
     padding: 3px 6px; border-radius: 4px; cursor: pointer; white-space: nowrap;
@@ -587,7 +579,7 @@
   .mbuttons { display: flex; gap: 6px; align-items: center; padding-top: 9px; }
   .mspacer { flex: 1; }
   /*
-    The folder held none of what this list is for. In front of the list, gone on its own a few seconds later — the folder is refused, not the user.
+    The folder held no matching files. Shown in front of the list, then gone after a few seconds.
   */
   .malert { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
     background: var(--c-anchor); color: #fff; font: 600 11px system-ui;
@@ -637,13 +629,21 @@
     padding-left: 8px; white-space: pre-wrap; }
 
   /*
-    Task 305: the pair reads as a DIRECTION — base ringed in the user colour, target in the selection colour, each badged in the empty gutter left of its dot (mockup).
+    Task 305: the pair reads as a direction: base ringed in user colour, target in selection colour.
   */
   .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--c-user); }
   /*
     Task 315: solid --c-snap dot; `.node.` scopes the fill to the dot, sparing the label.
   */
   .node.n-snap { background: var(--c-snap); }
+  /*
+    Task 343: Edit/Write and Read dots. Confidence is a ring: verified solid, derived hollow dashed.
+  */
+  .node.n-edit, .node.n-read { background: var(--node-colour); }
+  .node.n-edit { --node-colour: var(--c-edit); border-radius: 3px; }
+  .node.n-read { --node-colour: var(--c-read); }
+  .node.conf-verified { outline: 2px solid var(--node-colour); outline-offset: 3.5px; }
+  .node.conf-derived { background: transparent; border: 2px dashed var(--node-colour); }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

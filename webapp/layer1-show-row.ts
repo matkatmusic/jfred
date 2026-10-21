@@ -9,6 +9,7 @@ export const ShowRowKind = {
     commit: "commit",
     disk: "disk",
     snapshot: "snapshot",
+    edit: "edit",
     scriptRun: "script-run",
 } as const;
 export type ShowRowKind = (typeof ShowRowKind)[keyof typeof ShowRowKind];
@@ -18,12 +19,13 @@ const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
     [ShowRowKind.commit]: "commit",
     [ShowRowKind.disk]: "on-disk",
     [ShowRowKind.snapshot]: "📸 snapshot",
+    [ShowRowKind.edit]: "edit",
     [ShowRowKind.scriptRun]: "script run",
 };
 
 type ShowRowView = Pick<WireLayer1View, "pairs" | "gitOrphans" | "diskOrphans">;
 
-// Kinds present in the view, in ShowRowKind order; an absent kind gets no box.
+// Kinds present in the view, in ShowRowKind order. Absent kinds get no box; Edit is always present.
 export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
     const owners = [...view.pairs, ...view.gitOrphans, ...view.diskOrphans];
     const present: Record<ShowRowKind, boolean> = {
@@ -31,6 +33,7 @@ export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
         [ShowRowKind.commit]: view.pairs.some((pair) => pair.commits.length > 0),
         [ShowRowKind.disk]: view.pairs.length > 0 || view.diskOrphans.length > 0,
         [ShowRowKind.snapshot]: owners.some((owner) => (owner.snapshots ?? []).length > 0),
+        [ShowRowKind.edit]: true,
         [ShowRowKind.scriptRun]: view.pairs.some((pair) => (pair.scriptRuns ?? []).length > 0),
     };
     return Object.values(ShowRowKind).filter((kind) => present[kind]);

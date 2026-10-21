@@ -145,7 +145,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
       showDetailViewForFiles(view, targets);
     }
   });
-  renderShowRowWithKindFilter(view);
+  renderShowRowWithKindFilter(view, redrawStage);
   const stageDrawn = renderLayer1Stage(view);
   // The pane keeps only transcripts that touched one of these files.
   setKnownProjectPaths(getInputById("dir").value.trim(), [
