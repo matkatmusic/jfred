@@ -3,12 +3,17 @@
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
 import { buildLayer1DiffPayload } from "./viewer_api_layer1_diff.ts";
-import { contentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
+import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
+import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
 function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
+  const scriptRunId = query.get("scriptRun");
+  if (scriptRunId !== null) {
+    return { kind: SCRIPT_RUN_NODE_KIND, toolUseId: scriptRunId };
+  }
   const isSnapshotRequest = query.get("snapshotSession") !== null;
   if (isSnapshotRequest) {
     return { kind: "snapshot", version: `@v${requireParam(query, "version")}`,
@@ -39,7 +44,7 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
   const path = requireParam(query, "path");
   const node = buildFixtureNode(query);
-  const content = contentLines(path, node).join("\n");
+  const content = listContentLines(path, node).join("\n");
   const isBinary = query.get("binary") === "1";
   if (isBinary) {
     response.writeHead(200, { "Content-Type": "application/octet-stream" });
@@ -57,7 +62,7 @@ function getFixtureDiffLines(query: URLSearchParams, hashParam: string): string[
   const path = requireParam(query, "path");
   const hash = (query.get(hashParam) ?? "").trim();
   const node: FixtureRevisionNode = hash !== "" ? { kind: "commit", hash } : { kind: "working tree" };
-  return contentLines(path, node);
+  return listContentLines(path, node);
 }
 
 export function sendFixtureDiff(response: ServerResponse, query: URLSearchParams): void {

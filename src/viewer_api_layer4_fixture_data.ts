@@ -1,0 +1,52 @@
+// Layer 4 fixture data: canned script runs and their resolved bodies; loading this module also checks them.
+
+import { WireScriptExecutorKind } from "../webapp/layer1-wire.ts";
+import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
+
+export const SCRIPT_RUN_NODE_KIND = "scriptRun";
+
+export interface FixtureScriptRun {
+  toolUseId: string;
+  executorKind: WireScriptExecutorKind;
+  at: string;
+  session: string;
+  paths: string[];
+  code: string[];
+}
+
+export const SCRIPT_RUNS: FixtureScriptRun[] = [
+  { toolUseId: "toolu_fixture_py_rewrite", executorKind: WireScriptExecutorKind.python,
+    at: "2026-06-01T09:03:00Z", session: "0f3c9a7e.jsonl", paths: ["src/index.ts", "README.md"],
+    code: ["import pathlib", "", 'for name in ["src/index.ts", "README.md"]:',
+      "    path = pathlib.Path(name)", '    path.write_text(path.read_text().replace("demo", "demo-app"))'] },
+  { toolUseId: "toolu_fixture_sh_deploy", executorKind: WireScriptExecutorKind.bash,
+    at: "2026-07-20T21:00:00Z", session: "7ce50a19.jsonl", paths: ["scripts/deploy.sh"],
+    code: ["#!/usr/bin/env bash", "set -euo pipefail", "chmod +x scripts/deploy.sh", "./scripts/deploy.sh staging"] },
+];
+
+export function findFixtureScriptRun(toolUseId: string): FixtureScriptRun {
+  for (const run of SCRIPT_RUNS) {
+    if (run.toolUseId === toolUseId) {
+      return run;
+    }
+  }
+  throw new Error(`no fixture script run ${toolUseId}`);
+}
+
+function assertScriptRunsInSessions(): void {
+  for (const run of SCRIPT_RUNS) {
+    const runMs = parseMs(run.at);
+    let isInWindow = false;
+    for (const session of SESSIONS) {
+      const isOwner = session.file === run.session;
+      if (isOwner) {
+        isInWindow = runMs >= parseMs(session.started) && runMs <= parseMs(session.ended);
+      }
+    }
+    if (!isInWindow) {
+      throw new Error(`script run ${run.toolUseId} is outside session ${run.session}`);
+    }
+  }
+}
+
+assertScriptRunsInSessions();

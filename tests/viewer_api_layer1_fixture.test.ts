@@ -1,13 +1,11 @@
-// Task 330 (spec S18/S19): fixture mode — the real Layer 1 page served from canned payloads.
-//
-// Capture-free: reads only the ported fixture arrays and the pure axis layout, never ~/.claude or git.
+// Task 330 (spec S18/S19): fixture mode — the real Layer 1 page served from canned payloads.  Capture-free: reads only the ported fixture arrays and the pure axis layout, never ~/.claude or git.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { COMMITS } from "../src/viewer_api_layer1_fixture_data.ts";
 import { buildFixtureLayer1View } from "../src/viewer_api_layer1_fixture_view.ts";
-import { contentLines } from "../src/viewer_api_layer1_fixture_content.ts";
+import { listContentLines } from "../src/viewer_api_layer1_fixture_content.ts";
 import { buildLayer1DiffPayload } from "../src/viewer_api_layer1_diff.ts";
 
 test("test_fixture_data_module_imports_without_throwing", () => {
@@ -58,7 +56,7 @@ test("test_util_ts_carries_v2_from_two_different_sessions", () => {
     assert.notEqual(sessionFiles[0], sessionFiles[1], "the two @v2 snapshots come from different sessions");
     // The content map keys on (path, version + owning session), so the two @v2 bodies must differ.
     const bytes = versionTwos.map((snapshot) =>
-        contentLines("src/util.ts", { kind: "snapshot", version: "@v2", session: basename(snapshot.sessionFile.toString()) }).join("\n"));
+        listContentLines("src/util.ts", { kind: "snapshot", version: "@v2", session: basename(snapshot.sessionFile.toString()) }).join("\n"));
     assert.notEqual(bytes[0], bytes[1], "the two @v2 revisions have different bytes");
 });
 

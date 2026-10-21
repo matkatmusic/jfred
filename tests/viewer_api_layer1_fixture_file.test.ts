@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { ServerResponse } from "node:http";
 import { test } from "node:test";
 import { sendFixtureDiff, sendFixtureFile } from "../src/viewer_api_layer1_fixture_file.ts";
+import { SCRIPT_RUNS } from "../src/viewer_api_layer4_fixture_data.ts";
 
 function makeFakeResponse(): { response: ServerResponse; body: () => string } {
   let written = "";
@@ -20,6 +21,13 @@ test("a snapshot request answers content and the title in effect at its line", (
   const payload = JSON.parse(body()) as { content: string; title: string };
   assert.ok(payload.content.includes("@v1"));
   assert.equal(payload.title, "extract the trim helper");
+});
+
+test("a scriptRun request answers the canned script body", () => {
+  const { response, body } = makeFakeResponse();
+  const run = SCRIPT_RUNS[0]!;
+  sendFixtureFile(response, new URLSearchParams({ path: "src/index.ts", scriptRun: run.toolUseId }));
+  assert.equal((JSON.parse(body()) as { content: string }).content, run.code.join("\n"));
 });
 
 test("a diff between two working trees is an empty-change payload", () => {
