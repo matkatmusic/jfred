@@ -1,4 +1,4 @@
-// Tasks 284, 300: a ruler row expands into its file names; the list matches the "(n)" count; open height feeds layout.
+// Tasks 284, 300: a ruler row expands into its file names; open height feeds layout.
 
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";

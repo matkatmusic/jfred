@@ -70,7 +70,7 @@
     .viz-root:not([data-layer="2"]) .n-snap { display: none; }
   */
   /*
-    Task 360: the show row's unchecked kinds hide here; a label has no kind class, so it follows its dot.
+    Task 360: unchecked show-row kinds hide here; a label follows its dot.
   */
   .viz-root[data-hidden-kinds~="created"] .n-created,
   .viz-root[data-hidden-kinds~="created"] .n-created + .nlabel,
