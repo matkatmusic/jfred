@@ -1,4 +1,4 @@
-// Spec S5a (task 175) + the S4 corpus-load dedupe (design plans/166-multi-source-design.md §b/§c): record-level dedupe, wall-clock interleave, and per-session root resolution. The §a identity-join ladder tests live in reconstruction_multi_source_join.test.ts (250-line cap split).
+// Spec S5a (task 175): record dedupe, wall-clock interleave, per-session root resolution. Join-ladder tests: reconstruction_multi_source_join.test.ts.
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -33,7 +33,7 @@ function fabricateBareRecord(fields: object): TranscriptRecord {
 }
 
 test("test_dedupe_drops_replicated_records_keeping_first", () => {
-    // Scenario (§c1): the same record replicated across two sources (same sessionId + uuid) must survive exactly once, first occurrence winning.  Step: load one fixture transcript, then present its records twice in a row.
+    // Scenario (§c1): a record in two sources survives once, first occurrence winning. Step: feed one fixture's records twice.
     const tree = makeSourceTree("-dedupe-project");
     const pair = buildWriteRecordPair(
         { sessionId: SESSION_A, cwd: tree.treeRoot, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_dedupe", parentUuid: null },
@@ -49,7 +49,7 @@ test("test_dedupe_drops_replicated_records_keeping_first", () => {
 });
 
 test("test_dedupe_keeps_records_missing_uuid_or_session", () => {
-    // Scenario (§c1): records without a (sessionId, uuid) identity (e.g. file-history snapshots) must never be treated as duplicates of each other.
+    // Scenario (§c1): records lacking a (sessionId, uuid) identity are never duplicates of each other.
     const anonymous = [fabricateBareRecord({ type: "x" }), fabricateBareRecord({ type: "x" })];
     // Test action + verification: both identity-less records pass through.
     const deduped = dedupeRecordsBySessionAndUuid(anonymous);
@@ -69,7 +69,7 @@ test("test_interleave_orders_records_across_sessions_by_wall_clock", () => {
 });
 
 test("test_interleave_keeps_unstamped_leading_records_with_their_session", () => {
-    // Scenario (§c3): a session's unstamped leading record (a file-history snapshot) must stay glued in front of its session's first stamped record, not float to the stream head.
+    // Scenario (§c3): a session's unstamped leading record stays before its first stamped record, not at the stream head.
     const unstamped = fabricateBareRecord({ type: "file-history-snapshot" });
     const recordA1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:00:00.000Z") });
     const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
@@ -78,7 +78,7 @@ test("test_interleave_keeps_unstamped_leading_records_with_their_session", () =>
 });
 
 test("test_single_source_records_pass_through_unchanged", () => {
-    // Scenario: one list under one root is the degenerate case — merge must return the same records in the same order (dedupe, interleave, and join are all no-ops).
+    // Scenario: one list under one root: merge returns the same records in the same order.
     const tree = makeSourceTree("-single-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const pair = buildWriteRecordPair(
@@ -93,7 +93,7 @@ test("test_single_source_records_pass_through_unchanged", () => {
 });
 
 test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
-    // Scenario (task 179, s89): session A's root is <proj>, session B's root is the NESTED <proj>/tests — the same file is tests/test_x.py under A but test_x.py under B, while its ABSOLUTE path is identical. Identity must fall out of the merged stream (absolute-path fast path); the rel-path join must not split or remap it.
+    // Scenario (task 179, s89): nested session roots give one file two relative paths: the absolute path keeps one ladder.
     const treeA = makeSourceTree("-scen89-proj");
     const treeB = makeSourceTree("-scen89-proj-tests");
     const rootA = join(treeA.treeRoot, "proj");
