@@ -1,10 +1,10 @@
-// Task 297: the Layer 1 page's saved project settings, written on demand and read back once at boot.  The unload prompt is the browser's own; "discard" is just the reader leaving anyway.
+// Task 297: saved Layer 1 project settings, written on demand, read once at boot.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
 import { SourceKind } from "./layer1-wire.ts";
 
-// One saved project. `dir` is also the key it is stored under, so saving project A never disturbs project B.
+// One saved project; `dir` is its storage key, so projects never collide.
 interface Layer1ProjectSettings {
     dir: string;
     repo: string;
