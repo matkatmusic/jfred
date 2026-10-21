@@ -1,6 +1,4 @@
-// The task-297 saved-project settings file: missing or corrupt reads as "nothing saved"; save is read-modify-write.
-//
-// In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here may touch the real home.
+// The task-297 saved-project settings file: missing or corrupt reads as "nothing saved"; save is read-modify-write.  In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here may touch the real home.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -96,4 +94,25 @@ test("test_saving_header_settings_preserves_previously_saved_collapsed_folders",
     saveLayer1Project({ dir, collapsedFolders: ["src/nested"] });
     saveLayer1Project(makeProjectSettings(dir));
     assert.deepEqual(readLayer1Settings().projects[dir]!.collapsedFolders, ["src/nested"]);
+});
+
+test("test_saving_hidden_kinds_alone_preserves_the_saved_header_fields", () => {
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    const project = makeProjectSettings(dir);
+    saveLayer1Project(project);
+    saveLayer1Project({ dir, hiddenKinds: ["snapshot"] });
+    const saved = readLayer1Settings().projects[dir]!;
+    assert.equal(saved.repo, project.repo);
+    assert.equal(saved.branch, project.branch);
+    assert.deepEqual(saved.jsonl, project.jsonl);
+    assert.deepEqual(saved.hiddenKinds, ["snapshot"]);
+});
+
+test("test_saving_header_settings_preserves_previously_saved_hidden_kinds", () => {
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    saveLayer1Project({ dir, hiddenKinds: ["snapshot"] });
+    saveLayer1Project(makeProjectSettings(dir));
+    assert.deepEqual(readLayer1Settings().projects[dir]!.hiddenKinds, ["snapshot"]);
 });

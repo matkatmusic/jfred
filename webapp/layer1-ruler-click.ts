@@ -67,7 +67,9 @@ export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapsh
 
 // User's rule: of the bubbles sharing an instant the one that BEGINS there wins, answering with its ROW.
 export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefined {
-    return listElementsDrawnAtAxisPx(axisPx)[0];
+    // Task 360: the jump skips hidden kinds, else it scrolls to a node nobody can see.
+    // return listElementsDrawnAtAxisPx(axisPx)[0];
+    return listEventsAtRow([axisPx])[0]?.element;
 }
 
 // `row` carries every entry the tick absorbed, because a merged row stands for several instants.

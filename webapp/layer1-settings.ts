@@ -13,6 +13,7 @@ interface Layer1ProjectSettings {
     jsonl: string[];
     fileHistory: string[];
     collapsedFolders?: string[];
+    hiddenKinds?: string[];
 }
 
 let settingsDirty = false;
@@ -36,6 +37,24 @@ export function saveFolderCollapseState(collapsedFolders: string[]): void {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ dir, collapsedFolders }),
     }).catch(() => {});
+}
+
+export function getHiddenKindsForProject(dir: string): string[] {
+    return cachedProjectSettings[dir]?.hiddenKinds ?? [];
+}
+
+// Kind-filter state auto-saves on each toggle, like folder collapse: it is view state, not a form field.
+export function saveHiddenKinds(hiddenKinds: string[]): void {
+    const dir = getInputById("dir").value.trim();
+    if (dir === "") {
+        return;
+    }
+    cachedProjectSettings[dir] = { ...cachedProjectSettings[dir], dir, hiddenKinds } as Layer1ProjectSettings;
+    void fetch("/api/layer1-settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dir, hiddenKinds }),
+    });
 }
 
 // Something the saved record covers has moved: arm the button and drop the "saved" note, which is now describing an older state than the one on screen.

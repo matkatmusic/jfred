@@ -69,6 +69,19 @@
     Retired by task 352 (the show row, task 360, replaces it). Was: .n-snap elements hid below Layer 2.
     .viz-root:not([data-layer="2"]) .n-snap { display: none; }
   */
+  /*
+    Task 360: the show row's unchecked kinds hide here; a label has no kind class, so it follows its dot.
+  */
+  .viz-root[data-hidden-kinds~="created"] .n-created,
+  .viz-root[data-hidden-kinds~="created"] .n-created + .nlabel,
+  .viz-root[data-hidden-kinds~="commit"] .n-commit,
+  .viz-root[data-hidden-kinds~="commit"] .n-commit + .nlabel,
+  .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created),
+  .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created) + .nlabel,
+  .viz-root[data-hidden-kinds~="snapshot"] .n-snap,
+  .viz-root[data-hidden-kinds~="script-run"] .n-script,
+  .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+  .viz-root #ruler .tick.kind-hidden { display: none; }
 
   /*
     Layer 1's input surface: project-folder row, then the task-286 repository row with flag and ref pickers.

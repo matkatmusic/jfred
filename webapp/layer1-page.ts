@@ -20,7 +20,7 @@ import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
-import { renderShowRow } from "./layer1-show-row.ts";
+import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
 import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
@@ -145,7 +145,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
       showDetailViewForFiles(view, targets);
     }
   });
-  renderShowRow(view);
+  renderShowRowWithKindFilter(view);
   const stageDrawn = renderLayer1Stage(view);
   // The pane keeps only transcripts that touched one of these files.
   setKnownProjectPaths(getInputById("dir").value.trim(), [
