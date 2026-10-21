@@ -10,8 +10,8 @@ import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     RecordType,
     EventKind,
-    GitOperationKind,
 } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import {
     commitWalkDocument,
     findCommitNodeIndexes,

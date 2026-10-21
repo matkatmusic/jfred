@@ -1,7 +1,7 @@
 // Layer-1 timeline completion: append on-disk end state, insert presumed-user-edit gaps (spec S2/Q8).
 
 import { readFileSync, statSync } from "node:fs";
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
 import { checkNodeCarriesBytes } from "./layered_anchor.ts";
 import type { BeaconNode, EndStateNode, TimelineNode } from "./layered_types.ts";

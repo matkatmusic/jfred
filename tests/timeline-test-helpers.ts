@@ -6,8 +6,8 @@ import { Path } from "../src/structures/domain.ts";
 import {
     RecordType,
     EventKind,
-    GitOperationKind,
 } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import {
     S2_JSONL,
     S45_JSONL,

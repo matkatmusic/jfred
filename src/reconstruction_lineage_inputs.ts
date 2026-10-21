@@ -3,7 +3,7 @@
 import { Path } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { buildRenameChain, eventBelongsToLineage, resolveFinalPath } from "./reconstruction_lineage.ts";
 

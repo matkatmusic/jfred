@@ -5,7 +5,8 @@ import {
     buildConversationDag,
     buildFileDag,
 } from "../src/reconstruction_graph.ts";
-import { BlockType, BranchRole, RecordType, ToolName } from "../src/structures/vocabulary.ts";
+import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
+import { BranchRole } from "../src/structures/vocabulary_views.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { loadRecords } from "./utilities.ts";

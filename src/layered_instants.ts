@@ -1,6 +1,6 @@
 // Shared UTC-ms axis: JSONL lands as ms, git widens from seconds, same-second ties use Q7/Q9 content order.
 
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import type { Instant, TimelineNode } from "./layered_types.ts";
 
 // Widens a git epoch-second stamp onto the shared UTC-ms axis.

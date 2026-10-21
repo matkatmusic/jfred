@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findGitOperations } from "../src/reconstruction_git_operations.ts";
-import { BlockType, GitOperationKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
+import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
 function buildBashToolUseRecord(command: string, toolUseId: string, timestamp: string): TranscriptRecord {

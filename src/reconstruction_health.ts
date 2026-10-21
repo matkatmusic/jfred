@@ -2,7 +2,7 @@
 // ponytail: global sink like reconstruction_provenance.ts — thread a sink instead only if the engine ever reconstructs sessions concurrently.
 
 import type { Path } from "./structures/domain.ts";
-import { FailureScope } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 
 // One survived failure: scope, stage, optional target file, and reason.
 export type ReconstructionFailure = {

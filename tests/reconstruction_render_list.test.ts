@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderHistoryList } from "../src/reconstruction_render_list.ts";
-import type { FileRevision } from "../src/reconstruction_engine.ts";
+import type { FileRevision } from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";

@@ -7,10 +7,8 @@ import {
     AGENT_TURN_NODE_KIND,
     COMMIT_NODE_KIND,
 } from "../webapp/views/timeline-types.ts";
-import {
-    RecordType,
-    GitOperationKind,
-} from "../src/structures/vocabulary.ts";
+import { RecordType } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 
 // item 55 (adjusted 2026-07-09): the snapshot attribution rule for git operations was retired
 // with the turn-bubble git rows (attachGitOperationsToAgentTurns is unused). The replacement
@@ -24,11 +22,7 @@ import {
 //     reply.gitOperations kinds deep-equal [GitOperationKind.init, GitOperationKind.commit])
 
 test("test_commit_nodes_derive_from_git_operations_without_tool_calls", () => {
-    // Scenario (item 55): a document carrying gitOperations but no toolCalls (an older cached
-    // shape) still yields its commit hard-stop node — with the commit message as its detail —
-    // while agent turns own no git rows.
-    // Steps:
-    // build a minimal document: prompt, one reply, one operation before the reply, one after it.
+    // Scenario (item 55): a document carrying gitOperations but no toolCalls (an older cached shape) still yields its commit hard-stop node — with the commit message as its detail — while agent turns own no git rows.  Steps: build a minimal document: prompt, one reply, one operation before the reply, one after it.
     const document = {
         messages: [{
             uuid: "prompt-1",

@@ -3,9 +3,10 @@
 import { execSync } from "node:child_process";
 import { relative } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
-import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { EventKind } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { FileEvent, WriteEvent } from "./reconstruction_engine.ts";
+import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";

@@ -1,6 +1,7 @@
 // Parsed git operations for the timeline; commit events live in reconstruction_git_commit_events.ts.
 
-import { BlockType, GitOperationKind, KNOWN_GIT_OPERATION_KINDS, ToolName } from "./structures/vocabulary.ts";
+import { BlockType, ToolName } from "./structures/vocabulary.ts";
+import { GitOperationKind, KNOWN_GIT_OPERATION_KINDS } from "./structures/vocabulary_views.ts";
 import { Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";

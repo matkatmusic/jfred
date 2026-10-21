@@ -1,6 +1,6 @@
 // Revision selection and text helpers, split out of reconstruction_branches.ts to keep both files within the 250-line cap — split, never condense.
 
-import type { FileRevision } from "./reconstruction_engine.ts";
+import type { FileRevision } from "./reconstruction_events.ts";
 
 // The latest revision whose timestamp is at or before `when`, or undefined.
 export function lastRevisionAtOrBefore(

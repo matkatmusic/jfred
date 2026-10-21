@@ -8,7 +8,7 @@ import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import { beaconSnippetFor } from "./reconstruction_user_edit.ts";
 import type { BeaconSnippet } from "./reconstruction_user_edit.ts";
-import type { FileEvent, UserEditEvent, WriteEvent } from "./reconstruction_engine.ts";
+import type { FileEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 
 // --- terminal truncated beacons (s27) --------------------------------------------------------------
 

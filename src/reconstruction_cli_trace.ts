@@ -1,7 +1,8 @@
 // --trace CLI mode: prints Step-1 verdict trace, split from reconstruction_cli.ts for the 250-line cap.
 
 import { Path } from "./structures/domain.ts";
-import { KNOWN_VERDICTS, TraceDetailMode, Verdict } from "./structures/vocabulary.ts";
+import { KNOWN_VERDICTS, Verdict } from "./structures/vocabulary.ts";
+import { TraceDetailMode } from "./structures/vocabulary_views.ts";
 import { partitionLines } from "./reconstruction_parse_lines.ts";
 import { renderTrace } from "./reconstruction_trace.ts";
 import type { TraceDetailSelector, TraceOptions } from "./reconstruction_trace.ts";

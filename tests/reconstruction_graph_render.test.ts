@@ -11,7 +11,8 @@ import type {
     GraphTurn,
 } from "../src/reconstruction_graph.ts";
 import type { ConvoBranch } from "../src/reconstruction_graph.ts";
-import { BranchRole, EventKind } from "../src/structures/vocabulary.ts";
+import { EventKind } from "../src/structures/vocabulary.ts";
+import { BranchRole } from "../src/structures/vocabulary_views.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
 // A graph node with the given letter/kind/file/changeId (timestamp is only used for branch ordering, which the builders already decided, so a fixed value is fine for renderer tests).

@@ -12,7 +12,7 @@ import { linesTextOf } from "../src/reconstruction_revisions.ts";
 import { BlockType, EventKind, ToolName } from "../src/structures/vocabulary.ts";
 import type { ToolUseBlock } from "../src/structures/content-blocks.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import type { FileEvent } from "../src/reconstruction_engine.ts";
+import type { FileEvent } from "../src/reconstruction_events.ts";
 import { buildToolRecord } from "./script-execution-test-helpers.ts";
 
 function toolUse(name: ToolName, input: Record<string, unknown>): ToolUseBlock {

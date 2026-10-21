@@ -2,7 +2,7 @@
 
 import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 
 // Map each rename source path -> its destination path.
 export function buildRenameChain(events: FileEvent[]): Map<string, Path> {

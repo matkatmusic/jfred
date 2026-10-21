@@ -18,7 +18,7 @@ import {
 } from "./regex_script_detection.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
-import type { WriteEvent } from "./reconstruction_engine.ts";
+import type { WriteEvent } from "./reconstruction_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { pathBasename } from "./reconstruction_script_indirection.ts";

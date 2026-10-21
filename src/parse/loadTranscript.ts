@@ -4,7 +4,7 @@ import { parseRecord, UnknownRecordTypeError } from "./parseRecord.ts";
 import { findUnmodeledTopLevelKeys, UnmodeledFieldError } from "./recordKeys.ts";
 import type { TranscriptRecord } from "../structures/envelope.ts";
 import { Path } from "../structures/domain.ts";
-import { DocumentResponseKind } from "../structures/vocabulary.ts";
+import { DocumentResponseKind } from "../structures/vocabulary_views.ts";
 
 // Lives in the lowest module of the import chain so no module needs to import upward.
 export type ProgressEvent = {

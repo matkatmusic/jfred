@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runCli } from "../src/reconstruction_cli.ts";
 import { buildStderrProgressSink } from "../src/reconstruction_progress.ts";
-import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { S1_JSONL } from "./fixtures.ts";
 
 // ── Task 191: CLI progress on stderr, behind --progress/--progress-all ──

@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
-import { selectBranchRecords, selectLiveBranch } from "../src/reconstruction_branch.ts";
+import { selectLiveBranch } from "../src/reconstruction_branch.ts";
+import { selectBranchRecords } from "../src/reconstruction_branch_records.ts";
 import { reconstructAll } from "../src/reconstruction_engine.ts";
 import { executeRunOnce } from "../src/reconstruction_script_runs.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";

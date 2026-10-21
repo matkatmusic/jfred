@@ -3,7 +3,7 @@
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { Path, type Uuid } from "./structures/domain.ts";
-import { FailureScope } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 
 function readBlobIfPresent(root: Path, sessionId: Uuid, backupFileName: Path): string | undefined {

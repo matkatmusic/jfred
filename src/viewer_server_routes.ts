@@ -18,7 +18,7 @@ import {
     parseStepFilesQuery,
     resolveStepFiles,
 } from "./viewer_api_diffs.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
 

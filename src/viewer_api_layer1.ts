@@ -10,7 +10,7 @@ import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path, Uuid } from "./structures/domain.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { CommitTimeSource, type WireInstantOf, type WireCommitOf, type WireRulerTickOf, type WirePairOf, type WireOrphanOf, type WireLayer1ViewOf } from "../webapp/layer1-wire.ts";
 
 // Named so tests assert the same strings the route emits rather than re-typing them.

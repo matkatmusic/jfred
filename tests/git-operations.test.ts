@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildProjectDocument } from "../src/viewer_api.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { GitOperationKind } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import { S6_JSONL, S19_JSONL, S39_JSONL_PATHS, S41_JSONL_PATHS, S85_JSONL_PATHS } from "./fixtures.ts";
 
 test("test_s39_git_operations_are_init_then_add", () => {

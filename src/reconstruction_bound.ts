@@ -5,7 +5,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
 

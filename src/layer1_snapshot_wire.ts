@@ -4,7 +4,7 @@ import { collectSnapshotPlacements, type SnapshotPlacement } from "./layer1_snap
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path, Uuid } from "./structures/domain.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { WireSnapshotOf } from "../webapp/layer1-wire.ts";
 
 // Named so tests assert the same string the route emits.

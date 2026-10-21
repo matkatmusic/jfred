@@ -1,13 +1,11 @@
-// GET /api/layer1-sessions — one summary row per transcript under the picked JSONL folders (task 292).
-//
-// Every failure is a SKIP, never a throw: one corrupt transcript must not blank the whole list.
+// GET /api/layer1-sessions — one summary row per transcript under the picked JSONL folders (task 292).  Every failure is a SKIP, never a throw: one corrupt transcript must not blank the whole list.
 
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { readFirstUserPrompt } from "./reconstruction_prompts.ts";
 import { Path } from "./structures/domain.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { computeReconstructionPrescan } from "./viewer_api_prescan.ts";

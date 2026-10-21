@@ -3,7 +3,8 @@
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SkippedLine } from "./parse/loadTranscript.ts";
-import { RecordType, BlockType, FailureScope } from "./structures/vocabulary.ts";
+import { RecordType, BlockType } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 import {
     drainReconstructionFailures,
     noteReconstructionFailure,
@@ -18,7 +19,8 @@ import { findGitCommitEvents } from "./reconstruction_git_commit_events.ts";
 import { findGitOperations, type GitOperation } from "./reconstruction_git_operations.ts";
 import { findToolCalls, type ToolCall } from "./reconstruction_tool_calls.ts";
 import { summarizeScriptRunFileChanges, type ScriptRunFileChanges } from "./reconstruction_script_runs.ts";
-import type { FileHistory, BranchedReconstruction } from "./reconstruction_engine.ts";
+import type { BranchedReconstruction } from "./reconstruction_engine.ts";
+import type { FileHistory } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildStepSnapshots, type StepSnapshot } from "./reconstruction_json_steps.ts";
 import { findSessionId } from "./reconstruction_sidecar_reader.ts";

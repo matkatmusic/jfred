@@ -1,6 +1,4 @@
-// Step 4a of the S18 Layer 1 feedback fixes: GET /api/layer1-view?progress=1 serves the view as an NDJSON stream so the page can draw a determinate bar during the route's ~10 s build.
-//
-// This file owns the STREAMED path of src/viewer_api_layer1_route.ts. The PLAIN path's three bad-input 400s stay in tests/viewer_api_layer1.test.ts, unchanged — a bad `dir`/`repo` must keep 400-ing even when the caller asked for a stream, which is why both folder checks run before any header is written.
+// Step 4a of the S18 Layer 1 feedback fixes: GET /api/layer1-view?progress=1 serves the view as an NDJSON stream so the page can draw a determinate bar during the route's ~10 s build.  This file owns the STREAMED path of src/viewer_api_layer1_route.ts. The PLAIN path's three bad-input 400s stay in tests/viewer_api_layer1.test.ts, unchanged — a bad `dir`/`repo` must keep 400-ing even when the caller asked for a stream, which is why both folder checks run before any header is written.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +10,7 @@ import {
     startFixtureViewer,
     type WireLayer1View,
 } from "./layer1-view-test-helpers.ts";
-import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 
 // 17400 (viewer_server.test.ts), 17900 (viewer_api_layered.test.ts), 18400 (viewer_api_ladder), 18900 (viewer_api_layer1), 19400 (viewer_api_layer1_placement) and 19900 (layer1-acceptance) are taken — parallel test files must never collide.
 const SCRATCH_PORT = 20400 + (process.pid % 500);

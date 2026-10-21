@@ -6,7 +6,7 @@ import { reconstructFilesOver } from "../src/reconstruction_renderable.ts";
 import { setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { SCRIPT_RUN_CHANGE_ID_PREFIX } from "../src/reconstruction_script_execution.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
-import type { FileEvent, RenameEvent } from "../src/reconstruction_engine.ts";
+import type { FileEvent, RenameEvent } from "../src/reconstruction_events.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";

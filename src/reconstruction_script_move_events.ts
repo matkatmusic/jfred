@@ -4,7 +4,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
 import {

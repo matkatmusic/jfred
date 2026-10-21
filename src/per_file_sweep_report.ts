@@ -1,7 +1,7 @@
 // Pure sweep logic: candidate selection, verdict, and markdown table (no I/O).
 
 import { Path } from "./structures/domain.ts";
-import { SweepVerdict } from "./structures/vocabulary.ts";
+import { SweepVerdict } from "./structures/vocabulary_views.ts";
 
 // `unrecoverable` counts revisions the engine could not replay (S11 gap signal).
 export interface SweepRow {

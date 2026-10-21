@@ -4,7 +4,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
 import { checkNodeCarriesBytes } from "./layered_anchor.ts";
 import { mergeSessionTimelines } from "./layered_merge.ts";
-import type { CopyEvent, FileEvent, RenameEvent } from "./reconstruction_engine.ts";
+import type { CopyEvent, FileEvent, RenameEvent } from "./reconstruction_events.ts";
 import type {
     CopyEdge,
     JsonlRef,

@@ -5,7 +5,8 @@ import {
     listTargetedSurvivingHistories,
     reconstructSurvivingFileHistory,
 } from "../src/reconstruction_target.ts";
-import { reconstructBranches, type FileHistory } from "../src/reconstruction_engine.ts";
+import { reconstructBranches } from "../src/reconstruction_engine.ts";
+import type { FileHistory } from "../src/reconstruction_events.ts";
 import { runCli } from "../src/reconstruction_cli.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";

@@ -9,7 +9,7 @@ import { applyProjectOverrides } from "./viewer_api_projects.ts";
 import { resolveJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 
 // One touched file on the wire: the ISO instant of its first modifying event, and whether that first event is a statically-attributed script run (a candidate, not replay-proven) rather than an exact extraction-level event.

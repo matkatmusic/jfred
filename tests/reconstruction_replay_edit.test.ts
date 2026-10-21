@@ -4,7 +4,7 @@ import { applyEdit, reverseEditFromAfter } from "../src/reconstruction_replay_ed
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import type { EditEvent, FileRevision } from "../src/reconstruction_engine.ts";
+import type { EditEvent, FileRevision } from "../src/reconstruction_events.ts";
 import type { StructuredPatchHunk } from "../src/structures/tool-results.ts";
 
 // An Edit whose hunk carries a single context line (' ') and a single addition ('+'). Replaying it against an EMPTY base is the conversation-only-rewind-then-edit case (S12): the creating Write lives on an abandoned branch, so the surviving branch's first event for the file is this Edit.

@@ -1,8 +1,4 @@
-// Per-file sweep runner (S11): reconstructs each candidate file individually.
-//
-// Shares one records array so memoized work pays its cost once.
-//
-// Usage: npx tsx scripts/per_file_sweep.ts [--repo DIR] [--out JSONL] [--table MD]
+// Per-file sweep runner (S11): reconstructs each candidate file individually.  Shares one records array so memoized work pays its cost once.  Usage: npx tsx scripts/per_file_sweep.ts [--repo DIR] [--out JSONL] [--table MD]
 
 import { execFileSync, execSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -19,7 +15,7 @@ import { linesTextOf } from "../src/reconstruction_revisions.ts";
 import { formatSweepTable, type SweepRow } from "../src/per_file_sweep_report.ts";
 import { selectCandidatesByStatus } from "../src/per_file_sweep_report.ts";
 import { Path } from "../src/structures/domain.ts";
-import type { FileRevision } from "../src/reconstruction_engine.ts";
+import type { FileRevision } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
 // Defaults resolve to RevEng root so output lands beside the S8 doc.

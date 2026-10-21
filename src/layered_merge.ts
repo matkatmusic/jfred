@@ -1,6 +1,6 @@
 // Task 202 (spec S5): merged multi-session view — shared axis, one end state, re-derived gaps, corroboration marks.
 
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
 import { checkNodeCarriesBytes } from "./layered_anchor.ts";
 import { sortNodesOntoAxis } from "./layered_instants.ts";

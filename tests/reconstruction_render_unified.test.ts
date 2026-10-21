@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderDiffWithContext } from "../src/reconstruction_render_unified.ts";
-import type { FileRevision } from "../src/reconstruction_engine.ts";
+import type { FileRevision } from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import {

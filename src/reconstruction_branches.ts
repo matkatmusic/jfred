@@ -2,7 +2,8 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
-import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { EventKind } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { replayEvents } from "./reconstruction_replay.ts";
@@ -49,7 +50,7 @@ import type {
     CopyEvent,
     FileEvent,
     FileRevision,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 
 // Per-file reconstruction memo; only pure top-level calls are cached (stack-dependent calls compute fresh).
 
@@ -82,9 +83,7 @@ function runStageTolerantly(
     input: FileEvent[],
     run: () => FileEvent[],
 ): FileEvent[] {
-    // task 149: announce before running — the per-target counter label used to freeze at n/n
-    // while the whole chain ground silently. The `reconstructing ` prefix keeps the webapp's
-    // phase classifier in phase 4.
+    // task 149: announce before running — the per-target counter label used to freeze at n/n while the whole chain ground silently. The `reconstructing ` prefix keeps the webapp's phase classifier in phase 4.
     reportReconstructionProgress(`reconstructing ${target} — ${stage}`);
     try {
         return run();

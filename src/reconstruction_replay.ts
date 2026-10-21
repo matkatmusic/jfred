@@ -19,7 +19,7 @@ import type {
     RenameEvent,
     UserEditEvent,
     WriteEvent,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 import type { ScriptExecutionEvent } from "./reconstruction_script_execution.ts";
 
 // Thrown when replay meets an event kind it cannot apply, so an unmodeled kind cannot pass silently (fog-of-war guard; mirrors UnknownToolNameError).  replayEvents catches it into a visible unrecoverable placeholder revision.

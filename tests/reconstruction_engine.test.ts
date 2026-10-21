@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import {
     reconstructFile,
     reconstructAll,
-    type CopyEvent,
-    type FileRevision,
 } from "../src/reconstruction_engine.ts";
-import { findDeletedTarget } from "../src/reconstruction_branch.ts";
+import type {
+    CopyEvent,
+    FileEvent,
+    FileRevision,
+} from "../src/reconstruction_events.ts";
+import { findDeletedTarget } from "../src/reconstruction_branch_lookup.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
-import type { FileEvent } from "../src/reconstruction_engine.ts";
 import type { ScriptExecutionEvent } from "../src/reconstruction_script_execution.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Uuid } from "../src/structures/domain.ts";

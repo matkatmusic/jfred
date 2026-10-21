@@ -3,13 +3,15 @@
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
-import { reconstructFile, type EditEvent, type FileEvent } from "./reconstruction_engine.ts";
+import { reconstructFile } from "./reconstruction_engine.ts";
+import type { EditEvent, FileEvent } from "./reconstruction_events.ts";
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { lastRevisionAtOrBefore, lastRevisionStrictlyBefore, linesTextOf } from "./reconstruction_revisions.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
-import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { EventKind } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 
 // Engine drops final newline; evidence must match that form.
 function stripSingleTrailingNewline(text: string): string {
@@ -52,8 +54,7 @@ export function checkJoinContentAgreement(
     return editEvidenceAgreesWithState(editEvidence, linesTextOf(base).join("\n"));
 }
 
-// One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly,
-// else every hunk's pre-side must be contained.
+// One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly, else every hunk's pre-side must be contained.
 function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolean {
     if (edit.originalFile !== undefined) {
         return stripSingleTrailingNewline(edit.originalFile) === stateText;

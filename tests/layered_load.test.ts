@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
-import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
     discoverJsonlPaths,
     loadLayeredProject,

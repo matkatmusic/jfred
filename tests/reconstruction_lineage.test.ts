@@ -11,7 +11,7 @@ import type {
     CopyEvent,
     FileEvent,
     WriteEvent,
-} from "../src/reconstruction_engine.ts";
+} from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 

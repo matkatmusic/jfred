@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { EventKind, LayeredNodeKind } from "../src/structures/vocabulary.ts";
+import { EventKind } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
     buildLineageEdges,
     checkEventIsLineageEdge,
@@ -11,7 +12,7 @@ import {
     lineageOf,
 } from "../src/layered_lineage.ts";
 import type { LineageEvidence } from "../src/layered_lineage.ts";
-import type { CopyEvent, RenameEvent } from "../src/reconstruction_engine.ts";
+import type { CopyEvent, RenameEvent } from "../src/reconstruction_events.ts";
 import type { BeaconNode, ReconstructionEntity } from "../src/layered_types.ts";
 
 const SESSION_FILE = new Path("/fixture/session.jsonl");

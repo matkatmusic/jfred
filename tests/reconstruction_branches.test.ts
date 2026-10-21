@@ -12,7 +12,8 @@ import {
     drainReconstructionFailures,
 } from "../src/reconstruction_health.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
-import { EventKind, FailureScope } from "../src/structures/vocabulary.ts";
+import { EventKind } from "../src/structures/vocabulary.ts";
+import { FailureScope } from "../src/structures/vocabulary_views.ts";
 import { loadRecords } from "./utilities.ts";
 import { S13_JSONL, S15_JSONL, S19_JSONL } from "./fixtures.ts";
 

@@ -7,7 +7,7 @@ import {
 } from "../src/reconstruction_sidecar.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { resolveAgainstCwd } from "../src/structures/path-resolve.ts";
-import type { AppendEvent, EditEvent, FileEvent, WriteEvent } from "../src/reconstruction_engine.ts";
+import type { AppendEvent, EditEvent, FileEvent, WriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";

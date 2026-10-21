@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import { collectCommitBeaconNodes, listCommitsTouchingFile } from "../src/layered_git_beacons.ts";
 
 // Run a git command in `repoDir` with fixed identity and the given commit dates.

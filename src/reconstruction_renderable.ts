@@ -1,10 +1,12 @@
 // All-files reconstruction and renderable-event filtering, split out of reconstruction_branches.ts to keep both files within the 250-line cap — split, never condense.  `reconstructFilesOver` is the branch-agnostic all-files core; the accepted-user-edit set and the renderable filters let every view agree on which user edits actually changed a file.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { EventKind, FailureScope } from "./structures/vocabulary.ts";
+import { EventKind } from "./structures/vocabulary.ts";
+import { FailureScope } from "./structures/vocabulary_views.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { findConversationBranches, selectBranchRecords } from "./reconstruction_branch.ts";
+import { findConversationBranches } from "./reconstruction_branch.ts";
+import { selectBranchRecords } from "./reconstruction_branch_records.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { discoverScriptCreatedPaths } from "./reconstruction_script_runs.ts";
 import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
@@ -15,7 +17,7 @@ import {
     resolveFinalPath,
 } from "./reconstruction_lineage.ts";
 import { getLineageContentBefore, reconstructFileOver } from "./reconstruction_branches.ts";
-import type { FileEvent, FileHistory } from "./reconstruction_engine.ts";
+import type { FileEvent, FileHistory } from "./reconstruction_events.ts";
 
 // The branch-agnostic core: reconstruct every file touched by EXACTLY the records given (no branch selection here) — each with its own history, keyed by the path it ends life at (a renamed file is one history, not two).
 export function reconstructFilesOver(

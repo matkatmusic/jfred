@@ -8,7 +8,8 @@ import {
     resolveToolNameForRecord,
     type ReadResult,
 } from "./structures/tool-results.ts";
-import { LayeredNodeKind, ToolName } from "./structures/vocabulary.ts";
+import { ToolName } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
 import type {
     BeaconNode,

@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getAttachmentEntry } from "./structures/session-meta.ts";
 import { AttachmentPayloadType, EventKind } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
-import type { UserEditEvent } from "./reconstruction_engine.ts";
+import type { UserEditEvent } from "./reconstruction_events.ts";
 import { lineNumberPrefix, numberedLine } from "./regex_expressions.ts";
 
 // One numbered line of an `edited_text_file` snippet (`lineNo` is the file line the harness showed).

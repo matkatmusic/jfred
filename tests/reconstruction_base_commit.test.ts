@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import type { WriteEvent } from "../src/reconstruction_engine.ts";
+import type { WriteEvent } from "../src/reconstruction_events.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     BASE_COMMIT_CHANGE_ID_PREFIX,

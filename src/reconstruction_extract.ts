@@ -15,7 +15,7 @@ import type {
     EditEvent,
     FileEvent,
     WriteEvent,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 import { bashEventsFrom } from "./reconstruction_bash_events.ts";
 import { extractScriptRenameEvents } from "./reconstruction_script_renames.ts";
 import { userEditEventFrom } from "./reconstruction_user_edit.ts";

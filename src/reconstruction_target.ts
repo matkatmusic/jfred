@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
-import type { FileHistory } from "./reconstruction_engine.ts";
+import type { FileHistory } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { selectLiveBranch } from "./reconstruction_branch.ts";
 import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";

@@ -3,7 +3,7 @@
 import { statSync } from "node:fs";
 import { formatRecordSourceToken, getRecordSource, loadTranscript, type ProgressSink, type SkippedLine } from "./parse/loadTranscript.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 

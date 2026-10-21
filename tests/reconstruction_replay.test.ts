@@ -4,7 +4,7 @@ import { replayEvents } from "../src/reconstruction_replay.ts";
 // The shared replay helpers now live in their own module (Task 1 split).
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
-import type { CopyEvent, FileEvent } from "../src/reconstruction_engine.ts";
+import type { CopyEvent, FileEvent } from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 

@@ -1,6 +1,6 @@
 // Splits the webapp diff text and git-apply patch emitter from reconstruction_render.ts; pure functions over FileRevision[].
 
-import type { FileRevision } from "./reconstruction_engine.ts";
+import type { FileRevision } from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { currentText, computeDiffBlockHeader } from "./reconstruction_render.ts";
 import { runGitUnifiedDiff, DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES } from "./render_git_diff.ts";

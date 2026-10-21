@@ -1,7 +1,7 @@
 // TypeScript port of the decision ledger `from-scratch-reconstruction.hpp`, which stays sketch-only.
 
 import { Path } from "./structures/domain.ts";
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 
 // UTC-ms axis; JSONL is master clock, hydrated from evidence only.
 export type Instant = Date;

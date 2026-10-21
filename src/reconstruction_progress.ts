@@ -1,7 +1,7 @@
 // Progress announcements from deep inside the synchronous reconstruction pipeline, streamed to the viewer's loading console. Mirrors reconstruction_exec_gate.ts: a build-scoped module-level sink set by the viewer around a build and cleared after; undefined otherwise, so the CLI, tests, and engine callers stay silent.
 // ponytail: process-wide sink, not per-call threading — builds are synchronous and the server serializes them; thread an options object through reconstruct* if that changes.
 
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { ProgressEvent, ProgressSink } from "./parse/loadTranscript.ts";
 
 let activeSink: ProgressSink | undefined;

@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
-import { reconstructFile, reconstructAll, type FileRevision } from "../src/reconstruction_engine.ts";
+import { reconstructFile, reconstructAll } from "../src/reconstruction_engine.ts";
+import type { FileRevision } from "../src/reconstruction_events.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
 import { makeTwoSourceEditFixture, buildEditRecordPair, SESSION_A } from "./multi-source-test-helpers.ts";
 

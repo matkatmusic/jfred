@@ -21,7 +21,7 @@ import {
 } from "./reconstruction_script_runs.ts";
 import { refForTarget, runForTarget } from "./reconstruction_script_probe.ts";
 import { beaconlessScriptExecutions } from "./reconstruction_script_beaconless.ts";
-import type { FileEvent, UserEditEvent } from "./reconstruction_engine.ts";
+import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
 
 // Windowed forward test: whether `lines` reproduces every visible beacon line at its own (1-based) line number. The beacon may be a WINDOW, so only its shown lines are checked.
 function linesMatchBeacon(lines: string[], snippet: BeaconSnippet): boolean {

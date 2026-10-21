@@ -10,13 +10,14 @@ import { resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { BlockType, EventKind, LayeredNodeKind } from "./structures/vocabulary.ts";
+import { BlockType, EventKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import { sortNodesOntoAxis } from "./layered_instants.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
 import { completeLayer1Timeline } from "./layered_end_state.ts";
 import { buildLineageEdges, checkEventIsLineageEdge } from "./layered_lineage.ts";
 import type { LineageEvidence } from "./layered_lineage.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import type {
     JsonlRef,
     ReconstructionEntity,

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TraceDetailMode, Verdict } from "../src/structures/vocabulary.ts";
+import { Verdict } from "../src/structures/vocabulary.ts";
+import { TraceDetailMode } from "../src/structures/vocabulary_views.ts";
 import { renderTrace } from "../src/reconstruction_trace.ts";
 import type { LinePartition } from "../src/reconstruction_parse_lines.ts";
 

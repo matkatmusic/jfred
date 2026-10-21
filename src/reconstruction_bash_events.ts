@@ -8,7 +8,7 @@ import type {
     CopyInfo,
     FileEvent,
     RenameInfo,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 import {
     bashAppendRedirect,
     bashCopyCommand,

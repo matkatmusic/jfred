@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
-import { RecordType, EventKind, GitOperationKind } from "../src/structures/vocabulary.ts";
+import { RecordType, EventKind } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import { gitBaselineDocument } from "./timeline-test-helpers.ts";
 
 // A MID-timeline baseline (task 56): one prompt/reply pair BEFORE the gitBase step, one generic step after it — the shape where declining pre-baseline reconstruction visibly changes what the timeline shows.

@@ -19,10 +19,9 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import {
     reconstructBranches,
     type BranchedReconstruction,
-    type FileHistory,
-    type FileRevision,
 } from "./reconstruction_engine.ts";
-import { findBranchById, shortUuid } from "./reconstruction_branch.ts";
+import type { FileHistory, FileRevision } from "./reconstruction_events.ts";
+import { findBranchById, shortUuid } from "./reconstruction_branch_lookup.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import {
     formatReconstructionCountersLine,

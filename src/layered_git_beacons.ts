@@ -4,7 +4,7 @@ import { execSync, spawnSync } from "node:child_process";
 import { relative } from "node:path";
 import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { Path } from "./structures/domain.ts";
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import { widenEpochSecondsToInstant } from "./layered_instants.ts";
 import type { BeaconNode } from "./layered_types.ts";
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { parseRedirect } from "../src/reconstruction_bash_events.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
-import type { AppendEvent, OverwriteEvent } from "../src/reconstruction_engine.ts";
+import type { AppendEvent, OverwriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
 

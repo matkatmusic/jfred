@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildReconstructionDocument } from "../src/reconstruction_json.ts";
 import { reconstructBranches } from "../src/reconstruction_engine.ts";
-import { FailureScope } from "../src/structures/vocabulary.ts";
+import { FailureScope } from "../src/structures/vocabulary_views.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import type { SkippedLine } from "../src/parse/loadTranscript.ts";
 import {

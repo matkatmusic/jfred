@@ -1,6 +1,6 @@
 // Presentation for the reconstruction engine: render a file's revisions as a full line-state view (--verbose) or as a diff between revisions (--diff).  Pure functions over FileRevision[]; no IO. Design: reconstruction_engine.ts.
 
-import type { FileRevision, LineEntry } from "./reconstruction_engine.ts";
+import type { FileRevision, LineEntry } from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "./structures/line-model.ts";
 import type { Path } from "./structures/domain.ts";

@@ -7,7 +7,7 @@ import {
     linesTextOf,
 } from "./reconstruction_revisions.ts";
 import { reconstructFilesOver } from "./reconstruction_renderable.ts";
-import type { FileHistory, FileRevision, RenameInfo } from "./reconstruction_engine.ts";
+import type { FileHistory, FileRevision, RenameInfo } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 

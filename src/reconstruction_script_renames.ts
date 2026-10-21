@@ -5,7 +5,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 import { codeLiteralMoveCall, renameArrowLine } from "./regex_expressions.ts";
 import { isJunkStateKey } from "./reconstruction_script_sandbox.ts";
 

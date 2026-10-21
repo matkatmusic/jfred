@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
-import { SweepVerdict } from "../src/structures/vocabulary.ts";
+import { SweepVerdict } from "../src/structures/vocabulary_views.ts";
 import {
     classifySweepRow,
     formatSweepTable,

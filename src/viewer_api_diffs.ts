@@ -4,7 +4,7 @@ import { relative, sep } from "node:path";
 import type { ReconstructionDocument } from "./reconstruction_json.ts";
 import type { StepSnapshot } from "./reconstruction_json_steps.ts";
 import { resolveFilesAtStep } from "./reconstruction_steps.ts";
-import type { FileHistory } from "./reconstruction_engine.ts";
+import type { FileHistory } from "./reconstruction_events.ts";
 import { renderDiffWithContext, renderGitFileDiff } from "./reconstruction_render_unified.ts";
 import type { Path } from "./structures/domain.ts";
 

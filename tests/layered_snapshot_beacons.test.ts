@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { LayeredNodeKind, RecordType } from "../src/structures/vocabulary.ts";
+import { RecordType } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { collectSnapshotBeaconNodes } from "../src/layered_snapshot_beacons.ts";

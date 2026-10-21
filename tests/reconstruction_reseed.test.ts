@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { seedStaleEditBases } from "../src/reconstruction_reseed.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
-import type { EditEvent, FileEvent, WriteEvent } from "../src/reconstruction_engine.ts";
+import type { EditEvent, FileEvent, WriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { EventKind, RecordType } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";

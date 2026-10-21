@@ -1,12 +1,12 @@
 // Default list view for the reconstruction engine: one block per touched file with its numbered entries (kind, line count or rename/copy detail, short time, short change id). Pure over FileHistory[]. Design: reconstruction_engine.ts.
 
+import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 import type {
-    BranchedReconstruction,
     FileHistory,
     FileRevision,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { shortUuid } from "./reconstruction_branch.ts";
+import { shortUuid } from "./reconstruction_branch_lookup.ts";
 import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
 import type { Path } from "./structures/domain.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";

@@ -2,7 +2,8 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
-import { BranchRole, EventKind } from "./structures/vocabulary.ts";
+import { EventKind } from "./structures/vocabulary.ts";
+import { BranchRole } from "./structures/vocabulary_views.ts";
 import {
     collectAcceptedUserEditIds,
     extractRenderableEvents,
@@ -10,13 +11,13 @@ import {
 import {
     collectSurvivingUuids,
     findConversationBranches,
-    selectBranchRecords,
     selectLiveBranch,
     type ConversationBranch,
 } from "./reconstruction_branch.ts";
+import { selectBranchRecords } from "./reconstruction_branch_records.ts";
 import { collectAncestorUuids } from "./reconstruction_tree.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import type { FileEvent } from "./reconstruction_engine.ts";
+import type { FileEvent } from "./reconstruction_events.ts";
 
 // Topology only — file CONTENT stays in the content views.
 export type GraphTurn = {

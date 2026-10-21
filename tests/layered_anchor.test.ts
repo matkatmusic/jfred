@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import { loadLayeredProject } from "../src/layered_load.ts";
 import { requireNodeContent, selectAnchorNode } from "../src/layered_anchor.ts";
 import type {

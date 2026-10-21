@@ -9,7 +9,7 @@ import { lastLinesOf, splitLines, reverseEditFromAfter } from "./reconstruction_
 import { backupSeedWriteFor, backupAfterWriteFor, clampSeedBetweenPreviousAndEdit } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
-import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_engine.ts";
+import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_events.ts";
 
 
 function reconstructedBaseText(priorEvents: FileEvent[]): string[] {

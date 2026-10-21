@@ -10,8 +10,8 @@ import {
 import { buildStepSnapshots } from "../src/reconstruction_json_steps.ts";
 import {
     reconstructBranches,
-    type FileHistory,
 } from "../src/reconstruction_engine.ts";
+import type { FileHistory } from "../src/reconstruction_events.ts";
 import { countStepsInTranscript } from "../src/reconstruction_steps.ts";
 import { isGenuineUserPrompt } from "../src/reconstruction_prompts.ts";
 import { RecordType, BlockType } from "../src/structures/vocabulary.ts";

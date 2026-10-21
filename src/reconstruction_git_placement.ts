@@ -16,7 +16,7 @@ import {
 } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
 import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
-import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_engine.ts";
+import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 import { findGitAddEvents, findGitCommitEvents, type GitCommitEvent } from "./reconstruction_git_commit_events.ts";
 import { findFallbackRepoDirs, readCommittedFileContent, readStagedFileContent } from "./reconstruction_git_evidence.ts";
 import { applyAdditions, pureAdditionsFrom, type LineAddition } from "./reconstruction_git_additions.ts";

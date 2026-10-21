@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { Path } from "../src/structures/domain.ts";
-import { LayeredNodeKind } from "../src/structures/vocabulary.ts";
+import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
     buildEndStateNode,
     completeLayer1Timeline,

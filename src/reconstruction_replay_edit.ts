@@ -8,7 +8,7 @@ import type {
     EditEvent,
     FileRevision,
     LineEntry,
-} from "./reconstruction_engine.ts";
+} from "./reconstruction_events.ts";
 
 // Split file content into lines; a single trailing newline is not a phantom line.
 export function splitLines(content: string): string[] {

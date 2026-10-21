@@ -20,7 +20,7 @@ import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { readDocumentFromDiskCache, writeDocumentToDiskCache } from "./reconstruction_document_cache.ts";
-import { DocumentResponseKind } from "./structures/vocabulary.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import {

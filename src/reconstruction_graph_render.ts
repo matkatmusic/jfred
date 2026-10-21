@@ -3,7 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { shortUuid } from "./reconstruction_branch.ts";
+import { shortUuid } from "./reconstruction_branch_lookup.ts";
 import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
 import {
     buildConversationDag,

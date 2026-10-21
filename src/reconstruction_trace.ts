@@ -1,6 +1,7 @@
 // Human-readable verdict trace over a LinePartition (s37 script-replay diagnostic, Phase A). Renders one row per line in original order — `<lineNumber>: <verdict>` — filtered by hideIgnored / onlyIgnored and optionally enriched (type + kind + preview, or the full pretty-printed record) under `--details`. Split out of reconstruction_parse_lines.ts to keep both files within the 250-line cap. Design: ~/.claude/plans/task-implement-script-replay-partitioned-puppy.md (Phase A, A4).
 
-import { BlockType, RecordType, TraceDetailMode, Verdict } from "./structures/vocabulary.ts";
+import { BlockType, RecordType, Verdict } from "./structures/vocabulary.ts";
+import { TraceDetailMode } from "./structures/vocabulary_views.ts";
 import type { LinePartition } from "./reconstruction_parse_lines.ts";
 import { whitespaceRuns } from "./regex_expressions.ts";
 

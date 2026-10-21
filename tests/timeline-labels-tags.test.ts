@@ -14,8 +14,10 @@ import {
 } from "../webapp/views/timeline-types.ts";
 import {
     EventKind,
-    GitOperationKind,
 } from "../src/structures/vocabulary.ts";
+import {
+    GitOperationKind,
+} from "../src/structures/vocabulary_views.ts";
 
 test("test_computeUnattributedStepTag_names_a_single_event_kind", () => {
     // Item 10d: one chip kind yields a humanized tag; script-execution has dedicated wording.

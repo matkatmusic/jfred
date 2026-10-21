@@ -11,7 +11,7 @@ import {
     findBackupPointAfter,
     findCwd,
 } from "./reconstruction_backup_timeline.ts";
-import type { FileEvent, WriteEvent } from "./reconstruction_engine.ts";
+import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 
 // sessionId names the owning file-history dir: a merged multi-session transcript reuses `@vN` blob names.
 export type BackupReader = (backupFileName: Path, sessionId?: Uuid) => string;

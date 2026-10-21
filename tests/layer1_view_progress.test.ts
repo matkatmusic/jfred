@@ -1,6 +1,4 @@
-// Step 3 of the S18 Layer 1 feedback fixes: buildLayer1View announces its position while it runs.  The route blocks for ~10 s against the real jfred repo — one `git log` per tracked path — and the page showed the PREVIOUS view's crumb the whole time, which read as frozen.
-//
-// Called IN-PROCESS rather than through a spawned viewer: the sink is a plain function parameter, so nothing here needs HTTP, a scratch port, or the NDJSON framing (tests/viewer_api_layer1_stream .test.ts owns that). The fixture is the shared one every other Layer 1 server test uses.
+// Step 3 of the S18 Layer 1 feedback fixes: buildLayer1View announces its position while it runs.  The route blocks for ~10 s against the real jfred repo — one `git log` per tracked path — and the page showed the PREVIOUS view's crumb the whole time, which read as frozen.  Called IN-PROCESS rather than through a spawned viewer: the sink is a plain function parameter, so nothing here needs HTTP, a scratch port, or the NDJSON framing (tests/viewer_api_layer1_stream .test.ts owns that). The fixture is the shared one every other Layer 1 server test uses.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +12,7 @@ import {
 } from "../src/viewer_api_layer1.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import { Path } from "../src/structures/domain.ts";
-import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { makeFixtureDiskFolder, makeFixtureRepo } from "./layer1-view-test-helpers.ts";
 
 // Build the shared fixture's view, recording every event the sink is handed.

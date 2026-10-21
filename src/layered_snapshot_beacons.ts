@@ -1,7 +1,7 @@
 // Resolve per-session backup points into BeaconNodes; global lookup fails because blob names collide across sessions.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { LayeredNodeKind } from "./structures/vocabulary.ts";
+import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import { buildBackupTimeline, findCwd, type BackupPoint } from "./reconstruction_backup_timeline.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { BeaconNode } from "./layered_types.ts";

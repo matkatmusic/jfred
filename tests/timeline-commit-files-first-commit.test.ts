@@ -10,8 +10,8 @@ import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     RecordType,
     EventKind,
-    GitOperationKind,
 } from "../src/structures/vocabulary.ts";
+import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
 import { findCommitNodeIndexes } from "./timeline-test-helpers.ts";
 
 // First-commit document (task 87): the only work happens mid-turn before the commit, so the chips' owning reply bubble (00:40) sorts AFTER the commit row (00:30); a second change (00:50) happens after the commit. A gitBase baseline step seeds orders.py before everything.

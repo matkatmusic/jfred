@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { clampSeedBetweenPreviousAndEdit } from "../src/reconstruction_sidecar.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
-import type { WriteEvent } from "../src/reconstruction_engine.ts";
+import type { WriteEvent } from "../src/reconstruction_events.ts";
 
 // A synthetic backup seed stamped at `atMillis`, shaped as `backupSeedWriteFor` builds one (its changeId is the backup blob name, per that function's contract).
 function buildBackupSeedAt(atMillis: number): WriteEvent {
