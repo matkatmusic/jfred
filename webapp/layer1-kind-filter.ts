@@ -17,7 +17,7 @@ export function onKindFilterChange(callback: () => void): void {
     notifyKindFilterChange = callback;
 }
 
-// A label is classified by the dot before it; created is checked before disk because a created node carries both classes.
+// A label takes the class of the dot before it; created is checked before disk (nodes carry both).
 export function classifyNodeKind(element: HTMLElement): ShowRowKind | undefined {
     const dot = element.matches(".nlabel") ? element.previousElementSibling : element;
     if (dot === null) {

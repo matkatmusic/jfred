@@ -1,4 +1,4 @@
-// Task 284: a shared gutter row EXPANDS into its file names; the reader picks the file.  A merged row stands for EVERY absorbed entry, so the list matches the "(n)" printed beside it.  Task 300: the open list's height feeds the layout, so rows and bubbles below shift instead of being overprinted.
+// Tasks 284, 300: a ruler row expands into its file names; the list matches the "(n)" count; open height feeds layout.
 
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
