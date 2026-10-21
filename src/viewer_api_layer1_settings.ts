@@ -1,4 +1,4 @@
-// GET + POST /api/layer1-settings — per-project Layer 1 header record (task 297) for restoring the last project.  The file lives in the user's HOME, never in the repo: a settings file is per-user state and must not turn up as a git diff.
+// GET/POST /api/layer1-settings: task 297 project record; file lives in HOME, not repo.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { type IncomingMessage, type ServerResponse } from "node:http";

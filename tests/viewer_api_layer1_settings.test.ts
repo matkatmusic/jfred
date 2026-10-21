@@ -1,4 +1,4 @@
-// The task-297 saved-project settings file: missing or corrupt reads as "nothing saved"; save is read-modify-write.  In-process, against a tmp settings file redirected through setLayer1SettingsPath — nothing here may touch the real home.
+// Task-297 settings file tests: missing or corrupt reads as nothing saved; tmp path only.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
