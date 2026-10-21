@@ -20,9 +20,9 @@ export async function validateSnapshotNodes(page: HeadlessPage, indexAnchor: str
   reportCheck("#301 every snapshot node is clickable",
     await page.evaluate<boolean>(
       `[...document.querySelectorAll('.n-snap')].every(n => n.classList.contains('hot'))`));
-  reportCheck("#301 the legend carries a snapshot row",
+  reportCheck("#301 the show row carries a snapshot box",
     await page.evaluate<boolean>(
-      `[...document.querySelectorAll('.legend span')].some(s => s.textContent.includes('📸'))`));
+      `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
   reportCheck("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
     await page.evaluate<number>(
       `document.querySelectorAll('[data-path="src/index.ts"] .nodes-with-same-timestamp').length`) === 1);

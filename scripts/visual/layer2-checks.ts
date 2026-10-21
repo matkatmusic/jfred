@@ -53,8 +53,8 @@ async function validateSnapshotNodes(page: HeadlessPage, payload: ViewPayload): 
   }
   reportCheck("#315 one visible '@vN 📸' node per snapshot the payload shipped",
     labels.length === total && everyLabelIsVersioned, { drawn: labels.length, total });
-  reportCheck("#315 the legend carries a snapshot swatch", await page.evaluate<boolean>(
-    `[...document.querySelectorAll('.legend span')].some(s => s.textContent.includes('📸'))`));
+  reportCheck("#315 the show row carries a snapshot box", await page.evaluate<boolean>(
+    `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
   let bare: string | undefined;
   for (const pair of payload.pairs) {
     const pairHasNoSnapshots = (pair.snapshots?.length ?? 0) === 0;

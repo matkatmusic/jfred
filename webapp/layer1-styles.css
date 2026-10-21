@@ -85,11 +85,11 @@
   .sources select { font: 11.5px ui-monospace, Menlo, monospace; padding: 3px 6px; color: var(--ink);
     background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
   /*
-    User-locked: 75 characters of commit subject plus the hash and the date. Sized in `ch` because that number is a CHARACTER count of monospace text — 8 hash + 2 + 75 subject + 2 + 10 date, rounded up for the select's own chrome. `max-width` keeps a narrow window from overflowing.
+    User-locked: 75 subject characters plus hash and date, sized in `ch`; `max-width` stops overflow.
   */
   #commit { width: 100ch; max-width: 60vw; }
   /*
-    `.jumpbar` shares these three rules because task 285 moved the find widget out of `.sources` and onto the jump bar: the page has three text inputs and three visual treatments would read as three unrelated widgets, so the find box keeps the label/monospace/border/focus treatment it always had rather than gaining one from `.jumpbar`.
+    `.jumpbar` shares these rules since task 285 moved the find box there, so it matches the other inputs.
   */
   .sources label, .jumpbar label { display: inline-flex; align-items: center; gap: 6px;
     font-size: 11.5px; color: var(--muted); }
@@ -110,6 +110,19 @@
     color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
   .legend span { display: inline-flex; align-items: center; gap: 5px; }
   .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+  /*
+    Task 385: the show row mockup; swatches copy the node styles they stand for.
+  */
+  .show-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 7px 16px;
+    font-size: 11px; color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .show-row .show-kind { display: inline-flex; align-items: center; gap: 5px; }
+  .show-row .swatch { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .show-row .sw-commit { background: var(--c-commit); border-radius: 4px; }
+  .show-row .sw-disk { border: 3px double var(--c-disk); background: transparent; }
+  .show-row .sw-snapshot { background: var(--c-snap); }
+  .show-row .sw-created { border: 3px dotted var(--muted); background: transparent; }
+  .show-row .sw-script-run { background: var(--c-script); }
 
   /*
     The build takes ~10 s on a real project, so the page reports it. ponytail: a flow-positioned strip between the legend and the scroll container, NOT an overlay — `main.timelines` is a scroll container, so `position: absolute; inset: 0` would drift out of the viewport the moment the user scrolled. webapp/app-progress.ts is deliberately not reused: its CSS lives in styles.css (which this page never loads) against a disjoint token set (--bg/--panel/--accent vs this page's --page/--surface/--sel-edge), and its cancel button hardcodes `location.hash = "#/"` — meaningless on a page that is not hash-routed.

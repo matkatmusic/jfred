@@ -45,7 +45,7 @@
         <input id="dir" type="text" size="34" value="">
         <button class="pick" data-for="dir">Open…</button></label>
       <!--
-        Tasks 295/296: two lists, one dialog. Each button prints how many folders its list holds, so neither has to be opened to be read. Task 297's button reports whether either has moved since the last save.
+        Tasks 295/296: two lists, one dialog; each button shows its folder count. Task 297 flags unsaved changes.
       -->
       <button id="pick-jsonl">JSONL sources</button>
       <button id="pick-fh">File History Snapshots</button>
@@ -53,7 +53,7 @@
       <span class="savednote" id="saved-note"></span>
     </div>
     <!--
-      Task 256: jump straight to an orphan bucket instead of scrolling the full canvas to find it. `data-bucket` MUST match the heading webapp/layer1-page.ts's renderLayer1View gives that bucket, character for character — layer1-jump-buckets.ts locates the bucket by it.  Task 285: this row now also carries the find-bubble widget. Both are navigation controls — one jumps to a bucket, the other jumps to a named bubble — so they belong on one row instead of the buttons sitting in the header while the find box was buried among the source paths.
+      Task 256: bucket jumps. `data-bucket` MUST match renderLayer1View's bucket heading exactly. Task 285: row also holds the find-bubble widget.
     -->
     <div class="jumpbar">
       <span class="lbl">Jump to:</span>
@@ -86,6 +86,8 @@
     <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
     <button id="load">Load</button>
   </div>
+  <!--
+    Task 385: the Layer 8 show row mockup replaces the static legend; webapp/layer1-show-row.ts fills it per load.
   <div class="legend">
     <span><i style="background:var(--c-commit);border-radius:4px"></i> commit</span>
     <span><i style="border:3px double var(--c-disk);background:transparent"></i> on-disk</span>
@@ -94,6 +96,8 @@
     <span><i style="border:1.5px dashed var(--muted);background:transparent"></i> orphan bucket</span>
     <span><i style="border:1px dashed var(--c-script);background:color-mix(in srgb, var(--c-script) 11%, transparent)"></i> JSONL range</span>
   </div>
+  -->
+  <div class="show-row" id="show-row"></div>
   <!--
     Task 302: sits DIRECTLY above the timeline (user-locked placement), and carries the Cancel that aborts the in-flight build — task 164's confirm pattern, adapted from hash-navigation to an AbortController since this page is not hash-routed.
   -->
