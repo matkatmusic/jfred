@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearDiffWash, hasInstantInRange, paintDiffWash, repaintDiffWash, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
+import { clearDiffWash, hasInstantInRange, paintDiffWash, readNodeInstant, repaintDiffWash, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import type { WireRulerTick } from "../webapp/layer1-wire.ts";
+import type { WireLayer1View, WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";
@@ -69,6 +69,19 @@ test("a file born after the range resolves to undefined", () => {
 test("boundary instants are inclusive on both edges", () => {
     // Steps sitting exactly ON the wash edges belong to the range.
     assert.deepEqual(resolveRangeStepIndexes([T1, T2, T3], T1, T3), { baseIndex: 0, targetIndex: 2 });
+});
+
+test("readNodeInstant returns an edit node's own instant, not the on-disk one", () => {
+    const view: WireLayer1View = {
+        pairs: [{ path: "a.ts", commits: [], onDisk: { instant: T4, axisPx: 0 } }],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [],
+    };
+    const node = document.createElement("i");
+    node.className = "node n-edit";
+    node.dataset.instant = T2;
+    assert.equal(readNodeInstant(view, "a.ts", node), T2);
 });
 
 test("hasInstantInRange is true when at least one instant lands inside the range", () => {

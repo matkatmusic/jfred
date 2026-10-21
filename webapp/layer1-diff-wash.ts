@@ -72,6 +72,9 @@ export function readNodeInstant(view: WireLayer1View, path: string, node: HTMLEl
         return ((pair?.snapshots ?? orphan?.snapshots) ?? []).find((snapshot) =>
             String(snapshot.version) === node.dataset.version && snapshot.sessionId === node.dataset.sessionId)?.instant;
     }
+    if (node.classList.contains("n-edit") || node.classList.contains("n-read")) {
+        return node.dataset.instant;
+    }
     return (pair?.onDisk ?? orphan)?.instant;
 }
 
