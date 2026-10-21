@@ -1,4 +1,4 @@
-// Task 360: a hidden kind leaves the ruler: its events drop from the list, an all-hidden tick hides in place, the jump skips it.
+// Task 360: hidden kinds leave the ruler: events drop, all-hidden ticks hide, jump skips.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +25,7 @@ function buildNode(kindClass: string, label: string): HTMLElement[] {
     return [setAxisPx(el("i", { class: `node ${kindClass}` }), 0), setAxisPx(el("span", { class: "nlabel", text: label }), 0)];
 }
 
-// One bubble holding a node per kind class at the shared instant, plus the one ruler tick standing for them.
+// One bubble: a node per kind at the shared instant, plus its ruler tick.
 function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElement {
     setupLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW);
