@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pause, type HeadlessPage } from "./cdp.ts";
 import { collectOwnerBasenames, type ViewPayload } from "./layer2-payload.ts";
-import { check } from "./mockup-checks.ts";
+import { reportCheck } from "./mockup-checks.ts";
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "out");
 const FADE_WAIT_MS = 3_000;
@@ -56,7 +56,7 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
   const foundRowExists = found !== null;
   const labelEndsWithSnapshot = snapshotLabelPattern.test(found?.snap ?? "");
   const rowListsSnapshot = foundRowExists && labelEndsWithSnapshot;
-  check("#316 an expandable ruler row lists a snapshot as '<file> @vN 📸'", rowListsSnapshot, found);
+  reportCheck("#316 an expandable ruler row lists a snapshot as '<file> @vN 📸'", rowListsSnapshot, found);
   if (found === null) {
     return;
   }
@@ -64,14 +64,14 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
     `[...document.querySelectorAll('.tickfiles button')].find(b => b.textContent.includes('📸')).click()`);
   const flashFile = await readFlashFile(page);
   const selected = await page.evaluate<number>(`document.querySelectorAll('.session-item.selected').length`);
-  check("#303 clicking a snapshot row flashes exactly one JSONL",
+  reportCheck("#303 clicking a snapshot row flashes exactly one JSONL",
     await page.evaluate<number>(`document.querySelectorAll('.session-item.flash').length`) === 1, flashFile);
-  check("#303 the flashed row is a real owning session from the payload",
+  reportCheck("#303 the flashed row is a real owning session from the payload",
     flashFile !== null && collectOwnerBasenames(payload).has(flashFile), flashFile);
-  check("#303 the flash highlights, it does not select (nothing filtered)", selected === 0, selected);
+  reportCheck("#303 the flash highlights, it does not select (nothing filtered)", selected === 0, selected);
   await saveScreenshot(page, "03-ruler-flash");
   await pause(FADE_WAIT_MS);
-  check("#303 the highlight fades out on its own",
+  reportCheck("#303 the highlight fades out on its own",
     await page.evaluate<number>(`document.querySelectorAll('.session-item.flash').length`) === 0);
   await page.evaluate(`document.querySelector('#ruler .tick.expanded')?.click()`);
   await pause(200);
@@ -89,12 +89,12 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
     `({ head: document.getElementById('dpath').textContent,
             meta: document.getElementById('dmeta').textContent,
             body: document.getElementById('dbody').textContent })`);
-  check("#305 the header reads '<file> Snapshot' (with '- <title>' when the session has one)",
+  reportCheck("#305 the header reads '<file> Snapshot' (with '- <title>' when the session has one)",
     /^\S+ Snapshot( - .+)?$/.test(drawer.head), drawer.head);
-  check("#305 the drawer names the owning session",
+  reportCheck("#305 the drawer names the owning session",
     drawer.meta.includes("file-history @v") && drawer.meta.includes(owner), drawer.meta);
-  check("#305 the snapshot's bytes render", drawer.body.trim().length > 0, drawer.body.slice(0, 60));
-  check("#317 clicking a snapshot node flashes its JSONL", await readFlashFile(page) === owner, owner);
+  reportCheck("#305 the snapshot's bytes render", drawer.body.trim().length > 0, drawer.body.slice(0, 60));
+  reportCheck("#317 clicking a snapshot node flashes its JSONL", await readFlashFile(page) === owner, owner);
   await saveScreenshot(page, "04-drawer");
   await pause(FADE_WAIT_MS);
 }

@@ -10,7 +10,7 @@ const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "out");
 export const FADE_WAIT_MS = 3_000;
 
 export const failures: string[] = [];
-export function check(name: string, ok: boolean, detail: unknown = ""): void {
+export function reportCheck(name: string, ok: boolean, detail: unknown = ""): void {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `  -> ${JSON.stringify(detail)}`}`);
   if (!ok) {
     failures.push(name);
@@ -36,10 +36,10 @@ export async function validateChrome(page: HeadlessPage): Promise<void> {
   // Task 352 retired the layer switcher, so its chrome checks are commented out.
   // const buttons = await page.evaluate<string[]>(
   //     `[...document.querySelectorAll('.layerbar button')].map(b => b.textContent)`);
-  // check("#299 the layer row is exactly [1][2]", JSON.stringify(buttons) === '["1","2"]', buttons);
-  // check("#299 nothing is left dimmed as uncomputed",
+  // reportCheck("#299 the layer row is exactly [1][2]", JSON.stringify(buttons) === '["1","2"]', buttons);
+  // reportCheck("#299 nothing is left dimmed as uncomputed",
   //     await page.evaluate<number>(`document.querySelectorAll('.layerbar button.uncomputed').length`) === 0);
-  // check("#299 [2] names file-history snapshots",
+  // reportCheck("#299 [2] names file-history snapshots",
   //     await page.evaluate<string>(`document.querySelector('[data-layer="2"]').title`)
   //         === "Layer 2 adds file-history snapshots");
 }
@@ -65,9 +65,9 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
     if (!rowIsWellFormed)
       everyRowWellFormed = false;
   }
-  check("#306 every row reads sname, then title(s), then the timestamp",
+  reportCheck("#306 every row reads sname, then title(s), then the timestamp",
     everyRowWellFormed, rows.slice(0, 4));
-  check("#306 a titled session leads with its title",
+  reportCheck("#306 a titled session leads with its title",
     rows[0]?.kids[1] === "stitle|seed the demo app", rows[0]?.kids);
   let secondRowTitleCount = 0;
   for (const kid of rows[1]?.kids ?? []) {
@@ -76,21 +76,21 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
       secondRowTitleCount += 1;
   }
   const secondRowHasTwoTitles = secondRowTitleCount === 2;
-  check("#306 a twice-renamed session prints BOTH titles",
+  reportCheck("#306 a twice-renamed session prints BOTH titles",
     secondRowHasTwoTitles, rows[1]?.kids);
-  check("#306 an unnamed session prints no title row at all",
+  reportCheck("#306 an unnamed session prints no title row at all",
     rows[2]?.file === "7ce50a19.jsonl" && rows[2]?.kids.length === 2, rows[2]);
 }
 
 export async function validateScale(page: HeadlessPage): Promise<void> {
   const size = await page.evaluate<{ snaps: number; files: number }>(
     `({ snaps: window.__fixture.SNAPSHOTS.length, files: window.__fixture.DISK.length })`);
-  check("#300 the fixture is big enough to be worth scrolling", size.snaps >= 60 && size.files >= 80, size);
+  reportCheck("#300 the fixture is big enough to be worth scrolling", size.snaps >= 60 && size.files >= 80, size);
   const extent = await page.evaluate<{ w: number; h: number; vw: number; vh: number }>(
     `(p => ({ w: p.scrollWidth, h: p.scrollHeight, vw: p.clientWidth, vh: p.clientHeight }))
          (document.getElementById('timelines'))`);
-  check("#300 the stage scrolls HORIZONTALLY (>3 viewports)", extent.w > extent.vw * 3, extent);
-  check("#300 the stage scrolls VERTICALLY (>3 viewports)", extent.h > extent.vh * 3, extent);
+  reportCheck("#300 the stage scrolls HORIZONTALLY (>3 viewports)", extent.w > extent.vw * 3, extent);
+  reportCheck("#300 the stage scrolls VERTICALLY (>3 viewports)", extent.h > extent.vh * 3, extent);
 }
 
 // Re-checks the fixture's own ordering rules from outside, so a skipped self-check cannot look green.
@@ -108,9 +108,9 @@ export async function validateOrdering(page: HeadlessPage): Promise<void> {
             coTimed: SNAPSHOTS.filter(s => others.has(s.path + '@' + Date.parse(s.at))).length,
         };
     })()`);
-  check("#300 no snapshot pre-dates its file's DISK born", broken.born.length === 0, broken.born);
-  check("#300 no snapshot post-dates its file's on-disk mtime", broken.mtime.length === 0, broken.mtime);
-  check("#302 many snapshots share an instant with a commit or an mtime", broken.coTimed >= 20, broken.coTimed);
-  check("#302 the ruler has many expandable multi-event rows",
+  reportCheck("#300 no snapshot pre-dates its file's DISK born", broken.born.length === 0, broken.born);
+  reportCheck("#300 no snapshot post-dates its file's on-disk mtime", broken.mtime.length === 0, broken.mtime);
+  reportCheck("#302 many snapshots share an instant with a commit or an mtime", broken.coTimed >= 20, broken.coTimed);
+  reportCheck("#302 the ruler has many expandable multi-event rows",
     await page.evaluate<number>(`document.querySelectorAll('.ruler .tick.multi').length`) >= 20);
 }

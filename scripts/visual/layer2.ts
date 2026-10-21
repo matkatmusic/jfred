@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, pause, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import { executeLayer2Checks } from "./layer2-checks.ts";
 import { countExpectedSnapshots, type ViewPayload } from "./layer2-payload.ts";
-import { check, failures } from "./mockup-checks.ts";
+import { reportCheck, failures } from "./mockup-checks.ts";
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DEMO_DIR = join(JFRED_ROOT, "demo");
@@ -79,7 +79,7 @@ async function executeMain(): Promise<void> {
   try {
     const payload = await fetchViewPayload(port);
     const snapTotal = countExpectedSnapshots(payload);
-    check("#318 the demo fixture ships file-history snapshots to verify against", snapTotal > 0, snapTotal);
+    reportCheck("#318 the demo fixture ships file-history snapshots to verify against", snapTotal > 0, snapTotal);
     await executeDriveAndCheck(port, payload);
   }
   finally {

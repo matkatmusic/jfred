@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import {
   // RENDER_SIGNATURE (task 352: only the retired 1 -> 2 -> 1 check used it)
-  check, validateChrome, validateNavRows, validateOrdering,
+  reportCheck, validateChrome, validateNavRows, validateOrdering,
   validateScale, failures, buildShapeProbe, saveScreenshot,
 } from "./mockup-checks.ts";
 import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
@@ -30,9 +30,9 @@ const VIEWPORT_HEIGHT = 1000;
 async function openLayer2(page: HeadlessPage): Promise<void> {
   // await page.evaluate(`${LAYER_BUTTON(2)}.click()`);
   await page.waitFor(`document.querySelectorAll('.n-snap').length > 0`, 10_000);
-  // check("#304 the h1 reads the selected layer",
+  // reportCheck("#304 the h1 reads the selected layer",
   //     await page.evaluate<string>(`document.getElementById('layer-h1').textContent`) === "Layer 2 View");
-  // check("#304 [2] carries .current and [1] does not", await page.evaluate<boolean>(CURRENT_ONLY_ON_2));
+  // reportCheck("#304 [2] carries .current and [1] does not", await page.evaluate<boolean>(CURRENT_ONLY_ON_2));
 }
 
 async function executeChecks(page: HeadlessPage): Promise<void> {
@@ -42,7 +42,7 @@ async function executeChecks(page: HeadlessPage): Promise<void> {
   const indexAnchor = await page.evaluate<string>(
     `document.querySelector('[data-path="src/index.ts"]').dataset.instant`);
   const readmeAtLayer1 = await page.evaluate<string>(buildShapeProbe("README.md"));
-  // check("#304 Layer 1 draws no snapshot node",
+  // reportCheck("#304 Layer 1 draws no snapshot node",
   //     await page.evaluate<number>(`document.querySelectorAll('.n-snap').length`) === 0);
   await saveScreenshot(page, "01-layer1");
 
@@ -51,7 +51,7 @@ async function executeChecks(page: HeadlessPage): Promise<void> {
   await validateOrdering(page);
   await validateSnapshotNodes(page, indexAnchor);
   // Its axis OFFSET may move (#251), but its own anchor and node rows must not.
-  check("#304 a file with NO snapshots renders exactly as at Layer 1",
+  reportCheck("#304 a file with NO snapshots renders exactly as at Layer 1",
     await page.evaluate<string>(buildShapeProbe("README.md")) === readmeAtLayer1, readmeAtLayer1);
   await saveScreenshot(page, "02-layer2");
 
@@ -73,7 +73,7 @@ async function executeChecks(page: HeadlessPage): Promise<void> {
 
   await page.evaluate(`document.getElementById('dclose').click()`);
   // await page.waitFor(`document.querySelectorAll('.n-snap').length === 0`, 10_000);
-  // check("#304 1 -> 2 -> 1 lands back exactly where it started",
+  // reportCheck("#304 1 -> 2 -> 1 lands back exactly where it started",
   //     await page.evaluate<string>(RENDER_SIGNATURE) === layer1);
 }
 

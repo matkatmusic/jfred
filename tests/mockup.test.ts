@@ -1,11 +1,11 @@
-// Capture-free tests for the Layer 2 mockup checker. No Chrome, no server — these cover the pure pieces (the tally and the probe builders) so a typo in a selector shows up in `npm test`.
+// Capture-free tests for the Layer 2 mockup checker: the tally and the probe builders.
 
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { RENDER_SIGNATURE, check, failures, buildShapeProbe } from "../scripts/visual/mockup-checks.ts";
+import { RENDER_SIGNATURE, reportCheck, failures, buildShapeProbe } from "../scripts/visual/mockup-checks.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MOCKUP_DIR = join(HERE, "../../plans/layer2-mockup");
@@ -13,9 +13,9 @@ const read = (name: string) => readFileSync(join(MOCKUP_DIR, name), "utf8");
 
 test("check records only the failures", () => {
     const before = failures.length;
-    check("a passing one", true);
+    reportCheck("a passing one", true);
     assert.equal(failures.length, before);
-    check("a failing one", false);
+    reportCheck("a failing one", false);
     assert.deepEqual(failures.slice(before), ["a failing one"]);
     failures.length = before;
 });
@@ -45,7 +45,7 @@ test("the fixture exports what app.js imports", () => {
     }
 });
 
-// The rule the user caught twice by eye. The fixture throws on load if it breaks, but that only helps someone who opens the page — this fails the suite instead.
+// The fixture throws on load if this breaks; this test fails the suite instead.
 test("every snapshot sits between its file's born and its mtime", async () => {
     const { DISK, SNAPSHOTS, ms } = await import(join(MOCKUP_DIR, "fixture.js"));
     for (const snapshot of SNAPSHOTS) {

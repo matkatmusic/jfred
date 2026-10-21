@@ -1,4 +1,4 @@
-// scripts/visual/layer2.ts runs the whole browser flow at import (top-level await, no exports), so it cannot be imported here. These cover the pure payload helpers it feeds on.
+// layer2.ts cannot be imported (top-level await); these test the payload helpers it uses.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
