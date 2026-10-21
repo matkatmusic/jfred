@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // The pair's on-disk state, placed BEFORE either commit — the inverted case. A real 40-character hash, matching tests/layer1-page.test.ts: a short fake would pass a broken truncation unchanged.
@@ -31,7 +31,7 @@ async function loadPageWithView(view: object): Promise<void> {
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 function listMatching(selector: string): HTMLElement[] {

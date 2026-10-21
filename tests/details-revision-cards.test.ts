@@ -1,8 +1,8 @@
-// DOM tests for buildMissingRevisionCard (tasks 129 + 130): the unrecoverable placeholder card says which revision (of how many) failed to apply which operation, keeps the raw engine error reachable as the hover title, and carries ONLY the jump + { } actions (content/export/patch would lie for a carried-forward placeholder).
+// Tasks 129 and 130: the missing-revision placeholder card names the failed operation and offers only jump and { }.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 import type { DetailsContext, RevisionCard } from "../webapp/views/details-model.ts";
 
 const RAW_ENGINE_ERROR = "TypeError: hunk.lines is not iterable";
@@ -27,10 +27,9 @@ function buildStubContext(openedChangeIds: string[], selectedRows: number[]): De
     } as unknown as DetailsContext;
 }
 
-// Boot a fresh DOM and build one unrecoverable card through the real builder. The dynamic
-// import keeps the webapp module load AFTER the happy-dom globals exist (task-122 pattern).
+// Boot a fresh DOM and build one unrecoverable card through the real builder. The dynamic import keeps the webapp module load AFTER the happy-dom globals exist (task-122 pattern).
 async function buildMissingCardInFreshDom(openedChangeIds: string[], selectedRows: number[]): Promise<HTMLElement> {
-    setupWebappDom();
+    initWebappDom();
     const { buildMissingRevisionCard } = await import("../webapp/views/details-revision-cards.ts");
     const buildActionButton = (text: string, onActivate: () => unknown): HTMLElement => {
         const button = document.createElement("button");

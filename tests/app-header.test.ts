@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The dynamic import keeps every webapp module load AFTER the globals exist.
 async function initializeHeaderInFreshDom(): Promise<void> {
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [{ name: "proj-a" }, { name: "proj-b" }],
@@ -39,7 +39,7 @@ test("test_projects_button_opens_menu_and_document_click_closes_it", async () =>
     getRequiredElementById("projects-btn").click();
     assert.equal(projectsMenu.hidden, false);
     // the fire-and-forget populate settles: one .menu-item per stubbed project, in order.
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const menuItems = [...projectsMenu.querySelectorAll(".menu-item")];
     assert.deepEqual(menuItems.map((item) => item.textContent), ["proj-a", "proj-b"]);
     // a plain document-level click closes both popovers.
@@ -91,7 +91,7 @@ test("test_apply_posts_empty_file_history_while_fields_hidden", async () => {
     const recordedCalls = recordFetchCalls();
     // apply the folder change.
     getRequiredElementById("projects-dir-change").click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // the POST body carries the empty derive marker, not the hidden text.
     assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "");
 });
@@ -104,64 +104,9 @@ test("test_apply_posts_edited_file_history_when_fields_shown", async () => {
     const recordedCalls = recordFetchCalls();
     // apply the folder change.
     getRequiredElementById("projects-dir-change").click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // the POST body carries the edited override.
     assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "/tmp/custom-history");
-});
-
-// task 153: an UNEDITED prefill must never ride the GLOBAL "Change folder" POST as an explicit override.
-
-test("test_prefill_with_override_shows_fields_and_fills_value", async () => {
-    // Scenario (task 153): prefilling with a stored per-project override unhides the task-136 fields and fills the input with the override.  Steps: boot the DOM and run initializeHeader (reported derived dir = /tmp/file-history).
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    // prefill with a stored per-project override.
-    prefillFileHistoryOverrideField("/overrides/fh");
-    // the fields are visible and carry the override.
-    assert.equal(getRequiredElementById("file-history-fields").hidden, false);
-    assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/overrides/fh");
-    // clear the prefill so the module state ends in the derived state for later tests.
-    prefillFileHistoryOverrideField(undefined);
-});
-
-test("test_prefill_without_override_restores_derived_state_after_a_prefill", async () => {
-    // Scenario (task 153): a project WITHOUT a stored override restores the derived state, so a prior project's prefill never leaks into the next project's popover.  Steps: boot the DOM, prefill for a project with a stored override...
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    prefillFileHistoryOverrideField("/overrides/fh");
-    // ...then refresh for a project with no stored override.
-    prefillFileHistoryOverrideField(undefined);
-    // the fields hide again and the input shows the server-reported derived dir.
-    assert.equal(getRequiredElementById("file-history-fields").hidden, true);
-    assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/tmp/file-history");
-});
-
-test("test_prefill_without_override_leaves_manual_gesture_alone", async () => {
-    // Scenario (task 153): with NO prefill active, the no-override call must not clobber the user's manual task-136 explicit-override gesture (fields toggled open, value typed).  Steps: boot the DOM, open the fields via the toggle and type a value — no prefill anywhere.
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    getRequiredElementById("file-history-toggle").click();
-    (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/typed/by/user";
-    // a no-override refresh runs (popover opened on a project without a stored entry).
-    prefillFileHistoryOverrideField(undefined);
-    // the manual gesture survives untouched.
-    assert.equal(getRequiredElementById("file-history-fields").hidden, false);
-    assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/typed/by/user");
-});
-
-test("test_apply_posts_empty_file_history_when_value_is_unedited_prefill", async () => {
-    // Scenario (task 153): an UNEDITED prefilled per-project override posts "" (= re-derive) through the GLOBAL "Change folder" button — it must not silently become a global override.  Steps: boot the DOM and prefill the per-project override.
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    prefillFileHistoryOverrideField("/overrides/fh");
-    const recordedCalls = recordFetchCalls();
-    // apply the GLOBAL folder change with the prefill untouched.
-    getRequiredElementById("projects-dir-change").click();
-    await flushAsyncWork();
-    // the POST body carries the empty derive marker, not the per-project override.
-    assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "");
-    // clear the prefill so the module state ends in the derived state.
-    prefillFileHistoryOverrideField(undefined);
 });
 
 test("test_paths_popover_stays_open_on_inside_click", async () => {

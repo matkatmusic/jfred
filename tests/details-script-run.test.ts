@@ -1,8 +1,8 @@
-// Script-run Details per-file selection (task 144): the left column lists the run's changed files; clicking one shows JUST that file's before/after diff on the right — the rev-card list -> selected-diff pattern, replacing the old all-files stack.
+// Task 144: a script-run's Details list its changed files and show one file's diff per click.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom, flushAsyncWork } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
 // One diff response per /api/diff call, watermarked with the requested file so the test can assert WHICH file's diff the right pane shows. Served through a hand-rolled fetch (the shared stubFetchRoutes helper serves JSON; fetchRevisionDiffBlocks reads text()).
 function stubDiffFetchByFile(): void {
@@ -39,7 +39,7 @@ const runDocument = {
 
 // Render the script-run mode against a fresh DOM; returns the mode's inputs for assertions.
 async function renderScriptRunPane(): Promise<void> {
-    setupWebappDom();
+    initWebappDom();
     stubDiffFetchByFile();
     const { renderDetailsScriptRunMode } = await import("../webapp/views/details-script-run.ts");
     const node = {
@@ -63,7 +63,7 @@ async function renderScriptRunPane(): Promise<void> {
     };
     // eslint-style casts through unknown: the test builds only the fields the mode reads.
     await renderDetailsScriptRunMode(node as never, 0, context as never);
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 function collectFileButtons(): HTMLButtonElement[] {
@@ -93,7 +93,7 @@ test("test_clicking_a_file_button_swaps_the_diff_to_that_file", async () => {
     await renderScriptRunPane();
     const buttons = collectFileButtons();
     buttons[1]!.click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const body = document.getElementById("details-right-body")!;
     assert.ok(body.textContent!.includes("core_two.py"));
     assert.ok(!body.textContent!.includes("core_one.py"));

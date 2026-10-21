@@ -42,7 +42,7 @@ function readIndexHtmlBodyMarkup(): string {
 }
 
 // Safe to call once per test: each call replaces every global, so stale listeners resolve against an abandoned document.
-export function setupWebappDom(): void {
+export function initWebappDom(): void {
   // Port 7343 matches the real viewer server default so location.origin looks authentic.
   const browserWindow = new Window({ url: "http://localhost:7343/" });
   Object.assign(globalThis, {
@@ -131,7 +131,7 @@ export function initDebugDom(search: string = ""): void {
 }
 
 // Let fire-and-forget promise chains settle: three macrotask turns cover fetch, json, and completion handler steps.
-export async function flushAsyncWork(): Promise<void> {
+export async function waitForAsyncWork(): Promise<void> {
   for (let turn = 0; turn < 3; turn++) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }

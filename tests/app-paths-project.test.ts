@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const FIRST_COMMIT_HASH = "a".repeat(40);
@@ -23,7 +23,7 @@ function getRequiredElementById(id: string): HTMLElement {
 
 test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     // Scenario (task 137): with a repo path in the field, "Pick commit…" fetches the repo's commits and renders a scrollable pick list; clicking a row fills the base-commit field and fetches the path-match counts, whose poor ratio renders the soft warning.  Steps: boot a fresh DOM, stub the three routes the section touches, refresh it for a project.
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },
         "/api/repo-commits": [
@@ -39,7 +39,7 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     assert.equal((getRequiredElementById("repo-dir-input") as HTMLInputElement).value, "/repos/p");
     // clicking Pick commit… renders one row per commit, newest first.
     getRequiredElementById("pick-commit-btn").click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const pickList = getRequiredElementById("commit-pick-list");
     assert.equal(pickList.hidden, false);
     const rows = [...pickList.querySelectorAll(".commit-pick-row")];
@@ -50,7 +50,7 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     assert.ok(rows[0]!.textContent!.includes("newest change"));
     // picking the first row fills the base-commit field with the FULL hash and hides the list.
     (rows[0] as HTMLElement).click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal((getRequiredElementById("base-commit-display") as HTMLInputElement).value, FIRST_COMMIT_HASH);
     assert.equal(pickList.hidden, true);
     // 1 of 4 recorded paths matching is a poor ratio — the soft warning names the counts.
@@ -60,7 +60,7 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
 
 test("test_refresh_prefills_file_history_field_from_stored_override", async () => {
     // Scenario (task 153): a stored per-project fileHistory entry surfaces in the task-136 field when the section refreshes; a project without one restores the derived state so the prior project's prefill never leaks.  Steps: boot a fresh DOM and refresh for a project whose stored entry carries a fileHistory dir.
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({ "/api/project-paths": { repo: "/repos/p", fileHistory: "/stored/fh" } });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
@@ -76,7 +76,7 @@ test("test_refresh_prefills_file_history_field_from_stored_override", async () =
 
 test("test_commit_pick_filter_narrows_rows", async () => {
     // Scenario (task 154): typing in the filter box narrows the pick list to matching rows (hash, date, or subject, case-insensitive); clearing it restores all rows.  Steps: boot a fresh DOM, stub routes, refresh the section, open the pick list.
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },
         "/api/repo-commits": [
@@ -88,7 +88,7 @@ test("test_commit_pick_filter_narrows_rows", async () => {
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
     getRequiredElementById("pick-commit-btn").click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // opening the list also unhides the filter box, empty.
     const filterInput = getRequiredElementById("commit-pick-filter") as HTMLInputElement;
     assert.equal(filterInput.hidden, false);
@@ -109,7 +109,7 @@ test("test_commit_pick_filter_narrows_rows", async () => {
     filterInput.value = "older";
     dispatchInputEvent(filterInput);
     ([...pickList.querySelectorAll(".commit-pick-row")][0] as HTMLElement).click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(pickList.hidden, true);
     assert.equal(filterInput.hidden, true);
     assert.equal((getRequiredElementById("base-commit-display") as HTMLInputElement).value, SECOND_COMMIT_HASH);

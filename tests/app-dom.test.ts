@@ -2,11 +2,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
 test("test_el_builds_element_with_class_text_listener_and_children", async () => {
     // Scenario: el() maps class/text to properties, on* to listeners, everything else to attributes, and appends children in order.
-    setupWebappDom();
+    initWebappDom();
     const { el } = await import("../webapp/app-dom.ts");
     let clickCount = 0;
     const child = el("span", { text: "inner" });
@@ -21,7 +21,7 @@ test("test_el_builds_element_with_class_text_listener_and_children", async () =>
 
 test("test_getInputById_resolves_input_elements_by_id", async () => {
     // Scenario (task 159): getInputById resolves an index.html input whose value round-trips.
-    setupWebappDom();
+    initWebappDom();
     const { getInputById } = await import("../webapp/app-dom.ts");
     const input = getInputById("projects-dir-input");
     input.value = "/tmp/somewhere";

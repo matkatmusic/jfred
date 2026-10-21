@@ -1,10 +1,8 @@
-// The Layer 1 page's three header source boxes and their folder pickers (webapp/layer1-sources.ts), split out of layer1-page.ts when that file reached the enforced 250-line ceiling.
-//
-// These three exports are what makes ?dir=&repo=&ref= a working shareable link, so they are tested against the REAL layer1.html markup (setupLayer1Dom reads the file) rather than a hand-built form — a renamed id or a dropped `data-for` is exactly the regression that would otherwise ship silent.
+// The Layer 1 header source boxes and folder pickers, tested against the real layer1.html markup.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "../webapp/layer1-sources.ts";
 
 function readBoxValue(id: string): string {
@@ -45,10 +43,7 @@ test("test_a_blank_or_whitespace_box_contributes_no_param", () => {
 });
 
 test("test_an_unseeded_box_keeps_whatever_the_user_typed", () => {
-    // Scenario: fillSourceBoxesFromUrl runs on every boot, including after a pick. A param the URL
-    // does NOT carry must leave its box alone — clearing it would wipe a folder the user just chose.
-    // Steps:
-    // type into all three boxes, then open on a link that names only dir.
+    // Scenario: fillSourceBoxesFromUrl runs on every boot, including after a pick. A param the URL does NOT carry must leave its box alone — clearing it would wipe a folder the user just chose.  Steps: type into all three boxes, then open on a link that names only dir.
     setupLayer1Dom("?dir=/w/from-url");
     writeBoxValue("dir", "/w/typed");
     writeBoxValue("repo", "/w/kept-repo");
@@ -70,7 +65,7 @@ test("test_a_picked_folder_lands_in_its_own_box_and_redraws_once", async () => {
     });
     // click the REPO picker specifically.
     (document.querySelector('button.pick[data-for="repo"]') as HTMLButtonElement).click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // the picked path landed in repo, dir was untouched, and the view was asked to redraw once.
     assert.equal(readBoxValue("repo"), "/w/picked-repo");
     assert.equal(readBoxValue("dir"), "");
@@ -85,6 +80,6 @@ test("test_a_cancelled_pick_leaves_the_box_alone", async () => {
     wireFolderPickers(() => {});
     (document.querySelector('button.pick[data-for="dir"]') as HTMLButtonElement).click();
     // WITHOUT this the pick has not resolved yet and the assertion below proves nothing.
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(readBoxValue("dir"), "/w/already-chosen");
 });

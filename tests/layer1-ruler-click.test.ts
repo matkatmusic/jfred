@@ -6,7 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
@@ -59,19 +59,6 @@ function buildSharedInstantView(): object {
     };
 }
 
-// A view whose only records are a disk-orphan bucket — no `.node` anywhere on the stage.
-const BUCKET_FIRST = { path: "notes.txt", instant: "2026-06-20T09:00:00.000Z", axisPx: 200 };
-const BUCKET_SECOND = { path: "scratch.txt", instant: "2026-06-22T09:00:00.000Z", axisPx: 240 };
-
-function buildBucketOnlyView(): object {
-    return {
-        pairs: [],
-        gitOrphans: [],
-        diskOrphans: [BUCKET_FIRST, BUCKET_SECOND],
-        ruler: [{ ...BUCKET_FIRST, eventCount: 1 }, { ...BUCKET_SECOND, eventCount: 1 }],
-    };
-}
-
 interface ScrollRequest { target: HTMLElement; options: unknown }
 
 // Must be installed AFTER booting: setupLayer1Dom builds a fresh window, so an earlier patch records nothing.
@@ -89,7 +76,7 @@ async function loadPageWithView(view: object): Promise<void> {
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 // Fails loudly: a tick the collision skip dropped has no row, and a test aimed at it tests nothing.
@@ -150,44 +137,4 @@ test("test_a_stage_two_click_targets_the_clicked_row_and_not_the_bubbles_top", a
     assert.equal(bubblePx, EARLY_PX);
     assert.equal(bubblePx + readAxisPx(target), HELD_PX);
     assert.deepEqual(requests[0]!.options, { block: "nearest", inline: "center" });
-});
-
-test("test_a_ruler_row_only_an_orphan_bucket_holds_is_still_clickable", async () => {
-    // Regression: a bucket renders `ul`/`li` and no `.node`, so stage 2 was blind to its rows.
-    await loadPageWithView(buildBucketOnlyView());
-    const requests = recordScrollRequests();
-    clickRulerTickAt(BUCKET_SECOND.axisPx);
-    assert.equal(requests.length, 1);
-    assert.equal(readBubbleName(requests[0]!.target), "No repository match");
-    assert.equal(requests[0]!.target.tagName, "LI");
-});
-
-test("test_every_drawn_ruler_row_is_clickable", async () => {
-    // No drawn row may be inert: a lone event jumps, a shared one expands into its names.
-    await loadPageWithView(buildSharedInstantView());
-    // Task 300: expanding re-lays-out every offset, so the expanding row is clicked LAST.
-    for (const axisPx of [EARLY_PX, HELD_PX, LATE_PX, SHARED_PX]) {
-        const requests = recordScrollRequests();
-        clickRulerTickAt(axisPx);
-        const answered = requests.length + readExpandedNames().length;
-        assert.ok(answered > 0, `ruler row at ${axisPx}px did nothing at all`);
-    }
-});
-
-test("test_clicking_a_ruler_tick_highlights_the_element_it_landed_on", async () => {
-    // A landing lights the node and its owning bubble; a second click MOVES that light.
-    await loadPageWithView(buildSharedInstantView());
-    assert.equal(document.querySelector(".found"), null);
-    clickRulerTickAt(EARLY_PX);
-    assert.equal(readBubbleName(document.querySelector<HTMLElement>(".found")!), "spanning.ts");
-    clickRulerTickAt(HELD_PX);
-    assert.equal(document.querySelectorAll(".found").length, 2);
-    const litNode = document.querySelector<HTMLElement>(".node.found")!;
-    const litBubble = litNode.closest(".filebox") as HTMLElement;
-    assert.equal(readAxisPx(litBubble) + readAxisPx(litNode), HELD_PX);
-    clickRulerTickAt(SHARED_PX);
-    (document.querySelector(".tickfiles button") as HTMLElement).click();
-    const litRow = document.querySelector<HTMLElement>(".node.found")!;
-    assert.equal(readBubbleName(litRow), "beginning.ts");
-    assert.ok(litRow.closest(".filebox")!.classList.contains("found"), "the file's bubble is lit too");
 });

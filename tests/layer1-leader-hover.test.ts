@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // One placed moment as the endpoint ships it: absolute ruler offsets, no time arithmetic anywhere.
@@ -77,7 +77,7 @@ async function loadPageWithView(view: object): Promise<void> {
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 // The dashed line drawn for one absolute offset. Fails loudly rather than returning undefined: a test aimed at a line the render never produced is testing nothing.

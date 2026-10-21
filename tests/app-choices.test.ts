@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { storeModeChoice, getModeChoice, clearModeChoice, reconcileServerBootId } from "../webapp/app-choices.ts";
 
-setupWebappDom();
+initWebappDom();
 
 test("mode_choice_round_trips_full_and_bounded", () => {
     clearModeChoice("proj-a");

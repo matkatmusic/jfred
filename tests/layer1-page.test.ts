@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
@@ -50,23 +50,13 @@ function buildPartialOverlapView(): object {
     return { pairs: [pair], gitOrphans: [GIT_ORPHAN], diskOrphans: [DISK_ORPHAN], ruler: RULER };
 }
 
-// S18's unrelated-repo case: zero pairs, one EMPTY bucket beside one populated one.
-function buildDiskOnlyView(): object {
-    return {
-        pairs: [],
-        gitOrphans: [],
-        diskOrphans: [DISK_ORPHAN],
-        ruler: [countOneEventAt(DISK_ORPHAN)],
-    };
-}
-
 // bootLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
 async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
     setupLayer1Dom(search);
     stubStreamRoute("/api/layer1-view", [...progressLines, view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 // No ref, which the endpoint reads as the active branch.
@@ -82,10 +72,6 @@ function listMatching(selector: string): HTMLElement[] {
 
 function listTextOf(root: HTMLElement, selector: string): (string | null)[] {
     return [...root.querySelectorAll(selector)].map((node) => node.textContent);
-}
-
-function readBoxValue(id: string): string {
-    return (document.getElementById(id) as HTMLInputElement).value;
 }
 
 // Matching on NAME rather than position or size stops an inverted gitOrphans/diskOrphans binding from slipping through on shape.
@@ -141,41 +127,4 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     assert.equal(name.hasAttribute("title"), false);
     // A bucket heading has no data-path, proving the attribute landed only on the pair widget's name element.
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
-});
-
-test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {
-    // The two orphan sets mirror each other, so only checking WHICH path lands in WHICH bucket catches a swapped binding.
-    await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
-    assert.equal(listMatching("#stage .filebox.bucket").length, 2);
-    const gitBucket = findBucketTitled("No on-disk match")!;
-    assert.deepEqual(listTextOf(gitBucket, "li span"), [GIT_ORPHAN.path]);
-    assert.equal(readAxisOffsetPx(gitBucket), GIT_ORPHAN.axisPx);
-    const diskBucket = findBucketTitled("No repository match")!;
-    assert.deepEqual(listTextOf(diskBucket, "li span"), [DISK_ORPHAN.path]);
-    assert.equal(readAxisOffsetPx(diskBucket), DISK_ORPHAN.axisPx);
-    // Task 276: seconds and hundredths are required, since minute precision made distinct instants render as identical, duplicate-looking text.
-    assert.deepEqual(listTextOf(diskBucket, "li em"), ["07-23 19:40:00.000"]);
-});
-
-test("test_empty_bucket_is_omitted_and_zero_pairs_shows_the_no_pairs_message", async () => {
-    // A view sharing no path must still draw the ruler and the populated bucket, not just a message.
-    await loadPageWithView(buildDiskOnlyView(), BOTH_ROOTS_SEARCH);
-    assert.equal(listMatching("#stage .filebox:not(.bucket)").length, 0);
-    assert.equal(document.querySelector("#stage .nopairs")?.textContent, "No git ↔ on-disk pairs.");
-    assert.equal(listMatching("#ruler .tick").length, 1);
-    // The survivor must be the NON-EMPTY DIRECTION, not merely "a bucket".
-    const buckets = listMatching("#stage .filebox.bucket");
-    assert.equal(buckets.length, 1);
-    assert.equal(buckets[0]?.querySelector(".fname")?.textContent, "No repository match");
-    assert.equal(findBucketTitled("No on-disk match"), undefined);
-});
-
-test("test_the_url_query_seeds_the_header_boxes_and_a_load_mirrors_them_back", async () => {
-    // All three inputs round-trip through the query so a view is one shareable link.
-    await loadPageWithView(buildPartialOverlapView(), "?dir=%2Fw%2Fproj&repo=%2Fw%2Frepo&ref=main");
-    assert.equal(readBoxValue("dir"), "/w/proj");
-    assert.equal(readBoxValue("repo"), "/w/repo");
-    assert.equal(readBoxValue("ref"), "main");
-    const mirrored = new URLSearchParams(location.search);
-    assert.deepEqual([...mirrored], [["dir", "/w/proj"], ["repo", "/w/repo"], ["ref", "main"]]);
 });

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, initLayeredDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayeredDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Task 239/S18: fixture states finished ruler offsets directly instead of re-deriving the cap; see viewer_api_layered.test.ts.
@@ -58,7 +58,7 @@ test("test_file_widgets_are_offset_in_history_start_instant_order", async () => 
     stubFetchRoutes({ "/api/layered-graph": buildTwoFileTwoSessionGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const widgets = listRenderedWidgets();
     assert.equal(widgets.length, 2);
     assert.equal(widgets[0]?.querySelector(".layered-file-name")?.textContent, "/w/older.py");
@@ -74,7 +74,7 @@ test("test_dashed_lines_are_drawn_exactly_at_corroborated_instants", async () =>
     stubFetchRoutes({ "/api/layered-graph": buildCorroboratedGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const [olderWidget, newerWidget] = listRenderedWidgets();
     const lines = [...olderWidget!.querySelectorAll(".layered-corroboration")] as HTMLElement[];
     assert.deepEqual(lines.map(readAxisOffsetPx), [5]);
@@ -88,7 +88,7 @@ test("test_file_widget_holds_one_lane_per_observing_session", async () => {
     stubFetchRoutes({ "/api/layered-graph": buildTwoFileTwoSessionGraph() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const [olderWidget, newerWidget] = listRenderedWidgets();
     const olderLanes = [...olderWidget!.querySelectorAll(".layered-lane")] as HTMLElement[];
     assert.deepEqual(olderLanes.map((lane) => lane.dataset.session), ["a.jsonl", "b.jsonl"]);

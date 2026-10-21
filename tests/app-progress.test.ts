@@ -1,12 +1,12 @@
-// DOM tests for webapp/app-progress.ts (task 164): the loading overlay is scoped to the timeline pane (the console stays usable underneath) and carries a Cancel button whose in-DOM confirm navigates back to the project picker. Runs against a happy-dom window carrying the real index.html markup (webapp-dom-test-helpers.ts installs the globals).
+// DOM tests for the timeline-scoped loading overlay and its Cancel button (task 164).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
 // Boot a fresh DOM and show the overlay once. The dynamic import keeps the webapp module load AFTER the happy-dom globals exist; each test calls hideLoadingProgress in its finally so the module-level singleton resets and the next test builds fresh elements in its own document.
 async function showProgressInFreshDom(): Promise<typeof import("../webapp/app-progress.ts")> {
-    setupWebappDom();
+    initWebappDom();
     const progressModule = await import("../webapp/app-progress.ts");
     progressModule.showLoadingProgress("constructing branches", Number.NaN);
     return progressModule;

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // `eventCount` is task 275's per-instant count. Not optional: layer1-ruler-rows.ts refuses a ruler entry without one (the count is printed in every row), so a fixture missing it fails the whole load with "ruler entry ... carries no event count" and the page draws nothing at all.
@@ -41,7 +41,7 @@ async function loadPageWithView(view: object): Promise<void> {
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
 }
 
 function listMatching(selector: string): HTMLElement[] {

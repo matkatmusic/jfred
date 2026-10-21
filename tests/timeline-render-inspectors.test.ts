@@ -1,12 +1,12 @@
-// Tests for webapp/views/timeline-render-inspectors.ts (task 258): every timeline inspector open routes through openTranscriptInspectorSynced, and that wrapper must re-center the clicked row AFTER the Details pane is revealed — the reveal shrinks the timeline pane, so a pre-open centering would aim at a split that no longer exists.
+// Task 258: the inspector open re-centers the clicked row after the Details pane is revealed.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
 test("test_opening_the_inspector_recenters_the_selected_row_against_the_post_reveal_split", async () => {
     // Scenario (task 258): a row is selected and its { } button opens the transcript inspector.  The open reveals #inspector (shrinking the timeline), so the row is re-centered afterwards.  Steps: boot the DOM globals the webapp module graph expects, then import the module.
-    setupWebappDom();
+    initWebappDom();
     const { openTranscriptInspectorSynced } = await import("../webapp/views/timeline-render-inspectors.ts");
     // the Details pane starts hidden, exactly as it is before the first inspector open.
     const pane = document.getElementById("inspector")!;
@@ -31,7 +31,7 @@ test("test_opening_the_inspector_recenters_the_selected_row_against_the_post_rev
 
 test("test_the_recenter_is_a_bare_scroll_and_never_reopens_the_selection", async () => {
     // Scenario (task 258): the details pane calls this opener while rendering, so re-selecting the row here would loop. The wrapper must therefore touch nothing but scroll position.  Steps:
-    setupWebappDom();
+    initWebappDom();
     const { openTranscriptInspectorSynced } = await import("../webapp/views/timeline-render-inspectors.ts");
     const row = document.createElement("div");
     row.classList.add("selected");

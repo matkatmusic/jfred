@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { readLayer1ViewStream } from "../webapp/layer1-progress.ts";
 
@@ -46,7 +46,7 @@ test("test_the_progress_bar_shows_while_the_view_streams_and_hides_when_it_ends"
     assert.equal(checkLoadbarIsHidden(), false);
     assert.equal(readLoadbarLabel(), "starting");
     // once the stream ends the view is drawn and the strip is hidden again.
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(checkLoadbarIsHidden(), true);
     assert.equal(readCrumbText(), "0 pairs · 0 repo-only · 0 disk-only");
 });
@@ -85,14 +85,14 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
     setupLayer1Dom(BOTH_ROOTS_SEARCH);
     stubHangingViewRoute();
     bootLayer1Page();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(checkLoadbarIsHidden(), false);
     document.getElementById("loadbar-cancel")!.click();
     // the confirm row replaced the button, task-164 style...
     assert.equal(document.getElementById("loadbar-cancel")!.hasAttribute("hidden"), true);
     assert.equal(document.getElementById("loadbar-confirm")!.hasAttribute("hidden"), false);
     document.getElementById("loadbar-confirm-yes")!.click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // ...and the abort is a clean stop: plain crumb, hidden strip, empty stage.
     assert.equal(readCrumbText(), "load cancelled");
     assert.equal(checkLoadbarIsHidden(), true);
@@ -102,7 +102,7 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
 test("test_a_terminal_error_line_lands_in_the_crumb_and_clears_the_bar", async () => {
     // Scenario (step 4c): a bad ref refuses AFTER 200, so its error line lands in the crumb.
     openPageStreaming([{ kind: "error", label: "unknown ref: nope" }]);
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(readCrumbText(), "Error: unknown ref: nope");
     assert.equal(checkLoadbarIsHidden(), true);
 });

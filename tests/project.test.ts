@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const MANY_JSONLS = Array.from({ length: 40 }, (_, index) => ({
@@ -13,7 +13,7 @@ const MANY_JSONLS = Array.from({ length: 40 }, (_, index) => ({
 }));
 
 test("test_drawer_caps_jsonl_list_and_keeps_file_tree_outside_it", async () => {
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({ "/api/projects": [{ name: "proj-185", jsonlFiles: MANY_JSONLS }] });
     const { documentCache } = await import("../webapp/app-fetch.ts");
     documentCache.set("proj-185|*", {

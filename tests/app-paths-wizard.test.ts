@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const TIP_COMMIT_HASH = "c".repeat(40);
@@ -33,7 +33,7 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
 
 // Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap (fills the folder inputs), and wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [],
@@ -113,7 +113,7 @@ test("test_full_project_run_finish_stores_mirror_and_posts_preBaseline", async (
     assert.equal(getRequiredElementById("wizard-screen-4").hidden, false);
     // no stored base commit → the Default radio is preselected and the tip label resolves.
     assert.equal(getInput("wizard-commit-default").checked, true);
-    await flushAsyncWork();
+    await waitForAsyncWork();
     const defaultLabel = getRequiredElementById("wizard-commit-default-label").textContent!;
     assert.ok(defaultLabel.includes(TIP_COMMIT_HASH.slice(0, 12)), `tip label resolved: ${defaultLabel}`);
     assert.ok(defaultLabel.includes("repo tip"), defaultLabel);
@@ -126,7 +126,7 @@ test("test_full_project_run_finish_stores_mirror_and_posts_preBaseline", async (
     assert.equal(getRequiredElementById("wizard-finish").hidden, false);
     const recordedCalls = recordFetchCalls();
     getRequiredElementById("project-paths-apply").click();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // the mirror was stored, and the POSTed entry carries it (Store would persist it).
     assert.equal(sessionStorage.getItem("baseline:proj-full"), "1");
     const pathsPost = recordedCalls.find((call) => call.url.includes("/api/project-paths") && call.init?.method === "POST");
@@ -135,44 +135,4 @@ test("test_full_project_run_finish_stores_mirror_and_posts_preBaseline", async (
     assert.equal(body.entry.preBaseline, "1");
     assert.equal(body.entry.repo, "/repos/p");
     assert.equal(getRequiredElementById("paths-popover").hidden, true);
-});
-
-test("test_cancel_abandons_run_with_nothing_posted", async () => {
-    // Scenario (mockup): Cancel closes the popover and posts nothing at all.
-    const wizard = await initializeWizardInFreshDom({ repo: "/repos/p" });
-    const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
-    await refreshProjectPathsSection("proj-cancel");
-    wizard.startProjectWizard("proj-cancel");
-    const recordedCalls = recordFetchCalls();
-    getRequiredElementById("wizard-cancel").click();
-    await flushAsyncWork();
-    assert.equal(getRequiredElementById("paths-popover").hidden, true);
-    const posts = recordedCalls.filter((call) => call.init?.method === "POST");
-    assert.equal(posts.length, 0);
-});
-
-test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
-    // Scenario (mockup trigger): a project loading with NO reveng-paths entry auto-opens the wizard at screen 2; a configured project does not.
-    await initializeWizardInFreshDom({});
-    const { maybeOfferProjectPathsWizard } = await import("../webapp/app-paths-project.ts");
-    await maybeOfferProjectPathsWizard("proj-offer");
-    assert.equal(getRequiredElementById("paths-popover").hidden, false);
-    assert.equal(getRequiredElementById("wizard-screen-2").hidden, false);
-    // a configured project (fresh DOM, stored repo) gets no auto-run.
-    await initializeWizardInFreshDom({ repo: "/repos/p" });
-    const reimported = await import("../webapp/app-paths-project.ts");
-    await reimported.maybeOfferProjectPathsWizard("proj-offer-configured");
-    assert.equal(getRequiredElementById("paths-popover").hidden, true);
-});
-
-test("test_first_launch_with_empty_projects_dir_starts_full_wizard", async () => {
-    // Scenario (mockup trigger): no global config leaves the projects-dir input empty at boot — the full wizard starts at screen 1 (screen-1-only run without a project: Next is Finish).
-    setupWebappDom();
-    stubFetchRoutes({});
-    const wizard = await import("../webapp/app-paths-wizard.ts");
-    wizard.initializeWizard();
-    wizard.maybeStartFirstLaunchWizard();
-    assert.equal(getRequiredElementById("paths-popover").hidden, false);
-    assert.equal(getRequiredElementById("wizard-screen-1").hidden, false);
-    assert.equal(getRequiredElementById("wizard-next").textContent, "Finish ▸");
 });

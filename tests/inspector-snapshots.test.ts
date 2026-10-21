@@ -2,12 +2,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Load the module under test AFTER the happy-dom globals exist — its import chain reaches app-fetch/inspector-json, which expect the browser globals.
 async function importInspectorSnapshots(): Promise<typeof import("../webapp/inspector-snapshots.ts")> {
-    setupWebappDom();
+    initWebappDom();
     return import("../webapp/inspector-snapshots.ts");
 }
 
@@ -46,7 +46,7 @@ test("test_probeTrackedBackupPresence_records_presence_and_reshows_current_line"
     // the probing render is the current one for the whole probe lifetime.
     const renderCountAtStart = bumpShowLineRenderCount();
     probeTrackedBackupPresence({ "src/a.py": { backupFileName: "blob-A" } }, "session-1", renderCountAtStart, (line) => shownLines.push(line), 7);
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // assert the presence landed in the cache and the pane re-showed line 7 exactly once.
     assert.equal(blobPresenceByKey.get("session-1|blob-A"), true);
     assert.deepEqual(shownLines, [7]);
@@ -62,7 +62,7 @@ test("test_probeTrackedBackupPresence_skips_reshow_after_a_newer_render", async 
     probeTrackedBackupPresence({ "src/b.py": { backupFileName: "blob-B" } }, "session-1", renderCountAtStart, (line) => shownLines.push(line), 9);
     // a newer render supersedes the probing one before the probe settles.
     bumpShowLineRenderCount();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // assert the presence still landed but no re-show happened.
     assert.equal(blobPresenceByKey.get("session-1|blob-B"), false);
     assert.deepEqual(shownLines, []);

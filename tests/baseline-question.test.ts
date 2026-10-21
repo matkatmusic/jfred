@@ -1,10 +1,10 @@
-// Tests for the task-56 pre-baseline question gate: when the active project overrides carry a base commit (item 46) and the client has not yet answered, the document build must first ask "reconstruct pre-baseline states?" — mirrored on the consent gate.
+// Task 56: the document build asks the pre-baseline question before reconstructing.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
-import { setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { decideBaselineQuestion } from "../src/viewer_api.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
@@ -43,7 +43,7 @@ test("test_no_baseline_question_when_choice_already_made", () => {
 // task 152: the re-ask control's two primitives — forget the stored answer, and evict the project's cached documents so the next fetch actually reaches the server and re-asks.
 test("test_clear_baseline_choice_removes_the_stored_answer", async () => {
     // Step: boot the webapp DOM so sessionStorage exists, then import the fetch module.
-    setupWebappDom();
+    initWebappDom();
     const { storeBaselineChoice, getBaselineChoice, clearBaselineChoice } = await import("../webapp/app-choices.ts");
     // Step: store an answer, clear it, and observe the not-asked-yet null.
     storeBaselineChoice("proj", "0");
@@ -53,7 +53,7 @@ test("test_clear_baseline_choice_removes_the_stored_answer", async () => {
 });
 
 test("test_drop_project_documents_evicts_only_that_projects_cache_entries", async () => {
-    setupWebappDom();
+    initWebappDom();
     const { documentCache, dropProjectDocuments } = await import("../webapp/app-fetch.ts");
     // Step: seed cache entries for two projects (the whole-project and one per-jsonl key).
     documentCache.clear();

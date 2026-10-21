@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const STORED_COMMIT_HASH = "a".repeat(40);
@@ -14,7 +14,7 @@ function getInput(id: string): HTMLInputElement {
 
 test("test_renderPathsSummary_shows_global_rows_without_a_project", async () => {
     // Scenario: with no project, only the two GLOBAL rows render — projects folder (field value) and file history ("auto-derived" while the task-136 fields are hidden).
-    setupWebappDom();
+    initWebappDom();
     const { renderPathsSummary } = await import("../webapp/app-paths-summary.ts");
     getInput("projects-dir-input").value = "/tmp/projects";
     renderPathsSummary(undefined, () => {});
@@ -26,7 +26,7 @@ test("test_renderPathsSummary_shows_global_rows_without_a_project", async () => 
 
 test("test_renderPathsSummary_project_rows_reflect_fields_and_mirror", async () => {
     // Scenario: with a project, rows 3–5 render from the repo field, the base-commit display (short hash), and the task-56 baseline mirror; each row's Edit passes its screen number.
-    setupWebappDom();
+    initWebappDom();
     const { renderPathsSummary } = await import("../webapp/app-paths-summary.ts");
     const { storeBaselineChoice } = await import("../webapp/app-choices.ts");
     getInput("repo-dir-input").value = "/repos/p";
@@ -48,7 +48,7 @@ test("test_renderPathsSummary_project_rows_reflect_fields_and_mirror", async () 
 
 test("test_resolveDefaultCommitLabel_prefers_stored_then_repo_tip", async () => {
     // Scenario: a stored base commit labels as the session baseline without fetching; an empty display resolves the repo tip from /api/repo-commits' newest row (never a hardcoded branch).
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip subject" }],
     });
@@ -60,7 +60,7 @@ test("test_resolveDefaultCommitLabel_prefers_stored_then_repo_tip", async () => 
     getInput("base-commit-display").value = "";
     getInput("repo-dir-input").value = "/repos/p";
     const tipLabel = await resolveDefaultCommitLabel("proj-label");
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.ok(tipLabel.includes(TIP_COMMIT_HASH.slice(0, 12)), tipLabel);
     assert.ok(tipLabel.includes("tip subject"), tipLabel);
     assert.ok(tipLabel.includes("repo tip"), tipLabel);

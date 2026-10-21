@@ -2,12 +2,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { flushAsyncWork, setupWebappDom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Boot a fresh DOM with a stubbed projects listing and import the router under test. The dynamic import keeps every webapp module load AFTER the happy-dom globals exist.
 async function importRouterInFreshDom(): Promise<typeof import("../webapp/app-router.ts")> {
-    setupWebappDom();
+    initWebappDom();
     stubFetchRoutes({
         "/api/projects": [
             { name: "proj-a", jsonlFiles: [] },
@@ -24,7 +24,7 @@ test("test_overlapping_renderRoute_calls_render_the_projects_list_once", async (
     const firstRun = renderRoute();
     const secondRun = renderRoute();
     await Promise.all([firstRun, secondRun]);
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // exactly one projects pane rendered: 2 rows (one per stubbed project), 1 filter bar.
     const view = document.getElementById("view")!;
     assert.equal(view.querySelectorAll(".project-row").length, 2);
@@ -38,7 +38,7 @@ test("test_renderRoute_hides_timeline_pane_header_on_the_projects_route", async 
     // the markup ships the header hidden, so it never flashes before the first render.
     assert.equal(paneHeader.hidden, true);
     await renderRoute();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     // still hidden on #/, and the projects view provides its own "Projects" pane title.
     assert.equal(paneHeader.hidden, true);
     const viewPaneTitles = [...document.getElementById("view")!.querySelectorAll(".pane-title")];
@@ -50,6 +50,6 @@ test("test_renderRoute_shows_timeline_pane_header_on_a_project_route", async () 
     const { renderRoute } = await importRouterInFreshDom();
     location.hash = "#/project/proj-a/timeline";
     await renderRoute();
-    await flushAsyncWork();
+    await waitForAsyncWork();
     assert.equal(document.getElementById("timeline-pane-header")!.hidden, false);
 });
