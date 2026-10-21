@@ -1,4 +1,4 @@
-// Domain value objects that replace bare string primitives across the typed structures, so identifiers, paths, and times carry their meaning in the type system (strict-typing policy: avoid primitives). Each wraps the raw wire string, compares by value, and serializes back to that string via toJSON so the JSONL wire form round-trips losslessly. Time-based values use the built-in `Date` (JS's date-time object) directly — no wrapper needed.
+// Domain value objects wrap wire strings so ids, paths, and times are typed, not bare primitives.
 
 // A filesystem path (cwd, file_path, backup file name, snapshot map keys).
 export class Path {
@@ -17,7 +17,7 @@ export class Path {
     }
 }
 
-// An identifier of any kind (session/parent/leaf/message/bridge/tool-use ids).  Not restricted to RFC-4122 form: s1 carries both UUIDs (sessionId) and prefixed ids (toolu_…, cse_…); all are modeled as Uuid so no id is primitive.
+// An identifier of any kind: UUIDs and prefixed ids (toolu_, cse_) all use this type.
 export class Uuid {
     constructor(readonly value: string) {}
 
@@ -30,6 +30,23 @@ export class Uuid {
     }
 
     equals(other: Uuid): boolean {
+        return this.value === other.value;
+    }
+}
+
+// A subagent's identifier (the `agentId` on fork-context-ref and sidechain records).
+export class AgentId {
+    constructor(readonly value: string) {}
+
+    toString(): string {
+        return this.value;
+    }
+
+    toJSON(): string {
+        return this.value;
+    }
+
+    equals(other: AgentId): boolean {
         return this.value === other.value;
     }
 }

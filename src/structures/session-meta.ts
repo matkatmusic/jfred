@@ -1,8 +1,8 @@
 import type { TranscriptRecord } from "./envelope.ts";
 import { RecordType, AttachmentPayloadType } from "./vocabulary.ts";
-import { Path, Uuid } from "./domain.ts";
+import { AgentId, Path, Uuid } from "./domain.ts";
 
-// Session-meta records present in s1 (recon/07-s1-field-inventory.md). Each is modeled with exactly the top-level keys observed in s1. The shared envelope fields (sessionId, uuid, parentUuid, cwd, timestamp) are hydrated into domain objects by parseRecord; the type-specific ids (leafUuid, bridgeSessionId) are hydrated by their accessors below.
+// Session-meta records from s1 (recon/07-s1-field-inventory.md), modeled with observed top-level keys; ids are hydrated by parseRecord and accessors.
 
 export type AiTitleEntry = {
     type: RecordType.aiTitle;
@@ -17,12 +17,21 @@ export type BridgeSessionEntry = {
     lastSequenceNum: number;
 };
 
-// `lastPrompt` is optional: in s1 one last-prompt record carries only `leafUuid` (a pointer) while the others also carry the prompt text (recon: 1x without, 3x with). `leafUuid` is always present.
+// `lastPrompt` is optional: one s1 last-prompt record has only `leafUuid`, which is always present.
 export type LastPromptEntry = {
     type: RecordType.lastPrompt;
     sessionId: Uuid;
     leafUuid: Uuid;
     lastPrompt?: string;
+};
+
+// Opens a subagent transcript; it carries no sessionId, uuid, or timestamp.
+export type ForkContextRefEntry = {
+    type: RecordType.forkContextRef;
+    agentId: AgentId;
+    parentSessionId: Uuid;
+    parentLastUuid: Uuid;
+    contextLength: number;
 };
 
 export type ModeEntry = {
@@ -73,6 +82,28 @@ export function getLastPromptEntry(
     }
     const raw = record as unknown as LastPromptEntry & { leafUuid: string };
     return { ...raw, leafUuid: new Uuid(raw.leafUuid) };
+}
+
+// Resolve a fork-context-ref record, hydrating agentId into an AgentId and the parent pointers into Uuids.
+export function getForkContextRefEntry(
+    record: TranscriptRecord,
+): ForkContextRefEntry | undefined {
+    if (record.type !== RecordType.forkContextRef) {
+        return undefined;
+    }
+    const raw = record as unknown as {
+        agentId: string;
+        parentSessionId: string;
+        parentLastUuid: string;
+        contextLength: number;
+    };
+    return {
+        type: RecordType.forkContextRef,
+        agentId: new AgentId(raw.agentId),
+        parentSessionId: new Uuid(raw.parentSessionId),
+        parentLastUuid: new Uuid(raw.parentLastUuid),
+        contextLength: raw.contextLength,
+    };
 }
 
 // Resolve a bridge-session record, hydrating its bridgeSessionId into a Uuid (sessionId is already a Uuid from parseRecord).

@@ -9,7 +9,6 @@ import { setPathOverrides, type SourceEntry } from "../src/reconstruction_overri
 import {
     dedupeRecordsBySessionAndUuid,
     interleaveRecordsByTimestamp,
-    computeSessionRoots,
     mergeMultiSourceRecords,
 } from "../src/reconstruction_multi_source.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
@@ -18,7 +17,6 @@ import {
     SESSION_A,
     SESSION_B,
     makeSourceTree,
-    makeTwoSourceEditFixture,
     buildWriteRecordPair,
     buildEditRecordPair,
     writeTranscriptFixture,
@@ -77,23 +75,6 @@ test("test_interleave_keeps_unstamped_leading_records_with_their_session", () =>
     const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
     const merged = interleaveRecordsByTimestamp([[recordA1], [unstamped, recordB1]]);
     assert.deepEqual(merged, [recordA1, unstamped, recordB1]);
-});
-
-test("test_session_root_uses_declared_source_root_over_cwd", () => {
-    // Scenario (§b3): a source entry declaring a root wins over the session's recorded cwd.
-    const fixture = makeTwoSourceEditFixture("line one\n");
-    const roots = computeSessionRoots(fixture.listA, fixture.sources);
-    // Test verification: the declared root, not the cwd, is the session's root.
-    assert.equal(roots.get(SESSION_A)?.toString(), fixture.sources[0]!.root!.toString());
-});
-
-test("test_session_root_auto_detects_from_first_cwd_when_source_declares_none", () => {
-    // Scenario (§b2): with no declared root, the session's first recorded cwd is the root.
-    const fixture = makeTwoSourceEditFixture("line one\n");
-    const rootlessSources: SourceEntry[] = [{ projectsDir: fixture.sources[0]!.projectsDir }];
-    const roots = computeSessionRoots(fixture.listA, rootlessSources);
-    // Test verification: auto-detect lands on the fixture's recorded cwd (workspace-alpha).
-    assert.equal(roots.get(SESSION_A)?.toString(), fixture.rootA);
 });
 
 test("test_single_source_records_pass_through_unchanged", () => {

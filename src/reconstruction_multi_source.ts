@@ -1,12 +1,10 @@
 // Multi-source merging: dedupe, wall-clock interleave, per-session root resolution.
 
-import { dirname } from "node:path";
-import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
-import { getRecordSource } from "./parse/loadTranscript.ts";
-import { findMatchingSourceEntry } from "./reconstruction_sidecar_reader.ts";
 import { sessionIdOf, joinCrossSourceFileIdentities } from "./reconstruction_multi_source_join.ts";
+import { computeSessionRoots } from "./reconstruction_multi_source_roots.ts";
+import { attachForkedSubagentRoots } from "./reconstruction_fork_graft.ts";
 
 // The dedupe identity of one record, or undefined when it carries no (sessionId, uuid) pair.
 function computeRecordIdentityKey(record: TranscriptRecord): string | undefined {
@@ -117,48 +115,10 @@ export function groupRecordsBySession(records: TranscriptRecord[]): TranscriptRe
     return groups;
 }
 
-// §b1: source's projects root is dirname(dirname(jsonl path)).
-function findDeclaredRootForRecord(record: TranscriptRecord, sources: SourceEntry[]): Path | undefined {
-    const recordSource = getRecordSource(record);
-    if (recordSource === undefined) {
-        return undefined;
-    }
-    const projectsRoot = dirname(dirname(recordSource.filePath));
-    return findMatchingSourceEntry(sources, projectsRoot)?.root;
-}
-
-// §b — each session's workspace root: the matching declared source's root (config wins, §b3),
-// else the session's first recorded cwd (§b2 auto-detect). Keyed by sessionId string.
-export function computeSessionRoots(records: TranscriptRecord[], sources: SourceEntry[]): Map<string, Path> {
-    const declaredRoots = new Map<string, Path>();
-    const fallbackCwds = new Map<string, Path>();
-    for (const record of records) {
-        const sessionId = sessionIdOf(record);
-        if (sessionId === undefined) {
-            continue;
-        }
-        const sessionKey = sessionId.toString();
-        if (!declaredRoots.has(sessionKey)) {
-            const declaredRoot = findDeclaredRootForRecord(record, sources);
-            if (declaredRoot !== undefined) {
-                declaredRoots.set(sessionKey, declaredRoot);
-            }
-        }
-        if (!fallbackCwds.has(sessionKey) && record.cwd !== undefined) {
-            fallbackCwds.set(sessionKey, record.cwd);
-        }
-    }
-    const roots = new Map<string, Path>(fallbackCwds);
-    for (const [sessionKey, declaredRoot] of declaredRoots) {
-        roots.set(sessionKey, declaredRoot);
-    }
-    return roots;
-}
-
-// §c composition: dedupe, interleave by wall clock, join cross-source identities.
+// §c composition: dedupe, interleave by wall clock, graft fork roots, join cross-source identities.
 export function mergeMultiSourceRecords(recordLists: TranscriptRecord[][], sources: SourceEntry[]): TranscriptRecord[] {
     const seen = new Set<string>();
     const dedupedLists = recordLists.map((list) => dedupeRecordsBySessionAndUuid(list, seen));
-    const interleaved = interleaveRecordsByTimestamp(dedupedLists);
+    const interleaved = attachForkedSubagentRoots(interleaveRecordsByTimestamp(dedupedLists));
     return joinCrossSourceFileIdentities(interleaved, sources, computeSessionRoots(interleaved, sources));
 }

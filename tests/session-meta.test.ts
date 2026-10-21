@@ -5,9 +5,11 @@ import {
     getLastPromptEntry,
     getAttachmentEntry,
     getBridgeSessionEntry,
+    getForkContextRefEntry,
 } from "../src/structures/session-meta.ts";
-import { ATTACHMENT_PAYLOAD_TYPES } from "../src/structures/vocabulary.ts";
-import { Path, Uuid } from "../src/structures/domain.ts";
+import { ATTACHMENT_PAYLOAD_TYPES, RecordType } from "../src/structures/vocabulary.ts";
+import type { TranscriptRecord } from "../src/structures/envelope.ts";
+import { AgentId, Path, Uuid } from "../src/structures/domain.ts";
 import { loadRecords } from "./utilities.ts";
 import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
 
@@ -24,7 +26,7 @@ test("test_mode_record_exposes_mode_value", () => {
 });
 
 test("test_bridge_session_record_exposes_uuid_ids", () => {
-    // Scenario: a `bridge-session` record exposes both its sessionId and its (non-RFC-4122) bridgeSessionId as Uuid domain objects.  Steps: find the first bridge-session record in s1.
+    // A bridge-session record exposes sessionId and bridgeSessionId as Uuid objects: find the first one in s1.
     const bridge = loadRecords(S1_JSONL).map(getBridgeSessionEntry).find(Boolean);
     if (!bridge) {
         assert.fail("expected a bridge-session record in s1");
@@ -35,7 +37,7 @@ test("test_bridge_session_record_exposes_uuid_ids", () => {
 });
 
 test("test_last_prompt_record_exposes_lastPrompt", () => {
-    // Scenario: a `last-prompt` record that carries prompt text exposes a non-empty lastPrompt string (s1 has 3 such records plus 1 pointer-only).  Steps: find a last-prompt record whose lastPrompt text is populated.
+    // A last-prompt record with text exposes a non-empty lastPrompt string: find one with populated text in s1.
     const entries = loadRecords(S1_JSONL).map(getLastPromptEntry).filter(Boolean);
     const withText = entries.find((entry) => entry?.lastPrompt !== undefined);
     if (!withText) {
@@ -80,5 +82,24 @@ test("test_attachment_payload_type_covers_s2_kinds", () => {
     for (const type of present) {
         assert.ok(allowed.has(type), `unmodeled attachment kind: ${type}`);
     }
+});
+
+test("test_fork_context_ref_record_hydrates_agent_and_parent_ids", () => {
+    // Scenario: a fork-context-ref hydrates agentId to AgentId and the parent pointers to Uuid.
+    const record = {
+        type: RecordType.forkContextRef,
+        agentId: "a7b575676defea277",
+        parentSessionId: "1370c498",
+        parentLastUuid: "7654d562",
+        contextLength: 3115,
+    } as unknown as TranscriptRecord;
+    const entry = getForkContextRefEntry(record)!;
+    assert.ok(entry.agentId instanceof AgentId);
+    assert.ok(entry.parentSessionId instanceof Uuid);
+    assert.equal(entry.parentLastUuid.toString(), "7654d562");
+    assert.equal(entry.contextLength, 3115);
+    // other record types resolve to undefined, and the raw record stays unhydrated.
+    assert.equal(getForkContextRefEntry({ type: RecordType.mode } as unknown as TranscriptRecord), undefined);
+    assert.equal(typeof record.agentId, "string");
 });
 

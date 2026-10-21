@@ -15,6 +15,7 @@ import {
 import { findWorkingTreeOwner } from "./reconstruction_worktree.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { findStructuralRewoundBranches } from "./reconstruction_fork.ts";
+import { findForkedSubagentBranches } from "./reconstruction_fork_graft.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { selectBranchRecords } from "./reconstruction_branch_records.ts";
@@ -84,6 +85,11 @@ export function findConversationBranches(
     const existingTips = new Set(branches.map((branch) => branch.tip.toString()));
     reportReconstructionProgress("scanning structural forks");
     branches.push(...findStructuralRewoundBranches(records, existingTips));
+    const claimedTips = new Set<string>();
+    for (const branch of branches) {
+        claimedTips.add(branch.tip.toString());
+    }
+    branches.push(...findForkedSubagentBranches(records, claimedTips));
     return branches;
 }
 
