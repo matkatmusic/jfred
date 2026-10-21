@@ -6,7 +6,7 @@ import type { HeadlessPage } from "./cdp.ts";
 import { pause } from "./cdp.ts";
 
 // A drawer open waits on a file fetch; everything else is a synchronous re-render.
-const RENDER_TIMEOUT_MS = 20_000;
+const RENDER_TIMEOUT_MS = 60_000;
 
 // Extra pause after app settles so layout and scroll offsets land before measuring rectangles.
 const SETTLE_MS = 600;
