@@ -15,26 +15,37 @@ export interface NodeWithSameTimestamp {
     axisPx: number;
 }
 
-// Runs of two or more ladder nodes sharing one instant. ONE linear pass is correct because a tie is contiguous by construction: src/viewer_api_layer1.ts's listPairNodeLadder emits commits oldest-first then the on-disk node, and the axis charges tied nodes consecutive rows in that same order — so two nodes at one instant can never be separated by a node at another.
+// Since task 312 snapshots follow "on disk", so a tie need not be adjacent; group by instant.
 function groupTiedLadderNodes(ladder: readonly NodeWithSameTimestamp[]): NodeWithSameTimestamp[][] {
-    const runs: NodeWithSameTimestamp[][] = [];
+    const nodesByInstant = new Map<string, NodeWithSameTimestamp[]>();
     for (const node of ladder) {
-        const currentRun = runs.at(-1);
-        if (currentRun?.at(-1)?.instant === node.instant) {
-            currentRun.push(node);
-            continue;
-        }
-        runs.push([node]);
+        const group = nodesByInstant.get(node.instant) ?? [];
+        group.push(node);
+        nodesByInstant.set(node.instant, group);
     }
-    return runs.filter((run) => run.length > 1);
+    return [...nodesByInstant.values()].filter((group) => group.length > 1);
+    // const runs: NodeWithSameTimestamp[][] = [];
+    // for (const node of ladder) {
+    //     const currentRun = runs.at(-1);
+    //     if (currentRun?.at(-1)?.instant === node.instant) {
+    //         currentRun.push(node);
+    //         continue;
+    //     }
+    //     runs.push([node]);
+    // }
+    // return runs.filter((run) => run.length > 1);
 }
 
-// The markers for one widget's ladder, positioned against that widget's own anchor (`startPx`, its earliest node) — the same widget-relative arithmetic layer1-page.ts does for the nodes themselves.  `--span-px` is first-node-to-last-node, so the stylesheet adds the node box's own reach and needs no knowledge of how many rows the run holds.
+// The markers for one widget's ladder, positioned against that widget's own anchor (`startPx`, its earliest node) — the same widget-relative arithmetic layer1-page.ts does for the nodes themselves.  `--span-px` is earliest-to-latest node, so the stylesheet adds the node box's own reach and needs no knowledge of how many rows the run holds.
 export function buildNodesWithSameTimestampMarkers(ladder: readonly NodeWithSameTimestamp[], startPx: number): HTMLElement[] {
     return groupTiedLadderNodes(ladder).map((run) => {
         const marker = el("div", { class: "nodes-with-same-timestamp" });
-        marker.style.setProperty("--axis-px", String(run[0]!.axisPx - startPx));
-        marker.style.setProperty("--span-px", String(run.at(-1)!.axisPx - run[0]!.axisPx));
+        const axisPxValues = run.map((node) => node.axisPx);
+        const firstPx = Math.min(...axisPxValues);
+        marker.style.setProperty("--axis-px", String(firstPx - startPx));
+        marker.style.setProperty("--span-px", String(Math.max(...axisPxValues) - firstPx));
+        // marker.style.setProperty("--axis-px", String(run[0]!.axisPx - startPx));
+        // marker.style.setProperty("--span-px", String(run.at(-1)!.axisPx - run[0]!.axisPx));
         return marker;
     });
 }

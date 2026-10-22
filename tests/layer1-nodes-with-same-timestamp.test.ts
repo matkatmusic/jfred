@@ -54,3 +54,18 @@ test("test_a_run_of_three_tied_nodes_yields_one_marker_spanning_all_three", asyn
     // reaching the third node's row, two row pitches down.
     assert.equal(readCustomProperty(markers[0]!, "--span-px"), "44");
 });
+
+test("test_tied_nodes_that_are_not_adjacent_still_get_one_marker", async () => {
+    // Scenario (task 259, bug): since task 312 snapshots follow "on disk", so the last snapshot can tie with "on disk" with other nodes between them.  Steps: build the markers for a ladder where the first and last nodes share an instant.
+    const { buildNodesWithSameTimestampMarkers } = await import("../webapp/layer1-nodes-with-same-timestamp.ts");
+    const onDisk = { instant: TIED_INSTANT, axisPx: 100 };
+    const firstSnapshot = { instant: "2026-07-21T16:00:00.000Z", axisPx: 122 };
+    const secondSnapshot = { instant: "2026-07-22T16:00:00.000Z", axisPx: 144 };
+    const tiedSnapshot = { instant: TIED_INSTANT, axisPx: 166 };
+    const markers = buildNodesWithSameTimestampMarkers([onDisk, firstSnapshot, secondSnapshot, tiedSnapshot], WIDGET_START_PX);
+    // one marker for the one tie.
+    assert.equal(markers.length, 1);
+    assert.equal(readCustomProperty(markers[0]!, "--axis-px"), "0");
+    // spanning from the earliest tied node to the latest.
+    assert.equal(readCustomProperty(markers[0]!, "--span-px"), "66");
+});
