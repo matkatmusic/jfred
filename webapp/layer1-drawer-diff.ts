@@ -1,6 +1,6 @@
 // Task 305/329: shared revision-step helpers; the shift-click range gesture lives in layer1-drawer-multi.ts.
 
-import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { getRequiredElementById } from "./app-dom.ts";
 import { type DiffStep } from "./layer1-diff-pane.ts";
 import { clearDiffWash } from "./layer1-diff-wash.ts";
 import { describeCommitStep, describeDiskStep, describeEditSide, describeSnapshotStep } from "./layer1-revision-sources.ts";
@@ -17,12 +17,7 @@ export function describeEditDrawer(node: HTMLElement, path: string): { params: U
     const sessionFile = node.dataset.sessionFile ?? "";
     const flashFile = sessionFile.split("/").pop() ?? sessionFile;
     return {
-        params: new URLSearchParams({
-            editChangeId: node.dataset.changeId ?? "",
-            side: "target",
-            path,
-            dir: getInputById("dir").value.trim(),
-        }),
+        params: describeEditSide(path, node.dataset.changeId ?? "", "target", "").buildParams(),
         head: `${path.split("/").pop() ?? path} ${kind.charAt(0).toUpperCase()}${kind.slice(1)}`,
         meta: `${node.dataset.confidence ?? ""} · ${kind} of ${flashFile}`,
         flashFile,

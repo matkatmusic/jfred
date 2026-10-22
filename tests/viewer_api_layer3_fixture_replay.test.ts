@@ -3,8 +3,9 @@ import { test } from "node:test";
 import "../src/viewer_api_layer2_fixture_data.ts";
 import { listTemplateLines } from "../src/viewer_api_layer1_fixture_content.ts";
 import { EDITS, listFixtureEvents } from "../src/viewer_api_layer3_fixture_data.ts";
+import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/layer1_edits_wire.ts";
 import {
-  LAYER1_PROGRESS_LABEL_READING_EDITS, buildFixtureEditsPayload, buildFixtureRecord, readFixtureEditFile, replayFixtureEvent,
+  buildFixtureEditsPayload, buildFixtureRecord, readFixtureEditFile, replayFixtureEvent,
 } from "../src/viewer_api_layer3_fixture_replay.ts";
 
 const INDEX_PATH = "src/index.ts";

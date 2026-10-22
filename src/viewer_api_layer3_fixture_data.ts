@@ -1,6 +1,7 @@
 // Layer 3 fixture data: crafted Read/Edit/Write events and the pure hunk helpers the bulk generator reuses.
 
 import { WireEditKind } from "../webapp/layer1-wire.ts";
+import { applyHunksToLines } from "./layer1_edit_hunks.ts";
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
 import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";
 import { parseMs } from "./viewer_api_layer1_fixture_data.ts";
@@ -42,44 +43,45 @@ export function buildReplaceHunk(base: string[], index: number, newLine: string)
   return { oldStart: start + 1, oldLines: end - start, newStart: start + 1, newLines: end - start, lines };
 }
 
-// A hunk matches when every context and removed row equals the base line at its position.
-export function matchesBase(base: string[], hunk: StructuredPatchHunk): boolean {
-  let cursor = hunk.oldStart - 1;
-  for (const row of hunk.lines) {
-    const isOldSide = !row.startsWith("+");
-    if (!isOldSide) {
-      continue;
-    }
-    if (base[cursor] !== row.slice(1)) {
-      return false;
-    }
-    cursor += 1;
-  }
-  return true;
-}
+// Task 355: matchesBase and applyHunkLines moved to layer1_edit_hunks.ts as checkHunkMatchesBase and applyHunksToLines.
+// export function matchesBase(base: string[], hunk: StructuredPatchHunk): boolean {
+//   let cursor = hunk.oldStart - 1;
+//   for (const row of hunk.lines) {
+//     const isOldSide = !row.startsWith("+");
+//     if (!isOldSide) {
+//       continue;
+//     }
+//     if (base[cursor] !== row.slice(1)) {
+//       return false;
+//     }
+//     cursor += 1;
+//   }
+//   return true;
+// }
+// export function applyHunkLines(base: string[], hunks: StructuredPatchHunk[]): string[] {
+//   const result: string[] = [];
+//   let cursor = 0;
+//   for (const hunk of hunks) {
+//     const hunkStart = hunk.oldStart - 1;
+//     result.push(...base.slice(cursor, hunkStart));
+//     cursor = hunkStart;
+//     for (const row of hunk.lines) {
+//       if (row.startsWith("+")) {
+//         result.push(row.slice(1));
+//         continue;
+//       }
+//       if (row.startsWith(" ")) {
+//         result.push(base[cursor]!);
+//       }
+//       cursor += 1;
+//     }
+//   }
+//   result.push(...base.slice(cursor));
+//   return result;
+// }
 
-// Best effort when the hunk disagrees with the base: positions decide, the base keeps its own text.
-export function applyHunkLines(base: string[], hunks: StructuredPatchHunk[]): string[] {
-  const result: string[] = [];
-  let cursor = 0;
-  for (const hunk of hunks) {
-    const hunkStart = hunk.oldStart - 1;
-    result.push(...base.slice(cursor, hunkStart));
-    cursor = hunkStart;
-    for (const row of hunk.lines) {
-      if (row.startsWith("+")) {
-        result.push(row.slice(1));
-        continue;
-      }
-      if (row.startsWith(" ")) {
-        result.push(base[cursor]!);
-      }
-      cursor += 1;
-    }
-  }
-  result.push(...base.slice(cursor));
-  return result;
-}
+// // 343's tests still import the old names; re-point them to layer1_edit_hunks.ts, then drop this line.
+// export { applyHunksToLines as applyHunkLines, checkHunkMatchesBase as matchesBase } from "./layer1_edit_hunks.ts";
 
 function buildBaseEvent(kind: WireEditKind, spec: FixtureEventSpec): FixtureEvent {
   return { ...spec, changeId: buildChangeId(), kind };
@@ -121,13 +123,13 @@ function buildCraftedEvents(): FixtureEvent[] {
     const base = readState(path);
     const event = buildEditEvent({ path, at, session, line }, base, index);
     events.push(event);
-    stateByPath.set(path, applyHunkLines(base, event.hunks!));
+    stateByPath.set(path, applyHunksToLines(base, event.hunks!));
   };
   const addStaleEdit = (path: string, at: string, session: string, line: number, index: number): void => {
     const base = readState(path);
     const event = buildStaleEditEvent({ path, at, session, line }, base, index);
     events.push(event);
-    stateByPath.set(path, applyHunkLines(base, event.hunks!));
+    stateByPath.set(path, applyHunksToLines(base, event.hunks!));
   };
   const addWrite = (path: string, at: string, session: string, line: number): void => {
     const body = ["// rewritten whole file", ...readState(path).slice(1)];

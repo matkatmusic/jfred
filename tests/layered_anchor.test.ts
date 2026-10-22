@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import { loadLayeredProject } from "../src/layered_load.ts";
-import { requireNodeContent, selectAnchorNode } from "../src/layered_anchor.ts";
+import { collectReadEchoNodes, requireNodeContent, selectAnchorNode } from "../src/layered_anchor.ts";
 import type {
     BeaconNode,
     EndStateNode,
@@ -189,4 +189,18 @@ test("test_anchor_skips_pre_anchor_stubs_before_first_full_content_evidence", ()
     assert.ok(anchor);
     assert.equal(anchor?.instant.toISOString(), "2026-07-24T10:03:00.000Z");
     assert.equal(anchor?.content, "line one\nline two\n");
+});
+
+test("test_read_echo_placement_carries_change_id_and_instant", () => {
+    const tree = makeSourceTree("-placement-project");
+    const readPair = buildReadRecordPair(
+        { sessionId: SESSION_A, cwd: "/work", timestamp: "2026-07-24T10:04:00.000Z", toolId: "toolu_read_1", parentUuid: null },
+        "/work/a.py",
+        "one\n",
+        { startLine: 1, numLines: 1, totalLines: 1 },
+    );
+    const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", readPair.records);
+    const [placement] = collectReadEchoNodes(records, STUB_EVIDENCE.sessionFile);
+    assert.equal(placement!.changeId.toString(), "toolu_read_1");
+    assert.equal(placement!.instant.toISOString(), "2026-07-24T10:04:00.000Z");
 });

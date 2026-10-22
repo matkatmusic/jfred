@@ -8,9 +8,10 @@ import {
     resolveToolNameForRecord,
     type ReadResult,
 } from "./structures/tool-results.ts";
-import { ToolName } from "./structures/vocabulary.ts";
+import { getContentBlocks } from "./structures/content-blocks.ts";
+import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
-import type { Path } from "./structures/domain.ts";
+import type { Path, Uuid } from "./structures/domain.ts";
 import type {
     BeaconNode,
     EndStateNode,
@@ -59,7 +60,16 @@ function buildReadEchoNode(result: ReadResult, instant: Date, evidence: JsonlRef
 }
 
 // One file's Read-echo node placement: which timeline it lands on plus the node itself.
-export type ReadEchoPlacement = { target: Path; node: TimelineNode };
+export type ReadEchoPlacement = { target: Path; node: TimelineNode; changeId: Uuid; instant: Date };
+
+function findToolResultId(record: TranscriptRecord): Uuid {
+    for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_result) {
+            return block.tool_use_id;
+        }
+    }
+    throw new Error("Read result record has no tool_result block");
+}
 
 // Filter by tool name first to avoid fog-of-war throws from getToolResultForUserRecord.
 function buildReadEchoPlacement(
@@ -86,7 +96,12 @@ function buildReadEchoPlacement(
         return undefined;
     }
     const evidence: JsonlRef = { sessionFile, line: source.lineNumber };
-    return { target: resolved.result.file.filePath, node: buildReadEchoNode(resolved.result, instant, evidence) };
+    return {
+        target: resolved.result.file.filePath,
+        node: buildReadEchoNode(resolved.result, instant, evidence),
+        changeId: findToolResultId(record),
+        instant,
+    };
 }
 
 // Collect every Read echo across one session's records as layer-1 node placements.

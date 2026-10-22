@@ -1,15 +1,17 @@
 // Layer 3 fixture replay: each Read/Edit/Write event's base and target bytes, and its confidence, computed once.
 
-import { WireConfidence, WireEditKind, type WireEditOf, type WireEditsViewOf } from "../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind, WireEditSide, type WireEditOf, type WireEditsViewOf } from "../webapp/layer1-wire.ts";
+import { applyHunksToLines, checkHunkMatchesBase } from "./layer1_edit_hunks.ts";
+import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "./layer1_edits_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";
 import { buildSessionFile, buildSessionId, findTitleAt, parseMs } from "./viewer_api_layer1_fixture_data.ts";
-import {
-  EDITS, applyHunkLines, findFixtureEvent, listFixtureEvents, matchesBase, type FixtureEvent,
-} from "./viewer_api_layer3_fixture_data.ts";
+import { EDITS, findFixtureEvent, listFixtureEvents, type FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
 
-export const LAYER1_PROGRESS_LABEL_READING_EDITS = "reading Edit/Write events";
+// Task 355: the label moved to layer1_edits_wire.ts. 343's tests still import it from here; re-point them, then drop this line.
+// export { LAYER1_PROGRESS_LABEL_READING_EDITS } from "./layer1_edits_wire.ts";
+// export const LAYER1_PROGRESS_LABEL_READING_EDITS = "reading Edit/Write events";
 
 export interface ReplayedEvent { base: string[]; target: string[]; confidence: WireConfidence; }
 
@@ -50,8 +52,8 @@ function computeStates(event: FixtureEvent): EventStates {
   }
   else {
     const base = computeBase(events, index);
-    const isMatched = event.hunks!.every((hunk) => matchesBase(base, hunk));
-    states = { base, target: applyHunkLines(base, event.hunks!), isMatched };
+    const isMatched = event.hunks!.every((hunk) => checkHunkMatchesBase(base, hunk));
+    states = { base, target: applyHunksToLines(base, event.hunks!), isMatched };
   }
   statesByChangeId.set(event.changeId, states);
   return states;
@@ -97,11 +99,11 @@ export function buildFixtureRecord(event: FixtureEvent): object {
 export function readFixtureEditFile(changeId: string, side: string): { content: string; title: string; record: object } {
   const event = findFixtureEvent(changeId);
   const replayed = replayFixtureEvent(event);
-  if (side !== "base" && side !== "target") {
+  if (side !== WireEditSide.base && side !== WireEditSide.target) {
     throw new Error(`side must be base or target, got ${side}`);
   }
   return {
-    content: (side === "base" ? replayed.base : replayed.target).join("\n"),
+    content: (side === WireEditSide.base ? replayed.base : replayed.target).join("\n"),
     title: findTitleAt(event.session, event.line),
     record: buildFixtureRecord(event),
   };

@@ -162,6 +162,14 @@
   .loadbar-confirm[hidden] { display: none; }
   .loadbar[hidden] { display: none; }
   /*
+    Task 355: full-viewport overlay while the Edit payload loads; z-index sits above .ruler (8).
+  */
+  .busy-shield { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center;
+    justify-content: center; background: color-mix(in srgb, var(--page) 70%, transparent); }
+  .busy-shield[hidden] { display: none; }
+  .busy-card { min-width: 320px; padding: 16px; background: var(--surface); border: 1px solid var(--border); }
+  #busy-error { font-weight: 600; margin: 8px 0; white-space: pre-wrap; }
+  /*
     Task 304: the JSONLs pane's scan bar — the loadbar idiom sized for a narrow pane.
   */
   .pane-loadbar { flex-wrap: wrap; padding: 8px 10px; border-bottom: none; }
@@ -644,6 +652,7 @@
   .node.n-read { --node-colour: var(--c-read); }
   .node.conf-verified { outline: 2px solid var(--node-colour); outline-offset: 3.5px; }
   .node.conf-derived { background: transparent; border: 2px dashed var(--node-colour); }
+  .node.conf-reseeded { outline: 2px dotted var(--c-edit); outline-offset: 3.5px; }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

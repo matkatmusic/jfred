@@ -4,6 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -74,6 +76,17 @@ test("an edit node reveals a [{ }] button that toggles its raw transcript JSON",
   assert.equal(jsonBox.hidden, false);
   assert.ok(jsonBox.textContent?.includes("structuredPatch"));
   assert.ok(jsonBox.textContent?.includes("raw record text"));
+});
+
+test("test_edit_step_params_carry_jsonl_folders", async () => {
+  const asks = setUpPage();
+  writeSourcePaths(SourceKind.jsonl, ["/logs/a", "/logs/b"]);
+  await clickNode(drawEditNode("edit", "n-edit"));
+  const params = listFileAsks(asks);
+  assert.ok(params.length > 0);
+  assert.ok(params.every((entry) => entry.getAll("jsonl").join(",") === "/logs/a,/logs/b" && entry.get("editChangeId") === CHANGE_ID
+    && entry.get("path") === "src/util.ts" && entry.get("dir") === "/work" && entry.has("side")));
+  writeSourcePaths(SourceKind.jsonl, []);
 });
 
 test("a Read beacon shows one revision: the bytes as read", async () => {

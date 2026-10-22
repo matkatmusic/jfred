@@ -31,6 +31,10 @@ export const WireEditKind = {
 } as const;
 export type WireEditKind = (typeof WireEditKind)[keyof typeof WireEditKind];
 
+// Task 355: which side of an Edit node /api/layer1-file returns.
+export const WireEditSide = { base: "base", target: "target" } as const;
+export type WireEditSide = (typeof WireEditSide)[keyof typeof WireEditSide];
+
 // Task 343: only the confidence states layer 3 emits; the other four arrive with their layers.
 export const WireConfidence = {
     verified: "verified",

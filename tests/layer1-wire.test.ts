@@ -7,6 +7,7 @@ import {
     SourceKind,
     WireConfidence,
     WireEditKind,
+    WireEditSide,
     WireScriptExecutorKind,
     listPairLadderInstants,
     type WirePairOf,
@@ -59,6 +60,10 @@ test("test_pair_ladder_places_edits_after_snapshots_and_before_script_runs", () 
 test("test_edit_kind_and_confidence_values_are_the_wire_spellings", () => {
     assert.deepEqual(Object.values(WireEditKind), ["edit", "write", "read"]);
     assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded"]);
+});
+
+test("test_edit_side_values_are_the_wire_spellings", () => {
+    assert.deepEqual(Object.values(WireEditSide), ["base", "target"]);
 });
 
 test("test_wire_script_executor_kind_values_are_the_wire_spellings", () => {

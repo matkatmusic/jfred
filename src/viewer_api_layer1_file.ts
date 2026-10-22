@@ -1,4 +1,4 @@
-// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313).
+// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313), Edit `?editChangeId&side&path&dir&jsonl` (355).
 //
 // Task 299: `&binary=1` answers raw bytes with an image content-type; the default stays `{ content }` as UTF-8.
 //
@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join, resolve, sep } from "node:path";
 import { Path } from "./structures/domain.ts";
+import { isEditFileRequest, readEditFileContent } from "./viewer_api_layer1_edit_file.ts";
 import { isSnapshotFileRequest, readSnapshotFileContent } from "./viewer_api_layer1_snapshot.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
@@ -66,6 +67,11 @@ export function handleLayer1FileRequest(response: ServerResponse, query: URLSear
     // Task 313: the snapshot form serves text from the owning session's sidecar, never a git/disk read.
     if (isSnapshotFileRequest(query)) {
         sendJson(response, 200, readSnapshotFileContent(query));
+        return;
+    }
+    // Task 355: the Edit form serves replayed Edit/Write/Read bytes from the owning transcripts.
+    if (isEditFileRequest(query)) {
+        sendJson(response, 200, readEditFileContent(query));
         return;
     }
     const bytes = readLayer1FileBytes(query);

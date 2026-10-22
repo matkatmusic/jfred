@@ -2,6 +2,7 @@
 
 import { getInputById } from "./app-dom.ts";
 import { type DiffStep } from "./layer1-diff-pane.ts";
+import { readSourceParams } from "./layer1-sources.ts";
 
 const SHORT_HASH_LENGTH = 8;
 
@@ -33,12 +34,18 @@ export function describeDiskStep(path: string): DiffStep {
 
 // Task 343: one side of an Edit/Write/Read node, replayed by the server; the changeId is the node's identity.
 export function describeEditSide(path: string, changeId: string, side: "base" | "target", marker: string): DiffStep {
-    const buildParams = (): URLSearchParams => new URLSearchParams({
-        editChangeId: changeId,
-        side,
-        path,
-        dir: getInputById("dir").value.trim(),
-    });
+    const buildParams = (): URLSearchParams => {
+        const params = new URLSearchParams({
+            editChangeId: changeId,
+            side,
+            path,
+            dir: getInputById("dir").value.trim(),
+        });
+        for (const folder of readSourceParams().getAll("jsonl")) {
+            params.append("jsonl", folder);
+        }
+        return params;
+    };
     return { marker, buildParams, loadContent: loadViaFileRoute(buildParams) };
 }
 

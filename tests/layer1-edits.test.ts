@@ -90,6 +90,36 @@ test("test_the_loadbar_is_hidden_after_a_success_and_after_a_failure", async () 
   await loadEditsOnce(buildView());
   assert.equal(isLoadbarHidden(), true);
   Object.assign(globalThis, { fetch: async () => ({ ok: false, status: 500, text: async () => "boom" }) });
-  await assert.rejects(loadEditsOnce(buildView()), /boom/);
+  assert.equal(await loadEditsOnce(buildView()), false);
   assert.equal(isLoadbarHidden(), true);
+});
+
+function isShieldHidden(): boolean {
+  return document.getElementById("busy-shield")!.hasAttribute("hidden");
+}
+
+test("test_shield_is_open_before_first_await", async () => {
+  setupLayer1Dom();
+  stubStreamRoute("/api/layer1-edits", [PAYLOAD]);
+  const loading = loadEditsOnce(buildView());
+  assert.equal(isShieldHidden(), false);
+  await loading;
+});
+
+test("test_failed_fetch_shows_error_on_shield_and_returns_false", async () => {
+  setupLayer1Dom();
+  Object.assign(globalThis, { fetch: async () => ({ ok: false, status: 500, text: async () => "boom" }) });
+  assert.equal(await loadEditsOnce(buildView()), false);
+  assert.equal(isShieldHidden(), false);
+  assert.match(document.getElementById("busy-error")!.textContent!, /boom/);
+  assert.equal(document.getElementById("busy-close")!.hasAttribute("hidden"), false);
+});
+
+test("test_success_closes_shield_after_merge", async () => {
+  setupLayer1Dom();
+  stubStreamRoute("/api/layer1-edits", [PROGRESS, PAYLOAD]);
+  const view = buildView();
+  assert.equal(await loadEditsOnce(view), true);
+  assert.equal(isShieldHidden(), true);
+  assert.equal(view.pairs[0]!.edits!.length, 1);
 });

@@ -14,6 +14,7 @@ import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
+import { wireBusyShield } from "./layer1-busy-shield.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
@@ -231,6 +232,7 @@ export async function bootLayer1Page(): Promise<void> {
   });
   void confirmRepoAndFillRefs();
   wireLayer1CancelButton();
+  wireBusyShield();
   wireZoomControls();
   // wireLayerToggle();
   wireFileNavResize();

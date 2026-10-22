@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import "../src/viewer_api_layer2_fixture_data.ts";
+import { applyHunksToLines, checkHunkMatchesBase } from "../src/layer1_edit_hunks.ts";
 import {
-  EDITS, applyHunkLines, buildEditEvent, buildReplaceHunk, buildStaleEditEvent, findFixtureEvent, listFixtureEvents,
-  matchesBase,
+  EDITS, buildEditEvent, buildReplaceHunk, buildStaleEditEvent, findFixtureEvent, listFixtureEvents,
 } from "../src/viewer_api_layer3_fixture_data.ts";
 
 const TEN_LINES = ["l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9"];
@@ -28,19 +28,19 @@ test("a replace hunk near the top is clamped to the first line", () => {
 
 test("matchesBase is true for the base the hunk was cut from and false for another", () => {
   const hunk = buildReplaceHunk(TEN_LINES, 5, "new5");
-  assert.equal(matchesBase(TEN_LINES, hunk), true);
-  assert.equal(matchesBase(TEN_LINES.map((line) => (line === "l6" ? "other" : line)), hunk), false);
+  assert.equal(checkHunkMatchesBase(TEN_LINES, hunk), true);
+  assert.equal(checkHunkMatchesBase(TEN_LINES.map((line) => (line === "l6" ? "other" : line)), hunk), false);
 });
 
 test("applyHunkLines swaps the removed line for the added one", () => {
   const hunk = buildReplaceHunk(TEN_LINES, 5, "new5");
-  assert.deepEqual(applyHunkLines(TEN_LINES, [hunk]), ["l0", "l1", "l2", "l3", "l4", "new5", "l6", "l7", "l8", "l9"]);
+  assert.deepEqual(applyHunksToLines(TEN_LINES, [hunk]), ["l0", "l1", "l2", "l3", "l4", "new5", "l6", "l7", "l8", "l9"]);
 });
 
 test("a stale edit event is cut against a different base and expects the derived state", () => {
   const stale = buildStaleEditEvent(SPEC, TEN_LINES, 5);
   assert.equal(stale.expectDerived, true);
-  assert.equal(matchesBase(TEN_LINES, stale.hunks![0]!), false);
+  assert.equal(checkHunkMatchesBase(TEN_LINES, stale.hunks![0]!), false);
   assert.equal(buildEditEvent(SPEC, TEN_LINES, 5).expectDerived, undefined);
 });
 

@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { test } from "node:test";
 import { dispatchLayer1FixtureRoute } from "../src/viewer_api_layer1_fixture.ts";
 import { listFixtureEvents } from "../src/viewer_api_layer3_fixture_data.ts";
-import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/viewer_api_layer3_fixture_replay.ts";
+import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/layer1_edits_wire.ts";
 
 function dispatchGet(pathAndQuery: string): { handled: boolean; body: string } {
   let body = "";

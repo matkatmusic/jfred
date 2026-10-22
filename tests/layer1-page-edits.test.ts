@@ -11,6 +11,8 @@ const READ = { instant: "2026-06-02T11:00:00.000Z", kind: "read", changeId: "too
   sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl", line: 30 };
 const EDIT = { instant: "2026-06-02T12:00:00.000Z", kind: "edit", changeId: "toolu_fixture_002", confidence: "verified",
   sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl", line: 44 };
+const RESEEDED = { instant: "2026-06-02T14:00:00.000Z", kind: "edit", changeId: "toolu_fixture_005", confidence: "reseeded",
+  sessionId: "fixture-b21d84c5", sessionFile: "/fixture/demo/projects/b21d84c5.jsonl", line: 300 };
 const STALE = { instant: "2026-06-02T13:00:00.000Z", kind: "edit", changeId: "toolu_fixture_003", confidence: "derived",
   sessionId: "fixture-b21d84c5", sessionFile: "/fixture/demo/projects/b21d84c5.jsonl", line: 280 };
 
@@ -27,12 +29,12 @@ const VIEW = {
 
 let editRequests = 0;
 
-async function loadPage(): Promise<void> {
+async function loadPage(edits: object[] = [READ, EDIT, STALE]): Promise<void> {
   editRequests = 0;
   setupLayer1Dom(BOTH_ROOTS_SEARCH);
   stubStreamRoute("/api/layer1-view", [VIEW]);
   const viewFetch = globalThis.fetch;
-  stubStreamRoute("/api/layer1-edits", [{ pairs: [{ path: "src/run.ts", edits: [READ, EDIT, STALE] }] }]);
+  stubStreamRoute("/api/layer1-edits", [{ pairs: [{ path: "src/run.ts", edits }] }]);
   const editsFetch = globalThis.fetch;
   Object.assign(globalThis, { fetch: (url: unknown, init?: RequestInit) => {
     const isEditsRequest = String(url).includes("/api/layer1-edits");
@@ -94,6 +96,14 @@ test("test_an_edit_node_carries_its_identity_and_confidence_on_the_dot_and_the_l
   }
   assert.ok(listMatching("#stage .node.n-edit")[1]!.classList.contains("conf-derived"));
   assert.ok(listMatching("#stage .node.n-edit")[0]!.classList.contains("conf-verified"));
+});
+
+test("test_a_reseeded_edit_draws_a_conf_reseeded_node", async () => {
+  await loadPage([RESEEDED]);
+  await tickEditBox();
+  const node = listMatching("#stage .node.n-edit")[0]!;
+  assert.equal(node.getAttribute("data-confidence"), "reseeded");
+  assert.ok(node.classList.contains("conf-reseeded"));
 });
 
 test("test_edit_nodes_take_ruler_offsets_in_instant_order", async () => {
