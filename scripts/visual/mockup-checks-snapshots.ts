@@ -1,7 +1,7 @@
 // Snapshot node, ruler row and drawer checks; split out of mockup-checks.ts, run order lives in mockup.ts.
 
 import { pause, type HeadlessPage } from "./cdp.ts";
-import { FADE_WAIT_MS, bubbleOf, reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { FADE_WAIT_MS, bubbleOf, buildShapeProbe, reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
   const labels = await page.evaluate<string[]>(
@@ -21,6 +21,15 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
   // reportCheck("#301 every snapshot node is clickable",
   //   await page.evaluate<boolean>(
   //     `[...document.querySelectorAll('.n-snap')].every(n => n.classList.contains('hot'))`));
+  // Task 63: replaces the `.hot` check; the drawer opens a snapshot from a .node dot carrying session file and version.
+  const dots = await page.evaluate<{ count: number; total: number; unclickable: number }>(`(() => {
+        const dots = [...document.querySelectorAll('i.n-snap')];
+        const unclickable = dots.filter(d => !d.classList.contains('node') || !d.dataset.sessionFile
+          || !d.dataset.version || getComputedStyle(d).cursor !== 'pointer').length;
+        return { count: dots.length, total: window.__fixture.SNAPSHOTS.length, unclickable };
+    })()`);
+  reportCheck("#301 every snapshot dot is clickable: a .node with session file, version and pointer cursor",
+    dots.count === dots.total && dots.unclickable === 0, dots);
   reportCheck("#301 the show row carries a snapshot box",
     await page.evaluate<boolean>(
       `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
@@ -38,6 +47,38 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
         const rows = [...document.querySelectorAll(cell)].sort((a, b) => axisOf(a) - axisOf(b)).map(n => n.textContent);
         return rows[0] === 'created at' && rows[1] === '@v1 📸' && /^[0-9a-f]{8}$/.test(rows[2]);
         })()`));
+}
+
+// Task 63: replaces #304's Layer 1 vs 2 compare; the snapshot box hides snapshots by CSS and must not re-lay-out.
+export async function checkSnapshotToggle(page: HeadlessPage): Promise<void> {
+  const snapshotBox = `document.querySelector('#show-row input[data-kind="snapshot"]')`;
+  const hiddenProbe = `[...document.querySelectorAll('${bubbleOf("src/index.ts")} .nlabel.n-snap')]
+        .map(n => getComputedStyle(n).display === 'none')`;
+  const before = await page.evaluate<string>(buildShapeProbe("README.md"));
+  await page.evaluate(`${snapshotBox}.click()`);
+  const unticked = await page.evaluate<string>(buildShapeProbe("README.md"));
+  const hiddenWhileUnticked = await page.evaluate<boolean[]>(hiddenProbe);
+  await page.evaluate(`${snapshotBox}.click()`);
+  const reticked = await page.evaluate<string>(buildShapeProbe("README.md"));
+  const hiddenAfterRetick = await page.evaluate<boolean[]>(hiddenProbe);
+  const expectedLabels = await page.evaluate<string>(
+    `window.__fixture.COMMITS.filter(c => c.files.includes('README.md'))
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+        .map(c => c.hash.slice(0, 8)).concat('on disk').join('/')`);
+  const readmeSnapCount = await page.evaluate<number>(
+    `document.querySelectorAll('${bubbleOf("README.md")} .n-snap').length`);
+  const boxTicked = await page.evaluate<boolean>(`${snapshotBox}.checked`);
+  reportCheck("#304 unticking snapshots leaves a snapshot-free file exactly as it was",
+    unticked === before, { before, unticked });
+  reportCheck("#304 a snapshot-free file's labels are its fixture commits then 'on disk'",
+    before.split(":")[1] === expectedLabels, { before, expectedLabels });
+  reportCheck("#304 a snapshot-free file draws no snapshot node", readmeSnapCount === 0, readmeSnapCount);
+  reportCheck("#304 unticked snapshots are hidden",
+    hiddenWhileUnticked.length > 0 && hiddenWhileUnticked.every(hidden => hidden), hiddenWhileUnticked);
+  reportCheck("#304 reticked snapshots show again",
+    hiddenAfterRetick.length > 0 && hiddenAfterRetick.every(hidden => !hidden), hiddenAfterRetick);
+  reportCheck("#304 untick then retick lands back exactly where it started",
+    reticked === before && boxTicked, { before, reticked, boxTicked });
 }
 
 export async function validateRulerRow(page: HeadlessPage): Promise<void> {

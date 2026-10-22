@@ -12,7 +12,7 @@ import {
   reportCheck, validateChrome, validateNavRows, validateOrdering,
   validateScale, failures, saveScreenshot,
 } from "./mockup-checks.ts";
-import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
+import { checkSnapshotToggle, validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
 // // checkBubbleFlash (task 386: the real page has no bubble-click flash)
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
@@ -65,6 +65,8 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   // Its axis OFFSET may move (#251), but its own anchor and node rows must not.
   // reportCheck("#304 a file with NO snapshots renders exactly as at Layer 1",
   //   await page.evaluate<string>(buildShapeProbe("README.md")) === readmeAtLayer1, readmeAtLayer1);
+  // Task 63: replaces the block above; untick then retick the snapshot box on the same page.
+  await checkSnapshotToggle(page);
   await saveScreenshot(page, "02-layer2");
 
   await validateRulerRow(page);
