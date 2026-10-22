@@ -138,3 +138,47 @@ test("a row shows one distinct title per line before its meta line, and none whe
         ["first pass", "second pass"]);
     assert.deepEqual(rowKinds(1), ["sname", "smeta"]);
 });
+
+const UNTITLED_SESSION = { file: "untitled.jsonl", fullPath: "/p/untitled.jsonl", titles: [],
+    started: "2026-06-02T08:00:00Z", ended: "2026-06-02T09:00:00Z", paths: [`${PROJECT_FOLDER}/README.md`] };
+
+function typeSessionSearch(text: string, onChange: () => void = () => {}): string[] {
+    const box = document.getElementById("session-search") as HTMLInputElement;
+    renderSessionPane(onChange);
+    box.value = text;
+    box.dispatchEvent(new window.Event("input"));
+    return [...document.querySelectorAll<HTMLElement>(".session-item")].map((row) => row.dataset.file!);
+}
+
+test("typing a title word keeps only the matching rows, ignoring case", async () => {
+    await openSessionPane([...SESSIONS, UNTITLED_SESSION]);
+    assert.deepEqual(typeSessionSearch("TRIM"), ["b21d84c5.jsonl"]);
+});
+
+test("an untitled session is hidden while the search box has text", async () => {
+    await openSessionPane([...SESSIONS, UNTITLED_SESSION]);
+    assert.ok(typeSessionSearch("").includes("untitled.jsonl"));
+    assert.ok(!typeSessionSearch("the").includes("untitled.jsonl"));
+});
+
+test("a term nothing matches leaves no rows and one no-matches line", async () => {
+    await openSessionPane();
+    assert.deepEqual(typeSessionSearch("zzz-no-such-title"), []);
+    assert.equal(document.querySelectorAll("#sessions .navempty").length, 1);
+    assert.equal(document.querySelector("#sessions .navempty")!.textContent, "no matches");
+});
+
+test("the search clear button empties the box and restores every visible row", async () => {
+    await openSessionPane();
+    typeSessionSearch("trim");
+    document.getElementById("session-search-clear")!.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    assert.equal((document.getElementById("session-search") as HTMLInputElement).value, "");
+    assert.equal(document.querySelectorAll(".session-item").length, 2);
+});
+
+test("typing in the search box redraws the pane without calling onChange", async () => {
+    await openSessionPane();
+    let changeCount = 0;
+    typeSessionSearch("trim", () => { changeCount += 1; });
+    assert.equal(changeCount, 0);
+});

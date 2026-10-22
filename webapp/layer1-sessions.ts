@@ -163,9 +163,21 @@ export function renderSessionPane(onChange: () => void): void {
         onChange();
     };
     const visible = listVisibleSessions();
-    host.replaceChildren(...(visible.length > 0
-        ? visible.map((session) => buildSessionItem(session, () => redraw()))
-        : [el("div", { class: "navempty", text: "no JSONLs touched this project's files" })]));
+    const searchBox = getRequiredElementById("session-search") as HTMLInputElement;
+    const searchText = searchBox.value.trim().toLowerCase();
+    const matching = visible.filter((session) => searchText === ""
+        || session.titles.some((title) => title.toLowerCase().includes(searchText)));
+    host.replaceChildren(...(visible.length === 0
+        ? [el("div", { class: "navempty", text: "no JSONLs touched this project's files" })]
+        : matching.length === 0
+            ? [el("div", { class: "navempty", text: "no matches" })]
+            : matching.map((session) => buildSessionItem(session, () => redraw()))));
+    // The title search narrows this list only; the timeline is not re-filtered by typing.
+    searchBox.oninput = () => renderSessionPane(onChange);
+    (getRequiredElementById("session-search-clear") as HTMLButtonElement).onclick = () => {
+        searchBox.value = "";
+        renderSessionPane(onChange);
+    };
     const clear = getRequiredElementById("clear-sessions") as HTMLButtonElement;
     clear.disabled = selectedPaths.size === 0;
     // Property assignment, not addEventListener: re-runs per load/click; a second listener would fire stale callbacks.

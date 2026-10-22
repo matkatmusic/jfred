@@ -14,8 +14,8 @@ import {
 } from "./mockup-checks.ts";
 import { validateDrawer, /* validateRulerRow, */ validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
-// checkBubbleFlash, checkSessionSearch (task 386: the real page has neither feature)
-import { checkMultiFileDrawer } from "./mockup-checks-nav.ts";
+// checkBubbleFlash (task 386: the real page has no bubble-click flash)
+import { checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
   checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
   checkPairArrows, checkShowOnlySelected,
@@ -69,9 +69,9 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
 
   // Task 386: page bug: the 07-24 08:15 tick counts (2) but its tied @v3 snapshot sits 22px lower, so the tick cannot expand.
   // await validateRulerRow(page);
-  // Task 386: the real page has no bubble-click flash (#308) and no JSONL search box (#309).
+  // Task 386: the real page has no bubble-click flash (#308).
   // await checkBubbleFlash(page);
-  // await checkSessionSearch(page);
+  await checkSessionSearch(page);
   await validateDrawer(page);
 
   // Tasks #324/#325/#326; each restores what it changed, so the round-trip below still matches.
