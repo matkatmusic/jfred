@@ -20,8 +20,9 @@ test("check records only the failures", () => {
     failures.length = before;
 });
 
-test("buildShapeProbe targets the filebox, never the .fname that shares its data-path", () => {
-    assert.match(buildShapeProbe("src/util.ts"), /\.filebox\[data-path="src\/util\.ts"\]/);
+test("buildShapeProbe finds the filebox through its .fname child, which carries the data-path", () => {
+    assert.match(buildShapeProbe("src/util.ts"), /\.filebox:has\(> \.fname\[data-path="src\/util\.ts"\]\)/);
+    assert.ok(buildShapeProbe("src/util.ts").includes("--axis-px"));
 });
 
 test("the render signature reads every filebox's path, offset and node rows", () => {

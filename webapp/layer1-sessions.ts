@@ -138,14 +138,15 @@ function applySessionClick(fullPath: string, extend: boolean): void {
 }
 
 function buildSessionItem(session: WireSession, onChange: () => void): HTMLElement {
+    const distinctTitles = [...new Set(session.titles)];
     const item = el("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}` }, [
         el("div", { class: "sname", text: session.file }),
+        ...distinctTitles.map((title) => el("div", { class: "stitle", text: title })),
         // The day, then how much of the project this session touched — what decides a click.
         el("div", { class: "smeta", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
-        el("div", { class: "smeta", text: session.title }),
     ]);
-    item.title = `${session.title}\n${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}\n`
-        + session.paths.join("\n");
+    item.title = [...distinctTitles, `${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}`,
+        ...session.paths].join("\n");
     item.dataset.file = session.file; // Task 316: how flashSession finds this row again.
     item.addEventListener("click", (event) => {
         applySessionClick(session.fullPath, event.shiftKey);

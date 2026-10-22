@@ -17,10 +17,14 @@ export function reportCheck(name: string, ok: boolean, detail: unknown = ""): vo
   }
 }
 
-// A bubble's identity: its anchor instant and node rows, in order.
+// `data-path` lives on the bubble's .fname child, so a bubble is found through it.
+export const BUBBLES = `.filebox:has(> .fname[data-path])`;
+export const bubbleOf = (path: string) => `.filebox:has(> .fname[data-path=${JSON.stringify(path)}])`;
+
+// A bubble's identity: its anchor (--axis-px) and node rows, in order.
 export const buildShapeProbe =(path: string) =>
-  `(b => b.dataset.instant + ':' + [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/'))
-     (document.querySelector('.filebox[data-path="${path}"]'))`;
+  `(b => b.style.getPropertyValue('--axis-px') + ':' + [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/'))
+     (document.querySelector('${bubbleOf(path)}'))`;
 
 // Every bubble's path, offset and node rows — the whole-render signature #304's idempotency needs.
 export const RENDER_SIGNATURE =
@@ -67,19 +71,23 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
   }
   reportCheck("#306 every row reads sname, then title(s), then the timestamp",
     everyRowWellFormed, rows.slice(0, 4));
+  const rowOf = (stem: string) => rows.find(row => row.file === `${stem}.jsonl`);
+  const titledRow = rowOf("0f3c9a7e");
+  const renamedRow = rowOf("b21d84c5");
+  const unnamedRow = rowOf("7ce50a19");
   reportCheck("#306 a titled session leads with its title",
-    rows[0]?.kids[1] === "stitle|seed the demo app", rows[0]?.kids);
+    titledRow?.kids[1] === "stitle|seed the demo app", titledRow?.kids);
   let secondRowTitleCount = 0;
-  for (const kid of rows[1]?.kids ?? []) {
+  for (const kid of renamedRow?.kids ?? []) {
     const kidIsTitle = kid.startsWith("stitle");
     if (kidIsTitle)
       secondRowTitleCount += 1;
   }
   const secondRowHasTwoTitles = secondRowTitleCount === 2;
   reportCheck("#306 a twice-renamed session prints BOTH titles",
-    secondRowHasTwoTitles, rows[1]?.kids);
+    secondRowHasTwoTitles, renamedRow?.kids);
   reportCheck("#306 an unnamed session prints no title row at all",
-    rows[2]?.file === "7ce50a19.jsonl" && rows[2]?.kids.length === 2, rows[2]);
+    unnamedRow?.kids.length === 2, unnamedRow);
 }
 
 export async function validateScale(page: HeadlessPage): Promise<void> {

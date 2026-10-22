@@ -62,7 +62,7 @@ function buildFixtureSessions(): WireSession[] {
     sessions.push({
       file: session.file,
       fullPath: buildSessionFile(session.file).toString(),
-      title: session.titles[0]?.title ?? "",
+      titles: session.titles.map((range) => range.title),
       started: new Date(parseMs(session.started)).toISOString(),
       ended: new Date(parseMs(session.ended)).toISOString(),
       paths,

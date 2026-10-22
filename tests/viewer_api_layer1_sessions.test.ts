@@ -102,7 +102,18 @@ test("test_layer1_sessions_list_the_paths_each_session_touched", async () => {
 test("test_layer1_sessions_title_is_the_first_typed_prompt_not_a_tool_result", async () => {
     // one.jsonl's first `user` record is the Write's tool_result; the title must skip it.
     const sessions = await requestSessions([sourceDir]);
-    assert.equal(sessions[0]!.title, "next task");
+    assert.deepEqual(sessions[0]!.titles, ["next task"]);
+});
+
+test("test_layer1_sessions_titles_are_every_custom_title_in_file_order", async () => {
+    const titledDir = mkdtempSync(join(tmpdir(), "layer1-sessions-titled-"));
+    writeJsonlFixture(join(titledDir, "titled.jsonl"), [
+        buildPromptRecord("prompt-titled", null, ROOT_STARTED, titledDir),
+        { type: "custom-title", sessionId: SESSION_A, customTitle: "first pass" },
+        { type: "custom-title", sessionId: SESSION_A, customTitle: "second pass" },
+    ]);
+    const sessions = await requestSessions([titledDir]);
+    assert.deepEqual(sessions[0]!.titles, ["first pass", "second pass"]);
 });
 
 test("test_layer1_sessions_stream_counts_each_file_then_ends_with_the_plain_payload", async () => {

@@ -1,18 +1,18 @@
 // Tasks #308/#309/#328 — File Nav pane checks; separate file because mockup-checks.ts is at cap.
 
 import { type HeadlessPage } from "./cdp.ts";
-import { reportCheck } from "./mockup-checks.ts";
+import { BUBBLES, bubbleOf, reportCheck } from "./mockup-checks.ts";
 
 // The bubble the most sessions touched, so a point-sensitive lead has somewhere to move to.
 const BUSIEST_PATH = `(() => {
     const touch = p => window.__fixture.SESSIONS.filter(s => s.paths.includes(p)).length;
-    return [...document.querySelectorAll('.filebox[data-path]')]
-        .map(b => b.dataset.path).sort((a, b) => touch(b) - touch(a))[0];
+    return [...document.querySelectorAll('${BUBBLES}')]
+        .map(b => b.querySelector('.fname').dataset.path).sort((a, b) => touch(b) - touch(a))[0];
 })()`;
 
 // Clicks the box beside a node (never the node itself), so it lands as a bubble click.
 const clickBesideNode = (path: string, which: "0" | "-1") => `(() => {
-    const box = document.querySelector('.filebox[data-path=${JSON.stringify(path)}]');
+    const box = document.querySelector('${bubbleOf(path)}');
     const node = [...box.querySelectorAll('.node')].at(${which}).getBoundingClientRect();
     box.dispatchEvent(new MouseEvent('click', { bubbles: true,
         clientX: box.getBoundingClientRect().left + 4, clientY: node.top + node.height / 2 }));
@@ -23,7 +23,7 @@ const LEAD = `document.querySelector('.session-item.flash-lead')?.dataset.file ?
 
 // The session the page SHOULD lead with for a click level with this bubble's first (or last) node: the window nearest that node's own instant, which is the answer the page's ruler lookup owes.
 const expectedLead = (path: string, which: "0" | "-1") => `(() => {
-    const rows = [...document.querySelectorAll('.filebox[data-path=${JSON.stringify(path)}] .node')];
+    const rows = [...document.querySelectorAll('${bubbleOf(path)} .node')];
     const t = Number(rows.at(${which}).dataset.instant);
     const gap = s => Math.max(0, Date.parse(s.started) - t, t - Date.parse(s.ended));
     return window.__fixture.SESSIONS.filter(s => s.paths.includes(${JSON.stringify(path)}))
@@ -127,11 +127,12 @@ export async function checkMultiFileDrawer(page: HeadlessPage): Promise<void> {
   reportCheck("#328 a section is the single-pair pane defaulting to on disk / inline / full content",
     await page.evaluate<boolean>(`(() => {
         const d = ${sectionFor(a)};
-        return d.querySelector('.dpair').textContent === 'on disk - on disk'
+        // Task 386: equal sides collapse the label to one revision and leave the meta line empty (#329).
+        return d.querySelector('.dpair').textContent === 'on disk'
             && d.querySelectorAll('summary .dtools button').length === 4
             && d.querySelector('button[data-mode="inline"]').classList.contains('current')
             && d.querySelector('.dfull-toggle input').checked
-            && d.querySelector('.dmeta').textContent.includes('base on disk → target on disk');
+            && d.querySelector('.dmeta').textContent === '';
     })()`));
 
   // The pane cap: a section's body never grows past its max-height; long files scroll inside it.
@@ -168,7 +169,8 @@ export async function checkMultiFileDrawer(page: HeadlessPage): Promise<void> {
   reportCheck("#328 a section collapses when its <details> closes", await page.evaluate<boolean>(`(() => {
         const d = document.querySelector('#dbody details.dfile');
         d.open = false;
-        const hidden = d.querySelector('.dfile-body').offsetHeight === 0;
+        // Task 386: a closed <details> keeps its body's offsetHeight in current Chrome; checkVisibility() reports it hidden.
+        const hidden = !d.querySelector('.dfile-body').checkVisibility();
         d.open = true;
         return hidden;
     })()`));

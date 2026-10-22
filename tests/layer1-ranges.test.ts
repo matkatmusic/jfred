@@ -17,7 +17,7 @@ const TICKS: WireRulerTick[] = [
 ];
 
 function buildSession(started: string, ended: string): WireSession {
-    return { file: "a.jsonl", fullPath: "/p/a.jsonl", title: "t", started, ended, paths: [] };
+    return { file: "a.jsonl", fullPath: "/p/a.jsonl", titles: ["t"], started, ended, paths: [] };
 }
 
 test("an instant halfway between two ticks lands halfway between their offsets", () => {

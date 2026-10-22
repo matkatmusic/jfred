@@ -120,7 +120,7 @@ export interface WireSession {
     file: string;
     // Absolute path: the wire identity, because two source folders can hold the same basename.
     fullPath: string;
-    title: string;
+    titles: string[];
     started: string;
     ended: string;
     // Every file the session touched, which is all the filter needs.

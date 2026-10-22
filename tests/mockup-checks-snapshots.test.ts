@@ -26,20 +26,20 @@ async function failuresAddedBy(run: () => Promise<void>): Promise<string[]> {
 }
 
 test("validateSnapshotNodes passes when every snapshot has a versioned label", async () => {
-    const page = fakePage([["@v1 📸", "@v2 📸"], 2, true, true, 1, "2026-06-01", true]);
-    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page, "2026-06-01")), []);
+    const page = fakePage([["@v1 📸", "@v2 📸"], 2, true, true]);
+    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)), []);
 });
 
 test("validateSnapshotNodes fails the label check when a label is not '@vN 📸'", async () => {
-    const page = fakePage([["@v1 📸", "snap 📸"], 2, true, true, 1, "2026-06-01", true]);
-    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page, "2026-06-01")),
+    const page = fakePage([["@v1 📸", "snap 📸"], 2, true, true]);
+    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)),
         ["#301 one '@vN 📸' label per snapshot in the fixture"]);
 });
 
-test("validateSnapshotNodes fails the anchor check when the bubble anchor moved", async () => {
-    const page = fakePage([["@v1 📸"], 1, true, true, 1, "2026-06-02", true]);
-    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page, "2026-06-01")),
-        ["#301 the bubble anchor stays on `created at`"]);
+test("validateSnapshotNodes fails the order check when the pre-commit snapshot is misplaced", async () => {
+    const page = fakePage([["@v1 📸"], 1, true, false]);
+    assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)),
+        ["#301 the pre-commit snapshot sits between `created at` and the first commit"]);
 });
 
 test("validateRulerRow stops after one failed check when no tick holds the snapshot instant", async () => {

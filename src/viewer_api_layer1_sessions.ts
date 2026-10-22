@@ -3,6 +3,7 @@
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
+import { collectTitleRanges } from "./layer1_sessions.ts";
 import { readFirstUserPrompt } from "./reconstruction_prompts.ts";
 import { Path } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
@@ -41,10 +42,11 @@ function summarizeSession(jsonlPath: Path): WireSession | undefined {
         if (window === undefined) {
             return undefined;
         }
+        const titles = collectTitleRanges(records).map((range) => range.title);
         return {
             file: basename(jsonlPath.toString()),
             fullPath: jsonlPath.toString(),
-            title: readFirstUserPrompt(records).trim().slice(0, SESSION_TITLE_LIMIT),
+            titles: titles.length > 0 ? titles : [readFirstUserPrompt(records).trim().slice(0, SESSION_TITLE_LIMIT)],
             started: window.started.toISOString(),
             ended: window.ended.toISOString(),
             // The prescan is the one canonical "which files did this session touch" — never re-derived.

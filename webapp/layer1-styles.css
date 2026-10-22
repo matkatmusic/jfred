@@ -386,6 +386,8 @@
   .session-item .smeta { display: block; font-size: 9.5px; color: var(--muted); padding-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .session-item.selected .smeta { color: var(--ink2); }
+  .session-item .stitle { display: block; font-size: 10px; color: var(--ink); padding-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /*
     Task 316: the fade highlight; --c-echo, deliberately NOT the --c-script a SELECTED session wears.
   */

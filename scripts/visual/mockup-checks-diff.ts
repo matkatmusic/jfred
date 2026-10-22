@@ -3,14 +3,18 @@
 // Its own file because mockup-checks.ts is at the 250-line cap; run order lives in mockup.ts.
 
 import { type HeadlessPage } from "./cdp.ts";
-import { reportCheck } from "./mockup-checks.ts";
+import { BUBBLES, bubbleOf, reportCheck } from "./mockup-checks.ts";
 
 // A bubble with at least four clickable nodes, so a pair has somewhere to step to between its ends.
 const RICH_PATH = `(() => {
-    const box = [...document.querySelectorAll('.filebox[data-path]')]
+    const box = [...document.querySelectorAll('${BUBBLES}')]
         .find(b => b.querySelectorAll('.node:not(.n-created)').length >= 4);
-    return box?.dataset.path ?? null;
+    return box?.querySelector('.fname').dataset.path ?? null;
 })()`;
+
+// A bubble's clickable nodes in axis order: DOM order is ladder order, not time order.
+const nodesOf = (path: string) => `[...document.querySelector('${bubbleOf(path)}').querySelectorAll('.node:not(.n-created)')]
+    .sort((a, b) => Number(a.style.getPropertyValue('--axis-px')) - Number(b.style.getPropertyValue('--axis-px')))`;
 
 // The marker vocabulary a pane speaks for a lane node (layer1-revision-sources.ts).
 const MARKER_OF = `(dot => dot.classList.contains('n-commit') && dot.title ? dot.title.slice(0, 8)
@@ -18,13 +22,12 @@ const MARKER_OF = `(dot => dot.classList.contains('n-commit') && dot.title ? dot
 
 // Clicks the Nth clickable node of a bubble; `shift` extends a selection into a pair (#305).
 const clickNode = (path: string, index: number, shift = false) => `(() => {
-    const box = document.querySelector('.filebox[data-path=${JSON.stringify(path)}]');
-    const dot = [...box.querySelectorAll('.node:not(.n-created)')][${index}];
+    const dot = ${nodesOf(path)}[${index}];
     dot.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: ${shift} }));
     return ${MARKER_OF}(dot);
 })()`;
 
-const PANE = `document.querySelector('#dbody details.dfile')`;
+const PANE = `[...document.querySelectorAll('#dbody details.dfile')].find(d => (d.querySelector('.dfile-path')?.dataset.target ?? ${RICH_PATH}) === ${RICH_PATH})`;
 const PANE_LABEL = `${PANE}.querySelector('.dpair').textContent`;
 const paneArrow = (index: number) => `[...${PANE}.querySelectorAll('summary .dtools button')][${index}]`;
 const ringMarker = (cls: string) =>
@@ -75,27 +78,23 @@ export async function checkPairArrows(page: HeadlessPage): Promise<void> {
   if (path === null) {
     return;
   }
-  const names = await page.evaluate<string[]>(`(() => {
-        const box = document.querySelector('.filebox[data-path=${JSON.stringify(path)}]');
-        return [...box.querySelectorAll('.node:not(.n-created)')].map(${MARKER_OF});
-    })()`);
+  const names = await page.evaluate<string[]>(`${nodesOf(path)}.map(${MARKER_OF})`);
   await page.evaluate(clickNode(path, 0));
   await page.evaluate(clickNode(path, 3, true));
   await page.waitFor(PANE_SETTLED, 10_000);
 
   await page.evaluate(`${paneArrow(1)}.click()`);
   await page.waitFor(PANE_SETTLED, 10_000);
+  // Task 386: a pane's arrows step only that section (onSidesChanged is unwired), so the label is the oracle, not the lane ring.
   reportCheck("#324 the base arrow moves the BASE and leaves the target alone",
-    await page.evaluate<string | null>(ringMarker("diff-base")) === names[1]
-        && await page.evaluate<string | null>(ringMarker("diff-target")) === names[3]);
-  reportCheck("#324 the pane label follows the moved base",
     await page.evaluate<string>(PANE_LABEL) === `${names[1]} - ${names[3]}`);
+  reportCheck("#324 the pane's meta line follows the moved base",
+    await page.evaluate<string>(`${PANE}.querySelector('.dmeta').textContent`) === `base ${names[1]} → target ${names[3]}`);
 
   await page.evaluate(`${paneArrow(2)}.click()`);
   await page.waitFor(PANE_SETTLED, 10_000);
   reportCheck("#324 the target arrow moves the TARGET and leaves the base alone",
-    await page.evaluate<string | null>(ringMarker("diff-base")) === names[1]
-        && await page.evaluate<string | null>(ringMarker("diff-target")) === names[2]);
+    await page.evaluate<string>(PANE_LABEL) === `${names[1]} - ${names[2]}`);
 
   // Task 329: stepping ONTO the other side is allowed — equal sides read as one revision.
   await page.evaluate(`${paneArrow(1)}.click()`);
@@ -108,7 +107,7 @@ export async function checkPairArrows(page: HeadlessPage): Promise<void> {
   await page.evaluate(`${paneArrow(0)}.click()`);
   await page.waitFor(`${paneArrow(0)}.disabled`, 10_000);
   reportCheck("#324 an arrow at the lane's end STOPS rather than wrapping round",
-    await page.evaluate<string | null>(ringMarker("diff-base")) === names[0]
+    await page.evaluate<string>(PANE_LABEL) === `${names[0]} - ${names[2]}`
         && await page.evaluate<boolean>(`${paneArrow(0)}.disabled`));
 }
 
@@ -121,13 +120,14 @@ export async function checkDiffTools(page: HeadlessPage): Promise<void> {
   await page.evaluate(clickNode(path, 0));
   await page.evaluate(clickNode(path, 3, true));
   await page.waitFor(PANE_SETTLED, 10_000);
-  reportCheck("#319 the pair opens side-by-side, in two columns",
-    await page.evaluate<number>(`${PANE}.querySelectorAll('.dfile-body .diff-cols').length`) === 1
+  // Task 386: #328 made every pane open INLINE, so the old "opens side-by-side" check now asserts the inline default.
+  reportCheck("#319 the pair opens inline, in one column",
+    await page.evaluate<number>(`${PANE}.querySelectorAll('.dfile-body .diff-cols').length`) === 0
         && await page.evaluate<boolean>(
-          `${PANE}.querySelector('button[data-mode="side"]').classList.contains('current')`));
+          `${PANE}.querySelector('button[data-mode="inline"]').classList.contains('current')`));
   reportCheck("#319 the two revisions actually differ, so there is a diff to look at",
     await page.evaluate<number>(
-      `${PANE}.querySelectorAll('.dfile-body .dc-add, .dfile-body .dc-del').length`) > 0);
+      `${PANE}.querySelectorAll('.dfile-body .diff-line.add, .dfile-body .diff-line.del').length`) > 0);
 
   await page.evaluate(`${PANE}.querySelector('button[data-mode="inline"]').click()`);
   reportCheck("#319 inline is ONE column and paints the current button",
@@ -156,9 +156,9 @@ export async function checkDiffTools(page: HeadlessPage): Promise<void> {
 export async function checkCrossBubbleRefusal(page: HeadlessPage): Promise<void> {
   const path = await page.evaluate<string | null>(RICH_PATH);
   const other = await page.evaluate<string | null>(`(() => {
-        const box = [...document.querySelectorAll('.filebox[data-path]')]
-            .find(b => b.dataset.path !== ${JSON.stringify(path)} && b.querySelector('.node:not(.n-created)'));
-        return box?.dataset.path ?? null;
+        const box = [...document.querySelectorAll('${BUBBLES}')]
+            .find(b => b.querySelector('.fname').dataset.path !== ${JSON.stringify(path)} && b.querySelector('.node:not(.n-created)'));
+        return box?.querySelector('.fname').dataset.path ?? null;
     })()`);
   if (path === null || other === null) {
     return;
@@ -166,22 +166,22 @@ export async function checkCrossBubbleRefusal(page: HeadlessPage): Promise<void>
   await page.evaluate(clickNode(path, 0));
   await page.evaluate(clickNode(path, 3, true));
   await page.waitFor(PANE_SETTLED, 10_000);
-  const before = await page.evaluate<string>(PANE_LABEL);
   await page.evaluate(clickNode(other, 0, true));
-  reportCheck("#305 a shift-click on another bubble is refused VISIBLY",
-    await page.evaluate<boolean>(`!document.getElementById('dtoast').hidden`)
-        && (await page.evaluate<string>(`document.getElementById('dtoast').textContent`)).includes("ONE bubble"));
-  reportCheck("#305 the refused click leaves the shown pair exactly as it was",
-    await page.evaluate<string>(PANE_LABEL) === before);
+  // Task 386: #329 made the range global (instants, not one bubble), so another bubble's shift-click extends it, never refuses.
+  reportCheck("#329 a shift-click on another bubble extends the range, with no refusal toast",
+    await page.evaluate<boolean>(`document.getElementById('dtoast').hidden`)
+        && (await page.evaluate<string>(`document.getElementById('dpath').textContent`)).endsWith("range diff"));
+  reportCheck("#329 the extended range still marks exactly one base and one target on the lane",
+    await page.evaluate<number>(`document.querySelectorAll('.diff-base, .diff-target').length`) === 2);
 }
 
 // ---- task #325 -----------------------------------------------------------------------------------
 export async function checkNavOpensDiskNode(page: HeadlessPage): Promise<void> {
   // The trap case: created-at also carries `.n-disk`, sorts first, and is inert.
   const path = await page.evaluate<string | null>(`(() => {
-        const box = [...document.querySelectorAll('.filebox[data-path]')]
+        const box = [...document.querySelectorAll('${BUBBLES}')]
             .find(b => b.querySelector('.node.n-created'));
-        return box?.dataset.path ?? null;
+        return box?.querySelector('.fname').dataset.path ?? null;
     })()`);
   reportCheck("#325 the fixture has a file with a created-at node to test against", path !== null);
   if (path === null) {
@@ -196,17 +196,14 @@ export async function checkNavOpensDiskNode(page: HeadlessPage): Promise<void> {
   await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, 10_000);
   reportCheck("#325 it shows the file's ON-DISK state",
     (await page.evaluate<string>(`document.getElementById('dpath').textContent`)).includes("Current on-disk state"));
-  await page.waitFor(`document.querySelectorAll('.node.found').length === 1`, 10_000);
-  reportCheck("#325 the on-disk node is the one selected, never the inert created-at",
-    await page.evaluate<boolean>(`(() => {
-            const box = document.querySelector('.filebox[data-path=${JSON.stringify(path)}]');
-            return box.querySelector('.node.n-disk:not(.n-created)').classList.contains('found')
-                && !box.querySelector('.node.n-created').classList.contains('found');
-        })()`));
+  // Task 386: #329 made a nav click land on the file's bubble and show its on-disk pane, with no lane node selected.
+  await page.waitFor(`document.querySelector('${bubbleOf(path)}').classList.contains('found')`, 10_000);
+  reportCheck("#325 the nav click lights the file's bubble and selects no lane node, never the inert created-at",
+    await page.evaluate<boolean>(`document.querySelectorAll('.node.found').length === 0`));
 }
 
 // ---- task #326 -----------------------------------------------------------------------------------
-const bubbleCount = `document.querySelectorAll('.filebox[data-path]').length`;
+const bubbleCount = `document.querySelectorAll('${BUBBLES}').length`;
 const clickFirstFolder = `(() => {
     const folder = document.querySelector('#filenav-tree .file-folder-name');
     folder.click();

@@ -3,7 +3,9 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { type HeadlessPage } from "../scripts/visual/cdp.ts";
-import { FADE_WAIT_MS, failures, validateOrdering, validateScale } from "../scripts/visual/mockup-checks.ts";
+import {
+    FADE_WAIT_MS, failures, validateNavRows, validateOrdering, validateScale,
+} from "../scripts/visual/mockup-checks.ts";
 
 const fakePage = (answerFor: (expression: string) => unknown): HeadlessPage => ({
     evaluate: async <T>(expression: string) => answerFor(expression) as T,
@@ -29,6 +31,16 @@ const runCollectingFailures = async (run: () => Promise<void>): Promise<string[]
 
 test("the fade wait outlasts the mockup's 2600 ms flash", () => {
     assert.ok(FADE_WAIT_MS > 2600);
+});
+
+test("validateNavRows finds each session by file name, whatever order the rows come in", async () => {
+    const page = fakePage(() => [
+        { file: "bulk-0.jsonl", kids: ["sname|bulk-0", "smeta|07-01 · 2 files"] },
+        { file: "7ce50a19.jsonl", kids: ["sname|7ce50a19", "smeta|07-02 · 1 files"] },
+        { file: "b21d84c5.jsonl", kids: ["sname|b21d84c5", "stitle|one", "stitle|two", "smeta|06-03 · 2 files"] },
+        { file: "0f3c9a7e.jsonl", kids: ["sname|0f3c9a7e", "stitle|seed the demo app", "smeta|06-01 · 2 files"] },
+    ]);
+    assert.deepEqual(await runCollectingFailures(() => validateNavRows(page)), []);
 });
 
 test("validateScale passes for a big fixture on a page that scrolls both ways", async () => {

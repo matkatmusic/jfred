@@ -17,15 +17,15 @@ import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 const PROJECT_FOLDER = "/Users/you/code/demo-app";
 // Transcripts record ABSOLUTE paths; the fixture is absolute so the relative translation is exercised, not assumed.
 const SESSIONS = [
-    { file: "0f3c9a7e.jsonl", fullPath: "/p/0f3c9a7e.jsonl", title: "seed the demo app",
+    { file: "0f3c9a7e.jsonl", fullPath: "/p/0f3c9a7e.jsonl", titles: ["seed the demo app"],
         started: "2026-06-01T08:44:00Z", ended: "2026-06-01T09:12:00Z",
         paths: [`${PROJECT_FOLDER}/src/index.ts`, `${PROJECT_FOLDER}/README.md`] },
-    { file: "b21d84c5.jsonl", fullPath: "/p/b21d84c5.jsonl", title: "extract the trim helper",
+    { file: "b21d84c5.jsonl", fullPath: "/p/b21d84c5.jsonl", titles: ["extract the trim helper"],
         started: "2026-06-01T14:05:00Z", ended: "2026-06-03T18:40:00Z",
         // src/index.ts is shared with the first session, so the union has to de-duplicate it.
         paths: [`${PROJECT_FOLDER}/src/index.ts`, `${PROJECT_FOLDER}/src/util.ts`] },
     // Touched nothing this project draws: the pane must not list it at all.
-    { file: "ffffffff.jsonl", fullPath: "/p/ffffffff.jsonl", title: "an unrelated project",
+    { file: "ffffffff.jsonl", fullPath: "/p/ffffffff.jsonl", titles: ["an unrelated project"],
         started: "2026-06-02T00:00:00Z", ended: "2026-06-02T01:00:00Z",
         paths: ["/Users/you/code/other-app/main.go"] },
 ];
@@ -33,13 +33,13 @@ const SESSIONS = [
 const KNOWN_PATHS = ["src/index.ts", "src/util.ts", "README.md"];
 
 // The stub answers /api/layer1-sessions and the source list points somewhere; an empty list means no fetch.
-async function openSessionPane(): Promise<void> {
+async function openSessionPane(sessions: object[] = SESSIONS): Promise<void> {
     setupLayer1Dom();
     writeSourcePaths(SourceKind.jsonl, ["/p"]);
     // Task 304: the pane reads the endpoint as an NDJSON stream, so the stub answers one.
     stubStreamRoute("/api/layer1-sessions", [
         { kind: "progress", label: "scanning JSONL files", current: 1, total: 3 },
-        { sessions: SESSIONS },
+        { sessions },
     ]);
     resetSessionSelection();
     const { loadLayer1Sessions } = await import("../webapp/layer1-sessions.ts");
@@ -122,4 +122,19 @@ test("before a view is drawn every session is listed", async () => {
     setKnownProjectPaths(PROJECT_FOLDER, []);
     renderSessionPane(() => {});
     assert.equal(document.querySelectorAll(".session-item").length, SESSIONS.length);
+});
+
+test("a row shows one distinct title per line before its meta line, and none when unnamed", async () => {
+    const touched = [`${PROJECT_FOLDER}/src/index.ts`];
+    const base = { fullPath: "/p/x.jsonl", started: "2026-06-01T08:44:00Z", ended: "2026-06-01T09:12:00Z", paths: touched };
+    await openSessionPane([
+        { ...base, file: "named.jsonl", titles: ["first pass", "second pass", "first pass"] },
+        { ...base, file: "unnamed.jsonl", titles: [] },
+    ]);
+    const rowKinds = (index: number): string[] =>
+        [...document.querySelectorAll(".session-item")[index]!.children].map((child) => child.className);
+    assert.deepEqual(rowKinds(0), ["sname", "stitle", "stitle", "smeta"]);
+    assert.deepEqual([...document.querySelectorAll(".session-item")[0]!.querySelectorAll(".stitle")].map((row) => row.textContent),
+        ["first pass", "second pass"]);
+    assert.deepEqual(rowKinds(1), ["sname", "smeta"]);
 });
