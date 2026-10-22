@@ -8,7 +8,9 @@ import {
     renderSessionPane,
     resetSessionSelection,
     setKnownProjectPaths,
+    wireBubbleFlash,
 } from "../webapp/layer1-sessions.ts";
+import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -181,4 +183,82 @@ test("typing in the search box redraws the pane without calling onChange", async
     let changeCount = 0;
     typeSessionSearch("trim", () => { changeCount += 1; });
     assert.equal(changeCount, 0);
+});
+
+// Task 308: a bubble click lights the JSONLs that touched its file; the lead is the one nearest the clicked level.
+const TOP_NODE_INSTANT = "2026-06-01T08:50:00Z";
+const BOTTOM_NODE_INSTANT = "2026-06-03T12:00:00Z";
+const TOP_NODE_CENTER_Y = 100;
+const BOTTOM_NODE_CENTER_Y = 500;
+
+// happy-dom has no layout, so each node reports the vertical position the test gives it.
+function buildNodeAt(instant: string, centerY: number): HTMLElement {
+    const node = document.createElement("i");
+    node.className = "node";
+    node.dataset.instant = instant;
+    node.getBoundingClientRect = () => new window.DOMRect(0, centerY - 10, 10, 20);
+    return node;
+}
+
+function drawBubble(path: string): { name: HTMLElement; topNode: HTMLElement } {
+    const box = document.createElement("div");
+    box.className = "filebox";
+    const name = document.createElement("span");
+    name.className = "fname";
+    name.dataset.path = path;
+    const topNode = buildNodeAt(TOP_NODE_INSTANT, TOP_NODE_CENTER_Y);
+    box.append(name, topNode, buildNodeAt(BOTTOM_NODE_INSTANT, BOTTOM_NODE_CENTER_Y));
+    getRequiredElementById("stage").append(box);
+    wireBubbleFlash();
+    return { name, topNode };
+}
+
+function clickAt(target: HTMLElement, clientY: number): void {
+    target.dispatchEvent(new window.MouseEvent("click", { bubbles: true, clientY }));
+}
+
+function listFlashedFiles(): string[] {
+    return [...document.querySelectorAll<HTMLElement>(".session-item.flash")].map((row) => row.dataset.file!).sort();
+}
+
+test("a bubble click flashes every visible session that touched the file", async () => {
+    await openSessionPane();
+    const { name } = drawBubble("src/index.ts");
+    clickAt(name, TOP_NODE_CENTER_Y);
+    assert.deepEqual(listFlashedFiles(), ["0f3c9a7e.jsonl", "b21d84c5.jsonl"]);
+});
+
+test("a bubble click leads with the session nearest the node level with the click", async () => {
+    await openSessionPane();
+    const { name } = drawBubble("src/index.ts");
+    const readLead = (): string | undefined => document.querySelector<HTMLElement>(".session-item.flash-lead")?.dataset.file;
+
+    clickAt(name, TOP_NODE_CENTER_Y);
+    assert.equal(readLead(), "0f3c9a7e.jsonl");
+
+    clickAt(name, BOTTOM_NODE_CENTER_Y);
+    assert.equal(readLead(), "b21d84c5.jsonl");
+});
+
+test("a click on a node itself flashes nothing, since it opens the drawer", async () => {
+    await openSessionPane();
+    const { topNode } = drawBubble("src/index.ts");
+    clickAt(topNode, TOP_NODE_CENTER_Y);
+    assert.deepEqual(listFlashedFiles(), []);
+});
+
+test("a bubble click highlights without selecting", async () => {
+    await openSessionPane();
+    const { name } = drawBubble("src/index.ts");
+    clickAt(name, TOP_NODE_CENTER_Y);
+    assert.equal(document.querySelectorAll(".session-item.selected").length, 0);
+    assert.deepEqual(listSelectedSessions(), []);
+});
+
+test("a session hidden by the search box does not light", async () => {
+    await openSessionPane();
+    typeSessionSearch("trim");
+    const { name } = drawBubble("src/index.ts");
+    clickAt(name, TOP_NODE_CENTER_Y);
+    assert.deepEqual(listFlashedFiles(), ["b21d84c5.jsonl"]);
 });

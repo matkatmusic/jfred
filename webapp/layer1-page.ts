@@ -22,7 +22,7 @@ import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
-import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths } from "./layer1-sessions.ts";
+import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths, wireBubbleFlash } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
@@ -240,6 +240,7 @@ export async function bootLayer1Page(): Promise<void> {
   wireFindFileBox();
   // All three are delegated, since every bubble, tick and leader is replaced on each render.
   wireNodeDrawer();
+  wireBubbleFlash();
   wireMultiFileDrawer();
   wireTickExpansion();
   wireLeaderVisibility();

@@ -24,7 +24,7 @@ const LEAD = `document.querySelector('.session-item.flash-lead')?.dataset.file ?
 // The session the page SHOULD lead with for a click level with this bubble's first (or last) node: the window nearest that node's own instant, which is the answer the page's ruler lookup owes.
 const expectedLead = (path: string, which: "0" | "-1") => `(() => {
     const rows = [...document.querySelectorAll('${bubbleOf(path)} .node')];
-    const t = Number(rows.at(${which}).dataset.instant);
+    const t = Date.parse(rows.at(${which}).dataset.instant);
     const gap = s => Math.max(0, Date.parse(s.started) - t, t - Date.parse(s.ended));
     return window.__fixture.SESSIONS.filter(s => s.paths.includes(${JSON.stringify(path)}))
         .sort((a, b) => gap(a) - gap(b))[0].file;

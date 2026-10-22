@@ -14,8 +14,8 @@ import {
 } from "./mockup-checks.ts";
 import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
-// checkBubbleFlash (task 386: the real page has no bubble-click flash)
-import { checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
+// // checkBubbleFlash (task 386: the real page has no bubble-click flash)
+import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
   checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
   checkPairArrows, checkShowOnlySelected,
@@ -68,8 +68,8 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   await saveScreenshot(page, "02-layer2");
 
   await validateRulerRow(page);
-  // Task 386: the real page has no bubble-click flash (#308).
-  // await checkBubbleFlash(page);
+  // // Task 386: the real page has no bubble-click flash (#308).
+  await checkBubbleFlash(page);
   await checkSessionSearch(page);
   await validateDrawer(page);
 

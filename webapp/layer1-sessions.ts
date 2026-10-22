@@ -122,6 +122,41 @@ export function flashSession(...files: string[]): void {
     lead.scrollIntoView?.({ block: "nearest" });
 }
 
+// Task 308: the `.node` whose vertical center is nearest the click gives the instant the click is level with.
+function readInstantNearestClick(box: Element, clientY: number): number {
+    const distanceToClick = (node: HTMLElement): number => {
+        const rect = node.getBoundingClientRect();
+        return Math.abs(rect.top + rect.height / 2 - clientY);
+    };
+    const nodes = [...box.querySelectorAll<HTMLElement>(".node")];
+    const nearest = nodes.reduce((best, node) => distanceToClick(node) < distanceToClick(best) ? node : best);
+    return Date.parse(nearest.dataset.instant!);
+}
+
+// Task 308: how far an instant falls outside a session's window; 0 inside it.
+function measureSessionGap(session: WireSession, instant: number): number {
+    return Math.max(0, Date.parse(session.started) - instant, instant - Date.parse(session.ended));
+}
+
+// Task 308: a bubble click (not a node or label click, which open the drawer) flashes the sessions that touched it, best first.
+export function wireBubbleFlash(): void {
+    getRequiredElementById("stage").addEventListener("click", (event) => {
+        const target = event.target as HTMLElement;
+        const box = target.closest(".filebox");
+        const path = box?.querySelector<HTMLElement>(".fname")?.dataset.path;
+        if (box === null || path === undefined || target.closest(".node, .nlabel") !== null) {
+            return;
+        }
+        const touched = listVisibleSessions().filter((session) => listSessionPathsInProject(session).includes(path));
+        if (touched.length === 0) {
+            return;
+        }
+        const instant = readInstantNearestClick(box, event.clientY);
+        const sorted = [...touched].sort((a, b) => measureSessionGap(a, instant) - measureSessionGap(b, instant));
+        flashSession(...sorted.map((session) => session.file));
+    });
+}
+
 // Plain click picks one; a re-click on the only pick clears; shift toggles just this one.
 function applySessionClick(fullPath: string, extend: boolean): void {
     if (extend) {
