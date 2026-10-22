@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { el } from "../webapp/app-dom.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-files.ts";
 import { flashSession } from "../webapp/layer1-sessions.ts";
+import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Absolute ruler offsets, exactly as the endpoint ships them.
@@ -105,6 +106,34 @@ test("test_listEventsAtRow_reads_a_snapshot_rows_version_label_and_owning_sessio
     const [event] = listEventsAtRow([SHARED_PX]);
     assert.equal(event!.kind, "@v2 📸");
     assert.equal(event!.session, "sess-a.jsonl");
+});
+
+// Task 251 stacks a bubble's same-instant nodes a row apart; the snapshot sits below its tied on-disk node.
+const TIED_INSTANT = "2026-07-24T08:15:00.000Z";
+const OTHER_INSTANT = "2026-07-24T09:30:00.000Z";
+
+function buildInstantNode(axisPx: number, label: string, instant: string, nodeClass: string): HTMLElement[] {
+    const dot = setAxisPx(el("i", { class: `node ${nodeClass}` }), axisPx);
+    const name = setAxisPx(el("span", { class: "nlabel", text: label }), axisPx);
+    dot.dataset.instant = instant;
+    name.dataset.instant = instant;
+    return [dot, name];
+}
+
+test("test_listEventsAtRow_lists_a_stacked_snapshot_tied_to_the_on_disk_instant", () => {
+    drawStage(() => [buildPairBubble("src/index.ts", SHARED_PX, [
+        ...buildInstantNode(0, "on disk", TIED_INSTANT, "n-disk"),
+        ...buildInstantNode(RULER_NODE_ROW_PIXELS, "@v3 📸", TIED_INSTANT, "n-snap"),
+    ])]);
+    assert.deepEqual(listEventsAtRow([SHARED_PX]).map((event) => event.kind), ["on disk", "@v3 📸"]);
+});
+
+test("test_listEventsAtRow_skips_a_stacked_node_of_a_different_instant", () => {
+    drawStage(() => [buildPairBubble("src/index.ts", SHARED_PX, [
+        ...buildInstantNode(0, "on disk", TIED_INSTANT, "n-disk"),
+        ...buildInstantNode(RULER_NODE_ROW_PIXELS, "@v3 📸", OTHER_INSTANT, "n-snap"),
+    ])]);
+    assert.deepEqual(listEventsAtRow([SHARED_PX]).map((event) => event.kind), ["on disk"]);
 });
 
 test("test_flashSession_highlights_the_owning_row_as_lead_without_selecting_it", () => {

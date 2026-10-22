@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 
 interface FixtureInstant {
     instant: string;
@@ -122,6 +123,25 @@ test("test_hovering_an_interior_node_draws_that_node_s_line_not_its_bubble_s", a
     assert.equal(Number(interiorNode.style.getPropertyValue("--axis-px")), SHARED_PX - EARLY_PX);
     hover(interiorNode);
     // the SHARED line, not the bubble's own EARLY one.
+    assert.deepEqual(listShownLeaderOffsets(), [SHARED_PX]);
+});
+
+test("test_hovering_a_stacked_snapshot_draws_the_line_at_its_bubble_s_tick", async () => {
+    // Task 251 stacks the snapshot a row below its tied on-disk node; its line is still the tick's.
+    await loadPageWithView({
+        pairs: [{
+            path: "src/index.ts",
+            commits: [{ ...AT_EARLY, hash: EARLY_HASH }],
+            onDisk: AT_SHARED,
+            snapshots: [{ ...AT_SHARED, axisPx: SHARED_PX + RULER_NODE_ROW_PIXELS, version: 3, sessionId: "sess-a", sessionFile: "sess-a.jsonl" }],
+        }],
+        gitOrphans: [],
+        diskOrphans: [],
+        ruler: [{ ...AT_EARLY, eventCount: 1 }, { ...AT_SHARED, eventCount: 2 }],
+    });
+    const stacked = findBubble("index.ts").querySelector<HTMLElement>(".nlabel.n-snap");
+    assert.ok(stacked, "no snapshot label was drawn");
+    hover(stacked);
     assert.deepEqual(listShownLeaderOffsets(), [SHARED_PX]);
 });
 

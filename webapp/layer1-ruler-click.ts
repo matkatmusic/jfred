@@ -20,6 +20,15 @@ export function readAxisPx(element: HTMLElement): number {
     return Number(element.style.getPropertyValue("--axis-px"));
 }
 
+// Task 251 stacks a bubble's same-instant nodes a row apart; each answers at its instant's first row, where the tick sits.
+export function readTickAxisPx(row: HTMLElement, bubbleRows: readonly HTMLElement[]): number {
+    const instant = row.dataset.instant;
+    if (instant === undefined) {
+        return readAxisPx(row);
+    }
+    return Math.min(...bubbleRows.filter((other) => other.dataset.instant === instant).map(readAxisPx));
+}
+
 // Shared with layer1-leader-visibility.ts so a leader line and a tick can never disagree about what sits at an instant.
 export function axisMatches(candidatePx: number, targetPx: number): boolean {
     return Math.abs(candidatePx - targetPx) <= AXIS_MATCH_EPSILON_PX;
@@ -42,12 +51,16 @@ export interface BubbleSnapshot {
 
 // Task 309: per-ruler-row stage walks cost ~1.3 s over 900 bubbles; a shared snapshot pays once.
 export function snapshotStageBubbles(): BubbleSnapshot[] {
-    return listBubbles().map((bubble) => ({
-        bubble,
-        bubblePx: readAxisPx(bubble),
-        rows: [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)]
-            .map((row) => ({ row, rowPx: readAxisPx(row) })),
-    }));
+    return listBubbles().map((bubble) => {
+        const rows = [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)];
+        return {
+            bubble,
+            bubblePx: readAxisPx(bubble),
+            // rows: [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)]
+            //     .map((row) => ({ row, rowPx: readAxisPx(row) })),
+            rows: rows.map((row) => ({ row, rowPx: readTickAxisPx(row, rows) })),
+        };
+    });
 }
 
 // Rows of a bubble that BEGINS at the instant sort before rows of bubbles merely holding it.

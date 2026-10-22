@@ -26,18 +26,18 @@ async function failuresAddedBy(run: () => Promise<void>): Promise<string[]> {
 }
 
 test("validateSnapshotNodes passes when every snapshot has a versioned label", async () => {
-    const page = fakePage([["@v1 📸", "@v2 📸"], 2, true, true]);
+    const page = fakePage([["@v1 📸", "@v2 📸"], 2, true, 1, true]);
     assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)), []);
 });
 
 test("validateSnapshotNodes fails the label check when a label is not '@vN 📸'", async () => {
-    const page = fakePage([["@v1 📸", "snap 📸"], 2, true, true]);
+    const page = fakePage([["@v1 📸", "snap 📸"], 2, true, 1, true]);
     assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)),
         ["#301 one '@vN 📸' label per snapshot in the fixture"]);
 });
 
 test("validateSnapshotNodes fails the order check when the pre-commit snapshot is misplaced", async () => {
-    const page = fakePage([["@v1 📸"], 1, true, false]);
+    const page = fakePage([["@v1 📸"], 1, true, 1, false]);
     assert.deepEqual(await failuresAddedBy(() => validateSnapshotNodes(page)),
         ["#301 the pre-commit snapshot sits between `created at` and the first commit"]);
 });

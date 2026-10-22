@@ -12,7 +12,7 @@ import {
   reportCheck, validateChrome, validateNavRows, validateOrdering,
   validateScale, failures, saveScreenshot,
 } from "./mockup-checks.ts";
-import { validateDrawer, /* validateRulerRow, */ validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
+import { validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
 // checkBubbleFlash (task 386: the real page has no bubble-click flash)
 import { checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
@@ -67,8 +67,7 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   //   await page.evaluate<string>(buildShapeProbe("README.md")) === readmeAtLayer1, readmeAtLayer1);
   await saveScreenshot(page, "02-layer2");
 
-  // Task 386: page bug: the 07-24 08:15 tick counts (2) but its tied @v3 snapshot sits 22px lower, so the tick cannot expand.
-  // await validateRulerRow(page);
+  await validateRulerRow(page);
   // Task 386: the real page has no bubble-click flash (#308).
   // await checkBubbleFlash(page);
   await checkSessionSearch(page);

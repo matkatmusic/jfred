@@ -24,10 +24,9 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
   reportCheck("#301 the show row carries a snapshot box",
     await page.evaluate<boolean>(
       `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
-  // Task 386: known page bug (grouping assumes contiguous ties); the user said not to fix it here.
-  // reportCheck("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
-  //   await page.evaluate<number>(
-  //     `document.querySelectorAll('[data-path="src/index.ts"] .nodes-with-same-timestamp').length`) === 1);
+  reportCheck("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
+    await page.evaluate<number>(
+      `document.querySelectorAll('${bubbleOf("src/index.ts")} .nodes-with-same-timestamp').length`) === 1);
   // Task 386: compared the page to itself since the layer switcher was retired.
   // reportCheck("#301 the bubble anchor stays on `created at`",
   //   await page.evaluate<string>(
@@ -68,8 +67,10 @@ export async function validateRulerRow(page: HeadlessPage): Promise<void> {
         return { file: f.dataset.file, ms: f.style.getPropertyValue('--flash-ms'), selected };
     })()`);
   // The user hit this on module_36: one row click must mark only the clicked node.
+  // The page lights the dot (.node.found), never its label; the label is the dot's next sibling.
+  // `[...document.querySelectorAll('.nlabel.found')].map(n => n.textContent)`
   const marked = await page.evaluate<string[]>(
-    `[...document.querySelectorAll('.nlabel.found')].map(n => n.textContent)`);
+    `[...document.querySelectorAll('.node.found')].map(n => n.nextElementSibling.textContent)`);
   reportCheck("#302 a snapshot row selects ONLY its snapshot, not the commit beside it",
     marked.length === 1 && marked[0] === "@v3 📸", marked);
   reportCheck("#303 the row flashes its OWNING session", flash?.file === "d4a06b8f.jsonl", flash);

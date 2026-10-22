@@ -10,7 +10,7 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { LANDED_EVENT } from "./layer1-find-file.ts";
-import { axisMatches, readAxisPx } from "./layer1-ruler-click.ts";
+import { axisMatches, readAxisPx, readTickAxisPx } from "./layer1-ruler-click.ts";
 
 // The class layer1-styles.css paints the line from. Deliberately not `.aimed`: that is task 290's hover-the-LINE state, which lights the line AND its targets, while this only decides whether a line is drawn at all. A line can be shown and not aimed, and the stylesheet shows an aimed one.
 const SHOWN_CLASS = "shown";
@@ -44,7 +44,9 @@ function readAbsoluteAxisPx(element: HTMLElement): number | undefined {
         return undefined;
     }
     const row = element.closest<HTMLElement>(BUBBLE_ROW_SELECTOR);
-    return readAxisPx(bubble) + (row === null ? 0 : readAxisPx(row));
+    // return readAxisPx(bubble) + (row === null ? 0 : readAxisPx(row));
+    const bubbleRows = [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)];
+    return readAxisPx(bubble) + (row === null ? 0 : readTickAxisPx(row, bubbleRows));
 }
 
 // The one line drawn for whatever `element` sits on, or undefined when it sits on nothing — the pane's padding, the empty-state message, or a ruler entry whose line the render never produced.

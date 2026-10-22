@@ -17,16 +17,17 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 }
 
 // The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
-function appendAxisNode(lane: HTMLElement, axisPx: number, nodeClass: string, text: string, titleText?: string): void {
+function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, titleText?: string): void {
     lane.append(
-        setAxisPx(el("i", { class: `node ${nodeClass}`, title: titleText }), axisPx),
-        setAxisPx(el("span", { class: "nlabel", text, title: titleText }), axisPx),
+        setAxisPx(el("i", { class: `node ${nodeClass}`, title: titleText, "data-instant": instant }), axisPx),
+        setAxisPx(el("span", { class: "nlabel", text, title: titleText, "data-instant": instant }), axisPx),
     );
 }
 
 // Task 315: identity on `data-` attrs (task 280), on both elements; `n-snap` on both is task 314's hide handle.
 function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSnapshot): void {
     const identity = {
+        "data-instant": snapshot.instant,
         "data-version": String(snapshot.version),
         "data-session-id": snapshot.sessionId,
         "data-session-file": snapshot.sessionFile,
@@ -71,12 +72,12 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     // Task 259's markers go in before the nodes; with no z-index, DOM order keeps the rectangle behind the dots.
     lane.append(el("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
     if (pair.created !== undefined) {
-        appendAxisNode(lane, pair.created.axisPx - startPx, "n-disk n-created", "created at", CREATED_NODE_TITLE);
+        appendAxisNode(lane, pair.created.axisPx - startPx, pair.created.instant, "n-disk n-created", "created at", CREATED_NODE_TITLE);
     }
     for (const commit of pair.commits) {
-        appendAxisNode(lane, commit.axisPx - startPx, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
+        appendAxisNode(lane, commit.axisPx - startPx, commit.instant, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
     }
-    appendAxisNode(lane, pair.onDisk.axisPx - startPx, "n-disk", "on disk");
+    appendAxisNode(lane, pair.onDisk.axisPx - startPx, pair.onDisk.instant, "n-disk", "on disk");
     for (const snapshot of snapshots) {
         appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
     }
