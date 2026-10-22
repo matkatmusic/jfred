@@ -66,6 +66,12 @@ test("test_the_base_fixture_view_stays_free_of_edits", () => {
     assert.ok(view.pairs.every((pair) => !("edits" in pair)), "no pair carries an edits key");
 });
 
+test("test_the_base_fixture_view_stays_free_of_script_runs", () => {
+    // Scenario: script runs arrive only from /api/layer1-script-runs, so no pair of the base view carries the key.
+    const view = buildFixtureLayer1View();
+    assert.ok(view.pairs.every((pair) => !("scriptRuns" in pair)), "no pair carries a scriptRuns key");
+});
+
 test("test_identical_sides_with_full_context_answer_the_synthesized_hunk", () => {
     // Scenario: identical sides emit no git hunk, so the full-context toggle must synthesize a whole-file hunk.
     const lines = ["one", "two", "three"];

@@ -181,8 +181,25 @@ async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void>
     getRequiredElementById("dmeta").textContent = `${run.executorKind} run · ${paths.length} affected file(s)`;
     getRequiredElementById("drawer").classList.add("open");
     setDrawerTools("none");
-    const scriptBody = el("pre", { class: "scriptbody", text: run.code });
-    displayDetailView([scriptBody, ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+    // const scriptBody = el("pre", { class: "scriptbody", text: run.code });
+    const metaRows: [string, string][] = [
+        ["kind", "script run (layer 4)"],
+        ["executor", run.executorKind],
+        ["instant", run.instant],
+        ["session", run.sessionFile],
+        ["files", paths.join(", ")],
+        ["verified", "no: located, not replayed"],
+    ];
+    const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
+    const scriptBody = el("div", { class: "scriptbody" }, [
+        el("div", { class: "sbhead" }, [
+            el("b", { text: run.label ?? `${run.executorKind} run` }),
+            el("span", { class: "prov", text: `resolved body · ${run.sessionFile} · ${run.instant}` }),
+        ]),
+        el("pre", { text: run.code }),
+    ]);
+    displayDetailView([scriptMeta, scriptBody, ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+    flashSession(run.sessionFile.split("/").pop() ?? run.sessionFile);
 }
 
 export function wireNodeDrawer(): void {

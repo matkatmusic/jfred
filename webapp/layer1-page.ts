@@ -19,6 +19,7 @@ import { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1V
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
+import { drawScriptConnectors } from "./layer1-script-connectors.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
@@ -92,6 +93,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
   drawLayer1Minimap();
+  drawScriptConnectors(stage);
 }
 
 // Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.

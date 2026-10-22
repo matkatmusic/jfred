@@ -21,27 +21,28 @@ function renderViewAndListShownKinds(pair: object | undefined): string[] {
 }
 
 test("test_the_show_row_lists_a_checkbox_for_each_kind_the_view_draws", () => {
-    // Scenario: four node kinds in the pair give four boxes, plus the always-present edit box, and no script-run box.
+    // Scenario: four node kinds in the pair give four boxes, plus the always-present edit and script-run boxes.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT, created: INSTANT, snapshots: [SNAPSHOT] };
-    assert.deepEqual(renderViewAndListShownKinds(pair), ["created", "commit", "disk", "snapshot", "edit"]);
+    assert.deepEqual(renderViewAndListShownKinds(pair), ["created", "commit", "disk", "snapshot", "edit", "script-run"]);
 });
 
 test("test_the_show_row_omits_kinds_the_view_does_not_draw", () => {
-    // Scenario: a commit-and-disk pair shows no created-at and no snapshot box; the edit box stays.
+    // Scenario: a commit-and-disk pair shows no created-at and no snapshot box; the edit and script-run boxes stay.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT };
-    assert.deepEqual(renderViewAndListShownKinds(pair), ["commit", "disk", "edit"]);
+    assert.deepEqual(renderViewAndListShownKinds(pair), ["commit", "disk", "edit", "script-run"]);
 });
 
-test("test_the_edit_box_exists_even_when_the_view_has_no_pairs", () => {
-    // Scenario: the box must exist before its data does, so an empty view still prints it.
-    assert.deepEqual(renderViewAndListShownKinds(undefined), ["edit"]);
+test("test_the_edit_and_script_run_boxes_exist_even_when_the_view_has_no_pairs", () => {
+    // Scenario: the boxes must exist before their data does, so an empty view still prints them.
+    assert.deepEqual(renderViewAndListShownKinds(undefined), ["edit", "script-run"]);
 });
 
-test("test_the_show_row_boxes_start_checked_except_edit_and_the_legend_is_gone", () => {
-    // Scenario: every box starts checked but the edit box, which starts unchecked; the static legend no longer renders.
+test("test_the_show_row_boxes_start_checked_except_edit_and_script_run_and_the_legend_is_gone", () => {
+    // Scenario: every box starts checked but the edit and script-run boxes, which start unchecked; the static legend no longer renders.
     renderViewAndListShownKinds({ path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT });
     const boxes = [...document.querySelectorAll<HTMLInputElement>("#show-row input")];
-    assert.ok(boxes.filter((box) => box.dataset["kind"] !== "edit").every((box) => box.checked));
+    assert.ok(boxes.filter((box) => box.dataset["kind"] !== "edit" && box.dataset["kind"] !== "script-run").every((box) => box.checked));
     assert.equal(boxes.find((box) => box.dataset["kind"] === "edit")!.checked, false);
+    assert.equal(boxes.find((box) => box.dataset["kind"] === "script-run")!.checked, false);
     assert.equal(document.querySelector(".legend"), null);
 });

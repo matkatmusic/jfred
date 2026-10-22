@@ -71,9 +71,9 @@ test("pathsForScriptRun finds every pair carrying this run's toolUseId, in path 
     const view: WireLayer1View = {
         pairs: [
             { path: "src/a.ts", commits: [], onDisk: { instant: T0, axisPx: 0 },
-              scriptRuns: [{ instant: T0, axisPx: 0, toolUseId: "toolu_1", executorKind: "python", code: "x", label: "a.ts" }] },
+              scriptRuns: [{ instant: T0, axisPx: 0, toolUseId: "toolu_1", executorKind: "python", code: "x", label: "a.ts", sessionId: "s", sessionFile: "f.jsonl" }] },
             { path: "src/b.ts", commits: [], onDisk: { instant: T0, axisPx: 0 },
-              scriptRuns: [{ instant: T0, axisPx: 0, toolUseId: "toolu_1", executorKind: "python", code: "x", label: "b.ts" }] },
+              scriptRuns: [{ instant: T0, axisPx: 0, toolUseId: "toolu_1", executorKind: "python", code: "x", label: "b.ts", sessionId: "s", sessionFile: "f.jsonl" }] },
             { path: "src/c.ts", commits: [], onDisk: { instant: T0, axisPx: 0 } },
         ],
         gitOrphans: [], diskOrphans: [], ruler: [],

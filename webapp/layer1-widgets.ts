@@ -3,7 +3,7 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireEditKind, type WireEdit, type WireOrphan, type WirePair, type WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, WireScriptExecutorKind, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -59,12 +59,31 @@ function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit): void
     );
 }
 
+// Task 356: dot and label share the identity attrs; a bash run is never provable, so its ring is dashed.
+function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
+    const isBash = run.executorKind === WireScriptExecutorKind.bash;
+    const identity = {
+        title: run.label ?? `${run.executorKind} run`,
+        "data-tool-use-id": run.toolUseId,
+        "data-executor-kind": run.executorKind,
+        "data-instant": run.instant,
+        "data-session-id": run.sessionId,
+        "data-session-file": run.sessionFile,
+    };
+    const iconText = run.executorKind === WireScriptExecutorKind.python ? "🐍" : "$";
+    lane.append(
+        setAxisPx(el("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
+        setAxisPx(el("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
+    );
+}
+
 function buildPairWidget(pair: WirePair): HTMLElement {
-    // Snapshots and edits go last, as the server orders the ladder, so same-timestamp runs and the span stay right.
+    // Snapshots, edits and script runs go last, as the server orders the ladder, so same-timestamp runs and the span stay right.
     const snapshots = pair.snapshots ?? [];
     const edits = pair.edits ?? [];
+    const scriptRuns = pair.scriptRuns ?? [];
     // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
-    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits];
+    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns];
     const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
@@ -83,6 +102,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     }
     for (const edit of edits) {
         appendEditNode(lane, edit.axisPx - startPx, edit);
+    }
+    for (const run of scriptRuns) {
+        appendScriptRunNode(lane, run.axisPx - startPx, run);
     }
     return setAxisPx(el("div", { class: "filebox" }, [
         // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.

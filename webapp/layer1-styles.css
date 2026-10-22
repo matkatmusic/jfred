@@ -84,9 +84,17 @@
   .viz-root[data-hidden-kinds~="snapshot"] .n-snap,
   .viz-root[data-hidden-kinds~="edit"] .n-edit,
   .viz-root[data-hidden-kinds~="edit"] .n-read,
+  /*
   .viz-root[data-hidden-kinds~="script-run"] .n-script,
   .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+  */
   .viz-root #ruler .tick.kind-hidden { display: none; }
+  /*
+    Task 356: script runs hide by visibility, not display, so the connector measure still sees their layout.
+  */
+  .viz-root[data-hidden-kinds~="script-run"] .n-script,
+  .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+  .viz-root[data-hidden-kinds~="script-run"] .script-connector { visibility: hidden; }
 
   /*
     Layer 1's input surface: project-folder row, then the task-286 repository row with flag and ref pickers.
@@ -194,7 +202,7 @@
     font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
     transform: translateY(-50%); }
 
-  .stage { display: flex; align-items: flex-start; gap: 26px; flex: none; }
+  .stage { position: relative; display: flex; align-items: flex-start; gap: 26px; flex: none; }
 
   /*
     padding-top is derived: header ends at y 39, first node reaches 10 px above lane, so 50 px clears.
@@ -655,6 +663,31 @@
   .node.conf-verified { outline: 2px solid var(--node-colour); outline-offset: 3.5px; }
   .node.conf-derived { background: transparent; border: 2px dashed var(--node-colour); }
   .node.conf-reseeded { outline: 2px dotted var(--c-edit); outline-offset: 3.5px; }
+  /*
+    Task 356: a script run is a hollow ring; a bash run is never provable, so its ring is dashed (as .kind-pre-anchor-stub).
+  */
+  .node.n-script { background: transparent; border: 3.5px solid var(--c-script); }
+  .node.n-script.never-provable { border: 2px dashed var(--c-script); }
+  /*
+    Task 356: the connector joins one run's dots across bubbles; ::before widens the click target.
+  */
+  .script-connector { position: absolute; z-index: 5; height: 0; border-top: 2px dashed var(--c-script);
+    transform: translateY(-50%); cursor: pointer; }
+  .script-connector::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 12px; }
+  /*
+    Task 356: the drawer's script-run block, from plans/script-run-detail-mockup.html.
+  */
+  dl.script-meta { display: grid; grid-template-columns: 96px 1fr; gap: 5px 10px; font-size: 12.5px; }
+  dl.script-meta dt { color: var(--muted); }
+  dl.script-meta dd { word-break: break-all; }
+  .scriptbody { margin-top: 12px; border: 1px solid var(--grid); border-radius: 8px; overflow: hidden; }
+  .scriptbody .sbhead { display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+    background: color-mix(in srgb, var(--c-script) 8%, transparent);
+    border-bottom: 1px solid var(--grid); font-size: 11.5px; }
+  .scriptbody .sbhead b { font: 600 12px ui-monospace, Menlo, monospace; color: var(--c-script); }
+  .scriptbody .sbhead .prov { color: var(--muted); margin-left: auto; }
+  .scriptbody pre { padding: 10px 12px; font: 11.5px/1.55 ui-monospace, Menlo, monospace;
+    color: var(--ink2); white-space: pre; overflow-x: auto; max-height: 180px; }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

@@ -17,6 +17,7 @@ const SCRIPT_TOOL_USE_ID = "toolu_ren_1";
 const SCRIPT_RUN: WireScriptRun = {
     instant: T0, axisPx: 0, toolUseId: SCRIPT_TOOL_USE_ID,
     executorKind: "python", code: 'open("rename_inv.py").read()', label: "rename_inv.py",
+    sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl",
 };
 
 function armScriptRunView(): void {
@@ -62,7 +63,15 @@ test("task 356: clicking a script-run node opens the shared drawer with the reso
 
     assert.ok(getRequiredElementById("drawer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
-    assert.equal(getRequiredElementById("dbody").querySelector(".scriptbody")?.textContent, SCRIPT_RUN.code);
+    const body = getRequiredElementById("dbody");
+    assert.equal(body.querySelector(".scriptbody pre")?.textContent, SCRIPT_RUN.code);
+    assert.equal(body.querySelector(".scriptbody .sbhead b")?.textContent, "rename_inv.py");
+    assert.equal(body.querySelector(".scriptbody .prov")?.textContent, `resolved body · ${SCRIPT_RUN.sessionFile} · ${SCRIPT_RUN.instant}`);
+    const metaRows = [...body.querySelectorAll("dl.script-meta dt")].map((term) => `${term.textContent}=${term.nextElementSibling?.textContent}`);
+    assert.deepEqual(metaRows, [
+        "kind=script run (layer 4)", "executor=python", `instant=${SCRIPT_RUN.instant}`,
+        `session=${SCRIPT_RUN.sessionFile}`, "files=src/a.ts, src/b.ts", "verified=no: located, not replayed",
+    ]);
     // One diff pane per affected path (src/a.ts and src/b.ts both carry this toolUseId).
     assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
 });

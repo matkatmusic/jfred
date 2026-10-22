@@ -11,6 +11,7 @@ import {
 import type { FixtureCommit } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
 import { buildFixtureEditsPayload } from "./viewer_api_layer3_fixture_replay.ts";
+import { buildFixtureScriptRunsPayload } from "./viewer_api_layer4_fixture_payload.ts";
 import type { Layer1ProjectSettings, Layer1Settings } from "./viewer_api_layer1_settings.ts";
 import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
@@ -96,6 +97,15 @@ function sendFixtureEdits(response: ServerResponse, query: URLSearchParams): voi
   streamNdjsonBuild(response, buildFixtureEditsPayload);
 }
 
+function sendFixtureScriptRuns(response: ServerResponse, query: URLSearchParams): void {
+  const isProgressStream = query.get("progress") === "1";
+  if (!isProgressStream) {
+    sendJson(response, 200, buildFixtureScriptRunsPayload(ignoreFixtureProgress));
+    return;
+  }
+  streamNdjsonBuild(response, buildFixtureScriptRunsPayload);
+}
+
 function buildFixtureSettings():Layer1Settings & { defaults: Record<string, never> } {
   const project: Layer1ProjectSettings = {
     dir: FIXTURE_DIR, repo: FIXTURE_REPO, branch: BRANCHES[0]!, ref: BRANCHES[0]!,
@@ -138,6 +148,9 @@ export function dispatchLayer1FixtureRoute(request: IncomingMessage, response: S
   }
   else if (url.pathname === "/api/layer1-edits") {
     sendFixtureEdits(response, url.searchParams);
+  }
+  else if (url.pathname === "/api/layer1-script-runs") {
+    sendFixtureScriptRuns(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-file") {
     sendFixtureFile(response, url.searchParams);

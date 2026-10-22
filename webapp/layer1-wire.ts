@@ -73,6 +73,13 @@ export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
     code: string;
     // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
     label?: string;
+    sessionId: U;
+    sessionFile: P;
+}
+
+// Task 356: /api/layer1-script-runs answers without axisPx, as /api/layer1-edits does.
+export interface WireScriptRunsViewOf<I, P, U> {
+    pairs: { path: P; scriptRuns: Omit<WireScriptRunOf<I, P, U>, "axisPx">[] }[];
 }
 
 export interface WirePairOf<I, P, U> {
@@ -109,7 +116,8 @@ export type WireCommit = WireCommitOf<string>;
 export type WireRulerTick = WireRulerTickOf<string>;
 export type WireSnapshot = WireSnapshotOf<string, string, string>;
 export type WireScriptRun = WireScriptRunOf<string, string, string>;
-export type WireEdit = WireEditOf<string, string, string>;
+export type WireScriptRunsView = WireScriptRunsViewOf<string, string, string>;
+export type WireEdit =WireEditOf<string, string, string>;
 export type WireEditsView = WireEditsViewOf<string, string, string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;

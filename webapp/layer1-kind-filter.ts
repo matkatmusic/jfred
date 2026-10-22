@@ -2,6 +2,7 @@
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { hasLoadedEdits, loadEditsOnce } from "./layer1-edits.ts";
+import { hasLoadedScriptRuns, loadScriptRunsOnce } from "./layer1-script-runs.ts";
 import { getHiddenKindsForProject, saveHiddenKinds } from "./layer1-settings.ts";
 import { ShowRowKind, renderShowRow } from "./layer1-show-row.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -57,11 +58,18 @@ function applyHiddenKindsAttribute(): void {
 let drawnView: WireLayer1View | undefined;
 let redrawStage: (() => void) | undefined;
 
-async function handleKindToggle(event: Event): Promise<void> {
-    const box = event.target as HTMLInputElement;
+async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     const kind = Object.values(ShowRowKind).find((candidate) => candidate === box.dataset["kind"])!;
     if (kind === ShowRowKind.edit && box.checked && !hasLoadedEdits(drawnView!)) {
         const isLoaded = await loadEditsOnce(drawnView!);
+        if (!isLoaded) {
+            box.checked = false;
+            return;
+        }
+        redrawStage!();
+    }
+    if (kind === ShowRowKind.scriptRun && box.checked && !hasLoadedScriptRuns(drawnView!)) {
+        const isLoaded = await loadScriptRunsOnce(drawnView!);
         if (!isLoaded) {
             box.checked = false;
             return;
@@ -74,16 +82,38 @@ async function handleKindToggle(event: Event): Promise<void> {
         hiddenKinds.add(kind);
     }
     applyHiddenKindsAttribute();
-    // Edit starts hidden on every load, so it is never saved.
-    saveHiddenKinds([...hiddenKinds].filter((hidden) => hidden !== ShowRowKind.edit));
+    // Edit and script run start hidden on every load, so they are never saved.
+    saveHiddenKinds([...hiddenKinds].filter((hidden) => hidden !== ShowRowKind.edit && hidden !== ShowRowKind.scriptRun));
     notifyKindFilterChange();
+}
+
+function handleKindToggle(event: Event): Promise<void> {
+    return toggleKindBox(event.target as HTMLInputElement);
+}
+
+function findKindBox(kind: ShowRowKind): HTMLInputElement {
+    return document.querySelector<HTMLInputElement>(`#show-row input[data-kind="${kind}"]`)!;
 }
 
 // The [3] button clicks the Edit box, so both share one code path.
 function tickEditBox(): void {
-    const box = document.querySelector<HTMLInputElement>(`#show-row input[data-kind="${ShowRowKind.edit}"]`)!;
+    const box = findKindBox(ShowRowKind.edit);
     if (!box.checked) {
         box.click();
+    }
+}
+
+// Spec S21.9: [4] implies [3]. The loads run one after the other: they share one busy shield.
+async function tickEditAndScriptRunBoxes(): Promise<void> {
+    for (const kind of [ShowRowKind.edit, ShowRowKind.scriptRun]) {
+        const box = findKindBox(kind);
+        if (!box.checked) {
+            box.checked = true;
+            await toggleKindBox(box);
+        }
+        if (!box.checked) {
+            return;
+        }
     }
 }
 
@@ -94,6 +124,7 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
     const saved = getHiddenKindsForProject(getInputById("dir").value.trim());
     hiddenKinds = new Set(Object.values(ShowRowKind).filter((kind) => saved.includes(kind)));
     hiddenKinds.add(ShowRowKind.edit);
+    hiddenKinds.add(ShowRowKind.scriptRun);
     for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
         box.checked = !hiddenKinds.has(box.dataset["kind"] as ShowRowKind);
     }
@@ -101,4 +132,5 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
     // Assigned, not added, so a re-render never stacks listeners.
     getRequiredElementById("show-row").onchange = handleKindToggle;
     getRequiredElementById("layer-3").onclick = tickEditBox;
+    getRequiredElementById("layer-4").onclick = tickEditAndScriptRunBoxes;
 }

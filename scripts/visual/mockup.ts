@@ -14,6 +14,7 @@ import {
 } from "./mockup-checks.ts";
 import { checkSnapshotToggle, validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
+import { checkLayer4 } from "./layer4-checks.ts";
 // // checkBubbleFlash (task 386: the real page has no bubble-click flash)
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
@@ -43,6 +44,7 @@ async function openLayer2(page: HeadlessPage): Promise<void> {
 async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void> {
   // Task 343: first, ahead of the old checks that crash on window.__fixture; it ends on a fresh page.
   await checkLayer3(page, pageUrl);
+  await checkLayer4(page, pageUrl);
   // The page no longer sets window.__fixture; the checks read the arrays the server serves.
   await page.evaluate(`(window.__fixture = ${JSON.stringify({ SESSIONS, DISK, COMMITS, SNAPSHOTS })}, true)`);
   await page.waitFor(`document.querySelectorAll('.session-item').length > 0`, 10_000);

@@ -47,6 +47,7 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
         onDisk: placeNodeAtPixels(pair.onDisk, nodeOffsetsPx[onDiskIndex]!),
         ...(pair.snapshots === undefined ? {} : { snapshots: placeNodesOnAxis(pair.snapshots, nodeOffsetsPx.slice(onDiskIndex + 1)) }),
         ...(pair.edits === undefined ? {} : { edits: placeNodesOnAxis(pair.edits, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length)) }),
+        ...(pair.scriptRuns === undefined ? {} : { scriptRuns: placeNodesOnAxis(pair.scriptRuns, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length + (pair.edits ?? []).length)) }),
     };
 }
 

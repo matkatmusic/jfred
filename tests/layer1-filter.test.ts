@@ -67,6 +67,27 @@ test("test_the_relayout_places_edits_after_snapshots_at_their_own_ruler_offsets"
     assert.equal(pair.edits![0]!.changeId, "toolu_1");
 });
 
+test("test_the_relayout_places_script_runs_after_snapshots_and_edits_at_their_own_ruler_offsets", () => {
+    // Hand-derived: one hour apart is one 22 px node row, as above.
+    const edit = { instant: T3, axisPx: 0, kind: "edit", changeId: "toolu_1", confidence: "verified", sessionId: "s", sessionFile: "f.jsonl" };
+    const snapshot = { instant: T2, axisPx: 0, version: 1, sessionId: "s", sessionFile: "f.jsonl" };
+    const scriptRun = { instant: T4, axisPx: 0, toolUseId: "toolu_2", executorKind: "bash", code: "ls", sessionId: "s", sessionFile: "f.jsonl" };
+    const view: WireLayer1View = {
+        pairs: [{ path: "src/keep/a.ts", commits: [{ hash: "aa", instant: T0, axisPx: 0 }], onDisk: { instant: T1, axisPx: 0 },
+            snapshots: [snapshot], edits: [edit as never], scriptRuns: [scriptRun as never] }],
+        gitOrphans: [], diskOrphans: [], ruler: [],
+    };
+    const pair = findPair(relayOutLayer1View(view), "src/keep/a.ts");
+    assert.deepEqual(pair.edits!.map((node) => node.axisPx), [66]);
+    assert.deepEqual(pair.scriptRuns!.map((node) => node.axisPx), [88]);
+    assert.equal(pair.scriptRuns![0]!.toolUseId, "toolu_2");
+});
+
+test("test_a_pair_without_script_runs_gets_no_script_runs_key_from_the_relayout", () => {
+    const pair = findPair(relayOutLayer1View(FULL_VIEW), "src/keep/a.ts");
+    assert.ok(!("scriptRuns" in pair));
+});
+
 test("test_a_pair_without_edits_gets_no_edits_key_from_the_relayout", () => {
     const pair = findPair(relayOutLayer1View(FULL_VIEW), "src/keep/a.ts");
     assert.ok(!("edits" in pair));
