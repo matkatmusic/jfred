@@ -1,7 +1,7 @@
 // Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
 
 import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement } from "./layer1-find-file.ts";
+import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
@@ -121,7 +121,7 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
     getRequiredElementById("drawer").classList.add("open");
     // The drawer shrinks the pane, so re-centre against the POST-reflow layout (also why .drawer has no width transition).
     requestAnimationFrame(() => {
-        node.scrollIntoView({ block: "nearest", inline: "center" });
+        scrollToUncoveredCentre(node);
         drawLayer1Minimap();
     });
     setDrawerTools(isImagePath(path) ? "img" : "none");

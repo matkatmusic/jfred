@@ -119,7 +119,7 @@ test("test_the_ruler_jump_skips_a_hidden_node", () => {
     toggleBox("commit", false);
     const landedOn: HTMLElement[] = [];
     for (const node of document.querySelectorAll<HTMLElement>(".node")) {
-        node.scrollIntoView = () => landedOn.push(node);
+        node.getBoundingClientRect = () => { landedOn.push(node); return { left: 0, right: 0, top: 0, bottom: 0 } as DOMRect; };
     }
     tick.dispatchEvent(new window.Event("click"));
     assert.equal(landedOn.length, 1);

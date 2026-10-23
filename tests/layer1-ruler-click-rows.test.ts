@@ -66,13 +66,16 @@ function buildBucketOnlyView(): object {
     };
 }
 
-interface ScrollRequest { target: HTMLElement; options: unknown }
+interface ScrollRequest { target: HTMLElement }
 
-// Must be installed AFTER booting: setupLayer1Dom builds a fresh window, so an earlier patch records nothing.
+// A landing measures its target (scrollToUncoveredCentre); the pane and drawer are measured too, so they are skipped. Must be installed AFTER booting: setupLayer1Dom builds a fresh window.
 function recordScrollRequests(): ScrollRequest[] {
     const requests: ScrollRequest[] = [];
-    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement, options?: unknown): void {
-        requests.push({ target: this, options });
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
+        if (this.id !== "timelines" && this.id !== "drawer") {
+            requests.push({ target: this });
+        }
+        return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } as DOMRect;
     };
     return requests;
 }

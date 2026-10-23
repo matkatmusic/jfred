@@ -7,7 +7,7 @@
 // ponytail: native `scrollIntoView` reads LIVE layout, so it survives the CSS `zoom` on `.canvas`.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement } from "./layer1-find-file.ts";
+import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
 // A cycle, but safe: both modules only DECLARE functions at load, so neither runs before the other is populated.
 import { listEventsAtRow, rememberRow, toggleExpandedRow } from "./layer1-tick-files.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
@@ -95,12 +95,12 @@ export function makeRulerTickClickable(tick: HTMLElement, row: RulerRow): HTMLEl
             toggleExpandedRow(tick, events);
             return;
         }
-        // `block: "nearest"`, not "start": the clicked row is already on screen. `inline: "center"` does the work.
+        // Centred in the part of #timelines the Details drawer leaves uncovered.
         const landed = findScrollTargetForAxisPx(readAxisPx(tick));
         if (landed === undefined) {
             return;
         }
-        landed.scrollIntoView({ block: "nearest", inline: "center" });
+        scrollToUncoveredCentre(landed);
         highlightLandedElement(landed);
     });
     return tick;

@@ -2,7 +2,7 @@
 
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
-import { highlightLandedElement } from "./layer1-find-file.ts";
+import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
 import { KIND_HIDDEN_CLASS, classifyNodeKind, isKindHidden, onKindFilterChange } from "./layer1-kind-filter.ts";
 import { SHOW_ROW_LABELS, ShowRowKind } from "./layer1-show-row.ts";
 import { flashSession } from "./layer1-sessions.ts";
@@ -98,8 +98,8 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
         title: event.path,
         onclick: (clickEvent: Event) => {
             clickEvent.stopPropagation();
-            // The same jump a single-event tick makes (layer1-ruler-click.ts): "nearest" vertically, "center" horizontally.
-            event.element.scrollIntoView({ block: "nearest", inline: "center" });
+            // The same jump a single-event tick makes (layer1-ruler-click.ts).
+            scrollToUncoveredCentre(event.element);
             highlightLandedElement(event.element);
             if (event.session !== undefined) {
                 // flashSession keys rows by basename (like the drawer), so a full path never matches.

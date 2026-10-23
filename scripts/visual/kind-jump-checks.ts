@@ -16,6 +16,7 @@ const arrow = (direction: "previous" | "next") =>
 interface Landed {
   isScript: boolean;
   onScreen: boolean;
+  isCentred: boolean;
   flashed: boolean;
   y: number;
   boxChecked: boolean;
@@ -24,11 +25,14 @@ interface Landed {
 const READ_LANDED = `(() => {
     const node = document.querySelector('#stage i.node.found');
     if (!node) return null;
-    const pane = document.getElementById('timelines').getBoundingClientRect();
+    const scroller = document.getElementById('timelines');
+    const pane = scroller.getBoundingClientRect();
     const box = node.getBoundingClientRect();
     return {
         isScript: node.classList.contains('n-script'),
         onScreen: box.top >= pane.top - 1 && box.bottom <= pane.bottom + 1 && box.left >= pane.left - 1 && box.right <= pane.right + 1,
+        isCentred: (Math.abs((box.left + box.right) / 2 - (pane.left + pane.right) / 2) <= 4 || scroller.scrollLeft <= 1 || scroller.scrollLeft >= scroller.scrollWidth - scroller.clientWidth - 1)
+            && (Math.abs((box.top + box.bottom) / 2 - (pane.top + pane.bottom) / 2) <= 4 || scroller.scrollTop <= 1 || scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1),
         flashed: document.querySelectorAll('#stage i.node.found').length === 1,
         y: box.top + box.height / 2,
         boxChecked: ${SCRIPT_BOX}.checked };
@@ -62,6 +66,7 @@ async function checkStepsForward(page: HeadlessPage): Promise<Landed[]> {
   reportCheck("KJ > lands at least once, then ends with > disabled", visited.length > 0 && await page.evaluate<boolean>(`${arrow("next")}.disabled`), visited.length);
   reportCheck("KJ every > landing is a script node, on screen and flashed",
     visited.every((landed) => landed.isScript && landed.onScreen && landed.flashed), visited);
+  reportCheck("KJ every > landing is centred in the visible timeline (or its scroll is clamped)", visited.every((landed) => landed.isCentred), visited);
   reportCheck("KJ clicking > never toggled the script-run box", visited.every((landed) => landed.boxChecked), visited);
   await saveScreenshot(page, "09-kind-jump-next");
   return visited;

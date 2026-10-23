@@ -1,7 +1,7 @@
 // The show row's < and > arrows jump the timeline to the nearest node of one kind, measured along the time axis, which runs down the page.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement } from "./layer1-find-file.ts";
+import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
 import { classifyNodeKind, isKindHidden, onKindBoxToggle } from "./layer1-kind-filter.ts";
 import { KindJumpDirection, ShowRowKind } from "./layer1-show-row.ts";
 
@@ -13,7 +13,7 @@ const DIRECTION_SIGN: Record<KindJumpDirection, number> = {
     [KindJumpDirection.next]: 1,
 };
 
-// `block: "nearest"` leaves a visible node where it is, so while the pane has not scrolled the next click steps from this node, not from the view centre.
+// A landed node sits at the uncovered area's centre, which is not the pane's centre while the drawer is open, so until the pane scrolls the next click steps from this node.
 let landed: { node: HTMLElement; scrollTop: number } | undefined;
 
 interface MeasuredNode {
@@ -66,7 +66,7 @@ function jumpFromArrowClick(event: MouseEvent): void {
         return;
     }
     // Same landing as a ruler tick click.
-    target.scrollIntoView({ block: "nearest", inline: "center" });
+    scrollToUncoveredCentre(target);
     highlightLandedElement(target);
     landed = { node: target, scrollTop: getRequiredElementById("timelines").scrollTop };
     refreshKindJumpArrows();

@@ -44,6 +44,29 @@ export function highlightLandedElement(landed: HTMLElement): void {
     document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
+// Centres the element in the part of #timelines the Details drawer leaves uncovered, read from live boxes; scroll deltas equal viewport deltas because #timelines itself is not zoomed.
+export function scrollToUncoveredCentre(element: HTMLElement): void {
+    const pane = getRequiredElementById("timelines");
+    const view = pane.getBoundingClientRect();
+    const drawer = getRequiredElementById("drawer").getBoundingClientRect();
+    const area = { left: view.left, right: view.right, top: view.top, bottom: view.bottom };
+    const isCovered = Math.min(view.right, drawer.right) > Math.max(view.left, drawer.left)
+        && Math.min(view.bottom, drawer.bottom) > Math.max(view.top, drawer.top);
+    const coversFullHeight = drawer.top <= view.top && drawer.bottom >= view.bottom;
+    if (isCovered && coversFullHeight && drawer.left > view.left) {
+        area.right = drawer.left;
+    } else if (isCovered && coversFullHeight) {
+        area.left = drawer.right;
+    } else if (isCovered && drawer.top > view.top) {
+        area.bottom = drawer.top;
+    } else if (isCovered) {
+        area.top = drawer.bottom;
+    }
+    const box = element.getBoundingClientRect();
+    pane.scrollLeft += (box.left + box.right) / 2 - (area.left + area.right) / 2;
+    pane.scrollTop += (box.top + box.bottom) / 2 - (area.top + area.bottom) / 2;
+}
+
 // Never a silent no-op: every submit reports here, its own element, not the header's #crumb, which a search would destroy.
 function reportFindStatus(message: string): void {
     getRequiredElementById("find-status").textContent = message;

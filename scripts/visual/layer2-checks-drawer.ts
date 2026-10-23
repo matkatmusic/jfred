@@ -77,9 +77,41 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
   await pause(200);
 }
 
+interface ClickedNodeView {
+  node: number[];
+  pane: number[];
+  drawer: number[];
+  area: number[];
+  isInsidePane: boolean;
+  touchesDrawer: boolean;
+  isCentredOrClamped: boolean;
+}
+
+// Boxes are [left, top, right, bottom]; an axis may miss the centre by a few px, or when #timelines is scrolled to its end.
+const READ_CLICKED_NODE_VIEW = `(() => {
+    const pane = document.getElementById('timelines');
+    const read = (element) => { const r = element.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
+    const node = read(document.querySelector('#stage .node.found'));
+    const paneBox = read(pane);
+    const drawer = read(document.getElementById('drawer'));
+    const area = [...paneBox];
+    if (drawer[0] > paneBox[0] && drawer[0] < paneBox[2]) area[2] = drawer[0];
+    const touchesDrawer = node[0] < drawer[2] && node[2] > drawer[0] && node[1] < drawer[3] && node[3] > drawer[1];
+    const off = (axis) => (node[axis] + node[axis + 2]) / 2 - (area[axis] + area[axis + 2]) / 2;
+    const maxLeft = pane.scrollWidth - pane.clientWidth;
+    const maxTop = pane.scrollHeight - pane.clientHeight;
+    const xClamped = pane.scrollLeft <= 1 || pane.scrollLeft >= maxLeft - 1;
+    const yClamped = pane.scrollTop <= 1 || pane.scrollTop >= maxTop - 1;
+    return { node, pane: paneBox, drawer, area,
+        isInsidePane: node[0] >= paneBox[0] && node[1] >= paneBox[1] && node[2] <= paneBox[2] && node[3] <= paneBox[3],
+        touchesDrawer,
+        isCentredOrClamped: (Math.abs(off(0)) <= 4 || xClamped) && (Math.abs(off(1)) <= 4 || yClamped) };
+})()`;
+
 export async function validateDrawer(page: HeadlessPage): Promise<void> {
   const owner = await page.evaluate<string>(`(() => {
-        const n = [...document.querySelectorAll('.node.n-snap')].find(n => n.offsetParent !== null);
+        const snaps = [...document.querySelectorAll('.node.n-snap')].filter(n => n.offsetParent !== null);
+        const n = snaps[Math.floor(snaps.length / 2)];
         n.click();
         return (n.dataset.sessionFile ?? '').split('/').pop();
     })()`);
@@ -95,6 +127,11 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
     drawer.meta.includes("file-history @v") && drawer.meta.includes(owner), drawer.meta);
   reportCheck("#305 the snapshot's bytes render", drawer.body.trim().length > 0, drawer.body.slice(0, 60));
   reportCheck("#317 clicking a snapshot node flashes its JSONL", await readFlashFile(page) === owner, owner);
+  await pause(300);
+  const seen = await page.evaluate<ClickedNodeView>(READ_CLICKED_NODE_VIEW);
+  reportCheck("#drawer-centre the clicked node is fully inside the visible timeline", seen.isInsidePane, seen);
+  reportCheck("#drawer-centre the clicked node does not touch the drawer", !seen.touchesDrawer, seen);
+  reportCheck("#drawer-centre the node is centred in the uncovered area (or its scroll is clamped)", seen.isCentredOrClamped, seen);
   await saveScreenshot(page, "04-drawer");
   await pause(FADE_WAIT_MS);
 }

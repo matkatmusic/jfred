@@ -20,22 +20,17 @@ const PANE_HEIGHT_PX = 300;
 const NODE_HEIGHT_PX = 10;
 
 // The pane's scroll offset in content pixels; a node's on-screen box is its content y minus this.
-let viewTopPx = 0;
-
-// Mimics `block: "nearest"`: a visible node stays put, a hidden one comes to the nearest edge.
-function scrollNodeIntoNearestView(centerY: number): void {
-    if (centerY < viewTopPx) {
-        viewTopPx = centerY - NODE_HEIGHT_PX / 2;
-    } else if (centerY > viewTopPx + PANE_HEIGHT_PX) {
-        viewTopPx = centerY + NODE_HEIGHT_PX / 2 - PANE_HEIGHT_PX;
-    }
+function readViewTopPx(): number {
+    return document.getElementById("timelines")!.scrollTop;
 }
 
 function buildNode(className: string, centerY: number): HTMLElement {
     const node = el("i", { class: `node ${className}`, "data-y": String(centerY) });
     Object.assign(node, {
-        getBoundingClientRect: () => ({ top: centerY - viewTopPx - NODE_HEIGHT_PX / 2, height: NODE_HEIGHT_PX }),
-        scrollIntoView: () => scrollNodeIntoNearestView(centerY),
+        getBoundingClientRect: () => {
+            const top = centerY - readViewTopPx() - NODE_HEIGHT_PX / 2;
+            return { top, bottom: top + NODE_HEIGHT_PX, left: 100, right: 110, height: NODE_HEIGHT_PX };
+        },
     });
     return node;
 }
@@ -43,10 +38,10 @@ function buildNode(className: string, centerY: number): HTMLElement {
 async function renderViewWithSyntheticStage(): Promise<void> {
     setupLayer1Dom();
     getInputById("dir").value = "";
-    viewTopPx = 0;
     await renderLayer1View(VIEW);
     Object.assign(document.getElementById("timelines")!, {
-        getBoundingClientRect: () => ({ top: 0, height: PANE_HEIGHT_PX }),
+        scrollTop: 0,
+        getBoundingClientRect: () => ({ top: 0, bottom: PANE_HEIGHT_PX, left: 0, right: 1000, height: PANE_HEIGHT_PX }),
     });
     document.getElementById("stage")!.replaceChildren(
         buildNode("n-commit", 100), buildNode("n-commit", 400), buildNode("n-commit", 700),
@@ -84,6 +79,13 @@ test("test_next_lands_on_the_nearest_node_after_the_view_and_a_second_next_steps
     assert.equal(readLandedY(), "700");
 });
 
+test("test_an_arrow_landing_centres_the_node_in_the_visible_timeline", async () => {
+    await renderViewWithSyntheticStage();
+    findArrow("commit", "next").click();
+    const box = document.querySelector<HTMLElement>("#stage .found")!.getBoundingClientRect();
+    assert.equal((box.top + box.bottom) / 2, PANE_HEIGHT_PX / 2);
+});
+
 test("test_previous_steps_back_from_the_landed_node", async () => {
     await renderViewWithSyntheticStage();
     findArrow("commit", "next").click();
@@ -99,7 +101,6 @@ test("test_after_the_user_scrolls_the_pane_an_arrow_steps_from_the_view_centre_n
     findArrow("commit", "next").click();
     assert.equal(readLandedY(), "400");
     document.getElementById("timelines")!.scrollTop = 500;
-    viewTopPx = 500;
     findArrow("commit", "previous").click();
     assert.equal(readLandedY(), "400");
 });
