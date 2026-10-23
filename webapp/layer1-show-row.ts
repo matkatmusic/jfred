@@ -46,9 +46,26 @@ function buildKindCheckbox(kind: ShowRowKind): HTMLElement {
     return el("label", { class: "show-kind" }, [box, el("i", { class: `swatch sw-${kind}` }), SHOW_ROW_LABELS[kind]]);
 }
 
+// The arrows sit outside the label so a click never toggles the box; layer1-kind-jump.ts wires them.
+export const KindJumpDirection = { previous: "previous", next: "next" } as const;
+export type KindJumpDirection = (typeof KindJumpDirection)[keyof typeof KindJumpDirection];
+
+const KIND_JUMP_SYMBOLS: Record<KindJumpDirection, string> = {
+    [KindJumpDirection.previous]: "<",
+    [KindJumpDirection.next]: ">",
+};
+
+function buildKindColumn(kind: ShowRowKind): HTMLElement {
+    const arrows = Object.values(KindJumpDirection).map((direction) => el("button", {
+        type: "button", class: "kind-jump", "data-jump-kind": kind, "data-jump": direction,
+        title: `${direction} ${SHOW_ROW_LABELS[kind]}`, text: KIND_JUMP_SYMBOLS[direction],
+    }));
+    return el("div", { class: "show-kind-col" }, [buildKindCheckbox(kind), el("div", { class: "kind-jumps" }, arrows)]);
+}
+
 export function renderShowRow(view: ShowRowView): void {
     getRequiredElementById("show-row").replaceChildren(
         el("span", { class: "lbl", text: "show:" }),
-        ...listPresentKinds(view).map(buildKindCheckbox),
+        ...listPresentKinds(view).map(buildKindColumn),
     );
 }

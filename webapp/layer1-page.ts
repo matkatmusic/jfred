@@ -23,6 +23,7 @@ import { drawScriptConnectors } from "./layer1-script-connectors.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
+import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
 import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths, wireBubbleFlash } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
@@ -88,6 +89,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   }
   // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
   markMultiEventTicks();
+  refreshKindJumpArrows();
   // renderSessionRanges replaces #washes wholesale, so the surviving wash kinds repaint AFTER it, every render.
   renderSessionRanges(listSelectedSessions(), view.ruler);
   renderNavWash(view, readNavTargets());

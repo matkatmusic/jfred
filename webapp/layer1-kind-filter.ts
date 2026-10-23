@@ -19,6 +19,13 @@ export function onKindFilterChange(callback: () => void): void {
     notifyKindFilterChange = callback;
 }
 
+// Registered by layer1-kind-jump.ts so its arrows follow the boxes without an import cycle.
+let notifyKindBoxToggle: () => void = () => {};
+
+export function onKindBoxToggle(callback: () => void): void {
+    notifyKindBoxToggle = callback;
+}
+
 // A label takes the class of the dot before it; created is checked before disk (nodes carry both).
 export function classifyNodeKind(element: HTMLElement): ShowRowKind | undefined {
     const dot = element.matches(".nlabel") ? element.previousElementSibling : element;
@@ -82,6 +89,7 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
         hiddenKinds.add(kind);
     }
     applyHiddenKindsAttribute();
+    notifyKindBoxToggle();
     // Edit and script run start hidden on every load, so they are never saved.
     saveHiddenKinds([...hiddenKinds].filter((hidden) => hidden !== ShowRowKind.edit && hidden !== ShowRowKind.scriptRun));
     notifyKindFilterChange();
