@@ -21,14 +21,19 @@ import { extractScriptRenameEvents } from "./reconstruction_script_renames.ts";
 import { userEditEventFrom } from "./reconstruction_user_edit.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 
-// Turn a Write tool_use into a write event (file_path/content live in its input).
+// Turn a Write tool_use into a write event; newer transcripts name the input keys path/file_text.
 function writeEventFrom(block: ToolUseBlock, timestamp: Date): WriteEvent {
-    const input = block.input as { file_path: string; content: string };
+    const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
+    const filePath = input.file_path ?? input.path;
+    const content = input.content ?? input.file_text;
+    if (filePath === undefined || content === undefined) {
+        throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
+    }
     return {
         kind: EventKind.write,
         changeId: block.id,
-        target: new Path(input.file_path),
-        content: input.content,
+        target: new Path(filePath),
+        content,
         timestamp,
     };
 }

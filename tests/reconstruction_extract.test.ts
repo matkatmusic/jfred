@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { recordVerdict } from "../src/reconstruction_parse_lines.ts";
-import { EventKind, Verdict } from "../src/structures/vocabulary.ts";
+import { BlockType, EventKind, RecordType, ToolName, Verdict } from "../src/structures/vocabulary.ts";
+import { Uuid } from "../src/structures/domain.ts";
+import type { TranscriptRecord } from "../src/structures/envelope.ts";
+import { rec } from "./reconstruction-branch-test-helpers.ts";
 import { loadRecords } from "./utilities.ts";
 import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S1_JSONL, S2_JSONL, S3_JSONL, S4_JSONL } from "./fixtures.ts";
@@ -85,4 +88,24 @@ test("test_extract_finds_rename_from_mv", () => {
     assert.equal(renames.length, 1);
     assert.ok(renames[0]!.from.toString().endsWith("/s2_original.py"));
     assert.ok(renames[0]!.to.toString().endsWith("/s2_moved.py"));
+});
+
+// Newer Claude Code transcripts record a Write input as { path, file_text }.
+test("test_extract_reads_write_input_with_path_and_file_text", () => {
+    const writeRecord = {
+        ...rec(RecordType.assistant, "w1", null, [
+            {
+                type: BlockType.tool_use,
+                id: new Uuid("toolu_new_write"),
+                name: ToolName.Write,
+                input: { path: "/proj/new.ts", file_text: "hello\n" },
+                caller: { type: "direct" },
+            },
+        ]),
+        timestamp: new Date("2026-01-01T00:00:00Z"),
+    } as TranscriptRecord;
+    const writes = extractFileEvents([writeRecord]).filter((event) => event.kind === EventKind.write);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0]!.target.toString(), "/proj/new.ts");
+    assert.equal(writes[0]!.content, "hello\n");
 });
