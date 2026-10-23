@@ -51,6 +51,18 @@ test("test_getPreExecutionState_preserves_subdirectory_qualified_keys", () => {
     assert.ok(!state.has("test_inventory.py"));
 });
 
+test("test_getPreExecutionState_resolves_a_referenced_file_by_a_write_with_path_and_file_text", () => {
+    // The Write lands AFTER the run, so only the basename lookup can find the referenced file.
+    const records = [buildToolRecord(ToolName.Write, { path: "/proj/core.py", file_text: "def add(): pass\n" }, "2026-01-01T00:00:09Z", "/proj")];
+    const run: ScriptRun = {
+        code: 'text = open("core.py").read()',
+        timestamp: new Date("2026-01-01T00:00:02Z"),
+        cwd: new Path("/proj"),
+    };
+    const state = getPreExecutionState(run, records, emptyReader, () => "seeded\n");
+    assert.equal(state.get("core.py"), "seeded\n");
+});
+
 test("test_getPreExecutionState_prefers_lineage_content_over_backups", () => {
     // Lineage can carry an Edit the last backup missed, so it must win over the stale backup.
     const records = [

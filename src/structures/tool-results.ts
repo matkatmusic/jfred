@@ -1,5 +1,5 @@
 import type { TranscriptRecord } from "./envelope.ts";
-import { getContentBlocks } from "./content-blocks.ts";
+import { getContentBlocks, type ToolUseBlock } from "./content-blocks.ts";
 import { BlockType, ToolName } from "./vocabulary.ts";
 import { Path } from "./domain.ts";
 
@@ -13,6 +13,17 @@ export type EditInput = {
     new_string: string;
     replace_all: boolean;
 };
+
+// Newer transcripts record a Write input as { path, file_text }; some mix the two shapes key by key.
+export function readWriteInput(block: ToolUseBlock): { filePath: Path; content: string } {
+    const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
+    const filePath = input.file_path ?? input.path;
+    const content = input.content ?? input.file_text;
+    if (filePath === undefined || content === undefined) {
+        throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
+    }
+    return { filePath: new Path(filePath), content };
+}
 
 // toolUseResult shapes (recon/07, recon/09).
 export type BashResult = {

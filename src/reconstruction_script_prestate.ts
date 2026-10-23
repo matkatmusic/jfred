@@ -1,6 +1,7 @@
 // The static read-only gate (TASKS.md item 68) plus pre-execution file-state seeding for a run.
 
-import { BlockType, EventKind } from "./structures/vocabulary.ts";
+import { BlockType, EventKind, ToolName } from "./structures/vocabulary.ts";
+import { readWriteInput } from "./structures/tool-results.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
@@ -90,6 +91,11 @@ function resolvePathByBasename(records: TranscriptRecord[], basename: string): P
     for (const record of records) {
         for (const block of getContentBlocks(record)) {
             if (block.type !== BlockType.tool_use) continue;
+            if (block.name === ToolName.Write) {
+                const { filePath } = readWriteInput(block);
+                if (pathBasename(filePath.toString()) === basename) return filePath;
+                continue;
+            }
             const filePath = (block.input as { file_path?: string }).file_path;
             if (filePath !== undefined && pathBasename(filePath) === basename) return new Path(filePath);
         }

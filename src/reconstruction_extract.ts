@@ -5,6 +5,7 @@ import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import {
     indexToolUseNamesById,
+    readWriteInput,
     type EditResult,
     type StructuredPatchHunk,
 } from "./structures/tool-results.ts";
@@ -23,16 +24,11 @@ import { getCorpusState } from "./reconstruction_corpus.ts";
 
 // Turn a Write tool_use into a write event; newer transcripts name the input keys path/file_text.
 function writeEventFrom(block: ToolUseBlock, timestamp: Date): WriteEvent {
-    const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
-    const filePath = input.file_path ?? input.path;
-    const content = input.content ?? input.file_text;
-    if (filePath === undefined || content === undefined) {
-        throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
-    }
+    const { filePath, content } = readWriteInput(block);
     return {
         kind: EventKind.write,
         changeId: block.id,
-        target: new Path(filePath),
+        target: filePath,
         content,
         timestamp,
     };

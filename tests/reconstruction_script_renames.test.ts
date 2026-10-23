@@ -61,6 +61,23 @@ test("test_extract_script_rename_stamps_consent_delayed_run_at_result_instant", 
     assert.equal(renames[0]!.timestamp.getTime(), new Date("2026-01-01T00:31:00Z").getTime());
 });
 
+// A Write recorded with the newer { path, file_text } input still counts as a written file for the phantom guard.
+test("test_extract_script_rename_counts_a_write_with_path_and_file_text_as_written", () => {
+    const newShapeWrite = {
+        type: RecordType.assistant,
+        timestamp: new Date("2026-01-01T00:00:01Z"),
+        message: { content: [{ type: BlockType.tool_use, id: "toolu_w1", name: ToolName.Write, input: { path: "/work/one.py", file_text: "x" }, caller: { type: "direct" } }] },
+    } as unknown as TranscriptRecord;
+    const records = [
+        newShapeWrite,
+        buildMcpRunRecord("toolu_run", "/work", "…", "2026-01-01T00:00:02Z"),
+        buildMcpResultRecord("toolu_run", "one.py -> core_one.py\n", "2026-01-01T00:00:03Z"),
+    ];
+    const renames = extractScriptRenameEvents(records).filter((event) => event.kind === EventKind.rename);
+    assert.equal(renames.length, 1);
+    assert.equal(renames[0]!.from.toString(), "/work/one.py");
+});
+
 // The `Renamed: <old> -> <new>` prefix form (s84) is matched by the arrow anywhere in the line, and the Bash `.stdout` result shape is read the same as the MCP array shape.
 test("test_extract_script_rename_handles_prefix_and_bash_stdout_shape", () => {
     const bashRun = {

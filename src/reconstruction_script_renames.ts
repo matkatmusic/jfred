@@ -2,6 +2,7 @@
 
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
+import { readWriteInput } from "./structures/tool-results.ts";
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
@@ -61,7 +62,10 @@ function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp: Date 
     if (block.type !== BlockType.tool_use) {
         return;
     }
-    if (block.name === ToolName.Write || block.name === ToolName.Edit) {
+    if (block.name === ToolName.Write) {
+        writtenBasenames.add(basenameOf(readWriteInput(block).filePath.toString()));
+    }
+    if (block.name === ToolName.Edit) {
         const filePath = (block.input as { file_path?: string }).file_path;
         if (filePath !== undefined) {
             writtenBasenames.add(basenameOf(filePath));

@@ -3,6 +3,7 @@
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
+import { readWriteInput } from "./structures/tool-results.ts";
 import { singleWhitespace } from "./regex_expressions.ts";
 import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 
@@ -23,17 +24,14 @@ function recordWrittenContentOfBlock(block: ContentBlock, timestamp: Date | unde
     if (block.name !== ToolName.Write) {
         return;
     }
-    const input = block.input as { file_path?: string; content?: string };
-    if (input.file_path === undefined) {
-        return;
-    }
-    const basename = pathBasename(input.file_path);
+    const { filePath, content } = readWriteInput(block);
+    const basename = pathBasename(filePath.toString());
     const bodies = writtenBodiesByBasename.get(basename);
     if (bodies === undefined) {
-        writtenBodiesByBasename.set(basename, [{ timestamp, content: input.content }]);
+        writtenBodiesByBasename.set(basename, [{ timestamp, content }]);
         return;
     }
-    bodies.push({ timestamp, content: input.content });
+    bodies.push({ timestamp, content });
 }
 
 export function indexWrittenContentByBasename(records: TranscriptRecord[]): Map<string, WrittenScriptBody[]> {

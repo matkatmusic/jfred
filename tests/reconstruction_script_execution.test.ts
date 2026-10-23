@@ -85,6 +85,15 @@ test("test_findScriptExecutionRuns_resolves_indirection_time_aware_across_record
     assert.equal(sortedRuns[1]!.code, "print('v2')\n");
 });
 
+test("test_findScriptExecutionRuns_resolves_indirection_to_a_write_with_path_and_file_text", () => {
+    const records = [
+        buildToolRecord(ToolName.Write, { path: "/w/apply.py", file_text: "print('new')\n" }, "2026-01-01T00:00:01Z", "/w"),
+        buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:02Z", "/w"),
+    ];
+    const runs = findScriptExecutionRuns(records);
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0]!.code, "print('new')\n");
+});
 
 test("test_computeScriptExecutionChangeId_is_deterministic_for_same_run_and_target", () => {
     // Item 34: the two replays derive the id independently, so both must yield the same value.

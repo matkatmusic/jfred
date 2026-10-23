@@ -89,6 +89,17 @@ test("test_renderTrace_details_previewOnly_shows_type_kind_and_a_short_preview",
     assert.ok(out.includes('7: ignore — type=assistant kind=Bash preview="git commit -m wip"'));
 });
 
+test("test_renderTrace_details_previewOnly_shows_the_basename_of_a_write_with_path_and_file_text", () => {
+    const writeRaw = JSON.stringify({
+        type: "assistant",
+        message: { content: [{ type: "tool_use", id: "toolu_w", name: "Write", input: { path: "/proj/src/new.ts", file_text: "x" } }] },
+    });
+    const out = renderTrace({ kept: [], ignored: [{ lineNumber: 3, raw: writeRaw }] }, {
+        details: { selector: { byLine: 3 }, mode: TraceDetailMode.previewOnly },
+    });
+    assert.ok(out.includes('kind=Write preview="new.ts"'));
+});
+
 test("test_renderTrace_details_full_shows_the_pretty_printed_record", () => {
     const out = renderTrace(PARTITION, {
         details: { selector: { byLine: 7 }, mode: TraceDetailMode.full },
