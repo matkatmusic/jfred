@@ -9,7 +9,7 @@ import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resiz
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
-// import { wireLayerToggle } from "./layer1-layer-toggle.ts";
+import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
@@ -258,7 +258,7 @@ export async function bootLayer1Page(): Promise<void> {
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
   await seedSourceDefaults();
   await restoreSavedSettings().catch(() => false);
-  void loadLayer1View();
+  void loadLayer1View().then(scrollToFirstVisibleNode);
 }
 
 void bootLayer1Page();

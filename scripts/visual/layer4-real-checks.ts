@@ -3,6 +3,7 @@
 import { type WireScriptRunsView } from "../../webapp/layer1-wire.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { checkFirstNodeScroll } from "./layer4-first-node-checks.ts";
 
 const PYTHON_BY_INDIRECTION_RUN_ID = "toolu_01LfaBokYE3WzerLLSTycdNV";
 const PYTHON_BY_INDIRECTION_PATHS = ["common/scripts/git_lib.py", "tests/test_git_lib.py"];
@@ -117,4 +118,5 @@ export async function executeLayer4RealChecks(
   }
   await checkToggle(page);
   await saveScreenshot(page, screenshotName);
+  await checkFirstNodeScroll(page);
 }
