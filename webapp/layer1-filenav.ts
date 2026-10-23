@@ -56,6 +56,9 @@ export function resetFileNavCollapseState(initial: Iterable<string> = []): void 
 }
 
 function persistFolderToggle(folderPath: string, isOpen: boolean): void {
+    if (isOpen === !collapsedFolderPaths.has(folderPath)) {
+        return;
+    }
     if (isOpen) {
         collapsedFolderPaths.delete(folderPath);
     } else {

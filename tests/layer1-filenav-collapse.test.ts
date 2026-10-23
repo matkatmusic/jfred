@@ -79,6 +79,25 @@ test("test_collapsing_a_folder_persists_it_for_the_current_project", async () =>
     assert.deepEqual(route.posted(), [{ dir, collapsedFolders: ["nested"] }]);
 });
 
+// A real browser fires `toggle` once on every <details> created with its open state, so load must not look like a user click.
+test("test_rendering_folders_writes_nothing_until_the_user_toggles_one", async () => {
+    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    getInputById("dir").value = "/tmp/nav-project-d";
+    const route = stubSettingsRoute(null);
+
+    renderLayer1FileNav(NAV_VIEW, () => {});
+    const tree = document.getElementById("filenav-tree") as HTMLElement;
+    for (const folder of tree.querySelectorAll("details")) {
+        folder.dispatchEvent(new window.Event("toggle"));
+    }
+    await settle();
+    assert.equal(route.posted().length, 0, "folder toggle events fired by the initial render wrote settings");
+
+    findDetailsNamed(tree, "nested").open = false;
+    await settle();
+    assert.equal(route.posted().length, 1);
+});
+
 test("test_a_collapsed_folder_survives_a_search_box_rerender", async () => {
     const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
     getInputById("dir").value = "/tmp/nav-project-c";
