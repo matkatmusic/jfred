@@ -9,7 +9,7 @@ const BADGE_TITLES = ["not verified", "located", "not replayed"];
 export async function checkScriptRunDrawerLayout(page: HeadlessPage): Promise<void> {
   const drawer = await page.evaluate<{
     badgeTitles: string[]; metaText: string; panePaths: string[]; metaTerms: string[];
-    preWhiteSpace: string; preOverflows: boolean; dlWhiteSpace: string;
+    preWhiteSpace: string; preOverflowY: string; preOverflows: boolean; dlWhiteSpace: string;
   }>(`(() => {
         const pre = document.querySelector('#drawer .scriptbody pre');
         const meta = document.querySelector('#drawer dl.script-meta');
@@ -19,6 +19,7 @@ export async function checkScriptRunDrawerLayout(page: HeadlessPage): Promise<vo
             panePaths: [...document.querySelectorAll('#dbody details.dfile .dfile-path')].map(p => p.dataset.target),
             metaTerms: [...meta.querySelectorAll('dt')].map(t => t.textContent),
             preWhiteSpace: getComputedStyle(pre).whiteSpace,
+            preOverflowY: getComputedStyle(pre).overflowY,
             preOverflows: pre.scrollWidth > pre.clientWidth,
             dlWhiteSpace: getComputedStyle(meta).whiteSpace };
     })()`);
@@ -29,5 +30,6 @@ export async function checkScriptRunDrawerLayout(page: HeadlessPage): Promise<vo
   reportCheck("L4 python dot: the script-meta list has no files row", !drawer.metaTerms.includes("files"), drawer.metaTerms);
   reportCheck("L4 python dot: the script body wraps (pre-wrap) with no horizontal overflow",
     drawer.preWhiteSpace === "pre-wrap" && !drawer.preOverflows, drawer);
+  reportCheck("L4 python dot: the script body scrolls vertically (overflow-y auto)", drawer.preOverflowY === "auto", drawer.preOverflowY);
   reportCheck("L4 python dot: the script-meta list wraps (white-space normal)", drawer.dlWhiteSpace === "normal", drawer.dlWhiteSpace);
 }

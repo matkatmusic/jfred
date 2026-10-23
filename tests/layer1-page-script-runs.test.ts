@@ -8,7 +8,7 @@ import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 const COMMIT = { hash: "b7c8d9e0f1a23445566778899aabbccddeeff001", instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const ON_DISK = { instant: "2026-06-03T09:00:00.000Z", axisPx: 60 };
 const PYTHON_RUN = { instant: "2026-06-02T10:00:00.000Z", toolUseId: "toolu_fixture_py_rewrite", executorKind: "python",
-  code: "import pathlib", label: "🐍 rewrite.py", sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl" };
+  code: "import pathlib", label: "python run rewrite.py", sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl" };
 const BASH_RUN = { instant: "2026-06-02T11:00:00.000Z", toolUseId: "toolu_fixture_sh_inline", executorKind: "bash",
   code: "cat <<'EOF' > src/plain.ts", sessionId: "fixture-b21d84c5", sessionFile: "/fixture/demo/projects/b21d84c5.jsonl" };
 
@@ -88,8 +88,8 @@ test("test_a_labelled_python_run_shows_its_label_and_a_bash_run_without_a_label_
   await tickScriptRunBox();
   const python = readBubble("src/run.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
   const bash = readBubble("src/plain.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
-  assert.equal(python.textContent, "🐍 rewrite.py");
-  assert.equal(python.title, "🐍 rewrite.py");
+  assert.equal(python.textContent, "python run rewrite.py");
+  assert.equal(python.title, "python run rewrite.py");
   assert.equal(bash.textContent, "$");
   assert.equal(bash.title, "bash run");
 });

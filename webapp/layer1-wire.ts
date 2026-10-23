@@ -67,7 +67,7 @@ export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeo
 
 // The one home of the executor icons: the node draws it alone, and the server prefixes it to a script-file label.
 export const WireScriptExecutorIcon = {
-    python: "🐍",
+    python: "python run",
     bash: "$",
 } as const satisfies Record<WireScriptExecutorKind, string>;
 

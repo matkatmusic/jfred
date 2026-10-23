@@ -9,7 +9,7 @@ import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const RUN = { instant: "2026-06-01T09:03:00.000Z", toolUseId: "toolu_fixture_py_rewrite", executorKind: "python",
-  code: "import pathlib", label: "🐍 rewrite.py", sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl" };
+  code: "import pathlib", label: "python run rewrite.py", sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl" };
 const PAYLOAD = { pairs: [{ path: "src/run.ts", scriptRuns: [RUN] }, { path: "not/in/the/view.ts", scriptRuns: [RUN] }] };
 const PROGRESS = { kind: "progress", label: "reading script runs", current: 1, total: 1 };
 

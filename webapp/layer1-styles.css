@@ -705,7 +705,7 @@
   .scriptbody .sbhead b { font: 600 12px ui-monospace, Menlo, monospace; color: var(--c-script); }
   .scriptbody .sbhead .prov { color: var(--muted); margin-left: auto; }
   .scriptbody pre { padding: 10px 12px; font: 11.5px/1.55 ui-monospace, Menlo, monospace;
-    color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; }
+    color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 180px; }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

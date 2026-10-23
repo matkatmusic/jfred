@@ -122,8 +122,8 @@ async function checkNodeLook(page: HeadlessPage): Promise<void> {
         kinds: [...${SCRIPT_DOTS}].map(d => d.dataset.executorKind) })`);
   reportCheck("L4 the python run has 2 nodes in 2 different bubbles, one of them src/index.ts",
     look.pythonNodeCount === 2 && new Set(look.pythonBubbles).size === 2 && look.pythonBubbles.includes(INDEX_PATH), look.pythonBubbles);
-  reportCheck("L4 each python label reads 🐍 rewrite.py",
-    look.pythonLabels.length === 2 && look.pythonLabels.every((text) => text === "🐍 rewrite.py"), look.pythonLabels);
+  reportCheck("L4 each python label reads python run rewrite.py",
+    look.pythonLabels.length === 2 && look.pythonLabels.every((text) => text === "python run rewrite.py"), look.pythonLabels);
   reportCheck("L4 each python ring is solid", look.pythonRings.length === 2 && look.pythonRings.every((style) => style === "solid"), look.pythonRings);
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
   reportCheck("L4 the bash label reads exactly $", look.bashLabel === "$", look.bashLabel);

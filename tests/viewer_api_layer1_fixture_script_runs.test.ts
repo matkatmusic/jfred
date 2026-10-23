@@ -46,7 +46,7 @@ test("the plain script-runs route answers pair paths with ISO instants, joined c
   assert.equal(python["instant"], "2026-06-01T09:03:00.000Z");
   assert.equal(python["toolUseId"], "toolu_fixture_py_rewrite");
   assert.equal(python["executorKind"], "python");
-  assert.equal(python["label"], "🐍 rewrite.py");
+  assert.equal(python["label"], "python run rewrite.py");
   assert.equal(python["sessionId"], "fixture-0f3c9a7e");
   assert.equal(python["sessionFile"], "/fixture/demo/projects/0f3c9a7e.jsonl");
   assert.ok((python["code"] as string).startsWith("import pathlib\n\nfor name"));

@@ -18,7 +18,7 @@ export interface FixtureScriptRun {
 export const SCRIPT_RUNS: FixtureScriptRun[] = [
   { toolUseId: "toolu_fixture_py_rewrite", executorKind: WireScriptExecutorKind.python,
     at: "2026-06-01T09:03:00Z", session: "0f3c9a7e.jsonl", paths: ["src/index.ts", "src/util.ts"],
-    label: "🐍 rewrite.py",
+    label: "python run rewrite.py",
     code: ["import pathlib", "", 'for name in ["src/index.ts", "src/util.ts"]:',
       "    path = pathlib.Path(name)", '    path.write_text(path.read_text().replace("demo", "demo-app"))'] },
   { toolUseId: "toolu_fixture_sh_deploy", executorKind: WireScriptExecutorKind.bash,
