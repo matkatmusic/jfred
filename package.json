@@ -17,7 +17,8 @@
     "demo": "npm run build:webapp && tar -xf demo/repo.git.tar -C demo/projects/s87-demo-composite && tsx src/viewer_server.ts --projects-dir demo/projects --file-history-dir demo/file-history",
     "demo:baseline": "npm run build:webapp && tar -xf demo-baseline/repo.git.tar -C demo-baseline/projects/baseline-demo && tsx src/viewer_server.ts --projects-dir demo-baseline/projects --file-history-dir demo-baseline/file-history",
     "visual:layer2": "node --import tsx scripts/visual/layer2.ts",
-    "visual:layer3": "node --import tsx scripts/visual/layer3.ts"
+    "visual:layer3": "node --import tsx scripts/visual/layer3.ts",
+    "visual:layer4": "node --import tsx scripts/visual/layer4.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",

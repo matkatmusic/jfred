@@ -1,4 +1,4 @@
-// The Layer 1 View's ten HTTP routes, dispatched as one group.
+// The Layer 1 View's eleven HTTP routes, dispatched as one group.
 //
 // Split out of viewer_server.ts at its 250-line cap; a new Layer 1 endpoint costs that file nothing.
 //
@@ -10,6 +10,7 @@ import { handleLayer1EditsRequest } from "./viewer_api_layer1_edits.ts";
 import { handleLayer1FileRequest } from "./viewer_api_layer1_file.ts";
 import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
 import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
+import { handleLayer1ScriptRunsRequest } from "./viewer_api_layer1_script_runs.ts";
 import { handleLayer1SessionsRequest } from "./viewer_api_layer1_sessions.ts";
 import { handleLayer1SettingsRequest, handleLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
 import { handleScanSourceRequest } from "./viewer_api_layer1_sources.ts";
@@ -38,6 +39,8 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
         handleLayer1SessionsRequest(response, url.searchParams);
     } else if (url.pathname === "/api/layer1-edits") {
         handleLayer1EditsRequest(response, url.searchParams);
+    } else if (url.pathname === "/api/layer1-script-runs") {
+        handleLayer1ScriptRunsRequest(response, url.searchParams);
     } else if (url.pathname === "/api/layer1-file") {
         handleLayer1FileRequest(response, url.searchParams);
     } else if (url.pathname === "/api/layer1-diff") {

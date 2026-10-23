@@ -1,12 +1,14 @@
 // Layer 4 fixture payload: the canned script runs grouped by pair path, as /api/layer1-script-runs answers them.
 
 import type { WireScriptRunOf, WireScriptRunsViewOf } from "../webapp/layer1-wire.ts";
+import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS } from "./layer1_script_runs_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { COMMITS, DISK, buildSessionFile, buildSessionId, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import { SCRIPT_RUNS, type FixtureScriptRun } from "./viewer_api_layer4_fixture_data.ts";
 
-export const LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS = "reading script runs";
+// Moved to layer1_script_runs_wire.ts (task l4-wire-real).
+// export const LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS = "reading script runs";
 
 type FixtureScriptRunsView = WireScriptRunsViewOf<Date, Path, Uuid>;
 type FixtureWireScriptRun = Omit<WireScriptRunOf<Date, Path, Uuid>, "axisPx">;

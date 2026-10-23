@@ -32,6 +32,7 @@ export type ScriptRun = {
     source?: RecordSource;
     toolUseId?: Uuid;
     executorKind?: ScriptExecutorKind;
+    invokedScriptFile?: string;
 };
 
 // Follows the originalFile: precedent — a prefixed id resolveSyntheticChangeIdToSourceId unwraps.

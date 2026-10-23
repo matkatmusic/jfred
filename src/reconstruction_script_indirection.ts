@@ -133,5 +133,5 @@ export function resolveScriptIndirection(run: ScriptRun, writtenBodiesByBasename
     // task 192: a bash run whose invoked file is a written .py body IS python-executable — the s34/s37 `python3 apply.py` mechanism must keep entering the sandbox. Every other substitution keeps the originating tool's kind.
     const resolvesToPython = run.executorKind === ScriptExecutorKind.bash && filename.endsWith(".py");
     const executorKind = resolvesToPython ? ScriptExecutorKind.python : run.executorKind;
-    return { ...run, code: body, executorKind };
+    return { ...run, code: body, executorKind, invokedScriptFile: pathBasename(filename) };
 }

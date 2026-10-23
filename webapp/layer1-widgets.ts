@@ -3,7 +3,7 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireEditKind, WireScriptExecutorKind, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, WireScriptExecutorIcon, WireScriptExecutorKind, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -70,7 +70,7 @@ function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptR
         "data-session-id": run.sessionId,
         "data-session-file": run.sessionFile,
     };
-    const iconText = run.executorKind === WireScriptExecutorKind.python ? "🐍" : "$";
+    const iconText = WireScriptExecutorIcon[run.executorKind];
     lane.append(
         setAxisPx(el("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
         setAxisPx(el("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),

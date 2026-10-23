@@ -65,6 +65,12 @@ export const WireScriptExecutorKind = {
 } as const;
 export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
 
+// The one home of the executor icons: the node draws it alone, and the server prefixes it to a script-file label.
+export const WireScriptExecutorIcon = {
+    python: "🐍",
+    bash: "$",
+} as const satisfies Record<WireScriptExecutorKind, string>;
+
 // Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
 export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
     toolUseId: U;
