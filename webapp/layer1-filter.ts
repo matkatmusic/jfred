@@ -2,8 +2,8 @@
 
 import { layOutNodeLadders, type RulerLayout } from "./layer1-ruler-axis.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
-import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire.ts";
-import type { WireCommit, WireInstant, WireLayer1View, WireMockBranch, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
+import { findRejoinWithOwnSlot, listOrphanLadderInstants, listPairLadderInstants, listTrunkLadderInstants } from "./layer1-wire.ts";
+import type { WireBranch, WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
 
 // Task 300: an expanded ruler row's file list, fed into layout so rows and bubbles below shift down.
 export interface RulerExpansion {
@@ -48,19 +48,35 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
         ...(pair.snapshots === undefined ? {} : { snapshots: placeNodesOnAxis(pair.snapshots, nodeOffsetsPx.slice(onDiskIndex + 1)) }),
         ...(pair.edits === undefined ? {} : { edits: placeNodesOnAxis(pair.edits, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length)) }),
         ...(pair.scriptRuns === undefined ? {} : { scriptRuns: placeNodesOnAxis(pair.scriptRuns, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length + (pair.edits ?? []).length)) }),
-        ...(pair.branches === undefined ? {} : { branches: placeBranchesOnAxis(pair.branches, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length + (pair.edits ?? []).length + (pair.scriptRuns ?? []).length)) }),
+        ...(pair.branches === undefined ? {} : { branches: placeBranchesOnAxis(pair.branches, listTrunkLadderInstants(pair), nodeOffsetsPx) }),
     };
 }
 
-// Task 379: branch nodes sit flat at the ladder tail, branch after branch.
-function placeBranchesOnAxis(branches: WireMockBranch[], tailOffsetsPx: number[]): WireMockBranch[] {
-    let placedCount = 0;
+// Task 357: past the trunk, each branch holds forkAt, its nodes, then a rejoin that no trunk node shares; any other rejoin takes its trunk node's offset.
+function placeBranchesOnAxis(branches: WireBranch[], trunkInstants: string[], ladderOffsetsPx: number[]): WireBranch[] {
+    let placedCount = trunkInstants.length;
     return branches.map((branch) => {
-        const nodes = placeNodesOnAxis(branch.nodes, tailOffsetsPx.slice(placedCount));
-        placedCount += branch.nodes.length;
-        return { ...branch, nodes };
+        const forkAt = placeNodeAtPixels(branch.forkAt, ladderOffsetsPx[placedCount]!);
+        const nodes = placeNodesOnAxis(branch.nodes, ladderOffsetsPx.slice(placedCount + 1));
+        placedCount += 1 + branch.nodes.length;
+        if (branch.rejoinAt === undefined) {
+            return { ...branch, forkAt, nodes };
+        }
+        const hasOwnSlot = findRejoinWithOwnSlot(trunkInstants, branch) !== undefined;
+        const rejoinOffsetPx = hasOwnSlot ? ladderOffsetsPx[placedCount++]! : ladderOffsetsPx[trunkInstants.indexOf(branch.rejoinAt.instant)]!;
+        return { ...branch, forkAt, rejoinAt: placeNodeAtPixels(branch.rejoinAt, rejoinOffsetPx), nodes };
     });
 }
+
+// Task 379 mockup, replaced by the version above: branch nodes sat flat at the ladder tail.
+// function placeBranchesOnAxis(branches: WireMockBranch[], tailOffsetsPx: number[]): WireMockBranch[] {
+//     let placedCount = 0;
+//     return branches.map((branch) => {
+//         const nodes = placeNodesOnAxis(branch.nodes, tailOffsetsPx.slice(placedCount));
+//         placedCount += branch.nodes.length;
+//         return { ...branch, nodes };
+//     });
+// }
 
 // A disk orphan's own node is ladder slot 0, which IS the tick offset; its snapshots stack below it.
 function placeDiskOrphanOnAxis(orphan: WireOrphan, nodeOffsetsPx: number[]): WireOrphan {

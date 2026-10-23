@@ -22,6 +22,12 @@ test("test_dispatch_routes_layer1_edits_to_the_real_handler", () => {
     assert.deepEqual(JSON.parse(body), { pairs: [] });
 });
 
+test("test_dispatch_routes_layer1_branches_to_the_real_handler", () => {
+    const { handled, body } = dispatchGet(`/api/layer1-branches?dir=${encodeURIComponent(makeTempDir())}`);
+    assert.equal(handled, true);
+    assert.deepEqual(JSON.parse(body), { pairs: [] });
+});
+
 test("test_dispatch_leaves_unknown_paths_unowned", () => {
     assert.equal(dispatchGet("/api/not-a-layer1-route").handled, false);
 });

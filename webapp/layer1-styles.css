@@ -95,6 +95,12 @@
   .viz-root[data-hidden-kinds~="script-run"] .n-script,
   .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
   .viz-root[data-hidden-kinds~="script-run"] .script-connector { visibility: hidden; }
+  /*
+    Task 357: the branch kind hides its lanes and gives back their width; while shown, a trunk edit a lane also holds draws once, in the lane.
+  */
+  .viz-root[data-hidden-kinds~="branch"] .blane { display: none; }
+  .viz-root[data-hidden-kinds~="branch"] .filebox { min-width: 168px; }
+  .viz-root:not([data-hidden-kinds~="branch"]) .n-moved { display: none; }
 
   /*
     Layer 1's input surface: project-folder row, then the task-286 repository row with flag and ref pickers.
@@ -155,6 +161,7 @@
   .show-row .sw-edit { background: var(--c-edit); border-radius: 3px; }
   .show-row .sw-created { border: 3px dotted var(--muted); background: transparent; }
   .show-row .sw-script-run { background: var(--c-script); }
+  .show-row .sw-branch { background: var(--c-user); opacity: .38; }
 
   /*
     Build progress strip sits in the page flow, not an overlay: main.timelines scrolls, so absolute positioning would drift.

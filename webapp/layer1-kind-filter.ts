@@ -1,6 +1,7 @@
 // Task 360: the show row's checkboxes hide node kinds by CSS attribute; no relayout, no refetch.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { hasLoadedBranches, loadBranchesOnce } from "./layer1-branches.ts";
 import { hasLoadedEdits, loadEditsOnce } from "./layer1-edits.ts";
 import { hasLoadedScriptRuns, loadScriptRunsOnce } from "./layer1-script-runs.ts";
 import { getHiddenKindsForProject, saveHiddenKinds } from "./layer1-settings.ts";
@@ -83,6 +84,14 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
         }
         await redrawStage!();
     }
+    if (kind === ShowRowKind.branch && box.checked && !hasLoadedBranches(drawnView!)) {
+        const isLoaded = await loadBranchesOnce(drawnView!);
+        if (!isLoaded) {
+            box.checked = false;
+            return;
+        }
+        await redrawStage!();
+    }
     if (box.checked) {
         hiddenKinds.delete(kind);
     } else {
@@ -90,8 +99,8 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     }
     applyHiddenKindsAttribute();
     notifyKindBoxToggle();
-    // Edit and script run start hidden on every load, so they are never saved.
-    saveHiddenKinds([...hiddenKinds].filter((hidden) => hidden !== ShowRowKind.edit && hidden !== ShowRowKind.scriptRun));
+    // Edit, script run and branch start hidden on every load, so they are never saved.
+    saveHiddenKinds([...hiddenKinds].filter((hidden) => hidden !== ShowRowKind.edit && hidden !== ShowRowKind.scriptRun && hidden !== ShowRowKind.branch));
     notifyKindFilterChange();
 }
 
@@ -133,6 +142,7 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
     hiddenKinds = new Set(Object.values(ShowRowKind).filter((kind) => saved.includes(kind)));
     hiddenKinds.add(ShowRowKind.edit);
     hiddenKinds.add(ShowRowKind.scriptRun);
+    hiddenKinds.add(ShowRowKind.branch);
     for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
         box.checked = !hiddenKinds.has(box.dataset["kind"] as ShowRowKind);
     }

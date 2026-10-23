@@ -7,9 +7,10 @@ const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
 const TOLERANCE_PX = 1;
 const BNODE_OPACITY = 0.38;
-// Fork and rejoin instants of the canned lanes, in lane order (src/viewer_api_layer5_mockup_branches.ts).
-const UTIL_FORKS = ["2026-06-01T14:30:00Z"];
-const INDEX_FORKS = ["2026-06-01T14:30:00Z", "2026-06-03T18:20:00Z"];
+// Fork and rejoin instants of the canned lanes, in lane order (src/viewer_api_layer5_mockup_branches.ts): a fork owns a tick, a rejoin is a trunk commit.
+const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
+const UTIL_FORKS = ["2026-06-01T14:31:00Z"];
+const INDEX_FORKS = ["2026-06-01T14:31:00Z", "2026-06-03T18:21:00Z"];
 const INDEX_REJOIN = "2026-06-03T18:20:00Z";
 
 interface Rect { left: number; right: number; top: number; bottom: number; cx: number; cy: number }
@@ -30,6 +31,11 @@ const BUBBLE_PROBE = (path: string, forks: string[], rejoin: string) => `(b => {
     const commitCentreY = (instant) => {
         const dot = [...b.querySelectorAll('.node.n-commit')].find(n => Date.parse(n.dataset.instant) === Date.parse(instant));
         return dot ? rect(dot).cy : undefined; };
+    const tickCentreY = (instant) => {
+        const iso = new Date(instant).toISOString();
+        const stamp = iso.slice(5, 10) + ' ' + iso.slice(11, 23);
+        const tick = [...document.querySelectorAll('.ruler .tick')].find(t => t.textContent.startsWith(stamp));
+        return tick ? rect(tick).cy : undefined; };
     const lanes = [...b.querySelectorAll('.blane')];
     const rejoinInstant = ${JSON.stringify(rejoin)};
     return {
@@ -54,7 +60,7 @@ const BUBBLE_PROBE = (path: string, forks: string[], rejoin: string) => `(b => {
                 mergeInFirstLane: merge ? merge.closest('.blane') === lanes[0] : false,
                 bnodes: [...lane.querySelectorAll('.bnode')].map(n => ({ cy: rect(n).cy, opacity: parseFloat(getComputedStyle(n).opacity), instant: n.dataset.instant })),
                 labelRects: [...lane.querySelectorAll('.blabel')].map(rect),
-                forkCentreY: commitCentreY(${JSON.stringify(forks)}[i]),
+                forkCentreY: tickCentreY(${JSON.stringify(forks)}[i]),
                 rejoinCentreY: merge ? commitCentreY(rejoinInstant) : undefined };
         }) };
 })(document.querySelector(${JSON.stringify(bubbleOf(path))}))`;
@@ -84,7 +90,7 @@ function checkTrunkAndRails(label: string, bubble: BubbleFacts, plainRailLeft: n
 
 function checkElbows(label: string, bubble: BubbleFacts): void {
   const trunkLeft = bubble.rect.left + bubble.trunkRailLeft;
-  reportCheck(`L5 ${label}: every split elbow starts at its fork commit dot centre, trunk rail and lane, and is dashed`,
+  reportCheck(`L5 ${label}: every split elbow starts level with its forkAt ruler tick, at the trunk rail, and ends at its lane, and is dashed`,
     bubble.lanes.every((lane) => isNear(lane.elbow.top, lane.forkCentreY) && isNear(lane.elbow.left, trunkLeft)
       && isNear(lane.elbow.right, lane.rail.cx) && lane.elbowTopStyle === "dashed"),
     bubble.lanes.map((lane) => ({ elbow: lane.elbow, fork: lane.forkCentreY, railCx: lane.rail.cx, style: lane.elbowTopStyle, trunkLeft })));
@@ -104,6 +110,10 @@ function checkWidening(bubble: BubbleFacts, utilBubble: BubbleFacts): void {
 
 export async function checkLayer5(page: HeadlessPage, pageUrl: string): Promise<void> {
   await page.navigate(pageUrl);
+  await page.waitFor(`document.querySelectorAll('.filebox').length > 0 && document.getElementById('loadbar').hidden`, 30_000);
+  reportCheck("L5 before the branch box: no lane is drawn and the box is unchecked",
+    await page.evaluate<boolean>(`document.querySelectorAll('.blane').length === 0 && ${BRANCH_BOX}.checked === false`));
+  await page.evaluate(`${BRANCH_BOX}.click()`);
   await page.waitFor(`document.querySelectorAll('.blane').length > 0 && document.getElementById('loadbar').hidden`, 30_000);
   const util = await page.evaluate<BubbleFacts>(BUBBLE_PROBE(UTIL_PATH, UTIL_FORKS, ""));
   const index = await page.evaluate<BubbleFacts>(BUBBLE_PROBE(INDEX_PATH, INDEX_FORKS, INDEX_REJOIN));

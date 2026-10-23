@@ -3,7 +3,7 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireEditKind, WireRewindKind, WireScriptExecutorIcon, WireScriptExecutorKind, type WireEdit, type WireInstant, type WireMockBranch, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, WireRewindKind, WireScriptExecutorIcon, WireScriptExecutorKind, findRejoinWithOwnSlot, listTrunkLadderInstants, type WireBranch, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
 
 // Height of the dashed elbow's curve; a branch rail starts below the fork elbow and stops above the rejoin elbow.
 const BRANCH_ELBOW_PX = 16;
@@ -49,9 +49,10 @@ function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSna
 }
 
 // Task 343: the dot class hides the node; confidence is a ring class, never a fill swap.
-function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit): void {
+function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMoved: boolean): void {
     const isRead = edit.kind === WireEditKind.read;
-    const kindClass = isRead ? "n-read" : "n-edit";
+    // Task 357: a trunk edit that a branch lane also holds hides while the branch kind is shown.
+    const kindClass = `${isRead ? "n-read" : "n-edit"}${isMoved ? " n-moved" : ""}`;
     const identity = {
         title: edit.confidence,
         "data-change-id": edit.changeId,
@@ -86,19 +87,19 @@ function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptR
     );
 }
 
-// A fork or rejoin is the commit node already drawn at that instant, so it reuses that node's pixel.
-function findTrunkAxisPx(trunkNodes: WireInstant[], instant: string): number {
-    const trunkNode = trunkNodes.find((candidate) => candidate.instant === instant);
-    if (trunkNode === undefined) {
-        throw new Error(`branch instant ${instant} matches no trunk node`);
-    }
-    return trunkNode.axisPx;
-}
+// Task 379 mockup, replaced by the layout's own fork and rejoin offsets (task 357): it threw when a fork matched no trunk node.
+// function findTrunkAxisPx(trunkNodes: WireInstant[], instant: string): number {
+//     const trunkNode = trunkNodes.find((candidate) => candidate.instant === instant);
+//     if (trunkNode === undefined) {
+//         throw new Error(`branch instant ${instant} matches no trunk node`);
+//     }
+//     return trunkNode.axisPx;
+// }
 
-// Task 379 mockup: bnode/blabel, never node/nlabel, so the drawer and the old node checks ignore branch dots.
-function appendBranchLane(lane: HTMLElement, branch: WireMockBranch, laneIndex: number, trunkNodes: WireInstant[], startPx: number): void {
-    const forkPx = findTrunkAxisPx(trunkNodes, branch.forkFrom) - startPx;
-    const rejoinPx = branch.rejoinAt === undefined ? undefined : findTrunkAxisPx(trunkNodes, branch.rejoinAt) - startPx;
+// Task 357: bnode/blabel, never node/nlabel, so the drawer and the trunk node checks ignore branch dots; keptToEnd merges into the rail end.
+function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneIndex: number, railEndPx: number, startPx: number): void {
+    const forkPx = branch.forkAt.axisPx - startPx;
+    const rejoinPx = branch.rejoinAt === undefined ? (branch.keptToEnd === true ? railEndPx - startPx : undefined) : branch.rejoinAt.axisPx - startPx;
     const railFromPx = forkPx + BRANCH_ELBOW_PX;
     const railToPx = rejoinPx === undefined ? Math.max(...branch.nodes.map((node) => node.axisPx - startPx)) : rejoinPx - BRANCH_ELBOW_PX;
     const branchLane = el("div", { class: "blane" });
@@ -125,7 +126,15 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     const edits = pair.edits ?? [];
     const scriptRuns = pair.scriptRuns ?? [];
     // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
-    const ladder = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns];
+    const trunk = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns];
+    // Task 357: a lane's fork, nodes and own-slot rejoin take ladder rows too, so the span and the tie markers see them.
+    const branches = pair.branches ?? [];
+    const trunkInstants = listTrunkLadderInstants(pair);
+    const laneNodes = branches.flatMap((branch, index) => {
+        const ownSlotRejoin = findRejoinWithOwnSlot(trunkInstants, branch);
+        return [branch.forkAt, ...branch.nodes, ...(ownSlotRejoin === undefined ? [] : [ownSlotRejoin])].map((node) => ({ ...node, laneIndex: index + 1 }));
+    });
+    const ladder = [...trunk, ...laneNodes];
     const nodePx = ladder.map((node) => node.axisPx);
     const startPx = Math.min(...nodePx);
     const lane = setAxisPx(el("div", { class: "lane" }), 0);
@@ -142,14 +151,15 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     for (const snapshot of snapshots) {
         appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
     }
+    const laneChangeIds = new Set(branches.flatMap((branch) => branch.nodes.map((node) => node.changeId)));
     for (const edit of edits) {
-        appendEditNode(lane, edit.axisPx - startPx, edit);
+        appendEditNode(lane, edit.axisPx - startPx, edit, laneChangeIds.has(edit.changeId));
     }
     for (const run of scriptRuns) {
         appendScriptRunNode(lane, run.axisPx - startPx, run);
     }
-    const branches = pair.branches ?? [];
-    branches.forEach((branch, index) => appendBranchLane(lane, branch, index + 1, pair.commits, startPx));
+    const railEndPx = Math.max(...nodePx);
+    branches.forEach((branch, index) => appendBranchLane(lane, branch, index + 1, railEndPx, startPx));
     const filebox = setAxisPx(el("div", { class: "filebox" }, [
         // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
         el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),

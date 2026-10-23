@@ -13,6 +13,8 @@ import { el } from "./app-dom.ts";
 export interface NodeWithSameTimestamp {
     instant: string;
     axisPx: number;
+    // Task 357: set on a branch lane's node; absent on a trunk node.
+    laneIndex?: number;
 }
 
 // Since task 312 snapshots follow "on disk", so a tie need not be adjacent; group by instant.
@@ -46,6 +48,10 @@ export function buildNodesWithSameTimestampMarkers(ladder: readonly NodeWithSame
         marker.style.setProperty("--span-px", String(Math.max(...axisPxValues) - firstPx));
         // marker.style.setProperty("--axis-px", String(run[0]!.axisPx - startPx));
         // marker.style.setProperty("--span-px", String(run.at(-1)!.axisPx - run[0]!.axisPx));
+        const lanesSpanned = Math.max(...run.map((node) => node.laneIndex ?? 0));
+        if (lanesSpanned > 0) {
+            marker.style.setProperty("--lanes-spanned", String(lanesSpanned));
+        }
         return marker;
     });
 }

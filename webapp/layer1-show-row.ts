@@ -11,6 +11,7 @@ export const ShowRowKind = {
     snapshot: "snapshot",
     edit: "edit",
     scriptRun: "script-run",
+    branch: "branch",
 } as const;
 export type ShowRowKind = (typeof ShowRowKind)[keyof typeof ShowRowKind];
 
@@ -21,6 +22,7 @@ const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
     [ShowRowKind.snapshot]: "📸 snapshot",
     [ShowRowKind.edit]: "edit",
     [ShowRowKind.scriptRun]: "script run",
+    [ShowRowKind.branch]: "branch",
 };
 
 type ShowRowView = Pick<WireLayer1View, "pairs" | "gitOrphans" | "diskOrphans">;
@@ -36,6 +38,7 @@ export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
         [ShowRowKind.edit]: true,
         // [ShowRowKind.scriptRun]: view.pairs.some((pair) => (pair.scriptRuns ?? []).length > 0),
         [ShowRowKind.scriptRun]: true,
+        [ShowRowKind.branch]: true,
     };
     return Object.values(ShowRowKind).filter((kind) => present[kind]);
 }

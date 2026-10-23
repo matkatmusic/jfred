@@ -69,3 +69,17 @@ test("test_tied_nodes_that_are_not_adjacent_still_get_one_marker", async () => {
     // spanning from the earliest tied node to the latest.
     assert.equal(readCustomProperty(markers[0]!, "--span-px"), "66");
 });
+
+test("test_a_trunk_node_and_a_lane_node_at_one_instant_give_one_marker_that_spans_one_lane", async () => {
+    // Task 357: S25 lets a tie group cross lanes; the marker records how many lanes it reaches into.
+    const { buildNodesWithSameTimestampMarkers } = await import("../webapp/layer1-nodes-with-same-timestamp.ts");
+    const markers = buildNodesWithSameTimestampMarkers([TIED_COMMIT, { ...TIED_ON_DISK, laneIndex: 1 }], WIDGET_START_PX);
+    assert.equal(markers.length, 1);
+    assert.equal(readCustomProperty(markers[0]!, "--lanes-spanned"), "1");
+});
+
+test("test_a_tie_on_the_trunk_alone_sets_no_lanes_spanned", async () => {
+    const { buildNodesWithSameTimestampMarkers } = await import("../webapp/layer1-nodes-with-same-timestamp.ts");
+    const markers = buildNodesWithSameTimestampMarkers([TIED_COMMIT, TIED_ON_DISK], WIDGET_START_PX);
+    assert.equal(readCustomProperty(markers[0]!, "--lanes-spanned"), "");
+});

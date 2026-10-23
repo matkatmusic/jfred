@@ -69,9 +69,9 @@ test("test_classifyNodeKind_maps_node_classes_to_show_row_kinds", () => {
 
 test("test_unchecking_a_box_sets_the_hidden_kinds_attribute_on_viz_root", async () => {
     await renderFreshView();
-    assert.equal(readHiddenKinds(), "edit script-run");
+    assert.equal(readHiddenKinds(), "edit script-run branch");
     toggleBox("snapshot", false);
-    assert.equal(readHiddenKinds(), "edit script-run snapshot");
+    assert.equal(readHiddenKinds(), "edit script-run branch snapshot");
 });
 
 test("test_unchecking_every_box_hides_every_kind", async () => {
@@ -79,7 +79,7 @@ test("test_unchecking_every_box_hides_every_kind", async () => {
     for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input")) {
         toggleBox(box.dataset["kind"]!, false);
     }
-    assert.equal(readHiddenKinds(), "edit script-run commit disk snapshot");
+    assert.equal(readHiddenKinds(), "edit script-run branch commit disk snapshot");
 });
 
 test("test_rechecking_a_box_removes_its_kind_from_the_attribute", async () => {
@@ -87,7 +87,7 @@ test("test_rechecking_a_box_removes_its_kind_from_the_attribute", async () => {
     toggleBox("snapshot", false);
     toggleBox("commit", false);
     toggleBox("snapshot", true);
-    assert.equal(readHiddenKinds(), "edit script-run commit");
+    assert.equal(readHiddenKinds(), "edit script-run branch commit");
 });
 
 test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
@@ -100,12 +100,12 @@ test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_fli
     toggleBox("edit", true);
     await waitForAsyncWork();
     assert.equal(redraws, 1);
-    assert.equal(readHiddenKinds(), "script-run");
+    assert.equal(readHiddenKinds(), "script-run branch");
     toggleBox("edit", false);
     toggleBox("edit", true);
     await waitForAsyncWork();
     assert.equal(redraws, 1);
-    assert.equal(readHiddenKinds(), "script-run");
+    assert.equal(readHiddenKinds(), "script-run branch");
 });
 
 test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
@@ -115,16 +115,16 @@ test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_on
     renderShowRowWithKindFilter(buildFreshView(), () => {
         redraws += 1;
     });
-    assert.equal(readHiddenKinds(), "edit script-run");
+    assert.equal(readHiddenKinds(), "edit script-run branch");
     toggleBox("script-run", true);
     await waitForAsyncWork();
     assert.equal(redraws, 1);
-    assert.equal(readHiddenKinds(), "edit");
+    assert.equal(readHiddenKinds(), "edit branch");
     toggleBox("script-run", false);
     toggleBox("script-run", true);
     await waitForAsyncWork();
     assert.equal(redraws, 1);
-    assert.equal(readHiddenKinds(), "edit");
+    assert.equal(readHiddenKinds(), "edit branch");
 });
 
 test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_hidden", async () => {
@@ -137,7 +137,7 @@ test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_h
     toggleBox("script-run", true);
     await waitForAsyncWork();
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=script-run]")!.checked, false);
-    assert.equal(readHiddenKinds(), "edit script-run");
+    assert.equal(readHiddenKinds(), "edit script-run branch");
 });
 
 test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_skips_a_box_already_on", async () => {
@@ -159,7 +159,7 @@ test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_ski
     await waitForAsyncWork();
     assert.deepEqual(requested, ["/api/layer1-edits", "/api/layer1-script-runs"]);
     assert.equal(redraws, 2);
-    assert.equal(readHiddenKinds(), "");
+    assert.equal(readHiddenKinds(), "branch");
     document.getElementById("layer-4")!.click();
     await waitForAsyncWork();
     assert.equal(requested.length, 2);
@@ -175,7 +175,7 @@ test("test_a_cancelled_edit_fetch_leaves_the_box_unchecked_and_the_nodes_hidden"
     toggleBox("edit", true);
     await waitForAsyncWork();
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!.checked, false);
-    assert.equal(readHiddenKinds(), "edit script-run");
+    assert.equal(readHiddenKinds(), "edit script-run branch");
 });
 
 test("test_the_edit_box_starts_unchecked_and_is_never_saved_as_hidden", async () => {
@@ -192,7 +192,7 @@ test("test_the_attribute_survives_a_stage_redraw", async () => {
     toggleBox("snapshot", false);
     const staleStageBubble = document.querySelector("#stage .filebox");
     await renderLayer1Stage(VIEW);
-    assert.equal(readHiddenKinds(), "edit script-run snapshot");
+    assert.equal(readHiddenKinds(), "edit script-run branch snapshot");
     assert.notEqual(document.querySelector("#stage .filebox"), staleStageBubble);
 });
 
@@ -213,7 +213,7 @@ test("test_the_boxes_restore_from_saved_settings", async () => {
     await renderLayer1View(VIEW);
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=snapshot]")!.checked, false);
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=commit]")!.checked, true);
-    assert.equal(readHiddenKinds(), "snapshot edit script-run");
+    assert.equal(readHiddenKinds(), "snapshot edit script-run branch");
 });
 
 test("test_toggling_a_box_posts_dir_and_hidden_kinds", async () => {
@@ -224,6 +224,58 @@ test("test_toggling_a_box_posts_dir_and_hidden_kinds", async () => {
     await renderFreshView("");
     toggleBox("commit", false);
     assert.equal(route.posted().length, 1);
+});
+
+test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
+    setupLayer1Dom();
+    stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
+    let redraws = 0;
+    renderShowRowWithKindFilter(buildFreshView(), () => {
+        redraws += 1;
+    });
+    assert.equal(readHiddenKinds(), "edit script-run branch");
+    toggleBox("branch", true);
+    await waitForAsyncWork();
+    assert.equal(redraws, 1);
+    assert.equal(readHiddenKinds(), "edit script-run");
+    toggleBox("branch", false);
+    toggleBox("branch", true);
+    await waitForAsyncWork();
+    assert.equal(redraws, 1);
+    assert.equal(readHiddenKinds(), "edit script-run");
+});
+
+test("test_the_branch_box_waits_for_the_redraw_promise_before_it_unhides_the_kind", async () => {
+    setupLayer1Dom();
+    stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
+    let finishRedraw: () => void = () => {};
+    renderShowRowWithKindFilter(buildFreshView(), () => new Promise<void>((resolve) => {
+        finishRedraw = resolve;
+    }));
+    toggleBox("branch", true);
+    await waitForAsyncWork();
+    assert.equal(readHiddenKinds(), "edit script-run branch");
+    finishRedraw();
+    await waitForAsyncWork();
+    assert.equal(readHiddenKinds(), "edit script-run");
+});
+
+test("test_a_failed_branch_fetch_unticks_the_box_and_keeps_the_kind_hidden", async () => {
+    setupLayer1Dom();
+    Object.assign(globalThis, { fetch: async () => ({ ok: false, status: 500, text: async () => "boom" }) });
+    renderShowRowWithKindFilter(buildFreshView(), () => {});
+    toggleBox("branch", true);
+    await waitForAsyncWork();
+    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!.checked, false);
+    assert.equal(readHiddenKinds(), "edit script-run branch");
+});
+
+test("test_the_branch_box_starts_unchecked_and_is_never_saved_as_hidden", async () => {
+    const route = stubSettingsRoute(null);
+    await renderFreshView("/tmp/branch-app");
+    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!.checked, false);
+    toggleBox("commit", false);
+    assert.deepEqual(route.posted(), [{ dir: "/tmp/branch-app", hiddenKinds: ["commit"] }]);
 });
 
 test("test_the_url_never_carries_a_kinds_parameter", async () => {

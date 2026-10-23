@@ -80,7 +80,7 @@ test("test_ticking_the_edit_box_draws_one_labelled_node_per_event_after_one_fetc
   assert.deepEqual(listMatching("#stage .nlabel.n-edit, #stage .nlabel.n-read").map((label) => label.textContent), ["[R]✓", "[e]", "[e]"]);
   assert.equal(listMatching("#stage .node.n-edit").length, 2);
   assert.equal(listMatching("#stage .node.n-read").length, 1);
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run");
+  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch");
 });
 
 test("test_an_edit_node_carries_its_identity_and_confidence_on_the_dot_and_the_label", async () => {
@@ -127,10 +127,10 @@ test("test_unticking_hides_the_edit_nodes_and_ticking_again_never_fetches_again"
   const box = readEditBox();
   box.checked = false;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run edit");
+  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch edit");
   await tickEditBox();
   assert.equal(editRequests, 1);
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run");
+  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch");
 });
 
 test("test_the_layer_3_button_ticks_only_the_edit_box_and_does_nothing_when_it_is_already_on", async () => {
@@ -139,7 +139,7 @@ test("test_the_layer_3_button_ticks_only_the_edit_box_and_does_nothing_when_it_i
   await waitForAsyncWork();
   assert.equal(readEditBox().checked, true);
   assert.equal(editRequests, 1);
-  assert.deepEqual(listMatching("#show-row input").filter((box) => !(box as HTMLInputElement).checked).map((box) => box.dataset["kind"]), ["script-run"]);
+  assert.deepEqual(listMatching("#show-row input").filter((box) => !(box as HTMLInputElement).checked).map((box) => box.dataset["kind"]), ["script-run", "branch"]);
   document.getElementById("layer-3")!.click();
   await waitForAsyncWork();
   assert.equal(readEditBox().checked, true);

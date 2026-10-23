@@ -88,24 +88,46 @@ export interface WireScriptRunsViewOf<I, P, U> {
     pairs: { path: P; scriptRuns: Omit<WireScriptRunOf<I, P, U>, "axisPx">[] }[];
 }
 
-// Task 379 mockup-only; the real WireBranchOf replaces it after sign-off (S25).
 export const WireRewindKind = {
     code: "code",
     conversation: "conversation",
 } as const;
 export type WireRewindKind = (typeof WireRewindKind)[keyof typeof WireRewindKind];
 
-export interface WireMockBranchNodeOf<I> extends WireInstantOf<I> {
+// Task 379 mockup types, replaced by WireBranchOf (task 357):
+// export interface WireMockBranchNodeOf<I> extends WireInstantOf<I> { label: string }
+// export interface WireMockBranchOf<I> { rewindKind: WireRewindKind; forkFrom: I; rejoinAt?: I; nodes: WireMockBranchNodeOf<I>[] }
+
+// Task 357: a node on a branch lane; changeId is the tool_use id, label is the EventKind word.
+export interface WireBranchNodeOf<I, U> extends WireInstantOf<I> {
+    changeId: U;
     label: string;
 }
 
-export interface WireMockBranchOf<I> {
+// Task 357: one real branch lane.
+export interface WireBranchOf<I, U> {
     rewindKind: WireRewindKind;
-    // Instant of the trunk node the branch leaves; the trunk node already owns its pixel, so no axisPx.
-    forkFrom: I;
-    // Conversation rewind only: instant of the trunk node the branch rejoins.
-    rejoinAt?: I;
-    nodes: WireMockBranchNodeOf<I>[];
+    // Rewind-point record time: the elbow leaves the trunk rail here, no dot.
+    forkAt: WireInstantOf<I>;
+    // Conversation only: the trunk node the kept bytes flow into.
+    rejoinAt?: WireInstantOf<I>;
+    // Conversation only, mutually exclusive with rejoinAt: kept bytes with no later trunk revision, so the client rejoins at the pair's rail end.
+    keptToEnd?: true;
+    nodes: WireBranchNodeOf<I, U>[];
+}
+
+// Task 357: /api/layer1-branches answers without axisPx, as /api/layer1-edits does.
+export interface WireBranchesViewOf<I, P, U> {
+    pairs: {
+        path: P;
+        branches: {
+            rewindKind: WireRewindKind;
+            forkAt: I;
+            rejoinAt?: I;
+            keptToEnd?: true;
+            nodes: Omit<WireBranchNodeOf<I, U>, "axisPx">[];
+        }[];
+    }[];
 }
 
 export interface WirePairOf<I, P, U> {
@@ -121,8 +143,9 @@ export interface WirePairOf<I, P, U> {
     edits?: WireEditOf<I, P, U>[];
     // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
     scriptRuns?: WireScriptRunOf<I, P, U>[];
-    // Task 379 mockup-only: forked lanes; absent on every pair that has none.
-    branches?: WireMockBranchOf<I>[];
+    // Task 357: absent until the branch box is ticked, so a branch-free pair's shape is unchanged.
+    branches?: WireBranchOf<I, U>[];
+    // branches?: WireMockBranchOf<I>[];
 }
 
 export interface WireOrphanOf<I, P, U> extends WireInstantOf<I> {
@@ -147,7 +170,9 @@ export type WireScriptRun = WireScriptRunOf<string, string, string>;
 export type WireScriptRunsView = WireScriptRunsViewOf<string, string, string>;
 export type WireEdit =WireEditOf<string, string, string>;
 export type WireEditsView = WireEditsViewOf<string, string, string>;
-export type WireMockBranch = WireMockBranchOf<string>;
+// export type WireMockBranch = WireMockBranchOf<string>;
+export type WireBranch = WireBranchOf<string, string>;
+export type WireBranchesView = WireBranchesViewOf<string, string, string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;
 export type WireLayer1View = WireLayer1ViewOf<string, string, string>;
@@ -188,8 +213,8 @@ export const SourceKind = {
 } as const;
 export type SourceKind = (typeof SourceKind)[keyof typeof SourceKind];
 
-// Pair ladder ORDER (task 331): created, commits, on-disk, snapshots, edits (task 343), script runs; raw `I`.
-export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
+// Trunk ladder ORDER (task 331): created, commits, on-disk, snapshots, edits (task 343), script runs; raw `I`.
+export function listTrunkLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
     const created = pair.created === undefined ? [] : [pair.created.instant];
     return [
         ...created,
@@ -198,8 +223,24 @@ export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] 
         ...(pair.snapshots ?? []).map((snapshot) => snapshot.instant),
         ...(pair.edits ?? []).map((edit) => edit.instant),
         ...(pair.scriptRuns ?? []).map((run) => run.instant),
-        // Task 379: only branch nodes take ladder slots; a fork or rejoin reuses its trunk node's pixel.
-        ...(pair.branches ?? []).flatMap((branch) => branch.nodes.map((node) => node.instant)),
+    ];
+}
+
+// Task 357: a rejoin on a trunk instant reuses that node's slot; one on no trunk node (its edit is not loaded) owns a slot.
+export function findRejoinWithOwnSlot<I, U>(trunkInstants: readonly I[], branch: WireBranchOf<I, U>): WireInstantOf<I> | undefined {
+    return branch.rejoinAt !== undefined && !trunkInstants.includes(branch.rejoinAt.instant) ? branch.rejoinAt : undefined;
+}
+
+// Pair ladder ORDER: the trunk, then per branch its fork, its nodes, and a rejoin that has no trunk node.
+export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
+    const trunkInstants = listTrunkLadderInstants(pair);
+    return [
+        ...trunkInstants,
+        ...(pair.branches ?? []).flatMap((branch) => [
+            branch.forkAt.instant,
+            ...branch.nodes.map((node) => node.instant),
+            ...(findRejoinWithOwnSlot(trunkInstants, branch) === undefined ? [] : [branch.rejoinAt!.instant]),
+        ]),
     ];
 }
 

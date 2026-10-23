@@ -8,6 +8,7 @@ import {
     WireConfidence,
     WireEditKind,
     WireEditSide,
+    WireRewindKind,
     WireScriptExecutorKind,
     listPairLadderInstants,
     type WirePairOf,
@@ -80,4 +81,29 @@ test("test_pair_ladder_appends_script_runs_after_snapshots", () => {
         scriptRuns: [{ instant: "run-1", axisPx: 2, toolUseId: "toolu_1", executorKind: "python", code: "print(1)", sessionId: "s", sessionFile: "f.jsonl" }],
     };
     assert.deepEqual(listPairLadderInstants(pair), ["onDisk", "snap-1", "run-1"]);
+});
+
+test("test_pair_ladder_gives_each_branch_a_fork_slot_then_its_nodes_and_rejoin_or_kept_to_end_adds_none", () => {
+    const node = (instant: string) => ({ instant, axisPx: 0, changeId: "toolu_1", label: "edit" });
+    const pair: WirePairOf<string, string, string> = {
+        path: "src/a.ts",
+        commits: [{ instant: "commit-1", axisPx: 0, hash: "aaa" }],
+        onDisk: { instant: "onDisk", axisPx: 0 },
+        branches: [
+            { rewindKind: WireRewindKind.conversation, forkAt: { instant: "fork-1", axisPx: 0 }, rejoinAt: { instant: "commit-1", axisPx: 0 }, nodes: [node("b1-n1"), node("b1-n2")] },
+            { rewindKind: WireRewindKind.conversation, forkAt: { instant: "fork-2", axisPx: 0 }, keptToEnd: true, nodes: [node("b2-n1")] },
+            { rewindKind: WireRewindKind.code, forkAt: { instant: "fork-3", axisPx: 0 }, nodes: [] },
+        ],
+    };
+    assert.deepEqual(listPairLadderInstants(pair), ["commit-1", "onDisk", "fork-1", "b1-n1", "b1-n2", "fork-2", "b2-n1", "fork-3"]);
+});
+
+test("test_pair_ladder_gives_a_rejoin_with_no_trunk_node_its_own_slot", () => {
+    const pair: WirePairOf<string, string, string> = {
+        path: "src/a.ts",
+        commits: [{ instant: "commit-1", axisPx: 0, hash: "aaa" }],
+        onDisk: { instant: "onDisk", axisPx: 0 },
+        branches: [{ rewindKind: WireRewindKind.conversation, forkAt: { instant: "fork-1", axisPx: 0 }, rejoinAt: { instant: "later-edit", axisPx: 0 }, nodes: [] }],
+    };
+    assert.deepEqual(listPairLadderInstants(pair), ["commit-1", "onDisk", "fork-1", "later-edit"]);
 });
