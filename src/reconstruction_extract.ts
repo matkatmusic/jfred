@@ -35,7 +35,7 @@ function writeEventFrom(block: ToolUseBlock, timestamp: Date): WriteEvent {
 }
 
 // The per-Edit detail from its result record: structuredPatch hunks + the literal pre-edit content.
-type EditDetail = { hunks: StructuredPatchHunk[]; originalFile: string };
+type EditDetail = { hunks: StructuredPatchHunk[]; originalFile: string | null };
 
 // Build an edit event from its structuredPatch detail, if available.
 function editEventFrom(

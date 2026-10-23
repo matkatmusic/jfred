@@ -2,7 +2,10 @@
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { Path } from "../src/structures/domain.ts";
+import { Path, Uuid } from "../src/structures/domain.ts";
+import { EventKind } from "../src/structures/vocabulary.ts";
+import type { EditEvent } from "../src/reconstruction_events.ts";
+import { editEvidenceAgreesWithState } from "../src/reconstruction_multi_source_gate.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { reconstructFile } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
@@ -65,4 +68,21 @@ test("test_agreeing_cross_source_stream_emits_no_conflict_note", () => {
     mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     const conflicts = drainReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 0);
+});
+
+function buildEditEventWithNullOriginalFile(): EditEvent {
+    return {
+        kind: EventKind.edit,
+        changeId: new Uuid("toolu_null_original"),
+        target: new Path("/tmp/alpha.txt"),
+        hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line two"] }],
+        originalFile: null,
+        timestamp: new Date("2026-07-22T10:10:00.000Z"),
+    };
+}
+
+test("test_edit_with_null_original_file_falls_through_to_hunk_pre_side_check", () => {
+    const edit = buildEditEventWithNullOriginalFile();
+    assert.equal(editEvidenceAgreesWithState(edit, "line one"), true);
+    assert.equal(editEvidenceAgreesWithState(edit, "other text"), false);
 });

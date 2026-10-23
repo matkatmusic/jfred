@@ -71,7 +71,7 @@ export type EditResult = {
     filePath: Path;
     oldString: string;
     newString: string;
-    originalFile: string;
+    originalFile: string | null;
     structuredPatch: StructuredPatchHunk[];
     userModified: boolean;
     replaceAll: boolean;

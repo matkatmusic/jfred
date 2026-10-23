@@ -57,7 +57,7 @@ export type EditEvent = {
   changeId: Uuid;
   target: Path;
   hunks: StructuredPatchHunk[];
-  originalFile?: string;
+  originalFile?: string | null;
   timestamp: Date;
 };
 

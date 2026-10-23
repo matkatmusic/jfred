@@ -55,8 +55,8 @@ export function checkJoinContentAgreement(
 }
 
 // One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly, else every hunk's pre-side must be contained.
-function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolean {
-    if (edit.originalFile !== undefined) {
+export function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolean {
+    if (edit.originalFile != null) {
         return stripSingleTrailingNewline(edit.originalFile) === stateText;
     }
     return edit.hunks.every((hunk) => stateText.includes(extractHunkPreSideText(hunk)));
