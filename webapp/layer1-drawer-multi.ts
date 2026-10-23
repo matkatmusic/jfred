@@ -206,9 +206,21 @@ export function wireMultiFileDrawer(): void {
     getRequiredElementById("dbody").addEventListener("toggle", syncFoldAllLabel, true);
 }
 
-const SCRIPT_RUN_STATUSES: [string, string][] = [["🚫", "not verified"], ["📍", "located"], ["⏸️", "not replayed"]];
+// const SCRIPT_RUN_STATUSES: [string, string][] = [["🚫", "not verified"], ["📍", "located"], ["⏸️", "not replayed"]];
 
-// Task 356: a script run's constant status today: located, not replayed, not verified.
-export function buildScriptRunStatusBadges(): HTMLElement[] {
-    return SCRIPT_RUN_STATUSES.map(([text, title]) => el("span", { class: "run-status", text, title }));
+// No wire field carries a run's status yet, so every run reads the same.
+const SCRIPT_RUN_STATUS = { verified: false, located: true, replayed: false };
+
+// Task 356: the #dpath status groups; a verified run needs no other check.
+// export function buildScriptRunStatusBadges(): HTMLElement[] {
+//     return SCRIPT_RUN_STATUSES.map(([text, title]) => el("span", { class: "run-status", text, title }));
+// }
+export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
+    const checks: (keyof typeof SCRIPT_RUN_STATUS)[] = SCRIPT_RUN_STATUS.verified ? ["verified"] : ["verified", "located", "replayed"];
+    return checks.flatMap((check) => {
+        const passed = SCRIPT_RUN_STATUS[check];
+        // dpath collapses normal spaces, so the groups are separated by two non-breaking spaces.
+        return [`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
+            el("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` })];
+    });
 }

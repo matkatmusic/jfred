@@ -8,13 +8,14 @@ const BADGE_TITLES = ["not verified", "located", "not replayed"];
 // Expects the python script-run drawer to be open.
 export async function checkScriptRunDrawerLayout(page: HeadlessPage): Promise<void> {
   const drawer = await page.evaluate<{
-    badgeTitles: string[]; metaText: string; panePaths: string[]; metaTerms: string[];
+    badgeTitles: string[]; titleText: string; metaText: string; panePaths: string[]; metaTerms: string[];
     preWhiteSpace: string; preOverflowY: string; preOverflows: boolean; dlWhiteSpace: string;
   }>(`(() => {
         const pre = document.querySelector('#drawer .scriptbody pre');
         const meta = document.querySelector('#drawer dl.script-meta');
         return {
             badgeTitles: [...document.querySelectorAll('#dpath .run-status')].map(s => s.title),
+            titleText: document.getElementById('dpath').textContent,
             metaText: document.getElementById('dmeta').textContent,
             panePaths: [...document.querySelectorAll('#dbody details.dfile .dfile-path')].map(p => p.dataset.target),
             metaTerms: [...meta.querySelectorAll('dt')].map(t => t.textContent),
@@ -25,6 +26,8 @@ export async function checkScriptRunDrawerLayout(page: HeadlessPage): Promise<vo
     })()`);
   reportCheck("L4 python dot: dpath holds 3 run-status badges with their titles",
     JSON.stringify(drawer.badgeTitles) === JSON.stringify(BADGE_TITLES), drawer.badgeTitles);
+  reportCheck("L4 python dot: dpath reads Verified: ❌, Located: ✅, Replayed: ❌ with no 📍/⏸️/🚫",
+    ["Verified: ❌", "Located: ✅", "Replayed: ❌"].every((text) => drawer.titleText.includes(text)) && !/[📍⏸🚫]/u.test(drawer.titleText), drawer.titleText);
   reportCheck("L4 python dot: dmeta lists every affected path",
     drawer.panePaths.length > 0 && drawer.panePaths.every((path) => drawer.metaText.includes(path)), drawer);
   reportCheck("L4 python dot: the script-meta list has no files row", !drawer.metaTerms.includes("files"), drawer.metaTerms);

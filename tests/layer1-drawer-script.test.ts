@@ -65,7 +65,12 @@ test("task 356: clicking a script-run node opens the shared drawer with the reso
     const header = getRequiredElementById("dpath");
     assert.equal(header.firstChild?.textContent, "rename_inv.py");
     const badges = [...header.querySelectorAll(".run-status")].map((badge) => `${badge.textContent}=${badge.getAttribute("title")}`);
-    assert.deepEqual(badges, ["🚫=not verified", "📍=located", "⏸️=not replayed"]);
+    assert.deepEqual(badges, ["❌=not verified", "✅=located", "❌=not replayed"]);
+    const titleText = header.textContent ?? "";
+    for (const expected of ["Verified: ❌", "Located: ✅", "Replayed: ❌"]) {
+        assert.ok(titleText.includes(expected), titleText);
+    }
+    assert.ok(!/[📍⏸🚫]/u.test(titleText), titleText);
     const metaText = getRequiredElementById("dmeta").textContent ?? "";
     assert.ok(metaText.includes("src/a.ts") && metaText.includes("src/b.ts"), metaText);
     const body = getRequiredElementById("dbody");
