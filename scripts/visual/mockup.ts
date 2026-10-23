@@ -16,6 +16,7 @@ import { checkSnapshotToggle, validateDrawer, validateRulerRow, validateSnapshot
 import { checkLayer3 } from "./layer3-checks.ts";
 import { checkLayer4 } from "./layer4-checks.ts";
 import { checkKindJump } from "./kind-jump-checks.ts";
+import { checkKindDashes } from "./kind-dash-checks.ts";
 import { checkLayer5 } from "./layer5-checks.ts";
 // // checkBubbleFlash (task 386: the real page has no bubble-click flash)
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
@@ -48,6 +49,7 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   await checkLayer3(page, pageUrl);
   await checkLayer4(page, pageUrl);
   await checkKindJump(page, pageUrl);
+  await checkKindDashes(page, pageUrl);
   await checkLayer5(page, pageUrl);
   // The page no longer sets window.__fixture; the checks read the arrays the server serves.
   await page.evaluate(`(window.__fixture = ${JSON.stringify({ SESSIONS, DISK, COMMITS, SNAPSHOTS })}, true)`);

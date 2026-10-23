@@ -15,7 +15,7 @@ export const ShowRowKind = {
 } as const;
 export type ShowRowKind = (typeof ShowRowKind)[keyof typeof ShowRowKind];
 
-const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
+export const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
     [ShowRowKind.created]: "created at",
     [ShowRowKind.commit]: "commit",
     [ShowRowKind.disk]: "on-disk",

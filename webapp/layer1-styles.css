@@ -523,6 +523,16 @@
   */
   .ruler .tick.multi { text-decoration: underline dotted; }
   .ruler .tick.expanded { color: var(--ink); }
+  .ruler .tick .kind-dashes { display: inline-flex; gap: 2px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
+  .ruler .tick .kdash { position: relative; flex: 0 1 12px; min-width: 3px; height: 4px; border-radius: 2px; }
+  .ruler .tick .kdash::after { content: ""; position: absolute; inset: -5px -1px; }
+  .kdash-created { background: var(--muted); }
+  .kdash-commit { background: var(--c-commit); }
+  .kdash-disk { background: var(--c-disk); }
+  .kdash-snapshot { background: var(--c-snap); }
+  .kdash-edit { background: var(--c-edit); }
+  .kdash-script-run { background: var(--c-script); }
+  .kdash-branch { background: var(--c-user); }
   .tickfiles { position: absolute; left: 12px; top: 100%; width: max-content; max-width: 300px;
     padding: 2px 0 0; z-index: 9; }
   .tickfiles button { display: block; width: 100%; text-align: left; border: none; border-radius: 3px;

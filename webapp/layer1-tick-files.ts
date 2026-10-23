@@ -4,7 +4,7 @@ import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
 import { highlightLandedElement } from "./layer1-find-file.ts";
 import { KIND_HIDDEN_CLASS, classifyNodeKind, isKindHidden, onKindFilterChange } from "./layer1-kind-filter.ts";
-import type { ShowRowKind } from "./layer1-show-row.ts";
+import { SHOW_ROW_LABELS, ShowRowKind } from "./layer1-show-row.ts";
 import { flashSession } from "./layer1-sessions.ts";
 import { listElementsDrawnAtAxisPx, snapshotStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
@@ -147,6 +147,15 @@ function findTickAtExpandedInstant(): HTMLElement | undefined {
         && (rowsByTick.get(tick)?.instants ?? []).some((instant) => new Date(instant).getTime() === expandedRow!.instantMs));
 }
 
+// One empty dash per distinct visible kind, in show-row order, right after the timestamp text so `.tickfiles` stays last.
+function drawKindDashes(tick: HTMLElement, visible: TickEvent[]): void {
+    tick.querySelector(".kind-dashes")?.remove();
+    const dashes = Object.values(ShowRowKind)
+        .filter((kind) => visible.some((event) => event.nodeKind === kind))
+        .map((kind) => el("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
+    tick.insertBefore(el("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
+}
+
 // Underline rows that would EXPAND (mockup 687); a row whose events are all hidden kinds hides but keeps its slot.
 function markTickKindState(snapshot: BubbleSnapshot[]): void {
     for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
@@ -154,6 +163,7 @@ function markTickKindState(snapshot: BubbleSnapshot[]): void {
         const visible = all.filter((event) => !isKindHidden(event.nodeKind));
         tick.classList.toggle("multi", visible.length > 1);
         tick.classList.toggle(KIND_HIDDEN_CLASS, all.length > 0 && visible.length === 0);
+        drawKindDashes(tick, visible);
         // Retired by task 360 (the hidden-kind set replaces it): if (all.length > 0 && all.every((event) => event.element.matches(".n-snap"))) { tick.classList.add("n-snap"); }
     }
 }
