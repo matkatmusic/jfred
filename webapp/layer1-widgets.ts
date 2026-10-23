@@ -3,7 +3,16 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireEditKind, WireScriptExecutorIcon, WireScriptExecutorKind, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, WireRewindKind, WireScriptExecutorIcon, WireScriptExecutorKind, type WireEdit, type WireInstant, type WireMockBranch, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+
+// Height of the dashed elbow's curve; a branch rail starts below the fork elbow and stops above the rejoin elbow.
+const BRANCH_ELBOW_PX = 16;
+
+// Task 379 mockup: dot tooltip tail per rewind kind.
+const BRANCH_NODE_NOTE = {
+    [WireRewindKind.code]: "abandoned tip (code reverted, dead end)",
+    [WireRewindKind.conversation]: "conversation rewound, code kept",
+} as const satisfies Record<WireRewindKind, string>;
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -77,6 +86,39 @@ function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptR
     );
 }
 
+// A fork or rejoin is the commit node already drawn at that instant, so it reuses that node's pixel.
+function findTrunkAxisPx(trunkNodes: WireInstant[], instant: string): number {
+    const trunkNode = trunkNodes.find((candidate) => candidate.instant === instant);
+    if (trunkNode === undefined) {
+        throw new Error(`branch instant ${instant} matches no trunk node`);
+    }
+    return trunkNode.axisPx;
+}
+
+// Task 379 mockup: bnode/blabel, never node/nlabel, so the drawer and the old node checks ignore branch dots.
+function appendBranchLane(lane: HTMLElement, branch: WireMockBranch, laneIndex: number, trunkNodes: WireInstant[], startPx: number): void {
+    const forkPx = findTrunkAxisPx(trunkNodes, branch.forkFrom) - startPx;
+    const rejoinPx = branch.rejoinAt === undefined ? undefined : findTrunkAxisPx(trunkNodes, branch.rejoinAt) - startPx;
+    const railFromPx = forkPx + BRANCH_ELBOW_PX;
+    const railToPx = rejoinPx === undefined ? Math.max(...branch.nodes.map((node) => node.axisPx - startPx)) : rejoinPx - BRANCH_ELBOW_PX;
+    const branchLane = el("div", { class: "blane" });
+    branchLane.style.setProperty("--lane-index", String(laneIndex));
+    const rail = setAxisPx(el("div", { class: "brail" }), railFromPx);
+    rail.style.setProperty("--span-px", String(railToPx - railFromPx));
+    branchLane.append(setAxisPx(el("div", { class: "split-elbow" }), forkPx), rail);
+    if (rejoinPx !== undefined) {
+        branchLane.append(setAxisPx(el("div", { class: "merge-elbow" }), rejoinPx));
+    }
+    for (const node of branch.nodes) {
+        const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant };
+        branchLane.append(
+            setAxisPx(el("i", { class: "bnode", ...identity }), node.axisPx - startPx),
+            setAxisPx(el("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
+        );
+    }
+    lane.append(branchLane);
+}
+
 function buildPairWidget(pair: WirePair): HTMLElement {
     // Snapshots, edits and script runs go last, as the server orders the ladder, so same-timestamp runs and the span stay right.
     const snapshots = pair.snapshots ?? [];
@@ -106,12 +148,16 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     for (const run of scriptRuns) {
         appendScriptRunNode(lane, run.axisPx - startPx, run);
     }
-    return setAxisPx(el("div", { class: "filebox" }, [
+    const branches = pair.branches ?? [];
+    branches.forEach((branch, index) => appendBranchLane(lane, branch, index + 1, pair.commits, startPx));
+    const filebox = setAxisPx(el("div", { class: "filebox" }, [
         // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
         el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
         el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
         lane,
     ]), startPx);
+    filebox.style.setProperty("--lane-count", String(branches.length));
+    return filebox;
 }
 
 // `title`/`rows` come from one caller so direction is never inferred from contents; rows arrive sorted ascending, rows[0] is earliest.

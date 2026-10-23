@@ -210,7 +210,8 @@
   /*
     Task 277: `scroll-margin-top` keeps a jumped-to bubble's name off the pane's top edge.
   */
-  .filebox { position: relative; flex: none; min-width: 168px; scroll-margin-top: 14px;
+  .filebox { position: relative; flex: none; --lane-w: 90px; min-width: calc(168px + var(--lane-count, 0) * var(--lane-w));
+    scroll-margin-top: 14px;
     margin-top: calc(var(--axis-px) * 1px);
     border: 2px solid var(--box); border-radius: 14px;
     /*
@@ -291,6 +292,21 @@
   .node { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
     z-index: 6; width: 15px; height: 15px; border-radius: 50%;
     box-shadow: 0 0 0 2.5px var(--surface); }
+  /*
+    Task 379: a forked lane. `.blane` sits at the lane's x; its dashed rail and elbows are dimmer than the solid trunk rail.
+  */
+  .blane { position: absolute; top: 0; bottom: 0; width: 0; left: calc(var(--lane-index) * var(--lane-w) - 1px); }
+  .brail { position: absolute; left: -1px; top: calc(var(--axis-px) * 1px); height: calc(var(--span-px) * 1px);
+    border-left: 2px dashed var(--baseline); opacity: .5; }
+  .split-elbow, .merge-elbow { position: absolute; right: -1px; width: calc(var(--lane-index) * var(--lane-w));
+    height: 16px; box-sizing: border-box; border-right: 2px dashed var(--baseline); opacity: .6; pointer-events: none; }
+  .split-elbow { top: calc(var(--axis-px) * 1px); border-top: 2px dashed var(--baseline); border-top-right-radius: 10px; }
+  .merge-elbow { top: calc(var(--axis-px) * 1px - 16px); border-bottom: 2px dashed var(--baseline); border-bottom-right-radius: 10px; }
+  .bnode { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
+    z-index: 6; width: 15px; height: 15px; border-radius: 50%; background: var(--c-user); opacity: .38;
+    box-shadow: 0 0 0 2.5px var(--surface); }
+  .blabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
+    font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; opacity: .38; }
   .n-commit { border-radius: 4px; background: var(--c-commit); }
   .n-disk { background: transparent; border: 3px double var(--c-disk); }
   .n-created { border-style: dotted; border-color: var(--muted); }

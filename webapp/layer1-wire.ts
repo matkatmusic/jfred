@@ -88,6 +88,26 @@ export interface WireScriptRunsViewOf<I, P, U> {
     pairs: { path: P; scriptRuns: Omit<WireScriptRunOf<I, P, U>, "axisPx">[] }[];
 }
 
+// Task 379 mockup-only; the real WireBranchOf replaces it after sign-off (S25).
+export const WireRewindKind = {
+    code: "code",
+    conversation: "conversation",
+} as const;
+export type WireRewindKind = (typeof WireRewindKind)[keyof typeof WireRewindKind];
+
+export interface WireMockBranchNodeOf<I> extends WireInstantOf<I> {
+    label: string;
+}
+
+export interface WireMockBranchOf<I> {
+    rewindKind: WireRewindKind;
+    // Instant of the trunk node the branch leaves; the trunk node already owns its pixel, so no axisPx.
+    forkFrom: I;
+    // Conversation rewind only: instant of the trunk node the branch rejoins.
+    rejoinAt?: I;
+    nodes: WireMockBranchNodeOf<I>[];
+}
+
 export interface WirePairOf<I, P, U> {
     path: P;
     // Oldest first, as the endpoint emits them.
@@ -101,6 +121,8 @@ export interface WirePairOf<I, P, U> {
     edits?: WireEditOf<I, P, U>[];
     // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
     scriptRuns?: WireScriptRunOf<I, P, U>[];
+    // Task 379 mockup-only: forked lanes; absent on every pair that has none.
+    branches?: WireMockBranchOf<I>[];
 }
 
 export interface WireOrphanOf<I, P, U> extends WireInstantOf<I> {
@@ -125,6 +147,7 @@ export type WireScriptRun = WireScriptRunOf<string, string, string>;
 export type WireScriptRunsView = WireScriptRunsViewOf<string, string, string>;
 export type WireEdit =WireEditOf<string, string, string>;
 export type WireEditsView = WireEditsViewOf<string, string, string>;
+export type WireMockBranch = WireMockBranchOf<string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;
 export type WireLayer1View = WireLayer1ViewOf<string, string, string>;
@@ -175,6 +198,8 @@ export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] 
         ...(pair.snapshots ?? []).map((snapshot) => snapshot.instant),
         ...(pair.edits ?? []).map((edit) => edit.instant),
         ...(pair.scriptRuns ?? []).map((run) => run.instant),
+        // Task 379: only branch nodes take ladder slots; a fork or rejoin reuses its trunk node's pixel.
+        ...(pair.branches ?? []).flatMap((branch) => branch.nodes.map((node) => node.instant)),
     ];
 }
 

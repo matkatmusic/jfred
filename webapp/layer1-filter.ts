@@ -3,7 +3,7 @@
 import { layOutNodeLadders, type RulerLayout } from "./layer1-ruler-axis.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire.ts";
-import type { WireCommit, WireInstant, WireLayer1View, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
+import type { WireCommit, WireInstant, WireLayer1View, WireMockBranch, WireOrphan, WirePair, WireRulerTick } from "./layer1-wire.ts";
 
 // Task 300: an expanded ruler row's file list, fed into layout so rows and bubbles below shift down.
 export interface RulerExpansion {
@@ -48,7 +48,18 @@ function placePairNodesOnAxis(pair: WirePair, nodeOffsetsPx: number[]): WirePair
         ...(pair.snapshots === undefined ? {} : { snapshots: placeNodesOnAxis(pair.snapshots, nodeOffsetsPx.slice(onDiskIndex + 1)) }),
         ...(pair.edits === undefined ? {} : { edits: placeNodesOnAxis(pair.edits, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length)) }),
         ...(pair.scriptRuns === undefined ? {} : { scriptRuns: placeNodesOnAxis(pair.scriptRuns, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length + (pair.edits ?? []).length)) }),
+        ...(pair.branches === undefined ? {} : { branches: placeBranchesOnAxis(pair.branches, nodeOffsetsPx.slice(onDiskIndex + 1 + (pair.snapshots ?? []).length + (pair.edits ?? []).length + (pair.scriptRuns ?? []).length)) }),
     };
+}
+
+// Task 379: branch nodes sit flat at the ladder tail, branch after branch.
+function placeBranchesOnAxis(branches: WireMockBranch[], tailOffsetsPx: number[]): WireMockBranch[] {
+    let placedCount = 0;
+    return branches.map((branch) => {
+        const nodes = placeNodesOnAxis(branch.nodes, tailOffsetsPx.slice(placedCount));
+        placedCount += branch.nodes.length;
+        return { ...branch, nodes };
+    });
 }
 
 // A disk orphan's own node is ladder slot 0, which IS the tick offset; its snapshots stack below it.

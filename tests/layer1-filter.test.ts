@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { filterLayer1ViewByTargets, relayOutLayer1View } from "../webapp/layer1-filter.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
-import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import { WireRewindKind, type WireLayer1View } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Full ISO-8601 UTC, because the re-layout round-trips these through Date.toISOString().
@@ -65,6 +65,25 @@ test("test_the_relayout_places_edits_after_snapshots_at_their_own_ruler_offsets"
     assert.deepEqual(pair.snapshots!.map((node) => node.axisPx), [44]);
     assert.deepEqual(pair.edits!.map((node) => node.axisPx), [66]);
     assert.equal(pair.edits![0]!.changeId, "toolu_1");
+});
+
+test("test_the_relayout_places_branch_nodes_on_ruler_ticks_and_leaves_trunk_offsets_alone", () => {
+    // Task 379: hand-derived, one hour is one 22 px row; the fork and rejoin reuse commit instants, so they add no row.
+    const branchNode = (instant: string) => ({ instant, axisPx: 0, label: "b" });
+    const view: WireLayer1View = {
+        pairs: [{ path: "src/keep/a.ts", commits: [{ hash: "aa", instant: T0, axisPx: 0 }, { hash: "ab", instant: T1, axisPx: 0 }], onDisk: { instant: T2, axisPx: 0 },
+            branches: [
+                { rewindKind: WireRewindKind.conversation, forkFrom: T0, rejoinAt: T1, nodes: [branchNode(T3), branchNode(T4)] },
+                { rewindKind: WireRewindKind.code, forkFrom: T1, nodes: [branchNode(T5)] },
+            ] }],
+        gitOrphans: [], diskOrphans: [], ruler: [],
+    };
+    const relaid = relayOutLayer1View(view);
+    const pair = findPair(relaid, "src/keep/a.ts");
+    assert.deepEqual(pair.commits.map((node) => node.axisPx), [0, 22]);
+    assert.equal(pair.onDisk.axisPx, 44);
+    assert.deepEqual(pair.branches!.map((branch) => branch.nodes.map((node) => node.axisPx)), [[66, 88], [110]]);
+    assert.deepEqual(relaid.ruler.map((tick) => tick.axisPx), [0, 22, 44, 66, 88, 110]);
 });
 
 test("test_the_relayout_places_script_runs_after_snapshots_and_edits_at_their_own_ruler_offsets", () => {
