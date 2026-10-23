@@ -78,6 +78,8 @@ test("test_layer1_view_stream_reports_an_unresolvable_ref_as_a_terminal_error_li
     assert.equal(terminal.kind, DocumentResponseKind.error);
     // ...whose label names the offending ref, so the crumb tells the user what to fix.
     assert.ok(terminal.label?.includes("no-such-ref"), terminal.label);
+    // ...and the label is the bare message, since the client wraps it in its own Error.
+    assert.ok(!terminal.label?.startsWith("Error: "), terminal.label);
     // and no view was emitted alongside it.
     assert.equal(terminal.pairs, undefined);
 });

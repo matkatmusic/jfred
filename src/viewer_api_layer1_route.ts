@@ -56,7 +56,7 @@ export function streamNdjsonBuild(response: ServerResponse, build: (writeNdjsonL
         response.end(JSON.stringify(build(writeNdjsonLine)) + "\n");
     } catch (error) {
         // Deliberate asymmetry: bad params 400 before any header; a mid-build failure is a terminal error line.
-        response.end(JSON.stringify({ kind: DocumentResponseKind.error, label: String(error) }) + "\n");
+        response.end(JSON.stringify({ kind: DocumentResponseKind.error, label: (error as Error).message }) + "\n");
     }
 }
 

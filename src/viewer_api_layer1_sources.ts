@@ -10,10 +10,13 @@ import { SourceKind } from "../webapp/layer1-wire.ts";
 import { requireExistingFolderParam } from "./viewer_api_layer1_route.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
+// The Workflow tool's journal is not a chat transcript.
+const WORKFLOW_JOURNAL_NAME = "journal.jsonl";
+
 // A file-history store names its snapshots by hash, with no common extension — so "every regular file" IS the file-history match, and only the JSONL kind narrows by name.
 function matchesSourceKind(name: string, kind: SourceKind): boolean {
     if (kind === SourceKind.jsonl) {
-        return name.endsWith(".jsonl");
+        return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME;
     }
     return true;
 }
