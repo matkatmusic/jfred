@@ -14,12 +14,14 @@ interface Layer1StreamLine {
 // Where one progress line lands: the main strip by default, a pane-local bar when the caller passes its own.
 export type ProgressPainter = (label: string, current?: number, total?: number) => void;
 
-// Paint one fill+label pair; a countless stage shows the label alone so it never reads as a reset.
+// Paint one fill+label pair; a countless stage shows the label alone and a moving stripe so it never reads as a reset.
 export function paintLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: string, current?: number, total?: number): void {
     if (current === undefined || total === undefined || total <= 0) {
         labelHost.textContent = label;
+        fill.classList.add("indeterminate");
         return;
     }
+    fill.classList.remove("indeterminate");
     labelHost.textContent = `${label} — ${current} / ${total}`;
     fill.style.width = `${(current / total) * 100}%`;
 }

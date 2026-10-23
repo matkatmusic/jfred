@@ -49,7 +49,10 @@ export function streamNdjsonBuild(response: ServerResponse, build: (writeNdjsonL
             throw new Error("client disconnected — build cancelled");
         }
         response.write(JSON.stringify(value) + "\n");
-        // res.write uncorks on nextTick, which never fires mid-build; uncork now so each line flushes.
+        // res.write corks the socket, and newer Node corks the response too; both uncork on nextTick, which never fires mid-build.
+        if (response.writableCorked > 0) {
+            response.uncork();
+        }
         response.socket?.uncork();
     };
     try {

@@ -94,7 +94,10 @@ export function handleDocumentRequest(response: ServerResponse, query: URLSearch
             throw new Error("client disconnected — build cancelled");
         }
         response.write(JSON.stringify(value) + "\n");
-        // res.write corks the socket and uncorks on nextTick — which never runs during the synchronous build, so every line would sit buffered until the build ends. Uncork NOW so each line flushes to the wire as it is written.
+        // res.write corks the socket, and newer Node corks the response too; both uncork on nextTick, which never runs mid-build, so uncork now.
+        if (response.writableCorked > 0) {
+            response.uncork();
+        }
         response.socket?.uncork();
     };
     const reportStage = (label: string): void => {

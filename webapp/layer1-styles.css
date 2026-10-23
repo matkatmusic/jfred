@@ -160,9 +160,11 @@
     `display: flex` above beats the UA [hidden] rule, so the hide needs its own guard (CDP-caught).
   */
   .loadbar[hidden] { display: none; }
-  .loadbar-track { flex: 1; height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+  .loadbar-track { flex: 1; height: 10px; border-radius: 5px; background: var(--grid); overflow: hidden; }
   .loadbar-fill { height: 100%; width: 0; background: var(--sel-edge); transition: width .12s linear; }
-  .loadbar-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+  .loadbar-fill.indeterminate { width: 30% !important; animation: loadbar-slide 1.1s linear infinite; }
+  @keyframes loadbar-slide { from { transform: translateX(-100%); } to { transform: translateX(333%); } }
+  .loadbar-label { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
     white-space: nowrap; }
   .loadbar button { font-size: 11px; padding: 1px 8px; }
   .loadbar-confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;

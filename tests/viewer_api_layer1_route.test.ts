@@ -3,6 +3,9 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { type ChildProcess } from "node:child_process";
+import { createServer, type Server } from "node:http";
+import { type AddressInfo } from "node:net";
+import { streamNdjsonBuild } from "../src/viewer_api_layer1_route.ts";
 import {
     buildViewUrl,
     makeFixtureDiskFolder,
@@ -82,4 +85,24 @@ test("test_layer1_view_stream_reports_an_unresolvable_ref_as_a_terminal_error_li
     assert.ok(!terminal.label?.startsWith("Error: "), terminal.label);
     // and no view was emitted alongside it.
     assert.equal(terminal.pairs, undefined);
+});
+
+test("test_layer1_stream_leaves_neither_the_response_nor_the_socket_corked_after_a_progress_line", async () => {
+    // Scenario: on newer Node the response corks itself after res.write, so a socket-only uncork flushes nothing during the synchronous build.  Steps: serve a build that writes one progress line, then records both cork counts.
+    const recordedCorks: number[] = [];
+    const server: Server = createServer((_request, response) => {
+        streamNdjsonBuild(response, (writeNdjsonLine) => {
+            writeNdjsonLine({ kind: DocumentResponseKind.progress, label: "probe" });
+            recordedCorks.push(response.writableCorked, response.socket!.writableCorked);
+            return { done: true };
+        });
+    });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    try {
+        await (await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`)).text();
+    } finally {
+        server.close();
+    }
+    // both the response and the socket are uncorked right after the write.
+    assert.deepEqual(recordedCorks, [0, 0]);
 });

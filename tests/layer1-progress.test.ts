@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
-import { readLayer1ViewStream } from "../webapp/layer1-progress.ts";
+import { paintLoadbar, readLayer1ViewStream } from "../webapp/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
 const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
@@ -64,6 +64,19 @@ test("test_a_counted_progress_line_fills_the_bar_to_its_fraction", async () => {
     // 5 of 10 is half the track, and the label spells the same count out in full.
     assert.equal(readLoadbarFillWidth(), "50%");
     assert.equal(readLoadbarLabel(), "reading file history — 5 / 10");
+});
+
+test("test_a_countless_paint_marks_the_fill_indeterminate_and_a_counted_paint_clears_it", () => {
+    // Scenario: a stage with no count must still show a moving bar; the first count hands the bar back to its fraction.
+    setupLayer1Dom(BOTH_ROOTS_SEARCH);
+    const fill = document.getElementById("loadbar-fill") as HTMLElement;
+    const labelHost = document.getElementById("loadbar-label") as HTMLElement;
+    paintLoadbar(fill, labelHost, "starting");
+    assert.equal(fill.classList.contains("indeterminate"), true);
+    assert.equal(labelHost.textContent, "starting");
+    paintLoadbar(fill, labelHost, "reading file history", 5, 10);
+    assert.equal(fill.classList.contains("indeterminate"), false);
+    assert.equal(fill.style.width, "50%");
 });
 
 // A view fetch that never answers and rejects with AbortError when its signal aborts; other paths 404.
