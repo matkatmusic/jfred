@@ -62,7 +62,12 @@ test("task 356: clicking a script-run node opens the shared drawer with the reso
     await waitForPendingFetches();
 
     assert.ok(getRequiredElementById("drawer").classList.contains("open"));
-    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
+    const header = getRequiredElementById("dpath");
+    assert.equal(header.firstChild?.textContent, "rename_inv.py");
+    const badges = [...header.querySelectorAll(".run-status")].map((badge) => `${badge.textContent}=${badge.getAttribute("title")}`);
+    assert.deepEqual(badges, ["🚫=not verified", "📍=located", "⏸️=not replayed"]);
+    const metaText = getRequiredElementById("dmeta").textContent ?? "";
+    assert.ok(metaText.includes("src/a.ts") && metaText.includes("src/b.ts"), metaText);
     const body = getRequiredElementById("dbody");
     assert.equal(body.querySelector(".scriptbody pre")?.textContent, SCRIPT_RUN.code);
     assert.equal(body.querySelector(".scriptbody .sbhead b")?.textContent, "rename_inv.py");
@@ -70,7 +75,7 @@ test("task 356: clicking a script-run node opens the shared drawer with the reso
     const metaRows = [...body.querySelectorAll("dl.script-meta dt")].map((term) => `${term.textContent}=${term.nextElementSibling?.textContent}`);
     assert.deepEqual(metaRows, [
         "kind=script run (layer 4)", "executor=python", `instant=${SCRIPT_RUN.instant}`,
-        `session=${SCRIPT_RUN.sessionFile}`, "files=src/a.ts, src/b.ts", "verified=no: located, not replayed",
+        `session=${SCRIPT_RUN.sessionFile}`,
     ]);
     // One diff pane per affected path (src/a.ts and src/b.ts both carry this toolUseId).
     assert.equal(getRequiredElementById("dbody").querySelectorAll("details.dfile").length, 2);
@@ -87,7 +92,7 @@ test("task 356: clicking the shared connector opens the SAME drawer as clicking 
     connector.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
 
-    assert.equal(getRequiredElementById("dpath").textContent, "rename_inv.py");
+    assert.equal(getRequiredElementById("dpath").firstChild?.textContent, "rename_inv.py");
 });
 
 test("task 356: an unlabeled script run (no static filename) still opens, with a generated header", async () => {
@@ -111,5 +116,5 @@ test("task 356: an unlabeled script run (no static filename) still opens, with a
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
 
-    assert.equal(getRequiredElementById("dpath").textContent, "python run");
+    assert.equal(getRequiredElementById("dpath").firstChild?.textContent, "python run");
 });

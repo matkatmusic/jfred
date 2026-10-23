@@ -8,7 +8,7 @@ import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearDiffPair, describeEditDrawer, describeNodeStep, isEditNode, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { describeEditSteps } from "./layer1-revision-sources.ts";
-import { buildScriptRunDiffPanes, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
+import { buildScriptRunDiffPanes, buildScriptRunStatusBadges, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { flashSession } from "./layer1-sessions.ts";
 import { renderHighlightedJson } from "./inspector-json.ts";
@@ -176,9 +176,9 @@ async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void>
         getRequiredElementById(id).hidden = true;
     }
     const header = getRequiredElementById("dpath");
-    header.textContent = run.label ?? `${run.executorKind} run`;
+    header.replaceChildren(run.label ?? `${run.executorKind} run`, ...buildScriptRunStatusBadges());
     header.title = paths.join("\n");
-    getRequiredElementById("dmeta").textContent = `${run.executorKind} run · ${paths.length} affected file(s)`;
+    getRequiredElementById("dmeta").textContent = `${run.executorKind} run · ${paths.length} affected file(s):\n${paths.join("\n")}`;
     getRequiredElementById("drawer").classList.add("open");
     setDrawerTools("none");
     // const scriptBody = el("pre", { class: "scriptbody", text: run.code });
@@ -187,8 +187,8 @@ async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void>
         ["executor", run.executorKind],
         ["instant", run.instant],
         ["session", run.sessionFile],
-        ["files", paths.join(", ")],
-        ["verified", "no: located, not replayed"],
+        // ["files", paths.join(", ")],
+        // ["verified", "no: located, not replayed"],
     ];
     const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
     const scriptBody = el("div", { class: "scriptbody" }, [

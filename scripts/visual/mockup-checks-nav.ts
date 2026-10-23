@@ -157,13 +157,26 @@ export async function checkMultiFileDrawer(page: HeadlessPage): Promise<void> {
   await page.waitFor(bodySettled(a), 10_000);
 
   // The drawer-header pair drives every section at once.
-  reportCheck("#328 collapse all closes every section and show all reopens them",
+  reportCheck("#328 the one fold button closes every section, then reopens them",
     await page.evaluate<boolean>(`(() => {
-        document.getElementById('dcollapse-all').click();
-        const closed = [...document.querySelectorAll('#dbody details.dfile')].every(d => !d.open);
-        document.getElementById('dshow-all').click();
-        return closed && [...document.querySelectorAll('#dbody details.dfile')].every(d => d.open);
+        const button = document.getElementById('dfold-all');
+        const sections = [...document.querySelectorAll('#dbody details.dfile')];
+        button.click();
+        const closed = sections.every(d => !d.open) && button.textContent === 'Show all';
+        button.click();
+        return closed && sections.every(d => d.open) && button.textContent === 'Collapse all';
     })()`));
+
+  // A hand toggle fires `toggle` asynchronously, so each step waits for the label.
+  await page.evaluate(`document.querySelectorAll('#dbody details.dfile')[0].open = false`);
+  await page.waitFor(`document.getElementById('dfold-all').textContent === 'Collapse all'`, 5_000);
+  reportCheck("#328 closing one section by hand while another is open keeps Collapse all",
+    await page.evaluate<boolean>(`document.getElementById('dfold-all').textContent === 'Collapse all'`));
+  await page.evaluate(`[...document.querySelectorAll('#dbody details.dfile')].forEach(d => { d.open = false; })`);
+  await page.waitFor(`document.getElementById('dfold-all').textContent === 'Show all'`, 5_000);
+  reportCheck("#328 closing every section by hand shows Show all",
+    await page.evaluate<boolean>(`document.getElementById('dfold-all').textContent === 'Show all'`));
+  await page.evaluate(`document.getElementById('dfold-all').click()`);
 
   // The collapse mechanism is the native <details>: closing one hides its body, no JS.
   reportCheck("#328 a section collapses when its <details> closes", await page.evaluate<boolean>(`(() => {

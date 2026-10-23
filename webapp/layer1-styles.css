@@ -545,7 +545,7 @@
   */
   .dbody .dimgwrap { flex: 1; align-self: stretch; display: grid; place-items: center; }
   .dbody .dimgwrap img.fit { max-width: 100%; max-height: 100%; }
-  .drawer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted);
+  .drawer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted); white-space: pre-line;
     border-bottom: 1px solid var(--border); }
   .drawer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;
     font: 11.5px/1.55 ui-monospace, Menlo, monospace; color: var(--ink2); white-space: pre; }
@@ -695,7 +695,7 @@
   /*
     Task 356: the drawer's script-run block, from plans/script-run-detail-mockup.html.
   */
-  dl.script-meta { display: grid; grid-template-columns: 96px 1fr; gap: 5px 10px; font-size: 12.5px; }
+  dl.script-meta { display: grid; grid-template-columns: 96px 1fr; gap: 5px 10px; font-size: 12.5px; white-space: normal; }
   dl.script-meta dt { color: var(--muted); }
   dl.script-meta dd { word-break: break-all; }
   .scriptbody { margin-top: 12px; border: 1px solid var(--grid); border-radius: 8px; overflow: hidden; }
@@ -705,7 +705,7 @@
   .scriptbody .sbhead b { font: 600 12px ui-monospace, Menlo, monospace; color: var(--c-script); }
   .scriptbody .sbhead .prov { color: var(--muted); margin-left: auto; }
   .scriptbody pre { padding: 10px 12px; font: 11.5px/1.55 ui-monospace, Menlo, monospace;
-    color: var(--ink2); white-space: pre; overflow-x: auto; max-height: 180px; }
+    color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; }
   .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
   .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
     top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);

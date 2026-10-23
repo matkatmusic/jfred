@@ -2,6 +2,7 @@
 
 import { type HeadlessPage } from "./cdp.ts";
 import { BUBBLES, reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { checkScriptRunDrawerLayout } from "./layer4-checks-drawer.ts";
 
 const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
@@ -167,7 +168,7 @@ async function openScriptDrawer(page: HeadlessPage, click: string): Promise<void
 const readDrawer = (page: HeadlessPage) => page.evaluate<{
   path: string; metaText: string; preText: string; hasHead: boolean; panes: number;
 }>(`({
-        path: document.getElementById('dpath').textContent.trim(),
+        path: document.getElementById('dpath').firstChild.textContent.trim(),
         metaText: document.querySelector('#drawer dl.script-meta')?.textContent ?? '',
         preText: document.querySelector('#drawer .scriptbody pre')?.textContent ?? '',
         hasHead: document.querySelector('#drawer .scriptbody .sbhead') !== null,
@@ -177,8 +178,7 @@ async function checkPythonDrawer(page: HeadlessPage): Promise<string> {
   await openScriptDrawer(page, `${pythonDots}[0].click()`);
   const drawer = await readDrawer(page);
   reportCheck("L4 python dot: the drawer path names rewrite.py", drawer.path.includes("rewrite.py"), drawer.path);
-  reportCheck("L4 python dot: the script-meta list says no: located, not replayed",
-    drawer.metaText.includes("no: located, not replayed"), drawer.metaText);
+  await checkScriptRunDrawerLayout(page);
   reportCheck("L4 python dot: the script body has a head and shows import pathlib",
     drawer.hasHead && drawer.preText.includes("import pathlib"), drawer);
   reportCheck("L4 python dot: the drawer holds 2 diff panes", drawer.panes === 2, drawer.panes);
@@ -230,7 +230,7 @@ export async function checkLayer4(page: HeadlessPage, pageUrl: string): Promise<
   await saveScreenshot(page, "07-layer4-nodes");
   await checkConnector(page);
   const pythonPre = await checkPythonDrawer(page);
-  const pythonPath = await page.evaluate<string>(`document.getElementById('dpath').textContent.trim()`);
+  const pythonPath = await page.evaluate<string>(`document.getElementById('dpath').firstChild.textContent.trim()`);
   await checkConnectorDrawer(page, pythonPath, pythonPre);
   await checkBashDrawer(page);
   await checkPairWithoutRun(page);

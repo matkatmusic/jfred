@@ -87,4 +87,11 @@ export function displayDetailView(panes: HTMLElement[]): void {
         panes[0]!.querySelector("summary")?.addEventListener("click", (event) => event.preventDefault());
     }
     getRequiredElementById("dbody").replaceChildren(...panes);
+    syncFoldAllLabel();
+}
+
+// The one fold button reads "Collapse all" while any section is open, "Show all" once every one is closed.
+export function syncFoldAllLabel(): void {
+    const anyOpen = [...document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")].some((section) => section.open);
+    getRequiredElementById("dfold-all").textContent = anyOpen ? "Collapse all" : "Show all";
 }

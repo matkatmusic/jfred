@@ -1,8 +1,8 @@
 // Task 329: the File Nav's detail pipeline plus the shift-click range gesture — one DiffView per file.
 
-import { getRequiredElementById } from "./app-dom.ts";
+import { el, getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode, type DiffStep } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
+import { buildDiffView, displayDetailView, syncFoldAllLabel } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { hasInstantInRange, paintDiffWash, readDrawnView, readNavTargets, readNodeInstant, resolveRangeStepIndexes } from "./layer1-diff-wash.ts";
 import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
@@ -195,6 +195,20 @@ export function wireMultiFileDrawer(): void {
             section.open = open;
         }
     };
-    getRequiredElementById("dcollapse-all").addEventListener("click", () => setEverySectionOpen(false));
-    getRequiredElementById("dshow-all").addEventListener("click", () => setEverySectionOpen(true));
+    // getRequiredElementById("dcollapse-all").addEventListener("click", () => setEverySectionOpen(false));
+    // getRequiredElementById("dshow-all").addEventListener("click", () => setEverySectionOpen(true));
+    getRequiredElementById("dfold-all").addEventListener("click", () => {
+        const anyOpen = [...document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")].some((section) => section.open);
+        setEverySectionOpen(!anyOpen);
+        syncFoldAllLabel();
+    });
+    // `toggle` does not bubble, so listen in the capture phase.
+    getRequiredElementById("dbody").addEventListener("toggle", syncFoldAllLabel, true);
+}
+
+const SCRIPT_RUN_STATUSES: [string, string][] = [["🚫", "not verified"], ["📍", "located"], ["⏸️", "not replayed"]];
+
+// Task 356: a script run's constant status today: located, not replayed, not verified.
+export function buildScriptRunStatusBadges(): HTMLElement[] {
+    return SCRIPT_RUN_STATUSES.map(([text, title]) => el("span", { class: "run-status", text, title }));
 }

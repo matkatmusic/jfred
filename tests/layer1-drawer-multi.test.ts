@@ -2,7 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bracketRunInstant, buildScriptRunDiffPanes, listDiffableSteps, pathsForScriptRun, resolveWashFileList } from "../webapp/layer1-drawer-multi.ts";
+import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { displayDetailView } from "../webapp/layer1-diff-view.ts";
+import { bracketRunInstant, buildScriptRunDiffPanes, listDiffableSteps, pathsForScriptRun, resolveWashFileList, wireMultiFileDrawer } from "../webapp/layer1-drawer-multi.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -139,4 +141,29 @@ test("resolveWashFileList always includes the caller's alwaysInclude paths, dedu
     const noTouchRange = { baseInstant: "2026-07-02T00:00:00.000Z", targetInstant: "2026-07-02T00:00:00.000Z" };
     const files = resolveWashFileList(SWEEP_VIEW, noTouchRange, ["src/clicked-b.ts", "src/clicked-a.ts", "src/clicked-a.ts"]);
     assert.deepEqual(files, ["src/clicked-a.ts", "src/clicked-b.ts"]);
+});
+
+test("the one fold button flips with the sections and follows hand toggles", () => {
+    setupLayer1Dom();
+    const sections = [el("details", { class: "dfile", open: "" }), el("details", { class: "dfile", open: "" })] as HTMLDetailsElement[];
+    displayDetailView(sections);
+    wireMultiFileDrawer();
+    const foldButton = getRequiredElementById("dfold-all");
+    const toggleByHand = (section: HTMLDetailsElement, open: boolean): void => {
+        section.open = open;
+        section.dispatchEvent(new window.Event("toggle"));
+    };
+    assert.equal(foldButton.textContent, "Collapse all");
+    foldButton.click();
+    assert.ok(sections.every((section) => !section.open));
+    assert.equal(foldButton.textContent, "Show all");
+    foldButton.click();
+    assert.ok(sections.every((section) => section.open));
+    assert.equal(foldButton.textContent, "Collapse all");
+    toggleByHand(sections[0]!, false);
+    assert.equal(foldButton.textContent, "Collapse all");
+    toggleByHand(sections[1]!, false);
+    assert.equal(foldButton.textContent, "Show all");
+    toggleByHand(sections[1]!, true);
+    assert.equal(foldButton.textContent, "Collapse all");
 });
