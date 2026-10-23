@@ -121,7 +121,7 @@ let appliedProjectDir: string | undefined = undefined;
 // Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
 export function renderLayer1View(view: WireLayer1View): Promise<void> {
   // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
-  const redrawStage = (): void => void renderLayer1Stage(filterLayer1ViewByTargets(
+  const redrawStage = (): Promise<void> => renderLayer1Stage(filterLayer1ViewByTargets(
     view, intersectFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
   ));
   const redrawFiltered = (): void => {

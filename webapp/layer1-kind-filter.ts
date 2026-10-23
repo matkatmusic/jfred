@@ -56,7 +56,7 @@ function applyHiddenKindsAttribute(): void {
 
 // Task 343: the view and redraw the Edit box uses; each render sets them.
 let drawnView: WireLayer1View | undefined;
-let redrawStage: (() => void) | undefined;
+let redrawStage: (() => void | Promise<void>) | undefined;
 
 async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     const kind = Object.values(ShowRowKind).find((candidate) => candidate === box.dataset["kind"])!;
@@ -66,7 +66,7 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
             box.checked = false;
             return;
         }
-        redrawStage!();
+        await redrawStage!();
     }
     if (kind === ShowRowKind.scriptRun && box.checked && !hasLoadedScriptRuns(drawnView!)) {
         const isLoaded = await loadScriptRunsOnce(drawnView!);
@@ -74,7 +74,7 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
             box.checked = false;
             return;
         }
-        redrawStage!();
+        await redrawStage!();
     }
     if (box.checked) {
         hiddenKinds.delete(kind);
@@ -117,7 +117,7 @@ async function tickEditAndScriptRunBoxes(): Promise<void> {
     }
 }
 
-export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: () => void): void {
+export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: () => void | Promise<void>): void {
     drawnView = view;
     redrawStage = redrawView;
     renderShowRow(view);
