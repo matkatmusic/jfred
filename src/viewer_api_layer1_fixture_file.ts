@@ -7,6 +7,7 @@ import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
 import { readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
+import { readFixtureBranchFile } from "./viewer_api_layer5_mockup_branches.ts";
 import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
 import { requireParam, sendJson } from "./viewer_server_routes.ts";
 
@@ -44,6 +45,10 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
 
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
   const editChangeId = query.get("editChangeId");
+  if (editChangeId !== null && query.get("branch") === "1") {
+    sendJson(response, 200, readFixtureBranchFile(requireParam(query, "path"), editChangeId, requireParam(query, "side")));
+    return;
+  }
   if (editChangeId !== null) {
     sendJson(response, 200, readFixtureEditFile(editChangeId, requireParam(query, "side")));
     return;

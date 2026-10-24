@@ -4,7 +4,7 @@ import { WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire.t
 import { loadSessionRewinds, groupSessionFiles, type SessionRewinds } from "./layer1_branch_sessions.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
-import type { EditEvent, FileEvent, FileRevision } from "./reconstruction_events.ts";
+import type { EditEvent, FileEvent, FileHistory, FileRevision } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { editEvidenceAgreesWithState } from "./reconstruction_multi_source_gate.ts";
 import { linesTextOf } from "./reconstruction_revisions.ts";
@@ -26,7 +26,7 @@ export type Layer1WireBranchesView = WireBranchesViewOf<Date, Path, Uuid>;
 type WireBranchRow = Layer1WireBranchesView["pairs"][number]["branches"][number];
 type LaneKind = Pick<WireBranchRow, "rewindKind" | "rejoinAt" | "keptToEnd">;
 
-interface Lane {
+export interface Lane {
     forkAt: Date;
     changeIds: Set<string>;
 }
@@ -47,7 +47,7 @@ function findInstantOfRecord(records: TranscriptRecord[], uuid: Uuid): Date {
 }
 
 // Lane records: the tip's chain minus the rewind point's chain; the rewind point itself belongs to the trunk.
-function listLanes({ records, branches }: SessionRewinds): Lane[] {
+export function listLanes({ records, branches }: SessionRewinds): Lane[] {
     const lanes: Lane[] = [];
     for (const branch of branches) {
         const memberUuids = collectAncestorUuids(records, branch.tip);
@@ -117,13 +117,27 @@ function classifyLane(revisions: FileRevision[], laneLastIndex: number, allLaneI
         : { rewindKind: WireRewindKind.code };
 }
 
-function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes: Lane[]): { path: string; branch: WireBranchRow }[] {
-    const { records } = rewinds;
-    const sessionId = findSessionId(records);
+// ponytail: keyed by the cached SessionRewinds, so it lives and dies with that cache entry
+const historiesByRewinds = new WeakMap<SessionRewinds, FileHistory[]>();
+
+// One disk timeline per loaded group: the lanes and a lane node's drawer read the same revisions.
+export function reconstructGroupHistories(rewinds: SessionRewinds): FileHistory[] {
+    const known = historiesByRewinds.get(rewinds);
+    if (known !== undefined) {
+        return known;
+    }
+    const sessionId = findSessionId(rewinds.records);
     if (sessionId === undefined) {
         throw new Error(`no session id in ${rewinds.parentFile.toString()}`);
     }
-    const { histories } = reconstructStepTimeline(records, createSidecarReader(sessionId, resolveFileHistoryRoot(records)));
+    const { histories } = reconstructStepTimeline(rewinds.records, createSidecarReader(sessionId, resolveFileHistoryRoot(rewinds.records)));
+    historiesByRewinds.set(rewinds, histories);
+    return histories;
+}
+
+function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes: Lane[]): { path: string; branch: WireBranchRow }[] {
+    const { records } = rewinds;
+    const histories = reconstructGroupHistories(rewinds);
     const allLaneIds = new Set(lanes.flatMap((lane) => [...lane.changeIds]));
     const evidence: PreStateEvidence = {
         eventById: new Map(extractFileEvents(records).map((event) => [event.changeId.toString(), event])),

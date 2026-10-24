@@ -57,6 +57,12 @@ test("every fork instant sits one minute after the commit it used to share", () 
   assert.ok(forkInstants.every((instant) => !commitMs.has(Date.parse(instant))));
 });
 
+test("a canned lane node's branch file read answers a before and a different non-empty after", () => {
+  const readSide = (side: string): string => (JSON.parse(dispatchGet(`/api/layer1-file?editChangeId=toolu_fixture_branch_0_0_0&side=${side}&path=src/util.ts&branch=1`).body) as { content: string }).content;
+  assert.notEqual(readSide("base"), "");
+  assert.notEqual(readSide("target"), readSide("base"));
+});
+
 test("the base fixture view carries no branches key", () => {
   assert.ok(buildFixtureLayer1View().pairs.every((pair) => !("branches" in pair)));
 });

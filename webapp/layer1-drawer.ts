@@ -6,7 +6,7 @@ import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
-import { clearDiffPair, describeEditDrawer, describeNodeStep, isEditNode, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { clearDiffPair, describeEditDrawer, describeNodeStep, isBranchNode, isEditNode, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { describeEditSteps } from "./layer1-revision-sources.ts";
 import { buildScriptRunDetail, buildScriptRunDiffPanes, buildScriptRunStatusBadges, describeScriptRunTitle, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
@@ -21,10 +21,10 @@ let anchor: { node: HTMLElement; path: string } | undefined;
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
-    const hit = target.closest(".node, .nlabel");
-    const node = hit?.classList.contains("nlabel") === true ? hit.previousElementSibling : hit;
+    const hit = target.closest(".node, .nlabel, .bnode, .blabel");
+    const node = hit?.matches(".nlabel, .blabel") === true ? hit.previousElementSibling : hit;
     // A bucket row has no dot, so a `.nlabel` there (or anywhere) resolves to a non-node sibling.
-    return node?.classList.contains("node") === true ? node as HTMLElement : undefined;
+    return node?.matches(".node, .bnode") === true ? node as HTMLElement : undefined;
 }
 
 // The full path lives on the owning bubble's `.fname` data-path (task 280); a bucket row has none.
@@ -133,8 +133,8 @@ async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
         return;
     }
     // An Edit/Write node shows its two replayed sides; any other node shows the whole file.
-    const steps = node.classList.contains("n-edit")
-        ? describeEditSteps(path, node.dataset.changeId ?? "")
+    const steps = node.classList.contains("n-edit") || isBranchNode(node)
+        ? describeEditSteps(path, node.dataset.changeId ?? "", isBranchNode(node))
         : [describeNodeStep(node, path)];
     displayDetailView([buildDiffView(path, steps, {
         revisionControlsShown: steps.length > 1,

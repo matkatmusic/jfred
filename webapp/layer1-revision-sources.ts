@@ -33,7 +33,7 @@ export function describeDiskStep(path: string): DiffStep {
 }
 
 // Task 343: one side of an Edit/Write/Read node, replayed by the server; the changeId is the node's identity.
-export function describeEditSide(path: string, changeId: string, side: "base" | "target", marker: string): DiffStep {
+export function describeEditSide(path: string, changeId: string, side: "base" | "target", marker: string, isBranch = false): DiffStep {
     const buildParams = (): URLSearchParams => {
         const params = new URLSearchParams({
             editChangeId: changeId,
@@ -41,6 +41,10 @@ export function describeEditSide(path: string, changeId: string, side: "base" | 
             path,
             dir: getInputById("dir").value.trim(),
         });
+        // Task 357: a branch lane node reads the disk timeline revision, not the trunk replay.
+        if (isBranch) {
+            params.set("branch", "1");
+        }
         for (const folder of readSourceParams().getAll("jsonl")) {
             params.append("jsonl", folder);
         }
@@ -49,8 +53,8 @@ export function describeEditSide(path: string, changeId: string, side: "base" | 
     return { marker, buildParams, loadContent: loadViaFileRoute(buildParams) };
 }
 
-export function describeEditSteps(path: string, changeId: string): DiffStep[] {
-    return [describeEditSide(path, changeId, "base", "before"), describeEditSide(path, changeId, "target", "after")];
+export function describeEditSteps(path: string, changeId: string, isBranch = false): DiffStep[] {
+    return [describeEditSide(path, changeId, "base", "before", isBranch), describeEditSide(path, changeId, "target", "after", isBranch)];
 }
 
 export type SnapshotIdentity = { sessionFile: string; sessionId: string; version: number };

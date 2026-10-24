@@ -119,10 +119,18 @@ test("test_a_trunk_edit_that_a_lane_also_holds_is_tagged_n_moved_and_others_are_
   await loadPage();
   await tickBox("edit");
   await tickBox("branch");
-  const moved = listMatching('#stage [data-change-id="toolu_lane_moved"]');
+  const moved = listMatching('#stage .node[data-change-id="toolu_lane_moved"], #stage .nlabel[data-change-id="toolu_lane_moved"]');
   assert.ok(moved.length > 0 && moved.every((element) => element.classList.contains("n-moved")));
-  const kept = listMatching('#stage [data-change-id="toolu_trunk_kept"]');
+  const kept = listMatching('#stage .node[data-change-id="toolu_trunk_kept"], #stage .nlabel[data-change-id="toolu_trunk_kept"]');
   assert.ok(kept.length > 0 && kept.every((element) => !element.classList.contains("n-moved")));
+});
+
+test("test_every_lane_dot_and_label_carries_its_change_id_and_event_word", async () => {
+  await loadPage();
+  await tickBox("branch");
+  const laneDots = listMatching("#stage .bnode");
+  assert.deepEqual(laneDots.map((dot) => dot.dataset.changeId).sort(), ["toolu_lane_a", "toolu_lane_b", "toolu_lane_c", "toolu_lane_moved"]);
+  assert.ok([...laneDots, ...listMatching("#stage .blabel")].every((element) => element.dataset.kind === "edit"));
 });
 
 test("test_unticking_and_reticking_the_branch_box_never_fetches_again", async () => {

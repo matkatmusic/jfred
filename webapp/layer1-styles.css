@@ -602,7 +602,7 @@
   /*
     Only a pair's own nodes open the drawer, so the affordance is scoped to `.lane`.
   */
-  .lane .node, .lane .nlabel { cursor: pointer; }
+  .lane .node, .lane .nlabel, .lane .bnode, .lane .blabel { cursor: pointer; }
   .lane .nlabel:hover { color: var(--ink); text-decoration: underline dotted; }
   /*
     A `created at` node is inert (task 298), so it offers no affordance.

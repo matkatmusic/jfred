@@ -2,10 +2,14 @@
 
 import { WireRewindKind, type WireBranchesView } from "../../webapp/layer1-wire.ts";
 import { type HeadlessPage } from "./cdp.ts";
+import { checkLaneNodeClicks } from "./layer5-lane-click.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 const JOT_MERGE_PATH = "common/scripts/plate/spawn_summary_agent.py";
 const REVENG_MERGE_PATH = "jfred/tests/reconstruction_bound.test.ts";
+const JOT_LANE_NODE_COUNT = 6;
+const JOT_LANE_FROM = "2026-05-01T19:11:00Z";
+const JOT_LANE_TO = "2026-05-01T19:17:00Z";
 const TOLERANCE_PX = 1;
 const BNODE_OPACITY = 0.38;
 const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
@@ -175,6 +179,13 @@ async function checkToggle(page: HeadlessPage): Promise<void> {
   reportCheck("l5-real toggling adds no request", await page.evaluate<number>(COUNT_REQUESTS) === 1);
 }
 
+// Jot: all six nodes of the named lane (edits in session 9bbf7538); other data: the first two lane nodes anywhere.
+async function checkRealLaneClicks(page: HeadlessPage, isJot: boolean): Promise<void> {
+  await checkLaneNodeClicks(page, "l5-real", isJot
+    ? { path: JOT_MERGE_PATH, max: JOT_LANE_NODE_COUNT, instantWindow: [JOT_LANE_FROM, JOT_LANE_TO] }
+    : { max: 2 });
+}
+
 function printDrawnLanes(lanes: DrawnLane[]): void {
   for (const lane of lanes) {
     const merge = lane.facts.mergeBottom === null ? "no merge" : lane.payload.keptToEnd === true ? "merge keptToEnd" : "merge rejoinAt";
@@ -194,6 +205,7 @@ export async function executeLayer5RealChecks(
   checkTrunkRails(facts);
   checkNamedMerge(lanes, isJot, isReveng);
   await checkToggle(page);
+  await checkRealLaneClicks(page, isJot);
   await page.evaluate(`document.querySelector('.blane .split-elbow').scrollIntoView({ block: 'start', inline: 'nearest' })`);
   await saveScreenshot(page, screenshotName);
 }

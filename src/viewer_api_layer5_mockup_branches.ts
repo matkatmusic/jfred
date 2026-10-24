@@ -1,10 +1,11 @@
 // Task 379 canned forked lanes for two fixture bubbles, served in the real /api/layer1-branches wire shape (task 357).
 
-import { WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire.ts";
+import { WireEditSide, WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire.ts";
 import { LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES } from "./layer1_branches_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 // import type { Layer1WirePair } from "./viewer_api_layer1.ts";
+import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";
 import { parseMs } from "./viewer_api_layer1_fixture_data.ts";
 
 interface MockBranchSpec {
@@ -28,7 +29,13 @@ const MOCK_BRANCHES: Record<string, MockBranchSpec[]> = {
   ],
 };
 
-type FixtureBranchesView = WireBranchesViewOf<Date, Path, Uuid>;
+// A canned lane node's before is the path's template; its after adds one line naming the node.
+export function readFixtureBranchFile(path: string, changeId: string, side: string): { content: string } {
+  const before = listTemplateLines(path);
+  return { content: (side === WireEditSide.base ? before : [...before, `// ${changeId}`]).join("\n") };
+}
+
+type FixtureBranchesView =WireBranchesViewOf<Date, Path, Uuid>;
 
 export function buildFixtureBranchesPayload(writeNdjsonLine: (value: unknown) => void): FixtureBranchesView {
   writeNdjsonLine({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, current: 1, total: 1 });

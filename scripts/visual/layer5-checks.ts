@@ -1,6 +1,7 @@
 // Layer 5 (forked branch lanes) checks on the fixture-mode page; mockup.ts calls checkLayer5.
 
 import { type HeadlessPage } from "./cdp.ts";
+import { checkLaneNodeClicks } from "./layer5-lane-click.ts";
 import { bubbleOf, reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 const UTIL_PATH = "src/util.ts";
@@ -155,6 +156,7 @@ export async function checkLayer5(page: HeadlessPage, pageUrl: string): Promise<
   await saveScreenshot(page, "10-layer5-branches");
   console.log("L5 screenshot: scripts/visual/out/mockup-10-layer5-branches.png");
 
+  await checkLaneNodeClicks(page, "L5", { max: 2 });
   await page.navigate(pageUrl);
   await page.waitFor(`document.querySelectorAll('.filebox').length > 0 && document.getElementById('loadbar').hidden`, 30_000);
 }

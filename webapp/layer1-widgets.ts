@@ -112,7 +112,7 @@ function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneIndex: numb
         branchLane.append(setAxisPx(el("div", { class: "merge-elbow" }), rejoinPx));
     }
     for (const node of branch.nodes) {
-        const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant };
+        const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
         branchLane.append(
             setAxisPx(el("i", { class: "bnode", ...identity }), node.axisPx - startPx),
             setAxisPx(el("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),

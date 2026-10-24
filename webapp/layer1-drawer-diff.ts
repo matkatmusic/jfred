@@ -6,21 +6,27 @@ import { clearDiffWash } from "./layer1-diff-wash.ts";
 import { describeCommitStep, describeDiskStep, describeEditSide, describeSnapshotStep } from "./layer1-revision-sources.ts";
 import { WireEditKind } from "./layer1-wire.ts";
 
-// Task 343: an Edit/Write node (`n-edit`) or a Read beacon (`n-read`).
-export function isEditNode(node: HTMLElement): boolean {
-    return node.classList.contains("n-edit") || node.classList.contains("n-read");
+// Task 357: a branch lane dot; its sides come from the branch revision route.
+export function isBranchNode(node: HTMLElement): boolean {
+    return node.classList.contains("bnode");
 }
 
-// Task 343: first-fetch params, head and meta for an Edit/Write/Read node's drawer.
-export function describeEditDrawer(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile: string } {
+// Task 343: an Edit/Write node (`n-edit`), a Read beacon (`n-read`) or a branch lane dot.
+export function isEditNode(node: HTMLElement): boolean {
+    return node.classList.contains("n-edit") || node.classList.contains("n-read") || isBranchNode(node);
+}
+
+// Task 343: first-fetch params, head and meta for an Edit/Write/Read node's drawer; a lane dot has no owning session to flash.
+export function describeEditDrawer(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
     const kind = node.dataset.kind ?? "";
     const sessionFile = node.dataset.sessionFile ?? "";
     const flashFile = sessionFile.split("/").pop() ?? sessionFile;
+    const isBranch = isBranchNode(node);
     return {
-        params: describeEditSide(path, node.dataset.changeId ?? "", "target", "").buildParams(),
+        params: describeEditSide(path, node.dataset.changeId ?? "", "target", "", isBranch).buildParams(),
         head: `${path.split("/").pop() ?? path} ${kind.charAt(0).toUpperCase()}${kind.slice(1)}`,
-        meta: `${node.dataset.confidence ?? ""} · ${kind} of ${flashFile}`,
-        flashFile,
+        meta: isBranch ? `branch revision · ${kind}` : `${node.dataset.confidence ?? ""} · ${kind} of ${flashFile}`,
+        flashFile: isBranch ? undefined : flashFile,
     };
 }
 
@@ -44,7 +50,7 @@ export function describeNodeStep(node: HTMLElement, path: string): DiffStep {
     }
     if (isEditNode(node)) {
         const isRead = node.dataset.kind === WireEditKind.read;
-        return describeEditSide(path, node.dataset.changeId ?? "", "target", isRead ? "as read" : "after");
+        return describeEditSide(path, node.dataset.changeId ?? "", "target", isRead ? "as read" : "after", isBranchNode(node));
     }
     return describeDiskStep(path);
 }
