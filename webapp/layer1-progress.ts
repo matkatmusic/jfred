@@ -29,6 +29,12 @@ export function paintLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: s
 // Task 309: the client-side render stage's label, exported so tests assert the emitted string.
 export const LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE = "drawing the timeline";
 
+// The bar after a big render's last chunk, while the ruler, washes and minimap are placed.
+export const LAYER1_PROGRESS_LABEL_DRAWING_RULER = "drawing the ruler";
+
+// From the end of the Edit fetch until the edit nodes are drawn.
+export const LAYER1_PROGRESS_LABEL_DRAWING_EDITS = "drawing edits";
+
 // Task 309: resolves after the browser paints, so a chunked render's progress frames reach the screen.
 export function waitForPaintedFrame(): Promise<void> {
     return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));

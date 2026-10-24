@@ -15,7 +15,7 @@ import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
 import { wireBusyShield } from "./layer1-busy-shield.ts";
-import { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
@@ -73,10 +73,11 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   const widgets = [...buildStagePairs(view.pairs), ...buckets.filter((bucket) => bucket !== undefined)];
   const stage = getRequiredElementById("stage");
   stage.replaceChildren();
+  // Only a multi-chunk render paints between chunks; a small one must never flash the loadbar.
+  const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
   for (let done = 0; done < widgets.length; done += STAGE_CHUNK_WIDGETS) {
     stage.append(...widgets.slice(done, done + STAGE_CHUNK_WIDGETS));
-    // Only a multi-chunk render paints between chunks; a small one must never flash the loadbar.
-    if (widgets.length <= STAGE_CHUNK_WIDGETS) {
+    if (!isChunked) {
       continue;
     }
     showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
@@ -86,8 +87,12 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
       return;
     }
   }
-  if (widgets.length > STAGE_CHUNK_WIDGETS) {
-    hideLayer1Progress();
+  if (isChunked) {
+    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
+    await waitForPaintedFrame();
+    if (pass !== stageRenderPass) {
+      return;
+    }
   }
   // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
   markMultiEventTicks();
@@ -98,6 +103,9 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   repaintDiffWash(view.ruler);
   drawLayer1Minimap();
   drawScriptConnectors(stage);
+  if (isChunked) {
+    hideLayer1Progress();
+  }
 }
 
 // Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.

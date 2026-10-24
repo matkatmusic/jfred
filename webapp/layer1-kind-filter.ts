@@ -4,6 +4,7 @@ import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { hasLoadedBranches, loadBranchesOnce } from "./layer1-branches.ts";
 import { hasLoadedEdits, loadEditsOnce } from "./layer1-edits.ts";
 import { hasLoadedScriptRuns, loadScriptRunsOnce } from "./layer1-script-runs.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { getHiddenKindsForProject, saveHiddenKinds } from "./layer1-settings.ts";
 import { ShowRowKind, renderShowRow } from "./layer1-show-row.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -74,7 +75,14 @@ async function toggleKindBox(box: HTMLInputElement): Promise<void> {
             box.checked = false;
             return;
         }
+        // The kind shows before the one redraw, so the edit nodes appear as they are drawn; the bar stays up until then.
+        showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_EDITS);
+        await waitForPaintedFrame();
+        hiddenKinds.delete(kind);
+        applyHiddenKindsAttribute();
         await redrawStage!();
+        hideLayer1Progress();
+        return;
     }
     if (kind === ShowRowKind.scriptRun && box.checked && !hasLoadedScriptRuns(drawnView!)) {
         const isLoaded = await loadScriptRunsOnce(drawnView!);

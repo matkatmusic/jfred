@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-    LAYER1_PROGRESS_LABEL_READING_EDITS, buildEditsView, buildWireEdit, collectViewEditEventsByRelativePath, readBackupSeedLines,
+    LAYER1_PROGRESS_LABEL_READING_EDITS, LAYER1_PROGRESS_LABEL_REPLAYING_EDITS, buildEditsView, buildWireEdit, collectViewEditEventsByRelativePath, readBackupSeedLines,
 } from "../src/layer1_edits_wire.ts";
 import type { LayerEditEvent } from "../src/layer1_edit_events.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
@@ -50,6 +50,15 @@ test("test_progress_line_per_session_file", () => {
     collectViewEditEventsByRelativePath(PROJECT_FOLDER, writeTwoSessions(), (event) => lines.push(event));
     assert.deepEqual(lines.map((line) => [line.label, line.current, line.total]), [
         [LAYER1_PROGRESS_LABEL_READING_EDITS, 1, 2], [LAYER1_PROGRESS_LABEL_READING_EDITS, 2, 2],
+    ]);
+});
+
+test("test_the_view_build_counts_one_replay_progress_line_per_path_after_the_session_reads", () => {
+    const lines: ProgressEvent[] = [];
+    buildEditsView(PROJECT_FOLDER, writeTwoSessions(), (event) => lines.push(event));
+    assert.deepEqual(lines.map((line) => [line.label, line.current, line.total]), [
+        [LAYER1_PROGRESS_LABEL_READING_EDITS, 1, 2], [LAYER1_PROGRESS_LABEL_READING_EDITS, 2, 2],
+        [LAYER1_PROGRESS_LABEL_REPLAYING_EDITS, 1, 1],
     ]);
 });
 

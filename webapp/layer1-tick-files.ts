@@ -138,7 +138,14 @@ function reopenExpandedRow(): void {
     }
     tick.classList.add("expanded");
     tick.querySelector(".tickfiles")?.remove();
-    tick.appendChild(buildTickFileList(listEventsAtRow(rowsByTick.get(tick)!.axisPxList)));
+    const events = listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
+    const listHeightPx = measureListHeightPx(tick, events);
+    tick.appendChild(buildTickFileList(events));
+    // A kind shown since the list was measured changes its height; the stage lays out once more after this render ends.
+    if (listHeightPx !== expandedRow!.listHeightPx) {
+        expandedRow = { instantMs: expandedRow!.instantMs, listHeightPx };
+        queueMicrotask(requestStageRelayout);
+    }
 }
 
 // A redraw replaces every tick before the stage is drawn; the old list moves to the fresh tick so the row never closes.

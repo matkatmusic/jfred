@@ -11,10 +11,12 @@ import { splitLines } from "./reconstruction_replay_edit.ts";
 import { backupSeedWriteFor } from "./reconstruction_sidecar.ts";
 import { createSidecarReader, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
+import type { TranscriptRecord } from "./structures/envelope.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 
 // Named so tests assert the same string the route emits.
 export const LAYER1_PROGRESS_LABEL_READING_EDITS = "reading Edit/Write events";
+export const LAYER1_PROGRESS_LABEL_REPLAYING_EDITS = "replaying edits";
 
 export type Layer1WireEditsView = WireEditsViewOf<Date, Path, Uuid>;
 
@@ -47,8 +49,12 @@ export function collectViewEditEventsByRelativePath(
 }
 
 // The pre-edit lines from the owning session's file-history backup; undefined when no backup exists.
-export function readBackupSeedLines(event: LayerEditEvent): string[] | undefined {
-    const records = loadTranscript(event.sessionFile.toString(), undefined, true).records;
+export function readBackupSeedLines(event: LayerEditEvent, recordsBySessionFile: Map<string, TranscriptRecord[]> = new Map()): string[] | undefined {
+    const sessionFile = event.sessionFile.toString();
+    if (!recordsBySessionFile.has(sessionFile)) {
+        recordsBySessionFile.set(sessionFile, loadTranscript(sessionFile, undefined, true).records);
+    }
+    const records = recordsBySessionFile.get(sessionFile)!;
     const root = resolveFileHistoryRoot(records);
     if (!existsSync(join(root.toString(), event.sessionId.toString()))) {
         return undefined;
@@ -77,8 +83,16 @@ export function buildEditsView(
     reportProgress: ProgressSink = () => {},
 ): Layer1WireEditsView {
     const pairs: Layer1WireEditsView["pairs"] = [];
-    for (const [relativePath, events] of collectViewEditEventsByRelativePath(projectFolder, sessionFiles, reportProgress)) {
-        const nodes = replayPathEvents(events, readBackupSeedLines);
+    const recordsBySessionFile = new Map<string, TranscriptRecord[]>();
+    const eventsByPath = collectViewEditEventsByRelativePath(projectFolder, sessionFiles, reportProgress);
+    for (const [relativePath, events] of eventsByPath) {
+        reportProgress({
+            kind: DocumentResponseKind.progress,
+            label: LAYER1_PROGRESS_LABEL_REPLAYING_EDITS,
+            current: pairs.length + 1,
+            total: eventsByPath.size,
+        });
+        const nodes = replayPathEvents(events, (event) => readBackupSeedLines(event, recordsBySessionFile));
         pairs.push({
             path: new Path(relativePath),
             edits: events.map((event) => buildWireEdit(event, nodes.get(event.changeId.toString())!)),
