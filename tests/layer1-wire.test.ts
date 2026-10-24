@@ -53,7 +53,7 @@ test("test_pair_ladder_places_edits_after_snapshots_and_before_script_runs", () 
         onDisk: { instant: "onDisk", axisPx: 0 },
         snapshots: [{ instant: "snap-1", axisPx: 1, version: 1, sessionId: "s", sessionFile: "f.jsonl" }],
         edits: [edit],
-        scriptRuns: [{ instant: "run-1", axisPx: 3, toolUseId: "toolu_2", executorKind: "python", code: "print(1)", sessionId: "s", sessionFile: "f.jsonl" }],
+        scriptRuns: [{ instant: "run-1", axisPx: 3, toolUseId: "toolu_2", executorKind: "python", language: "python", code: "print(1)", sessionId: "s", sessionFile: "f.jsonl" }],
     };
     assert.deepEqual(listPairLadderInstants(pair), ["onDisk", "snap-1", "edit-1", "run-1"]);
 });
@@ -78,7 +78,7 @@ test("test_pair_ladder_appends_script_runs_after_snapshots", () => {
         commits: [],
         onDisk: { instant: "onDisk", axisPx: 0 },
         snapshots: [{ instant: "snap-1", axisPx: 1, version: 1, sessionId: "s", sessionFile: "f.jsonl" }],
-        scriptRuns: [{ instant: "run-1", axisPx: 2, toolUseId: "toolu_1", executorKind: "python", code: "print(1)", sessionId: "s", sessionFile: "f.jsonl" }],
+        scriptRuns: [{ instant: "run-1", axisPx: 2, toolUseId: "toolu_1", executorKind: "python", language: "python", code: "print(1)", sessionId: "s", sessionFile: "f.jsonl" }],
     };
     assert.deepEqual(listPairLadderInstants(pair), ["onDisk", "snap-1", "run-1"]);
 });

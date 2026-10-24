@@ -1,6 +1,7 @@
 // Task l4-wire-real: located script runs join to pairs by the static path scan and shape into the /api/layer1-script-runs wire view.
 
-import { WireScriptExecutorIcon, WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire.ts";
+import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire.ts";
+import { WireScriptLanguage, describeScriptLanguage, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
 import { walkCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -21,18 +22,29 @@ function mapToWireExecutorKind(kind: ScriptExecutorKind | undefined): WireScript
     return kind === ScriptExecutorKind.bash ? WireScriptExecutorKind.bash : WireScriptExecutorKind.python;
 }
 
+// The Bash tool reads bash, a ctx run reads its own input language, and a run with neither executes like python.
+function mapToWireLanguage(run: ScriptRun): WireScriptLanguage {
+    if (run.language !== undefined) {
+        return parseScriptLanguage(run.language);
+    }
+    return run.executorKind === ScriptExecutorKind.bash ? WireScriptLanguage.bash : WireScriptLanguage.python;
+}
+
 function buildWireScriptRun(run: ScriptRun, sessionId: Uuid, sessionFile: Path): WireScriptRunWithoutAxis {
     if (run.toolUseId === undefined) {
         throw new Error(`script run at ${run.timestamp.toISOString()} in ${sessionFile.toString()} has no tool_use id`);
     }
-    const executorKind = mapToWireExecutorKind(run.executorKind);
+    const language = mapToWireLanguage(run);
     return {
         instant: run.timestamp,
         toolUseId: run.toolUseId,
-        executorKind,
+        executorKind: mapToWireExecutorKind(run.executorKind),
+        language,
+        // An absent line must stay absent: a `line: undefined` KEY differs under deep equality.
+        ...(run.source === undefined ? {} : { line: run.source.lineNumber }),
         code: run.code,
         // An absent label must stay absent: a `label: undefined` KEY differs under deep equality.
-        ...(run.invokedScriptFile === undefined ? {} : { label: `${WireScriptExecutorIcon[executorKind]} ${run.invokedScriptFile}` }),
+        ...(run.invokedScriptFile === undefined ? {} : { label: `${describeScriptLanguage(language)} ${run.invokedScriptFile}` }),
         sessionId,
         sessionFile,
     };

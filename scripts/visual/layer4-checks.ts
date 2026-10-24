@@ -199,7 +199,7 @@ async function checkConnectorDrawer(page: HeadlessPage, pythonPath: string, pyth
 async function checkBashDrawer(page: HeadlessPage): Promise<void> {
   await openScriptDrawer(page, `${bashDot}.click()`);
   const drawer = await readDrawer(page);
-  reportCheck("L4 bash dot: the drawer path reads bash run", drawer.path === "bash run", drawer.path);
+  reportCheck("L4 bash dot: the drawer path reads $", drawer.path === "$", drawer.path);
   reportCheck("L4 bash dot: the script body is not empty", drawer.preText.trim().length > 0, drawer.preText);
   reportCheck("L4 bash dot: the drawer holds 1 diff pane", drawer.panes === 1, drawer.panes);
 }

@@ -1,5 +1,7 @@
 // Single source for Layer 1's wire vocabulary (task 331): generic shapes per instant/path/id, const objects not `enum`.
 
+import type { WireScriptLanguage } from "./layer1-script-language.ts";
+
 export interface WireInstantOf<I> {
     instant: I;
     axisPx: number;
@@ -65,16 +67,14 @@ export const WireScriptExecutorKind = {
 } as const;
 export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
 
-// The one home of the executor icons: the node draws it alone, and the server prefixes it to a script-file label.
-export const WireScriptExecutorIcon = {
-    python: "python run",
-    bash: "$",
-} as const satisfies Record<WireScriptExecutorKind, string>;
+// Replaced by describeScriptLanguage (layer1-script-language.ts), the one label source: export const WireScriptExecutorIcon = { python: "python run", bash: "$" } as const satisfies Record<WireScriptExecutorKind, string>;
 
 // Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
 export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
     toolUseId: U;
     executorKind: WireScriptExecutorKind;
+    language: WireScriptLanguage;
+    line?: number; // The tool_use record's source line in sessionFile; absent when the engine kept no record source.
     // The resolved body (resolveScriptIndirection already ran engine-side) — the client never re-resolves it.
     code: string;
     // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.

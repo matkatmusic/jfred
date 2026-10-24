@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS, buildScriptRunsView } from "../src/layer1_script_runs_wire.ts";
 import { Path } from "../src/structures/domain.ts";
-import { WireScriptExecutorIcon, WireScriptExecutorKind } from "../webapp/layer1-wire.ts";
+import { WireScriptExecutorKind } from "../webapp/layer1-wire.ts";
+import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
 import { SESSION_A, SESSION_B, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 
@@ -54,7 +55,10 @@ test("test_python_indirection_run_lands_on_named_pair", () => {
     assert.equal(runs.length, 1);
     assert.equal(runs[0]!.executorKind, WireScriptExecutorKind.python);
     assert.equal(runs[0]!.code, APPLY_BODY);
-    assert.equal(runs[0]!.label, `${WireScriptExecutorIcon.python} apply.py`);
+    assert.equal(runs[0]!.label, "python run apply.py");
+    assert.equal(runs[0]!.language, WireScriptLanguage.python);
+    // The Bash record follows the Write pair's records, one JSONL line each.
+    assert.equal(runs[0]!.line, writePair.records.length + 1);
     assert.equal(runs[0]!.toolUseId.toString(), "toolu_b1");
     assert.equal(runs[0]!.sessionId.toString(), SESSION_A);
     assert.equal(runs[0]!.sessionFile.toString(), sessionFile.toString());
@@ -72,7 +76,22 @@ test("test_bash_run_keeps_bash_kind_and_sends_no_label", () => {
     const runs = readRunsOf(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), "billing.py");
     assert.equal(runs.length, 1);
     assert.equal(runs[0]!.executorKind, WireScriptExecutorKind.bash);
+    assert.equal(runs[0]!.language, WireScriptLanguage.bash);
     assert.equal("label" in runs[0]!, false);
+});
+
+test("test_ctx_shell_run_is_bash_kind_with_shell_language_and_its_line", () => {
+    const fixture = makeProject();
+    const record = {
+        type: "assistant", uuid: "toolu_c1-assistant", parentUuid: null, sessionId: SESSION_A, timestamp: "2026-07-24T10:01:00.000Z", cwd: fixture.projectFolder,
+        message: { role: "assistant", content: [{ type: "tool_use", id: "toolu_c1", name: "mcp__plugin_context-mode_context-mode__ctx_execute", input: { language: "shell", code: "sed -i '' 's/a/b/' billing.py" } }] },
+    };
+    writeTranscriptFixture(fixture.sessionDir, "a.jsonl", [record]);
+    const runs = readRunsOf(buildScriptRunsView(new Path(fixture.projectFolder), [new Path(join(fixture.sessionDir, "a.jsonl"))]), "billing.py");
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0]!.executorKind, WireScriptExecutorKind.bash);
+    assert.equal(runs[0]!.language, WireScriptLanguage.shell);
+    assert.equal(runs[0]!.line, 1);
 });
 
 test("test_run_naming_no_file_is_absent", () => {

@@ -47,6 +47,8 @@ test("the plain script-runs route answers pair paths with ISO instants, joined c
   assert.equal(python["toolUseId"], "toolu_fixture_py_rewrite");
   assert.equal(python["executorKind"], "python");
   assert.equal(python["label"], "python run rewrite.py");
+  assert.equal(python["language"], "python");
+  assert.equal(python["line"], 83);
   assert.equal(python["sessionId"], "fixture-0f3c9a7e");
   assert.equal(python["sessionFile"], "/fixture/demo/projects/0f3c9a7e.jsonl");
   assert.ok((python["code"] as string).startsWith("import pathlib\n\nfor name"));
@@ -61,6 +63,7 @@ test("a run without a label has no label key and a git-only path draws nowhere",
   const inline = util.scriptRuns[1]!;
   assert.equal("label" in inline, false);
   assert.equal(inline["executorKind"], "bash");
+  assert.equal(inline["language"], "bash");
   assert.equal(inline["instant"], "2026-06-02T10:00:00.000Z");
   assert.ok(!payload.pairs.some((pair) => pair.path === "scripts/deploy.sh"));
 });

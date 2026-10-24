@@ -24,6 +24,8 @@ function buildWireScriptRun(run: FixtureScriptRun): FixtureWireScriptRun {
     instant: new Date(parseMs(run.at)),
     toolUseId: new Uuid(run.toolUseId),
     executorKind: run.executorKind,
+    language: run.language,
+    line: run.line,
     code: run.code.join("\n"),
     ...(run.label === undefined ? {} : { label: run.label }),
     sessionId: buildSessionId(run.session),

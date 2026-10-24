@@ -3,7 +3,8 @@
 import { el } from "./app-dom.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireEditKind, WireRewindKind, WireScriptExecutorIcon, WireScriptExecutorKind, findRejoinWithOwnSlot, listTrunkLadderInstants, type WireBranch, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+import { WireEditKind, WireRewindKind, WireScriptExecutorKind, findRejoinWithOwnSlot, listTrunkLadderInstants, type WireBranch, type WireEdit, type WireOrphan, type WirePair, type WireScriptRun, type WireSnapshot } from "./layer1-wire.ts";
+import { describeScriptLanguage } from "./layer1-script-language.ts";
 
 // Height of the dashed elbow's curve; a branch rail starts below the fork elbow and stops above the rejoin elbow.
 const BRANCH_ELBOW_PX = 16;
@@ -73,14 +74,14 @@ function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMov
 function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
     const isBash = run.executorKind === WireScriptExecutorKind.bash;
     const identity = {
-        title: run.label ?? `${run.executorKind} run`,
+        title: run.label ?? describeScriptLanguage(run.language),
         "data-tool-use-id": run.toolUseId,
         "data-executor-kind": run.executorKind,
         "data-instant": run.instant,
         "data-session-id": run.sessionId,
         "data-session-file": run.sessionFile,
     };
-    const iconText = WireScriptExecutorIcon[run.executorKind];
+    const iconText = describeScriptLanguage(run.language);
     lane.append(
         setAxisPx(el("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
         setAxisPx(el("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),

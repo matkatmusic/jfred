@@ -32,8 +32,13 @@ export type ScriptRun = {
     source?: RecordSource;
     toolUseId?: Uuid;
     executorKind?: ScriptExecutorKind;
+    // The ctx_execute / ctx_execute_file input's `language`; absent for Bash and for tools without one.
+    language?: string;
     invokedScriptFile?: string;
 };
+
+// A ctx_execute run in one of these languages is a shell run; every other language keeps the python kind.
+const SHELL_LANGUAGES: ReadonlySet<string> = new Set(["shell", "bash"]);
 
 // Follows the originalFile: precedent — a prefixed id resolveSyntheticChangeIdToSourceId unwraps.
 export const SCRIPT_RUN_CHANGE_ID_PREFIX = "scriptRun:";
@@ -88,9 +93,12 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
         if (code !== undefined) {
             const blockCwd = (block.input as { cwd?: string }).cwd;
             const cwd = blockCwd !== undefined ? new Path(blockCwd) : recordCwd;
-            // Task 192: only the Bash shell yields bash; MCP ctx tools are python code-execution.
-            const executorKind = block.name === ToolName.Bash ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
-            runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind });
+            const language = (block.input as { language?: string }).language;
+            // Task 192: the Bash tool and a shell-language ctx run yield bash; every other MCP ctx run stays python.
+            const isShell = block.name === ToolName.Bash || (language !== undefined && SHELL_LANGUAGES.has(language));
+            const executorKind = isShell ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
+            // An absent language must stay absent: a `language: undefined` KEY differs under deep equality.
+            runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }) });
         }
     }
     return runs;

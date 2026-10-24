@@ -5,7 +5,7 @@ import { SplitRowKind, computeInlineRows, computeSplitRows } from "./diff-vs-bas
 import { computeLanguageForPath } from "./highlight.ts";
 
 // Colour one cell's code through the vendored hljs global; plain text without it (renderCodeInto's guard).
-function renderCellCode(cell: HTMLElement, code: string, language: string | undefined): void {
+export function renderCellCode(cell: HTMLElement, code: string, language: string | undefined): void {
     if (language === undefined || typeof hljs === "undefined" || hljs.getLanguage(language) === undefined) {
         cell.textContent = code;
         return;

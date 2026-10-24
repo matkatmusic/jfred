@@ -7,7 +7,9 @@ import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { hasInstantInRange, paintDiffWash, readDrawnView, readNavTargets, readNodeInstant, resolveRangeStepIndexes } from "./layer1-diff-wash.ts";
 import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
-import type { WireLayer1View } from "./layer1-wire.ts";
+import { renderCellCode } from "./diff-render.ts";
+import { computeScriptHighlightLanguage, describeScriptLanguage } from "./layer1-script-language.ts";
+import type { WireLayer1View, WireScriptRun } from "./layer1-wire.ts";
 
 // A shift-clicked pair resolves to two global instants; each file diffs across that range.
 export type DiffWashRange = { baseInstant: string; targetInstant: string };
@@ -223,4 +225,23 @@ export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
         return [`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
             el("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` })];
     });
+}
+
+// A script run's title: its script file's label, else its language's.
+export function describeScriptRunTitle(run: WireScriptRun): string {
+    return run.label ?? describeScriptLanguage(run.language);
+}
+
+// Task 356: the script-meta list and the script body of a script-run drawer; where the run came from is session, line and tool use id.
+export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
+    const metaRows: [string, string][] = [
+        ["kind", "script run (layer 4)"], ["executor", describeScriptLanguage(run.language)], ["instant", run.instant],
+        ["session", run.sessionFile], ...(run.line === undefined ? [] : [["line", String(run.line)] as [string, string]]), ["tool use id", run.toolUseId],
+    ];
+    const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
+    const provenance = ["resolved body", run.sessionFile, ...(run.line === undefined ? [] : [`line ${run.line}`]), run.toolUseId, run.instant].join(" · ");
+    const pre = el("pre");
+    renderCellCode(pre, run.code, computeScriptHighlightLanguage(run.language));
+    const head = el("div", { class: "sbhead" }, [el("b", { text: describeScriptRunTitle(run) }), el("span", { class: "prov", text: provenance })]);
+    return [scriptMeta, el("div", { class: "scriptbody" }, [head, pre])];
 }
