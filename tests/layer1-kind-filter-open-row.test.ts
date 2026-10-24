@@ -47,6 +47,18 @@ function listOpenRowButtons(): Element[] {
     return [...document.querySelectorAll(".tick.expanded .tickfiles button")];
 }
 
+// Counts of open-row buttons at every painted frame and every DOM mutation batch from now on.
+function sampleOpenRowEveryStep(): number[] {
+    const samples: number[] = [];
+    const paintFrame = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = (callback) => {
+        samples.push(listOpenRowButtons().length);
+        return paintFrame(callback);
+    };
+    new window.MutationObserver(() => samples.push(listOpenRowButtons().length)).observe(document.body, { subtree: true, childList: true, attributes: true });
+    return samples;
+}
+
 test("test_ticking_the_edit_box_during_a_chunked_redraw_keeps_the_open_ruler_row", async () => {
     setupLayer1Dom();
     stubStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
@@ -55,10 +67,13 @@ test("test_ticking_the_edit_box_during_a_chunked_redraw_keeps_the_open_ruler_row
     tick.click();
     await settleRedraws();
     assert.ok(document.querySelectorAll(".tickfiles button").length >= 2);
+    const samples = sampleOpenRowEveryStep();
     const box = document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!;
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
     await settleRedraws();
     assert.notEqual(readRulerExpansion(), undefined);
     assert.ok(listOpenRowButtons().length >= 2);
+    assert.ok(samples.length > 2);
+    assert.deepEqual(samples.filter((count) => count < 2), []);
 });

@@ -137,7 +137,18 @@ function reopenExpandedRow(): void {
         return;
     }
     tick.classList.add("expanded");
+    tick.querySelector(".tickfiles")?.remove();
     tick.appendChild(buildTickFileList(listEventsAtRow(rowsByTick.get(tick)!.axisPxList)));
+}
+
+// A redraw replaces every tick before the stage is drawn; the old list moves to the fresh tick so the row never closes.
+export function carryOpenRowToNewTicks(openList: Element | null): void {
+    const tick = findTickAtExpandedInstant();
+    if (openList === null || tick === undefined) {
+        return;
+    }
+    tick.classList.add("expanded");
+    tick.appendChild(openList);
 }
 
 // The tick whose row holds the open expansion's instant, if one is drawn.
@@ -178,21 +189,28 @@ export function markMultiEventTicks(): void {
 // Task 360: a box toggle re-marks the ticks and rebuilds the open file list; the relayout makes room for its new height.
 export function refreshTicksForKindFilter(): void {
     markTickKindState(snapshotStageBubbles());
-    for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
-        tick.querySelector(".tickfiles")?.remove();
-        tick.classList.remove("expanded");
-    }
     if (expandedRow === undefined) {
         return;
     }
     const tick = findTickAtExpandedInstant();
     const events = tick === undefined ? [] : listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
-    if (tick !== undefined && events.length > 1) {
-        expandedRow = { instantMs: expandedRow.instantMs, listHeightPx: measureListHeightPx(tick, events) };
-    } else {
+    if (tick === undefined || events.length <= 1) {
         closeRulerExpansion();
+        for (const openTick of document.querySelectorAll<HTMLElement>("#ruler .tick.expanded")) {
+            openTick.querySelector(".tickfiles")?.remove();
+            openTick.classList.remove("expanded");
+        }
+        requestStageRelayout();
+        return;
     }
-    requestStageRelayout();
+    tick.querySelector(".tickfiles")?.remove();
+    const listHeightPx = measureListHeightPx(tick, events);
+    tick.appendChild(buildTickFileList(events));
+    // The open list is rebuilt in place; only a changed height needs the stage laid out again.
+    if (listHeightPx !== expandedRow.listHeightPx) {
+        expandedRow = { instantMs: expandedRow.instantMs, listHeightPx };
+        requestStageRelayout();
+    }
 }
 
 // Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.

@@ -28,7 +28,7 @@ import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, ren
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
-import { closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
+import { carryOpenRowToNewTicks, closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
 import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
@@ -62,7 +62,9 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   const pass = ++stageRenderPass;
   getRequiredElementById("crumb").textContent =
     `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
+  const openList = document.querySelector("#ruler .tickfiles");
   renderRulerTicks(view.ruler);
+  carryOpenRowToNewTicks(openList);
   renderLeaderLines(view.ruler);
   const buckets = [
     buildOrphanBucket("No on-disk match", view.gitOrphans),
