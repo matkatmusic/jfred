@@ -1,6 +1,8 @@
 // Headless Layer 1 and Layer 2 acceptance checks (tasks #299-#307) on the real page.
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { COMMITS, DISK, SESSIONS } from "../../src/viewer_api_layer1_fixture_data.ts";
@@ -110,8 +112,10 @@ function buildWebapp(): void {
 }
 
 async function launchViewer(port: number): Promise<ChildProcess> {
+  const settingsFile = join(mkdtempSync(join(tmpdir(), "jfred-settings-")), "settings.json");
+  writeFileSync(settingsFile, "{}");
   const server = spawn("node_modules/.bin/tsx", [
-    "src/viewer_server.ts", "--projects-dir", PROJECTS_DIR, "--port", String(port), "--fixture",
+    "src/viewer_server.ts", "--projects-dir", PROJECTS_DIR, "--port", String(port), "--fixture", "--settings-file", settingsFile,
   ], { cwd: JFRED_ROOT, stdio: "ignore" });
   await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
   return server;

@@ -1,7 +1,8 @@
 // Task 318: boots the real viewer against the demo bundle and runs the Layer 2 checks.
 
 import { spawn, execFileSync, execSync, type ChildProcess } from "node:child_process";
-import { rmSync, mkdirSync } from "node:fs";
+import { rmSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, pause, waitForHttp, type HeadlessPage } from "./cdp.ts";
@@ -43,8 +44,10 @@ function buildViewUrl(port: number): string {
 }
 
 async function launchViewer(port: number): Promise<ChildProcess> {
+  const settingsFile = join(mkdtempSync(join(tmpdir(), "jfred-settings-")), "settings.json");
+  writeFileSync(settingsFile, "{}");
   const server = spawn("node_modules/.bin/tsx", [
-    "src/viewer_server.ts", "--projects-dir", join(DEMO_DIR, "projects"), "--port", String(port),
+    "src/viewer_server.ts", "--projects-dir", join(DEMO_DIR, "projects"), "--port", String(port), "--settings-file", settingsFile,
   ], { cwd: JFRED_ROOT, stdio: "ignore" });
   await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
   return server;

@@ -3,7 +3,8 @@
 // Usage: node --import tsx scripts/visual/run.ts [label]
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { computeLayer1Defaults } from "../../src/viewer_api_layer1_defaults.ts";
@@ -39,8 +40,10 @@ function buildWebapp(): void {
 }
 
 async function startViewer(port: number): Promise<ChildProcess> {
+    const settingsFile = join(mkdtempSync(join(tmpdir(), "jfred-settings-")), "settings.json");
+    writeFileSync(settingsFile, "{}");
     const server = spawn("node_modules/.bin/tsx", [
-        "src/viewer_server.ts", "--projects-dir", PROJECTS_DIR, "--port", String(port),
+        "src/viewer_server.ts", "--projects-dir", PROJECTS_DIR, "--port", String(port), "--settings-file", settingsFile,
     ], { cwd: JFRED_ROOT, stdio: "ignore" });
     await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
     return server;

@@ -1,7 +1,8 @@
 // Task 357: boots the real viewer (no --fixture) and checks the branch lanes against the real /api/layer1-branches payload.
 
 import { spawn, execFileSync, execSync, type ChildProcess } from "node:child_process";
-import { rmSync, mkdirSync } from "node:fs";
+import { rmSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type WireBranchesView } from "../../webapp/layer1-wire.ts";
@@ -45,9 +46,11 @@ function buildViewParams(): URLSearchParams {
 
 async function launchViewer(port: number): Promise<ChildProcess> {
   const dataDir = IS_REAL ? JOT_RECOVERY_DIR : DEMO_DIR;
+  const settingsFile = join(mkdtempSync(join(tmpdir(), "jfred-settings-")), "settings.json");
+  writeFileSync(settingsFile, "{}");
   const server = spawn("node_modules/.bin/tsx", [
     "src/viewer_server.ts", "--projects-dir", join(dataDir, "projects"),
-    "--file-history-dir", join(dataDir, "file-history"), "--port", String(port),
+    "--file-history-dir", join(dataDir, "file-history"), "--port", String(port), "--settings-file", settingsFile,
   ], { cwd: JFRED_ROOT, stdio: "ignore" });
   await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
   return server;

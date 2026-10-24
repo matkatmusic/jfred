@@ -18,13 +18,14 @@ interface ViewerProcess {
 }
 
 // Launch the viewer on a fresh scratch port against an empty projects dir.
-function spawnViewerProcess(envOverride: NodeJS.ProcessEnv = {}): ViewerProcess {
+function spawnViewerProcess(envOverride: NodeJS.ProcessEnv = {}, extraArgs: string[] = []): ViewerProcess {
     const emptyProjectsDir = mkdtempSync(join(tmpdir(), "viewer-server-test-"));
     const port = nextScratchPort++;
     const child = spawn(process.execPath, [
         "--import", "tsx", "src/viewer_server.ts",
         "--projects-dir", emptyProjectsDir,
         "--port", String(port),
+        ...extraArgs,
     ], {
         cwd: REPO_ROOT,
         stdio: ["ignore", "pipe", "inherit"],
@@ -82,6 +83,20 @@ test("test_pick_folder_returns_the_dialog_path_and_empty_string_on_cancel", asyn
         assert.equal(await fetchPickedFolderPath(viewer.port), PICKED_FOLDER);
         // Cancel is osascript exit -128 — a clean "no selection", never an error status.
         assert.equal(await fetchPickedFolderPath(viewer.port), "");
+    } finally {
+        viewer.child.kill();
+    }
+});
+
+test("test_settings_file_flag_makes_the_server_read_that_file_not_the_home_one", async () => {
+    // Scenario: a visual harness passes --settings-file so the user's real settings never shape its run.
+    const settingsFile = join(mkdtempSync(join(tmpdir(), "viewer-settings-file-")), "settings.json");
+    writeFileSync(settingsFile, JSON.stringify({ lastDir: "/flag-only-dir", projects: {} }));
+    const viewer = spawnViewerProcess({}, ["--settings-file", settingsFile]);
+    try {
+        await waitUntilListening(viewer.child);
+        const settings = JSON.parse(await fetchPageText(viewer.port, "/api/layer1-settings"));
+        assert.equal(settings.lastDir, "/flag-only-dir");
     } finally {
         viewer.child.kill();
     }
