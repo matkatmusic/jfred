@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pause, type HeadlessPage } from "./cdp.ts";
+import { validateCentring } from "./layer2-checks-centre.ts";
 import { collectOwnerBasenames, type ViewPayload } from "./layer2-payload.ts";
 import { reportCheck } from "./mockup-checks.ts";
 
@@ -77,6 +78,8 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
   await pause(200);
 }
 
+// Replaced by layer2-checks-centre.ts, which picks a node that can really be centred.
+/*
 interface ClickedNodeView {
   node: number[];
   pane: number[];
@@ -107,6 +110,7 @@ const READ_CLICKED_NODE_VIEW = `(() => {
         touchesDrawer,
         isCentredOrClamped: (Math.abs(off(0)) <= 4 || xClamped) && (Math.abs(off(1)) <= 4 || yClamped) };
 })()`;
+*/
 
 export async function validateDrawer(page: HeadlessPage): Promise<void> {
   const owner = await page.evaluate<string>(`(() => {
@@ -128,10 +132,7 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
   reportCheck("#305 the snapshot's bytes render", drawer.body.trim().length > 0, drawer.body.slice(0, 60));
   reportCheck("#317 clicking a snapshot node flashes its JSONL", await readFlashFile(page) === owner, owner);
   await pause(300);
-  const seen = await page.evaluate<ClickedNodeView>(READ_CLICKED_NODE_VIEW);
-  reportCheck("#drawer-centre the clicked node is fully inside the visible timeline", seen.isInsidePane, seen);
-  reportCheck("#drawer-centre the clicked node does not touch the drawer", !seen.touchesDrawer, seen);
-  reportCheck("#drawer-centre the node is centred in the uncovered area (or its scroll is clamped)", seen.isCentredOrClamped, seen);
   await saveScreenshot(page, "04-drawer");
+  await validateCentring(page);
   await pause(FADE_WAIT_MS);
 }
