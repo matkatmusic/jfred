@@ -8,12 +8,12 @@ import { singleWhitespace } from "./regex_expressions.ts";
 import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 
 // The final path segment of a "/"-separated path string.
-export function pathBasename(value: string): string {
+export function extractPathBasename(value: string): string {
   const slash = value.lastIndexOf("/");
   return slash >= 0 ? value.slice(slash + 1) : value;
 }
 
-// One Write of a script file: its time and body. A rewritten file keeps every body, so each run finds its own.
+// One Write of a script file: its time and body. Rewrites keep every body.
 type WrittenScriptBody = { timestamp: Date | undefined; content: string | undefined };
 
 // Every Write body per file name, each with its time. One pass over the records.
@@ -28,7 +28,7 @@ function collectWrittenContentOfBlock(block: ContentBlock, timestamp: Date | und
     return;
   }
   const { filePath, content } = readWriteInput(block);
-  const basename = pathBasename(filePath.toString());
+  const basename = extractPathBasename(filePath.toString());
   const bodies = writtenBodiesByBasename.get(basename);
   if (bodies === undefined) {
     writtenBodiesByBasename.set(basename, [{ timestamp, content }]);
@@ -48,7 +48,7 @@ export function collectWrittenContentByBasename(records: TranscriptRecord[]): Ma
   return writtenBodiesByBasename;
 }
 
-// The body at `when`: the latest Write at or before that time, or the first body when none precedes it.
+// The latest body written at or before `when`, else the first body.
 function findBodyAtInstant(bodies: WrittenScriptBody[], when: Date): string | undefined {
   let best: WrittenScriptBody | undefined;
   for (const body of bodies) {
@@ -119,13 +119,13 @@ function parseExecOpenIndirection(code: string): string | undefined {
   return isScriptFile(filename) ? filename : undefined;
 }
 
-// Replace a run's code with the Write body of the script file it calls. A run with no such file stays the same.
-export function resolveScriptIndirection(run: ScriptRun, writtenBodiesByBasename: Map<string, WrittenScriptBody[]>): ScriptRun {
+// Replace a run's code with the body of the script file it calls, if any.
+export function applyScriptIndirection(run: ScriptRun, writtenBodiesByBasename: Map<string, WrittenScriptBody[]>): ScriptRun {
   const filename = parseDirectInvocation(run.code) ?? parseExecOpenIndirection(run.code);
   if (filename === undefined) {
     return run;
   }
-  const bodies = writtenBodiesByBasename.get(pathBasename(filename));
+  const bodies = writtenBodiesByBasename.get(extractPathBasename(filename));
   if (bodies === undefined) {
     return run;
   }
@@ -133,10 +133,10 @@ export function resolveScriptIndirection(run: ScriptRun, writtenBodiesByBasename
   if (body === undefined) {
     return run;
   }
-  // A bash run of a written .py file counts as Python, so it still enters the sandbox. Other runs keep their kind.
+  // A bash run of a written .py file counts as Python. Other runs keep their kind.
   const resolvesToPython = run.executorKind === ScriptExecutorKind.bash && filename.endsWith(".py");
   const executorKind = resolvesToPython ? ScriptExecutorKind.python : run.executorKind;
   // A flip to python must also rewrite the language, or a shell-language run would keep reading as shell.
   const language = resolvesToPython ? "python" : run.language;
-  return { ...run, code: body, executorKind, ...(language === undefined ? {} : { language }), invokedScriptFile: pathBasename(filename) };
+  return { ...run, code: body, executorKind, ...(language === undefined ? {} : { language }), invokedScriptFile: extractPathBasename(filename) };
 }

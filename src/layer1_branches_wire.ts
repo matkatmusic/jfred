@@ -14,7 +14,7 @@ import { collectAncestorUuids } from "./reconstruction_tree.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getToolResultForUserRecord, indexToolUseNamesById } from "./structures/tool-results.ts";
+import { getToolResultForUserRecord, buildToolUseNamesById } from "./structures/tool-results.ts";
 import { BlockType, EventKind, ToolName } from "./structures/vocabulary.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 
@@ -65,7 +65,7 @@ export function listLanes({ records, branches }: SessionRewinds): Lane[] {
 
 // tool_use id to the Write result's originalFile; other tools carry no pre-state.
 function indexWriteOriginalFiles(records: TranscriptRecord[]): Map<string, string | null> {
-  const nameById = indexToolUseNamesById(records);
+  const nameById = buildToolUseNamesById(records);
   const originalFileById = new Map<string, string | null>();
   for (const record of records) {
     for (const block of getContentBlocks(record)) {

@@ -106,7 +106,7 @@ function addToolUseNames(
 }
 
 // Map each tool_use id to its tool name, so a tool result can find its tool.
-export function indexToolUseNamesById(
+export function buildToolUseNamesById(
   records: TranscriptRecord[],
 ): Map<string, string> {
   const nameById = new Map<string, string>();
@@ -132,7 +132,7 @@ export function collectErroredToolUseIds(
 }
 
 // The tool name behind this record's tool_result block, or undefined when it has none.
-export function resolveToolNameForRecord(
+export function findToolNameForRecord(
   record: TranscriptRecord,
   nameById: Map<string, string>,
 ): string | undefined {
@@ -194,7 +194,7 @@ export function getToolResultForUserRecord(
   if (typeof raw === "string") {
     return undefined;
   }
-  const toolName = resolveToolNameForRecord(record, nameById);
+  const toolName = findToolNameForRecord(record, nameById);
   if (toolName === undefined) {
     return undefined;
   }

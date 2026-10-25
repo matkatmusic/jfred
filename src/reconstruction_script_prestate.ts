@@ -22,14 +22,14 @@ import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts"
 import type { WriteEvent } from "./reconstruction_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
-import { pathBasename } from "./reconstruction_script_indirection.ts";
+import { extractPathBasename } from "./reconstruction_script_indirection.ts";
 import {
   ReconstructionCounter,
   incrementReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 
-// Stdlib roots a read-only script may safely import; anything else marks it may-write. Extend freely, missing entries only cost savings.
+// Stdlib roots a read-only script may import; any other import marks it may-write.
 const READ_ONLY_SAFE_IMPORT_ROOTS = new Set([
   "os", "sys", "re", "json", "csv", "glob", "pathlib", "collections", "itertools",
   "functools", "math", "statistics", "textwrap", "difflib", "datetime", "time", "string",
@@ -65,7 +65,7 @@ function isEveryOpenCallRead(code: string): boolean {
     if (argsEnd < 0)
       return false;
     const args = code.slice(argsStart, argsEnd);
-    // A nested call defeats the first-")" slice — an embedded call could hide a write mode, so bail to may-write.
+    // A nested call could hide a write mode, so treat the script as may-write.
     if (args.includes("("))
       return false;
     const parts = args.split(",");
@@ -87,8 +87,8 @@ function isEveryOpenCallRead(code: string): boolean {
   return true;
 }
 
-// Whether the script could write/delete/rename files; conservative — unparseable code answers may-write. ponytail: raw-text scan, aliased builtins evade it untested.
-export function scriptCodeMayWriteFiles(code: string): boolean {
+// Whether the script could change files; unparseable code counts as may-write. ponytail: raw-text scan, aliased builtins evade it.
+export function isScriptCodeWriteCapable(code: string): boolean {
   if (shellWritePrimitive.test(code))
     return true;
   if (pythonWritePrimitive.test(code))
@@ -110,12 +110,12 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
         if (erroredIds.has(block.id.toString()))
           continue;
         const { filePath } = readWriteInput(block);
-        if (pathBasename(filePath.toString()) === basename)
+        if (extractPathBasename(filePath.toString()) === basename)
           return filePath;
         continue;
       }
       const filePath = (block.input as { file_path?: string }).file_path;
-      if (filePath !== undefined && pathBasename(filePath) === basename)
+      if (filePath !== undefined && extractPathBasename(filePath) === basename)
         return new Path(filePath);
     }
   }
@@ -140,10 +140,10 @@ export function computeScriptStateKey(filePath: Path, runCwd: Path | undefined):
       return cwdRelativePath;
     }
   }
-  return pathBasename(filePath.toString());
+  return extractPathBasename(filePath.toString());
 }
 
-// Every file Written before the run at its rename-resolved name, plus backup-only referenced files, keyed by the script's cwd-relative name.
+// Files Written before the run, plus backup-only referenced files, keyed by the script's relative name.
 export function getPreExecutionState(
   run: ScriptRun,
   records: TranscriptRecord[],
@@ -155,7 +155,7 @@ export function getPreExecutionState(
   const events = extractFileEvents(records);
   const renameChain = buildRenameChain(events);
   const state = new Map<string, string>();
-  // Task 192 Phase 3: delete+set on replace keeps iteration order matching final-Write order, so colliding paths keep the same winner.
+  // Task 192 Phase 3: delete then set keeps map order equal to final-Write order.
   const latestWritesByCurrentPath = new Map<string, { currentPath: Path; write: WriteEvent }>();
   for (const event of events) {
     if (event.kind !== EventKind.write)
@@ -178,7 +178,7 @@ export function getPreExecutionState(
   for (const ref of parseScriptFileRefs(run.code)) {
     if (state.has(ref))
       continue;
-    const absolutePath = findPathByBasename(records, pathBasename(ref));
+    const absolutePath = findPathByBasename(records, extractPathBasename(ref));
     if (absolutePath === undefined)
       continue;
     const content = seedContent?.(absolutePath, run.timestamp)

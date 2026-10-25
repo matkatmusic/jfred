@@ -12,7 +12,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
-import { scriptCodeMayWriteFiles } from "../src/reconstruction_script_prestate.ts";
+import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
 import { runCli } from "../src/reconstruction_cli.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
@@ -84,7 +84,7 @@ test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
     for (const script of decision.kind === DocumentResponseKind.consentRequired ? decision.scripts : []) {
         assert.equal(typeof script.readOnly, "boolean");
-        assert.equal(script.readOnly, !scriptCodeMayWriteFiles(script.code));
+        assert.equal(script.readOnly, !isScriptCodeWriteCapable(script.code));
     }
 });
 

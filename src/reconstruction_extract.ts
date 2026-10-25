@@ -5,7 +5,7 @@ import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import {
   collectErroredToolUseIds,
-  indexToolUseNamesById,
+  buildToolUseNamesById,
   readWriteInput,
   type EditResult,
   type StructuredPatchHunk,
@@ -115,7 +115,7 @@ function collectEventsFromRecord(
 function collectEditDetailsByToolUseId(
   records: TranscriptRecord[],
 ): Map<string, EditDetail> {
-  const nameById = indexToolUseNamesById(records);
+  const nameById = buildToolUseNamesById(records);
   const detailById = new Map<string, EditDetail>();
   for (const record of records) {
     collectEditDetailFromRecord(record, nameById, detailById);

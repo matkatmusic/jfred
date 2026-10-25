@@ -6,7 +6,7 @@ import { walkCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { affectedPathsForRun } from "./reconstruction_script_probe.ts";
-import { scriptCodeMayWriteFiles } from "./reconstruction_script_prestate.ts";
+import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
 import { findSessionId } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
@@ -71,7 +71,7 @@ export function buildScriptRunsView(
     if (sessionId === undefined) {
       throw new Error(`no session id in ${sessionFile.toString()}`);
     }
-    for (const run of findScriptExecutionRuns(records).filter((candidate) => scriptCodeMayWriteFiles(candidate.code))) {
+    for (const run of findScriptExecutionRuns(records).filter((candidate) => isScriptCodeWriteCapable(candidate.code))) {
       const wireRun = buildWireScriptRun(run, sessionId, sessionFile);
       for (const path of affectedPathsForRun(run, candidatePaths)) {
         const runsByToolUseId = runsByPath.get(path.toString()) ?? new Map<string, WireScriptRunWithoutAxis>();

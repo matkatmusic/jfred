@@ -35,7 +35,9 @@
   <button data-tab="t5">5 · Viewer request path</button>
 </nav>
 
-<!-- ============================= TAB 1: 5 STEPS ============================= -->
+<!--
+  ============================= TAB 1: 5 STEPS =============================
+-->
 <div class="tab active" id="t1">
   <p class="caption">The whole engine at maximum zoom-out. In C++ terms: a pure transform pipeline —
   <code>vector&lt;TranscriptRecord&gt;</code> flows in, gets enriched into <code>vector&lt;FileEvent&gt;</code> per file,
@@ -90,7 +92,9 @@ JSONL never stored" .-> S4
   </div>
 </div>
 
-<!-- ============================= TAB 2: 15 STEPS ============================= -->
+<!--
+  ============================= TAB 2: 15 STEPS =============================
+-->
 <div class="tab" id="t2">
   <p class="caption">Same pipeline, one level down. Steps 8–15 are the interesting part: inside
   <code>reconstructFileOver()</code> the event list is rewritten by a <b>fixed-order chain of repair passes</b>
@@ -186,7 +190,9 @@ the same core (7–15)"| P7
   <p class="legend">⛁ / green = reader-gated repair pass: pure no-op when no file-history backups exist. Amber = the extract/replay core. seedBaseCommitBeacon is override-gated (repoDir+baseCommit), not reader-gated.</p>
 </div>
 
-<!-- ============================= TAB 3: CALL GRAPH ============================= -->
+<!--
+  ============================= TAB 3: CALL GRAPH =============================
+-->
 <div class="tab" id="t3">
   <p class="caption">Function-level call graph, grouped by module (one subgraph ≈ one <code>.ts</code> file / subsystem).
   Diamonds are real branch points; everything inside "per-file repair chain" runs unconditionally in the order shown.
@@ -330,11 +336,11 @@ user-edit / script-execution
 
     subgraph SCRIPT["script execution (reconstruction_script_stage / _execution / _runs / _prestate / _sandbox)"]
         findRuns["findScriptExecutionRuns
-(+ resolveScriptIndirection)"]
+(+ applyScriptIndirection)"]
         beaconExec["scriptExecutionForBeacon"]
         execOnce["executeRunOnce →
 getPreExecutionState
-(scriptCodeMayWriteFiles:
+(isScriptCodeWriteCapable:
 read-only runs skip the sandbox)"]
         runPy["runScriptAgainstState
 content-keyed memo:
@@ -517,7 +523,9 @@ commit hard-stops)
   <p class="legend">⛁ = reader-gated (no-op without file-history backups) · ②b = override-gated (repoDir+baseCommit) · red = shells out (<code>python3</code> sandbox / <code>git</code>) · amber = extract→replay core · purple = content-keyed caching (a repeat (script, pre-state) input never re-spawns; s84: 25s → 7s).</p>
 </div>
 
-<!-- ============================= TAB 4: COVERAGE CHECKER ============================= -->
+<!--
+  ============================= TAB 4: COVERAGE CHECKER =============================
+-->
 <div class="tab" id="t4">
   <p class="caption"><code>scripts/check_scenario_coverage.ts</code> is the engine's integration-test harness.
   For every executed scenario it asks: <i>can the engine, given only the session JSONL(s) + file-history backups,
@@ -651,7 +659,9 @@ checkScenarioResilient"| resilient
   <p class="legend">Run: <code>npx tsx scripts/check_scenario_coverage.ts [scenarioId] [--onlyFailing]</code> · exit 0 = all reproduced, 1 = mismatches, 2 = filter matched nothing.</p>
 </div>
 
-<!-- ============================= TAB 5: VIEWER REQUEST PATH ============================= -->
+<!--
+  ============================= TAB 5: VIEWER REQUEST PATH =============================
+-->
 <div class="tab" id="t5">
   <p class="caption"><code>src/viewer_server.ts</code> wraps the engine in a tiny HTTP server for the browser viewer.
   <code>handleRequest</code> is a plain if/else route chain: static files come from <code>webapp/</code>

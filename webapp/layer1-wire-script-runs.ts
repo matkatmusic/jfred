@@ -18,7 +18,7 @@ export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
   executorKind: WireScriptExecutorKind;
   language: WireScriptLanguage;
   line?: number; // The tool_use record's source line in sessionFile; absent when the engine kept no record source.
-  // The resolved body (resolveScriptIndirection already ran engine-side) — the client never re-resolves it.
+  // The resolved body (applyScriptIndirection already ran engine-side) — the client never re-resolves it.
   code: string;
   // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
   label?: string;

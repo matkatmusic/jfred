@@ -29,10 +29,11 @@ type TraceRow = { lineNumber: number; verdict: Verdict; raw: string };
 
 // Merge kept + ignored into one line-ordered row list (each ignored row's verdict is `ignore`).
 function sortRows(partition: LinePartition): TraceRow[] {
-  const rows: TraceRow[] = [
-    ...partition.kept,
-    ...partition.ignored.map((line) => ({ ...line, verdict: Verdict.ignore })),
-  ];
+  const ignoredRows: TraceRow[] = [];
+  for (const line of partition.ignored) {
+    ignoredRows.push({ ...line, verdict: Verdict.ignore });
+  }
+  const rows: TraceRow[] = [...partition.kept, ...ignoredRows];
   return rows.sort((a, b) => a.lineNumber - b.lineNumber);
 }
 
@@ -130,7 +131,10 @@ function getResultKindPreview(result: Record<string, unknown>): KindPreview {
 function getSnapshotKindPreview(object: Record<string, unknown>): KindPreview {
   const snapshot = object.snapshot as { trackedFileBackups?: Record<string, { version?: number }> } | undefined;
   const backups = snapshot?.trackedFileBackups ?? {};
-  const files = Object.entries(backups).map(([name, backup]) => `${getPathBasename(name)}@v${backup.version}`);
+  const files: string[] = [];
+  for (const [name, backup] of Object.entries(backups)) {
+    files.push(`${getPathBasename(name)}@v${backup.version}`);
+  }
   return { kind: "snapshot", preview: trimPreview(files.join(", ")) };
 }
 

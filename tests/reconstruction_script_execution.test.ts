@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
     computeScriptExecutionChangeId,
     findScriptExecutionRuns,
-    resolveScriptRunChangeIdToSourceId,
+    getScriptRunSourceIdFromChangeId,
     isScriptExecutionRun,
     type ScriptRun,
 } from "../src/reconstruction_script_execution.ts";
@@ -139,14 +139,14 @@ test("test_computeScriptExecutionChangeId_falls_back_to_timestamp_without_tool_u
     assert.equal(changeId.toString(), `scriptRun:${timestamp.getTime()}:/tmp/demo/core_inventory.py`);
 });
 
-test("test_resolveScriptRunChangeIdToSourceId_extracts_source_segment", () => {
-    assert.equal(resolveScriptRunChangeIdToSourceId("scriptRun:toolu_abc:/a/b.py"), "toolu_abc");
+test("test_getScriptRunSourceIdFromChangeId_extracts_source_segment", () => {
+    assert.equal(getScriptRunSourceIdFromChangeId("scriptRun:toolu_abc:/a/b.py"), "toolu_abc");
 });
 
-test("test_resolveScriptRunChangeIdToSourceId_returns_undefined_for_other_ids", () => {
+test("test_getScriptRunSourceIdFromChangeId_returns_undefined_for_other_ids", () => {
     // Record uuids and originalFile: seed ids must pass through the resolver untouched.
-    assert.equal(resolveScriptRunChangeIdToSourceId("0b7f2b4c-1234-4abc-8def-0123456789ab"), undefined);
-    assert.equal(resolveScriptRunChangeIdToSourceId("originalFile:toolu_x"), undefined);
+    assert.equal(getScriptRunSourceIdFromChangeId("0b7f2b4c-1234-4abc-8def-0123456789ab"), undefined);
+    assert.equal(getScriptRunSourceIdFromChangeId("originalFile:toolu_x"), undefined);
 });
 
 test("test_findScriptExecutionRuns_carries_the_tool_use_id", () => {

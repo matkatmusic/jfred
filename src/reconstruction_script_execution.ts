@@ -5,7 +5,7 @@ import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ContentBlock, type ToolUseBlock } from "./structures/content-blocks.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
-import { collectWrittenContentByBasename, resolveScriptIndirection } from "./reconstruction_script_indirection.ts";
+import { collectWrittenContentByBasename, applyScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 
 // A script run's proven post-execution content, injected as a synthetic full-content revision; precomputed so replay order can't affect it.
@@ -18,7 +18,7 @@ export type ScriptExecutionEvent = {
 };
 
 
-// Task 192: bash runs skip the python3 sandbox; kind derives from tool block, unless indirection resolves to a .py body.
+// Task 192: kind comes from the tool block; bash skips the sandbox unless indirection finds a .py body.
 export enum ScriptExecutorKind {
   python = "python",
   bash = "bash",
@@ -50,7 +50,7 @@ export function computeScriptExecutionChangeId(run: ScriptRun, target: Path): Uu
 }
 
 // Undefined for non-scriptRun ids, so record uuids, originalFile: seeds and blob refs pass through.
-export function resolveScriptRunChangeIdToSourceId(changeId: string): string | undefined {
+export function getScriptRunSourceIdFromChangeId(changeId: string): string | undefined {
   if (!changeId.startsWith(SCRIPT_RUN_CHANGE_ID_PREFIX)) {
     return undefined;
   }
@@ -65,7 +65,7 @@ export function formatRunSource(run: ScriptRun): string {
 }
 
 // `input.code` (MCP execute) or `input.command` (Bash); undefined for a non-executor tool.
-function scriptCodeOf(block: ToolUseBlock): string | undefined {
+function getScriptCode(block: ToolUseBlock): string | undefined {
   if (!EXECUTOR_TOOL_NAMES.has(block.name)) {
     return undefined;
   }
@@ -74,10 +74,10 @@ function scriptCodeOf(block: ToolUseBlock): string | undefined {
 }
 
 export function isScriptExecutionRun(block: ToolUseBlock): boolean {
-  return scriptCodeOf(block) !== undefined;
+  return getScriptCode(block) !== undefined;
 }
 
-function runsInRecord(record: TranscriptRecord): ScriptRun[] {
+function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
   const timestamp = record.timestamp;
   if (!(timestamp instanceof Date)) {
     return [];
@@ -89,7 +89,7 @@ function runsInRecord(record: TranscriptRecord): ScriptRun[] {
     if (block.type !== BlockType.tool_use) {
       continue;
     }
-    const code = scriptCodeOf(block);
+    const code = getScriptCode(block);
     if (code !== undefined) {
       const blockCwd = (block.input as { cwd?: string }).cwd;
       const cwd = blockCwd !== undefined ? new Path(blockCwd) : recordCwd;
@@ -111,6 +111,6 @@ export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[
     return state.scriptRuns;
   }
   const writtenBodiesByBasename = collectWrittenContentByBasename(records);
-  state.scriptRuns = records.flatMap(runsInRecord).map((run) => resolveScriptIndirection(run, writtenBodiesByBasename));
+  state.scriptRuns = records.flatMap(listRunsInRecord).map((run) => applyScriptIndirection(run, writtenBodiesByBasename));
   return state.scriptRuns;
 }

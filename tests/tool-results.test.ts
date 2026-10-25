@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    indexToolUseNamesById,
+    buildToolUseNamesById,
     getToolResultForUserRecord,
     readWriteInput,
     type BashResult,
@@ -25,7 +25,7 @@ import {
 // Find the first resolved tool result of a given tool across a transcript's records. Generic helper so each tool test does not re-spell the index/scan.
 function findToolResult(file: string, toolName: ToolName) {
     const records = loadRecords(file);
-    const nameById = indexToolUseNamesById(records);
+    const nameById = buildToolUseNamesById(records);
     for (const record of records) {
         const resolved = getToolResultForUserRecord(record, nameById);
         if (resolved?.toolName === toolName) {
@@ -122,7 +122,7 @@ test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
         "Error: File does not exist.",
     );
     const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", erroredRead.records);
-    const nameById = indexToolUseNamesById(records);
+    const nameById = buildToolUseNamesById(records);
     // every record resolves without throwing; the errored result record resolves to undefined.
     for (const record of records) {
         assert.equal(getToolResultForUserRecord(record, nameById), undefined);
