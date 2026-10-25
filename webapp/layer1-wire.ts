@@ -1,164 +1,61 @@
-// Single source for Layer 1's wire vocabulary (task 331): generic shapes per instant/path/id, const objects not `enum`.
+// Single source for Layer 1's wire vocabulary (task 331): generic shapes per instant/path/id, const objects not `enum`.  Edits, script runs, branches and the ladder order live in layer1-wire-*.ts.
 
-import type { WireScriptLanguage } from "./layer1-script-language.ts";
+import type { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
+import type { WireBranchOf } from "./layer1-wire-branches.ts";
+import type { WireEditOf } from "./layer1-wire-edits.ts";
+import type { WireScriptRunOf } from "./layer1-wire-script-runs.ts";
 
 export interface WireInstantOf<I> {
-    instant: I;
-    axisPx: number;
+  instant: I;
+  axisPx: number;
 }
 
 export interface WireCommitOf<I> extends WireInstantOf<I> {
-    hash: string;
+  hash: string;
 }
 
 // One RULER entry: a widened instant, plus the node count (task 275).
 export interface WireRulerTickOf<I> extends WireInstantOf<I> {
-    // How many nodes the view draws at this instant, across every bubble.
-    eventCount: number;
+  // How many nodes the view draws at this instant, across every bubble.
+  eventCount: number;
 }
 
 // Task 312: a snapshot node; @vN is per session, so sessionId identifies it.
 export interface WireSnapshotOf<I, P, U> extends WireInstantOf<I> {
-    version: number;
-    sessionId: U;
-    sessionFile: P;
-    line?: number;
-}
-
-// Task 343: which tool made an Edit/Write/Read node.
-export const WireEditKind = {
-    edit: "edit",
-    write: "write",
-    read: "read",
-} as const;
-export type WireEditKind = (typeof WireEditKind)[keyof typeof WireEditKind];
-
-// Task 355: which side of an Edit node /api/layer1-file returns.
-export const WireEditSide = { base: "base", target: "target" } as const;
-export type WireEditSide = (typeof WireEditSide)[keyof typeof WireEditSide];
-
-// Task 343: only the confidence states layer 3 emits; the other four arrive with their layers.
-export const WireConfidence = {
-    verified: "verified",
-    derived: "derived",
-    reseeded: "reseeded",
-} as const;
-export type WireConfidence = (typeof WireConfidence)[keyof typeof WireConfidence];
-
-// Task 343: an Edit/Write/Read node; changeId is the tool_use id, so it identifies the node across sessions.
-export interface WireEditOf<I, P, U> extends WireInstantOf<I> {
-    kind: WireEditKind;
-    changeId: U;
-    confidence: WireConfidence;
-    sessionId: U;
-    sessionFile: P;
-    line?: number;
-}
-
-// Task 343: /api/layer1-edits answers without axisPx: the endpoint cannot place nodes, the client does.
-export interface WireEditsViewOf<I, P, U> {
-    pairs: { path: P; edits: Omit<WireEditOf<I, P, U>, "axisPx">[] }[];
-}
-
-// Wire spelling of ScriptExecutorKind (src/reconstruction_script_execution.ts) — drives the never-provable idiom.
-export const WireScriptExecutorKind = {
-    python: "python",
-    bash: "bash",
-} as const;
-export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
-
-// Replaced by describeScriptLanguage (layer1-script-language.ts), the one label source: export const WireScriptExecutorIcon = { python: "python run", bash: "$" } as const satisfies Record<WireScriptExecutorKind, string>;
-
-// Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
-export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
-    toolUseId: U;
-    executorKind: WireScriptExecutorKind;
-    language: WireScriptLanguage;
-    line?: number; // The tool_use record's source line in sessionFile; absent when the engine kept no record source.
-    // The resolved body (resolveScriptIndirection already ran engine-side) — the client never re-resolves it.
-    code: string;
-    // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
-    label?: string;
-    sessionId: U;
-    sessionFile: P;
-}
-
-// Task 356: /api/layer1-script-runs answers without axisPx, as /api/layer1-edits does.
-export interface WireScriptRunsViewOf<I, P, U> {
-    pairs: { path: P; scriptRuns: Omit<WireScriptRunOf<I, P, U>, "axisPx">[] }[];
-}
-
-export const WireRewindKind = {
-    code: "code",
-    conversation: "conversation",
-} as const;
-export type WireRewindKind = (typeof WireRewindKind)[keyof typeof WireRewindKind];
-
-// Task 379 mockup types, replaced by WireBranchOf (task 357):
-// export interface WireMockBranchNodeOf<I> extends WireInstantOf<I> { label: string }
-// export interface WireMockBranchOf<I> { rewindKind: WireRewindKind; forkFrom: I; rejoinAt?: I; nodes: WireMockBranchNodeOf<I>[] }
-
-// Task 357: a node on a branch lane; changeId is the tool_use id, label is the EventKind word.
-export interface WireBranchNodeOf<I, U> extends WireInstantOf<I> {
-    changeId: U;
-    label: string;
-}
-
-// Task 357: one real branch lane.
-export interface WireBranchOf<I, U> {
-    rewindKind: WireRewindKind;
-    // Rewind-point record time: the elbow leaves the trunk rail here, no dot.
-    forkAt: WireInstantOf<I>;
-    // Conversation only: the trunk node the kept bytes flow into.
-    rejoinAt?: WireInstantOf<I>;
-    // Conversation only, mutually exclusive with rejoinAt: kept bytes with no later trunk revision, so the client rejoins at the pair's rail end.
-    keptToEnd?: true;
-    nodes: WireBranchNodeOf<I, U>[];
-}
-
-// Task 357: /api/layer1-branches answers without axisPx, as /api/layer1-edits does.
-export interface WireBranchesViewOf<I, P, U> {
-    pairs: {
-        path: P;
-        branches: {
-            rewindKind: WireRewindKind;
-            forkAt: I;
-            rejoinAt?: I;
-            keptToEnd?: true;
-            nodes: Omit<WireBranchNodeOf<I, U>, "axisPx">[];
-        }[];
-    }[];
+  version: number;
+  sessionId: U;
+  sessionFile: P;
+  line?: number;
 }
 
 export interface WirePairOf<I, P, U> {
-    path: P;
-    // Oldest first, as the endpoint emits them.
-    commits: WireCommitOf<I>[];
-    onDisk: WireInstantOf<I>;
-    // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
-    created?: WireInstantOf<I>;
-    // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
-    snapshots?: WireSnapshotOf<I, P, U>[];
-    // Task 343: absent until the Edit box is ticked, so an edit-free pair's shape is unchanged.
-    edits?: WireEditOf<I, P, U>[];
-    // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
-    scriptRuns?: WireScriptRunOf<I, P, U>[];
-    // Task 357: absent until the branch box is ticked, so a branch-free pair's shape is unchanged.
-    branches?: WireBranchOf<I, U>[];
-    // branches?: WireMockBranchOf<I>[];
+  path: P;
+  // Oldest first, as the endpoint emits them.
+  commits: WireCommitOf<I>[];
+  onDisk: WireInstantOf<I>;
+  created?: WireInstantOf<I>; // Task 298: absent unless the file's birth is trustworthy AND earlier than its mtime.
+  createdNotTrusted?: CreatedNotTrustedReason; // Present exactly when created is absent.
+  snapshots?: WireSnapshotOf<I, P, U>[]; // Task 312: absent when the file has none, so a snapshot-free pair's shape is unchanged.
+  // Task 343: absent until the Edit box is ticked, so an edit-free pair's shape is unchanged.
+  edits?: WireEditOf<I, P, U>[];
+  // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
+  scriptRuns?: WireScriptRunOf<I, P, U>[];
+  // Task 357: absent until the branch box is ticked, so a branch-free pair's shape is unchanged.
+  branches?: WireBranchOf<I, U>[];
+  // branches?: WireMockBranchOf<I>[];
 }
 
 export interface WireOrphanOf<I, P, U> extends WireInstantOf<I> {
-    path: P;
-    snapshots?: WireSnapshotOf<I, P, U>[];
+  path: P;
+  snapshots?: WireSnapshotOf<I, P, U>[];
 }
 
 export interface WireLayer1ViewOf<I, P, U> {
-    pairs: WirePairOf<I, P, U>[];
-    gitOrphans: WireOrphanOf<I, P, U>[];
-    diskOrphans: WireOrphanOf<I, P, U>[];
-    // Every distinct instant the view draws, ascending.
-    ruler: WireRulerTickOf<I>[];
+  pairs: WirePairOf<I, P, U>[];
+  gitOrphans: WireOrphanOf<I, P, U>[];
+  diskOrphans: WireOrphanOf<I, P, U>[];
+  // Every distinct instant the view draws, ascending.
+  ruler: WireRulerTickOf<I>[];
 }
 
 // The client instantiation: what JSON.parse yields from /api/layer1-view — `Path`/`Uuid` are plain strings and `Instant` is ISO text.
@@ -166,27 +63,20 @@ export type WireInstant = WireInstantOf<string>;
 export type WireCommit = WireCommitOf<string>;
 export type WireRulerTick = WireRulerTickOf<string>;
 export type WireSnapshot = WireSnapshotOf<string, string, string>;
-export type WireScriptRun = WireScriptRunOf<string, string, string>;
-export type WireScriptRunsView = WireScriptRunsViewOf<string, string, string>;
-export type WireEdit =WireEditOf<string, string, string>;
-export type WireEditsView = WireEditsViewOf<string, string, string>;
-// export type WireMockBranch = WireMockBranchOf<string>;
-export type WireBranch = WireBranchOf<string, string>;
-export type WireBranchesView = WireBranchesViewOf<string, string, string>;
 export type WirePair = WirePairOf<string, string, string>;
 export type WireOrphan = WireOrphanOf<string, string, string>;
 export type WireLayer1View = WireLayer1ViewOf<string, string, string>;
 
 // One session transcript from /api/layer1-sessions (task 292); all-strings on both sides, so no generic.
 export interface WireSession {
-    file: string;
-    // Absolute path: the wire identity, because two source folders can hold the same basename.
-    fullPath: string;
-    titles: string[];
-    started: string;
-    ended: string;
-    // Every file the session touched, which is all the filter needs.
-    paths: string[];
+  file: string;
+  // Absolute path: the wire identity, because two source folders can hold the same basename.
+  fullPath: string;
+  titles: string[];
+  started: string;
+  ended: string;
+  // Every file the session touched, which is all the filter needs.
+  paths: string[];
 }
 
 // One commit row on the wire, as /api/repo-commits and /api/layer1-refs render it. All-strings on both sides.
@@ -194,57 +84,21 @@ export type RepoCommitRow = { hash: string; date: string; subject: string };
 
 // The /api/layer1-refs shape filling Layer 1's two header dropdowns (task 286).
 export interface Layer1RefsView {
-    branches: string[];        // local branch names, the checked-out one first
-    head: string;              // the branch name the repo is currently on
-    commits: RepoCommitRow[];  // newest first, capped at LAYER1_REF_COMMIT_LIMIT
+  branches: string[];        // local branch names, the checked-out one first
+  head: string;              // the branch name the repo is currently on
+  commits: RepoCommitRow[];  // newest first, capped at LAYER1_REF_COMMIT_LIMIT
 }
 
 // Which git stamp places a commit (task 282); committer FIRST — the default `Object.values` order feeds the toggle.
 export const CommitTimeSource = {
-    committer: "committer",
-    author: "author",
+  committer: "committer",
+  author: "author",
 } as const;
 export type CommitTimeSource = (typeof CommitTimeSource)[keyof typeof CommitTimeSource];
 
 // Which source folder Layer 1's picker scans (task 296): transcripts or a snapshot store. Values ARE the `kind=` spelling.
 export const SourceKind = {
-    jsonl: "jsonl",
-    fileHistory: "filehistory",
+  jsonl: "jsonl",
+  fileHistory: "filehistory",
 } as const;
 export type SourceKind = (typeof SourceKind)[keyof typeof SourceKind];
-
-// Trunk ladder ORDER (task 331): created, commits, on-disk, snapshots, edits (task 343), script runs; raw `I`.
-export function listTrunkLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
-    const created = pair.created === undefined ? [] : [pair.created.instant];
-    return [
-        ...created,
-        ...pair.commits.map((commit) => commit.instant),
-        pair.onDisk.instant,
-        ...(pair.snapshots ?? []).map((snapshot) => snapshot.instant),
-        ...(pair.edits ?? []).map((edit) => edit.instant),
-        ...(pair.scriptRuns ?? []).map((run) => run.instant),
-    ];
-}
-
-// Task 357: a rejoin on a trunk instant reuses that node's slot; one on no trunk node (its edit is not loaded) owns a slot.
-export function findRejoinWithOwnSlot<I, U>(trunkInstants: readonly I[], branch: WireBranchOf<I, U>): WireInstantOf<I> | undefined {
-    return branch.rejoinAt !== undefined && !trunkInstants.includes(branch.rejoinAt.instant) ? branch.rejoinAt : undefined;
-}
-
-// Pair ladder ORDER: the trunk, then per branch its fork, its nodes, and a rejoin that has no trunk node.
-export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
-    const trunkInstants = listTrunkLadderInstants(pair);
-    return [
-        ...trunkInstants,
-        ...(pair.branches ?? []).flatMap((branch) => [
-            branch.forkAt.instant,
-            ...branch.nodes.map((node) => node.instant),
-            ...(findRejoinWithOwnSlot(trunkInstants, branch) === undefined ? [] : [branch.rejoinAt!.instant]),
-        ]),
-    ];
-}
-
-// A disk orphan's own node leads, its snapshots follow — the server's third ladder group exactly.
-export function listOrphanLadderInstants<I, P, U>(orphan: WireOrphanOf<I, P, U>): I[] {
-    return [orphan.instant, ...(orphan.snapshots ?? []).map((snapshot) => snapshot.instant)];
-}

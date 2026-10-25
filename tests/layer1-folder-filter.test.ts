@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // All three share `src/`, stripped by buildFileTree, leaving `keep`/`drop` siblings and `deep` nested in `keep` to test child+grandchild reach.
 const NAV_VIEW = {
@@ -47,7 +47,7 @@ test("test_clicking_a_folder_reports_every_file_at_or_below_it", () => {
 test("test_clicking_a_folder_leaves_the_native_details_toggle_working", () => {
     // Task 253: a folder row's native <summary> toggle must survive the filter click.
     return renderNavWithFolderSpy().then(({ container }) => {
-        // Off `window`, not the bare global: setupLayer1Dom only publishes a hand-picked set of constructors onto globalThis, excluding MouseEvent.
+        // Off `window`, not the bare global: initLayer1Dom only publishes a hand-picked set of constructors onto globalThis, excluding MouseEvent.
         const event = new window.MouseEvent("click", { bubbles: true, cancelable: true });
         findFolderSummary(container, "keep").dispatchEvent(event);
         assert.equal(event.defaultPrevented, false);

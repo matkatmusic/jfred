@@ -13,7 +13,7 @@ import { loadTranscript, type ProgressSink } from "../src/parse/loadTranscript.t
 import { reconstructStepTimeline } from "../src/reconstruction_steps.ts";
 import { createSidecarReader, findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { Path } from "../src/structures/domain.ts";
-import { WireRewindKind } from "../webapp/layer1-wire.ts";
+import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { findScenarioJsonl } from "./fixtures.ts";
 import { SESSION_A, buildPromptRecord, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";

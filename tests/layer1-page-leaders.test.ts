@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // `eventCount` is task 275's per-instant count. Not optional: layer1-ruler-rows.ts refuses a ruler entry without one (the count is printed in every row), so a fixture missing it fails the whole load with "ruler entry ... carries no event count" and the page draws nothing at all.
@@ -37,7 +37,7 @@ function buildSharedInstantView(ruler: FixtureInstant[]): object {
 const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 
 async function loadPageWithView(view: object): Promise<void> {
-    setupLayer1Dom(BOTH_ROOTS_SEARCH);
+    initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

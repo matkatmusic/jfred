@@ -10,7 +10,7 @@ import {
     createUnrelatedFixtureDiskFolder,
     createUnrelatedFixtureRepo,
 } from "./layer1-unrelated-fixture-helpers.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installOriginForwardingFetch } from "./webapp-fetch-test-helpers.ts";
 
 // Own port range: 18900+ and 19400+ are claimed by the two viewer_api_layer1 files, each reserving 500 through `process.pid % 500`.
@@ -34,7 +34,7 @@ after(() => {
 // Boot the page against the LIVE endpoint and wait for its render to finish.  bootLayer1Page() must run for EVERY document, not once: it is what seeds the header boxes from the page URL, and loadLayer1View reads those BOXES rather than the URL — an unseeded document makes it bail at its own missing-dir/repo guard and render nothing. node's module cache runs the module's own top-level boot only on the first import, so every later test needs this call.  loadLayer1View is then awaited rather than waitForAsyncWork()'d: that helper is three zero-delay macrotask turns, written for a stub that resolves immediately, and a real HTTP round trip plus the endpoint's git subprocesses will not reliably fit inside it. boot's own fire-and-forget load renders the same view, so the two cannot disagree.
 async function renderPageAgainstLiveEndpoint(dir: string = diskDir, repo: string = repoDir): Promise<void> {
     const search = `?dir=${encodeURIComponent(dir)}&repo=${encodeURIComponent(repo)}`;
-    setupLayer1Dom(search);
+    initLayer1Dom(search);
     installOriginForwardingFetch(`http://127.0.0.1:${SCRATCH_PORT}`);
     const { bootLayer1Page, loadLayer1View } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

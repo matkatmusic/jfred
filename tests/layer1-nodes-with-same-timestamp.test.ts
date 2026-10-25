@@ -1,13 +1,11 @@
-// Task 259: a run of nodes in ONE bubble that share an instant must be wrapped in a single grouping marker. Task 251 stopped a commit and an on-disk mtime at the same instant from overprinting by giving each its own 22 px row — but once they are on separate rows nothing says they were simultaneous, and this marker is what restores that.
-//
-// buildNodesWithSameTimestampMarkers is called DIRECTLY rather than through a page boot: the behaviour under test is pure element construction, so a stubbed NDJSON stream would only widen the failure surface.
+// Task 259: a run of nodes in ONE bubble that share an instant must be wrapped in a single grouping marker. Task 251 stopped a commit and an on-disk mtime at the same instant from overprinting by giving each its own 22 px row — but once they are on separate rows nothing says they were simultaneous, and this marker is what restores that.  buildNodesWithSameTimestampMarkers is called DIRECTLY rather than through a page boot: the behaviour under test is pure element construction, so a stubbed NDJSON stream would only widen the failure surface.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // The fixture's README.md tie: commit 4d5e6f70 and the file's mtime land on the same instant, so task 251's axis charges that instant two stacked rows — one RULER_NODE_ROW_PIXELS (22) apart.
 const TIED_INSTANT = "2026-07-20T16:00:00.000Z";

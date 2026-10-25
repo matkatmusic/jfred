@@ -1,6 +1,6 @@
 // Task 355: ticks the Edit box on the real server and checks the page against the real /api/layer1-edits payload.
 
-import { WireConfidence, WireEditKind, type WireEditsView } from "../../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind, type WireEditsView } from "../../webapp/layer1-wire-edits.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 

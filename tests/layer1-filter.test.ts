@@ -4,8 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { filterLayer1ViewByTargets, relayOutLayer1View } from "../webapp/layer1-filter.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
-import { WireRewindKind, type WireLayer1View } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Full ISO-8601 UTC, because the re-layout round-trips these through Date.toISOString().
 const EARLY = "2026-07-01T08:00:00.000Z";
@@ -221,7 +222,7 @@ test("test_the_relayout_does_not_mutate_the_view_it_is_given", () => {
 
 test("test_two_pickers_intersect_and_an_empty_one_does_not_filter", async () => {
     // Tasks 292+326: an idle picker never filters; dynamic import because layer1-page.ts boots at module scope.
-    setupLayer1Dom();
+    initLayer1Dom();
     const { intersectFilterTargets } = await import("../webapp/layer1-page.ts");
     // Steps: both pickers idle means no filter at all, spelled undefined.
     assert.equal(intersectFilterTargets([], []), undefined);

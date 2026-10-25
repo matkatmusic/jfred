@@ -1,6 +1,7 @@
 // Task 379 canned forked lanes for two fixture bubbles, served in the real /api/layer1-branches wire shape (task 357).
 
-import { WireEditSide, WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire.ts";
+import { WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
+import { WireEditSide } from "../webapp/layer1-wire-edits.ts";
 import { LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES } from "./layer1_branches_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";

@@ -6,7 +6,7 @@ import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
 const SESSION_FILE = "/fixture/demo/projects/b21d84c5.jsonl";
@@ -36,7 +36,7 @@ async function clickNode(node: HTMLElement): Promise<void> {
 }
 
 function setUpPage(): { url: string; body?: string }[] {
-  setupLayer1Dom();
+  initLayer1Dom();
   installAnimationFrameStub();
   getInputById("dir").value = "/work";
   return installRecordingFetch(answerEditFile);

@@ -6,7 +6,7 @@ import { el, getRequiredElementById } from "../webapp/app-dom.ts";
 import { displayDetailView } from "../webapp/layer1-diff-view.ts";
 import { bracketRunInstant, buildScriptRunDiffPanes, listDiffableSteps, pathsForScriptRun, resolveWashFileList, wireMultiFileDrawer } from "../webapp/layer1-drawer-multi.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";
@@ -84,7 +84,7 @@ test("pathsForScriptRun finds every pair carrying this run's toolUseId, in path 
 });
 
 test("buildScriptRunDiffPanes renders one pane per affected path, bracketed on the run instant", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     Object.assign(globalThis, { requestAnimationFrame: (callback: FrameRequestCallback) => { callback(0); return 0; } });
     Object.assign(globalThis, {
         fetch: async (url: unknown): Promise<Response> => {
@@ -144,7 +144,7 @@ test("resolveWashFileList always includes the caller's alwaysInclude paths, dedu
 });
 
 test("the one fold button flips with the sections and follows hand toggles", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const sections = [el("details", { class: "dfile", open: "" }), el("details", { class: "dfile", open: "" })] as HTMLDetailsElement[];
     displayDetailView(sections);
     wireMultiFileDrawer();

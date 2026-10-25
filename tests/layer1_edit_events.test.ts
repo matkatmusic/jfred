@@ -6,7 +6,7 @@ import { statSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from "../src/layer1_edit_events.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { WireEditKind } from "../webapp/layer1-wire.ts";
+import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import {
     SESSION_A, buildEditRecordPair, buildReadRecordPair, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
     type RecordEnvelope,

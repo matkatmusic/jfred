@@ -2,14 +2,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-setupLayer1Dom();
+initLayer1Dom();
 const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
 
 // A booted page, wired by bootLayer1Page exactly as the browser wires it.
 function openResizablePage(): void {
-    setupLayer1Dom();
+    initLayer1Dom();
     bootLayer1Page();
 }
 

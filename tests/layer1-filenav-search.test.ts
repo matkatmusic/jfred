@@ -1,13 +1,11 @@
-// Task 281: the File Nav's own search box narrows the TREE as the user types, and its clear button puts every file back. It is not the find-bubble box: nothing here scrolls the timeline.
-//
-// The page-facing renderLayer1FileNav is the subject rather than renderFileNavInto, because the wiring IS the feature — the filter itself is one `includes` call, and a box nobody listened to would pass every assertion written against the renderer alone.
+// Task 281: the File Nav's own search box narrows the TREE as the user types, and its clear button puts every file back. It is not the find-bubble box: nothing here scrolls the timeline.  The page-facing renderLayer1FileNav is the subject rather than renderFileNavInto, because the wiring IS the feature — the filter itself is one `includes` call, and a box nobody listened to would pass every assertion written against the renderer alone.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // The real layer1.html body, which is where #filenav-search and #filenav-search-clear live.
-setupLayer1Dom();
+initLayer1Dom();
 
 // One of each kind the endpoint returns, sharing the `src/` prefix buildFileTree strips. `gone.ts` sits a directory deeper so a query can match across a folder boundary.
 const NAV_VIEW = {

@@ -2,11 +2,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-page.ts");
 const { readRulerExpansion } = await import("../webapp/layer1-tick-files.ts");
 
@@ -60,7 +60,7 @@ function sampleOpenRowEveryStep(): number[] {
 }
 
 test("test_ticking_the_edit_box_during_a_chunked_redraw_keeps_the_open_ruler_row", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
     await renderLayer1View(buildChunkedView());
     const tick = [...document.querySelectorAll<HTMLElement>("#ruler .tick.multi")].find((candidate) => candidate.textContent!.endsWith("(2)"))!;

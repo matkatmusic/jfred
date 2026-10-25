@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // webapp/layer1-page.ts boots at MODULE SCOPE, so absorb that first import against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-page.ts");
 
 const T0 = "2026-07-01T10:00:00.000Z";
@@ -26,7 +26,7 @@ const FULL_VIEW = {
 };
 
 function openLayer1Page(): void {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderLayer1View(FULL_VIEW);
 }
 

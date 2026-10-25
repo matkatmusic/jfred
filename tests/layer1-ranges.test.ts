@@ -1,11 +1,9 @@
-// Task 292: where a session's band lands on the S18 axis.
-//
-// The interpolation is the only real risk here. The ruler is CAPPED and FLOORED, so time and pixels are not proportional — an instant halfway between two ticks in TIME is halfway between them in PIXELS, and computing it from the instant alone would put it somewhere else entirely.
+// Task 292: where a session's band lands on the S18 axis.  The interpolation is the only real risk here. The ruler is CAPPED and FLOORED, so time and pixels are not proportional — an instant halfway between two ticks in TIME is halfway between them in PIXELS, and computing it from the instant alone would put it somewhere else entirely.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderSessionRanges, resolveAxisPixelsAt } from "../webapp/layer1-ranges.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick, WireSession } from "../webapp/layer1-wire.ts";
 
 // Two ticks one hour apart in TIME and 100 px apart on the AXIS — a gap the cap has squashed, which is exactly the case a time-proportional reading would get wrong.
@@ -36,7 +34,7 @@ test("instants outside the ruler clamp to its ends", () => {
 });
 
 test("a session that covers no event gets a bar and no wash", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     // Wholly inside the gap between the two ticks, so there is nothing for a wash to close on.
     renderSessionRanges([buildSession("2026-06-01T10:10:00Z", "2026-06-01T10:20:00Z")], TICKS);
     assert.equal(document.querySelectorAll("#ranges .range").length, 1);
@@ -44,7 +42,7 @@ test("a session that covers no event gets a bar and no wash", () => {
 });
 
 test("a covering session's wash closes half a node row clear of the events it reaches", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderSessionRanges([buildSession("2026-06-01T09:00:00Z", "2026-06-01T12:00:00Z")], TICKS);
     const wash = document.querySelector("#washes .range-wash") as HTMLElement;
     // RULER_NODE_ROW_PIXELS is 22, so half a row is 11: 20 - 11 = 9, and 120 + 11 - 9 = 122.
@@ -53,7 +51,7 @@ test("a covering session's wash closes half a node row clear of the events it re
 });
 
 test("a gutter row inside a picked session's band is marked", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const ruler = document.getElementById("ruler")!;
     const insideTick = document.createElement("div");
     insideTick.className = "tick";

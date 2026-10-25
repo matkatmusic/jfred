@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { clearDiffWash, hasInstantInRange, paintDiffWash, readNodeInstant, repaintDiffWash, resolveRangeStepIndexes } from "../webapp/layer1-diff-wash.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireLayer1View, WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
@@ -23,13 +23,13 @@ function simulateStageRerenderWipingWashes(): void {
 }
 
 test("paintDiffWash draws one .diff-wash spanning base to target", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     paintDiffWash(T1, T3, RULER);
     assert.equal(document.querySelectorAll("#washes .diff-wash").length, 1);
 });
 
 test("repaintDiffWash restores the diff wash after an unrelated stage re-render wipes #washes", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     paintDiffWash(T1, T3, RULER);
     simulateStageRerenderWipingWashes();
     assert.equal(document.querySelectorAll("#washes .diff-wash").length, 0);
@@ -38,7 +38,7 @@ test("repaintDiffWash restores the diff wash after an unrelated stage re-render 
 });
 
 test("clearDiffWash forgets the range, so a later repaint stays a no-op", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     paintDiffWash(T1, T3, RULER);
     clearDiffWash();
     simulateStageRerenderWipingWashes();

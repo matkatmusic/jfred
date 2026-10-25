@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { drawLayer1Minimap, fitMinimapScale } from "../webapp/layer1-minimap.ts";
 
 // Keep axis ratios UNEQUAL (x 0.1, y 0.2): equal axes can't distinguish a per-axis scale from a uniform one.
@@ -56,7 +56,7 @@ function appendWash(rect: StubbedRect, color: string): void {
 
 // The pane's rect sits at the viewport origin, so a widget's client-space left/top IS its content-space left/top unscrolled.
 function openMappedPage(): HTMLElement {
-    setupLayer1Dom();
+    initLayer1Dom();
     const pane = findRequiredElement("main.timelines");
     stubMeasurements(pane, {
         scrollWidth: CONTENT_WIDTH_PX, scrollHeight: CONTENT_HEIGHT_PX,

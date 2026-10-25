@@ -4,11 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById } from "../webapp/app-dom.ts";
 import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
-import { setupLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1Stage, renderLayer1View } = await import("../webapp/layer1-page.ts");
 const { classifyNodeKind, renderShowRowWithKindFilter } = await import("../webapp/layer1-kind-filter.ts");
 const { restoreSavedSettings } = await import("../webapp/layer1-settings.ts");
@@ -37,7 +37,7 @@ function stubSettingsRoute(savedFile: unknown): { posted: () => unknown[] } {
 }
 
 async function renderFreshView(dir: string = ""): Promise<void> {
-    setupLayer1Dom();
+    initLayer1Dom();
     getInputById("dir").value = dir;
     await renderLayer1View(VIEW);
 }
@@ -53,7 +53,7 @@ function readHiddenKinds(): string {
 }
 
 test("test_classifyNodeKind_maps_node_classes_to_show_row_kinds", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const classify = (className: string) => classifyNodeKind(el("i", { class: className }));
     assert.equal(classify("node n-disk n-created"), "created");
     assert.equal(classify("node n-commit"), "commit");
@@ -91,7 +91,7 @@ test("test_rechecking_a_box_removes_its_kind_from_the_attribute", async () => {
 });
 
 test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
     let redraws = 0;
     renderShowRowWithKindFilter(buildFreshView(), () => {
@@ -109,7 +109,7 @@ test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_fli
 });
 
 test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-script-runs", [{ pairs: [] }]);
     let redraws = 0;
     renderShowRowWithKindFilter(buildFreshView(), () => {
@@ -128,7 +128,7 @@ test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_on
 });
 
 test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_hidden", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     Object.assign(globalThis, { fetch: async () => {
         cancelLayer1Load();
         throw new Error("aborted");
@@ -141,7 +141,7 @@ test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_h
 });
 
 test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_skips_a_box_already_on", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
     const editFetch = globalThis.fetch;
     stubStreamRoute("/api/layer1-script-runs", [{ pairs: [] }]);
@@ -166,7 +166,7 @@ test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_ski
 });
 
 test("test_a_cancelled_edit_fetch_leaves_the_box_unchecked_and_the_nodes_hidden", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     Object.assign(globalThis, { fetch: async () => {
         cancelLayer1Load();
         throw new Error("aborted");
@@ -207,7 +207,7 @@ test("test_hiding_a_kind_never_redraws_the_stage", async () => {
 
 test("test_the_boxes_restore_from_saved_settings", async () => {
     const dir = "/tmp/restore-app";
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute({ lastDir: dir, projects: { [dir]: { dir, hiddenKinds: ["snapshot"] } } });
     await restoreSavedSettings();
     await renderLayer1View(VIEW);
@@ -227,7 +227,7 @@ test("test_toggling_a_box_posts_dir_and_hidden_kinds", async () => {
 });
 
 test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
     let redraws = 0;
     renderShowRowWithKindFilter(buildFreshView(), () => {
@@ -246,7 +246,7 @@ test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_f
 });
 
 test("test_the_branch_box_waits_for_the_redraw_promise_before_it_unhides_the_kind", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
     let finishRedraw: () => void = () => {};
     renderShowRowWithKindFilter(buildFreshView(), () => new Promise<void>((resolve) => {
@@ -261,7 +261,7 @@ test("test_the_branch_box_waits_for_the_redraw_promise_before_it_unhides_the_kin
 });
 
 test("test_a_failed_branch_fetch_unticks_the_box_and_keeps_the_kind_hidden", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     Object.assign(globalThis, { fetch: async () => ({ ok: false, status: 500, text: async () => "boom" }) });
     renderShowRowWithKindFilter(buildFreshView(), () => {});
     toggleBox("branch", true);

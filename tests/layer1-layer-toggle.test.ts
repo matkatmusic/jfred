@@ -3,15 +3,15 @@
 //
 // import { test } from "node:test";
 // import assert from "node:assert/strict";
-// import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+// import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 //
 // // layer1-page.ts boots at module scope, so re-importing it would wire the toggle twice; absorb that boot here first.
-// setupLayer1Dom();
+// initLayer1Dom();
 // const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
 //
 // // A fresh, once-booted page; the empty query returns before any fetch, so no endpoint stub is needed.
 // function openPage(): void {
-//     setupLayer1Dom();
+//     initLayer1Dom();
 //     bootLayer1Page();
 // }
 //

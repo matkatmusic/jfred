@@ -13,7 +13,7 @@ import {
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const PROJECT_FOLDER = "/Users/you/code/demo-app";
@@ -36,7 +36,7 @@ const KNOWN_PATHS = ["src/index.ts", "src/util.ts", "README.md"];
 
 // The stub answers /api/layer1-sessions and the source list points somewhere; an empty list means no fetch.
 async function openSessionPane(sessions: object[] = SESSIONS): Promise<void> {
-    setupLayer1Dom();
+    initLayer1Dom();
     writeSourcePaths(SourceKind.jsonl, ["/p"]);
     // Task 304: the pane reads the endpoint as an NDJSON stream, so the stub answers one.
     stubStreamRoute("/api/layer1-sessions", [
@@ -99,7 +99,7 @@ test("the clear button is disabled at rest and empties the selection", async () 
 });
 
 test("no picked JSONL source folders means no sessions and no fetch", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     writeSourcePaths(SourceKind.jsonl, []);
     Object.assign(globalThis, { fetch: () => { throw new Error("must not fetch"); } });
     resetSessionSelection();

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
@@ -59,7 +59,7 @@ function buildDiskOnlyView(): object {
 
 // bootLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
 async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
-    setupLayer1Dom(search);
+    initLayer1Dom(search);
     stubStreamRoute("/api/layer1-view", [...progressLines, view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

@@ -4,10 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById } from "../webapp/app-dom.ts";
 import { restoreSavedSettings } from "../webapp/layer1-settings.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // "src" is the common prefix buildFileTree strips, leaving "nested" and "other" as sibling root folders.
 const NAV_VIEW = {

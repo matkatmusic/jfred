@@ -1,6 +1,6 @@
 // Layer 4 fixture payload: the canned script runs grouped by pair path, as /api/layer1-script-runs answers them.
 
-import type { WireScriptRunOf, WireScriptRunsViewOf } from "../webapp/layer1-wire.ts";
+import type { WireScriptRunOf, WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS } from "./layer1_script_runs_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";

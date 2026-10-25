@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const COMMIT = { hash: "b7c8d9e0f1a23445566778899aabbccddeeff001", instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
@@ -26,7 +26,7 @@ function viewWithOnePair(pair: object, ...ticks: { instant: string; axisPx: numb
 }
 
 async function loadPageWithView(view: object): Promise<void> {
-    setupLayer1Dom(BOTH_ROOTS_SEARCH);
+    initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

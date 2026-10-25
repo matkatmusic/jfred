@@ -93,7 +93,7 @@ function readLayer1HtmlBodyMarkup(): string {
 }
 
 // Fresh happy-dom window for the Layer 1 page (task 237); `search` seeds the URL query.
-export function setupLayer1Dom(search: string = ""): void {
+export function initLayer1Dom(search: string = ""): void {
   const browserWindow = new Window({ url: `http://localhost:7343/app/layer1.html${search}` });
   Object.assign(globalThis, {
     window: browserWindow,

@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { bootLayer1Page, renderLayer1View } = await import("../webapp/layer1-page.ts");
 
 const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
@@ -13,7 +13,7 @@ const COMMIT = { ...INSTANT, hash: "b7c8d9e0f1a23445566778899aabbccddeeff001" };
 const SNAPSHOT = { ...INSTANT, version: 1, sessionId: "s-1", sessionFile: "alpha.jsonl" };
 
 function renderViewAndListShownKinds(pair: object | undefined): string[] {
-    setupLayer1Dom();
+    initLayer1Dom();
     bootLayer1Page();
     renderLayer1View({ pairs: pair === undefined ? [] : [pair], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
     return [...document.querySelectorAll<HTMLInputElement>("#show-row input[type=checkbox]")]

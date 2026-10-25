@@ -7,7 +7,8 @@ import { mkdirSync, mkdtempSync, statSync, utimesSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { walkCurrentFileState } from "../src/layer1_disk_walk.ts";
+import { readCreatedState, walkCurrentFileState } from "../src/layer1_disk_walk.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
 
 // Write `content` at `relativePath` under `root`, creating parent folders as needed.
 function writeFixtureFile(root: string, relativePath: string, content: string): void {
@@ -126,4 +127,14 @@ test("test_walkCurrentFileState_reports_createdAt_only_when_the_birth_precedes_t
     const modifiedEarlier = walked.find((file) => file.relativePath.toString() === "src/app.ts");
     assert.equal(modifiedLater?.createdAt?.getTime(), born.getTime());
     assert.equal(modifiedEarlier?.createdAt, undefined);
+    assert.equal(modifiedEarlier?.createdNotTrusted, CreatedNotTrustedReason.birthNotBeforeMtime);
+});
+
+test("test_readCreatedState_keeps_the_reason_for_each_dropped_birth_time", () => {
+    // Scenario: epoch-0 birth gives noBirthTime; birth equal to or after the mtime gives birthNotBeforeMtime; an earlier birth is kept with no reason.
+    const mtime = new Date("2026-07-01T10:00:00Z");
+    assert.deepEqual(readCreatedState({ birthtime: new Date(0), mtime }), { createdNotTrusted: CreatedNotTrustedReason.noBirthTime });
+    assert.deepEqual(readCreatedState({ birthtime: mtime, mtime }), { createdNotTrusted: CreatedNotTrustedReason.birthNotBeforeMtime });
+    const earlier = new Date("2026-07-01T09:00:00Z");
+    assert.deepEqual(readCreatedState({ birthtime: earlier, mtime }), { createdAt: earlier });
 });

@@ -6,14 +6,14 @@ import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     DISK_FILE_CONTENT, DISK_FILE_PATH, LANE_T0, LANE_T1, LANE_T2, installAnimationFrameStub, installRecordingFetch,
     waitForPendingFetches,
 } from "./layer1-drawer-test-helpers.ts";
 
 test("task 329: a shift-click spanning two bubbles becomes a global range diffing both files", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
@@ -56,7 +56,7 @@ test("task 329: a shift-click spanning two bubbles becomes a global range diffin
 });
 
 test("task 336: the wash sweeps in every file with a step inside the range, not just the two clicked", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 import {
     COMMIT_CONTENT, DISK_FILE_CONTENT, DISK_FILE_PATH, FULL_DIFF, buildDiskNodeStage, getFirstPane,
@@ -13,7 +13,7 @@ import {
 } from "./layer1-drawer-test-helpers.ts";
 
 test("clicking an on-disk node opens one DiffView pane showing the whole file, controls hidden", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
@@ -42,7 +42,7 @@ test("clicking an on-disk node opens one DiffView pane showing the whole file, c
 });
 
 test("a click on anything that is not a node leaves the drawer shut", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     buildDiskNodeStage();
@@ -69,7 +69,7 @@ function buildCommitNodeStage(hashTitle: string): HTMLElement {
 }
 
 test("a commit node loads its string through git's blob at its own hash", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
@@ -89,7 +89,7 @@ test("a commit node loads its string through git's blob at its own hash", async 
 });
 
 test("a commit node with no hash on it falls back to the working tree, never to `git show :path`", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("dir").value = "/project";
@@ -106,7 +106,7 @@ test("a commit node with no hash on it falls back to the working tree, never to 
 });
 
 test("task 325: a File Nav leaf click selects the on-disk node and opens the drawer", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     const node = buildDiskNodeStage();
@@ -121,7 +121,7 @@ test("task 325: a File Nav leaf click selects the on-disk node and opens the dra
 });
 
 test("task 213: a commit node shows no [{ }] button (it has no transcript line)", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
@@ -135,7 +135,7 @@ test("task 213: a commit node shows no [{ }] button (it has no transcript line)"
 });
 
 test("task 213: an on-disk node shows no [{ }] button (it has no transcript line)", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();

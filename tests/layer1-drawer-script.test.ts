@@ -5,8 +5,9 @@ import assert from "node:assert/strict";
 import { el, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
-import type { WireLayer1View, WireScriptRun } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     DISK_FILE_CONTENT, LANE_T0, LANE_T2, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches,
 } from "./layer1-drawer-test-helpers.ts";
@@ -51,7 +52,7 @@ function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement; connec
 }
 
 test("task 356: clicking a script-run node opens the shared drawer with the resolved body", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const { nodeA } = buildScriptRunStage();
@@ -88,7 +89,7 @@ test("task 356: clicking a script-run node opens the shared drawer with the reso
 });
 
 test("task 356: clicking the shared connector opens the SAME drawer as clicking a node", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const { connector } = buildScriptRunStage();
@@ -102,7 +103,7 @@ test("task 356: clicking the shared connector opens the SAME drawer as clicking 
 });
 
 test("task 356: an unlabeled script run (no static filename) still opens, with a generated header", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const unlabeled: WireScriptRun = { ...SCRIPT_RUN, toolUseId: "toolu_inline", label: undefined };
@@ -127,7 +128,7 @@ test("task 356: an unlabeled script run (no static filename) still opens, with a
 
 // Opens the drawer on one unlabeled run of the given language and returns the drawer body.
 async function openUnlabeledRun(language: WireScriptRun["language"], code: string): Promise<HTMLElement> {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const run: WireScriptRun = { ...SCRIPT_RUN, toolUseId: "toolu_lang", label: undefined, language, code };

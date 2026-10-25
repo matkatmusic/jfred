@@ -6,7 +6,7 @@ import { replayPathEvents, type SeedBaseReader } from "../src/layer1_edit_replay
 import type { LayerEditEvent } from "../src/layer1_edit_events.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { StructuredPatchHunk } from "../src/structures/tool-results.ts";
-import { WireConfidence, WireEditKind } from "../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 
 const BASE_TEXT = "a\nb\nc\n";
 const NO_SEED: SeedBaseReader = () => undefined;

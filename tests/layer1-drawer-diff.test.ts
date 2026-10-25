@@ -4,14 +4,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     COMMIT_CONTENT, DISK_FILE_CONTENT, applyLaneView, buildLaneStage, getFirstPane, installAnimationFrameStub,
     installRecordingFetch, listPaneArrows, waitForPendingFetches,
 } from "./layer1-drawer-test-helpers.ts";
 
 test("shift-clicking a second node diffs the two sides' STRINGS, older side as base", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
@@ -40,7 +40,7 @@ test("shift-clicking a second node diffs the two sides' STRINGS, older side as b
 });
 
 test("task 324/329: the pane's base arrow steps freely and equal sides read as one revision", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";

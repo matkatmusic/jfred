@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // The pair's on-disk state, placed BEFORE either commit — the inverted case. A real 40-character hash, matching tests/layer1-page.test.ts: a short fake would pass a broken truncation unchanged.
@@ -27,7 +27,7 @@ const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 
 // Boot a fresh page against a stubbed NDJSON stream whose terminal line is `view`, exactly as tests/layer1-page.test.ts does — bootLayer1Page is called explicitly because node's module cache runs the module's own boot line only on the first import.
 async function loadPageWithView(view: object): Promise<void> {
-    setupLayer1Dom(BOTH_ROOTS_SEARCH);
+    initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

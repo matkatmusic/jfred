@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-test("setupLayer1Dom installs the layer1 page markup and seeds the URL query", () => {
-    setupLayer1Dom("?progress=1");
+test("initLayer1Dom installs the layer1 page markup and seeds the URL query", () => {
+    initLayer1Dom("?progress=1");
 
     assert.ok(document.getElementById("stage"));
     assert.equal(location.search, "?progress=1");

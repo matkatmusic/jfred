@@ -1,6 +1,6 @@
 // Layer 3 fixture data: crafted Read/Edit/Write events and the pure hunk helpers the bulk generator reuses.
 
-import { WireEditKind } from "../webapp/layer1-wire.ts";
+import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import { applyHunksToLines } from "./layer1_edit_hunks.ts";
 import type { StructuredPatchHunk } from "./structures/tool-results.ts";
 import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";

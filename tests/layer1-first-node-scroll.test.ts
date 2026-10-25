@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getRequiredElementById } from "../webapp/app-dom.ts";
 import { scrollToFirstVisibleNode } from "../webapp/layer1-first-node-scroll.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const PANE_RECT = { top: 0, bottom: 1000, left: 0, right: 1600 };
 
@@ -12,7 +12,7 @@ type StubbedNode = { top: number; isVisible: boolean };
 
 // Builds the pane and its nodes, and returns the ids of the nodes scrollIntoView was called on.
 function buildStubbedStage(nodes: StubbedNode[]): number[] {
-    setupLayer1Dom();
+    initLayer1Dom();
     const scrolled: number[] = [];
     getRequiredElementById("timelines").getBoundingClientRect = () => PANE_RECT as DOMRect;
     const stage = getRequiredElementById("stage");

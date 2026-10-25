@@ -85,8 +85,7 @@
   .viz-root[data-hidden-kinds~="edit"] .n-edit,
   .viz-root[data-hidden-kinds~="edit"] .n-read,
   /*
-  .viz-root[data-hidden-kinds~="script-run"] .n-script,
-  .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+    .viz-root[data-hidden-kinds~="script-run"] .n-script, .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
   */
   .viz-root #ruler .tick.kind-hidden { display: none; }
   /*
@@ -300,6 +299,7 @@
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
   .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
+  .filebox .created-untrusted { position: absolute; top: 37px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
 
   .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
   .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }
@@ -523,7 +523,7 @@
   */
   .ruler .tick.multi { text-decoration: underline dotted; }
   .ruler .tick.expanded { color: var(--ink); }
-  .ruler .tick .kind-dashes { display: inline-flex; gap: 2px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
+  .ruler .tick .kind-dashes { display: inline-flex; gap: 4px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
   .ruler .tick .kdash { position: relative; flex: 0 1 12px; min-width: 3px; height: 4px; border-radius: 2px; }
   .ruler .tick .kdash::after { content: ""; position: absolute; inset: -5px -1px; }
   .kdash-created { background: var(--muted); }

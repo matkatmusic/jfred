@@ -9,203 +9,206 @@ import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./la
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { renderCellCode } from "./diff-render.ts";
 import { computeScriptHighlightLanguage, describeScriptLanguage } from "./layer1-script-language.ts";
-import type { WireLayer1View, WireScriptRun } from "./layer1-wire.ts";
+import type { WireScriptRun } from "./layer1-wire-script-runs.ts";
+import type { WireLayer1View } from "./layer1-wire.ts";
 
 // A shift-clicked pair resolves to two global instants; each file diffs across that range.
 export type DiffWashRange = { baseInstant: string; targetInstant: string };
 
 // Every diffable revision of one path with its instant, oldest first: commits, snapshots, disk.
 function listDatedSteps(view: WireLayer1View, path: string): { instant: string; step: DiffStep }[] {
-    const pair = view.pairs.find((candidate) => candidate.path === path);
-    const diskOrphan = view.diskOrphans.find((candidate) => candidate.path === path);
-    if (pair === undefined && diskOrphan === undefined) {
-        return [];
-    }
-    const dated: { instant: string; step: DiffStep }[] = [
-        ...(pair?.commits ?? []).map((commit) => ({
-            instant: commit.instant,
-            step: describeCommitStep(path, commit.hash),
-        })),
-        ...((pair?.snapshots ?? diskOrphan?.snapshots) ?? []).map((snapshot) => ({
-            instant: snapshot.instant,
-            step: describeSnapshotStep(path, snapshot),
-        })),
-        { instant: (pair?.onDisk ?? diskOrphan!).instant, step: describeDiskStep(path) },
-    ];
-    return dated.sort((a, b) => Date.parse(a.instant) - Date.parse(b.instant));
+  const pair = view.pairs.find((candidate) => candidate.path === path);
+  const diskOrphan = view.diskOrphans.find((candidate) => candidate.path === path);
+  if (pair === undefined && diskOrphan === undefined) {
+    return [];
+  }
+  const dated: { instant: string; step: DiffStep }[] = [
+    ...(pair?.commits ?? []).map((commit) => ({
+      instant: commit.instant,
+      step: describeCommitStep(path, commit.hash),
+    })),
+    ...((pair?.snapshots ?? diskOrphan?.snapshots) ?? []).map((snapshot) => ({
+      instant: snapshot.instant,
+      step: describeSnapshotStep(path, snapshot),
+    })),
+    { instant: (pair?.onDisk ?? diskOrphan!).instant, step: describeDiskStep(path) },
+  ];
+  return dated.sort((a, b) => Date.parse(a.instant) - Date.parse(b.instant));
 }
 
 // The steps alone, order preserved; the nav flow needs no instants.
 export function listDiffableSteps(view: WireLayer1View, path: string): DiffStep[] {
-    return listDatedSteps(view, path).map((entry) => entry.step);
+  return listDatedSteps(view, path).map((entry) => entry.step);
 }
 
 // Task 356: brackets a run's instant between the nearest before/after steps on path's ladder.
 export function bracketRunInstant(
-    view: WireLayer1View, path: string, runInstant: string,
+  view: WireLayer1View, path: string, runInstant: string,
 ): { baseIndex: number; targetIndex: number } | undefined {
-    const dated = listDatedSteps(view, path);
-    if (dated.length === 0) {
-        return undefined;
+  const dated = listDatedSteps(view, path);
+  if (dated.length === 0) {
+    return undefined;
+  }
+  const runTime = Date.parse(runInstant);
+  let lastBefore = -1;
+  for (let index = dated.length - 1; index >= 0; index -= 1) {
+    if (Date.parse(dated[index]!.instant) <= runTime) {
+      lastBefore = index; break;
     }
-    const runTime = Date.parse(runInstant);
-    let lastBefore = -1;
-    for (let index = dated.length - 1; index >= 0; index -= 1) {
-        if (Date.parse(dated[index]!.instant) <= runTime) { lastBefore = index; break; }
-    }
-    const firstAfter = dated.findIndex((entry) => Date.parse(entry.instant) >= runTime);
-    return {
-        baseIndex: lastBefore === -1 ? 0 : lastBefore,
-        targetIndex: firstAfter === -1 ? dated.length - 1 : firstAfter,
-    };
+  }
+  const firstAfter = dated.findIndex((entry) => Date.parse(entry.instant) >= runTime);
+  return {
+    baseIndex: lastBefore === -1 ? 0 : lastBefore,
+    targetIndex: firstAfter === -1 ? dated.length - 1 : firstAfter,
+  };
 }
 
 // Task 356: every pair path carrying a scriptRuns entry for `toolUseId` — the shared-drawer lookup.
 export function pathsForScriptRun(view: WireLayer1View, toolUseId: string): string[] {
-    return view.pairs
-        .filter((pair) => (pair.scriptRuns ?? []).some((run) => run.toolUseId === toolUseId))
-        .map((pair) => pair.path);
+  return view.pairs
+    .filter((pair) => (pair.scriptRuns ?? []).some((run) => run.toolUseId === toolUseId))
+    .map((pair) => pair.path);
 }
 
 // Task 356: one before/after DiffView pane per affected path, bracketed on the run's own instant.
 export function buildScriptRunDiffPanes(
-    view: WireLayer1View, runInstant: string, affectedPaths: string[],
+  view: WireLayer1View, runInstant: string, affectedPaths: string[],
 ): HTMLElement[] {
-    return affectedPaths.map((path) => {
-        const bracket = bracketRunInstant(view, path, runInstant);
-        const steps = listDiffableSteps(view, path);
-        if (bracket === undefined) {
-            return buildDiffView(path, [], {
-                revisionControlsShown: false, mode: DiffPaneMode.inline, fullContents: false,
-                baseIndex: 0, targetIndex: 0, emptyText: "No verified state to diff against.",
-            });
-        }
-        return buildDiffView(path, steps, {
-            revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
-            baseIndex: bracket.baseIndex, targetIndex: bracket.targetIndex,
-        });
+  return affectedPaths.map((path) => {
+    const bracket = bracketRunInstant(view, path, runInstant);
+    const steps = listDiffableSteps(view, path);
+    if (bracket === undefined) {
+      return buildDiffView(path, [], {
+        revisionControlsShown: false, mode: DiffPaneMode.inline, fullContents: false,
+        baseIndex: 0, targetIndex: 0, emptyText: "No verified state to diff against.",
+      });
+    }
+    return buildDiffView(path, steps, {
+      revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
+      baseIndex: bracket.baseIndex, targetIndex: bracket.targetIndex,
     });
+  });
 }
 
 // One file's pane inside a range: its base/target derive from the wash, or an empty-range body.
 function buildRangeView(view: WireLayer1View, path: string, range: DiffWashRange): HTMLElement {
-    const dated = listDatedSteps(view, path);
-    const indexes = resolveRangeStepIndexes(dated.map((entry) => entry.instant), range.baseInstant, range.targetInstant);
-    if (indexes === undefined) {
-        return buildDiffView(path, [], {
-            revisionControlsShown: false, mode: DiffPaneMode.inline, fullContents: false,
-            baseIndex: 0, targetIndex: 0, emptyText: "No state inside the selected range.",
-        });
-    }
-    return buildDiffView(path, dated.map((entry) => entry.step), {
-        revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
-        baseIndex: indexes.baseIndex, targetIndex: indexes.targetIndex,
+  const dated = listDatedSteps(view, path);
+  const indexes = resolveRangeStepIndexes(dated.map((entry) => entry.instant), range.baseInstant, range.targetInstant);
+  if (indexes === undefined) {
+    return buildDiffView(path, [], {
+      revisionControlsShown: false, mode: DiffPaneMode.inline, fullContents: false,
+      baseIndex: 0, targetIndex: 0, emptyText: "No state inside the selected range.",
     });
+  }
+  return buildDiffView(path, dated.map((entry) => entry.step), {
+    revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
+    baseIndex: indexes.baseIndex, targetIndex: indexes.targetIndex,
+  });
 }
 
 // Files in, self-contained panes out; a range switches each pane from on-disk to its wash pair.
 export function createDetailViewsForFiles(view: WireLayer1View, files: string[], range?: DiffWashRange): HTMLElement[] {
-    const sorted = [...files].sort();
-    return sorted.map((path) => {
-        if (range !== undefined) {
-            return buildRangeView(view, path, range);
-        }
-        const steps = listDiffableSteps(view, path);
-        return buildDiffView(path, steps, {
-            // A lone selection has nothing to step or widen; 2+ files justify the revision controls.
-            revisionControlsShown: files.length > 1,
-            mode: DiffPaneMode.inline,
-            fullContents: true,
-            baseIndex: Math.max(0, steps.length - 1),
-            targetIndex: Math.max(0, steps.length - 1),
-        });
+  const sorted = [...files].sort();
+  return sorted.map((path) => {
+    if (range !== undefined) {
+      return buildRangeView(view, path, range);
+    }
+    const steps = listDiffableSteps(view, path);
+    return buildDiffView(path, steps, {
+      // A lone selection has nothing to step or widen; 2+ files justify the revision controls.
+      revisionControlsShown: files.length > 1,
+      mode: DiffPaneMode.inline,
+      fullContents: true,
+      baseIndex: Math.max(0, steps.length - 1),
+      targetIndex: Math.max(0, steps.length - 1),
     });
+  });
 }
 
 // A path belongs in the wash's swept-in set iff one of its OWN diffable steps lands inside the range.
 function pathTouchesRange(view: WireLayer1View, path: string, range: DiffWashRange): boolean {
-    return hasInstantInRange(listDatedSteps(view, path).map((entry) => entry.instant), range.baseInstant, range.targetInstant);
+  return hasInstantInRange(listDatedSteps(view, path).map((entry) => entry.instant), range.baseInstant, range.targetInstant);
 }
 
 // Task 336: every pair/disk-orphan path with a step inside the range, plus whatever the caller always wants shown.
 export function resolveWashFileList(view: WireLayer1View, range: DiffWashRange, alwaysInclude: string[]): string[] {
-    const candidates = [...view.pairs.map((pair) => pair.path), ...view.diskOrphans.map((orphan) => orphan.path)];
-    const swept = candidates.filter((path) => pathTouchesRange(view, path, range));
-    return [...new Set([...swept, ...alwaysInclude])].sort();
+  const candidates = [...view.pairs.map((pair) => pair.path), ...view.diskOrphans.map((orphan) => orphan.path)];
+  const swept = candidates.filter((path) => pathTouchesRange(view, path, range));
+  return [...new Set([...swept, ...alwaysInclude])].sort();
 }
 
 // The File Nav entry point: chrome, then the two-step pipeline above.
 export function showDetailViewForFiles(view: WireLayer1View, targets: string[]): void {
-    clearDiffPair();
-    setDrawerTools("none");
-    // The single-node ↑↓ step a stale timeline anchor, so the nav flow hides them.
-    getRequiredElementById("dprev").hidden = true;
-    getRequiredElementById("dnext").hidden = true;
-    const sorted = [...targets].sort();
-    const header = getRequiredElementById("dpath");
-    // A lone file is named ONCE, here; its section plate is removed by displayDetailView.
-    header.textContent = sorted.length === 1
-        ? `${sorted[0]!.split("/").pop()} — Current on-disk state`
-        : `${sorted.length} files — Current on-disk state`;
-    header.title = sorted.join("\n");
-    getRequiredElementById("dmeta").textContent = `working tree   ·   ${sorted.length} selected`;
-    displayDetailView(createDetailViewsForFiles(view, sorted));
+  clearDiffPair();
+  setDrawerTools("none");
+  // The single-node ↑↓ step a stale timeline anchor, so the nav flow hides them.
+  getRequiredElementById("dprev").hidden = true;
+  getRequiredElementById("dnext").hidden = true;
+  const sorted = [...targets].sort();
+  const header = getRequiredElementById("dpath");
+  // A lone file is named ONCE, here; its section plate is removed by displayDetailView.
+  header.textContent = sorted.length === 1
+    ? `${sorted[0]!.split("/").pop()} — Current on-disk state`
+    : `${sorted.length} files — Current on-disk state`;
+  header.title = sorted.join("\n");
+  getRequiredElementById("dmeta").textContent = `working tree   ·   ${sorted.length} selected`;
+  displayDetailView(createDetailViewsForFiles(view, sorted));
 }
 
 // Task 329: the second shift-clicked node closes a global range wash; every nav-selected file diffs across it.
 export function extendDiffSelection(anchor: { node: HTMLElement; path: string }, node: HTMLElement, path: string): void {
-    if (anchor.node === node) {
-        return;
-    }
-    const view = readDrawnView();
-    if (view === undefined) {
-        return;
-    }
-    const anchorInstant = readNodeInstant(view, anchor.path, anchor.node);
-    const nodeInstant = readNodeInstant(view, path, node);
-    if (anchorInstant === undefined || nodeInstant === undefined) {
-        return;
-    }
-    // Direction comes from the instant, never click order: earlier is base, later is target.
-    const [baseNode, baseInstant, targetInstant] = Date.parse(anchorInstant) <= Date.parse(nodeInstant)
-        ? [anchor.node, anchorInstant, nodeInstant]
-        : [node, nodeInstant, anchorInstant];
-    const targetNode = baseNode === anchor.node ? node : anchor.node;
-    for (const lit of document.querySelectorAll(".found, .diff-base, .diff-target")) {
-        lit.classList.remove("found", "diff-base", "diff-target");
-    }
-    baseNode.classList.add("diff-base");
-    targetNode.classList.add("diff-target");
-    paintDiffWash(baseInstant, targetInstant, view.ruler);
-    const files = resolveWashFileList(view, { baseInstant, targetInstant }, [...readNavTargets(), anchor.path, path]);
-    const header = getRequiredElementById("dpath");
-    header.textContent = files.length === 1
-        ? `${files[0]!.split("/").pop()} — range diff`
-        : `${files.length} files — range diff`;
-    header.title = files.join("\n");
-    getRequiredElementById("dmeta").textContent =
-        `base ${formatInstantLabel(baseInstant)} → target ${formatInstantLabel(targetInstant)}`;
-    setDrawerTools("none");
-    getRequiredElementById("dprev").hidden = true;
-    getRequiredElementById("dnext").hidden = true;
-    displayDetailView(createDetailViewsForFiles(view, files, { baseInstant, targetInstant }));
+  if (anchor.node === node) {
+    return;
+  }
+  const view = readDrawnView();
+  if (view === undefined) {
+    return;
+  }
+  const anchorInstant = readNodeInstant(view, anchor.path, anchor.node);
+  const nodeInstant = readNodeInstant(view, path, node);
+  if (anchorInstant === undefined || nodeInstant === undefined) {
+    return;
+  }
+  // Direction comes from the instant, never click order: earlier is base, later is target.
+  const [baseNode, baseInstant, targetInstant] = Date.parse(anchorInstant) <= Date.parse(nodeInstant)
+    ? [anchor.node, anchorInstant, nodeInstant]
+    : [node, nodeInstant, anchorInstant];
+  const targetNode = baseNode === anchor.node ? node : anchor.node;
+  for (const lit of document.querySelectorAll(".found, .diff-base, .diff-target")) {
+    lit.classList.remove("found", "diff-base", "diff-target");
+  }
+  baseNode.classList.add("diff-base");
+  targetNode.classList.add("diff-target");
+  paintDiffWash(baseInstant, targetInstant, view.ruler);
+  const files = resolveWashFileList(view, { baseInstant, targetInstant }, [...readNavTargets(), anchor.path, path]);
+  const header = getRequiredElementById("dpath");
+  header.textContent = files.length === 1
+    ? `${files[0]!.split("/").pop()} — range diff`
+    : `${files.length} files — range diff`;
+  header.title = files.join("\n");
+  getRequiredElementById("dmeta").textContent =
+    `base ${formatInstantLabel(baseInstant)} → target ${formatInstantLabel(targetInstant)}`;
+  setDrawerTools("none");
+  getRequiredElementById("dprev").hidden = true;
+  getRequiredElementById("dnext").hidden = true;
+  displayDetailView(createDetailViewsForFiles(view, files, { baseInstant, targetInstant }));
 }
 
 export function wireMultiFileDrawer(): void {
-    const setEverySectionOpen = (open: boolean): void => {
-        for (const section of document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")) {
-            section.open = open;
-        }
-    };
+  const setEverySectionOpen = (open: boolean): void => {
+    for (const section of document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")) {
+      section.open = open;
+    }
+  };
     // getRequiredElementById("dcollapse-all").addEventListener("click", () => setEverySectionOpen(false));
     // getRequiredElementById("dshow-all").addEventListener("click", () => setEverySectionOpen(true));
-    getRequiredElementById("dfold-all").addEventListener("click", () => {
-        const anyOpen = [...document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")].some((section) => section.open);
-        setEverySectionOpen(!anyOpen);
-        syncFoldAllLabel();
-    });
-    // `toggle` does not bubble, so listen in the capture phase.
-    getRequiredElementById("dbody").addEventListener("toggle", syncFoldAllLabel, true);
+  getRequiredElementById("dfold-all").addEventListener("click", () => {
+    const anyOpen = [...document.querySelectorAll<HTMLDetailsElement>("#dbody details.dfile")].some((section) => section.open);
+    setEverySectionOpen(!anyOpen);
+    syncFoldAllLabel();
+  });
+  // `toggle` does not bubble, so listen in the capture phase.
+  getRequiredElementById("dbody").addEventListener("toggle", syncFoldAllLabel, true);
 }
 
 // const SCRIPT_RUN_STATUSES: [string, string][] = [["🚫", "not verified"], ["📍", "located"], ["⏸️", "not replayed"]];
@@ -218,30 +221,30 @@ const SCRIPT_RUN_STATUS = { verified: false, located: true, replayed: false };
 //     return SCRIPT_RUN_STATUSES.map(([text, title]) => el("span", { class: "run-status", text, title }));
 // }
 export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
-    const checks: (keyof typeof SCRIPT_RUN_STATUS)[] = SCRIPT_RUN_STATUS.verified ? ["verified"] : ["verified", "located", "replayed"];
-    return checks.flatMap((check) => {
-        const passed = SCRIPT_RUN_STATUS[check];
-        // dpath collapses normal spaces, so the groups are separated by two non-breaking spaces.
-        return [`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
-            el("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` })];
-    });
+  const checks: (keyof typeof SCRIPT_RUN_STATUS)[] = SCRIPT_RUN_STATUS.verified ? ["verified"] : ["verified", "located", "replayed"];
+  return checks.flatMap((check) => {
+    const passed = SCRIPT_RUN_STATUS[check];
+    // dpath collapses normal spaces, so the groups are separated by two non-breaking spaces.
+    return [`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
+      el("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` })];
+  });
 }
 
 // A script run's title: its script file's label, else its language's.
 export function describeScriptRunTitle(run: WireScriptRun): string {
-    return run.label ?? describeScriptLanguage(run.language);
+  return run.label ?? describeScriptLanguage(run.language);
 }
 
 // Task 356: the script-meta list and the script body of a script-run drawer; where the run came from is session, line and tool use id.
 export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
-    const metaRows: [string, string][] = [
-        ["kind", "script run (layer 4)"], ["executor", describeScriptLanguage(run.language)], ["instant", run.instant],
-        ["session", run.sessionFile], ...(run.line === undefined ? [] : [["line", String(run.line)] as [string, string]]), ["tool use id", run.toolUseId],
-    ];
-    const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
-    const provenance = ["resolved body", run.sessionFile, ...(run.line === undefined ? [] : [`line ${run.line}`]), run.toolUseId, run.instant].join(" · ");
-    const pre = el("pre");
-    renderCellCode(pre, run.code, computeScriptHighlightLanguage(run.language));
-    const head = el("div", { class: "sbhead" }, [el("b", { text: describeScriptRunTitle(run) }), el("span", { class: "prov", text: provenance })]);
-    return [scriptMeta, el("div", { class: "scriptbody" }, [head, pre])];
+  const metaRows: [string, string][] = [
+    ["kind", "script run (layer 4)"], ["executor", describeScriptLanguage(run.language)], ["instant", run.instant],
+    ["session", run.sessionFile], ...(run.line === undefined ? [] : [["line", String(run.line)] as [string, string]]), ["tool use id", run.toolUseId],
+  ];
+  const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
+  const provenance = ["resolved body", run.sessionFile, ...(run.line === undefined ? [] : [`line ${run.line}`]), run.toolUseId, run.instant].join(" · ");
+  const pre = el("pre");
+  renderCellCode(pre, run.code, computeScriptHighlightLanguage(run.language));
+  const head = el("div", { class: "sbhead" }, [el("b", { text: describeScriptRunTitle(run) }), el("span", { class: "prov", text: provenance })]);
+  return [scriptMeta, el("div", { class: "scriptbody" }, [head, pre])];
 }

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
 const CHANGE_ID = "toolu_lane_node";
@@ -26,7 +26,7 @@ function drawLaneNode(): { dot: HTMLElement; label: HTMLElement } {
 }
 
 async function openLaneNode(pickTarget: (nodes: { dot: HTMLElement; label: HTMLElement }) => HTMLElement): Promise<{ url: string }[]> {
-  setupLayer1Dom();
+  initLayer1Dom();
   installAnimationFrameStub();
   getInputById("dir").value = "/work";
   const asks = installRecordingFetch(answerBranchFile);
@@ -58,7 +58,7 @@ test("clicking a lane label opens the same drawer, named for the file and the re
 });
 
 test("a trunk edit node's reads carry no branch flag", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   installAnimationFrameStub();
   getInputById("dir").value = "/work";
   const asks = installRecordingFetch(answerBranchFile);

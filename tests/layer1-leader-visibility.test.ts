@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 
@@ -52,7 +52,7 @@ function buildSharedInstantView(): object {
 }
 
 async function loadPageWithView(view: object): Promise<void> {
-    setupLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
+    initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

@@ -5,7 +5,7 @@ import { rmSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type WireEditsView } from "../../webapp/layer1-wire.ts";
+import { type WireEditsView } from "../../webapp/layer1-wire-edits.ts";
 import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
 import { executeLayer3RealChecks } from "./layer3-real-checks.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";

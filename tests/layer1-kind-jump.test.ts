@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById } from "../webapp/app-dom.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-page.ts");
 const { refreshKindJumpArrows } = await import("../webapp/layer1-kind-jump.ts");
 
@@ -36,7 +36,7 @@ function buildNode(className: string, centerY: number): HTMLElement {
 }
 
 async function renderViewWithSyntheticStage(): Promise<void> {
-    setupLayer1Dom();
+    initLayer1Dom();
     getInputById("dir").value = "";
     await renderLayer1View(VIEW);
     Object.assign(document.getElementById("timelines")!, {

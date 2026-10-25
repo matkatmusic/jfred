@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { closeBusyShield, openBusyShield, paintBusyShield, showBusyShieldError, wireBusyShield } from "../webapp/layer1-busy-shield.ts";
 import { loadEditsOnce } from "../webapp/layer1-edits.ts";
-import { setupLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
 function readById(id: string): HTMLElement {
   return document.getElementById(id)!;
@@ -16,7 +16,7 @@ function checkHidden(id: string): boolean {
 }
 
 test("test_open_shows_shield_with_label_and_zero_fill", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   openBusyShield("starting");
   assert.equal(checkHidden("busy-shield"), false);
   assert.equal(readById("busy-label").textContent, "starting");
@@ -27,7 +27,7 @@ test("test_open_shows_shield_with_label_and_zero_fill", () => {
 });
 
 test("test_paint_counts_up_label_and_fill_width", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   openBusyShield("starting");
   paintBusyShield("reading Edit/Write events", 3, 10);
   assert.ok(readById("busy-label").textContent!.includes("3 / 10"));
@@ -35,7 +35,7 @@ test("test_paint_counts_up_label_and_fill_width", () => {
 });
 
 test("test_shield_covers_viewport_and_hides_with_hidden_attribute", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
   assert.match(css, /\.busy-shield \{[^}]*position: fixed;[^}]*inset: 0;/);
   assert.match(css, /\.busy-shield\[hidden\] \{ display: none; \}/);
@@ -43,7 +43,7 @@ test("test_shield_covers_viewport_and_hides_with_hidden_attribute", () => {
 });
 
 test("test_error_keeps_shield_open_with_message_and_close_button", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   openBusyShield("starting");
   showBusyShieldError("Error: boom");
   assert.equal(checkHidden("busy-shield"), false);
@@ -54,7 +54,7 @@ test("test_error_keeps_shield_open_with_message_and_close_button", () => {
 });
 
 test("test_close_hides_shield_and_clears_error_and_fill", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   openBusyShield("starting");
   paintBusyShield("reading", 5, 10);
   showBusyShieldError("Error: boom");
@@ -65,7 +65,7 @@ test("test_close_hides_shield_and_clears_error_and_fill", () => {
 });
 
 test("test_close_button_closes_the_shield", () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   wireBusyShield();
   openBusyShield("starting");
   showBusyShieldError("Error: boom");
@@ -74,7 +74,7 @@ test("test_close_button_closes_the_shield", () => {
 });
 
 test("test_cancel_button_aborts_the_load", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   wireBusyShield();
   Object.assign(globalThis, { fetch: (_url: unknown, options?: RequestInit) => new Promise((_resolve, reject) => {
     options?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));

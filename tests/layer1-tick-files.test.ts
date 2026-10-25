@@ -6,7 +6,7 @@ import { el } from "../webapp/app-dom.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-files.ts";
 import { flashSession } from "../webapp/layer1-sessions.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Absolute ruler offsets, exactly as the endpoint ships them.
 const EARLY_PX = 10;
@@ -43,7 +43,7 @@ function buildOrphanBubble(title: string, path: string, bucketPx: number): HTMLE
 
 // `build` is a callback because `el` reads the global `document`; inline bubbles would bind to the previous test's page.
 function drawStage(build: () => HTMLElement[]): void {
-    setupLayer1Dom();
+    initLayer1Dom();
     document.getElementById("stage")!.replaceChildren(...build());
 }
 
@@ -137,7 +137,7 @@ test("test_listEventsAtRow_skips_a_stacked_node_of_a_different_instant", () => {
 });
 
 test("test_flashSession_highlights_the_owning_row_as_lead_without_selecting_it", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     seedSessionRows("other.jsonl", "owner.jsonl");
     flashSession("owner.jsonl");
     const owner = document.querySelector('[data-file="owner.jsonl"]')!;
@@ -149,7 +149,7 @@ test("test_flashSession_highlights_the_owning_row_as_lead_without_selecting_it",
 
 test("test_flashSession_clears_the_previous_lead_so_two_clicks_leave_one", () => {
     // The trap the mockup found: a stale lead marker survives a second click unless every call clears it.
-    setupLayer1Dom();
+    initLayer1Dom();
     seedSessionRows("a.jsonl", "b.jsonl");
     flashSession("a.jsonl");
     flashSession("b.jsonl");
@@ -159,7 +159,7 @@ test("test_flashSession_clears_the_previous_lead_so_two_clicks_leave_one", () =>
 
 test("test_flashSession_removes_the_highlight_after_the_fade", (t) => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
-    setupLayer1Dom();
+    initLayer1Dom();
     seedSessionRows("owner.jsonl");
     flashSession("owner.jsonl");
     t.mock.timers.tick(2600);

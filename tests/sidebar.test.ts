@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // `keep`, `drop`, `other` are sibling folders; `deep` nests inside `keep` for multi-select coverage.
 const NAV_VIEW = {
@@ -36,7 +36,7 @@ function findFolderSummary(container: HTMLElement, name: string): HTMLElement {
     return summary as HTMLElement;
 }
 
-// Off `window`: setupLayer1Dom's hand-picked globalThis constructors don't include MouseEvent.
+// Off `window`: initLayer1Dom's hand-picked globalThis constructors don't include MouseEvent.
 function shiftClickFolder(container: HTMLElement, name: string): void {
     findFolderSummary(container, name).dispatchEvent(
         new window.MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: true }),

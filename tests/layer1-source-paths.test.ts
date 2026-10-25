@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const PROJECTS_DIR = "/Users/you/.claude/projects";
@@ -15,7 +15,7 @@ const DERIVED_JSONL_DIR = `${PROJECTS_DIR}/-Users-you-claude-code-src-demo-app`;
 
 // Fresh module per test: the lists are module state, so a prior `touched` flag would leak.
 async function openPageWithSeededDefaults() {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubFetchRoutes({ "/api/config": { projectsDir: PROJECTS_DIR, fileHistoryDir: FILE_HISTORY_DIR } });
     const sourcePaths = await import(`../webapp/layer1-source-paths.ts?case=${Math.random()}`);
     await sourcePaths.seedSourceDefaults();

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { clearNavWash, renderNavWash, resolveNavWashInstants } from "../webapp/layer1-nav-wash.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireLayer1View, WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
@@ -79,7 +79,7 @@ function buildDomView(): WireLayer1View {
 }
 
 test("renderNavWash paints one .nav-wash spanning the selected pair's ladder", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderNavWash(buildDomView(), ["a.ts"]);
     const washes = document.querySelectorAll("#washes .nav-wash");
     assert.equal(washes.length, 1);
@@ -90,14 +90,14 @@ test("renderNavWash paints one .nav-wash spanning the selected pair's ladder", (
 });
 
 test("renderNavWash with no selection removes the wash", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderNavWash(buildDomView(), ["a.ts"]);
     renderNavWash(buildDomView(), []);
     assert.equal(document.querySelectorAll("#washes .nav-wash").length, 0);
 });
 
 test("clearNavWash never touches a sibling wash kind", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const stray = document.createElement("div");
     stray.className = "range-wash";
     document.getElementById("washes")!.append(stray);

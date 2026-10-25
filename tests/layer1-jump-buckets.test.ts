@@ -1,13 +1,11 @@
-// The Layer 1 page's orphan-bucket jump buttons (task 256). The buckets are placed at their earliest member's instant, which on a real project is far down and across a ~156,000 px canvas, so the header carries a shortcut to each.
-//
-// happy-dom implements NO layout and no scrolling, so nothing here reads a scroll position — that would be measuring happy-dom rather than the page. Every assertion instead observes WHICH element received `scrollIntoView`, the same stub-and-record shape tests/layered-app.test.ts uses for the drawer's jump items. The behaviour under zoom needs no test at all: layer1-zoom.ts applies the NATIVE CSS `zoom` property, so the browser's own scroll positions are already in zoomed pixels and the page contributes no arithmetic that could be wrong.
+// The Layer 1 page's orphan-bucket jump buttons (task 256). The buckets are placed at their earliest member's instant, which on a real project is far down and across a ~156,000 px canvas, so the header carries a shortcut to each.  happy-dom implements NO layout and no scrolling, so nothing here reads a scroll position — that would be measuring happy-dom rather than the page. Every assertion instead observes WHICH element received `scrollIntoView`, the same stub-and-record shape tests/layered-app.test.ts uses for the drawer's jump items. The behaviour under zoom needs no test at all: layer1-zoom.ts applies the NATIVE CSS `zoom` property, so the browser's own scroll positions are already in zoomed pixels and the page contributes no arithmetic that could be wrong.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // webapp/layer1-page.ts calls bootLayer1Page() at MODULE SCOPE, so the first import in this process wires every listener a SECOND time — and one click would then fire two jumps. Absorb that boot here, against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { bootLayer1Page, renderLayer1View } = await import("../webapp/layer1-page.ts");
 
 // The two headings renderLayer1View gives its buckets, and the `data-bucket` values layer1.html's buttons carry. gitOrphans = in the repo, absent from disk; diskOrphans = the mirror.
@@ -16,7 +14,7 @@ const DISK_ORPHAN_TITLE = "No repository match";
 
 // One rendered view, then a stub on every bucket recording the title of whichever one is scrolled to. Callers pass the orphan rows they want; an EMPTY array is the interesting case, because buildOrphanBucket returns undefined for it and the bucket is never rendered at all.
 function openPageWithBuckets(gitOrphanPaths: string[], diskOrphanPaths: string[]): { readScrolledTitle: () => string | undefined } {
-    setupLayer1Dom();
+    initLayer1Dom();
     bootLayer1Page();
     const toRows = (paths: string[]) =>
         paths.map((path, index) => ({ path, instant: "2026-07-25T10:00:00.000Z", axisPx: 100 + index }));

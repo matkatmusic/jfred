@@ -2,17 +2,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-    CommitTimeSource,
-    SourceKind,
-    WireConfidence,
-    WireEditKind,
-    WireEditSide,
-    WireRewindKind,
-    WireScriptExecutorKind,
-    listPairLadderInstants,
-    type WirePairOf,
-} from "../webapp/layer1-wire.ts";
+import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
+import { WireConfidence, WireEditKind, WireEditSide } from "../webapp/layer1-wire-edits.ts";
+import { listPairLadderInstants } from "../webapp/layer1-wire-ladder.ts";
+import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
+import { CommitTimeSource, SourceKind, type WirePairOf } from "../webapp/layer1-wire.ts";
 
 test("test_committer_leads_the_time_source_values", () => {
     // committer is the toggle's default; Object.values order feeds that toggle.

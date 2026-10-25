@@ -1,6 +1,4 @@
-// Task 297: the Save-project-settings button and the restore that reads its file back.
-//
-// A FAILED save must leave the button armed, and a ?dir=/?repo= link must beat the saved file.
+// Task 297: the Save-project-settings button and the restore that reads its file back.  A FAILED save must leave the button armed, and a ?dir=/?repo= link must beat the saved file.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +12,7 @@ import {
 } from "../webapp/layer1-settings.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SAVED_PROJECT = {
     dir: "/Users/you/code/demo-app",
@@ -52,7 +50,7 @@ function isSaveButtonDisabled(): boolean {
 }
 
 test("editing a saved field arms the button and drops the stale note", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute(null, true);
     wireSettingsSave();
     getRequiredElementById("saved-note").textContent = "saved";
@@ -65,7 +63,7 @@ test("editing a saved field arms the button and drops the stale note", () => {
 });
 
 test("a successful save posts the whole record and disarms the button", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const route = stubSettingsRoute(null, true);
     wireSettingsSave();
     getInputById("dir").value = SAVED_PROJECT.dir;
@@ -83,7 +81,7 @@ test("a successful save posts the whole record and disarms the button", async ()
 });
 
 test("a refused save leaves the button armed and says so", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute(null, false);
     wireSettingsSave();
     markSettingsDirty();
@@ -96,7 +94,7 @@ test("a refused save leaves the button armed and says so", async () => {
 });
 
 test("the saved file fills the boxes and the two source lists", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
 
     assert.equal(await restoreSavedSettings(), true);
@@ -108,7 +106,7 @@ test("the saved file fills the boxes and the two source lists", async () => {
 
 test("a link wins for the fields it names, and only those", async () => {
     // Precedence is PER FIELD: a ?dir=&repo= link renders those fields but says nothing about the source lists.
-    setupLayer1Dom("?dir=/Users/you/code/other-app&repo=/Users/you/code/other-app");
+    initLayer1Dom("?dir=/Users/you/code/other-app&repo=/Users/you/code/other-app");
     stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     getInputById("dir").value = "/Users/you/code/other-app";
 
@@ -119,7 +117,7 @@ test("a link wins for the fields it names, and only those", async () => {
 });
 
 test("a link carrying its own source list keeps it", async () => {
-    setupLayer1Dom("?dir=/Users/you/code/other-app&jsonl=%2Flinked%2Fprojects");
+    initLayer1Dom("?dir=/Users/you/code/other-app&jsonl=%2Flinked%2Fprojects");
     stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     writeSourcePaths(SourceKind.jsonl, ["/linked/projects"]);
 
@@ -130,7 +128,7 @@ test("a link carrying its own source list keeps it", async () => {
 
 test("debugConfig defaults fill the page when nothing is saved", async () => {
     const DEFAULTS = { dir: "/cfg/project", repo: "/cfg/project", jsonl: ["/cfg/a", "/cfg/b", "/cfg/c"] };
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute({ lastDir: null, projects: {}, defaults: DEFAULTS }, true);
     writeSourcePaths(SourceKind.jsonl, []);
 
@@ -141,7 +139,7 @@ test("debugConfig defaults fill the page when nothing is saved", async () => {
 });
 
 test("a saved project beats the debugConfig defaults", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     stubSettingsRoute({
         lastDir: SAVED_PROJECT.dir,
         projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT },
@@ -155,7 +153,7 @@ test("a saved project beats the debugConfig defaults", async () => {
 });
 
 test("restoring settings makes every saved project's collapsed folders available", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const dirA = SAVED_PROJECT.dir;
     const dirB = "/Users/you/code/other-app";
     stubSettingsRoute({
@@ -174,7 +172,7 @@ test("restoring settings makes every saved project's collapsed folders available
 });
 
 test("saving folder collapse state posts dir and the folder list", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const route = stubSettingsRoute(null, true);
     getInputById("dir").value = SAVED_PROJECT.dir;
 
@@ -185,7 +183,7 @@ test("saving folder collapse state posts dir and the folder list", async () => {
 });
 
 test("saving folder collapse state with no project open posts nothing", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     const route = stubSettingsRoute(null, true);
     getInputById("dir").value = "";
 

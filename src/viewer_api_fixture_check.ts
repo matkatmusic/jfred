@@ -1,6 +1,6 @@
 // Fixture self-checks, one function per layer; a failed check throws when the loader module is imported.
 
-import { WireConfidence, WireEditKind } from "../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import type { BulkFixtureTarget } from "./viewer_api_fixture_bulk.ts";
 import { parseMs, type FixtureDisk, type FixtureSession } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";

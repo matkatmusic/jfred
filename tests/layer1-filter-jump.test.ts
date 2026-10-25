@@ -1,13 +1,11 @@
-// Task 253 bug report (2026-07-26): after selecting a folder in the File Nav, clicking a FILE in that folder no longer scrolls to its bubble.
-//
-// Driven through webapp/layer1-page.ts's real render rather than a hand-built stage, because the suspicion is in the wiring BETWEEN the nav, the filter and the stage — a fixture stage would skip exactly the step under test. scrollIntoView is spied on, as tests/layer1-find-file.test.ts does: happy-dom implements no layout and no scrolling, so the contract is "the right element was asked to scroll itself".
+// Task 253 bug report (2026-07-26): after selecting a folder in the File Nav, clicking a FILE in that folder no longer scrolls to its bubble.  Driven through webapp/layer1-page.ts's real render rather than a hand-built stage, because the suspicion is in the wiring BETWEEN the nav, the filter and the stage — a fixture stage would skip exactly the step under test. scrollIntoView is spied on, as tests/layer1-find-file.test.ts does: happy-dom implements no layout and no scrolling, so the contract is "the right element was asked to scroll itself".
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // webapp/layer1-page.ts boots at MODULE SCOPE, so absorb that first import against a throwaway DOM (the same guard as tests/layer1-find-file.test.ts).
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-page.ts");
 
 const T0 = "2026-07-01T10:00:00.000Z";
@@ -36,7 +34,7 @@ const scrolledPaths: string[] = [];
 
 // Boot a fresh page holding the whole view, with the scroll spy installed on the prototype — the bubbles are rebuilt by every render, so the page, not the test, owns those elements.
 function openLayer1Page(): void {
-    setupLayer1Dom();
+    initLayer1Dom();
     HTMLElement.prototype.scrollIntoView = function recordScroll(this: HTMLElement): void {
         scrolledPaths.push(this.querySelector(".fname")?.getAttribute("data-path") ?? "");
     };

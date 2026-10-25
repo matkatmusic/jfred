@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const COMMIT = { hash: "b7c8d9e0f1a23445566778899aabbccddeeff001", instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
@@ -31,7 +31,7 @@ let branchRequests = 0;
 
 async function loadPage(): Promise<void> {
   branchRequests = 0;
-  setupLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
+  initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
   stubStreamRoute("/api/layer1-view", [VIEW]);
   const viewFetch = globalThis.fetch;
   stubStreamRoute("/api/layer1-edits", [{ pairs: [{ path: "src/run.ts", edits: [MOVED_EDIT, KEPT_EDIT] }] }]);

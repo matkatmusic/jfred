@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { waitForAsyncWork, setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
@@ -68,7 +68,7 @@ function buildBucketOnlyView(): object {
 
 interface ScrollRequest { target: HTMLElement }
 
-// A landing measures its target (scrollToUncoveredCentre); the pane and drawer are measured too, so they are skipped. Must be installed AFTER booting: setupLayer1Dom builds a fresh window.
+// A landing measures its target (scrollToUncoveredCentre); the pane and drawer are measured too, so they are skipped. Must be installed AFTER booting: initLayer1Dom builds a fresh window.
 function recordScrollRequests(): ScrollRequest[] {
     const requests: ScrollRequest[] = [];
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
@@ -82,7 +82,7 @@ function recordScrollRequests(): ScrollRequest[] {
 
 // bootLayer1Page is called explicitly: node's module cache runs the module's boot line only on first import.
 async function loadPageWithView(view: object): Promise<void> {
-    setupLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
+    initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
     stubStreamRoute("/api/layer1-view", [view]);
     const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
     bootLayer1Page();

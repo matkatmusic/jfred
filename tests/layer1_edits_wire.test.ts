@@ -10,7 +10,7 @@ import {
 import type { LayerEditEvent } from "../src/layer1_edit_events.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { WireConfidence, WireEditKind } from "../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import {
     SESSION_A, SESSION_B, buildEditRecordPair, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
     type RecordEnvelope,

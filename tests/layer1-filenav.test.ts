@@ -1,13 +1,11 @@
-// Task 252: the File Nav must list every identified file, using the webapp's existing file tree.
-//
-// The nav builder is called DIRECTLY rather than through a page boot: the behaviour under test is the payload -> entries mapping and the tree it renders, so a stubbed NDJSON stream would only widen the failure surface.
+// Task 252: the File Nav must list every identified file, using the webapp's existing file tree.  The nav builder is called DIRECTLY rather than through a page boot: the behaviour under test is the payload -> entries mapping and the tree it renders, so a stubbed NDJSON stream would only widen the failure surface.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // One of each kind the endpoint returns. All three share `src/`, which buildFileTree STRIPS as the common prefix, so one path is nested a level deeper — otherwise the tree collapses to three root leaves and the folder assertion below would be testing the fixture rather than the renderer.
 const NAV_VIEW = {

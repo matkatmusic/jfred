@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, buildDiskNodeStage, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 import {
     clickCycleButton,
@@ -163,7 +163,7 @@ test("test_the_find_widget_sits_at_the_end_of_the_jump_bar", () => {
 });
 
 test("test_clicking_a_node_scrolls_it_to_the_centre_of_the_part_the_drawer_leaves_uncovered", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();

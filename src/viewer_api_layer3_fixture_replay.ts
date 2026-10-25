@@ -1,6 +1,6 @@
 // Layer 3 fixture replay: each Read/Edit/Write event's base and target bytes, and its confidence, computed once.
 
-import { WireConfidence, WireEditKind, WireEditSide, type WireEditOf, type WireEditsViewOf } from "../webapp/layer1-wire.ts";
+import { WireConfidence, WireEditKind, WireEditSide, type WireEditOf, type WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
 import { applyHunksToLines, checkHunkMatchesBase } from "./layer1_edit_hunks.ts";
 import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "./layer1_edits_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";

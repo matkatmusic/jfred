@@ -8,7 +8,7 @@ import { makeRulerTickClickable } from "../webapp/layer1-ruler-click.ts";
 import {
     listEventsAtRow, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, toggleExpandedRow, wireTickExpansion,
 } from "../webapp/layer1-tick-files.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;
 const INSTANT = "2026-06-02T09:00:00.000Z";
@@ -27,7 +27,7 @@ function buildNode(kindClass: string, label: string): HTMLElement[] {
 
 // One bubble: a node per kind at the shared instant, plus its ruler tick.
 function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElement {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
     const nodes = kindClasses.flatMap((kindClass) => buildNode(kindClass, kindClass));
     document.getElementById("stage")!.replaceChildren(setAxisPx(el("div", { class: "filebox" }, [

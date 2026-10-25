@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderFileTreeNode, type FolderCollapseState } from "../webapp/views/sidebar.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // el() needs a document.
-setupLayer1Dom();
+initLayer1Dom();
 
 // A two-level fixture: "src" contains folder "nested", which contains one file leaf.
 const LEAF_ENTRY = { target: "src/nested/leaf.ts", revisionCount: 1, isDeleted: false, originalPath: undefined, renameBadgeLabel: undefined };

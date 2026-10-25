@@ -1,6 +1,6 @@
 // Layer 4 fixture data: canned script runs and their resolved bodies.
 
-import { WireScriptExecutorKind } from "../webapp/layer1-wire.ts";
+import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
 // import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 

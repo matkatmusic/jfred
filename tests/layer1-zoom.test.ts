@@ -2,16 +2,16 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { ZOOM_MINIMUM } from "../webapp/layer1-zoom.ts";
 
 // layer1-page.ts boots at module scope, so re-importing it would wire zoom buttons twice; absorb that boot here first.
-setupLayer1Dom();
+initLayer1Dom();
 const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
 
 // A fresh, once-booted page; no endpoint stub needed since wireZoomControls runs before the empty query's no-op fetch.
 function openZoomablePage(): void {
-    setupLayer1Dom();
+    initLayer1Dom();
     bootLayer1Page();
 }
 

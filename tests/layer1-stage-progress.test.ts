@@ -2,10 +2,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb the first import against a throwaway DOM.
-setupLayer1Dom();
+initLayer1Dom();
 const { renderLayer1Stage } = await import("../webapp/layer1-page.ts");
 const { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE } = await import("../webapp/layer1-progress.ts");
 
@@ -27,7 +27,7 @@ function buildViewWithPairs(count: number): object {
 
 test("test_a_multi_chunk_render_paints_a_counted_drawing_label_before_finishing", async () => {
     // Scenario: 150 widgets exceed one chunk, so the first chunk shows a count before the first yield.
-    setupLayer1Dom();
+    initLayer1Dom();
     const pending = renderLayer1Stage(buildViewWithPairs(150) as never);
     // Synchronously after the call: chunk one is appended and the loadbar shows its count.
     assert.equal(document.getElementById("loadbar-label")!.textContent,
@@ -42,7 +42,7 @@ test("test_a_multi_chunk_render_paints_a_counted_drawing_label_before_finishing"
 
 test("test_a_single_chunk_render_completes_synchronously_without_the_loadbar", () => {
     // Scenario: filter clicks and test fixtures render small views; they must not flash the loadbar.
-    setupLayer1Dom();
+    initLayer1Dom();
     void renderLayer1Stage(buildViewWithPairs(3) as never);
     // Synchronously after the call: the whole stage is drawn and the loadbar never appeared.
     assert.equal(document.getElementById("stage")!.childElementCount, 3);

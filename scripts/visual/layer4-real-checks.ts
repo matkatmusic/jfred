@@ -1,6 +1,6 @@
 // Task l4-wire-real: ticks the script-run box on the real server and checks the page against the real /api/layer1-script-runs payload.
 
-import { type WireScriptRunsView } from "../../webapp/layer1-wire.ts";
+import { type WireScriptRunsView } from "../../webapp/layer1-wire-script-runs.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import { checkFirstNodeScroll } from "./layer4-first-node-checks.ts";

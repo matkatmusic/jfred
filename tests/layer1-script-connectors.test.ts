@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el } from "../webapp/app-dom.ts";
 import { drawScriptConnectors } from "../webapp/layer1-script-connectors.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function stubLayout(element: HTMLElement, offsetParent: HTMLElement | null, offsetLeft: number, offsetTop: number): void {
   Object.defineProperties(element, {
@@ -27,7 +27,7 @@ function buildBubble(stage: HTMLElement, toolUseId: string, boxLeft: number, box
 }
 
 function buildStage(): HTMLElement {
-  setupLayer1Dom();
+  initLayer1Dom();
   const stage = document.getElementById("stage")!;
   stage.replaceChildren();
   return stage;

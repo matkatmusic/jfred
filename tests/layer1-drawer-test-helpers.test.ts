@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     DISK_FILE_CONTENT, FULL_DIFF, buildDiskNodeStage, installRecordingFetch, waitForPendingFetches,
 } from "./layer1-drawer-test-helpers.ts";
@@ -21,7 +21,7 @@ test("installRecordingFetch records each ask and answers the diff route with FUL
 });
 
 test("buildDiskNodeStage puts one on-disk node in the stage", () => {
-    setupLayer1Dom();
+    initLayer1Dom();
 
     const node = buildDiskNodeStage();
 

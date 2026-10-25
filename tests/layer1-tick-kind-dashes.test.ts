@@ -2,11 +2,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { el } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { makeRulerTickClickable } from "../webapp/layer1-ruler-click.ts";
 import { markMultiEventTicks, onExpansionRelayout, wireTickExpansion } from "../webapp/layer1-tick-files.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;
 const INSTANT = "2026-06-02T09:00:00.000Z";
@@ -26,7 +27,7 @@ function buildNode(kindClass: string): HTMLElement[] {
 
 // One bubble with a node per kind class at the shared instant, plus its ruler tick.
 function drawRowOf(kindClasses: string[]): HTMLElement {
-    setupLayer1Dom();
+    initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
     document.getElementById("stage")!.replaceChildren(setAxisPx(el("div", { class: "filebox" }, [
         el("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
@@ -78,6 +79,11 @@ test("test_unticking_a_kind_removes_its_dash_and_never_stacks_containers", () =>
 test("test_kinds_hidden_on_load_get_no_dash", () => {
     const tick = drawRowOf(["n-commit", "n-edit", "n-script"]);
     assert.deepEqual(readDashes(tick).map((dash) => dash.title), ["commit"]);
+});
+
+test("test_dash_slot_is_28px_wide_with_a_4px_gap", () => {
+    const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+    assert.match(css, /\.kind-dashes \{[^}]*gap: 4px;[^}]*width: 28px;/);
 });
 
 test("test_dashes_add_no_text_to_the_tick", () => {

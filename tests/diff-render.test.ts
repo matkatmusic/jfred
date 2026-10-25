@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { appendColumnsDiff, appendInlineDiff } from "../webapp/diff-render.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const TS_DIFF = "@@ -1 +1,2 @@\n const shared = 1;\n+const added = 2;";
 
@@ -20,7 +20,7 @@ function dropHljs(): void {
 }
 
 function makeHost(): HTMLElement {
-    setupLayer1Dom();
+    initLayer1Dom();
     return document.createElement("div");
 }
 

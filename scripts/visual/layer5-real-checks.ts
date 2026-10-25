@@ -1,6 +1,6 @@
 // Task 357: ticks the Branch box on the real server and checks the page against the real /api/layer1-branches payload.
 
-import { WireRewindKind, type WireBranchesView } from "../../webapp/layer1-wire.ts";
+import { WireRewindKind, type WireBranchesView } from "../../webapp/layer1-wire-branches.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { checkLaneNodeClicks } from "./layer5-lane-click.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { loadScriptRunsOnce } from "../webapp/layer1-script-runs.ts";
 import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const RUN = { instant: "2026-06-01T09:03:00.000Z", toolUseId: "toolu_fixture_py_rewrite", executorKind: "python", language: "python",
@@ -39,7 +39,7 @@ function countFetchesTo(pathname: string): () => number {
 }
 
 test("test_loadScriptRunsOnce_merges_runs_into_the_matching_pair_with_a_zero_axis", async () => {
-  setupLayer1Dom("?dir=%2Fw&repo=%2Fw");
+  initLayer1Dom("?dir=%2Fw&repo=%2Fw");
   stubStreamRoute("/api/layer1-script-runs", [PROGRESS, PAYLOAD]);
   const view = buildView();
   assert.equal(await loadScriptRunsOnce(view), true);
@@ -48,7 +48,7 @@ test("test_loadScriptRunsOnce_merges_runs_into_the_matching_pair_with_a_zero_axi
 });
 
 test("test_loadScriptRunsOnce_asks_with_the_page_query_and_progress", async () => {
-  setupLayer1Dom("?dir=%2Fw&repo=%2Fw");
+  initLayer1Dom("?dir=%2Fw&repo=%2Fw");
   stubStreamRoute("/api/layer1-script-runs", [PAYLOAD]);
   const urls: string[] = [];
   const inner = globalThis.fetch;
@@ -61,7 +61,7 @@ test("test_loadScriptRunsOnce_asks_with_the_page_query_and_progress", async () =
 });
 
 test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   stubStreamRoute("/api/layer1-script-runs", [PAYLOAD]);
   const fetchCount = countFetchesTo("/api/layer1-script-runs");
   const view = buildView();
@@ -73,7 +73,7 @@ test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
 });
 
 test("test_a_cancelled_fetch_answers_false_and_leaves_the_view_untouched", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   Object.assign(globalThis, { fetch: async () => {
     cancelLayer1Load();
     throw new Error("aborted");
@@ -85,7 +85,7 @@ test("test_a_cancelled_fetch_answers_false_and_leaves_the_view_untouched", async
 });
 
 test("test_a_failed_fetch_shows_the_error_on_the_shield_and_answers_false", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   Object.assign(globalThis, { fetch: async () => ({ ok: false, status: 500, text: async () => "boom" }) });
   assert.equal(await loadScriptRunsOnce(buildView()), false);
   assert.equal(document.getElementById("busy-shield")!.hasAttribute("hidden"), false);
@@ -94,7 +94,7 @@ test("test_a_failed_fetch_shows_the_error_on_the_shield_and_answers_false", asyn
 });
 
 test("test_a_success_closes_the_shield_after_the_merge", async () => {
-  setupLayer1Dom();
+  initLayer1Dom();
   stubStreamRoute("/api/layer1-script-runs", [PROGRESS, PAYLOAD]);
   const view = buildView();
   assert.equal(await loadScriptRunsOnce(view), true);

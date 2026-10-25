@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     COMMIT_CONTENT, getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches,
 } from "./layer1-drawer-test-helpers.ts";
@@ -14,7 +14,7 @@ const SNAPSHOT_SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
 const SNAPSHOT_PATH = "src/util.ts";
 
 test("clicking a snapshot node reads the owning session and sets the range-correct title", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title" }));
     getInputById("dir").value = "/work";
@@ -44,7 +44,7 @@ test("clicking a snapshot node reads the owning session and sets the range-corre
 });
 
 test("task 213: a snapshot node reveals a [{ }] button that toggles its raw transcript JSON", async () => {
-    setupLayer1Dom();
+    initLayer1Dom();
     installAnimationFrameStub();
     const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
     installRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title", record: rawRecord }));

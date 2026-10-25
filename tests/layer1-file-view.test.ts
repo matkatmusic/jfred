@@ -1,16 +1,14 @@
-// Task 294: the Detail View drawer's body is a line-number column beside ONE highlighted block.
-//
-// No `hljs` global is defined here — node:test never loads the vendored script — so every case below exercises renderCodeInto's plain-text fallback. That is deliberate: what this file guards is the SHAPE (two columns, honest line count, real text) rather than the vendored tokeniser, which is not ours to test.
+// Task 294: the Detail View drawer's body is a line-number column beside ONE highlighted block.  No `hljs` global is defined here — node:test never loads the vendored script — so every case below exercises renderCodeInto's plain-text fallback. That is deliberate: what this file guards is the SHAPE (two columns, honest line count, real text) rather than the vendored tokeniser, which is not ours to test.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeLanguageForPath } from "../webapp/highlight.ts";
 import { looksBinary } from "../webapp/layer1-file-view.ts";
 import { renderFileContentInto } from "../webapp/layer1-file-view.ts";
-import { setupLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function renderIntoHost(content: string, path: string): HTMLElement {
-    setupLayer1Dom();
+    initLayer1Dom();
     const host = document.createElement("div");
     renderFileContentInto(host, content, path);
     return host;
