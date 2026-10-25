@@ -71,7 +71,7 @@ test("test_renderTrace_details_by_class_enriches_only_rows_of_that_verdict", () 
 });
 
 test("test_renderTrace_details_by_line_shows_only_that_line_detailed", () => {
-    // A byLine selector names one line, so the output is JUST that line — detailed — not every other row.
+    // A byLine selector names one line, so the output is only that line, with detail.
     const out = renderTrace(PARTITION, {
         details: { selector: { byLine: 7 }, mode: TraceDetailMode.previewOnly },
     });
@@ -98,6 +98,28 @@ test("test_renderTrace_details_previewOnly_shows_the_basename_of_a_write_with_pa
         details: { selector: { byLine: 3 }, mode: TraceDetailMode.previewOnly },
     });
     assert.ok(out.includes('kind=Write preview="new.ts"'));
+});
+
+test("test_renderTrace_details_shows_an_errored_write_with_an_empty_preview", () => {
+    const writeRaw = JSON.stringify({
+        type: "assistant",
+        message: { content: [{ type: "tool_use", id: "toolu_e", name: "Write", input: { file_path: "/proj/a.md", file_content: "x" } }] },
+    });
+    const errorRaw = JSON.stringify({
+        type: "user",
+        message: { content: [{ type: "tool_result", tool_use_id: "toolu_e", is_error: true, content: "Error: No such tool available: Write." }] },
+    });
+    const out = renderTrace({ kept: [], ignored: [{ lineNumber: 3, raw: writeRaw }, { lineNumber: 4, raw: errorRaw }] }, {
+        details: { selector: { byLine: 3 }, mode: TraceDetailMode.previewOnly },
+    });
+    assert.ok(out.includes('kind=Write preview=""'));
+});
+
+test("test_renderTrace_details_still_returns_when_an_ignored_line_is_malformed_json", () => {
+    const out = renderTrace({ kept: [], ignored: [{ lineNumber: 3, raw: BASH_RAW }, { lineNumber: 4, raw: '{"type":"user","mess' }] }, {
+        details: { selector: { byLine: 3 }, mode: TraceDetailMode.previewOnly },
+    });
+    assert.ok(out.includes('kind=Bash'));
 });
 
 test("test_renderTrace_details_full_shows_the_pretty_printed_record", () => {

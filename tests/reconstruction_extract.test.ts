@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
-import { recordVerdict } from "../src/reconstruction_parse_lines.ts";
+import { getRecordVerdict } from "../src/reconstruction_parse_lines.ts";
 import { BlockType, EventKind, RecordType, ToolName, Verdict } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -10,10 +10,10 @@ import { loadRecords } from "./utilities.ts";
 import { jsonlPathsForScenario } from "./fixtures.ts";
 import { S1_JSONL, S2_JSONL, S3_JSONL, S4_JSONL } from "./fixtures.ts";
 
-// Phase B parity: extraction's `ignore` gate is a no-op. Dropping every record the classifier marks `ignore` BEFORE extraction yields the same file events as extracting from the full record list — so `evaluateLine`/`recordVerdict` is a safe single gate: it never withholds a record extraction needs. Not tautological even though extractFileEvents now gates internally: hunk-indexing runs over the un-gated input, so a misclassified hunk-bearing edit-result would make the evidence-only run lose its hunks and diverge here.
+// Dropping every `ignore` record before extraction gives the same file events as using all records.
 test("test_extraction_ignore_gate_changes_no_s37_events", () => {
     const full = jsonlPathsForScenario("s37").flatMap((path) => loadRecords(path.toString()));
-    const evidence = full.filter((record) => recordVerdict(record) !== Verdict.ignore);
+    const evidence = full.filter((record) => getRecordVerdict(record) !== Verdict.ignore);
     // The gate is non-vacuous: s37 carries records the classifier ignores (prose, thinking, the ctx_execute run, non-file-op bash).
     assert.ok(evidence.length < full.length);
     assert.deepStrictEqual(extractFileEvents(evidence), extractFileEvents(full));
@@ -108,4 +108,43 @@ test("test_extract_reads_write_input_with_path_and_file_text", () => {
     assert.equal(writes.length, 1);
     assert.equal(writes[0]!.target.toString(), "/proj/new.ts");
     assert.equal(writes[0]!.content, "hello\n");
+});
+
+function buildErroredWriteRecords(toolUseId: string, input: Record<string, unknown>, errorText: string): TranscriptRecord[] {
+    const toolUse = {
+        ...rec(RecordType.assistant, `${toolUseId}-a`, null, [
+            { type: BlockType.tool_use, id: new Uuid(toolUseId), name: ToolName.Write, input, caller: { type: "direct" } },
+        ]),
+        timestamp: new Date("2026-01-01T00:00:00Z"),
+    } as TranscriptRecord;
+    const toolResult = {
+        ...rec(RecordType.user, `${toolUseId}-u`, `${toolUseId}-a`, [
+            { type: BlockType.tool_result, tool_use_id: new Uuid(toolUseId), is_error: true, content: errorText },
+        ]),
+        timestamp: new Date("2026-01-01T00:00:01Z"),
+        toolUseResult: errorText,
+    } as unknown as TranscriptRecord;
+    return [toolUse, toolResult];
+}
+
+// A Write that never ran (tool not enabled) can carry input keys no Write uses, e.g. file_content.
+test("test_extract_skips_errored_write_with_unknown_input_keys", () => {
+    const records = buildErroredWriteRecords(
+        "toolu_01Gu5JJe3R1TKJU2KZPNR1pe",
+        { file_path: "/Users/x/.claude/plans/a.md", file_content: "# A\n" },
+        "<tool_use_error>Error: No such tool available: Write. Write exists but is not enabled in this context. Use one of the available tools instead.</tool_use_error>",
+    );
+    const writes = extractFileEvents(records).filter((event) => event.kind === EventKind.write);
+    assert.equal(writes.length, 0);
+});
+
+// An errored Write changed no file, even when its input is well formed.
+test("test_extract_skips_errored_write_with_valid_input", () => {
+    const records = buildErroredWriteRecords(
+        "toolu_errored_valid_write",
+        { file_path: "/proj/existing.ts", content: "x\n" },
+        "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>",
+    );
+    const writes = extractFileEvents(records).filter((event) => event.kind === EventKind.write);
+    assert.equal(writes.length, 0);
 });

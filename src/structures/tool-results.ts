@@ -3,78 +3,78 @@ import { getContentBlocks, type ToolUseBlock } from "./content-blocks.ts";
 import { BlockType, ToolName } from "./vocabulary.ts";
 import { Path } from "./domain.ts";
 
-// tool_use.input shapes (recon/08, recon/09; Read/Edit from s2). file_path is a Path; input hydration has no consumer yet, so these are declared but not constructed.
+// Shapes of tool_use.input. No code builds them yet, so they are only declared.
 export type BashInput = { command: string; description: string };
 export type WriteInput = { content: string; file_path: Path };
 export type ReadInput = { file_path: Path };
 export type EditInput = {
-    file_path: Path;
-    old_string: string;
-    new_string: string;
-    replace_all: boolean;
+  file_path: Path;
+  old_string: string;
+  new_string: string;
+  replace_all: boolean;
 };
 
 // Newer transcripts record a Write input as { path, file_text }; some mix the two shapes key by key.
 export function readWriteInput(block: ToolUseBlock): { filePath: Path; content: string } {
-    const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
-    const filePath = input.file_path ?? input.path;
-    const content = input.content ?? input.file_text;
-    if (filePath === undefined || content === undefined) {
-        throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
-    }
-    return { filePath: new Path(filePath), content };
+  const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
+  const filePath = input.file_path ?? input.path;
+  const content = input.content ?? input.file_text;
+  if (filePath === undefined || content === undefined) {
+    throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
+  }
+  return { filePath: new Path(filePath), content };
 }
 
 // toolUseResult shapes (recon/07, recon/09).
 export type BashResult = {
-    interrupted: boolean;
-    isImage: boolean;
-    noOutputExpected: boolean;
-    stderr: string;
-    stdout: string;
+  interrupted: boolean;
+  isImage: boolean;
+  noOutputExpected: boolean;
+  stderr: string;
+  stdout: string;
 };
 
-// A unified-diff hunk inside a structuredPatch. s1 produced none (a create has no diff); s2-move-file's Edit results reveal the shape. Line ranges are plain numbers and `lines` is the raw diff text (`+`/`-`/` ` prefixed) — free-form values with no narrower domain type.
+// One diff hunk inside a structuredPatch. Line ranges are plain numbers; `lines` is the raw diff text.
 export type StructuredPatchHunk = {
-    oldStart: number;
-    oldLines: number;
-    newStart: number;
-    newLines: number;
-    lines: string[];
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: string[];
 };
 
 export type WriteResult = {
-    content: string;
-    filePath: Path;
-    originalFile: string | null;
-    structuredPatch: StructuredPatchHunk[];
-    type: string;
-    userModified: boolean;
+  content: string;
+  filePath: Path;
+  originalFile: string | null;
+  structuredPatch: StructuredPatchHunk[];
+  type: string;
+  userModified: boolean;
 };
 
-// The Read result wraps the file's content and line metadata in a nested `file` object (recon: s2). filePath is hydrated into a Path.
+// A Read result keeps the file content and line counts in a nested `file` object.
 export type ReadFile = {
-    filePath: Path;
-    content: string;
-    numLines: number;
-    startLine: number;
-    totalLines: number;
+  filePath: Path;
+  content: string;
+  numLines: number;
+  startLine: number;
+  totalLines: number;
 };
 
 export type ReadResult = {
-    type: string;
-    file: ReadFile;
+  type: string;
+  file: ReadFile;
 };
 
-// The Edit result carries the before/after strings and a non-empty structuredPatch (recon: s2). filePath is hydrated into a Path; originalFile is present as a string in s2 (a later scenario may omit it — see s2 notes).
+// An Edit result holds the old and new strings and a structuredPatch. The originalFile can be null.
 export type EditResult = {
-    filePath: Path;
-    oldString: string;
-    newString: string;
-    originalFile: string | null;
-    structuredPatch: StructuredPatchHunk[];
-    userModified: boolean;
-    replaceAll: boolean;
+  filePath: Path;
+  oldString: string;
+  newString: string;
+  originalFile: string | null;
+  structuredPatch: StructuredPatchHunk[];
+  userModified: boolean;
+  replaceAll: boolean;
 };
 
 export type ResolvedToolResult =
@@ -83,106 +83,121 @@ export type ResolvedToolResult =
     | { toolName: ToolName.Read; result: ReadResult }
     | { toolName: ToolName.Edit; result: EditResult };
 
-// Thrown when a tool result resolves to a tool name outside the s1 vocabulary, so an unmodeled tool's result cannot pass silently (fog-of-war guard).
+// Thrown for a tool name this code does not know, so an unknown tool cannot pass silently.
 export class UnknownToolNameError extends Error {
-    readonly toolName: string;
+  readonly toolName: string;
 
-    constructor(toolName: string) {
-        super(`Unknown tool name: ${toolName}`);
-        this.name = "UnknownToolNameError";
-        this.toolName = toolName;
-    }
+  constructor(toolName: string) {
+    super(`Unknown tool name: ${toolName}`);
+    this.name = "UnknownToolNameError";
+    this.toolName = toolName;
+  }
 }
 
 function addToolUseNames(
-    record: TranscriptRecord,
-    nameById: Map<string, string>,
+  record: TranscriptRecord,
+  nameById: Map<string, string>,
 ): void {
-    for (const block of getContentBlocks(record)) {
-        if (block.type === BlockType.tool_use) {
-            nameById.set(block.id.toString(), block.name);
-        }
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.tool_use) {
+      nameById.set(block.id.toString(), block.name);
     }
+  }
 }
 
-// Build a map from tool_use id -> tool name across all assistant records, so a tool result (which references a tool_use_id) can be attributed to its tool.
+// Map each tool_use id to its tool name, so a tool result can find its tool.
 export function indexToolUseNamesById(
-    records: TranscriptRecord[],
+  records: TranscriptRecord[],
 ): Map<string, string> {
-    const nameById = new Map<string, string>();
-    for (const record of records) {
-        addToolUseNames(record, nameById);
-    }
-    return nameById;
+  const nameById = new Map<string, string>();
+  for (const record of records) {
+    addToolUseNames(record, nameById);
+  }
+  return nameById;
 }
 
-// The tool name behind this user record's tool_result block, or undefined when the record carries none (exported for callers that must filter by tool BEFORE resolving — resolution throws UnknownToolNameError on unmodeled tools by design).
-export function resolveToolNameForRecord(
-    record: TranscriptRecord,
-    nameById: Map<string, string>,
-): string | undefined {
+// The ids of tool_use blocks whose tool_result has is_error true. These calls changed no file.
+export function collectErroredToolUseIds(
+  records: TranscriptRecord[],
+): Set<string> {
+  const erroredIds = new Set<string>();
+  for (const record of records) {
     for (const block of getContentBlocks(record)) {
-        if (block.type === BlockType.tool_result) {
-            return nameById.get(block.tool_use_id.toString());
-        }
+      if (block.type === BlockType.tool_result && block.is_error === true) {
+        erroredIds.add(block.tool_use_id.toString());
+      }
     }
-    return undefined;
+  }
+  return erroredIds;
 }
 
-// Hydrate a Write result's filePath from its wire string into a Path; the rest of the fields are content/flags with no narrower domain type.
-function hydrateWriteResult(raw: unknown): WriteResult {
-    const result = raw as WriteResult & { filePath: string };
-    return { ...result, filePath: new Path(result.filePath) };
+// The tool name behind this record's tool_result block, or undefined when it has none.
+export function resolveToolNameForRecord(
+  record: TranscriptRecord,
+  nameById: Map<string, string>,
+): string | undefined {
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.tool_result) {
+      return nameById.get(block.tool_use_id.toString());
+    }
+  }
+  return undefined;
 }
 
-// Hydrate a Read result's nested file.filePath into a Path, returning a fresh object so the raw record is never mutated.
-function hydrateReadResult(raw: unknown): ReadResult {
-    const result = raw as ReadResult & { file: ReadFile & { filePath: string } };
-    return {
-        ...result,
-        file: { ...result.file, filePath: new Path(result.file.filePath) },
-    };
+// Turn a Write result's filePath string into a Path. Other fields stay as they are.
+function convertWriteResult(raw: unknown): WriteResult {
+  const result = raw as WriteResult & { filePath: string };
+  return { ...result, filePath: new Path(result.filePath) };
+}
+
+// Turn a Read result's file.filePath into a Path. It returns a new object and leaves the raw record unchanged.
+function convertReadResult(raw: unknown): ReadResult {
+  const result = raw as ReadResult & { file: ReadFile & { filePath: string } };
+  return {
+    ...result,
+    file: { ...result.file, filePath: new Path(result.file.filePath) },
+  };
 }
 
 // Hydrate an Edit result's filePath into a Path; structuredPatch and the before/after strings are free-form values carried through unchanged.
-function hydrateEditResult(raw: unknown): EditResult {
-    const result = raw as EditResult & { filePath: string };
-    return { ...result, filePath: new Path(result.filePath) };
+function convertEditResult(raw: unknown): EditResult {
+  const result = raw as EditResult & { filePath: string };
+  return { ...result, filePath: new Path(result.filePath) };
 }
 
-function resolveToolResult(toolName: string, raw: unknown): ResolvedToolResult {
-    if (toolName === ToolName.Bash) {
-        return { toolName: ToolName.Bash, result: raw as BashResult };
-    }
-    if (toolName === ToolName.Write) {
-        return { toolName: ToolName.Write, result: hydrateWriteResult(raw) };
-    }
-    if (toolName === ToolName.Read) {
-        return { toolName: ToolName.Read, result: hydrateReadResult(raw) };
-    }
-    if (toolName === ToolName.Edit) {
-        return { toolName: ToolName.Edit, result: hydrateEditResult(raw) };
-    }
-    throw new UnknownToolNameError(toolName);
+function getTypedToolResult(toolName: string, raw: unknown): ResolvedToolResult {
+  if (toolName === ToolName.Bash) {
+    return { toolName: ToolName.Bash, result: raw as BashResult };
+  }
+  if (toolName === ToolName.Write) {
+    return { toolName: ToolName.Write, result: convertWriteResult(raw) };
+  }
+  if (toolName === ToolName.Read) {
+    return { toolName: ToolName.Read, result: convertReadResult(raw) };
+  }
+  if (toolName === ToolName.Edit) {
+    return { toolName: ToolName.Edit, result: convertEditResult(raw) };
+  }
+  throw new UnknownToolNameError(toolName);
 }
 
 // Resolve and type the tool result attached to a user record, or undefined when the record carries no toolUseResult, no resolvable tool name, or an errored run.
 export function getToolResultForUserRecord(
-    record: TranscriptRecord,
-    nameById: Map<string, string>,
+  record: TranscriptRecord,
+  nameById: Map<string, string>,
 ): ResolvedToolResult | undefined {
-    const raw = record.toolUseResult;
-    if (!raw) {
-        return undefined;
-    }
-    // An errored or rejected run reports a plain string ("Error: File does not exist.", "User rejected tool use") instead of a structured payload — nothing to type.
-    if (typeof raw === "string") {
-        return undefined;
-    }
-    const toolName = resolveToolNameForRecord(record, nameById);
-    if (toolName === undefined) {
-        return undefined;
-    }
-    return resolveToolResult(toolName, raw);
+  const raw = record.toolUseResult;
+  if (!raw) {
+    return undefined;
+  }
+  // An errored or rejected run reports a plain string ("Error: File does not exist.", "User rejected tool use") instead of a structured payload — nothing to type.
+  if (typeof raw === "string") {
+    return undefined;
+  }
+  const toolName = resolveToolNameForRecord(record, nameById);
+  if (toolName === undefined) {
+    return undefined;
+  }
+  return getTypedToolResult(toolName, raw);
 }
 
