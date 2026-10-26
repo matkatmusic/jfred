@@ -1,9 +1,9 @@
-// Task 290, second half (user, 2026-07-26): "when you mouse over a leader line and the node(s) or bubble(s) it is pointing to is/are in the visible part of the timeline, highlight those nodes and make the dashed leader line's color change to the same highlight color used for nodes and bubbles." Its own module rather than more of layer1-page.ts, which is at 220 of the repo's 250-line cap, and this is a second behaviour rather than a variation on the ruler-tick click.
+// Task 290: hovering a leader line lights it and the visible nodes or bubbles it points at.
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { listElementsDrawnAtAxisPx, readAxisPx } from "./layer1-ruler-click.ts";
 
-// The class the CSS paints the "this line points HERE" state from. Deliberately NOT `.found`: that is tasks 283/267's single persistent selection, and this is a transient set of several elements.
+// The class the CSS paints the aimed state from; not `.found`, which is the single persistent selection.
 const AIMED_CLASS = "aimed";
 
 // What the pointer is currently over, so leaving can darken exactly what entering lit.
@@ -16,7 +16,7 @@ function clearAimedElements(): void {
   aimedElements = [];
 }
 
-// Whether an element overlaps the timeline pane's scrollport AT ALL, which is the user's condition ("...is/are in the visible part of the timeline"). The pane, not the window: `main.timelines` is the scroll container, so anything outside its box has been scrolled away even though it is still in the document. Rect-vs-rect, so it is correct under the native `zoom` on `.canvas` — both rects are post-layout.
+// True when an element overlaps the timeline pane's scrollport at all; rect-vs-rect, so correct under `zoom`.
 function isInsideVisibleTimeline(element: HTMLElement): boolean {
   const pane = getRequiredElementById("timelines").getBoundingClientRect();
   const box = element.getBoundingClientRect();
@@ -24,10 +24,16 @@ function isInsideVisibleTimeline(element: HTMLElement): boolean {
         && box.bottom > pane.top && box.top < pane.bottom;
 }
 
-// Light the line and everything it points at, or nothing at all: the user asked for the recolour only when a target is actually on screen, so a line whose bubbles are all scrolled away stays grey rather than promising a target the reader cannot find.
-function aimLeaderAtVisibleTargets(leader: HTMLElement): void {
+// Light the line and its targets, or nothing: a line whose bubbles are all scrolled away stays grey.
+function markLeaderAimedAtVisibleTargets(leader: HTMLElement): void {
   clearAimedElements();
-  const visible = listElementsDrawnAtAxisPx(readAxisPx(leader)).filter(isInsideVisibleTimeline);
+  const visible: HTMLElement[] = [];
+  for (const element of listElementsDrawnAtAxisPx(readAxisPx(leader))) {
+    const isVisible = isInsideVisibleTimeline(element);
+    if (isVisible) {
+      visible.push(element);
+    }
+  }
   if (visible.length === 0) {
     return;
   }
@@ -37,9 +43,12 @@ function aimLeaderAtVisibleTargets(leader: HTMLElement): void {
   }
 }
 
-// Wire one already-positioned leader and hand it back, exactly as attachRulerTickClick does, so layer1-page.ts's renderLeaderLines stays a single expression. `pointerenter`/`pointerleave` and not `pointerover`/`pointerout`: a leader has no children, and the enter/leave pair does not fire again as the pointer travels along the same line.
+// Wire one positioned leader and return it; `pointerenter`/`pointerleave` do not refire along one line.
 export function makeLeaderHoverable(leader: HTMLElement): HTMLElement {
-  leader.addEventListener("pointerenter", () => aimLeaderAtVisibleTargets(leader));
+  function markAimedOnEnter(): void {
+    markLeaderAimedAtVisibleTargets(leader);
+  }
+  leader.addEventListener("pointerenter", markAimedOnEnter);
   leader.addEventListener("pointerleave", clearAimedElements);
   return leader;
 }
