@@ -1,177 +1,30 @@
 // Own page (not a hash route) so its query-string inputs make a shareable link; no time arithmetic, offsets relative.
 
-import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
+import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { wireNodeDrawer } from "./layer1-drawer.ts";
-import { showDetailViewForFiles, wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { readNavTargets, rememberDrawnView, rememberNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
-import { renderLayer1FileNav } from "./layer1-filenav.ts";
+import { wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
 import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
-import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
-import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
-import { renderNavWash } from "./layer1-nav-wash.ts";
 import { wireBusyShield } from "./layer1-busy-shield.ts";
-import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, waitForPaintedFrame, wireLayer1CancelButton } from "./layer1-progress.ts";
+import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
-import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
-import { listRulerRows } from "./layer1-ruler-rows.ts";
-import { drawScriptConnectors } from "./layer1-script-connectors.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
-import { renderSessionRanges } from "./layer1-ranges.ts";
-import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
-import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
-import { listSelectedSessions, listSessionFilterTargets, loadLayer1Sessions, renderSessionPane, resetSessionSelection, setKnownProjectPaths, wireBubbleFlash } from "./layer1-sessions.ts";
+import { resetSessionSelection, wireBubbleFlash } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
-import { carryOpenRowToNewTicks, closeRulerExpansion, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
+import { closeRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
-import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
-import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
+import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
+import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
+import type { WireLayer1View } from "./layer1-wire.ts";
 import { wireZoomControls } from "./layer1-zoom.ts";
 
-// Builds elements only; layer1-ruler-rows.ts decides which entries print and what each row reads.
-function renderRulerTicks(ruler: WireRulerTick[]): void {
-  // A row carries every offset it ABSORBED, since a merged row's click must see all their events.
-  const ticks = listRulerRows(ruler).map((row) =>
-    makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row));
-  getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
-}
-
-// One shared line per ruler entry, replacing the per-bubble `.filebox::before` that drew 805 overlapping copies and was unusably slow.
-function renderLeaderLines(ruler: WireInstant[]): void {
-  getRequiredElementById("leaders").replaceChildren(
-    ...ruler.map((entry) => makeLeaderHoverable(setAxisPx(el("div", { class: "leader" }), entry.axisPx))),
-  );
-}
-
-// Task 309: chunked appends with painted counts, so a big render never reads as a hang.
-const STAGE_CHUNK_WIDGETS = 100;
-
-// Bumped by every render so a superseded chunked pass stops instead of interleaving DOM writes.
-let stageRenderPass = 0;
-
-// Exported for filter redraws; a single-chunk (test-sized) view completes synchronously, no await runs.
-export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
-  // The wash and range steps read the DRAWN view, so every filter/expansion redraw re-arms it.
-  rememberDrawnView(view);
-  const pass = ++stageRenderPass;
-  getRequiredElementById("crumb").textContent =
-    `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
-  const openList = document.querySelector("#ruler .tickfiles");
-  renderRulerTicks(view.ruler);
-  carryOpenRowToNewTicks(openList);
-  renderLeaderLines(view.ruler);
-  const buckets = [
-    buildOrphanBucket("No on-disk match", view.gitOrphans),
-    buildOrphanBucket("No repository match", view.diskOrphans),
-  ];
-  const widgets = [...buildStagePairs(view.pairs), ...buckets.filter((bucket) => bucket !== undefined)];
-  const stage = getRequiredElementById("stage");
-  stage.replaceChildren();
-  // Only a multi-chunk render paints between chunks; a small one must never flash the loadbar.
-  const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
-  for (let done = 0; done < widgets.length; done += STAGE_CHUNK_WIDGETS) {
-    stage.append(...widgets.slice(done, done + STAGE_CHUNK_WIDGETS));
-    if (!isChunked) {
-      continue;
-    }
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
-      Math.min(done + STAGE_CHUNK_WIDGETS, widgets.length), widgets.length);
-    await waitForPaintedFrame();
-    if (pass !== stageRenderPass) {
-      return;
-    }
-  }
-  if (isChunked) {
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
-    await waitForPaintedFrame();
-    if (pass !== stageRenderPass) {
-      return;
-    }
-  }
-  // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
-  markMultiEventTicks();
-  refreshKindJumpArrows();
-  // renderSessionRanges replaces #washes wholesale, so the surviving wash kinds repaint AFTER it, every render.
-  renderSessionRanges(listSelectedSessions(), view.ruler);
-  renderNavWash(view, readNavTargets());
-  repaintDiffWash(view.ruler);
-  drawLayer1Minimap();
-  drawScriptConnectors(stage);
-  if (isChunked) {
-    hideLayer1Progress();
-  }
-}
-
-// Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.
-export function intersectFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] | undefined {
-  if (folders.length === 0 && sessions.length === 0) {
-    return undefined;
-  }
-  if (folders.length === 0) {
-    return [...sessions];
-  }
-  if (sessions.length === 0) {
-    return [...folders];
-  }
-  const touched = new Set(sessions);
-  return folders.filter((path) => touched.has(path));
-}
-
-// Module state because the nav's redraw would wipe a selection the session pane still re-applies.
-let folderTargets: string[] = [];
-// Task 326: the folder selection filters the stage only while this toggle is on.
-let onlySelectedIsOn = false;
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
-
-// Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
-export function renderLayer1View(view: WireLayer1View): Promise<void> {
-  // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
-  const redrawStage = (): Promise<void> => renderLayer1Stage(filterLayer1ViewByTargets(
-    view, intersectFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
-  ));
-  const redrawFiltered = (): void => {
-    closeRulerExpansion();
-    redrawStage();
-  };
-  onExpansionRelayout(redrawStage);
-  // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
-  const onlySelectedButton = getRequiredElementById("filenav-only-selected");
-  // A re-render builds a fresh button, so its class is derived from the surviving module state.
-  onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
-  onlySelectedButton.onclick = () => {
-    onlySelectedIsOn = !onlySelectedIsOn;
-    onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
-    redrawFiltered();
-  };
-  renderLayer1FileNav(view, (targets) => {
-    folderTargets = targets;
-    rememberNavTargets(targets);
-    // Task 333: a multi-selection stays on the FULL timeline; the nav wash alone shows where it falls.
-    redrawFiltered();
-    // Task 329: any selection fills the drawer — one DiffView per file, 1..N uniformly.
-    if (targets.length >= 1) {
-      showDetailViewForFiles(view, targets);
-    }
-  });
-  renderShowRowWithKindFilter(view, redrawStage);
-  const stageDrawn = renderLayer1Stage(view);
-  // The pane keeps only transcripts that touched one of these files.
-  setKnownProjectPaths(getInputById("dir").value.trim(), [
-    ...view.pairs.map((pair) => pair.path),
-    ...view.gitOrphans.map((orphan) => orphan.path),
-    ...view.diskOrphans.map((orphan) => orphan.path),
-  ]);
-  // Fetched after the stage is up rather than delaying it: the timeline is the page.
-  void loadLayer1Sessions().then(() => renderSessionPane(redrawFiltered));
-  return stageDrawn;
-}
 
 // replaceState, not pushState: re-loading the same page is not a navigation.
 export async function loadLayer1View(): Promise<void> {
@@ -179,7 +32,10 @@ export async function loadLayer1View(): Promise<void> {
   resetSourcePathsOnProjectChange();
   // Task 366: after the wipe and before defaults derive, load the newly-named project's saved settings.
   const currentDir = getInputById("dir").value.trim();
-  if (appliedProjectDir !== undefined && currentDir !== appliedProjectDir) {
+  const hasAppliedDir = appliedProjectDir !== undefined;
+  const isNewDir = currentDir !== appliedProjectDir;
+  const isProjectSwitch = hasAppliedDir && isNewDir;
+  if (isProjectSwitch) {
     await applySavedSettingsForCurrentDir();
   }
   appliedProjectDir = currentDir;
@@ -188,7 +44,10 @@ export async function loadLayer1View(): Promise<void> {
   const params = readSourceParams();
   history.replaceState(null, "", `?${params}`);
   const crumb = getRequiredElementById("crumb");
-  if (!params.has("dir") || !params.has("repo")) {
+  const hasDir = params.has("dir");
+  const hasRepo = params.has("repo");
+  const isMissingSource = !hasDir || !hasRepo;
+  if (isMissingSource) {
     crumb.textContent = "pick a project folder and a git repo";
     // There is no build to report, so boot's opening strip must not be left hanging.
     hideLayer1Progress();
@@ -198,11 +57,7 @@ export async function loadLayer1View(): Promise<void> {
   crumb.textContent = "";
   getRequiredElementById("stage").replaceChildren();
   getRequiredElementById("filenav-tree").replaceChildren();
-  folderTargets = [];
-  rememberNavTargets([]);
-  // Task 326: a fresh project must never start silently filtered.
-  onlySelectedIsOn = false;
-  getRequiredElementById("filenav-only-selected").classList.remove("current");
+  clearFolderFilterState();
   closeRulerExpansion();
   resetSessionSelection();
   showLayer1Progress("starting");
@@ -224,26 +79,38 @@ export async function loadLayer1View(): Promise<void> {
   }
 }
 
+function loadViewInBackground(): void {
+  void loadLayer1View();
+}
+
+function markDirtyAndLoadView(): void {
+  markSettingsDirty();
+  void loadLayer1View();
+}
+
+function loadViewAfterRefCheck(): void {
+  void confirmRepoAndFillRefs();
+  void loadLayer1View();
+}
+
+function getFailedRestoreResult(): boolean {
+  return false;
+}
+
 export async function bootLayer1Page(): Promise<void> {
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
   fillSourceBoxesFromUrl();
   // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
   showLayer1Progress("starting");
   // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
-  wirePathPickers(() => {
-    markSettingsDirty();
-    void loadLayer1View();
-  });
+  wirePathPickers(markDirtyAndLoadView);
   wireSettingsSave();
   wireSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
-  wireTimeSourceToggle(() => {
-    void loadLayer1View();
-  });
+  wireTimeSourceToggle(loadViewInBackground);
+  installProjectSettingsToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
-  wireRefPickers(() => {
-    void loadLayer1View();
-  });
+  wireRefPickers(loadViewInBackground);
   void confirmRepoAndFillRefs();
   wireLayer1CancelButton();
   wireBusyShield();
@@ -258,16 +125,11 @@ export async function bootLayer1Page(): Promise<void> {
   wireMultiFileDrawer();
   wireTickExpansion();
   wireLeaderVisibility();
-  wireFolderPickers(() => {
-    void confirmRepoAndFillRefs();
-    void loadLayer1View();
-  });
-  getRequiredElementById("load").addEventListener("click", () => {
-    void loadLayer1View();
-  });
+  wireFolderPickers(loadViewAfterRefCheck);
+  getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
   await seedSourceDefaults();
-  await restoreSavedSettings().catch(() => false);
+  await restoreSavedSettings().catch(getFailedRestoreResult);
   void loadLayer1View().then(scrollToFirstVisibleNode);
 }
 

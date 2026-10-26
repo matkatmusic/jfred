@@ -6,7 +6,8 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { bootLayer1Page, renderLayer1View } = await import("../webapp/layer1-page.ts");
+const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 
 const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const COMMIT = { ...INSTANT, hash: "b7c8d9e0f1a23445566778899aabbccddeeff001" };
@@ -38,7 +39,7 @@ test("test_the_edit_and_script_run_boxes_exist_even_when_the_view_has_no_pairs",
 });
 
 test("test_the_show_row_boxes_start_checked_except_edit_and_script_run_and_the_legend_is_gone", () => {
-    // Scenario: every box starts checked but the edit and script-run boxes, which start unchecked; the static legend no longer renders.
+    // Scenario: every box starts checked except edit and script-run; the static legend no longer renders.
     renderViewAndListShownKinds({ path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT });
     const boxes = [...document.querySelectorAll<HTMLInputElement>("#show-row input")];
     assert.ok(boxes.filter((box) => !["edit", "script-run", "branch"].includes(box.dataset["kind"]!)).every((box) => box.checked));

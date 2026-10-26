@@ -1,4 +1,4 @@
-// The geometry probe's two contracts: it must stay a valid template literal, and the bucket headings it teaches the assertions must be the ones layer1-page.ts actually renders. The second is the drift this file exists to catch — a renamed heading would otherwise silently disable the bucket-title rule rather than fail it.
+// The geometry probe stays a valid template literal, and its bucket headings match the ones layer1-stage-render.ts renders.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -25,8 +25,8 @@ test("the probe emits every field the dump declares", () => {
 });
 
 test("the bucket headings match the ones layer1-page.ts renders", () => {
-    const page = readFileSync(join(JFRED_ROOT, "webapp", "layer1-page.ts"), "utf8");
+    const page = readFileSync(join(JFRED_ROOT, "webapp", "layer1-stage-render.ts"), "utf8");
     for (const title of BUCKET_TITLES) {
-        assert.ok(page.includes(`buildOrphanBucket("${title}"`), `layer1-page.ts no longer renders ${title}`);
+        assert.ok(page.includes(`buildOrphanBucket("${title}"`), `layer1-stage-render.ts no longer renders ${title}`);
     }
 });

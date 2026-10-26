@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb the first import against a throwaway DOM.
 initLayer1Dom();
-const { renderLayer1Stage } = await import("../webapp/layer1-page.ts");
+const { renderLayer1Stage } = await import("../webapp/layer1-stage-render.ts");
 const { LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE } = await import("../webapp/layer1-progress.ts");
 
 const T0 = "2026-07-01T10:00:00.000Z";

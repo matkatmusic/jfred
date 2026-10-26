@@ -104,8 +104,9 @@
   /*
     Layer 1's input surface: project-folder row, then the task-286 repository row with flag and ref pickers.
   */
-  .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  .sources { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-basis: 100%;
     padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .viz-root:not(.project-settings-open) .sources { display: none; }
   /*
     Task 286: pickers hidden until layer1-refs.ts adds `.repo-ok`; non-repo path shows none, error already in crumb.
   */

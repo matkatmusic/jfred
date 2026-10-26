@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // webapp/layer1-page.ts boots at MODULE SCOPE, so absorb that first import against a throwaway DOM.
 initLayer1Dom();
-const { renderLayer1View } = await import("../webapp/layer1-page.ts");
+const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";

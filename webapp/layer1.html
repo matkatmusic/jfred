@@ -25,6 +25,7 @@
       <button id="time-committer" class="current">committer</button>
       <button id="time-author">author</button>
     </div>
+    <button id="project-settings">project settings</button>
     <div class="zoombar">
       <span class="lbl">Zoom:</span>
       <button id="zoom-out" title="Zoom out">−</button>
@@ -57,6 +58,19 @@
       <span class="savednote" id="saved-note"></span>
     </div>
     <!--
+      Task 286: the Git repo row is separate from the folder row; its pickers show only after `.repo-ok`.
+    -->
+    <div class="sources repo">
+      <label>Git repo
+        <input id="repo" type="text" size="34" value="">
+        <button class="pick" data-for="repo">Open…</button></label>
+      <span class="repo-flag">✓ git repo</span>
+      <label class="repo-only">Branch <select id="branch"></select></label>
+      <label class="repo-only">Commit <select id="commit"></select></label>
+      <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
+      <button id="load">Load</button>
+    </div>
+    <!--
       Task 256: bucket jumps. `data-bucket` MUST match renderLayer1View's bucket heading exactly. Task 285: row also holds the find-bubble widget.
     -->
     <div class="jumpbar">
@@ -71,25 +85,11 @@
       <button id="find-prev" title="Previous match">‹</button>
       <button id="find-next" title="Next match">›</button>
       <!--
-        Task 273: the find box's own readout. It used to be written into the header's #crumb, which also carries the stage's pair and orphan counts — so a search destroyed those, and emptying the box left the dead result behind with nothing able to restore them.
+        Task 273: the find box's own readout, kept apart from #crumb so a search never erases the counts.
       -->
       <span class="find-status" id="find-status"></span>
     </div>
   </header>
-
-  <!--
-    Task 286: two rows, not one. The project folder is what is on DISK; everything on this row describes the REPOSITORY that disk state is read against. Splitting them also stops the 100ch commit dropdown pushing the folder box off the row. The branch and commit pickers stay hidden until webapp/layer1-refs.ts confirms the path IS a git repo and adds `.repo-ok`.  `#ref` SURVIVES as a text box: a raw hash must still be typeable, and it is the existing ?ref= query param — the commit dropdown WRITES into it rather than replacing it, which is also why layer1-sources.ts's SOURCE_PARAM_IDS needs no change.
-  -->
-  <div class="sources repo">
-    <label>Git repo
-      <input id="repo" type="text" size="34" value="">
-      <button class="pick" data-for="repo">Open…</button></label>
-    <span class="repo-flag">✓ git repo</span>
-    <label class="repo-only">Branch <select id="branch"></select></label>
-    <label class="repo-only">Commit <select id="commit"></select></label>
-    <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
-    <button id="load">Load</button>
-  </div>
   <!--
     Task 385: the Layer 8 show row mockup replaces the static legend; webapp/layer1-show-row.ts fills it per load.
   <div class="legend">
@@ -103,7 +103,7 @@
   -->
   <div class="show-row" id="show-row"></div>
   <!--
-    Task 302: sits DIRECTLY above the timeline (user-locked placement), and carries the Cancel that aborts the in-flight build — task 164's confirm pattern, adapted from hash-navigation to an AbortController since this page is not hash-routed.
+    Task 302: sits directly above the timeline and carries the Cancel that aborts the in-flight build.
   -->
   <div class="loadbar" id="loadbar" hidden>
     <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
@@ -122,7 +122,7 @@
   -->
   <div class="stagewrap" id="stagewrap">
     <!--
-      Task 252: the File Nav — every identified file, including the repo files with no on-disk presence. A flex sibling of the scroll container, so it sits to the LEFT of the sticky ruler gutter without entering the zoomed `.canvas`. webapp/layer1-filenav.ts rebuilds the tree on every load, reusing the same tree the main webapp's Files pane renders.
+      Task 252: the File Nav lists every identified file, left of the ruler gutter; layer1-filenav.ts rebuilds it per load.
     -->
     <aside class="filenav">
       <section class="navpane" id="pane-files">
@@ -133,7 +133,7 @@
           <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
         </div>
         <!--
-          Task 281: the nav's OWN search box. It narrows this tree and nothing else — the find-bubble box above scrolls the timeline, which is a different job, so neither box reads the other's text. Inside the <aside> so it moves and resizes with the pane.
+          Task 281: the nav's own search box. It narrows this tree only; the find-bubble box scrolls the timeline.
         -->
         <div class="filenav-search">
           <input id="filenav-search" type="text" placeholder="search files...">
@@ -142,11 +142,11 @@
         <div id="filenav-tree"></div>
       </section>
       <!--
-        Task 292: the horizontal split between the two panes. A sibling of both, so dragging it re-shares the <aside>'s height rather than scrolling inside either list.
+        Task 292: the horizontal split between the two panes; dragging it re-shares the aside's height.
       -->
       <div class="pane-grip" id="navpane-grip" title="Drag to resize"></div>
       <!--
-        Task 292: the project's JSONLs. Same picker behaviour as the folder tree — a click filters the timeline to the files that session touched, a re-click clears, shift extends.  Each surviving file keeps its WHOLE history; the band drawn over the canvas is what says which stretch of it the session is answerable for.
+        Task 292: the project's JSONLs. A click filters the timeline to the files that session touched.
       -->
       <section class="navpane" id="pane-sessions">
         <div class="filenav-title">JSONLs

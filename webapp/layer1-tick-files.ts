@@ -25,10 +25,10 @@ export interface TickEvent {
 let expandedRow: RulerExpansion | undefined;
 
 // Task 300: the redraw the expansion triggers, registered by layer1-page.ts so no import cycle forms.
-let requestStageRelayout: () => void = () => {};
+let triggerStageRelayout: () => void = () => {};
 
 export function onExpansionRelayout(callback: () => void): void {
-  requestStageRelayout = callback;
+  triggerStageRelayout = callback;
 }
 
 // What layer1-page.ts feeds the two-pass layout; undefined while no row is open.
@@ -55,7 +55,7 @@ function readOwningPath(element: HTMLElement): string {
 }
 
 // What one drawn element contributes to the list.
-function describeDrawnElement(element: HTMLElement): TickEvent {
+function readTickEvent(element: HTMLElement): TickEvent {
   // An orphan's row IS its path; the bucket `.fname` is a heading, and kind stays empty (mockup 899-903).
   if (element.matches("li")) {
     return { path: element.querySelector("span")?.textContent ?? "", kind: "", element, nodeKind: undefined };
@@ -72,11 +72,12 @@ function listAllEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[]): T
   const seen = new Set<HTMLElement>();
   for (const axisPx of axisPxList) {
     for (const element of listElementsDrawnAtAxisPx(axisPx, snapshot)) {
-      if (seen.has(element)) {
+      const isDuplicate = seen.has(element);
+      if (isDuplicate) {
         continue;
       }
       seen.add(element);
-      events.push(describeDrawnElement(element));
+      events.push(readTickEvent(element));
     }
   }
   return events;
@@ -119,7 +120,11 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
 
 // The list itself, a child of its tick so it opens directly under the timestamp inside the gutter.
 export function buildTickFileList(events: TickEvent[]): HTMLElement {
-  return el("div", { class: "tickfiles" }, events.map(buildTickFileButton));
+  const buttons: HTMLElement[] = [];
+  for (const event of events) {
+    buttons.push(buildTickFileButton(event));
+  }
+  return el("div", { class: "tickfiles" }, buttons);
 }
 
 // List height in axis px from a throwaway render; fallback covers layout-free DOMs.
@@ -135,11 +140,11 @@ export function toggleExpandedRow(tick: HTMLElement, events: TickEvent[]): void 
   const instantMs = new Date(rowsByTick.get(tick)?.instants[0] ?? 0).getTime();
   const wasOpen = expandedRow?.instantMs === instantMs;
   expandedRow = wasOpen ? undefined : { instantMs, listHeightPx: measureListHeightPx(tick, events) };
-  requestStageRelayout();
+  triggerStageRelayout();
 }
 
 // After a re-render, re-open the surviving expanded row on FRESH elements; a filtered-away row just stays shut.
-function reopenExpandedRow(): void {
+function openExpandedRowAgain(): void {
   const tick = findTickAtExpandedInstant();
   if (tick === undefined) {
     return;
@@ -152,14 +157,15 @@ function reopenExpandedRow(): void {
   // A kind shown since measuring changes the list height, so the stage lays out again after this render.
   if (listHeightPx !== expandedRow!.listHeightPx) {
     expandedRow = { instantMs: expandedRow!.instantMs, listHeightPx };
-    queueMicrotask(requestStageRelayout);
+    queueMicrotask(triggerStageRelayout);
   }
 }
 
 // A redraw replaces every tick, so the open list moves to the fresh tick and the row stays open.
 export function carryOpenRowToNewTicks(openList: Element | null): void {
   const tick = findTickAtExpandedInstant();
-  if (openList === null || tick === undefined) {
+  const hasNothingToCarry = openList === null || tick === undefined;
+  if (hasNothingToCarry) {
     return;
   }
   tick.classList.add("expanded");
@@ -224,7 +230,7 @@ function markTickKindState(snapshot: BubbleSnapshot[]): void {
 export function markMultiEventTicks(): void {
   markTickKindState(snapshotStageBubbles());
   // Task 300: the expansion outlives its own re-render, so the open row is rebuilt on the fresh ticks.
-  reopenExpandedRow();
+  openExpandedRowAgain();
 }
 
 // Task 360: a box toggle re-marks the ticks, rebuilds the open file list, and relays out the stage.
@@ -235,13 +241,14 @@ export function refreshTicksForKindFilter(): void {
   }
   const tick = findTickAtExpandedInstant();
   const events = tick === undefined ? [] : listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
-  if (tick === undefined || events.length <= 1) {
+  const isRowGone = tick === undefined || events.length <= 1;
+  if (isRowGone) {
     closeRulerExpansion();
     for (const openTick of document.querySelectorAll<HTMLElement>("#ruler .tick.expanded")) {
       openTick.querySelector(".tickfiles")?.remove();
       openTick.classList.remove("expanded");
     }
-    requestStageRelayout();
+    triggerStageRelayout();
     return;
   }
   tick.querySelector(".tickfiles")?.remove();
@@ -250,7 +257,7 @@ export function refreshTicksForKindFilter(): void {
   // The open list is rebuilt in place; only a changed height needs the stage laid out again.
   if (listHeightPx !== expandedRow.listHeightPx) {
     expandedRow = { instantMs: expandedRow.instantMs, listHeightPx };
-    requestStageRelayout();
+    triggerStageRelayout();
   }
 }
 
@@ -258,10 +265,11 @@ export function refreshTicksForKindFilter(): void {
 export function wireTickExpansion(): void {
   onKindFilterChange(refreshTicksForKindFilter);
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || expandedRow === undefined) {
+    const isIgnoredKey = event.key !== "Escape" || expandedRow === undefined;
+    if (isIgnoredKey) {
       return;
     }
     closeRulerExpansion();
-    requestStageRelayout();
+    triggerStageRelayout();
   });
 }

@@ -7,7 +7,7 @@ import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { renderLayer1View } = await import("../webapp/layer1-page.ts");
+const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE } =
   await import("../webapp/layer1-progress.ts");
 
