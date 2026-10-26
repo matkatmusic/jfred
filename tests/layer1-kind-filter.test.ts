@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById } from "../webapp/app-dom.ts";
+import { createElement, getInputById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { VIEW, readHiddenKinds, toggleBox } from "./layer1-kind-filter-helpers.ts";
 
@@ -20,7 +20,7 @@ async function renderFreshView(dir: string = ""): Promise<void> {
 
 test("test_classifyNodeKind_maps_node_classes_to_show_row_kinds", () => {
     initLayer1Dom();
-    const classify = (className: string) => classifyNodeKind(el("i", { class: className }));
+    const classify = (className: string) => classifyNodeKind(createElement("i", { class: className }));
     assert.equal(classify("node n-disk n-created"), "created");
     assert.equal(classify("node n-commit"), "commit");
     assert.equal(classify("node n-disk"), "disk");
@@ -29,8 +29,8 @@ test("test_classifyNodeKind_maps_node_classes_to_show_row_kinds", () => {
     assert.equal(classify("node n-read conf-verified"), "edit");
     assert.equal(classify("node n-script"), "script-run");
     assert.equal(classify("bnode"), "branch");
-    assert.equal(classifyNodeKind(el("li")), undefined);
-    const lane = el("div", {}, [el("i", { class: "node n-commit" }), el("span", { class: "nlabel" })]);
+    assert.equal(classifyNodeKind(createElement("li")), undefined);
+    const lane = createElement("div", {}, [createElement("i", { class: "node n-commit" }), createElement("span", { class: "nlabel" })]);
     assert.equal(classifyNodeKind(lane.querySelector<HTMLElement>(".nlabel")!), "commit");
 });
 

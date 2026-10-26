@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el } from "../webapp/app-dom.ts";
+import { createElement } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
@@ -23,7 +23,7 @@ function setAxisPx(element: HTMLElement, axisPx: number): HTMLElement {
 }
 
 function buildNode(kindClass: string, label: string): HTMLElement[] {
-    return [setAxisPx(el("i", { class: `node ${kindClass}` }), 0), setAxisPx(el("span", { class: "nlabel", text: label }), 0)];
+    return [setAxisPx(createElement("i", { class: `node ${kindClass}` }), 0), setAxisPx(createElement("span", { class: "nlabel", text: label }), 0)];
 }
 
 // One bubble: a node per kind at the shared instant, plus its ruler tick.
@@ -31,11 +31,11 @@ function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElemen
     initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
     const nodes = kindClasses.flatMap((kindClass) => buildNode(kindClass, kindClass));
-    document.getElementById("stage")!.replaceChildren(setAxisPx(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
-        el("div", { class: "lane" }, nodes),
+    document.getElementById("stage")!.replaceChildren(setAxisPx(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
+        createElement("div", { class: "lane" }, nodes),
     ]), SHARED_PX), ...extra);
-    const tick = setAxisPx(el("div", { class: "tick" }), SHARED_PX);
+    const tick = setAxisPx(createElement("div", { class: "tick" }), SHARED_PX);
     document.getElementById("ruler")!.appendChild(tick);
     attachRulerTickClick(tick, { axisPx: SHARED_PX, text: "", axisPxList: [SHARED_PX], instants: [INSTANT] });
     onExpansionRelayout(markMultiEventTicks);
@@ -103,9 +103,9 @@ test("test_an_expanded_row_closes_when_one_visible_event_remains", () => {
 });
 
 test("test_orphan_rows_are_never_hidden", () => {
-    drawRowOf(["n-snap"], [setAxisPx(el("div", { class: "filebox bucket" }, [
-        el("div", { class: "fname", text: "No repository match" }),
-        el("ul", {}, [setAxisPx(el("li", {}, [el("span", { text: "notes/scratch.txt" })]), 0)]),
+    drawRowOf(["n-snap"], [setAxisPx(createElement("div", { class: "filebox bucket" }, [
+        createElement("div", { class: "fname", text: "No repository match" }),
+        createElement("ul", {}, [setAxisPx(createElement("li", {}, [createElement("span", { text: "notes/scratch.txt" })]), 0)]),
     ]), SHARED_PX)]);
     for (const kind of ["commit", "disk", "snapshot"]) {
         toggleBox(kind, false);

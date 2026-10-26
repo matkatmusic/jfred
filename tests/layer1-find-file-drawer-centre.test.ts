@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, buildDiskNodeStage, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -12,7 +12,7 @@ test("test_clicking_a_node_scrolls_it_to_the_centre_of_the_part_the_drawer_leave
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
-    wireNodeDrawer();
+    installNodeDrawer();
     const pane = getRequiredElementById("timelines");
     pane.scrollTop = 1000;
     pane.getBoundingClientRect = () => ({ left: 0, right: 1000, top: 0, bottom: 800, width: 1000, height: 800 }) as DOMRect;

@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
@@ -17,16 +17,16 @@ test("task 329: a shift-click spanning two bubbles becomes a global range diffin
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
-    const firstNode = el("i", { class: "node n-disk" });
-    const otherNode = el("i", { class: "node n-disk" });
+    const firstNode = createElement("i", { class: "node n-disk" });
+    const otherNode = createElement("i", { class: "node n-disk" });
     getRequiredElementById("stage").replaceChildren(
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-            el("div", { class: "lane" }, [firstNode]),
+        createElement("div", { class: "filebox" }, [
+            createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
+            createElement("div", { class: "lane" }, [firstNode]),
         ]),
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
-            el("div", { class: "lane" }, [otherNode]),
+        createElement("div", { class: "filebox" }, [
+            createElement("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
+            createElement("div", { class: "lane" }, [otherNode]),
         ]),
     );
     rememberDrawnView({
@@ -39,7 +39,7 @@ test("task 329: a shift-click spanning two bubbles becomes a global range diffin
         ruler: [{ instant: LANE_T0, axisPx: 10, eventCount: 1 }, { instant: LANE_T2, axisPx: 40, eventCount: 1 }],
     } as WireLayer1View);
     rememberNavTargets([]);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -60,16 +60,16 @@ test("task 336: the wash sweeps in every file with a step inside the range, not 
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     getInputById("dir").value = "/project";
-    const firstNode = el("i", { class: "node n-disk" });
-    const otherNode = el("i", { class: "node n-disk" });
+    const firstNode = createElement("i", { class: "node n-disk" });
+    const otherNode = createElement("i", { class: "node n-disk" });
     getRequiredElementById("stage").replaceChildren(
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-            el("div", { class: "lane" }, [firstNode]),
+        createElement("div", { class: "filebox" }, [
+            createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
+            createElement("div", { class: "lane" }, [firstNode]),
         ]),
-        el("div", { class: "filebox" }, [
-            el("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
-            el("div", { class: "lane" }, [otherNode]),
+        createElement("div", { class: "filebox" }, [
+            createElement("div", { class: "fname", text: "other.ts", "data-path": "src/other.ts" }),
+            createElement("div", { class: "lane" }, [otherNode]),
         ]),
     );
     rememberDrawnView({
@@ -90,7 +90,7 @@ test("task 336: the wash sweeps in every file with a step inside the range, not 
         ],
     } as WireLayer1View);
     rememberNavTargets([]);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     firstNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el } from "../webapp/app-dom.ts";
+import { createElement } from "../webapp/app-dom.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
 import { flashSession } from "../webapp/layer1-sessions.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
@@ -20,28 +20,28 @@ function setAxisPx(element: HTMLElement, axisPx: number): HTMLElement {
 // Dot and label share one WIDGET-RELATIVE offset; the label is the node's own name for itself.
 function buildNode(axisPx: number, label: string): HTMLElement[] {
     return [
-        setAxisPx(el("i", { class: "node n-commit" }), axisPx),
-        setAxisPx(el("span", { class: "nlabel", text: label }), axisPx),
+        setAxisPx(createElement("i", { class: "node n-commit" }), axisPx),
+        setAxisPx(createElement("span", { class: "nlabel", text: label }), axisPx),
     ];
 }
 
 // Named by basename with the full path on `data-path` (task 280); nodes offset relative to it.
 function buildPairBubble(path: string, bubblePx: number, nodes: HTMLElement[]): HTMLElement {
-    return setAxisPx(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: path.split("/").pop()!, "data-path": path }),
-        el("div", { class: "lane" }, nodes),
+    return setAxisPx(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: path.split("/").pop()!, "data-path": path }),
+        createElement("div", { class: "lane" }, nodes),
     ]), bubblePx);
 }
 
 // The bucket heading is NOT a file; each row's own first span IS.
 function buildOrphanBubble(title: string, path: string, bucketPx: number): HTMLElement {
-    return setAxisPx(el("div", { class: "filebox bucket" }, [
-        el("div", { class: "fname", text: title }),
-        el("ul", {}, [setAxisPx(el("li", {}, [el("span", { text: path }), el("em", { text: "07-18 19:42:08.22" })]), 0)]),
+    return setAxisPx(createElement("div", { class: "filebox bucket" }, [
+        createElement("div", { class: "fname", text: title }),
+        createElement("ul", {}, [setAxisPx(createElement("li", {}, [createElement("span", { text: path }), createElement("em", { text: "07-18 19:42:08.22" })]), 0)]),
     ]), bucketPx);
 }
 
-// `build` is a callback because `el` reads the global `document`; inline bubbles would bind to the previous test's page.
+// `build` is a callback because `createElement` reads the global `document`; inline bubbles would bind to the previous test's page.
 function drawStage(build: () => HTMLElement[]): void {
     initLayer1Dom();
     document.getElementById("stage")!.replaceChildren(...build());
@@ -86,15 +86,15 @@ test("test_listEventsAtRow_reads_a_merged_rows_absorbed_instants_too", () => {
 function buildSnapshotNode(axisPx: number, version: number, sessionFile: string): HTMLElement[] {
     const identity = { "data-session-file": sessionFile, "data-version": String(version) };
     return [
-        setAxisPx(el("i", { class: "node n-snap", ...identity }), axisPx),
-        setAxisPx(el("span", { class: "nlabel n-snap", text: `@v${version} 📸` }), axisPx),
+        setAxisPx(createElement("i", { class: "node n-snap", ...identity }), axisPx),
+        setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${version} 📸` }), axisPx),
     ];
 }
 
 function seedSessionRows(...files: string[]): void {
     const host = document.getElementById("sessions")!;
     host.replaceChildren(...files.map((file) => {
-        const item = el("div", { class: "session-item" });
+        const item = createElement("div", { class: "session-item" });
         item.dataset.file = file;
         return item;
     }));
@@ -113,8 +113,8 @@ const TIED_INSTANT = "2026-07-24T08:15:00.000Z";
 const OTHER_INSTANT = "2026-07-24T09:30:00.000Z";
 
 function buildInstantNode(axisPx: number, label: string, instant: string, nodeClass: string): HTMLElement[] {
-    const dot = setAxisPx(el("i", { class: `node ${nodeClass}` }), axisPx);
-    const name = setAxisPx(el("span", { class: "nlabel", text: label }), axisPx);
+    const dot = setAxisPx(createElement("i", { class: `node ${nodeClass}` }), axisPx);
+    const name = setAxisPx(createElement("span", { class: "nlabel", text: label }), axisPx);
     dot.dataset.instant = instant;
     name.dataset.instant = instant;
     return [dot, name];

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { el } from "../webapp/app-dom.ts";
+import { createElement } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
 import { markMultiEventTicks, onExpansionRelayout, wireTickExpansion } from "../webapp/layer1-tick-files.ts";
@@ -22,18 +22,18 @@ function setAxisPx(element: HTMLElement, axisPx: number): HTMLElement {
 }
 
 function buildNode(kindClass: string): HTMLElement[] {
-    return [setAxisPx(el("i", { class: `node ${kindClass}` }), 0), setAxisPx(el("span", { class: "nlabel", text: kindClass }), 0)];
+    return [setAxisPx(createElement("i", { class: `node ${kindClass}` }), 0), setAxisPx(createElement("span", { class: "nlabel", text: kindClass }), 0)];
 }
 
 // One bubble with a node per kind class at the shared instant, plus its ruler tick.
 function drawRowOf(kindClasses: string[]): HTMLElement {
     initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
-    document.getElementById("stage")!.replaceChildren(setAxisPx(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
-        el("div", { class: "lane" }, kindClasses.flatMap(buildNode)),
+    document.getElementById("stage")!.replaceChildren(setAxisPx(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
+        createElement("div", { class: "lane" }, kindClasses.flatMap(buildNode)),
     ]), SHARED_PX));
-    const tick = setAxisPx(el("div", { class: "tick", text: TICK_TEXT }), SHARED_PX);
+    const tick = setAxisPx(createElement("div", { class: "tick", text: TICK_TEXT }), SHARED_PX);
     document.getElementById("ruler")!.appendChild(tick);
     attachRulerTickClick(tick, { axisPx: SHARED_PX, text: TICK_TEXT, axisPxList: [SHARED_PX], instants: [INSTANT] });
     onExpansionRelayout(markMultiEventTicks);

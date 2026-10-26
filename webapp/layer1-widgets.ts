@@ -1,6 +1,6 @@
 // Layer 1's two widget shapes (pair bubble, orphan bucket), split out of layer1-page.ts once it hit the 250-line cap.
 
-import { el } from "./app-dom.ts";
+import { createElement } from "./app-dom.ts";
 import { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
@@ -40,8 +40,8 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 // The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
 function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, titleText?: string): void {
   lane.append(
-    setAxisPx(el("i", { class: `node ${nodeClass}`, title: titleText, "data-instant": instant }), axisPx),
-    setAxisPx(el("span", { class: "nlabel", text, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("i", { class: `node ${nodeClass}`, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel", text, title: titleText, "data-instant": instant }), axisPx),
   );
 }
 
@@ -55,8 +55,8 @@ function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSna
     "data-line": snapshot.line === undefined ? undefined : String(snapshot.line),
   };
   lane.append(
-    setAxisPx(el("i", { class: "node n-snap", ...identity }), axisPx),
-    setAxisPx(el("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸`, ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: "node n-snap", ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸`, ...identity }), axisPx),
   );
 }
 
@@ -76,8 +76,8 @@ function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMov
     "data-line": edit.line === undefined ? undefined : String(edit.line),
   };
   lane.append(
-    setAxisPx(el("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
-    setAxisPx(el("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
   );
 }
 
@@ -94,8 +94,8 @@ function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptR
   };
   const iconText = describeScriptLanguage(run.language);
   lane.append(
-    setAxisPx(el("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
-    setAxisPx(el("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
   );
 }
 
@@ -114,19 +114,19 @@ function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneIndex: numb
   const rejoinPx = branch.rejoinAt === undefined ? (branch.keptToEnd === true ? railEndPx - startPx : undefined) : branch.rejoinAt.axisPx - startPx;
   const railFromPx = forkPx + BRANCH_ELBOW_PX;
   const railToPx = rejoinPx === undefined ? Math.max(...branch.nodes.map((node) => node.axisPx - startPx)) : rejoinPx - BRANCH_ELBOW_PX;
-  const branchLane = el("div", { class: "blane" });
+  const branchLane = createElement("div", { class: "blane" });
   branchLane.style.setProperty("--lane-index", String(laneIndex));
-  const rail = setAxisPx(el("div", { class: "brail" }), railFromPx);
+  const rail = setAxisPx(createElement("div", { class: "brail" }), railFromPx);
   rail.style.setProperty("--span-px", String(railToPx - railFromPx));
-  branchLane.append(setAxisPx(el("div", { class: "split-elbow" }), forkPx), rail);
+  branchLane.append(setAxisPx(createElement("div", { class: "split-elbow" }), forkPx), rail);
   if (rejoinPx !== undefined) {
-    branchLane.append(setAxisPx(el("div", { class: "merge-elbow" }), rejoinPx));
+    branchLane.append(setAxisPx(createElement("div", { class: "merge-elbow" }), rejoinPx));
   }
   for (const node of branch.nodes) {
     const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
     branchLane.append(
-      setAxisPx(el("i", { class: "bnode", ...identity }), node.axisPx - startPx),
-      setAxisPx(el("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
+      setAxisPx(createElement("i", { class: "bnode", ...identity }), node.axisPx - startPx),
+      setAxisPx(createElement("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
     );
   }
   lane.append(branchLane);
@@ -149,10 +149,10 @@ function buildPairWidget(pair: WirePair): HTMLElement {
   const ladder = [...trunk, ...laneNodes];
   const nodePx = ladder.map((node) => node.axisPx);
   const startPx = Math.min(...nodePx);
-  const lane = setAxisPx(el("div", { class: "lane" }), 0);
+  const lane = setAxisPx(createElement("div", { class: "lane" }), 0);
   lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
   // Task 259's markers go in before the nodes; with no z-index, DOM order keeps the rectangle behind the dots.
-  lane.append(el("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
+  lane.append(createElement("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
   if (pair.created !== undefined) {
     appendAxisNode(lane, pair.created.axisPx - startPx, pair.created.instant, "n-disk n-created", "created at", CREATED_NODE_TITLE);
   }
@@ -173,13 +173,13 @@ function buildPairWidget(pair: WirePair): HTMLElement {
   const railEndPx = Math.max(...nodePx);
   branches.forEach((branch, index) => appendBranchLane(lane, branch, index + 1, railEndPx, startPx));
   const untrustedNotes = pair.createdNotTrusted === undefined ? [] : [
-    el("div", { class: "created-untrusted", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
+    createElement("div", { class: "created-untrusted", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
   ];
-  const filebox = setAxisPx(el("div", { class: "filebox" }, [
+  const filebox = setAxisPx(createElement("div", { class: "filebox" }, [
     ...untrustedNotes,
     // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
-    el("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
-    el("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
+    createElement("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
+    createElement("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
     lane,
   ]), startPx);
   filebox.style.setProperty("--lane-count", String(branches.length));
@@ -193,13 +193,13 @@ export function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElemen
     return undefined;
   }
   // Task 266: rows carry the same `--axis-px` a `.node` does, so ruler clicks find bucket rows too.
-  const list = el("ul", {}, rows.map((row) => setAxisPx(el("li", {}, [
-    el("span", { text: row.path }),
-    el("em", { text: formatInstantLabel(row.instant) }),
+  const list = createElement("ul", {}, rows.map((row) => setAxisPx(createElement("li", {}, [
+    createElement("span", { text: row.path }),
+    createElement("em", { text: formatInstantLabel(row.instant) }),
   ]), row.axisPx - earliest.axisPx)));
-  return setAxisPx(el("div", { class: "filebox bucket" }, [
-    el("div", { class: "fname", text: title }),
-    el("div", { class: "sub", text: `${rows.length} files` }),
+  return setAxisPx(createElement("div", { class: "filebox bucket" }, [
+    createElement("div", { class: "fname", text: title }),
+    createElement("div", { class: "sub", text: `${rows.length} files` }),
     list,
   ]), earliest.axisPx);
 }
@@ -207,7 +207,7 @@ export function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElemen
 // The pair widgets, or the S18 empty-state message when the two roots share no path at all.
 export function buildStagePairs(pairs: WirePair[]): HTMLElement[] {
   if (pairs.length === 0) {
-    return [el("div", { class: "nopairs", text: "No git ↔ on-disk pairs." })];
+    return [createElement("div", { class: "nopairs", text: "No git ↔ on-disk pairs." })];
   }
   return pairs.map(buildPairWidget);
 }

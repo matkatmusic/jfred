@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "../webapp/layer1-drawer-open-node.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, DISK_FILE_PATH, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
@@ -12,11 +12,11 @@ function buildTwoNodeLane(): { firstNode: HTMLElement; secondNode: HTMLElement }
   installAnimationFrameStub();
   installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
   clearAnchor();
-  const firstNode = el("i", { class: "node n-disk" });
-  const secondNode = el("i", { class: "node n-disk" });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", "data-path": DISK_FILE_PATH }),
-    el("div", { class: "lane" }, [firstNode, secondNode]),
+  const firstNode = createElement("i", { class: "node n-disk" });
+  const secondNode = createElement("i", { class: "node n-disk" });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }),
+    createElement("div", { class: "lane" }, [firstNode, secondNode]),
   ]));
   return { firstNode, secondNode };
 }

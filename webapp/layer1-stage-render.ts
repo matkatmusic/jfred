@@ -1,6 +1,6 @@
 // Draws the Layer 1 stage: ruler ticks, leader lines, pairs and orphans, in chunks.
 
-import { el, getRequiredElementById } from "./app-dom.ts";
+import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
@@ -21,16 +21,16 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
   // A row carries every offset it ABSORBED, since a merged row's click must see all their events.
   const ticks: HTMLElement[] = [];
   for (const row of listRulerRows(ruler)) {
-    ticks.push(attachRulerTickClick(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row));
+    ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", text: row.text }), row.axisPx), row));
   }
-  getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
+  getRequiredElementById("ruler").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
 }
 
 // One shared line per ruler entry, replacing the slow per-bubble `.filebox::before`.
 function renderLeaderLines(ruler: WireInstant[]): void {
   const leaders: HTMLElement[] = [];
   for (const entry of ruler) {
-    leaders.push(makeLeaderHoverable(setAxisPx(el("div", { class: "leader" }), entry.axisPx)));
+    leaders.push(makeLeaderHoverable(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
   }
   getRequiredElementById("leaders").replaceChildren(...leaders);
 }

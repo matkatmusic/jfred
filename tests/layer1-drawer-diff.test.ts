@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     COMMIT_CONTENT, DISK_FILE_CONTENT, applyLaneView, buildLaneStage, getFirstPane, installAnimationFrameStub,
@@ -18,7 +18,7 @@ test("shift-clicking a second node diffs the two sides' STRINGS, older side as b
     getInputById("repo").value = "/repo";
     const { commitNode, diskNode } = buildLaneStage(false);
     applyLaneView(false);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -47,7 +47,7 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     getInputById("repo").value = "/repo";
     const { commitNode, middleNode, diskNode } = buildLaneStage(true);
     applyLaneView(true);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

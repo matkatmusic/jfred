@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// el() needs a document.
+// createElement() needs a document.
 initLayer1Dom();
 
 // The fixture's README.md tie: commit 4d5e6f70 and the file's mtime land on the same instant, so task 251's axis charges that instant two stacked rows — one RULER_NODE_ROW_PIXELS (22) apart.

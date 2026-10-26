@@ -1,16 +1,16 @@
-// DOM tests for webapp/app-dom.ts: the el() builder's attribute handling and the shared getInputById helper (task 159).
+// DOM tests for webapp/app-dom.ts: the createElement() builder's attribute handling and the shared getInputById helper (task 159).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
 test("test_el_builds_element_with_class_text_listener_and_children", async () => {
-    // Scenario: el() maps class/text to properties, on* to listeners, everything else to attributes, and appends children in order.
+    // Scenario: createElement() maps class/text to properties, on* to listeners, everything else to attributes, and appends children in order.
     initWebappDom();
-    const { el } = await import("../webapp/app-dom.ts");
+    const { createElement } = await import("../webapp/app-dom.ts");
     let clickCount = 0;
-    const child = el("span", { text: "inner" });
-    const node = el("div", { class: "outer", title: "tip", onclick: () => { clickCount += 1; } }, [child, "tail"]);
+    const child = createElement("span", { text: "inner" });
+    const node = createElement("div", { class: "outer", title: "tip", onclick: () => { clickCount += 1; } }, [child, "tail"]);
     assert.equal(node.className, "outer");
     assert.equal(node.getAttribute("title"), "tip");
     assert.equal(node.childNodes.length, 2);

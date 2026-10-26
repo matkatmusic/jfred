@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el } from "../webapp/app-dom.ts";
+import { createElement } from "../webapp/app-dom.ts";
 import { drawScriptConnectors } from "../webapp/layer1-script-connectors.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -16,9 +16,9 @@ function stubLayout(element: HTMLElement, offsetParent: HTMLElement | null, offs
 
 // One bubble: filebox at (boxLeft, boxTop) in the stage, lane at (6, 50) in the box, dot at (0, dotTop) in the lane.
 function buildBubble(stage: HTMLElement, toolUseId: string, boxLeft: number, boxTop: number, dotTop: number): HTMLElement {
-  const dot = el("i", { class: "node n-script", "data-tool-use-id": toolUseId });
-  const lane = el("div", { class: "lane" }, [dot]);
-  const box = el("div", { class: "filebox" }, [lane]);
+  const dot = createElement("i", { class: "node n-script", "data-tool-use-id": toolUseId });
+  const lane = createElement("div", { class: "lane" }, [dot]);
+  const box = createElement("div", { class: "filebox" }, [lane]);
   stage.append(box);
   stubLayout(box, stage, boxLeft, boxTop);
   stubLayout(lane, box, 6, 50);

@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { displayDetailView } from "../webapp/layer1-diff-view.ts";
-import { listWashFiles, wireMultiFileDrawer } from "../webapp/layer1-drawer-multi.ts";
+import { listWashFiles, installMultiFileDrawer } from "../webapp/layer1-drawer-multi.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -56,9 +56,9 @@ test("listWashFiles always includes the caller's alwaysInclude paths, deduped an
 
 test("the one fold button flips with the sections and follows hand toggles", () => {
   initLayer1Dom();
-  const sections = [el("details", { class: "dfile", open: "" }), el("details", { class: "dfile", open: "" })] as HTMLDetailsElement[];
+  const sections = [createElement("details", { class: "dfile", open: "" }), createElement("details", { class: "dfile", open: "" })] as HTMLDetailsElement[];
   displayDetailView(sections);
-  wireMultiFileDrawer();
+  installMultiFileDrawer();
   const foldButton = getRequiredElementById("dfold-all");
   const toggleByHand = (section: HTMLDetailsElement, open: boolean): void => {
     section.open = open;

@@ -1,6 +1,6 @@
 // Task 356: the shared script-run drawer, keyed by toolUseId rather than (node, path).
 
-import { el, getRequiredElementById } from "./app-dom.ts";
+import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
@@ -60,7 +60,7 @@ const SCRIPT_RUN_STATUS = { verified: false, located: true, replayed: false };
 
 // Task 356: the #dpath status groups; a verified run needs no other check.
 // export function buildScriptRunStatusBadges(): HTMLElement[] {
-//     return SCRIPT_RUN_STATUSES.map(([text, title]) => el("span", { class: "run-status", text, title }));
+//     return SCRIPT_RUN_STATUSES.map(([text, title]) => createElement("span", { class: "run-status", text, title }));
 // }
 export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
   const checks: (keyof typeof SCRIPT_RUN_STATUS)[] = SCRIPT_RUN_STATUS.verified ? ["verified"] : ["verified", "located", "replayed"];
@@ -69,7 +69,7 @@ export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
     const passed = SCRIPT_RUN_STATUS[check];
     // dpath collapses normal spaces, so the groups are separated by two non-breaking spaces.
     badges.push(`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
-      el("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
+      createElement("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
   }
   return badges;
 }
@@ -92,14 +92,14 @@ export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
   }
   metaRows.push(["tool use id", run.toolUseId]);
   provenanceParts.push(run.toolUseId, run.instant);
-  const scriptMeta = el("dl", { class: "script-meta" });
+  const scriptMeta = createElement("dl", { class: "script-meta" });
   for (const [term, value] of metaRows) {
-    scriptMeta.append(el("dt", { text: term }), el("dd", { text: value }));
+    scriptMeta.append(createElement("dt", { text: term }), createElement("dd", { text: value }));
   }
-  const pre = el("pre");
+  const pre = createElement("pre");
   renderCellCode(pre, run.code, computeScriptHighlightLanguage(run.language));
-  const head = el("summary", { class: "sbhead" }, [el("b", { text: getScriptRunTitle(run) }), el("span", { class: "prov", text: provenanceParts.join(" · ") })]);
-  const metaSummary = el("summary", { text: "kind, executor, instant, session, line, tool use id" });
+  const head = createElement("summary", { class: "sbhead" }, [createElement("b", { text: getScriptRunTitle(run) }), createElement("span", { class: "prov", text: provenanceParts.join(" · ") })]);
+  const metaSummary = createElement("summary", { text: "kind, executor, instant, session, line, tool use id" });
   return [buildScriptRunFold("script-meta-fold", metaSummary, [scriptMeta], false), buildScriptRunFold("scriptbody", head, [pre], true)];
 }
 

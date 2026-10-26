@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { SCRIPT_RUN, SCRIPT_TOOL_USE_ID, buildScriptRunStage, armScriptRunView, openScriptRunDrawerByClick, openSingleRunDrawer } from "./layer1-drawer-script-helpers.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -43,7 +43,7 @@ test("task 356: clicking the shared connector opens the SAME drawer as clicking 
   installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
   const { connector } = buildScriptRunStage();
   armScriptRunView();
-  wireNodeDrawer();
+  installNodeDrawer();
 
   connector.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await waitForPendingFetches();

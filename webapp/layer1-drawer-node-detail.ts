@@ -1,6 +1,6 @@
 // Task 257.5: the single-node drawer's header, meta row, fetch params and raw JSON reveal.
 
-import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
+import { createElement, getInputById, getRequiredElementById } from "./app-dom.ts";
 import { describeEditDrawer, isEditNode, nodeCommitHash } from "./layer1-drawer-diff.ts";
 import { renderHighlightedJson } from "./inspector-json.ts";
 import type { WireValue } from "./inspector-links.ts";
@@ -58,9 +58,9 @@ export function appendRawJsonReveal(record: unknown): void {
     { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
     addNoJsonLink, [], addNoJsonLink,
   );
-  const jsonBox = el("div", { class: "node-json" }, [jsonPre]);
+  const jsonBox = createElement("div", { class: "node-json" }, [jsonPre]);
   jsonBox.hidden = true;
-  const jsonToggle = el("button", {
+  const jsonToggle = createElement("button", {
     class: "json-toggle",
     text: "[{ }]",
     title: "Show raw transcript JSON",

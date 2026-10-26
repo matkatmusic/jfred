@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { scrollToFirstVisibleNode } from "../webapp/layer1-first-node-scroll.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -17,7 +17,7 @@ function buildStubbedStage(nodes: StubbedNode[]): number[] {
     getRequiredElementById("timelines").getBoundingClientRect = () => PANE_RECT as DOMRect;
     const stage = getRequiredElementById("stage");
     stage.replaceChildren(...nodes.map((stub, index) => {
-        const node = el("i", { class: "node" });
+        const node = createElement("i", { class: "node" });
         node.getBoundingClientRect = () => ({ top: stub.top, bottom: stub.top + 15, left: 100, right: 115 }) as DOMRect;
         node.checkVisibility = () => stub.isVisible;
         node.scrollIntoView = () => { scrolled.push(index); };

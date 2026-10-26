@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { renderFileTreeNode, type FolderCollapseState } from "../webapp/views/sidebar.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// el() needs a document.
+// createElement() needs a document.
 initLayer1Dom();
 
 // A two-level fixture: "src" contains folder "nested", which contains one file leaf.

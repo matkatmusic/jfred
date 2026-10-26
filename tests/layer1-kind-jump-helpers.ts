@@ -1,6 +1,6 @@
 // Shared setup and helpers for the kind-jump arrow tests.
 
-import { el, getInputById } from "../webapp/app-dom.ts";
+import { createElement, getInputById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -23,7 +23,7 @@ function readViewTopPx(): number {
 }
 
 export function buildNode(className: string, centerY: number): HTMLElement {
-  const node = el("i", { class: `node ${className}`, "data-y": String(centerY) });
+  const node = createElement("i", { class: `node ${className}`, "data-y": String(centerY) });
   Object.assign(node, {
     getBoundingClientRect: () => {
       const top = centerY - readViewTopPx() - NODE_HEIGHT_PX / 2;

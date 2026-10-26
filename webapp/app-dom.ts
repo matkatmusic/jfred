@@ -1,6 +1,6 @@
 // ─── tiny DOM builder (textContent everywhere — no innerHTML, no injection) ──
 
-// An undefined value lets a caller pass an optional attribute inline; el() omits it.
+// An undefined value lets a caller pass an optional attribute inline; createElement() omits it.
 type ElAttrs = Record<string, string | EventListener | undefined>;
 
 // The input element with `id` (task 159: shared by app-paths-project.ts and app-paths-wizard.ts).
@@ -17,7 +17,7 @@ export function getRequiredElementById(id: string): HTMLElement {
   return element;
 }
 
-export function el(tag: string, attrs: ElAttrs = {}, children: (Node | string)[] = []): HTMLElement {
+export function createElement(tag: string, attrs: ElAttrs = {}, children: (Node | string)[] = []): HTMLElement {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     // An absent attribute is omitted: setAttribute would write the text "undefined".

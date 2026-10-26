@@ -1,8 +1,8 @@
 // Shared fixtures for the script-run drawer tests: one run touching two files, and a one-run drawer opener.
 
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -30,18 +30,18 @@ export function armScriptRunView(): void {
 }
 
 export function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement; connector: HTMLElement } {
-  const nodeA = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-  const nodeB = el("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-  const connector = el("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+  const nodeA = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+  const nodeB = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
+  const connector = createElement("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
   getRequiredElementById("stage").replaceChildren(
-    el("div", { class: "filebox" }, [
-      el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
-      el("div", { class: "lane" }, [nodeA]),
+    createElement("div", { class: "filebox" }, [
+      createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
+      createElement("div", { class: "lane" }, [nodeA]),
     ]),
     connector,
-    el("div", { class: "filebox" }, [
-      el("div", { class: "fname", text: "b.ts", "data-path": "src/b.ts" }),
-      el("div", { class: "lane" }, [nodeB]),
+    createElement("div", { class: "filebox" }, [
+      createElement("div", { class: "fname", text: "b.ts", "data-path": "src/b.ts" }),
+      createElement("div", { class: "lane" }, [nodeB]),
     ]),
   );
   return { nodeA, nodeB, connector };
@@ -54,7 +54,7 @@ export async function openScriptRunDrawerByClick(): Promise<void> {
   installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
   const { nodeA } = buildScriptRunStage();
   armScriptRunView();
-  wireNodeDrawer();
+  installNodeDrawer();
   nodeA.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await waitForPendingFetches();
 }
@@ -70,12 +70,12 @@ export async function openSingleRunDrawer(run: WireScriptRun): Promise<HTMLEleme
     ruler: [{ instant: LANE_T2, axisPx: 40, eventCount: 1 }],
   } as WireLayer1View);
   rememberNavTargets([]);
-  const node = el("i", { class: "node n-script", "data-tool-use-id": run.toolUseId });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
-    el("div", { class: "lane" }, [node]),
+  const node = createElement("i", { class: "node n-script", "data-tool-use-id": run.toolUseId });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
+    createElement("div", { class: "lane" }, [node]),
   ]));
-  wireNodeDrawer();
+  installNodeDrawer();
   node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await waitForPendingFetches();
   return getRequiredElementById("dbody");

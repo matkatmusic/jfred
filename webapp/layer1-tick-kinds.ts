@@ -1,6 +1,6 @@
 // Task 360: each ruler tick shows its visible kinds as dashes and hides when every kind is hidden.
 
-import { el } from "./app-dom.ts";
+import { createElement } from "./app-dom.ts";
 import { KIND_HIDDEN_CLASS, isKindHidden } from "./layer1-kind-filter.ts";
 import { SHOW_ROW_LABELS, ShowRowKind } from "./layer1-show-row.ts";
 import type { BubbleSnapshot } from "./layer1-ruler-click.ts";
@@ -20,10 +20,10 @@ function renderKindDashes(tick: HTMLElement, visible: TickEvent[]): void {
       }
     }
     if (hasVisibleEventOfKind) {
-      dashes.push(el("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
+      dashes.push(createElement("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
     }
   }
-  tick.insertBefore(el("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
+  tick.insertBefore(createElement("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
 }
 
 // Underline rows that would EXPAND (mockup 687); a row with only hidden kinds hides but keeps its slot.

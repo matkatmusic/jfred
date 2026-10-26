@@ -111,7 +111,7 @@ test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover
     assert.deepEqual(commitLabels.map((label) => label.textContent), ["a1b2c3d4", "e4f5a6b7"]);
     assert.deepEqual(commitLabels.map((label) => label.getAttribute("title")),
         PAIR_COMMITS.map((commit) => commit.hash));
-    // A title-less on-disk node proves the optional argument did not leak onto every node el() builds.
+    // A title-less on-disk node proves the optional argument did not leak onto every node createElement() builds.
     const diskLabel = listMatching("#stage .n-disk + .nlabel")[0]!;
     assert.equal(diskLabel.textContent, "on disk");
     assert.equal(diskLabel.hasAttribute("title"), false);

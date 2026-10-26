@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -15,13 +15,13 @@ function answerBranchFile(params: URLSearchParams): object {
 
 function drawLaneNode(): { dot: HTMLElement; label: HTMLElement } {
   const identity = { "data-change-id": CHANGE_ID, "data-kind": "edit", "data-instant": "2026-06-02T09:35:00.000Z" };
-  const dot = el("i", { class: "bnode", ...identity });
-  const label = el("span", { class: "blabel", text: "edit", ...identity });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
-    el("div", { class: "lane" }, [el("div", { class: "blane" }, [dot, label])]),
+  const dot = createElement("i", { class: "bnode", ...identity });
+  const label = createElement("span", { class: "blabel", text: "edit", ...identity });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
+    createElement("div", { class: "lane" }, [createElement("div", { class: "blane" }, [dot, label])]),
   ]));
-  wireNodeDrawer();
+  installNodeDrawer();
   return { dot, label };
 }
 
@@ -63,12 +63,12 @@ test("a trunk edit node's reads carry no branch flag", async () => {
   getInputById("dir").value = "/work";
   const asks = installRecordingFetch(answerBranchFile);
   const identity = { "data-change-id": CHANGE_ID, "data-kind": "edit", "data-confidence": "verified", "data-session-file": "/s/a.jsonl" };
-  const node = el("i", { class: "node n-edit", ...identity });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
-    el("div", { class: "lane" }, [node]),
+  const node = createElement("i", { class: "node n-edit", ...identity });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
+    createElement("div", { class: "lane" }, [node]),
   ]));
-  wireNodeDrawer();
+  installNodeDrawer();
   node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await waitForPendingFetches();
   assert.ok(listBranchAsks(asks).length > 0);

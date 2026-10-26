@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -20,13 +20,13 @@ function answerEditFile(params: URLSearchParams): object {
 function drawEditNode(kind: string, kindClass: string): HTMLElement {
   const identity = { "data-change-id": CHANGE_ID, "data-kind": kind, "data-confidence": "verified",
     "data-session-id": "fixture-b21d84c5", "data-session-file": SESSION_FILE, "data-line": "58" };
-  const node = el("i", { class: `node ${kindClass} conf-verified`, ...identity });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
-    el("div", { class: "lane" }, [node, el("span", { class: `nlabel ${kindClass}`, text: "[e]" })]),
+  const node = createElement("i", { class: `node ${kindClass} conf-verified`, ...identity });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
+    createElement("div", { class: "lane" }, [node, createElement("span", { class: `nlabel ${kindClass}`, text: "[e]" })]),
   ]));
-  getRequiredElementById("sessions").replaceChildren(el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }));
-  wireNodeDrawer();
+  getRequiredElementById("sessions").replaceChildren(createElement("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }));
+  installNodeDrawer();
   return node;
 }
 

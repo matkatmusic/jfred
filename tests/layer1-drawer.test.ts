@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
@@ -17,7 +17,7 @@ test("clicking an on-disk node opens one DiffView pane showing the whole file, c
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -46,7 +46,7 @@ test("a click on anything that is not a node leaves the drawer shut", async () =
     installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     buildDiskNodeStage();
-    wireNodeDrawer();
+    installNodeDrawer();
 
     getRequiredElementById("stage").querySelector(".fname")!
         .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -60,10 +60,10 @@ const MARKDOWN_PATH = "archive/interim-run-scenario/skill/SKILL.md";
 
 // A commit bubble: the dot's title carries the FULL hash the drawer reads (buildPairWidget's shape).
 function buildCommitNodeStage(hashTitle: string): HTMLElement {
-    const node = el("i", { class: "node n-commit", title: hashTitle });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "SKILL.md", "data-path": MARKDOWN_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: hashTitle.slice(0, 8), title: hashTitle })]),
+    const node = createElement("i", { class: "node n-commit", title: hashTitle });
+    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "SKILL.md", "data-path": MARKDOWN_PATH }),
+        createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: hashTitle.slice(0, 8), title: hashTitle })]),
     ]));
     return node;
 }
@@ -74,7 +74,7 @@ test("a commit node loads its string through git's blob at its own hash", async 
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
     const node = buildCommitNodeStage(COMMIT_HASH);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -94,7 +94,7 @@ test("a commit node with no hash on it falls back to the working tree, never to 
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("dir").value = "/project";
     const node = buildCommitNodeStage("");
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -110,7 +110,7 @@ test("task 325: a File Nav leaf click selects the on-disk node and opens the dra
     installAnimationFrameStub();
     stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     const node = buildDiskNodeStage();
-    wireNodeDrawer();
+    installNodeDrawer();
 
     openDiskNodeForPath(DISK_FILE_PATH);
     await waitForPendingFetches();
@@ -126,7 +126,7 @@ test("task 213: a commit node shows no [{ }] button (it has no transcript line)"
     installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
     getInputById("repo").value = "/repo";
     const node = buildCommitNodeStage(COMMIT_HASH);
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -139,7 +139,7 @@ test("task 213: an on-disk node shows no [{ }] button (it has no transcript line
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

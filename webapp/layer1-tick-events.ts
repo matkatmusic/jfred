@@ -1,6 +1,6 @@
 // Tasks 284, 360: the events a ruler row stands for, and the file list built from them.
 
-import { el } from "./app-dom.ts";
+import { createElement } from "./app-dom.ts";
 import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
@@ -82,7 +82,7 @@ function readBasename(path: string): string {
 
 // `title` carries the full path since the 300px button can't; `stopPropagation` stops the click from closing the row.
 function buildTickFileButton(event: TickEvent): HTMLElement {
-  return el("button", {
+  return createElement("button", {
     text: `${readBasename(event.path)}  ${event.kind}`.trimEnd(),
     title: event.path,
     onclick: (clickEvent: Event) => {
@@ -104,7 +104,7 @@ export function buildTickFileList(events: TickEvent[]): HTMLElement {
   for (const event of events) {
     buttons.push(buildTickFileButton(event));
   }
-  return el("div", { class: "tickfiles" }, buttons);
+  return createElement("div", { class: "tickfiles" }, buttons);
 }
 
 // List height in axis px from a throwaway render; fallback covers layout-free DOMs.

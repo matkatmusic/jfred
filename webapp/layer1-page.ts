@@ -1,8 +1,8 @@
 // Own page (not a hash route) so its query-string inputs make a shareable link; no time arithmetic, offsets relative.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { wireNodeDrawer } from "./layer1-drawer.ts";
-import { wireMultiFileDrawer } from "./layer1-drawer-multi.ts";
+import { installNodeDrawer } from "./layer1-drawer.ts";
+import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
 import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
@@ -120,9 +120,9 @@ export async function bootLayer1Page(): Promise<void> {
   wireBucketJumpButtons();
   wireFindFileBox();
   // All three are delegated, since every bubble, tick and leader is replaced on each render.
-  wireNodeDrawer();
+  installNodeDrawer();
   wireBubbleFlash();
-  wireMultiFileDrawer();
+  installMultiFileDrawer();
   wireTickExpansion();
   wireLeaderVisibility();
   wireFolderPickers(loadViewAfterRefCheck);

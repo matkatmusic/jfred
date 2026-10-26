@@ -2,7 +2,7 @@
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { rememberNavTargets } from "./layer1-diff-wash.ts";
-import { showDetailViewForFiles } from "./layer1-drawer-multi.ts";
+import { openDetailViewForFiles } from "./layer1-drawer-multi.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
 import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
@@ -76,7 +76,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     closeRowAndRenderStage();
     // Task 329: any selection fills the drawer: one DiffView per file, 1..N uniformly.
     if (targets.length >= 1) {
-      showDetailViewForFiles(view, targets);
+      openDetailViewForFiles(view, targets);
     }
   };
   renderLayer1FileNav(view, selectFolderTargets);

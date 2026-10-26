@@ -2,15 +2,15 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { buildScriptRunFileFold, buildScriptRunFold } from "../webapp/layer1-script-run-folds.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { openScriptRunDrawerByClick } from "./layer1-drawer-script-helpers.ts";
 
 test("buildScriptRunFold puts the summary first and honours the open flag", () => {
   initLayer1Dom();
-  const closed = buildScriptRunFold("x-fold", el("summary", { text: "head" }), [el("p", { text: "body" })], false);
-  const opened = buildScriptRunFold("x-fold", el("summary", { text: "head" }), [el("p", { text: "body" })], true);
+  const closed = buildScriptRunFold("x-fold", createElement("summary", { text: "head" }), [createElement("p", { text: "body" })], false);
+  const opened = buildScriptRunFold("x-fold", createElement("summary", { text: "head" }), [createElement("p", { text: "body" })], true);
   assert.equal(closed.className, "x-fold");
   assert.equal(closed.open, false);
   assert.equal(opened.open, true);

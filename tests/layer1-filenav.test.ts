@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// el() needs a document.
+// createElement() needs a document.
 initLayer1Dom();
 
 // One of each kind the endpoint returns. All three share `src/`, which buildFileTree STRIPS as the common prefix, so one path is nested a level deeper — otherwise the tree collapses to three root leaves and the folder assertion below would be testing the fixture rather than the renderer.

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// el() needs a document.
+// createElement() needs a document.
 initLayer1Dom();
 
 // `keep`, `drop`, `other` are sibling folders; `deep` nests inside `keep` for multi-select coverage.

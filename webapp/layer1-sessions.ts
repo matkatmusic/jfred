@@ -1,8 +1,6 @@
-// Task 292: the JSONLs pane — the folder tree's selection rules applied to session transcripts.
-//
-// It filters the FILE LIST only; layer1-ranges.ts's band says which stretch a session owns. Never touches the stage.
+// Task 292: the JSONLs pane — the folder tree's selection rules applied to session transcripts.  It filters the FILE LIST only; layer1-ranges.ts's band says which stretch a session owns. Never touches the stage.
 
-import { el, getRequiredElementById } from "./app-dom.ts";
+import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { paintLoadbar, readLayer1ViewStream } from "./layer1-progress.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 import { readSourcePaths } from "./layer1-source-paths.ts";
@@ -18,206 +16,207 @@ let projectFolderPrefix = "";
 
 // Transcripts record ABSOLUTE paths; translate to the view's relative spelling, dropping paths outside the project on purpose.
 function listSessionPathsInProject(session: WireSession): string[] {
-    if (projectFolderPrefix === "") {
-        return session.paths;
-    }
-    return session.paths
-        .filter((path) => path.startsWith(projectFolderPrefix))
-        .map((path) => path.slice(projectFolderPrefix.length));
+  if (projectFolderPrefix === "") {
+    return session.paths;
+  }
+  return session.paths
+    .filter((path) => path.startsWith(projectFolderPrefix))
+    .map((path) => path.slice(projectFolderPrefix.length));
 }
 
 // A session earns a row only if it touched a file this view draws (user, 2026-07-27).
 function sessionTouchesTheProject(session: WireSession): boolean {
-    if (knownProjectPaths.size === 0) {
-        return true;
-    }
-    return listSessionPathsInProject(session).some((path) => knownProjectPaths.has(path));
+  if (knownProjectPaths.size === 0) {
+    return true;
+  }
+  return listSessionPathsInProject(session).some((path) => knownProjectPaths.has(path));
 }
 
 export function listVisibleSessions(): WireSession[] {
-    return sessions.filter(sessionTouchesTheProject);
+  return sessions.filter(sessionTouchesTheProject);
 }
 
 // Told by the page once a view is drawn, so the pane can be narrowed to it.
 export function setKnownProjectPaths(projectFolder: string, paths: readonly string[]): void {
-    projectFolderPrefix = projectFolder === "" ? "" : `${projectFolder.replace(/\/$/, "")}/`;
-    knownProjectPaths = new Set(paths);
+  projectFolderPrefix = projectFolder === "" ? "" : `${projectFolder.replace(/\/$/, "")}/`;
+  knownProjectPaths = new Set(paths);
 }
 
 export function listSelectedSessions(): WireSession[] {
-    return listVisibleSessions().filter((session) => selectedPaths.has(session.fullPath));
+  return listVisibleSessions().filter((session) => selectedPaths.has(session.fullPath));
 }
 
 // The union of picked sessions' paths in the view's spelling; empty means "not filtering".
 export function listSessionFilterTargets(): string[] {
-    return [...new Set(listSelectedSessions().flatMap(listSessionPathsInProject))];
+  return [...new Set(listSelectedSessions().flatMap(listSessionPathsInProject))];
 }
 
 // A filter from the previous project must not survive a new load.
 export function resetSessionSelection(): void {
-    selectedPaths.clear();
-    sessions = [];
-    knownProjectPaths = new Set();
-    // Task 363: empty the pane's DOM now, so the prior project's rows never show during the new build.
-    getRequiredElementById("sessions").replaceChildren();
+  selectedPaths.clear();
+  sessions = [];
+  knownProjectPaths = new Set();
+  // Task 363: empty the pane's DOM now, so the prior project's rows never show during the new build.
+  getRequiredElementById("sessions").replaceChildren();
 }
 
 // Fetch sessions under the picked JSONL folders; no folders = no fetch. Refusals report INTO the pane only.
 export async function loadLayer1Sessions(): Promise<void> {
-    const query = new URLSearchParams();
-    for (const path of readSourcePaths(SourceKind.jsonl)) {
-        query.append("jsonl", path);
-    }
-    sessions = [];
-    if ([...query.keys()].length === 0) {
-        return;
-    }
-    // Task 304: the scan bar replaces the pane's content, so the empty-state row can never lie mid-scan.
-    const fill = el("div", { class: "loadbar-fill" });
-    const label = el("span", { class: "loadbar-label", text: "scanning JSONL files" });
-    getRequiredElementById("sessions").replaceChildren(el("div", { class: "loadbar pane-loadbar" }, [
-        el("div", { class: "loadbar-track" }, [fill]),
-        label,
-    ]));
-    query.append("progress", "1");
-    try {
-        const payload = await readLayer1ViewStream<{ sessions: WireSession[] }>(
-            `/api/layer1-sessions?${query}`,
-            (text, current, total) => paintLoadbar(fill, label, text, current, total),
-        );
-        sessions = payload?.sessions ?? [];
-    } catch (error) {
-        getRequiredElementById("sessions").replaceChildren(
-            el("div", { class: "navempty", text: String(error) }),
-        );
-    }
+  const query = new URLSearchParams();
+  for (const path of readSourcePaths(SourceKind.jsonl)) {
+    query.append("jsonl", path);
+  }
+  sessions = [];
+  if ([...query.keys()].length === 0) {
+    return;
+  }
+  // Task 304: the scan bar replaces the pane's content, so the empty-state row can never lie mid-scan.
+  const fill = createElement("div", { class: "loadbar-fill" });
+  const label = createElement("span", { class: "loadbar-label", text: "scanning JSONL files" });
+  getRequiredElementById("sessions").replaceChildren(createElement("div", { class: "loadbar pane-loadbar" }, [
+    createElement("div", { class: "loadbar-track" }, [fill]),
+    label,
+  ]));
+  query.append("progress", "1");
+  try {
+    const payload = await readLayer1ViewStream<{ sessions: WireSession[] }>(
+      `/api/layer1-sessions?${query}`,
+      (text, current, total) => paintLoadbar(fill, label, text, current, total),
+    );
+    sessions = payload?.sessions ?? [];
+  }
+  catch (error) {
+    getRequiredElementById("sessions").replaceChildren(
+      createElement("div", { class: "navempty", text: String(error) }),
+    );
+  }
 }
 
 // Task 316: fade-highlight (not select) the JSONL rows a snapshot came from; task 317 is the second caller.
 const FLASH_MS = 2600;
 // Best match leads first and gets `flash-lead`, the marker a headless run reads to see which answered.
 export function flashSession(...files: string[]): void {
-    const pane = getRequiredElementById("sessions");
-    for (const lit of pane.querySelectorAll(".flash, .flash-lead")) {
-        lit.classList.remove("flash", "flash-lead");
-    }
-    const items = [...pane.querySelectorAll<HTMLElement>(".session-item")];
-    const rows = files
-        .map((file) => items.find((item) => item.dataset.file === file))
-        .filter((row): row is HTMLElement => row !== undefined);
-    for (const row of rows) {
-        // Restart the fade on a re-click: an animation only replays once the class has been off for a layout.
-        row.classList.remove("flash");
-        void row.offsetWidth;
-        row.style.setProperty("--flash-ms", `${FLASH_MS}ms`);
-        row.classList.add("flash");
-        setTimeout(() => row.classList.remove("flash"), FLASH_MS);
-    }
-    const lead = rows[0];
-    if (lead === undefined) {
-        return;
-    }
-    lead.classList.add("flash-lead");
-    setTimeout(() => lead.classList.remove("flash-lead"), FLASH_MS);
-    lead.scrollIntoView?.({ block: "nearest" });
+  const pane = getRequiredElementById("sessions");
+  for (const lit of pane.querySelectorAll(".flash, .flash-lead")) {
+    lit.classList.remove("flash", "flash-lead");
+  }
+  const items = [...pane.querySelectorAll<HTMLElement>(".session-item")];
+  const rows = files
+    .map((file) => items.find((item) => item.dataset.file === file))
+    .filter((row): row is HTMLElement => row !== undefined);
+  for (const row of rows) {
+    // Restart the fade on a re-click: an animation only replays once the class has been off for a layout.
+    row.classList.remove("flash");
+    void row.offsetWidth;
+    row.style.setProperty("--flash-ms", `${FLASH_MS}ms`);
+    row.classList.add("flash");
+    setTimeout(() => row.classList.remove("flash"), FLASH_MS);
+  }
+  const lead = rows[0];
+  if (lead === undefined) {
+    return;
+  }
+  lead.classList.add("flash-lead");
+  setTimeout(() => lead.classList.remove("flash-lead"), FLASH_MS);
+  lead.scrollIntoView?.({ block: "nearest" });
 }
 
 // Task 308: the `.node` whose vertical center is nearest the click gives the instant the click is level with.
 function readInstantNearestClick(box: Element, clientY: number): number {
-    const distanceToClick = (node: HTMLElement): number => {
-        const rect = node.getBoundingClientRect();
-        return Math.abs(rect.top + rect.height / 2 - clientY);
-    };
-    const nodes = [...box.querySelectorAll<HTMLElement>(".node")];
-    const nearest = nodes.reduce((best, node) => distanceToClick(node) < distanceToClick(best) ? node : best);
-    return Date.parse(nearest.dataset.instant!);
+  const distanceToClick = (node: HTMLElement): number => {
+    const rect = node.getBoundingClientRect();
+    return Math.abs(rect.top + rect.height / 2 - clientY);
+  };
+  const nodes = [...box.querySelectorAll<HTMLElement>(".node")];
+  const nearest = nodes.reduce((best, node) => distanceToClick(node) < distanceToClick(best) ? node : best);
+  return Date.parse(nearest.dataset.instant!);
 }
 
 // Task 308: how far an instant falls outside a session's window; 0 inside it.
 function measureSessionGap(session: WireSession, instant: number): number {
-    return Math.max(0, Date.parse(session.started) - instant, instant - Date.parse(session.ended));
+  return Math.max(0, Date.parse(session.started) - instant, instant - Date.parse(session.ended));
 }
 
 // Task 308: a bubble click (not a node or label click, which open the drawer) flashes the sessions that touched it, best first.
 export function wireBubbleFlash(): void {
-    getRequiredElementById("stage").addEventListener("click", (event) => {
-        const target = event.target as HTMLElement;
-        const box = target.closest(".filebox");
-        const path = box?.querySelector<HTMLElement>(".fname")?.dataset.path;
-        if (box === null || path === undefined || target.closest(".node, .nlabel") !== null) {
-            return;
-        }
-        const touched = listVisibleSessions().filter((session) => listSessionPathsInProject(session).includes(path));
-        if (touched.length === 0) {
-            return;
-        }
-        const instant = readInstantNearestClick(box, event.clientY);
-        const sorted = [...touched].sort((a, b) => measureSessionGap(a, instant) - measureSessionGap(b, instant));
-        flashSession(...sorted.map((session) => session.file));
-    });
+  getRequiredElementById("stage").addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const box = target.closest(".filebox");
+    const path = box?.querySelector<HTMLElement>(".fname")?.dataset.path;
+    if (box === null || path === undefined || target.closest(".node, .nlabel") !== null) {
+      return;
+    }
+    const touched = listVisibleSessions().filter((session) => listSessionPathsInProject(session).includes(path));
+    if (touched.length === 0) {
+      return;
+    }
+    const instant = readInstantNearestClick(box, event.clientY);
+    const sorted = [...touched].sort((a, b) => measureSessionGap(a, instant) - measureSessionGap(b, instant));
+    flashSession(...sorted.map((session) => session.file));
+  });
 }
 
 // Plain click picks one; a re-click on the only pick clears; shift toggles just this one.
 function applySessionClick(fullPath: string, extend: boolean): void {
-    if (extend) {
-        if (!selectedPaths.delete(fullPath)) {
-            selectedPaths.add(fullPath);
-        }
-        return;
+  if (extend) {
+    if (!selectedPaths.delete(fullPath)) {
+      selectedPaths.add(fullPath);
     }
-    const wasOnlySelection = selectedPaths.size === 1 && selectedPaths.has(fullPath);
-    selectedPaths.clear();
-    if (!wasOnlySelection) {
-        selectedPaths.add(fullPath);
-    }
+    return;
+  }
+  const wasOnlySelection = selectedPaths.size === 1 && selectedPaths.has(fullPath);
+  selectedPaths.clear();
+  if (!wasOnlySelection) {
+    selectedPaths.add(fullPath);
+  }
 }
 
 function buildSessionItem(session: WireSession, onChange: () => void): HTMLElement {
-    const distinctTitles = [...new Set(session.titles)];
-    const item = el("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}` }, [
-        el("div", { class: "sname", text: session.file }),
-        ...distinctTitles.map((title) => el("div", { class: "stitle", text: title })),
-        // The day, then how much of the project this session touched — what decides a click.
-        el("div", { class: "smeta", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
-    ]);
-    item.title = [...distinctTitles, `${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}`,
-        ...session.paths].join("\n");
-    item.dataset.file = session.file; // Task 316: how flashSession finds this row again.
-    item.addEventListener("click", (event) => {
-        applySessionClick(session.fullPath, event.shiftKey);
-        onChange();
-    });
-    return item;
+  const distinctTitles = [...new Set(session.titles)];
+  const item = createElement("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}` }, [
+    createElement("div", { class: "sname", text: session.file }),
+    ...distinctTitles.map((title) => createElement("div", { class: "stitle", text: title })),
+    // The day, then how much of the project this session touched — what decides a click.
+    createElement("div", { class: "smeta", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
+  ]);
+  item.title = [...distinctTitles, `${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}`,
+    ...session.paths].join("\n");
+  item.dataset.file = session.file; // Task 316: how flashSession finds this row again.
+  item.addEventListener("click", (event) => {
+    applySessionClick(session.fullPath, event.shiftKey);
+    onChange();
+  });
+  return item;
 }
 
 // Draw the pane and wire its clear button; `onChange` is the page's re-filter (no-cycle, like `afterPick`).
 export function renderSessionPane(onChange: () => void): void {
-    const host = getRequiredElementById("sessions");
-    const redraw = (): void => {
-        renderSessionPane(onChange);
-        onChange();
-    };
-    const visible = listVisibleSessions();
-    const searchBox = getRequiredElementById("session-search") as HTMLInputElement;
-    const searchText = searchBox.value.trim().toLowerCase();
-    const matching = visible.filter((session) => searchText === ""
+  const host = getRequiredElementById("sessions");
+  const redraw = (): void => {
+    renderSessionPane(onChange);
+    onChange();
+  };
+  const visible = listVisibleSessions();
+  const searchBox = getRequiredElementById("session-search") as HTMLInputElement;
+  const searchText = searchBox.value.trim().toLowerCase();
+  const matching = visible.filter((session) => searchText === ""
         || session.titles.some((title) => title.toLowerCase().includes(searchText)));
-    host.replaceChildren(...(visible.length === 0
-        ? [el("div", { class: "navempty", text: "no JSONLs touched this project's files" })]
-        : matching.length === 0
-            ? [el("div", { class: "navempty", text: "no matches" })]
-            : matching.map((session) => buildSessionItem(session, () => redraw()))));
-    // The title search narrows this list only; the timeline is not re-filtered by typing.
-    searchBox.oninput = () => renderSessionPane(onChange);
-    (getRequiredElementById("session-search-clear") as HTMLButtonElement).onclick = () => {
-        searchBox.value = "";
-        renderSessionPane(onChange);
-    };
-    const clear = getRequiredElementById("clear-sessions") as HTMLButtonElement;
-    clear.disabled = selectedPaths.size === 0;
-    // Property assignment, not addEventListener: re-runs per load/click; a second listener would fire stale callbacks.
-    clear.onclick = () => {
-        selectedPaths.clear();
-        redraw();
-    };
+  host.replaceChildren(...(visible.length === 0
+    ? [createElement("div", { class: "navempty", text: "no JSONLs touched this project's files" })]
+    : matching.length === 0
+      ? [createElement("div", { class: "navempty", text: "no matches" })]
+      : matching.map((session) => buildSessionItem(session, () => redraw()))));
+  // The title search narrows this list only; the timeline is not re-filtered by typing.
+  searchBox.oninput = () => renderSessionPane(onChange);
+  (getRequiredElementById("session-search-clear") as HTMLButtonElement).onclick = () => {
+    searchBox.value = "";
+    renderSessionPane(onChange);
+  };
+  const clear = getRequiredElementById("clear-sessions") as HTMLButtonElement;
+  clear.disabled = selectedPaths.size === 0;
+  // Property assignment, not addEventListener: re-runs per load/click; a second listener would fire stale callbacks.
+  clear.onclick = () => {
+    selectedPaths.clear();
+    redraw();
+  };
 }

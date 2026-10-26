@@ -1,6 +1,6 @@
 // Shared setup for the layer1-drawer-*.test.ts files: fetch and animation stubs, pane readers, and stage builders.
 
-import { el, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
@@ -54,26 +54,26 @@ export function listPaneArrows(): HTMLButtonElement[] {
 
 // One bubble with a single on-disk node: reads the working tree, so no commit hash needed.
 export function buildDiskNodeStage(): HTMLElement {
-  const node = el("i", { class: "node n-disk" });
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-    el("div", { class: "lane" }, [node, el("span", { class: "nlabel", text: "on disk" })]),
+  const node = createElement("i", { class: "node n-disk" });
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
+    createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "on disk" })]),
   ]));
   return node;
 }
 
 // A lane holding commit node(s) and the on-disk node, axis-placed oldest to newest.
 export function buildLaneStage(withMiddle: boolean): { commitNode: HTMLElement; middleNode: HTMLElement; diskNode: HTMLElement } {
-  const commitNode = el("i", { class: "node n-commit", title: LANE_HASH });
+  const commitNode = createElement("i", { class: "node n-commit", title: LANE_HASH });
   commitNode.style.setProperty("--axis-px", "10");
-  const middleNode = el("i", { class: "node n-commit", title: MIDDLE_HASH });
+  const middleNode = createElement("i", { class: "node n-commit", title: MIDDLE_HASH });
   middleNode.style.setProperty("--axis-px", "25");
-  const diskNode = el("i", { class: "node n-disk" });
+  const diskNode = createElement("i", { class: "node n-disk" });
   diskNode.style.setProperty("--axis-px", "40");
   const laneNodes = withMiddle ? [commitNode, middleNode, diskNode] : [commitNode, diskNode];
-  getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-    el("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
-    el("div", { class: "lane" }, laneNodes),
+  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
+    createElement("div", { class: "lane" }, laneNodes),
   ]));
   return { commitNode, middleNode, diskNode };
 }

@@ -82,7 +82,7 @@ function closeDrawer(): void {
   drawLayer1Minimap();
 }
 
-export function wireNodeDrawer(): void {
+export function installNodeDrawer(): void {
   wireImageZoomTools();
   getRequiredElementById("stage").addEventListener("click", applyStageClick);
   getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);

@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { wireNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
     COMMIT_CONTENT, getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches,
@@ -18,16 +18,16 @@ test("clicking a snapshot node reads the owning session and sets the range-corre
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title" }));
     getInputById("dir").value = "/work";
-    const node = el("i", { class: "node n-snap", "data-version": "2",
+    const node = createElement("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
+    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
+        createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
     ]));
     getRequiredElementById("sessions").replaceChildren(
-        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
+        createElement("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
     );
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
@@ -49,16 +49,16 @@ test("task 213: a snapshot node reveals a [{ }] button that toggles its raw tran
     const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
     installRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title", record: rawRecord }));
     getInputById("dir").value = "/work";
-    const node = el("i", { class: "node n-snap", "data-version": "2",
+    const node = createElement("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("stage").replaceChildren(el("div", { class: "filebox" }, [
-        el("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
-        el("div", { class: "lane" }, [node, el("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
+    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
+        createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
     ]));
     getRequiredElementById("sessions").replaceChildren(
-        el("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
+        createElement("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
     );
-    wireNodeDrawer();
+    installNodeDrawer();
 
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

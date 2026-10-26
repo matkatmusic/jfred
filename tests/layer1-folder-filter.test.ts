@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
-// el() needs a document.
+// createElement() needs a document.
 initLayer1Dom();
 
 // All three share `src/`, stripped by buildFileTree, leaving `keep`/`drop` siblings and `deep` nested in `keep` to test child+grandchild reach.

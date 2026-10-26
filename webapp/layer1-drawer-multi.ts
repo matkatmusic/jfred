@@ -80,7 +80,7 @@ export function listWashFiles(view: WireLayer1View, range: DiffWashRange, always
 }
 
 // The File Nav entry point: chrome, then the two-step pipeline above.
-export function showDetailViewForFiles(view: WireLayer1View, targets: string[]): void {
+export function openDetailViewForFiles(view: WireLayer1View, targets: string[]): void {
   clearDiffPair();
   setDrawerTools("none");
   // The single-node ↑↓ step a stale timeline anchor, so the nav flow hides them.
@@ -112,7 +112,7 @@ function toggleEverySection(): void {
   syncFoldAllLabel();
 }
 
-export function wireMultiFileDrawer(): void {
+export function installMultiFileDrawer(): void {
   // getRequiredElementById("dcollapse-all").addEventListener("click", () => setEverySectionOpen(false));
   // getRequiredElementById("dshow-all").addEventListener("click", () => setEverySectionOpen(true));
   getRequiredElementById("dfold-all").addEventListener("click", toggleEverySection);

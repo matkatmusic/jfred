@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
 import { applyDiffSelectionRange } from "../webapp/layer1-diff-selection-range.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
@@ -12,11 +12,11 @@ import {
 } from "./layer1-drawer-test-helpers.ts";
 
 function buildTwoNodeStage(): { firstNode: HTMLElement; otherNode: HTMLElement } {
-  const firstNode = el("i", { class: "node n-disk" });
-  const otherNode = el("i", { class: "node n-disk" });
+  const firstNode = createElement("i", { class: "node n-disk" });
+  const otherNode = createElement("i", { class: "node n-disk" });
   getRequiredElementById("stage").replaceChildren(
-    el("div", { class: "filebox" }, [el("div", { class: "fname", "data-path": DISK_FILE_PATH }), el("div", { class: "lane" }, [firstNode])]),
-    el("div", { class: "filebox" }, [el("div", { class: "fname", "data-path": "src/other.ts" }), el("div", { class: "lane" }, [otherNode])]),
+    createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }), createElement("div", { class: "lane" }, [firstNode])]),
+    createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": "src/other.ts" }), createElement("div", { class: "lane" }, [otherNode])]),
   );
   rememberDrawnView({
     pairs: [
