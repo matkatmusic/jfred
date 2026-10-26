@@ -50,7 +50,9 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
       break;
     }
   }
-  if (kind === ShowRowKind.edit && box.checked && !hasLoadedEdits(drawnView!)) {
+  const isEditBoxTurningOn = kind === ShowRowKind.edit && box.checked;
+  const needsEditLoad = isEditBoxTurningOn && !hasLoadedEdits(drawnView!);
+  if (needsEditLoad) {
     const isLoaded = await loadEditsOnce(drawnView!);
     if (!isLoaded) {
       box.checked = false;
@@ -65,7 +67,9 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     hideLayer1Progress();
     return;
   }
-  if (kind === ShowRowKind.scriptRun && box.checked && !hasLoadedScriptRuns(drawnView!)) {
+  const isScriptRunBoxTurningOn = kind === ShowRowKind.scriptRun && box.checked;
+  const needsScriptRunLoad = isScriptRunBoxTurningOn && !hasLoadedScriptRuns(drawnView!);
+  if (needsScriptRunLoad) {
     const isLoaded = await loadScriptRunsOnce(drawnView!);
     if (!isLoaded) {
       box.checked = false;
@@ -73,7 +77,9 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     }
     await redrawStage!();
   }
-  if (kind === ShowRowKind.branch && box.checked && !hasLoadedBranches(drawnView!)) {
+  const isBranchBoxTurningOn = kind === ShowRowKind.branch && box.checked;
+  const needsBranchLoad = isBranchBoxTurningOn && !hasLoadedBranches(drawnView!);
+  if (needsBranchLoad) {
     const isLoaded = await loadBranchesOnce(drawnView!);
     if (!isLoaded) {
       box.checked = false;
@@ -101,7 +107,7 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
   notifyKindFilterChange();
 }
 
-function handleKindToggle(event: Event): Promise<void> {
+function toggleKindBoxFromEvent(event: Event): Promise<void> {
   return toggleKindBox(event.target as HTMLInputElement);
 }
 
@@ -125,6 +131,6 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
   }
   applyHiddenKindsAttribute();
   // Assigned, not added, so a re-render never stacks listeners.
-  getRequiredElementById("show-row").onchange = handleKindToggle;
+  getRequiredElementById("show-row").onchange = toggleKindBoxFromEvent;
   attachKindButtons();
 }
