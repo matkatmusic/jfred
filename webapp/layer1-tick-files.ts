@@ -2,7 +2,7 @@
 
 import type { RulerExpansion } from "./layer1-filter.ts";
 import { onKindFilterChange } from "./layer1-kind-filter.ts";
-import { snapshotStageBubbles } from "./layer1-ruler-click.ts";
+import { collectStageBubbles } from "./layer1-ruler-click.ts";
 import { buildTickFileList, listEventsAtRow, measureListHeightPx, rowsByTick, type TickEvent } from "./layer1-tick-events.ts";
 import { markTickKindState } from "./layer1-tick-kinds.ts";
 
@@ -53,7 +53,7 @@ function openExpandedRowAgain(): void {
 }
 
 // A redraw replaces every tick, so the open list moves to the fresh tick and the row stays open.
-export function carryOpenRowToNewTicks(openList: Element | null): void {
+export function moveOpenRowToNewTicks(openList: Element | null): void {
   const tick = findTickAtExpandedInstant();
   const hasNothingToCarry = openList === null || tick === undefined;
   if (hasNothingToCarry) {
@@ -81,14 +81,14 @@ function findTickAtExpandedInstant(): HTMLElement | undefined {
 
 // One shared snapshot (task 309) after the stage is drawn.
 export function markMultiEventTicks(): void {
-  markTickKindState(snapshotStageBubbles());
+  markTickKindState(collectStageBubbles());
   // Task 300: the expansion outlives its own re-render, so the open row is rebuilt on the fresh ticks.
   openExpandedRowAgain();
 }
 
 // Task 360: a box toggle re-marks the ticks, rebuilds the open file list, and relays out the stage.
 export function refreshTicksForKindFilter(): void {
-  markTickKindState(snapshotStageBubbles());
+  markTickKindState(collectStageBubbles());
   if (expandedRow === undefined) {
     return;
   }

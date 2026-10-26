@@ -38,7 +38,7 @@ export function readTickAxisPx(row: HTMLElement, bubbleRows: readonly HTMLElemen
 }
 
 // Shared with layer1-leader-visibility.ts so a leader line and a tick can never disagree about what sits at an instant.
-export function axisMatches(candidatePx: number, targetPx: number): boolean {
+export function isAxisMatch(candidatePx: number, targetPx: number): boolean {
   return Math.abs(candidatePx - targetPx) <= AXIS_MATCH_EPSILON_PX;
 }
 
@@ -58,7 +58,7 @@ export interface BubbleSnapshot {
 }
 
 // Task 309: per-ruler-row stage walks cost ~1.3 s over 900 bubbles; a shared snapshot pays once.
-export function snapshotStageBubbles(): BubbleSnapshot[] {
+export function collectStageBubbles(): BubbleSnapshot[] {
   const snapshot: BubbleSnapshot[] = [];
   for (const bubble of listBubbles()) {
     const rows = [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)];
@@ -72,18 +72,18 @@ export function snapshotStageBubbles(): BubbleSnapshot[] {
 }
 
 // Rows of a bubble that BEGINS at the instant sort before rows of bubbles merely holding it.
-export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapshot[] = snapshotStageBubbles()): HTMLElement[] {
+export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapshot[] = collectStageBubbles()): HTMLElement[] {
   const beginningHere: HTMLElement[] = [];
   const merelyHolding: HTMLElement[] = [];
   for (const { bubble, bubblePx, rows } of snapshot) {
     const matching: HTMLElement[] = [];
     for (const { row, rowPx } of rows) {
-      const isDrawnAtAxisPx = axisMatches(bubblePx + rowPx, axisPx);
+      const isDrawnAtAxisPx = isAxisMatch(bubblePx + rowPx, axisPx);
       if (isDrawnAtAxisPx) {
         matching.push(row);
       }
     }
-    const bubbleBeginsHere = axisMatches(bubblePx, axisPx);
+    const bubbleBeginsHere = isAxisMatch(bubblePx, axisPx);
     if (!bubbleBeginsHere) {
       merelyHolding.push(...matching);
       continue;
@@ -101,7 +101,7 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
 }
 
 // `row` carries every entry the tick absorbed, because a merged row stands for several instants.
-export function makeRulerTickClickable(tick: HTMLElement, row: RulerRow): HTMLElement {
+export function attachRulerTickClick(tick: HTMLElement, row: RulerRow): HTMLElement {
   rememberRow(tick, row);
   function triggerTickAction(): void {
     // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.

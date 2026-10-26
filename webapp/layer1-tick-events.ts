@@ -6,7 +6,7 @@ import { isKindHidden } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
 import type { ShowRowKind } from "./layer1-show-row.ts";
 import { flashSession } from "./layer1-sessions.ts";
-import { listElementsDrawnAtAxisPx, snapshotStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
+import { listElementsDrawnAtAxisPx, collectStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 
 // One thing DRAWN at a row's instants: owning file, its own label, and the element the click lands on.
@@ -64,7 +64,7 @@ export function listAllEventsAtRow(axisPxList: number[], snapshot: BubbleSnapsho
 }
 
 // Task 360: the ruler click, open file list and reopen all read this, so they list visible kinds only.
-export function listEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[] = snapshotStageBubbles()): TickEvent[] {
+export function listEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[] = collectStageBubbles()): TickEvent[] {
   const visible: TickEvent[] = [];
   for (const event of listAllEventsAtRow(axisPxList, snapshot)) {
     const isVisibleKind = !isKindHidden(event.nodeKind);

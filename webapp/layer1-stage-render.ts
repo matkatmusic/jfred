@@ -8,11 +8,11 @@ import { renderNavWash } from "./layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
-import { makeRulerTickClickable } from "./layer1-ruler-click.ts";
+import { attachRulerTickClick } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { drawScriptConnectors } from "./layer1-script-connectors.ts";
 import { listSelectedSessions } from "./layer1-sessions.ts";
-import { carryOpenRowToNewTicks, markMultiEventTicks } from "./layer1-tick-files.ts";
+import { moveOpenRowToNewTicks, markMultiEventTicks } from "./layer1-tick-files.ts";
 import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
 import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
 
@@ -21,7 +21,7 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
   // A row carries every offset it ABSORBED, since a merged row's click must see all their events.
   const ticks: HTMLElement[] = [];
   for (const row of listRulerRows(ruler)) {
-    ticks.push(makeRulerTickClickable(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row));
+    ticks.push(attachRulerTickClick(setAxisPx(el("div", { class: "tick", text: row.text }), row.axisPx), row));
   }
   getRequiredElementById("ruler").replaceChildren(el("div", { class: "rail" }), ...ticks);
 }
@@ -50,7 +50,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
   const openList = document.querySelector("#ruler .tickfiles");
   renderRulerTicks(view.ruler);
-  carryOpenRowToNewTicks(openList);
+  moveOpenRowToNewTicks(openList);
   renderLeaderLines(view.ruler);
   const widgets = buildStagePairs(view.pairs);
   for (const bucket of [buildOrphanBucket("No on-disk match", view.gitOrphans), buildOrphanBucket("No repository match", view.diskOrphans)]) {
