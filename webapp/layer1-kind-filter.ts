@@ -3,6 +3,7 @@
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { hasLoadedBranches, loadBranchesOnce } from "./layer1-branches.ts";
 import { hasLoadedEdits, loadEditsOnce } from "./layer1-edits.ts";
+import { attachKindButtons } from "./layer1-kind-buttons.ts";
 import { hasLoadedScriptRuns, loadScriptRunsOnce } from "./layer1-script-runs.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { getHiddenKindsForProject, saveHiddenKinds } from "./layer1-settings.ts";
@@ -40,7 +41,7 @@ function applyHiddenKindsAttribute(): void {
 let drawnView: WireLayer1View | undefined;
 let redrawStage: (() => void | Promise<void>) | undefined;
 
-async function toggleKindBox(box: HTMLInputElement): Promise<void> {
+export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
   let kind!: ShowRowKind;
   for (const candidate of Object.values(ShowRowKind)) {
     const isBoxKind = candidate === box.dataset["kind"];
@@ -104,32 +105,6 @@ function handleKindToggle(event: Event): Promise<void> {
   return toggleKindBox(event.target as HTMLInputElement);
 }
 
-function findKindBox(kind: ShowRowKind): HTMLInputElement {
-  return document.querySelector<HTMLInputElement>(`#show-row input[data-kind="${kind}"]`)!;
-}
-
-// The [3] button clicks the Edit box, so both share one code path.
-function markEditBoxChecked(): void {
-  const box = findKindBox(ShowRowKind.edit);
-  if (!box.checked) {
-    box.click();
-  }
-}
-
-// Spec S21.9: [4] implies [3]. The loads run one after the other: they share one busy shield.
-async function markEditAndScriptRunBoxesChecked(): Promise<void> {
-  for (const kind of [ShowRowKind.edit, ShowRowKind.scriptRun]) {
-    const box = findKindBox(kind);
-    if (!box.checked) {
-      box.checked = true;
-      await toggleKindBox(box);
-    }
-    if (!box.checked) {
-      return;
-    }
-  }
-}
-
 export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: () => void | Promise<void>): void {
   drawnView = view;
   redrawStage = redrawView;
@@ -151,6 +126,5 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
   applyHiddenKindsAttribute();
   // Assigned, not added, so a re-render never stacks listeners.
   getRequiredElementById("show-row").onchange = handleKindToggle;
-  getRequiredElementById("layer-3").onclick = markEditBoxChecked;
-  getRequiredElementById("layer-4").onclick = markEditAndScriptRunBoxesChecked;
+  attachKindButtons();
 }
