@@ -114,7 +114,7 @@ export function refreshTicksForKindFilter(): void {
   }
 }
 
-function handleEscapeKey(event: KeyboardEvent): void {
+function closeOpenRowOnEscape(event: KeyboardEvent): void {
   const isIgnoredKey = event.key !== "Escape" || expandedRow === undefined;
   if (isIgnoredKey) {
     return;
@@ -126,5 +126,5 @@ function handleEscapeKey(event: KeyboardEvent): void {
 // Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.
 export function wireTickExpansion(): void {
   onKindFilterChange(refreshTicksForKindFilter);
-  document.addEventListener("keydown", handleEscapeKey);
+  document.addEventListener("keydown", closeOpenRowOnEscape);
 }

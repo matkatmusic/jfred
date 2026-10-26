@@ -21,13 +21,20 @@ export function readAxisPx(element: HTMLElement): number {
   return Number(element.style.getPropertyValue("--axis-px"));
 }
 
-// Task 251 stacks a bubble's same-instant nodes a row apart; each answers at its instant's first row, where the tick sits.
+// Task 251: same-instant nodes stack a row apart; each answers at its instant's first row, where the tick sits.
 export function readTickAxisPx(row: HTMLElement, bubbleRows: readonly HTMLElement[]): number {
   const instant = row.dataset.instant;
   if (instant === undefined) {
     return readAxisPx(row);
   }
-  return Math.min(...bubbleRows.filter((other) => other.dataset.instant === instant).map(readAxisPx));
+  const sameInstantPxList: number[] = [];
+  for (const other of bubbleRows) {
+    const isSameInstant = other.dataset.instant === instant;
+    if (isSameInstant) {
+      sameInstantPxList.push(readAxisPx(other));
+    }
+  }
+  return Math.min(...sameInstantPxList);
 }
 
 // Shared with layer1-leader-visibility.ts so a leader line and a tick can never disagree about what sits at an instant.
@@ -52,16 +59,16 @@ export interface BubbleSnapshot {
 
 // Task 309: per-ruler-row stage walks cost ~1.3 s over 900 bubbles; a shared snapshot pays once.
 export function snapshotStageBubbles(): BubbleSnapshot[] {
-  return listBubbles().map((bubble) => {
+  const snapshot: BubbleSnapshot[] = [];
+  for (const bubble of listBubbles()) {
     const rows = [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)];
-    return {
-      bubble,
-      bubblePx: readAxisPx(bubble),
-      // rows: [...bubble.querySelectorAll<HTMLElement>(BUBBLE_ROW_SELECTOR)]
-      //     .map((row) => ({ row, rowPx: readAxisPx(row) })),
-      rows: rows.map((row) => ({ row, rowPx: readTickAxisPx(row, rows) })),
-    };
-  });
+    const rowEntries: BubbleSnapshot["rows"] = [];
+    for (const row of rows) {
+      rowEntries.push({ row, rowPx: readTickAxisPx(row, rows) });
+    }
+    snapshot.push({ bubble, bubblePx: readAxisPx(bubble), rows: rowEntries });
+  }
+  return snapshot;
 }
 
 // Rows of a bubble that BEGINS at the instant sort before rows of bubbles merely holding it.
@@ -69,8 +76,15 @@ export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapsh
   const beginningHere: HTMLElement[] = [];
   const merelyHolding: HTMLElement[] = [];
   for (const { bubble, bubblePx, rows } of snapshot) {
-    const matching = rows.filter(({ rowPx }) => axisMatches(bubblePx + rowPx, axisPx)).map(({ row }) => row);
-    if (!axisMatches(bubblePx, axisPx)) {
+    const matching: HTMLElement[] = [];
+    for (const { row, rowPx } of rows) {
+      const isDrawnAtAxisPx = axisMatches(bubblePx + rowPx, axisPx);
+      if (isDrawnAtAxisPx) {
+        matching.push(row);
+      }
+    }
+    const bubbleBeginsHere = axisMatches(bubblePx, axisPx);
+    if (!bubbleBeginsHere) {
       merelyHolding.push(...matching);
       continue;
     }
@@ -89,7 +103,7 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
 // `row` carries every entry the tick absorbed, because a merged row stands for several instants.
 export function makeRulerTickClickable(tick: HTMLElement, row: RulerRow): HTMLElement {
   rememberRow(tick, row);
-  tick.addEventListener("click", () => {
+  function triggerTickAction(): void {
     // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.
     const events = listEventsAtRow(row.axisPxList);
     if (events.length > 1) {
@@ -103,6 +117,7 @@ export function makeRulerTickClickable(tick: HTMLElement, row: RulerRow): HTMLEl
     }
     scrollToUncoveredCentre(landed);
     highlightLandedElement(landed);
-  });
+  }
+  tick.addEventListener("click", triggerTickAction);
   return tick;
 }
