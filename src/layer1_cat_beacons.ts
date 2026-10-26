@@ -14,7 +14,7 @@ export type CatBeacon = { changeId: Uuid; target: Path; instant: Date; content: 
 const CAT_COMMAND = /^cat\s+(\S+)\s*$/;
 const UNSAFE_ARGUMENT = /[|&;<>$`*?]/;
 
-function indexBashCommandsById(records: TranscriptRecord[]): Map<string, string> {
+function buildBashCommandsById(records: TranscriptRecord[]): Map<string, string> {
   const commandById = new Map<string, string>();
   for (const record of records) {
     for (const block of getContentBlocks(record)) {
@@ -34,7 +34,7 @@ function parseCatArgument(command: string): string | undefined {
   return argument;
 }
 
-function checkBashRanCleanly(result: BashResult): boolean {
+function isBashCleanRun(result: BashResult): boolean {
   return !result.interrupted && result.stderr === "" && result.stdout !== "";
 }
 
@@ -55,7 +55,7 @@ function buildCatBeacon(
     return undefined;
   }
   const resolved = getToolResultForUserRecord(record, nameById);
-  if (resolved?.toolName !== ToolName.Bash || !checkBashRanCleanly(resolved.result)) {
+  if (resolved?.toolName !== ToolName.Bash || !isBashCleanRun(resolved.result)) {
     return undefined;
   }
   if (!(record.timestamp instanceof Date)) {
@@ -71,7 +71,7 @@ function buildCatBeacon(
 }
 
 export function collectBashCatBeacons(records: TranscriptRecord[], sessionFile: Path): CatBeacon[] {
-  const commandById = indexBashCommandsById(records);
+  const commandById = buildBashCommandsById(records);
   const nameById = buildToolUseNamesById(records);
   const beacons: CatBeacon[] = [];
   for (const record of records) {

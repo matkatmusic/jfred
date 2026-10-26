@@ -22,7 +22,7 @@ export type StepSnapshot = {
 };
 
 // Maps changeIds to their source sessionId via tool_use block ids and record uuids.
-function indexToolUseBlockIdsToSessionId(record: TranscriptRecord, sessionId: Uuid, byChangeId: Map<string, Uuid>): void {
+function buildToolUseBlockIdsToSessionId(record: TranscriptRecord, sessionId: Uuid, byChangeId: Map<string, Uuid>): void {
   for (const block of getContentBlocks(record)) {
     if (block.type === BlockType.tool_use) {
       byChangeId.set(block.id.toString(), sessionId);
@@ -30,7 +30,7 @@ function indexToolUseBlockIdsToSessionId(record: TranscriptRecord, sessionId: Uu
   }
 }
 
-function indexChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uuid> {
+function buildChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uuid> {
   const byChangeId = new Map<string, Uuid>();
   for (const record of records) {
     if (record.sessionId === undefined) {
@@ -39,13 +39,13 @@ function indexChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uu
     if (record.uuid !== undefined) {
       byChangeId.set(record.uuid.toString(), record.sessionId);
     }
-    indexToolUseBlockIdsToSessionId(record, record.sessionId, byChangeId);
+    buildToolUseBlockIdsToSessionId(record, record.sessionId, byChangeId);
   }
   return byChangeId;
 }
 
 // Strips synthetic prefixes (originalFile:, scriptRun:) to recover the real changeId.
-function resolveSyntheticChangeIdToSourceId(changeId: string): string {
+function getSyntheticChangeIdSourceId(changeId: string): string {
   if (changeId.startsWith(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX)) {
     return changeId.slice(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX.length);
   }
@@ -57,7 +57,7 @@ function resolveSyntheticChangeIdToSourceId(changeId: string): string {
 }
 
 // Maps each changeId to the final path of the file it touched.
-function indexChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
+function buildChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
   const byChangeId = new Map<string, string>();
   for (const history of histories) {
     for (const revision of history.revisions) {
@@ -69,7 +69,7 @@ function indexChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
 
 function findSessionIdForChangeIds(changeIds: Uuid[], sessionOf: Map<string, Uuid>): Uuid | undefined {
   return changeIds
-    .map((id) => sessionOf.get(resolveSyntheticChangeIdToSourceId(id.toString())))
+    .map((id) => sessionOf.get(getSyntheticChangeIdSourceId(id.toString())))
     .find((sessionId) => sessionId !== undefined);
 }
 
@@ -80,8 +80,8 @@ export function buildStepSnapshots(
 ): { steps: StepSnapshot[]; stepFileHistories: FileHistory[] } {
   const { histories, changes } = reconstructStepTimeline(records, reader);
   reportReconstructionProgress("indexing change ids across surviving files");
-  const pathOf = indexChangeIdsToPaths(surviving ?? reconstructAll(records, reader));
-  const sessionOf = indexChangeIdsToSessionIds(records);
+  const pathOf = buildChangeIdsToPaths(surviving ?? reconstructAll(records, reader));
+  const sessionOf = buildChangeIdsToSessionIds(records);
   const steps = changes.map((change, index) => {
     const changeIds = change.changeIds;
     // ponytail: best-effort — a step's triggering changeId is not always a surviving revision's changeId (the engine re-stamps revisions during beacon/reseed completion), so off-branch or re-stamped steps resolve to []. changeIds is the reliable pointer; changedPaths is the hint.  Script-execution changeIds are deterministic (scriptRun:<source>:<target>, item 34), so the step-timeline and file-history replays stamp the same id and those steps DO resolve.

@@ -40,7 +40,7 @@ export type ScriptRun = {
 // A ctx_execute run in one of these languages is a shell run; every other language keeps the python kind.
 const SHELL_LANGUAGES: ReadonlySet<string> = new Set(["shell", "bash"]);
 
-// Follows the originalFile: precedent — a prefixed id resolveSyntheticChangeIdToSourceId unwraps.
+// Follows the originalFile: precedent — a prefixed id getSyntheticChangeIdSourceId unwraps.
 export const SCRIPT_RUN_CHANGE_ID_PREFIX = "scriptRun:";
 
 // Deterministic so step-timeline and file-history replays produce joinable ids (item 34); the source segment never contains ':'.

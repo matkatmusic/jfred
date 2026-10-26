@@ -90,7 +90,7 @@ function collectErroredToolUseIdsInPartition(partition: LinePartition): Set<stri
   return erroredIds;
 }
 
-// A kind and preview for one block: a tool_use shows its command or file name, a text block shows its text.
+// A kind and preview for one block: a tool_use shows its command or file name, text shows its text.
 function getBlockKindPreview(block: Record<string, unknown>, erroredIds: Set<string>): KindPreview | undefined {
   if (block.type === BlockType.tool_use) {
     const input = (block.input ?? {}) as { command?: string; file_path?: string };
@@ -111,7 +111,7 @@ function getBlockKindPreview(block: Record<string, unknown>, erroredIds: Set<str
   return undefined;
 }
 
-// A kind and preview for a tool result, found from its shape: Read, Edit, or Write. The preview is the file name.
+// Kind and preview of a Read, Edit, or Write result, from its shape; the preview is the file name.
 function getResultKindPreview(result: Record<string, unknown>): KindPreview {
   const file = result.file as { filePath?: string } | undefined;
   if (typeof file?.filePath === "string") {
@@ -171,7 +171,7 @@ function parseRawLineDescription(raw: string, erroredIds: Set<string>): { type: 
   return { type, ...getRecordKindPreview(object, erroredIds), pretty: JSON.stringify(object, null, 2) };
 }
 
-// The record type of a raw line, or `?` when the line is not valid JSON or has no string type.
+// The record type of a raw line, or `?` when the line is bad JSON or has no string type.
 function getRawRecordType(raw: string): string {
   try {
     const type = (JSON.parse(raw) as { type?: unknown }).type;

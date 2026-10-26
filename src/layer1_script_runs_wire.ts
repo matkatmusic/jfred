@@ -1,4 +1,4 @@
-// Task l4-wire-real: located script runs join to pairs by the static path scan and shape into the /api/layer1-script-runs wire view.
+// Task l4-wire-real: the static path scan joins located script runs to pairs for the /api/layer1-script-runs view.
 
 import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage, describeScriptLanguage, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
@@ -18,12 +18,12 @@ export type Layer1WireScriptRunsView = WireScriptRunsViewOf<Date, Path, Uuid>;
 type WireScriptRunWithoutAxis = Omit<WireScriptRunOf<Date, Path, Uuid>, "axisPx">;
 
 // An absent kind executes like python (src/reconstruction_script_execution.ts ScriptRun).
-function mapToWireExecutorKind(kind: ScriptExecutorKind | undefined): WireScriptExecutorKind {
+function convertToWireExecutorKind(kind: ScriptExecutorKind | undefined): WireScriptExecutorKind {
   return kind === ScriptExecutorKind.bash ? WireScriptExecutorKind.bash : WireScriptExecutorKind.python;
 }
 
 // The Bash tool reads bash, a ctx run reads its own input language, and a run with neither executes like python.
-function mapToWireLanguage(run: ScriptRun): WireScriptLanguage {
+function convertToWireLanguage(run: ScriptRun): WireScriptLanguage {
   if (run.language !== undefined) {
     return parseScriptLanguage(run.language);
   }
@@ -34,11 +34,11 @@ function buildWireScriptRun(run: ScriptRun, sessionId: Uuid, sessionFile: Path):
   if (run.toolUseId === undefined) {
     throw new Error(`script run at ${run.timestamp.toISOString()} in ${sessionFile.toString()} has no tool_use id`);
   }
-  const language = mapToWireLanguage(run);
+  const language = convertToWireLanguage(run);
   return {
     instant: run.timestamp,
     toolUseId: run.toolUseId,
-    executorKind: mapToWireExecutorKind(run.executorKind),
+    executorKind: convertToWireExecutorKind(run.executorKind),
     language,
     // An absent line must stay absent: a `line: undefined` KEY differs under deep equality.
     ...(run.source === undefined ? {} : { line: run.source.lineNumber }),
