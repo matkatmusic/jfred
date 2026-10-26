@@ -719,6 +719,12 @@
   /*
     Task 356: the drawer's script-run block, from plans/script-run-detail-mockup.html.
   */
+  .script-files-fold > summary, .script-meta-fold > summary, .scriptbody > summary { cursor: pointer; list-style: none; }
+  .script-files-fold > summary::-webkit-details-marker, .script-meta-fold > summary::-webkit-details-marker, .scriptbody > summary::-webkit-details-marker { display: none; }
+  .script-files-fold > summary::before, .script-meta-fold > summary::before, .scriptbody > summary::before { content: "▸"; display: inline-block; width: 14px; color: var(--muted); }
+  .script-files-fold[open] > summary::before, .script-meta-fold[open] > summary::before, .scriptbody[open] > summary::before { content: "▾"; }
+  .script-meta-fold > summary { font-size: 12.5px; color: var(--muted); white-space: normal; margin-bottom: 5px; }
+  .scriptbody:not([open]) > .sbhead { border-bottom: none; }
   dl.script-meta { display: grid; grid-template-columns: 96px 1fr; gap: 5px 10px; font-size: 12.5px; white-space: normal; }
   dl.script-meta dt { color: var(--muted); }
   dl.script-meta dd { word-break: break-all; }

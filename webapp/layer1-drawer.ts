@@ -1,251 +1,91 @@
 // Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
 
-import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { getRequiredElementById } from "./app-dom.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
-import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
-import { isImagePath, renderImageInto, wireImageZoomTools } from "./layer1-drawer-image.ts";
-import { clearDiffPair, describeEditDrawer, describeNodeStep, isBranchNode, isEditNode, nodeCommitHash, setDrawerTools } from "./layer1-drawer-diff.ts";
-import { describeEditSteps } from "./layer1-revision-sources.ts";
-import { buildScriptRunDetail, buildScriptRunDiffPanes, buildScriptRunStatusBadges, describeScriptRunTitle, extendDiffSelection, pathsForScriptRun } from "./layer1-drawer-multi.ts";
-import { readDrawnView } from "./layer1-diff-wash.ts";
-import { flashSession } from "./layer1-sessions.ts";
-import { renderHighlightedJson } from "./inspector-json.ts";
-import type { WireValue } from "./inspector-links.ts";
-
-const SHORT_HASH_LENGTH = 8;
-
-// Task 305: the last plainly-clicked node — the diff pair's anchor.
-let anchor: { node: HTMLElement; path: string } | undefined;
+import { clearDiffPair } from "./layer1-drawer-diff.ts";
+import { wireImageZoomTools } from "./layer1-drawer-image.ts";
+import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "./layer1-drawer-open-node.ts";
+import { applyDiffSelectionRange } from "./layer1-diff-selection-range.ts";
+import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
-    const hit = target.closest(".node, .nlabel, .bnode, .blabel");
-    const node = hit?.matches(".nlabel, .blabel") === true ? hit.previousElementSibling : hit;
-    // A bucket row has no dot, so a `.nlabel` there (or anywhere) resolves to a non-node sibling.
-    return node?.matches(".node, .bnode") === true ? node as HTMLElement : undefined;
+  const hit = target.closest(".node, .nlabel, .bnode, .blabel");
+  const node = hit?.matches(".nlabel, .blabel") === true ? hit.previousElementSibling : hit;
+  // A bucket row has no dot, so a `.nlabel` there (or anywhere) resolves to a non-node sibling.
+  return node?.matches(".node, .bnode") === true ? node as HTMLElement : undefined;
 }
 
 // The full path lives on the owning bubble's `.fname` data-path (task 280); a bucket row has none.
 function findNodePath(node: HTMLElement): string | undefined {
-    const nameElement = node.closest(".filebox")?.querySelector(".fname") as HTMLElement | null;
-    return nameElement?.dataset.path;
+  const nameElement = node.closest(".filebox")?.querySelector(".fname") as HTMLElement | null;
+  return nameElement?.dataset.path;
 }
 
-// A commit node carries its hash on the dot's `title`; empty means no commit.
-function describeNode(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
-    if (isEditNode(node)) {
-        return describeEditDrawer(node, path);
-    }
-    const basename = path.split("/").pop() ?? path;
-    // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
-    if (node.classList.contains("n-snap")) {
-        const sessionFile = node.dataset.sessionFile ?? "";
-        const flashFile = sessionFile.split("/").pop() ?? sessionFile;
-        return {
-            params: new URLSearchParams({
-                snapshotSession: sessionFile,
-                sessionId: node.dataset.sessionId ?? "",
-                version: node.dataset.version ?? "",
-                path,
-                dir: getInputById("dir").value.trim(),
-            }),
-            head: `${basename} Snapshot`,
-            // 328.3: the header names the file ONCE; this row is provenance only.
-            meta: `file-history @v${node.dataset.version ?? ""} of ${flashFile}`,
-            flashFile,
-        };
-    }
-    const hash = nodeCommitHash(node);
-    if (hash === undefined) {
-        return {
-            params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
-            head: `${basename} — Current on-disk state`,
-            meta: "working tree",
-        };
-    }
-    return {
-        params: new URLSearchParams({ repo: getInputById("repo").value.trim(), path, hash }),
-        head: `${basename} — at commit ${hash.slice(0, SHORT_HASH_LENGTH)}`,
-        meta: `git show ${hash}`,
-    };
+function applyStageClick(event: Event): void {
+  const target = event.target as HTMLElement;
+  // Task 356: a connector is not a `.node` — route it before findClickedNode swallows the click.
+  const connector = target.closest<HTMLElement>(".script-connector");
+  const isConnector = connector !== null;
+  if (isConnector) {
+    void openScriptRunDrawer(connector.dataset.toolUseId);
+    return;
+  }
+  const node = findClickedNode(target);
+  const isNodeMissing = node === undefined;
+  if (isNodeMissing) {
+    return;
+  }
+  // A created-at node is never the latest on-disk state, so it has no bytes to show.
+  const isCreated = node.classList.contains("n-created");
+  if (isCreated) {
+    return;
+  }
+  // Task 356: a script node's identity is toolUseId, so it never needs findNodePath.
+  const isScript = node.classList.contains("n-script");
+  if (isScript) {
+    void openScriptRunDrawer(node.dataset.toolUseId);
+    return;
+  }
+  const path = findNodePath(node);
+  const isPathMissing = path === undefined;
+  if (isPathMissing) {
+    return;
+  }
+  // Task 305: shift extends the anchored selection into a two-node diff pair.
+  const currentAnchor = readAnchor();
+  const isShift = (event as MouseEvent).shiftKey;
+  const hasAnchor = currentAnchor !== undefined;
+  const isDrawerOpen = getRequiredElementById("drawer").classList.contains("open");
+  const isShiftWithAnchor = isShift && hasAnchor;
+  const isRangeGesture = isShiftWithAnchor && isDrawerOpen;
+  if (isRangeGesture) {
+    applyDiffSelectionRange(currentAnchor, node, path);
+    return;
+  }
+  void openNodeDrawer(node, path);
 }
 
-// Task 323: the file's timeline IS the lane's DOM order; n-created has no bytes so cycling skips it.
-function findAdjacentNode(offset: 1 | -1): HTMLElement | undefined {
-    if (anchor === undefined) {
-        return undefined;
-    }
-    const nodes = [...anchor.node.parentElement?.querySelectorAll(".node:not(.n-created)") ?? []] as HTMLElement[];
-    return nodes[nodes.indexOf(anchor.node) + offset];
+function openPreviousNeighbour(): void {
+  openNeighbour(-1);
 }
 
-// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON, reusing inspector-json.ts; empty maps drop links (follow-up task).
-function appendRawJsonReveal(record: unknown): void {
-    const jsonPre = renderHighlightedJson(
-        JSON.stringify(record, null, 4), record as WireValue, 0,
-        { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
-        () => {}, [], () => {},
-    );
-    const jsonBox = el("div", { class: "node-json" }, [jsonPre]);
-    jsonBox.hidden = true;
-    const jsonToggle = el("button", {
-        class: "json-toggle",
-        text: "[{ }]",
-        title: "Show raw transcript JSON",
-        onclick: () => {
- jsonBox.hidden = !jsonBox.hidden; 
-},
-    });
-    getRequiredElementById("dbody").append(jsonToggle, jsonBox);
+function openNextNeighbour(): void {
+  openNeighbour(1);
 }
 
-async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
-    // A plain click resets to a one-node selection (task 305) and anchors the next shift-click.
-    clearDiffPair();
-    anchor = { node, path };
-    // Task 323: STOP at the timeline's ends — a missing neighbour disables that arrow, no wrap.
-    for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
-        const arrow = getRequiredElementById(id) as HTMLButtonElement;
-        arrow.hidden = false;
-        arrow.disabled = findAdjacentNode(offset) === undefined;
-    }
-    const detail = describeNode(node, path);
-    const header = getRequiredElementById("dpath");
-    header.textContent = detail.head;
-    header.title = path;
-    getRequiredElementById("dmeta").textContent = detail.meta;
-    // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
-    highlightLandedElement(node);
-    getRequiredElementById("drawer").classList.add("open");
-    // The drawer shrinks the pane, so re-centre against the POST-reflow layout (also why .drawer has no width transition).
-    requestAnimationFrame(() => {
-        scrollToUncoveredCentre(node);
-        drawLayer1Minimap();
-    });
-    setDrawerTools(isImagePath(path) ? "img" : "none");
-    // Task 299: an image renders as a picture straight off the binary route — no text fetch at all.
-    if (isImagePath(path)) {
-        getRequiredElementById("dmulti").hidden = true;
-        detail.params.set("binary", "1");
-        renderImageInto(getRequiredElementById("dbody"), `/api/layer1-file?${detail.params}`);
-        return;
-    }
-    // An Edit/Write node shows its two replayed sides; any other node shows the whole file.
-    const steps = node.classList.contains("n-edit") || isBranchNode(node)
-        ? describeEditSteps(path, node.dataset.changeId ?? "", isBranchNode(node))
-        : [describeNodeStep(node, path)];
-    displayDetailView([buildDiffView(path, steps, {
-        revisionControlsShown: steps.length > 1,
-        mode: DiffPaneMode.inline,
-        fullContents: steps.length === 1,
-        baseIndex: 0,
-        targetIndex: steps.length - 1,
-    })]);
-    // Task 317: a snapshot's header still carries the title in effect at its line; flash its JSONL.
-    if (detail.flashFile !== undefined) {
-        const response = await fetch(`/api/layer1-file?${detail.params}`);
-        if (response.ok) {
-            const payload = await response.json() as { title?: string; record?: unknown };
-            header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
-            // Task 213: only a snapshot carries a transcript line, so only here does the reveal appear.
-            if (payload.record !== undefined) {
-                appendRawJsonReveal(payload.record);
-            }
-        }
-        flashSession(detail.flashFile);
-    }
-}
-
-// Task 356: identity is toolUseId, not (node, path) — one shared drawer for every bubble the run touches.
-async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void> {
-    const view = readDrawnView();
-    if (view === undefined || toolUseId === undefined) {
-        return;
-    }
-    const paths = pathsForScriptRun(view, toolUseId);
-    const run = view.pairs
-        .flatMap((pair) => pair.scriptRuns ?? [])
-        .find((entry) => entry.toolUseId === toolUseId);
-    if (run === undefined) {
-        return;
-    }
-    clearDiffPair();
-    for (const id of ["dprev", "dnext"] as const) {
-        getRequiredElementById(id).hidden = true;
-    }
-    const header = getRequiredElementById("dpath");
-    header.replaceChildren(describeScriptRunTitle(run), ...buildScriptRunStatusBadges());
-    header.title = paths.join("\n");
-    getRequiredElementById("dmeta").textContent = `${describeScriptRunTitle(run)} · ${paths.length} affected file(s):\n${paths.join("\n")}`;
-    getRequiredElementById("drawer").classList.add("open");
-    setDrawerTools("none");
-    // const scriptBody = el("pre", { class: "scriptbody", text: run.code });
-    // const metaRows: [string, string][] = [
-    //     ["kind", "script run (layer 4)"],
-    //     ["executor", run.executorKind],
-    //     ["instant", run.instant],
-    //     ["session", run.sessionFile],
-    //     // ["files", paths.join(", ")],
-    //     // ["verified", "no: located, not replayed"],
-    // ];
-    // const scriptMeta = el("dl", { class: "script-meta" }, metaRows.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]));
-    // const scriptBody = el("div", { class: "scriptbody" }, [
-    //     el("div", { class: "sbhead" }, [
-    //         el("b", { text: run.label ?? `${run.executorKind} run` }),
-    //         el("span", { class: "prov", text: `resolved body · ${run.sessionFile} · ${run.instant}` }),
-    //     ]),
-    //     el("pre", { text: run.code }),
-    // ]);
-    displayDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
-    flashSession(run.sessionFile.split("/").pop() ?? run.sessionFile);
+function closeDrawer(): void {
+  getRequiredElementById("drawer").classList.remove("open");
+  getRequiredElementById("dmulti").hidden = true;
+  clearDiffPair();
+  clearAnchor();
+  drawLayer1Minimap();
 }
 
 export function wireNodeDrawer(): void {
-    wireImageZoomTools();
-    getRequiredElementById("stage").addEventListener("click", (event) => {
-        // Task 356: a connector is not a `.node` — route it before findClickedNode swallows the click.
-        const connector = (event.target as HTMLElement).closest<HTMLElement>(".script-connector");
-        if (connector !== null) {
-            void openScriptRunDrawer(connector.dataset.toolUseId);
-            return;
-        }
-        const node = findClickedNode(event.target as HTMLElement);
-        // A created-at node is never the latest on-disk state, so it has no bytes to show.
-        if (node === undefined || node.classList.contains("n-created")) {
-            return;
-        }
-        // Task 356: a script node's identity is toolUseId, so it never needs findNodePath.
-        if (node.classList.contains("n-script")) {
-            void openScriptRunDrawer(node.dataset.toolUseId);
-            return;
-        }
-        const path = findNodePath(node);
-        if (path === undefined) {
-            return;
-        }
-        // Task 305: shift extends the anchored selection into a two-node diff pair.
-        if ((event as MouseEvent).shiftKey && anchor !== undefined && getRequiredElementById("drawer").classList.contains("open")) {
-            extendDiffSelection(anchor, node, path);
-            return;
-        }
-        void openNodeDrawer(node, path);
-    });
-    // Task 323: cycling never leaves the lane, so the anchored path carries over.
-    for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
-        getRequiredElementById(id).addEventListener("click", () => {
-            const neighbour = findAdjacentNode(offset);
-            if (neighbour !== undefined && anchor !== undefined) {
-                void openNodeDrawer(neighbour, anchor.path);
-            }
-        });
-    }
-    getRequiredElementById("dclose").addEventListener("click", () => {
-        getRequiredElementById("drawer").classList.remove("open");
-        getRequiredElementById("dmulti").hidden = true;
-        clearDiffPair();
-        anchor = undefined;
-        drawLayer1Minimap();
-    });
+  wireImageZoomTools();
+  getRequiredElementById("stage").addEventListener("click", applyStageClick);
+  getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);
+  getRequiredElementById("dnext").addEventListener("click", openNextNeighbour);
+  getRequiredElementById("dclose").addEventListener("click", closeDrawer);
 }

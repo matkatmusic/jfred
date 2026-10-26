@@ -1,0 +1,72 @@
+// Task 257.5: the single-node drawer's header, meta row, fetch params and raw JSON reveal.
+
+import { el, getInputById, getRequiredElementById } from "./app-dom.ts";
+import { describeEditDrawer, isEditNode, nodeCommitHash } from "./layer1-drawer-diff.ts";
+import { renderHighlightedJson } from "./inspector-json.ts";
+import type { WireValue } from "./inspector-links.ts";
+
+const SHORT_HASH_LENGTH = 8;
+
+// A commit node carries its hash on the dot's `title`; empty means no commit.
+export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
+  const isEdit = isEditNode(node);
+  if (isEdit) {
+    return describeEditDrawer(node, path);
+  }
+  const basename = path.split("/").pop() ?? path;
+  // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
+  const isSnapshot = node.classList.contains("n-snap");
+  if (isSnapshot) {
+    const sessionFile = node.dataset.sessionFile ?? "";
+    const flashFile = sessionFile.split("/").pop() ?? sessionFile;
+    return {
+      params: new URLSearchParams({
+        snapshotSession: sessionFile,
+        sessionId: node.dataset.sessionId ?? "",
+        version: node.dataset.version ?? "",
+        path,
+        dir: getInputById("dir").value.trim(),
+      }),
+      head: `${basename} Snapshot`,
+      // 328.3: the header names the file ONCE; this row is provenance only.
+      meta: `file-history @v${node.dataset.version ?? ""} of ${flashFile}`,
+      flashFile,
+    };
+  }
+  const hash = nodeCommitHash(node);
+  if (hash === undefined) {
+    return {
+      params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
+      head: `${basename} — Current on-disk state`,
+      meta: "working tree",
+    };
+  }
+  return {
+    params: new URLSearchParams({ repo: getInputById("repo").value.trim(), path, hash }),
+    head: `${basename} — at commit ${hash.slice(0, SHORT_HASH_LENGTH)}`,
+    meta: `git show ${hash}`,
+  };
+}
+
+// The raw JSON reveal has no transcript to link to, so a link click does nothing.
+function addNoJsonLink(): void {}
+
+// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON.
+export function appendRawJsonReveal(record: unknown): void {
+  const jsonPre = renderHighlightedJson(
+    JSON.stringify(record, null, 4), record as WireValue, 0,
+    { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
+    addNoJsonLink, [], addNoJsonLink,
+  );
+  const jsonBox = el("div", { class: "node-json" }, [jsonPre]);
+  jsonBox.hidden = true;
+  const jsonToggle = el("button", {
+    class: "json-toggle",
+    text: "[{ }]",
+    title: "Show raw transcript JSON",
+    onclick: () => {
+      jsonBox.hidden = !jsonBox.hidden;
+    },
+  });
+  getRequiredElementById("dbody").append(jsonToggle, jsonBox);
+}
