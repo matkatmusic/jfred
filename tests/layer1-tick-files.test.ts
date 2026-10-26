@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { el } from "../webapp/app-dom.ts";
-import { listEventsAtRow } from "../webapp/layer1-tick-files.ts";
+import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
 import { flashSession } from "../webapp/layer1-sessions.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";

@@ -5,8 +5,9 @@ import assert from "node:assert/strict";
 import { el } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { makeRulerTickClickable } from "../webapp/layer1-ruler-click.ts";
+import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
 import {
-    listEventsAtRow, markMultiEventTicks, onExpansionRelayout, readRulerExpansion, toggleExpandedRow, wireTickExpansion,
+    markMultiEventTicks, onExpansionRelayout, readRulerExpansion, toggleExpandedRow, wireTickExpansion,
 } from "../webapp/layer1-tick-files.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
