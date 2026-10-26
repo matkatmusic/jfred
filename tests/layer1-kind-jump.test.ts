@@ -1,62 +1,8 @@
-// The show row's < and > arrows under each kind box jump the timeline to the nearest node of that kind.
+// The show row's < and > arrows jump the timeline to the nearest node of one kind.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { el, getInputById } from "../webapp/app-dom.ts";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-
-// layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
-initLayer1Dom();
-const { renderLayer1View } = await import("../webapp/layer1-page.ts");
-const { refreshKindJumpArrows } = await import("../webapp/layer1-kind-jump.ts");
-
-const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
-const COMMIT = { ...INSTANT, hash: "b7c8d9e0f1a23445566778899aabbccddeeff001" };
-const SNAPSHOT = { ...INSTANT, version: 1, sessionId: "s-1", sessionFile: "alpha.jsonl" };
-const PAIR = { path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT, snapshots: [SNAPSHOT] };
-const VIEW = { pairs: [PAIR], gitOrphans: [], diskOrphans: [], ruler: [] } as never;
-
-const PANE_HEIGHT_PX = 300;
-const NODE_HEIGHT_PX = 10;
-
-// The pane's scroll offset in content pixels; a node's on-screen box is its content y minus this.
-function readViewTopPx(): number {
-    return document.getElementById("timelines")!.scrollTop;
-}
-
-function buildNode(className: string, centerY: number): HTMLElement {
-    const node = el("i", { class: `node ${className}`, "data-y": String(centerY) });
-    Object.assign(node, {
-        getBoundingClientRect: () => {
-            const top = centerY - readViewTopPx() - NODE_HEIGHT_PX / 2;
-            return { top, bottom: top + NODE_HEIGHT_PX, left: 100, right: 110, height: NODE_HEIGHT_PX };
-        },
-    });
-    return node;
-}
-
-async function renderViewWithSyntheticStage(): Promise<void> {
-    initLayer1Dom();
-    getInputById("dir").value = "";
-    await renderLayer1View(VIEW);
-    Object.assign(document.getElementById("timelines")!, {
-        scrollTop: 0,
-        getBoundingClientRect: () => ({ top: 0, bottom: PANE_HEIGHT_PX, left: 0, right: 1000, height: PANE_HEIGHT_PX }),
-    });
-    document.getElementById("stage")!.replaceChildren(
-        buildNode("n-commit", 100), buildNode("n-commit", 400), buildNode("n-commit", 700),
-        buildNode("n-snap", 50), buildNode("n-snap", 550),
-    );
-    refreshKindJumpArrows();
-}
-
-function findArrow(kind: string, direction: string): HTMLButtonElement {
-    return document.querySelector<HTMLButtonElement>(`#show-row [data-jump-kind=${kind}][data-jump=${direction}]`)!;
-}
-
-function readLandedY(): string {
-    return document.querySelector<HTMLElement>("#stage .found")!.dataset["y"]!;
-}
+import { findArrow, PANE_HEIGHT_PX, readLandedY, renderViewWithSyntheticStage } from "./layer1-kind-jump-helpers.ts";
 
 test("test_each_kind_box_has_a_previous_and_a_next_arrow_under_it", async () => {
     await renderViewWithSyntheticStage();
@@ -120,17 +66,3 @@ test("test_a_kind_jump_does_not_toggle_the_checkbox", async () => {
     assert.equal(document.querySelector<HTMLInputElement>("#show-row input[data-kind=commit]")!.checked, true);
 });
 
-test("test_the_arrows_are_disabled_for_a_kind_with_no_nodes_and_for_a_hidden_kind", async () => {
-    await renderViewWithSyntheticStage();
-    for (const direction of ["previous", "next"]) {
-        assert.equal(findArrow("disk", direction).disabled, true);
-        assert.equal(findArrow("script-run", direction).disabled, true);
-        assert.equal(findArrow("snapshot", direction).disabled, false);
-    }
-    const box = document.querySelector<HTMLInputElement>("#show-row input[data-kind=snapshot]")!;
-    box.checked = false;
-    box.dispatchEvent(new window.Event("change", { bubbles: true }));
-    for (const direction of ["previous", "next"]) {
-        assert.equal(findArrow("snapshot", direction).disabled, true);
-    }
-});

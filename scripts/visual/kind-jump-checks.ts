@@ -7,7 +7,7 @@ const SCRIPT_BOX = `document.querySelector('#show-row input[data-kind="script-ru
 const SCRIPT_DOTS = `document.querySelectorAll('#stage i.node.n-script')`;
 const STRIP_IDLE = `document.getElementById('loadbar').hidden`;
 const LOAD_TIMEOUT_MS = 15_000;
-// A node cannot sit between two clicks of one run, so more steps than this means the arrows never end.
+// One run cannot take more steps than this, so a higher count means the arrows never end.
 const MAX_STEPS = 20;
 
 const arrow = (direction: "previous" | "next") =>
@@ -52,6 +52,14 @@ async function checkStepsForward(page: HeadlessPage): Promise<Landed[]> {
   await page.evaluate(`${SCRIPT_BOX}.click()`);
   await page.waitFor(`${SCRIPT_DOTS}.length > 0 && ${STRIP_IDLE}`, LOAD_TIMEOUT_MS);
   await page.evaluate(`document.getElementById('timelines').scrollTop = 0`);
+  // A node at the pane's centre counts as landed, so start from the first node.
+  for (let step = 0; step < MAX_STEPS; step++) {
+    const isAtFirstNode = await page.evaluate<boolean>(`${arrow("previous")}.disabled`);
+    if (isAtFirstNode) {
+      break;
+    }
+    await clickArrow(page, "previous");
+  }
   const visited: Landed[] = [];
   for (let step = 0; step < MAX_STEPS; step++) {
     if (await page.evaluate<boolean>(`${arrow("next")}.disabled`)) {

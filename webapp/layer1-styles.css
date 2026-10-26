@@ -196,7 +196,8 @@
   .pane-loadbar { flex-wrap: wrap; padding: 8px 10px; border-bottom: none; }
   .pane-loadbar .loadbar-label { white-space: normal; }
 
-  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative; padding: 18px 12px 40px 0; }
+  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative;
+    padding: calc(18px + var(--slack-top, 0px)) calc(12px + var(--slack-right, 0px)) calc(40px + var(--slack-bottom, 0px)) var(--slack-left, 0px); }
   /*
     Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
   */
@@ -299,7 +300,7 @@
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
   .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
-  .filebox .created-untrusted { position: absolute; top: 37px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
+  .filebox .created-untrusted { position: absolute; top: -18px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
 
   .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
   .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }

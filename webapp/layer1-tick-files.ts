@@ -3,7 +3,8 @@
 import { el } from "./app-dom.ts";
 import type { RulerExpansion } from "./layer1-filter.ts";
 import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
-import { KIND_HIDDEN_CLASS, classifyNodeKind, isKindHidden, onKindFilterChange } from "./layer1-kind-filter.ts";
+import { KIND_HIDDEN_CLASS, isKindHidden, onKindFilterChange } from "./layer1-kind-filter.ts";
+import { classifyNodeKind } from "./layer1-node-kind.ts";
 import { SHOW_ROW_LABELS, ShowRowKind } from "./layer1-show-row.ts";
 import { flashSession } from "./layer1-sessions.ts";
 import { listElementsDrawnAtAxisPx, snapshotStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
@@ -11,13 +12,13 @@ import type { RulerRow } from "./layer1-ruler-rows.ts";
 
 // One thing DRAWN at a row's instants: owning file, its own label, and the element the click lands on.
 export interface TickEvent {
-    path: string;
-    kind: string;
-    element: HTMLElement;
-    // Task 360: undefined for an orphan row, which no show-row box governs.
-    nodeKind: ShowRowKind | undefined;
-    // Task 316: the owning JSONL, present only on a snapshot node, so its row can flash on click.
-    session?: string;
+  path: string;
+  kind: string;
+  element: HTMLElement;
+  // Task 360: undefined for an orphan row, which no show-row box governs.
+  nodeKind: ShowRowKind | undefined;
+  // Task 316: the owning JSONL, present only on a snapshot node, so its row can flash on click.
+  session?: string;
 }
 
 // Task 300: the ONE open row (first instant + measured list height); survives its own re-render.
@@ -27,17 +28,17 @@ let expandedRow: RulerExpansion | undefined;
 let requestStageRelayout: () => void = () => {};
 
 export function onExpansionRelayout(callback: () => void): void {
-    requestStageRelayout = callback;
+  requestStageRelayout = callback;
 }
 
 // What layer1-page.ts feeds the two-pass layout; undefined while no row is open.
 export function readRulerExpansion(): RulerExpansion | undefined {
-    return expandedRow;
+  return expandedRow;
 }
 
 // Filter and load redraws call this: a changed view invalidates the measured list, so the row closes.
 export function closeRulerExpansion(): void {
-    expandedRow = undefined;
+  expandedRow = undefined;
 }
 
 // A WeakMap, not a data- attribute: no string round-trip, and a replaced tick takes its entry with it.
@@ -45,189 +46,222 @@ const rowsByTick = new WeakMap<HTMLElement, RulerRow>();
 
 // Remember what a tick absorbed when layer1-ruler-click.ts wires it; kept beside the only reader.
 export function rememberRow(tick: HTMLElement, row: RulerRow): void {
-    rowsByTick.set(tick, row);
+  rowsByTick.set(tick, row);
 }
 
 // The owning file: `.fname`'s `data-path` is the bubble's identity (task 280).
 function readOwningPath(element: HTMLElement): string {
-    return element.closest(".filebox")?.querySelector<HTMLElement>(".fname")?.dataset.path ?? "";
+  return element.closest(".filebox")?.querySelector<HTMLElement>(".fname")?.dataset.path ?? "";
 }
 
 // What one drawn element contributes to the list.
 function describeDrawnElement(element: HTMLElement): TickEvent {
-    // An orphan's row IS its path; the bucket `.fname` is a heading, and kind stays empty (mockup 899-903).
-    if (element.matches("li")) {
-        return { path: element.querySelector("span")?.textContent ?? "", kind: "", element, nodeKind: undefined };
-    }
-    // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
-    const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
-    return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: classifyNodeKind(element), session: element.dataset.sessionFile };
+  // An orphan's row IS its path; the bucket `.fname` is a heading, and kind stays empty (mockup 899-903).
+  if (element.matches("li")) {
+    return { path: element.querySelector("span")?.textContent ?? "", kind: "", element, nodeKind: undefined };
+  }
+  // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
+  const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
+  return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: classifyNodeKind(element), session: element.dataset.sessionFile };
 }
 
-// Everything drawn at the instants ONE printed row stands for, hidden kinds included, in the order the lookup found it.
+// Every event drawn at one printed row's instants, hidden kinds included, in lookup order.
 function listAllEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[]): TickEvent[] {
-    const events: TickEvent[] = [];
-    // De-duped on the ELEMENT, else a same-offset merged row lists one element twice.
-    const seen = new Set<HTMLElement>();
-    for (const axisPx of axisPxList) {
-        for (const element of listElementsDrawnAtAxisPx(axisPx, snapshot)) {
-            if (seen.has(element)) {
-                continue;
-            }
-            seen.add(element);
-            events.push(describeDrawnElement(element));
-        }
+  const events: TickEvent[] = [];
+  // De-duped on the ELEMENT, else a same-offset merged row lists one element twice.
+  const seen = new Set<HTMLElement>();
+  for (const axisPx of axisPxList) {
+    for (const element of listElementsDrawnAtAxisPx(axisPx, snapshot)) {
+      if (seen.has(element)) {
+        continue;
+      }
+      seen.add(element);
+      events.push(describeDrawnElement(element));
     }
-    return events;
+  }
+  return events;
 }
 
-// Task 360: the ruler click, the open file list and the reopen all read this, so they list visible kinds only.
+// Task 360: the ruler click, open file list and reopen all read this, so they list visible kinds only.
 export function listEventsAtRow(axisPxList: number[], snapshot: BubbleSnapshot[] = snapshotStageBubbles()): TickEvent[] {
-    return listAllEventsAtRow(axisPxList, snapshot).filter((event) => !isKindHidden(event.nodeKind));
+  const visible: TickEvent[] = [];
+  for (const event of listAllEventsAtRow(axisPxList, snapshot)) {
+    const isVisibleKind = !isKindHidden(event.nodeKind);
+    if (isVisibleKind) {
+      visible.push(event);
+    }
+  }
+  return visible;
 }
 
 // The name the button prints; same inline expression layer1-page.ts uses for a bubble's label.
 function readBasename(path: string): string {
-    return path.split("/").pop() ?? path;
+  return path.split("/").pop() ?? path;
 }
 
 // `title` carries the full path since the 300px button can't; `stopPropagation` stops the click from closing the row.
 function buildTickFileButton(event: TickEvent): HTMLElement {
-    return el("button", {
-        text: `${readBasename(event.path)}  ${event.kind}`.trimEnd(),
-        title: event.path,
-        onclick: (clickEvent: Event) => {
-            clickEvent.stopPropagation();
-            // The same jump a single-event tick makes (layer1-ruler-click.ts).
-            scrollToUncoveredCentre(event.element);
-            highlightLandedElement(event.element);
-            if (event.session !== undefined) {
-                // flashSession keys rows by basename (like the drawer), so a full path never matches.
-                flashSession(event.session.split("/").pop() ?? event.session);
-            }
-        },
-    });
+  return el("button", {
+    text: `${readBasename(event.path)}  ${event.kind}`.trimEnd(),
+    title: event.path,
+    onclick: (clickEvent: Event) => {
+      clickEvent.stopPropagation();
+      // The same jump a single-event tick makes (layer1-ruler-click.ts).
+      scrollToUncoveredCentre(event.element);
+      highlightLandedElement(event.element);
+      if (event.session !== undefined) {
+        // flashSession keys rows by basename (like the drawer), so a full path never matches.
+        flashSession(event.session.split("/").pop() ?? event.session);
+      }
+    },
+  });
 }
 
 // The list itself, a child of its tick so it opens directly under the timestamp inside the gutter.
 export function buildTickFileList(events: TickEvent[]): HTMLElement {
-    return el("div", { class: "tickfiles" }, events.map(buildTickFileButton));
+  return el("div", { class: "tickfiles" }, events.map(buildTickFileButton));
 }
 
 // List height in axis px from a throwaway render; fallback covers layout-free DOMs.
 function measureListHeightPx(tick: HTMLElement, events: TickEvent[]): number {
-    const probe = tick.appendChild(buildTickFileList(events));
-    const measuredPx = probe.offsetHeight;
-    probe.remove();
-    return measuredPx > 0 ? measuredPx : events.length * 13 + 2;
+  const probe = tick.appendChild(buildTickFileList(events));
+  const measuredPx = probe.offsetHeight;
+  probe.remove();
+  return measuredPx > 0 ? measuredPx : events.length * 13 + 2;
 }
 
 // Task 300: flip expansion STATE, then re-lay-out so rows below make room.
 export function toggleExpandedRow(tick: HTMLElement, events: TickEvent[]): void {
-    const instantMs = new Date(rowsByTick.get(tick)?.instants[0] ?? 0).getTime();
-    const wasOpen = expandedRow?.instantMs === instantMs;
-    expandedRow = wasOpen ? undefined : { instantMs, listHeightPx: measureListHeightPx(tick, events) };
-    requestStageRelayout();
+  const instantMs = new Date(rowsByTick.get(tick)?.instants[0] ?? 0).getTime();
+  const wasOpen = expandedRow?.instantMs === instantMs;
+  expandedRow = wasOpen ? undefined : { instantMs, listHeightPx: measureListHeightPx(tick, events) };
+  requestStageRelayout();
 }
 
 // After a re-render, re-open the surviving expanded row on FRESH elements; a filtered-away row just stays shut.
 function reopenExpandedRow(): void {
-    const tick = findTickAtExpandedInstant();
-    if (tick === undefined) {
-        return;
-    }
-    tick.classList.add("expanded");
-    tick.querySelector(".tickfiles")?.remove();
-    const events = listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
-    const listHeightPx = measureListHeightPx(tick, events);
-    tick.appendChild(buildTickFileList(events));
-    // A kind shown since the list was measured changes its height; the stage lays out once more after this render ends.
-    if (listHeightPx !== expandedRow!.listHeightPx) {
-        expandedRow = { instantMs: expandedRow!.instantMs, listHeightPx };
-        queueMicrotask(requestStageRelayout);
-    }
+  const tick = findTickAtExpandedInstant();
+  if (tick === undefined) {
+    return;
+  }
+  tick.classList.add("expanded");
+  tick.querySelector(".tickfiles")?.remove();
+  const events = listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
+  const listHeightPx = measureListHeightPx(tick, events);
+  tick.appendChild(buildTickFileList(events));
+  // A kind shown since measuring changes the list height, so the stage lays out again after this render.
+  if (listHeightPx !== expandedRow!.listHeightPx) {
+    expandedRow = { instantMs: expandedRow!.instantMs, listHeightPx };
+    queueMicrotask(requestStageRelayout);
+  }
 }
 
-// A redraw replaces every tick before the stage is drawn; the old list moves to the fresh tick so the row never closes.
+// A redraw replaces every tick, so the open list moves to the fresh tick and the row stays open.
 export function carryOpenRowToNewTicks(openList: Element | null): void {
-    const tick = findTickAtExpandedInstant();
-    if (openList === null || tick === undefined) {
-        return;
-    }
-    tick.classList.add("expanded");
-    tick.appendChild(openList);
+  const tick = findTickAtExpandedInstant();
+  if (openList === null || tick === undefined) {
+    return;
+  }
+  tick.classList.add("expanded");
+  tick.appendChild(openList);
 }
 
 // The tick whose row holds the open expansion's instant, if one is drawn.
 function findTickAtExpandedInstant(): HTMLElement | undefined {
-    return [...document.querySelectorAll<HTMLElement>("#ruler .tick")].find((tick) =>
-        expandedRow !== undefined
-        && (rowsByTick.get(tick)?.instants ?? []).some((instant) => new Date(instant).getTime() === expandedRow!.instantMs));
+  if (expandedRow === undefined) {
+    return undefined;
+  }
+  for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
+    for (const instant of rowsByTick.get(tick)?.instants ?? []) {
+      const isExpandedInstant = new Date(instant).getTime() === expandedRow.instantMs;
+      if (isExpandedInstant) {
+        return tick;
+      }
+    }
+  }
+  return undefined;
 }
 
 // One empty dash per distinct visible kind, in show-row order, right after the timestamp text so `.tickfiles` stays last.
 function drawKindDashes(tick: HTMLElement, visible: TickEvent[]): void {
-    tick.querySelector(".kind-dashes")?.remove();
-    const dashes = Object.values(ShowRowKind)
-        .filter((kind) => visible.some((event) => event.nodeKind === kind))
-        .map((kind) => el("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
-    tick.insertBefore(el("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
+  tick.querySelector(".kind-dashes")?.remove();
+  const dashes: HTMLElement[] = [];
+  for (const kind of Object.values(ShowRowKind)) {
+    let hasVisibleEventOfKind = false;
+    for (const event of visible) {
+      const isOfKind = event.nodeKind === kind;
+      if (isOfKind) {
+        hasVisibleEventOfKind = true;
+        break;
+      }
+    }
+    if (hasVisibleEventOfKind) {
+      dashes.push(el("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
+    }
+  }
+  tick.insertBefore(el("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
 }
 
-// Underline rows that would EXPAND (mockup 687); a row whose events are all hidden kinds hides but keeps its slot.
+// Underline rows that would EXPAND (mockup 687); a row with only hidden kinds hides but keeps its slot.
 function markTickKindState(snapshot: BubbleSnapshot[]): void {
-    for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
-        const all = listAllEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? [], snapshot);
-        const visible = all.filter((event) => !isKindHidden(event.nodeKind));
-        tick.classList.toggle("multi", visible.length > 1);
-        tick.classList.toggle(KIND_HIDDEN_CLASS, all.length > 0 && visible.length === 0);
-        drawKindDashes(tick, visible);
-        // Retired by task 360 (the hidden-kind set replaces it): if (all.length > 0 && all.every((event) => event.element.matches(".n-snap"))) { tick.classList.add("n-snap"); }
+  for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
+    const all = listAllEventsAtRow(rowsByTick.get(tick)?.axisPxList ?? [], snapshot);
+    const visible: TickEvent[] = [];
+    for (const event of all) {
+      const isVisibleKind = !isKindHidden(event.nodeKind);
+      if (isVisibleKind) {
+        visible.push(event);
+      }
     }
+    tick.classList.toggle("multi", visible.length > 1);
+    tick.classList.toggle(KIND_HIDDEN_CLASS, all.length > 0 && visible.length === 0);
+    drawKindDashes(tick, visible);
+    // Retired by task 360 (the hidden-kind set replaces it): if (all.length > 0 && all.every((event) => event.element.matches(".n-snap"))) { tick.classList.add("n-snap"); }
+  }
 }
 
 // One shared snapshot (task 309) after the stage is drawn.
 export function markMultiEventTicks(): void {
-    markTickKindState(snapshotStageBubbles());
-    // Task 300: the expansion outlives its own re-render, so the open row is rebuilt on the fresh ticks.
-    reopenExpandedRow();
+  markTickKindState(snapshotStageBubbles());
+  // Task 300: the expansion outlives its own re-render, so the open row is rebuilt on the fresh ticks.
+  reopenExpandedRow();
 }
 
-// Task 360: a box toggle re-marks the ticks and rebuilds the open file list; the relayout makes room for its new height.
+// Task 360: a box toggle re-marks the ticks, rebuilds the open file list, and relays out the stage.
 export function refreshTicksForKindFilter(): void {
-    markTickKindState(snapshotStageBubbles());
-    if (expandedRow === undefined) {
-        return;
+  markTickKindState(snapshotStageBubbles());
+  if (expandedRow === undefined) {
+    return;
+  }
+  const tick = findTickAtExpandedInstant();
+  const events = tick === undefined ? [] : listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
+  if (tick === undefined || events.length <= 1) {
+    closeRulerExpansion();
+    for (const openTick of document.querySelectorAll<HTMLElement>("#ruler .tick.expanded")) {
+      openTick.querySelector(".tickfiles")?.remove();
+      openTick.classList.remove("expanded");
     }
-    const tick = findTickAtExpandedInstant();
-    const events = tick === undefined ? [] : listEventsAtRow(rowsByTick.get(tick)!.axisPxList);
-    if (tick === undefined || events.length <= 1) {
-        closeRulerExpansion();
-        for (const openTick of document.querySelectorAll<HTMLElement>("#ruler .tick.expanded")) {
-            openTick.querySelector(".tickfiles")?.remove();
-            openTick.classList.remove("expanded");
-        }
-        requestStageRelayout();
-        return;
-    }
-    tick.querySelector(".tickfiles")?.remove();
-    const listHeightPx = measureListHeightPx(tick, events);
-    tick.appendChild(buildTickFileList(events));
-    // The open list is rebuilt in place; only a changed height needs the stage laid out again.
-    if (listHeightPx !== expandedRow.listHeightPx) {
-        expandedRow = { instantMs: expandedRow.instantMs, listHeightPx };
-        requestStageRelayout();
-    }
+    requestStageRelayout();
+    return;
+  }
+  tick.querySelector(".tickfiles")?.remove();
+  const listHeightPx = measureListHeightPx(tick, events);
+  tick.appendChild(buildTickFileList(events));
+  // The open list is rebuilt in place; only a changed height needs the stage laid out again.
+  if (listHeightPx !== expandedRow.listHeightPx) {
+    expandedRow = { instantMs: expandedRow.instantMs, listHeightPx };
+    requestStageRelayout();
+  }
 }
 
 // Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.
 export function wireTickExpansion(): void {
-    onKindFilterChange(refreshTicksForKindFilter);
-    document.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape" || expandedRow === undefined) {
-            return;
-        }
-        closeRulerExpansion();
-        requestStageRelayout();
-    });
+  onKindFilterChange(refreshTicksForKindFilter);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || expandedRow === undefined) {
+      return;
+    }
+    closeRulerExpansion();
+    requestStageRelayout();
+  });
 }
