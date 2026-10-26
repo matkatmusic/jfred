@@ -45,7 +45,7 @@ const buildRulerMatchProbe = (dot: string) => `(d => {
     });
 })(${dot})`;
 
-// Reads whether the dots, the labels and the connector are all visible, after each of three clicks on the box.
+// Reads dot, label and connector visibility after each of three box clicks.
 const buildToggleProbe = () => `(() => {
     const box = ${SCRIPT_BOX};
     const parts = () => [...${SCRIPT_DOTS}, ...document.querySelectorAll('.nlabel.n-script, .script-connector')];
@@ -126,7 +126,7 @@ async function checkNodeLook(page: HeadlessPage): Promise<void> {
     look.pythonLabels.length === 2 && look.pythonLabels.every((text) => text === "python run rewrite.py"), look.pythonLabels);
   reportCheck("L4 each python ring is solid", look.pythonRings.length === 2 && look.pythonRings.every((style) => style === "solid"), look.pythonRings);
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
-  reportCheck("L4 the bash label reads exactly $", look.bashLabel === "$", look.bashLabel);
+  reportCheck("L4 the bash label reads exactly bash run", look.bashLabel === "bash run", look.bashLabel);
   reportCheck("L4 the bash dot has .never-provable and a dashed ring", look.bashClass && look.bashRing === "dashed", look);
   reportCheck("L4 executor kinds are python, python, bash", [...look.kinds].sort().join(",") === "bash,python,python", look.kinds);
 }
@@ -199,7 +199,7 @@ async function checkConnectorDrawer(page: HeadlessPage, pythonPath: string, pyth
 async function checkBashDrawer(page: HeadlessPage): Promise<void> {
   await openScriptDrawer(page, `${bashDot}.click()`);
   const drawer = await readDrawer(page);
-  reportCheck("L4 bash dot: the drawer path reads $", drawer.path === "$", drawer.path);
+  reportCheck("L4 bash dot: the drawer path reads bash run", drawer.path === "bash run", drawer.path);
   reportCheck("L4 bash dot: the script body is not empty", drawer.preText.trim().length > 0, drawer.preText);
   reportCheck("L4 bash dot: the drawer holds 1 diff pane", drawer.panes === 1, drawer.panes);
 }

@@ -83,15 +83,15 @@ test("test_ticking_the_script_run_box_draws_a_dot_and_a_label_per_run_after_one_
   assert.doesNotMatch(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!, /script-run/);
 });
 
-test("test_a_labelled_python_run_shows_its_label_and_a_bash_run_without_a_label_shows_a_dollar_icon", async () => {
+test("test_a_labelled_python_run_shows_its_label_and_a_bash_run_without_a_label_shows_a_bash_run_icon", async () => {
   await loadPage();
   await tickScriptRunBox();
   const python = readBubble("src/run.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
   const bash = readBubble("src/plain.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
   assert.equal(python.textContent, "python run rewrite.py");
   assert.equal(python.title, "python run rewrite.py");
-  assert.equal(bash.textContent, "$");
-  assert.equal(bash.title, "$");
+  assert.equal(bash.textContent, "bash run");
+  assert.equal(bash.title, "bash run");
 });
 
 test("test_only_a_bash_run_dot_is_never_provable", async () => {

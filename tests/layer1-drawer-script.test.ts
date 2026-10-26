@@ -149,8 +149,8 @@ async function openUnlabeledRun(language: WireScriptRun["language"], code: strin
     return getRequiredElementById("dbody");
 }
 
-test("an unlabeled run's title reads its language: shell run, typescript run, and $ for the Bash tool", async () => {
-    for (const [language, title] of [["shell", "shell run"], ["typescript", "typescript run"], ["bash", "$"]] as const) {
+test("an unlabeled run's title reads its language: shell run, typescript run, and bash run for the Bash tool", async () => {
+    for (const [language, title] of [["shell", "shell run"], ["typescript", "typescript run"], ["bash", "bash run"]] as const) {
         const body = await openUnlabeledRun(language, "x");
         assert.equal(getRequiredElementById("dpath").firstChild?.textContent, title);
         assert.equal(body.querySelector(".scriptbody .sbhead b")?.textContent, title);
