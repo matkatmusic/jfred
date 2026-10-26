@@ -18,14 +18,14 @@ let hiddenKinds = new Set<ShowRowKind>();
 // Registered by layer1-tick-files.ts so the ruler follows the boxes without an import cycle.
 let notifyKindFilterChange: () => void = () => {};
 
-export function onKindFilterChange(callback: () => void): void {
+export function registerKindFilterChange(callback: () => void): void {
   notifyKindFilterChange = callback;
 }
 
 // Registered by layer1-kind-jump.ts so its arrows follow the boxes without an import cycle.
 let notifyKindBoxToggle: () => void = () => {};
 
-export function onKindBoxToggle(callback: () => void): void {
+export function registerKindBoxToggle(callback: () => void): void {
   notifyKindBoxToggle = callback;
 }
 

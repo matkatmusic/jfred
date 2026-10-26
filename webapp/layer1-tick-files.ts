@@ -1,7 +1,7 @@
 // Tasks 284, 300: a ruler row expands into its file names; open height feeds layout.
 
 import type { RulerExpansion } from "./layer1-filter.ts";
-import { onKindFilterChange } from "./layer1-kind-filter.ts";
+import { registerKindFilterChange } from "./layer1-kind-filter.ts";
 import { collectStageBubbles } from "./layer1-ruler-click.ts";
 import { buildTickFileList, listEventsAtRow, measureListHeightPx, rowsByTick, type TickEvent } from "./layer1-tick-events.ts";
 import { markTickKindState } from "./layer1-tick-kinds.ts";
@@ -125,6 +125,6 @@ function closeOpenRowOnEscape(event: KeyboardEvent): void {
 
 // Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.
 export function wireTickExpansion(): void {
-  onKindFilterChange(refreshTicksForKindFilter);
+  registerKindFilterChange(refreshTicksForKindFilter);
   document.addEventListener("keydown", closeOpenRowOnEscape);
 }

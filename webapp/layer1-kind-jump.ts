@@ -2,7 +2,7 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
-import { isKindHidden, onKindBoxToggle } from "./layer1-kind-filter.ts";
+import { isKindHidden, registerKindBoxToggle } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
 import { KindJumpDirection, ShowRowKind } from "./layer1-show-row.ts";
 
@@ -120,4 +120,4 @@ export function refreshKindJumpArrows(): void {
   }
 }
 
-onKindBoxToggle(refreshKindJumpArrows);
+registerKindBoxToggle(refreshKindJumpArrows);
