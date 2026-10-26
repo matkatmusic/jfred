@@ -46,7 +46,8 @@ function buildChangeIdsToSessionIds(records: TranscriptRecord[]): Map<string, Uu
 
 // Strips synthetic prefixes (originalFile:, scriptRun:) to recover the real changeId.
 function getSyntheticChangeIdSourceId(changeId: string): string {
-  if (changeId.startsWith(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX)) {
+  const isOriginalFileSeed = changeId.startsWith(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX);
+  if (isOriginalFileSeed) {
     return changeId.slice(ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX.length);
   }
   const scriptRunSourceId = getScriptRunSourceIdFromChangeId(changeId);
@@ -68,9 +69,24 @@ function buildChangeIdsToPaths(histories: FileHistory[]): Map<string, string> {
 }
 
 function findSessionIdForChangeIds(changeIds: Uuid[], sessionOf: Map<string, Uuid>): Uuid | undefined {
-  return changeIds
-    .map((id) => sessionOf.get(getSyntheticChangeIdSourceId(id.toString())))
-    .find((sessionId) => sessionId !== undefined);
+  for (const id of changeIds) {
+    const sessionId = sessionOf.get(getSyntheticChangeIdSourceId(id.toString()));
+    if (sessionId !== undefined) {
+      return sessionId;
+    }
+  }
+  return undefined;
+}
+
+function listChangedPaths(changeIds: Uuid[], pathOf: Map<string, string>): string[] {
+  const changedPaths = new Set<string>();
+  for (const id of changeIds) {
+    const path = pathOf.get(id.toString());
+    if (path !== undefined) {
+      changedPaths.add(path);
+    }
+  }
+  return [...changedPaths];
 }
 
 export function buildStepSnapshots(
@@ -82,19 +98,18 @@ export function buildStepSnapshots(
   reportReconstructionProgress("indexing change ids across surviving files");
   const pathOf = buildChangeIdsToPaths(surviving ?? reconstructAll(records, reader));
   const sessionOf = buildChangeIdsToSessionIds(records);
-  const steps = changes.map((change, index) => {
+  const steps: StepSnapshot[] = [];
+  for (const [index, change] of changes.entries()) {
     const changeIds = change.changeIds;
     // ponytail: best-effort — a step's triggering changeId is not always a surviving revision's changeId (the engine re-stamps revisions during beacon/reseed completion), so off-branch or re-stamped steps resolve to []. changeIds is the reliable pointer; changedPaths is the hint.  Script-execution changeIds are deterministic (scriptRun:<source>:<target>, item 34), so the step-timeline and file-history replays stamp the same id and those steps DO resolve.
-    const changedPaths = [
-      ...new Set(changeIds.map((id) => pathOf.get(id.toString())).filter((p): p is string => p !== undefined)),
-    ];
-    return {
+    const changedPaths = listChangedPaths(changeIds, pathOf);
+    steps.push({
       index: index + 1,
       when: change.when,
       changeIds,
       changedPaths,
       sessionId: findSessionIdForChangeIds(changeIds, sessionOf),
-    };
-  });
+    });
+  }
   return { steps, stepFileHistories: histories };
 }

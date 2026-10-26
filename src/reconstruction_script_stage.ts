@@ -2,13 +2,19 @@
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { Path } from "./structures/domain.ts";
+import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
-import { beaconSnippetFor, type BeaconSnippet } from "./reconstruction_user_edit.ts";
-import { backupSeedWriteFor, type BackupReader } from "./reconstruction_sidecar.ts";
+import { beaconSnippetFor } from "./reconstruction_user_edit.ts";
+import type { BackupReader } from "./reconstruction_sidecar.ts";
+import {
+  createScriptExecutionEvent,
+  getImmediatePostExecutionState,
+  getPostExecutionBeacon,
+  linesMatchBeacon,
+} from "./reconstruction_script_stage_beacon.ts";
 import {
   findScriptExecutionRuns,
   type ScriptExecutionEvent,
@@ -22,46 +28,6 @@ import {
 import { refForTarget, runForTarget } from "./reconstruction_script_probe.ts";
 import { findBeaconlessScriptExecutions } from "./reconstruction_script_beaconless.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
-
-// Windowed forward test: whether `lines` reproduces every visible beacon line at its own (1-based) line number. The beacon may be a WINDOW, so only its shown lines are checked.
-function linesMatchBeacon(lines: string[], snippet: BeaconSnippet): boolean {
-  for (const { lineNo, text } of snippet.lines) {
-    if (lineNo - 1 >= lines.length || lines[lineNo - 1] !== text)
-      return false;
-  }
-  return true;
-}
-
-// The full file content at the beacon's observation time — the post-execution anchor.
-function getPostExecutionBeacon(
-  target: Path,
-  beaconTimestamp: Date,
-  records: TranscriptRecord[],
-  reader: BackupReader,
-): string | undefined {
-  const backup = backupSeedWriteFor(records, target, beaconTimestamp, reader);
-  return backup?.content;
-}
-
-// ponytail: identity — no scenarios have edits between script run and beacon; add rewind when needed
-function getImmediatePostExecutionState(beaconContent: string): string {
-  return beaconContent;
-}
-
-// The synthetic script-execution event for a validated beacon: the beacon's identity with the computed content and the run's timestamp.
-function createScriptExecutionEvent(
-  beacon: UserEditEvent,
-  resultContent: string,
-  run: ScriptRun,
-): ScriptExecutionEvent {
-  return {
-    kind: EventKind.scriptExecution,
-    changeId: beacon.changeId,
-    target: beacon.target,
-    content: resultContent,
-    timestamp: run.timestamp,
-  };
-}
 
 // The VALIDATE pipeline from Script-execution-algorithm.md (lines 33-47): for a user-edit beacon that is the echo of a script run, execute the script against the pre-execution state and compare to the expected post-execution state. On match, return a ScriptExecutionEvent carrying the computed content.
 function scriptExecutionForBeacon(

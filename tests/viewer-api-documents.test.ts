@@ -5,9 +5,9 @@ import assert from "node:assert/strict";
 import {
     buildProjectDocument,
     buildProjectReconstruction,
-    decideDocumentResponse,
     buildDocumentWithConsent,
 } from "../src/viewer_api.ts";
+import { decideDocumentResponse } from "../src/viewer_api_consent.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeTempDir } from "./overrides-test-helpers.ts";

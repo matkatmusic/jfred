@@ -1,21 +1,17 @@
-// Task 357 step 4: rewound branches become lanes of file revisions, each with a rewind kind read from the engine's own pre-state check.
+// Task 357 step 4: rewound branches become file-revision lanes, each with a rewind kind from the engine's pre-state check.
 
-import { WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
+import type { WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
 import { loadSessionRewinds, groupSessionFiles, type SessionRewinds } from "./layer1_branch_sessions.ts";
+import { classifyLane, indexWriteOriginalFiles, type PreStateEvidence, type WireBranchRow } from "./layer1_branches_wire_classify.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
-import type { EditEvent, FileEvent, FileHistory, FileRevision } from "./reconstruction_events.ts";
+import type { FileHistory } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { editEvidenceAgreesWithState } from "./reconstruction_multi_source_gate.ts";
-import { linesTextOf } from "./reconstruction_revisions.ts";
 import { createSidecarReader, findSessionId, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { reconstructStepTimeline } from "./reconstruction_steps.ts";
 import { collectAncestorUuids } from "./reconstruction_tree.ts";
-import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getToolResultForUserRecord, buildToolUseNamesById } from "./structures/tool-results.ts";
-import { BlockType, EventKind, ToolName } from "./structures/vocabulary.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 
 // Named so tests assert the same string the route emits.
@@ -23,8 +19,6 @@ export const LAYER1_PROGRESS_LABEL_FINDING_BRANCHES = "finding branches";
 export const LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES = "reconstructing branches";
 
 export type Layer1WireBranchesView = WireBranchesViewOf<Date, Path, Uuid>;
-type WireBranchRow = Layer1WireBranchesView["pairs"][number]["branches"][number];
-type LaneKind = Pick<WireBranchRow, "rewindKind" | "rejoinAt" | "keptToEnd">;
 
 export interface Lane {
   forkAt: Date;
@@ -61,60 +55,6 @@ export function listLanes({ records, branches }: SessionRewinds): Lane[] {
     }
   }
   return lanes;
-}
-
-// tool_use id to the Write result's originalFile; other tools carry no pre-state.
-function indexWriteOriginalFiles(records: TranscriptRecord[]): Map<string, string | null> {
-  const nameById = buildToolUseNamesById(records);
-  const originalFileById = new Map<string, string | null>();
-  for (const record of records) {
-    for (const block of getContentBlocks(record)) {
-      if (block.type !== BlockType.tool_result || nameById.get(block.tool_use_id.toString()) !== ToolName.Write) {
-        continue;
-      }
-      const resolved = getToolResultForUserRecord(record, nameById);
-      if (resolved?.toolName === ToolName.Write) {
-        originalFileById.set(block.tool_use_id.toString(), resolved.result.originalFile);
-      }
-    }
-  }
-  return originalFileById;
-}
-
-interface PreStateEvidence {
-  eventById: Map<string, FileEvent>;
-  writeOriginalFileById: Map<string, string | null>;
-}
-
-// Do the bytes the lane left on disk flow into `next`?
-function doesNextRevisionKeepLaneBytes(next: FileRevision, laneLastLines: string[], evidence: PreStateEvidence): boolean {
-  const event = evidence.eventById.get(next.changeId.toString());
-  const laneLastText = laneLastLines.join("\n");
-  if (event?.kind === EventKind.edit) {
-    return editEvidenceAgreesWithState(event, laneLastText);
-  }
-  if (event?.kind === EventKind.write) {
-    const originalFile = evidence.writeOriginalFileById.get(next.changeId.toString());
-    const asEdit: EditEvent = { kind: EventKind.edit, changeId: event.changeId, target: event.target, hunks: [], originalFile, timestamp: event.timestamp };
-    return typeof originalFile === "string" && originalFile !== "" && editEvidenceAgreesWithState(asEdit, laneLastText);
-  }
-  if (event?.kind === EventKind.overwrite) {
-    return false;
-  }
-  const nextLines = new Set(linesTextOf(next));
-  return laneLastLines.filter((line) => line.trim() !== "").every((line) => nextLines.has(line));
-}
-
-function classifyLane(revisions: FileRevision[], laneLastIndex: number, allLaneIds: Set<string>, evidence: PreStateEvidence): LaneKind {
-  const laneLastLines = linesTextOf(revisions[laneLastIndex]!);
-  const next = revisions.slice(laneLastIndex + 1).find((revision) => !allLaneIds.has(revision.changeId.toString()));
-  if (next === undefined) {
-    const isDiskFinalText = linesTextOf(revisions.at(-1)!).join("\n") === laneLastLines.join("\n");
-    return isDiskFinalText ? { rewindKind: WireRewindKind.conversation, keptToEnd: true } : { rewindKind: WireRewindKind.code };
-  }
-  return doesNextRevisionKeepLaneBytes(next, laneLastLines, evidence)
-    ? { rewindKind: WireRewindKind.conversation, rejoinAt: next.timestamp }
-    : { rewindKind: WireRewindKind.code };
 }
 
 // ponytail: keyed by the cached SessionRewinds, so it lives and dies with that cache entry
@@ -162,7 +102,7 @@ function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes:
   return built;
 }
 
-// Groups run in lexical order and the first lane per tool_use id stands: a resumed session repeats its parent's lanes.
+// Groups run in lexical order; the first lane per tool_use id wins, since resumed sessions repeat parent lanes.
 export function buildBranchesView(
   projectFolder: Path,
   sessionFiles: readonly Path[],

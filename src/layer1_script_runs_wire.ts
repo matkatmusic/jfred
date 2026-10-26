@@ -50,16 +50,23 @@ function buildWireScriptRun(run: ScriptRun, sessionId: Uuid, sessionFile: Path):
   };
 }
 
+function comparePathStrings(left: Path, right: Path): number {
+  return left.toString().localeCompare(right.toString());
+}
+
 // Sessions run in lexical order and the first entry per pair and tool_use id stands: a resumed session repeats its parent's runs.
 export function buildScriptRunsView(
   projectFolder: Path,
   sessionFiles: readonly Path[],
   reportProgress: ProgressSink = () => {},
 ): Layer1WireScriptRunsView {
-  const candidatePaths = walkCurrentFileState(projectFolder).map((file) => file.relativePath);
+  const candidatePaths: Path[] = [];
+  for (const file of walkCurrentFileState(projectFolder)) {
+    candidatePaths.push(file.relativePath);
+  }
   const runsByPath = new Map<string, Map<string, WireScriptRunWithoutAxis>>();
-  const orderedSessionFiles = [...sessionFiles].sort((left, right) => left.toString().localeCompare(right.toString()));
-  orderedSessionFiles.forEach((sessionFile, index) => {
+  const orderedSessionFiles = [...sessionFiles].sort(comparePathStrings);
+  for (const [index, sessionFile] of orderedSessionFiles.entries()) {
     reportProgress({
       kind: DocumentResponseKind.progress,
       label: LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS,
@@ -71,17 +78,23 @@ export function buildScriptRunsView(
     if (sessionId === undefined) {
       throw new Error(`no session id in ${sessionFile.toString()}`);
     }
-    for (const run of findScriptExecutionRuns(records).filter((candidate) => isScriptCodeWriteCapable(candidate.code))) {
+    for (const run of findScriptExecutionRuns(records)) {
+      const isWriteCapable = isScriptCodeWriteCapable(run.code);
+      if (!isWriteCapable) {
+        continue;
+      }
       const wireRun = buildWireScriptRun(run, sessionId, sessionFile);
       for (const path of affectedPathsForRun(run, candidatePaths)) {
         const runsByToolUseId = runsByPath.get(path.toString()) ?? new Map<string, WireScriptRunWithoutAxis>();
         runsByPath.set(path.toString(), runsByToolUseId);
-        if (!runsByToolUseId.has(wireRun.toolUseId.toString())) {
-          runsByToolUseId.set(wireRun.toolUseId.toString(), wireRun);
+        const toolUseKey = wireRun.toolUseId.toString();
+        const isKnownRun = runsByToolUseId.has(toolUseKey);
+        if (!isKnownRun) {
+          runsByToolUseId.set(toolUseKey, wireRun);
         }
       }
     }
-  });
+  }
   return {
     pairs: [...runsByPath].map(([path, runsByToolUseId]) => ({
       path: new Path(path),

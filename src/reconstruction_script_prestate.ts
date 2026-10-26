@@ -1,22 +1,16 @@
 // The static read-only gate (TASKS.md item 68) plus pre-execution file-state seeding for a run.
 
 import { BlockType, EventKind, ToolName } from "./structures/vocabulary.ts";
-import { collectErroredToolUseIds, readWriteInput } from "./structures/tool-results.ts";
+import { collectErroredToolUseIds } from "./structures/tool-results.ts";
+import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { backupSeedWriteFor, type BackupReader } from "./reconstruction_sidecar.ts";
 import { relative } from "node:path";
-import { quotedFilename, singleWhitespace } from "./regex_expressions.ts";
-import {
-  fromImportStatementLine,
-  importStatementLine,
-  openCallToken,
-  pythonWritePrimitive,
-  readOnlyOpenArgument,
-  shellWritePrimitive,
-  writingImportedName,
-} from "./regex_script_detection.ts";
+import { quotedFilename } from "./regex_expressions.ts";
+import { pythonWritePrimitive, shellWritePrimitive } from "./regex_script_detection.ts";
+import { isEveryImportReadOnlySafe, isEveryOpenCallRead } from "./reconstruction_script_prestate_gate.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
 import type { WriteEvent } from "./reconstruction_events.ts";
@@ -28,64 +22,6 @@ import {
   incrementReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
-
-// Stdlib roots a read-only script may import; any other import marks it may-write.
-const READ_ONLY_SAFE_IMPORT_ROOTS = new Set([
-  "os", "sys", "re", "json", "csv", "glob", "pathlib", "collections", "itertools",
-  "functools", "math", "statistics", "textwrap", "difflib", "datetime", "time", "string",
-  "typing", "dataclasses", "enum", "pprint", "fnmatch", "bisect", "heapq", "operator",
-  "hashlib", "unicodedata", "copy", "ast", "tokenize", "keyword", "inspect", "traceback",
-  "argparse", "random", "io", "base64", "struct", "uuid",
-]);
-
-// Whether every import in `code` names only safe stdlib roots, with no from-import smuggling a writing name out.
-function isEveryImportReadOnlySafe(code: string): boolean {
-  for (const match of code.matchAll(importStatementLine)) {
-    for (const item of match[1]!.split(",")) {
-      const root = item.trim().split(singleWhitespace)[0]?.split(".")[0] ?? "";
-      if (!READ_ONLY_SAFE_IMPORT_ROOTS.has(root))
-        return false;
-    }
-  }
-  for (const match of code.matchAll(fromImportStatementLine)) {
-    const root = match[1]!.split(".")[0] ?? "";
-    if (!READ_ONLY_SAFE_IMPORT_ROOTS.has(root))
-      return false;
-    if (writingImportedName.test(match[2]!))
-      return false;
-  }
-  return true;
-}
-
-// Whether every open( call in `code` is provably read-mode; anything the cheap first-")" parse can't prove counts as may-write.
-function isEveryOpenCallRead(code: string): boolean {
-  for (const match of code.matchAll(openCallToken)) {
-    const argsStart = match.index! + match[0].length;
-    const argsEnd = code.indexOf(")", argsStart);
-    if (argsEnd < 0)
-      return false;
-    const args = code.slice(argsStart, argsEnd);
-    // A nested call could hide a write mode, so treat the script as may-write.
-    if (args.includes("("))
-      return false;
-    const parts = args.split(",");
-    const isDotCall = match.index! > 0 && code[match.index! - 1] === ".";
-    if (isDotCall) {
-      // Path.open(): no arguments defaults to mode "r".
-      if (args.trim() === "")
-        continue;
-      if (!readOnlyOpenArgument.test(parts[0]!))
-        return false;
-      continue;
-    }
-    // builtin open(file): a single argument defaults to mode "r".
-    if (parts.length === 1)
-      continue;
-    if (!readOnlyOpenArgument.test(parts[1]!))
-      return false;
-  }
-  return true;
-}
 
 // Whether the script could change files; unparseable code counts as may-write. ponytail: raw-text scan, aliased builtins evade it.
 export function isScriptCodeWriteCapable(code: string): boolean {

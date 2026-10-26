@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { replayPathEvents, type SeedBaseReader } from "../src/layer1_edit_replay.ts";
 import type { LayerEditEvent } from "../src/layer1_edit_events.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import type { StructuredPatchHunk } from "../src/structures/tool-results.ts";
+import type { StructuredPatchHunk } from "../src/structures/tool-result-shapes.ts";
 import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 
 const BASE_TEXT = "a\nb\nc\n";

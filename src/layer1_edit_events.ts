@@ -10,7 +10,7 @@ import { findSessionId } from "./reconstruction_sidecar_reader.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { StructuredPatchHunk } from "./structures/tool-results.ts";
+import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
 import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 

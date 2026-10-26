@@ -3,7 +3,8 @@
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ContentBlock } from "./structures/content-blocks.ts";
-import { collectErroredToolUseIds, readWriteInput } from "./structures/tool-results.ts";
+import { collectErroredToolUseIds } from "./structures/tool-results.ts";
+import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { singleWhitespace } from "./regex_expressions.ts";
 import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 
@@ -77,7 +78,12 @@ const SCRIPT_EXTENSIONS = [".py", ".sh", ".js", ".ts"];
 
 // Whether a filename ends with a known script extension.
 function isScriptFile(name: string): boolean {
-  return SCRIPT_EXTENSIONS.some((ext) => name.endsWith(ext));
+  for (const ext of SCRIPT_EXTENSIONS) {
+    if (name.endsWith(ext)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Extract the invoked script filename from a direct-invocation command like `python3 script.py`, `bash script.sh`, `node script.js`, `npx tsx script.ts`.

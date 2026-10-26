@@ -1,4 +1,4 @@
-// Per-file tests for src/reconstruction_script_beaconless.ts (task 122): the birth gate, the item-68 read-only bail, and run chaining through the target's rolling content — exercising findBeaconlessScriptExecutions directly (the injectScriptExecutions wrapper is covered by reconstruction_script_stage.test.ts).
+// Tests findBeaconlessScriptExecutions directly (task 122): birth gate, item-68 read-only bail, run chaining; wrapper tested elsewhere.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -50,7 +50,7 @@ test("test_findBeaconlessScriptExecutions_returns_no_event_for_a_read_only_run",
 });
 
 test("test_findBeaconlessScriptExecutions_chains_a_later_run_over_the_rolling_content", () => {
-    // Scenario: run 1 births core_one.py via shutil.move; run 2 glob-renames f_one -> alpha.  The chained gate must yield BOTH events even though run 2 never names the born file — run 2 executes against run 1's rolling output, not its own cached pre-state.
+    // Scenario: run 1 births core_one.py; run 2 renames f_one to alpha.  Both events appear, chained on run 1's output.
     const moveScript = 'import shutil\nshutil.move("one.py", "core_one.py")\n';
     const renameScript = 'import glob\nfor p in glob.glob("core_*.py"):\n'
         + '    text = open(p).read()\n'

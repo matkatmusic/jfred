@@ -6,8 +6,8 @@ import {
   getToolResultForUserRecord,
   buildToolUseNamesById,
   findToolNameForRecord,
-  type ReadResult,
 } from "./structures/tool-results.ts";
+import type { ReadResult } from "./structures/tool-result-shapes.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
@@ -22,13 +22,16 @@ import type {
 
 // Returns the timeline's first beacon node — its anchor (Q14).
 export function selectAnchorNode(timeline: Timeline): BeaconNode | undefined {
-  return timeline.nodes.find(
-    (node): node is BeaconNode => node.kind === LayeredNodeKind.beacon,
-  );
+  for (const node of timeline.nodes) {
+    if (node.kind === LayeredNodeKind.beacon) {
+      return node;
+    }
+  }
+  return undefined;
 }
 
 // Single source of "which kinds carry bytes" for gap pairing.
-export function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | EndStateNode {
+export function isNodeCarryingBytes(node: TimelineNode): node is BeaconNode | EndStateNode {
   if (node.kind === LayeredNodeKind.beacon) {
     return true;
   }
@@ -36,15 +39,15 @@ export function checkNodeCarriesBytes(node: TimelineNode): node is BeaconNode | 
 }
 
 // Returns verified bytes; byteless kinds throw (spec S2).
-export function requireNodeContent(node: TimelineNode): string {
-  if (checkNodeCarriesBytes(node)) {
+export function getRequiredNodeContent(node: TimelineNode): string {
+  if (isNodeCarryingBytes(node)) {
     return node.content;
   }
   throw new Error(`${node.kind} node refuses byte operations (display/placement only)`);
 }
 
 // Whether the echo covers the WHOLE file: from line 1 through every line the file holds.
-function checkReadEchoIsComplete(result: ReadResult): boolean {
+function isReadEchoComplete(result: ReadResult): boolean {
   if (result.file.startLine === 1) {
     return result.file.numLines === result.file.totalLines;
   }
@@ -53,7 +56,7 @@ function checkReadEchoIsComplete(result: ReadResult): boolean {
 
 // Complete echo becomes beacon; partial window becomes pre-anchor stub.
 function buildReadEchoNode(result: ReadResult, instant: Date, evidence: JsonlRef): TimelineNode {
-  if (checkReadEchoIsComplete(result)) {
+  if (isReadEchoComplete(result)) {
     return { kind: LayeredNodeKind.beacon, instant, content: result.file.content, evidence };
   }
   return { kind: LayeredNodeKind.preAnchorStub, instant, evidence };

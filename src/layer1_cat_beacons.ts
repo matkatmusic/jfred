@@ -5,7 +5,8 @@ import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
-import { getToolResultForUserRecord, buildToolUseNamesById, type BashResult } from "./structures/tool-results.ts";
+import { getToolResultForUserRecord, buildToolUseNamesById } from "./structures/tool-results.ts";
+import type { BashResult } from "./structures/tool-result-shapes.ts";
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import type { JsonlRef } from "./layered_types.ts";
 
@@ -28,7 +29,14 @@ function buildBashCommandsById(records: TranscriptRecord[]): Map<string, string>
 
 function parseCatArgument(command: string): string | undefined {
   const argument = CAT_COMMAND.exec(command)?.[1];
-  if (argument === undefined || argument.startsWith("-") || UNSAFE_ARGUMENT.test(argument)) {
+  const isMissingArgument = argument === undefined;
+  if (isMissingArgument) {
+    return undefined;
+  }
+  const isFlag = argument.startsWith("-");
+  const isUnsafe = UNSAFE_ARGUMENT.test(argument);
+  const isRejected = isFlag || isUnsafe;
+  if (isRejected) {
     return undefined;
   }
   return argument;
@@ -38,15 +46,27 @@ function isBashCleanRun(result: BashResult): boolean {
   return !result.interrupted && result.stderr === "" && result.stdout !== "";
 }
 
+function findToolResultBlock(record: TranscriptRecord) {
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.tool_result) {
+      return block;
+    }
+  }
+  return undefined;
+}
+
 function buildCatBeacon(
   record: TranscriptRecord,
   commandById: Map<string, string>,
   nameById: Map<string, string>,
   sessionFile: Path,
 ): CatBeacon | undefined {
-  const resultBlock = getContentBlocks(record).find((block) => block.type === BlockType.tool_result);
+  const resultBlock = findToolResultBlock(record);
   const source = getRecordSource(record);
-  if (resultBlock === undefined || resultBlock.type !== BlockType.tool_result || source === undefined) {
+  const isMissingResult = resultBlock === undefined;
+  const isMissingSource = source === undefined;
+  const isMissingPart = isMissingResult || isMissingSource;
+  if (isMissingPart) {
     return undefined;
   }
   const command = commandById.get(resultBlock.tool_use_id.toString());
@@ -55,7 +75,11 @@ function buildCatBeacon(
     return undefined;
   }
   const resolved = getToolResultForUserRecord(record, nameById);
-  if (resolved?.toolName !== ToolName.Bash || !isBashCleanRun(resolved.result)) {
+  if (resolved?.toolName !== ToolName.Bash) {
+    return undefined;
+  }
+  const isCleanRun = isBashCleanRun(resolved.result);
+  if (!isCleanRun) {
     return undefined;
   }
   if (!(record.timestamp instanceof Date)) {

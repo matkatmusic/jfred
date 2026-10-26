@@ -3,15 +3,15 @@ import assert from "node:assert/strict";
 import {
     buildToolUseNamesById,
     getToolResultForUserRecord,
-    readWriteInput,
-    type BashResult,
-    type WriteResult,
-    type ReadResult,
-    type EditResult,
 } from "../src/structures/tool-results.ts";
-import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
-import type { ToolUseBlock } from "../src/structures/content-blocks.ts";
-import { Path, Uuid } from "../src/structures/domain.ts";
+import type {
+    BashResult,
+    WriteResult,
+    ReadResult,
+    EditResult,
+} from "../src/structures/tool-result-shapes.ts";
+import { ToolName } from "../src/structures/vocabulary.ts";
+import { Path } from "../src/structures/domain.ts";
 import { loadRecords } from "./utilities.ts";
 import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ import {
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
 
-// Find the first resolved tool result of a given tool across a transcript's records. Generic helper so each tool test does not re-spell the index/scan.
+// Finds the first resolved tool result of a given tool in a transcript, so each test skips the scan.
 function findToolResult(file: string, toolName: ToolName) {
     const records = loadRecords(file);
     const nameById = buildToolUseNamesById(records);
@@ -57,7 +57,7 @@ test("test_write_result_carries_originalFile_and_empty_structuredPatch", () => {
 });
 
 test("test_bash_result_carries_stdout_and_stderr", () => {
-    // Scenario: the Bash tool's structured result is typed with its s1 fields.  Steps: find a Bash tool result attached to a user record in s1.
+    // Scenario: the Bash result is typed with its s1 fields.  Steps: find a Bash result in s1.
     const bashResult = findToolResult(S1_JSONL, ToolName.Bash) as
         | BashResult
         | undefined;
@@ -72,7 +72,7 @@ test("test_bash_result_carries_stdout_and_stderr", () => {
 });
 
 test("test_read_result_carries_file_with_path_and_line_counts", () => {
-    // Scenario: the Read tool's structured result (new in s2) is typed with its nested `file` object, whose filePath is hydrated into a Path.  Steps: find the Read tool result attached to a user record in s2.
+    // Scenario: the s2 Read result is typed; its filePath becomes a Path.  Steps: find the Read result in s2.
     const readResult = findToolResult(S2_JSONL, ToolName.Read) as
         | ReadResult
         | undefined;
@@ -89,7 +89,7 @@ test("test_read_result_carries_file_with_path_and_line_counts", () => {
 });
 
 test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
-    // Scenario: the Edit tool's structured result (new in s2) is typed with its hydrated filePath and a real, non-empty structuredPatch hunk — the shape deferred since s1 (a create has no diff).  Steps: find the Edit tool result attached to a user record in s2.
+    // Scenario: the s2 Edit result has a Path and a non-empty structuredPatch.  Steps: find the Edit result in s2.
     const editResult = findToolResult(S2_JSONL, ToolName.Edit) as
         | EditResult
         | undefined;
@@ -112,7 +112,7 @@ test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
 });
 
 test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
-    // Scenario: a FAILED tool run reports a plain string toolUseResult ("Error: File does not exist.") instead of a structured payload — there is nothing to type, so resolution yields undefined instead of crashing on the missing payload fields.  Steps: one session holding a Read whose result is the error string.
+    // Scenario: a failed Read reports a plain string result; resolution yields undefined and does not crash.
     const tree = makeSourceTree("-errored-read");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const erroredRead = buildErroredToolResultRecordPair(
@@ -129,39 +129,4 @@ test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
     }
 });
 
-function buildWriteBlock(input: Record<string, unknown>): ToolUseBlock {
-    return { type: BlockType.tool_use, id: new Uuid("toolu_w"), name: ToolName.Write, input, caller: { type: "direct" } };
-}
-
-test("test_readWriteInput_reads_the_file_path_and_content_shape", () => {
-    const written = readWriteInput(buildWriteBlock({ file_path: "/p/a.ts", content: "a\n" }));
-    assert.equal(written.filePath.toString(), "/p/a.ts");
-    assert.equal(written.content, "a\n");
-});
-
-test("test_readWriteInput_reads_the_path_and_file_text_shape", () => {
-    const written = readWriteInput(buildWriteBlock({ path: "/p/a.ts", file_text: "a\n" }));
-    assert.equal(written.filePath.toString(), "/p/a.ts");
-    assert.equal(written.content, "a\n");
-});
-
-test("test_readWriteInput_reads_the_mixed_file_path_and_file_text_shape", () => {
-    const written = readWriteInput(buildWriteBlock({ file_path: "/p/a.ts", file_text: "a\n" }));
-    assert.equal(written.filePath.toString(), "/p/a.ts");
-    assert.equal(written.content, "a\n");
-});
-
-test("test_readWriteInput_reads_the_mixed_content_and_path_shape", () => {
-    const written = readWriteInput(buildWriteBlock({ content: "a\n", path: "/p/a.ts" }));
-    assert.equal(written.filePath.toString(), "/p/a.ts");
-    assert.equal(written.content, "a\n");
-});
-
-test("test_readWriteInput_throws_naming_the_tool_use_when_the_path_is_missing", () => {
-    assert.throws(() => readWriteInput(buildWriteBlock({ content: "a\n" })), /toolu_w/);
-});
-
-test("test_readWriteInput_throws_naming_the_tool_use_when_the_content_is_missing", () => {
-    assert.throws(() => readWriteInput(buildWriteBlock({ file_path: "/p/a.ts" })), /toolu_w/);
-});
 

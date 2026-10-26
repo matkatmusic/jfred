@@ -3,21 +3,17 @@
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import {
-  collectErroredToolUseIds,
-  buildToolUseNamesById,
-  readWriteInput,
-  type EditResult,
-  type StructuredPatchHunk,
-} from "./structures/tool-results.ts";
+import { collectErroredToolUseIds } from "./structures/tool-results.ts";
+import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { BlockType, EventKind, ToolName, Verdict } from "./structures/vocabulary.ts";
 import { getRecordVerdict } from "./reconstruction_parse_lines.ts";
 import { Path } from "./structures/domain.ts";
-import type {
-  EditEvent,
-  FileEvent,
-  WriteEvent,
-} from "./reconstruction_events.ts";
+import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
+import {
+  collectEditDetailsByToolUseId,
+  createEditEvent,
+  type EditDetail,
+} from "./reconstruction_extract_edit_details.ts";
 import { bashEventsFrom } from "./reconstruction_bash_events.ts";
 import { extractScriptRenameEvents } from "./reconstruction_script_renames.ts";
 import { userEditEventFrom } from "./reconstruction_user_edit.ts";
@@ -31,30 +27,6 @@ function writeEventFrom(block: ToolUseBlock, timestamp: Date): WriteEvent {
     changeId: block.id,
     target: filePath,
     content,
-    timestamp,
-  };
-}
-
-// The per-Edit detail from its result record: structuredPatch hunks + the literal pre-edit content.
-type EditDetail = { hunks: StructuredPatchHunk[]; originalFile: string | null };
-
-// Build an edit event from its structuredPatch detail, if available.
-function createEditEvent(
-  block: ToolUseBlock,
-  timestamp: Date,
-  detailById: Map<string, EditDetail>,
-): EditEvent | undefined {
-  const input = block.input as { file_path: string };
-  const detail = detailById.get(block.id.toString());
-  if (!detail) {
-    return undefined;
-  }
-  return {
-    kind: EventKind.edit,
-    changeId: block.id,
-    target: new Path(input.file_path),
-    hunks: detail.hunks,
-    originalFile: detail.originalFile,
     timestamp,
   };
 }
@@ -108,39 +80,6 @@ function collectEventsFromRecord(
   const userEdit = userEditEventFrom(record);
   if (userEdit) {
     events.push(userEdit);
-  }
-}
-
-// Index each Edit result's hunks and pre-edit content by tool_use id.
-function collectEditDetailsByToolUseId(
-  records: TranscriptRecord[],
-): Map<string, EditDetail> {
-  const nameById = buildToolUseNamesById(records);
-  const detailById = new Map<string, EditDetail>();
-  for (const record of records) {
-    collectEditDetailFromRecord(record, nameById, detailById);
-  }
-  return detailById;
-}
-
-function collectEditDetailFromRecord(
-  record: TranscriptRecord,
-  nameById: Map<string, string>,
-  detailById: Map<string, EditDetail>,
-): void {
-  for (const block of getContentBlocks(record)) {
-    if (block.type !== BlockType.tool_result) {
-      continue;
-    }
-    const toolName = nameById.get(block.tool_use_id.toString());
-    if (toolName !== ToolName.Edit) {
-      continue;
-    }
-    const result = record.toolUseResult as EditResult | undefined;
-    // Require structuredPatch — an Edit result lacking it produced no event before; don't build a hunkless edit.
-    if (result && result.structuredPatch) {
-      detailById.set(block.tool_use_id.toString(), { hunks: result.structuredPatch, originalFile: result.originalFile });
-    }
   }
 }
 

@@ -5,7 +5,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { decideBaselineQuestion } from "../src/viewer_api.ts";
+import { decideBaselineQuestion } from "../src/viewer_api_consent.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 test("test_baseline_question_required_when_base_commit_configured_and_no_choice_made", () => {
-    // Scenario: repoDir+baseCommit overrides are active and no preBaseline choice arrived — the question payload rides the wire with the discriminant plus repo + commit strings.
+    // Scenario: repoDir and baseCommit are set, no choice arrived; the question payload has the discriminant, repo, and commit.
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
     // Step: no choice made yet -> the question is required.
     const question = decideBaselineQuestion(false);
@@ -34,13 +34,13 @@ test("test_no_baseline_question_without_base_commit_override", () => {
 });
 
 test("test_no_baseline_question_when_choice_already_made", () => {
-    // Scenario: the client already answered (preBaseline param present) — the gate stands aside and the build proceeds under that answer.
+    // Scenario: the client already answered (preBaseline present), so the gate stands aside and the build proceeds.
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
     // Step: choiceMade true -> undefined even with a configured baseline.
     assert.equal(decideBaselineQuestion(true), undefined);
 });
 
-// task 152: the re-ask control's two primitives — forget the stored answer, and evict the project's cached documents so the next fetch actually reaches the server and re-asks.
+// task 152: re-ask control primitives: forget the stored answer, and evict cached documents so the next fetch re-asks.
 test("test_clear_baseline_choice_removes_the_stored_answer", async () => {
     // Step: boot the webapp DOM so sessionStorage exists, then import the fetch module.
     initWebappDom();

@@ -1,4 +1,4 @@
-// Gives each raw transcript line one verdict and splits the lines into kept and ignored. It does not feed reconstruction.
+// Gives each raw transcript line a verdict: kept or ignored. It does not feed reconstruction.
 
 import { readFileSync } from "node:fs";
 import { Path } from "./structures/domain.ts";
@@ -15,7 +15,7 @@ import {
   parseRmTargets,
 } from "./reconstruction_bash_events.ts";
 
-// Whether a bash command is a file op (rm, mv, cp, or redirect) that gives an event. It uses the same parsers as extraction.
+// True when a bash command is a file op (rm, mv, cp, redirect) that gives an event.
 function isBashCommandFileOp(command: string): boolean {
   return (
     parseRmTargets(command).length > 0 ||

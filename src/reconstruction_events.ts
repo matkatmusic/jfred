@@ -1,6 +1,6 @@
 // Event and revision value types for the reconstruction model.
 
-import type { StructuredPatchHunk } from "./structures/tool-results.ts";
+import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { ScriptExecutionEvent } from "./reconstruction_script_execution.ts";

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyHunksToLines, checkHunkMatchesBase } from "../src/layer1_edit_hunks.ts";
-import type { StructuredPatchHunk } from "../src/structures/tool-results.ts";
+import type { StructuredPatchHunk } from "../src/structures/tool-result-shapes.ts";
 
 const BASE = ["l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9"];
 const REPLACE_L5: StructuredPatchHunk = {

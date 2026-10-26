@@ -111,6 +111,12 @@ export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[
     return state.scriptRuns;
   }
   const writtenBodiesByBasename = collectWrittenContentByBasename(records);
-  state.scriptRuns = records.flatMap(listRunsInRecord).map((run) => applyScriptIndirection(run, writtenBodiesByBasename));
+  const resolvedRuns: ScriptRun[] = [];
+  for (const record of records) {
+    for (const run of listRunsInRecord(record)) {
+      resolvedRuns.push(applyScriptIndirection(run, writtenBodiesByBasename));
+    }
+  }
+  state.scriptRuns = resolvedRuns;
   return state.scriptRuns;
 }

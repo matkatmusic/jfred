@@ -1,4 +1,4 @@
-// Document-build layer: builds ReconstructionDocuments, decides script-execution consent, and caches results; HTTP wiring and other concerns live in sibling viewer_api_*.ts files.
+// Builds documents, decides script consent, and caches results. HTTP wiring lives in sibling viewer_api_*.ts files.
 
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import {
@@ -13,16 +13,12 @@ import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./re
 import { mergeMultiSourceRecords, groupRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { truncateRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
-import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
-import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
 import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { readDocumentFromDiskCache, writeDocumentToDiskCache } from "./reconstruction_document_cache.ts";
-import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { Path } from "./structures/domain.ts";
-import type { TranscriptRecord } from "./structures/envelope.ts";
 import {
   reportStage,
   loadProjectRecords,
@@ -72,48 +68,6 @@ export function buildProjectDocument(jsonlPaths: Path[], target: Path | undefine
   return buildProjectReconstruction(jsonlPaths, target, onProgress).document;
 }
 
-// Item 68: the read-only verdict uses the conservative classifier — uncertain code counts as may-write.
-export type ConsentScript = ScriptRun & { readOnly: boolean };
-
-export type DocumentDecision =
-    | { kind: DocumentResponseKind.consentRequired; scripts: ConsentScript[] }
-    | { kind: DocumentResponseKind.document };
-
-// The scripts ride along so the consent dialog can show each one's code.
-export function decideDocumentResponse(records: TranscriptRecord[], allowScripts: boolean): DocumentDecision {
-  const scripts = findScriptExecutionRuns(records);
-  if (scripts.length > 0 && !allowScripts) {
-    const taggedScripts = scripts.map((run) => ({ ...run, readOnly: !isScriptCodeWriteCapable(run.code) }));
-    return { kind: DocumentResponseKind.consentRequired, scripts: taggedScripts };
-  }
-  return { kind: DocumentResponseKind.document };
-}
-
-// Task 56: asked BEFORE the consent gate — the scope-of-work decision precedes the run-scripts one.
-export type BaselineQuestion = {
-  kind: DocumentResponseKind.baselineQuestionRequired;
-  baseCommit: string;
-  repo: string;
-};
-
-export function decideBaselineQuestion(choiceMade: boolean): BaselineQuestion | undefined {
-  if (choiceMade) {
-    return undefined;
-  }
-  const { repoDir, baseCommit } = getPathOverrides();
-  if (repoDir === undefined) {
-    return undefined;
-  }
-  if (baseCommit === undefined) {
-    return undefined;
-  }
-  return {
-    kind: DocumentResponseKind.baselineQuestionRequired,
-    baseCommit: baseCommit.toString(),
-    repo: repoDir.toString(),
-  };
-}
-
 export const PROGRESS_LABEL_ARTIFACT_CACHE_HIT = "reusing cached document artifact";
 
 // allowScripts is in the key because consented and degraded builds yield different documents.
@@ -132,7 +86,7 @@ export function buildReconstructionWithConsent(
 ): BuiltReconstruction {
   const targetKey = target === undefined ? "" : target.toString();
   const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
-  // Bounded/full and trimmed/full builds never share a cache entry; the stamp reads ACTIVE overrides, so config edits miss the cache.
+  // Each build kind gets its own cache entry; the key includes active overrides, so config edits miss.
   const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
   const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
   if (cachedBuild !== undefined) {
