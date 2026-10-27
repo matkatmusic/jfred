@@ -39,7 +39,7 @@ export function applyCliPathOverrides(options: CliOptions): void {
 }
 
 // Multi-root runs get one bare source per distinct projects root, enabling per-source file-history resolution with zero config.
-export function buildCliSources(
+function buildCliSources(
   options: CliOptions,
   entry: WireProjectPaths | undefined,
   projectDir: string,
