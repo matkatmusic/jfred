@@ -14,7 +14,7 @@ import {
 
 export type BoundFixture = { records: TranscriptRecord[]; alphaPath: Path };
 
-// Shared three-turn fixture; withSidechainPrompt injects a subagent's opening prompt inside turn 1, to test it is not a boundary.
+// Three-turn fixture; withSidechainPrompt adds a subagent prompt inside turn 1.
 export function makeBoundFixture(options: { withFinalPrompt: boolean; withSidechainPrompt: boolean }): BoundFixture {
   const tree = makeSourceTree("-bound-project");
   const root = join(tree.treeRoot, "workspace");

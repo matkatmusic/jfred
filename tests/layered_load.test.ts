@@ -88,20 +88,20 @@ test("test_findJsonlPaths_override_wins_over_folder_scan", () => {
     assert.deepEqual(discovered, override);
 });
 
-test("test_resolveEvidenceRoots_explicit_paths_win", () => {
+test("test_findEvidenceRoots_explicit_paths_win", () => {
     // Explicit repoPath/snapshotPaths overrides win over anything the records imply.
     const fixture = makeLayeredFixture();
     const repoOverride = new Path("/explicit/repo");
     const snapshotOverride = [new Path("/explicit/file-history")];
-    const roots = resolveEvidenceRoots(fixture.sessionARecords, { repoPath: repoOverride, snapshotPaths: snapshotOverride });
+    const roots = findEvidenceRoots(fixture.sessionARecords, { repoPath: repoOverride, snapshotPaths: snapshotOverride });
     assert.equal(roots.repoPath, repoOverride);
     assert.deepEqual(roots.snapshotPaths, snapshotOverride);
 });
 
-test("test_resolveEvidenceRoots_discovers_from_records_without_overrides", () => {
+test("test_findEvidenceRoots_discovers_from_records_without_overrides", () => {
     // Without overrides, repo root falls back to records' first cwd; snapshot root falls back to the sibling file-history dir.
     const fixture = makeLayeredFixture();
-    const roots = resolveEvidenceRoots(fixture.sessionARecords, {});
+    const roots = findEvidenceRoots(fixture.sessionARecords, {});
     assert.equal(roots.repoPath?.toString(), fixture.workspaceRoot);
     assert.deepEqual(
         roots.snapshotPaths.map((path) => path.toString()),

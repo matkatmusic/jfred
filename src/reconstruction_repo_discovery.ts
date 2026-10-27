@@ -66,7 +66,8 @@ export function findSourceEntriesForProjectRoot(projectCwd: Path): SourceEntry[]
     const sessionFileNames = readdirSync(mangledProjectsDir);
     let hasRecordedSession = false;
     for (const name of sessionFileNames) {
-      if (name.endsWith(".jsonl")) {
+      const isSessionFile = name.endsWith(".jsonl");
+      if (isSessionFile) {
         hasRecordedSession = true;
         break;
       }

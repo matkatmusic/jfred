@@ -1,4 +1,4 @@
-// Tests for the inspector's pure helpers (webapp/inspector.ts — plain ES module, DOM-free): backup-time lookup for blob names and tool-flow navigation targets.
+// Tests for the inspector's pure helpers: backup-time lookup for blob names.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
