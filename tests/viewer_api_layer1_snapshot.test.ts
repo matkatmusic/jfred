@@ -32,7 +32,7 @@ function buildSnapshotRecord(backupFileName: string | null, version: number, bac
     };
 }
 
-// A copied-out-of-~/.claude tree, which is what deriveSiblingFileHistoryRoot needs.
+// A copied-out-of-~/.claude tree, which is what findSiblingFileHistoryRoot needs.
 function writeSession(treeRoot: string, sessionId: string, backupTime: string): Path {
     const projectDir = join(treeRoot, "projects", "-demo");
     mkdirSync(projectDir, { recursive: true });

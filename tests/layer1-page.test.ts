@@ -50,12 +50,12 @@ function buildPartialOverlapView(): object {
     return { pairs: [pair], gitOrphans: [GIT_ORPHAN], diskOrphans: [DISK_ORPHAN], ruler: RULER };
 }
 
-// bootLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
+// initLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
 async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
     initLayer1Dom(search);
     stubStreamRoute("/api/layer1-view", [...progressLines, view]);
-    const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-    bootLayer1Page();
+    const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+    initLayer1Page();
     await waitForAsyncWork();
 }
 
@@ -105,7 +105,7 @@ test("test_pair_widget_and_its_nodes_render_at_the_endpoints_axis_pixels", async
 });
 
 test("test_a_commit_label_shows_the_short_hash_and_reveals_the_full_one_on_hover", async () => {
-    // 40 characters is wider than a widget, so only 8 show and the hover title keeps the full hash recoverable.
+    // 40 characters is wider than a widget, so only 8 show; the hover title keeps the full hash.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     const commitLabels = listMatching("#stage .n-commit + .nlabel");
     assert.deepEqual(commitLabels.map((label) => label.textContent), ["a1b2c3d4", "e4f5a6b7"]);

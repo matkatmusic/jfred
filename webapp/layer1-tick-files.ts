@@ -123,7 +123,7 @@ function closeOpenRowOnEscape(event: KeyboardEvent): void {
   triggerStageRelayout();
 }
 
-// Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.
+// Escape shuts the open row; wired once from initLayer1Page since ticks are replaced every render.
 export function wireTickExpansion(): void {
   registerKindFilterChange(refreshTicksForKindFilter);
   document.addEventListener("keydown", closeOpenRowOnEscape);

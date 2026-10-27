@@ -9,13 +9,13 @@ import {
   resetLineageReplayWindow,
 } from "./reconstruction_script_runs.ts";
 import {
-  doesReplayWindowKeepInstant,
+  executeLineageReplayFrame,
   findServableLineageSeed,
+  isInstantKeptByReplayWindow,
   isLineageKeyOnReplayStack,
-  noteLineageCacheServe,
-  recordLineageGuardHit,
-  recordLineageKeyQuery,
-  runLineageReplayFrame,
+  markLineageCacheServe,
+  markLineageGuardHit,
+  markLineageKeyQueried,
   storeLineageSeedWhenCacheable,
 } from "./reconstruction_lineage_memo.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
@@ -52,10 +52,10 @@ function computeLineageContentBefore(
   before: Date,
 ): string | undefined {
   const cycleKey = `${target.toString()}|${before.getTime()}`;
-  recordLineageKeyQuery(cycleKey);
+  markLineageKeyQueried(cycleKey);
   const isKeyOnStack = isLineageKeyOnReplayStack(cycleKey);
   if (isKeyOnStack) {
-    recordLineageGuardHit(cycleKey);
+    markLineageGuardHit(cycleKey);
     return undefined;
   }
   const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
@@ -63,15 +63,15 @@ function computeLineageContentBefore(
   const previousCutoff = applyLineageReplayWindow(before);
   try {
     // Cache valid only when memo module proves replay identical to fresh compute (task 162).
-    const windowKeptInstant = doesReplayWindowKeepInstant(previousCutoff, before);
+    const windowKeptInstant = isInstantKeptByReplayWindow(previousCutoff, before);
     const servableEntry = findServableLineageSeed(seedsByKey, seedKey, windowKeptInstant);
     if (servableEntry !== null) {
-      noteLineageCacheServe(servableEntry);
+      markLineageCacheServe(servableEntry);
       return servableEntry.text;
     }
     reportReconstructionProgress(`replaying lineage of ${target}`);
     const computeFrameText = () => computeReplayedSeedText(records, reader, target, before);
-    const replayed = runLineageReplayFrame(cycleKey, computeFrameText);
+    const replayed = executeLineageReplayFrame(cycleKey, computeFrameText);
     storeLineageSeedWhenCacheable(seedsByKey, seedKey, replayed.cacheable, windowKeptInstant);
     return replayed.text;
   }

@@ -25,49 +25,77 @@ export function buildPhaseTolerantly<T>(phase: string, fallback: T, run: () => T
   }
 }
 
+type FileHistories = BranchedReconstruction["surviving"];
+
+function filterHistoriesByTarget(histories: FileHistories, target: Path | undefined): FileHistories {
+  const kept: FileHistories = [];
+  for (const history of histories) {
+    const isUntargeted = target === undefined;
+    const isTargetMatch = target !== undefined && history.target.equals(target);
+    const isKept = isUntargeted || isTargetMatch;
+    if (isKept) {
+      kept.push(history);
+    }
+  }
+  return kept;
+}
+
 export function buildDocumentSections(
   records: TranscriptRecord[],
   branched: BranchedReconstruction,
   reader: BackupReader | undefined,
   target: Path | undefined,
 ) {
-  const filesTouched =
-    target === undefined
-      ? branched.surviving
-      : branched.surviving.filter((history) => history.target.equals(target));
-    // Abandoned-branch histories, unwrapped from branch tags; filtered like filesTouched.
-  const rewoundHistories = branched.rewound.flatMap((branch) => branch.histories);
-  const rewoundFilesTouched =
-    target === undefined
-      ? rewoundHistories
-      : rewoundHistories.filter((history) => history.target.equals(target));
+  const filesTouched = filterHistoriesByTarget(branched.surviving, target);
+  // Abandoned-branch histories, unwrapped from branch tags; filtered like filesTouched.
+  const rewoundHistories: FileHistories = [];
+  for (const branch of branched.rewound) {
+    rewoundHistories.push(...branch.histories);
+  }
+  const rewoundFilesTouched = filterHistoriesByTarget(rewoundHistories, target);
+
+  const buildSteps = () => buildStepSnapshots(records, reader, branched.surviving);
+  const buildVerdicts = () => buildLineVerdicts(records);
+  const buildCommitMarkers = () => {
+    const markers = [];
+    for (const event of findGitCommitEvents(records)) {
+      markers.push({ timestamp: event.timestamp, sessionId: event.sessionId });
+    }
+    return markers;
+  };
+  const buildGitOperations = () => findGitOperations(records);
+  const buildToolCalls = () => findToolCalls(records);
+  const buildScriptRuns = () => summarizeScriptRunFileChanges(records, reader);
+
   reportReconstructionProgress("building step snapshots");
   // task 119: const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);
   const { steps: allSteps, stepFileHistories } = buildPhaseTolerantly(
     "buildStepSnapshots",
     { steps: [], stepFileHistories: [] },
-    () => buildStepSnapshots(records, reader, branched.surviving),
+    buildSteps,
   );
-    // task 181: --target narrows step timeline to only steps touching the target.
-  const steps =
-    target === undefined
-      ? allSteps
-      : allSteps.filter((step) => step.changedPaths.includes(target.toString()));
+  // task 181: --target narrows step timeline to only steps touching the target.
+  const steps: typeof allSteps = [];
+  for (const step of allSteps) {
+    const isUntargeted = target === undefined;
+    const isTargetTouched = target !== undefined && step.changedPaths.includes(target.toString());
+    const isKept = isUntargeted || isTargetTouched;
+    if (isKept) {
+      steps.push(step);
+    }
+  }
   reportReconstructionProgress("building line verdicts");
   // task 119: const lineVerdicts = buildLineVerdicts(records);
-  const lineVerdicts = buildPhaseTolerantly("buildLineVerdicts", [], () => buildLineVerdicts(records));
+  const lineVerdicts = buildPhaseTolerantly("buildLineVerdicts", [], buildVerdicts);
   // task 119: const commitMarkers = findGitCommitEvents(records).map(...);
-  const commitMarkers = buildPhaseTolerantly("findGitCommitEvents", [], () => findGitCommitEvents(records).map((event) => ({
-    timestamp: event.timestamp,
-    sessionId: event.sessionId,
-  })));
-    // task 119: const gitOperations = findGitOperations(records);
-  const gitOperations = buildPhaseTolerantly("findGitOperations", [], () => findGitOperations(records));
+  const commitMarkers = buildPhaseTolerantly("findGitCommitEvents", [], buildCommitMarkers);
+  // task 119: const gitOperations = findGitOperations(records);
+  const gitOperations = buildPhaseTolerantly("findGitOperations", [], buildGitOperations);
   // task 119: const toolCalls = findToolCalls(records);
-  const toolCalls = buildPhaseTolerantly("findToolCalls", [], () => findToolCalls(records));
+  const toolCalls = buildPhaseTolerantly("findToolCalls", [], buildToolCalls);
   reportReconstructionProgress("summarizing script-run file changes");
   // task 119: const scriptRuns = summarizeScriptRunFileChanges(records, reader);
-  const scriptRuns = buildPhaseTolerantly("summarizeScriptRunFileChanges", [], () => summarizeScriptRunFileChanges(records, reader));
+  const scriptRuns = buildPhaseTolerantly("summarizeScriptRunFileChanges", [], buildScriptRuns);
   return {
     filesTouched,
     rewoundFilesTouched,

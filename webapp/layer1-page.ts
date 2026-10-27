@@ -3,9 +3,9 @@
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { installNodeDrawer } from "./layer1-drawer.ts";
 import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
+import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { wireFindFileBox } from "./layer1-find-file.ts";
-import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
@@ -24,7 +24,7 @@ import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
-import { wireZoomControls } from "./layer1-zoom.ts";
+import { attachZoomControls } from "./layer1-zoom.ts";
 
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
@@ -100,7 +100,7 @@ function getFailedRestoreResult(): boolean {
   return false;
 }
 
-export async function bootLayer1Page(): Promise<void> {
+export async function initLayer1Page(): Promise<void> {
   // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
   const linkedNode = readNodeLinkIdentity(location.search);
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
@@ -110,7 +110,7 @@ export async function bootLayer1Page(): Promise<void> {
   // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
   wirePathPickers(markDirtyAndLoadView);
   wireSettingsSave();
-  wireSessionPaneResize();
+  initSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
   wireTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
@@ -119,10 +119,10 @@ export async function bootLayer1Page(): Promise<void> {
   void confirmRepoAndFillRefs();
   wireLayer1CancelButton();
   wireBusyShield();
-  wireZoomControls();
+  attachZoomControls();
   // wireLayerToggle();
-  wireFileNavResize();
-  wireBucketJumpButtons();
+  initFileNavResize();
+  attachBucketJumpButtons();
   wireFindFileBox();
   // All three are delegated, since every bubble, tick and leader is replaced on each render.
   installNodeDrawer();
@@ -143,4 +143,4 @@ export async function bootLayer1Page(): Promise<void> {
   }
 }
 
-void bootLayer1Page();
+void initLayer1Page();

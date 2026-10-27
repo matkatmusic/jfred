@@ -5,7 +5,7 @@ import { loadTranscript } from "./parse/loadTranscript.ts";
 import { buildBackupTimeline, findCwd, type BackupPoint } from "./reconstruction_backup_timeline.ts";
 import { existsSync } from "node:fs";
 import { buildSidecarBackupPath } from "./reconstruction_sidecar_backup_path.ts";
-import { findSessionId, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { findSessionId, getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 
 // `version` is the @vN the OWNING session assigned, so it identifies nothing on its own.
 export type SnapshotPlacement = {
@@ -45,7 +45,8 @@ function buildPlacementsFromBackupPoints(
     }
     const dedupeKey = buildDedupeKey(owner, backupFileName);
     // Keeping the FIRST occurrence keeps the line where the snapshot was actually taken.
-    if (seenKeys.has(dedupeKey)) {
+    const isDuplicate = seenKeys.has(dedupeKey);
+    if (isDuplicate) {
       continue;
     }
     seenKeys.add(dedupeKey);
@@ -68,7 +69,7 @@ function buildPlacementsForSession(sessionFile: Path): Map<string, SnapshotPlace
   const records = loadTranscript(sessionFile.toString(), undefined, true).records;
   const timeline = buildBackupTimeline(records, findCwd(records));
   const fallbackSessionId = findSessionId(records);
-  const fileHistoryRoot = resolveFileHistoryRoot(records);
+  const fileHistoryRoot = getFileHistoryRoot(records);
   const placementsByPath = new Map<string, SnapshotPlacement[]>();
   for (const [fileKey, points] of timeline) {
     const placements = buildPlacementsFromBackupPoints(fileKey, points, sessionFile, fallbackSessionId, fileHistoryRoot);
@@ -79,10 +80,14 @@ function buildPlacementsForSession(sessionFile: Path): Map<string, SnapshotPlace
   return placementsByPath;
 }
 
+function compareByInstant(a: SnapshotPlacement, b: SnapshotPlacement): number {
+  return a.instant.getTime() - b.instant.getTime();
+}
+
 // Per-session timelines are each sorted, but the cross-session merge is not.
 function sortPlacementsByInstant(placementsByPath: Map<string, SnapshotPlacement[]>): void {
   for (const placements of placementsByPath.values()) {
-    placements.sort((a, b) => a.instant.getTime() - b.instant.getTime());
+    placements.sort(compareByInstant);
   }
 }
 

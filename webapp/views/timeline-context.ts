@@ -9,7 +9,8 @@ import {
   openNodeInspector,
   openTranscriptInspectorSynced,
 } from "./timeline-render-inspectors.ts";
-import { fetchRangePatch, updateSelectbar } from "./timeline-render-selectbar.ts";
+import { fetchRangePatch } from "./timeline-render-selectbar.ts";
+import { updateSelectbar } from "./timeline-render-pickbar.ts";
 import { moveToTimelineRow, resetRowFlash, selectTimelineRow } from "./timeline-render-selection.ts";
 import { computeGraphLaneRuns, type WireProjectListing } from "./timeline-sessions.ts";
 import type { TimelineNode, TranscriptLocation } from "./timeline-node-types.ts";

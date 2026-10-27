@@ -3,7 +3,7 @@
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  deriveSiblingFileHistoryRoot,
+  findSiblingFileHistoryRoot,
   getDefaultFileHistoryRoot,
 } from "./reconstruction_sidecar_reader.ts";
 import {
@@ -59,7 +59,7 @@ export function setFileHistoryDir(requested: string): Path {
 // Resolution chain: explicit override, then sibling dir, then ~/.claude default.
 export function getEffectiveFileHistoryDir(): Path {
   return activeFileHistoryDir
-        ?? (activeProjectsDir === undefined ? undefined : deriveSiblingFileHistoryRoot(activeProjectsDir))
+        ?? (activeProjectsDir === undefined ? undefined : findSiblingFileHistoryRoot(activeProjectsDir))
         ?? getDefaultFileHistoryRoot();
 }
 

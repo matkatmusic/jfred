@@ -57,12 +57,12 @@ function buildDiskOnlyView(): object {
     };
 }
 
-// bootLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
+// initLayer1Page runs explicitly since node's module cache only fires the boot line on the first import.
 async function loadPageWithView(view: object, search: string, progressLines: object[] = []): Promise<void> {
     initLayer1Dom(search);
     stubStreamRoute("/api/layer1-view", [...progressLines, view]);
-    const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-    bootLayer1Page();
+    const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+    initLayer1Page();
     await waitForAsyncWork();
 }
 
@@ -92,7 +92,7 @@ function findBucketTitled(title: string): HTMLElement | undefined {
 }
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {
-    // The two orphan sets mirror each other, so only checking WHICH path lands in WHICH bucket catches a swapped binding.
+    // The orphan sets mirror each other, so checking WHICH path lands in WHICH bucket catches a swap.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
     assert.equal(listMatching("#stage .filebox.bucket").length, 2);
     const gitBucket = findBucketTitled("No on-disk match")!;

@@ -7,7 +7,7 @@ import { buildBranchesView, type Layer1WireBranchesView } from "../src/layer1_br
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { buildStepTimeline } from "../src/reconstruction_steps.ts";
 import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
-import { findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
+import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { Path } from "../src/structures/domain.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
@@ -26,7 +26,7 @@ function listScenarioLanes(scenarioDir: string): { path: string; branch: WireBra
 
 function listDiskInstants(scenarioDir: string, relativePath: string): number[] {
     const { records } = loadTranscript(findScenarioJsonl(scenarioDir), undefined, true);
-    const reader = createSidecarReader(findSessionId(records)!, resolveFileHistoryRoot(records));
+    const reader = createSidecarReader(findSessionId(records)!, getFileHistoryRoot(records));
     const history = buildStepTimeline(records, reader).histories.find((candidate) => candidate.target.toString().endsWith(`/${relativePath}`));
     return history!.revisions.map((revision) => revision.timestamp.getTime());
 }

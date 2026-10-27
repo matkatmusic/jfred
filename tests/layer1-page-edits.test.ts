@@ -41,8 +41,8 @@ async function loadPage(edits: object[] = [READ, EDIT, STALE]): Promise<void> {
     editRequests += isEditsRequest ? 1 : 0;
     return (isEditsRequest ? editsFetch : viewFetch)(url as string, init);
   } });
-  const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-  bootLayer1Page();
+  const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+  initLayer1Page();
   await waitForAsyncWork();
 }
 

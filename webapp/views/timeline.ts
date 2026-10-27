@@ -19,7 +19,7 @@ import { createTimelineRenderContext } from "./timeline-context.ts";
 import { resolveChipLineLocations, resolveLineLabels } from "./timeline-render-inspectors.ts";
 import { renderTimelineFilterBar } from "./timeline-render-filterbar.ts";
 import { buildTimelineRows } from "./timeline-render-rows.ts";
-import { renderSelectbarButtons } from "./timeline-render-selectbar.ts";
+import { renderSelectbarButtons } from "./timeline-render-pickbar.ts";
 import { attachFileNavButtons, attachToggleAllButton } from "./timeline-render-selection.ts";
 import { buildSessionsSidebarViewModel, waitForNextAnimationFrame } from "./timeline-sessions.ts";
 import type { WireTimelineDocument } from "./timeline-wire-types.ts";

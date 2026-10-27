@@ -22,7 +22,7 @@ enum DomainType {
 type TaggedDomainValue = { [DOMAIN_TAG]: DomainType; value: string | number };
 
 // Uses holder `this[key]` to read original class before toJSON flattens it; must be non-arrow.
-function tagDomainValue(this: Record<string, unknown>, key: string, value: unknown): unknown {
+function encodeDomainValue(this:Record<string, unknown>, key: string, value: unknown): unknown {
   const original = this[key];
   if (original instanceof Path) {
     return { [DOMAIN_TAG]: DomainType.path, value: original.value };
@@ -41,8 +41,9 @@ function isTaggedDomainValue(value: unknown): value is TaggedDomainValue {
 }
 
 // Reviver rebuilds tagged leaves into domain classes (children revive before parents).
-function reviveDomainValue(_key: string, value: unknown): unknown {
-  if (!isTaggedDomainValue(value)) {
+function decodeDomainValue(_key: string, value: unknown): unknown {
+  const isTagged = isTaggedDomainValue(value);
+  if (!isTagged) {
     return value;
   }
   if (value[DOMAIN_TAG] === DomainType.path) {
@@ -58,13 +59,13 @@ function reviveDomainValue(_key: string, value: unknown): unknown {
 }
 
 // The pure serialize/hydrate core — tested directly, and reused by the disk read/write below.
-export function serializeBuild(built: BuiltReconstruction): string {
-  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, build: built }, tagDomainValue);
+export function encodeBuild(built: BuiltReconstruction): string {
+  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, build: built }, encodeDomainValue);
 }
 
 // undefined when the persisted shape predates the current SCHEMA_VERSION (treated as a cache miss).
-export function hydrateBuild(text: string): BuiltReconstruction | undefined {
-  const parsed = JSON.parse(text, reviveDomainValue) as { schemaVersion: number; build: BuiltReconstruction };
+export function parseBuild(text: string): BuiltReconstruction | undefined {
+  const parsed = JSON.parse(text, decodeDomainValue) as { schemaVersion: number; build: BuiltReconstruction };
   if (parsed.schemaVersion !== SCHEMA_VERSION) {
     return undefined;
   }
@@ -78,7 +79,7 @@ export const DOCUMENT_CACHE_CAPACITY = 4;
 // undefined = memory-only (CLI + tests). Only viewer_server.ts sets a directory.
 let cacheDirectory: Path | undefined;
 
-export function configureDocumentCachePersistence(directory: Path | undefined): void {
+export function setDocumentCachePersistence(directory: Path | undefined): void {
   cacheDirectory = directory;
 }
 
@@ -88,21 +89,22 @@ export function resetDocumentCacheOnDisk(directory: Path): void {
 }
 
 // One collision-safe filename per cacheKey.
-function cacheFilePath(directory: Path, cacheKey: string): string {
-  const hash = createHash("sha256").update(cacheKey).digest("hex");
-  return join(directory.toString(), `${hash}.json`);
+function getCacheFilePath(directory: Path, cacheKey: string): string {
+  const hasher = createHash("sha256");
+  return join(directory.toString(), `${hasher.update(cacheKey).digest("hex")}.json`);
 }
 
 export function readDocumentFromDiskCache(cacheKey: string): BuiltReconstruction | undefined {
   if (cacheDirectory === undefined) {
     return undefined;
   }
-  const filePath = cacheFilePath(cacheDirectory, cacheKey);
-  if (!existsSync(filePath)) {
+  const filePath = getCacheFilePath(cacheDirectory, cacheKey);
+  const fileExists = existsSync(filePath);
+  if (!fileExists) {
     return undefined;
   }
   try {
-    return hydrateBuild(readFileSync(filePath, "utf8"));
+    return parseBuild(readFileSync(filePath, "utf8"));
   }
   catch (error) {
     // A corrupt cache file must not kill a request — log once and rebuild.
@@ -117,8 +119,8 @@ export function writeDocumentToDiskCache(cacheKey: string, built: BuiltReconstru
   }
   try {
     mkdirSync(cacheDirectory.toString(), { recursive: true });
-    writeFileSync(cacheFilePath(cacheDirectory, cacheKey), serializeBuild(built));
-    evictOldestBeyondCapacity(cacheDirectory);
+    writeFileSync(getCacheFilePath(cacheDirectory, cacheKey), encodeBuild(built));
+    removeOldestBeyondCapacity(cacheDirectory);
   }
   catch (error) {
     // Persistence failure is tolerable; losing the response is not.
@@ -127,15 +129,21 @@ export function writeDocumentToDiskCache(cacheKey: string, built: BuiltReconstru
 }
 
 // Evict oldest files by mtime when count exceeds DOCUMENT_CACHE_CAPACITY.
-function evictOldestBeyondCapacity(directory: Path): void {
-  const files = readdirSync(directory.toString()).filter((name) => name.endsWith(".json"));
-  if (files.length <= DOCUMENT_CACHE_CAPACITY) {
-    return;
+function compareByModifiedTime(a: { mtimeMs: number }, b: { mtimeMs: number }): number {
+  return a.mtimeMs - b.mtimeMs;
+}
+
+function removeOldestBeyondCapacity(directory: Path): void {
+  const oldestFirst: { name: string; mtimeMs: number }[] = [];
+  for (const name of readdirSync(directory.toString())) {
+    const isCacheFile = name.endsWith(".json");
+    if (isCacheFile) {
+      oldestFirst.push({ name, mtimeMs: statSync(join(directory.toString(), name)).mtimeMs });
+    }
   }
-  const oldestFirst = files
-    .map((name) => ({ name, mtimeMs: statSync(join(directory.toString(), name)).mtimeMs }))
-    .sort((a, b) => a.mtimeMs - b.mtimeMs);
-  for (const { name } of oldestFirst.slice(0, files.length - DOCUMENT_CACHE_CAPACITY)) {
+  oldestFirst.sort(compareByModifiedTime);
+  const excessCount = Math.max(0, oldestFirst.length - DOCUMENT_CACHE_CAPACITY);
+  for (const { name } of oldestFirst.slice(0, excessCount)) {
     rmSync(join(directory.toString(), name), { force: true });
     console.error(`document cache evicted ${name} (capacity ${DOCUMENT_CACHE_CAPACITY})`);
   }

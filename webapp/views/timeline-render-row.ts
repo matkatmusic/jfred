@@ -12,7 +12,7 @@ import {
   computeRoleClass,
 } from "./timeline-render-row-cells.ts";
 import { buildGraphCell } from "./timeline-render-graph-cell.ts";
-import { buildPickCell } from "./timeline-render-selectbar.ts";
+import { buildPickCell } from "./timeline-render-pickbar.ts";
 import {
   checkNodeIsAbandonedBranchTip,
   checkRowCarriesJsonRecordButton,

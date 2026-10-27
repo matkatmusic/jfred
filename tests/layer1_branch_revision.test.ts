@@ -8,7 +8,7 @@ import { readEditFileContent } from "../src/viewer_api_layer1_edit_file.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { linesTextOf } from "../src/reconstruction_revisions.ts";
 import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
-import { findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
+import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { buildStepTimeline } from "../src/reconstruction_steps.ts";
 import { Path } from "../src/structures/domain.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
@@ -21,7 +21,7 @@ function listLaneNodeSides(scenarioDir: string): LaneNodeSides[] {
     const { records } = loadTranscript(jsonl, undefined, true);
     const projectFolder = new Path(records.find((record) => record.cwd !== undefined)!.cwd!.toString());
     const view = buildBranchesView(projectFolder, listTranscriptFiles([dirname(jsonl)]));
-    const { histories } = buildStepTimeline(records, createSidecarReader(findSessionId(records)!, resolveFileHistoryRoot(records)));
+    const { histories } = buildStepTimeline(records, createSidecarReader(findSessionId(records)!, getFileHistoryRoot(records)));
     return view.pairs.flatMap((pair) => pair.branches.flatMap((branch) => branch.nodes.map((node) => {
         const revisions = histories.find((history) => history.target.toString().endsWith(`/${pair.path.toString()}`))!.revisions;
         const index = revisions.findIndex((revision) => revision.changeId.toString() === node.changeId.toString());

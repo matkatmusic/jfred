@@ -4,7 +4,7 @@ import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "./timeline-types.ts";
 import type { TimelineNode } from "./timeline-node-types.ts";
 
 // Only an agent turn that owns surviving snapshots can be picked.
-export function checkNodeIsPickable(node: TimelineNode): boolean {
+export function isNodePickable(node: TimelineNode): boolean {
   if (node.kind !== AGENT_TURN_NODE_KIND) {
     return false;
   }
@@ -24,7 +24,8 @@ export function computePickSegments(nodes: TimelineNode[]): (number | null)[] {
       segment += 1;
       continue;
     }
-    if (checkNodeIsPickable(node)) {
+    const isPickable = isNodePickable(node);
+    if (isPickable) {
       segments.push(segment);
       continue;
     }
@@ -34,12 +35,15 @@ export function computePickSegments(nodes: TimelineNode[]): (number | null)[] {
 }
 
 // A pick is legal when empty, or when it is every pickable node of one segment between its extremes.
-export function checkPickIsLegal(nodes: TimelineNode[], pickedNodeIndexes: number[]): boolean {
+export function isPickLegal(nodes: TimelineNode[], pickedNodeIndexes: number[]): boolean {
   if (pickedNodeIndexes.length === 0) {
     return true;
   }
   const segments = computePickSegments(nodes);
-  const pickedSegments = new Set(pickedNodeIndexes.map((index) => segments[index]));
+  const pickedSegments = new Set<number | null | undefined>();
+  for (const index of pickedNodeIndexes) {
+    pickedSegments.add(segments[index]);
+  }
   if (pickedSegments.size > 1) {
     return false;
   }
@@ -57,7 +61,8 @@ export function checkPickIsLegal(nodes: TimelineNode[], pickedNodeIndexes: numbe
     if (segments[index] !== segment) {
       continue;
     }
-    if (!picked.has(index)) {
+    const isPicked = picked.has(index);
+    if (!isPicked) {
       return false;
     }
   }
@@ -66,19 +71,27 @@ export function checkPickIsLegal(nodes: TimelineNode[], pickedNodeIndexes: numbe
 
 // The selection bar summary: turn count, distinct file paths, and the 1-based snapshot index range.
 export function computeRangeSummary(nodes: TimelineNode[], pickedNodeIndexes: number[]) {
-  const pickedNodes = pickedNodeIndexes.map((index) => nodes[index]!);
-  const filePaths = [...new Set(pickedNodes.flatMap((node) => node.fileChanges!.map((change) => change.path)))];
-  const stepIndexes = pickedNodes.flatMap((node) => node.snapshots!.map((snapshot) => snapshot.index));
+  const filePaths = new Set<string>();
+  const stepIndexes: number[] = [];
+  for (const index of pickedNodeIndexes) {
+    const node = nodes[index]!;
+    for (const change of node.fileChanges!) {
+      filePaths.add(change.path);
+    }
+    for (const snapshot of node.snapshots!) {
+      stepIndexes.push(snapshot.index);
+    }
+  }
   return {
-    stepCount: pickedNodes.length,
-    filePaths,
+    stepCount: pickedNodeIndexes.length,
+    filePaths: [...filePaths],
     fromStepIndex: Math.min(...stepIndexes),
     toStepIndex: Math.max(...stepIndexes),
   };
 }
 
 // A click ending a text selection is a drag, not a close request; the close handler ignores it.
-export function checkSelectionBlocksBackgroundClose(selection: { isCollapsed: boolean } | null): boolean {
+export function isSelectionBlockingBackgroundClose(selection: { isCollapsed: boolean } | null): boolean {
   if (selection === null) {
     return false;
   }

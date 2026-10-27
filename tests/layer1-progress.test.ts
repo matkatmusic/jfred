@@ -1,4 +1,4 @@
-// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.  The counted-line test drives readLayer1ViewStream directly: loadLayer1View's finally resets the strip, erasing what it painted.
+// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,13 +14,13 @@ const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 
 // layer1-page.ts boots at MODULE SCOPE; absorb that first boot against a throwaway DOM with an empty query.
 initLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 
 // Fresh page naming both roots, endpoint answering `lines`; the strip is up by the time this returns.
 function openPageStreaming(lines: unknown[]): void {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubStreamRoute("/api/layer1-view", lines);
-    bootLayer1Page();
+    initLayer1Page();
 }
 
 function checkLoadbarIsHidden(): boolean {
@@ -67,7 +67,7 @@ test("test_a_counted_progress_line_fills_the_bar_to_its_fraction", async () => {
 });
 
 test("test_a_countless_paint_marks_the_fill_indeterminate_and_a_counted_paint_clears_it", () => {
-    // Scenario: a stage with no count must still show a moving bar; the first count hands the bar back to its fraction.
+    // Scenario: a stage with no count shows a moving bar; the first count returns the bar to its fraction.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     const fill = document.getElementById("loadbar-fill") as HTMLElement;
     const labelHost = document.getElementById("loadbar-label") as HTMLElement;
@@ -97,7 +97,7 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
     // Scenario (task 302): Yes-cancel aborts the stream; crumb reports cancellation, strip hides, stage stays empty.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubHangingViewRoute();
-    bootLayer1Page();
+    initLayer1Page();
     await waitForAsyncWork();
     assert.equal(checkLoadbarIsHidden(), false);
     document.getElementById("loadbar-cancel")!.click();

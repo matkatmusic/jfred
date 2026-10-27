@@ -29,7 +29,7 @@ import { selectFolders } from "./viewer_server_folder_pick.ts";
 import { sendStaticFile } from "./viewer_server_static.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
-import { configureDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
+import { setDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 
 function sendRawTranscript(response: ServerResponse, query: URLSearchParams): void {
@@ -137,7 +137,7 @@ const documentCacheDir = new Path(join(import.meta.dirname, "..", ".cache", "bui
 if (resetDocumentCache) {
   resetDocumentCacheOnDisk(documentCacheDir);
 }
-configureDocumentCachePersistence(documentCacheDir);
+setDocumentCachePersistence(documentCacheDir);
 const server = createServer(dispatchRequest);
 // A cold build can exceed Node's ~300s timeout, killing the process with ERR_HTTP_HEADERS_SENT.
 server.requestTimeout = 0;

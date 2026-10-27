@@ -1,4 +1,4 @@
-// Safe memoization of nested lineage replays (task 162). A replay's result can depend on execution-stack state in exactly two ways: a cycle-guard hit inside its subtree (an ancestor's in-flight key answered `undefined`), and the never-widening replay window narrowing it. This module tracks, per in-flight replay frame, every cycleKey the frame's subtree queried, and which frames a guard hit degraded ("poisoned") — so reconstruction_branches.ts can cache exactly the replays whose results are PROVEN stack-independent, and serve a cached result only when a fresh compute would take the identical path. The frame stack REPLACES the old `seedingLineages` Set (same cycle-guard role, keys now ordered). Sole import: the counters module (itself import-free), which tallies replay requests/serves here because the two hook points (recordLineageKeyQuery, noteLineageCacheServe) are each called exactly once per replayLineageContentBefore entry/serve and reconstruction_branches.ts sits at its line cap.
+// Memoizes nested lineage replays (task 162): caches only results proven independent of the replay stack.
 
 import {
   ReconstructionCounter,
@@ -18,11 +18,16 @@ export function countActiveLineageReplayFrames(): number {
 }
 
 export function isLineageKeyOnReplayStack(cycleKey: string): boolean {
-  return activeFrames.some((frame) => frame.cycleKey === cycleKey);
+  for (const frame of activeFrames) {
+    if (frame.cycleKey === cycleKey) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Propagate this key into every ancestor frame's dependency set.
-export function recordLineageKeyQuery(cycleKey: string): void {
+export function markLineageKeyQueried(cycleKey: string): void {
   incrementReconstructionCounter(ReconstructionCounter.lineageReplayRequests);
   for (const frame of activeFrames) {
     frame.queriedKeys.add(cycleKey);
@@ -30,8 +35,14 @@ export function recordLineageKeyQuery(cycleKey: string): void {
 }
 
 // Poison every frame above the hit key's own frame; absent key poisons all defensively.
-export function recordLineageGuardHit(cycleKey: string): void {
-  const hitIndex = activeFrames.findIndex((frame) => frame.cycleKey === cycleKey);
+export function markLineageGuardHit(cycleKey: string): void {
+  let hitIndex = -1;
+  for (let index = 0; index < activeFrames.length; index += 1) {
+    if (activeFrames[index]!.cycleKey === cycleKey) {
+      hitIndex = index;
+      break;
+    }
+  }
   for (let index = hitIndex + 1; index < activeFrames.length; index += 1) {
     activeFrames[index]!.poisoned = true;
   }
@@ -43,12 +54,15 @@ function extractLineagePathOfCycleKey(cycleKey: string): string {
 }
 
 // Refuse if any file the entry queried has an in-flight replay, at any instant.
-function checkNoQueriedKeyInFlight(entry: LineageSeedEntry): boolean {
-  const inFlightPaths = new Set(
-    activeFrames.map((frame) => extractLineagePathOfCycleKey(frame.cycleKey)),
-  );
+function isNoQueriedKeyInFlight(entry: LineageSeedEntry): boolean {
+  const inFlightPaths = new Set<string>();
+  for (const frame of activeFrames) {
+    inFlightPaths.add(extractLineagePathOfCycleKey(frame.cycleKey));
+  }
   for (const queriedKey of entry.queriedKeys) {
-    if (inFlightPaths.has(extractLineagePathOfCycleKey(queriedKey))) {
+    const queriedPath = extractLineagePathOfCycleKey(queriedKey);
+    const isQueriedPathInFlight = inFlightPaths.has(queriedPath);
+    if (isQueriedPathInFlight) {
       return false;
     }
   }
@@ -68,14 +82,15 @@ export function findServableLineageSeed(
   if (entry === undefined) {
     return null;
   }
-  if (!checkNoQueriedKeyInFlight(entry)) {
+  const isServable = isNoQueriedKeyInFlight(entry);
+  if (!isServable) {
     return null;
   }
   return entry;
 }
 
 // Serving a cached entry makes its dependencies the caller's dependencies.
-export function noteLineageCacheServe(entry: LineageSeedEntry): void {
+export function markLineageCacheServe(entry: LineageSeedEntry): void {
   incrementReconstructionCounter(ReconstructionCounter.lineageCacheServes);
   for (const frame of activeFrames) {
     for (const queriedKey of entry.queriedKeys) {
@@ -85,7 +100,7 @@ export function noteLineageCacheServe(entry: LineageSeedEntry): void {
 }
 
 // Execute compute in a fresh frame; returns null cacheable if poisoned by a guard hit.
-export function runLineageReplayFrame(
+export function executeLineageReplayFrame(
   cycleKey: string,
   compute: () => string | undefined,
 ): { text: string | undefined; cacheable: LineageSeedEntry | null } {
@@ -120,7 +135,7 @@ export function storeLineageSeedWhenCacheable(
 }
 
 // True when the active replay window has not narrowed past `before`.
-export function doesReplayWindowKeepInstant(previousCutoff: Date | undefined, before: Date): boolean {
+export function isInstantKeptByReplayWindow(previousCutoff: Date | undefined, before: Date): boolean {
   if (previousCutoff === undefined) {
     return true;
   }

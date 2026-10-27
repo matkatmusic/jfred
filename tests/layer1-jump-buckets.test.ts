@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb the first import against a throwaway DOM.
 initLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 
 // The two bucket headings renderLayer1View uses, matching the `data-bucket` values on layer1.html's buttons.
@@ -16,7 +16,7 @@ const DISK_ORPHAN_TITLE = "No repository match";
 // Render one view, stub every bucket to record the scrolled title; an empty array renders no bucket.
 function openPageWithBuckets(gitOrphanPaths: string[], diskOrphanPaths: string[]): { readScrolledTitle: () => string | undefined } {
     initLayer1Dom();
-    bootLayer1Page();
+    initLayer1Page();
     const toRows = (paths: string[]) =>
         paths.map((path, index) => ({ path, instant: "2026-07-25T10:00:00.000Z", axisPx: 100 + index }));
     renderLayer1View({

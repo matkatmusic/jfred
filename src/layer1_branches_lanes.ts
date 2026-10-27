@@ -4,7 +4,7 @@ import type { SessionRewinds } from "./layer1_branch_sessions.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
-import { findSessionId, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { findSessionId, getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { buildStepTimeline } from "./reconstruction_steps.ts";
 import { collectAncestorUuids } from "./reconstruction_tree.ts";
 import type { Uuid } from "./structures/domain.ts";
@@ -70,7 +70,7 @@ export function buildGroupHistories(rewinds: SessionRewinds): FileHistory[] {
   if (sessionId === undefined) {
     throw new Error(`no session id in ${rewinds.parentFile.toString()}`);
   }
-  const { histories } = buildStepTimeline(rewinds.records, createSidecarReader(sessionId, resolveFileHistoryRoot(rewinds.records)));
+  const { histories } = buildStepTimeline(rewinds.records, createSidecarReader(sessionId, getFileHistoryRoot(rewinds.records)));
   historiesByRewinds.set(rewinds, histories);
   return histories;
 }
