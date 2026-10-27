@@ -1,11 +1,11 @@
-// View model for the inline diff view: unified diff text -> numbered rows in original line order. Pure — no DOM.
+// Inline diff view model: unified diff text to numbered rows in original order.
 
 import { NUMERIC_HUNK_HEADER, computeFullRowLineClass } from "./diff-vs-base-model.ts";
 
-// One rendered inline-view line; number fields are set only when a numeric hunk header has seeded that side's counter (item 40).
+// Number fields are set only when a numeric hunk header seeded that side (item 40).
 export type InlineRow = { text: string; lineClass: string; oldLineNumber?: number; newLineNumber?: number };
 
-// Assigns both gutter numbers to a context line inside a hunk (each side only when its counter is seeded) and returns the advanced counters.
+// Numbers a context line on each seeded side and returns the advanced counters.
 function applyContextLineNumbers(row: InlineRow, oldLineCounter: number | undefined, newLineCounter: number | undefined): { oldLineCounter: number | undefined; newLineCounter: number | undefined } {
   if (oldLineCounter !== undefined) {
     row.oldLineNumber = oldLineCounter++;
@@ -16,7 +16,7 @@ function applyContextLineNumbers(row: InlineRow, oldLineCounter: number | undefi
   return { oldLineCounter, newLineCounter };
 }
 
-// Unified diff text -> inline rows in original line order, raw prefixes kept. "@@ -a,b +c,d @@" headers seed the per-side counters; "-" advances old only, "+" advances new only, context inside a hunk advances both; preamble lines and headers carry no numbers.
+// Inline rows keep raw prefixes: "-" advances old, "+" advances new, hunk context advances both.
 export function computeInlineRows(diffText: string): InlineRow[] {
   const rows: InlineRow[] = [];
   let insideHunk = false;

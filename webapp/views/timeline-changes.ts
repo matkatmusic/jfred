@@ -1,7 +1,7 @@
 // File-change derivation for the revision timeline (split from timeline.ts, task 92): resolving step changeIds through the revision index into displayable chips, plus patch splitting and the per-node chip stamping pass.
 
 import { routeToFileHistory } from "../app-routes.ts";
-import { checkChangeIdIsBackupBlobName, findRevisionForChangeId } from "./file-history-model.ts";
+import { isChangeIdBackupBlobName, findRevisionForChangeId } from "./file-history-model.ts";
 import {
   EDIT_EVENT_KIND,
   TOOL_CALL_NODE_KIND,
@@ -119,7 +119,7 @@ export function computeSnapshotJumpRoute(project: string, filesTouched: WireFile
   if (change.changeId === undefined) {
     return undefined;
   }
-  if (!checkChangeIdIsBackupBlobName(change.changeId)) {
+  if (!isChangeIdBackupBlobName(change.changeId)) {
     return undefined;
   }
   const revisionLink = findRevisionForChangeId(filesTouched, change.changeId, undefined);

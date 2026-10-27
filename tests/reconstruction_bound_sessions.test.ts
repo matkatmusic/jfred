@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { truncateRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
+import { trimRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
 import {
     SESSION_A,
     SESSION_B,
@@ -51,7 +51,7 @@ test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () =>
         buildPromptRecord("prompt-a2", editAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
         ...writeGamma.records,
     ]);
-    const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
     // Session B's 10:03 prompt did NOT end A's turn: the same-turn 10:04 edit is kept.
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_il_e1-result"));
     // The wall-clock cut keeps B's in-window activity (beta) and drops post-bound work (gamma).

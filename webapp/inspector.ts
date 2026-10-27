@@ -6,7 +6,6 @@ import {
   computeBlobRequestUrl,
   computeLinkMaps,
   computeRevisionLinkRoute,
-  findToolNavigationTargets,
   type LinkMaps,
   type WireBlobResponse,
   type WireFileHistory,
@@ -15,6 +14,7 @@ import {
   type WireTrackedBackup,
   type WireValue,
 } from "./inspector-links.ts";
+import { findToolNavigationTargets } from "./inspector-tool-nav.ts";
 import { createElement, renderHighlightedJson } from "./inspector-json.ts";
 import {
   blobPresenceByKey,

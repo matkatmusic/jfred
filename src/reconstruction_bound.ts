@@ -6,7 +6,7 @@ import { getContentBlocks } from "./structures/content-blocks.ts";
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
-import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
+import { findTurnEndBoundary, isRecordWithinBound } from "./reconstruction_bound_turn.ts";
 import type { CliOptions } from "./reconstruction_cli_args.ts";
 
 // Cut stream, total revision count, and wall-clock boundary instant (undefined if final turn).
@@ -36,78 +36,49 @@ export function listEventPaths(event: FileEvent): Path[] {
 // Filter events touching target by exact-path equality in timestamp order.
 function selectEventsTouchingPath(events: FileEvent[], target: Path): FileEvent[] {
   const targetKey = target.toString();
-  return events.filter((event) =>
-    listEventPaths(event).some((eventPath) => eventPath.toString() === targetKey),
-  );
-}
-
-// Only main-chain genuine prompts end a turn; sidechain prompts do not.
-function isTurnBoundary(record: TranscriptRecord): boolean {
-  if (record.isSidechain === true) {
-    return false;
+  const touching: FileEvent[] = [];
+  for (const event of events) {
+    const pathKeys: string[] = [];
+    for (const eventPath of listEventPaths(event)) {
+      pathKeys.push(eventPath.toString());
+    }
+    const isTouching = pathKeys.includes(targetKey);
+    if (isTouching) {
+      touching.push(event);
+    }
   }
-  return isGenuineUserPrompt(record);
+  return touching;
 }
 
 // True when one of the record's tool_use blocks carries this change id.
-function recordCarriesToolUse(record: TranscriptRecord, changeKey: string): boolean {
-  return getContentBlocks(record).some(
-    (block) => block.type === BlockType.tool_use && block.id.toString() === changeKey,
-  );
+function isRecordCarryingToolUse(record: TranscriptRecord, changeKey: string): boolean {
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.tool_use) {
+      const blockKey = block.id.toString();
+      if (blockKey === changeKey) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Find the session that produced this event via its changeId (uuid or tool_use id).
 function findEventSessionId(records: TranscriptRecord[], event: FileEvent): Uuid | undefined {
   const changeKey = event.changeId.toString();
   for (const record of records) {
-    if (record.uuid?.toString() === changeKey) {
-      return record.sessionId;
-    }
-    if (recordCarriesToolUse(record, changeKey)) {
+    const isChangeUuid = record.uuid?.toString() === changeKey;
+    const isChangeToolUse = isRecordCarryingToolUse(record, changeKey);
+    const isOwner = isChangeUuid || isChangeToolUse;
+    if (isOwner) {
       return record.sessionId;
     }
   }
   return undefined;
-}
-
-// First turn-boundary prompt strictly after `after` in the owning session; undefined at stream end.
-function findTurnEndBoundary(
-  records: TranscriptRecord[],
-  after: Date,
-  ownerSession: Uuid | undefined,
-): { index: number; instant: Date } | undefined {
-  for (let index = 0; index < records.length; index++) {
-    const record = records[index]!;
-    if (!isTurnBoundary(record)) {
-      continue;
-    }
-    if (ownerSession !== undefined && record.sessionId?.toString() !== ownerSession.toString()) {
-      continue;
-    }
-    if (!(record.timestamp instanceof Date)) {
-      continue;
-    }
-    if (record.timestamp.getTime() > after.getTime()) {
-      return { index, instant: record.timestamp };
-    }
-  }
-  return undefined;
-}
-
-// Stamped records survive if strictly before the boundary instant; unstamped survive by index.
-function recordIsWithinBound(
-  record: TranscriptRecord,
-  index: number,
-  boundary: { index: number; instant: Date },
-): boolean {
-  if (record.timestamp instanceof Date) {
-    return record.timestamp.getTime() < boundary.instant.getTime();
-  }
-  return index < boundary.index;
 }
 
 // Truncate records at the turn containing the target's nth revision; throws on missing/out-of-range.
-export function truncateRecordsAtRevisionTurnEnd(
+export function trimRecordsAtRevisionTurnEnd(
   records: TranscriptRecord[],
   target: Path,
   ordinal: number,
@@ -116,7 +87,8 @@ export function truncateRecordsAtRevisionTurnEnd(
   if (revisions.length === 0) {
     throw new Error(`--until-revision: no revisions of ${target} found`);
   }
-  if (ordinal < 1 || ordinal > revisions.length) {
+  const isOutOfRange = ordinal < 1 || ordinal > revisions.length;
+  if (isOutOfRange) {
     throw new Error(`--until-revision: revision ${ordinal} of ${target} out of range 1..${revisions.length}`);
   }
   const chosen = revisions[ordinal - 1]!;
@@ -125,7 +97,14 @@ export function truncateRecordsAtRevisionTurnEnd(
   if (boundary === undefined) {
     return { records, totalRevisions: revisions.length, boundInstant: undefined };
   }
-  const kept = records.filter((record, index) => recordIsWithinBound(record, index, boundary));
+  const kept: TranscriptRecord[] = [];
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index]!;
+    const isKept = isRecordWithinBound(record, index, boundary);
+    if (isKept) {
+      kept.push(record);
+    }
+  }
   return { records: kept, totalRevisions: revisions.length, boundInstant: boundary.instant };
 }
 
@@ -134,11 +113,10 @@ export function applyRevisionBound(records: TranscriptRecord[], options: CliOpti
   if (options.untilRevision === undefined) {
     return records;
   }
-  const bound = truncateRecordsAtRevisionTurnEnd(records, options.untilRevision, options.untilNth);
+  const bound = trimRecordsAtRevisionTurnEnd(records, options.untilRevision, options.untilNth);
   const boundLabel = bound.boundInstant?.toISOString() ?? "end of transcript";
   process.stderr.write(
     `until-revision: ${options.untilRevision} revision ${options.untilNth}/${bound.totalRevisions}; bounded at ${boundLabel}; records ${bound.records.length}/${records.length}\n`,
   );
   return bound.records;
 }
-

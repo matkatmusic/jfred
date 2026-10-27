@@ -3,7 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { replayEvents } from "./reconstruction_replay.ts";
+import { collectRevisions } from "./reconstruction_replay.ts";
 import { fillRedirectContent, seedEditBaseFromBackup } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { insertElidedBeaconSeeds } from "./reconstruction_beacons.ts";
@@ -81,5 +81,5 @@ function computeFileRevisionsOver(
   const unelided = reader ? executeStageTolerantly("completeElidedBeacons", finalTarget, evidenced, insertElidedBeaconSeeds, records, evidenced, reader) : evidenced;
   const restaged = reader ? executeStageTolerantly("seedStaleEditBases", finalTarget, unelided, insertStaleEditBaseSeeds, records, unelided, reader) : unelided;
   const completed = reader ? executeStageTolerantly("completeTruncatedBeacon", finalTarget, restaged, appendTruncatedBeaconCompletion, records, restaged, reader) : restaged;
-  return replayEvents(completed);
+  return collectRevisions(completed);
 }

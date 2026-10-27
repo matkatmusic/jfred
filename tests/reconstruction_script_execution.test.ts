@@ -4,7 +4,7 @@ import {
     findScriptExecutionRuns,
     isScriptExecutionRun,
 } from "../src/reconstruction_script_execution.ts";
-import { replayEvents } from "../src/reconstruction_replay.ts";
+import { collectRevisions } from "../src/reconstruction_replay.ts";
 import { linesTextOf } from "../src/reconstruction_revisions.ts";
 import { BlockType, EventKind, ToolName } from "../src/structures/vocabulary.ts";
 import type { ToolUseBlock } from "../src/structures/content-blocks.ts";
@@ -34,7 +34,7 @@ test("test_replay_scriptExecution_emits_its_precomputed_content", () => {
             timestamp: new Date("2026-06-26T10:29:53.899Z"),
         },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     const final = revisions[revisions.length - 1]!;
     assert.equal(final.kind, EventKind.scriptExecution);
     assert.deepEqual(linesTextOf(final), ["def record_entry():", "    pass"]);

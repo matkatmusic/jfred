@@ -1,42 +1,9 @@
 // Revision builders for each replayed event kind.
 
 import { EventKind } from "./structures/vocabulary.ts";
-import {
-  splitLines,
-  genesisLine,
-  carryAt,
-  lastLinesOf,
-  fileIsPresent,
-} from "./reconstruction_replay_edit.ts";
-import type {
-  CopyEvent,
-  DeleteEvent,
-  FileEvent,
-  FileRevision,
-  LineEntry,
-  OverwriteEvent,
-  RenameEvent,
-  UserEditEvent,
-  WriteEvent,
-} from "./reconstruction_events.ts";
+import { splitLines, createGenesisLines, copyLinesForward, getLastLines, isFilePresent } from "./reconstruction_replay_edit.ts";
+import type { AppendEvent, CopyEvent, DeleteEvent, FileEvent, FileRevision, OverwriteEvent, RenameEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 import type { ScriptExecutionEvent } from "./reconstruction_script_execution.ts";
-
-function createGenesisLines(texts: string[], timestamp: Date): LineEntry[] {
-  const entries: LineEntry[] = [];
-  for (const text of texts) {
-    entries.push(genesisLine(text, timestamp));
-  }
-  return entries;
-}
-
-export function collectCarriedLines(revisions: FileRevision[]): LineEntry[] {
-  const carried: LineEntry[] = [];
-  const priorLines = lastLinesOf(revisions);
-  for (let index = 0; index < priorLines.length; index++) {
-    carried.push(carryAt(priorLines[index]!, index));
-  }
-  return carried;
-}
 
 // A write on an absent file creates; on a present file it overwrites. Content is all genesis.
 export function writeRevision(event: WriteEvent | OverwriteEvent, replacesPresent: boolean): FileRevision {
@@ -63,7 +30,7 @@ export function renameRevision(event: RenameEvent, revisions: FileRevision[]): F
     kind: EventKind.rename,
     changeId: event.changeId,
     timestamp: event.timestamp,
-    lines: collectCarriedLines(revisions),
+    lines: copyLinesForward(getLastLines(revisions)),
     rename: { from: event.from, to: event.to },
   };
 }
@@ -100,23 +67,40 @@ export function createScriptExecutionRevision(event: ScriptExecutionEvent): File
 }
 
 // A survived per-event failure: the prior lines carried forward, flagged with the reason.
-export function createUnrecoverableRevision(
-  event: FileEvent,
-  revisions: FileRevision[],
-  reason: string,
-): FileRevision {
+export function createUnrecoverableRevision(event: FileEvent, revisions: FileRevision[], reason: string): FileRevision {
   return {
     kind: event.kind,
     changeId: event.changeId,
     timestamp: event.timestamp,
-    lines: collectCarriedLines(revisions),
+    lines: copyLinesForward(getLastLines(revisions)),
     unrecoverable: { reason },
+  };
+}
+
+// A `>>` append keeps a present file's lines and adds the new tail; on an absent file it creates.
+export function appendRevision(event: AppendEvent, revisions: FileRevision[], present: boolean): FileRevision {
+  const newLines = splitLines(event.content);
+  if (!present) {
+    return {
+      kind: EventKind.write,
+      changeId: event.changeId,
+      timestamp: event.timestamp,
+      lines: createGenesisLines(newLines, event.timestamp),
+    };
+  }
+  const carried = copyLinesForward(getLastLines(revisions));
+  const appended = createGenesisLines(newLines.slice(carried.length), event.timestamp);
+  return {
+    kind: EventKind.append,
+    changeId: event.changeId,
+    timestamp: event.timestamp,
+    lines: [...carried, ...appended],
   };
 }
 
 function getLatestTexts(revisions: FileRevision[]): string[] {
   const texts: string[] = [];
-  for (const entry of lastLinesOf(revisions)) {
+  for (const entry of getLastLines(revisions)) {
     texts.push(entry.values[entry.values.length - 1]!.line);
   }
   return texts;
@@ -124,7 +108,7 @@ function getLatestTexts(revisions: FileRevision[]): string[] {
 
 // A user edit that matches the current file text records no change and is dropped.
 export function isUserEditChangingContent(event: UserEditEvent, revisions: FileRevision[]): boolean {
-  const isPresent = fileIsPresent(revisions);
+  const isPresent = isFilePresent(revisions);
   if (!isPresent) {
     return true;
   }

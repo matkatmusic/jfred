@@ -5,7 +5,8 @@ import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
 import { fetchText } from "../app-fetch.ts";
 import { resetDetailsFind } from "./details-find.ts";
 import { appendColumnsDiff, appendInlineDiff } from "../diff-render.ts";
-import { findRevisionForChangeId, splitDiffBlocks } from "./file-history-model.ts";
+import { findRevisionForChangeId } from "./file-history-model.ts";
+import { splitDiffBlocks } from "./file-history-diff-blocks.ts";
 import { computeRevisionDiffFallbackText } from "./timeline-labels-tags.ts";
 import { type FileChange } from "./timeline-types.ts";
 import {

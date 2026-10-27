@@ -1,4 +1,4 @@
-// Nested-repo discovery (task 365): finds nested git repos under a non-repo project root, feeding hydrateProjectSources's SourceEntry auto-population.
+// Nested-repo discovery (task 365): finds git repos under a non-repo project root.
 
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -10,27 +10,33 @@ import type { SourceEntry } from "./reconstruction_overrides.ts";
 const SKIPPED_DIR_NAMES = new Set([".git", "node_modules"]);
 
 // Every git repo at or below rootDir, depth-first, sorted per directory.
-export function discoverNestedRepos(rootDir: Path): Path[] {
+export function findNestedRepos(rootDir: Path): Path[] {
   const found: Path[] = [];
-  walkForGitRepos(rootDir.toString(), found);
+  scanForGitRepos(rootDir.toString(), found);
   return found;
 }
 
-function walkForGitRepos(dir: string, found: Path[]): void {
+function scanForGitRepos(dir: string, found: Path[]): void {
   // A configured cwd need not exist on this machine; readdirSync would throw ENOENT.
-  if (!existsSync(dir)) {
+  const dirExists = existsSync(dir);
+  if (!dirExists) {
     return;
   }
-  if (existsSync(join(dir, ".git"))) {
+  const hasGitEntry = existsSync(join(dir, ".git"));
+  if (hasGitEntry) {
     found.push(new Path(dir));
   }
-  const subdirNames = readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => !SKIPPED_DIR_NAMES.has(name))
-    .sort();
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const subdirNames: string[] = [];
+  for (const entry of entries) {
+    const isScannable = entry.isDirectory() && !SKIPPED_DIR_NAMES.has(entry.name);
+    if (isScannable) {
+      subdirNames.push(entry.name);
+    }
+  }
+  subdirNames.sort();
   for (const subdirName of subdirNames) {
-    walkForGitRepos(join(dir, subdirName), found);
+    scanForGitRepos(join(dir, subdirName), found);
   }
 }
 
@@ -40,11 +46,12 @@ function encodeProjectFolderName(projectFolder: string): string {
 }
 
 // Auto-populate a project's sources[] from its nested repos: a project whose configured cwd is not itself a repo, but contains nested repos each with a recorded Claude Code session at their own root, gets one SourceEntry per such nested repo. Empty when the cwd IS itself a repo (legacy single-source path — zero behavior change, the common case) or when no discovered repo has any matching recorded session.
-export function discoverSourceEntriesForProjectRoot(projectCwd: Path): SourceEntry[] {
-  if (existsSync(join(projectCwd.toString(), ".git"))) {
+export function findSourceEntriesForProjectRoot(projectCwd: Path): SourceEntry[] {
+  const cwdIsRepo = existsSync(join(projectCwd.toString(), ".git"));
+  if (cwdIsRepo) {
     return [];
   }
-  const nestedRepos = discoverNestedRepos(projectCwd);
+  const nestedRepos = findNestedRepos(projectCwd);
   if (nestedRepos.length === 0) {
     return [];
   }
@@ -52,10 +59,18 @@ export function discoverSourceEntriesForProjectRoot(projectCwd: Path): SourceEnt
   const sourceEntries: SourceEntry[] = [];
   for (const repoDir of nestedRepos) {
     const mangledProjectsDir = join(claudeProjectsRoot, encodeProjectFolderName(repoDir.toString()));
-    if (!existsSync(mangledProjectsDir)) {
+    const projectsDirExists = existsSync(mangledProjectsDir);
+    if (!projectsDirExists) {
       continue;
     }
-    const hasRecordedSession = readdirSync(mangledProjectsDir).some((name) => name.endsWith(".jsonl"));
+    const sessionFileNames = readdirSync(mangledProjectsDir);
+    let hasRecordedSession = false;
+    for (const name of sessionFileNames) {
+      if (name.endsWith(".jsonl")) {
+        hasRecordedSession = true;
+        break;
+      }
+    }
     if (!hasRecordedSession) {
       continue;
     }

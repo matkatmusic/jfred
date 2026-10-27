@@ -1,12 +1,12 @@
 // Base-text checks that decide whether an edit's base is stale.
 
 import type { Path } from "./structures/domain.ts";
-import { replayEvents } from "./reconstruction_replay.ts";
-import { lastLinesOf } from "./reconstruction_replay_edit.ts";
+import { collectRevisions } from "./reconstruction_replay.ts";
+import { getLastLines } from "./reconstruction_replay_edit.ts";
 import type { EditEvent, FileEvent } from "./reconstruction_events.ts";
 
 export function getReconstructedBaseText(priorEvents: FileEvent[]): string[] {
-  const entries = lastLinesOf(replayEvents(priorEvents));
+  const entries = getLastLines(collectRevisions(priorEvents));
   const lines: string[] = [];
   for (const entry of entries) {
     lines.push(entry.values[entry.values.length - 1]!.line);

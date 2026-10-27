@@ -12,7 +12,7 @@ import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
-import { truncateRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
+import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
 import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
@@ -52,7 +52,7 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
     // Task 194: the bound cut must happen BEFORE any engine work, like the CLI's --until-revision.
   const records = bound === undefined
     ? merged
-    : truncateRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
+    : trimRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
     // task 119: a previous build's aborted leftovers must not leak into this document's failures.
   clearReconstructionFailures();
   reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
@@ -108,7 +108,9 @@ export function buildReconstructionWithConsent(
     // Spec S6: sources ride the process-wide overrides, set by the caller before any build.
     const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
     // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
-    if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {
+    const hasBaseCommit = getPathOverrides().baseCommit !== undefined;
+    const isPreBaselineSkipped = !reconstructPreBaseline && hasBaseCommit;
+    if (isPreBaselineSkipped) {
       built.document.preBaselineSkipped = true;
     }
     // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.

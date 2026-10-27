@@ -1,8 +1,9 @@
 // Replay: turn a file's ordered events into its revisions. See reconstruction_engine.ts.
 
 import { EventKind } from "./structures/vocabulary.ts";
-import { applyEdit, appendRevision, fileIsPresent } from "./reconstruction_replay_edit.ts";
+import { applyEdit, isFilePresent } from "./reconstruction_replay_edit.ts";
 import {
+  appendRevision,
   copyRevision,
   createDeleteRevision,
   createScriptExecutionRevision,
@@ -30,7 +31,7 @@ function appendRevisionsForEvent(
   revisions: FileRevision[],
 ): void {
   if (event.kind === EventKind.write) {
-    revisions.push(writeRevision(event, fileIsPresent(revisions)));
+    revisions.push(writeRevision(event, isFilePresent(revisions)));
     return;
   }
   if (event.kind === EventKind.delete) {
@@ -50,11 +51,11 @@ function appendRevisionsForEvent(
     return;
   }
   if (event.kind === EventKind.overwrite) {
-    revisions.push(writeRevision(event, fileIsPresent(revisions)));
+    revisions.push(writeRevision(event, isFilePresent(revisions)));
     return;
   }
   if (event.kind === EventKind.append) {
-    revisions.push(appendRevision(event, revisions, fileIsPresent(revisions)));
+    revisions.push(appendRevision(event, revisions, isFilePresent(revisions)));
     return;
   }
   if (event.kind === EventKind.userEdit) {

@@ -1,6 +1,6 @@
-// View model for the split diff view: unified diff text -> left/right row structures, plus helpers shared with the inline view. Pure — no DOM.
+// Split diff view model: unified diff text to left/right rows, plus inline-view helpers.
 
-// Discriminates split-view rows: full-width (hunk headers, preamble, non-diff text) vs left/right pairs inside a hunk.
+// Split-view row kinds: full-width rows, or left/right pairs inside a hunk.
 export const SplitRowKind = Object.freeze({ full: "full", pair: "pair" } as const);
 
 type SplitCell = { text: string; lineClass: string; lineNumber?: number };
@@ -25,10 +25,11 @@ export function computeFullRowLineClass(line: string): string {
   return "";
 }
 
-// The standard numeric hunk header the server's context renderer emits inside a revision block; groups 1/2 are the 1-based old/new start lines that seed the gutter counters.  git omits ",count" when a side's count is 1, so each count is optional (item 51).  const NUMERIC_HUNK_HEADER = /^@@ -(\d+),\d+ \+(\d+),\d+ @@/;  // item 51: pre-git mandatory counts
+// Numeric hunk header: groups 1/2 are the old/new start lines; git omits a count of 1 (item 51).
+// const NUMERIC_HUNK_HEADER = /^@@ -(\d+),\d+ \+(\d+),\d+ @@/;
 export const NUMERIC_HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
-// A split-view cell; lineNumber is set only when a numeric hunk header has seeded that side.
+// lineNumber is set only when a numeric hunk header seeded that side.
 function buildSplitCell(text: string, lineClass: string, lineNumber: number | undefined): SplitCell {
   const cell: SplitCell = { text, lineClass };
   if (lineNumber !== undefined) {
@@ -37,7 +38,7 @@ function buildSplitCell(text: string, lineClass: string, lineNumber: number | un
   return cell;
 }
 
-// Pushes one zipped deletion/addition pair row; either side may be undefined when the runs have unequal lengths.
+// Pushes one zipped deletion/addition row; a side is undefined when its run is shorter.
 function pushPendingPairRow(rows: SplitRow[], pendingDeletions: SplitCell[], pendingAdditions: SplitCell[], pairIndex: number): void {
   rows.push({
     kind: SplitRowKind.pair,
@@ -46,7 +47,7 @@ function pushPendingPairRow(rows: SplitRow[], pendingDeletions: SplitCell[], pen
   });
 }
 
-// Unified diff text -> rows for the two-column split view. Deletion/addition runs are zipped row-by-row; the one-char unified prefix is stripped inside hunk cells; "@@ -a,b +c,d @@" headers seed the per-side line-number counters shown in the gutters.
+// Unified diff text to split rows: runs are zipped, prefixes stripped, hunk headers seed the gutter counters.
 export function computeSplitRows(diffText: string): SplitRow[] {
   const rows: SplitRow[] = [];
   let pendingDeletions: SplitCell[] = [];

@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTrailingNewline } from "../src/reconstruction_step_snapshot.ts";
-import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, findRevisionForChangeId, splitDiffBlocks } from "../webapp/views/file-history-model.ts";
+import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, findRevisionForChangeId } from "../webapp/views/file-history-model.ts";
+import { splitDiffBlocks } from "../webapp/views/file-history-diff-blocks.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 
 const S19_STEP_STATES_DIR = "scenarios/executed/s19-user-edit-conv-rewind/.step_states";

@@ -44,12 +44,13 @@ export type LinkMaps = {
 const linkMapsCache = new WeakMap<string[], LinkMaps>();
 
 export function computeLinkMaps(rawLines: string[]): LinkMaps {
-  if (linkMapsCache.has(rawLines)) {
-    return linkMapsCache.get(rawLines)!;
+  const cachedMaps = linkMapsCache.get(rawLines);
+  if (cachedMaps !== undefined) {
+    return cachedMaps;
   }
   const uuidToLine = new Map<string, number>();
   const toolIdToLines = new Map<string, number[]>();
-  rawLines.forEach((text, index) => {
+  for (const [index, text] of rawLines.entries()) {
     try {
       const uuid = (JSON.parse(text) as WireRecord).uuid;
       if (uuid !== undefined)
@@ -57,13 +58,13 @@ export function computeLinkMaps(rawLines: string[]): LinkMaps {
     }
     catch { /* a non-JSON line simply has no uuid */ }
     for (const match of text.matchAll(/toolu_[A-Za-z0-9_]+/g)) {
-      if (!toolIdToLines.has(match[0]))
-        toolIdToLines.set(match[0], []);
-      const lines = toolIdToLines.get(match[0])!;
-      if (!lines.includes(index))
+      const lines = toolIdToLines.get(match[0]) ?? [];
+      toolIdToLines.set(match[0], lines);
+      const hasLine = lines.includes(index);
+      if (!hasLine)
         lines.push(index);
     }
-  });
+  }
   const maps = { uuidToLine, toolIdToLines };
   linkMapsCache.set(rawLines, maps);
   return maps;
@@ -71,8 +72,13 @@ export function computeLinkMaps(rawLines: string[]): LinkMaps {
 
 // A link never points at the line being shown.
 export function findJumpTarget(value: string, currentLine: number, maps: LinkMaps): number | undefined {
-  if (value.startsWith("toolu_")) {
-    return maps.toolIdToLines.get(value)?.find((line) => line !== currentLine);
+  const isToolId = value.startsWith("toolu_");
+  if (isToolId) {
+    for (const line of maps.toolIdToLines.get(value) ?? []) {
+      if (line !== currentLine)
+        return line;
+    }
+    return undefined;
   }
   const line = maps.uuidToLine.get(value);
   return line !== undefined && line !== currentLine ? line : undefined;
@@ -102,18 +108,24 @@ export function findBackupTimeForBlob(record: WireValue, blobName: string): stri
 export function computeSnapshotHistoryAnchor(
   filesTouched: WireFileHistory[], relativePath: string, backupTime: string | undefined,
 ): WireRevisionLink | undefined {
-  const history = filesTouched.find(
-    (entry) => entry.target === relativePath || entry.target.endsWith(`/${relativePath}`),
-  );
+  let history: WireFileHistory | undefined;
+  for (const entry of filesTouched) {
+    const endsWithPath = entry.target.endsWith(`/${relativePath}`);
+    const isMatch = entry.target === relativePath || endsWithPath;
+    if (isMatch) {
+      history = entry;
+      break;
+    }
+  }
   if (history === undefined) {
     return undefined;
   }
   let revisionNumber: number | undefined;
-  history.revisions.forEach((revision, index) => {
-    if (backupTime !== undefined && revision.timestamp <= backupTime) {
+  for (const [index, revision] of history.revisions.entries()) {
+    const isAtOrBeforeBackup = backupTime !== undefined && revision.timestamp <= backupTime;
+    if (isAtOrBeforeBackup)
       revisionNumber = index + 1;
-    }
-  });
+  }
   return { target: history.target, revisionNumber };
 }
 
@@ -124,39 +136,4 @@ export function computeBlobRequestUrl(sessionId: string, blobName: string): stri
 export function computeRevisionLinkRoute(project: string, { target, revisionNumber }: WireRevisionLink): string {
   const base = routeToFileHistory(project, target);
   return revisionNumber === undefined ? base : `${base}/rev/${revisionNumber}`;
-}
-
-function findToolUseIdentity(value: WireValue): { toolUseId: string | undefined; recordUuid: string | undefined } | undefined {
-  if (value === null) {
-    return undefined;
-  }
-  if (typeof value !== "object") {
-    return undefined;
-  }
-  if (value.type !== "assistant") {
-    return undefined;
-  }
-  const content = value.message?.content;
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-  const toolUse = content.find((block) => block.type === "tool_use");
-  if (toolUse === undefined) {
-    return undefined;
-  }
-  return { toolUseId: toolUse.id, recordUuid: value.uuid };
-}
-
-// Older transcripts lack sourceToolAssistantUUID, so the tool_result's tool_use_id is the fallback.
-export function findToolNavigationTargets(rawLines: string[], value: WireValue): { hookLine: number; resultLine: number } | undefined {
-  const toolUse = findToolUseIdentity(value);
-  if (toolUse === undefined) {
-    return undefined;
-  }
-  const hookLine = rawLines.findIndex((text) => text.includes(`"toolUseID":"${toolUse.toolUseId}"`));
-  let resultLine = rawLines.findIndex((text) => text.includes(`"sourceToolAssistantUUID":"${toolUse.recordUuid}"`));
-  if (resultLine < 0) {
-    resultLine = rawLines.findIndex((text) => text.includes(`"tool_use_id":"${toolUse.toolUseId}"`));
-  }
-  return { hookLine, resultLine };
 }

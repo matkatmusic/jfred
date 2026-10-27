@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { truncateRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
+import { trimRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
 import { executeCli } from "../src/reconstruction_cli.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -68,14 +68,14 @@ function makeBoundFixture(options: { withFinalPrompt: boolean; withSidechainProm
 test("test_bound_reports_total_revision_count", () => {
     // Scenario: the total revision count covers the FULL stream regardless of where the bound cuts.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
-    const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.totalRevisions, 3);
 });
 
 test("test_bound_truncates_after_containing_turn_end", () => {
     // Scenario: the bound is the containing turn's end, not the revision instant; a same-turn later revision must stay in.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
-    const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.records.length, 5);
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));
     assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:05:00.000Z");
@@ -103,29 +103,29 @@ test("test_bound_instant_reports_turn_end_not_last_record", () => {
         ...writeBeta.records,
         buildPromptRecord("prompt-a2", writeAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
     ]);
-    const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
     assert.equal(bound.boundInstant?.toISOString(), "2026-07-23T10:08:00.000Z");
 });
 
 test("test_bound_same_turn_ordinals_share_a_bound", () => {
     // Scenario: revisions 1 and 2 live in the same turn, so both ordinals cut at the same place.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
-    const first = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
-    const second = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 2);
+    const first = trimRecordsAtRevisionTurnEnd(records, alphaPath, 1);
+    const second = trimRecordsAtRevisionTurnEnd(records, alphaPath, 2);
     assert.equal(second.records.length, first.records.length);
 });
 
 test("test_bound_later_ordinal_truncates_before_next_prompt", () => {
     // Scenario: revision 3 lives in turn 2; the cut lands just before prompt3.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
-    const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 3);
+    const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 3);
     assert.equal(bound.records.length, records.length - 1);
 });
 
 test("test_bound_final_turn_revision_keeps_all_records", () => {
     // Scenario: the chosen revision sits in the final turn — nothing to cut, boundInstant undefined.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: false, withSidechainPrompt: false });
-    const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 3);
+    const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 3);
     assert.equal(bound.records.length, records.length);
     assert.equal(bound.boundInstant, undefined);
 });
@@ -134,7 +134,7 @@ test("test_bound_rejects_out_of_range_ordinal", () => {
     // Scenario: an out-of-range ordinal fails loudly, and the message teaches the valid range.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     assert.throws(
-        () => truncateRecordsAtRevisionTurnEnd(records, alphaPath, 9),
+        () => trimRecordsAtRevisionTurnEnd(records, alphaPath, 9),
         (error: Error) => error.message.includes("1..3") && error.message.includes(alphaPath.toString()),
     );
 });
@@ -143,7 +143,7 @@ test("test_bound_rejects_unknown_target", () => {
     // Scenario: a never-touched path has no revisions to bound at.
     const { records } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     assert.throws(
-        () => truncateRecordsAtRevisionTurnEnd(records, new Path("/nowhere/ghost.py"), 1),
+        () => trimRecordsAtRevisionTurnEnd(records, new Path("/nowhere/ghost.py"), 1),
         (error: Error) => error.message.includes("no revisions"),
     );
 });
@@ -186,7 +186,7 @@ test("test_cli_until_revision_bounds_all_views", () => {
 test("test_bound_ignores_sidechain_prompts", () => {
     // Scenario: a subagent's opening prompt inside turn 1 is not a turn boundary; the cut still lands before prompt2.
     const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: true });
-    const bound = truncateRecordsAtRevisionTurnEnd(records, alphaPath, 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.records.length, 6);
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));
 });

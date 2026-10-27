@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { replayEvents } from "../src/reconstruction_replay.ts";
+import { collectRevisions } from "../src/reconstruction_replay.ts";
 // The shared replay helpers now live in their own module (Task 1 split).
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
@@ -37,7 +37,7 @@ test("test_replay_of_a_write_event_yields_one_genesis_revision", () => {
             timestamp,
         },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // One revision, of write kind, with the two content lines born here.
     assert.equal(revisions.length, 1);
     assert.equal(revisions[0]!.kind, EventKind.write);
@@ -56,7 +56,7 @@ test("test_second_write_to_a_present_file_is_an_overwrite", () => {
         { kind: EventKind.write, changeId: new Uuid("w1"), target, content: "def version1():\n    return 1\n", timestamp: t0 },
         { kind: EventKind.write, changeId: new Uuid("w2"), target, content: "def version2():\n    return 2\n", timestamp: t1 },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // Two revisions: the create, then the overwrite.
     assert.equal(revisions.length, 2);
     // The first write is a create (the file was absent before it).
@@ -80,7 +80,7 @@ test("test_append_event_carries_prior_lines_and_adds_a_genesis_tail", () => {
         { kind: EventKind.write, changeId: new Uuid("w1"), target, content: "line one\n", timestamp: t0 },
         { kind: EventKind.append, changeId: new Uuid("a1"), target, content: "line one\nline two\n", timestamp: t1 },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // Two revisions: the create, then the append.
     assert.equal(revisions.length, 2);
     assert.equal(revisions[0]!.kind, EventKind.write);
@@ -104,7 +104,7 @@ test("test_overwrite_event_against_present_file_is_an_overwrite", () => {
         { kind: EventKind.write, changeId: new Uuid("w1"), target, content: "line one\n", timestamp: t0 },
         { kind: EventKind.overwrite, changeId: new Uuid("o1"), target, content: "replaced content\n", timestamp: t1 },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // The second revision is an overwrite, all genesis (a wholesale replace).
     assert.equal(revisions[1]!.kind, EventKind.overwrite);
     assert.ok(revisions[1]!.lines.every((entry) => entry.oldLineNum === DOES_NOT_EXIST_YET));
@@ -112,7 +112,7 @@ test("test_overwrite_event_against_present_file_is_an_overwrite", () => {
 });
 
 // An unsupported event kind no longer kills the file: replay survives it as an unrecoverable placeholder revision naming the kind in its reason.
-test("test_replayEvents_emits_unrecoverable_placeholder_when_an_event_kind_is_unsupported", () => {
+test("test_collectRevisions_emits_unrecoverable_placeholder_when_an_event_kind_is_unsupported", () => {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");
     const target = new Path("/a/partial.py");
@@ -120,7 +120,7 @@ test("test_replayEvents_emits_unrecoverable_placeholder_when_an_event_kind_is_un
         { kind: EventKind.write, changeId: new Uuid("w1"), target, content: "x\ny\n", timestamp: t0 },
         { kind: "bogus-kind", changeId: new Uuid("b1"), timestamp: t1 } as unknown as FileEvent,
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // Two revisions: the create, then the placeholder for the event that could not replay.
     assert.equal(revisions.length, 2);
     assert.equal(revisions[0]!.unrecoverable, undefined);
@@ -146,7 +146,7 @@ test("test_unrecoverable_placeholder_carries_previous_lines_forward", () => {
             timestamp: t2,
         },
     ];
-    const revisions = replayEvents(events);
+    const revisions = collectRevisions(events);
     // Create, placeholder, then the edit's addition — three revisions.
     assert.equal(revisions.length, 3);
     // The placeholder's line text is the write's content carried forward.
@@ -175,7 +175,7 @@ test("test_replay_appends_copy_genesis_revision_from_seed_lines", () => {
         timestamp: new Date("2026-06-18T16:16:27.224Z"),
     };
     // Replaying just the copy yields one revision.
-    const revisions = replayEvents([copy]);
+    const revisions = collectRevisions([copy]);
     assert.equal(revisions.length, 1);
     // It is a copy revision carrying the from/to provenance.
     assert.equal(revisions[0]!.kind, EventKind.copy);

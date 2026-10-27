@@ -1,4 +1,4 @@
-// Task 292: per picked JSONL, a bar for the session extent and a wash over the timeline stretch it covers.
+// Task 292: per picked JSONL, a session bar and a wash over the timeline it covers.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { RULER_NODE_ROW_PIXELS } from "./layer1-ruler-axis.ts";
@@ -108,7 +108,7 @@ function markTicksInsideBands(bands: readonly AxisBand[]): void {
   }
 }
 
-// One session's bar, band and wash. `slot` is the lane the 7 px bar occupies, so picked sessions never overlap.
+// One session's bar, band and wash; `slot` is its lane so bars never overlap.
 function buildSessionMarks(session: WireSession, slot: number, ticks: readonly WireRulerTick[]): SessionMarks {
   const fromPx = computeAxisPixelsAt(Date.parse(session.started), ticks);
   const toPx = computeAxisPixelsAt(Date.parse(session.ended), ticks);

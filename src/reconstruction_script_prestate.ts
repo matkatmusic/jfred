@@ -25,13 +25,17 @@ import {
 
 // Whether the script could change files; unparseable code counts as may-write. ponytail: raw-text scan, aliased builtins evade it.
 export function isScriptCodeWriteCapable(code: string): boolean {
-  if (shellWritePrimitive.test(code))
+  const hasShellWrite = shellWritePrimitive.test(code);
+  if (hasShellWrite)
     return true;
-  if (pythonWritePrimitive.test(code))
+  const hasPythonWrite = pythonWritePrimitive.test(code);
+  if (hasPythonWrite)
     return true;
-  if (!isEveryImportReadOnlySafe(code))
+  const hasOnlySafeImports = isEveryImportReadOnlySafe(code);
+  if (!hasOnlySafeImports)
     return true;
-  if (!isEveryOpenCallRead(code))
+  const hasOnlyReadOpens = isEveryOpenCallRead(code);
+  if (!hasOnlyReadOpens)
     return true;
   return false;
 }
@@ -43,15 +47,20 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
       if (block.type !== BlockType.tool_use)
         continue;
       if (block.name === ToolName.Write) {
-        if (erroredIds.has(block.id.toString()))
+        const isErrored = erroredIds.has(block.id.toString());
+        if (isErrored)
           continue;
         const { filePath } = readWriteInput(block);
-        if (extractPathBasename(filePath.toString()) === basename)
+        const writeBasename = extractPathBasename(filePath.toString());
+        if (writeBasename === basename)
           return filePath;
         continue;
       }
       const filePath = (block.input as { file_path?: string }).file_path;
-      if (filePath !== undefined && extractPathBasename(filePath) === basename)
+      if (filePath === undefined)
+        continue;
+      const inputBasename = extractPathBasename(filePath);
+      if (inputBasename === basename)
         return new Path(filePath);
     }
   }
@@ -61,8 +70,13 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
 
 // All file-path-like quoted strings in the script source (e.g. "billing.py", "renames.csv").
 export function parseScriptFileRefs(code: string): string[] {
-  const matches = code.match(quotedFilename) ?? [];
-  return [...new Set(matches.map((m) => m.slice(1, -1)))];
+  const matches = code.match(quotedFilename);
+  const refs = new Set<string>();
+  if (matches === null)
+    return [];
+  for (const quoted of matches)
+    refs.add(quoted.slice(1, -1));
+  return [...refs];
 }
 
 // Undefined when the lineage has no revision strictly before that instant.
@@ -72,7 +86,8 @@ export type LineageContentBefore = (target: Path, before: Date) => string | unde
 export function computeScriptStateKey(filePath: Path, runCwd: Path | undefined): string {
   if (runCwd !== undefined) {
     const cwdRelativePath = relative(runCwd.toString(), filePath.toString());
-    if (cwdRelativePath !== "" && !cwdRelativePath.startsWith("..")) {
+    const isInsideCwd = cwdRelativePath !== "" && !cwdRelativePath.startsWith("..");
+    if (isInsideCwd) {
       return cwdRelativePath;
     }
   }
@@ -96,7 +111,8 @@ export function getPreExecutionState(
   for (const event of events) {
     if (event.kind !== EventKind.write)
       continue;
-    if (event.timestamp.getTime() > run.timestamp.getTime())
+    const isAfterRun = event.timestamp.getTime() > run.timestamp.getTime();
+    if (isAfterRun)
       continue;
     const currentPath = resolveFinalPath(event.target, renameChain);
     const pathKey = currentPath.toString();
@@ -112,7 +128,8 @@ export function getPreExecutionState(
     state.set(computeScriptStateKey(currentPath, run.cwd), content);
   }
   for (const ref of parseScriptFileRefs(run.code)) {
-    if (state.has(ref))
+    const isAlreadySeeded = state.has(ref);
+    if (isAlreadySeeded)
       continue;
     const absolutePath = findPathByBasename(records, extractPathBasename(ref));
     if (absolutePath === undefined)

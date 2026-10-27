@@ -9,15 +9,14 @@ import {
 import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { routeToFileHistory } from "../app-routes.ts";
+import { computeSplitRows, SplitRowKind } from "../diff-vs-base-model.ts";
+import { computeInlineRows } from "../diff-inline-rows.ts";
 import {
-  computeInlineRows,
-  computeSplitRows,
   DIFF_MODE_STORAGE_KEY,
   DiffDisplayMode,
-  resolveInitialDiffDisplayMode,
-  SplitRowKind,
+  computeInitialDiffDisplayMode,
   type DiffDisplayModeValue,
-} from "../diff-vs-base-model.ts";
+} from "../diff-display-mode.ts";
 import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, type WireDocument as WireFileHistoryDocument } from "./file-history-model.ts";
 
 // app.ts is typed in parallel; a precise local signature for `createElement` until then.
@@ -47,7 +46,7 @@ function writeStoredDiffMode(mode: DiffDisplayModeValue): void {
   localStorage.setItem(DIFF_MODE_STORAGE_KEY, mode);
 }
 
-let diffDisplayMode = resolveInitialDiffDisplayMode(readStoredDiffMode());
+let diffDisplayMode = computeInitialDiffDisplayMode(readStoredDiffMode());
 
 // Inline view as a 3-column grid: old number | new number | raw unified line (item 40); the text column wraps instead of overflowing the pane (item 39). Hunk-header rows span all columns as muted "@@ -a,b +c,d @@" text, matching the split view (item 36c).
 function renderInlineDiffLines(pane: HTMLElement, diffText: string): void {

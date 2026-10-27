@@ -3,8 +3,8 @@
 import {
   DIFF_MODE_STORAGE_KEY,
   DiffDisplayMode,
-  resolveInitialDiffDisplayMode,
-} from "../diff-vs-base-model.ts";
+  computeInitialDiffDisplayMode,
+} from "../diff-display-mode.ts";
 import {
   COMMIT_NODE_KIND,
   type TimelineNode,
@@ -144,7 +144,7 @@ export function computeOwningNodeIndexes(cards: RevisionCard[], nodes: TimelineN
 
 // The stored diff-vs-base vocabulary mapped onto the fork toggle: "split" (and the absent / garbage default) reads Columns, "inline" reads Inline — one storage key, two vocabularies.
 export function mapStoredDiffModeToToggle(stored: string | undefined): DiffToggleLabel {
-  if (resolveInitialDiffDisplayMode(stored) === DiffDisplayMode.split) {
+  if (computeInitialDiffDisplayMode(stored) === DiffDisplayMode.split) {
     return "columns";
   }
   return "inline";

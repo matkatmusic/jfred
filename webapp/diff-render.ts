@@ -1,7 +1,8 @@
 // Task 305: diff renderers shared by the details pane and Layer 1 drawer; imports no webapp/views/ code.
 
 import { createElement } from "./app-dom.ts";
-import { SplitRowKind, computeInlineRows, computeSplitRows } from "./diff-vs-base-model.ts";
+import { SplitRowKind, computeSplitRows } from "./diff-vs-base-model.ts";
+import { computeInlineRows } from "./diff-inline-rows.ts";
 import { computeLanguageForPath } from "./highlight.ts";
 
 // Colour one cell's code through the vendored hljs global; plain text without it (renderCodeInto's guard).
