@@ -6,11 +6,7 @@ import { deriveCommitChangedFiles } from "./timeline-commit-files.ts";
 import { applyRenameBadgeLabels } from "./timeline-file-badges.ts";
 import { buildFileTree } from "./timeline-file-tree.ts";
 import { buildFilesSidebarViewModel, type FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
-import {
-  type FileChange,
-  type TimelineNode,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { type FileChange, type TimelineNode, type WireTimelineDocument } from "./timeline-types.ts";
 import { type DetailsContext, isChangeIdGitBaseline, computeDetailsHeaderText } from "./details-model.ts";
 import { isFullContentsOn } from "./details-stored-choices.ts";
 import { showGitBaselineInDetails } from "./details-baseline.ts";

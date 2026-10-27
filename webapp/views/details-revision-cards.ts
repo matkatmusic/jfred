@@ -60,18 +60,32 @@ export function buildRevisionActionsElement(
   revisionContents: ReturnType<typeof buildFileHistoryViewModel>["revisions"],
   getDiffBlocks: (full: boolean) => Promise<string[]>,
 ): HTMLElement {
+  function openRevisionContent(): void {
+    showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
+  }
+  function exportRevisionVersion(): void {
+    downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "");
+  }
+  async function copyRevisionPatch(): Promise<void> {
+    const diffBlocks = await getDiffBlocks(isFullContentsOn());
+    await navigator.clipboard.writeText(diffBlocks[index] ?? "");
+  }
+  async function exportRevisionPatch(): Promise<void> {
+    const diffBlocks = await getDiffBlocks(isFullContentsOn());
+    downloadText(`${baseName}.rev${card.revisionNumber}.patch`, diffBlocks[index] ?? "");
+  }
   return createElement("div", { class: "rev-actions" }, [
-    buildActionButton("Show content", () => showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content)),
-    buildActionButton("Export this version", () => downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "")),
-    buildActionButton("Copy patch", async () => navigator.clipboard.writeText((await getDiffBlocks(isFullContentsOn()))[index] ?? "")),
-    buildActionButton("Export .patch", async () => downloadText(`${baseName}.rev${card.revisionNumber}.patch`, (await getDiffBlocks(isFullContentsOn()))[index] ?? "")),
-    buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
-    // item 84: the ONLY route to a file-modifying event's JSON. The timeline chip's { } delegates here, so this is load-bearing for the unification rule, not a nicety — without it the Revision View has no JSON route at all.
-    buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+    buildActionButton("Show content", openRevisionContent),
+    buildActionButton("Export this version", exportRevisionVersion),
+    buildActionButton("Copy patch", copyRevisionPatch),
+    buildActionButton("Export .patch", exportRevisionPatch),
+    buildJumpButton(buildActionButton, context, card),
+    // item 84: the only route to a file-modifying event's JSON; the timeline chip delegates here.
+    buildJsonButton(buildActionButton, context, card),
   ]);
 }
 
-// task 119: an unrecoverable placeholder's card — dashed "rev N ✗" head. task 129: the .why line says which revision (of how many) failed to apply which operation; the raw engine error survives as the hover title. task 130: ONLY the jump + { } actions — the placeholder's lines are the prior revision carried forward, so content/export/patch actions would lie.
+// task 130: an unrecoverable placeholder card offers only jump and { }; its lines are carried forward.
 export function buildMissingRevisionCard(
   buildActionButton: (text: string, onActivate: () => unknown) => HTMLElement,
   context: DetailsContext,
@@ -89,8 +103,8 @@ export function buildMissingRevisionCard(
       text: `rev ${card.revisionNumber} (of ${revisionCount}) failed to apply ${card.opLabel}`,
     }),
     createElement("div", { class: "rev-actions" }, [
-      buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
-      buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+      buildJumpButton(buildActionButton, context, card),
+      buildJsonButton(buildActionButton, context, card),
     ]),
   ]);
 }
