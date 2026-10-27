@@ -25,7 +25,7 @@ function findSnapshotOwner(turnNodes: TurnNode[], snapshot: SnapshotInstant): Tu
   return undefined;
 }
 
-// Each snapshot goes to the first owner turn; ownerless ones share one synthetic turn per session; gitBase-only steps go to the baseline host.
+// Snapshots go to their owner turn; ownerless ones share a synthetic turn per session.
 export function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], commitNodes: CommitNode[], steps: WireStepSnapshot[]): void {
   const syntheticTurns = new Map<string | undefined, TurnNode>();
   let baselineHost: TurnNode | CommitNode | undefined;

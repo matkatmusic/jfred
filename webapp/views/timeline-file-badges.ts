@@ -77,7 +77,8 @@ function findGrowableBadges(group: RenameBadge[]): RenameBadge[] {
 export function findScriptRenameSource(document: WireTimelineDocument, target: string): string | undefined {
   for (const run of document.scriptRuns ?? []) {
     for (const pair of run.renamedPaths ?? []) {
-      if (isRenamePairNamingTarget(pair, target)) {
+      const namesTarget = isRenamePairNamingTarget(pair, target);
+      if (namesTarget) {
         return pair.from;
       }
     }

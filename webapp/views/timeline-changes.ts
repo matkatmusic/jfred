@@ -87,7 +87,7 @@ export function buildRevisionIndex(document: WireTimelineDocument): RevisionInde
   return index;
 }
 
-// A step's file chips: changeIds resolved via the revision index, deduped by path; unresolved paths fall back to edit chips.
+// A step's file chips, deduped by path; unresolved changed paths become edit chips.
 export function computeFileChanges(step: WireStepSnapshot, revisionIndex: RevisionIndex): FileChange[] {
   const changes: FileChange[] = [];
   const seenPaths = new Set();
@@ -122,7 +122,7 @@ export function computeFileChanges(step: WireStepSnapshot, revisionIndex: Revisi
   return changes;
 }
 
-// The file route a chip's revision jumps to, or undefined (no changeId, not a backup blob, or no surviving revision number).
+// The file route a chip jumps to, or undefined when no snapshot-backed revision exists.
 export function computeSnapshotJumpRoute(project: string, filesTouched: WireFileHistory[], change: { path: string; changeId?: string }): string | undefined {
   if (change.changeId === undefined) {
     return undefined;
