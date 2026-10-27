@@ -2,7 +2,7 @@
 
 import { getInputById } from "./app-dom.ts";
 import { pickFolderInto } from "./app-header.ts";
-import { resolveDefaultCommitLabel } from "./app-paths-summary.ts";
+import { getDefaultCommitLabel } from "./app-paths-summary.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 
 // The popover faces the state machine swaps between (one visible at a time).
@@ -57,7 +57,7 @@ function fillCommitScreen(projectName: string | undefined): void {
   function writeUnreadableLabel(): void {
     label.textContent = "Default: (repo unreadable)";
   }
-  const labelPromise = resolveDefaultCommitLabel(projectName);
+  const labelPromise = getDefaultCommitLabel(projectName);
   const resolvedPromise = labelPromise.then(writeResolvedLabel);
   resolvedPromise.catch(writeUnreadableLabel);
 }

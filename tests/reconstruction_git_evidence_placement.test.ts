@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { applyGitCommitEvidence } from "../src/reconstruction_git_placement.ts";
-import { injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { applyScriptExecutions } from "../src/reconstruction_script_stage.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -45,7 +45,7 @@ test("test_gitCommitEvidence_places_an_unexplained_diff_between_the_move_and_the
             buildToolRecord(ToolName.Bash, { command: `git -C ${repo} commit -m post-rename` }, "2026-01-01T00:00:19Z", repo),
         ];
         const target = new Path(join(repo, "core_two.py"));
-        const events = injectScriptExecutions(records, [], emptyReader, target);
+        const events = applyScriptExecutions(records, [], emptyReader, target);
         assert.equal(events.length, 2);
         const placed = applyGitCommitEvidence(records, events, emptyReader, target);
         assert.equal(placed.length, 3);

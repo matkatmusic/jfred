@@ -6,33 +6,31 @@ import { Window } from "happy-dom";
 // writeln must invoke its completion callback so app-console's scroll-in-callback pattern still runs.
 class FakeXtermTerminal {
   open(_parent: unknown): void {}
-  writeln(_text: string, done?: () => void): void {
+  writeln = (_text: string, done?: () => void): void => {
     done?.();
-  }
-  scrollToBottom(): void {}
+  };
+  scrollToBottom = (): void => {};
   clear(): void {}
   loadAddon(_addon: unknown): void {}
-  onSelectionChange(_callback: () => void): void {}
+  onSelectionChange = (_callback: () => void): void => {};
   getSelection(): string {
     return "";
   }
   registerLinkProvider(_provider: unknown): void {}
-  resize(_columns: number, _rows: number): void {}
+  resize = (_columns: number, _rows: number): void => {};
 }
 
-// proposeDimensions returning undefined makes fitProgressColumns a no-op.
+// proposeDimensions returning undefined makes updateProgressSize a no-op.
 class FakeXtermFitAddon {
-  fit(): void {}
-  proposeDimensions(): undefined {
-    return undefined;
-  }
+  fit = (): void => {};
+  proposeDimensions = (): undefined => undefined;
 }
 
 // Observer behavior is never under test, so a deterministic no-op beats happy-dom's implementation.
 class FakeResizeObserver {
-  observe(_target: unknown): void {}
-  unobserve(_target: unknown): void {}
-  disconnect(): void {}
+  observe = (_target: unknown): void => {};
+  unobserve = (_target: unknown): void => {};
+  disconnect = (): void => {};
 }
 
 // Uses the real markup so every id exists with its real attributes (including popovers' `hidden`).

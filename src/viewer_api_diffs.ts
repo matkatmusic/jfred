@@ -5,7 +5,8 @@ import type { ReconstructionDocument } from "./reconstruction_json.ts";
 import type { StepSnapshot } from "./reconstruction_json_steps.ts";
 import { computeFilesAtStep } from "./reconstruction_steps.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
-import { renderDiffWithContext, renderGitFileDiff } from "./reconstruction_render_unified.ts";
+import { renderDiffWithContext } from "./reconstruction_render_unified.ts";
+import { renderGitFileDiff } from "./reconstruction_render_git_patch.ts";
 import type { Path } from "./structures/domain.ts";
 
 // The document's reconstructed history for one file, or a loud error naming the path.

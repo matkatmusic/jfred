@@ -20,7 +20,7 @@ import { resolveChipLineLocations, resolveLineLabels } from "./timeline-render-i
 import { renderTimelineFilterBar } from "./timeline-render-filterbar.ts";
 import { buildTimelineRows } from "./timeline-render-rows.ts";
 import { renderSelectbarButtons } from "./timeline-render-selectbar.ts";
-import { wireFileNavButtons, wireToggleAllButton } from "./timeline-render-selection.ts";
+import { attachFileNavButtons, attachToggleAllButton } from "./timeline-render-selection.ts";
 import { buildSessionsSidebarViewModel, waitForNextAnimationFrame } from "./timeline-sessions.ts";
 import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 import { buildSessionColors, fetchProjectListing, formatTimelineSummary } from "./timeline-view-setup.ts";
@@ -78,8 +78,8 @@ export async function renderTimelineView(container: HTMLElement, project: string
   await resolveChipLineLocations(context);
   await buildTimelineRows(context, container);
   renderTimelineFilterBar(context, document.getElementById("timeline-filter-bar")!);
-  wireToggleAllButton(context);
-  wireFileNavButtons(context);
+  attachToggleAllButton(context);
+  attachFileNavButtons(context);
 
   // Fork sidebar: the Sessions + Files panes in the static #drawer.
   renderForkSidebar(

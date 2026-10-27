@@ -1,7 +1,7 @@
 // The drawer overlay for a project's jsonl/file sub-routes, plus the details-pane reset that every route change runs first.
 
 import { openInspectorPane } from "./inspector-pane.ts";
-import { peekCachedDocument } from "./app-fetch.ts";
+import { getCachedDocument } from "./app-fetch.ts";
 import { renderConversationView } from "./views/conversation.ts";
 import { computeFileRouteFocus } from "./views/details-model.ts";
 import { renderDetailsFileMode } from "./views/details-revision-view.ts";
@@ -21,7 +21,7 @@ function renderFileRouteInRevisionView(target: string, segments: string[]): void
 
 // Render the route's view into the inspector pane; no drawer until a document is cached.
 export async function renderSubRouteDrawer(project: string, segments: string[]): Promise<void> {
-  const cachedDocument = peekCachedDocument(project);
+  const cachedDocument = getCachedDocument(project);
   if (cachedDocument === undefined) {
     return;
   }
@@ -46,7 +46,7 @@ export async function renderSubRouteDrawer(project: string, segments: string[]):
       renderContent = (content: HTMLElement) => renderDiffVsBaseView(content, project, target, segments[5]);
     }
     else {
-      // task 93: the File History view is retired; the Revision View sets its own header, so the tail must not run.
+      // task 93: the File History view is retired; the Revision View sets its own header.
       // headerText = `File history — ${target}`;
       // renderContent = (content: HTMLElement) => renderFileHistoryView(content, project, target, segments[4] === "rev" ? segments[5] : undefined);
       renderFileRouteInRevisionView(target, segments);

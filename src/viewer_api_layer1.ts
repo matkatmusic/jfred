@@ -4,7 +4,7 @@ import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
-import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
 import { collectViewSnapshotsByRelativePath, listSnapshotInstants } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
@@ -94,7 +94,7 @@ export function buildLayer1View(
     ladders.push([file.mtime, ...listSnapshotInstants(listSnapshotsFor(file.relativePath))]);
   }
   const reportRulerProgress = (done: number, total: number): void => reportStage(reportProgress, LAYER1_PROGRESS_LABEL_RESOLVING_RULER, done, total);
-  const layout = layOutNodeLadders(ladders, new Map(), reportRulerProgress);
+  const layout = computeNodeLadderLayout(ladders, new Map(), reportRulerProgress);
   const offsets = new Map<number, number>();
   const ruler: Layer1WireView["ruler"] = [];
   for (const tick of layout.ticks) {

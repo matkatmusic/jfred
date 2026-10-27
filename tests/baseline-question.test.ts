@@ -54,13 +54,13 @@ test("test_clear_baseline_choice_removes_the_stored_answer", async () => {
 
 test("test_drop_project_documents_evicts_only_that_projects_cache_entries", async () => {
     initWebappDom();
-    const { documentCache, dropProjectDocuments } = await import("../webapp/app-fetch.ts");
+    const { documentCache, clearProjectDocuments } = await import("../webapp/app-fetch.ts");
     // Step: seed cache entries for two projects (the whole-project and one per-jsonl key).
     documentCache.clear();
     documentCache.set("proj|*", {} as never);
     documentCache.set("proj|a.jsonl", {} as never);
     documentCache.set("other|*", {} as never);
     // Step: dropping `proj` leaves only the other project's entry.
-    dropProjectDocuments("proj");
+    clearProjectDocuments("proj");
     assert.deepEqual([...documentCache.keys()], ["other|*"]);
 });

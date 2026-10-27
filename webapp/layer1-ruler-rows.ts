@@ -1,10 +1,4 @@
-// What the Layer 1 ruler gutter actually DRAWS (tasks 268 and 275); split from the capped layer1-page.ts.
-//
-// An ENTRY is one distinct instant (each keeps its leader line); a ROW is what the gutter PRINTS.
-//
-// Entries share a row when they print the SAME text (task 306: unreachable at ms precision) or would overprint.
-//
-// The surviving row ABSORBS the folded entry's event count, else it under-reports its moment.
+// Folds Layer 1 ruler entries (distinct instants) into the printed gutter rows (tasks 268, 275, 306).
 
 import type { WireRulerTick } from "./layer1-wire.ts";
 
@@ -14,7 +8,9 @@ export const TICK_LABEL_MIN_GAP_PX = 13;
 
 // "MM-DD HH:MM:SS.mmm" in UTC. Task 306: full milliseconds, so distinct instants never print the same label.
 export function formatInstantLabel(instant: string): string {
-  return new Date(instant).toISOString().slice(5, 23).replace("T", " ");
+  const isoText = new Date(instant).toISOString();
+  const monthToMillisecond = isoText.slice(5, 23);
+  return monthToMillisecond.replace("T", " ");
 }
 
 // One printed gutter row: where it sits, what it reads, and every entry it stands for.
@@ -36,16 +32,17 @@ interface RowTally {
   instants: string[];
 }
 
-// A missing event count is a producer bug (layOutNodeLadders measures it); fail loudly, never print NaN.
+// A missing event count is a producer bug (computeNodeLadderLayout measures it); fail loudly, never print NaN.
 function readEventCount(tick: WireRulerTick): number {
-  if (Number.isFinite(tick.eventCount)) {
+  const hasEventCount = Number.isFinite(tick.eventCount);
+  if (hasEventCount) {
     return tick.eventCount;
   }
   throw new Error(`ruler entry ${tick.instant} carries no event count`);
 }
 
 // Whether `tick` joins the row above: same printed text, then physical collision.
-function tickJoinsRow(previous: RowTally, tick: WireRulerTick, label: string): boolean {
+function isTickJoiningRow(previous: RowTally, tick: WireRulerTick, label: string): boolean {
   if (label === previous.label) {
     return true;
   }
@@ -53,12 +50,13 @@ function tickJoinsRow(previous: RowTally, tick: WireRulerTick, label: string): b
 }
 
 // Fold `tick` into the last opened row when it cannot hold one of its own, reporting whether it did.
-function absorbIntoPreviousRow(tallies: RowTally[], tick: WireRulerTick, label: string): boolean {
+function mergeTickIntoPreviousRow(tallies: RowTally[], tick: WireRulerTick, label: string): boolean {
   const previous = tallies.at(-1);
   if (previous === undefined) {
     return false;
   }
-  if (!tickJoinsRow(previous, tick, label)) {
+  const joinsPreviousRow = isTickJoiningRow(previous, tick, label);
+  if (!joinsPreviousRow) {
     return false;
   }
   previous.eventCount += readEventCount(tick);
@@ -72,15 +70,20 @@ export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
   const tallies: RowTally[] = [];
   for (const tick of ruler) {
     const label = formatInstantLabel(tick.instant);
-    if (absorbIntoPreviousRow(tallies, tick, label)) {
+    const wasMerged = mergeTickIntoPreviousRow(tallies, tick, label);
+    if (wasMerged) {
       continue;
     }
     tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick), axisPxList: [tick.axisPx], instants: [tick.instant] });
   }
-  return tallies.map((row) => ({
-    axisPx: row.axisPx,
-    text: `${row.label} (${row.eventCount})`,
-    axisPxList: row.axisPxList,
-    instants: row.instants,
-  }));
+  const rows: RulerRow[] = [];
+  for (const row of tallies) {
+    rows.push({
+      axisPx: row.axisPx,
+      text: `${row.label} (${row.eventCount})`,
+      axisPxList: row.axisPxList,
+      instants: row.instants,
+    });
+  }
+  return rows;
 }

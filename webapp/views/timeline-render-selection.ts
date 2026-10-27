@@ -1,4 +1,4 @@
-// Timeline row selection + header navigation (task 92 split from timeline.ts): flash/jump/select on a row, the Expand All toggle, and the Prev/Next file-touched walkers.
+// Timeline row selection, the Expand All toggle, and Prev/Next header navigation (task 92).
 
 import { renderDetailsCommitMode, renderDetailsMessageMode } from "./details.ts";
 import { renderDetailsScriptRunMode } from "./details-script-run.ts";
@@ -9,24 +9,27 @@ import { findAdjacentFileTouchedIndex, findAdjacentRowIndex } from "./timeline-s
 import { COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
 
 // Restart the row-flash animation (mockup jumpToTimelineRow's remove/reflow/add dance).
-export function flashRowElement(row: HTMLElement): void {
+export function resetRowFlash(row: HTMLElement): void {
   row.classList.remove("flash");
   void row.offsetWidth;                              // restart the CSS animation
   row.classList.add("flash");
-  setTimeout(() => row.classList.remove("flash"), 1300);
+  const removeFlash = (): void => {
+    row.classList.remove("flash");
+  };
+  setTimeout(removeFlash, 1300);
 }
 
 // Sidebar session clicks and the session-anchor route land here: scroll + flash the row.
-export function jumpToTimelineRow(context: TimelineRenderContext, nodeIndex: number): void {
+export function moveToTimelineRow(context: TimelineRenderContext, nodeIndex: number): void {
   const row = context.nodeRows.get(nodeIndex);
   if (row === undefined) {
     return;
   }
   row.scrollIntoView({ block: "start" });
-  flashRowElement(row);
+  resetRowFlash(row);
 }
 
-// Row selection (mockup selectRow): swap .selected, re-derive the commit-contribution highlight, render the matching details mode, THEN center the row — the details render reflows the panes, so centering must run against the post-render layout (item 50).
+// Select a row, render its details, then center it after the panes reflow (item 50).
 export async function selectTimelineRow(context: TimelineRenderContext, nodeIndex: number): Promise<void> {
   const row = context.nodeRows.get(nodeIndex);
   if (row === undefined) {
@@ -42,17 +45,18 @@ export async function selectTimelineRow(context: TimelineRenderContext, nodeInde
   for (const other of context.nodeRows.values()) {
     other.classList.remove("contrib");
   }
-  // The details pane leaves file mode. Only the Files sidebar's tree is cleared — the "Files touched" tree this row is about to render lives in #details-left and owns its own selection (item 84).
+  // Leaving file mode clears only the Files sidebar tree (item 84).
   clearFileSelectionIn(document.getElementById("drawer")!);
   const node = context.nodes[nodeIndex]!;
+  const isScriptRunToolCall = node.kind === TOOL_CALL_NODE_KIND && node.scriptRun !== undefined;
   if (node.kind === COMMIT_NODE_KIND) {
     for (const contributingIndex of findContributingNodeIndexes(context.nodes, nodeIndex)) {
       context.nodeRows.get(contributingIndex)?.classList.add("contrib");
     }
     await renderDetailsCommitMode(node, nodeIndex, context.detailsContext);
   }
-  else if (node.kind === TOOL_CALL_NODE_KIND && node.scriptRun !== undefined) {
-    // task 67: a script run that modified files gets the script + before/after mode (scriptRun is only stamped when its changedPaths is non-empty — deriveToolCallNodes).
+  else if (isScriptRunToolCall) {
+    // task 67: a script run that changed files gets script plus before/after mode.
     await renderDetailsScriptRunMode(node, nodeIndex, context.detailsContext);
   }
   else {
@@ -61,16 +65,25 @@ export async function selectTimelineRow(context: TimelineRenderContext, nodeInde
   row.scrollIntoView({ block: "center" });
 }
 
-// ── Expand All / Collapse All (mockup updateToggleLabel). #toggle-all is a static skeleton element outside `container`; onclick property assignment (not addEventListener) so re-renders never stack handlers. ──
-export function wireToggleAllButton(context: TimelineRenderContext): void {
+// ── Expand All / Collapse All: onclick assignment so re-renders never stack handlers. ──
+function isAnyRowCollapsed(expandableRows: HTMLElement[]): boolean {
+  for (const expandable of expandableRows) {
+    const isExpanded = expandable.classList.contains("expanded");
+    if (!isExpanded)
+      return true;
+  }
+  return false;
+}
+
+export function attachToggleAllButton(context: TimelineRenderContext): void {
   const toggleAllButton = document.getElementById("toggle-all") as HTMLButtonElement;
   const updateToggleLabel = (): void => {
-    const anyCollapsed = context.expandableRows.some((expandable) => !expandable.classList.contains("expanded"));
+    const anyCollapsed = isAnyRowCollapsed(context.expandableRows);
     toggleAllButton.textContent = anyCollapsed ? "Expand All" : "Collapse All";
   };
   context.updateToggleLabel = updateToggleLabel;
   toggleAllButton.onclick = () => {
-    const anyCollapsed = context.expandableRows.some((expandable) => !expandable.classList.contains("expanded"));
+    const anyCollapsed = isAnyRowCollapsed(context.expandableRows);
     for (const expandable of context.expandableRows) {
       expandable.classList.toggle("expanded", anyCollapsed);
     }
@@ -79,8 +92,8 @@ export function wireToggleAllButton(context: TimelineRenderContext): void {
   updateToggleLabel();
 }
 
-// ── header Prev/Next over file-touching agent turns (task 85) plus the task-131 line-stepper pair (◀ Line / Line ▶: one visible row per click). Expanding IS the task's "click the triangle": the chips live in the bubble. onclick assignment, like #toggle-all, so re-renders never stack handlers. A button disables when no candidate row exists in its direction; selectTimelineRow re-enables/disables all four on every selection. ──
-export function wireFileNavButtons(context: TimelineRenderContext): void {
+// ── Header Prev/Next over file-touching turns (task 85) and the line stepper (task 131). ──
+export function attachFileNavButtons(context: TimelineRenderContext): void {
   const filesPrevButton = document.getElementById("files-prev") as HTMLButtonElement;
   const filesNextButton = document.getElementById("files-next") as HTMLButtonElement;
   const linePrevButton = document.getElementById("line-prev") as HTMLButtonElement;
@@ -91,7 +104,7 @@ export function wireFileNavButtons(context: TimelineRenderContext): void {
     linePrevButton.disabled = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, -1) === undefined;
     lineNextButton.disabled = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, 1) === undefined;
   };
-  const jumpToAdjacentFileTouchedRow = (direction: 1 | -1): void => {
+  const moveToAdjacentFileTouchedRow = (direction: 1 | -1): void => {
     const target = findAdjacentFileTouchedIndex(context.nodes, context.fileNavReferenceIndex, direction);
     if (target === undefined) {
       return;
@@ -100,7 +113,7 @@ export function wireFileNavButtons(context: TimelineRenderContext): void {
     context.updateToggleLabel();
     void context.selectTimelineRow(target);                    // selects + renders details + centers; also updates fileNavReferenceIndex + button states
   };
-    // task 131: one visible row per click — no expand step (line rows are thin one-liners; selectTimelineRow handles selection, details render, centering, and button refresh).
+    // task 131: one visible row per click, with no expand step.
   const selectAdjacentRow = (direction: 1 | -1): void => {
     const target = findAdjacentRowIndex(context.nodes, context.fileNavReferenceIndex, direction);
     if (target === undefined) {
@@ -108,8 +121,8 @@ export function wireFileNavButtons(context: TimelineRenderContext): void {
     }
     void context.selectTimelineRow(target);
   };
-  filesPrevButton.onclick = () => jumpToAdjacentFileTouchedRow(-1);
-  filesNextButton.onclick = () => jumpToAdjacentFileTouchedRow(1);
+  filesPrevButton.onclick = () => moveToAdjacentFileTouchedRow(-1);
+  filesNextButton.onclick = () => moveToAdjacentFileTouchedRow(1);
   linePrevButton.onclick = () => selectAdjacentRow(-1);
   lineNextButton.onclick = () => selectAdjacentRow(1);
   context.refreshFileNavButtons();

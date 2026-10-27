@@ -13,7 +13,7 @@ import {
 import { isScriptCodeWriteCapable, type LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
-import { refForTarget, runTouchesTarget } from "./reconstruction_script_probe.ts";
+import { findRefForTarget, isRunTouchingTarget } from "./reconstruction_script_probe.ts";
 
 // The target's state on its chained lineage: its sandbox key and its content after the last injected run.
 type RollingTargetState = { key: string; content: string };
@@ -28,24 +28,28 @@ function getRunOutcomeForTarget(
   rolling: RollingTargetState | undefined,
 ): RollingTargetState | undefined {
   // Item 68: a read-only run never produces an outcome, so bail before any sandbox work.
-  if (!isScriptCodeWriteCapable(run.code))
+  const isWriteCapable = isScriptCodeWriteCapable(run.code);
+  if (!isWriteCapable)
     return undefined;
   if (rolling === undefined) {
-    const basename = target.toString().split("/").pop() ?? "";
-    if (!run.code.includes(basename) && !runTouchesTarget(run, target, records, reader, seedContent)) {
+    const segments = target.toString().split("/");
+    const basename = segments.pop() ?? "";
+    const isNamedOrTouching = run.code.includes(basename) || isRunTouchingTarget(run, target, records, reader, seedContent);
+    if (!isNamedOrTouching) {
       return undefined;
     }
     const { pre: preState, post: postState } = executeRunOnce(run, records, reader, seedContent);
     if (postState === undefined)
       return undefined;
     // post keys included so a file the script CREATES resolves to its ref.
-    const ref = refForTarget(target, [...preState.keys(), ...postState.keys()]);
+    const ref = findRefForTarget(target, [...preState.keys(), ...postState.keys()]);
     if (ref === undefined)
       return undefined;
     const pre = preState.get(ref);
     const post = postState.get(ref);
     // An undefined pre with a defined post is a legitimate birth.
-    if (post === undefined || pre === post)
+    const isUnchanged = post === undefined || pre === post;
+    if (isUnchanged)
       return undefined;
     return { key: ref, content: post };
   }
@@ -56,7 +60,8 @@ function getRunOutcomeForTarget(
   if (postState === undefined)
     return undefined;
   const content = postState.get(rolling.key);
-  if (content === undefined || content === rolling.content)
+  const isUnchanged = content === undefined || content === rolling.content;
+  if (isUnchanged)
     return undefined;
   return { key: rolling.key, content };
 }

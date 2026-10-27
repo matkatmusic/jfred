@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
-import { injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { applyScriptExecutions } from "../src/reconstruction_script_stage.ts";
 import { applyGitCommitEvidence } from "../src/reconstruction_git_placement.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -48,7 +48,7 @@ test("test_exec_gate_disable_blocks_git_evidence", () => {
         ];
         const target = new Path(join(repo, "core_two.py"));
         // build the injected events while the gate is still ON (the enabled stage splices here).
-        const events = injectScriptExecutions(records, [], emptyReader, target);
+        const events = applyScriptExecutions(records, [], emptyReader, target);
         assert.equal(events.length, 2);
         // disable the gate.
         setImpureExecutionAllowed(false);

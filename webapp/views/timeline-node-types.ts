@@ -77,7 +77,7 @@ export type SessionEndNode = {
   scriptRun?: undefined;
 };
 
-// One git-commit hard stop (deriveCommitNodes); never numbered, never pickable.
+// One git-commit hard stop (buildCommitNodes); never numbered, never pickable.
 export type CommitNode = {
   kind: typeof COMMIT_NODE_KIND;
   when: string;

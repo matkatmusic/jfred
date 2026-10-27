@@ -1,7 +1,7 @@
 // Hash-route dispatch; header wiring lives in app-header.ts.
 
 import { createElement } from "./app-dom.ts";
-import { ensureProgressTerminal, expandProgressConsole, progressTerminal } from "./app-console.ts";
+import { initProgressTerminal, openProgressConsole, progressTerminal } from "./app-console.ts";
 import { inflightLoadController } from "./app-fetch.ts";
 import { checkRouteIsTimeline, parseRouteSegments, routeToTimeline } from "./app-routes.ts";
 import { renderSubRouteDrawer, resetDetailsPane } from "./app-drawer.ts";
@@ -21,16 +21,13 @@ export function resetLastLoadedProject(): void {
 let renderRouteGeneration = 0;
 
 // True when a newer renderRoute run has started since `generation` was stamped.
-function checkRouteRenderIsStale(generation: number): boolean {
+function isRouteRenderStale(generation: number): boolean {
   return generation !== renderRouteGeneration;
 }
 
 // Only true when navigating to a different project (item 22).
-export function checkNavigationStartsNewProjectLoad(previousProject: string | undefined, nextProject: string | undefined): boolean {
-  if (nextProject === undefined) {
-    return false;
-  }
-  return nextProject !== previousProject;
+export function isNavigationStartingNewProjectLoad(previousProject: string | undefined, nextProject: string | undefined): boolean {
+  return nextProject !== undefined && nextProject !== previousProject;
 }
 
 // Extracted to keep anchor ternaries one indent shallower.
@@ -43,7 +40,8 @@ async function renderProjectRoute(view: HTMLElement, segments: string[], generat
   const anchorLine = segments[2] === "timeline" && segments[5] === "at" ? segments[6] : undefined;
   await renderTimelineView(view, project, anchorJsonl, anchorLine);
   // task 138: a newer navigation started while the timeline rendered — the drawer belongs to it.
-  if (checkRouteRenderIsStale(generation))
+  const isStale = isRouteRenderStale(generation);
+  if (isStale)
     return;
   await renderSubRouteDrawer(project, segments);
 }
@@ -52,7 +50,7 @@ export async function renderRoute(): Promise<void> {
   const generation = ++renderRouteGeneration;   // task 138: this run is now the newest
   inflightLoadController?.abort();   // navigation tears down any in-flight load
   const view = document.getElementById("view")!;
-  // task 138: each run owns a fresh pane, swapped in atomically. Two overlapping runs used to clear-then-append into the SAME element and both appends landed (duplicate projects list); now a superseded run's late appends land in its own detached pane and are never seen.
+  // task 138: each run owns a fresh pane; a superseded run's late appends stay detached.
   const pane = createElement("div");
   view.replaceChildren(pane);
   view.onclick = null;
@@ -71,27 +69,25 @@ export async function renderRoute(): Promise<void> {
   const drawer = document.getElementById("drawer")!;
   const segments = parseRouteSegments();
   const nextProject = segments[0] === "project" ? segments[1] : undefined;
-  if (checkNavigationStartsNewProjectLoad(lastLoadedProject, nextProject)) {
+  const startsNewProjectLoad = isNavigationStartingNewProjectLoad(lastLoadedProject, nextProject);
+  if (startsNewProjectLoad) {
     // Clear stale console output before new project's load begins (item 22).
-    ensureProgressTerminal();
+    initProgressTerminal();
     progressTerminal!.clear();
     // item 66: a fresh load re-opens a collapsed console so its progress is visible.
-    expandProgressConsole();
+    openProgressConsole();
     // task 159: a project loading with no reveng-paths entry gets wizard screens 2–5.
     void maybeOfferProjectPathsWizard(nextProject!);
   }
-  if (nextProject !== undefined) {
+  if (nextProject !== undefined)
     lastLoadedProject = nextProject;
-  }
   // Bare project route rewrites to timeline via replaceState (no extra history entry).
-  if (segments[0] === "project") {
-    if (segments.length === 2) {
-      history.replaceState(null, "", routeToTimeline(segments[1]!));
-      segments.push("timeline");
-    }
+  const isBareProjectRoute = segments[0] === "project" && segments.length === 2;
+  if (isBareProjectRoute) {
+    history.replaceState(null, "", routeToTimeline(segments[1]!));
+    segments.push("timeline");
   }
-  // item 66: the fork layout keys off #rightcol.project-route (absent on #/, the timeline
-  // chrome + details pane hide so #view and the console fill the column):
+  // item 66: the fork layout keys off #rightcol.project-route (absent on #/, chrome hides):
   // document.querySelector(".layout")!.classList.toggle("timeline-route", checkRouteIsTimeline(segments));
   document.getElementById("rightcol")!.classList.toggle("project-route", checkRouteIsTimeline(segments));
   // task 140: timeline pane header is project chrome, hidden on #/.
@@ -124,7 +120,8 @@ export async function renderRoute(): Promise<void> {
     }
   }
   catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError")
+    const isAbort = error instanceof DOMException && error.name === "AbortError";
+    if (isAbort)
       return;   // cancelled — console already logged it
     pane.append(createElement("div", { class: "error-box", text: String(error) }));
   }

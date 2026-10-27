@@ -1,7 +1,7 @@
-// Builds the fixture Layer 1 wire view, mirroring buildLayer1View so offsets go through layOutNodeLadders.
+// Builds the fixture Layer 1 wire view, mirroring buildLayer1View so offsets go through computeNodeLadderLayout.
 
 import { Path } from "./structures/domain.ts";
-import { layOutNodeLadders, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
 import { listSnapshotInstants, placeSnapshotsOnAxis } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Layer1WireOrphan, Layer1WirePair, Layer1WireView } from "./viewer_api_layer1.ts";
@@ -104,7 +104,7 @@ export function buildFixtureLayer1View(): Layer1WireView {
   for (const orphan of diskOrphans) {
     ladders.push([orphan.instant, ...listSnapshotInstants(orphan.snaps)]);
   }
-  const layout = layOutNodeLadders(ladders);
+  const layout = computeNodeLadderLayout(ladders);
   const offsets = new Map<number, number>();
   const ruler: Layer1WireView["ruler"] = [];
   for (const tick of layout.ticks) {

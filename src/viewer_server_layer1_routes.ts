@@ -9,26 +9,32 @@ import { handleLayer1RecordRequest } from "./viewer_api_layer1_record.ts";
 import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
 import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
 import { handleLayer1ScriptRunsRequest } from "./viewer_api_layer1_script_runs.ts";
-import { handleLayer1SessionsRequest } from "./viewer_api_layer1_sessions.ts";
+import { sendLayer1SessionsResponse } from "./viewer_api_layer1_sessions.ts";
 import { sendLayer1Settings, receiveLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
 import { handleScanSourceRequest } from "./viewer_api_layer1_sources.ts";
 import { dispatchLayer1FixtureRoute, isFixtureMode } from "./viewer_api_layer1_fixture.ts";
 
 export function dispatchLayer1Route(request: IncomingMessage, response: ServerResponse, url: URL): boolean {
   // Task 329: pure content-in/diff-out, no data source behind it — so fixture mode shares it too.
-  if (request.method === "POST" && url.pathname === "/api/layer1-diff-content") {
+  const isPost = request.method === "POST";
+  const isDiffContentPath = url.pathname === "/api/layer1-diff-content";
+  const isDiffContentPost = isPost && isDiffContentPath;
+  if (isDiffContentPost) {
     handleLayer1DiffContentRequest(request, response);
     return true;
   }
   // Task 330: --fixture serves these same paths from canned payloads; off by default, so nothing else changes.
-  if (isFixtureMode()) {
+  const isFixture = isFixtureMode();
+  if (isFixture) {
     return dispatchLayer1FixtureRoute(request, response, url);
   }
   // The POST test precedes the GET one for the same path, exactly as /api/config is ordered.
-  if (request.method === "POST" && url.pathname === "/api/layer1-settings") {
+  const isSettingsPath = url.pathname === "/api/layer1-settings";
+  const isSettingsPost = isPost && isSettingsPath;
+  if (isSettingsPost) {
     receiveLayer1SettingsUpdate(request, response);
   }
-  else if (url.pathname === "/api/layer1-settings") {
+  else if (isSettingsPath) {
     sendLayer1Settings(response);
   }
   else if (url.pathname === "/api/layer1-view") {
@@ -38,7 +44,7 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
     handleLayer1RefsRequest(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-sessions") {
-    handleLayer1SessionsRequest(response, url.searchParams);
+    sendLayer1SessionsResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-edits") {
     handleLayer1EditsRequest(response, url.searchParams);

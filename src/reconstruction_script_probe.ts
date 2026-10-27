@@ -1,4 +1,4 @@
-// Script-execution replay, the target probes: which recorded run produced a given file's change, and whether an executed run provably touches a target. Split from reconstruction_script_runs.ts (task 192: that file sat at the 250-line cap); the memoized execution layer these probes drive stays there.
+// Probes that find which recorded script run produced a target file's change.
 
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -8,13 +8,20 @@ import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 
 // The pre/post-state key that denotes `target`, or undefined when the run's sandbox never saw it.
-export function refForTarget(target: Path, stateKeys: string[]): string | undefined {
+export function findRefForTarget(target: Path, stateKeys: string[]): string | undefined {
   const targetStr = target.toString();
-  return stateKeys.find((ref) => targetStr === ref || targetStr.endsWith(`/${ref}`));
+  for (const ref of stateKeys) {
+    const isExactMatch = targetStr === ref;
+    const isSuffixMatch = targetStr.endsWith(`/${ref}`);
+    const isMatch = isExactMatch || isSuffixMatch;
+    if (isMatch)
+      return ref;
+  }
+  return undefined;
 }
 
-// Whether executing the run shows `target` changed or created — the glob-agnostic gate for a script that finds its files (glob.glob) instead of naming them.
-export function runTouchesTarget(
+// Whether executing the run changes or creates `target`, even if the script only globs.
+export function isRunTouchingTarget(
   run: ScriptRun,
   target: Path,
   records: TranscriptRecord[],
@@ -24,7 +31,7 @@ export function runTouchesTarget(
   const execution = executeRunOnce(run, records, reader, seedContent);
   if (execution.post === undefined)
     return false;
-  const ref = refForTarget(target, [...execution.pre.keys(), ...execution.post.keys()]);
+  const ref = findRefForTarget(target, [...execution.pre.keys(), ...execution.post.keys()]);
   if (ref === undefined)
     return false;
   const contentBefore = execution.pre.get(ref);
@@ -33,13 +40,15 @@ export function runTouchesTarget(
 }
 
 // A run's SOURCE names `target` by basename substring — static only, no execution.
-function runSourceNamesPath(run: ScriptRun, target: Path): boolean {
-  const basename = target.toString().split("/").pop() ?? "";
-  return basename !== "" && run.code.includes(basename);
+function isPathNamedByRunSource(run: ScriptRun, target: Path): boolean {
+  const segments = target.toString().split("/");
+  const basename = segments.pop() ?? "";
+  const hasBasename = basename !== "";
+  return hasBasename && run.code.includes(basename);
 }
 
 // The latest run at or before `when` naming `target`, else the latest whose execution provably changes it.
-export function runForTarget(
+export function findRunForTarget(
   runs: ScriptRun[],
   target: Path,
   when: Date,
@@ -49,23 +58,33 @@ export function runForTarget(
 ): ScriptRun | undefined {
   let chosen: ScriptRun | undefined;
   for (const run of runs) {
-    if (run.timestamp.getTime() > when.getTime())
+    const isAfterWhen = run.timestamp.getTime() > when.getTime();
+    if (isAfterWhen)
       continue;
-    if (runSourceNamesPath(run, target))
+    const isNamed = isPathNamedByRunSource(run, target);
+    if (isNamed)
       chosen = run;
   }
   if (chosen !== undefined)
     return chosen;
   for (const run of runs) {
-    if (run.timestamp.getTime() > when.getTime())
+    const isAfterWhen = run.timestamp.getTime() > when.getTime();
+    if (isAfterWhen)
       continue;
-    if (runTouchesTarget(run, target, records, reader, seedContent))
+    const isTouching = isRunTouchingTarget(run, target, records, reader, seedContent);
+    if (isTouching)
       chosen = run;
   }
   return chosen;
 }
 
-// Task 356: static-scan inverse of runForTarget; empty means unlabeled, never guessed.
-export function affectedPathsForRun(run: ScriptRun, candidatePaths: Path[]): Path[] {
-  return candidatePaths.filter((target) => runSourceNamesPath(run, target));
+// Task 356: static-scan inverse of findRunForTarget; empty means unlabeled, never guessed.
+export function findAffectedPathsForRun(run: ScriptRun, candidatePaths: Path[]): Path[] {
+  const affected: Path[] = [];
+  for (const target of candidatePaths) {
+    const isNamed = isPathNamedByRunSource(run, target);
+    if (isNamed)
+      affected.push(target);
+  }
+  return affected;
 }

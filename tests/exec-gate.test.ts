@@ -8,10 +8,10 @@ import {
     isImpureExecutionAllowed,
     setImpureExecutionAllowed,
 } from "../src/reconstruction_exec_gate.ts";
-import { injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { applyScriptExecutions } from "../src/reconstruction_script_stage.ts";
 import {
     PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX,
-    discoverScriptCreatedPaths,
+    findScriptCreatedPaths,
     executeRunOnce,
 } from "../src/reconstruction_script_runs.ts";
 import { setPreBaselineReconstructionAllowed } from "../src/reconstruction_base_commit.ts";
@@ -41,7 +41,7 @@ test("test_exec_gate_defaults_to_enabled", () => {
 });
 
 test("test_exec_gate_disable_blocks_script_injection", () => {
-    // Gate off: injectScriptExecutions returns its events argument unchanged (same identity), even for a script-birthing fixture.
+    // Gate off: applyScriptExecutions returns its events argument unchanged (same identity), even for a script-birthing fixture.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -55,7 +55,7 @@ test("test_exec_gate_disable_blocks_script_injection", () => {
         // disable the gate.
         setImpureExecutionAllowed(false);
         // run the stage that would otherwise inject one scriptExecution event.
-        const result = injectScriptExecutions(records, events, emptyReader, new Path("/proj/out.txt"));
+        const result = applyScriptExecutions(records, events, emptyReader, new Path("/proj/out.txt"));
         // assert the stage passed its events argument through untouched.
         assert.equal(result, events);
     } finally {
@@ -64,7 +64,7 @@ test("test_exec_gate_disable_blocks_script_injection", () => {
 });
 
 test("test_exec_gate_disable_blocks_script_created_path_discovery", () => {
-    // Gate off: discoverScriptCreatedPaths runs nothing and returns no paths; gate-on is tested in reconstruction_script_stage.test.ts.
+    // Gate off: findScriptCreatedPaths runs nothing and returns no paths; gate-on is tested in reconstruction_script_stage.test.ts.
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/runit.py", content: "x" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(
@@ -77,7 +77,7 @@ test("test_exec_gate_disable_blocks_script_created_path_discovery", () => {
         // disable the gate.
         setImpureExecutionAllowed(false);
         // run the discovery that would otherwise execute the run and report out.txt as born.
-        assert.deepEqual(discoverScriptCreatedPaths(records, emptyReader), []);
+        assert.deepEqual(findScriptCreatedPaths(records, emptyReader), []);
     } finally {
         setImpureExecutionAllowed(true);
     }

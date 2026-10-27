@@ -1,6 +1,6 @@
 // Task 253: axisPx accumulates, so filtering re-runs the endpoint's SAME layout rather than hiding bubbles.
 
-import { layOutNodeLadders, type NodeLadder, type RulerLayout } from "./layer1-ruler-axis.ts";
+import { computeNodeLadderLayout, type NodeLadder, type RulerLayout } from "./layer1-ruler-axis.ts";
 import { listRulerRows, type RulerRow } from "./layer1-ruler-rows.ts";
 import { setDiskOrphanAxisPx, setNodeAxisPx, setPairAxisPx } from "./layer1-axis-placement.ts";
 import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire-ladder.ts";
@@ -89,8 +89,8 @@ function listViewLadders(view: WireLayer1View): NodeLadder[] {
 function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansion): WireLayer1View {
   const ladders = listViewLadders(view);
   const diskOrphanLadderBase = view.pairs.length + view.gitOrphans.length;
-  const extraGapPx = measureExpansionGapPx(layOutNodeLadders(ladders), expansion);
-  const layout = layOutNodeLadders(ladders, extraGapPx);
+  const extraGapPx = measureExpansionGapPx(computeNodeLadderLayout(ladders), expansion);
+  const layout = computeNodeLadderLayout(ladders, extraGapPx);
   const tickOffsetsPx = new Map<number, number>();
   for (const tick of layout.ticks) {
     tickOffsetsPx.set(tick.instant.getTime(), tick.offsetPx);

@@ -32,18 +32,16 @@ export type RunExecution = { pre: Map<string, string>; post: Map<string, string>
 let activeLineageReplayCutoff: Date | undefined;
 
 // Narrows the window only — never widens it.
-export function enterLineageReplayWindow(before: Date): Date | undefined {
+export function applyLineageReplayWindow(before: Date): Date | undefined {
   const previous = activeLineageReplayCutoff;
-  if (previous !== undefined) {
-    if (previous.getTime() <= before.getTime()) {
-      return previous;
-    }
-  }
+  const isNarrower = previous !== undefined && previous.getTime() <= before.getTime();
+  if (isNarrower)
+    return previous;
   activeLineageReplayCutoff = before;
   return previous;
 }
 
-export function restoreLineageReplayWindow(previous: Date | undefined): void {
+export function resetLineageReplayWindow(previous: Date | undefined): void {
   activeLineageReplayCutoff = previous;
 }
 
@@ -53,14 +51,18 @@ export function selectRunsWithinReplayWindow(runs: ScriptRun[]): ScriptRun[] {
     return runs;
   }
   const cutoffMs = activeLineageReplayCutoff.getTime();
-  return runs.filter((run) => run.timestamp.getTime() < cutoffMs);
+  const withinWindow: ScriptRun[] = [];
+  for (const run of runs) {
+    const isBeforeCutoff = run.timestamp.getTime() < cutoffMs;
+    if (isBeforeCutoff)
+      withinWindow.push(run);
+  }
+  return withinWindow;
 }
 
 // These three skip labels are exported for the gate and spawn-count tests.
 export const PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX = "skipping read-only script run";
-
 export const PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX = "skipping pre-baseline script run";
-
 export const PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX = "skipping non-python sandbox run";
 
 // An absent executor kind runs like python; exported so horizon's memo probes (task 220) build the same key.
@@ -83,7 +85,8 @@ export function executeRunOnce(
     incrementReconstructionCounter(ReconstructionCounter.executionCacheHits);
     return cached;
   }
-  if (checkTimestampPrecedesSkippedBaseline(run.timestamp)) {
+  const isPreBaseline = checkTimestampPrecedesSkippedBaseline(run.timestamp);
+  if (isPreBaseline) {
     reportReconstructionProgress(`${PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const skipped: RunExecution = { pre: new Map(), post: undefined };
     byRun.set(key, skipped);
@@ -97,10 +100,9 @@ export function executeRunOnce(
     return skipped;
   }
   // Item 68: no write primitive means no file evidence; callers check `post === undefined` before touching `pre`.
-  if (!isScriptCodeWriteCapable(run.code)) {
-    reportReconstructionProgress(
-      `${PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`,
-    );
+  const isWriteCapable = isScriptCodeWriteCapable(run.code);
+  if (!isWriteCapable) {
+    reportReconstructionProgress(`${PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const skipped: RunExecution = { pre: new Map(), post: undefined };
     byRun.set(key, skipped);
     return skipped;
@@ -114,13 +116,14 @@ export function executeRunOnce(
 }
 
 // Finds script-born files (an out.txt, a shutil.move destination) that left no Write/Edit/Bash event behind.
-export function discoverScriptCreatedPaths(
+export function findScriptCreatedPaths(
   records: TranscriptRecord[],
   reader: BackupReader,
   seedContent?: LineageContentBefore,
 ): Path[] {
-  // Consent gate: discovery executes every recorded run, so a declined build skips it entirely, same as injectScriptExecutions.
-  if (!isImpureExecutionAllowed())
+  // Consent gate: discovery executes every recorded run, so a declined build skips it entirely, same as applyScriptExecutions.
+  const isExecutionAllowed = isImpureExecutionAllowed();
+  if (!isExecutionAllowed)
     return [];
   const created = new Map<string, Path>();
   const runs = findScriptExecutionRuns(records);
@@ -132,10 +135,12 @@ export function discoverScriptCreatedPaths(
     if (execution.post === undefined)
       continue;
     for (const key of execution.post.keys()) {
-      if (execution.pre.has(key) || isJunkStateKey(key))
+      const isKnownOrJunk = execution.pre.has(key) || isJunkStateKey(key);
+      if (isKnownOrJunk)
         continue;
       const absolute = resolveAgainstCwd(run.cwd, new Path(key));
-      if (!created.has(absolute))
+      const isNewPath = !created.has(absolute);
+      if (isNewPath)
         created.set(absolute, new Path(absolute));
     }
   }

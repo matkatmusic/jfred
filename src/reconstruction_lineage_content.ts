@@ -5,8 +5,8 @@ import type { Path } from "./structures/domain.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import {
-  enterLineageReplayWindow,
-  restoreLineageReplayWindow,
+  applyLineageReplayWindow,
+  resetLineageReplayWindow,
 } from "./reconstruction_script_runs.ts";
 import {
   doesReplayWindowKeepInstant,
@@ -60,7 +60,7 @@ function computeLineageContentBefore(
   }
   const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
   const seedKey = computeLineageSeedHorizonKey(records, reader, target, before);
-  const previousCutoff = enterLineageReplayWindow(before);
+  const previousCutoff = applyLineageReplayWindow(before);
   try {
     // Cache valid only when memo module proves replay identical to fresh compute (task 162).
     const windowKeptInstant = doesReplayWindowKeepInstant(previousCutoff, before);
@@ -76,7 +76,7 @@ function computeLineageContentBefore(
     return replayed.text;
   }
   finally {
-    restoreLineageReplayWindow(previousCutoff);
+    resetLineageReplayWindow(previousCutoff);
   }
 }
 

@@ -1,6 +1,6 @@
 // Right-pane JSON inspector: the selected JSONL line as highlighted JSON text, with jump-links, Prev/Next, and tool-flow buttons.
 
-import { peekCachedDocument } from "./app-fetch.ts";
+import { getCachedDocument } from "./app-fetch.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 import {
   computeLinkMaps,
@@ -90,7 +90,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
   const maps = computeLinkMaps(rawLines);
   // Revision links resolve through the cached unified document; with none cached, changeIds render unlinked.
   const project = findCurrentProject();
-  const filesTouched = project === undefined ? [] : (peekCachedDocument(project)?.filesTouched ?? []) as WireFileHistory[];
+  const filesTouched = project === undefined ? [] : (getCachedDocument(project)?.filesTouched ?? []) as WireFileHistory[];
   // Revision links set the hash, so the router opens file history as a shareable drawer.
   const openRevision = (revisionLink: WireRevisionLink) => {
     location.hash = computeRevisionLinkRoute(project!, revisionLink);

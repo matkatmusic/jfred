@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkRouteIsTimeline } from "../webapp/app-routes.ts";
-import { checkNavigationStartsNewProjectLoad } from "../webapp/app-router.ts";
+import { isNavigationStartingNewProjectLoad } from "../webapp/app-router.ts";
 
 test("test_check_route_is_timeline_accepts_every_project_route", () => {
-    // Scenario: the timeline is ALWAYS a loaded project's base view (user decision 2026-07-06) — every #/project/* route gets the overlay-inspector layout, jsonl and file sub-routes included (they render as drawers over the timeline).
+    // Scenario: the timeline is always a project's base view; every #/project/* route gets this layout.
     assert.equal(checkRouteIsTimeline(["project", "s84", "timeline"]), true);
     assert.equal(checkRouteIsTimeline(["project", "s84", "timeline", "session", "abc"]), true);
     assert.equal(checkRouteIsTimeline(["project", "s84"]), true);
@@ -21,24 +21,23 @@ test("test_check_route_is_timeline_rejects_non_project_routes", () => {
 });
 
 test("test_check_navigation_starts_new_project_load_on_project_change", () => {
-    // Scenario: the console holds project A's load output; navigating to project B starts a
-    // new load, so the console must clear (TASKS item 22).
-    assert.equal(checkNavigationStartsNewProjectLoad("project-a", "project-b"), true);
+    // Scenario: navigating from project A to project B starts a new load, so the console clears.
+    assert.equal(isNavigationStartingNewProjectLoad("project-a", "project-b"), true);
 });
 
 test("test_check_navigation_starts_new_project_load_on_first_project_load", () => {
-    // Scenario: before any project load the console holds only landing-page output; the first project load clears it so the console shows exactly that load.
-    assert.equal(checkNavigationStartsNewProjectLoad(undefined, "project-a"), true);
+    // Scenario: the first project load clears the landing-page output.
+    assert.equal(isNavigationStartingNewProjectLoad(undefined, "project-a"), true);
 });
 
 test("test_check_navigation_keeps_console_within_one_project", () => {
-    // Scenario: sub-route hops (timeline → file → jsonl) inside one project belong to the same load story — never clear.
-    assert.equal(checkNavigationStartsNewProjectLoad("project-a", "project-a"), false);
+    // Scenario: sub-route hops inside one project belong to the same load; never clear.
+    assert.equal(isNavigationStartingNewProjectLoad("project-a", "project-a"), false);
 });
 
 test("test_check_navigation_keeps_console_on_non_project_routes", () => {
     // Scenario: the projects list loads no project — leaving A's output visible is correct.
-    assert.equal(checkNavigationStartsNewProjectLoad("project-a", undefined), false);
-    assert.equal(checkNavigationStartsNewProjectLoad(undefined, undefined), false);
+    assert.equal(isNavigationStartingNewProjectLoad("project-a", undefined), false);
+    assert.equal(isNavigationStartingNewProjectLoad(undefined, undefined), false);
 });
 

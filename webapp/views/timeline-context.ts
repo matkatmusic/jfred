@@ -10,7 +10,7 @@ import {
   openTranscriptInspectorSynced,
 } from "./timeline-render-inspectors.ts";
 import { fetchRangePatch, updateSelectbar } from "./timeline-render-selectbar.ts";
-import { flashRowElement, jumpToTimelineRow, selectTimelineRow } from "./timeline-render-selection.ts";
+import { moveToTimelineRow, resetRowFlash, selectTimelineRow } from "./timeline-render-selection.ts";
 import { computeGraphLaneRuns, type WireProjectListing } from "./timeline-sessions.ts";
 import type { TimelineNode, TranscriptLocation } from "./timeline-node-types.ts";
 import type { WireTimelineDocument } from "./timeline-wire-types.ts";
@@ -30,7 +30,7 @@ export async function selectTimelineRowAndFlash(context: TimelineRenderContext, 
   await selectTimelineRow(context, nodeIndex);
   const row = context.nodeRows.get(nodeIndex);
   if (row !== undefined) {
-    flashRowElement(row);
+    resetRowFlash(row);
   }
 }
 
@@ -63,13 +63,13 @@ export function createTimelineRenderContext(inputs: TimelineContextInputs): Time
     activeChip: null,
     cachedPatch: { key: "", text: "" },
     selectTimelineRow: (nodeIndex: number) => selectTimelineRow(context, nodeIndex),
-    jumpToTimelineRow: (nodeIndex: number) => jumpToTimelineRow(context, nodeIndex),
+    jumpToTimelineRow: (nodeIndex: number) => moveToTimelineRow(context, nodeIndex),
     openNodeInspector: (nodeIndex: number) => openNodeInspector(context, nodeIndex),
     clearActiveChip: () => clearActiveChip(context),
     markChipActive: (chipElement: HTMLElement) => markChipActive(context, chipElement),
     updateSelectbar: () => updateSelectbar(context),
-    refreshFileNavButtons: () => {}, // no-op until wireFileNavButtons runs
-    updateToggleLabel: () => {}, // no-op until wireToggleAllButton runs
+    refreshFileNavButtons: () => {}, // no-op until attachFileNavButtons runs
+    updateToggleLabel: () => {}, // no-op until attachToggleAllButton runs
     detailsContext: {
       project,
       document: reconstructionDocument,

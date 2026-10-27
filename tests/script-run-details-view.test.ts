@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveToolCallNodes } from "../webapp/views/timeline-node-derive.ts";
+import { buildToolCallNodes } from "../webapp/views/timeline-node-derive.ts";
 import { buildScriptRunDetailsViewModel } from "../webapp/views/details-script-run-model.ts";
 import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 
@@ -22,7 +22,7 @@ function buildSingleHistoryDocument(target: string, revisions: WireFileHistory["
     return buildWireDocument({ filesTouched: [history] });
 }
 
-test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
+test("test_buildToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
     // Scenario: only a run that modified files rides its tool-call row; read-only runs stamp nothing.
     const document = buildWireDocument({
         toolCalls: [
@@ -34,10 +34,10 @@ test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
             { toolUseId: "toolu_2", timestamp: "2026-07-01T10:01:00Z", code: "ls", changedPaths: [] },
         ],
     });
-    const nodes = deriveToolCallNodes(document);
+    const nodes = buildToolCallNodes(document);
     assert.deepEqual(nodes[0]!.scriptRun, document.scriptRuns![0]);
     assert.equal(nodes[1]!.scriptRun, undefined);
-    const withoutRuns = deriveToolCallNodes(buildWireDocument({ toolCalls: document.toolCalls }));
+    const withoutRuns = buildToolCallNodes(buildWireDocument({ toolCalls: document.toolCalls }));
     assert.equal(withoutRuns[0]!.scriptRun, undefined);
 });
 

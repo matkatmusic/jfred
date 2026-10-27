@@ -1,7 +1,7 @@
 // Timeline filter bar button helpers: active-mode marking plus the raw-lines and re-ask-baseline header buttons.
 
 import { clearBaselineChoice, getBaselineChoice } from "../app-choices.ts";
-import { dropProjectDocuments } from "../app-fetch.ts";
+import { clearProjectDocuments } from "../app-fetch.ts";
 import { renderRoute } from "../app-router.ts";
 import { checkAllLinesIsOn, toggleAllLinesSetting } from "./timeline-line-nodes.ts";
 
@@ -30,7 +30,7 @@ export function initReaskBaselineButton(project: string): void {
   reaskBaselineButton.hidden = getBaselineChoice(project) === null;
   reaskBaselineButton.onclick = () => {
     clearBaselineChoice(project);
-    dropProjectDocuments(project);
+    clearProjectDocuments(project);
     void renderRoute();
   };
 }

@@ -2,7 +2,7 @@
 
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
-import { resolveInstantOffsets } from "../webapp/layer1-ruler-axis.ts";
+import { computeInstantOffsets } from "../webapp/layer1-ruler-axis.ts";
 import { loadLayeredProject } from "./layered_load.ts";
 import { mergeSessionTimelines } from "./layered_merge.ts";
 import type { Instant, ReconstructionEntity, ReconstructionGraph } from "./layered_types.ts";
@@ -44,7 +44,7 @@ function computeAxisPixelOffsets(entities: WireLayeredEntity[]): Record<string, 
     }
   }
   const offsetEntries: [string, number][] = [];
-  for (const position of resolveInstantOffsets(instants))
+  for (const position of computeInstantOffsets(instants))
     offsetEntries.push([position.instant.toISOString(), position.offsetPx]);
   return Object.fromEntries(offsetEntries);
 }

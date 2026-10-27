@@ -13,7 +13,8 @@ import { listRulerRows } from "./layer1-ruler-rows.ts";
 import { drawScriptConnectors } from "./layer1-script-connectors.ts";
 import { listSelectedSessions } from "./layer1-sessions.ts";
 import { moveOpenRowToNewTicks, markMultiEventTicks } from "./layer1-tick-files.ts";
-import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
+import { setAxisPx } from "./layer1-lane-nodes.ts";
+import { buildOrphanBucket, buildStagePairs } from "./layer1-widgets.ts";
 import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
 
 // Builds elements only; layer1-ruler-rows.ts decides which entries print and what each row reads.

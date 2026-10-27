@@ -5,7 +5,7 @@ import { WireScriptLanguage, describeScriptLanguage, parseScriptLanguage } from 
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
-import { affectedPathsForRun } from "./reconstruction_script_probe.ts";
+import { findAffectedPathsForRun } from "./reconstruction_script_probe.ts";
 import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
 import { findSessionId } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -88,7 +88,7 @@ export function buildScriptRunsView(
         continue;
       }
       const wireRun = buildWireScriptRun(run, sessionId, sessionFile);
-      for (const path of affectedPathsForRun(run, candidatePaths)) {
+      for (const path of findAffectedPathsForRun(run, candidatePaths)) {
         const runsByToolUseId = runsByPath.get(path.toString()) ?? new Map<string, WireScriptRunWithoutAxis>();
         runsByPath.set(path.toString(), runsByToolUseId);
         const toolUseKey = wireRun.toolUseId.toString();

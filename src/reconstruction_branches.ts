@@ -8,7 +8,7 @@ import { fillRedirectContent, seedEditBaseFromBackup } from "./reconstruction_si
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { insertElidedBeaconSeeds } from "./reconstruction_beacons.ts";
 import { appendTruncatedBeaconCompletion } from "./reconstruction_beacons_truncated.ts";
-import { injectScriptExecutions } from "./reconstruction_script_stage.ts";
+import { applyScriptExecutions } from "./reconstruction_script_stage.ts";
 import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
 import { countActiveLineageReplayFrames } from "./reconstruction_lineage_memo.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
@@ -75,7 +75,7 @@ function computeFileRevisionsOver(
   const filled = reader ? executeStageTolerantly("fillRedirectContent", finalTarget, seeded, fillRedirectContent, records, seeded, reader) : seeded;
   const based = reader ? executeStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, seedEditBaseFromBackup, records, filled, reader) : filled;
   const scripted = reader
-    ? executeStageTolerantly("injectScriptExecutions", finalTarget, based, injectScriptExecutions, records, based, reader, finalTarget, getLineageContentBefore(records, reader))
+    ? executeStageTolerantly("injectScriptExecutions", finalTarget, based, applyScriptExecutions, records, based, reader, finalTarget, getLineageContentBefore(records, reader))
     : based;
   const evidenced = reader ? executeStageTolerantly("placeGitCommitEvidence", finalTarget, scripted, applyGitCommitEvidence, records, scripted, reader, finalTarget) : scripted;
   const unelided = reader ? executeStageTolerantly("completeElidedBeacons", finalTarget, evidenced, insertElidedBeaconSeeds, records, evidenced, reader) : evidenced;

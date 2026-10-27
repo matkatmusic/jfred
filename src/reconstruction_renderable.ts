@@ -9,7 +9,7 @@ import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findConversationBranches } from "./reconstruction_branch.ts";
 import { selectBranchRecords } from "./reconstruction_branch_records.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { discoverScriptCreatedPaths } from "./reconstruction_script_runs.ts";
+import { findScriptCreatedPaths } from "./reconstruction_script_runs.ts";
 import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import {
@@ -32,7 +32,7 @@ function addScriptCreatedTargets(
   for (const target of targets) {
     known.add(target.toString());
   }
-  for (const path of discoverScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
+  for (const path of findScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
     const finalPath = resolveFinalPath(path, renameChain);
     const isKnown = known.has(finalPath.toString());
     if (isKnown)

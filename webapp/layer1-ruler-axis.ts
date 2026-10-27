@@ -41,35 +41,48 @@ function measureGapPixels(earlier: Instant, later: Instant, contentFloorPx: numb
   return Math.max(clampedPixels, contentFloorPx);
 }
 
-function orderDistinctInstants(instants: Instant[]): Instant[] {
+function compareInstantsAscending(a: Instant, b: Instant): number {
+  return a.getTime() - b.getTime();
+}
+
+function sortDistinctInstants(instants: Instant[]): Instant[] {
   const byEpochMs = new Map<number, Instant>();
   for (const instant of instants) {
     byEpochMs.set(instant.getTime(), instant);
   }
-  return [...byEpochMs.values()].sort((a, b) => a.getTime() - b.getTime());
+  const distinctInstants = [...byEpochMs.values()];
+  distinctInstants.sort(compareInstantsAscending);
+  return distinctInstants;
 }
 
 // The gap LEAVING an instant pays for its rows; `extraGapPx` (task 300) is added on top of the winner.
-function accumulateOffsets(
+function computeRulerPositions(
   ordered: Instant[],
   measureContentFloorPx: (instant: Instant) => number,
   eventCounts: Map<number, number>,
   extraGapPx: Map<number, number>,
 ): RulerPosition[] {
+  const positions: RulerPosition[] = [];
   let offsetPx = 0;
   let previous: Instant | undefined = undefined;
-  return ordered.map((instant) => {
-    offsetPx += previous === undefined ? 0 : measureGapPixels(previous, instant, measureContentFloorPx(previous))
-            + (extraGapPx.get(previous.getTime()) ?? 0);
+  for (const instant of ordered) {
+    if (previous !== undefined) {
+      offsetPx += measureGapPixels(previous, instant, measureContentFloorPx(previous)) + (extraGapPx.get(previous.getTime()) ?? 0);
+    }
     previous = instant;
-    // `?? 0` is unreachable — `ordered` is `eventCounts`' own key set; it only satisfies the possibly-undefined type of Map.get.
-    return { instant, offsetPx, eventCount: eventCounts.get(instant.getTime()) ?? 0 };
-  });
+    // `?? 0` is unreachable: `ordered` is `eventCounts`' own key set; it only satisfies the possibly-undefined type of Map.get.
+    positions.push({ instant, offsetPx, eventCount: eventCounts.get(instant.getTime()) ?? 0 });
+  }
+  return positions;
 }
 
-// Entry point for bare instants; every gap falls back on the 16 px heuristic. Layer 1 uses layOutNodeLadders instead.
-export function resolveInstantOffsets(instants: Instant[]): RulerPosition[] {
-  return accumulateOffsets(orderDistinctInstants(instants), () => 0, countNodesPerInstant(instants), new Map());
+function measureNoContentFloorPx(): number {
+  return 0;
+}
+
+// Entry point for bare instants; every gap falls back on the 16 px heuristic. Layer 1 uses computeNodeLadderLayout instead.
+export function computeInstantOffsets(instants: Instant[]): RulerPosition[] {
+  return computeRulerPositions(sortDistinctInstants(instants), measureNoContentFloorPx, countNodesPerInstant(instants), new Map());
 }
 
 // Per-ladder MAX, not an overall tally: bubbles sit side by side, so only nodes inside the same bubble stack.
@@ -93,36 +106,41 @@ function countNodesPerInstant(nodes: Instant[]): Map<number, number> {
 }
 
 // A commit and an mtime sharing a second is routine; one shared offset is reported overprinting.
-function assignRowSlots(ladder: NodeLadder): number[] {
+function computeRowSlots(ladder: NodeLadder): number[] {
   const filledRows = new Map<number, number>();
-  return ladder.map((instant) => {
+  const slots: number[] = [];
+  for (const instant of ladder) {
     const slot = filledRows.get(instant.getTime()) ?? 0;
     filledRows.set(instant.getTime(), slot + 1);
-    return slot;
-  });
+    slots.push(slot);
+  }
+  return slots;
 }
 
 // Task 303: a plain optional callback, so the server can count without the client re-layout gaining a progress dependency.
 export type LadderPlacedCallback = (done: number, total: number) => void;
 
 // Task 251: ruler spacing is measured from what bubbles must show, so their contents are never squashed together.
-export function layOutNodeLadders(ladders: NodeLadder[], extraGapPx: Map<number, number> = new Map(), onLadderPlaced?: LadderPlacedCallback): RulerLayout {
+export function computeNodeLadderLayout(ladders: NodeLadder[], extraGapPx: Map<number, number> = new Map(), onLadderPlaced?: LadderPlacedCallback): RulerLayout {
   const rowsPerInstant = countRowsPerInstant(ladders);
   const everyNode = ladders.flat();
-  const ticks = accumulateOffsets(
-    orderDistinctInstants(everyNode),
-    (instant) => (rowsPerInstant.get(instant.getTime()) ?? 1) * RULER_NODE_ROW_PIXELS,
-    countNodesPerInstant(everyNode),
-    extraGapPx,
-  );
-  const tickOffsets = new Map(ticks.map((tick) => [tick.instant.getTime(), tick.offsetPx]));
-  return {
-    ticks,
-    // `?? 0` is unreachable — every ladder instant went into `ticks` above; it only satisfies Map.get's type.
-    ladderOffsetsPx: ladders.map((ladder, index) => {
-      onLadderPlaced?.(index + 1, ladders.length);
-      return assignRowSlots(ladder).map((slot, node) =>
-        (tickOffsets.get(ladder[node]!.getTime()) ?? 0) + slot * RULER_NODE_ROW_PIXELS);
-    }),
-  };
+  function measureRowsFloorPx(instant: Instant): number {
+    return (rowsPerInstant.get(instant.getTime()) ?? 1) * RULER_NODE_ROW_PIXELS;
+  }
+  const ticks = computeRulerPositions(sortDistinctInstants(everyNode), measureRowsFloorPx, countNodesPerInstant(everyNode), extraGapPx);
+  const tickOffsets = new Map<number, number>();
+  for (const tick of ticks) {
+    tickOffsets.set(tick.instant.getTime(), tick.offsetPx);
+  }
+  const ladderOffsetsPx: number[][] = [];
+  for (const [index, ladder] of ladders.entries()) {
+    onLadderPlaced?.(index + 1, ladders.length);
+    const nodeOffsetsPx: number[] = [];
+    for (const [node, slot] of computeRowSlots(ladder).entries()) {
+      // `?? 0` is unreachable: every ladder instant went into `ticks` above; it only satisfies Map.get's type.
+      nodeOffsetsPx.push((tickOffsets.get(ladder[node]!.getTime()) ?? 0) + slot * RULER_NODE_ROW_PIXELS);
+    }
+    ladderOffsetsPx.push(nodeOffsetsPx);
+  }
+  return { ticks, ladderOffsetsPx };
 }

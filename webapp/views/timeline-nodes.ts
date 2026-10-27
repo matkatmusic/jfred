@@ -4,7 +4,7 @@ import { buildRevisionIndex } from "./timeline-changes.ts";
 import { applyNodeFileChanges } from "./timeline-node-file-changes.ts";
 import { deriveLineNodes } from "./timeline-line-nodes.ts";
 import { attachSnapshotsToAgentTurns } from "./timeline-node-attach.ts";
-import { deriveCommitNodes, deriveToolCallNodes } from "./timeline-node-derive.ts";
+import { buildCommitNodes, buildToolCallNodes } from "./timeline-node-derive.ts";
 import { compareTimelineNodes, filterPreBaselineNodes, setStepNumbers } from "./timeline-node-order.ts";
 import { AGENT_TURN_NODE_KIND, SESSION_END_NODE_KIND, USER_ROLE, USER_TURN_NODE_KIND } from "./timeline-types.ts";
 import type { SessionEndNode, TimelineNode, ToolCallNode, TurnNode } from "./timeline-node-types.ts";
@@ -70,10 +70,10 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument, inclu
     });
   }
   // (task 121) Commit nodes derive before snapshots attach so the baseline merge can find the base-commit row.
-  const commitNodes = deriveCommitNodes(document);
+  const commitNodes = buildCommitNodes(document);
   attachSnapshotsToAgentTurns(turnNodes, commitNodes, document.steps);
   // (item 55) old: attachGitOperationsToAgentTurns(turnNodes, document.gitOperations ?? []); replaced by tool-call nodes.
-  const toolCallNodes = deriveToolCallNodes(document);
+  const toolCallNodes = buildToolCallNodes(document);
   appendSessionEndNodes(turnNodes, toolCallNodes);
   // task 134: opt-in raw-line rows for every record not already a turn or tool row.
   const lineNodes = includeAllLines ? deriveLineNodes(document) : [];

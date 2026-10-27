@@ -14,19 +14,26 @@ export type ExecutorRun = { id: Uuid; timestamp: Date; cwd: Path | undefined; co
 // Both evidence channels pool here so the guard rules in EXECUTOR-timestamp order, not readdir order.
 export type RenameCandidate = { changeId: Uuid; from: Path; to: Path; timestamp: Date };
 
+function getBlockText(block: unknown): string {
+  const isTextBlock = Boolean(block) && typeof block === "object" && "text" in (block as object);
+  return isTextBlock ? String((block as { text: unknown }).text) : "";
+}
+
 function getToolResultText(record: TranscriptRecord): string {
   const raw = (record as { toolUseResult?: unknown }).toolUseResult;
   if (typeof raw === "string") {
     return raw;
   }
-  if (Array.isArray(raw)) {
-    const blockTexts = raw.map((block) => (block && typeof block === "object" && "text" in block ? String((block as { text: unknown }).text) : ""));
+  const isBlockArray = Array.isArray(raw);
+  if (isBlockArray) {
+    const blockTexts: string[] = [];
+    for (const block of raw) {
+      blockTexts.push(getBlockText(block));
+    }
     return blockTexts.join("\n");
   }
-  if (raw && typeof raw === "object" && typeof (raw as { stdout?: unknown }).stdout === "string") {
-    return (raw as { stdout: string }).stdout;
-  }
-  return "";
+  const stdout = raw && typeof raw === "object" ? (raw as { stdout?: unknown }).stdout : undefined;
+  return typeof stdout === "string" ? stdout : "";
 }
 
 function getBasenameOf(value: string): string {
@@ -39,7 +46,8 @@ export function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp
   if (block.type !== BlockType.tool_use) {
     return;
   }
-  if (block.name === ToolName.Write && !erroredIds.has(block.id.toString())) {
+  const isUnerroredWrite = block.name === ToolName.Write && !erroredIds.has(block.id.toString());
+  if (isUnerroredWrite) {
     writtenBasenames.add(getBasenameOf(readWriteInput(block).filePath.toString()));
   }
   if (block.name === ToolName.Edit) {
@@ -48,7 +56,8 @@ export function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp
       writtenBasenames.add(getBasenameOf(filePath));
     }
   }
-  if (EXECUTOR_TOOL_NAMES.has(block.name) && timestamp instanceof Date) {
+  const isTimestampedExecutor = EXECUTOR_TOOL_NAMES.has(block.name) && timestamp instanceof Date;
+  if (isTimestampedExecutor) {
     const cwd = (block.input as { cwd?: string }).cwd;
     const code = (block.input as { code?: string }).code;
     executors.set(block.id.toString(), { id: block.id, timestamp, cwd: cwd !== undefined ? new Path(cwd) : recordCwd, code });
@@ -103,19 +112,25 @@ export function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRu
   }
 }
 
+function compareCandidatesByTimestamp(a: RenameCandidate, b: RenameCandidate): number {
+  return a.timestamp.getTime() - b.timestamp.getTime();
+}
+
 // A rename source must be a Write or Edit target, or an earlier rename's destination. This lets chains work.
 export function filterRenameCandidatesInTimestampOrder(candidates: RenameCandidate[], writtenBasenames: Set<string>): FileEvent[] {
-  const sortedCandidates = [...candidates].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  const sortedCandidates = [...candidates].sort(compareCandidatesByTimestamp);
   const knownSourceBasenames = new Set(writtenBasenames);
   const seenCandidateKeys = new Set<string>();
   const events: FileEvent[] = [];
   for (const candidate of sortedCandidates) {
     const candidateKey = `${candidate.changeId.toString()}|${candidate.from.toString()}|${candidate.to.toString()}`;
-    if (seenCandidateKeys.has(candidateKey)) {
+    const isDuplicate = seenCandidateKeys.has(candidateKey);
+    if (isDuplicate) {
       continue;
     }
     seenCandidateKeys.add(candidateKey);
-    if (!knownSourceBasenames.has(getBasenameOf(candidate.from.toString()))) {
+    const isKnownSource = knownSourceBasenames.has(getBasenameOf(candidate.from.toString()));
+    if (!isKnownSource) {
       continue;
     }
     knownSourceBasenames.add(getBasenameOf(candidate.to.toString()));
