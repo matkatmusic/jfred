@@ -9,7 +9,7 @@ import {
   findRevisionForChangeId,
 } from "./file-history-model.ts";
 
-export function showGitBaselineInDetails(historyDocument: WireHistoryDocument, path: string, changeId: string): void {
+export function renderGitBaselineInDetails(historyDocument: WireHistoryDocument, path: string, changeId: string): void {
   // File histories carry each revision's lines, so the committed content needs no fetch.
   const link = findRevisionForChangeId(historyDocument.filesTouched, changeId);
   const revisionNumber = link?.revisionNumber ?? 1;

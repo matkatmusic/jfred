@@ -11,7 +11,7 @@ import {
   isChangeIdGitBaseline,
 } from "./details-model.ts";
 import { isFullContentsOn } from "./details-stored-choices.ts";
-import { showGitBaselineInDetails } from "./details-baseline.ts";
+import { renderGitBaselineInDetails } from "./details-baseline.ts";
 import {
   renderContentInDetails,
   renderDiffInDetails,
@@ -48,7 +48,7 @@ export async function renderCardDiff(page: RevisionPage, card: RevisionCard, ind
   }
   const isGitBaseline = isChangeIdGitBaseline(card.changeId);
   if (isGitBaseline) {
-    showGitBaselineInDetails(context.document, target, card.changeId);
+    renderGitBaselineInDetails(context.document, target, card.changeId);
     return;
   }
   const block = (await getDiffBlocks(isFullContentsOn()))[index];

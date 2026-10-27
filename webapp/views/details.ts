@@ -9,7 +9,7 @@ import { buildFilesSidebarViewModel, type FileSidebarEntry } from "./timeline-fi
 import { type FileChange, type TimelineNode, type WireTimelineDocument } from "./timeline-types.ts";
 import { type DetailsContext, isChangeIdGitBaseline, computeDetailsHeaderText } from "./details-model.ts";
 import { isFullContentsOn } from "./details-stored-choices.ts";
-import { showGitBaselineInDetails } from "./details-baseline.ts";
+import { renderGitBaselineInDetails } from "./details-baseline.ts";
 import {
   clearRightPaneBody,
   fetchRevisionDiffBlocks,
@@ -94,7 +94,7 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
     // task 56 follow-up: a base-commit beacon's diff is empty, so show the committed bytes.
     const isGitBaseline = isChangeIdGitBaseline(change.changeId);
     if (isGitBaseline) {
-      showGitBaselineInDetails(context.document, change.path, change.changeId!);
+      renderGitBaselineInDetails(context.document, change.path, change.changeId!);
       return;
     }
     const blocks = await fetchRevisionDiffBlocks(context.project, change.path, isFullContentsOn());
