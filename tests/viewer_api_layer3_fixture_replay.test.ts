@@ -5,7 +5,7 @@ import { listTemplateLines } from "../src/viewer_api_layer1_fixture_content.ts";
 import { EDITS, listFixtureEvents } from "../src/viewer_api_layer3_fixture_data.ts";
 import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/layer1_edits_wire.ts";
 import {
-  buildFixtureEditsPayload, buildFixtureRecord, readFixtureEditFile, replayFixtureEvent,
+  buildFixtureEditsPayload, buildFixtureRecord, readFixtureEditFile, computeFixtureReplay,
 } from "../src/viewer_api_layer3_fixture_replay.ts";
 
 const INDEX_PATH = "src/index.ts";
@@ -13,7 +13,7 @@ const DISPATCHER_PATH = "src/components/interim-run-scenario/test_run_scenario_d
 
 test("a clean first edit is verified and changes only its own line", () => {
   const edit = listFixtureEvents(INDEX_PATH)[1]!;
-  const replayed = replayFixtureEvent(edit);
+  const replayed = computeFixtureReplay(edit);
   assert.equal(replayed.confidence, "verified");
   assert.deepEqual(replayed.base, listTemplateLines(INDEX_PATH));
   assert.equal(replayed.target.length, replayed.base.length);
@@ -22,37 +22,37 @@ test("a clean first edit is verified and changes only its own line", () => {
 
 test("the stale dispatcher edit is derived", () => {
   const stale = listFixtureEvents(DISPATCHER_PATH).find((event) => event.expectDerived === true)!;
-  assert.equal(replayFixtureEvent(stale).confidence, "derived");
+  assert.equal(computeFixtureReplay(stale).confidence, "derived");
 });
 
 test("a chained edit starts from its predecessor's target with no beacon between", () => {
   const events = listFixtureEvents(INDEX_PATH);
-  const chained = replayFixtureEvent(events[2]!);
-  assert.equal(chained.base, replayFixtureEvent(events[1]!).target);
+  const chained = computeFixtureReplay(events[2]!);
+  assert.equal(chained.base, computeFixtureReplay(events[1]!).target);
   assert.equal(chained.confidence, "verified");
 });
 
 test("a Read beacon verifies the edits before it", () => {
   const events = listFixtureEvents(INDEX_PATH);
   const read = events.find((event) => event.kind === "read" && event.at.startsWith("2026-07-24"))!;
-  const replayed = replayFixtureEvent(read);
+  const replayed = computeFixtureReplay(read);
   assert.equal(replayed.base, replayed.target);
   assert.equal(replayed.confidence, "verified");
-  assert.equal(replayed.target.join("\n"), replayFixtureEvent(events[2]!).target.join("\n"));
+  assert.equal(replayed.target.join("\n"), computeFixtureReplay(events[2]!).target.join("\n"));
 });
 
 test("a Write replaces the file with its body and starts from the previous state", () => {
   const events = listFixtureEvents(DISPATCHER_PATH);
   const write = events.find((event) => event.kind === "write")!;
-  const replayed = replayFixtureEvent(write);
+  const replayed = computeFixtureReplay(write);
   assert.deepEqual(replayed.target, write.content);
-  assert.equal(replayed.base, replayFixtureEvent(events[events.indexOf(write) - 1]!).target);
+  assert.equal(replayed.base, computeFixtureReplay(events[events.indexOf(write) - 1]!).target);
   assert.equal(replayed.confidence, "verified");
 });
 
 test("an event is computed once: the same object comes back", () => {
   const event = EDITS[1]!;
-  assert.equal(replayFixtureEvent(event), replayFixtureEvent(event));
+  assert.equal(computeFixtureReplay(event), computeFixtureReplay(event));
 });
 
 test("the file payload answers the chosen side, the session title and a transcript-shaped record", () => {

@@ -4,7 +4,7 @@ import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import type { BulkFixtureTarget } from "./viewer_api_fixture_bulk.ts";
 import { parseMs, type FixtureDisk, type FixtureSession } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
-import { replayFixtureEvent } from "./viewer_api_layer3_fixture_replay.ts";
+import { computeFixtureReplay } from "./viewer_api_layer3_fixture_replay.ts";
 
 interface PlacementContext {
   diskByPath: Map<string, FixtureDisk>;
@@ -121,7 +121,7 @@ function listEventProblems(event: FixtureEvent, context: PlacementContext): stri
     return problems;
   }
   const expected = event.expectDerived === true ? WireConfidence.derived : WireConfidence.verified;
-  const replayed = replayFixtureEvent(event).confidence;
+  const replayed = computeFixtureReplay(event).confidence;
   return replayed === expected ? [] : [`${where}: replay says ${replayed}, the fixture declares ${expected}`];
 }
 
