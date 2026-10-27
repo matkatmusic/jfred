@@ -86,7 +86,7 @@ export type WireTimelineDocument = {
   lineVerdicts?: WireLineVerdict[];
 };
 
-// indexRevisionsByChangeId maps a changeId to its revision facts; displayPath is the name at that revision, path stays the fetch key.
+// buildRevisionIndex maps a changeId to its revision facts; displayPath is the name at that revision, path stays the fetch key.
 export type RevisionIndexEntry = {
   path: string;
   displayPath: string;
@@ -97,7 +97,7 @@ export type RevisionIndexEntry = {
 };
 export type RevisionIndex = Map<string, RevisionIndexEntry>;
 
-// deriveFileChanges' chips: one file change per path; `when` is the snapshot's instant; displayPath is entry-time only, path is fetch key.
+// computeFileChanges' chips: one file change per path; `when` is the snapshot's instant; displayPath is entry-time only, path is fetch key.
 export type FileChange = {
   path: string;
   displayPath: string;

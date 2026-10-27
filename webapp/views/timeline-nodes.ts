@@ -1,11 +1,8 @@
 // Timeline node assembly (split from timeline.ts, task 92): turning the wire document's messages, step snapshots, git operations, and tool calls into the sorted, numbered TimelineNode list (buildTurnTimelineViewModel).
 
 import { recordGitBaselineSnapshot } from "./timeline-baseline-host.ts";
-import {
-  checkSnapshotIsGitBaseline,
-  deriveNodeFileChanges,
-  indexRevisionsByChangeId,
-} from "./timeline-changes.ts";
+import { isSnapshotGitBaseline, buildRevisionIndex } from "./timeline-changes.ts";
+import { applyNodeFileChanges } from "./timeline-node-file-changes.ts";
 import { LINE_NODE_KIND, deriveLineNodes } from "./timeline-line-nodes.ts";
 import { deriveCommitNodes, deriveToolCallNodes } from "./timeline-node-derive.ts";
 import {
@@ -67,7 +64,7 @@ function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], commitNodes: CommitN
   let baselineHost: TurnNode | CommitNode | undefined;
   for (const snapshot of steps) {
     // (task 86) gitBase-only steps get their own baseline node — they must not mingle with the generic unattributed synthetic turn below.
-    if (checkSnapshotIsGitBaseline(snapshot)) {
+    if (isSnapshotGitBaseline(snapshot)) {
       baselineHost = recordGitBaselineSnapshot(turnNodes, commitNodes, snapshot, baselineHost);
       continue;
     }
@@ -97,11 +94,7 @@ function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], commitNodes: CommitN
 
 // (item 66) the item-55 dead git-row machinery (attachGitOperationsToAgentTurns, findLastAgentTurnOfSession, formatGitOperationLabel, renderGitOperationRow, showGitOperationJson) is deleted here per the plan — it lives on in webapp/archive/timeline-pre-item66.ts.
 
-// One session-end node per distinct session (insertion order), timestamped at the session's last
-// turn OR tool call — the end node closes the session after everything in it (a trailing `git
-// add` row must precede its session end, item 55); compareTimelineNodes ranks it after everything
-// else sharing that timestamp. Unattributed turns (no sessionId — e.g. script executions) are not
-// a session and get no end node.
+// One session-end node per distinct session (insertion order), timestamped at the session's last turn OR tool call — the end node closes the session after everything in it (a trailing `git add` row must precede its session end, item 55); compareTimelineNodes ranks it after everything else sharing that timestamp. Unattributed turns (no sessionId — e.g. script executions) are not a session and get no end node.
 function appendSessionEndNodes(turnNodes: (TurnNode | SessionEndNode)[], toolCallNodes: ToolCallNode[]): void {
   const lastTurnTimes = new Map<string, string>();
   const noteSessionInstant = (sessionId: string | undefined, when: string): void => {
@@ -172,7 +165,7 @@ function filterPreBaselineNodes(nodes: TimelineNode[], preBaselineSkipped: boole
 
 // One timeline node per conversation turn: every user prompt and agent reply is a numbered step; a session-end step closes each session; git commits stay as unnumbered hard stops.  StepSnapshots attach to the first agent reply of their own session at or after them (tool calls run before the reply's text is emitted); leftovers get a synthetic reply node so no file change is ever dropped.
 export function buildTurnTimelineViewModel(document: WireTimelineDocument, includeAllLines = false): { nodes: TimelineNode[] } {
-  const revisionIndex = indexRevisionsByChangeId(document);
+  const revisionIndex = buildRevisionIndex(document);
   const turnNodes: TurnNode[] = document.messages.map((message) => ({
     kind: message.role === USER_ROLE ? USER_TURN_NODE_KIND : AGENT_TURN_NODE_KIND,
     when: message.timestamp,
@@ -196,6 +189,6 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument, inclu
   // (task 56) drop pre-baseline nodes BEFORE numbering so step 1 is the baseline node.
   const nodes = filterPreBaselineNodes(sortedNodes, document.preBaselineSkipped === true);
   assignStepNumbers(nodes);
-  deriveNodeFileChanges(nodes, revisionIndex);
+  applyNodeFileChanges(nodes, revisionIndex);
   return { nodes };
 }

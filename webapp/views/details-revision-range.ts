@@ -1,6 +1,6 @@
 // Range-diff selection for the Revision View: card toggles and the picked run's diff.
 
-import { splitPatchByFile } from "./timeline-changes.ts";
+import { splitPatchByFile } from "./timeline-patch-split.ts";
 import { computeRangeSummary } from "./timeline-picks.ts";
 import { checkCardRunIsContiguous, computeOwningNodeIndexes } from "./details-model.ts";
 import { showDiffInDetails, showTextInDetails } from "./details-diff.ts";

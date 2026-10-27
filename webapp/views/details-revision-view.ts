@@ -2,7 +2,7 @@
 
 import { createElement } from "../app-dom.ts";
 import { routeToFileHistory } from "../app-routes.ts";
-import { revealDetailsPane } from "../inspector.ts";
+import { openDetailsPane } from "../inspector-pane.ts";
 import { buildFileHistoryViewModel } from "./file-history-model.ts";
 import {
   type DetailsContext,
@@ -88,7 +88,7 @@ function appendRevisionCard(page: RevisionPage, card: RevisionCard, index: numbe
 }
 
 export function renderDetailsFileMode(target: string, context: DetailsContext, focus?: RevisionFocus): void {
-  revealDetailsPane();
+  openDetailsPane();
   setDetailsHeader(`File Revisions — ${target}`);
   const left = document.getElementById("details-left")!;
   left.replaceChildren(createElement("div", { class: "pane-title", text: "Revisions" }));

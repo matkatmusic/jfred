@@ -1,6 +1,6 @@
 // The drawer overlay for a project's jsonl/file sub-routes, plus the details-pane reset that every route change runs first.
 
-import { openInspectorPane } from "./inspector.ts";
+import { openInspectorPane } from "./inspector-pane.ts";
 import { peekCachedDocument } from "./app-fetch.ts";
 import { renderConversationView } from "./views/conversation.ts";
 import { computeFileRouteFocus } from "./views/details-model.ts";

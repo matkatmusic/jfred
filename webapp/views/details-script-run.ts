@@ -1,7 +1,7 @@
 // Script-run Details mode (tasks 67/144): script left, changed-file list, one selected diff right; model half in details-script-run-model.ts.
 
 import { createElement } from "../app-dom.ts";
-import { revealDetailsPane } from "../inspector.ts";
+import { openDetailsPane } from "../inspector-pane.ts";
 import { type DetailsContext, computeDetailsHeaderText, fullContentsIsOn } from "./details-model.ts";
 import { appendColumnsDiff } from "../diff-render.ts";
 import {
@@ -18,7 +18,7 @@ export async function renderDetailsScriptRunMode(node: ToolCallNode, nodeIndex: 
   if (node.scriptRun === undefined) {
     return;
   }
-  revealDetailsPane();
+  openDetailsPane();
   setDetailsHeader(computeDetailsHeaderText(node, { index: nodeIndex, total: context.nodes.length }));
   const viewModel = buildScriptRunDetailsViewModel(node.scriptRun, context.document);
   const left = document.getElementById("details-left")!;

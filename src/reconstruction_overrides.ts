@@ -1,4 +1,4 @@
-// User-supplied data-source path overrides (TASKS.md item 46): where the file-history blobs, the project, and its git repo live NOW, for transcripts copied out of ~/.claude (e.g. an audit tree mirroring the ~/.claude layout). Process-wide module state on the reconstruction_exec_gate.ts precedent — builds are synchronous and the server serializes them, so each request/run sets the state it needs. Empty state = every consumer behaves exactly as before item 46.  The `projectCwd` override is consumed at the git-evidence DISK-ACCESS points, never rewritten into records at parse time: rewriting record.cwd while file paths stay recorded breaks readCommittedFileContent's relative-path math and puts rename/copy resolution (resolveAgainstCwd) in a mixed path space that breaks lineage joins (user-approved deviation from the item-46 text, 2026-07-09).
+// User-supplied path overrides for file-history blobs, project and git repo; empty state means defaults.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ export function getPathOverrides(): PathOverrides {
   return activePathOverrides;
 }
 
-// Stable string for cache stamps: the defined fields in fixed key order (undefined fields drop out of JSON.stringify, so the empty state is always "{}"). `sources` is in the stamp so a source-list config change never reuses a single-source cached document (spec S6).
+// Stable cache-stamp string: defined fields in fixed key order, including `sources`; empty state is "{}".
 export function serializePathOverrides(): string {
   const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = activePathOverrides;
   return JSON.stringify({
@@ -45,7 +45,7 @@ export function serializePathOverrides(): string {
 // Per-project config file inside the projects folder; scanProjects ignores it since it lists only dirs and .jsonl files.
 export const PROJECT_PATHS_CONFIG_NAME = "reveng-paths.json";
 
-// Wire shape of one entry in a project's `sources` list (spec S3): one conversation-log folder plus its optional file-history folder and workspace root. Paths resolve exactly like every other reveng-paths.json path (task-56 trap: jfred-root-relative or absolute, taken verbatim).
+// Wire shape of one `sources` entry: a log folder, optional file-history folder, optional workspace root.
 export type WireSourceEntry = {
   projectsDir: string;
   fileHistoryDir?: string;
@@ -54,18 +54,18 @@ export type WireSourceEntry = {
   baseCommit?: string;
 };
 
-// Wire shape of one project's entry in <projectsDir>/reveng-paths.json. fileHistory is the per-project explicit file-history-snapshots override (task 137); sources is the multi-source list (spec S3).
+// Wire shape of one project's entry in reveng-paths.json: fileHistory override plus multi-source list.
 export type WireProjectPaths = {
   cwd?: string;
   repo?: string;
   baseCommit?: string;
   fileHistory?: string;
   sources?: WireSourceEntry[];
-  // task 159: the wizard screen-5 pre-baseline answer ("1" reconstruct / "0" start at the baseline), persisted on Store; the webapp seeds its task-56 sessionStorage mirror from it.
+  // Wizard pre-baseline answer ("1" reconstruct, "0" start at baseline), persisted on Store.
   preBaseline?: string;
 };
 
-// One hydrated source (spec S3/S4): where a source's JSONLs live, optionally where its file-history blobs live, and optionally the workspace root its file paths are relative to. An absent root means "auto-detect from JSONL cwds" (design §b) — resolved by later pipeline stages, never at parse time.
+// One hydrated source: JSONL folder, optional file-history folder, optional workspace root (absent means auto-detect).
 export type SourceEntry = {
   projectsDir: Path;
   fileHistoryDir?: Path;
@@ -136,7 +136,7 @@ export function hydrateProjectPaths(wire: WireProjectPaths): PathOverrides {
   return overrides;
 }
 
-// Merge one project's entry into <projectsDir>/reveng-paths.json (task 137's opt-in store).  Field-wise merge: fields absent from `entry` keep their stored values.
+// Merge one project's entry into reveng-paths.json field-wise; absent fields keep stored values.
 export function writeProjectPathsEntry(projectsDir: Path, projectName: string, entry: WireProjectPaths): void {
   const config = readProjectPathsConfig(projectsDir);
   config[projectName] = { ...config[projectName], ...entry };

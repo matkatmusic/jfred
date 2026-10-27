@@ -1,7 +1,7 @@
 // Details pane (item 66): left-pane file list plus message/commit renderers; touches the static #details-* skeleton in index.html.
 
 import { createElement } from "../app-dom.ts";
-import { revealDetailsPane } from "../inspector.ts";
+import { openDetailsPane } from "../inspector-pane.ts";
 import { deriveCommitChangedFiles } from "./timeline-commit-files.ts";
 import { applyRenameBadgeLabels } from "./timeline-file-badges.ts";
 import { buildFileTree } from "./timeline-file-tree.ts";
@@ -107,7 +107,7 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
 }
 
 export function renderDetailsMessageMode(node: TimelineNode, nodeIndex: number, context: DetailsContext): void {
-  revealDetailsPane();
+  openDetailsPane();
   setDetailsHeader(computeDetailsHeaderText(node, { index: nodeIndex, total: context.nodes.length }));
   const left = document.getElementById("details-left")!;
   left.replaceChildren(createElement("div", { class: "pane-title", text: "Files touched" }));
@@ -123,7 +123,7 @@ export function renderDetailsMessageMode(node: TimelineNode, nodeIndex: number, 
 
 // "Changed files" means everything touched since the PREVIOUS commit.
 export function renderDetailsCommitMode(node: TimelineNode, nodeIndex: number, context: DetailsContext): void {
-  revealDetailsPane();
+  openDetailsPane();
   setDetailsHeader(computeDetailsHeaderText(node, { index: nodeIndex, total: context.nodes.length }));
   const left = document.getElementById("details-left")!;
   left.replaceChildren(createElement("div", { class: "pane-title", text: "Changed files" }));

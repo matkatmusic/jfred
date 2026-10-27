@@ -1,7 +1,7 @@
 // Builds the one shared TimelineRenderContext every timeline-render-* module calls through.
 
 import { createElement } from "../app-dom.ts";
-import { openInspectorPane } from "../inspector.ts";
+import { openInspectorPane } from "../inspector-pane.ts";
 import { clearActiveChip, markChipActive } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import {
