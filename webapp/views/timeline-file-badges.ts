@@ -16,7 +16,7 @@ export function applyRenameBadgeLabels(entries: FileSidebarEntry[]): void {
     badges.push({ entry, segments: splitPathSegments(entry.originalPath), depth: 1 });
   }
   while (updateCollidingBadgeDepths(badges)) {
-    // repeat until no badge grew — each pass regroups by the freshly deepened labels.
+    // Repeat until no badge grew: each pass regroups by the new labels.
   }
   for (const badge of badges) {
     badge.entry.renameBadgeLabel = computeBadgeLabel(badge);
