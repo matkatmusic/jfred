@@ -4,11 +4,8 @@ import { createElement } from "../app-dom.ts";
 import { revealDetailsPane } from "../inspector.ts";
 import { deriveCommitChangedFiles } from "./timeline-commit-files.ts";
 import { applyRenameBadgeLabels } from "./timeline-file-badges.ts";
-import {
-  buildFileTree,
-  buildFilesSidebarViewModel,
-  type FileSidebarEntry,
-} from "./timeline-file-tree.ts";
+import { buildFileTree } from "./timeline-file-tree.ts";
+import { buildFilesSidebarViewModel, type FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
 import {
   type FileChange,
   type TimelineNode,
