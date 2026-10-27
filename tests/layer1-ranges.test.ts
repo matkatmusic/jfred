@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderSessionRanges, resolveAxisPixelsAt } from "../webapp/layer1-ranges.ts";
+import { renderSessionRanges, computeAxisPixelsAt } from "../webapp/layer1-ranges.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick, WireSession } from "../webapp/layer1-wire.ts";
 
@@ -19,18 +19,18 @@ function buildSession(started: string, ended: string): WireSession {
 }
 
 test("an instant halfway between two ticks lands halfway between their offsets", () => {
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-06-01T10:30:00Z"), TICKS), 70);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-06-01T10:30:00Z"), TICKS), 70);
 });
 
 test("an instant on a tick takes that tick's own offset", () => {
-    assert.equal(resolveAxisPixelsAt(Date.parse(FIRST_TICK_INSTANT), TICKS), 20);
-    assert.equal(resolveAxisPixelsAt(Date.parse(LAST_TICK_INSTANT), TICKS), 120);
+    assert.equal(computeAxisPixelsAt(Date.parse(FIRST_TICK_INSTANT), TICKS), 20);
+    assert.equal(computeAxisPixelsAt(Date.parse(LAST_TICK_INSTANT), TICKS), 120);
 });
 
 test("instants outside the ruler clamp to its ends", () => {
     // A session that opened before the first recorded event still has to start somewhere on screen.
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-05-01T00:00:00Z"), TICKS), 20);
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-08-01T00:00:00Z"), TICKS), 120);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-05-01T00:00:00Z"), TICKS), 20);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-08-01T00:00:00Z"), TICKS), 120);
 });
 
 test("a session that covers no event gets a bar and no wash", () => {
