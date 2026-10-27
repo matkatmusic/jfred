@@ -13,10 +13,10 @@ import {
 import { isFullContentsOn } from "./details-stored-choices.ts";
 import { showGitBaselineInDetails } from "./details-baseline.ts";
 import {
-  showContentInDetails,
-  showDiffInDetails,
-  showTextInDetails,
-  showUnrecoverableInDetails,
+  renderContentInDetails,
+  renderDiffInDetails,
+  renderTextInDetails,
+  renderUnrecoverableInDetails,
 } from "./details-diff.ts";
 
 export type RevisionPage = {
@@ -43,7 +43,7 @@ export async function renderCardDiff(page: RevisionPage, card: RevisionCard, ind
   // A placeholder's lines repeat the prior revision, so show the failure reason instead.
   if (card.unrecoverableReason !== undefined) {
     const previousBlock = index > 0 ? (await getDiffBlocks(isFullContentsOn()))[index - 1] : undefined;
-    showUnrecoverableInDetails(label, target, card.unrecoverableReason, previousBlock, refreshCardDiff);
+    renderUnrecoverableInDetails(label, target, card.unrecoverableReason, previousBlock, refreshCardDiff);
     return;
   }
   const isGitBaseline = isChangeIdGitBaseline(card.changeId);
@@ -63,16 +63,16 @@ export async function renderCardDiff(page: RevisionPage, card: RevisionCard, ind
   };
   const fallbackText = computeRevisionDiffFallbackText(block, change);
   if (fallbackText !== undefined) {
-    showTextInDetails(label, fallbackText);
+    renderTextInDetails(label, fallbackText);
     return;
   }
-  showDiffInDetails(label, target, block!, refreshCardDiff);
+  renderDiffInDetails(label, target, block!, refreshCardDiff);
 }
 
 // A card's own click always means diff: only an incoming focus can ask for content or record.
 export function renderCardInMode(page: RevisionPage, card: RevisionCard, index: number, mode: RevisionViewMode): void {
   if (mode === RevisionViewMode.content) {
-    showContentInDetails(page.target, card.revisionNumber, page.revisionContents[index]?.content);
+    renderContentInDetails(page.target, card.revisionNumber, page.revisionContents[index]?.content);
     return;
   }
   if (mode === RevisionViewMode.record) {

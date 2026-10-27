@@ -9,10 +9,10 @@ export function extractValueFlag(
   }
   const value = argv[at + 1];
   const rest: string[] = [];
-  for (let index = 0; index < argv.length; index++) {
+  for (const [index, arg] of argv.entries()) {
     const isFlagOrValue = index === at || index === at + 1;
     if (!isFlagOrValue) {
-      rest.push(argv[index]);
+      rest.push(arg);
     }
   }
   return { value, rest };

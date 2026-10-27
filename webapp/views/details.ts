@@ -16,8 +16,8 @@ import {
   hideDiffModeToggle,
   setDetailsHeader,
   setRightPaneLabel,
-  showRevisionDiffInDetails,
 } from "./details-diff.ts";
+import { renderRevisionDiffInDetails } from "./details-diff-revision.ts";
 import { renderFileTreeNode, type FileTreeCallbacks } from "./sidebar.ts";
 
 // Only this node's changed paths, deduped by path so a twice-edited file shows one leaf.
@@ -60,7 +60,7 @@ function buildTouchedFileEntries(changes: FileChange[], wireDocument: WireTimeli
 //         // current stored context width (item 75).
 //         const showThisFileDiff = async () => {
 //             const blocks = await fetchRevisionDiffBlocks(context.project, change.path, fullContentsIsOn());
-//             await showRevisionDiffInDetails(change, blocks, context.document.filesTouched, () => void showThisFileDiff());
+//             await renderRevisionDiffInDetails(change, blocks, context.document.filesTouched, () => void showThisFileDiff());
 //         };
 //         item.onclick = async () => {
 //             left.querySelectorAll(".dfile").forEach((other) => other.classList.remove("selected"));
@@ -101,7 +101,7 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
     function openSameFileDiff(): void {
       void openFileDiff(change);
     }
-    await showRevisionDiffInDetails(change, blocks, context.document.filesTouched, openSameFileDiff);
+    await renderRevisionDiffInDetails(change, blocks, context.document.filesTouched, openSameFileDiff);
   };
   const callbacks: FileTreeCallbacks = {
     onFileClick: (target: string) => {

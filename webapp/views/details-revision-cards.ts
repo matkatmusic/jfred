@@ -7,7 +7,7 @@ import {
   type RevisionCard,
 } from "./details-model.ts";
 import { isFullContentsOn } from "./details-stored-choices.ts";
-import { showContentInDetails } from "./details-diff.ts";
+import { renderContentInDetails } from "./details-diff.ts";
 import { downloadText } from "./download.ts";
 
 function moveToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
@@ -61,7 +61,7 @@ export function buildRevisionActionsElement(
   getDiffBlocks: (full: boolean) => Promise<string[]>,
 ): HTMLElement {
   function openRevisionContent(): void {
-    showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
+    renderContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
   }
   function exportRevisionVersion(): void {
     downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "");

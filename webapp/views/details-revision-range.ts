@@ -3,7 +3,7 @@
 import { splitPatchByFile } from "./timeline-patch-split.ts";
 import { computeRangeSummary } from "./timeline-picks.ts";
 import { isCardRunContiguous, computeOwningNodeIndexes } from "./details-model.ts";
-import { showDiffInDetails, showTextInDetails } from "./details-diff.ts";
+import { renderDiffInDetails, renderTextInDetails } from "./details-diff.ts";
 import { type RevisionPage, renderFocusedCard } from "./details-revision-diff.ts";
 
 function compareAscending(left: number, right: number): number {
@@ -36,12 +36,12 @@ export async function renderRangeDiff(page: RevisionPage): Promise<void> {
   const selectedIndexes = [...page.rangeSelected].sort(compareAscending);
   const isContiguousRun = isCardRunContiguous(selectedIndexes);
   if (!isContiguousRun) {
-    showTextInDetails(target, "(pick a contiguous run of revisions)");
+    renderTextInDetails(target, "(pick a contiguous run of revisions)");
     return;
   }
   const ownerIndexes = computeOwningNodeIndexes(cards, context.nodes, selectedIndexes);
   if (ownerIndexes.length === 0) {
-    showTextInDetails(target, "(no timeline steps own the picked revisions)");
+    renderTextInDetails(target, "(no timeline steps own the picked revisions)");
     return;
   }
   const summary = computeRangeSummary(context.nodes, ownerIndexes);
@@ -51,10 +51,10 @@ export async function renderRangeDiff(page: RevisionPage): Promise<void> {
   const lastNumber = selectedIndexes[selectedIndexes.length - 1]! + 1;
   const label = `${target} — revisions #${firstNumber}→#${lastNumber}`;
   if (block === undefined) {
-    showTextInDetails(label, "(file unchanged across the picked revisions)");
+    renderTextInDetails(label, "(file unchanged across the picked revisions)");
     return;
   }
-  showDiffInDetails(label, target, block.block, refreshRangeDiff);
+  renderDiffInDetails(label, target, block.block, refreshRangeDiff);
 }
 
 // Flip glyphs in place: re-entering renderDetailsFileMode would drop the selection and focus.

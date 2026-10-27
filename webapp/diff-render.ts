@@ -7,7 +7,8 @@ import { computeLanguageForPath } from "./highlight.ts";
 
 // Colour one cell's code through the vendored hljs global; plain text without it (renderCodeInto's guard).
 export function renderCellCode(cell: HTMLElement, code: string, language: string | undefined): void {
-  if (language === undefined || typeof hljs === "undefined" || hljs.getLanguage(language) === undefined) {
+  const isHighlightable = language !== undefined && typeof hljs !== "undefined" && hljs.getLanguage(language) !== undefined;
+  if (!isHighlightable) {
     cell.textContent = code;
     return;
   }
@@ -59,7 +60,7 @@ export function appendInlineDiff(body: HTMLElement, diffText: string, path: stri
 }
 
 // A split cell's class: dc-del / dc-add / plain context.
-function mapSplitCellClass(lineClass: string): string {
+function computeSplitCellClass(lineClass: string): string {
   if (lineClass === "diff-line-del") {
     return "dc-del";
   }
@@ -79,7 +80,7 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
     );
     return;
   }
-  const cellClass = mapSplitCellClass(cell.lineClass);
+  const cellClass = computeSplitCellClass(cell.lineClass);
   const cellBody = createElement("span", { class: `dc-body ${cellClass}`.trim() });
   // Task 319: every split cell leads with its +/-/space marker, kept outside the highlighted code.
   const sign = cellClass === "dc-del" ? "-" : cellClass === "dc-add" ? "+" : " ";
@@ -99,9 +100,9 @@ export function appendColumnsDiff(body: HTMLElement, diffText: string, path: str
       grid.append(createElement("span", { class: "dc-hunk", text: row.text }));
       continue;
     }
-    [row.left, row.right].forEach((cell, side) => {
+    for (const [side, cell] of [row.left, row.right].entries()) {
       appendSplitCellPair(grid, cell, side, language);
-    });
+    }
   }
   body.append(grid);
 }

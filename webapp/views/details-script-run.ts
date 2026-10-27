@@ -34,13 +34,16 @@ export async function renderDetailsScriptRunMode(node: ToolCallNode, nodeIndex: 
     return;
   }
   left.append(createElement("div", { class: "pane-title", text: "Files changed" }));
-  const fileButtons = viewModel.files.map((entry, index) => createElement("button", {
-    class: "row-btn",
-    text: computeFileButtonLabel(entry),
-    title: entry.path,
-    onclick: () => void showSelectedFileDiff(index),
-  }));
-  const showSelectedFileDiff = async (index: number): Promise<void> => {
+  const fileButtons: HTMLElement[] = [];
+  for (const [index, entry] of viewModel.files.entries()) {
+    fileButtons.push(createElement("button", {
+      class: "row-btn",
+      text: computeFileButtonLabel(entry),
+      title: entry.path,
+      onclick: () => void renderSelectedFileDiff(index),
+    }));
+  }
+  const renderSelectedFileDiff = async (index: number): Promise<void> => {
     for (const [buttonIndex, button] of fileButtons.entries()) {
       button.classList.toggle("selected", buttonIndex === index);
     }
@@ -50,7 +53,7 @@ export async function renderDetailsScriptRunMode(node: ToolCallNode, nodeIndex: 
     await appendChangedFileDiff(body, entry, context);
   };
   left.append(...fileButtons);
-  await showSelectedFileDiff(0);
+  await renderSelectedFileDiff(0);
 }
 
 // A file button's label: the path's basename (the full path rides on the button's title).
@@ -60,7 +63,9 @@ function computeFileButtonLabel(entry: ScriptRunFileEntry): string {
 
 // One changed file's diff section from the shared /api/diff response; unresolved or blockless revisions explain themselves.
 async function appendChangedFileDiff(body: HTMLElement, entry: ScriptRunFileEntry, context: DetailsContext): Promise<void> {
-  if (entry.target === undefined || entry.revisionNumber === undefined) {
+  const isTargetMissing = entry.target === undefined;
+  const isRevisionMissing = entry.revisionNumber === undefined;
+  if (isTargetMissing || isRevisionMissing) {
     body.append(createElement("div", { class: "dempty", text: `no reconstructed history for ${entry.path}` }));
     return;
   }
