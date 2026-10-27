@@ -11,6 +11,7 @@ import {
 import type {
   CopyEvent,
   DeleteEvent,
+  FileEvent,
   FileRevision,
   LineEntry,
   OverwriteEvent,
@@ -100,7 +101,7 @@ export function createScriptExecutionRevision(event: ScriptExecutionEvent): File
 
 // A survived per-event failure: the prior lines carried forward, flagged with the reason.
 export function createUnrecoverableRevision(
-  event: { kind: FileRevision["kind"]; changeId: FileRevision["changeId"]; timestamp: Date },
+  event: FileEvent,
   revisions: FileRevision[],
   reason: string,
 ): FileRevision {
