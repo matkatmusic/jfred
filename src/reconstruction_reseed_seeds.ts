@@ -3,7 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { splitLines, reverseEditFromAfter } from "./reconstruction_replay_edit.ts";
+import { splitLines, getPreEditLines } from "./reconstruction_replay_edit.ts";
 import { backupSeedWriteFor, backupAfterWriteFor } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_events.ts";
@@ -66,7 +66,7 @@ export function findReversedEditBaseSeed(
   if (after === undefined) {
     return undefined;
   }
-  const reversed = reverseEditFromAfter(splitLines(after.content), event);
+  const reversed = getPreEditLines(splitLines(after.content), event);
   if (reversed === undefined) {
     return undefined;
   }

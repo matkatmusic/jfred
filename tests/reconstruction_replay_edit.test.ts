@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyEdit, reverseEditFromAfter } from "../src/reconstruction_replay_edit.ts";
+import { applyEdit, getPreEditLines } from "../src/reconstruction_replay_edit.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -46,31 +46,31 @@ function buildEditWithHunk(hunk: StructuredPatchHunk): EditEvent {
 }
 
 // Reversing an addition hunk drops the added line from the post-edit lines (s28).
-test("test_reverseEditFromAfter_removes_an_addition_hunk", () => {
+test("test_getPreEditLines_removes_an_addition_hunk", () => {
     const hunk: StructuredPatchHunk = {
         oldStart: 1, oldLines: 2, newStart: 1, newLines: 3,
         lines: [" a", "+NEW", " b"],
     };
-    const reversed = reverseEditFromAfter(["a", "NEW", "b"], buildEditWithHunk(hunk));
+    const reversed = getPreEditLines(["a", "NEW", "b"], buildEditWithHunk(hunk));
     assert.deepEqual(reversed, ["a", "b"]);
 });
 
 // Reversing a removal hunk puts the deleted line back at its old index.
-test("test_reverseEditFromAfter_restores_a_removed_line", () => {
+test("test_getPreEditLines_restores_a_removed_line", () => {
     const hunk: StructuredPatchHunk = {
         oldStart: 1, oldLines: 3, newStart: 1, newLines: 2,
         lines: [" a", "-b", " c"],
     };
-    const reversed = reverseEditFromAfter(["a", "c"], buildEditWithHunk(hunk));
+    const reversed = getPreEditLines(["a", "c"], buildEditWithHunk(hunk));
     assert.deepEqual(reversed, ["a", "b", "c"]);
 });
 
 // Reversal returns undefined when the after lines do not match the hunk.
-test("test_reverseEditFromAfter_returns_undefined_when_after_content_mismatches", () => {
+test("test_getPreEditLines_returns_undefined_when_after_content_mismatches", () => {
     const hunk: StructuredPatchHunk = {
         oldStart: 1, oldLines: 2, newStart: 1, newLines: 3,
         lines: [" a", "+NEW", " b"],
     };
-    assert.equal(reverseEditFromAfter(["a", "WRONG", "b"], buildEditWithHunk(hunk)), undefined);
+    assert.equal(getPreEditLines(["a", "WRONG", "b"], buildEditWithHunk(hunk)), undefined);
 });
 
