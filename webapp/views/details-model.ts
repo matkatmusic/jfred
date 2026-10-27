@@ -123,7 +123,7 @@ export function isCardRunContiguous(selectedIndexes: number[]): boolean {
   return span === selectedIndexes.length - 1;
 }
 
-// item 84: the timeline node indexes owning a run of cards, via the changeId in each node's fileChanges.  Cards with no owner, or an owner with empty snapshots, contribute nothing: empty snapshots would send Infinity to /api/range-patch.
+// item 84: node indexes owning the cards; ownerless or empty-snapshot cards are skipped (Infinity range-patch).
 export function computeOwningNodeIndexes(cards: RevisionCard[], nodes: TimelineNode[], selectedIndexes: number[]): number[] {
   const ownerIndexes: number[] = [];
   for (const cardIndex of selectedIndexes) {

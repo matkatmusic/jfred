@@ -2,7 +2,7 @@
 
 import type { FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
 
-// A tree node: a folder with children, or a file leaf. Mirrored by webapp/views/sidebar.ts, not imported, to avoid a cycle.
+// Tree node kinds; sidebar.ts mirrors them instead of importing, to avoid a cycle.
 export const FOLDER_NODE_KIND = "folder";
 export const FILE_NODE_KIND = "file";
 
@@ -119,7 +119,7 @@ function compareTreeNodes(left: FileTreeNode, right: FileTreeNode): number {
   return left.name.localeCompare(right.name);
 }
 
-// Merge each folder holding one folder child into a combined `a/b/c` node (task 90). Runs after sorting; the root never collapses.
+// Merge folder-in-folder chains into one `a/b/c` node (task 90). Runs after sorting.
 function mergeSingleChildFolderChains(nodes: FileTreeNode[]): void {
   for (const node of nodes) {
     while (isFolderHoldingOnlyFolder(node)) {
