@@ -1,4 +1,4 @@
-// Tests for the item-46 path-overrides module: process-wide override state, stable serialization for cache stamps, and the reveng-paths.json per-project config file.  The Phase-2 file-history-root resolution tests live in tests/reconstruction_sidecar_reader.test.ts.
+// Tests for path-overrides: module state, cache-stamp formatting, and the reveng-paths.json config.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
