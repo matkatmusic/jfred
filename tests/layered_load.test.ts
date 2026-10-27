@@ -80,11 +80,11 @@ test("test_findJsonlPaths_scans_top_level_jsonl_files", () => {
     );
 });
 
-test("test_discoverJsonlPaths_override_wins_over_folder_scan", () => {
+test("test_findJsonlPaths_override_wins_over_folder_scan", () => {
     // An explicit jsonlPaths override is returned verbatim — the folder is not scanned.
     const fixture = makeLayeredFixture();
     const override = [new Path("/somewhere/else/c.jsonl")];
-    const discovered = discoverJsonlPaths(new Path(fixture.projectDir), override);
+    const discovered = findJsonlPaths(new Path(fixture.projectDir), override);
     assert.deepEqual(discovered, override);
 });
 
