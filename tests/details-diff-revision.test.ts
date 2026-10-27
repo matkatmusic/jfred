@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import type { FileChange } from "../webapp/views/timeline-types.ts";
+import type { FileChange } from "../webapp/views/timeline-node-types.ts";
 
 test("test_render_revision_diff_in_details_renders_fallback_text_when_block_missing", async () => {
     initWebappDom();

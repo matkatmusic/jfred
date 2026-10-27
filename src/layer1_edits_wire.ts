@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { WireEditOf, WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
 import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
-import { replayPathEvents, type ReplayedEditNode } from "./layer1_edit_replay.ts";
+import { computePathReplay, type ReplayedEditNode } from "./layer1_edit_replay.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
@@ -93,7 +93,7 @@ export function buildEditsView(
       current: pairs.length + 1,
       total: eventsByPath.size,
     });
-    const nodes = replayPathEvents(events, (event) => readBackupSeedLines(event, recordsBySessionFile));
+    const nodes = computePathReplay(events, (event) => readBackupSeedLines(event, recordsBySessionFile));
     pairs.push({
       path: new Path(relativePath),
       edits: events.map((event) => buildWireEdit(event, nodes.get(event.changeId.toString())!)),

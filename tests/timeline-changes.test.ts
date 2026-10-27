@@ -10,7 +10,8 @@ import {
 } from "../webapp/views/timeline-changes.ts";
 import { splitPatchByFile } from "../webapp/views/timeline-patch-split.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
-import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 import { routeToFileHistory } from "../webapp/app-routes.ts";
 import { buildProjectReconstruction } from "../src/viewer_api.ts";
 import { renderRangePatch } from "../src/viewer_api_diffs.ts";

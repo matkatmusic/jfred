@@ -7,14 +7,8 @@ import {
     findAdjacentFileTouchedIndex,
     findAdjacentRowIndex,
 } from "../webapp/views/timeline-sessions.ts";
-import {
-    AGENT_TURN_NODE_KIND,
-    COMMIT_NODE_KIND,
-    USER_TURN_NODE_KIND,
-    type CommitNode,
-    type FileChange,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { CommitNode, FileChange, TurnNode } from "../webapp/views/timeline-node-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 

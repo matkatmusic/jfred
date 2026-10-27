@@ -7,8 +7,7 @@ import {
   indexRecordsByUuid,
 } from "./reconstruction_tree.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
-import { getContentBlocks } from "./structures/content-blocks.ts";
-import { BlockType, RecordType } from "./structures/vocabulary.ts";
+import { containsAssistantText } from "./reconstruction_assistant_text.ts";
 import {
   collectSurvivingUuids,
   findConversationBranches,
@@ -22,7 +21,8 @@ function collectBranchExclusiveUuids(
 ): Set<string> {
   const exclusive = new Set<string>();
   for (const uuid of collectAncestorUuids(records, tip)) {
-    if (!surviving.has(uuid)) {
+    const isOnTrunk = surviving.has(uuid);
+    if (!isOnTrunk) {
       exclusive.add(uuid);
     }
   }
@@ -30,7 +30,13 @@ function collectBranchExclusiveUuids(
 }
 
 export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
-  const rewoundTips = findConversationBranches(records).filter((branch) => !branch.isSurviving);
+  const branches = findConversationBranches(records);
+  const rewoundTips = [];
+  for (const branch of branches) {
+    if (!branch.isSurviving) {
+      rewoundTips.push(branch);
+    }
+  }
   if (rewoundTips.length === 0) {
     return new Set<string>();
   }
@@ -39,7 +45,8 @@ export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
   const abandoned = new Set<string>();
   for (const branch of rewoundTips) {
     const exclusive = collectBranchExclusiveUuids(records, branch.tip, surviving);
-    if (checkBranchIsToolPlumbing(records, byUuid, surviving, exclusive)) {
+    const isPlumbing = isBranchToolPlumbing(records, byUuid, surviving, exclusive);
+    if (isPlumbing) {
       continue;
     }
     for (const uuid of exclusive) {
@@ -50,12 +57,13 @@ export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
     return abandoned;
   }
   const orphaned = new Set<string>();
-  // ponytail: walk is O(records × depth) uncached; most records exit on their own uuid — memoize in CorpusState if a large project measures slow.
+  // ponytail: uncached walk is O(records x depth); memoize if a large project measures slow.
   for (const record of records) {
     if (record.uuid === undefined) {
       continue;
     }
-    if (checkChainReachesAbandoned(record, byUuid, surviving, abandoned)) {
+    const isOrphan = isChainReachingAbandoned(record, byUuid, surviving, abandoned);
+    if (isOrphan) {
       orphaned.add(record.uuid.toString());
     }
   }
@@ -63,7 +71,7 @@ export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
 }
 
 // True when parentUuid chain hits abandoned set before the surviving trunk.
-function checkChainReachesAbandoned(
+function isChainReachingAbandoned(
   record: TranscriptRecord,
   byUuid: Map<string, TranscriptRecord>,
   surviving: Set<string>,
@@ -71,20 +79,27 @@ function checkChainReachesAbandoned(
 ): boolean {
   const visited = new Set<string>();
   let current: TranscriptRecord | undefined = record;
-  while (current !== undefined && current.uuid !== undefined) {
+  while (current !== undefined) {
+    if (current.uuid === undefined) {
+      return false;
+    }
     const key = current.uuid.toString();
-    if (visited.has(key)) {
+    const isRevisit = visited.has(key);
+    if (isRevisit) {
       return false;
     }
     visited.add(key);
-    if (abandoned.has(key)) {
+    const isAbandoned = abandoned.has(key);
+    if (isAbandoned) {
       return true;
     }
-    if (surviving.has(key)) {
+    const isOnTrunk = surviving.has(key);
+    if (isOnTrunk) {
       return false;
     }
     const parent = current.parentUuid;
-    if (parent === undefined || parent === null) {
+    const hasParent = parent !== undefined && parent !== null;
+    if (!hasParent) {
       return false;
     }
     current = byUuid.get(parent.toString());
@@ -93,7 +108,7 @@ function checkChainReachesAbandoned(
 }
 
 // True when branch holds only tool plumbing (hook command rewrites), not a /rewind.
-function checkBranchIsToolPlumbing(
+function isBranchToolPlumbing(
   records: TranscriptRecord[],
   byUuid: Map<string, TranscriptRecord>,
   surviving: Set<string>,
@@ -103,29 +118,18 @@ function checkBranchIsToolPlumbing(
     if (record.uuid === undefined) {
       continue;
     }
-    if (!checkChainReachesAbandoned(record, byUuid, surviving, exclusive)) {
+    const isOnBranch = isChainReachingAbandoned(record, byUuid, surviving, exclusive);
+    if (!isOnBranch) {
       continue;
     }
-    if (isGenuineUserPrompt(record)) {
+    const isPrompt = isGenuineUserPrompt(record);
+    if (isPrompt) {
       return false;
     }
-    if (checkAssistantHasText(record)) {
+    const hasText = containsAssistantText(record);
+    if (hasText) {
       return false;
     }
   }
   return true;
-}
-
-// True when an assistant record carries displayed text (not tool_use/thinking-only).
-function checkAssistantHasText(record: TranscriptRecord): boolean {
-  if (record.type !== RecordType.assistant) {
-    return false;
-  }
-  const message = record.message as { content?: unknown } | undefined;
-  if (message !== undefined && typeof message.content === "string") {
-    return message.content.trim() !== "";
-  }
-  return getContentBlocks(record).some(
-    (block) => block.type === BlockType.text && block.text.trim() !== "",
-  );
 }

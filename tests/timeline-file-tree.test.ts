@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { applyRenameBadgeLabels } from "../webapp/views/timeline-file-badges.ts";
 import { buildFileTree, findCommonDirectoryPrefix } from "../webapp/views/timeline-file-tree.ts";
 import { buildFilesSidebarViewModel } from "../webapp/views/timeline-file-tree-sidebar.ts";
-import { RENAME_EVENT_KIND, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
+import { RENAME_EVENT_KIND } from "../webapp/views/timeline-types.ts";
+import type { WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 
 
 function makeFileEntry(target: string, originalPath?: string) {

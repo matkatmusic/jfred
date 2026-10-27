@@ -9,15 +9,8 @@ import {
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
 import { renderFileButtonRow } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import {
-  AGENT_TURN_NODE_KIND,
-  COMMIT_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  USER_TURN_NODE_KIND,
-  type CommitNode,
-  type TimelineNode,
-  type TurnNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { CommitNode, TimelineNode, TurnNode } from "./timeline-node-types.ts";
 
 // The mockup's role-* text/bubble class per node kind (agent turns are the assistant role).
 export function computeRoleClass(kind: TimelineNode["kind"]): string {

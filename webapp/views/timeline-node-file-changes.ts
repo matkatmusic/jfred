@@ -1,7 +1,9 @@
 // Stamps merged file chips onto snapshot-owning timeline nodes.
 
 import { computeFileChanges } from "./timeline-changes.ts";
-import { TOOL_CALL_NODE_KIND, type FileChange, type RevisionIndex, type TimelineNode, type WireStepSnapshot } from "./timeline-types.ts";
+import { TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
+import type { FileChange, RevisionIndex, TimelineNode } from "./timeline-node-types.ts";
+import type { WireStepSnapshot } from "./timeline-wire-types.ts";
 
 // Merge dedupe key: distinct revisions of one file keep their chips; a repeat of the same revision collapses.
 function computeMergedChipKey(change: FileChange): string {

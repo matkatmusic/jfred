@@ -12,7 +12,8 @@ import {
 import { fetchRangePatch, updateSelectbar } from "./timeline-render-selectbar.ts";
 import { flashRowElement, jumpToTimelineRow, selectTimelineRow } from "./timeline-render-selection.ts";
 import { computeGraphLaneRuns, type WireProjectListing } from "./timeline-sessions.ts";
-import type { TimelineNode, TranscriptLocation, WireTimelineDocument } from "./timeline-types.ts";
+import type { TimelineNode, TranscriptLocation } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 
 export type TimelineContextInputs = {
   project: string;

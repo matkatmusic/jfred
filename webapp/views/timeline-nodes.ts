@@ -6,17 +6,9 @@ import { deriveLineNodes } from "./timeline-line-nodes.ts";
 import { attachSnapshotsToAgentTurns } from "./timeline-node-attach.ts";
 import { deriveCommitNodes, deriveToolCallNodes } from "./timeline-node-derive.ts";
 import { compareTimelineNodes, filterPreBaselineNodes, setStepNumbers } from "./timeline-node-order.ts";
-import {
-  AGENT_TURN_NODE_KIND,
-  SESSION_END_NODE_KIND,
-  USER_ROLE,
-  USER_TURN_NODE_KIND,
-  type SessionEndNode,
-  type TimelineNode,
-  type ToolCallNode,
-  type TurnNode,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, SESSION_END_NODE_KIND, USER_ROLE, USER_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { SessionEndNode, TimelineNode, ToolCallNode, TurnNode } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // (item 66) The dead git-row machinery lives on in webapp/archive/timeline-pre-item66.ts.
 

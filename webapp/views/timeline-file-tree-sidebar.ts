@@ -1,12 +1,8 @@
 // Files-pane flat entries, split from timeline-file-tree.ts (items 66/77, task 91).
 
 import { applyRenameBadgeLabels, findScriptRenameSource } from "./timeline-file-badges.ts";
-import {
-  DELETE_EVENT_KIND,
-  RENAME_EVENT_KIND,
-  type WireFileHistory,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { DELETE_EVENT_KIND, RENAME_EVENT_KIND } from "./timeline-types.ts";
+import type { WireFileHistory, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // One Files-pane entry: the file plus the two facts the tree renders differently (item 77).
 export type FileSidebarEntry = {

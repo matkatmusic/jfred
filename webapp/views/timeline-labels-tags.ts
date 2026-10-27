@@ -1,7 +1,8 @@
 // Step tags, diff fallback text, and tool-activity tags for the revision timeline (split from timeline-labels.ts).
 
 import { SCRIPT_EXECUTION_EVENT_KIND } from "./timeline-labels-pills.ts";
-import { AGENT_TURN_NODE_KIND, type FileChange } from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { FileChange } from "./timeline-node-types.ts";
 
 function formatEventKindForTag(kind: string): string {
   if (kind === SCRIPT_EXECUTION_EVENT_KIND) {

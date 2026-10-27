@@ -19,7 +19,7 @@ import {
   checkRowIsExpandable,
 } from "./timeline-sessions.ts";
 import { COMMIT_NODE_KIND } from "./timeline-types.ts";
-import type { TimelineNode } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 export function buildTimelineRow(context: TimelineRenderContext, node: TimelineNode, index: number, sessionColor: string): HTMLElement {
   const previewPane = createElement("div", { class: "hidden" });

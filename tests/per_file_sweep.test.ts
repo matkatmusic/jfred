@@ -1,11 +1,11 @@
-// Task 186 (spec S11): the sweep runner end to end on a one-file fixture — a git repo whose baseline commit seeds revision 0, a transcript that rewrote the file, and the working-tree bytes as the final endpoint. Also covers the resume path (a second run logs nothing new), which is what makes the 68-file task-187 run survive a kill.
+// Task 186 (S11): the sweep runner end to end on a one-file fixture, including resume.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runSweep } from "../scripts/per_file_sweep.ts";
+import { executeSweep } from "../scripts/per_file_sweep.ts";
 import {
     SESSION_A,
     buildPromptRecord,
@@ -16,10 +16,10 @@ import {
 
 const BASELINE_CONTENT = "one\ntwo\n";
 const REWRITTEN_CONTENT = "one\ntwo\nthree\n";
-// The baseline commit must PRECEDE the transcript's records: the seed stage places its beacon by the commit's committer instant, and a commit stamped after every record seeds nothing.
+// The baseline commit must precede the transcript records, or the seed stage seeds nothing.
 const BASELINE_COMMIT_DATE = "2026-07-24T09:00:00Z";
 
-// A git call in the fixture repo. The engine reads COMMITTER time (%cI, never author time), so the baseline date rides the environment — `git commit --date` moves only the author stamp.
+// A git call in the fixture repo; the engine reads committer time, so the date rides the environment.
 function runGit(repoRoot: string, args: string[]): string {
     const env = {
         ...process.env,
@@ -29,7 +29,7 @@ function runGit(repoRoot: string, args: string[]): string {
     return execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", env }).trim();
 }
 
-// A git repo holding `sweep.py` at BASELINE_CONTENT, its working tree already rewritten, plus the baseline commit hash — the exact shape the sweep expects (candidate reported as M).
+// A git repo with `sweep.py` committed at baseline and rewritten on disk; returns the baseline hash.
 function makeBaselineRepo(repoRoot: string): string {
     mkdirSync(repoRoot, { recursive: true });
     const git = (args: string[]): string => runGit(repoRoot, args);
@@ -47,8 +47,8 @@ function makeBaselineRepo(repoRoot: string): string {
     return baseline;
 }
 
-test("test_runSweep_reports_a_recovered_ladder_and_resumes_on_a_second_run", () => {
-    // Scenario: one M candidate whose transcript wrote today's bytes — both endpoints match, so the table's verdict is ok; re-running adds no rows.
+test("test_executeSweep_reports_a_recovered_ladder_and_resumes_on_a_second_run", () => {
+    // Scenario: one M candidate with both endpoints matching gives verdict ok; a rerun adds no rows.
     const tree = makeSourceTree("-per-file-sweep");
     const repoRoot = join(tree.treeRoot, "repo");
     const baselineCommit = makeBaselineRepo(repoRoot);
@@ -81,7 +81,7 @@ test("test_runSweep_reports_a_recovered_ladder_and_resumes_on_a_second_run", () 
         "--table", tablePath,
     ];
 
-    runSweep(argv);
+    executeSweep(argv);
 
     const rows = readFileSync(outPath, "utf8").trim().split("\n");
     assert.equal(rows.length, 1);
@@ -96,7 +96,7 @@ test("test_runSweep_reports_a_recovered_ladder_and_resumes_on_a_second_run", () 
     assert.match(table, /\| ok \|/);
 
     // Resume: the candidate is already logged, so the second run appends nothing.
-    runSweep(argv);
+    executeSweep(argv);
 
     assert.equal(readFileSync(outPath, "utf8").trim().split("\n").length, 1);
 });

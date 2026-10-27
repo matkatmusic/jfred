@@ -2,7 +2,7 @@
 
 import { WireEditSide } from "../webapp/layer1-wire-edits.ts";
 import { readBranchRevisionSide } from "./layer1_branch_revision.ts";
-import { replayPathEvents } from "./layer1_edit_replay.ts";
+import { computePathReplay } from "./layer1_edit_replay.ts";
 import { collectViewEditEventsByRelativePath, readBackupSeedLines } from "./layer1_edits_wire.ts";
 import { collectTitleRanges, titleInEffectAtLine } from "./layer1_sessions.ts";
 import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
@@ -33,7 +33,7 @@ export function readEditFileContent(query: URLSearchParams): { content: string; 
   if (event === undefined) {
     throw new Error(`no edit event ${changeId} for ${relativePath}`);
   }
-  const node = replayPathEvents(events, readBackupSeedLines).get(changeId)!;
+  const node = computePathReplay(events, readBackupSeedLines).get(changeId)!;
   const records = loadTranscript(event.sessionFile.toString(), undefined, true).records;
   return {
     content: (side === WireEditSide.base ? node.base : node.target).join("\n"),

@@ -13,7 +13,7 @@ import {
   setRightPaneLabel,
 } from "./details-diff.ts";
 import { buildScriptRunDetailsViewModel, type ScriptRunFileEntry } from "./details-script-run-model.ts";
-import type { ToolCallNode } from "./timeline-types.ts";
+import type { ToolCallNode } from "./timeline-node-types.ts";
 
 export async function renderDetailsScriptRunMode(node: ToolCallNode, nodeIndex: number, context: DetailsContext): Promise<void> {
   if (node.scriptRun === undefined) {

@@ -4,7 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildRevisionIndex } from "../webapp/views/timeline-changes.ts";
 import { applyNodeFileChanges } from "../webapp/views/timeline-node-file-changes.ts";
-import { AGENT_TURN_NODE_KIND, type TimelineNode, type WireStepSnapshot, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { TimelineNode } from "../webapp/views/timeline-node-types.ts";
+import type { WireStepSnapshot, WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 const INVENTORY_TARGET = "/w/inventory.py";

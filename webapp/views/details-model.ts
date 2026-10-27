@@ -1,10 +1,8 @@
 // Details pane view model (task 92): DOM-free types and pure functions the pane's modes share.
 
-import {
-  COMMIT_NODE_KIND,
-  type TimelineNode,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { COMMIT_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 import { computeAnchoredRevisionIndex } from "./file-history-model.ts";
 import { formatRowTimestamp } from "./timeline-labels.ts";
 import { GIT_BASE_CHANGE_ID_PREFIX } from "./timeline-changes.ts";

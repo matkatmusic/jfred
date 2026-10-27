@@ -10,7 +10,8 @@ import {
     computeFocusedCardIndex,
     computeOwningNodeIndexes,
 } from "../webapp/views/details-model.ts";
-import { AGENT_TURN_NODE_KIND, type FileChange, type TimelineNode } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { FileChange, TimelineNode } from "../webapp/views/timeline-node-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 // Nothing in TWO_NODES_OWNING_REVISIONS owns toolu_third — the rewound/synthetic cases need that gap.

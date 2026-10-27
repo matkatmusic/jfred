@@ -6,7 +6,7 @@ import { renderDetailsFileMode } from "./details-revision-view.ts";
 import { computeSnapshotJumpRoute } from "./timeline-changes.ts";
 import { openTurnInspector } from "./timeline-render-inspectors.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import type { CommitNode, FileChange, TranscriptLocation, TurnNode } from "./timeline-types.ts";
+import type { CommitNode, FileChange, TranscriptLocation, TurnNode } from "./timeline-node-types.ts";
 
 // The letter half of a chip's letter+color badge (color alone never carries the meaning).
 function computeOpLetter(change: FileChange): string {

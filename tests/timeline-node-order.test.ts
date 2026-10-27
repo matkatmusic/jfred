@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { compareTimelineNodes, filterPreBaselineNodes, setStepNumbers } from "../webapp/views/timeline-node-order.ts";
-import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, type TimelineNode } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { TimelineNode } from "../webapp/views/timeline-node-types.ts";
 
 const turn = (when: string, isGitBaseline?: boolean): TimelineNode => ({ kind: AGENT_TURN_NODE_KIND, when, sessionId: "s1", text: "", snapshots: [], gitOperations: [], isGitBaseline });
 const commit = (when: string): TimelineNode => ({ kind: COMMIT_NODE_KIND, when, sessionId: "s1" });

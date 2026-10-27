@@ -2,7 +2,7 @@
 
 import { isNodeInFilterMode, type TimelineFilterMode } from "./timeline-filter-model.ts";
 import { findSessionStartIndexes } from "./timeline-labels-pills.ts";
-import type { TimelineNode } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 // Everything a row can visibly say, lowercased once.
 function computeNodeSearchHaystack(node: TimelineNode): string {

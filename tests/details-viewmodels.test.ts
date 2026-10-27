@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildRevisionCards, computeDetailsHeaderText } from "../webapp/views/details-model.ts";
-import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, type TimelineNode } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { TimelineNode } from "../webapp/views/timeline-node-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 test("test_computeDetailsHeaderText_formats_message_nodes", () => {

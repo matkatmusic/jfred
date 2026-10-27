@@ -15,16 +15,18 @@ function renderRevisionText(revision: FileRevision): string {
   return linesTextOf(revision).join("\n") + "\n";
 }
 
-function hashBlobOfText(text: string): string {
-  return execFileSync("git", ["hash-object", "--stdin"], { input: text }).toString().trim();
+function computeBlobHashOfText(text: string): string {
+  const output = execFileSync("git", ["hash-object", "--stdin"], { input: text }).toString();
+  return output.trim();
 }
 
 // The baseline blob sha for the candidate, or undefined when the baseline holds no such path.
 function readBaselineBlobSha(settings: SweepSettings, relativePath: Path): string | undefined {
   try {
-    return execSync(`git rev-parse ${settings.baseCommit}:${JSON.stringify(relativePath.toString())}`, {
+    const output = execSync(`git rev-parse ${settings.baseCommit}:${JSON.stringify(relativePath.toString())}`, {
       cwd: settings.repo.toString(),
-    }).toString().trim();
+    }).toString();
+    return output.trim();
   }
   catch {
     return undefined;
@@ -34,10 +36,32 @@ function readBaselineBlobSha(settings: SweepSettings, relativePath: Path): strin
 // Returns working-tree text, or undefined if the file was deleted (D-phase normal case).
 function readWorkingTreeText(settings: SweepSettings, relativePath: Path): string | undefined {
   const onDisk = join(settings.repo.toString(), relativePath.toString());
-  if (!existsSync(onDisk)) {
+  const isOnDisk = existsSync(onDisk);
+  if (!isOnDisk) {
     return undefined;
   }
   return readFileSync(onDisk, "utf8");
+}
+
+function isBlobShaInRevisions(revisions: FileRevision[], blobSha: string): boolean {
+  for (const revision of revisions) {
+    const revisionSha = computeBlobHashOfText(renderRevisionText(revision));
+    if (revisionSha === blobSha) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function countUnrecoverableRevisions(revisions: FileRevision[]): number {
+  let count = 0;
+  for (const revision of revisions) {
+    const isUnrecoverable = revision.unrecoverable !== undefined;
+    if (isUnrecoverable) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 // Builds one SweepRow; catches throws so one bad candidate never kills the sweep.
@@ -68,14 +92,14 @@ export function buildSweepRow(
   const last = revisions[revisions.length - 1];
   const baselineSha = readBaselineBlobSha(settings, relativePath);
   const diskText = readWorkingTreeText(settings, relativePath);
+  // Baseline blob may appear mid-ladder, not at revision 0, due to git-seed timing.
+  const baselineBlobMatched = baselineSha !== undefined && isBlobShaInRevisions(revisions, baselineSha);
   return {
     file: relativePath,
-    // Baseline blob may appear mid-ladder, not at revision 0, due to git-seed timing.
-    baselineBlobMatched: baselineSha !== undefined
-            && revisions.some((revision) => hashBlobOfText(renderRevisionText(revision)) === baselineSha),
+    baselineBlobMatched,
     revisions: revisions.length,
     diskMatched: last !== undefined && diskText !== undefined && renderRevisionText(last) === diskText,
-    unrecoverable: revisions.filter((revision) => revision.unrecoverable !== undefined).length,
+    unrecoverable: countUnrecoverableRevisions(revisions),
     seconds: Math.round((Date.now() - startedAt) / 1000),
     note: diskText === undefined ? "absent from the working tree" : "",
   };

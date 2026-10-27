@@ -8,13 +8,8 @@ import {
     computeSessionTitleByNodeIndex,
     isNodeMatchingSearchTerm,
 } from "../webapp/views/timeline-filter-search.ts";
-import {
-    COMMIT_NODE_KIND,
-    USER_TURN_NODE_KIND,
-    type CommitNode,
-    type TimelineNode,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { COMMIT_NODE_KIND, USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { CommitNode, TimelineNode, TurnNode } from "../webapp/views/timeline-node-types.ts";
 
 const commitWithHash: CommitNode = { kind: COMMIT_NODE_KIND, when: "t3", sessionId: "s", resultHash: "ABC123" };
 const userTurn: TurnNode = { kind: USER_TURN_NODE_KIND, when: "t1", sessionId: "s", text: "hi", snapshots: [], gitOperations: [] };

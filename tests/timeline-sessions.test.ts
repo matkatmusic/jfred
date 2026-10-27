@@ -10,15 +10,8 @@ import {
     computeGraphLaneRuns,
     findJsonlForSession,
 } from "../webapp/views/timeline-sessions.ts";
-import {
-    AGENT_TURN_NODE_KIND,
-    COMMIT_NODE_KIND,
-    SESSION_END_NODE_KIND,
-    TOOL_CALL_NODE_KIND,
-    USER_TURN_NODE_KIND,
-    type CommitNode,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { CommitNode, TurnNode } from "../webapp/views/timeline-node-types.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import {
     s84Document,

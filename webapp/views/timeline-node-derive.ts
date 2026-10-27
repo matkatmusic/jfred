@@ -1,14 +1,8 @@
 // Commit-node and tool-call-node derivation (split from timeline-nodes.ts, 250-line cap): the wire document's gitOperations and toolCalls become their unnumbered timeline rows.
 
-import {
-  COMMIT_NODE_KIND,
-  COMMIT_OPERATION_KIND,
-  TOOL_CALL_NODE_KIND,
-  type CommitNode,
-  type ToolCallNode,
-  type WireScriptRun,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { COMMIT_NODE_KIND, COMMIT_OPERATION_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
+import type { CommitNode, ToolCallNode } from "./timeline-node-types.ts";
+import type { WireScriptRun, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // Commit pick hard-stops: from the document's commit operations (which carry the message) when it ships gitOperations; an older cached document lacks the field and falls back to commitMarkers.
 export function deriveCommitNodes(document: WireTimelineDocument): CommitNode[] {

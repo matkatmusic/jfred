@@ -2,7 +2,7 @@
 
 import { fetchJson } from "../app-fetch.ts";
 import { SESSION_LANE_VARIABLES, type WireProjectListing } from "./timeline-sessions.ts";
-import type { TimelineNode } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 export async function fetchProjectListing(project: string): Promise<WireProjectListing | undefined> {
   const listings = await fetchJson<WireProjectListing[]>("/api/projects");

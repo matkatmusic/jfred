@@ -2,11 +2,8 @@
 
 import type { DetailsContext } from "./details-model.ts";
 import type { WireProjectListing } from "./timeline-sessions.ts";
-import type {
-  TimelineNode,
-  TranscriptLocation,
-  WireTimelineDocument,
-} from "./timeline-types.ts";
+import type { TimelineNode, TranscriptLocation } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 
 export type TimelineRenderContext = {
   // ── inputs of the render pass ──

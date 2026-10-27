@@ -1,8 +1,9 @@
-// Pick-selection logic for the revision timeline (split from timeline.ts, task 92): which rows are pickable, segment membership, pick legality, and the selection bar's range summary.
+// Pick-selection logic: pickable rows, segment membership, pick legality, and the range summary.
 
-import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, type TimelineNode } from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
-// Only an agent turn that owns surviving snapshots can be picked — user prompts, session ends, snapshot-less replies, and orphaned turns all sit in no segment.
+// Only an agent turn that owns surviving snapshots can be picked.
 export function checkNodeIsPickable(node: TimelineNode): boolean {
   if (node.kind !== AGENT_TURN_NODE_KIND) {
     return false;
@@ -13,7 +14,7 @@ export function checkNodeIsPickable(node: TimelineNode): boolean {
   return node.snapshots.length > 0;
 }
 
-// One pick-segment id per node: commit nodes end their segment (hard stops) and, like every unpickable node, belong to none (null). Picks are only legal inside a single segment.
+// One pick-segment id per node: commits end a segment, unpickable nodes get null.
 export function computePickSegments(nodes: TimelineNode[]): (number | null)[] {
   const segments: (number | null)[] = [];
   let segment = 0;
@@ -32,7 +33,7 @@ export function computePickSegments(nodes: TimelineNode[]): (number | null)[] {
   return segments;
 }
 
-// A pick is legal when empty, or when every picked node shares ONE segment and the picked set is exactly the pickable nodes between its min and max index (orphans inside the span are skipped, not gaps; a commit inside the span always splits the segment, so it can never be crossed).
+// A pick is legal when empty, or when it is every pickable node of one segment between its extremes.
 export function checkPickIsLegal(nodes: TimelineNode[], pickedNodeIndexes: number[]): boolean {
   if (pickedNodeIndexes.length === 0) {
     return true;
@@ -63,7 +64,7 @@ export function checkPickIsLegal(nodes: TimelineNode[], pickedNodeIndexes: numbe
   return true;
 }
 
-// The selection bar's summary: picked turn count, DISTINCT file paths across the picked nodes, and the 1-based SNAPSHOT index range for the /api/range-patch call (the server still speaks snapshot indexes; a turn spans every snapshot it owns).
+// The selection bar summary: turn count, distinct file paths, and the 1-based snapshot index range.
 export function computeRangeSummary(nodes: TimelineNode[], pickedNodeIndexes: number[]) {
   const pickedNodes = pickedNodeIndexes.map((index) => nodes[index]!);
   const filePaths = [...new Set(pickedNodes.flatMap((node) => node.fileChanges!.map((change) => change.path)))];
@@ -76,7 +77,7 @@ export function computeRangeSummary(nodes: TimelineNode[], pickedNodeIndexes: nu
   };
 }
 
-// A click that ends with a non-collapsed text selection is a selection drag, not a close request — the background-close handler must ignore it (item 10b). Browsers may return null from window.getSelection(); that never blocks.
+// A click ending a text selection is a drag, not a close request; the close handler ignores it.
 export function checkSelectionBlocksBackgroundClose(selection: { isCollapsed: boolean } | null): boolean {
   if (selection === null) {
     return false;

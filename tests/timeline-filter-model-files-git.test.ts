@@ -7,18 +7,8 @@ import {
     isNodeInFilterMode,
 } from "../webapp/views/timeline-filter-model.ts";
 import { SCRIPT_EXECUTION_EVENT_KIND } from "../webapp/views/timeline-labels-pills.ts";
-import {
-    AGENT_TURN_NODE_KIND,
-    COMMIT_NODE_KIND,
-    EDIT_EVENT_KIND,
-    SESSION_END_NODE_KIND,
-    TOOL_CALL_NODE_KIND,
-    USER_TURN_NODE_KIND,
-    type CommitNode,
-    type SessionEndNode,
-    type ToolCallNode,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, EDIT_EVENT_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { CommitNode, SessionEndNode, ToolCallNode, TurnNode } from "../webapp/views/timeline-node-types.ts";
 
 // Fixture nodes: one minimal literal per shape the predicate distinguishes.
 const userTurn: TurnNode = { kind: USER_TURN_NODE_KIND, when: "t1", sessionId: "s", text: "hi", snapshots: [], gitOperations: [] };

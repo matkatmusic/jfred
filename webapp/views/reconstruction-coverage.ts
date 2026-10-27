@@ -1,6 +1,6 @@
-// Partial-reconstruction coverage view-model half (task 119): DOM-free helpers turning the wire document's unrecoverable revisions, skipped lines, and survived failures into the session banner's summary, the Files sidebar's per-file coverage strips, and the timeline's dashed gap rows (tests/reconstruction-coverage.test.ts). The DOM halves live in timeline.ts, sidebar.ts, and timeline-render-rows.ts.
+// DOM-free coverage helpers: banner summary, per-file coverage strips, and timeline gap rows.
 
-import type { WireFileHistory, WireTimelineDocument } from "./timeline-types.ts";
+import type { WireFileHistory, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // One line the tolerant parse skipped, as it arrives on the wire (timestamp still a string).
 type WireSkippedLine = NonNullable<WireTimelineDocument["skippedLines"]>[number];
@@ -20,7 +20,7 @@ export type CoverageSegment = { recovered: boolean; reason?: string; revisionInd
 // One dashed gap row for the timeline: a contiguous run of skipped lines from one file.
 export type TimelineGap = { count: number; reason: string; timestamp?: Date };
 
-// The banner's counts: every revision across filesTouched, how many are unrecoverable placeholders, plus the document's skipped-line and survived-failure tallies. The optional wire fields default to empty (older cached documents predate them). Partial = any of the three failure counts is non-zero.
+// The banner's counts: revisions, unrecoverable placeholders, skipped lines, and survived failures; partial means any is non-zero.
 export function summarizeReconstructionCoverage(document: WireTimelineDocument): CoverageSummary {
   const revisions = document.filesTouched.flatMap((history) => history.revisions);
   const unrecoverableRevisions = revisions.filter((revision) => revision.unrecoverable !== undefined).length;
@@ -35,8 +35,7 @@ export function summarizeReconstructionCoverage(document: WireTimelineDocument):
   };
 }
 
-// One strip segment per revision, in revision order; an unrecovered segment carries its reason
-// for the strip's click-for-reason popover.
+// One strip segment per revision, in revision order; an unrecovered segment carries its reason for the strip's click-for-reason popover.
 export function buildFileCoverageSegments(history: WireFileHistory): CoverageSegment[] {
   return history.revisions.map((revision, index) => ({
     recovered: revision.unrecoverable === undefined,
@@ -45,7 +44,7 @@ export function buildFileCoverageSegments(history: WireFileHistory): CoverageSeg
   }));
 }
 
-// Whether a skipped line continues the run it follows: same transcript file, very next line number. Anything else starts a new run (and so a new gap row).
+// Whether a skipped line continues the previous run: same file, next line number.
 function checkLineExtendsRun(run: WireSkippedLine[] | undefined, line: WireSkippedLine): boolean {
   if (run === undefined) {
     return false;
@@ -57,7 +56,7 @@ function checkLineExtendsRun(run: WireSkippedLine[] | undefined, line: WireSkipp
   return previous.lineNumber + 1 === line.lineNumber;
 }
 
-// One gap from one run: count is the run length, reason the first line's, timestamp the run's first defined one, hydrated from its wire string.
+// One gap from one run: run length, first reason, and the first defined timestamp as a Date.
 function buildGapFromRun(run: WireSkippedLine[]): TimelineGap {
   const rawTimestamp = run.find((line) => line.timestamp !== undefined)?.timestamp;
   return {
@@ -67,7 +66,7 @@ function buildGapFromRun(run: WireSkippedLine[]): TimelineGap {
   };
 }
 
-// Group the skipped lines into gap rows: a contiguous run (one filePath, consecutive lineNumbers) becomes ONE gap, in input order.
+// Group skipped lines into gap rows: each contiguous run becomes one gap, in input order.
 export function buildTimelineGaps(skippedLines: WireSkippedLine[]): TimelineGap[] {
   const runs: WireSkippedLine[][] = [];
   for (const line of skippedLines) {
@@ -81,7 +80,7 @@ export function buildTimelineGaps(skippedLines: WireSkippedLine[]): TimelineGap[
   return runs.map(buildGapFromRun);
 }
 
-// The node index one gap renders before: the first node whose timestamp is at or after the gap's. A timestampless gap keys to 0 (nothing can place it later); a gap after every node keys to nodeTimestamps.length (the row loop appends it after the last node).
+// The node index a gap renders before; a timestampless gap keys to 0, a trailing gap to the length.
 function findGapInsertionIndex(gap: TimelineGap, nodeTimestamps: string[]): number {
   if (gap.timestamp === undefined) {
     return 0;

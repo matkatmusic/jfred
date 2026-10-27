@@ -1,14 +1,11 @@
-// Git-derived baseline host selection (task 121, split from timeline-nodes.ts, 250-line cap): gitBase-only steps land on ONE host node — the recorded base-commit row when the session captured that commit (the merged row wearing the baseline dress), else a dedicated standalone baseline turn (task 86 behavior, kept as the fallback for e.g. a back-dated base commit no session ever recorded).
+// Baseline host selection: gitBase-only steps land on the base-commit row, else a standalone baseline turn.
 
 import { computeGitBaselineText, extractGitBaseCommitHash } from "./timeline-changes.ts";
-import {
-  AGENT_TURN_NODE_KIND,
-  type CommitNode,
-  type TurnNode,
-  type WireStepSnapshot,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { CommitNode, TurnNode } from "./timeline-node-types.ts";
+import type { WireStepSnapshot } from "./timeline-wire-types.ts";
 
-// The recorded base-commit row: the commit node whose short resultHash prefixes the baseline beacon's full commit hash — the row the git-derived baseline merges into.
+// The base-commit row: the commit node whose short resultHash prefixes the baseline beacon's commit hash.
 function findBaseCommitNode(commitNodes: CommitNode[], snapshot: WireStepSnapshot): CommitNode | undefined {
   const baselineCommitHash = extractGitBaseCommitHash(snapshot.changeIds[0]!);
   return commitNodes.find((node) => {
@@ -22,7 +19,7 @@ function findBaseCommitNode(commitNodes: CommitNode[], snapshot: WireStepSnapsho
   });
 }
 
-// The node hosting baseline snapshots: the recorded base-commit row (merged) or a fresh standalone baseline turn (fallback), pushed into turnNodes so it joins the sort.
+// The node hosting baseline snapshots: the base-commit row, else a new baseline turn pushed into turnNodes.
 function claimBaselineHost(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot): TurnNode | CommitNode {
   const baseCommitNode = findBaseCommitNode(commitNodes, snapshot);
   if (baseCommitNode !== undefined) {
@@ -44,7 +41,7 @@ function claimBaselineHost(turnNodes: TurnNode[], commitNodes: CommitNode[], sna
   return baselineTurn;
 }
 
-// (task 86) attach a gitBase-only snapshot to the baseline host, claiming it on first use; returns the (possibly just-claimed) host.
+// Attaches a gitBase-only snapshot to the baseline host, claiming it on first use; returns the host.
 export function recordGitBaselineSnapshot(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot, baselineHost: TurnNode | CommitNode | undefined): TurnNode | CommitNode {
   if (baselineHost === undefined) {
     baselineHost = claimBaselineHost(turnNodes, commitNodes, snapshot);

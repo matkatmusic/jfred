@@ -1,14 +1,8 @@
 // Timeline event-type filter: mode vocabulary and the per-node mode predicate.
 
 import { SCRIPT_EXECUTION_EVENT_KIND } from "./timeline-labels-pills.ts";
-import {
-  AGENT_TURN_NODE_KIND,
-  COMMIT_NODE_KIND,
-  SESSION_END_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  USER_TURN_NODE_KIND,
-  type TimelineNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 // View-only vocabulary, so it stays out of src/structures/vocabulary.ts.
 export const TIMELINE_FILTER_MODES = Object.freeze({

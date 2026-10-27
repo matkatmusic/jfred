@@ -2,14 +2,9 @@
 
 import { routeToFileHistory } from "../app-routes.ts";
 import { isChangeIdBackupBlobName, findRevisionForChangeId } from "./file-history-model.ts";
-import {
-  EDIT_EVENT_KIND,
-  type FileChange,
-  type RevisionIndex,
-  type WireFileHistory,
-  type WireStepSnapshot,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import { EDIT_EVENT_KIND } from "./timeline-types.ts";
+import type { FileChange, RevisionIndex } from "./timeline-node-types.ts";
+import type { WireFileHistory, WireStepSnapshot, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // Wire mirror of BASE_COMMIT_CHANGE_ID_PREFIX: marks a base-commit baseline beacon.
 export const GIT_BASE_CHANGE_ID_PREFIX = "gitBase:";

@@ -1,7 +1,8 @@
 // The fork gutter cell of a timeline row, split from timeline-render-row-cells.ts.
 
 import { createElement } from "../app-dom.ts";
-import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND, type TimelineNode } from "./timeline-types.ts";
+import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 type LaneRun = { startIndex: number; endIndex: number };
 

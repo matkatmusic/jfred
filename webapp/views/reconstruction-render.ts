@@ -9,7 +9,8 @@ import {
   computeGapInsertionIndexes,
   summarizeReconstructionCoverage,
 } from "./reconstruction-coverage.ts";
-import type { TimelineNode, WireTimelineDocument } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // Mount the ⚠ banner beside #timeline-summary when the document is partial; any prior banner is removed first so re-renders never stack (and a clean re-render leaves none). The native title tooltip carries the full failure reasons, one per line — no "show gaps" popover: the gap rows and coverage strips already show every gap in place.
 export function renderReconstructionBanner(reconstructionDocument: WireTimelineDocument): void {

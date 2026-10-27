@@ -11,11 +11,8 @@ import {
     isNodeMatchingSearchTerm,
     isNodePassingFilters,
 } from "../webapp/views/timeline-filter-search.ts";
-import {
-    USER_TURN_NODE_KIND,
-    type TimelineNode,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { TimelineNode, TurnNode } from "../webapp/views/timeline-node-types.ts";
 
 // Fixture nodes: two sessions, session-a titled, session-b untitled.
 const firstNodeOfSessionA: TurnNode = { kind: USER_TURN_NODE_KIND, when: "t1", sessionId: "session-a", text: "hello", snapshots: [], gitOperations: [] };

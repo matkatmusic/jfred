@@ -2,7 +2,9 @@
 
 import { recordGitBaselineSnapshot } from "./timeline-baseline-host.ts";
 import { isSnapshotGitBaseline } from "./timeline-changes.ts";
-import { AGENT_TURN_NODE_KIND, type CommitNode, type SnapshotInstant, type TurnNode, type WireStepSnapshot } from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { CommitNode, SnapshotInstant, TurnNode } from "./timeline-node-types.ts";
+import type { WireStepSnapshot } from "./timeline-wire-types.ts";
 
 // True when this agent turn can own the snapshot: same session, at or after it.
 function isSnapshotOwnerCandidate(node: TurnNode, snapshot: SnapshotInstant): boolean {

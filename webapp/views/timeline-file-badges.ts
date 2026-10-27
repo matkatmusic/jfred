@@ -1,7 +1,7 @@
 // Rename-badge view-model: the Files sidebar and details "Files touched" list stamp entries here.
 
 import type { FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
-import type { WireRename, WireTimelineDocument } from "./timeline-types.ts";
+import type { WireRename, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // One rename badge: its entry, the old path's segments, and the suffix depth shown.
 type RenameBadge = { entry: FileSidebarEntry; segments: string[]; depth: number };

@@ -1,12 +1,7 @@
 // Role pills and session-start labels for the revision timeline (split from timeline-labels.ts).
 
-import {
-  AGENT_TURN_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  USER_TURN_NODE_KIND,
-  type FileChange,
-  type TimelineNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { FileChange, TimelineNode } from "./timeline-node-types.ts";
 
 // Wire event kind of a script-made revision (mirrors EventKind.scriptExecution).
 export const SCRIPT_EXECUTION_EVENT_KIND = "script-execution";

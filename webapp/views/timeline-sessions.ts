@@ -2,12 +2,8 @@
 
 import { computeSessionShortLabel } from "./timeline-labels.ts";
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
-import {
-  AGENT_TURN_NODE_KIND,
-  COMMIT_NODE_KIND,
-  SESSION_END_NODE_KIND,
-  type TimelineNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, SESSION_END_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 // The /api/projects listing shape this sidebar joins sessions against.
 export type WireJsonlFile = { fileName: string };

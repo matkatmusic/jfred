@@ -1,7 +1,7 @@
 // Script-run Details view-model half (task 67; DOM-free, tested in tests/script-run-details-view.test.ts): resolve a run's sandbox-proven changed paths to the revisions whose per-revision diffs show the run's before/after. The DOM renderer lives in details-script-run.ts (the details-model.ts / details.ts split precedent).
 
 import { SCRIPT_RUN_CHANGE_ID_PREFIX } from "./timeline-changes.ts";
-import type { WireFileHistory, WireScriptRun, WireTimelineDocument } from "./timeline-types.ts";
+import type { WireFileHistory, WireScriptRun, WireTimelineDocument } from "./timeline-wire-types.ts";
 
 // One changed file resolved for the right pane: target/revisionNumber are undefined when no reconstructed history tracks the path (the pane renders a note instead of a diff).
 export type ScriptRunFileEntry = { path: string; target: string | undefined; revisionNumber: number | undefined };

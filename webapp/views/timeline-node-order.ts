@@ -1,7 +1,8 @@
 // Orders, numbers, and trims the timeline node list.
 
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
-import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND, type TimelineNode } from "./timeline-types.ts";
+import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 // Tie-break rank for nodes sharing a timestamp: turns, then tool rows, then commits, then session ends.
 function computeNodeKindRank(kind: TimelineNode["kind"]): number {

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import type { SessionEndNode } from "../webapp/views/timeline-types.ts";
+import type { SessionEndNode } from "../webapp/views/timeline-node-types.ts";
 
 test("test_session_end_row_registers_itself_and_click_selects_it", async () => {
   initWebappDom();

@@ -69,15 +69,23 @@ export function listCandidates(settings: SweepSettings): Path[] {
 
 // Top-level .jsonl transcripts in name order; subdirectories hold sidecars, not transcripts.
 function listTranscriptPaths(projects: Path): Path[] {
-  return readdirSync(projects.toString())
-    .filter((name) => name.endsWith(".jsonl"))
-    .sort()
-    .map((name) => new Path(join(projects.toString(), name)));
+  const names = readdirSync(projects.toString()).sort();
+  const paths: Path[] = [];
+  for (const name of names) {
+    const isTranscript = name.endsWith(".jsonl");
+    if (isTranscript) {
+      paths.push(new Path(join(projects.toString(), name)));
+    }
+  }
+  return paths;
 }
 
 // Loads all transcripts once; shared records array lets memoization pay cost once.
 export function loadSweepInputs(settings: SweepSettings): { records: TranscriptRecord[]; reader: ReturnType<typeof buildSidecarReader> } {
-  const transcripts = listTranscriptPaths(settings.projects).map((path) => path.toString());
+  const transcripts: string[] = [];
+  for (const path of listTranscriptPaths(settings.projects)) {
+    transcripts.push(path.toString());
+  }
   const options = parseArgs([
     ...transcripts,
     "--repo", settings.repo.toString(),
@@ -87,7 +95,12 @@ export function loadSweepInputs(settings: SweepSettings): { records: TranscriptR
   ]);
   applyCliPathOverrides(options);
   console.error(`loading ${transcripts.length} transcripts from ${settings.projects.toString()}`);
-  const records = options.jsonlPaths.map((jsonlPath) => loadTranscript(jsonlPath).records).flat();
+  const records: TranscriptRecord[] = [];
+  for (const jsonlPath of options.jsonlPaths) {
+    for (const record of loadTranscript(jsonlPath).records) {
+      records.push(record);
+    }
+  }
   console.error(`loaded ${records.length} records; building sidecar reader`);
   return { records, reader: buildSidecarReader(records, getPathOverrides().sources) };
 }

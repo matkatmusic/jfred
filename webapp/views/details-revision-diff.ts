@@ -2,7 +2,7 @@
 
 import { buildFileHistoryViewModel } from "./file-history-model.ts";
 import { computeRevisionDiffFallbackText } from "./timeline-labels-tags.ts";
-import { type FileChange } from "./timeline-types.ts";
+import type { FileChange } from "./timeline-node-types.ts";
 import {
   type DetailsContext,
   type RevisionCard,

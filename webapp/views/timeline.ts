@@ -22,7 +22,7 @@ import { buildTimelineRows } from "./timeline-render-rows.ts";
 import { renderSelectbarButtons } from "./timeline-render-selectbar.ts";
 import { wireFileNavButtons, wireToggleAllButton } from "./timeline-render-selection.ts";
 import { buildSessionsSidebarViewModel, waitForNextAnimationFrame } from "./timeline-sessions.ts";
-import type { WireTimelineDocument } from "./timeline-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 import { buildSessionColors, fetchProjectListing, formatTimelineSummary } from "./timeline-view-setup.ts";
 import type { DetailsContext } from "./details-model.ts";
 

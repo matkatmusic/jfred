@@ -8,18 +8,9 @@ import { findTimelineNodeIndexForRawLine } from "./timeline-labels-raw-line.ts";
 import { findJsonlForSession } from "./timeline-sessions.ts";
 import { LINE_NODE_KIND, type LineNode } from "./timeline-line-nodes.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import {
-  COMMIT_NODE_KIND,
-  SESSION_END_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  type CommitNode,
-  type FileChange,
-  type TimelineNode,
-  type ToolCallNode,
-  type TranscriptLocation,
-  type TurnNode,
-  type WireStepSnapshot,
-} from "./timeline-types.ts";
+import { COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
+import type { CommitNode, FileChange, TimelineNode, ToolCallNode, TranscriptLocation, TurnNode } from "./timeline-node-types.ts";
+import type { WireStepSnapshot } from "./timeline-wire-types.ts";
 
 // Probe all project JSONLs for the transcript line carrying a changeId.
 export async function findTranscriptLineForChangeId(context: TimelineRenderContext, changeId: string): Promise<TranscriptLocation | undefined> {

@@ -1,11 +1,7 @@
 // Raw-line ownership for the revision timeline (split from timeline-labels.ts).
 
-import {
-  AGENT_TURN_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  USER_TURN_NODE_KIND,
-  type TimelineNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, TOOL_CALL_NODE_KIND, USER_TURN_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 type RawLineOwnerCheck = (node: TimelineNode, rawLineText: string) => boolean;
 

@@ -1,4 +1,4 @@
-// Timeline selectbar + pick machinery (task 92 split from timeline.ts): the pick checkboxes, the contiguity rule hint, the picked-range summary strip, and the range-patch fetch.
+// Timeline selectbar and pick machinery: checkboxes, contiguity hint, range summary strip, and range-patch fetch.
 
 import { createElement } from "../app-dom.ts";
 import { getBaselineChoice, getConsentChoice } from "../app-choices.ts";
@@ -6,7 +6,7 @@ import { fetchText } from "../app-fetch.ts";
 import { downloadText } from "./download.ts";
 import { checkNodeIsPickable, checkPickIsLegal, computeRangeSummary } from "./timeline-picks.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import type { TimelineNode } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 export function buildConsentParams(context: TimelineRenderContext): URLSearchParams {
   const params = new URLSearchParams({ project: context.project });

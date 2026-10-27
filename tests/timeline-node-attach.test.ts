@@ -3,7 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { attachSnapshotsToAgentTurns } from "../webapp/views/timeline-node-attach.ts";
-import { AGENT_TURN_NODE_KIND, type TurnNode, type WireStepSnapshot } from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { TurnNode } from "../webapp/views/timeline-node-types.ts";
+import type { WireStepSnapshot } from "../webapp/views/timeline-wire-types.ts";
 
 const turn = (when: string): TurnNode => ({ kind: AGENT_TURN_NODE_KIND, when, sessionId: "s1", text: "", snapshots: [], gitOperations: [] });
 const snapshot = (when: string): WireStepSnapshot => ({ index: 0, when, sessionId: "s1", changeIds: [], changedPaths: [] });

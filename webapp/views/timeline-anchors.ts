@@ -4,7 +4,7 @@ import { fetchRawRecords } from "../app-fetch.ts";
 import { findTimelineNodeIndexForRawLine } from "./timeline-labels-raw-line.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import { openTranscriptInspectorSynced } from "./timeline-render-inspectors.ts";
-import type { TimelineNode } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 export function findFirstNodeIndexForJsonl(nodes: TimelineNode[], anchorJsonl: string): number {
   for (let index = 0; index < nodes.length; index++) {

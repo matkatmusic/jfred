@@ -1,12 +1,7 @@
 // Row summary text, session short labels, and timestamps for the revision timeline (split from timeline.ts).
 
-import {
-  AGENT_TURN_NODE_KIND,
-  COMMIT_NODE_KIND,
-  SESSION_END_NODE_KIND,
-  TOOL_CALL_NODE_KIND,
-  type TimelineNode,
-} from "./timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, SESSION_END_NODE_KIND, TOOL_CALL_NODE_KIND } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
 
 // Capped so the row's [{ }] button, timestamp, and L:n label stay visible (item 55).
 const TOOL_CALL_SUMMARY_MAX_CHARS = 50;
