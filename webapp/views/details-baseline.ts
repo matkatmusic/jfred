@@ -10,7 +10,7 @@ import {
 } from "./file-history-model.ts";
 
 export function showGitBaselineInDetails(historyDocument: WireHistoryDocument, path: string, changeId: string): void {
-  // The document's file histories carry each revision's own lines, so the committed content is derivable client-side — no fetch.
+  // File histories carry each revision's lines, so the committed content needs no fetch.
   const link = findRevisionForChangeId(historyDocument.filesTouched, changeId);
   const revisionNumber = link?.revisionNumber ?? 1;
   const content = buildFileHistoryViewModel(historyDocument, path).revisions[revisionNumber - 1]?.content;
