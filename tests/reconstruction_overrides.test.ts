@@ -44,7 +44,7 @@ test("test_set_and_get_path_overrides_round_trip", () => {
 });
 
 test("test_serialize_path_overrides_is_stable_and_distinguishes_values", () => {
-    // Scenario: the serialization is a cache-stamp component — identical overrides must serialize identically, any field change must change the string.  Step: empty overrides serialize to a fixed constant.
+    // Scenario: identical overrides format identically; any field change changes the stamp.
     setPathOverrides({});
     const emptySerialization = formatPathOverrides();
     // Step: the same override set serializes identically across two set calls.
@@ -60,14 +60,14 @@ test("test_serialize_path_overrides_is_stable_and_distinguishes_values", () => {
 });
 
 test("test_read_project_paths_config_returns_empty_map_when_file_missing", () => {
-    // Scenario: a projects folder with no reveng-paths.json means "no overrides".  Step: point at a temp dir that has no config file.
+    // Scenario: a projects folder with no reveng-paths.json means no overrides.
     const projectsDir = makeTempDir();
     // Step: the read yields an empty map, no throw.
     assert.deepEqual(readProjectPathsConfig(new Path(projectsDir)), {});
 });
 
 test("test_read_project_paths_config_reads_project_entry", () => {
-    // Scenario: a config file maps project dir names to their path entries.  Step: write a config with one project entry into a temp projects dir.
+    // Scenario: a config file maps project dir names to their path entries.
     const projectsDir = makeTempDir();
     const wireConfig = {
         "-Users-me-Programming-jot": {
@@ -83,7 +83,7 @@ test("test_read_project_paths_config_reads_project_entry", () => {
 });
 
 test("test_read_project_paths_config_throws_on_malformed_json", () => {
-    // Scenario: a typo'd config must fail loudly, never silently drop the overrides.  Step: write malformed JSON as the config file.
+    // Scenario: a malformed config must fail loudly, never silently drop the overrides.
     const projectsDir = makeTempDir();
     writeFileSync(join(projectsDir, PROJECT_PATHS_CONFIG_NAME), "not json");
     // Step: the read throws.
@@ -111,7 +111,7 @@ test("test_hydrate_project_paths_builds_domain_types", () => {
 });
 
 test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
-    // Scenario (task 137): a per-project explicit file-history override rides in the same reveng-paths.json entry and hydrates into the engine's fileHistoryRoot override.  Step: hydrate an entry carrying only fileHistory.
+    // Scenario: a per-project fileHistory entry becomes the fileHistoryRoot override.
     const overrides = buildProjectPaths({ fileHistory: "/tmp/custom-history" });
     // Step: the field is a real Path carrying the wire value.
     assert.ok(overrides.fileHistoryRoot instanceof Path);
@@ -119,7 +119,7 @@ test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
 });
 
 test("test_hydrate_project_sources_builds_domain_entries_from_sources_list", () => {
-    // Scenario (spec S3): a project entry may declare a `sources` list; each entry hydrates into domain Paths (coding-req §1), preserving order and per-entry optional fields.  Step: hydrate a wire entry carrying two sources — one fully populated, one minimal.
+    // Scenario: a `sources` list becomes domain Paths, keeping order and optional fields.
     const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), {
         sources: [
             { projectsDir: "/tmp/live/projects", fileHistoryDir: "/tmp/live/file-history", root: "/Users/me/Programming/jot" },
@@ -137,7 +137,7 @@ test("test_hydrate_project_sources_builds_domain_entries_from_sources_list", () 
 });
 
 test("test_hydrate_project_sources_degenerates_legacy_entry_to_single_source", () => {
-    // Scenario (spec S3): a legacy entry (no `sources` key) is the one-entry degenerate case — the single source is the config's own projects dir, carrying the legacy fileHistory override, with root absent (auto-detect, design §b).  Step: hydrate a fully-populated LEGACY wire entry.
+    // Scenario: a legacy entry with no `sources` yields one source: the config's own projects dir.
     const legacyWire = { cwd: "/Users/me/jot", repo: "/Users/me/jot", baseCommit: "deadbeef", fileHistory: "/tmp/custom-history" };
     const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), legacyWire);
     // Step: exactly one source — the containing projects dir.
@@ -154,7 +154,7 @@ test("test_hydrate_project_sources_degenerates_legacy_entry_to_single_source", (
 });
 
 test("test_hydrate_project_sources_leaves_omitted_root_absent_for_auto_detect", () => {
-    // Scenario (design §b): an omitted `root` is the auto-detect signal — hydration must leave it absent, never invent a value.  Step: hydrate a sources entry that omits root (and fileHistoryDir).
+    // Scenario: an omitted `root` means auto-detect, so it must stay absent.
     const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), {
         sources: [{ projectsDir: "/tmp/live/projects" }],
     });
@@ -164,7 +164,7 @@ test("test_hydrate_project_sources_leaves_omitted_root_absent_for_auto_detect", 
 });
 
 test("test_write_project_paths_entry_merges_into_existing_config", () => {
-    // Scenario (task 137's opt-in store): writing one project's entry merges field-wise into the existing file — stored fields absent from the new entry survive, other projects stay untouched, and a missing file is created.  Step: a config with an existing entry for "proj-a" plus an unrelated "proj-b".
+    // Scenario: writing an entry merges field-wise; other projects survive and a missing file is created.
     const projectsDir = makeTempDir();
     writeFileSync(join(projectsDir, PROJECT_PATHS_CONFIG_NAME), JSON.stringify({
         "proj-a": { cwd: "/original/a" },
@@ -184,7 +184,7 @@ test("test_write_project_paths_entry_merges_into_existing_config", () => {
 });
 
 test("test_serialize_path_overrides_includes_sources", () => {
-    // Scenario (spec S6): the cache stamp must distinguish source configs — a source-list change can never reuse a single-source cached document.  Step: capture the empty-overrides stamp.
+    // Scenario: a source-list change must change the cache stamp.
     setPathOverrides({});
     const emptyStamp = formatPathOverrides();
     // Test action: set overrides carrying one declared source (with root, no fileHistoryDir).

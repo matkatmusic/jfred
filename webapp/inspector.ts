@@ -59,7 +59,7 @@ export function formatInspectorLineCounter(lineIndex: number, lineCount: number)
   return `line ${lineIndex} of 0–${lineCount - 1}`;
 }
 
-// task 142: Prev/Next disable when no jump target exists: index 0 has no Prev, the last line has no Next.
+// Prev is off on the first line; Next is off on the last line.
 export function computeInspectorNavDisabledStates(lineIndex: number, lineCount: number): { prevIsDisabled: boolean; nextIsDisabled: boolean } {
   return { prevIsDisabled: lineIndex === 0, nextIsDisabled: lineIndex === lineCount - 1 };
 }
