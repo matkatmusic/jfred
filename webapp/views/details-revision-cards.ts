@@ -14,7 +14,8 @@ function moveToOwningTimelineStep(context: DetailsContext, card: RevisionCard): 
   let ownerIndex = -1;
   for (const [nodeIndex, candidate] of context.nodes.entries()) {
     for (const change of candidate.fileChanges ?? []) {
-      if (change.changeId === card.changeId && ownerIndex < 0) {
+      const isFirstOwner = change.changeId === card.changeId && ownerIndex < 0;
+      if (isFirstOwner) {
         ownerIndex = nodeIndex;
       }
     }
@@ -78,7 +79,7 @@ export function buildRevisionActionsElement(
     buildActionButton("Show content", openRevisionContent),
     buildActionButton("Export this version", saveRevisionVersion),
     buildActionButton("Copy patch", copyRevisionPatch),
-    buildActionButton("Export .patch", exportRevisionPatch),
+    buildActionButton("Export .patch", saveRevisionPatch),
     buildJumpButton(buildActionButton, context, card),
     // item 84: the only route to a file-modifying event's JSON; the timeline chip delegates here.
     buildJsonButton(buildActionButton, context, card),
