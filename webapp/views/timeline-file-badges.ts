@@ -1,12 +1,12 @@
-// Rename-badge view-model (task 91 disambiguation + the task-145 script-move fallback), split from timeline-file-tree.ts for the line cap. The Files sidebar and the details "Files touched" list both stamp their entries here.
+// Rename-badge view-model: the Files sidebar and details "Files touched" list stamp entries here.
 
 import type { FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
 import type { WireRename, WireTimelineDocument } from "./timeline-types.ts";
 
-// One rename badge being disambiguated (task 91): its entry, the old path's segments, and the suffix depth grown until the badge's label collides with no other badge's.
+// One rename badge: its entry, the old path's segments, and the suffix depth shown.
 type RenameBadge = { entry: FileSidebarEntry; segments: string[]; depth: number };
 
-// Stamp every renamed entry's renameBadgeLabel: start each badge at the old path's basename and deepen colliding badges until all labels differ (task 91 — two renames from the same basename in different directories must be tellable apart without hovering).
+// Stamp each renamed entry's renameBadgeLabel: start at the basename, deepen colliding badges until labels differ.
 export function applyRenameBadgeLabels(entries: FileSidebarEntry[]): void {
   const badges: RenameBadge[] = [];
   for (const entry of entries) {
