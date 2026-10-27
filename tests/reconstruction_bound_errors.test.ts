@@ -7,7 +7,7 @@ import { Path } from "../src/structures/domain.ts";
 import { trimRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
 import { executeCli } from "../src/reconstruction_cli.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
-import { makeBoundFixture } from "./reconstruction_bound_fixture.ts";
+import { createBoundFixture } from "./reconstruction_bound_fixture.ts";
 import {
     SESSION_A,
     buildPromptRecord,
@@ -18,7 +18,7 @@ import {
 
 test("test_bound_rejects_out_of_range_ordinal", () => {
     // Scenario: an out-of-range ordinal fails loudly, and the message teaches the valid range.
-    const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
+    const { records, alphaPath } = createBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     assert.throws(
         () => trimRecordsAtRevisionTurnEnd(records, alphaPath, 9),
         (error: Error) => error.message.includes("1..3") && error.message.includes(alphaPath.toString()),
@@ -27,7 +27,7 @@ test("test_bound_rejects_out_of_range_ordinal", () => {
 
 test("test_bound_rejects_unknown_target", () => {
     // Scenario: a never-touched path has no revisions to bound at.
-    const { records } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
+    const { records } = createBoundFixture({ withFinalPrompt: true, withSidechainPrompt: false });
     assert.throws(
         () => trimRecordsAtRevisionTurnEnd(records, new Path("/nowhere/ghost.py"), 1),
         (error: Error) => error.message.includes("no revisions"),
@@ -69,7 +69,7 @@ test("test_cli_until_revision_bounds_all_views", () => {
 
 test("test_bound_ignores_sidechain_prompts", () => {
     // Scenario: a subagent's opening prompt inside turn 1 is not a turn boundary; the cut still lands before prompt2.
-    const { records, alphaPath } = makeBoundFixture({ withFinalPrompt: true, withSidechainPrompt: true });
+    const { records, alphaPath } = createBoundFixture({ withFinalPrompt: true, withSidechainPrompt: true });
     const bound = trimRecordsAtRevisionTurnEnd(records, alphaPath, 1);
     assert.equal(bound.records.length, 6);
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_bound_e1-result"));

@@ -15,7 +15,7 @@ export function applyRenameBadgeLabels(entries: FileSidebarEntry[]): void {
     }
     badges.push({ entry, segments: splitPathSegments(entry.originalPath), depth: 1 });
   }
-  while (deepenCollidingBadges(badges)) {
+  while (updateCollidingBadgeDepths(badges)) {
     // repeat until no badge grew — each pass regroups by the freshly deepened labels.
   }
   for (const badge of badges) {
@@ -39,7 +39,7 @@ function computeBadgeLabel(badge: RenameBadge): string {
 }
 
 // Deepen badges that share a label with a different old path; true when any grew.
-function deepenCollidingBadges(badges: RenameBadge[]): boolean {
+function updateCollidingBadgeDepths(badges: RenameBadge[]): boolean {
   const badgesByLabel = new Map<string, RenameBadge[]>();
   for (const badge of badges) {
     const label = computeBadgeLabel(badge);

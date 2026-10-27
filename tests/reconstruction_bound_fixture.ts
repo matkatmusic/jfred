@@ -15,7 +15,7 @@ import {
 export type BoundFixture = { records: TranscriptRecord[]; alphaPath: Path };
 
 // Three-turn fixture; withSidechainPrompt adds a subagent prompt inside turn 1.
-export function makeBoundFixture(options: { withFinalPrompt: boolean; withSidechainPrompt: boolean }): BoundFixture {
+export function createBoundFixture(options: { withFinalPrompt: boolean; withSidechainPrompt: boolean }): BoundFixture {
   const tree = makeSourceTree("-bound-project");
   const root = join(tree.treeRoot, "workspace");
   const alphaPath = join(root, "alpha_bound.py");
