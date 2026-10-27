@@ -34,7 +34,7 @@ test("test_delete_revision_has_no_lines", () => {
 });
 
 test("test_rename_revision_carries_prior_lines_with_identity_indices", () => {
-  const event: RenameEvent = { kind: EventKind.rename, changeId: new Uuid("r"), target, from: target, to: new Path("/a/c.py"), timestamp };
+  const event: RenameEvent = { kind: EventKind.rename, changeId: new Uuid("r"), from: target, to: new Path("/a/c.py"), timestamp };
   const revision = renameRevision(event, [writeRevision(writeEvent, false)]);
   assert.equal(revision.lines.length, 2);
   assert.equal(revision.lines[1]!.oldLineNum, 1);

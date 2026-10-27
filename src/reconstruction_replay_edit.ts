@@ -20,7 +20,8 @@ export function splitLines(content: string): string[] {
   const parts = content.split("\n");
   const hasParts = parts.length > 0;
   const endsWithNewline = parts[parts.length - 1] === "";
-  if (hasParts && endsWithNewline) {
+  const hasPhantomTail = hasParts && endsWithNewline;
+  if (hasPhantomTail) {
     parts.pop();
   }
   return parts;
@@ -126,7 +127,7 @@ export function applyEdit(event: EditEvent, revisions: FileRevision[]): void {
 }
 
 // Recover pre-edit lines by un-applying all hunks, latest first; undefined when any hunk fails to match.
-export function reverseEditFromAfter(afterLines: string[], event: EditEvent): string[] | undefined {
+export function getPreEditLines(afterLines: string[], event: EditEvent): string[] | undefined {
   let lines = afterLines;
   for (let index = event.hunks.length - 1; index >= 0; index -= 1) {
     const reversed = unapplyHunkAgainstAfter(lines, event.hunks[index]!);

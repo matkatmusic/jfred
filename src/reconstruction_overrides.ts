@@ -1,11 +1,9 @@
-// User-supplied data-source path overrides (TASKS.md item 46): where the file-history blobs, the project, and its git repo live NOW, for transcripts copied out of ~/.claude (e.g. an audit tree mirroring the ~/.claude layout). Process-wide module state on the reconstruction_exec_gate.ts precedent — builds are synchronous and the server serializes them, so each request/run sets the state it needs. Empty state = every consumer behaves exactly as before item 46.
-//
-// The `projectCwd` override is consumed at the git-evidence DISK-ACCESS points, never rewritten into records at parse time: rewriting record.cwd while file paths stay recorded breaks readCommittedFileContent's relative-path math and puts rename/copy resolution (resolveAgainstCwd) in a mixed path space that breaks lineage joins (user-approved deviation from the item-46 text, 2026-07-09).
+// User-supplied data-source path overrides (TASKS.md item 46): where the file-history blobs, the project, and its git repo live NOW, for transcripts copied out of ~/.claude (e.g. an audit tree mirroring the ~/.claude layout). Process-wide module state on the reconstruction_exec_gate.ts precedent — builds are synchronous and the server serializes them, so each request/run sets the state it needs. Empty state = every consumer behaves exactly as before item 46.  The `projectCwd` override is consumed at the git-evidence DISK-ACCESS points, never rewritten into records at parse time: rewriting record.cwd while file paths stay recorded breaks readCommittedFileContent's relative-path math and puts rename/copy resolution (resolveAgainstCwd) in a mixed path space that breaks lineage joins (user-approved deviation from the item-46 text, 2026-07-09).
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
-import { discoverSourceEntriesForProjectRoot } from "./reconstruction_repo_discovery.ts";
+import { findSourceEntriesForProjectRoot } from "./reconstruction_repo_discovery.ts";
 
 // The overrides. All optional; an absent field means "use today's default".
 export type PathOverrides = {
@@ -80,7 +78,7 @@ export type SourceEntry = {
 export function hydrateProjectSources(configProjectsDir: Path, wire: WireProjectPaths): SourceEntry[] {
   if (wire.sources === undefined) {
     if (wire.cwd !== undefined) {
-      const discoveredSources = discoverSourceEntriesForProjectRoot(new Path(wire.cwd));
+      const discoveredSources = findSourceEntriesForProjectRoot(new Path(wire.cwd));
       if (discoveredSources.length > 0) {
         return discoveredSources;
       }

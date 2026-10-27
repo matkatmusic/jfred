@@ -45,7 +45,7 @@ function encodeProjectFolderName(projectFolder: string): string {
   return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
-// Auto-populate a project's sources[] from its nested repos: a project whose configured cwd is not itself a repo, but contains nested repos each with a recorded Claude Code session at their own root, gets one SourceEntry per such nested repo. Empty when the cwd IS itself a repo (legacy single-source path — zero behavior change, the common case) or when no discovered repo has any matching recorded session.
+// One SourceEntry per nested repo with a recorded session; empty when the cwd is itself a repo.
 export function findSourceEntriesForProjectRoot(projectCwd: Path): SourceEntry[] {
   const cwdIsRepo = existsSync(join(projectCwd.toString(), ".git"));
   if (cwdIsRepo) {
