@@ -7,9 +7,9 @@ import { Path } from "./domain.ts";
 // while a file event's target is absolute; resolving both the same way lets them match.
 // resolve() leaves an already-absolute path unchanged, so an absolute target passes through.
 export function resolveAgainstCwd(cwd: Path | undefined, path: Path): string {
-    if (!cwd) {
-        return path.toString();
-    }
-    return resolve(cwd.toString(), path.toString());
+  if (!cwd) {
+    return path.toString();
+  }
+  return resolve(cwd.toString(), path.toString());
 }
 

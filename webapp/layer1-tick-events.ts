@@ -5,7 +5,7 @@ import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-f
 import { isKindHidden } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
 import type { ShowRowKind } from "./layer1-show-row.ts";
-import { flashSession } from "./layer1-sessions.ts";
+import { flashSession } from "./layer1-session-flash.ts";
 import { listElementsDrawnAtAxisPx, collectStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 

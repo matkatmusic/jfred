@@ -8,56 +8,58 @@ import { listCoveredScenarios } from "../scripts/coverage_scenarios.ts";
 
 // Where executed scenarios live: the repo's scenarios submodule checkout, derived from this file's location so the suite works from any clone (same derivation as check_scenario_coverage).
 const SCENARIO_ROOTS = [
-    fileURLToPath(new URL("../scenarios/executed", import.meta.url)),
+  fileURLToPath(new URL("../scenarios/executed", import.meta.url)),
 ] as const;
 
 // A scenario's transcript JSONL, found by dir name. Searches each root in order and returns the first `*.jsonl` (sorted) in the first dir that has one. Single-session scenarios (every fixture a test actually reads) hold exactly one; multi-session scenarios (/clear, git-baseline, concurrent) hold several — those are reconstructed by merging ALL of a dir's jsonl via the coverage suite (scripts/coverage_scenarios.ts), so this single-transcript resolver is only for the legacy single-session per-scenario fixtures. Throws (loudly, at import) only when the dir is missing everywhere — a clear failure beats an opaque ENOENT.
 export function findScenarioJsonl(dirName: string): string {
-    for (const root of SCENARIO_ROOTS) {
-        const dir = join(root, dirName);
-        let jsonls: string[];
-        try {
-            jsonls = readdirSync(dir).filter((name) => name.endsWith(".jsonl")).sort();
-        } catch {
-            continue;
-        }
-        if (jsonls.length > 0) {
-            return join(dir, jsonls[0]!);
-        }
+  for (const root of SCENARIO_ROOTS) {
+    const dir = join(root, dirName);
+    let jsonls: string[];
+    try {
+      jsonls = readdirSync(dir).filter((name) => name.endsWith(".jsonl")).sort();
     }
-    throw new Error(`scenario ${dirName}: no .jsonl found under known roots`);
+    catch {
+      continue;
+    }
+    if (jsonls.length > 0) {
+      return join(dir, jsonls[0]!);
+    }
+  }
+  throw new Error(`scenario ${dirName}: no .jsonl found under known roots`);
 }
 
 // Resolve a scenario directory by name across the given executed-scenario roots: the first root whose dir holds at least one transcript wins (mirrors findScenarioJsonl's resolution rule).  Lives here (not utilities.ts) so utilities stays capture-free — CI's capture-free test list (scripts/list_capture_free_tests.ts) excludes exactly the files whose imports reach this module.
 export function resolveScenarioDir(roots: readonly string[], dirName: string): string {
-    for (const root of roots) {
-        const dir = join(root, dirName);
-        let entries: string[];
-        try {
-            entries = readdirSync(dir);
-        } catch {
-            continue;
-        }
-        if (entries.some((name) => name.endsWith(".jsonl"))) {
-            return dir;
-        }
+  for (const root of roots) {
+    const dir = join(root, dirName);
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
     }
-    throw new Error(`scenario ${dirName}: no directory with .jsonl found under known roots`);
+    catch {
+      continue;
+    }
+    if (entries.some((name) => name.endsWith(".jsonl"))) {
+      return dir;
+    }
+  }
+  throw new Error(`scenario ${dirName}: no directory with .jsonl found under known roots`);
 }
 
 // The transcript JSONLs directly inside a scenario directory, sorted by file name — the multi-session counterpart of findScenarioJsonl's single-transcript resolution.
 export function listScenarioJsonlPaths(dir: Path): Path[] {
-    const names = readdirSync(dir.value).filter((name) => name.endsWith(".jsonl")).sort();
-    return names.map((name) => new Path(join(dir.value, name)));
+  const names = readdirSync(dir.value).filter((name) => name.endsWith(".jsonl")).sort();
+  return names.map((name) => new Path(join(dir.value, name)));
 }
 
 // The session transcript(s) for a scenario id (e.g. "s37"), resolved from the discovered coverage scenarios. Throws when the scenario is not captured, so a missing ground truth fails loudly rather than silently skipping. Tests asserting on a specific line take the single path; reconstruction tests take all.
 export function jsonlPathsForScenario(scenarioId: string): Path[] {
-    const scenario = listCoveredScenarios().find((covered) => covered.scenarioId === scenarioId);
-    if (scenario === undefined) {
-        throw new Error(`no covered scenario with id ${scenarioId}`);
-    }
-    return scenario.jsonlPaths;
+  const scenario = listCoveredScenarios().find((covered) => covered.scenarioId === scenarioId);
+  if (scenario === undefined) {
+    throw new Error(`no covered scenario with id ${scenarioId}`);
+  }
+  return scenario.jsonlPaths;
 }
 
 export const S1_JSONL = findScenarioJsonl("s1-delete-file");

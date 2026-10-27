@@ -5,23 +5,23 @@ import { TIME_SOURCE_VALUES, readTimeSource, selectTimeSource } from "./layer1-s
 
 // The button ids are `time-<value>`, so the suffix IS the value — a lookup, not a translation.
 function findTimeSourceButton(value: string): HTMLElement {
-    return getRequiredElementById(`time-${value}`);
+  return getRequiredElementById(`time-${value}`);
 }
 
 function markSelectedTimeSource(): void {
-    for (const value of TIME_SOURCE_VALUES) {
-        findTimeSourceButton(value).classList.toggle("current", value === readTimeSource());
-    }
+  for (const value of TIME_SOURCE_VALUES) {
+    findTimeSourceButton(value).classList.toggle("current", value === readTimeSource());
+  }
 }
 
 // Wire both buttons, and sync `.current` to whatever fillSourceBoxesFromUrl already seeded, so boot needs one call and not two. `afterChange` is passed in rather than imported, exactly as wireFolderPickers does it: reaching back for loadLayer1View would make the modules circular.
 export function wireTimeSourceToggle(afterChange: () => void): void {
-    for (const value of TIME_SOURCE_VALUES) {
-        findTimeSourceButton(value).addEventListener("click", () => {
-            selectTimeSource(value);
-            markSelectedTimeSource();
-            afterChange();
-        });
-    }
-    markSelectedTimeSource();
+  for (const value of TIME_SOURCE_VALUES) {
+    findTimeSourceButton(value).addEventListener("click", () => {
+      selectTimeSource(value);
+      markSelectedTimeSource();
+      afterChange();
+    });
+  }
+  markSelectedTimeSource();
 }

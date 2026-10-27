@@ -11,20 +11,20 @@ import { CommitTimeSource } from "../webapp/layer1-wire.ts";
 
 // One commit node of a pair's history.
 export interface CommitHistoryNode {
-    hash: string;
-    instant: Instant;
+  hash: string;
+  instant: Instant;
 }
 
 // Returns oldest-first commits touching a path; ref must match the tree's ref (task 235).
 export function listPairCommitHistory(
-    repoDir: Path,
-    repoRelativePath: Path,
-    ref: string = ACTIVE_BRANCH_REF,
-    timeSource: CommitTimeSource = CommitTimeSource.committer,
+  repoDir: Path,
+  repoRelativePath: Path,
+  ref: string = ACTIVE_BRANCH_REF,
+  timeSource: CommitTimeSource = CommitTimeSource.committer,
 ): CommitHistoryNode[] {
-    return listCommitsTouchingFile(repoDir, repoRelativePath, ref).map((touch) => {
-        const seconds = timeSource === CommitTimeSource.author ? touch.authorEpochSeconds : touch.committerEpochSeconds;
-        return { hash: touch.hash, instant: widenEpochSecondsToInstant(seconds) };
-    });
+  return listCommitsTouchingFile(repoDir, repoRelativePath, ref).map((touch) => {
+    const seconds = timeSource === CommitTimeSource.author ? touch.authorEpochSeconds : touch.committerEpochSeconds;
+    return { hash: touch.hash, instant: widenEpochSecondsToInstant(seconds) };
+  });
 }
 

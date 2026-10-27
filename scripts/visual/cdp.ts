@@ -14,160 +14,161 @@ const CHROME_BINARY = "/Applications/Google Chrome.app/Contents/MacOS/Google Chr
 const CHROME_BOOT_TIMEOUT_MS = 15_000;
 
 export function pause(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 // Racy but fine: only the viewer competes for ports in the next instant.
 export function findFreePort(): Promise<number> {
-    return new Promise((resolve, reject) => {
-        const probe = createServer();
-        probe.on("error", reject);
-        probe.listen(0, "127.0.0.1", () => {
-            const address = probe.address();
-            const port = typeof address === "object" && address !== null ? address.port : 0;
-            probe.close(() => resolve(port));
-        });
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.on("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address !== null ? address.port : 0;
+      probe.close(() => resolve(port));
     });
+  });
 }
 
 // Poll `url` until it answers, so nothing is driven at a browser or a server that is still booting.
 export async function waitForHttp(url: string, timeoutMs: number): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        try {
-            await fetch(url);
-            return;
-        } catch {
-            await pause(120);
-        }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(url);
+      return;
     }
-    throw new Error(`nothing answered ${url} within ${timeoutMs}ms`);
+    catch {
+      await pause(120);
+    }
+  }
+  throw new Error(`nothing answered ${url} within ${timeoutMs}ms`);
 }
 
 // Standalone to avoid triple nesting inside openHeadlessPage.
 export async function pollUntilTruthy(
-    evaluate: <T>(expression: string) => Promise<T>,
-    expression: string,
-    timeoutMs: number,
+  evaluate: <T>(expression: string) => Promise<T>,
+  expression: string,
+  timeoutMs: number,
 ): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        if (await evaluate<boolean>(`!!(${expression})`)) {
-            return;
-        }
-        await pause(250);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await evaluate<boolean>(`!!(${expression})`)) {
+      return;
     }
-    throw new Error(`page never satisfied: ${expression}`);
+    await pause(250);
+  }
+  throw new Error(`page never satisfied: ${expression}`);
 }
 
 export interface HeadlessPage {
-    // Evaluate a JS expression in the page and return its value. Promises are awaited.
-    evaluate: <T>(expression: string) => Promise<T>;
-    // Poll `expression` until it is truthy — the only way this driver waits for the app.
-    waitFor: (expression: string, timeoutMs: number) => Promise<void>;
-    navigate: (url: string) => Promise<void>;
-    // A viewport PNG, base64-encoded exactly as Page.captureScreenshot returns it.
-    screenshot: () => Promise<string>;
-    close: () => Promise<void>;
+  // Evaluate a JS expression in the page and return its value. Promises are awaited.
+  evaluate: <T>(expression: string) => Promise<T>;
+  // Poll `expression` until it is truthy — the only way this driver waits for the app.
+  waitFor: (expression: string, timeoutMs: number) => Promise<void>;
+  navigate: (url: string) => Promise<void>;
+  // A viewport PNG, base64-encoded exactly as Page.captureScreenshot returns it.
+  screenshot: () => Promise<string>;
+  close: () => Promise<void>;
 }
 
 interface PendingCall {
-    resolve: (result: Record<string, unknown>) => void;
-    reject: (error: Error) => void;
+  resolve: (result: Record<string, unknown>) => void;
+  reject: (error: Error) => void;
 }
 
 // The websocket URL of a fresh about:blank target. PUT, not GET: /json/new refuses GET since M111.
 async function openTargetSocketUrl(debugPort: number): Promise<string> {
-    const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: "PUT" });
-    const target = await response.json() as { webSocketDebuggerUrl: string };
-    return target.webSocketDebuggerUrl;
+  const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: "PUT" });
+  const target = await response.json() as { webSocketDebuggerUrl: string };
+  return target.webSocketDebuggerUrl;
 }
 
 function launchChrome(debugPort: number, profileDir: string, width: number, height: number): ChildProcess {
-    return spawn(CHROME_BINARY, [
-        "--headless=new",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-extensions",
-        "--hide-scrollbars",
-        `--window-size=${width},${height}`,
-        `--user-data-dir=${profileDir}`,
-        `--remote-debugging-port=${debugPort}`,
-        "about:blank",
-    ], { stdio: "ignore" });
+  return spawn(CHROME_BINARY, [
+    "--headless=new",
+    "--disable-gpu",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--hide-scrollbars",
+    `--window-size=${width},${height}`,
+    `--user-data-dir=${profileDir}`,
+    `--remote-debugging-port=${debugPort}`,
+    "about:blank",
+  ], { stdio: "ignore" });
 }
 
 // Launch Chrome, attach one page; caller must close before the process exits.
 export async function openHeadlessPage(width: number, height: number): Promise<HeadlessPage> {
-    const debugPort = await findFreePort();
-    const profileDir = mkdtempSync(join(tmpdir(), "layer1-visual-"));
-    const chrome = launchChrome(debugPort, profileDir, width, height);
-    await waitForHttp(`http://127.0.0.1:${debugPort}/json/version`, CHROME_BOOT_TIMEOUT_MS);
+  const debugPort = await findFreePort();
+  const profileDir = mkdtempSync(join(tmpdir(), "layer1-visual-"));
+  const chrome = launchChrome(debugPort, profileDir, width, height);
+  await waitForHttp(`http://127.0.0.1:${debugPort}/json/version`, CHROME_BOOT_TIMEOUT_MS);
 
-    const socket = new WebSocket(await openTargetSocketUrl(debugPort));
-    const pending = new Map<number, PendingCall>();
-    let nextCallId = 0;
-    await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve(), { once: true }));
-    socket.addEventListener("message", (event: MessageEvent) => {
-        const message = JSON.parse(String(event.data)) as {
-            id?: number; result?: Record<string, unknown>; error?: { message: string };
-        };
-        const call = message.id === undefined ? undefined : pending.get(message.id);
-        if (call === undefined || message.id === undefined) {
-            return;
-        }
-        pending.delete(message.id);
-        if (message.error !== undefined) {
-            call.reject(new Error(message.error.message));
-            return;
-        }
-        call.resolve(message.result ?? {});
-    });
-
-    function send(method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-        const id = ++nextCallId;
-        return new Promise((resolve, reject) => {
-            pending.set(id, { resolve, reject });
-            socket.send(JSON.stringify({ id, method, params }));
-        });
-    }
-
-    await send("Page.enable");
-    await send("Runtime.enable");
-    // Sets the layout viewport that bounding-box assertions measure against.
-    await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-
-    async function evaluate<T>(expression: string): Promise<T> {
-        const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-        const thrown = result.exceptionDetails as { text?: string; exception?: { description?: string } } | undefined;
-        if (thrown !== undefined) {
-            throw new Error(thrown.exception?.description ?? thrown.text ?? "page threw");
-        }
-        return (result.result as { value: T }).value;
-    }
-
-    const waitFor = (expression: string, timeoutMs: number) => pollUntilTruthy(evaluate, expression, timeoutMs);
-
-    return {
-        evaluate,
-        waitFor,
-        async navigate(url: string): Promise<void> {
-            await send("Page.navigate", { url });
-            await waitFor("document.readyState === 'complete'", 30_000);
-        },
-        async screenshot(): Promise<string> {
-            const shot = await send("Page.captureScreenshot", { format: "png" });
-            return shot.data as string;
-        },
-        async close(): Promise<void> {
-            socket.close();
-            chrome.kill("SIGKILL");
-            // Helpers outlive the parent briefly; wait + retry avoids ENOTEMPTY.
-            await new Promise<void>((resolve) => chrome.once("exit", () => resolve()));
-            await pause(300);
-            rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-        },
+  const socket = new WebSocket(await openTargetSocketUrl(debugPort));
+  const pending = new Map<number, PendingCall>();
+  let nextCallId = 0;
+  await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve(), { once: true }));
+  socket.addEventListener("message", (event: MessageEvent) => {
+    const message = JSON.parse(String(event.data)) as {
+      id?: number; result?: Record<string, unknown>; error?: { message: string };
     };
+    const call = message.id === undefined ? undefined : pending.get(message.id);
+    if (call === undefined || message.id === undefined) {
+      return;
+    }
+    pending.delete(message.id);
+    if (message.error !== undefined) {
+      call.reject(new Error(message.error.message));
+      return;
+    }
+    call.resolve(message.result ?? {});
+  });
+
+  function send(method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    const id = ++nextCallId;
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  await send("Page.enable");
+  await send("Runtime.enable");
+  // Sets the layout viewport that bounding-box assertions measure against.
+  await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+
+  async function evaluate<T>(expression: string): Promise<T> {
+    const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+    const thrown = result.exceptionDetails as { text?: string; exception?: { description?: string } } | undefined;
+    if (thrown !== undefined) {
+      throw new Error(thrown.exception?.description ?? thrown.text ?? "page threw");
+    }
+    return (result.result as { value: T }).value;
+  }
+
+  const waitFor = (expression: string, timeoutMs: number) => pollUntilTruthy(evaluate, expression, timeoutMs);
+
+  return {
+    evaluate,
+    waitFor,
+    async navigate(url: string): Promise<void> {
+      await send("Page.navigate", { url });
+      await waitFor("document.readyState === 'complete'", 30_000);
+    },
+    async screenshot(): Promise<string> {
+      const shot = await send("Page.captureScreenshot", { format: "png" });
+      return shot.data as string;
+    },
+    async close(): Promise<void> {
+      socket.close();
+      chrome.kill("SIGKILL");
+      // Helpers outlive the parent briefly; wait + retry avoids ENOTEMPTY.
+      await new Promise<void>((resolve) => chrome.once("exit", () => resolve()));
+      await pause(300);
+      rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    },
+  };
 }
 

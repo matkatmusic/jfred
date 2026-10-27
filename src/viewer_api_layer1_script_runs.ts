@@ -8,11 +8,11 @@ import { sendJson } from "./viewer_server_routes.ts";
 
 // A bad dir throws before any header, so the server's outer catch 400s it.
 export function handleLayer1ScriptRunsRequest(response: ServerResponse, query: URLSearchParams): void {
-    const projectFolder = requireExistingFolderParam(query, "dir");
-    const sessionFiles = listTranscriptFiles(query.getAll("jsonl"));
-    if (query.get("progress") !== "1") {
-        sendJson(response, 200, buildScriptRunsView(projectFolder, sessionFiles));
-        return;
-    }
-    streamNdjsonBuild(response, (writeNdjsonLine) => buildScriptRunsView(projectFolder, sessionFiles, writeNdjsonLine));
+  const projectFolder = requireExistingFolderParam(query, "dir");
+  const sessionFiles = listTranscriptFiles(query.getAll("jsonl"));
+  if (query.get("progress") !== "1") {
+    sendJson(response, 200, buildScriptRunsView(projectFolder, sessionFiles));
+    return;
+  }
+  streamNdjsonBuild(response, (writeNdjsonLine) => buildScriptRunsView(projectFolder, sessionFiles, writeNdjsonLine));
 }

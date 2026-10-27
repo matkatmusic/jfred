@@ -7,12 +7,15 @@ import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resiz
 import { wireFindFileBox } from "./layer1-find-file.ts";
 import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
+import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
+import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { wireBusyShield } from "./layer1-busy-shield.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
 import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
 import { wirePathPickers } from "./layer1-path-picker.ts";
-import { resetSessionSelection, wireBubbleFlash } from "./layer1-sessions.ts";
+import { wireBubbleFlash } from "./layer1-session-flash.ts";
+import { resetSessionSelection } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
@@ -98,6 +101,8 @@ function getFailedRestoreResult(): boolean {
 }
 
 export async function bootLayer1Page(): Promise<void> {
+  // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
+  const linkedNode = readNodeLinkIdentity(location.search);
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
   fillSourceBoxesFromUrl();
   // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
@@ -123,6 +128,7 @@ export async function bootLayer1Page(): Promise<void> {
   installNodeDrawer();
   wireBubbleFlash();
   installMultiFileDrawer();
+  installCopyLinkButton();
   wireTickExpansion();
   wireLeaderVisibility();
   wireFolderPickers(loadViewAfterRefCheck);
@@ -130,7 +136,11 @@ export async function bootLayer1Page(): Promise<void> {
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
   await seedSourceDefaults();
   await restoreSavedSettings().catch(getFailedRestoreResult);
-  void loadLayer1View().then(scrollToFirstVisibleNode);
+  await loadLayer1View();
+  scrollToFirstVisibleNode();
+  if (linkedNode !== undefined) {
+    await openLinkedNodeAfterLoad(linkedNode);
+  }
 }
 
 void bootLayer1Page();

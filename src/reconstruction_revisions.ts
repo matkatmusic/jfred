@@ -4,35 +4,35 @@ import type { FileRevision } from "./reconstruction_events.ts";
 
 // The latest revision whose timestamp is at or before `when`, or undefined.
 export function lastRevisionAtOrBefore(
-    revisions: FileRevision[],
-    when: Date,
+  revisions: FileRevision[],
+  when: Date,
 ): FileRevision | undefined {
-    let chosen: FileRevision | undefined;
-    for (const revision of revisions) {
-        if (revision.timestamp.getTime() <= when.getTime()) {
-            chosen = revision;
-        }
+  let chosen: FileRevision | undefined;
+  for (const revision of revisions) {
+    if (revision.timestamp.getTime() <= when.getTime()) {
+      chosen = revision;
     }
-    return chosen;
+  }
+  return chosen;
 }
 
 // The latest revision whose timestamp is strictly before `when`, or undefined. Strictly-before is required so a script run never seeds itself from its own injected output.
 export function lastRevisionStrictlyBefore(
-    revisions: FileRevision[],
-    when: Date,
+  revisions: FileRevision[],
+  when: Date,
 ): FileRevision | undefined {
-    let chosen: FileRevision | undefined;
-    for (const revision of revisions) {
-        if (revision.timestamp.getTime() < when.getTime()) {
-            chosen = revision;
-        }
+  let chosen: FileRevision | undefined;
+  for (const revision of revisions) {
+    if (revision.timestamp.getTime() < when.getTime()) {
+      chosen = revision;
     }
-    return chosen;
+  }
+  return chosen;
 }
 
 // The believed text of each line in a revision (its latest value).
 export function linesTextOf(revision: FileRevision): string[] {
-    return revision.lines.map(
-        (entry) => entry.values[entry.values.length - 1]!.line,
-    );
+  return revision.lines.map(
+    (entry) => entry.values[entry.values.length - 1]!.line,
+  );
 }

@@ -44,8 +44,8 @@ import {
   countStepsInTranscript,
   reconstructStepStates,
   resolveFilesAtStep,
-  renderRepoSnapshot,
 } from "./reconstruction_steps.ts";
+import { renderRepoSnapshot } from "./reconstruction_step_snapshot.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { parseTraceArgs, runTrace } from "./reconstruction_cli_trace.ts";

@@ -4,7 +4,8 @@ import { getRequiredElementById } from "./app-dom.ts";
 import { displayDetailView } from "./layer1-diff-view.ts";
 import { setDrawerTools } from "./layer1-drawer-diff.ts";
 import { createDetailViewsForFiles, listWashFiles } from "./layer1-drawer-multi.ts";
-import { paintDiffWash, readDrawnView, readNavTargets, readNodeInstant } from "./layer1-diff-wash.ts";
+import { paintDiffWash, readDrawnView, readNavTargets } from "./layer1-diff-wash.ts";
+import { readNodeInstant } from "./layer1-node-instant.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 
 export function applyDiffSelectionRange(anchor: { node: HTMLElement; path: string }, node: HTMLElement, path: string): void {

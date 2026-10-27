@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
-import { flashSession } from "../webapp/layer1-sessions.ts";
+import { flashSession } from "../webapp/layer1-session-flash.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function seedSessionRows(...files: string[]): void {

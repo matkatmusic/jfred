@@ -7,11 +7,11 @@ import type { Path, Uuid } from "./structures/domain.ts";
 
 // One stage's mutation note: the stage function name, the file it touched, the driving changeId (when one applies), a one-line detail, and the backup time it used (when one applies).
 export type ProvenanceEntry = {
-    stage: string;
-    target: Path;
-    changeId?: Uuid;
-    detail: string;
-    when?: Date;
+  stage: string;
+  target: Path;
+  changeId?: Uuid;
+  detail: string;
+  when?: Date;
 };
 
 let enabled = false;
@@ -19,31 +19,31 @@ let buffer: ProvenanceEntry[] = [];
 
 // Turn provenance on and start a fresh capture (clearing any prior buffer).
 export function enableProvenance(): void {
-    enabled = true;
-    buffer = [];
+  enabled = true;
+  buffer = [];
 }
 
 // Turn provenance off; noteStage becomes a no-op again.
 export function disableProvenance(): void {
-    enabled = false;
+  enabled = false;
 }
 
 // Record one stage's mutation — a no-op unless provenance is enabled.
 export function noteStage(entry: ProvenanceEntry): void {
-    if (enabled) {
-        buffer.push(entry);
-    }
+  if (enabled) {
+    buffer.push(entry);
+  }
 }
 
 // Return the captured entries and empty the buffer.
 export function drainProvenance(): ProvenanceEntry[] {
-    const drained = buffer;
-    buffer = [];
-    return drained;
+  const drained = buffer;
+  buffer = [];
+  return drained;
 }
 
 // Empty the buffer without returning it.
 export function clearProvenance(): void {
-    buffer = [];
+  buffer = [];
 }
 

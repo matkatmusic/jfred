@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stripTrailingNewline } from "../src/reconstruction_steps.ts";
+import { stripTrailingNewline } from "../src/reconstruction_step_snapshot.ts";
 import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, findRevisionForChangeId, splitDiffBlocks } from "../webapp/views/file-history-model.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 

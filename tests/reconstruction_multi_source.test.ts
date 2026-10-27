@@ -12,7 +12,8 @@ import {
     mergeMultiSourceRecords,
 } from "../src/reconstruction_multi_source.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { reconstructStepStates, snapshotFileText } from "../src/reconstruction_steps.ts";
+import { reconstructStepStates } from "../src/reconstruction_steps.ts";
+import { snapshotFileText } from "../src/reconstruction_step_snapshot.ts";
 import {
     SESSION_A,
     SESSION_B,

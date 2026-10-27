@@ -2,9 +2,9 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import {
-    getFileHistorySnapshot,
-    type FileHistoryBackup,
-    type FileHistorySnapshotMessage,
+  getFileHistorySnapshot,
+  type FileHistoryBackup,
+  type FileHistorySnapshotMessage,
 } from "./structures/file-history.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 
@@ -13,46 +13,46 @@ const NEVER_BACKED_UP = "∅";
 
 // The content identity of one tracked file: its last-known non-null backupFileName, carried forward across refresh snapshots that re-version unchanged content with a null backupFileName. Updates `carried` for this path when the snapshot supplies a real backupFileName.
 function resolveContentId(
-    path: Path,
-    backup: FileHistoryBackup,
-    carried: Map<string, string>,
+  path: Path,
+  backup: FileHistoryBackup,
+  carried: Map<string, string>,
 ): string {
-    const key = path.toString();
-    if (backup.backupFileName !== null) {
-        carried.set(key, backup.backupFileName.toString());
-    }
-    return carried.get(key) ?? NEVER_BACKED_UP;
+  const key = path.toString();
+  if (backup.backupFileName !== null) {
+    carried.set(key, backup.backupFileName.toString());
+  }
+  return carried.get(key) ?? NEVER_BACKED_UP;
 }
 
 // A signature of a snapshot's working-tree CONTENT: each tracked file as "<path>@<contentId>", sorted.  Unlike the version counter (which the harness bumps on every refresh snapshot), the carried backupFileName changes only when a file's content is actually re-backed-up — so two snapshots with the same signature represent the same on-disk content even if their version numbers differ. A new or removed path also changes the signature (so a freshly written file, whose first backupFileName is null, is still detected).
 function buildContentSignature(
-    snapshot: FileHistorySnapshotMessage,
-    carried: Map<string, string>,
+  snapshot: FileHistorySnapshotMessage,
+  carried: Map<string, string>,
 ): string {
-    const backupEntries = snapshot.snapshot.trackedFileBackups.entries();
-    const signatureParts = backupEntries.map(([path, backup]) => `${path.toString()}@${resolveContentId(path, backup, carried)}`);
-    signatureParts.sort();
-    return signatureParts.join("|");
+  const backupEntries = snapshot.snapshot.trackedFileBackups.entries();
+  const signatureParts = backupEntries.map(([path, backup]) => `${path.toString()}@${resolveContentId(path, backup, carried)}`);
+  signatureParts.sort();
+  return signatureParts.join("|");
 }
 
 // The messageId of the last file-history-snapshot whose CONTENT signature changed vs. the previous snapshot — the record that produced the surviving working tree. A `code` restore with no post-edit emits trailing refresh snapshots whose content is unchanged (bumped version, null backupFileName); those keep the same signature and are correctly ignored. undefined when there is no snapshot or the content never changes (the caller then falls back to the final head).
 export function findWorkingTreeOwner(
-    records: TranscriptRecord[],
+  records: TranscriptRecord[],
 ): Uuid | undefined {
-    let owner: Uuid | undefined;
-    let previousSignature = "";
-    const carried = new Map<string, string>();
-    for (const record of records) {
-        const snapshot = getFileHistorySnapshot(record);
-        if (snapshot === undefined) {
-            continue;
-        }
-        const signature = buildContentSignature(snapshot, carried);
-        if (signature !== previousSignature) {
-            owner = snapshot.messageId;
-        }
-        previousSignature = signature;
+  let owner: Uuid | undefined;
+  let previousSignature = "";
+  const carried = new Map<string, string>();
+  for (const record of records) {
+    const snapshot = getFileHistorySnapshot(record);
+    if (snapshot === undefined) {
+      continue;
     }
-    return owner;
+    const signature = buildContentSignature(snapshot, carried);
+    if (signature !== previousSignature) {
+      owner = snapshot.messageId;
+    }
+    previousSignature = signature;
+  }
+  return owner;
 }
 

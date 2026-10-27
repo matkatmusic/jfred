@@ -20,15 +20,15 @@ import { Path } from "../src/structures/domain.ts";
 
 // Read a text file and return its non-empty lines — the shared JSONL line reader used across the transcript tests. Generic: takes any file path.
 export function readNonEmptyLines(file: string): string[] {
-    const fileText = readFileSync(file, "utf8");
-    const lines = fileText.split("\n");
-    const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
-    return nonEmptyLines;
+  const fileText = readFileSync(file, "utf8");
+  const lines = fileText.split("\n");
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+  return nonEmptyLines;
 }
 
 // Parse every non-empty line of a transcript JSONL file into typed records (no field gate; use loadTranscript for the gated path). Generic: takes any path.
 export function loadRecords(file: string): TranscriptRecord[] {
-    return readNonEmptyLines(file).map(parseRecord);
+  return readNonEmptyLines(file).map(parseRecord);
 }
 
 // Moved to fixtures.ts (task 64) — see the note above. Delete once confirmed green.
@@ -57,52 +57,53 @@ export function loadRecords(file: string): TranscriptRecord[] {
 
 // Write a step snapshot's files (absolute-keyed) into `intoDir`, relativized against `root` — the same relativization renderRangePatch applies to its patch paths.
 export function materializeSnapshotIntoDirectory(files: Record<string, string>, root: string, intoDir: string): void {
-    for (const [absolutePath, content] of Object.entries(files)) {
-        const destination = join(intoDir, relative(root, absolutePath));
-        mkdirSync(dirname(destination), { recursive: true });
-        writeFileSync(destination, content);
-    }
+  for (const [absolutePath, content] of Object.entries(files)) {
+    const destination = join(intoDir, relative(root, absolutePath));
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, content);
+  }
 }
 
 // Turn `dir` into a git repository with everything committed (identity pinned so the commit succeeds regardless of local git config; --allow-empty covers the empty before-state).
 export function git_initRepositoryWithCommit(dir: string): void {
-    execFileSync("git", ["init", "-q"], { cwd: dir });
-    execFileSync("git", ["add", "-A"], { cwd: dir });
-    execFileSync(
-        "git",
-        ["-c", "user.email=test@test", "-c", "user.name=test", "commit", "-q", "--allow-empty", "-m", "before-state"],
-        { cwd: dir },
-    );
+  execFileSync("git", ["init", "-q"], { cwd: dir });
+  execFileSync("git", ["add", "-A"], { cwd: dir });
+  execFileSync(
+    "git",
+    ["-c", "user.email=test@test", "-c", "user.name=test", "commit", "-q", "--allow-empty", "-m", "before-state"],
+    { cwd: dir },
+  );
 }
 
 // Run `git apply` on the patch inside `dir`, returning git's exit code (0 = applied cleanly).
 export function git_applyPatch(dir: string, patchFile: string): number {
-    try {
-        execFileSync("git", ["apply", patchFile], { cwd: dir, stdio: "pipe" });
-        return 0;
-    } catch (error) {
-        return (error as { status?: number }).status ?? 1;
-    }
+  try {
+    execFileSync("git", ["apply", patchFile], { cwd: dir, stdio: "pipe" });
+    return 0;
+  }
+  catch (error) {
+    return (error as { status?: number }).status ?? 1;
+  }
 }
 
 // Every file under `dir` (relative paths, sorted), excluding the .git metadata directory.
 export function listRepositoryFiles(dir: string): string[] {
-    const entries = readdirSync(dir, { recursive: true, withFileTypes: true });
-    const files = entries.filter((entry) => entry.isFile() && !join(entry.parentPath).includes("/.git"));
-    return files.map((entry) => relative(dir, join(entry.parentPath, entry.name))).sort();
+  const entries = readdirSync(dir, { recursive: true, withFileTypes: true });
+  const files = entries.filter((entry) => entry.isFile() && !join(entry.parentPath).includes("/.git"));
+  return files.map((entry) => relative(dir, join(entry.parentPath, entry.name))).sort();
 }
 
 // A private temp copy of one fixture JSONL, so mtime edits and cache-coldness needs never touch the shared fixture tree (a fresh path = a fresh transcript-set stamp).
 export function copyFixtureIntoTempDir(fixturePath: string): Path {
-    const tempDir = mkdtempSync(join(tmpdir(), "reveng-artifact-"));
-    const copyPath = join(tempDir, "session.jsonl");
-    copyFileSync(fixturePath, copyPath);
-    return new Path(copyPath);
+  const tempDir = mkdtempSync(join(tmpdir(), "reveng-artifact-"));
+  const copyPath = join(tempDir, "session.jsonl");
+  copyFileSync(fixturePath, copyPath);
+  return new Path(copyPath);
 }
 
 // Push a file's mtime one second past NOW — the smallest change the stamp must notice.
 export function advanceFileMtimeByOneSecond(filePath: Path): void {
-    const futureSeconds = Date.now() / 1000 + 1;
-    utimesSync(filePath.toString(), futureSeconds, futureSeconds);
+  const futureSeconds = Date.now() / 1000 + 1;
+  utimesSync(filePath.toString(), futureSeconds, futureSeconds);
 }
 

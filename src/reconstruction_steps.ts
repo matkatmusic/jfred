@@ -1,164 +1,149 @@
-// Built on the branch-agnostic core so disk keeps abandoned-branch writes after a conv-only rewind, matching the runner's `.step_states` snapshots.
+// Built on the branch-agnostic core, so disk keeps abandoned-branch writes after a conv-only rewind.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
 import {
-    lastRevisionAtOrBefore,
-    linesTextOf,
+  lastRevisionAtOrBefore,
+  linesTextOf,
 } from "./reconstruction_revisions.ts";
 import { reconstructFilesOver } from "./reconstruction_renderable.ts";
-import type { FileHistory, FileRevision, RenameInfo } from "./reconstruction_events.ts";
+import type { FileHistory, RenameInfo } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // A file absent at the step is simply not a key.
 export type RepoSnapshot = ReadonlyMap<Path, string>;
 
-// The engine drops the file's single trailing newline at replay, so this omits it too.
-function renderRevisionText(revision: FileRevision): string {
-    return linesTextOf(revision).join("\n");
+// One step is one millisecond, so a mismatch can name the JSONL records behind the step.
+export type StepChange = { when: Date; changeIds: Uuid[] };
+
+type RenameEvent = { timestamp: Date; rename: RenameInfo };
+
+function compareDates(a: Date, b: Date): number {
+  return a.getTime() - b.getTime();
+}
+
+function compareRenameTimes(a: RenameEvent, b: RenameEvent): number {
+  return a.timestamp.getTime() - b.timestamp.getTime();
 }
 
 // Two revisions sharing a timestamp are one step, so timestamps de-duplicate by millisecond value.
 function collectChangeTimes(histories: FileHistory[]): Date[] {
-    const byMillis = new Map<number, Date>();
-    for (const history of histories) {
-        for (const revision of history.revisions) {
-            byMillis.set(revision.timestamp.getTime(), revision.timestamp);
-        }
+  const byMillis = new Map<number, Date>();
+  for (const history of histories) {
+    for (const revision of history.revisions) {
+      byMillis.set(revision.timestamp.getTime(), revision.timestamp);
     }
-    return [...byMillis.values()].sort((a, b) => a.getTime() - b.getTime());
+  }
+  return [...byMillis.values()].sort(compareDates);
 }
 
-// ponytail: two lineages resolving to the same name-at-time have the later win; impossible on a real disk, revisit if seen.
-function pathAtTime(history: FileHistory, when: Date): Path {
-    const renames = history.revisions.filter(
-        (revision): revision is FileRevision & { rename: RenameInfo } => revision.rename !== undefined,
-    );
-    renames.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    if (renames.length === 0) {
-        return history.target;
+function collectRenameEvents(history: FileHistory): RenameEvent[] {
+  const events: RenameEvent[] = [];
+  for (const revision of history.revisions) {
+    const rename = revision.rename;
+    if (rename !== undefined) {
+      events.push({ timestamp: revision.timestamp, rename });
     }
-    const renamesAtOrBefore = renames.filter((revision) => revision.timestamp.getTime() <= when.getTime());
-    const latestAtOrBefore = renamesAtOrBefore.at(-1);
-    if (latestAtOrBefore !== undefined) {
-        return latestAtOrBefore.rename.to;
+  }
+  return events.sort(compareRenameTimes);
+}
+
+// ponytail: two lineages resolving to the same name-at-time have the later win; revisit if seen.
+function findPathAtTime(history: FileHistory, when: Date): Path {
+  const renames = collectRenameEvents(history);
+  if (renames.length === 0) {
+    return history.target;
+  }
+  let latestAtOrBefore: RenameEvent | undefined;
+  for (const event of renames) {
+    const isAtOrBefore = event.timestamp.getTime() <= when.getTime();
+    if (isAtOrBefore) {
+      latestAtOrBefore = event;
     }
-    return renames[0]!.rename.from;
+  }
+  if (latestAtOrBefore !== undefined) {
+    return latestAtOrBefore.rename.to;
+  }
+  return renames[0]!.rename.from;
 }
 
 // Keyed by the name the file held AT `when`, so a step before a rename shows the old name.
 export function produceRepoStateAtTime(histories: FileHistory[], when: Date): RepoSnapshot {
-    const snapshot = new Map<Path, string>();
-    for (const history of histories) {
-        const revision = lastRevisionAtOrBefore(history.revisions, when);
-        if (revision !== undefined) {
-            snapshot.set(pathAtTime(history, when), renderRevisionText(revision));
-        }
+  const snapshot = new Map<Path, string>();
+  for (const history of histories) {
+    const revision = lastRevisionAtOrBefore(history.revisions, when);
+    if (revision !== undefined) {
+      // The engine drops the file's single trailing newline at replay, so this omits it too.
+      snapshot.set(findPathAtTime(history, when), linesTextOf(revision).join("\n"));
     }
-    return snapshot;
+  }
+  return snapshot;
 }
 
 // Plain-object form because a RepoSnapshot Map stringifies to `{}`; resolved on demand to bound wire size.
 export function resolveFilesAtStep(histories: FileHistory[], when: Date): Record<string, string> {
-    const files: Record<string, string> = {};
-    for (const [path, text] of produceRepoStateAtTime(histories, when)) {
-        files[path.toString()] = text;
-    }
-    return files;
+  const files: Record<string, string> = {};
+  for (const [path, text] of produceRepoStateAtTime(histories, when)) {
+    files[path.toString()] = text;
+  }
+  return files;
 }
 
-// Both come from ONE reconstruction pass; per-step repo states are resolved on demand, not materialized.
+function collectChangeIdsAt(histories: FileHistory[], when: Date): Uuid[] {
+  const changeIds: Uuid[] = [];
+  for (const history of histories) {
+    for (const revision of history.revisions) {
+      const isAtInstant = revision.timestamp.getTime() === when.getTime();
+      if (isAtInstant) {
+        changeIds.push(revision.changeId);
+      }
+    }
+  }
+  return changeIds;
+}
+
+// Both come from ONE reconstruction pass; per-step repo states are resolved on demand.
 export type StepTimeline = { histories: FileHistory[]; changes: StepChange[] };
 
 export function reconstructStepTimeline(
-    records: TranscriptRecord[],
-    reader?: BackupReader,
+  records: TranscriptRecord[],
+  reader?: BackupReader,
 ): StepTimeline {
-    reportReconstructionProgress(`reconstructing step states from ${records.length} transcript records`);
-    const histories = reconstructFilesOver(records, reader);
-    const changeTimes = collectChangeTimes(histories);
-    return {
-        histories,
-        changes: changeTimes.map((when) => ({ when, changeIds: changeIdsAt(histories, when) })),
-    };
+  reportReconstructionProgress(`reconstructing step states from ${records.length} transcript records`);
+  const histories = reconstructFilesOver(records, reader);
+  const changes: StepChange[] = [];
+  for (const when of collectChangeTimes(histories)) {
+    changes.push({ when, changeIds: collectChangeIdsAt(histories, when) });
+  }
+  return { histories, changes };
 }
 
-// Reconstructs over EXACTLY the given records (no surviving-branch filter) so the timeline is literal disk.
+// Reconstructs over EXACTLY the given records, with no surviving-branch filter, so the timeline is literal disk.
 export function reconstructStepStates(
-    records: TranscriptRecord[],
-    reader?: BackupReader,
+  records: TranscriptRecord[],
+  reader?: BackupReader,
 ): RepoSnapshot[] {
-    const { histories, changes } = reconstructStepTimeline(records, reader);
-    return changes.map((change) => produceRepoStateAtTime(histories, change.when));
+  const { histories, changes } = reconstructStepTimeline(records, reader);
+  const states: RepoSnapshot[] = [];
+  for (const change of changes) {
+    states.push(produceRepoStateAtTime(histories, change.when));
+  }
+  return states;
 }
 
 // Counted from the change instants without materializing any repo state.
 export function countStepsInTranscript(
-    records: TranscriptRecord[],
-    reader?: BackupReader,
+  records: TranscriptRecord[],
+  reader?: BackupReader,
 ): number {
-    return reconstructStepTimeline(records, reader).changes.length;
+  return reconstructStepTimeline(records, reader).changes.length;
 }
 
-
-// Matched on a path boundary so `s2_original.py` does not match `tests/test_s2_original.py`.
-function keyDenotes(keyPath: Path, relativePath: string): boolean {
-    const key = keyPath.toString();
-    return key === relativePath || key.endsWith(`/${relativePath}`);
-}
-
-export function snapshotFileText(snapshot: RepoSnapshot, relativePath: string): string | undefined {
-    for (const [path, text] of snapshot) {
-        if (keyDenotes(path, relativePath)) {
-            return text;
-        }
-    }
-    return undefined;
-}
-
-// The engine's newline-joined text omits the trailing newline that on-disk ground-truth files keep.
-export function stripTrailingNewline(text: string): string {
-    return text.endsWith("\n") ? text.slice(0, -1) : text;
-}
-
-function snapshotReproduces(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): boolean {
-    return [...groundTruth].every(([relativePath, content]) => {
-        const reconstructed = snapshotFileText(snapshot, relativePath);
-        return reconstructed !== undefined && reconstructed === stripTrailingNewline(content);
-    });
-}
-
-// Pass/fail is "some step matches", never a positional alignment with instruction-numbered folders.
-export function someStepReproduces(
-    steps: RepoSnapshot[],
-    groundTruth: ReadonlyMap<string, string>,
-): boolean {
-    return steps.some((snapshot) => snapshotReproduces(snapshot, groundTruth));
-}
-
-
-// One step is one millisecond, so a mismatch can name the JSONL record(s) that produced the step's bytes.
-export type StepChange = { when: Date; changeIds: Uuid[] };
-
-function changeIdsAt(histories: FileHistory[], when: Date): Uuid[] {
-    return histories.flatMap((history) => {
-        const revisionsAtInstant = history.revisions.filter((revision) => revision.timestamp.getTime() === when.getTime());
-        return revisionsAtInstant.map((revision) => revision.changeId);
-    });
-}
-
-// Same order and count as reconstructStepStates (both map over collectChangeTimes), so stepChanges[i] explains steps[i].
+// Same order and count as reconstructStepStates, so stepChanges[i] explains steps[i].
 export function reconstructStepChanges(
-    records: TranscriptRecord[],
-    reader?: BackupReader,
+  records: TranscriptRecord[],
+  reader?: BackupReader,
 ): StepChange[] {
-    return reconstructStepTimeline(records, reader).changes;
+  return reconstructStepTimeline(records, reader).changes;
 }
-
-// Uses the same `### <path>` framing as the verbose/diff views.
-export function renderRepoSnapshot(snapshot: RepoSnapshot): string {
-    const paths = [...snapshot.keys()].sort((a, b) => a.toString().localeCompare(b.toString()));
-    return paths.map((path) => `### ${path}\n${snapshot.get(path)}`).join("\n\n");
-}
-

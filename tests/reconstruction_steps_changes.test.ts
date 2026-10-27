@@ -4,13 +4,15 @@ import {
     reconstructStepStates,
     reconstructStepChanges,
     reconstructStepTimeline,
+} from "../src/reconstruction_steps.ts";
+import {
     snapshotFileText,
     stripTrailingNewline,
     someStepReproduces,
-} from "../src/reconstruction_steps.ts";
+} from "../src/reconstruction_step_snapshot.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
-    createSidecarReader,
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";

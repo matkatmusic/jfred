@@ -122,3 +122,17 @@ test("test_collectSnapshotPlacements_records_a_repeated_snapshot_entry_once", ()
     assert.deepEqual(placements[0]!.path, new Path("/work/src/index.ts"));
     assert.ok(placements[0]!.sessionId instanceof Uuid);
 });
+
+test("test_collectSnapshotPlacements_flags_only_the_placement_whose_backup_file_is_missing", () => {
+    // Scenario: one blob is on disk, the other never was, so only the second placement is flagged.
+    const treeRoot = makeTempDir();
+    const sessionFile = writeSessionTranscript(treeRoot, SESSION_ONE, [
+        buildSessionCwdRecord("/work", SESSION_ONE),
+        buildSnapshotRecord("src/present.ts", "aaa111@v1", 1, "2026-07-23T19:40:00.000Z"),
+        buildSnapshotRecord("src/absent.ts", "bbb222@v1", 1, "2026-07-23T19:41:00.000Z"),
+    ]);
+    writeBlob(treeRoot, SESSION_ONE, "aaa111@v1", "bytes\n");
+    const placementsByPath = collectSnapshotPlacements([sessionFile]);
+    assert.equal(placementsByPath.get("/work/src/present.ts")![0]!.isBackupMissing, false);
+    assert.equal(placementsByPath.get("/work/src/absent.ts")![0]!.isBackupMissing, true);
+});

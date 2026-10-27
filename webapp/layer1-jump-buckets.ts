@@ -10,22 +10,22 @@ const JUMP_BUTTON_SELECTOR = ".jumpbar [data-bucket]";
 
 // The rendered bucket whose heading is `title`, or undefined when the view has none. Matching on the heading rather than on position is deliberate: renderLayer1View emits the two buckets in a fixed order but DROPS an empty one entirely (buildOrphanBucket returns undefined for zero rows), so "the second bucket" is not reliably the disk-orphan bucket.
 function findBucketByTitle(title: string): HTMLElement | undefined {
-    for (const bucket of document.querySelectorAll<HTMLElement>(BUCKET_SELECTOR)) {
-        if (bucket.querySelector(".fname")?.textContent === title) {
-            return bucket;
-        }
+  for (const bucket of document.querySelectorAll<HTMLElement>(BUCKET_SELECTOR)) {
+    if (bucket.querySelector(".fname")?.textContent === title) {
+      return bucket;
     }
-    return undefined;
+  }
+  return undefined;
 }
 
 // Centre a bucket in the scrollport. Absent bucket = silent no-op: both buttons are in the header from page load, but a view with no orphans in one direction renders no bucket for it, and a dead button is a better outcome than a thrown error on click.
 export function jumpToBucket(title: string): void {
-    findBucketByTitle(title)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  findBucketByTitle(title)?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // Wire every jump button in the header. The lookup happens on CLICK, never here: the buckets do not exist yet when bootLayer1Page runs — they arrive ~10 s later when loadLayer1View's stream resolves, and every subsequent Load replaces them with fresh elements.
 export function wireBucketJumpButtons(): void {
-    for (const button of document.querySelectorAll<HTMLElement>(JUMP_BUTTON_SELECTOR)) {
-        button.addEventListener("click", () => jumpToBucket(button.dataset["bucket"] ?? ""));
-    }
+  for (const button of document.querySelectorAll<HTMLElement>(JUMP_BUTTON_SELECTOR)) {
+    button.addEventListener("click", () => jumpToBucket(button.dataset["bucket"] ?? ""));
+  }
 }

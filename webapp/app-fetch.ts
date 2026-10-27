@@ -13,13 +13,13 @@ type WireDocument = Record<string, unknown>;
 export type WireBaselineQuestion = { baseCommit: string; repo: string };
 // Discriminated union for one NDJSON stream line; documents have no `kind`.
 type WireDocumentStreamLine = WireDocument & {
-    kind?: "progress" | "error" | "consent-required" | "baseline-question";
-    label?: string;
-    current?: number;
-    total?: number;
-    scripts?: WireConsentScript[];
-    baseCommit?: string;
-    repo?: string;
+  kind?: "progress" | "error" | "consent-required" | "baseline-question";
+  label?: string;
+  current?: number;
+  total?: number;
+  scripts?: WireConsentScript[];
+  baseCommit?: string;
+  repo?: string;
 };
 
 export const documentCache = new Map<string, WireDocument>();
@@ -27,57 +27,58 @@ export const rawLinesCache = new Map<string, string[]>();
 
 // Drives both the console log and the progress bar (shimmer when no count; item 82).
 function reportStreamProgress(parsed: WireDocumentStreamLine): void {
-    logProgress(parsed.current !== undefined ? `${parsed.current}/${parsed.total} ${parsed.label}` : parsed.label!);
-    const hasCount = parsed.current !== undefined && parsed.total !== undefined && parsed.total > 0;
-    const fraction = hasCount ? parsed.current! / parsed.total! : Number.NaN;
-    const detail = hasCount ? `${parsed.label} — ${parsed.current} / ${parsed.total}` : parsed.label!;
-    showLoadingProgress(detail, fraction);
+  logProgress(parsed.current !== undefined ? `${parsed.current}/${parsed.total} ${parsed.label}` : parsed.label!);
+  const hasCount = parsed.current !== undefined && parsed.total !== undefined && parsed.total > 0;
+  const fraction = hasCount ? parsed.current! / parsed.total! : Number.NaN;
+  const detail = hasCount ? `${parsed.label} — ${parsed.current} / ${parsed.total}` : parsed.label!;
+  showLoadingProgress(detail, fraction);
 }
 
 // Every server request announces itself in the loading console — its start AND its timed completion — so a silent stretch in the console points at the exact endpoint that stalled (e.g. a slow /api/projects scan over a huge projects dir). The streamed /api/document endpoint goes through fetchDocument instead and logs its own detail.
 async function fetchLogged<BodyType>(url: string, readBody: (response: Response) => Promise<BodyType>): Promise<BodyType> {
-    const path = new URL(url, location.origin).pathname;
-    logProgress(`GET ${path}`);
-    const startMs = Date.now();
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url} -> ${response.status}: ${await response.text()}`);
-    const body = await readBody(response);
-    logProgress(`  ↳ ${path} ${response.status} (${Date.now() - startMs}ms)`);
-    return body;
+  const path = new URL(url, location.origin).pathname;
+  logProgress(`GET ${path}`);
+  const startMs = Date.now();
+  const response = await fetch(url);
+  if (!response.ok)
+    throw new Error(`${url} -> ${response.status}: ${await response.text()}`);
+  const body = await readBody(response);
+  logProgress(`  ↳ ${path} ${response.status} (${Date.now() - startMs}ms)`);
+  return body;
 }
 
 export async function fetchJson<PayloadType = unknown>(url: string): Promise<PayloadType> {
-    return fetchLogged<PayloadType>(url, (response) => response.json());
+  return fetchLogged<PayloadType>(url, (response) => response.json());
 }
 
 export async function fetchText(url: string): Promise<string> {
-    return fetchLogged(url, (response) => response.text());
+  return fetchLogged(url, (response) => response.text());
 }
 
 // The raw JSONL lines of one transcript, parsed, cached per (project, jsonl).
 export async function fetchRawRecords(project: string, jsonl: string): Promise<string[]> {
-    const cacheKey = `${project}|${jsonl}`;
-    if (!rawLinesCache.has(cacheKey)) {
-        const text = await fetchText(`/api/raw?project=${encodeURIComponent(project)}&jsonl=${encodeURIComponent(jsonl)}`);
-        rawLinesCache.set(cacheKey, text.split("\n").filter((line) => line.trim().length > 0));
-    }
-    return rawLinesCache.get(cacheKey)!;
+  const cacheKey = `${project}|${jsonl}`;
+  if (!rawLinesCache.has(cacheKey)) {
+    const text = await fetchText(`/api/raw?project=${encodeURIComponent(project)}&jsonl=${encodeURIComponent(jsonl)}`);
+    rawLinesCache.set(cacheKey, text.split("\n").filter((line) => line.trim().length > 0));
+  }
+  return rawLinesCache.get(cacheKey)!;
 }
 
 // ─── consent + pre-baseline choices: moved to app-choices.ts (task 152, 250-line cap) ──────────
 
 // task 152: evict one project's cached documents — a cache hit would answer from memory and the re-posed question would never reach the wire.
 export function dropProjectDocuments(project: string): void {
-    for (const key of [...documentCache.keys()]) {
-        if (key.startsWith(`${project}|`)) {
-            documentCache.delete(key);
-        }
+  for (const key of [...documentCache.keys()]) {
+    if (key.startsWith(`${project}|`)) {
+      documentCache.delete(key);
     }
+  }
 }
 
 // Fetch a document under the consent protocol. Resolves to { document } or { consentRequired: scripts[] } — the caller renders the dialog for the latter.  The already-fetched unified document for a project, or undefined — never triggers a build.  The drawer uses this so navigating to a conversation doesn't force a whole-project build.
 export function peekCachedDocument<DocumentType = WireDocument>(project: string): DocumentType | undefined {
-    return documentCache.get(`${project}|*`) as DocumentType | undefined;
+  return documentCache.get(`${project}|*`) as DocumentType | undefined;
 }
 
 // The one in-flight document load. renderRoute aborts it on every navigation (previously two hashchanges raced duplicate stream reads). task 164: the progress box's Cancel navigates to "#/", which aborts through that same renderRoute path — the old #console-cancel button and its setCancelButtonVisible toggling are retired.
@@ -87,86 +88,98 @@ export let inflightLoadController: AbortController | undefined;
 const LARGE_PAYLOAD_BYTES = 200_000;
 
 export function formatMegabytes(byteLength: number): string {
-    return `${(byteLength / 1_000_000).toFixed(1)} MB`;
+  return `${(byteLength / 1_000_000).toFixed(1)} MB`;
 }
 
 // One decoded NDJSON chunk's complete lines: progress lines land in the console; each non-progress line replaces the running terminal-payload candidate, which is returned.
 async function parseDocumentStreamLines(lines: string[], finalPayload: WireDocumentStreamLine): Promise<WireDocumentStreamLine> {
-    for (const line of lines) {
-        if (line.length > LARGE_PAYLOAD_BYTES) {
-            // The terminal document line; its JSON.parse blocks the tab for seconds. Show a label and yield so the browser paints it (and the shimmer) before parsing. (item 82)
-            showLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
-            await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-        const parsed = JSON.parse(line) as WireDocumentStreamLine;
-        if (parsed.kind === "progress") {
-            reportStreamProgress(parsed);
-        } else {
-            finalPayload = parsed;
-        }
+  for (const line of lines) {
+    if (line.length > LARGE_PAYLOAD_BYTES) {
+      // The terminal document line; its JSON.parse blocks the tab for seconds. Show a label and yield so the browser paints it (and the shimmer) before parsing. (item 82)
+      showLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    return finalPayload;
+    const parsed = JSON.parse(line) as WireDocumentStreamLine;
+    if (parsed.kind === "progress") {
+      reportStreamProgress(parsed);
+    }
+    else {
+      finalPayload = parsed;
+    }
+  }
+  return finalPayload;
 }
 
 // DocumentType lets each view name the wire fields it reads (its own Wire* type); the cache and stream handling below stay shape-agnostic.
 export async function fetchDocument<DocumentType = WireDocument>(project: string, jsonl?: string): Promise<{ document?: DocumentType; consentRequired?: WireConsentScript[]; baselineQuestion?: WireBaselineQuestion }> {
-    // task 194: a stored bounded-mode choice rides as boundFile/boundNth (absent = full build).  The bound is in the cache key too — a bounded and a full document must never share one.
-    const modeChoice = getModeChoice(project);
-    const boundKeySuffix = modeChoice?.mode === "bounded" ? `|${modeChoice.file}#${modeChoice.nth}` : "";
-    const cacheKey = `${project}|${jsonl ?? "*"}${boundKeySuffix}`;
-    if (documentCache.has(cacheKey)) return { document: documentCache.get(cacheKey)! as DocumentType };
-    const params = new URLSearchParams({ project, progress: "1" });
-    if (jsonl !== undefined) params.set("jsonl", jsonl);
-    if (modeChoice?.mode === "bounded") {
-        params.set("boundFile", modeChoice.file);
-        params.set("boundNth", String(modeChoice.nth));
+  // task 194: a stored bounded-mode choice rides as boundFile/boundNth (absent = full build).  The bound is in the cache key too — a bounded and a full document must never share one.
+  const modeChoice = getModeChoice(project);
+  const boundKeySuffix = modeChoice?.mode === "bounded" ? `|${modeChoice.file}#${modeChoice.nth}` : "";
+  const cacheKey = `${project}|${jsonl ?? "*"}${boundKeySuffix}`;
+  if (documentCache.has(cacheKey))
+    return { document: documentCache.get(cacheKey)! as DocumentType };
+  const params = new URLSearchParams({ project, progress: "1" });
+  if (jsonl !== undefined)
+    params.set("jsonl", jsonl);
+  if (modeChoice?.mode === "bounded") {
+    params.set("boundFile", modeChoice.file);
+    params.set("boundNth", String(modeChoice.nth));
+  }
+  const choice = sessionStorage.getItem(computeConsentKey(project));
+  params.set("allowScripts", choice === "1" ? "1" : "0");
+  if (choice === "0")
+    params.set("declined", "1");
+  // task 56: an absent choice sends NO param — that is what lets the server ask.
+  const baselineChoice = getBaselineChoice(project);
+  if (baselineChoice !== null)
+    params.set("preBaseline", baselineChoice);
+  const controller = new AbortController();
+  inflightLoadController = controller;
+  try {
+    // The server does its consent-decision parse (and, for a project view, a full projects scan) BEFORE it writes headers — that work is silent until the stream opens. Time to first byte exposes it, so a gap before the first "loading …" line is attributable to the server.
+    logProgress(`GET /api/document jsonl=${jsonl ?? "(all)"}`);
+    const requestStartMs = Date.now();
+    const response = await fetch(`/api/document?${params}`, { signal: controller.signal });
+    if (!response.ok)
+      throw new Error(`document ${response.status}: ${await response.text()}`);
+    logProgress(`  ↳ /api/document responding (${Date.now() - requestStartMs}ms to first byte)`);
+    // NDJSON stream: each progress line lands in the console; the last non-progress line is the terminal payload — a document, a consent decision, or a build error.
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let remainder = "";
+    let finalPayload!: WireDocumentStreamLine;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done)
+        break;
+      let lines: string[];
+      ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
+      finalPayload = await parseDocumentStreamLines(lines, finalPayload);
     }
-    const choice = sessionStorage.getItem(computeConsentKey(project));
-    params.set("allowScripts", choice === "1" ? "1" : "0");
-    if (choice === "0") params.set("declined", "1");
-    // task 56: an absent choice sends NO param — that is what lets the server ask.
-    const baselineChoice = getBaselineChoice(project);
-    if (baselineChoice !== null) params.set("preBaseline", baselineChoice);
-    const controller = new AbortController();
-    inflightLoadController = controller;
-    try {
-        // The server does its consent-decision parse (and, for a project view, a full projects scan) BEFORE it writes headers — that work is silent until the stream opens. Time to first byte exposes it, so a gap before the first "loading …" line is attributable to the server.
-        logProgress(`GET /api/document jsonl=${jsonl ?? "(all)"}`);
-        const requestStartMs = Date.now();
-        const response = await fetch(`/api/document?${params}`, { signal: controller.signal });
-        if (!response.ok) throw new Error(`document ${response.status}: ${await response.text()}`);
-        logProgress(`  ↳ /api/document responding (${Date.now() - requestStartMs}ms to first byte)`);
-        // NDJSON stream: each progress line lands in the console; the last non-progress line is the terminal payload — a document, a consent decision, or a build error.
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let remainder = "";
-        let finalPayload!: WireDocumentStreamLine;
-        for (;;) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            let lines: string[];
-            ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
-            finalPayload = await parseDocumentStreamLines(lines, finalPayload);
-        }
-        // A real document has no `kind` field; consent/error/baseline ride the kind discriminant.
-        if (finalPayload.kind === "error") throw new Error(finalPayload.label);
-        if (finalPayload.kind === "consent-required") return { consentRequired: finalPayload.scripts };
-        if (finalPayload.kind === "baseline-question") {
-            return { baselineQuestion: { baseCommit: finalPayload.baseCommit!, repo: finalPayload.repo! } };
-        }
-        documentCache.set(cacheKey, finalPayload);
-        // item 66: this load actually streamed (cache miss) and completed — auto-collapse the console shortly after so the timeline gets the vertical space back.
-        setTimeout(collapseProgressConsole, 400);
-        return { document: finalPayload as DocumentType };
-    } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") logProgress("load cancelled");
-        throw error;
-    } finally {
-        // The reconstruction bar belongs to THIS stream; drop it when the stream ends (success, consent, error, or abort). The timeline row build (item 78) re-shows its own bar after.
-        hideLoadingProgress();
-        if (inflightLoadController === controller) {
-            inflightLoadController = undefined;
-        }
+    // A real document has no `kind` field; consent/error/baseline ride the kind discriminant.
+    if (finalPayload.kind === "error")
+      throw new Error(finalPayload.label);
+    if (finalPayload.kind === "consent-required")
+      return { consentRequired: finalPayload.scripts };
+    if (finalPayload.kind === "baseline-question") {
+      return { baselineQuestion: { baseCommit: finalPayload.baseCommit!, repo: finalPayload.repo! } };
     }
+    documentCache.set(cacheKey, finalPayload);
+    // item 66: this load actually streamed (cache miss) and completed — auto-collapse the console shortly after so the timeline gets the vertical space back.
+    setTimeout(collapseProgressConsole, 400);
+    return { document: finalPayload as DocumentType };
+  }
+  catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError")
+      logProgress("load cancelled");
+    throw error;
+  }
+  finally {
+    // The reconstruction bar belongs to THIS stream; drop it when the stream ends (success, consent, error, or abort). The timeline row build (item 78) re-shows its own bar after.
+    hideLoadingProgress();
+    if (inflightLoadController === controller) {
+      inflightLoadController = undefined;
+    }
+  }
 }
 

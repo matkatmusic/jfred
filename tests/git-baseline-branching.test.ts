@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildProjectDocument } from "../src/viewer_api.ts";
-import { stripTrailingNewline } from "../src/reconstruction_steps.ts";
+import { stripTrailingNewline } from "../src/reconstruction_step_snapshot.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { S39_JSONL_PATHS, S39_PROJECT_DIR } from "./fixtures.ts";
 

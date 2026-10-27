@@ -5,7 +5,8 @@ import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView, syncFoldAllLabel } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { listDatedSteps, listDiffableSteps } from "./layer1-drawer-steps.ts";
-import { hasInstantInRange, resolveRangeStepIndexes } from "./layer1-diff-wash.ts";
+import { hasInstantInRange, resolveRangeStepIndexes } from "./layer1-range-steps.ts";
+import { storeOpenedNode } from "./layer1-node-link.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 // A shift-clicked pair resolves to two global instants; each file diffs across that range.
@@ -82,6 +83,7 @@ export function listWashFiles(view: WireLayer1View, range: DiffWashRange, always
 // The File Nav entry point: chrome, then the two-step pipeline above.
 export function openDetailViewForFiles(view: WireLayer1View, targets: string[]): void {
   clearDiffPair();
+  storeOpenedNode(undefined);
   setDrawerTools("none");
   // The single-node ↑↓ step a stale timeline anchor, so the nav flow hides them.
   getRequiredElementById("dprev").hidden = true;

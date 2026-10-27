@@ -11,55 +11,55 @@ const SKIPPED_DIR_NAMES = new Set([".git", "node_modules"]);
 
 // Every git repo at or below rootDir, depth-first, sorted per directory.
 export function discoverNestedRepos(rootDir: Path): Path[] {
-    const found: Path[] = [];
-    walkForGitRepos(rootDir.toString(), found);
-    return found;
+  const found: Path[] = [];
+  walkForGitRepos(rootDir.toString(), found);
+  return found;
 }
 
 function walkForGitRepos(dir: string, found: Path[]): void {
-    // A configured cwd need not exist on this machine; readdirSync would throw ENOENT.
-    if (!existsSync(dir)) {
-        return;
-    }
-    if (existsSync(join(dir, ".git"))) {
-        found.push(new Path(dir));
-    }
-    const subdirNames = readdirSync(dir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .filter((name) => !SKIPPED_DIR_NAMES.has(name))
-        .sort();
-    for (const subdirName of subdirNames) {
-        walkForGitRepos(join(dir, subdirName), found);
-    }
+  // A configured cwd need not exist on this machine; readdirSync would throw ENOENT.
+  if (!existsSync(dir)) {
+    return;
+  }
+  if (existsSync(join(dir, ".git"))) {
+    found.push(new Path(dir));
+  }
+  const subdirNames = readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((name) => !SKIPPED_DIR_NAMES.has(name))
+    .sort();
+  for (const subdirName of subdirNames) {
+    walkForGitRepos(join(dir, subdirName), found);
+  }
 }
 
 // Claude Code's project-folder name: every non-alphanumeric character becomes "-".  Duplicated from webapp/layer1-source-paths.ts because webapp cannot import from src/.
 function encodeProjectFolderName(projectFolder: string): string {
-    return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
+  return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
 // Auto-populate a project's sources[] from its nested repos: a project whose configured cwd is not itself a repo, but contains nested repos each with a recorded Claude Code session at their own root, gets one SourceEntry per such nested repo. Empty when the cwd IS itself a repo (legacy single-source path — zero behavior change, the common case) or when no discovered repo has any matching recorded session.
 export function discoverSourceEntriesForProjectRoot(projectCwd: Path): SourceEntry[] {
-    if (existsSync(join(projectCwd.toString(), ".git"))) {
-        return [];
+  if (existsSync(join(projectCwd.toString(), ".git"))) {
+    return [];
+  }
+  const nestedRepos = discoverNestedRepos(projectCwd);
+  if (nestedRepos.length === 0) {
+    return [];
+  }
+  const claudeProjectsRoot = join(homedir(), ".claude", "projects");
+  const sourceEntries: SourceEntry[] = [];
+  for (const repoDir of nestedRepos) {
+    const mangledProjectsDir = join(claudeProjectsRoot, encodeProjectFolderName(repoDir.toString()));
+    if (!existsSync(mangledProjectsDir)) {
+      continue;
     }
-    const nestedRepos = discoverNestedRepos(projectCwd);
-    if (nestedRepos.length === 0) {
-        return [];
+    const hasRecordedSession = readdirSync(mangledProjectsDir).some((name) => name.endsWith(".jsonl"));
+    if (!hasRecordedSession) {
+      continue;
     }
-    const claudeProjectsRoot = join(homedir(), ".claude", "projects");
-    const sourceEntries: SourceEntry[] = [];
-    for (const repoDir of nestedRepos) {
-        const mangledProjectsDir = join(claudeProjectsRoot, encodeProjectFolderName(repoDir.toString()));
-        if (!existsSync(mangledProjectsDir)) {
-            continue;
-        }
-        const hasRecordedSession = readdirSync(mangledProjectsDir).some((name) => name.endsWith(".jsonl"));
-        if (!hasRecordedSession) {
-            continue;
-        }
-        sourceEntries.push({ projectsDir: new Path(mangledProjectsDir), root: repoDir, repoDir });
-    }
-    return sourceEntries;
+    sourceEntries.push({ projectsDir: new Path(mangledProjectsDir), root: repoDir, repoDir });
+  }
+  return sourceEntries;
 }

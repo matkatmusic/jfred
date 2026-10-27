@@ -15,67 +15,67 @@ const WORKFLOW_JOURNAL_NAME = "journal.jsonl";
 
 // A file-history store names its snapshots by hash, with no common extension — so "every regular file" IS the file-history match, and only the JSONL kind narrows by name.
 function matchesSourceKind(name: string, kind: SourceKind): boolean {
-    if (kind === SourceKind.jsonl) {
-        return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME;
-    }
-    return true;
+  if (kind === SourceKind.jsonl) {
+    return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME;
+  }
+  return true;
 }
 
 // Every matching file under `root` at ANY depth, up to `limit`. Symlinked folders are not followed: a store reachable through two names would be counted twice, and a cycle would never terminate.
 export function listSourceFilesUnder(root: Path, kind: SourceKind, limit = Number.MAX_SAFE_INTEGER): Path[] {
-    const found: Path[] = [];
-    const pending: string[] = [root.toString()];
-    while (pending.length > 0 && found.length < limit) {
-        const folder = pending.pop()!;
-        for (const entry of readdirSync(folder, { withFileTypes: true })) {
-            if (entry.isDirectory()) {
-                pending.push(join(folder, entry.name));
-                continue;
-            }
-            if (entry.isFile() && matchesSourceKind(entry.name, kind)) {
-                found.push(new Path(join(folder, entry.name)));
-                if (found.length >= limit) {
-                    break;
-                }
-            }
+  const found: Path[] = [];
+  const pending: string[] = [root.toString()];
+  while (pending.length > 0 && found.length < limit) {
+    const folder = pending.pop()!;
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        pending.push(join(folder, entry.name));
+        continue;
+      }
+      if (entry.isFile() && matchesSourceKind(entry.name, kind)) {
+        found.push(new Path(join(folder, entry.name)));
+        if (found.length >= limit) {
+          break;
         }
+      }
     }
-    return found;
+  }
+  return found;
 }
 
 export function countSourceFilesUnder(root: Path, kind: SourceKind, limit: number): number {
-    return listSourceFilesUnder(root, kind, limit).length;
+  return listSourceFilesUnder(root, kind, limit).length;
 }
 
 // Every transcript under every picked folder, de-duplicated by absolute path (two folders may nest or repeat).
 export function listTranscriptFiles(folders: readonly string[]): Path[] {
-    const byPath = new Map<string, Path>();
-    for (const folder of folders) {
-        // A DERIVED default source folder need not exist yet: empty list, not a bad request.
-        if (!existsSync(folder)) {
-            continue;
-        }
-        for (const jsonlPath of listSourceFilesUnder(new Path(folder), SourceKind.jsonl)) {
-            byPath.set(jsonlPath.toString(), jsonlPath);
-        }
+  const byPath = new Map<string, Path>();
+  for (const folder of folders) {
+    // A DERIVED default source folder need not exist yet: empty list, not a bad request.
+    if (!existsSync(folder)) {
+      continue;
     }
-    return [...byPath.values()];
+    for (const jsonlPath of listSourceFilesUnder(new Path(folder), SourceKind.jsonl)) {
+      byPath.set(jsonlPath.toString(), jsonlPath);
+    }
+  }
+  return [...byPath.values()];
 }
 
 // `kind` arrives from a URL, so an unknown spelling is a 400 naming it rather than a silent fall-through to "count everything" (coding-requirements §4: compare enum members).
 function requireSourceKind(query: URLSearchParams): SourceKind {
-    const value = requireParam(query, "kind");
-    if (value === SourceKind.jsonl) {
-        return SourceKind.jsonl;
-    }
-    if (value === SourceKind.fileHistory) {
-        return SourceKind.fileHistory;
-    }
-    throw new Error(`unknown source kind: ${value}`);
+  const value = requireParam(query, "kind");
+  if (value === SourceKind.jsonl) {
+    return SourceKind.jsonl;
+  }
+  if (value === SourceKind.fileHistory) {
+    return SourceKind.fileHistory;
+  }
+  throw new Error(`unknown source kind: ${value}`);
 }
 
 // GET /api/scan-source — { found }, capped at 1: the client's only question is "is this folder empty of what I want", and it branches on `found === 0`. A missing or unreadable `path` throws and viewer_server.ts's outer catch turns it into a 400 carrying the message, the same refusal shape every other Layer 1 route gives a bad folder.
 export function handleScanSourceRequest(response: ServerResponse, query: URLSearchParams): void {
-    const root = requireExistingFolderParam(query, "path");
-    sendJson(response, 200, { found: countSourceFilesUnder(root, requireSourceKind(query), 1) });
+  const root = requireExistingFolderParam(query, "path");
+  sendJson(response, 200, { found: countSourceFilesUnder(root, requireSourceKind(query), 1) });
 }

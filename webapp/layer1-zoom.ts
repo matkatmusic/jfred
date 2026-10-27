@@ -14,20 +14,20 @@ let currentZoom = 1;
 
 // Clamp, publish, and report. The property goes on `.viz-root` rather than on `.canvas` so `--zoom` is INHERITED and any future zoom-aware rule can read it without reaching across the tree; `.canvas` is the only element that CONSUMES it today.
 export function applyZoom(requestedZoom: number): void {
-    currentZoom = Math.min(Math.max(requestedZoom, ZOOM_MINIMUM), ZOOM_MAXIMUM);
-    (document.querySelector(".viz-root") as HTMLElement).style.setProperty("--zoom", String(currentZoom));
-    getRequiredElementById("zoom-level").textContent = `${Math.round(currentZoom * 100)}%`;
-    // Native `zoom` re-lays-out the whole canvas but leaves scrollTop/scrollLeft where they were, so a lit bubble ends up thousands of px outside the pane — the reader zooms out for context and loses the very thing they had found. Re-anchoring on it is the same post-reflow re-centring layer1-drawer.ts does when opening the drawer shrinks the pane.
-    //
-    // ponytail: the anchor is the SELECTION only. CEILING: with nothing lit, a zoom still pivots on the scroll origin rather than on what is mid-screen. UPGRADE PATH if that is reported — remember the pane's centre point before the property is set and scroll back to it after.
-    document.querySelector(".filebox.found")?.scrollIntoView({ block: "start", inline: "center" });
+  currentZoom = Math.min(Math.max(requestedZoom, ZOOM_MINIMUM), ZOOM_MAXIMUM);
+  (document.querySelector(".viz-root") as HTMLElement).style.setProperty("--zoom", String(currentZoom));
+  getRequiredElementById("zoom-level").textContent = `${Math.round(currentZoom * 100)}%`;
+  // Native `zoom` re-lays-out the whole canvas but leaves scrollTop/scrollLeft where they were, so a lit bubble ends up thousands of px outside the pane — the reader zooms out for context and loses the very thing they had found. Re-anchoring on it is the same post-reflow re-centring layer1-drawer.ts does when opening the drawer shrinks the pane.
+  //
+  // ponytail: the anchor is the SELECTION only. CEILING: with nothing lit, a zoom still pivots on the scroll origin rather than on what is mid-screen. UPGRADE PATH if that is reported — remember the pane's centre point before the property is set and scroll back to it after.
+  document.querySelector(".filebox.found")?.scrollIntoView({ block: "start", inline: "center" });
 }
 
 // Wire the three buttons and set the opening level, so the readout starts at 100% rather than blank. Called once from bootLayer1Page.
 export function wireZoomControls(): void {
-    getRequiredElementById("zoom-in").addEventListener("click", () => applyZoom(currentZoom * ZOOM_STEP));
-    getRequiredElementById("zoom-out").addEventListener("click", () => applyZoom(currentZoom / ZOOM_STEP));
-    getRequiredElementById("zoom-reset").addEventListener("click", () => applyZoom(1));
-    applyZoom(1);
+  getRequiredElementById("zoom-in").addEventListener("click", () => applyZoom(currentZoom * ZOOM_STEP));
+  getRequiredElementById("zoom-out").addEventListener("click", () => applyZoom(currentZoom / ZOOM_STEP));
+  getRequiredElementById("zoom-reset").addEventListener("click", () => applyZoom(1));
+  applyZoom(1);
 }
 

@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import {
     listSelectedSessions,
     listSessionFilterTargets,
-    renderSessionPane,
     resetSessionSelection,
     setKnownProjectPaths,
-    wireBubbleFlash,
 } from "../webapp/layer1-sessions.ts";
+import { renderSessionPane } from "../webapp/layer1-session-pane.ts";
+import { wireBubbleFlash } from "../webapp/layer1-session-flash.ts";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";

@@ -4,5 +4,5 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export function makeTempDir(): string {
-    return mkdtempSync(join(tmpdir(), "reveng-overrides-"));
+  return mkdtempSync(join(tmpdir(), "reveng-overrides-"));
 }
