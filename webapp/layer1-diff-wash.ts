@@ -1,7 +1,7 @@
 // Task 329: the base/target instant wash — two shift-clicked nodes become one global range.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
-import { resolveAxisPixelsAt } from "./layer1-ranges.ts";
+import { computeAxisPixelsAt } from "./layer1-ranges.ts";
 import { spawnWash } from "./layer1-wash.ts";
 import { RULER_NODE_ROW_PIXELS } from "./layer1-ruler-axis.ts";
 import type { WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
@@ -34,7 +34,7 @@ function findAxisPixelsForInstant(instant: string, ruler: readonly WireRulerTick
       return tick.axisPx;
     }
   }
-  return resolveAxisPixelsAt(Date.parse(instant), ruler);
+  return computeAxisPixelsAt(Date.parse(instant), ruler);
 }
 
 // The last range painted, so a stage re-render (which wipes #washes wholesale) can repaint it.

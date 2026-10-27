@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { logGenerationProgress, writeJsonFile } from "../scripts/generate_pages_demo_data.ts";
-import { DocumentResponseKind } from "../src/structures/vocabulary.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 
 test("test_write_json_file_writes_one_json_line_with_newline_terminator", () => {
     const filePath = join(mkdtempSync(join(tmpdir(), "pages-demo-")), "out.json");
