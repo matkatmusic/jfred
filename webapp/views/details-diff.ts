@@ -9,15 +9,15 @@ import { findRevisionForChangeId } from "./file-history-model.ts";
 import { splitDiffBlocks } from "./file-history-diff-blocks.ts";
 import { computeRevisionDiffFallbackText } from "./timeline-labels-tags.ts";
 import { type FileChange } from "./timeline-types.ts";
+import { type WireFileHistory } from "./details-model.ts";
 import {
   type DiffToggleLabel,
-  type WireFileHistory,
-  fullContentsIsOn,
-  mapStoredDiffModeToToggle,
+  convertStoredDiffModeToToggle,
+  isFullContentsOn,
   readStoredDiffMode,
   writeStoredDiffMode,
   writeStoredFullContents,
-} from "./details-model.ts";
+} from "./details-stored-choices.ts";
 import { renderCodeInto } from "../highlight.ts";
 
 // ── shared right-pane plumbing ──────────────────────────────────────────────────────────────
@@ -98,13 +98,13 @@ export function showUnrecoverableInDetails(label: string, path: string, reason: 
 export function showDiffInDetails(label: string, path: string, diffText: string, reload: () => void, unrecoverableReason?: string): void {
   shownDiff = { label, path, diffText, reload, unrecoverableReason };
   setRightPaneLabel(label);
-  const mode = mapStoredDiffModeToToggle(readStoredDiffMode());
+  const mode = convertStoredDiffModeToToggle(readStoredDiffMode());
   const toggle = document.getElementById("diff-mode-toggle")!;
   toggle.hidden = false;
   const fullButton = document.getElementById("dm-full")!;
   const columnsButton = document.getElementById("dm-columns")!;
   const inlineButton = document.getElementById("dm-inline")!;
-  fullButton.classList.toggle("active", fullContentsIsOn());
+  fullButton.classList.toggle("active", isFullContentsOn());
   columnsButton.classList.toggle("active", mode === "columns");
   inlineButton.classList.toggle("active", mode === "inline");
   const switchDiffMode = (label2: DiffToggleLabel) => {
@@ -115,7 +115,7 @@ export function showDiffInDetails(label: string, path: string, diffText: string,
   };
     // Full contents widens git context, so it re-fetches via reload rather than re-rendering.
   fullButton.onclick = () => {
-    writeStoredFullContents(!fullContentsIsOn());
+    writeStoredFullContents(!isFullContentsOn());
     reload();
   };
   columnsButton.onclick = () => switchDiffMode("columns");
