@@ -9,7 +9,7 @@ import { renderDiffVsBaseView } from "./views/diff-vs-base.ts";
 import { renderRawLinesView } from "./views/raw-lines.ts";
 import { activeDetailsContext } from "./views/timeline.ts";
 
-// task 93: the file route's landing — THE Revision View, focused on the /rev/<n> anchor when present. activeDetailsContext is set by renderTimelineView, which app-router.ts always runs before renderSubRouteDrawer; undefined only if the timeline render itself failed.
+// task 93: the file route lands in the Revision View, focused on the /rev/<n> anchor when present.
 function renderFileRouteInRevisionView(target: string, segments: string[]): void {
   if (activeDetailsContext === undefined) {
     return;
@@ -19,9 +19,10 @@ function renderFileRouteInRevisionView(target: string, segments: string[]): void
   renderDetailsFileMode(target, activeDetailsContext, focus);
 }
 
-// The drawer overlay for a project's jsonl/file sub-routes: the route's view renders into the inspector pane over the timeline. No drawer while the consent dialog or a build error still owns the view (no document is cached yet — the sub-views would only re-show the dialog).
+// Render the route's view into the inspector pane; no drawer until a document is cached.
 export async function renderSubRouteDrawer(project: string, segments: string[]): Promise<void> {
-  if (peekCachedDocument(project) === undefined) {
+  const cachedDocument = peekCachedDocument(project);
+  if (cachedDocument === undefined) {
     return;
   }
   let renderContent: ((content: HTMLElement) => unknown) | undefined;
@@ -45,7 +46,9 @@ export async function renderSubRouteDrawer(project: string, segments: string[]):
       renderContent = (content: HTMLElement) => renderDiffVsBaseView(content, project, target, segments[5]);
     }
     else {
-      // task 93: the File History view is retired (webapp/archive/) — the route lands in THE Revision View instead. renderDetailsFileMode reveals the pane and sets its own header, so the drawer's openInspectorPane/headerText tail must not run.  task 93: was — headerText = `File history — ${target}`; task 93: was — renderContent = (content: HTMLElement) => renderFileHistoryView(content, project, target, segments[4] === "rev" ? segments[5] : undefined);
+      // task 93: the File History view is retired; the Revision View sets its own header, so the tail must not run.
+      // headerText = `File history — ${target}`;
+      // renderContent = (content: HTMLElement) => renderFileHistoryView(content, project, target, segments[4] === "rev" ? segments[5] : undefined);
       renderFileRouteInRevisionView(target, segments);
       return;
     }
@@ -58,7 +61,7 @@ export async function renderSubRouteDrawer(project: string, segments: string[]):
   await renderContent(content);
 }
 
-// item 66: the details pane (#inspector) is now a STATIC skeleton (index.html) — a route change hides it and clears only its content columns instead of wiping it wholesale.  Null-safe on the inner ids because the pre-phase-5 openInspectorPane still rebuilds the pane's children wholesale in the interim.
+// item 66: the static #inspector skeleton is hidden and its content columns cleared on every route change.
 export function resetDetailsPane(): void {
   document.getElementById("inspector")!.classList.add("hidden");
   document.getElementById("details-left")?.replaceChildren();

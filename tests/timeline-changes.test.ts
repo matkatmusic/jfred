@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import {
     GIT_BASE_CHANGE_ID_PREFIX,
     computeSnapshotJumpRoute,
-    deriveFileChanges,
-    indexRevisionsByChangeId,
-    splitPatchByFile,
+    computeFileChanges,
+    buildRevisionIndex,
 } from "../webapp/views/timeline-changes.ts";
+import { splitPatchByFile } from "../webapp/views/timeline-patch-split.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
 import { routeToFileHistory } from "../webapp/app-routes.ts";
@@ -54,7 +54,7 @@ test("test_split_patch_by_file_returns_one_block_per_file", () => {
 test("test_file_changes_carry_their_change_id", () => {
     // Each chip needs its revision's changeId so the { } and +/- buttons can resolve the causing line and diff.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
-    const revisionIndex = indexRevisionsByChangeId(s2Document);
+    const revisionIndex = buildRevisionIndex(s2Document);
     let checked = 0;
     for (const node of nodes.filter((entry: { kind: string }) => entry.kind === AGENT_TURN_NODE_KIND)) {
         for (const change of node.fileChanges!) {
@@ -162,7 +162,7 @@ const renamedFileDocument: WireTimelineDocument = {
 
 test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
     // A revision before a rename displays the file's name at that time, while its lookup path stays the final target.
-    const index = indexRevisionsByChangeId(renamedFileDocument);
+    const index = buildRevisionIndex(renamedFileDocument);
     assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
     assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");
     assert.equal(index.get("c2")!.displayPath, "/repo/core_inventory.py");
@@ -170,9 +170,9 @@ test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
 
 test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", () => {
     // A chip from a pre-rename revision shows the entry-time name but keeps the final path as its lookup key.
-    const index = indexRevisionsByChangeId(renamedFileDocument);
+    const index = buildRevisionIndex(renamedFileDocument);
     const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: ["c1"], changedPaths: [] };
-    const changes = deriveFileChanges(step, index);
+    const changes = computeFileChanges(step, index);
     assert.equal(changes.length, 1);
     assert.equal(changes[0]!.displayPath, "/repo/inventory.py");
     assert.equal(changes[0]!.path, "/repo/core_inventory.py");
@@ -180,9 +180,9 @@ test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", 
 
 test("test_deriveFileChanges_fallback_chips_display_their_own_path", () => {
     // A changedPaths-hint chip resolves through no revision, so its display name is its path.
-    const index = indexRevisionsByChangeId(renamedFileDocument);
+    const index = buildRevisionIndex(renamedFileDocument);
     const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: [], changedPaths: ["/repo/orders.py"] };
-    const changes = deriveFileChanges(step, index);
+    const changes = computeFileChanges(step, index);
     assert.equal(changes.length, 1);
     assert.equal(changes[0]!.displayPath, "/repo/orders.py");
     assert.equal(changes[0]!.path, "/repo/orders.py");

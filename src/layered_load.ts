@@ -28,7 +28,7 @@ export interface LayeredSourceOverrides {
 }
 
 // Returns override paths verbatim, or discovers top-level .jsonl files.
-export function discoverJsonlPaths(projectFolder: Path, override: Path[] | undefined): Path[] {
+export function findJsonlPaths(projectFolder: Path, override: Path[] | undefined): Path[] {
   if (override !== undefined) {
     return override;
   }
@@ -43,7 +43,7 @@ export function discoverJsonlPaths(projectFolder: Path, override: Path[] | undef
 }
 
 // Resolves repo and snapshot roots for layers 2-3.
-export function resolveEvidenceRoots(
+export function findEvidenceRoots(
   records: TranscriptRecord[],
   overrides: LayeredSourceOverrides,
 ): { repoPath: Path | undefined; snapshotPaths: Path[] } {
@@ -93,7 +93,7 @@ function listSubagentPaths(projectFolder: Path, sessionJsonlPath: Path): Path[] 
 export function loadLayeredProject(projectFolder: Path, overrides: LayeredSourceOverrides): ReconstructionGraph {
   const nodesByFileThenSession = new Map<string, Map<string, TimelineNode[]>>();
   const lineageEvidence: LineageEvidence[] = [];
-  for (const jsonlPath of discoverJsonlPaths(projectFolder, overrides.jsonlPaths)) {
+  for (const jsonlPath of findJsonlPaths(projectFolder, overrides.jsonlPaths)) {
     const { records } = loadTranscript(jsonlPath.toString());
     collectSessionNodes(records, jsonlPath, nodesByFileThenSession, lineageEvidence);
     for (const subagentPath of listSubagentPaths(projectFolder, jsonlPath)) {

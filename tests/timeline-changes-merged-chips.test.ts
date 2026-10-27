@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveNodeFileChanges, indexRevisionsByChangeId } from "../webapp/views/timeline-changes.ts";
+import { buildRevisionIndex } from "../webapp/views/timeline-changes.ts";
+import { applyNodeFileChanges } from "../webapp/views/timeline-node-file-changes.ts";
 import { AGENT_TURN_NODE_KIND, type TimelineNode, type WireStepSnapshot, type WireTimelineDocument } from "../webapp/views/timeline-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
@@ -46,14 +47,14 @@ function buildAgentTurnNode(snapshots: WireStepSnapshot[]): TimelineNode {
 test("test_two_snapshots_with_distinct_revisions_of_one_file_keep_both_chips", () => {
     // Scenario (task 133): a turn owning an external user-edit snapshot AND an agent Edit snapshot of the SAME file shows BOTH chips — the later revision's chip must not be swallowed by the earlier one.  Steps: index the two-revision document.
     const document = buildTwoRevisionDocument();
-    const revisionIndex = indexRevisionsByChangeId(document);
+    const revisionIndex = buildRevisionIndex(document);
     // one agent turn owning both snapshots, in event order.
     const node = buildAgentTurnNode([
         buildSnapshot(1, "2026-07-17T23:44:01.904Z", [USER_EDIT_CHANGE_ID]),
         buildSnapshot(2, "2026-07-17T23:44:09.283Z", [AGENT_EDIT_CHANGE_ID]),
     ]);
     // stamp the merged chips.
-    deriveNodeFileChanges([node], revisionIndex);
+    applyNodeFileChanges([node], revisionIndex);
     // both revisions keep their chip, in snapshot order.
     assert.equal(node.fileChanges!.length, 2);
     assert.deepEqual(node.fileChanges!.map((change) => change.changeId), [USER_EDIT_CHANGE_ID, AGENT_EDIT_CHANGE_ID]);
@@ -62,14 +63,14 @@ test("test_two_snapshots_with_distinct_revisions_of_one_file_keep_both_chips", (
 test("test_repeated_changeid_across_snapshots_still_collapses", () => {
     // Scenario (task 133): the SAME revision echoing across two snapshots on one turn still collapses to a single chip — the fix widens the dedupe key to path+changeId, not off.  Steps: index the two-revision document.
     const document = buildTwoRevisionDocument();
-    const revisionIndex = indexRevisionsByChangeId(document);
+    const revisionIndex = buildRevisionIndex(document);
     // one agent turn owning two snapshots that repeat the SAME changeId.
     const node = buildAgentTurnNode([
         buildSnapshot(1, "2026-07-17T23:44:01.904Z", [USER_EDIT_CHANGE_ID]),
         buildSnapshot(2, "2026-07-17T23:44:02.000Z", [USER_EDIT_CHANGE_ID]),
     ]);
     // stamp the merged chips.
-    deriveNodeFileChanges([node], revisionIndex);
+    applyNodeFileChanges([node], revisionIndex);
     // the repeat collapses to one chip.
     assert.equal(node.fileChanges!.length, 1);
     assert.equal(node.fileChanges![0]!.changeId, USER_EDIT_CHANGE_ID);

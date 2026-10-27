@@ -40,7 +40,7 @@ function scanForGitRepos(dir: string, found: Path[]): void {
   }
 }
 
-// Claude Code's project-folder name: every non-alphanumeric character becomes "-".  Duplicated from webapp/layer1-source-paths.ts because webapp cannot import from src/.
+// Claude Code's project-folder name: non-alphanumerics become "-"; duplicated because webapp cannot import src/.
 function encodeProjectFolderName(projectFolder: string): string {
   return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
