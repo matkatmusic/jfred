@@ -1,4 +1,4 @@
-// Git-baseline changeId helpers — the task-56 follow-up pane render keys on these; own file so timeline-changes.test.ts stays under the 250-line cap. extractGitBaseCommitHash moved to timeline-changes.ts (task 121, the gitBase vocabulary's canonical home).
+// Git-baseline changeId helpers that the details pane keys on.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
