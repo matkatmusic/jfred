@@ -63,20 +63,20 @@ export function buildRevisionActionsElement(
   function openRevisionContent(): void {
     renderContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
   }
-  function exportRevisionVersion(): void {
+  function saveRevisionVersion(): void {
     downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "");
   }
   async function copyRevisionPatch(): Promise<void> {
     const diffBlocks = await getDiffBlocks(isFullContentsOn());
     await navigator.clipboard.writeText(diffBlocks[index] ?? "");
   }
-  async function exportRevisionPatch(): Promise<void> {
+  async function saveRevisionPatch(): Promise<void> {
     const diffBlocks = await getDiffBlocks(isFullContentsOn());
     downloadText(`${baseName}.rev${card.revisionNumber}.patch`, diffBlocks[index] ?? "");
   }
   return createElement("div", { class: "rev-actions" }, [
     buildActionButton("Show content", openRevisionContent),
-    buildActionButton("Export this version", exportRevisionVersion),
+    buildActionButton("Export this version", saveRevisionVersion),
     buildActionButton("Copy patch", copyRevisionPatch),
     buildActionButton("Export .patch", exportRevisionPatch),
     buildJumpButton(buildActionButton, context, card),
