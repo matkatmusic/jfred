@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
     RevisionViewMode,
     buildRevisionCards,
-    checkCardRunIsContiguous,
+    isCardRunContiguous,
     computeFileRouteFocus,
     computeFocusedCardIndex,
     computeOwningNodeIndexes,
@@ -81,28 +81,28 @@ test("test_computeFocusedCardIndex_falls_back_to_the_first_card_for_an_unknown_c
     assert.equal(computeFocusedCardIndex(cards, { changeId: "toolu_missing", mode: RevisionViewMode.diff }), 0);
 });
 
-test("test_checkCardRunIsContiguous_accepts_an_adjacent_run", () => {
+test("test_isCardRunContiguous_accepts_an_adjacent_run", () => {
     // An adjacent run names one before→after pair, so it is a legal range.
-    assert.equal(checkCardRunIsContiguous([1, 2, 3]), true);
+    assert.equal(isCardRunContiguous([1, 2, 3]), true);
 });
 
-test("test_checkCardRunIsContiguous_accepts_a_single_card", () => {
+test("test_isCardRunContiguous_accepts_a_single_card", () => {
     // Single card and contiguous run are the same mechanism at N=1 and N>1.
-    assert.equal(checkCardRunIsContiguous([2]), true);
+    assert.equal(isCardRunContiguous([2]), true);
 });
 
-test("test_checkCardRunIsContiguous_accepts_a_run_toggled_out_of_order", () => {
+test("test_isCardRunContiguous_accepts_a_run_toggled_out_of_order", () => {
     // The selection Set preserves click order, but contiguity is about the cards.
-    assert.equal(checkCardRunIsContiguous([3, 1, 2]), true);
+    assert.equal(isCardRunContiguous([3, 1, 2]), true);
 });
 
-test("test_checkCardRunIsContiguous_rejects_a_gap", () => {
+test("test_isCardRunContiguous_rejects_a_gap", () => {
     // A gapped selection must be refused rather than silently diffing across the gap.
-    assert.equal(checkCardRunIsContiguous([0, 3]), false);
+    assert.equal(isCardRunContiguous([0, 3]), false);
 });
 
-test("test_checkCardRunIsContiguous_rejects_an_empty_selection", () => {
-    assert.equal(checkCardRunIsContiguous([]), false);
+test("test_isCardRunContiguous_rejects_an_empty_selection", () => {
+    assert.equal(isCardRunContiguous([]), false);
 });
 
 test("test_computeOwningNodeIndexes_maps_a_card_run_onto_its_timeline_nodes", () => {

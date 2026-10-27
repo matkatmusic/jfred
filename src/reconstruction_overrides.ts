@@ -27,25 +27,22 @@ export function getPathOverrides(): PathOverrides {
 // Stable cache-stamp string: defined fields in fixed key order, including `sources`; empty state is "{}".
 export function formatPathOverrides(): string {
   const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = activePathOverrides;
-  let stampedSources;
-  if (sources !== undefined) {
-    stampedSources = [];
-    for (const source of sources) {
-      stampedSources.push({
-        projectsDir: source.projectsDir.toString(),
-        fileHistoryDir: source.fileHistoryDir?.toString(),
-        root: source.root?.toString(),
-        repoDir: source.repoDir?.toString(),
-        baseCommit: source.baseCommit?.toString(),
-      });
-    }
+  const stampedSources = [];
+  for (const source of sources ?? []) {
+    stampedSources.push({
+      projectsDir: source.projectsDir.toString(),
+      fileHistoryDir: source.fileHistoryDir?.toString(),
+      root: source.root?.toString(),
+      repoDir: source.repoDir?.toString(),
+      baseCommit: source.baseCommit?.toString(),
+    });
   }
   return JSON.stringify({
     fileHistoryRoot: fileHistoryRoot?.toString(),
     projectCwd: projectCwd?.toString(),
     repoDir: repoDir?.toString(),
     baseCommit: baseCommit?.toString(),
-    sources: stampedSources,
+    sources: sources === undefined ? undefined : stampedSources,
   });
 }
 

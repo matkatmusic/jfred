@@ -5,13 +5,13 @@ import assert from "node:assert/strict";
 import { isChangeIdGitBaseline } from "../webapp/views/details-model.ts";
 import { extractGitBaseCommitHash } from "../webapp/views/timeline-changes.ts";
 
-test("test_checkChangeIdIsGitBaseline_detects_beacon_changeIds", () => {
+test("test_isChangeIdGitBaseline_detects_beacon_changeIds", () => {
     // Scenario (task 56 follow-up): the details pane needs one canonical "is this revision a git-baseline beacon?" test over a FileChange's optional changeId.  Steps: a gitBase-prefixed changeId is a baseline beacon.
-    assert.equal(checkChangeIdIsGitBaseline("gitBase:abc1234:orders.py"), true);
+    assert.equal(isChangeIdGitBaseline("gitBase:abc1234:orders.py"), true);
     // an ordinary tool_use changeId is not.
-    assert.equal(checkChangeIdIsGitBaseline("toolu_w1"), false);
+    assert.equal(isChangeIdGitBaseline("toolu_w1"), false);
     // an absent changeId is not.
-    assert.equal(checkChangeIdIsGitBaseline(undefined), false);
+    assert.equal(isChangeIdGitBaseline(undefined), false);
 });
 
 test("test_extractGitBaseCommitHash_reads_the_hash_field", () => {
