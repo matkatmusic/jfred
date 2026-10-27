@@ -1,51 +1,8 @@
-// Files-pane view-model (split from timeline.ts, task 92): the sidebar's flat entries and the nested, prefix-stripped, chain-collapsed file tree (items 66/77, task 90).
+// Files-pane nested, prefix-stripped, chain-collapsed file tree (items 66/77, task 90); entries live in timeline-file-tree-sidebar.ts.
 
-import { applyRenameBadgeLabels, findScriptRenameSource } from "./timeline-file-badges.ts";
-import {
-  DELETE_EVENT_KIND,
-  RENAME_EVENT_KIND,
-  type WireFileHistory,
-  type WireTimelineDocument,
-} from "./timeline-types.ts";
+import type { FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
 
-// One Files-pane entry: the file plus the two facts the tree renders differently (item 77).
-export type FileSidebarEntry = {
-  target: string;
-  revisionCount: number;
-  // True only when the LAST revision is a delete: m4's write->delete->write recreate ends alive.
-  isDeleted: boolean;
-  // The path this file was born at, when a rename moved it. The engine keys a renamed file's history at its FINAL path (src/reconstruction_lineage.ts), so the origin is only recoverable from the rename revision. undefined when the file was never renamed.
-  originalPath: string | undefined;
-  // The rename badge's inline text (task 91): the shortest suffix of originalPath that distinguishes it from every other rename badge in the same list — bare basename when unique. undefined when the file was never renamed. Stamped by applyRenameBadgeLabels.
-  renameBadgeLabel: string | undefined;
-};
-
-// The Files sidebar's entries (item 66): every surviving touched file with its revision count, plus its delete/rename facts (item 77) and its disambiguated rename badge (task 91).
-export function buildFilesSidebarViewModel(document: WireTimelineDocument): FileSidebarEntry[] {
-  const entries = document.filesTouched.map((history) => ({
-    target: history.target,
-    revisionCount: history.revisions.length,
-    isDeleted: findLastRevisionKind(history) === DELETE_EVENT_KIND,
-    originalPath: findOriginalPath(history) ?? findScriptRenameSource(document, history.target),
-    renameBadgeLabel: undefined,
-  }));
-  applyRenameBadgeLabels(entries);
-  return entries;
-}
-
-// Badge machinery (RenameBadge, applyRenameBadgeLabels, findScriptRenameSource): moved to timeline-file-badges.ts (task 145 — the line cap; split, never condense).
-
-// The kind of the revision a file ends life at; undefined for an empty history.
-function findLastRevisionKind(history: WireFileHistory): string | undefined {
-  return history.revisions[history.revisions.length - 1]?.kind;
-}
-
-// The path a renamed file started at: the FIRST rename revision's `from`. A chained rename (a->b->c) leaves revisions from=a,to=b then from=b,to=c, so the earliest `from` is the origin.
-function findOriginalPath(history: WireFileHistory): string | undefined {
-  return history.revisions.find((revision) => revision.kind === RENAME_EVENT_KIND)?.rename?.from;
-}
-
-// A Files-pane tree node (item 77): a folder with children, or a file leaf carrying its entry.  Mirrored (not imported) by webapp/views/sidebar.ts — this module's family imports sidebar.ts, so importing back would be a cycle; that file's other view-model types are mirrored the same way.
+// A tree node: a folder with children, or a file leaf. Mirrored by webapp/views/sidebar.ts, not imported, to avoid a cycle.
 export const FOLDER_NODE_KIND = "folder";
 export const FILE_NODE_KIND = "file";
 
@@ -57,22 +14,29 @@ export type FileTreeNode = {
   entry: FileSidebarEntry | undefined;
 };
 
-// The directory segments every target shares, as a path (item 77). Real targets are absolute and deep (/private/var/folders/…/T/run-scenario.xxxx/alpha.py), so the tree strips this prefix — otherwise the pane is a chain of single-child folders before the first real file, which is the truncation item 77 is about. Segment-wise on purpose: a character-wise prefix of /foo/bar and /foo/barn wrongly yields /foo/bar.
+// The directory segments every target shares, as a path (item 77). Segment-wise: /foo/bar and /foo/barn share /foo.
 export function findCommonDirectoryPrefix(targets: readonly string[]): string {
-  const directories = targets.map(splitDirectorySegments);
+  const directories: string[][] = [];
+  for (const target of targets) {
+    directories.push(splitDirectorySegments(target));
+  }
   if (directories.length === 0) {
     return "";
   }
-  return directories.reduce(intersectLeadingSegments).join("/");
+  let shared = directories[0]!;
+  for (const segments of directories.slice(1)) {
+    shared = findSharedLeadingSegments(shared, segments);
+  }
+  return shared.join("/");
 }
 
-// A target's directory, as segments — never its basename, so a lone file keeps its own name.
+// A target's directory, as segments; never its basename, so a lone file keeps its own name.
 function splitDirectorySegments(target: string): string[] {
   return target.split("/").slice(0, -1);
 }
 
 // The leading segments two paths agree on.
-function intersectLeadingSegments(left: readonly string[], right: readonly string[]): string[] {
+function findSharedLeadingSegments(left: readonly string[], right: readonly string[]): string[] {
   const shared: string[] = [];
   for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
     if (left[index] !== right[index]) {
@@ -83,25 +47,29 @@ function intersectLeadingSegments(left: readonly string[], right: readonly strin
   return shared;
 }
 
-// Shape the flat Files entries into a nested tree, rooted below the directory prefix every target shares (item 77). Folders sort before files; each group sorts alphabetically.
+// Shape flat Files entries into a nested tree below their shared directory prefix. Folders sort before files, then alphabetically.
 export function buildFileTree(files: readonly FileSidebarEntry[]): FileTreeNode[] {
-  const prefix = findCommonDirectoryPrefix(files.map((file) => file.target));
-  const root = makeFolderNode("");
+  const targets: string[] = [];
+  for (const file of files) {
+    targets.push(file.target);
+  }
+  const prefix = findCommonDirectoryPrefix(targets);
+  const root = createFolderNode("");
   for (const file of files) {
     insertFileIntoTree(root, file, prefix);
   }
   sortTreeNodes(root);
-  collapseSingleChildFolderChains(root.children);
+  mergeSingleChildFolderChains(root.children);
   return root.children;
 }
 
-function makeFolderNode(name: string): FileTreeNode {
+function createFolderNode(name: string): FileTreeNode {
   return { kind: FOLDER_NODE_KIND, name, children: [], entry: undefined };
 }
 
 // Walk (creating as needed) the folder chain below the stripped prefix, then hang the file leaf.
 function insertFileIntoTree(root: FileTreeNode, file: FileSidebarEntry, prefix: string): void {
-  const segments = stripPrefixSegments(file.target, prefix);
+  const segments = splitSegmentsBelowPrefix(file.target, prefix);
   const fileName = segments[segments.length - 1]!;
   let folder = root;
   for (const directory of segments.slice(0, -1)) {
@@ -110,22 +78,33 @@ function insertFileIntoTree(root: FileTreeNode, file: FileSidebarEntry, prefix: 
   folder.children.push({ kind: FILE_NODE_KIND, name: fileName, children: [], entry: file });
 }
 
-// A target's segments below the shared prefix. Splitting the REMAINDER (not the whole target) is what removes the deep absolute root; the filter drops the remainder's empty leading segment.
-function stripPrefixSegments(target: string, prefix: string): string[] {
-  return target.slice(prefix.length).split("/").filter((segment) => segment !== "");
+// A target's non-empty segments below the shared prefix; splitting the remainder removes the deep absolute root.
+function splitSegmentsBelowPrefix(target: string, prefix: string): string[] {
+  const remainder = target.slice(prefix.length);
+  const segments: string[] = [];
+  for (const segment of remainder.split("/")) {
+    if (segment !== "") {
+      segments.push(segment);
+    }
+  }
+  return segments;
 }
 
 function findOrAddFolder(parent: FileTreeNode, name: string): FileTreeNode {
-  const existing = parent.children.find((child) => child.kind === FOLDER_NODE_KIND && child.name === name);
-  if (existing !== undefined) {
-    return existing;
+  for (const child of parent.children) {
+    const isFolder = child.kind === FOLDER_NODE_KIND;
+    const hasName = child.name === name;
+    const isMatch = isFolder && hasName;
+    if (isMatch) {
+      return child;
+    }
   }
-  const folder = makeFolderNode(name);
+  const folder = createFolderNode(name);
   parent.children.push(folder);
   return folder;
 }
 
-// Folders before files, then alphabetical — applied at every depth.
+// Folders before files, then alphabetical, at every depth.
 function sortTreeNodes(folder: FileTreeNode): void {
   folder.children.sort(compareTreeNodes);
   for (const child of folder.children) {
@@ -140,21 +119,24 @@ function compareTreeNodes(left: FileTreeNode, right: FileTreeNode): number {
   return left.name.localeCompare(right.name);
 }
 
-// Merge each folder holding exactly one folder child into a combined `a/b/c` node (task 90): in multi-root projects the shared prefix is shallow, so real single-child chains survive below it and cost one click per level. Only folder->folder merges — a lone FILE child keeps its own row. Runs after sorting on purpose: sibling order stays keyed to the original first segment. The root header itself never collapses (root-level collapsing was declined).
-function collapseSingleChildFolderChains(nodes: FileTreeNode[]): void {
+// Merge each folder holding one folder child into a combined `a/b/c` node (task 90). Runs after sorting; the root never collapses.
+function mergeSingleChildFolderChains(nodes: FileTreeNode[]): void {
   for (const node of nodes) {
-    while (nodeHoldsExactlyOneFolderChild(node)) {
+    while (isFolderHoldingOnlyFolder(node)) {
       const onlyChild = node.children[0]!;
       node.name = `${node.name}/${onlyChild.name}`;
       node.children = onlyChild.children;
     }
-    collapseSingleChildFolderChains(node.children);
+    mergeSingleChildFolderChains(node.children);
   }
 }
 
-// True when the node is a folder whose single child is itself a folder — the collapsible link.
-function nodeHoldsExactlyOneFolderChild(node: FileTreeNode): boolean {
-  if (node.kind !== FOLDER_NODE_KIND || node.children.length !== 1) {
+// True when the node is a folder whose single child is itself a folder: the mergeable link.
+function isFolderHoldingOnlyFolder(node: FileTreeNode): boolean {
+  const isFolder = node.kind === FOLDER_NODE_KIND;
+  const hasOneChild = node.children.length === 1;
+  const isSingleChildFolder = isFolder && hasOneChild;
+  if (!isSingleChildFolder) {
     return false;
   }
   return node.children[0]!.kind === FOLDER_NODE_KIND;
