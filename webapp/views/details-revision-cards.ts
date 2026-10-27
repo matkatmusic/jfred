@@ -1,4 +1,4 @@
-// Rev-card DOM builders for the Revision View (split from details-revision-view.ts at the 250-line cap, task 126). Pure element construction — selection, focus, and diff routing stay in details-revision-view.ts.
+// Rev-card DOM builders split from details-revision-view.ts: pure element construction only.
 
 import { createElement } from "../app-dom.ts";
 import { buildFileHistoryViewModel } from "./file-history-model.ts";
@@ -10,14 +10,35 @@ import { isFullContentsOn } from "./details-stored-choices.ts";
 import { showContentInDetails } from "./details-diff.ts";
 import { downloadText } from "./download.ts";
 
-function jumpToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
-  const ownerIndex = context.nodes.findIndex(
-    (candidate) => (candidate.fileChanges ?? []).some((change) => change.changeId === card.changeId),
-  );
-    // No owning row (rewound / synthetic revisions): the button is a no-op.
+function moveToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
+  let ownerIndex = -1;
+  for (const [nodeIndex, candidate] of context.nodes.entries()) {
+    for (const change of candidate.fileChanges ?? []) {
+      if (change.changeId === card.changeId && ownerIndex < 0) {
+        ownerIndex = nodeIndex;
+      }
+    }
+  }
+  // No owning row (rewound / synthetic revisions): the button is a no-op.
   if (ownerIndex >= 0) {
     context.selectTimelineRow(ownerIndex);
   }
+}
+
+type BuildActionButton = (text: string, onActivate: () => unknown) => HTMLElement;
+
+function buildJumpButton(buildActionButton: BuildActionButton, context: DetailsContext, card: RevisionCard): HTMLElement {
+  function moveToStep(): void {
+    moveToOwningTimelineStep(context, card);
+  }
+  return buildActionButton("Jump to timeline step", moveToStep);
+}
+
+function buildJsonButton(buildActionButton: BuildActionButton, context: DetailsContext, card: RevisionCard): HTMLElement {
+  function openRecord(): void {
+    context.openRecordForChangeId(card.changeId);
+  }
+  return buildActionButton("{ }", openRecord);
 }
 
 export function buildRevisionHeadElement(rangeToggle: HTMLElement, card: RevisionCard): HTMLElement {

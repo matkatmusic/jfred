@@ -8,11 +8,8 @@ import {
   setReconstructionProgressSink,
 } from "./reconstruction_progress.ts";
 import { applyRevisionBound } from "./reconstruction_bound.ts";
-import {
-  applyCliPathOverrides,
-  parseArgs,
-  type CliOptions,
-} from "./reconstruction_cli_args.ts";
+import { parseArgs, type CliOptions } from "./reconstruction_cli_args.ts";
+import { applyCliPathOverrides } from "./reconstruction_cli_path_overrides.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";

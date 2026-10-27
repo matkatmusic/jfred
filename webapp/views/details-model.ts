@@ -51,8 +51,8 @@ export function computeFileRouteFocus(
 ): RevisionFocus | undefined {
   let fileHistory: WireFileHistory | undefined = undefined;
   for (const entry of filesTouched) {
-    const isTarget = entry.target === target;
-    if (isTarget && fileHistory === undefined) {
+    const isFirstMatch = entry.target === target && fileHistory === undefined;
+    if (isFirstMatch) {
       fileHistory = entry;
     }
   }
@@ -65,8 +65,6 @@ export function computeFileRouteFocus(
   }
   return { changeId: fileHistory.revisions[revisionIndex]!.changeId, mode: RevisionViewMode.content };
 }
-
-// ── view-model half (DOM-free, tested) ─────────────────────────────────────────────────────
 
 // A node kind's readable label: dashes become spaces ("agent-turn" to "agent turn").
 function formatNodeKind(kind: string): string {
@@ -133,16 +131,11 @@ export function computeOwningNodeIndexes(cards: RevisionCard[], nodes: TimelineN
     }
     let ownerIndex = -1;
     for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-      let ownsCard = false;
       for (const change of nodes[nodeIndex]!.fileChanges ?? []) {
-        const isCardChange = change.changeId === card.changeId;
-        if (isCardChange) {
-          ownsCard = true;
+        const isFirstOwner = ownerIndex < 0 && change.changeId === card.changeId;
+        if (isFirstOwner) {
+          ownerIndex = nodeIndex;
         }
-      }
-      if (ownsCard) {
-        ownerIndex = nodeIndex;
-        break;
       }
     }
     if (ownerIndex < 0) {
