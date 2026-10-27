@@ -7,9 +7,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
-    discoverJsonlPaths,
+    findEvidenceRoots,
+    findJsonlPaths,
     loadLayeredProject,
-    resolveEvidenceRoots,
 } from "../src/layered_load.ts";
 import type { ReconstructionEntity } from "../src/layered_types.ts";
 import {
@@ -69,11 +69,11 @@ function findEntity(entities: ReconstructionEntity[], target: string): Reconstru
     return entity;
 }
 
-test("test_discoverJsonlPaths_scans_top_level_jsonl_files", () => {
+test("test_findJsonlPaths_scans_top_level_jsonl_files", () => {
     // With no override, discovery lists the folder's top-level .jsonl files, name-sorted.
     const fixture = makeLayeredFixture();
     writeFileSync(join(fixture.projectDir, "notes.txt"), "not a transcript\n");
-    const discovered = discoverJsonlPaths(new Path(fixture.projectDir), undefined);
+    const discovered = findJsonlPaths(new Path(fixture.projectDir), undefined);
     assert.deepEqual(
         discovered.map((path) => path.toString()),
         [join(fixture.projectDir, "a.jsonl"), join(fixture.projectDir, "b.jsonl")],
