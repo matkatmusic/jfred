@@ -16,7 +16,7 @@ import {
 } from "./multi-source-test-helpers.ts";
 
 test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () => {
-    // Scenario: two sessions run at the same time and their turns interleave.  The turn end is the owning session's next prompt.  The cut is by wall clock, so the other session's records in the window stay.  Stream: promptA1 10:00, write alpha 10:01, promptB1 10:03, edit alpha 10:04, write beta 10:05, promptA2 10:08, write gamma 10:09.
+    // Scenario: two sessions interleave; the cut is the owning session's next prompt, by wall clock.  DELETEMEthe other session's records in the window stay.  Stream: promptA1 10:00, write alpha 10:01, promptB1 10:03, edit alpha 10:04, write beta 10:05, promptA2 10:08, write gamma 10:09.
     const tree = makeSourceTree("-bound-interleaved");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
