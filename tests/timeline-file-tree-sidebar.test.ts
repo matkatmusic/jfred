@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildFilesSidebarViewModel } from "../webapp/views/timeline-file-tree.ts";
+import { buildFilesSidebarViewModel } from "../webapp/views/timeline-file-tree-sidebar.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { commitWalkDocument } from "./timeline-test-helpers.ts";
 

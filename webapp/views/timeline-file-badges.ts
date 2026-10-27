@@ -1,6 +1,6 @@
 // Rename-badge view-model (task 91 disambiguation + the task-145 script-move fallback), split from timeline-file-tree.ts for the line cap. The Files sidebar and the details "Files touched" list both stamp their entries here.
 
-import type { FileSidebarEntry } from "./timeline-file-tree.ts";
+import type { FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
 import type { WireRename, WireTimelineDocument } from "./timeline-types.ts";
 
 // One rename badge being disambiguated (task 91): its entry, the old path's segments, and the suffix depth grown until the badge's label collides with no other badge's.
