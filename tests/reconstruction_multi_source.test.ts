@@ -7,12 +7,12 @@ import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { setPathOverrides, type SourceEntry } from "../src/reconstruction_overrides.ts";
 import {
-    dedupeRecordsBySessionAndUuid,
-    interleaveRecordsByTimestamp,
+    removeDuplicateRecordsBySessionAndUuid,
+    mergeRecordsByTimestamp,
     mergeMultiSourceRecords,
 } from "../src/reconstruction_multi_source.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { reconstructStepStates } from "../src/reconstruction_steps.ts";
+import { buildStepStates } from "../src/reconstruction_steps.ts";
 import { snapshotFileText } from "../src/reconstruction_step_snapshot.ts";
 import {
     SESSION_A,
@@ -43,7 +43,7 @@ test("test_dedupe_drops_replicated_records_keeping_first", () => {
     );
     const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", pair.records);
     // Test action: dedupe the replicated stream (each record present twice).
-    const deduped = dedupeRecordsBySessionAndUuid([...records, ...records]);
+    const deduped = removeDuplicateRecordsBySessionAndUuid([...records, ...records]);
     // Test verification: exactly the original records survive, first instances, in order.
     assert.equal(deduped.length, records.length);
     assert.equal(deduped[0], records[0]);
@@ -53,7 +53,7 @@ test("test_dedupe_keeps_records_missing_uuid_or_session", () => {
     // Scenario (§c1): records lacking a (sessionId, uuid) identity are never duplicates of each other.
     const anonymous = [fabricateBareRecord({ type: "x" }), fabricateBareRecord({ type: "x" })];
     // Test action + verification: both identity-less records pass through.
-    const deduped = dedupeRecordsBySessionAndUuid(anonymous);
+    const deduped = removeDuplicateRecordsBySessionAndUuid(anonymous);
     assert.equal(deduped.length, 2);
 });
 
@@ -64,7 +64,7 @@ test("test_interleave_orders_records_across_sessions_by_wall_clock", () => {
     const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
     const recordB2 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:15:00.000Z") });
     // Test action: merge list A (t1,t3) with list B (t2,t4).
-    const merged = interleaveRecordsByTimestamp([[recordA1, recordA2], [recordB1, recordB2]]);
+    const merged = mergeRecordsByTimestamp([[recordA1, recordA2], [recordB1, recordB2]]);
     // Test verification: merged order is t1,t2,t3,t4.
     assert.deepEqual(merged, [recordA1, recordB1, recordA2, recordB2]);
 });
@@ -74,7 +74,7 @@ test("test_interleave_keeps_unstamped_leading_records_with_their_session", () =>
     const unstamped = fabricateBareRecord({ type: "file-history-snapshot" });
     const recordA1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:00:00.000Z") });
     const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
-    const merged = interleaveRecordsByTimestamp([[recordA1], [unstamped, recordB1]]);
+    const merged = mergeRecordsByTimestamp([[recordA1], [unstamped, recordB1]]);
     assert.deepEqual(merged, [recordA1, unstamped, recordB1]);
 });
 
@@ -126,7 +126,7 @@ test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
         { projectsDir: new Path(join(treeB.treeRoot, "projects")), root: new Path(rootB) },
     ];
     const merged = mergeMultiSourceRecords([listA, listB], sources);
-    const steps = reconstructStepStates(merged, buildSidecarReader(merged, sources));
+    const steps = buildStepStates(merged, buildSidecarReader(merged, sources));
     // Test verification: three engine steps carry the ONE interleaved ladder (engine text drops the trailing newline).
     const ladder = steps.map((step) => snapshotFileText(step, filePath));
     assert.deepEqual(ladder, versions.map((text) => text.slice(0, -1)));

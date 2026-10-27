@@ -2,7 +2,7 @@
 
 import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage, describeScriptLanguage, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
-import { walkCurrentFileState } from "./layer1_disk_walk.ts";
+import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { affectedPathsForRun } from "./reconstruction_script_probe.ts";
@@ -22,7 +22,7 @@ function convertToWireExecutorKind(kind: ScriptExecutorKind | undefined): WireSc
   return kind === ScriptExecutorKind.bash ? WireScriptExecutorKind.bash : WireScriptExecutorKind.python;
 }
 
-// The Bash tool reads bash, a ctx run reads its own input language, and a run with neither executes like python.
+// A ctx run uses its own language; otherwise the executor decides.
 function convertToWireLanguage(run: ScriptRun): WireScriptLanguage {
   if (run.language !== undefined) {
     return parseScriptLanguage(run.language);
@@ -54,14 +54,18 @@ function comparePathStrings(left: Path, right: Path): number {
   return left.toString().localeCompare(right.toString());
 }
 
-// Sessions run in lexical order and the first entry per pair and tool_use id stands: a resumed session repeats its parent's runs.
+function compareRunInstants(left: WireScriptRunWithoutAxis, right: WireScriptRunWithoutAxis): number {
+  return left.instant.getTime() - right.instant.getTime();
+}
+
+// Sessions run in lexical order; the first run per pair and tool_use id stands.
 export function buildScriptRunsView(
   projectFolder: Path,
   sessionFiles: readonly Path[],
   reportProgress: ProgressSink = () => {},
 ): Layer1WireScriptRunsView {
   const candidatePaths: Path[] = [];
-  for (const file of walkCurrentFileState(projectFolder)) {
+  for (const file of listCurrentFileState(projectFolder)) {
     candidatePaths.push(file.relativePath);
   }
   const runsByPath = new Map<string, Map<string, WireScriptRunWithoutAxis>>();
@@ -95,10 +99,10 @@ export function buildScriptRunsView(
       }
     }
   }
-  return {
-    pairs: [...runsByPath].map(([path, runsByToolUseId]) => ({
-      path: new Path(path),
-      scriptRuns: [...runsByToolUseId.values()].sort((left, right) => left.instant.getTime() - right.instant.getTime()),
-    })),
-  };
+  const pairs: Layer1WireScriptRunsView["pairs"] = [];
+  for (const [path, runsByToolUseId] of runsByPath) {
+    const scriptRuns = [...runsByToolUseId.values()].sort(compareRunInstants);
+    pairs.push({ path: new Path(path), scriptRuns });
+  }
+  return { pairs };
 }

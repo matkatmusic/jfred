@@ -2,7 +2,8 @@
 
 import type { FileRevision } from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { currentText, computeDiffBlockHeader } from "./reconstruction_render.ts";
+import { getCurrentText } from "./reconstruction_render.ts";
+import { computeDiffBlockHeader } from "./reconstruction_render_diff.ts";
 import { runGitUnifiedDiff, DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES } from "./render_git_diff.ts";
 
 
@@ -31,7 +32,7 @@ function computeAlignedDiffLines(
   let pendingAdditions: AlignedDiffLine[] = [];
   const flushChangeRegion = (stopOldIndex: number) => {
     while (oldCursor < stopOldIndex) {
-      alignedLines.push({ sign: "-", text: currentText(previousLines[oldCursor]!), oldLineNumber: oldCursor + 1, newLineNumber: 0 });
+      alignedLines.push({ sign: "-", text: getCurrentText(previousLines[oldCursor]!), oldLineNumber: oldCursor + 1, newLineNumber: 0 });
       oldCursor++;
     }
     alignedLines.push(...pendingAdditions);
@@ -40,11 +41,11 @@ function computeAlignedDiffLines(
   revision.lines.forEach((entry, newIndex) => {
     if (entry.oldLineNum >= 0) {
       flushChangeRegion(entry.oldLineNum);
-      alignedLines.push({ sign: " ", text: currentText(entry), oldLineNumber: entry.oldLineNum + 1, newLineNumber: newIndex + 1 });
+      alignedLines.push({ sign: " ", text: getCurrentText(entry), oldLineNumber: entry.oldLineNum + 1, newLineNumber: newIndex + 1 });
       oldCursor = entry.oldLineNum + 1;
       return;
     }
-    pendingAdditions.push({ sign: "+", text: currentText(entry), oldLineNumber: 0, newLineNumber: newIndex + 1 });
+    pendingAdditions.push({ sign: "+", text: getCurrentText(entry), oldLineNumber: 0, newLineNumber: newIndex + 1 });
   });
   flushChangeRegion(previousLines.length);
   return alignedLines;
@@ -100,8 +101,8 @@ function appendGitHunksForRevision(
   contextLines: number,
 ): void {
   // item 51: pure-TS hunk generation, replaced by real git below (function context).
-  const beforeLines = previous === undefined ? [] : previous.lines.map(currentText);
-  const afterLines = revision.lines.map(currentText);
+  const beforeLines = previous === undefined ? [] : previous.lines.map(getCurrentText);
+  const afterLines = revision.lines.map(getCurrentText);
   const hunks = runGitUnifiedDiff(beforeLines, afterLines, contextLines);
   if (hunks !== "") {
     blockLines.push(hunks);

@@ -9,7 +9,7 @@ import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
 import { resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { requireParam } from "./viewer_server_routes.ts";
+import { getRequiredParam } from "./viewer_server_routes.ts";
 
 // Trust boundary: a session id reaches the filesystem as a path segment, so refuse `.`, `/`, `\`.
 const SESSION_ID_PATTERN = /^[0-9a-fA-F-]+$/;
@@ -52,15 +52,15 @@ export function isSnapshotFileRequest(query: URLSearchParams): boolean {
 
 // Task 317: the blob's bytes, plus the customTitle in effect at the snapshot's LINE (not first or last).
 export function readSnapshotFileContent(query: URLSearchParams): { content: string; title: string; record: TranscriptRecord | undefined } {
-  const sessionId = requireParam(query, "sessionId");
+  const sessionId = getRequiredParam(query, "sessionId");
   if (!SESSION_ID_PATTERN.test(sessionId)) {
     throw new Error(`not a session id: ${sessionId}`);
   }
   const owner = new Uuid(sessionId);
-  const sessionFile = new Path(requireParam(query, "snapshotSession"));
-  const projectFolder = new Path(requireParam(query, "dir"));
-  const relativePath = requireParam(query, "path");
-  const version = parseSnapshotVersion(requireParam(query, "version"));
+  const sessionFile = new Path(getRequiredParam(query, "snapshotSession"));
+  const projectFolder = new Path(getRequiredParam(query, "dir"));
+  const relativePath = getRequiredParam(query, "path");
+  const version = parseSnapshotVersion(getRequiredParam(query, "version"));
   const placement = findSnapshotPlacement(sessionFile, projectFolder, relativePath, owner, version);
   if (placement === undefined) {
     throw new Error(`no snapshot ${relativePath}@v${version} in session ${sessionId}`);

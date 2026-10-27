@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { truncateRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
-import { runCli } from "../src/reconstruction_cli.ts";
+import { executeCli } from "../src/reconstruction_cli.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import {
@@ -171,11 +171,11 @@ test("test_cli_until_revision_bounds_all_views", () => {
     ]);
     const jsonlPath = join(tree.projectDir, "until.jsonl");
     const fhsLoc = join(tree.treeRoot, "file-history");
-    const bounded = runCli([jsonlPath, "--until-revision", alphaPath, "--fhsLoc", fhsLoc, "--json"]);
+    const bounded = executeCli([jsonlPath, "--until-revision", alphaPath, "--fhsLoc", fhsLoc, "--json"]);
     assert.ok(bounded.includes("alpha_until.py"));
     assert.ok(!bounded.includes("beta_until.py"));
     setPathOverrides({});
-    const full = runCli([jsonlPath, "--fhsLoc", fhsLoc, "--json"]);
+    const full = executeCli([jsonlPath, "--fhsLoc", fhsLoc, "--json"]);
     assert.ok(full.includes("alpha_until.py"));
     assert.ok(full.includes("beta_until.py"));
     setPathOverrides({});

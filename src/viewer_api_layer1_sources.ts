@@ -1,6 +1,4 @@
-// GET /api/scan-source?path=&kind= — "does this folder hold any of what the picker is about to add?" (task 296) — plus the recursive walker /api/layer1-sessions reads its JSONL list from.
-//
-// The two live together because the scan IS the walk stopped at the first hit: the picker only needs to refuse an EMPTY folder, so a 12,000-file snapshot store must never be enumerated to answer it.
+// GET /api/scan-source?path=&kind= — "does this folder hold any of what the picker is about to add?" (task 296) — plus the recursive walker /api/layer1-sessions reads its JSONL list from.  The two live together because the scan IS the walk stopped at the first hit: the picker only needs to refuse an EMPTY folder, so a 12,000-file snapshot store must never be enumerated to answer it.
 
 import { existsSync, readdirSync } from "node:fs";
 import { type ServerResponse } from "node:http";
@@ -8,7 +6,7 @@ import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { requireExistingFolderParam } from "./viewer_api_layer1_route.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 // The Workflow tool's journal is not a chat transcript.
 const WORKFLOW_JOURNAL_NAME = "journal.jsonl";
@@ -64,7 +62,7 @@ export function listTranscriptFiles(folders: readonly string[]): Path[] {
 
 // `kind` arrives from a URL, so an unknown spelling is a 400 naming it rather than a silent fall-through to "count everything" (coding-requirements §4: compare enum members).
 function requireSourceKind(query: URLSearchParams): SourceKind {
-  const value = requireParam(query, "kind");
+  const value = getRequiredParam(query, "kind");
   if (value === SourceKind.jsonl) {
     return SourceKind.jsonl;
   }

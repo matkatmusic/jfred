@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
-import { runCli } from "../src/reconstruction_cli.ts";
+import { executeCli } from "../src/reconstruction_cli.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -26,7 +26,7 @@ import { S19_JSONL, S37_JSONL } from "./fixtures.ts";
 test("test_buildProjectDocument_single_jsonl_matches_cli_json", () => {
     // For one JSONL the viewer's document matches the CLI --json output exactly.
     const viaViewer = JSON.parse(JSON.stringify(buildProjectDocument([new Path(S19_JSONL)], undefined)));
-    const viaCli = JSON.parse(runCli([S19_JSONL, "--json"]));
+    const viaCli = JSON.parse(executeCli([S19_JSONL, "--json"]));
     assert.deepEqual(viaViewer, viaCli);
 });
 

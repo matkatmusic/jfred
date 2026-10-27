@@ -6,7 +6,7 @@ import { fetchText } from "../app-fetch.ts";
 import { resetDetailsFind } from "./details-find.ts";
 import { appendColumnsDiff, appendInlineDiff } from "../diff-render.ts";
 import { findRevisionForChangeId, splitDiffBlocks } from "./file-history-model.ts";
-import { computeRevisionDiffFallbackText } from "./timeline-labels.ts";
+import { computeRevisionDiffFallbackText } from "./timeline-labels-tags.ts";
 import { type FileChange } from "./timeline-types.ts";
 import {
   type DiffToggleLabel,

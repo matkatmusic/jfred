@@ -9,7 +9,7 @@ import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
-import { requireParam } from "./viewer_server_routes.ts";
+import { getRequiredParam } from "./viewer_server_routes.ts";
 
 // True when this query selects the Edit form; the tool_use id is its marker.
 export function isEditFileRequest(query: URLSearchParams): boolean {
@@ -17,13 +17,13 @@ export function isEditFileRequest(query: URLSearchParams): boolean {
 }
 
 export function readEditFileContent(query: URLSearchParams): { content: string; title?: string; record?: TranscriptRecord } {
-  const changeId = requireParam(query, "editChangeId");
-  const side = requireParam(query, "side");
+  const changeId = getRequiredParam(query, "editChangeId");
+  const side = getRequiredParam(query, "side");
   if (side !== WireEditSide.base && side !== WireEditSide.target) {
     throw new Error(`side must be base or target, got ${side}`);
   }
-  const relativePath = requireParam(query, "path");
-  const projectFolder = new Path(requireParam(query, "dir"));
+  const relativePath = getRequiredParam(query, "path");
+  const projectFolder = new Path(getRequiredParam(query, "dir"));
   // Task 357: a lane node reads the disk timeline the lanes came from, not the trunk replay.
   if (query.get("branch") === "1") {
     return { content: readBranchRevisionSide(projectFolder, listTranscriptFiles(query.getAll("jsonl")), relativePath, changeId, side) };

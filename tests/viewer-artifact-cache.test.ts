@@ -1,4 +1,4 @@
-// Identity assertions (assert.equal on objects) are the point here: same object === no re-work done.
+// Identity assertions (assert.equal on objects) prove no re-work: same object, same result.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -28,7 +28,7 @@ test("test_transcript_set_stamp_is_stable_for_unchanged_files", () => {
 });
 
 test("test_transcript_set_stamp_ignores_path_order", () => {
-    // Safe since production callers always pass resolveJsonlPaths' mtime-sorted order, matching a fresh parse's record order.
+    // Safe: production callers always pass findJsonlPaths' mtime-sorted order.
     const forwardStamp = computeTranscriptSetStamp([new Path(S1_JSONL), new Path(S19_JSONL)]);
     const reversedStamp = computeTranscriptSetStamp([new Path(S19_JSONL), new Path(S1_JSONL)]);
     assert.equal(forwardStamp, reversedStamp);
@@ -44,7 +44,7 @@ test("test_transcript_set_stamp_changes_when_a_file_is_touched", () => {
 });
 
 test("test_load_project_records_returns_same_array_for_unchanged_files", () => {
-    // Same array object also keeps the engine's per-records WeakMap memos warm across requests.
+    // The same array object keeps the engine's per-records WeakMap memos warm.
     const firstRecords = loadProjectRecords(S85_JSONL_PATHS).records;
     const secondRecords = loadProjectRecords(S85_JSONL_PATHS).records;
     assert.equal(secondRecords, firstRecords);
@@ -59,7 +59,7 @@ test("test_load_project_records_reparses_after_file_touch", () => {
 });
 
 test("test_load_project_records_reports_cache_hit_label", () => {
-    // The hit label is how the loading console explains why no per-record parse lines appeared.
+    // The hit label explains why the loading console shows no per-record parse lines.
     loadProjectRecords([new Path(S19_JSONL)]);
     const collectedLabels: string[] = [];
     loadProjectRecords([new Path(S19_JSONL)], (event) => collectedLabels.push(event.label));
@@ -73,7 +73,7 @@ test("test_build_with_consent_returns_same_document_for_unchanged_files", () => 
 });
 
 test("test_build_with_consent_keeps_consent_variants_in_separate_entries", () => {
-    // A consented build must never serve the degraded artifact; S37's revisions differ, so consent is part of the cache key.
+    // Consent is part of the cache key: a consented build never serves the degraded artifact.
     const degradedDocument = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, false);
     const consentedDocument = buildDocumentWithConsent([new Path(S37_JSONL)], undefined, true);
     assert.notEqual(consentedDocument, degradedDocument);
@@ -95,7 +95,7 @@ test("test_build_with_consent_reports_artifact_cache_hit_label", () => {
 });
 
 test("test_document_cache_evicts_least_recently_used_entry_beyond_capacity", () => {
-    // Distinct by target, which is part of the key; a target no revision matches still builds.
+    // The target is part of the key; a target that no revision matches still builds.
     const buildForTarget = (targetIndex: number) =>
         buildDocumentWithConsent([new Path(S1_JSONL)], new Path(`/evict/probe-${targetIndex}.txt`), false);
     const firstDocument = buildForTarget(0);
@@ -108,7 +108,7 @@ test("test_document_cache_evicts_least_recently_used_entry_beyond_capacity", () 
 });
 
 test("test_document_cache_read_refreshes_recency", () => {
-    // LRU, not FIFO: the project-wide artifact must survive per-conversation builds while it is read.
+    // LRU, not FIFO: the project-wide artifact survives per-conversation builds while it is read.
     const buildForTarget = (targetIndex: number) =>
         buildDocumentWithConsent([new Path(S1_JSONL)], new Path(`/lru/probe-${targetIndex}.txt`), false);
     const protectedDocument = buildForTarget(0);
@@ -131,7 +131,7 @@ test("test_records_cache_evicts_least_recently_used_entry_beyond_capacity", () =
 });
 
 test("test_revision_diff_from_untargeted_document_matches_targeted_build", () => {
-    // Targeting only filters snapshots/histories, so /api/diff may serve from the shared untargeted artifact.
+    // Targeting only filters snapshots and histories, so /api/diff may use the untargeted artifact.
     const untargetedDocument = buildProjectDocument(S85_JSONL_PATHS, undefined);
     const trackedFile = untargetedDocument.filesTouched[0]!.target;
     const targetedDocument = buildProjectDocument(S85_JSONL_PATHS, trackedFile);

@@ -3,7 +3,7 @@
 import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
-import { listSubagentTranscripts } from "./viewer_api_projects.ts";
+import { listSubagentTranscripts } from "./viewer_api_project_scan.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findFirstRecordCwd } from "./reconstruction_base_commit.ts";
 import { resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";

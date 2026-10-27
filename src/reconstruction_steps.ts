@@ -6,7 +6,7 @@ import {
   lastRevisionAtOrBefore,
   linesTextOf,
 } from "./reconstruction_revisions.ts";
-import { reconstructFilesOver } from "./reconstruction_renderable.ts";
+import { getFileHistoriesOver } from "./reconstruction_renderable.ts";
 import type { FileHistory, RenameInfo } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
@@ -69,7 +69,7 @@ function findPathAtTime(history: FileHistory, when: Date): Path {
 }
 
 // Keyed by the name the file held AT `when`, so a step before a rename shows the old name.
-export function produceRepoStateAtTime(histories: FileHistory[], when: Date): RepoSnapshot {
+export function computeRepoStateAtTime(histories: FileHistory[], when: Date): RepoSnapshot {
   const snapshot = new Map<Path, string>();
   for (const history of histories) {
     const revision = lastRevisionAtOrBefore(history.revisions, when);
@@ -82,9 +82,9 @@ export function produceRepoStateAtTime(histories: FileHistory[], when: Date): Re
 }
 
 // Plain-object form because a RepoSnapshot Map stringifies to `{}`; resolved on demand to bound wire size.
-export function resolveFilesAtStep(histories: FileHistory[], when: Date): Record<string, string> {
+export function computeFilesAtStep(histories: FileHistory[], when: Date): Record<string, string> {
   const files: Record<string, string> = {};
-  for (const [path, text] of produceRepoStateAtTime(histories, when)) {
+  for (const [path, text] of computeRepoStateAtTime(histories, when)) {
     files[path.toString()] = text;
   }
   return files;
@@ -106,12 +106,12 @@ function collectChangeIdsAt(histories: FileHistory[], when: Date): Uuid[] {
 // Both come from ONE reconstruction pass; per-step repo states are resolved on demand.
 export type StepTimeline = { histories: FileHistory[]; changes: StepChange[] };
 
-export function reconstructStepTimeline(
+export function buildStepTimeline(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): StepTimeline {
   reportReconstructionProgress(`reconstructing step states from ${records.length} transcript records`);
-  const histories = reconstructFilesOver(records, reader);
+  const histories = getFileHistoriesOver(records, reader);
   const changes: StepChange[] = [];
   for (const when of collectChangeTimes(histories)) {
     changes.push({ when, changeIds: collectChangeIdsAt(histories, when) });
@@ -120,14 +120,14 @@ export function reconstructStepTimeline(
 }
 
 // Reconstructs over EXACTLY the given records, with no surviving-branch filter, so the timeline is literal disk.
-export function reconstructStepStates(
+export function buildStepStates(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): RepoSnapshot[] {
-  const { histories, changes } = reconstructStepTimeline(records, reader);
+  const { histories, changes } = buildStepTimeline(records, reader);
   const states: RepoSnapshot[] = [];
   for (const change of changes) {
-    states.push(produceRepoStateAtTime(histories, change.when));
+    states.push(computeRepoStateAtTime(histories, change.when));
   }
   return states;
 }
@@ -137,13 +137,13 @@ export function countStepsInTranscript(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): number {
-  return reconstructStepTimeline(records, reader).changes.length;
+  return buildStepTimeline(records, reader).changes.length;
 }
 
-// Same order and count as reconstructStepStates, so stepChanges[i] explains steps[i].
-export function reconstructStepChanges(
+// Same order and count as buildStepStates, so stepChanges[i] explains steps[i].
+export function buildStepChanges(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): StepChange[] {
-  return reconstructStepTimeline(records, reader).changes;
+  return buildStepTimeline(records, reader).changes;
 }

@@ -1,18 +1,17 @@
-// Per-row cell builders for the revision timeline (task 121 split from timeline-render-rows.ts, 250-line cap): the fork gutter cell, the role classes, and the small append-one-cell helpers buildTimelineRows composes into each .tl-row.
+// Per-row cell builders for the revision timeline: role classes and append-one-cell helpers.
 
 import { createElement } from "../app-dom.ts";
 import {
   GIT_BASELINE_ROLE_PILL_LABEL,
   computeRolePillClass,
   computeSessionStartLabel,
-} from "./timeline-labels.ts";
+} from "./timeline-labels-pills.ts";
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
 import { renderFileButtonRow } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import {
   AGENT_TURN_NODE_KIND,
   COMMIT_NODE_KIND,
-  SESSION_END_NODE_KIND,
   TOOL_CALL_NODE_KIND,
   USER_TURN_NODE_KIND,
   type CommitNode,
@@ -34,50 +33,14 @@ export function computeRoleClass(kind: TimelineNode["kind"]): string {
   if (kind === COMMIT_NODE_KIND) {
     return "role-commit";
   }
-  // task 160: a raw-line row's text is its classification ("type · verdict") — its own color, not the session-end styling.
+  // task 160: a raw-line row's text is its classification, so it gets its own color.
   if (kind === LINE_NODE_KIND) {
     return "role-line";
   }
   return "role-end";
 }
 
-// Commit and session-end dots render hollow (border ring) — both read as terminators (the old SVG rail's convention, now the .g-hollow class).
-function checkDotIsHollow(kind: TimelineNode["kind"]): boolean {
-  if (kind === COMMIT_NODE_KIND) {
-    return true;
-  }
-  return kind === SESSION_END_NODE_KIND;
-}
-
-// The fork gutter cell (mockup buildGraphCell): the lane-1 rail tinted with the row's session color; rows inside a computeGraphLaneRuns run add the lane-2 rail (fork curve on the run's first row, cut-off on its last) and put their dot on lane 2 (CSS colors it).
-export function buildGraphCell(kind: TimelineNode["kind"], index: number, laneRuns: { startIndex: number; endIndex: number }[], sessionColor: string): HTMLElement {
-  const cell = createElement("div", { class: "tl-graph" });
-  cell.append(createElement("span", { class: "g-rail g-l1", style: `background:${sessionColor}` }));
-  const run = laneRuns.find((candidate) => index >= candidate.startIndex && index <= candidate.endIndex);
-  if (run !== undefined) {
-    const lane2 = createElement("span", { class: "g-rail g-l2" });
-    if (index === run.startIndex) {
-      lane2.classList.add("g-start");
-      cell.append(createElement("span", { class: "g-fork" }));
-    }
-    if (index === run.endIndex) {
-      lane2.classList.add("g-end");
-    }
-    cell.append(lane2);
-  }
-  const dot = createElement("span", { class: `g-dot ${run === undefined ? "g-l1" : "g-l2"}` });
-  if (checkDotIsHollow(kind)) {
-    dot.classList.add("g-hollow");
-    dot.style.color = sessionColor;                    // .g-hollow's ring is currentColor
-  }
-  else if (run === undefined) {
-    dot.style.background = sessionColor;               // lane-2 dots keep the CSS lane color
-  }
-  cell.append(dot);
-  return cell;
-}
-
-// The tinted session-start marker row (extracted from buildTimelineRows).
+// The tinted session-start marker row.
 export function appendSessionStartMarker(context: TimelineRenderContext, rowFragment: DocumentFragment, sessionColor: string, startedSessionId: string): void {
   const marker = createElement("div", { class: "tl-session-start" });
   marker.style.color = sessionColor;
@@ -88,7 +51,7 @@ export function appendSessionStartMarker(context: TimelineRenderContext, rowFrag
   rowFragment.append(marker);
 }
 
-// The commit row's cells (extracted from buildTimelineRows). A plain commit: spacer, "git commit" label, hash pill. The merged git-derived baseline row (task 121): expansion triangle (its bubble carries the baseline file chips), green baseline pill instead of the label, hash pill kept.
+// The commit row's cells: a plain commit, or the merged git-derived baseline row.
 export function appendCommitCells(context: TimelineRenderContext, line: HTMLElement, row: HTMLElement, node: TimelineNode): void {
   if (node.isGitBaseline === true) {
     appendExpansionTriangle(context, line, row);
@@ -103,18 +66,19 @@ export function appendCommitCells(context: TimelineRenderContext, line: HTMLElem
   }
 }
 
-// The ▸ triangle that toggles a row's expanded state (extracted from buildTimelineRows).
+// The triangle that toggles a row's expanded state.
 export function appendExpansionTriangle(context: TimelineRenderContext, line: HTMLElement, row: HTMLElement): void {
   const tri = createElement("span", { class: "tl-tri", text: "▸" });
-  tri.addEventListener("click", (event) => {
+  function toggleRowExpansion(event: Event): void {
     event.stopPropagation();                   // expansion must not change selection
     row.classList.toggle("expanded");
     context.updateToggleLabel();
-  });
+  }
+  tri.addEventListener("click", toggleRowExpansion);
   line.append(tri);
 }
 
-// The { } button that opens the row's JSONL record in the details pane (extracted from buildTimelineRows).
+// The { } button that opens the row's JSONL record in the details pane.
 export function appendJsonRecordButton(context: TimelineRenderContext, line: HTMLElement, index: number): void {
   line.append(createElement("button", {
     class: "tl-json",
@@ -128,21 +92,25 @@ export function appendJsonRecordButton(context: TimelineRenderContext, line: HTM
   }));
 }
 
-// A bubble carries file chips when its node owns them: every agent turn, plus the merged git-derived baseline commit row (task 121). Typed as a predicate so the chip renderer receives the narrowed chip-owning union.
-function checkBubbleShowsFileChips(node: TimelineNode): node is TurnNode | CommitNode {
+// A bubble shows file chips for agent turns and the merged git baseline commit row.
+function isBubbleShowingFileChips(node: TimelineNode): node is TurnNode | CommitNode {
   if (node.kind === AGENT_TURN_NODE_KIND) {
     return true;
   }
   return node.isGitBaseline === true;
 }
 
-// The expanded row's bubble: full text plus agent-turn file chips (extracted from buildTimelineRows).
+// The expanded row's bubble: full text plus agent-turn file chips.
 export function appendExpandedBubble(context: TimelineRenderContext, node: TimelineNode, index: number, previewPane: HTMLElement, main: HTMLElement, row: HTMLElement): void {
   const bubble = createElement("div", { class: `tl-bubble ${computeRoleClass(node.kind)}` });
   bubble.append(node.kind === TOOL_CALL_NODE_KIND ? `${node.toolName}(${node.summary})` : node.text ?? "");
-  if (checkBubbleShowsFileChips(node)) {
-    bubble.append(createElement("div", { class: "timeline-chips" },
-      node.fileChanges!.map((change) => renderFileButtonRow(context, node, index, change, previewPane))));
+  const showsFileChips = isBubbleShowingFileChips(node);
+  if (showsFileChips) {
+    const chipRows: HTMLElement[] = [];
+    for (const change of node.fileChanges!) {
+      chipRows.push(renderFileButtonRow(context, node, index, change, previewPane));
+    }
+    bubble.append(createElement("div", { class: "timeline-chips" }, chipRows));
   }
   main.append(bubble);
   context.expandableRows.push(row);

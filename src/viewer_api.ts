@@ -10,7 +10,7 @@ import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
-import { mergeMultiSourceRecords, groupRecordsBySession } from "./reconstruction_multi_source.ts";
+import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { truncateRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
 import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
@@ -48,7 +48,7 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
   // ponytail: memoize per (stamp, sources) if profiling ever shows it.
   const merged = sources === undefined || sources.length === 0
     ? loaded.records
-    : mergeMultiSourceRecords(groupRecordsBySession(loaded.records), sources);
+    : mergeMultiSourceRecords(splitRecordsBySession(loaded.records), sources);
     // Task 194: the bound cut must happen BEFORE any engine work, like the CLI's --until-revision.
   const records = bound === undefined
     ? merged

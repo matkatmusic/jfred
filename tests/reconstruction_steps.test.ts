@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { produceRepoStateAtTime, resolveFilesAtStep } from "../src/reconstruction_steps.ts";
+import { computeRepoStateAtTime, computeFilesAtStep } from "../src/reconstruction_steps.ts";
 import type { FileHistory, FileRevision } from "../src/reconstruction_events.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
@@ -28,23 +28,23 @@ function createRenamedHistory(): FileHistory {
   };
 }
 
-test("test_produceRepoStateAtTime_keys_a_file_by_its_old_name_before_a_rename", () => {
-  const snapshot = produceRepoStateAtTime([createRenamedHistory()], WRITE_TIME);
+test("test_computeRepoStateAtTime_keys_a_file_by_its_old_name_before_a_rename", () => {
+  const snapshot = computeRepoStateAtTime([createRenamedHistory()], WRITE_TIME);
   assert.deepEqual([...snapshot.keys()].map(String), ["/repo/old.txt"]);
 });
 
-test("test_produceRepoStateAtTime_keys_a_file_by_its_new_name_after_a_rename", () => {
-  const snapshot = produceRepoStateAtTime([createRenamedHistory()], RENAME_TIME);
+test("test_computeRepoStateAtTime_keys_a_file_by_its_new_name_after_a_rename", () => {
+  const snapshot = computeRepoStateAtTime([createRenamedHistory()], RENAME_TIME);
   assert.deepEqual([...snapshot.keys()].map(String), ["/repo/new.txt"]);
 });
 
-test("test_produceRepoStateAtTime_omits_a_file_not_yet_written", () => {
+test("test_computeRepoStateAtTime_omits_a_file_not_yet_written", () => {
   const before = new Date("2025-12-31T00:00:00.000Z");
-  const snapshot = produceRepoStateAtTime([createRenamedHistory()], before);
+  const snapshot = computeRepoStateAtTime([createRenamedHistory()], before);
   assert.equal(snapshot.size, 0);
 });
 
-test("test_resolveFilesAtStep_returns_path_strings_mapped_to_text", () => {
-  const files = resolveFilesAtStep([createRenamedHistory()], RENAME_TIME);
+test("test_computeFilesAtStep_returns_path_strings_mapped_to_text", () => {
+  const files = computeFilesAtStep([createRenamedHistory()], RENAME_TIME);
   assert.deepEqual(files, { "/repo/new.txt": "hello" });
 });

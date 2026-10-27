@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { computeLineageSeedHorizonKey } from "../src/reconstruction_lineage_horizon.ts";
-import { getLineageContentBefore } from "../src/reconstruction_branches.ts";
+import { getLineageContentBefore } from "../src/reconstruction_lineage_content.ts";
 import {
     ReconstructionCounter,
     resetReconstructionCounters,

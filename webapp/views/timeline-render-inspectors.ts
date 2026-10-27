@@ -4,7 +4,7 @@ import { createElement } from "../app-dom.ts";
 import { fetchRawRecords } from "../app-fetch.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
-import { findTimelineNodeIndexForRawLine } from "./timeline-labels.ts";
+import { findTimelineNodeIndexForRawLine } from "./timeline-labels-raw-line.ts";
 import { findJsonlForSession } from "./timeline-sessions.ts";
 import { LINE_NODE_KIND, type LineNode } from "./timeline-line-nodes.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";

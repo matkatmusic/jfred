@@ -1,6 +1,7 @@
-// All-files reconstruction and renderable-event filtering, split out of reconstruction_branches.ts to keep both files within the 250-line cap — split, never condense.  `reconstructFilesOver` is the branch-agnostic all-files core; the accepted-user-edit set and the renderable filters let every view agree on which user edits actually changed a file.
+// All-files reconstruction and the accepted-user-edit filters that let views agree on real edits.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
+import type { Path } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
@@ -16,77 +17,100 @@ import {
   distinctFinalPaths,
   resolveFinalPath,
 } from "./reconstruction_lineage.ts";
-import { getLineageContentBefore, reconstructFileOver } from "./reconstruction_branches.ts";
+import { getFileRevisionsOver } from "./reconstruction_branches.ts";
+import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import type { FileEvent, FileHistory } from "./reconstruction_events.ts";
 
-// The branch-agnostic core: reconstruct every file touched by EXACTLY the records given (no branch selection here) — each with its own history, keyed by the path it ends life at (a renamed file is one history, not two).
-export function reconstructFilesOver(
+// Script-born files leave no Write/Edit event, so the runs that created them add their targets.
+function addScriptCreatedTargets(
+  targets: Path[],
+  records: TranscriptRecord[],
+  reader: BackupReader,
+  renameChain: Map<string, Path>,
+): void {
+  const known = new Set<string>();
+  for (const target of targets) {
+    known.add(target.toString());
+  }
+  for (const path of discoverScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
+    const finalPath = resolveFinalPath(path, renameChain);
+    const isKnown = known.has(finalPath.toString());
+    if (isKnown)
+      continue;
+    known.add(finalPath.toString());
+    targets.push(finalPath);
+  }
+}
+
+// Per-file backstop: a failure degrades to an empty history for this file only (task 119).
+function getFileHistoryOrEmpty(records: TranscriptRecord[], target: Path, reader?: BackupReader): FileHistory {
+  try {
+    const revisions = getFileRevisionsOver(records, target, new Set<string>(), reader);
+    return { target, revisions };
+  }
+  catch (error) {
+    noteReconstructionFailure({ scope: FailureScope.file, stage: "getFileHistoriesOver", target, reason: String(error) });
+    return { target, revisions: [] };
+  }
+}
+
+// Reconstruct every file touched by exactly these records, keyed by the path it ends life at.
+export function getFileHistoriesOver(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): FileHistory[] {
-  // task 191: this runs once per branch pass and precedes any per-target line — announce it so stage-level --progress keeps moving through the extraction/lineage stretch.
   reportReconstructionProgress(`extracting file events from ${records.length} records`);
   const extracted = extractFileEvents(records);
-  // task 155: sandbox-proven script moves join the chain so a moved-away source collapses into its destination's history instead of surviving as an alive 1-revision file.
   const events = appendScriptMoveRenames(extracted, records, reader, reader ? getLineageContentBefore(records, reader) : undefined);
   const renameChain = buildRenameChain(events);
   const targets = distinctFinalPaths(events, renameChain);
   if (reader) {
-    // Script-born files (an out.txt, a shutil.move destination) leave no Write/Edit event, so they only become targets through the runs that created them.
-    const known = new Set(targets.map((target) => target.toString()));
-    for (const path of discoverScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
-      const finalPath = resolveFinalPath(path, renameChain);
-      if (known.has(finalPath.toString()))
-        continue;
-      known.add(finalPath.toString());
-      targets.push(finalPath);
-    }
+    addScriptCreatedTargets(targets, records, reader, renameChain);
   }
-  return targets.map((target, index) => {
+  const histories: FileHistory[] = [];
+  for (const [index, target] of targets.entries()) {
     reportReconstructionProgress(`reconstructing ${target}`, index + 1, targets.length);
-    // task 119: per-file backstop — anything the per-stage/per-event nets missed degrades to an empty history for THIS file only, noted for the wire document.
-    try {
-      const revisions = reconstructFileOver(records, target, new Set<string>(), reader);
-      return { target, revisions };
-    }
-    catch (error) {
-      noteReconstructionFailure({ scope: FailureScope.file, stage: "reconstructFilesOver", target, reason: String(error) });
-      return { target, revisions: [] };
-    }
-  });
+    histories.push(getFileHistoryOrEmpty(records, target, reader));
+  }
+  return histories;
 }
 
-// The changeIds of every user edit that ACTUALLY changed a file, across all conversation branches. A user edit's revision survives replay only when its snapshot differs from the file's current content (reconstruction_replay.userEditChangesContent), so a redundant disk-echo snapshot — the IDE echoes an `edited_text_file` whenever a file is written or read — leaves no revision and is absent here. The graph views consult this to drop echo turns while keeping genuine user-edit turns, so every view agrees on which user edits are real changes. Branch-aware: a snapshot is judged against ITS OWN branch's content (s13's echo matches the read branch's restored content, not the cross-branch mix).
+// The changeIds of surviving user-edit revisions in one reconstructed file history.
+function getUserEditIdsOf(history: FileHistory): string[] {
+  const changeIds: string[] = [];
+  for (const revision of history.revisions) {
+    const isUserEdit = revision.kind === EventKind.userEdit;
+    if (isUserEdit)
+      changeIds.push(revision.changeId.toString());
+  }
+  return changeIds;
+}
+
+// Add every surviving user-edit changeId of one branch's histories into the accepted set.
+function addBranchUserEditIds(histories: FileHistory[], accepted: Set<string>): void {
+  for (const history of histories) {
+    for (const id of getUserEditIdsOf(history)) {
+      accepted.add(id);
+    }
+  }
+}
+
+// The changeIds of every user edit that actually changed a file, judged per conversation branch.
 export function collectAcceptedUserEditIds(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): Set<string> {
   const accepted = new Set<string>();
-  // task 149: each branch pass silently re-runs the whole per-target loop — announce its position so the console keeps advancing through this stretch.
   const branches = findConversationBranches(records);
   for (const [branchIndex, branch] of branches.entries()) {
     reportReconstructionProgress(`reconstructing accepted user edits — branch ${branchIndex + 1}/${branches.length}`);
     const branchRecords = selectBranchRecords(records, branch.tip);
-    addBranchUserEditIds(reconstructFilesOver(branchRecords, reader), accepted);
+    addBranchUserEditIds(getFileHistoriesOver(branchRecords, reader), accepted);
   }
   return accepted;
 }
 
-// The changeIds of the surviving user-edit revisions in one branch's reconstructed histories.
-function userEditIdsOf(history: FileHistory): string[] {
-  const userEditRevisions = history.revisions.filter((revision) => revision.kind === EventKind.userEdit);
-  const changeIds = userEditRevisions.map((revision) => revision.changeId.toString());
-  return changeIds;
-}
-
-// Add every branch history's surviving user-edit changeId into the accumulating accepted set.
-function addBranchUserEditIds(histories: FileHistory[], accepted: Set<string>): void {
-  for (const id of histories.flatMap(userEditIdsOf)) {
-    accepted.add(id);
-  }
-}
-
-// Whether a file event should appear in a rendered view: every non-user-edit event always does; a user-edit event does only when it actually changed content (its changeId is in the accepted set).
+// Non-user-edit events always render; a user edit renders only when its changeId is accepted.
 export function isRenderableEvent(event: FileEvent, accepted: Set<string>): boolean {
   if (event.kind !== EventKind.userEdit) {
     return true;
@@ -94,7 +118,7 @@ export function isRenderableEvent(event: FileEvent, accepted: Set<string>): bool
   return accepted.has(event.changeId.toString());
 }
 
-// The transcript's file events filtered to those a view should render: drops redundant disk-echo user edits (an `edited_text_file` snapshot that changed nothing). `accepted` comes from collectAcceptedUserEditIds; pass undefined to keep every event (an unfiltered letter pass).
+// The transcript's file events minus redundant disk-echo user edits; undefined keeps every event.
 export function extractRenderableEvents(
   records: TranscriptRecord[],
   accepted?: Set<string>,
@@ -103,5 +127,11 @@ export function extractRenderableEvents(
   if (accepted === undefined) {
     return events;
   }
-  return events.filter((event) => isRenderableEvent(event, accepted));
+  const renderable: FileEvent[] = [];
+  for (const event of events) {
+    const isRenderable = isRenderableEvent(event, accepted);
+    if (isRenderable)
+      renderable.push(event);
+  }
+  return renderable;
 }

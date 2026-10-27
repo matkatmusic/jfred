@@ -2,7 +2,7 @@
 
 import { WireEditSide } from "../webapp/layer1-wire-edits.ts";
 import { groupSessionFiles, loadSessionRewinds } from "./layer1_branch_sessions.ts";
-import { listLanes, reconstructGroupHistories } from "./layer1_branches_wire.ts";
+import { buildGroupHistories, listLanes } from "./layer1_branches_lanes.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import { linesTextOf } from "./reconstruction_revisions.ts";
 import type { Path } from "./structures/domain.ts";
@@ -14,7 +14,7 @@ export function readBranchRevisionSide(projectFolder: Path, sessionFiles: readon
     if (!listLanes(rewinds).some((lane) => lane.changeIds.has(changeId))) {
       continue;
     }
-    const history = reconstructGroupHistories(rewinds).find((candidate) => relativizeToProjectFolder(projectFolder, candidate.target.toString()) === relativePath);
+    const history = buildGroupHistories(rewinds).find((candidate) => relativizeToProjectFolder(projectFolder, candidate.target.toString()) === relativePath);
     const index = history?.revisions.findIndex((revision) => revision.changeId.toString() === changeId) ?? -1;
     if (history === undefined || index < 0) {
       throw new Error(`no disk revision ${changeId} for ${relativePath}`);

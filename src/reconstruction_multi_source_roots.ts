@@ -6,7 +6,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource } from "./parse/loadTranscript.ts";
 import { findMatchingSourceEntry } from "./reconstruction_sidecar_reader.ts";
-import { sessionIdOf } from "./reconstruction_multi_source_join.ts";
+import { getSessionId } from "./reconstruction_multi_source_paths.ts";
 
 // §b1: source's projects root is dirname(dirname(jsonl path)).
 export function findDeclaredRootForRecord(record: TranscriptRecord, sources: SourceEntry[]): Path | undefined {
@@ -23,7 +23,7 @@ export function computeSessionRoots(records: TranscriptRecord[], sources: Source
   const declaredRoots = new Map<string, Path>();
   const fallbackCwds = new Map<string, Path>();
   for (const record of records) {
-    const sessionId = sessionIdOf(record);
+    const sessionId = getSessionId(record);
     if (sessionId === undefined) {
       continue;
     }

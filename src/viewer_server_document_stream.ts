@@ -5,7 +5,7 @@ import {
   formatSendingDocumentLabel,
 } from "./viewer_api.ts";
 import { decideDocumentResponse, type BaselineQuestion } from "./viewer_api_consent.ts";
-import { resolveJsonlPaths } from "./viewer_api_sources.ts";
+import { findJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
@@ -57,7 +57,7 @@ export function streamDocumentResponse(response: ServerResponse, request: Docume
       return;
     }
     reportStage(`resolving transcript files for ${projectName}`);
-    const jsonlPaths = resolveJsonlPaths(projectName, jsonlName);
+    const jsonlPaths = findJsonlPaths(projectName, jsonlName);
     reportStage(`resolved ${jsonlPaths.length} transcript file(s)`);
     // This parse is the only one; the build reuses its records from the cache.
     const { records } = loadProjectRecords(jsonlPaths, writeNdjsonLine);

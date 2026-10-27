@@ -8,7 +8,7 @@ import { Path } from "./structures/domain.ts";
 import { computeLayer1Defaults } from "./viewer_api_layer1_defaults.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 
-// One project's saved header state. Plain strings rather than Path/Date: this IS the on-disk record and the POST body, and it round-trips through JSON untouched.
+// One project's saved header state; plain strings because it is the on-disk JSON record.
 export interface Layer1ProjectSettings {
   dir: string;
   repo: string;
@@ -25,14 +25,14 @@ export interface Layer1Settings {
   projects: Record<string, Layer1ProjectSettings>;
 }
 
-// Module-level and overridable so a test can redirect it — nothing may write to the real home.
+// Overridable so a test can redirect it away from the real home.
 let settingsFilePath = new Path(join(homedir(), ".jfred-layer1-settings.json"));
 
 export function setLayer1SettingsPath(path: Path): void {
   settingsFilePath = path;
 }
 
-// A settings file is a convenience, so a missing OR corrupt one reads as "nothing saved" rather than stopping the page from loading.
+// A missing or corrupt settings file reads as "nothing saved" so the page still loads.
 export function readLayer1Settings(): Layer1Settings {
   try {
     const parsed = JSON.parse(readFileSync(settingsFilePath.toString(), "utf8")) as Partial<Layer1Settings>;
@@ -43,9 +43,12 @@ export function readLayer1Settings(): Layer1Settings {
   }
 }
 
-// Read-modify-write, keyed by `dir`, merged onto any existing entry so partial saves never drop other fields.
+// Read-modify-write keyed by `dir`, merged so partial saves keep other fields.
 export function saveLayer1Project(project: Partial<Layer1ProjectSettings> & { dir: string }): void {
-  if (typeof project.dir !== "string" || project.dir === "") {
+  const isDirString = typeof project.dir === "string";
+  const isDirEmpty = project.dir === "";
+  const isDirInvalid = !isDirString || isDirEmpty;
+  if (isDirInvalid) {
     throw new Error("body must carry a non-empty dir");
   }
   const settings = readLayer1Settings();
@@ -54,18 +57,18 @@ export function saveLayer1Project(project: Partial<Layer1ProjectSettings> & { di
   writeFileSync(settingsFilePath.toString(), JSON.stringify(settings, null, 2));
 }
 
-// The saved file PLUS the cold-start defaults, in one round trip: the page needs both to decide what to fill its boxes with, and asking twice would let it render once against the wrong answer.
-export function handleLayer1SettingsRequest(response: ServerResponse): void {
+// Saved file plus cold-start defaults in one round trip, so the page never renders against half the answer.
+export function sendLayer1Settings(response: ServerResponse): void {
   sendJson(response, 200, { ...readLayer1Settings(), defaults: computeLayer1Defaults() });
 }
 
-// POST body = one project entry. Body accumulation follows handleConfigUpdate in viewer_server.ts, the existing precedent for a POST in this server.
-export function handleLayer1SettingsUpdate(request: IncomingMessage, response: ServerResponse): void {
+// POST body = one project entry; accumulation follows receiveConfigUpdate in viewer_server_config.ts.
+export function receiveLayer1SettingsUpdate(request: IncomingMessage, response: ServerResponse): void {
   let body = "";
-  request.on("data", (chunk: Buffer) => {
+  function appendChunk(chunk: Buffer): void {
     body += chunk.toString();
-  });
-  request.on("end", () => {
+  }
+  function saveBodyAndRespond(): void {
     try {
       saveLayer1Project(JSON.parse(body) as Partial<Layer1ProjectSettings> & { dir: string });
       sendJson(response, 200, { saved: true });
@@ -73,5 +76,7 @@ export function handleLayer1SettingsUpdate(request: IncomingMessage, response: S
     catch (error) {
       sendJson(response, 400, { error: String(error) });
     }
-  });
+  }
+  request.on("data", appendChunk);
+  request.on("end", saveBodyAndRespond);
 }

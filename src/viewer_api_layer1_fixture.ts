@@ -15,7 +15,7 @@ import { buildFixtureScriptRunsPayload } from "./viewer_api_layer4_fixture_paylo
 import { buildFixtureBranchesPayload } from "./viewer_api_layer5_mockup_branches.ts";
 import type { Layer1ProjectSettings, Layer1Settings } from "./viewer_api_layer1_settings.ts";
 import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 let fixtureModeOn = false;
 export function enableFixtureMode(): void {
@@ -134,7 +134,7 @@ function receiveFixtureSettings(request: IncomingMessage, response: ServerRespon
 }
 
 function sendFixtureScanSource(response: ServerResponse, query: URLSearchParams): void {
-  const kind = requireParam(query, "kind");
+  const kind = getRequiredParam(query, "kind");
   const found = kind === SourceKind.jsonl ? SESSIONS.length : SNAPSHOTS.length;
   sendJson(response, 200, { found });
 }

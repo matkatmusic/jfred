@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import {
-  reconstructStepStates,
-  reconstructStepChanges,
+  buildStepStates,
+  buildStepChanges,
   type RepoSnapshot,
   type StepChange,
 } from "../src/reconstruction_steps.ts";
@@ -15,7 +15,7 @@ import {
   someStepReproduces,
 } from "../src/reconstruction_step_snapshot.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { mergeMultiSourceRecords, groupRecordsBySession } from "../src/reconstruction_multi_source.ts";
+import { mergeMultiSourceRecords, splitRecordsBySession } from "../src/reconstruction_multi_source.ts";
 import { Path } from "../src/structures/domain.ts";
 import {
   enableProvenance,
@@ -132,15 +132,15 @@ export function checkScenario(scenario: CoveredScenario): ScenarioResult {
   // Spec S7c: a multi-source capture routes through the viewer's merge stages + per-source reader.
   const records = scenario.sources === undefined
     ? loaded
-    : mergeMultiSourceRecords(groupRecordsBySession(loaded), scenario.sources);
+    : mergeMultiSourceRecords(splitRecordsBySession(loaded), scenario.sources);
   console.log(`   Loaded ${records.length} transcript records from ${scenario.jsonlPaths.length} JSONL files`);
   const reader = buildSidecarReader(records, scenario.sources);
   const uuidLineIndex = buildUuidLineIndex(scenario.jsonlPaths);
   enableProvenance();
-  const steps = reconstructStepStates(records, reader);
+  const steps = buildStepStates(records, reader);
   const provenance = drainProvenance();
   disableProvenance();
-  const stepChanges = reconstructStepChanges(records, reader);
+  const stepChanges = buildStepChanges(records, reader);
   const mismatches: StepMismatch[] = [];
   let passed = 0;
   let userEdits = 0;

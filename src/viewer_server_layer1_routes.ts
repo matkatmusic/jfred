@@ -10,7 +10,7 @@ import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
 import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
 import { handleLayer1ScriptRunsRequest } from "./viewer_api_layer1_script_runs.ts";
 import { handleLayer1SessionsRequest } from "./viewer_api_layer1_sessions.ts";
-import { handleLayer1SettingsRequest, handleLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
+import { sendLayer1Settings, receiveLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
 import { handleScanSourceRequest } from "./viewer_api_layer1_sources.ts";
 import { dispatchLayer1FixtureRoute, isFixtureMode } from "./viewer_api_layer1_fixture.ts";
 
@@ -26,10 +26,10 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
   }
   // The POST test precedes the GET one for the same path, exactly as /api/config is ordered.
   if (request.method === "POST" && url.pathname === "/api/layer1-settings") {
-    handleLayer1SettingsUpdate(request, response);
+    receiveLayer1SettingsUpdate(request, response);
   }
   else if (url.pathname === "/api/layer1-settings") {
-    handleLayer1SettingsRequest(response);
+    sendLayer1Settings(response);
   }
   else if (url.pathname === "/api/layer1-view") {
     handleLayer1ViewRequest(response, url.searchParams);

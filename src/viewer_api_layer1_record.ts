@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { Path } from "./structures/domain.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 export function readTranscriptLine(sessionFile: Path, lineNumber: number): unknown {
   if (!sessionFile.toString().endsWith(".jsonl")) {
@@ -20,5 +20,5 @@ export function readTranscriptLine(sessionFile: Path, lineNumber: number): unkno
 }
 
 export function handleLayer1RecordRequest(response: ServerResponse, query: URLSearchParams): void {
-  sendJson(response, 200, readTranscriptLine(new Path(requireParam(query, "jsonl")), Number(requireParam(query, "line"))));
+  sendJson(response, 200, readTranscriptLine(new Path(getRequiredParam(query, "jsonl")), Number(getRequiredParam(query, "line"))));
 }

@@ -1,12 +1,10 @@
-// GET /api/layer1-refs?repo=&ref= — the branch names, the checked-out branch and a head window of commits that fill Layer 1's two header dropdowns (task 286).
-//
-// Its own module rather than an addition to viewer_api_repo.ts: that file is the classic app's task-137 picker surface and already carries a 500-commit `git log`, tree-match counting and project-paths writing. This route must stay fast, and it is Layer 1's alone. The row shape and the log parser ARE reused from there (no-forwarding-layers: imported, not re-declared), because `git log --format=%H%x09%ad%x09%s` is the exact shape both need.
+// GET /api/layer1-refs?repo=&ref= — the branch names, the checked-out branch and a head window of commits that fill Layer 1's two header dropdowns (task 286).  Its own module rather than an addition to viewer_api_repo.ts: that file is the classic app's task-137 picker surface and already carries a 500-commit `git log`, tree-match counting and project-paths writing. This route must stay fast, and it is Layer 1's alone. The row shape and the log parser ARE reused from there (no-forwarding-layers: imported, not re-declared), because `git log --format=%H%x09%ad%x09%s` is the exact shape both need.
 
 import { spawnSync } from "node:child_process";
 import { type ServerResponse } from "node:http";
 import { Path } from "./structures/domain.ts";
 import { requireExistingFolderParam, resolveRequestedRef } from "./viewer_api_layer1_route.ts";
-import { parseGitLogOutput } from "./viewer_api_repo.ts";
+import { parseGitLogOutput } from "./viewer_api_repo_commits.ts";
 import type { Layer1RefsView } from "../webapp/layer1-wire.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 

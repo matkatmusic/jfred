@@ -1,6 +1,4 @@
-// Generates static GitHub Pages demo data from the s87 bundle under docs/engineb/.
-//
-// Run from the jfred repo root: `npx tsx scripts/generate_pages_demo_data.ts` (build webapp/dist first: `npm run build:webapp`).
+// Generates static GitHub Pages demo data from the s87 bundle; run from the jfred root with npx tsx.
 
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -9,11 +7,11 @@ import {
   applyProjectOverrides,
   getMergedProjectPaths,
   getProjectsDir,
-  scanProjects,
   setFileHistoryDir,
   setProjectsDir,
 } from "../src/viewer_api_projects.ts";
-import { resolveJsonlPaths } from "../src/viewer_api_sources.ts";
+import { scanProjects } from "../src/viewer_api_project_scan.ts";
+import { findJsonlPaths } from "../src/viewer_api_sources.ts";
 import { loadProjectRecords } from "../src/viewer_api_records.ts";
 import { buildDocumentWithConsent } from "../src/viewer_api.ts";
 import { computeReconstructionPrescan } from "../src/viewer_api_prescan.ts";
@@ -30,12 +28,12 @@ const APP_DIR = join(OUTPUT_DIR, "app");
 // Fixed bootId so the static demo never invalidates the client's consent choices.
 const STATIC_DEMO_BOOT_ID = "engineb-static-demo";
 
-const logGenerationProgress: ProgressSink = (event) => {
+export const logGenerationProgress: ProgressSink = (event) => {
   const counter = event.current === undefined ? "" : ` (${event.current}/${event.total})`;
   console.log(`   ${event.label}${counter}`);
 };
 
-function writeJsonFile(filePath: string, value: unknown): void {
+export function writeJsonFile(filePath: string, value: unknown): void {
   writeFileSync(filePath, JSON.stringify(value) + "\n");
 }
 
@@ -65,7 +63,8 @@ function generateCannedResponses(): void {
 
   console.log("canning /api/raw (one file per session)");
   for (const entry of readdirSync(join(DEMO_PROJECTS_DIR, DEMO_PROJECT_NAME))) {
-    if (entry.endsWith(".jsonl")) {
+    const isJsonlEntry = entry.endsWith(".jsonl");
+    if (isJsonlEntry) {
       cpSync(join(DEMO_PROJECTS_DIR, DEMO_PROJECT_NAME, entry), join(DATA_DIR, "raw", entry));
     }
   }
@@ -73,7 +72,7 @@ function generateCannedResponses(): void {
   console.log("canning /api/blob (the demo file-history tree, verbatim)");
   cpSync(DEMO_FILE_HISTORY_DIR, join(DATA_DIR, "blobs"), { recursive: true });
 
-  const jsonlPaths = resolveJsonlPaths(DEMO_PROJECT_NAME, null);
+  const jsonlPaths = findJsonlPaths(DEMO_PROJECT_NAME, null);
   const { records } = loadProjectRecords(jsonlPaths);
 
   console.log("canning /api/prescan");
@@ -86,21 +85,23 @@ function generateCannedResponses(): void {
 }
 
 // Rewrite absolute /app/ URLs to relative and inject the fetch-shim before the module script.
-function assembleStaticWebapp(): void {
+function copyStaticWebapp(): void {
   console.log("assembling docs/engineb/ webapp copy");
   rmSync(APP_DIR, { recursive: true, force: true });
   cpSync(join(JFRED_ROOT, "webapp", "dist"), APP_DIR, { recursive: true });
   cpSync(join(JFRED_ROOT, "webapp", "styles.css"), join(APP_DIR, "styles.css"));
   cpSync(join(JFRED_ROOT, "webapp", "vendor"), join(APP_DIR, "vendor"), { recursive: true });
 
-  const pageHtml = readFileSync(join(JFRED_ROOT, "webapp", "webapp_old.html"), "utf8")
-    .replaceAll('"/app/', '"app/')
-    .replace("<script type=\"module\"", "<script src=\"static-shim.js\"></script>\n    <script type=\"module\"");
+  const sourceHtml = readFileSync(join(JFRED_ROOT, "webapp", "webapp_old.html"), "utf8");
+  const relativeUrlHtml = sourceHtml.replaceAll('"/app/', '"app/');
+  const pageHtml = relativeUrlHtml.replace("<script type=\"module\"", "<script src=\"static-shim.js\"></script>\n    <script type=\"module\"");
   writeFileSync(join(OUTPUT_DIR, "webapp_old.html"), pageHtml);
 }
 
-extractDemoRepoTar();
-generateCannedResponses();
-assembleStaticWebapp();
-console.log("done — verify with: python3 -m http.server -d docs  →  /engineb/webapp_old.html");
+if (process.argv[1] === import.meta.filename) {
+  extractDemoRepoTar();
+  generateCannedResponses();
+  copyStaticWebapp();
+  console.log("done — verify with: python3 -m http.server -d docs  →  /engineb/webapp_old.html");
+}
 

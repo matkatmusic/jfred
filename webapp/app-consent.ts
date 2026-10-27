@@ -3,83 +3,34 @@
 import { createElement } from "./app-dom.ts";
 import { storeConsentChoice } from "./app-choices.ts";
 import { type WireConsentScript } from "./app-fetch.ts";
-import {
-  checkConsentScriptOverflowsPreview,
-  clampConsentSelectionStep,
-  ConsentBlockKind,
-  CONSENT_SCRIPT_LANGUAGE_PATH,
-  findDefaultConsentSelectionIndex,
-  formatConsentSourceToken,
-  groupConsentScriptsIntoBlocks,
-  splitInlineInterpreterCode,
-} from "./app-consent-model.ts";
+import { ConsentBlockKind, groupConsentScriptsIntoBlocks } from "./app-consent-model.ts";
+import { attachConsentNavigation } from "./app-consent-nav.ts";
+import { appendReadOnlyScriptsBlock, buildConsentScriptRow, toggleReadOnlyBlocksVisibility } from "./app-consent-rows.ts";
+import { attachToggleAllButton } from "./app-consent-toggle-all.ts";
 import { renderRoute } from "./app-router.ts";
-import { renderCodeInto } from "./highlight.ts";
 
-// Shell lines carrying inline code (`python3 -c "…"`) highlight only the quoted body, in the interpreter's language.
-function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
-  const pre = createElement("pre");
-  const inline = splitInlineInterpreterCode(script.code);
-  if (inline === undefined) {
-    renderCodeInto(pre, script.code, CONSENT_SCRIPT_LANGUAGE_PATH);
-  }
-  else {
-    const bodySpan = createElement("span");
-    renderCodeInto(bodySpan, inline.body, inline.languagePath);
-    pre.append(document.createTextNode(inline.prefix), bodySpan, document.createTextNode(inline.suffix));
-  }
-  const row = createElement("div", { class: "consent-script" }, [
-    createElement("div", { class: "muted", text: new Date(script.timestamp).toLocaleString() + (script.cwd ? `  ·  cwd ${script.cwd}` : "") + formatConsentSourceToken(script.source) }),
-    pre,
-  ]);
-  if (checkConsentScriptOverflowsPreview(script.code)) {
-    const expandButton = createElement("button", { class: "toolbar-btn", text: "Expand" });
-    expandButton.onclick = () => {
-      const nowExpanded = pre.classList.toggle("expanded");
-      expandButton.textContent = nowExpanded ? "Collapse" : "Expand";
-    };
-    row.append(expandButton);
-  }
-  return row;
-}
-
-// Shares the per-block <details> state the triangles use: any block closed means open all.
-function toggleReadOnlyBlocksVisibility(box: HTMLElement): void {
-  const detailsBlocks = [...box.querySelectorAll<HTMLDetailsElement>("details.consent-readonly-block")];
-  const shouldOpen = detailsBlocks.some((block) => !block.open);
-  for (const block of detailsBlocks)
-    block.open = shouldOpen;
-}
-
-function appendReadOnlyScriptsBlock(box: HTMLElement, scripts: WireConsentScript[]): void {
-  const firstTimestamp = new Date(scripts[0]!.timestamp).toLocaleString();
-  box.append(createElement("details", { class: "consent-readonly-block" }, [
-    createElement("summary", { class: "muted", text: `----- ${firstTimestamp} ${scripts.length} readonly script(s) -----` }),
-    ...scripts.map(buildConsentScriptRow),
-  ]));
-}
-
-function updateRowExpandButtonLabel(pre: HTMLPreElement, shouldExpand: boolean): void {
-  const row = pre.parentElement;
-  if (row !== null) {
-    const rowButton = row.querySelector("button");
-    if (rowButton !== null) {
-      rowButton.textContent = shouldExpand ? "Collapse" : "Expand";
+function countReadOnlyScripts(scripts: WireConsentScript[]): number {
+  let readOnlyCount = 0;
+  for (const script of scripts) {
+    if (script.readOnly === true) {
+      readOnlyCount++;
     }
   }
+  return readOnlyCount;
+}
+
+function applyConsentChoice(project: string, choice: string): void {
+  storeConsentChoice(project, choice);
+  renderRoute();
 }
 
 // The choice is remembered per project for this browser session only.
 export function renderConsentDialog(container: HTMLElement, project: string, scripts: WireConsentScript[]): void {
-  const readOnlyCount = scripts.filter((script) => script.readOnly === true).length;
+  const readOnlyCount = countReadOnlyScripts(scripts);
   const modifyingCount = scripts.length - readOnlyCount;
   const countSplit = readOnlyCount > 0 ? ` — ${modifyingCount} modifying, ${readOnlyCount} read-only` : "";
-  const decide = (choice: string) => {
-    storeConsentChoice(project, choice);
-    renderRoute();
-  };
-  const runButton = createElement("button", { class: "toolbar-btn consent-run", text: "Run scripts for this reconstruction", onclick: () => decide("1") }) as HTMLButtonElement;
-  const continueButton = createElement("button", { class: "toolbar-btn", text: "Continue without running", onclick: () => decide("0") }) as HTMLButtonElement;
+  const runButton = createElement("button", { class: "toolbar-btn consent-run", text: "Run scripts for this reconstruction", onclick: () => applyConsentChoice(project, "1") }) as HTMLButtonElement;
+  const continueButton = createElement("button", { class: "toolbar-btn", text: "Continue without running", onclick: () => applyConsentChoice(project, "0") }) as HTMLButtonElement;
   const jumpToTopButton = createElement("button", { class: "toolbar-btn consent-jump-top", text: "Jump to top", onclick: () => container.scrollTo({ top: 0, behavior: "smooth" }) }) as HTMLButtonElement;
   const prevButton = createElement("button", { class: "toolbar-btn", text: "< Prev" }) as HTMLButtonElement;
   const nextButton = createElement("button", { class: "toolbar-btn", text: "Next >" }) as HTMLButtonElement;
@@ -111,75 +62,8 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
       appendReadOnlyScriptsBlock(box, block.scripts);
     }
   }
-  // Grouping is contiguous and order-preserving, so allConsentRows()[i] matches scripts[i].
-  const allConsentRows = () => [...box.querySelectorAll<HTMLElement>(".consent-script")];
-  const collectVisibleConsentRows = () => allConsentRows()
-    .filter((row) => row.closest("details:not([open])") === null);
-  const defaultIndex = findDefaultConsentSelectionIndex(scripts);
-  let selectedRow: HTMLElement | undefined = defaultIndex === undefined ? undefined : allConsentRows()[defaultIndex];
-  const updateScriptNavState = () => {
-    const visibleRows = collectVisibleConsentRows();
-    if (selectedRow === undefined || !visibleRows.includes(selectedRow)) {
-      // Fall back to the first visible row so the selection never sits on a hidden script.
-      selectedRow = visibleRows[0];
-    }
-    for (const row of allConsentRows()) {
-      row.classList.toggle("consent-selected", row === selectedRow);
-    }
-    const nothingNavigable = visibleRows.length === 0;
-    prevButton.hidden = nothingNavigable;
-    nextButton.hidden = nothingNavigable;
-    navCounter.hidden = nothingNavigable;
-    if (selectedRow !== undefined) {
-      const selectedIndex = visibleRows.indexOf(selectedRow);
-      prevButton.disabled = selectedIndex <= 0;
-      nextButton.disabled = selectedIndex >= visibleRows.length - 1;
-      navCounter.textContent = `Script ${selectedIndex + 1} of ${visibleRows.length}`;
-    }
-  };
-  const navigateConsentScript = (delta: number) => {
-    const visibleRows = collectVisibleConsentRows();
-    if (visibleRows.length === 0) {
-      return;
-    }
-    const currentIndex = selectedRow === undefined ? -1 : visibleRows.indexOf(selectedRow);
-    selectedRow = visibleRows[clampConsentSelectionStep(currentIndex, delta, visibleRows.length)];
-    updateScriptNavState();
-    selectedRow?.scrollIntoView({ block: "center", behavior: "smooth" });
-  };
-  prevButton.onclick = () => navigateConsentScript(-1);
-  nextButton.onclick = () => navigateConsentScript(1);
-  // <details> toggle events only surface in the capture phase, including programmatic opens, so one listener covers every expand path.
-  box.addEventListener("toggle", () => updateScriptNavState(), true);
-  updateScriptNavState();
-  // Re-query the DOM per click since Expand and Show/hide share state; onclick avoids addEventListener stacking handlers on re-renders.
-  const toggleAllButton = expandAllButton;
-  const collectExpandables = () => ({
-    previews: [...box.querySelectorAll<HTMLPreElement>(".consent-script pre")]
-      .filter((pre) => checkConsentScriptOverflowsPreview(pre.textContent ?? "")),
-    readOnlyBlocks: [...box.querySelectorAll<HTMLDetailsElement>("details.consent-readonly-block")],
-  });
-  const updateToggleAllLabel = () => {
-    const { previews, readOnlyBlocks } = collectExpandables();
-    const anyCollapsed = previews.some((pre) => !pre.classList.contains("expanded"))
-            || readOnlyBlocks.some((block) => !block.open);
-    const nothingExpandable = previews.length === 0 && readOnlyBlocks.length === 0;
-    toggleAllButton.textContent = anyCollapsed || nothingExpandable ? "Expand All" : "Collapse All";
-  };
-  toggleAllButton.onclick = () => {
-    const { previews, readOnlyBlocks } = collectExpandables();
-    const shouldExpand = previews.some((pre) => !pre.classList.contains("expanded"))
-            || readOnlyBlocks.some((block) => !block.open);
-    for (const pre of previews)
-      pre.classList.toggle("expanded", shouldExpand);
-    for (const block of readOnlyBlocks)
-      block.open = shouldExpand;
-    for (const pre of previews) {
-      updateRowExpandButtonLabel(pre, shouldExpand);
-    }
-    updateToggleAllLabel();
-  };
-  updateToggleAllLabel();
+  attachConsentNavigation(box, scripts, { prevButton, nextButton, navCounter });
+  attachToggleAllButton(box, expandAllButton);
   // Hide the skeleton button so two Expand All buttons never show at once; renderRoute un-hides it.
   (document.getElementById("toggle-all") as HTMLButtonElement).hidden = true;
   container.append(box);

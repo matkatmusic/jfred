@@ -4,11 +4,11 @@ import type { Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType } from "./structures/vocabulary.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
-import { reconstructStepTimeline } from "./reconstruction_steps.ts";
+import { buildStepTimeline } from "./reconstruction_steps.ts";
 import { reconstructAll } from "./reconstruction_engine.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX } from "./reconstruction_reseed.ts";
+import { ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX } from "./reconstruction_reseed_seeds.ts";
 import { getScriptRunSourceIdFromChangeId } from "./reconstruction_script_execution.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
@@ -94,7 +94,7 @@ export function buildStepSnapshots(
   reader: BackupReader | undefined,
   surviving?: FileHistory[],
 ): { steps: StepSnapshot[]; stepFileHistories: FileHistory[] } {
-  const { histories, changes } = reconstructStepTimeline(records, reader);
+  const { histories, changes } = buildStepTimeline(records, reader);
   reportReconstructionProgress("indexing change ids across surviving files");
   const pathOf = buildChangeIdsToPaths(surviving ?? reconstructAll(records, reader));
   const sessionOf = buildChangeIdsToSessionIds(records);

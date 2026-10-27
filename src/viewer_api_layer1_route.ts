@@ -8,11 +8,11 @@ import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { CommitTimeSource } from "../webapp/layer1-wire.ts";
 import { buildLayer1View } from "./viewer_api_layer1.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 // Validated here so a bad folder is a 400, not an ENOENT; no allowlist — the user's own machine.
 export function requireExistingFolderParam(query: URLSearchParams, name: string): Path {
-  const value = requireParam(query, name);
+  const value = getRequiredParam(query, name);
   if (!existsSync(value)) {
     throw new Error(`${name} folder does not exist: ${value}`);
   }

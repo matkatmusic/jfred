@@ -1,8 +1,4 @@
-// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313), Edit `?editChangeId&side&path&dir&jsonl` (355).
-//
-// Task 299: `&binary=1` answers raw bytes with an image content-type; the default stays `{ content }` as UTF-8.
-//
-// Both inputs are trust boundaries: the hash reaches a git argument, the path reaches the filesystem.
+// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313), Edit `?editChangeId&side&path&dir&jsonl` (355).  Task 299: `&binary=1` answers raw bytes with an image content-type; the default stays `{ content }` as UTF-8.  Both inputs are trust boundaries: the hash reaches a git argument, the path reaches the filesystem.
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -11,7 +7,7 @@ import { join, resolve, sep } from "node:path";
 import { Path } from "./structures/domain.ts";
 import { isEditFileRequest, readEditFileContent } from "./viewer_api_layer1_edit_file.ts";
 import { isSnapshotFileRequest, readSnapshotFileContent } from "./viewer_api_layer1_snapshot.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 // Checked before the hash reaches git; delete if viewer_api_repo.ts ever exports its identical pattern.
 const COMMIT_HASH_PATTERN = /^[0-9a-fA-F]{4,40}$/;
@@ -54,12 +50,12 @@ export function readWorkingTreeFileBytes(projectFolder: Path, filePath: Path): B
 
 // An absent or blank hash param means the on-disk form, never a malformed hash.
 export function readLayer1FileBytes(query: URLSearchParams, hashParam: string = "hash"): Buffer {
-  const filePath = new Path(requireParam(query, "path"));
+  const filePath = new Path(getRequiredParam(query, "path"));
   const hash = query.get(hashParam);
   if (hash === null || hash.trim() === "") {
-    return readWorkingTreeFileBytes(new Path(requireParam(query, "dir")), filePath);
+    return readWorkingTreeFileBytes(new Path(getRequiredParam(query, "dir")), filePath);
   }
-  return readCommittedFileBytes(new Path(requireParam(query, "repo")), filePath, hash.trim());
+  return readCommittedFileBytes(new Path(getRequiredParam(query, "repo")), filePath, hash.trim());
 }
 
 // Answers `{ content }`, or raw bytes when `binary=1`; failures throw so the server's outer catch 400s them.
@@ -76,7 +72,7 @@ export function handleLayer1FileRequest(response: ServerResponse, query: URLSear
   }
   const bytes = readLayer1FileBytes(query);
   if (query.get("binary") === "1") {
-    response.writeHead(200, { "Content-Type": resolveContentType(new Path(requireParam(query, "path"))) });
+    response.writeHead(200, { "Content-Type": resolveContentType(new Path(getRequiredParam(query, "path"))) });
     response.end(bytes);
     return;
   }
