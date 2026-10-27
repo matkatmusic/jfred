@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkChangeIdIsGitBaseline } from "../webapp/views/details-model.ts";
+import { isChangeIdGitBaseline } from "../webapp/views/details-model.ts";
 import { extractGitBaseCommitHash } from "../webapp/views/timeline-changes.ts";
 
 test("test_checkChangeIdIsGitBaseline_detects_beacon_changeIds", () => {

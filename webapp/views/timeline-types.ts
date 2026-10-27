@@ -44,7 +44,7 @@ export type WireGitOperation = {
   isError?: boolean;
 };
 export type WireCommitMarker = { timestamp: string; sessionId?: string };
-// One non-file-edit tool call (item 55): summary is its command/path; uuid resolves the row's label and button; toolUseId joins attachments.
+// One non-file-edit tool call: summary is its command or path; toolUseId joins attachments.
 export type WireToolCall = {
   toolName: string;
   summary: string;
@@ -55,7 +55,7 @@ export type WireToolCall = {
   // Engine-stamped branch membership (optional: older cached documents lack it).
   isOrphaned?: boolean;
 };
-// Script run and files its sandbox execution changed (task 67); changedPaths is [] when declined; toolUseId joins the tool-call row.
+// A script run and the files its sandbox changed; changedPaths is empty when declined.
 export type WireScriptRun = {
   toolUseId?: string;
   timestamp: string;
@@ -81,12 +81,12 @@ export type WireTimelineDocument = {
   skippedLines?: { filePath: string; lineNumber: number; timestamp?: string; reason: string }[];
   // Optional (same convention): every failure the engine survived (task 119) — the partial- reconstruction banner's counts and tooltip reasons.
   failures?: { scope: string; stage: string; target?: string; reason: string }[];
-  // Optional (same convention): the user declined pre-baseline reconstruction (task 56) — the git-baseline node becomes the timeline's first shown step.
+  // Optional (same convention): the user declined pre-baseline reconstruction; the git-baseline node is the first step.
   preBaselineSkipped?: boolean;
   lineVerdicts?: WireLineVerdict[];
 };
 
-// buildRevisionIndex maps a changeId to its revision facts; displayPath is the name at that revision, path stays the fetch key.
+// buildRevisionIndex maps a changeId to its revision facts; displayPath is the name at that revision.
 export type RevisionIndexEntry = {
   path: string;
   displayPath: string;
@@ -97,7 +97,7 @@ export type RevisionIndexEntry = {
 };
 export type RevisionIndex = Map<string, RevisionIndexEntry>;
 
-// computeFileChanges' chips: one file change per path; `when` is the snapshot's instant; displayPath is entry-time only, path is fetch key.
+// One chip per path from computeFileChanges; `when` is the snapshot's instant.
 export type FileChange = {
   path: string;
   displayPath: string;
@@ -114,7 +114,7 @@ export type SnapshotInstant = { sessionId?: string; when: string };
 // A raw transcript position the inspector can open: (jsonl, its lines, 0-based line index).
 export type TranscriptLocation = { jsonlName: string; rawLines: string[]; line: number };
 
-// One conversation turn; synthetic trailing agent turns carry no uuid, stepNumber, fileChanges, or isOrphaned since those are stamped after sorting.
+// One conversation turn; synthetic trailing turns lack fields that are stamped after sorting.
 export type TurnNode = {
   kind: typeof USER_TURN_NODE_KIND | typeof AGENT_TURN_NODE_KIND;
   when: string;
@@ -198,9 +198,9 @@ export type ToolCallNode = {
   toolUseId: string;
   // Copied from the engine's per-record wire stamp — a tool row on a rewound branch dims too.
   isOrphaned?: boolean;
-  // True when this row's Bash call is a FAILED git command (task 103); joined to gitOperations for the FAILED badge.
+  // True when this row's Bash call is a failed git command; drives the FAILED badge.
   isError?: boolean;
-  // Script run this row executed when its sandbox modified files (task 67); drives the row badge and Details pane's mode.
+  // Script run this row executed when its sandbox modified files; drives the row badge.
   scriptRun?: WireScriptRun;
   isGitBaseline?: undefined;
   text?: undefined;

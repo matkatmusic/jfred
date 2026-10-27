@@ -33,7 +33,7 @@ export async function renderDiffVsBaseView(
 
   const revisionSelect = createElement("select", {}) as HTMLSelectElement;
   for (let index = 0; index < viewModel.revisions.length; index++) {
-    const revision = viewModel.revisions[index];
+    const revision = viewModel.revisions[index]!;
     revisionSelect.append(createElement("option", { value: String(index), text: `#${index + 1} · ${revision.kind}` }));
   }
   const anchoredRevisionIndex = computeAnchoredRevisionIndex(anchorRev, viewModel.revisions.length);
