@@ -2,7 +2,7 @@
 
 import { splitPatchByFile } from "./timeline-patch-split.ts";
 import { computeRangeSummary } from "./timeline-picks.ts";
-import { checkCardRunIsContiguous, computeOwningNodeIndexes } from "./details-model.ts";
+import { isCardRunContiguous, computeOwningNodeIndexes } from "./details-model.ts";
 import { showDiffInDetails, showTextInDetails } from "./details-diff.ts";
 import { type RevisionPage, renderFocusedCard } from "./details-revision-diff.ts";
 
@@ -34,7 +34,7 @@ export async function renderRangeDiff(page: RevisionPage): Promise<void> {
     void renderRangeDiff(page);
   }
   const selectedIndexes = [...page.rangeSelected].sort(compareAscending);
-  const isContiguousRun = checkCardRunIsContiguous(selectedIndexes);
+  const isContiguousRun = isCardRunContiguous(selectedIndexes);
   if (!isContiguousRun) {
     showTextInDetails(target, "(pick a contiguous run of revisions)");
     return;

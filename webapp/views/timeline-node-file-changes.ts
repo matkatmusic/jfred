@@ -12,7 +12,8 @@ function computeMergedChipKey(change: FileChange): string {
 function mergeSnapshotFileChanges(snapshot: WireStepSnapshot, revisionIndex: RevisionIndex, seenChipKeys: Set<string>, changes: FileChange[]): void {
   for (const change of computeFileChanges(snapshot, revisionIndex)) {
     const chipKey = computeMergedChipKey(change);
-    if (seenChipKeys.has(chipKey)) {
+    const isSeenChip = seenChipKeys.has(chipKey);
+    if (isSeenChip) {
       continue;
     }
     seenChipKeys.add(chipKey);

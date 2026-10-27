@@ -2,7 +2,8 @@
 
 import { createElement } from "../app-dom.ts";
 import { openDetailsPane } from "../inspector-pane.ts";
-import { type DetailsContext, computeDetailsHeaderText, fullContentsIsOn } from "./details-model.ts";
+import { type DetailsContext, computeDetailsHeaderText } from "./details-model.ts";
+import { isFullContentsOn } from "./details-stored-choices.ts";
 import { appendColumnsDiff } from "../diff-render.ts";
 import {
   clearRightPaneBody,
@@ -63,7 +64,7 @@ async function appendChangedFileDiff(body: HTMLElement, entry: ScriptRunFileEntr
     body.append(createElement("div", { class: "dempty", text: `no reconstructed history for ${entry.path}` }));
     return;
   }
-  const blocks = await fetchRevisionDiffBlocks(context.project, entry.target, fullContentsIsOn());
+  const blocks = await fetchRevisionDiffBlocks(context.project, entry.target, isFullContentsOn());
   const block = blocks[entry.revisionNumber - 1];
   if (block === undefined) {
     body.append(createElement("div", { class: "dempty", text: `no diff recorded for revision #${entry.revisionNumber} of ${entry.path}` }));

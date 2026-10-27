@@ -8,9 +8,9 @@ import {
   type RevisionCard,
   RevisionViewMode,
   type WireFileHistory,
-  checkChangeIdIsGitBaseline,
-  fullContentsIsOn,
+  isChangeIdGitBaseline,
 } from "./details-model.ts";
+import { isFullContentsOn } from "./details-stored-choices.ts";
 import { showGitBaselineInDetails } from "./details-baseline.ts";
 import {
   showContentInDetails,
@@ -42,16 +42,16 @@ export async function renderCardDiff(page: RevisionPage, card: RevisionCard, ind
   }
   // A placeholder's lines repeat the prior revision, so show the failure reason instead.
   if (card.unrecoverableReason !== undefined) {
-    const previousBlock = index > 0 ? (await getDiffBlocks(fullContentsIsOn()))[index - 1] : undefined;
+    const previousBlock = index > 0 ? (await getDiffBlocks(isFullContentsOn()))[index - 1] : undefined;
     showUnrecoverableInDetails(label, target, card.unrecoverableReason, previousBlock, refreshCardDiff);
     return;
   }
-  const isGitBaseline = checkChangeIdIsGitBaseline(card.changeId);
+  const isGitBaseline = isChangeIdGitBaseline(card.changeId);
   if (isGitBaseline) {
     showGitBaselineInDetails(context.document, target, card.changeId);
     return;
   }
-  const block = (await getDiffBlocks(fullContentsIsOn()))[index];
+  const block = (await getDiffBlocks(isFullContentsOn()))[index];
   const change: FileChange = {
     path: target,
     displayPath: target,
