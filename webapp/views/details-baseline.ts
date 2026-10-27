@@ -1,4 +1,4 @@
-// task 56 follow-up: the git-derived baseline pane — the unrecoverable-placeholder pattern (task-126 banner stack) applied to base-commit beacon revisions. A beacon's computed diff is usually empty ("no content change in this revision"), so the pane shows the committed bytes themselves: a banner naming the base commit, a provenance note, then the revision's full content, syntax-highlighted.
+// task 56 follow-up: baseline pane showing a base-commit beacon's committed bytes under a banner.
 
 import { createElement } from "../app-dom.ts";
 import { renderContentInDetails } from "./details-diff.ts";
@@ -14,7 +14,7 @@ export function showGitBaselineInDetails(historyDocument: WireHistoryDocument, p
   const link = findRevisionForChangeId(historyDocument.filesTouched, changeId);
   const revisionNumber = link?.revisionNumber ?? 1;
   const content = buildFileHistoryViewModel(historyDocument, path).revisions[revisionNumber - 1]?.content;
-  // renderContentInDetails owns the pane lifecycle (label, toggle reset, highlight); the banner stack is prepended after, mirroring the task-126 unrecoverable pane.
+  // renderContentInDetails owns the pane lifecycle; the banner stack is prepended after.
   renderContentInDetails(path, revisionNumber, content);
   const body = document.getElementById("details-right-body")!;
   body.prepend(

@@ -63,15 +63,16 @@ function computeFileButtonLabel(entry: ScriptRunFileEntry): string {
 
 // One changed file's diff section from the shared /api/diff response; unresolved or blockless revisions explain themselves.
 async function appendChangedFileDiff(body: HTMLElement, entry: ScriptRunFileEntry, context: DetailsContext): Promise<void> {
-  const isUnresolved = entry.target === undefined || entry.revisionNumber === undefined;
+  const { target, revisionNumber } = entry;
+  const isUnresolved = target === undefined || revisionNumber === undefined;
   if (isUnresolved) {
     body.append(createElement("div", { class: "dempty", text: `no reconstructed history for ${entry.path}` }));
     return;
   }
-  const blocks = await fetchRevisionDiffBlocks(context.project, entry.target, isFullContentsOn());
-  const block = blocks[entry.revisionNumber - 1];
+  const blocks = await fetchRevisionDiffBlocks(context.project, target, isFullContentsOn());
+  const block = blocks[revisionNumber - 1];
   if (block === undefined) {
-    body.append(createElement("div", { class: "dempty", text: `no diff recorded for revision #${entry.revisionNumber} of ${entry.path}` }));
+    body.append(createElement("div", { class: "dempty", text: `no diff recorded for revision #${revisionNumber} of ${entry.path}` }));
     return;
   }
   appendColumnsDiff(body, block, entry.path);

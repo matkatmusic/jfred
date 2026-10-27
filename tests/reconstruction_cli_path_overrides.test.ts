@@ -16,7 +16,7 @@ import {
     setPreBaselineReconstructionAllowed,
 } from "../src/reconstruction_base_commit.ts";
 
-// Build a temp <root>/projects/<project>/session.jsonl tree, optionally dropping a reveng-paths.json config beside the project dir. Returns the transcript path applyCliPathOverrides will derive from.
+// Build a temp projects tree with a session.jsonl and an optional config; return the transcript path.
 function makeProjectsTree(projectName: string, config?: Record<string, WireProjectPaths>): string {
     const projectsDir = join(mkdtempSync(join(tmpdir(), "item46-cli-")), "projects");
     mkdirSync(join(projectsDir, projectName), { recursive: true });
@@ -32,7 +32,7 @@ describe("applyCliPathOverrides", () => {
     // Every test here mutates the process-wide override state; always reset it.
     afterEach(() => setPathOverrides({}));
 
-    // The projects-folder config entry is the base and direct CLI flags win per-field: the config's cwd survives while the flag's repo replaces the config's repo.
+    // Config is the base and CLI flags win per field: config cwd survives, flag repo wins.
     test("test_apply_cli_path_overrides_merges_config_under_flags", () => {
         // Step: a projects tree whose reveng-paths.json gives this project a cwd AND a repo.
         const jsonlPath = makeProjectsTree("-Users-me-proj", {
@@ -60,7 +60,7 @@ describe("applyCliPathOverrides", () => {
 });
 
 test("test_apply_cli_overrides_derives_sources_from_multi_root_positionals", () => {
-    // Scenario (spec S4b): positionals spanning two DISTINCT projects roots, with no config sources, derive one bare {projectsDir} source per root so per-source sibling file-history resolution works with zero config.  Step: two copied-out-of-~/.claude trees, one transcript path in each.
+    // Spec S4b: transcripts in two distinct projects roots derive one bare source per root.
     const treeA = mkdtempSync(join(tmpdir(), "cli-sources-a-"));
     const treeB = mkdtempSync(join(tmpdir(), "cli-sources-b-"));
     const projectDirA = join(treeA, "projects", "-proj-a");
@@ -90,14 +90,14 @@ test("test_apply_cli_overrides_single_positional_leaves_sources_absent", () => {
 });
 
 test("test_apply_cli_overrides_declines_pre_baseline_reconstruction", () => {
-    // Scenario (task 223): applying the options is what reaches the engine's module-level gate, so a re-seeded CLI iteration reconstructs only forward from its own seed.
+    // Task 223: applying the options sets the engine's module-level pre-baseline gate.
     const tree = mkdtempSync(join(tmpdir(), "cli-pre-baseline-"));
     const projectDir = join(tree, "projects", "-proj");
     mkdirSync(projectDir, { recursive: true });
     try {
         applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl"), "--no-pre-baseline"]));
         assert.equal(isPreBaselineReconstructionAllowed(), false);
-        // Test verification: the gate is shared module state, so the NEXT in-process run must not inherit the declined answer.
+        // The gate is shared state: the next run must not inherit the declined answer.
         applyCliPathOverrides(parseArgs([join(projectDir, "t.jsonl")]));
         assert.equal(isPreBaselineReconstructionAllowed(), true);
     } finally {

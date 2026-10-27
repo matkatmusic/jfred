@@ -16,7 +16,7 @@ test("test_parse_args_reads_path_target_and_flags", () => {
     assert.equal(options.verbose, false);
 });
 
-// parseArgs reads all four item-46 path-override flags, each landing as a typed domain value; the positional transcript path is still found (flag values are never mistaken for it).
+// All four path-override flags land as typed values; flag values are never read as the transcript path.
 test("test_parse_args_extracts_path_override_flags", () => {
     // Step: parse an argv carrying every override flag plus the positional transcript path.
     const options = parseArgs([
@@ -59,7 +59,7 @@ test("test_parse_args_single_positional_keeps_legacy_fields", () => {
 });
 
 test("test_parse_until_revision_flag", () => {
-    // Scenario (task 193): --until-revision lands as a typed Path, and the ordinal defaults to the FIRST revision when --nth is absent.
+    // Task 193: --until-revision is a typed Path; the ordinal defaults to 1 without --nth.
     const options = parseArgs(["t.jsonl", "--until-revision", "/a/b.py"]);
     assert.equal(options.untilRevision?.toString(), "/a/b.py");
     assert.equal(options.untilNth, 1);
@@ -87,7 +87,7 @@ test("test_parse_nth_rejects_below_one", () => {
 });
 
 test("test_parse_no_pre_baseline_flag", () => {
-    // Scenario (task 223): the CLI equivalent of the viewer's "No" to the pre-baseline question — absent keeps today's "Yes"; present declines reconstructing anything before the seed.
+    // Task 223: --no-pre-baseline declines reconstructing before the seed; absent keeps it allowed.
     assert.equal(parseArgs(["t.jsonl"]).preBaseline, true);
     assert.equal(parseArgs(["t.jsonl", "--no-pre-baseline"]).preBaseline, false);
 });

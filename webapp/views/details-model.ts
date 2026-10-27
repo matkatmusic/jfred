@@ -1,4 +1,4 @@
-// Details pane view model (split from details.ts, task 92): DOM-free, tested types and pure functions the pane's modes share.
+// Details pane view model (task 92): DOM-free types and pure functions the pane's modes share.
 
 import {
   COMMIT_NODE_KIND,
@@ -71,7 +71,7 @@ function formatNodeKind(kind: string): string {
   return kind.replaceAll("-", " ");
 }
 
-// The pane header for a selected row: commits lead with hash and message; other nodes name step position and kind.
+// Pane header for a row: commits show hash and message, other nodes show step and kind.
 export function computeDetailsHeaderText(node: TimelineNode, position: { index: number; total: number }): string {
   const timestamp = formatRowTimestamp(node.when);   // task 160: blank, never "Invalid Date"
   if (node.kind === COMMIT_NODE_KIND) {
