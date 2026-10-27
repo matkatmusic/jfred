@@ -1,7 +1,7 @@
 // Viewer JSONL-path lookup: one file, one project, or the union across a project's declared sources.
 
 import { Path } from "./structures/domain.ts";
-import { hydrateProjectSources, type SourceEntry } from "./reconstruction_overrides.ts";
+import { buildProjectSources, type SourceEntry } from "./reconstruction_overrides.ts";
 import { getMergedProjectPaths, getProjectsDir } from "./viewer_api_projects.ts";
 import { scanProjects, type ProjectListing } from "./viewer_api_project_scan.ts";
 import { findProjectFile } from "./viewer_api_trust_boundary.ts";
@@ -41,7 +41,7 @@ export function findJsonlPaths(projectName: string, jsonlName: string | null): P
   if (wireEntry.sources !== undefined) {
     const seenPaths = new Set<string>();
     const jsonlPaths: Path[] = [];
-    for (const source of hydrateProjectSources(getProjectsDir(), wireEntry)) {
+    for (const source of buildProjectSources(getProjectsDir(), wireEntry)) {
       collectOneSourceJsonlPaths(source, seenPaths, jsonlPaths);
     }
     return jsonlPaths;

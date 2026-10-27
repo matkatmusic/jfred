@@ -7,10 +7,10 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import {
     getPathOverrides,
     setPathOverrides,
-    serializePathOverrides,
+    formatPathOverrides,
     readProjectPathsConfig,
-    hydrateProjectPaths,
-    hydrateProjectSources,
+    buildProjectPaths,
+    buildProjectSources,
     writeProjectPathsEntry,
     PROJECT_PATHS_CONFIG_NAME,
 } from "../src/reconstruction_overrides.ts";
@@ -46,15 +46,15 @@ test("test_set_and_get_path_overrides_round_trip", () => {
 test("test_serialize_path_overrides_is_stable_and_distinguishes_values", () => {
     // Scenario: the serialization is a cache-stamp component — identical overrides must serialize identically, any field change must change the string.  Step: empty overrides serialize to a fixed constant.
     setPathOverrides({});
-    const emptySerialization = serializePathOverrides();
+    const emptySerialization = formatPathOverrides();
     // Step: the same override set serializes identically across two set calls.
     setPathOverrides({ repoDir: new Path("/tmp/repo") });
-    const firstSerialization = serializePathOverrides();
+    const firstSerialization = formatPathOverrides();
     setPathOverrides({ repoDir: new Path("/tmp/repo") });
-    assert.equal(serializePathOverrides(), firstSerialization);
+    assert.equal(formatPathOverrides(), firstSerialization);
     // Step: changing one field changes the string.
     setPathOverrides({ repoDir: new Path("/tmp/other-repo") });
-    assert.notEqual(serializePathOverrides(), firstSerialization);
+    assert.notEqual(formatPathOverrides(), firstSerialization);
     // Step: a defined field never serializes like the empty state.
     assert.notEqual(firstSerialization, emptySerialization);
 });
@@ -92,7 +92,7 @@ test("test_read_project_paths_config_throws_on_malformed_json", () => {
 
 test("test_hydrate_project_paths_builds_domain_types", () => {
     // Scenario: parsing hydrates wire strings into domain objects (coding-req §1).  Step: hydrate a full wire entry.
-    const overrides = hydrateProjectPaths({
+    const overrides = buildProjectPaths({
         cwd: "/Users/me/Programming/jot",
         repo: "/Users/me/Programming/jot",
         baseCommit: "deadbeef",
@@ -104,7 +104,7 @@ test("test_hydrate_project_paths_builds_domain_types", () => {
     assert.equal(overrides.projectCwd.toString(), "/Users/me/Programming/jot");
     assert.equal(overrides.baseCommit.toString(), "deadbeef");
     // Step: absent wire fields stay absent after hydration.
-    const partialOverrides = hydrateProjectPaths({ repo: "/tmp/repo" });
+    const partialOverrides = buildProjectPaths({ repo: "/tmp/repo" });
     assert.equal(partialOverrides.projectCwd, undefined);
     assert.equal(partialOverrides.baseCommit, undefined);
     assert.equal(partialOverrides.fileHistoryRoot, undefined);
@@ -112,7 +112,7 @@ test("test_hydrate_project_paths_builds_domain_types", () => {
 
 test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
     // Scenario (task 137): a per-project explicit file-history override rides in the same reveng-paths.json entry and hydrates into the engine's fileHistoryRoot override.  Step: hydrate an entry carrying only fileHistory.
-    const overrides = hydrateProjectPaths({ fileHistory: "/tmp/custom-history" });
+    const overrides = buildProjectPaths({ fileHistory: "/tmp/custom-history" });
     // Step: the field is a real Path carrying the wire value.
     assert.ok(overrides.fileHistoryRoot instanceof Path);
     assert.equal(overrides.fileHistoryRoot.toString(), "/tmp/custom-history");
@@ -120,7 +120,7 @@ test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
 
 test("test_hydrate_project_sources_builds_domain_entries_from_sources_list", () => {
     // Scenario (spec S3): a project entry may declare a `sources` list; each entry hydrates into domain Paths (coding-req §1), preserving order and per-entry optional fields.  Step: hydrate a wire entry carrying two sources — one fully populated, one minimal.
-    const sourceEntries = hydrateProjectSources(new Path("/tmp/live/projects"), {
+    const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), {
         sources: [
             { projectsDir: "/tmp/live/projects", fileHistoryDir: "/tmp/live/file-history", root: "/Users/me/Programming/jot" },
             { projectsDir: "/tmp/backup/projects" },
@@ -137,12 +137,9 @@ test("test_hydrate_project_sources_builds_domain_entries_from_sources_list", () 
 });
 
 test("test_hydrate_project_sources_degenerates_legacy_entry_to_single_source", () => {
-    // Scenario (spec S3): a legacy entry (no `sources` key) is the one-entry degenerate
-    // case — the single source is the config's own projects dir, carrying the legacy
-    // fileHistory override, with root absent (auto-detect, design §b).
-    // Step: hydrate a fully-populated LEGACY wire entry.
+    // Scenario (spec S3): a legacy entry (no `sources` key) is the one-entry degenerate case — the single source is the config's own projects dir, carrying the legacy fileHistory override, with root absent (auto-detect, design §b).  Step: hydrate a fully-populated LEGACY wire entry.
     const legacyWire = { cwd: "/Users/me/jot", repo: "/Users/me/jot", baseCommit: "deadbeef", fileHistory: "/tmp/custom-history" };
-    const sourceEntries = hydrateProjectSources(new Path("/tmp/live/projects"), legacyWire);
+    const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), legacyWire);
     // Step: exactly one source — the containing projects dir.
     assert.equal(sourceEntries.length, 1);
     assert.equal(sourceEntries[0]!.projectsDir.toString(), "/tmp/live/projects");
@@ -151,14 +148,14 @@ test("test_hydrate_project_sources_degenerates_legacy_entry_to_single_source", (
     // Step: root stays absent — legacy entries never declared one.
     assert.equal(sourceEntries[0]!.root, undefined);
     // Step: legacy hydration is untouched — the same wire still yields the same overrides.
-    const overrides = hydrateProjectPaths(legacyWire);
+    const overrides = buildProjectPaths(legacyWire);
     assert.equal(overrides.projectCwd?.toString(), "/Users/me/jot");
     assert.equal(overrides.fileHistoryRoot?.toString(), "/tmp/custom-history");
 });
 
 test("test_hydrate_project_sources_leaves_omitted_root_absent_for_auto_detect", () => {
     // Scenario (design §b): an omitted `root` is the auto-detect signal — hydration must leave it absent, never invent a value.  Step: hydrate a sources entry that omits root (and fileHistoryDir).
-    const sourceEntries = hydrateProjectSources(new Path("/tmp/live/projects"), {
+    const sourceEntries = buildProjectSources(new Path("/tmp/live/projects"), {
         sources: [{ projectsDir: "/tmp/live/projects" }],
     });
     // Step: root and fileHistoryDir are absent on the hydrated entry.
@@ -189,15 +186,15 @@ test("test_write_project_paths_entry_merges_into_existing_config", () => {
 test("test_serialize_path_overrides_includes_sources", () => {
     // Scenario (spec S6): the cache stamp must distinguish source configs — a source-list change can never reuse a single-source cached document.  Step: capture the empty-overrides stamp.
     setPathOverrides({});
-    const emptyStamp = serializePathOverrides();
+    const emptyStamp = formatPathOverrides();
     // Test action: set overrides carrying one declared source (with root, no fileHistoryDir).
     setPathOverrides({
         sources: [{ projectsDir: new Path("/tmp/live/projects"), root: new Path("/tmp/ws") }],
     });
-    const sourcedStamp = serializePathOverrides();
+    const sourcedStamp = formatPathOverrides();
     // Test verification: the stamp changed, and it is deterministic across calls.
     assert.notEqual(sourcedStamp, emptyStamp);
-    assert.equal(sourcedStamp, serializePathOverrides());
+    assert.equal(sourcedStamp, formatPathOverrides());
     // the source's fields are all present in the stamp (fixed key order via JSON round-trip).
     assert.ok(sourcedStamp.includes("/tmp/live/projects"));
     assert.ok(sourcedStamp.includes("/tmp/ws"));

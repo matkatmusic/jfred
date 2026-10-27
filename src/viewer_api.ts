@@ -9,7 +9,7 @@ import {
 import { reconstructBranches } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import { getPathOverrides, formatPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
@@ -87,7 +87,7 @@ export function buildReconstructionWithConsent(
   const targetKey = target === undefined ? "" : target.toString();
   const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
   // Each build kind gets its own cache entry; the key includes active overrides, so config edits miss.
-  const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
+  const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${formatPathOverrides()}`;
   const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
   if (cachedBuild !== undefined) {
     reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);

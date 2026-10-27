@@ -24,7 +24,13 @@ export function applyRenameBadgeLabels(entries: FileSidebarEntry[]): void {
 }
 
 function splitPathSegments(path: string): string[] {
-  return path.split("/").filter((segment) => segment !== "");
+  const segments: string[] = [];
+  for (const segment of path.split("/")) {
+    if (segment !== "") {
+      segments.push(segment);
+    }
+  }
+  return segments;
 }
 
 // A badge's current label: the last `depth` segments of its old path.
@@ -51,25 +57,41 @@ function deepenCollidingBadges(badges: RenameBadge[]): boolean {
 
 // The same-label badges that must and can still grow; none when under two distinct old paths.
 function findGrowableBadges(group: RenameBadge[]): RenameBadge[] {
-  const distinctOldPaths = new Set(group.map((badge) => badge.segments.join("/")));
+  const distinctOldPaths = new Set<string>();
+  for (const badge of group) {
+    distinctOldPaths.add(badge.segments.join("/"));
+  }
   if (distinctOldPaths.size < 2) {
     return [];
   }
-  return group.filter((badge) => badge.depth < badge.segments.length);
+  const growableBadges: RenameBadge[] = [];
+  for (const badge of group) {
+    if (badge.depth < badge.segments.length) {
+      growableBadges.push(badge);
+    }
+  }
+  return growableBadges;
 }
 
 // A script move leaves no rename revision, so fall back to the run's renamedPaths pair (tasks 143/145).
 export function findScriptRenameSource(document: WireTimelineDocument, target: string): string | undefined {
-  const pairs = (document.scriptRuns ?? []).flatMap((run) => run.renamedPaths ?? []);
-  return pairs.find((pair) => checkRenamePairNamesTarget(pair, target))?.from;
+  for (const run of document.scriptRuns ?? []) {
+    for (const pair of run.renamedPaths ?? []) {
+      if (isRenamePairNamingTarget(pair, target)) {
+        return pair.from;
+      }
+    }
+  }
+  return undefined;
 }
 
 // True when the pair's destination names `target` exactly or by trailing path segments.
-function checkRenamePairNamesTarget(pair: WireRename, target: string): boolean {
+function isRenamePairNamingTarget(pair: WireRename, target: string): boolean {
   if (pair.to === target) {
     return true;
   }
-  if (target.endsWith(`/${pair.to}`)) {
+  const targetEndsWithDestination = target.endsWith(`/${pair.to}`);
+  if (targetEndsWithDestination) {
     return true;
   }
   return pair.to.endsWith(`/${target}`);

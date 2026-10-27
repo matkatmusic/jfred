@@ -37,7 +37,7 @@ test("test_timeline_file_changes_carry_event_kinds", () => {
 });
 
 test("test_split_patch_by_file_returns_one_block_per_file", () => {
-    // The range-diff inspector shows only the clicked file, so the patch splits into one block per `diff --git ` header.
+    // The patch splits into one block per `diff --git ` header.
     const { document: rawS85Document, stepFileHistories: rawS85Histories } = buildProjectReconstruction(S85_JSONL_PATHS, undefined);
     const patch = renderRangePatch(rawS85Histories, rawS85Document.steps, 1, 3);
     const blocks = splitPatchByFile(patch);
@@ -52,7 +52,7 @@ test("test_split_patch_by_file_returns_one_block_per_file", () => {
 });
 
 test("test_file_changes_carry_their_change_id", () => {
-    // Each chip needs its revision's changeId so the { } and +/- buttons can resolve the causing line and diff.
+    // Each chip carries its revision's changeId so its buttons can resolve the line and diff.
     const { nodes } = buildTurnTimelineViewModel(s2Document);
     const revisionIndex = buildRevisionIndex(s2Document);
     let checked = 0;
@@ -72,7 +72,7 @@ test("test_file_changes_carry_their_change_id", () => {
 });
 
 test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", () => {
-    // A chip whose changeId is a backup blob name (`<hex>@vN`) routes to the file-history view at that revision's 1-based number.
+    // A backup-blob changeId routes to the file-history view at that revision's number.
     const filesTouched = [{
         target: "/tmp/geo_report.py",
         revisions: [
@@ -161,7 +161,7 @@ const renamedFileDocument: WireTimelineDocument = {
 };
 
 test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
-    // A revision before a rename displays the file's name at that time, while its lookup path stays the final target.
+    // A revision before a rename shows the old name; its lookup path stays the final target.
     const index = buildRevisionIndex(renamedFileDocument);
     assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
     assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");

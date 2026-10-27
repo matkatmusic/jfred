@@ -93,7 +93,7 @@ function appendFileList(left: HTMLElement, changes: FileChange[], context: Detai
       showGitBaselineInDetails(context.document, change.path, change.changeId!);
       return;
     }
-    const blocks = await fetchRevisionDiffBlocks(context.project, change.path, fullContentsIsOn());
+    const blocks = await fetchRevisionDiffBlocks(context.project, change.path, isFullContentsOn());
     await showRevisionDiffInDetails(change, blocks, context.document.filesTouched, () => void showFileDiff(change));
   };
   const callbacks: FileTreeCallbacks = {

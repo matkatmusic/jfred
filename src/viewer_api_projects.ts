@@ -7,8 +7,8 @@ import {
   getDefaultFileHistoryRoot,
 } from "./reconstruction_sidecar_reader.ts";
 import {
-  hydrateProjectPaths,
-  hydrateProjectSources,
+  buildProjectPaths,
+  buildProjectSources,
   readProjectPathsConfig,
   setPathOverrides,
   type WireProjectPaths,
@@ -78,10 +78,10 @@ export function getMergedProjectPaths(projectName: string): WireProjectPaths {
 // item 46: sets process-wide engine path overrides per request; call before build.
 export function applyProjectOverrides(projectName: string): void {
   const wireEntry = getMergedProjectPaths(projectName);
-  const overrides = hydrateProjectPaths(wireEntry);
+  const overrides = buildProjectPaths(wireEntry);
   // Spec S6: multi-source record stream needs per-source blob resolution.
   if (wireEntry.sources !== undefined) {
-    overrides.sources = hydrateProjectSources(getProjectsDir(), wireEntry);
+    overrides.sources = buildProjectSources(getProjectsDir(), wireEntry);
   }
   if (overrides.fileHistoryRoot === undefined) {
     overrides.fileHistoryRoot = getEffectiveFileHistoryDir();

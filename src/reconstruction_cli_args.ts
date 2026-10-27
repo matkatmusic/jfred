@@ -3,8 +3,8 @@
 import { basename, dirname } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 import {
-  hydrateProjectPaths,
-  hydrateProjectSources,
+  buildProjectPaths,
+  buildProjectSources,
   readProjectPathsConfig,
   setPathOverrides,
   type PathOverrides,
@@ -161,7 +161,7 @@ function parseOrdinal(value: string | undefined): number {
 export function applyCliPathOverrides(options: CliOptions): void {
   const projectDir = dirname(options.jsonlPath);
   const entry = readProjectPathsConfig(new Path(dirname(projectDir)))[basename(projectDir)];
-  const merged: PathOverrides = entry !== undefined ? hydrateProjectPaths(entry) : {};
+  const merged: PathOverrides = entry !== undefined ? buildProjectPaths(entry) : {};
   const sources = resolveCliSources(options, entry, projectDir);
   if (sources !== undefined) {
     merged.sources = sources;
@@ -190,7 +190,7 @@ function resolveCliSources(
   projectDir: string,
 ): SourceEntry[] | undefined {
   if (entry?.sources !== undefined) {
-    return hydrateProjectSources(new Path(dirname(projectDir)), entry);
+    return buildProjectSources(new Path(dirname(projectDir)), entry);
   }
   const distinctRoots: string[] = [];
   for (const jsonlPath of options.jsonlPaths) {

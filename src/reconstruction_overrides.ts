@@ -25,20 +25,27 @@ export function getPathOverrides(): PathOverrides {
 }
 
 // Stable cache-stamp string: defined fields in fixed key order, including `sources`; empty state is "{}".
-export function serializePathOverrides(): string {
+export function formatPathOverrides(): string {
   const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = activePathOverrides;
+  let stampedSources;
+  if (sources !== undefined) {
+    stampedSources = [];
+    for (const source of sources) {
+      stampedSources.push({
+        projectsDir: source.projectsDir.toString(),
+        fileHistoryDir: source.fileHistoryDir?.toString(),
+        root: source.root?.toString(),
+        repoDir: source.repoDir?.toString(),
+        baseCommit: source.baseCommit?.toString(),
+      });
+    }
+  }
   return JSON.stringify({
     fileHistoryRoot: fileHistoryRoot?.toString(),
     projectCwd: projectCwd?.toString(),
     repoDir: repoDir?.toString(),
     baseCommit: baseCommit?.toString(),
-    sources: sources?.map((source) => ({
-      projectsDir: source.projectsDir.toString(),
-      fileHistoryDir: source.fileHistoryDir?.toString(),
-      root: source.root?.toString(),
-      repoDir: source.repoDir?.toString(),
-      baseCommit: source.baseCommit?.toString(),
-    })),
+    sources: stampedSources,
   });
 }
 
@@ -75,7 +82,7 @@ export type SourceEntry = {
 };
 
 // A project's sources list (spec S3); task 365: nested-repo auto-discovery wins over the legacy single-source fallback.
-export function hydrateProjectSources(configProjectsDir: Path, wire: WireProjectPaths): SourceEntry[] {
+export function buildProjectSources(configProjectsDir: Path, wire: WireProjectPaths): SourceEntry[] {
   if (wire.sources === undefined) {
     if (wire.cwd !== undefined) {
       const discoveredSources = findSourceEntriesForProjectRoot(new Path(wire.cwd));
@@ -112,14 +119,15 @@ export function hydrateProjectSources(configProjectsDir: Path, wire: WireProject
 // Project dir name -> entry map; {} if missing, malformed JSON throws so typos are never silently ignored.
 export function readProjectPathsConfig(projectsDir: Path): Record<string, WireProjectPaths> {
   const configPath = join(projectsDir.toString(), PROJECT_PATHS_CONFIG_NAME);
-  if (!existsSync(configPath)) {
+  const configExists = existsSync(configPath);
+  if (!configExists) {
     return {};
   }
   return JSON.parse(readFileSync(configPath, "utf8")) as Record<string, WireProjectPaths>;
 }
 
 // Hydration point (coding-req §1: parsing hydrates, never casts): wire strings -> domain objects. Absent wire fields stay absent.
-export function hydrateProjectPaths(wire: WireProjectPaths): PathOverrides {
+export function buildProjectPaths(wire: WireProjectPaths): PathOverrides {
   const overrides: PathOverrides = {};
   if (wire.cwd !== undefined) {
     overrides.projectCwd = new Path(wire.cwd);
