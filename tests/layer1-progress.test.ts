@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
-import { paintLoadbar, readLayer1ViewStream } from "../webapp/layer1-progress.ts";
+import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
 const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
@@ -71,10 +71,10 @@ test("test_a_countless_paint_marks_the_fill_indeterminate_and_a_counted_paint_cl
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     const fill = document.getElementById("loadbar-fill") as HTMLElement;
     const labelHost = document.getElementById("loadbar-label") as HTMLElement;
-    paintLoadbar(fill, labelHost, "starting");
+    renderLoadbar(fill, labelHost, "starting");
     assert.equal(fill.classList.contains("indeterminate"), true);
     assert.equal(labelHost.textContent, "starting");
-    paintLoadbar(fill, labelHost, "reading file history", 5, 10);
+    renderLoadbar(fill, labelHost, "reading file history", 5, 10);
     assert.equal(fill.classList.contains("indeterminate"), false);
     assert.equal(fill.style.width, "50%");
 });

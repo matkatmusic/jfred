@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
+import { stopLayer1Load } from "../webapp/layer1-progress.ts";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { buildFreshView, readHiddenKinds, toggleBox } from "./layer1-kind-filter-helpers.ts";
@@ -51,7 +51,7 @@ test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_on
 test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_hidden", async () => {
     initLayer1Dom();
     Object.assign(globalThis, { fetch: async () => {
-        cancelLayer1Load();
+        stopLayer1Load();
         throw new Error("aborted");
     } });
     renderShowRowWithKindFilter(buildFreshView(), () => {});
@@ -89,7 +89,7 @@ test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_ski
 test("test_a_cancelled_edit_fetch_leaves_the_box_unchecked_and_the_nodes_hidden", async () => {
     initLayer1Dom();
     Object.assign(globalThis, { fetch: async () => {
-        cancelLayer1Load();
+        stopLayer1Load();
         throw new Error("aborted");
     } });
     renderShowRowWithKindFilter(buildFreshView(), () => {});

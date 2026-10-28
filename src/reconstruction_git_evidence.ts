@@ -12,7 +12,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 const COMMIT_MATCH_TOLERANCE_MS = 60_000;
 
 // Nearest commit by committer time, within tolerance.
-function resolveCommitByTimestamp(repoCwd: Path, commitTimestamp: Date): string | undefined {
+function findCommitByTimestamp(repoCwd: Path, commitTimestamp: Date): string | undefined {
   let log: string;
   try {
     log = execSync("git log --format='%H %cI'", { cwd: repoCwd.toString(), stdio: "pipe" }).toString();
@@ -24,7 +24,10 @@ function resolveCommitByTimestamp(repoCwd: Path, commitTimestamp: Date): string 
   let bestDistance = COMMIT_MATCH_TOLERANCE_MS;
   for (const line of log.split("\n")) {
     const [hash, committedAt] = line.split(" ");
-    if (hash === undefined || committedAt === undefined)
+    const isHashMissing = hash === undefined;
+    const isTimeMissing = committedAt === undefined;
+    const isLineIncomplete = isHashMissing || isTimeMissing;
+    if (isLineIncomplete)
       continue;
     const distance = Math.abs(new Date(committedAt).getTime() - commitTimestamp.getTime());
     if (distance <= bestDistance) {
@@ -56,12 +59,15 @@ export function readCommittedFileContent(
   fallbackRepoDirs: Path[] = [],
 ): string | undefined {
   const cwdRelativePath = relative(repoCwd.toString(), filePath.toString());
-  if (cwdRelativePath === "" || cwdRelativePath.startsWith(".."))
+  const isPathEmpty = cwdRelativePath === "";
+  const isPathOutsideRepo = cwdRelativePath.startsWith("..");
+  const isPathUnusable = isPathEmpty || isPathOutsideRepo;
+  if (isPathUnusable)
     return undefined;
   // item 46: const repoDirs = preservedRepoDir === undefined ? [repoCwd] : [repoCwd, preservedRepoDir];
   const repoDirs = [repoCwd, ...fallbackRepoDirs];
   for (const repoDir of repoDirs) {
-    const hash = resolveCommitByTimestamp(repoDir, commitTimestamp);
+    const hash = findCommitByTimestamp(repoDir, commitTimestamp);
     if (hash === undefined)
       continue;
     const content = readFileContentAtCommit(repoDir, hash, cwdRelativePath);
@@ -97,7 +103,10 @@ export function readStagedFileContent(
   fallbackRepoDirs: Path[] = [],
 ): string | undefined {
   const cwdRelativePath = relative(repoCwd.toString(), filePath.toString());
-  if (cwdRelativePath === "" || cwdRelativePath.startsWith(".."))
+  const isPathEmpty = cwdRelativePath === "";
+  const isPathOutsideRepo = cwdRelativePath.startsWith("..");
+  const isPathUnusable = isPathEmpty || isPathOutsideRepo;
+  if (isPathUnusable)
     return undefined;
   for (const repoDir of [repoCwd, ...fallbackRepoDirs]) {
     const content = readIndexBlob(repoDir, cwdRelativePath);
@@ -114,7 +123,9 @@ function findPreservedRepoDir(records: TranscriptRecord[]): Path | undefined {
     if (source === undefined)
       continue;
     const transcriptDir = dirname(source.filePath);
-    if (!existsSync(join(transcriptDir, ".git")))
+    const gitDir = join(transcriptDir, ".git");
+    const hasGitDir = existsSync(gitDir);
+    if (!hasGitDir)
       return undefined;
     return new Path(transcriptDir);
   }
@@ -124,5 +135,10 @@ function findPreservedRepoDir(records: TranscriptRecord[]): Path | undefined {
 // Fallback repo dirs: configured overrides then transcript-sibling clone.
 export function findFallbackRepoDirs(records: TranscriptRecord[]): Path[] {
   const candidates = [getPathOverrides().repoDir, getPathOverrides().projectCwd, findPreservedRepoDir(records)];
-  return candidates.filter((dir): dir is Path => dir !== undefined);
+  const repoDirs: Path[] = [];
+  for (const dir of candidates) {
+    if (dir !== undefined)
+      repoDirs.push(dir);
+  }
+  return repoDirs;
 }

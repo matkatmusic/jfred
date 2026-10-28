@@ -5,7 +5,7 @@ import { relative } from "node:path";
 import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { Path } from "./structures/domain.ts";
 import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
-import { widenEpochSecondsToInstant } from "./layered_instants.ts";
+import { convertEpochSecondsToInstant } from "./layered_instants.ts";
 import type { BeaconNode } from "./layered_types.ts";
 
 // Both author and committer stamps ride along (task 282); caller chooses which one to use.
@@ -28,7 +28,10 @@ export function listCommitsTouchingFile(repoPath: Path, repoRelativePath: Path, 
   const touches: CommitTouch[] = [];
   for (const line of result.stdout.split("\n")) {
     const [hash, committerSeconds, authorSeconds] = line.split(" ");
-    if (hash === undefined || committerSeconds === undefined || authorSeconds === undefined || hash === "") {
+    const isHashMissing = hash === undefined || hash === "";
+    const areSecondsMissing = committerSeconds === undefined || authorSeconds === undefined;
+    const isLineUnusable = isHashMissing || areSecondsMissing;
+    if (isLineUnusable) {
       continue;
     }
     touches.push({ hash, committerEpochSeconds: Number(committerSeconds), authorEpochSeconds: Number(authorSeconds) });
@@ -52,7 +55,10 @@ function readBlobAtCommit(repoPath: Path, hash: string, cwdRelativePath: string)
 // Committer-ONLY by design: hpp Q7 pins beacons to committer time, not the task 282 toggle.
 export function collectCommitBeaconNodes(repoPath: Path, filePath: Path): BeaconNode[] {
   const cwdRelativePath = relative(repoPath.toString(), filePath.toString());
-  if (cwdRelativePath === "" || cwdRelativePath.startsWith("..")) {
+  const isOutsideRepo = cwdRelativePath.startsWith("..");
+  const isRepoRoot = cwdRelativePath === "";
+  const isPathUnusable = isRepoRoot || isOutsideRepo;
+  if (isPathUnusable) {
     return [];
   }
   const beacons: BeaconNode[] = [];
@@ -63,7 +69,7 @@ export function collectCommitBeaconNodes(repoPath: Path, filePath: Path): Beacon
     }
     beacons.push({
       kind: LayeredNodeKind.beacon,
-      instant: widenEpochSecondsToInstant(touch.committerEpochSeconds),
+      instant: convertEpochSecondsToInstant(touch.committerEpochSeconds),
       content,
       evidence: undefined,
     });

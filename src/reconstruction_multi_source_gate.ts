@@ -8,7 +8,7 @@ import type { EditEvent, FileEvent } from "./reconstruction_events.ts";
 import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { lastRevisionAtOrBefore, lastRevisionStrictlyBefore, linesTextOf } from "./reconstruction_revisions.ts";
+import { findLastRevisionAtOrBefore, findLastRevisionStrictlyBefore, getLinesText } from "./reconstruction_revisions.ts";
 import { noteReconstructionFailure } from "./reconstruction_health.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
@@ -49,11 +49,11 @@ export function validateJoinContentAgreement(
   const editEvidence: EditEvent = evidence;
   const reader = buildSidecarReader(earlierRecords, sources);
   const revisions = reconstructFile(earlierRecords, primaryPath, reader);
-  const base = lastRevisionAtOrBefore(revisions, editEvidence.timestamp);
+  const base = findLastRevisionAtOrBefore(revisions, editEvidence.timestamp);
   if (base === undefined) {
     return false;
   }
-  return isEditEvidenceMatchingState(editEvidence, linesTextOf(base).join("\n"));
+  return isEditEvidenceMatchingState(editEvidence, getLinesText(base).join("\n"));
 }
 
 // One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly, else every hunk's pre-side must be contained.
@@ -91,12 +91,12 @@ export function reportJoinedPathConflicts(
       continue;
     }
     const edit: EditEvent = event;
-    const base = lastRevisionStrictlyBefore(revisions, edit.timestamp);
+    const base = findLastRevisionStrictlyBefore(revisions, edit.timestamp);
     const isMissingBase = base === undefined;
     if (isMissingBase) {
       continue;
     }
-    const isAgreeing = isEditEvidenceMatchingState(edit, linesTextOf(base).join("\n"));
+    const isAgreeing = isEditEvidenceMatchingState(edit, getLinesText(base).join("\n"));
     if (isAgreeing) {
       continue;
     }

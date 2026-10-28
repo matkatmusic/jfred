@@ -46,7 +46,9 @@ export class FileBackupMap {
   }
 
   // Re-emit the wire object form ({ "<path>": backup }) so the snapshot round-trips losslessly to JSONL.
-  toJSON = (): Record<string, FileHistoryBackup> => Object.fromEntries(this.#byPath);
+  toJSON(): Record<string, FileHistoryBackup> {
+    return Object.fromEntries(this.#byPath);
+  }
 }
 
 // The payload of a `file-history-snapshot` record: each file path maps to its current backup pointer.

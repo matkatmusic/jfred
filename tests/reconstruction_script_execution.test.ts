@@ -5,7 +5,7 @@ import {
     isScriptExecutionRun,
 } from "../src/reconstruction_script_execution.ts";
 import { collectRevisions } from "../src/reconstruction_replay.ts";
-import { linesTextOf } from "../src/reconstruction_revisions.ts";
+import { getLinesText } from "../src/reconstruction_revisions.ts";
 import { BlockType, EventKind, ToolName } from "../src/structures/vocabulary.ts";
 import type { ToolUseBlock } from "../src/structures/content-blocks.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -37,7 +37,7 @@ test("test_replay_scriptExecution_emits_its_precomputed_content", () => {
     const revisions = collectRevisions(events);
     const final = revisions[revisions.length - 1]!;
     assert.equal(final.kind, EventKind.scriptExecution);
-    assert.deepEqual(linesTextOf(final), ["def record_entry():", "    pass"]);
+    assert.deepEqual(getLinesText(final), ["def record_entry():", "    pass"]);
 });
 
 // C5b — a run is any Bash or MCP-execution tool_use carrying script source; a Read is not a run.

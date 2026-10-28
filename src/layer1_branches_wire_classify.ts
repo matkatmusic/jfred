@@ -4,7 +4,7 @@ import { WireRewindKind, type WireBranchesViewOf } from "../webapp/layer1-wire-b
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { EditEvent, FileEvent, FileRevision } from "./reconstruction_events.ts";
 import { isEditEvidenceMatchingState } from "./reconstruction_multi_source_gate.ts";
-import { linesTextOf } from "./reconstruction_revisions.ts";
+import { getLinesText } from "./reconstruction_revisions.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getToolResultForUserRecord, buildToolUseNamesById } from "./structures/tool-results.ts";
@@ -57,7 +57,7 @@ function isLaneBytesKeptByNextRevision(next: FileRevision, laneLastLines: string
   if (event?.kind === EventKind.overwrite) {
     return false;
   }
-  const nextLines = new Set(linesTextOf(next));
+  const nextLines = new Set(getLinesText(next));
   for (const line of laneLastLines) {
     const isBlankLine = line.trim() === "";
     if (isBlankLine) {
@@ -72,7 +72,7 @@ function isLaneBytesKeptByNextRevision(next: FileRevision, laneLastLines: string
 }
 
 export function computeLaneKind(revisions: FileRevision[], laneLastIndex: number, allLaneIds: Set<string>, evidence: PreStateEvidence): LaneKind {
-  const laneLastLines = linesTextOf(revisions[laneLastIndex]!);
+  const laneLastLines = getLinesText(revisions[laneLastIndex]!);
   let next: FileRevision | undefined;
   for (const revision of revisions.slice(laneLastIndex + 1)) {
     const isLaneRevision = allLaneIds.has(revision.changeId.toString());
@@ -82,7 +82,7 @@ export function computeLaneKind(revisions: FileRevision[], laneLastIndex: number
     }
   }
   if (next === undefined) {
-    const isDiskFinalText = linesTextOf(revisions.at(-1)!).join("\n") === laneLastLines.join("\n");
+    const isDiskFinalText = getLinesText(revisions.at(-1)!).join("\n") === laneLastLines.join("\n");
     return isDiskFinalText ? { rewindKind: WireRewindKind.conversation, keptToEnd: true } : { rewindKind: WireRewindKind.code };
   }
   return isLaneBytesKeptByNextRevision(next, laneLastLines, evidence)

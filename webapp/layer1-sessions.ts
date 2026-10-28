@@ -1,7 +1,7 @@
 // Task 292: the JSONLs pane's session list and selection state; never touches the stage.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
-import { paintLoadbar, readLayer1ViewStream } from "./layer1-progress.ts";
+import { readLayer1ViewStream, renderLoadbar } from "./layer1-progress.ts";
 import { readSourcePaths } from "./layer1-source-paths.ts";
 import { SourceKind } from "./layer1-wire.ts";
 import type { WireSession } from "./layer1-wire.ts";
@@ -110,7 +110,7 @@ export async function loadLayer1Sessions(): Promise<void> {
   ]));
   query.append("progress", "1");
   function renderScanProgress(text: string, current?: number, total?: number): void {
-    paintLoadbar(fill, label, text, current, total);
+    renderLoadbar(fill, label, text, current, total);
   }
   try {
     const payload = await readLayer1ViewStream<{ sessions: WireSession[] }>(`/api/layer1-sessions?${query}`, renderScanProgress);

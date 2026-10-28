@@ -3,8 +3,8 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
 import {
-  lastRevisionAtOrBefore,
-  linesTextOf,
+  findLastRevisionAtOrBefore,
+  getLinesText,
 } from "./reconstruction_revisions.ts";
 import { getFileHistoriesOver } from "./reconstruction_renderable.ts";
 import type { FileHistory, RenameInfo } from "./reconstruction_events.ts";
@@ -72,10 +72,10 @@ function findPathAtTime(history: FileHistory, when: Date): Path {
 export function computeRepoStateAtTime(histories: FileHistory[], when: Date): RepoSnapshot {
   const snapshot = new Map<Path, string>();
   for (const history of histories) {
-    const revision = lastRevisionAtOrBefore(history.revisions, when);
+    const revision = findLastRevisionAtOrBefore(history.revisions, when);
     if (revision !== undefined) {
       // The engine drops the file's single trailing newline at replay, so this omits it too.
-      snapshot.set(findPathAtTime(history, when), linesTextOf(revision).join("\n"));
+      snapshot.set(findPathAtTime(history, when), getLinesText(revision).join("\n"));
     }
   }
   return snapshot;

@@ -1,6 +1,6 @@
 // File-change derivation for the revision timeline: step changeIds resolved into displayable chips.
 
-import { routeToFileHistory } from "../app-routes.ts";
+import { getFileHistoryRoute } from "../app-routes.ts";
 import { isChangeIdBackupBlobName, findRevisionForChangeId } from "./file-history-model.ts";
 import { EDIT_EVENT_KIND } from "./timeline-types.ts";
 import type { FileChange, RevisionIndex } from "./timeline-node-types.ts";
@@ -133,7 +133,7 @@ export function computeSnapshotJumpRoute(project: string, filesTouched: WireFile
   if (revisionLink.revisionNumber === undefined) {
     return undefined;
   }
-  return `${routeToFileHistory(project, revisionLink.target)}/rev/${revisionLink.revisionNumber}`;
+  return `${getFileHistoryRoute(project, revisionLink.target)}/rev/${revisionLink.revisionNumber}`;
 }
 
 // old (pre engine-stamped isOrphaned): checkStepIsOrphaned, retired to archive/timeline-changes-retired-orphan-proxies.ts.

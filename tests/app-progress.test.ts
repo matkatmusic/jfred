@@ -4,11 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
-// Boot a fresh DOM and show the overlay once. The dynamic import keeps the webapp module load AFTER the happy-dom globals exist; each test calls hideLoadingProgress in its finally so the module-level singleton resets and the next test builds fresh elements in its own document.
+// Dynamic import runs after the DOM globals exist; each test hides the overlay to reset the singleton.
 async function showProgressInFreshDom(): Promise<typeof import("../webapp/app-progress.ts")> {
     initWebappDom();
     const progressModule = await import("../webapp/app-progress.ts");
-    progressModule.showLoadingProgress("constructing branches", Number.NaN);
+    progressModule.renderLoadingProgress("constructing branches", Number.NaN);
     return progressModule;
 }
 
@@ -19,8 +19,8 @@ function getRequiredElement(selector: string): HTMLElement {
     return element as HTMLElement;
 }
 
-test("test_showLoadingProgress_mounts_the_overlay_inside_the_timeline_pane", async () => {
-    // Scenario: the overlay must block ONLY the timeline pane, so the console and inspector stay usable during a load (task 164).  Steps: boot the DOM and show the overlay.
+test("test_renderLoadingProgress_mounts_the_overlay_inside_the_timeline_pane", async () => {
+    // Scenario: the overlay covers only the timeline pane, so the console and inspector stay usable.
     const progressModule = await showProgressInFreshDom();
     try {
         // assert the overlay's parent is the timeline pane, not document.body.
@@ -32,7 +32,7 @@ test("test_showLoadingProgress_mounts_the_overlay_inside_the_timeline_pane", asy
 });
 
 test("test_cancel_button_reveals_the_inline_confirm_row", async () => {
-    // Scenario: clicking Cancel swaps in the in-DOM confirm row — it must NOT navigate yet.  Steps: boot the DOM and show the overlay.
+    // Scenario: clicking Cancel swaps in the confirm row and does not navigate yet.
     const progressModule = await showProgressInFreshDom();
     try {
         // the confirm row starts hidden.
@@ -50,7 +50,7 @@ test("test_cancel_button_reveals_the_inline_confirm_row", async () => {
 });
 
 test("test_confirm_no_restores_the_cancel_button", async () => {
-    // Scenario: answering "No" returns the box to its pre-cancel state.  Steps: boot the DOM, show the overlay, and open the confirm row.
+    // Scenario: answering "No" returns the box to its pre-cancel state.
     const progressModule = await showProgressInFreshDom();
     try {
         getRequiredElement(".timeline-progress-cancel").click();
@@ -64,7 +64,7 @@ test("test_confirm_no_restores_the_cancel_button", async () => {
 });
 
 test("test_confirm_yes_navigates_to_the_project_picker", async () => {
-    // Scenario: answering "Yes, cancel" navigates to "#/" — the hashchange-driven renderRoute aborts the in-flight load (app-router.ts), so navigation IS the cancellation.  Steps: boot the DOM on a project route and show the overlay.
+    // Scenario: answering "Yes, cancel" navigates to "#/", which aborts the in-flight load.
     const progressModule = await showProgressInFreshDom();
     try {
         window.location.hash = "#/project/demo";

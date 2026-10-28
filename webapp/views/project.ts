@@ -8,7 +8,7 @@ import {
 } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
-import { routeToFileHistory, routeToProject, routeToTimeline } from "../app-routes.ts";
+import { getFileHistoryRoute, getProjectRoute, getTimelineRoute } from "../app-routes.ts";
 
 // app.ts is being typed in parallel; typed view of its untyped `createElement` for this file's call sites.
 const createElement = createElementUntyped as (
@@ -56,7 +56,7 @@ function appendTouchedFileLink(
 ): void {
   drawer.append(createElement("a", {
     class: `drawer-item drawer-file${target === activeTarget ? " active" : ""}`,
-    href: routeToFileHistory(project, target),
+    href: getFileHistoryRoute(project, target),
     text: target.slice(target.lastIndexOf("/") + 1),
   }));
 }
@@ -89,7 +89,7 @@ export async function renderProjectDrawer(
   }
   if (listing === undefined)
     return;
-  drawer.append(createElement("div", { class: "pane-title" }, [createElement("a", { href: routeToProject(project), text: project })]));
+  drawer.append(createElement("div", { class: "pane-title" }, [createElement("a", { href: getProjectRoute(project), text: project })]));
 
   drawer.append(createElement("div", { class: "drawer-section-title", text: `JSONL files (${listing.jsonlFiles.length})` }));
   // The default view: a JSONL opens the project timeline at its session; direct jsonl URLs still render the conversation.
@@ -97,7 +97,7 @@ export async function renderProjectDrawer(
   for (const entry of listing.jsonlFiles) {
     jsonlList.append(createElement("a", {
       class: `drawer-item${entry.fileName === activeJsonl ? " active" : ""}`,
-      href: routeToTimeline(project, entry.fileName, undefined),
+      href: getTimelineRoute(project, entry.fileName, undefined),
       text: entry.fileName,
       title: `${entry.sizeBytes} B · ${new Date(entry.modifiedAt).toLocaleString()}`,
     }));

@@ -1,6 +1,6 @@
 // Link/anchor model for the JSON inspector; rendering lives in inspector-json.ts, the pane in inspector.ts.
 
-import { routeToFileHistory } from "./app-routes.ts";
+import { getFileHistoryRoute } from "./app-routes.ts";
 
 // Parsed JSONL is dynamic, so these wire types name only the fields this file reads.
 
@@ -134,6 +134,6 @@ export function computeBlobRequestUrl(sessionId: string, blobName: string): stri
 }
 
 export function computeRevisionLinkRoute(project: string, { target, revisionNumber }: WireRevisionLink): string {
-  const base = routeToFileHistory(project, target);
+  const base = getFileHistoryRoute(project, target);
   return revisionNumber === undefined ? base : `${base}/rev/${revisionNumber}`;
 }

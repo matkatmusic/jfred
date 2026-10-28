@@ -2,22 +2,22 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkRouteIsTimeline } from "../webapp/app-routes.ts";
+import { isTimelineRoute } from "../webapp/app-routes.ts";
 import { isNavigationStartingNewProjectLoad } from "../webapp/app-router.ts";
 
 test("test_check_route_is_timeline_accepts_every_project_route", () => {
     // Scenario: the timeline is always a project's base view; every #/project/* route gets this layout.
-    assert.equal(checkRouteIsTimeline(["project", "s84", "timeline"]), true);
-    assert.equal(checkRouteIsTimeline(["project", "s84", "timeline", "session", "abc"]), true);
-    assert.equal(checkRouteIsTimeline(["project", "s84"]), true);
-    assert.equal(checkRouteIsTimeline(["project", "s84", "jsonl", "a.jsonl"]), true);
-    assert.equal(checkRouteIsTimeline(["project", "s84", "file", "x.ts"]), true);
+    assert.equal(isTimelineRoute(["project", "s84", "timeline"]), true);
+    assert.equal(isTimelineRoute(["project", "s84", "timeline", "session", "abc"]), true);
+    assert.equal(isTimelineRoute(["project", "s84"]), true);
+    assert.equal(isTimelineRoute(["project", "s84", "jsonl", "a.jsonl"]), true);
+    assert.equal(isTimelineRoute(["project", "s84", "file", "x.ts"]), true);
 });
 
 test("test_check_route_is_timeline_rejects_non_project_routes", () => {
     // Scenario: the projects list and unknown routes carry no timeline underneath.
-    assert.equal(checkRouteIsTimeline([]), false);
-    assert.equal(checkRouteIsTimeline(["bogus"]), false);
+    assert.equal(isTimelineRoute([]), false);
+    assert.equal(isTimelineRoute(["bogus"]), false);
 });
 
 test("test_check_navigation_starts_new_project_load_on_project_change", () => {

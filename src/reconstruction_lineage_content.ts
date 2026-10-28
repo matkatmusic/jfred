@@ -22,7 +22,7 @@ import { getDerivedCaches } from "./reconstruction_corpus.ts";
 import { computeLineageSeedHorizonKey } from "./reconstruction_lineage_horizon.ts";
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
-import { lastRevisionStrictlyBefore, linesTextOf } from "./reconstruction_revisions.ts";
+import { findLastRevisionStrictlyBefore, getLinesText } from "./reconstruction_revisions.ts";
 import type { FileRevision } from "./reconstruction_events.ts";
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
@@ -30,7 +30,7 @@ function computeSeededText(revisionBefore: FileRevision | undefined): string | u
   if (revisionBefore === undefined)
     return undefined;
   // Restore the trailing newline splitLines drops: the stage's byte-exact beacon compare needs it.
-  return linesTextOf(revisionBefore).join("\n") + "\n";
+  return getLinesText(revisionBefore).join("\n") + "\n";
 }
 
 // Replay the target's own reconstruction and return its seed text just before `before`.
@@ -41,7 +41,7 @@ function computeReplayedSeedText(
   before: Date,
 ): string | undefined {
   const revisions = getFileRevisionsOver(records, target, new Set(), reader);
-  return computeSeededText(lastRevisionStrictlyBefore(revisions, before));
+  return computeSeededText(findLastRevisionStrictlyBefore(revisions, before));
 }
 
 // Replay the target's own reconstruction up to `before`, serving the memo when proven safe.

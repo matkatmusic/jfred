@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hasLoadedBranches, loadBranchesOnce } from "../webapp/layer1-branches.ts";
-import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
+import { isBranchesLoaded, loadBranchesOnce } from "../webapp/layer1-branches.ts";
+import { stopLayer1Load } from "../webapp/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
@@ -74,9 +74,9 @@ test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
   stubStreamRoute("/api/layer1-branches", [PAYLOAD]);
   const fetchCount = countFetchesTo("/api/layer1-branches");
   const view = buildView();
-  assert.equal(hasLoadedBranches(view), false);
+  assert.equal(isBranchesLoaded(view), false);
   await loadBranchesOnce(view);
-  assert.equal(hasLoadedBranches(view), true);
+  assert.equal(isBranchesLoaded(view), true);
   assert.equal(await loadBranchesOnce(view), true);
   assert.equal(fetchCount(), 1);
   await loadBranchesOnce(buildView());
@@ -86,7 +86,7 @@ test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
 test("test_a_cancelled_fetch_answers_false_and_leaves_the_view_untouched", async () => {
   initLayer1Dom();
   Object.assign(globalThis, { fetch: async () => {
-    cancelLayer1Load();
+    stopLayer1Load();
     throw new Error("aborted");
   } });
   const view = buildView();

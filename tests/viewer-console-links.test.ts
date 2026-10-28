@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { matchJsonlSourceLink } from "../webapp/app-console-text.ts";
 import { splitNdjsonChunk } from "../webapp/app-ndjson.ts";
-import { routeToTimeline } from "../webapp/app-routes.ts";
+import { getTimelineRoute } from "../webapp/app-routes.ts";
 
 // -------------------- Step 4: client NDJSON line splitter --------------------
 
@@ -41,16 +41,16 @@ test("test_matchJsonlSourceLink_returns_undefined_for_line_without_token", () =>
     assert.equal(sourceLink, undefined);
 });
 
-test("test_routeToTimeline_appends_line_anchor_after_session", () => {
+test("test_getTimelineRoute_appends_line_anchor_after_session", () => {
     // Scenario: a token names session foo.jsonl, raw line 122; build the route with the anchor.
-    const route = routeToTimeline("p", "foo.jsonl", "122");
+    const route = getTimelineRoute("p", "foo.jsonl", "122");
     // Assertion: the /at/<line> segment follows the session segment.
     assert.equal(route, "#/project/p/timeline/session/foo.jsonl/at/122");
 });
 
-test("test_routeToTimeline_without_line_keeps_session_route", () => {
+test("test_getTimelineRoute_without_line_keeps_session_route", () => {
     // Scenario: a session anchor with no line anchor; build the route without a line.
-    const route = routeToTimeline("p", "foo.jsonl");
+    const route = getTimelineRoute("p", "foo.jsonl");
     // Assertion: the route is the plain session route, unchanged.
     assert.equal(route, "#/project/p/timeline/session/foo.jsonl");
 });

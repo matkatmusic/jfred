@@ -2,8 +2,8 @@
 
 import { resolve, sep } from "node:path";
 import { collectSnapshotPlacements, type SnapshotPlacement } from "./layer1_snapshots.ts";
-import { collectTitleRanges, titleInEffectAtLine } from "./layer1_sessions.ts";
-import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
+import { collectTitleRanges, findTitleAtLine } from "./layer1_sessions.ts";
+import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
 import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
 import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
@@ -35,7 +35,7 @@ function findSnapshotPlacement(
   version: number,
 ): SnapshotPlacement | undefined {
   for (const [absolutePath, placements] of collectSnapshotPlacements([sessionFile])) {
-    const relativeOfPlacement = relativizeToProjectFolder(projectFolder, absolutePath);
+    const relativeOfPlacement = convertToProjectRelativePath(projectFolder, absolutePath);
     if (relativeOfPlacement !== relativePath) {
       continue;
     }
@@ -82,7 +82,7 @@ export function readSnapshotFileContent(query: URLSearchParams): { content: stri
     throw new Error(`snapshot escapes the file-history root: ${placement.backupFileName.toString()}`);
   }
   const content = createSidecarReader(owner, root)(placement.backupFileName);
-  const title = titleInEffectAtLine(collectTitleRanges(records), placement.line ?? 0) ?? "untitled session";
+  const title = findTitleAtLine(collectTitleRanges(records), placement.line ?? 0) ?? "untitled session";
   // Task 213: the snapshot-line record feeds the drawer [{ }] reveal, via toJSON.
   let record: TranscriptRecord | undefined;
   for (const entry of records) {

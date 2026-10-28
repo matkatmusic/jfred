@@ -3,7 +3,7 @@
 import { createElement } from "./app-dom.ts";
 import { initProgressTerminal, openProgressConsole, progressTerminal } from "./app-console.ts";
 import { inflightLoadController } from "./app-fetch.ts";
-import { checkRouteIsTimeline, parseRouteSegments, routeToTimeline } from "./app-routes.ts";
+import { isTimelineRoute, parseRouteSegments, getTimelineRoute } from "./app-routes.ts";
 import { renderSubRouteDrawer, resetDetailsPane } from "./app-drawer.ts";
 import { triggerProjectPathsWizardOffer } from "./app-paths-project.ts";
 import { renderProjectsView } from "./views/projects.ts";
@@ -84,14 +84,14 @@ export async function renderRoute(): Promise<void> {
   // Bare project route rewrites to timeline via replaceState (no extra history entry).
   const isBareProjectRoute = segments[0] === "project" && segments.length === 2;
   if (isBareProjectRoute) {
-    history.replaceState(null, "", routeToTimeline(segments[1]!));
+    history.replaceState(null, "", getTimelineRoute(segments[1]!));
     segments.push("timeline");
   }
   // item 66: the fork layout keys off #rightcol.project-route (absent on #/, chrome hides):
-  // document.querySelector(".layout")!.classList.toggle("timeline-route", checkRouteIsTimeline(segments));
-  document.getElementById("rightcol")!.classList.toggle("project-route", checkRouteIsTimeline(segments));
+  // document.querySelector(".layout")!.classList.toggle("timeline-route", isTimelineRoute(segments));
+  document.getElementById("rightcol")!.classList.toggle("project-route", isTimelineRoute(segments));
   // task 140: timeline pane header is project chrome, hidden on #/.
-  document.getElementById("timeline-pane-header")!.hidden = !checkRouteIsTimeline(segments);
+  document.getElementById("timeline-pane-header")!.hidden = !isTimelineRoute(segments);
   // item 66: the fork sidebar (webapp/views/sidebar.ts) is rendered by renderTimelineView
   // itself — the old per-route project drawer is retired:
   // const refreshDrawer = () => renderProjectDrawer(drawer, segments[1]!, {

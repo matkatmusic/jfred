@@ -10,13 +10,14 @@ import { moveFirstVisibleNodeIntoView } from "./layer1-first-node-scroll.ts"; //
 import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
-import { wireBusyShield } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
+import { attachBusyShield } from "./layer1-busy-shield.ts";
+import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
 import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
 import { registerPathPickers } from "./layer1-path-picker.ts";
 import { wireBubbleFlash } from "./layer1-session-flash.ts";
 import { resetSessionSelection } from "./layer1-sessions.ts";
-import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
+import { attachSettingsSave, markSettingsDirty } from "./layer1-settings.ts";
+import { applySavedSettingsForCurrentDir, loadSavedSettings } from "./layer1-settings-restore.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
 import { closeRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
@@ -63,7 +64,7 @@ export async function loadLayer1View(): Promise<void> {
   clearFolderFilterState();
   closeRulerExpansion();
   resetSessionSelection();
-  showLayer1Progress("starting");
+  renderLayer1Progress("starting");
   try {
     const view = await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`);
     if (view === undefined) {
@@ -106,10 +107,10 @@ export async function initLayer1Page(): Promise<void> {
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
   fillSourceBoxesFromUrl();
   // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
-  showLayer1Progress("starting");
+  renderLayer1Progress("starting");
   // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
   registerPathPickers(markDirtyAndLoadView);
-  wireSettingsSave();
+  attachSettingsSave();
   initSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
   wireTimeSourceToggle(loadViewInBackground);
@@ -117,8 +118,8 @@ export async function initLayer1Page(): Promise<void> {
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
   registerRefPickers(loadViewInBackground);
   void fillRefsFromRepo();
-  wireLayer1CancelButton();
-  wireBusyShield();
+  attachLayer1CancelButton();
+  attachBusyShield();
   attachZoomControls();
   // wireLayerToggle();
   initFileNavResize();
@@ -135,7 +136,7 @@ export async function initLayer1Page(): Promise<void> {
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
   await seedSourceDefaults();
-  await restoreSavedSettings().catch(getFailedRestoreResult);
+  await loadSavedSettings().catch(getFailedRestoreResult);
   await loadLayer1View();
   moveFirstVisibleNodeIntoView();
   if (linkedNode !== undefined) {

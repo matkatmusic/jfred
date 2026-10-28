@@ -22,13 +22,16 @@ export type SessionMetadata = {
 };
 
 // Reduce rather than last-of-filter, so an unsorted list off the wire still resolves correctly.
-export function titleInEffectAtLine(titles: SessionTitleRange[], line: number): string | undefined {
+export function findTitleAtLine(titles: SessionTitleRange[], line: number): string | undefined {
   let inEffect: SessionTitleRange | undefined;
   for (const range of titles) {
     if (range.fromLine > line) {
       continue;
     }
-    if (inEffect === undefined || range.fromLine > inEffect.fromLine) {
+    const hasNoTitleYet = inEffect === undefined;
+    const isLaterThanTitle = inEffect !== undefined && range.fromLine > inEffect.fromLine;
+    const isReplacement = hasNoTitleYet || isLaterThanTitle;
+    if (isReplacement) {
       inEffect = range;
     }
   }
@@ -60,10 +63,13 @@ function findRecordInstantSpan(records: TranscriptRecord[]): { started?: Date; e
     if (!(timestamp instanceof Date)) {
       continue;
     }
-    if (started === undefined || timestamp.getTime() < started.getTime()) {
+    const timestampMs = timestamp.getTime();
+    const isEarliest = started === undefined || timestampMs < started.getTime();
+    if (isEarliest) {
       started = timestamp;
     }
-    if (ended === undefined || timestamp.getTime() > ended.getTime()) {
+    const isLatest = ended === undefined || timestampMs > ended.getTime();
+    if (isLatest) {
       ended = timestamp;
     }
   }
@@ -77,7 +83,8 @@ function collectWrittenPaths(records: TranscriptRecord[]): Path[] {
   for (const event of extractFileEvents(records)) {
     for (const path of listEventPaths(event)) {
       const key = path.toString();
-      if (seen.has(key)) {
+      const isSeen = seen.has(key);
+      if (isSeen) {
         continue;
       }
       seen.add(key);
@@ -88,17 +95,23 @@ function collectWrittenPaths(records: TranscriptRecord[]): Path[] {
 }
 
 // Tolerant parsing matches the viewer's loader: a real session with unmodeled fields must still open.
+function buildOneSessionMetadata(file: Path): SessionMetadata {
+  const records = loadTranscript(file.toString(), undefined, true).records;
+  const { started, ended } = findRecordInstantSpan(records);
+  return {
+    file,
+    sessionId: findSessionId(records),
+    started,
+    ended,
+    paths: collectWrittenPaths(records),
+    titles: collectTitleRanges(records),
+  };
+}
+
 export function buildSessionMetadata(sessionFiles: Path[]): SessionMetadata[] {
-  return sessionFiles.map((file) => {
-    const records = loadTranscript(file.toString(), undefined, true).records;
-    const { started, ended } = findRecordInstantSpan(records);
-    return {
-      file,
-      sessionId: findSessionId(records),
-      started,
-      ended,
-      paths: collectWrittenPaths(records),
-      titles: collectTitleRanges(records),
-    };
-  });
+  const sessions: SessionMetadata[] = [];
+  for (const file of sessionFiles) {
+    sessions.push(buildOneSessionMetadata(file));
+  }
+  return sessions;
 }

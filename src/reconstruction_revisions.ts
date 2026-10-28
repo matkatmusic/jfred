@@ -1,29 +1,33 @@
-// Revision selection and text helpers, split out of reconstruction_branches.ts to keep both files within the 250-line cap — split, never condense.
+// Revision selection and text helpers, split out of reconstruction_branches.ts to keep both files under 250 lines.
 
 import type { FileRevision } from "./reconstruction_events.ts";
 
 // The latest revision whose timestamp is at or before `when`, or undefined.
-export function lastRevisionAtOrBefore(
+export function findLastRevisionAtOrBefore(
   revisions: FileRevision[],
   when: Date,
 ): FileRevision | undefined {
   let chosen: FileRevision | undefined;
+  const whenMs = when.getTime();
   for (const revision of revisions) {
-    if (revision.timestamp.getTime() <= when.getTime()) {
+    const revisionMs = revision.timestamp.getTime();
+    if (revisionMs <= whenMs) {
       chosen = revision;
     }
   }
   return chosen;
 }
 
-// The latest revision whose timestamp is strictly before `when`, or undefined. Strictly-before is required so a script run never seeds itself from its own injected output.
-export function lastRevisionStrictlyBefore(
+// The latest revision strictly before `when`, or undefined, so a script run never seeds itself.
+export function findLastRevisionStrictlyBefore(
   revisions: FileRevision[],
   when: Date,
 ): FileRevision | undefined {
   let chosen: FileRevision | undefined;
+  const whenMs = when.getTime();
   for (const revision of revisions) {
-    if (revision.timestamp.getTime() < when.getTime()) {
+    const revisionMs = revision.timestamp.getTime();
+    if (revisionMs < whenMs) {
       chosen = revision;
     }
   }
@@ -31,8 +35,10 @@ export function lastRevisionStrictlyBefore(
 }
 
 // The believed text of each line in a revision (its latest value).
-export function linesTextOf(revision: FileRevision): string[] {
-  return revision.lines.map(
-    (entry) => entry.values[entry.values.length - 1]!.line,
-  );
+export function getLinesText(revision: FileRevision): string[] {
+  const lineTexts: string[] = [];
+  for (const entry of revision.lines) {
+    lineTexts.push(entry.values[entry.values.length - 1]!.line);
+  }
+  return lineTexts;
 }

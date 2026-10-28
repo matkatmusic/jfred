@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { getSurvivingFileHistory } from "../src/reconstruction_target.ts";
-import { linesTextOf } from "../src/reconstruction_revisions.ts";
+import { getLinesText } from "../src/reconstruction_revisions.ts";
 import type { SweepRow } from "../src/per_file_sweep_report.ts";
 import { Path } from "../src/structures/domain.ts";
 import type { FileRevision } from "../src/reconstruction_events.ts";
@@ -12,7 +12,7 @@ import type { SweepSettings } from "./per_file_sweep_settings.ts";
 
 // A revision's bytes in the form that blob-matched in task 182: lines joined, trailing newline.
 function renderRevisionText(revision: FileRevision): string {
-  return linesTextOf(revision).join("\n") + "\n";
+  return getLinesText(revision).join("\n") + "\n";
 }
 
 function computeBlobHashOfText(text: string): string {

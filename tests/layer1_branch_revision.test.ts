@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { buildBranchesView } from "../src/layer1_branches_wire.ts";
 import { readEditFileContent } from "../src/viewer_api_layer1_edit_file.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
-import { linesTextOf } from "../src/reconstruction_revisions.ts";
+import { getLinesText } from "../src/reconstruction_revisions.ts";
 import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { buildStepTimeline } from "../src/reconstruction_steps.ts";
@@ -28,8 +28,8 @@ function listLaneNodeSides(scenarioDir: string): LaneNodeSides[] {
         return {
             changeId: node.changeId.toString(),
             path: pair.path.toString(),
-            before: index === 0 ? "" : linesTextOf(revisions[index - 1]!).join("\n"),
-            after: linesTextOf(revisions[index]!).join("\n"),
+            before: index === 0 ? "" : getLinesText(revisions[index - 1]!).join("\n"),
+            after: getLinesText(revisions[index]!).join("\n"),
             query: (side: string) => new URLSearchParams({
                 editChangeId: node.changeId.toString(), side, path: pair.path.toString(), dir: projectFolder.toString(), jsonl: dirname(jsonl), branch: "1",
             }),

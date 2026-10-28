@@ -31,7 +31,7 @@ function computeTurnWidths(turns: GraphTurn[]): TurnWidths {
 }
 
 // A short tip/root id, or a placeholder when absent (no rooted record).
-function shortOrDash(uuid: Uuid | undefined): string {
+function formatShortUuid(uuid: Uuid | undefined): string {
   return uuid === undefined ? "????????" : shortUuid(uuid);
 }
 
@@ -44,9 +44,9 @@ function renderTurnCore(turn: GraphTurn, widths: TurnWidths): string {
 
 // A branch wrapper's header: `branch <role> (<role>; tip #<tip>[; rewind @ #<rewindPoint>])`.
 function renderBranchHeader(branch: ConvoBranch): string {
-  let header = `branch ${branch.role} (${branch.role}; tip #${shortOrDash(branch.tip)}`;
+  let header = `branch ${branch.role} (${branch.role}; tip #${formatShortUuid(branch.tip)}`;
   if (branch.rewindPoint !== undefined) {
-    header += `; rewind @ #${shortOrDash(branch.rewindPoint)}`;
+    header += `; rewind @ #${formatShortUuid(branch.rewindPoint)}`;
   }
   return `${header})`;
 }
@@ -67,28 +67,37 @@ function renderBranchBlock(branch: ConvoBranch, isLast: boolean, widths: TurnWid
 }
 
 // All the turns a conversationDAG renders (trunk plus every branch's turns) — the alignment scope.
-function allConvoTurns(dag: ConversationDag): GraphTurn[] {
-  return [...dag.trunk, ...dag.branches.flatMap((branch) => branch.turns)];
+function collectConvoTurns(dag: ConversationDag): GraphTurn[] {
+  const turns = [...dag.trunk];
+  for (const branch of dag.branches) {
+    turns.push(...branch.turns);
+  }
+  return turns;
 }
 
 // The root line: `A  prompt  #<root>`, annotated `(rewind point)` when any branch is rewound.
 function renderRootLine(dag: ConversationDag): string {
-  const hasRewound = dag.branches.some((branch) => branch.rewindPoint !== undefined);
+  let hasRewound = false;
+  for (const branch of dag.branches) {
+    if (branch.rewindPoint !== undefined) {
+      hasRewound = true;
+    }
+  }
   const suffix = hasRewound ? "   (rewind point)" : "";
-  return `${dag.rootLetter}  prompt  #${shortOrDash(dag.rootUuid)}${suffix}`;
+  return `${dag.rootLetter}  prompt  #${formatShortUuid(dag.rootUuid)}${suffix}`;
 }
 
 // Render the conversationDAG oldest-at-top: header, root, then a linear trunk (no fork) or oldest-first branch wrappers.
 export function renderConversationDag(dag: ConversationDag): string {
-  const widths = computeTurnWidths(allConvoTurns(dag));
+  const widths = computeTurnWidths(collectConvoTurns(dag));
   const lines = [CONVO_HEADER, renderRootLine(dag)];
   for (const turn of dag.trunk) {
     lines.push(`  ${renderTurnCore(turn, widths)}`);
   }
-  dag.branches.forEach((branch, index) => {
+  for (const [index, branch] of dag.branches.entries()) {
     const isLast = index === dag.branches.length - 1;
     lines.push(...renderBranchBlock(branch, isLast, widths));
-  });
+  }
   return lines.join("\n");
 }
 
@@ -99,7 +108,10 @@ function renderFileTurnLine(turn: GraphTurn, kindWidth: number): string {
 
 // Render the fileDAG: a header then, per file, its base-name line and its version-ordered turns.
 export function renderFileDag(dag: FileDag): string {
-  const allTurns = dag.files.flatMap((file) => file.turns);
+  const allTurns: GraphTurn[] = [];
+  for (const file of dag.files) {
+    allTurns.push(...file.turns);
+  }
   const kindWidth = computeTurnWidths(allTurns).kind;
   const lines = [FILE_HEADER];
   for (const file of dag.files) {

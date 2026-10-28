@@ -16,12 +16,23 @@ type CorpusStaticState = {
 
 const staticStateByCorpus = new WeakMap<TranscriptRecord[], CorpusStaticState>();
 
+function compareInstantsAscending(left: number, right: number): number {
+  return left - right;
+}
+
+function listSortedInstantsMs(events: FileEvent[]): number[] {
+  const instantsMs: number[] = [];
+  for (const event of events) {
+    instantsMs.push(event.timestamp.getTime());
+  }
+  return instantsMs.sort(compareInstantsAscending);
+}
+
 function getCorpusStaticState(records: TranscriptRecord[]): CorpusStaticState {
   let state = staticStateByCorpus.get(records);
   if (state === undefined) {
-    const instantsMs = extractFileEvents(records).map((event) => event.timestamp.getTime());
     state = {
-      allEventInstantsMs: instantsMs.sort((a, b) => a - b),
+      allEventInstantsMs: listSortedInstantsMs(extractFileEvents(records)),
       inputsByTarget: new Map<string, LineageStaticInputs>(),
     };
     staticStateByCorpus.set(records, state);
@@ -50,14 +61,22 @@ function buildStaticInputsForTarget(records: TranscriptRecord[], target: Path): 
   const events = extractFileEvents(records);
   const renameChain = buildRenameChain(events);
   const finalTarget = resolveFinalPath(target, renameChain);
-  const lineageEvents = events.filter((event) => eventBelongsToLineage(event, finalTarget, renameChain));
+  const lineageEvents: FileEvent[] = [];
+  for (const event of events) {
+    const isInLineage = eventBelongsToLineage(event, finalTarget, renameChain);
+    if (isInLineage) {
+      lineageEvents.push(event);
+    }
+  }
   const pathStrings = new Set<string>([target.toString(), finalTarget.toString()]);
   for (const event of lineageEvents) {
-    collectEventPathStrings(event).forEach((pathString) => pathStrings.add(pathString));
+    for (const pathString of collectEventPathStrings(event)) {
+      pathStrings.add(pathString);
+    }
   }
   return {
     lineagePathStrings: [...pathStrings],
-    ownInstantsMs: lineageEvents.map((event) => event.timestamp.getTime()).sort((a, b) => a - b),
+    ownInstantsMs: listSortedInstantsMs(lineageEvents),
   };
 }
 

@@ -2,7 +2,7 @@
 
 import type { ILink, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
-import { parseRouteSegments, routeToTimeline } from "./app-routes.ts";
+import { parseRouteSegments, getTimelineRoute } from "./app-routes.ts";
 import { collectBufferText, findLastNonEmptyBufferLine, formatConsoleTime, formatTintedSourceToken, matchJsonlSourceLink } from "./app-console-text.ts";
 
 // xterm.js loads as browser globals via script tags, so type them here instead of value-importing.
@@ -24,7 +24,7 @@ function openSourceLinkTimeline(sourceLink: NonNullable<ReturnType<typeof matchJ
   if (segments[0] !== "project") {
     return;
   }
-  location.hash = routeToTimeline(segments[1]!, sourceLink.jsonlFileName, String(sourceLink.rawLineIndex));
+  location.hash = getTimelineRoute(segments[1]!, sourceLink.jsonlFileName, String(sourceLink.rawLineIndex));
 }
 
 function buildConsoleSourceLinks(bufferLineNumber: number, callback: (links: ILink[] | undefined) => void): void {

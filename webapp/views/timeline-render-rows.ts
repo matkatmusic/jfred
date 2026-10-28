@@ -1,6 +1,6 @@
 // Timeline row build loop behind the progress overlay; per-row builder is timeline-render-row.ts.
 
-import { hideLoadingProgress, showLoadingProgress } from "../app-progress.ts";
+import { hideLoadingProgress, renderLoadingProgress } from "../app-progress.ts";
 import { findSessionStartIndexes } from "./timeline-labels-pills.ts";
 import { appendGapRows, computeGapRowBuckets } from "./reconstruction-render.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
@@ -27,7 +27,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
   const showBuildProgress = isTimelineNeedingProgressOverlay(context.nodes.length);
   const rowFragment = document.createDocumentFragment();
   if (showBuildProgress) {
-    showLoadingProgress(computeTimelineBuildProgressLabel(0, context.nodes.length), computeTimelineProgressFraction(0, context.nodes.length));
+    renderLoadingProgress(computeTimelineBuildProgressLabel(0, context.nodes.length), computeTimelineProgressFraction(0, context.nodes.length));
     await waitForNextAnimationFrame();
   }
   try {
@@ -44,7 +44,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
       const isBatchEnd = (index + 1) % TIMELINE_BUILD_BATCH_SIZE === 0;
       const shouldYield = showBuildProgress && isBatchEnd;
       if (shouldYield) {
-        showLoadingProgress(computeTimelineBuildProgressLabel(index + 1, context.nodes.length), computeTimelineProgressFraction(index + 1, context.nodes.length));
+        renderLoadingProgress(computeTimelineBuildProgressLabel(index + 1, context.nodes.length), computeTimelineProgressFraction(index + 1, context.nodes.length));
         await waitForNextAnimationFrame();
       }
     }

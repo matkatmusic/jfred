@@ -28,7 +28,7 @@ import { SERVER_BOOT_ID, receiveConfigUpdate } from "./viewer_server_config.ts";
 import { selectFolders } from "./viewer_server_folder_pick.ts";
 import { sendStaticFile } from "./viewer_server_static.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
-import { configureSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox.ts";
+import { setSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox_memo.ts";
 import { setDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 
@@ -130,7 +130,7 @@ const sandboxMemoPath = new Path(join(import.meta.dirname, "..", ".cache", "sand
 if (resetSandboxMemo) {
   resetSandboxMemoOnDisk(sandboxMemoPath);
 }
-configureSandboxMemoPersistence(sandboxMemoPath);
+setSandboxMemoPersistence(sandboxMemoPath);
 // Item 79: a respawn reads back the ~87 MB / 7.8 min reconstruction instead of rebuilding it.
 const documentCacheDir = new Path(join(import.meta.dirname, "..", ".cache", "built-documents"));
 // Delete the cache dir BEFORE configuring, for a forced cold rebuild.

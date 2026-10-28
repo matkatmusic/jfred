@@ -12,7 +12,7 @@ import {
 } from "../src/viewer_api_records.ts";
 import { matchJsonlSourceLink } from "../webapp/app-console-text.ts";
 import { reconcileServerBootId } from "../webapp/app-choices.ts";
-import { classifyLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
+import { findLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { copyFixtureIntoTempDir } from "./utilities.ts";
 
@@ -54,7 +54,7 @@ test("test_cached_record_replay_is_throttled_counted_and_token_bearing", () => {
 
 // -------------------- C1: client phase classifier --------------------
 
-test("test_classifyLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
+test("test_findLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
     const cases: [string, number | undefined][] = [
         ["resolving transcript files for X", 1],
         ["resolved 16 transcript file(s)", 1],
@@ -75,17 +75,17 @@ test("test_classifyLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
         ["???", undefined],
     ];
     for (const [label, expected] of cases) {
-        assert.equal(classifyLoadPhase(label), expected, `phase for "${label}"`);
+        assert.equal(findLoadPhase(label), expected, `phase for "${label}"`);
     }
 });
 
-test("test_classifyLoadPhase_total_is_six", () => {
+test("test_findLoadPhase_total_is_six", () => {
     assert.equal(LOAD_PHASE_COUNT, 6);
 });
 
 // task 163: the branch-enumeration counter must land in phase 4 (Building document).
-test("test_classifyLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
-    assert.equal(classifyLoadPhase("scanning branch tips — 3 / 12"), 4);
+test("test_findLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
+    assert.equal(findLoadPhase("scanning branch tips — 3 / 12"), 4);
 });
 
 // -------------------- server boot-id consent reset --------------------

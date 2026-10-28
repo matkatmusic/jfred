@@ -4,7 +4,7 @@ import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import type { Instant, TimelineNode } from "./layered_types.ts";
 
 // Widens a git epoch-second stamp onto the shared UTC-ms axis.
-export function widenEpochSecondsToInstant(epochSeconds: number): Instant {
+export function convertEpochSecondsToInstant(epochSeconds: number): Instant {
   return new Date(epochSeconds * 1000);
 }
 
@@ -23,8 +23,10 @@ function computeEpochSecond(placement: AxisPlacement): number {
 }
 
 // True when exactly one side is widened and both share the same epoch second.
-function checkNeedsContentTiebreak(a: AxisPlacement, b: AxisPlacement): boolean {
-  if (computeEpochSecond(a) !== computeEpochSecond(b)) {
+function isContentTiebreakNeeded(a: AxisPlacement, b: AxisPlacement): boolean {
+  const epochSecondOfA = computeEpochSecond(a);
+  const epochSecondOfB = computeEpochSecond(b);
+  if (epochSecondOfA !== epochSecondOfB) {
     return false;
   }
   return a.widenedFromSeconds !== b.widenedFromSeconds;
@@ -42,7 +44,7 @@ function compareByContentOrder(a: AxisPlacement, b: AxisPlacement): number {
 
 // Primary comparator; stable sort preserves source order for equal-ms ties.
 export function compareAxisPlacements(a: AxisPlacement, b: AxisPlacement): number {
-  const tiebreakApplies = checkNeedsContentTiebreak(a, b)
+  const tiebreakApplies = isContentTiebreakNeeded(a, b)
         && a.content !== undefined
         && b.content !== undefined;
   if (tiebreakApplies) {
@@ -52,7 +54,7 @@ export function compareAxisPlacements(a: AxisPlacement, b: AxisPlacement): numbe
 }
 
 // Builds an ms-precision axis placement for a JSONL node.
-function makeJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
+function createJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
   return {
     instant: node.instant,
     widenedFromSeconds: false,
@@ -60,11 +62,26 @@ function makeJsonlAxisPlacement(node: TimelineNode): AxisPlacement {
   };
 }
 
+interface PlacedNode {
+  node: TimelineNode;
+  placement: AxisPlacement;
+}
+
+function comparePlacedNodes(a: PlacedNode, b: PlacedNode): number {
+  return compareAxisPlacements(a.placement, b.placement);
+}
+
 // Sorts nodes onto the shared instant axis for S1 loader and S5 merge.
 export function sortNodesOntoAxis(nodes: TimelineNode[]): TimelineNode[] {
-  return nodes
-    .map((node) => ({ node, placement: makeJsonlAxisPlacement(node) }))
-    .sort((a, b) => compareAxisPlacements(a.placement, b.placement))
-    .map((entry) => entry.node);
+  const placedNodes: PlacedNode[] = [];
+  for (const node of nodes) {
+    placedNodes.push({ node, placement: createJsonlAxisPlacement(node) });
+  }
+  placedNodes.sort(comparePlacedNodes);
+  const sortedNodes: TimelineNode[] = [];
+  for (const placedNode of placedNodes) {
+    sortedNodes.push(placedNode.node);
+  }
+  return sortedNodes;
 }
 

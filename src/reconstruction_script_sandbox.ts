@@ -3,11 +3,11 @@
 import { Path } from "./structures/domain.ts";
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync, mkdirSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync, mkdirSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
-import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
+import { getMemoizedSandboxOutcome, storeSandboxOutcome } from "./reconstruction_script_sandbox_memo.ts";
 import {
   ReconstructionCounter,
   incrementReconstructionCounter,
@@ -17,10 +17,12 @@ function readAllFiles(dir: string, base: string = dir): [string, string][] {
   const files: [string, string][] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
+    const entryIsDirectory = entry.isDirectory();
+    const entryIsFile = entry.isFile();
+    if (entryIsDirectory) {
       files.push(...readAllFiles(full, base));
     }
-    else if (entry.isFile()) {
+    else if (entryIsFile) {
       files.push([relative(base, full), readFileSync(full, "utf8")]);
     }
   }
@@ -28,7 +30,7 @@ function readAllFiles(dir: string, base: string = dir): [string, string][] {
 }
 
 // The script's first line, capped, so a progress line identifies which run is executing.
-function summarizeScriptForProgress(script: string): string {
+function formatScriptForProgress(script: string): string {
   const firstLine = script.split("\n", 1)[0] ?? "";
   if (firstLine.length <= 60) {
     return firstLine;
@@ -44,88 +46,7 @@ export function isJunkStateKey(key: string): boolean {
   return key.includes("__pycache__") || key.endsWith(".pyc");
 }
 
-// A script is deterministic per input, so one spawn suffices; ponytail: outcomes returned by reference, treat post-states read-only.
-type SandboxOutcome = { post: Map<string, string> | undefined };
-const sandboxOutcomesByInput = new Map<string, SandboxOutcome>();
-// Must exceed a project's distinct run count or eviction beats the disk snapshot; ponytail: flat constant, revisit if exceeded.
-const SANDBOX_MEMO_CAPACITY = 4096;
-
-// Opt-in (viewer only, keeps CLI/tests deterministic); batches to avoid O(N²) rewrites. ponytail: fixed batch size, a crash re-spawns one batch.
-let sandboxMemoFilePath: Path | undefined;
-const SANDBOX_MEMO_PERSIST_BATCH_SIZE = 64;
-let sandboxSpawnsSinceLastPersist = 0;
-
-// Wire shape of one memo entry on disk: `post: null` records a memoized failure.
-type PersistedSandboxOutcome = { post: Record<string, string> | null };
-
-export function configureSandboxMemoPersistence(filePath: Path | undefined): void {
-  sandboxMemoFilePath = filePath;
-  sandboxOutcomesByInput.clear();
-  sandboxSpawnsSinceLastPersist = 0;
-  if (filePath === undefined) {
-    return;
-  }
-  loadSandboxMemoFromDisk(filePath);
-}
-
-// Call once when a reconstruction completes so the final sub-batch tail of new spawns isn't lost; no-op without a path.
-export function flushSandboxMemoToDisk(): void {
-  persistSandboxMemoToDisk();
-  sandboxSpawnsSinceLastPersist = 0;
-}
-
-// Deletes the persisted sandbox memo so --resetSandboxMemo forces a full cold-load reconstruction from scratch.
-export function resetSandboxMemoOnDisk(filePath: Path): void {
-  rmSync(filePath.toString(), { force: true });
-}
-
-// Rehydrate one persisted entry into the in-memory memo (`post: null` = memoized failure).
-function restorePersistedOutcomeIntoMemo(inputKey: string, outcome: PersistedSandboxOutcome): void {
-  sandboxOutcomesByInput.set(inputKey, {
-    post: outcome.post === null ? undefined : new Map(Object.entries(outcome.post)),
-  });
-}
-
-// Seed the (just-cleared) memo from a previously persisted file; absent file = start empty.
-function loadSandboxMemoFromDisk(filePath: Path): void {
-  if (!existsSync(filePath.toString())) {
-    return;
-  }
-  try {
-    const persisted = JSON.parse(readFileSync(filePath.toString(), "utf8")) as Record<
-      string,
-      PersistedSandboxOutcome
-    >;
-    for (const [inputKey, outcome] of Object.entries(persisted)) {
-      restorePersistedOutcomeIntoMemo(inputKey, outcome);
-    }
-  }
-  catch (error) {
-    // A corrupt cache file must not kill the server — log once and continue empty.
-    console.error(`sandbox memo cache unreadable, starting empty: ${String(error)}`);
-  }
-}
-
-// Mirror the capped memo to disk (called after set + evict, so the file inherits the 256 cap).
-function persistSandboxMemoToDisk(): void {
-  if (sandboxMemoFilePath === undefined) {
-    return;
-  }
-  try {
-    const persisted: Record<string, PersistedSandboxOutcome> = {};
-    for (const [inputKey, outcome] of sandboxOutcomesByInput) {
-      persisted[inputKey] = { post: outcome.post === undefined ? null : Object.fromEntries(outcome.post) };
-    }
-    mkdirSync(dirname(sandboxMemoFilePath.toString()), { recursive: true });
-    writeFileSync(sandboxMemoFilePath.toString(), JSON.stringify(persisted));
-  }
-  catch (error) {
-    // Persistence failure is tolerable; losing the reconstruction is not.
-    console.error(`sandbox memo cache not persisted: ${String(error)}`);
-  }
-}
-
-// Hashes the script plus sorted seeded (path, content) pairs, plus cwd since remapping cwd changes the effective script.
+// Hashes the script plus sorted seeded (path, content) pairs, plus cwd since remapping changes the script.
 function computeSandboxInputKey(script: string, preState: Map<string, string>, recordedCwd?: Path): string {
   const hash = createHash("sha256");
   hash.update(script);
@@ -143,38 +64,31 @@ function computeSandboxInputKey(script: string, preState: Map<string, string>, r
   return hash.digest("hex");
 }
 
-export function runScriptAgainstState(
+export function executeScriptAgainstState(
   script: string,
   preState: Map<string, string>,
   sourceLabel = "",
   recordedCwd?: Path,
 ): Map<string, string> | undefined {
   const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
-  const memoizedOutcome = getCachedValueRefreshingRecency(sandboxOutcomesByInput, inputKey);
+  const memoizedOutcome = getMemoizedSandboxOutcome(inputKey);
   if (memoizedOutcome !== undefined) {
     incrementReconstructionCounter(ReconstructionCounter.sandboxMemoHits);
     reportReconstructionProgress(
-      `${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${summarizeScriptForProgress(script)}`,
+      `${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${formatScriptForProgress(script)}`,
     );
     return memoizedOutcome.post;
   }
   reportReconstructionProgress(
-    `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${summarizeScriptForProgress(script)}`,
+    `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${formatScriptForProgress(script)}`,
   );
   incrementReconstructionCounter(ReconstructionCounter.sandboxSpawns);
   const post = spawnSandboxRun(script, preState, recordedCwd);
-  sandboxOutcomesByInput.set(inputKey, { post });
-  evictLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
-  // Persist per batch, not per spawn, since a full rewrite is O(N²); flushSandboxMemoToDisk() catches the final tail at build end.
-  sandboxSpawnsSinceLastPersist += 1;
-  if (sandboxSpawnsSinceLastPersist >= SANDBOX_MEMO_PERSIST_BATCH_SIZE) {
-    persistSandboxMemoToDisk();
-    sandboxSpawnsSinceLastPersist = 0;
-  }
+  storeSandboxOutcome(inputKey, post);
   return post;
 }
 
-// Seeds a temp dir, runs python3, reads back the tree; remaps a hardcoded cwd so scripts can't escape the sandbox.
+// Seeds a temp dir, runs python3, reads back the tree; remaps a hardcoded cwd so scripts stay inside.
 function spawnSandboxRun(
   script: string,
   preState: Map<string, string>,

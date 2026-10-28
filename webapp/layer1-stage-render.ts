@@ -5,7 +5,7 @@ import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-dif
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
-import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { attachRulerTickClick } from "./layer1-ruler-click.ts";
@@ -68,7 +68,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     if (!isChunked) {
       continue;
     }
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
+    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
       Math.min(done + STAGE_CHUNK_WIDGETS, widgets.length), widgets.length);
     await waitForPaintedFrame();
     if (pass !== stageRenderPass) {
@@ -76,7 +76,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     }
   }
   if (isChunked) {
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
+    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
     await waitForPaintedFrame();
     if (pass !== stageRenderPass) {
       return;

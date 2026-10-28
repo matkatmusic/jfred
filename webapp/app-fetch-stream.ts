@@ -3,7 +3,7 @@
 import type { WireConsentScript, WireDocument } from "./app-fetch.ts";
 import { logProgress } from "./app-console.ts";
 import { splitNdjsonChunk } from "./app-ndjson.ts";
-import { showLoadingProgress } from "./app-progress.ts";
+import { renderLoadingProgress } from "./app-progress.ts";
 
 // Discriminated union for one NDJSON stream line; documents have no `kind`.
 export type WireDocumentStreamLine = WireDocument & {
@@ -22,7 +22,7 @@ function reportStreamProgress(parsed: WireDocumentStreamLine): void {
   const hasCount = parsed.current !== undefined && parsed.total !== undefined && parsed.total > 0;
   const fraction = hasCount ? parsed.current! / parsed.total! : Number.NaN;
   const detail = hasCount ? `${parsed.label} — ${parsed.current} / ${parsed.total}` : parsed.label!;
-  showLoadingProgress(detail, fraction);
+  renderLoadingProgress(detail, fraction);
 }
 
 // Only the terminal document payload is this large; gating on size lets tiny lines parse inline (item 82).
@@ -37,7 +37,7 @@ async function parseDocumentStreamLines(lines: string[], finalPayload: WireDocum
   for (const line of lines) {
     if (line.length > LARGE_PAYLOAD_BYTES) {
       // JSON.parse of this line blocks the tab; show a label and yield so the browser paints first.
-      showLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
+      renderLoadingProgress(`parsing document — ${formatMegabytes(line.length)}`, Number.NaN);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     const parsed = JSON.parse(line) as WireDocumentStreamLine;

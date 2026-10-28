@@ -4,8 +4,8 @@ import { WireEditSide } from "../webapp/layer1-wire-edits.ts";
 import { collectSessionFileGroups, loadSessionRewinds, type SessionRewinds } from "./layer1_branch_sessions.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import { buildGroupHistories, listLanes } from "./layer1_branches_lanes.ts";
-import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
-import { linesTextOf } from "./reconstruction_revisions.ts";
+import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
+import { getLinesText } from "./reconstruction_revisions.ts";
 import type { Path } from "./structures/domain.ts";
 
 function containsChangeId(rewinds: SessionRewinds, changeId: string): boolean {
@@ -20,7 +20,7 @@ function containsChangeId(rewinds: SessionRewinds, changeId: string): boolean {
 
 function findHistoryForPath(histories: FileHistory[], projectFolder: Path, relativePath: string): FileHistory | undefined {
   for (const candidate of histories) {
-    const candidatePath = relativizeToProjectFolder(projectFolder, candidate.target.toString());
+    const candidatePath = convertToProjectRelativePath(projectFolder, candidate.target.toString());
     const isMatch = candidatePath === relativePath;
     if (isMatch) {
       return candidate;
@@ -56,7 +56,7 @@ export function readBranchRevisionSide(projectFolder: Path, sessionFiles: readon
       throw new Error(`no disk revision ${changeId} for ${relativePath}`);
     }
     const revision = side === WireEditSide.base ? history.revisions[index - 1] : history.revisions[index];
-    return revision === undefined ? "" : linesTextOf(revision).join("\n");
+    return revision === undefined ? "" : getLinesText(revision).join("\n");
   }
   throw new Error(`no branch lane holds ${changeId}`);
 }

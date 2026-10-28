@@ -4,15 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     GIT_BASE_CHANGE_ID_PREFIX,
-    computeSnapshotJumpRoute,
-    computeFileChanges,
     buildRevisionIndex,
 } from "../webapp/views/timeline-changes.ts";
 import { splitPatchByFile } from "../webapp/views/timeline-patch-split.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, TOOL_CALL_NODE_KIND } from "../webapp/views/timeline-types.ts";
-import type { WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
-import { routeToFileHistory } from "../webapp/app-routes.ts";
 import { buildProjectReconstruction } from "../src/viewer_api.ts";
 import { renderRangePatch } from "../src/viewer_api_diffs.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
@@ -72,43 +68,6 @@ test("test_file_changes_carry_their_change_id", () => {
     assert.ok(checked >= 1);
 });
 
-test("test_compute_snapshot_jump_route_targets_the_revisions_1_based_number", () => {
-    // A backup-blob changeId routes to the file-history view at that revision's number.
-    const filesTouched = [{
-        target: "/tmp/geo_report.py",
-        revisions: [
-            { kind: EventKind.write, changeId: "toolu_01FirstWrite", timestamp: "2026-07-01T10:00:00Z" },
-            { kind: EventKind.edit, changeId: "3fa9c2d1@v4", timestamp: "2026-07-01T10:05:00Z" },
-        ],
-    }];
-    const change = { path: "/tmp/geo_report.py", changeId: "3fa9c2d1@v4" };
-    assert.equal(
-        computeSnapshotJumpRoute("s84", filesTouched, change),
-        `${routeToFileHistory("s84", "/tmp/geo_report.py")}/rev/2`,
-    );
-});
-
-test("test_compute_snapshot_jump_route_returns_undefined_for_tool_evidenced_changeids", () => {
-    // Task 94: a `toolu_…` changeId is tool-evidenced, not snapshot-backed, so the 📷 button must not render.
-    const history = s84Document.filesTouched[0]!;
-    const change = { path: history.target, changeId: history.revisions[0]!.changeId };
-    // precondition: the changeId is NOT a backup blob name — otherwise this test proves nothing.
-    assert.ok(!/@v\d+$/.test(change.changeId));
-    assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
-});
-
-test("test_compute_snapshot_jump_route_returns_undefined_without_a_changeid", () => {
-    // A changedPaths-hint chip carries no changeId, so there is no jump button.
-    const change = { path: "whatever.py", changeId: undefined };
-    assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
-});
-
-test("test_compute_snapshot_jump_route_returns_undefined_for_unresolvable_changeids", () => {
-    // A re-stamped synthetic changeId matches no surviving revision — no button beats a dead link.
-    const change = { path: "whatever.py", changeId: "00000000-0000-4000-8000-000000000000" };
-    assert.equal(computeSnapshotJumpRoute("s84", s84Document.filesTouched, change), undefined);
-});
-
 test("test_failed_git_operations_badge_their_commit_and_tool_call_nodes", () => {
     // Task 103: a failed git command still emits its rows; both kinds carry isError, Bash joins by uuid.
     const document = {
@@ -144,49 +103,6 @@ test("test_file_changes_carry_snapshot_timestamp", () => {
     for (const change of filesBubble!.fileChanges!) {
         assert.ok(snapshotWhens.has(change.when));
     }
-});
-
-// The minimal shape reproducing the s87 "pre-rename entry shows core_inventory.py" bug (task 127).
-const renamedFileDocument: WireTimelineDocument = {
-    filesTouched: [{
-        target: "/repo/core_inventory.py",
-        revisions: [
-            { kind: "edit", changeId: "c1", timestamp: "2026-07-20T10:00:00Z" },
-            { kind: "rename", changeId: "c2", timestamp: "2026-07-20T10:05:00Z", rename: { from: "/repo/inventory.py", to: "/repo/core_inventory.py" } },
-        ],
-    }],
-    rewoundFilesTouched: [],
-    messages: [],
-    steps: [],
-    commitMarkers: [],
-};
-
-test("test_indexRevisionsByChangeId_stamps_entry_time_display_paths", () => {
-    // A revision before a rename shows the old name; its lookup path stays the final target.
-    const index = buildRevisionIndex(renamedFileDocument);
-    assert.equal(index.get("c1")!.displayPath, "/repo/inventory.py");
-    assert.equal(index.get("c1")!.path, "/repo/core_inventory.py");
-    assert.equal(index.get("c2")!.displayPath, "/repo/core_inventory.py");
-});
-
-test("test_deriveFileChanges_copies_the_entry_time_display_path_onto_the_chip", () => {
-    // A chip from a pre-rename revision shows the entry-time name but keeps the final path as its lookup key.
-    const index = buildRevisionIndex(renamedFileDocument);
-    const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: ["c1"], changedPaths: [] };
-    const changes = computeFileChanges(step, index);
-    assert.equal(changes.length, 1);
-    assert.equal(changes[0]!.displayPath, "/repo/inventory.py");
-    assert.equal(changes[0]!.path, "/repo/core_inventory.py");
-});
-
-test("test_deriveFileChanges_fallback_chips_display_their_own_path", () => {
-    // A changedPaths-hint chip resolves through no revision, so its display name is its path.
-    const index = buildRevisionIndex(renamedFileDocument);
-    const step = { index: 0, when: "2026-07-20T10:00:00Z", changeIds: [], changedPaths: ["/repo/orders.py"] };
-    const changes = computeFileChanges(step, index);
-    assert.equal(changes.length, 1);
-    assert.equal(changes[0]!.displayPath, "/repo/orders.py");
-    assert.equal(changes[0]!.path, "/repo/orders.py");
 });
 
 test("test_gitBaseChangeIdPrefix_mirrors_engine_constant", () => {

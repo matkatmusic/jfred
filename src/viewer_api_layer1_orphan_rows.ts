@@ -1,6 +1,6 @@
 // Layer 1 view: axis placement and ordering for orphan rows.
 
-import { placeSnapshotsOnAxis } from "./layer1_snapshot_wire.ts";
+import { createAxisWireSnapshots } from "./layer1_snapshot_wire.ts";
 import type { DiskFileState } from "./layer1_disk_walk.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
@@ -28,7 +28,7 @@ export function sortRowsByInstant(rows: Layer1WireOrphan[]): Layer1WireOrphan[] 
 
 // Slot 0 is the orphan's own node; its snapshots stack below it.
 export function buildDiskOrphanRow(file: DiskFileState, nodeOffsetsPx: number[], snapshots?: SnapshotPlacement[]): Layer1WireOrphan {
-  const placedSnapshots = placeSnapshotsOnAxis(snapshots, nodeOffsetsPx.slice(1));
+  const placedSnapshots = createAxisWireSnapshots(snapshots, nodeOffsetsPx.slice(1));
   return {
     path: file.relativePath,
     instant: file.mtime,

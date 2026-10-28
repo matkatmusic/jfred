@@ -67,8 +67,8 @@ function fetchBlobPresenceAndRerenderLine(unprobedNames: string[], sessionId: st
 export function scanTrackedBackupPresence(trackedBackups: NonNullable<NonNullable<WireRecord["snapshot"]>["trackedFileBackups"]>, sessionId: string, renderCountAtStart: number, showLine: (line: number) => void, clamped: number): void {
   const unprobedNames: string[] = [];
   for (const entry of Object.values(trackedBackups)) {
-    const name = entry.backupFileName;
-    if (typeof name !== "string") {
+    const name = entry.backupFileName as string | undefined;
+    if (name === undefined) {
       continue;
     }
     const isProbed = blobPresenceByKey.has(`${sessionId}|${name}`);

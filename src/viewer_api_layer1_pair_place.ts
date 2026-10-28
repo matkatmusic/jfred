@@ -2,7 +2,7 @@
 
 import type { DiskFileState } from "./layer1_disk_walk.ts";
 import type { NodeLadder } from "../webapp/layer1-ruler-axis.ts";
-import { listSnapshotInstants, placeSnapshotsOnAxis } from "./layer1_snapshot_wire.ts";
+import { listSnapshotInstants, createAxisWireSnapshots } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
 import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
@@ -48,7 +48,7 @@ export function buildPairOnAxis(pair: PairHistory, nodeOffsetsPx: number[], snap
   const { created, createdNotTrusted } = readPairCreated(pair);
   const firstCommit = created === undefined ? 0 : 1;
   const onDiskIndex = firstCommit + pair.commits.length;
-  const placedSnapshots = placeSnapshotsOnAxis(snapshots, nodeOffsetsPx.slice(onDiskIndex + 1));
+  const placedSnapshots = createAxisWireSnapshots(snapshots, nodeOffsetsPx.slice(onDiskIndex + 1));
   const commits: Layer1WirePair["commits"] = [];
   for (let node = 0; node < pair.commits.length; node += 1) {
     const commit = pair.commits[node]!;

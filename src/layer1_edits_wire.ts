@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { WireEditOf, WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
 import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { computePathReplay, type ReplayedEditNode } from "./layer1_edit_replay.ts";
-import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
+import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
 import { getBackupSeedWrite } from "./reconstruction_sidecar.ts";
@@ -37,7 +37,7 @@ export function collectViewEditEventsByRelativePath(
       total: sessionFiles.length,
     });
     for (const event of readSessionEditEvents(sessionFile)) {
-      const relativePath = relativizeToProjectFolder(projectFolder, event.target.toString());
+      const relativePath = convertToProjectRelativePath(projectFolder, event.target.toString());
       if (relativePath === undefined) {
         continue;
       }

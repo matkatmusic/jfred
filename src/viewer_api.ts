@@ -13,7 +13,7 @@ import { getPathOverrides, formatPathOverrides, type SourceEntry } from "./recon
 import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
 import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
-import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
+import { writePendingSandboxMemoToDisk } from "./reconstruction_script_sandbox_memo.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
 import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
@@ -114,7 +114,7 @@ export function buildReconstructionWithConsent(
       built.document.preBaselineSkipped = true;
     }
     // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
-    flushSandboxMemoToDisk();
+    writePendingSandboxMemoToDisk();
     builtDocumentCache.set(cacheKey, built);
     evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
     writeDocumentToDiskCache(cacheKey, built);

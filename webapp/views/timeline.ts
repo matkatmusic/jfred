@@ -6,7 +6,7 @@ import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { getModeChoice } from "../app-choices.ts";
 import { renderModeSelectionView } from "../app-mode-select.ts";
-import { showLoadingProgress } from "../app-progress.ts";
+import { renderLoadingProgress } from "../app-progress.ts";
 import { renderDetailsFileMode } from "./details-revision-view.ts";
 import { renderForkSidebar } from "./sidebar.ts";
 import { buildCoverageSegmentsByTarget, renderReconstructionBanner } from "./reconstruction-render.ts";
@@ -53,7 +53,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
   }
   const reconstructionDocument = result.document as WireTimelineDocument;
   // The view-model build blocks the thread; re-show an indicator first.
-  showLoadingProgress("preparing timeline…", Number.NaN);
+  renderLoadingProgress("preparing timeline…", Number.NaN);
   await waitForNextAnimationFrame();
   const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, isAllLinesOn());
   const listing = await fetchProjectListing(project);

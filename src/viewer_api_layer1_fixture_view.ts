@@ -2,7 +2,7 @@
 
 import { Path } from "./structures/domain.ts";
 import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
-import { listSnapshotInstants, placeSnapshotsOnAxis } from "./layer1_snapshot_wire.ts";
+import { listSnapshotInstants, createAxisWireSnapshots } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Layer1WireOrphan, Layer1WirePair, Layer1WireView } from "./viewer_api_layer1.ts";
 import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";
@@ -15,7 +15,7 @@ interface DiskOrphanRow { path: Path; instant: Date; snaps: SnapshotPlacement[];
 function buildPlacedFixturePair(pair: FixturePair, nodeOffsetsPx: number[]): Layer1WirePair {
   const firstCommit = pair.created === undefined ? 0 : 1;
   const onDiskIndex = firstCommit + pair.commits.length;
-  const placedSnapshots = placeSnapshotsOnAxis(pair.snaps, nodeOffsetsPx.slice(onDiskIndex + 1));
+  const placedSnapshots = createAxisWireSnapshots(pair.snaps, nodeOffsetsPx.slice(onDiskIndex + 1));
   const commits: Layer1WirePair["commits"] = [];
   for (let node = 0; node < pair.commits.length; node += 1) {
     const commit = pair.commits[node]!;
@@ -32,7 +32,7 @@ function buildPlacedFixturePair(pair: FixturePair, nodeOffsetsPx: number[]): Lay
 }
 
 function buildPlacedDiskOrphan(orphan: DiskOrphanRow, nodeOffsetsPx: number[]): Layer1WireOrphan {
-  const placedSnapshots = placeSnapshotsOnAxis(orphan.snaps, nodeOffsetsPx.slice(1));
+  const placedSnapshots = createAxisWireSnapshots(orphan.snaps, nodeOffsetsPx.slice(1));
   return {
     path: orphan.path,
     instant: orphan.instant,

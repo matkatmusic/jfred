@@ -9,10 +9,10 @@ import type {
   LineEntry,
 } from "./reconstruction_events.ts";
 import {
-  editRevision,
-  keepSurvivingLines,
-  removedOldIndicesOf,
-  unapplyHunkAgainstAfter,
+  collectRemovedOldIndices,
+  collectSurvivingLines,
+  createEditRevision,
+  getHunkPreEditLines,
 } from "./reconstruction_replay_edit_hunks.ts";
 
 // Split file content into lines; a single trailing newline is not a phantom line.
@@ -114,14 +114,14 @@ function insertHunkAdditions(
 export function applyEdit(event: EditEvent, revisions: FileRevision[]): void {
   for (const hunk of event.hunks) {
     const previousLines = getLastLines(revisions);
-    const removed = removedOldIndicesOf(hunk);
+    const removed = collectRemovedOldIndices(hunk);
     if (removed.size > 0) {
-      const removalLines = keepSurvivingLines(previousLines, removed);
-      revisions.push(editRevision(event, removalLines));
+      const removalLines = collectSurvivingLines(previousLines, removed);
+      revisions.push(createEditRevision(event, removalLines));
     }
     const additionLines = insertHunkAdditions(getLastLines(revisions), hunk, event.timestamp);
     if (additionLines.added) {
-      revisions.push(editRevision(event, additionLines.lines));
+      revisions.push(createEditRevision(event, additionLines.lines));
     }
   }
 }
@@ -130,7 +130,7 @@ export function applyEdit(event: EditEvent, revisions: FileRevision[]): void {
 export function getPreEditLines(afterLines: string[], event: EditEvent): string[] | undefined {
   let lines = afterLines;
   for (let index = event.hunks.length - 1; index >= 0; index -= 1) {
-    const reversed = unapplyHunkAgainstAfter(lines, event.hunks[index]!);
+    const reversed = getHunkPreEditLines(lines, event.hunks[index]!);
     if (reversed === undefined) {
       return undefined;
     }

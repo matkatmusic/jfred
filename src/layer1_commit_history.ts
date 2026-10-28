@@ -1,10 +1,8 @@
 // Per-pair commit history: commits touching one path, widened onto the ms axis.
-//
-// Reuses listCommitsTouchingFile; no --follow until S6 rename tracking lands.
 
 import { ACTIVE_BRANCH_REF } from "./layer1_repo_tree.ts";
 import { listCommitsTouchingFile } from "./layered_git_beacons.ts";
-import { widenEpochSecondsToInstant } from "./layered_instants.ts";
+import { convertEpochSecondsToInstant } from "./layered_instants.ts";
 import type { Instant } from "./layered_types.ts";
 import type { Path } from "./structures/domain.ts";
 import { CommitTimeSource } from "../webapp/layer1-wire.ts";
@@ -22,9 +20,11 @@ export function listPairCommitHistory(
   ref: string = ACTIVE_BRANCH_REF,
   timeSource: CommitTimeSource = CommitTimeSource.committer,
 ): CommitHistoryNode[] {
-  return listCommitsTouchingFile(repoDir, repoRelativePath, ref).map((touch) => {
+  const historyNodes: CommitHistoryNode[] = [];
+  for (const touch of listCommitsTouchingFile(repoDir, repoRelativePath, ref)) {
     const seconds = timeSource === CommitTimeSource.author ? touch.authorEpochSeconds : touch.committerEpochSeconds;
-    return { hash: touch.hash, instant: widenEpochSecondsToInstant(seconds) };
-  });
+    historyNodes.push({ hash: touch.hash, instant: convertEpochSecondsToInstant(seconds) });
+  }
+  return historyNodes;
 }
 

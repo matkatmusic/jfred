@@ -9,7 +9,7 @@ import { VIEW, readHiddenKinds, stubSettingsRoute, toggleBox } from "./layer1-ki
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { restoreSavedSettings } = await import("../webapp/layer1-settings.ts");
+const { loadSavedSettings } = await import("../webapp/layer1-settings-restore.ts");
 
 async function renderFreshView(dir: string = ""): Promise<void> {
     initLayer1Dom();
@@ -30,7 +30,7 @@ test("test_the_boxes_restore_from_saved_settings", async () => {
     const dir = "/tmp/restore-app";
     initLayer1Dom();
     stubSettingsRoute({ lastDir: dir, projects: { [dir]: { dir, hiddenKinds: ["snapshot"] } } });
-    await restoreSavedSettings();
+    await loadSavedSettings();
     await renderLayer1View(VIEW);
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=snapshot]")!.checked, false);
     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=commit]")!.checked, true);

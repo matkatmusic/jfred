@@ -8,7 +8,7 @@ import {
 } from "../app-fetch.ts";
 import { renderConsentDialog } from "../app-consent.ts";
 import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
-import { routeToFileHistory } from "../app-routes.ts";
+import { getFileHistoryRoute } from "../app-routes.ts";
 import { renderDiffText } from "./diff-text-render.ts";
 import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, type WireDocument as WireFileHistoryDocument } from "./file-history-model.ts";
 
@@ -54,7 +54,7 @@ export async function renderDiffVsBaseView(
   // URL sync lives here, not in loadDiff, so the first render never rewrites a bare /vsbase URL.
   const refreshRevisionDiff = async () => {
     await loadDiff();
-    history.replaceState(null, "", `${routeToFileHistory(project, target)}/vsbase/${Number(revisionSelect.value) + 1}`);
+    history.replaceState(null, "", `${getFileHistoryRoute(project, target)}/vsbase/${Number(revisionSelect.value) + 1}`);
   };
   revisionSelect.addEventListener("change", refreshRevisionDiff);
 
@@ -63,7 +63,7 @@ export async function renderDiffVsBaseView(
     createElement("span", { class: "muted", text: "base #1 →" }),
     revisionSelect,
     // task 93: the route now opens THE Revision View (the File History view is retired).
-    createElement("a", { href: routeToFileHistory(project, target), text: "← file revisions" }),
+    createElement("a", { href: getFileHistoryRoute(project, target), text: "← file revisions" }),
   ]));
   container.append(diffPane);
   await loadDiff();

@@ -4,7 +4,7 @@ import type { WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
 import { loadSessionRewinds, collectSessionFileGroups, type SessionRewinds } from "./layer1_branch_sessions.ts";
 import { buildGroupHistories, listLanes, type Lane } from "./layer1_branches_lanes.ts";
 import { computeLaneKind, collectWriteOriginalFiles, type PreStateEvidence, type WireBranchRow } from "./layer1_branches_wire_classify.ts";
-import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
+import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
@@ -34,7 +34,7 @@ function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes:
   const built: { path: string; branch: WireBranchRow }[] = [];
   for (const lane of lanes) {
     for (const history of histories) {
-      const path = relativizeToProjectFolder(projectFolder, history.target.toString());
+      const path = convertToProjectRelativePath(projectFolder, history.target.toString());
       const laneIndexes: number[] = [];
       for (const [index, revision] of history.revisions.entries()) {
         const isLaneRevision = lane.changeIds.has(revision.changeId.toString());

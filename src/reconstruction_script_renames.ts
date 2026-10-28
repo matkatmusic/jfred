@@ -22,16 +22,31 @@ export type ScriptRenameKeyPair = { fromKey: string; toKey: string };
 export function matchRenamePairs(pre: Map<string, string>, post: Map<string, string>): ScriptRenameKeyPair[] {
   const deletedKeys: string[] = [];
   for (const key of pre.keys()) {
-    if (post.has(key) || isJunkStateKey(key))
+    const keyIsKept = post.has(key);
+    const keyIsJunk = isJunkStateKey(key);
+    const skipsKey = keyIsKept || keyIsJunk;
+    if (skipsKey)
       continue;
     deletedKeys.push(key);
   }
   const pairs: ScriptRenameKeyPair[] = [];
   const claimedSourceKeys = new Set<string>();
   for (const key of post.keys()) {
-    if (pre.has(key) || isJunkStateKey(key))
+    const keyIsPreExisting = pre.has(key);
+    const keyIsJunk = isJunkStateKey(key);
+    const skipsKey = keyIsPreExisting || keyIsJunk;
+    if (skipsKey)
       continue;
-    const sourceKey = deletedKeys.find((deleted) => !claimedSourceKeys.has(deleted) && pre.get(deleted) === post.get(key));
+    let sourceKey: string | undefined;
+    for (const deleted of deletedKeys) {
+      const isClaimed = claimedSourceKeys.has(deleted);
+      const hasSameContent = pre.get(deleted) === post.get(key);
+      const isUnclaimedMatch = !isClaimed && hasSameContent;
+      if (isUnclaimedMatch) {
+        sourceKey = deleted;
+        break;
+      }
+    }
     if (sourceKey === undefined)
       continue;
     claimedSourceKeys.add(sourceKey);

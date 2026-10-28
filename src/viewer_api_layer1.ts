@@ -2,7 +2,7 @@
 
 import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
-import { pairDiskFilesAgainstRepoPaths } from "./layer1_pairing.ts";
+import { findDiskRepoPairing } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
 import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
 import { collectViewSnapshotsByRelativePath, listSnapshotInstants } from "./layer1_snapshot_wire.ts";
@@ -70,7 +70,7 @@ export function buildLayer1View(
   reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_TREE);
   // Runs before any history read so a bad ref throws once.
   const repoTree = readRepoTreeAtRef(repoDir, ref);
-  const pairing = pairDiskFilesAgainstRepoPaths(diskFiles, repoTree.trackedFiles);
+  const pairing = findDiskRepoPairing(diskFiles, repoTree.trackedFiles);
   // ponytail: one `git log` per path is the slow part; batch if rate matters.
   const pairHistories: PairHistory[] = [];
   for (let index = 0; index < pairing.pairs.length; index += 1) {

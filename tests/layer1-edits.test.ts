@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadEditsOnce } from "../webapp/layer1-edits.ts";
-import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
+import { stopLayer1Load } from "../webapp/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
@@ -75,7 +75,7 @@ test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
 test("test_a_cancelled_fetch_answers_false_and_leaves_the_view_untouched", async () => {
   initLayer1Dom();
   Object.assign(globalThis, { fetch: async () => {
-    cancelLayer1Load();
+    stopLayer1Load();
     throw new Error("aborted");
   } });
   const view = buildView();

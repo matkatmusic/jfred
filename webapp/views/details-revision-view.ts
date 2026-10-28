@@ -1,7 +1,7 @@
 // File-Revisions mode: the Revision View every file route lands on (tests/details-revision-view.test.ts).
 
 import { createElement } from "../app-dom.ts";
-import { routeToFileHistory } from "../app-routes.ts";
+import { getFileHistoryRoute } from "../app-routes.ts";
 import { openDetailsPane } from "../inspector-pane.ts";
 import { buildFileHistoryViewModel } from "./file-history-model.ts";
 import {
@@ -98,7 +98,7 @@ export function renderDetailsFileMode(target: string, context: DetailsContext, f
     return;
   }
   function openDiffVsBase(): void {
-    location.hash = `${routeToFileHistory(context.project, target)}/vsbase`;
+    location.hash = `${getFileHistoryRoute(context.project, target)}/vsbase`;
   }
   left.append(createElement("button", { class: "row-btn", text: "Diff vs Base", onclick: openDiffVsBase }));
   const cards = buildRevisionCards(history);

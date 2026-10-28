@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById } from "../webapp/app-dom.ts";
-import { restoreSavedSettings } from "../webapp/layer1-settings.ts";
+import { loadSavedSettings } from "../webapp/layer1-settings-restore.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // createElement() needs a document.
@@ -55,7 +55,7 @@ test("test_a_projects_saved_collapsed_folders_render_closed_on_load", async () =
         lastDir: dir,
         projects: { [dir]: { dir, repo: dir, branch: "main", ref: "", jsonl: [], fileHistory: [], collapsedFolders: ["nested"] } },
     });
-    await restoreSavedSettings();
+    await loadSavedSettings();
 
     renderLayer1FileNav(NAV_VIEW, () => {});
 
@@ -79,7 +79,7 @@ test("test_collapsing_a_folder_persists_it_for_the_current_project", async () =>
     assert.deepEqual(route.posted(), [{ dir, collapsedFolders: ["nested"] }]);
 });
 
-// A real browser fires `toggle` once on every <details> created with its open state, so load must not look like a user click.
+// A real browser fires `toggle` on each <details> created open, so load must not look like a click.
 test("test_rendering_folders_writes_nothing_until_the_user_toggles_one", async () => {
     const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
     getInputById("dir").value = "/tmp/nav-project-d";

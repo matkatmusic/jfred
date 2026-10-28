@@ -7,7 +7,7 @@ import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
-import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 
 // A lineage event carrying the file's FULL content at its instant (not a hunk-based edit).
@@ -67,7 +67,7 @@ export function applyScriptRunsOver(
     const key = computeScriptStateKey(target, run.cwd);
     const preState = new Map(executeRunOnce(run, records, reader).pre);
     preState.set(key, rolling);
-    const postState = runScriptAgainstState(run.code, preState, "", run.cwd);
+    const postState = executeScriptAgainstState(run.code, preState, "", run.cwd);
     const post = postState?.get(key);
     if (post === undefined)
       return undefined;

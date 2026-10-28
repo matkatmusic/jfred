@@ -2,7 +2,7 @@
 
 import { createElement } from "./app-dom.ts";
 import { fetchJson } from "./app-fetch.ts";
-import { routeToProject } from "./app-routes.ts";
+import { getProjectRoute } from "./app-routes.ts";
 
 // The /api/projects payload rows, as far as the Projects menu reads them.
 type WireProjectListing = { name: string };
@@ -20,7 +20,7 @@ async function fillProjectsMenu(menu: HTMLElement): Promise<void> {
   for (const project of projects) {
     const openProject = (): void => {
       hideToolbarPopovers();
-      location.hash = routeToProject(project.name);
+      location.hash = getProjectRoute(project.name);
     };
     menuItems.push(createElement("div", { class: "menu-item", text: project.name, onclick: openProject }));
   }

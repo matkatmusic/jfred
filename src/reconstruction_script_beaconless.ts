@@ -11,7 +11,7 @@ import {
   type ScriptRun,
 } from "./reconstruction_script_execution.ts";
 import { isScriptCodeWriteCapable, type LineageContentBefore } from "./reconstruction_script_prestate.ts";
-import { runScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import { findRefForTarget, isRunTouchingTarget } from "./reconstruction_script_probe.ts";
 
@@ -56,7 +56,7 @@ function getRunOutcomeForTarget(
   const { pre: preState } = executeRunOnce(run, records, reader, seedContent);
   const augmentedPre = new Map(preState);
   augmentedPre.set(rolling.key, rolling.content);
-  const postState = runScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd);
+  const postState = executeScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd);
   if (postState === undefined)
     return undefined;
   const content = postState.get(rolling.key);

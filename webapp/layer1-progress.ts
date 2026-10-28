@@ -3,7 +3,7 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { splitNdjsonChunk } from "./app-ndjson.ts";
 
-// One stream line: progress/error lines carry `kind`, the terminal view none; strings duplicated since webapp/ cannot import src/.
+// One stream line: progress/error lines carry `kind`; webapp/ cannot import src/.
 interface Layer1StreamLine {
   kind?: "progress" | "error";
   label?: string;
@@ -14,9 +14,10 @@ interface Layer1StreamLine {
 // Where one progress line lands: the main strip by default, a pane-local bar when the caller passes its own.
 export type ProgressPainter = (label: string, current?: number, total?: number) => void;
 
-// Paint one fill+label pair; a countless stage shows the label alone and a moving stripe so it never reads as a reset.
-export function paintLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: string, current?: number, total?: number): void {
-  if (current === undefined || total === undefined || total <= 0) {
+// Paint one fill+label pair; a countless stage shows the label and a moving stripe.
+export function renderLoadbar(fill: HTMLElement, labelHost: HTMLElement, label: string, current?: number, total?: number): void {
+  const isCountless = current === undefined || total === undefined || total <= 0;
+  if (isCountless) {
     labelHost.textContent = label;
     fill.classList.add("indeterminate");
     return;
@@ -37,13 +38,20 @@ export const LAYER1_PROGRESS_LABEL_DRAWING_EDITS = "drawing edits";
 
 // Task 309: resolves after the browser paints, so a chunked render's progress frames reach the screen.
 export function waitForPaintedFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+  return new Promise(scheduleResolveAfterFrame);
+}
+
+function scheduleResolveAfterFrame(resolve: () => void): void {
+  const scheduleResolve = (): void => {
+    setTimeout(resolve, 0);
+  };
+  requestAnimationFrame(scheduleResolve);
 }
 
 // Show or advance the main strip.
-export function showLayer1Progress(label: string, current?: number, total?: number): void {
+export function renderLayer1Progress(label: string, current?: number, total?: number): void {
   getRequiredElementById("loadbar").removeAttribute("hidden");
-  paintLoadbar(getRequiredElementById("loadbar-fill"), getRequiredElementById("loadbar-label"), label, current, total);
+  renderLoadbar(getRequiredElementById("loadbar-fill"), getRequiredElementById("loadbar-label"), label, current, total);
 }
 
 // Hide and reset the strip — fill, label AND cancel confirm — so the next load starts empty.
@@ -58,30 +66,29 @@ export function hideLayer1Progress(): void {
 // The in-flight load's controller. Module state: the button and the stream reader meet nowhere else.
 let activeLoadController: AbortController | undefined = undefined;
 
-export function cancelLayer1Load(): void {
+export function stopLayer1Load(): void {
   activeLoadController?.abort();
 }
 
 // Task 302: Cancel with in-DOM confirm, task-164 wording; aborts the fetch since this page is not hash-routed.
-export function wireLayer1CancelButton(): void {
+export function attachLayer1CancelButton(): void {
   const cancel = getRequiredElementById("loadbar-cancel");
   const confirmRow = getRequiredElementById("loadbar-confirm");
-  cancel.addEventListener("click", () => {
+  const openConfirm = (): void => {
     cancel.setAttribute("hidden", "");
     confirmRow.removeAttribute("hidden");
-  });
-  getRequiredElementById("loadbar-confirm-no").addEventListener("click", () => {
+  };
+  const closeConfirm = (): void => {
     confirmRow.setAttribute("hidden", "");
     cancel.removeAttribute("hidden");
-  });
-  getRequiredElementById("loadbar-confirm-yes").addEventListener("click", () => {
-    cancelLayer1Load();
-  });
+  };
+  cancel.addEventListener("click", openConfirm);
+  getRequiredElementById("loadbar-confirm-no").addEventListener("click", closeConfirm);
+  getRequiredElementById("loadbar-confirm-yes").addEventListener("click", stopLayer1Load);
 }
 
 // One chunk's complete lines: returns the terminal view if present; an error line throws immediately.
-//
-// ponytail: only the LAST progress line of a chunk reaches the DOM. One reader.read() typically delivers many of the 832 lines at once and the intermediate ones are never painted, so this is one `.at(-1)` rather than 832 style writes.
+// ponytail: only the LAST progress line of a chunk is painted, via one `.at(-1)`.
 function applyStreamLines<ViewType>(lines: string[], onProgress: ProgressPainter): ViewType | undefined {
   const progressLines: Layer1StreamLine[] = [];
   let view: ViewType | undefined = undefined;
@@ -104,7 +111,7 @@ function applyStreamLines<ViewType>(lines: string[], onProgress: ProgressPainter
 }
 
 // Read the NDJSON stream, painting progress; throws on error line or non-2xx, returns undefined when cancelled.
-export async function readLayer1ViewStream<ViewType>(url: string, onProgress: ProgressPainter = showLayer1Progress): Promise<ViewType | undefined> {
+export async function readLayer1ViewStream<ViewType>(url: string, onProgress: ProgressPainter = renderLayer1Progress): Promise<ViewType | undefined> {
   const controller = new AbortController();
   activeLoadController = controller;
   try {
