@@ -3,7 +3,7 @@
 import type { WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
 import { loadSessionRewinds, groupSessionFiles, type SessionRewinds } from "./layer1_branch_sessions.ts";
 import { buildGroupHistories, listLanes, type Lane } from "./layer1_branches_lanes.ts";
-import { classifyLane, indexWriteOriginalFiles, type PreStateEvidence, type WireBranchRow } from "./layer1_branches_wire_classify.ts";
+import { computeLaneKind, collectWriteOriginalFiles, type PreStateEvidence, type WireBranchRow } from "./layer1_branches_wire_classify.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
@@ -30,7 +30,7 @@ function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes:
   for (const event of extractFileEvents(records)) {
     eventById.set(event.changeId.toString(), event);
   }
-  const evidence: PreStateEvidence = { eventById, writeOriginalFileById: indexWriteOriginalFiles(records) };
+  const evidence: PreStateEvidence = { eventById, writeOriginalFileById: collectWriteOriginalFiles(records) };
   const built: { path: string; branch: WireBranchRow }[] = [];
   for (const lane of lanes) {
     for (const history of histories) {
@@ -48,7 +48,7 @@ function buildGroupBranches(projectFolder: Path, rewinds: SessionRewinds, lanes:
       if (laneIndexes.length === 0) {
         continue;
       }
-      const kind = classifyLane(history.revisions, laneIndexes.at(-1)!, allLaneIds, evidence);
+      const kind = computeLaneKind(history.revisions, laneIndexes.at(-1)!, allLaneIds, evidence);
       const nodes: WireBranchRow["nodes"] = [];
       for (const index of laneIndexes) {
         const revision = history.revisions[index]!;

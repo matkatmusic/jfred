@@ -3,7 +3,7 @@
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
-import { checkJoinContentAgreement, noteJoinedPathConflicts } from "./reconstruction_multi_source_gate.ts";
+import { validateJoinContentAgreement, reportJoinedPathConflicts } from "./reconstruction_multi_source_gate.ts";
 import { copyRecordReplacingPath } from "./reconstruction_multi_source_clone.ts";
 import {
   collectPrimaryPaths,
@@ -46,7 +46,7 @@ function joinRelativePath(
     return workingRecords;
   }
   const earlierRecords = filterRecordsByRoot(workingRecords, sessionRoots, primary.root);
-  const isAgreeing = checkJoinContentAgreement(earlierRecords, new Path(primary.absolute), evidence, sources);
+  const isAgreeing = validateJoinContentAgreement(earlierRecords, new Path(primary.absolute), evidence, sources);
   if (!isAgreeing) {
     return workingRecords;
   }
@@ -104,7 +104,7 @@ export function joinCrossSourceFileIdentities(
       workingRecords, sources, sessionRoots, rootOrder, laterIndex, joinedPrimaries);
   }
   for (const primaryAbsolute of joinedPrimaries) {
-    noteJoinedPathConflicts(workingRecords, new Path(primaryAbsolute), sources);
+    reportJoinedPathConflicts(workingRecords, new Path(primaryAbsolute), sources);
   }
   return workingRecords;
 }

@@ -39,8 +39,8 @@ test("test_hovering_a_stacked_snapshot_draws_the_line_at_its_bubble_s_tick", asy
 test("test_a_landed_selection_keeps_its_line_up_after_the_pointer_moves_away", async () => {
     // Scenario: a landing is a SELECTION, so its line outlives the pointer.
     await loadPageWithView(buildSharedInstantView());
-    const { highlightLandedElement } = await import("../webapp/layer1-find-file.ts");
-    highlightLandedElement(findBubble("beginning.ts"));
+    const { markLandedElement } = await import("../webapp/layer1-find-file.ts");
+    markLandedElement(findBubble("beginning.ts"));
     assert.deepEqual(listShownLeaderOffsets(), [SHARED_PX]);
     // mouse over an unrelated row and away again: the hover's line comes and goes...
     triggerHover(findTickAt(LATE_PX));

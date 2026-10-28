@@ -14,8 +14,9 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 
 // Engine drops final newline; evidence must match that form.
-function stripSingleTrailingNewline(text: string): string {
-  if (text.endsWith("\n")) {
+function trimSingleTrailingNewline(text: string): string {
+  const hasTrailingNewline = text.endsWith("\n");
+  if (hasTrailingNewline) {
     return text.slice(0, -1);
   }
   return text;
@@ -25,7 +26,8 @@ function stripSingleTrailingNewline(text: string): string {
 function extractHunkPreSideText(hunk: StructuredPatchHunk): string {
   const preSideLines: string[] = [];
   for (const line of hunk.lines) {
-    if (line.startsWith("+")) {
+    const isAddedLine = line.startsWith("+");
+    if (isAddedLine) {
       continue;
     }
     preSideLines.push(line.slice(1));
@@ -35,7 +37,7 @@ function extractHunkPreSideText(hunk: StructuredPatchHunk): string {
 
 // Evidence channels: Edit originalFile (strict equality) and hunk pre-side containment.
 // ponytail: the design's third channel (file-history backup blob) is not read yet — a non-Edit first evidence refuses the join; add the blob channel when a fixture needs it.
-export function checkJoinContentAgreement(
+export function validateJoinContentAgreement(
   earlierRecords: TranscriptRecord[],
   primaryPath: Path,
   evidence: FileEvent,
@@ -51,19 +53,26 @@ export function checkJoinContentAgreement(
   if (base === undefined) {
     return false;
   }
-  return editEvidenceAgreesWithState(editEvidence, linesTextOf(base).join("\n"));
+  return isEditEvidenceMatchingState(editEvidence, linesTextOf(base).join("\n"));
 }
 
 // One edit's pre-state evidence versus a reconstructed state: originalFile compares exactly, else every hunk's pre-side must be contained.
-export function editEvidenceAgreesWithState(edit: EditEvent, stateText: string): boolean {
+export function isEditEvidenceMatchingState(edit: EditEvent, stateText: string): boolean {
   if (edit.originalFile != null) {
-    return stripSingleTrailingNewline(edit.originalFile) === stateText;
+    return trimSingleTrailingNewline(edit.originalFile) === stateText;
   }
-  return edit.hunks.every((hunk) => stateText.includes(extractHunkPreSideText(hunk)));
+  for (const hunk of edit.hunks) {
+    const preSideText = extractHunkPreSideText(hunk);
+    const isContained = stateText.includes(preSideText);
+    if (!isContained) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // §c4: surface pre-state mismatches on joined paths as health-sink conflict notes.
-export function noteJoinedPathConflicts(
+export function reportJoinedPathConflicts(
   mergedRecords: TranscriptRecord[],
   primaryPath: Path,
   sources: SourceEntry[],
@@ -71,12 +80,24 @@ export function noteJoinedPathConflicts(
   const reader = buildSidecarReader(mergedRecords, sources);
   const revisions = reconstructFile(mergedRecords, primaryPath, reader);
   for (const event of extractFileEvents(mergedRecords)) {
-    if (event.kind !== EventKind.edit || event.target.toString() !== primaryPath.toString()) {
+    const isNotEdit = event.kind !== EventKind.edit;
+    if (isNotEdit) {
+      continue;
+    }
+    const eventTarget = event.target.toString();
+    const primaryTarget = primaryPath.toString();
+    const isOtherPath = eventTarget !== primaryTarget;
+    if (isOtherPath) {
       continue;
     }
     const edit: EditEvent = event;
     const base = lastRevisionStrictlyBefore(revisions, edit.timestamp);
-    if (base === undefined || editEvidenceAgreesWithState(edit, linesTextOf(base).join("\n"))) {
+    const isMissingBase = base === undefined;
+    if (isMissingBase) {
+      continue;
+    }
+    const isAgreeing = isEditEvidenceMatchingState(edit, linesTextOf(base).join("\n"));
+    if (isAgreeing) {
       continue;
     }
     noteReconstructionFailure({

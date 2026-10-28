@@ -6,7 +6,7 @@ import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { scrollToUncoveredCentre } = await import("../webapp/layer1-find-file.ts");
+const { moveToUncoveredCentre } = await import("../webapp/layer1-find-file.ts");
 
 const PANE_WIDTH_PX = 500;
 const PANE_HEIGHT_PX = 800;
@@ -64,7 +64,7 @@ test("test_a_node_at_the_top_left_corner_still_lands_at_the_centre", () => {
   initLayer1Dom();
   const pane = buildClampingPane();
   const node = placeNodeAtContentPoint(pane, 100, 100);
-  scrollToUncoveredCentre(node);
+  moveToUncoveredCentre(node);
   assert.ok(Math.abs(readCentreOffsets(node).x) <= 1);
   assert.ok(Math.abs(readCentreOffsets(node).y) <= 1);
 });
@@ -73,7 +73,7 @@ test("test_a_node_at_the_bottom_right_corner_still_lands_at_the_centre", () => {
   initLayer1Dom();
   const pane = buildClampingPane();
   const node = placeNodeAtContentPoint(pane, CONTENT_WIDTH_PX - 50, CONTENT_HEIGHT_PX - 50);
-  scrollToUncoveredCentre(node);
+  moveToUncoveredCentre(node);
   assert.ok(Math.abs(readCentreOffsets(node).x) <= 1);
   assert.ok(Math.abs(readCentreOffsets(node).y) <= 1);
 });
@@ -82,7 +82,7 @@ test("test_a_node_in_the_middle_adds_no_slack", () => {
   initLayer1Dom();
   const pane = buildClampingPane();
   const node = placeNodeAtContentPoint(pane, 2500, 4500);
-  scrollToUncoveredCentre(node);
+  moveToUncoveredCentre(node);
   assert.ok(Math.abs(readCentreOffsets(node).y) <= 1);
   for (const side of ["left", "right", "top", "bottom"]) {
     assert.equal(readSlackPx(pane, side), 0);

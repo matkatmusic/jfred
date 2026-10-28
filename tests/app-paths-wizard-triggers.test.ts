@@ -27,7 +27,7 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     return recordedCalls;
 }
 
-// Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap (fills the folder inputs), and wire the wizard listeners.
+// Boot a fresh DOM with the wizard routes stubbed, run the header bootstrap, and wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     initWebappDom();
     stubFetchRoutes({
@@ -59,21 +59,21 @@ test("test_cancel_abandons_run_with_nothing_posted", async () => {
 });
 
 test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
-    // Scenario (mockup trigger): a project loading with NO reveng-paths entry auto-opens the wizard at screen 2; a configured project does not.
+    // Scenario: a project with no reveng-paths entry opens the wizard at screen 2; a configured one does not.
     await initializeWizardInFreshDom({});
-    const { maybeOfferProjectPathsWizard } = await import("../webapp/app-paths-project.ts");
-    await maybeOfferProjectPathsWizard("proj-offer");
+    const { triggerProjectPathsWizardOffer } = await import("../webapp/app-paths-project.ts");
+    await triggerProjectPathsWizardOffer("proj-offer");
     assert.equal(getRequiredElementById("paths-popover").hidden, false);
     assert.equal(getRequiredElementById("wizard-screen-2").hidden, false);
     // a configured project (fresh DOM, stored repo) gets no auto-run.
     await initializeWizardInFreshDom({ repo: "/repos/p" });
     const reimported = await import("../webapp/app-paths-project.ts");
-    await reimported.maybeOfferProjectPathsWizard("proj-offer-configured");
+    await reimported.triggerProjectPathsWizardOffer("proj-offer-configured");
     assert.equal(getRequiredElementById("paths-popover").hidden, true);
 });
 
 test("test_first_launch_with_empty_projects_dir_starts_full_wizard", async () => {
-    // Scenario (mockup trigger): no global config leaves the projects-dir input empty at boot — the full wizard starts at screen 1 (screen-1-only run without a project: Next is Finish).
+    // Scenario: no global config leaves the projects-dir input empty, so the full wizard starts at screen 1.
     initWebappDom();
     stubFetchRoutes({});
     const wizard = await import("../webapp/app-paths-wizard.ts");

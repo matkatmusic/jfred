@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { ServerResponse } from "node:http";
 import { test } from "node:test";
 import { LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES } from "../src/layer1_branches_wire.ts";
-import { handleLayer1BranchesRequest } from "../src/viewer_api_layer1_branches.ts";
+import { sendLayer1BranchesResponse } from "../src/viewer_api_layer1_branches.ts";
 import { SESSION_A, buildPromptRecord, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 
@@ -51,7 +51,7 @@ type BranchesPayload = { pairs: { path: string; branches: { rewindKind: string; 
 test("test_branches_route_streams_progress_then_view", () => {
     const projectFolder = makeTempDir();
     const { response, body } = buildResponseStub();
-    handleLayer1BranchesRequest(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], true));
+    sendLayer1BranchesResponse(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], true));
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
     assert.deepEqual(lines.slice(0, 2), [
         { kind: "progress", label: LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, current: 1, total: 1 },
@@ -65,7 +65,7 @@ test("test_branches_route_streams_progress_then_view", () => {
 test("test_branches_route_without_progress_sends_plain_json", () => {
     const projectFolder = makeTempDir();
     const { response, body } = buildResponseStub();
-    handleLayer1BranchesRequest(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], false));
+    sendLayer1BranchesResponse(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], false));
     const payload = JSON.parse(body()) as BranchesPayload;
     assert.equal(payload.pairs[0]!.branches[0]!.forkAt, "2026-07-24T10:00:00.000Z");
     assert.deepEqual(payload.pairs[0]!.branches[0]!.nodes.map((node) => [node.changeId, node.label]), [["toolu_w1", "write"]]);
@@ -73,5 +73,5 @@ test("test_branches_route_without_progress_sends_plain_json", () => {
 
 test("test_branches_route_missing_dir_throws", () => {
     const { response } = buildResponseStub();
-    assert.throws(() => handleLayer1BranchesRequest(response, new URLSearchParams()), /missing query param: dir/);
+    assert.throws(() => sendLayer1BranchesResponse(response, new URLSearchParams()), /missing query param: dir/);
 });

@@ -1,7 +1,7 @@
 // Tasks 284, 360: the events a ruler row stands for, and the file list built from them.
 
 import { createElement } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
 import type { ShowRowKind } from "./layer1-show-row.ts";
@@ -24,7 +24,7 @@ export interface TickEvent {
 export const rowsByTick = new WeakMap<HTMLElement, RulerRow>();
 
 // Remember what a tick absorbed when layer1-ruler-click.ts wires it; kept beside the only reader.
-export function rememberRow(tick: HTMLElement, row: RulerRow): void {
+export function storeRow(tick: HTMLElement, row: RulerRow): void {
   rowsByTick.set(tick, row);
 }
 
@@ -88,8 +88,8 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
     onclick: (clickEvent: Event) => {
       clickEvent.stopPropagation();
       // The same jump a single-event tick makes (layer1-ruler-click.ts).
-      scrollToUncoveredCentre(event.element);
-      highlightLandedElement(event.element);
+      moveToUncoveredCentre(event.element);
+      markLandedElement(event.element);
       if (event.session !== undefined) {
         // flashSession keys rows by basename (like the drawer), so a full path never matches.
         flashSession(event.session.split("/").pop() ?? event.session);

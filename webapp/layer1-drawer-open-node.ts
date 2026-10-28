@@ -1,7 +1,7 @@
 // Task 257.5/305/323: opening the single-node drawer, and the anchor the next shift-click or arrow starts from.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { drawLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
@@ -37,7 +37,7 @@ function moveViewToAnchoredNode(): void {
   if (anchor === undefined) {
     return;
   }
-  scrollToUncoveredCentre(anchor.node);
+  moveToUncoveredCentre(anchor.node);
   drawLayer1Minimap();
 }
 
@@ -58,7 +58,7 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   header.title = path;
   getRequiredElementById("dmeta").textContent = detail.meta;
   // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
-  highlightLandedElement(node);
+  markLandedElement(node);
   getRequiredElementById("drawer").classList.add("open");
   requestAnimationFrame(moveViewToAnchoredNode);
   const isImage = isImagePath(path);
@@ -86,7 +86,10 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   })]);
   // The reveal needs only the node's own session file and line, so a failed backup read cannot remove it.
   const { sessionFile, line } = node.dataset;
-  if (sessionFile !== undefined && line !== undefined) {
+  const hasSessionFile = sessionFile !== undefined;
+  const hasLine = line !== undefined;
+  const hasRevealTarget = hasSessionFile && hasLine;
+  if (hasRevealTarget) {
     appendRawJsonRevealForLine(sessionFile, Number(line));
   }
   // Task 317: a snapshot's header still carries the title in effect at its line; flash its JSONL.

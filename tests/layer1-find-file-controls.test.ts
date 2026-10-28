@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
     COLLIDING_PATHS,
     dispatchCycleButtonClick,
-    jumpToNamedBubble,
+    moveToNamedBubble,
     openFoundPage,
     readFindStatusText,
     scrolledPaths,
@@ -27,15 +27,15 @@ test("test_the_enter_key_on_the_box_is_what_submits", () => {
 test("test_clearing_the_find_box_clears_its_result_readout", () => {
     // Emptying the box drops the abandoned search state, so the next term starts at its first match.
     openFoundPage(COLLIDING_PATHS);
-    jumpToNamedBubble("launch.json");
-    jumpToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
     assert.match(readFindStatusText(), /2 of 3/);
     const box = document.getElementById("find-file") as HTMLInputElement;
     box.value = "";
     box.dispatchEvent(new window.Event("input", { bubbles: true }));
     assert.equal(readFindStatusText(), "");
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
-    jumpToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
     assert.equal(scrolledPaths.at(-1), ".claude/launch.json");
 });
 

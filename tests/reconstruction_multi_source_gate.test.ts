@@ -1,11 +1,11 @@
-// Spec S5 (task 176) §c4 conflict notes: a cross-source contradiction on a JOINED file must not abort — it surfaces as a task-119 health-sink conflict note while the merged timeline still completes; an agreeing cross-source stream stays silent.
+// Task 176 §c4: a cross-source contradiction on a joined file emits a conflict note, never aborts.
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { EditEvent } from "../src/reconstruction_events.ts";
-import { editEvidenceAgreesWithState } from "../src/reconstruction_multi_source_gate.ts";
+import { isEditEvidenceMatchingState } from "../src/reconstruction_multi_source_gate.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { reconstructFile } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
@@ -40,7 +40,7 @@ function buildSecondEditOfA(
 }
 
 test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline", () => {
-    // Scenario (§c4): A writes at t1, B's t2 edit agrees (join fires), then A's t3 edit carries pre-state evidence that contradicts the merged state at t3 (it never saw B's line).  Steps: A write "line one" t1 → B edit +"line two" t2 → A edit t3, originalFile still "line one" (stale — the contradiction).
+    // A writes t1, B edits t2 (join), then A's t3 edit has stale originalFile that contradicts the merge.
     const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline three\n", "line one\n", {
             oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line three"],
@@ -83,6 +83,6 @@ function buildEditEventWithNullOriginalFile(): EditEvent {
 
 test("test_edit_with_null_original_file_falls_through_to_hunk_pre_side_check", () => {
     const edit = buildEditEventWithNullOriginalFile();
-    assert.equal(editEvidenceAgreesWithState(edit, "line one"), true);
-    assert.equal(editEvidenceAgreesWithState(edit, "other text"), false);
+    assert.equal(isEditEvidenceMatchingState(edit, "line one"), true);
+    assert.equal(isEditEvidenceMatchingState(edit, "other text"), false);
 });

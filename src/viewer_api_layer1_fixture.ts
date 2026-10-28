@@ -1,20 +1,18 @@
 // Fixture mode: the Layer 1 routes served from canned payloads, off by default.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
-import { type Layer1RefsView, type RepoCommitRow, SourceKind, type WireSession } from "../webapp/layer1-wire.ts";
+import { type Layer1RefsView, type RepoCommitRow, SourceKind } from "../webapp/layer1-wire.ts";
 import { sendFixtureDiff, sendFixtureFile } from "./viewer_api_layer1_fixture_file.ts";
 import { buildFixtureLayer1View } from "./viewer_api_layer1_fixture_view.ts";
-import {
-  BRANCHES, COMMITS, FIXTURE_DIR, FIXTURE_JSONL_DIR, FIXTURE_REPO, SESSIONS,
-  buildSessionFile, parseMs,
-} from "./viewer_api_layer1_fixture_data.ts";
+import { BRANCHES, COMMITS, SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureCommit } from "./viewer_api_layer1_fixture_data.ts";
+import { buildFixtureSessionsPayload } from "./viewer_api_layer1_fixture_sessions.ts";
+import { buildFixtureSettings, receiveFixtureSettings } from "./viewer_api_layer1_fixture_settings.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
 import { buildFixtureEditsPayload } from "./viewer_api_layer3_fixture_replay.ts";
 import { buildFixtureScriptRunsPayload } from "./viewer_api_layer4_fixture_payload.ts";
 import { buildFixtureBranchesPayload } from "./viewer_api_layer5_mockup_branches.ts";
-import type { Layer1ProjectSettings, Layer1Settings } from "./viewer_api_layer1_settings.ts";
-import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
+import { sendNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 let fixtureModeOn = false;
@@ -33,7 +31,7 @@ function sendFixtureView(response: ServerResponse, query: URLSearchParams): void
     sendJson(response, 200, buildFixtureLayer1View());
     return;
   }
-  streamNdjsonBuild(response, buildFixtureLayer1View);
+  sendNdjsonBuild(response, buildFixtureLayer1View);
 }
 
 function compareCommitsNewestFirst(left: FixtureCommit, right: FixtureCommit): number {
@@ -49,88 +47,43 @@ function sendFixtureRefs(response: ServerResponse): void {
   sendJson(response, 200, refs);
 }
 
-function compareSessionsByStart(left: WireSession, right: WireSession): number {
-  return left.started.localeCompare(right.started);
-}
-
-function buildFixtureSessions(): WireSession[] {
-  const sessions: WireSession[] = [];
-  for (const session of SESSIONS) {
-    // Real transcripts record ABSOLUTE paths; the pane relativizes against the project folder.
-    const paths: string[] = [];
-    for (const path of session.paths) {
-      paths.push(`${FIXTURE_DIR}/${path}`);
-    }
-    sessions.push({
-      file: session.file,
-      fullPath: buildSessionFile(session.file).toString(),
-      titles: session.titles.map((range) => range.title),
-      started: new Date(parseMs(session.started)).toISOString(),
-      ended: new Date(parseMs(session.ended)).toISOString(),
-      paths,
-    });
-  }
-  return sessions.sort(compareSessionsByStart);
-}
-
-function buildFixtureSessionsPayload(): { sessions: WireSession[] } {
-  return { sessions: buildFixtureSessions() };
-}
-
 function sendFixtureSessions(response: ServerResponse, query: URLSearchParams): void {
   const isProgressStream = query.get("progress") === "1";
   if (!isProgressStream) {
     sendJson(response, 200, buildFixtureSessionsPayload());
     return;
   }
-  streamNdjsonBuild(response, buildFixtureSessionsPayload);
+  sendNdjsonBuild(response, buildFixtureSessionsPayload);
 }
 
-function ignoreFixtureProgress(): void {
+function blockFixtureProgress(): void {
 }
 
 function sendFixtureEdits(response: ServerResponse, query: URLSearchParams): void {
   const isProgressStream = query.get("progress") === "1";
   if (!isProgressStream) {
-    sendJson(response, 200, buildFixtureEditsPayload(ignoreFixtureProgress));
+    sendJson(response, 200, buildFixtureEditsPayload(blockFixtureProgress));
     return;
   }
-  streamNdjsonBuild(response, buildFixtureEditsPayload);
+  sendNdjsonBuild(response, buildFixtureEditsPayload);
 }
 
 function sendFixtureScriptRuns(response: ServerResponse, query: URLSearchParams): void {
   const isProgressStream = query.get("progress") === "1";
   if (!isProgressStream) {
-    sendJson(response, 200, buildFixtureScriptRunsPayload(ignoreFixtureProgress));
+    sendJson(response, 200, buildFixtureScriptRunsPayload(blockFixtureProgress));
     return;
   }
-  streamNdjsonBuild(response, buildFixtureScriptRunsPayload);
+  sendNdjsonBuild(response, buildFixtureScriptRunsPayload);
 }
 
 function sendFixtureBranches(response: ServerResponse, query: URLSearchParams): void {
   const isProgressStream = query.get("progress") === "1";
   if (!isProgressStream) {
-    sendJson(response, 200, buildFixtureBranchesPayload(ignoreFixtureProgress));
+    sendJson(response, 200, buildFixtureBranchesPayload(blockFixtureProgress));
     return;
   }
-  streamNdjsonBuild(response, buildFixtureBranchesPayload);
-}
-
-function buildFixtureSettings():Layer1Settings & { defaults: Record<string, never> } {
-  const project: Layer1ProjectSettings = {
-    dir: FIXTURE_DIR, repo: FIXTURE_REPO, branch: BRANCHES[0]!, ref: BRANCHES[0]!,
-    jsonl: [FIXTURE_JSONL_DIR], fileHistory: [],
-  };
-  return { lastDir: FIXTURE_DIR, projects: { [FIXTURE_DIR]: project }, defaults: {} };
-}
-
-function readFixtureChunk(): void {
-}
-
-function receiveFixtureSettings(request: IncomingMessage, response: ServerResponse): void {
-  const sendSaved = (): void => sendJson(response, 200, { saved: true });
-  request.on("data", readFixtureChunk);
-  request.on("end", sendSaved);
+  sendNdjsonBuild(response, buildFixtureBranchesPayload);
 }
 
 function sendFixtureScanSource(response: ServerResponse, query: URLSearchParams): void {

@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { join } from "node:path";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS } from "../src/layer1_script_runs_wire.ts";
-import { handleLayer1ScriptRunsRequest } from "../src/viewer_api_layer1_script_runs.ts";
+import { sendLayer1ScriptRunsResponse } from "../src/viewer_api_layer1_script_runs.ts";
 import { SESSION_A, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 
@@ -51,7 +51,7 @@ function buildQuery(projectFolder: string, jsonlFolders: string[], progress: boo
 test("test_script_runs_route_streams_progress_then_view", () => {
     const projectFolder = makeProjectFolder();
     const { response, body } = buildResponseStub();
-    handleLayer1ScriptRunsRequest(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], true));
+    sendLayer1ScriptRunsResponse(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], true));
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
     assert.deepEqual(lines[0], { kind: "progress", label: LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS, current: 1, total: 1 });
     const terminal = lines.at(-1) as { pairs: { path: string; scriptRuns: { executorKind: string }[] }[] };
@@ -62,7 +62,7 @@ test("test_script_runs_route_streams_progress_then_view", () => {
 test("test_script_runs_route_without_progress_sends_plain_json", () => {
     const projectFolder = makeProjectFolder();
     const { response, body } = buildResponseStub();
-    handleLayer1ScriptRunsRequest(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], false));
+    sendLayer1ScriptRunsResponse(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], false));
     const payload = JSON.parse(body()) as { pairs: { path: string; scriptRuns: Record<string, unknown>[] }[] };
     assert.equal(payload.pairs[0]!.scriptRuns[0]!["toolUseId"], "toolu_b1");
 });
@@ -75,7 +75,7 @@ test("test_script_runs_route_ignores_workflow_journal", () => {
         mkdirSync(workflowFolder, { recursive: true });
         writeFileSync(join(workflowFolder, "journal.jsonl"), '{"type":"launched"}\n');
         const { response, body } = buildResponseStub();
-        handleLayer1ScriptRunsRequest(response, buildQuery(projectFolder, [jsonlFolder], progress));
+        sendLayer1ScriptRunsResponse(response, buildQuery(projectFolder, [jsonlFolder], progress));
         const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
         assert.equal(lines.some((line) => line["kind"] === "error"), false);
         assert.equal((lines.at(-1) as { pairs: { path: string }[] }).pairs[0]!.path, "a.py");
@@ -84,5 +84,5 @@ test("test_script_runs_route_ignores_workflow_journal", () => {
 
 test("test_script_runs_route_missing_dir_throws", () => {
     const { response } = buildResponseStub();
-    assert.throws(() => handleLayer1ScriptRunsRequest(response, new URLSearchParams()), /missing query param: dir/);
+    assert.throws(() => sendLayer1ScriptRunsResponse(response, new URLSearchParams()), /missing query param: dir/);
 });

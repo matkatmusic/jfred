@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
     COLLIDING_PATHS,
     dispatchCycleButtonClick,
-    jumpToBubbleAtPath,
+    moveToBubbleAtPath,
     openFoundPage,
     readCrumbText,
     readFindStatusText,
@@ -23,7 +23,7 @@ test("test_open_found_page_builds_one_bubble_per_path_with_the_full_path_in_data
 
 test("test_open_found_page_empties_the_scroll_records_left_by_an_earlier_page", () => {
     openFoundPage(COLLIDING_PATHS);
-    jumpToBubbleAtPath("tasks.json");
+    moveToBubbleAtPath("tasks.json");
     assert.equal(scrolledPaths.length, 1);
     assert.equal(scrolledOptions.length, 1);
     openFoundPage(COLLIDING_PATHS);

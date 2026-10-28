@@ -11,41 +11,50 @@ import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 // Validated here so a bad folder is a 400, not an ENOENT; no allowlist — the user's own machine.
-export function requireExistingFolderParam(query: URLSearchParams, name: string): Path {
+export function validateExistingFolderParam(query: URLSearchParams, name: string): Path {
   const value = getRequiredParam(query, name);
-  if (!existsSync(value)) {
+  const folderExists = existsSync(value);
+  if (!folderExists) {
     throw new Error(`${name} folder does not exist: ${value}`);
   }
-  if (!statSync(value).isDirectory()) {
+  const isFolder = statSync(value).isDirectory();
+  if (!isFolder) {
     throw new Error(`${name} is not a folder: ${value}`);
   }
   return new Path(value);
 }
 
 // Absent or blank ref means the active branch; the ref never reaches a shell, so no regex.
-export function resolveRequestedRef(query: URLSearchParams): string {
+export function getRequestedRef(query: URLSearchParams): string {
   const requested = query.get("ref");
   if (requested === null) {
     return ACTIVE_BRANCH_REF;
   }
-  if (requested.trim() === "") {
+  const trimmedRef = requested.trim();
+  if (trimmedRef === "") {
     return ACTIVE_BRANCH_REF;
   }
-  return requested.trim();
+  return trimmedRef;
 }
 
 // An unknown time value falls back to committer rather than 400, so a typo doesn't refuse an otherwise-valid view.
-function resolveRequestedTimeSource(query: URLSearchParams): CommitTimeSource {
+function getRequestedTimeSource(query: URLSearchParams): CommitTimeSource {
   return query.get("time") === CommitTimeSource.author ? CommitTimeSource.author : CommitTimeSource.committer;
 }
 
 // Same NDJSON framing as /api/document; shared by /api/layer1-view and /api/layer1-sessions (task 304).
-export function streamNdjsonBuild(response: ServerResponse, build: (writeNdjsonLine: (value: unknown) => void) => unknown): void {
+export function sendNdjsonBuild(response: ServerResponse, build: (writeNdjsonLine: (value: unknown) => void) => unknown): void {
   response.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8" });
   response.socket?.setNoDelay(true);   // sync build between writes — do not let Nagle batch the lines
   const writeNdjsonLine = (value: unknown): void => {
     // The synchronous build never yields, so client-abort surfaces as the next write failing (EPIPE).
-    if (response.destroyed || response.socket === null || response.socket.destroyed || !response.socket.writable) {
+    const socket = response.socket;
+    const isResponseDestroyed = response.destroyed;
+    const isSocketMissing = socket === null;
+    const isSocketDestroyed = socket?.destroyed === true;
+    const isSocketUnwritable = socket?.writable !== true;
+    const isClientGone = isResponseDestroyed || isSocketMissing || isSocketDestroyed || isSocketUnwritable;
+    if (isClientGone) {
       throw new Error("client disconnected — build cancelled");
     }
     response.write(JSON.stringify(value) + "\n");
@@ -65,16 +74,18 @@ export function streamNdjsonBuild(response: ServerResponse, build: (writeNdjsonL
 }
 
 // Both folder checks run first: a bad dir/repo throws before any header, so the outer catch 400s.
-export function handleLayer1ViewRequest(response: ServerResponse, query: URLSearchParams): void {
-  const projectFolder = requireExistingFolderParam(query, "dir");
-  const repoDir = requireExistingFolderParam(query, "repo");
-  const ref = resolveRequestedRef(query);
-  const timeSource = resolveRequestedTimeSource(query);
+export function sendLayer1ViewResponse(response: ServerResponse, query: URLSearchParams): void {
+  const projectFolder = validateExistingFolderParam(query, "dir");
+  const repoDir = validateExistingFolderParam(query, "repo");
+  const ref = getRequestedRef(query);
+  const timeSource = getRequestedTimeSource(query);
   // Task 312: the repeatable ?jsonl= /api/layer1-sessions already takes; absent means no snapshots.
   const sessionFiles = listTranscriptFiles(query.getAll("jsonl"));
-  if (query.get("progress") !== "1") {
+  const progressParam = query.get("progress");
+  if (progressParam !== "1") {
     sendJson(response, 200, buildLayer1View(projectFolder, repoDir, ref, undefined, timeSource, sessionFiles));
     return;
   }
-  streamNdjsonBuild(response, (writeNdjsonLine) => buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource, sessionFiles));
+  const buildStreamedView = (writeNdjsonLine: (value: unknown) => void) => buildLayer1View(projectFolder, repoDir, ref, writeNdjsonLine, timeSource, sessionFiles);
+  sendNdjsonBuild(response, buildStreamedView);
 }

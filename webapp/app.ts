@@ -2,7 +2,7 @@
 
 import { closeProgressConsole, initProgressTerminal, openProgressConsole } from "./app-console.ts";
 import { initializeHeader } from "./app-header.ts";
-import { initializeProjectPathsSection } from "./app-paths-project.ts";
+import { initProjectPathsSection } from "./app-paths-project.ts";
 import { initializeWizard, maybeStartFirstLaunchWizard } from "./app-paths-wizard.ts";
 import { renderRoute } from "./app-router.ts";
 import { initDetailsFind } from "./views/details-find.ts";
@@ -60,7 +60,7 @@ function initSplitter(splitterId: string, paneId: string, axis: "x" | "y", inver
 }
 
 function initRoutingAfterHeader(): void {
-  initializeProjectPathsSection();               // task 137: the popover's per-project section
+  initProjectPathsSection();                     // task 137: the popover's per-project section
   initializeWizard();                            // task 159: the Paths wizard state machine
   maybeStartFirstLaunchWizard();                 // task 159: no global config → full wizard
   renderRoute();

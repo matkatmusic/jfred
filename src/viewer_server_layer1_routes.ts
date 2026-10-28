@@ -1,17 +1,17 @@
 // The Layer 1 View's HTTP routes, dispatched as one group; returns whether it owned the request.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
-import { handleLayer1BranchesRequest } from "./viewer_api_layer1_branches.ts";
+import { sendLayer1BranchesResponse } from "./viewer_api_layer1_branches.ts";
 import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "./viewer_api_layer1_diff.ts";
-import { handleLayer1EditsRequest } from "./viewer_api_layer1_edits.ts";
+import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
 import { handleLayer1FileRequest } from "./viewer_api_layer1_file.ts";
 import { handleLayer1RecordRequest } from "./viewer_api_layer1_record.ts";
-import { handleLayer1RefsRequest } from "./viewer_api_layer1_refs.ts";
-import { handleLayer1ViewRequest } from "./viewer_api_layer1_route.ts";
-import { handleLayer1ScriptRunsRequest } from "./viewer_api_layer1_script_runs.ts";
+import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
+import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
+import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
 import { sendLayer1SessionsResponse } from "./viewer_api_layer1_sessions.ts";
 import { sendLayer1Settings, receiveLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
-import { handleScanSourceRequest } from "./viewer_api_layer1_sources.ts";
+import { sendScanSourceResponse } from "./viewer_api_layer1_sources.ts";
 import { dispatchLayer1FixtureRoute, isFixtureMode } from "./viewer_api_layer1_fixture.ts";
 
 export function dispatchLayer1Route(request: IncomingMessage, response: ServerResponse, url: URL): boolean {
@@ -38,22 +38,22 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
     sendLayer1Settings(response);
   }
   else if (url.pathname === "/api/layer1-view") {
-    handleLayer1ViewRequest(response, url.searchParams);
+    sendLayer1ViewResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-refs") {
-    handleLayer1RefsRequest(response, url.searchParams);
+    sendLayer1RefsResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-sessions") {
     sendLayer1SessionsResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-edits") {
-    handleLayer1EditsRequest(response, url.searchParams);
+    sendLayer1EditsResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-script-runs") {
-    handleLayer1ScriptRunsRequest(response, url.searchParams);
+    sendLayer1ScriptRunsResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-branches") {
-    handleLayer1BranchesRequest(response, url.searchParams);
+    sendLayer1BranchesResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-record") {
     handleLayer1RecordRequest(response, url.searchParams);
@@ -65,7 +65,7 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
     handleLayer1DiffRequest(response, url.searchParams);
   }
   else if (url.pathname === "/api/scan-source") {
-    handleScanSourceRequest(response, url.searchParams);
+    sendScanSourceResponse(response, url.searchParams);
   }
   else {
     return false;

@@ -7,7 +7,7 @@ import { collectTitleRanges } from "./layer1_sessions.ts";
 import { readFirstUserPrompt } from "./reconstruction_prompts.ts";
 import { Path } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
-import { streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
+import { sendNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { computeReconstructionPrescan } from "./viewer_api_prescan.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
@@ -109,5 +109,5 @@ export function sendLayer1SessionsResponse(response: ServerResponse, query: URLS
   function buildProgressBody(writeNdjsonLine: ProgressSink): { sessions: WireSession[] } {
     return { sessions: buildLayer1Sessions(folders, writeNdjsonLine) };
   }
-  streamNdjsonBuild(response, buildProgressBody);
+  sendNdjsonBuild(response, buildProgressBody);
 }

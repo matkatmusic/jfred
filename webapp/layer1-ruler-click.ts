@@ -7,9 +7,9 @@
 // ponytail: native `scrollIntoView` reads LIVE layout, so it survives the CSS `zoom` on `.canvas`.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 // A cycle, but safe: both modules only DECLARE functions at load, so neither runs before the other is populated.
-import { listEventsAtRow, rememberRow } from "./layer1-tick-events.ts";
+import { listEventsAtRow, storeRow } from "./layer1-tick-events.ts";
 import { toggleExpandedRow } from "./layer1-tick-files.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 
@@ -102,7 +102,7 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
 
 // `row` carries every entry the tick absorbed, because a merged row stands for several instants.
 export function attachRulerTickClick(tick: HTMLElement, row: RulerRow): HTMLElement {
-  rememberRow(tick, row);
+  storeRow(tick, row);
   function triggerTickAction(): void {
     // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.
     const events = listEventsAtRow(row.axisPxList);
@@ -115,8 +115,8 @@ export function attachRulerTickClick(tick: HTMLElement, row: RulerRow): HTMLElem
     if (landed === undefined) {
       return;
     }
-    scrollToUncoveredCentre(landed);
-    highlightLandedElement(landed);
+    moveToUncoveredCentre(landed);
+    markLandedElement(landed);
   }
   tick.addEventListener("click", triggerTickAction);
   return tick;

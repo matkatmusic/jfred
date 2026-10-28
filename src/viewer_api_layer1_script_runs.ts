@@ -2,17 +2,19 @@
 
 import { type ServerResponse } from "node:http";
 import { buildScriptRunsView } from "./layer1_script_runs_wire.ts";
-import { requireExistingFolderParam, streamNdjsonBuild } from "./viewer_api_layer1_route.ts";
+import { validateExistingFolderParam, sendNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 
 // A bad dir throws before any header, so the server's outer catch 400s it.
-export function handleLayer1ScriptRunsRequest(response: ServerResponse, query: URLSearchParams): void {
-  const projectFolder = requireExistingFolderParam(query, "dir");
+export function sendLayer1ScriptRunsResponse(response: ServerResponse, query: URLSearchParams): void {
+  const projectFolder = validateExistingFolderParam(query, "dir");
   const sessionFiles = listTranscriptFiles(query.getAll("jsonl"));
-  if (query.get("progress") !== "1") {
+  const progressParam = query.get("progress");
+  if (progressParam !== "1") {
     sendJson(response, 200, buildScriptRunsView(projectFolder, sessionFiles));
     return;
   }
-  streamNdjsonBuild(response, (writeNdjsonLine) => buildScriptRunsView(projectFolder, sessionFiles, writeNdjsonLine));
+  const buildStreamedView = (writeNdjsonLine: (value: unknown) => void) => buildScriptRunsView(projectFolder, sessionFiles, writeNdjsonLine);
+  sendNdjsonBuild(response, buildStreamedView);
 }

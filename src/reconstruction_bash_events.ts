@@ -25,7 +25,13 @@ export function parseRmTargets(command: string): Path[] {
   if (!match) {
     return [];
   }
-  return match[1]!.trim().split(whitespaceRun).map((p) => new Path(p));
+  const rawTargets = match[1]!.trim();
+  const targetStrings = rawTargets.split(whitespaceRun);
+  const targets: Path[] = [];
+  for (const targetString of targetStrings) {
+    targets.push(new Path(targetString));
+  }
+  return targets;
 }
 
 // Parse `mv`/`git mv` into src and dst paths (s2 absolute, s6 cwd-relative).
@@ -60,9 +66,10 @@ type ParsedRedirect = {
 const NON_PATH_CHARACTERS = "\"'`()<>{}$;,|";
 
 // Reject candidates containing shell/JS punctuation (task 150).
-function checkCandidateLooksLikePath(candidate: string): boolean {
+function isPathLikeCandidate(candidate: string): boolean {
   for (const character of NON_PATH_CHARACTERS) {
-    if (candidate.includes(character)) {
+    const hasNonPathCharacter = candidate.includes(character);
+    if (hasNonPathCharacter) {
       return false;
     }
   }
@@ -72,11 +79,15 @@ function checkCandidateLooksLikePath(candidate: string): boolean {
 // Parse `>`/`>>` redirect target; content comes from sidecar, not the command (decision 3).
 export function parseRedirect(command: string): ParsedRedirect | undefined {
   const appended = command.match(bashAppendRedirect);
-  if (appended && appended[1] !== NULL_DEVICE && checkCandidateLooksLikePath(appended[1]!)) {
+  const appendedIsFile = appended !== null && appended[1] !== NULL_DEVICE;
+  const appendedIsPath = appendedIsFile && isPathLikeCandidate(appended[1]!);
+  if (appendedIsPath) {
     return { target: new Path(appended[1]!), appends: true };
   }
   const overwritten = command.match(bashOverwriteRedirect);
-  if (overwritten && overwritten[1] !== NULL_DEVICE && checkCandidateLooksLikePath(overwritten[1]!)) {
+  const overwrittenIsFile = overwritten !== null && overwritten[1] !== NULL_DEVICE;
+  const overwrittenIsPath = overwrittenIsFile && isPathLikeCandidate(overwritten[1]!);
+  if (overwrittenIsPath) {
     return { target: new Path(overwritten[1]!), appends: false };
   }
   // /dev/null is not a real file; suppress it (task 76).
@@ -84,7 +95,7 @@ export function parseRedirect(command: string): ParsedRedirect | undefined {
 }
 
 // Convert a Bash tool_use into file events; resolves relative paths against cwd.
-export function bashEventsFrom(
+export function extractBashEvents(
   block: ToolUseBlock,
   timestamp: Date,
   cwd: Path | undefined,
@@ -92,7 +103,11 @@ export function bashEventsFrom(
   const input = block.input as { command: string };
   const removed = parseRmTargets(input.command);
   if (removed.length > 0) {
-    return removed.map((target) => ({ kind: EventKind.delete as const, changeId: block.id, target, timestamp }));
+    const deleteEvents: FileEvent[] = [];
+    for (const target of removed) {
+      deleteEvents.push({ kind: EventKind.delete, changeId: block.id, target, timestamp });
+    }
+    return deleteEvents;
   }
   const moved = parseMvPaths(input.command);
   if (moved) {

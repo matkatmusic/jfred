@@ -8,7 +8,7 @@ import { buildLineVerdicts } from "./reconstruction_line_verdicts.ts";
 import { findGitCommitEvents } from "./reconstruction_git_commit_events.ts";
 import { findGitOperations } from "./reconstruction_git_operations.ts";
 import { findToolCalls } from "./reconstruction_tool_calls.ts";
-import { summarizeScriptRunFileChanges } from "./reconstruction_script_run_changes.ts";
+import { collectScriptRunFileChanges } from "./reconstruction_script_run_changes.ts";
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildStepSnapshots } from "./reconstruction_json_steps.ts";
@@ -65,7 +65,7 @@ export function buildDocumentSections(
   };
   const buildGitOperations = () => findGitOperations(records);
   const buildToolCalls = () => findToolCalls(records);
-  const buildScriptRuns = () => summarizeScriptRunFileChanges(records, reader);
+  const buildScriptRuns = () => collectScriptRunFileChanges(records, reader);
 
   reportReconstructionProgress("building step snapshots");
   // task 119: const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);
@@ -94,8 +94,8 @@ export function buildDocumentSections(
   // task 119: const toolCalls = findToolCalls(records);
   const toolCalls = buildPhaseTolerantly("findToolCalls", [], buildToolCalls);
   reportReconstructionProgress("summarizing script-run file changes");
-  // task 119: const scriptRuns = summarizeScriptRunFileChanges(records, reader);
-  const scriptRuns = buildPhaseTolerantly("summarizeScriptRunFileChanges", [], buildScriptRuns);
+  // task 119: const scriptRuns = collectScriptRunFileChanges(records, reader);
+  const scriptRuns = buildPhaseTolerantly("collectScriptRunFileChanges", [], buildScriptRuns);
   return {
     filesTouched,
     rewoundFilesTouched,

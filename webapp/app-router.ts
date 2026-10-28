@@ -5,7 +5,7 @@ import { initProgressTerminal, openProgressConsole, progressTerminal } from "./a
 import { inflightLoadController } from "./app-fetch.ts";
 import { checkRouteIsTimeline, parseRouteSegments, routeToTimeline } from "./app-routes.ts";
 import { renderSubRouteDrawer, resetDetailsPane } from "./app-drawer.ts";
-import { maybeOfferProjectPathsWizard } from "./app-paths-project.ts";
+import { triggerProjectPathsWizardOffer } from "./app-paths-project.ts";
 import { renderProjectsView } from "./views/projects.ts";
 import { renderTimelineView } from "./views/timeline.ts";
 
@@ -77,7 +77,7 @@ export async function renderRoute(): Promise<void> {
     // item 66: a fresh load re-opens a collapsed console so its progress is visible.
     openProgressConsole();
     // task 159: a project loading with no reveng-paths entry gets wizard screens 2–5.
-    void maybeOfferProjectPathsWizard(nextProject!);
+    void triggerProjectPathsWizardOffer(nextProject!);
   }
   if (nextProject !== undefined)
     lastLoadedProject = nextProject;

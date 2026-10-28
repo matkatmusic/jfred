@@ -5,7 +5,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 // layer1-page.ts boots at MODULE SCOPE and would double each Enter. Absorb that boot here, on a throwaway DOM.
 initLayer1Dom();
 const { initLayer1Page } = await import("../webapp/layer1-page.ts");
-export const { jumpToBubbleAtPath, jumpToNamedBubble } = await import("../webapp/layer1-find-file.ts");
+export const { moveToBubbleAtPath, moveToNamedBubble } = await import("../webapp/layer1-find-file.ts");
 
 // Full paths of the scrolled bubbles, in call order. Emptied in place by openFoundPage, never reassigned.
 export const scrolledPaths: string[] = [];

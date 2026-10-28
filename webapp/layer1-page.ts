@@ -4,7 +4,7 @@ import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { installNodeDrawer } from "./layer1-drawer.ts";
 import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
 import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
-import { wireFindFileBox } from "./layer1-find-file.ts";
+import { initFindFileBox } from "./layer1-find-file.ts";
 import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
@@ -123,7 +123,7 @@ export async function initLayer1Page(): Promise<void> {
   // wireLayerToggle();
   initFileNavResize();
   attachBucketJumpButtons();
-  wireFindFileBox();
+  initFindFileBox();
   // All three are delegated, since every bubble, tick and leader is replaced on each render.
   installNodeDrawer();
   wireBubbleFlash();

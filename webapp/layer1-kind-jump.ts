@@ -1,7 +1,7 @@
 // The show row arrows jump the timeline to the nearest node of one kind along the time axis.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden, registerKindBoxToggle } from "./layer1-kind-filter.ts";
 import { classifyNodeKind } from "./layer1-node-kind.ts";
 import { KindJumpDirection, ShowRowKind } from "./layer1-show-row.ts";
@@ -97,8 +97,8 @@ function triggerJumpFromArrowClick(event: MouseEvent): void {
     return;
   }
   // Same landing as a ruler tick click.
-  scrollToUncoveredCentre(target);
-  highlightLandedElement(target);
+  moveToUncoveredCentre(target);
+  markLandedElement(target);
   landed = { node: target, scrollTop: getRequiredElementById("timelines").scrollTop };
   refreshKindJumpArrows();
 }
