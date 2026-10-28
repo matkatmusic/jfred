@@ -22,7 +22,7 @@ import { renderChosen } from "./reconstruction_render_chosen.ts";
 import { renderGraphs } from "./reconstruction_graph_render.ts";
 import { countStepsInTranscript } from "./reconstruction_steps.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { parseTraceArgs, runTrace } from "./reconstruction_cli_trace.ts";
+import { parseTraceArgs, executeTrace } from "./reconstruction_cli_trace.ts";
 import {
   isTargetedSurvivingRequest,
   listTargetedSurvivingHistories,
@@ -36,7 +36,7 @@ import { renderOneBranch, renderStep } from "./reconstruction_cli_text.ts";
 export function executeCli(argv: string[]): string {
   const traced = parseTraceArgs(argv);
   if (traced !== undefined)
-    return runTrace(traced);
+    return executeTrace(traced);
   const options = parseArgs(argv);
   applyCliPathOverrides(options);
   // task 119: aborted leftovers must not leak into this run's failure notes.

@@ -1,4 +1,4 @@
-// Sessions-sidebar, fork-lane, and build-progress view-model (split from timeline.ts, task 92).
+// Sessions-sidebar and fork-lane view-model (split from timeline.ts, task 92).
 
 import { computeSessionShortLabel } from "./timeline-labels.ts";
 import { LINE_NODE_KIND } from "./timeline-line-nodes.ts";
@@ -14,7 +14,13 @@ export function findJsonlForSession(listing: WireProjectListing | undefined, ses
   if (sessionId === undefined) {
     return undefined;
   }
-  return listing?.jsonlFiles.find((file) => file.fileName.startsWith(sessionId))?.fileName;
+  for (const file of listing?.jsonlFiles ?? []) {
+    const isSessionFile = file.fileName.startsWith(sessionId);
+    if (isSessionFile) {
+      return file.fileName;
+    }
+  }
+  return undefined;
 }
 
 // One entry per distinct attributed session, in first-appearance order.
@@ -30,14 +36,15 @@ export type SessionSidebarEntry = {
 export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: WireProjectListing | undefined): SessionSidebarEntry[] {
   const entries: SessionSidebarEntry[] = [];
   const entriesBySessionId = new Map<string, SessionSidebarEntry>();
-  nodes.forEach((node, index) => {
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index]!;
     if (node.sessionId === undefined) {
-      return;
+      continue;
     }
     const existing = entriesBySessionId.get(node.sessionId);
     if (existing !== undefined) {
       existing.rowCount += 1;
-      return;
+      continue;
     }
     const entry: SessionSidebarEntry = {
       sessionId: node.sessionId,
@@ -48,7 +55,7 @@ export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: Wi
     };
     entriesBySessionId.set(node.sessionId, entry);
     entries.push(entry);
-  });
+  }
   return entries;
 }
 
@@ -56,23 +63,23 @@ export function buildSessionsSidebarViewModel(nodes: TimelineNode[], listing: Wi
 export function computeGraphLaneRuns(nodes: TimelineNode[]): { startIndex: number; endIndex: number }[] {
   const runs: { startIndex: number; endIndex: number }[] = [];
   let currentRun: { startIndex: number; endIndex: number } | undefined;
-  nodes.forEach((node, index) => {
-    if (node.isOrphaned !== true) {
+  for (let index = 0; index < nodes.length; index += 1) {
+    if (nodes[index]!.isOrphaned !== true) {
       currentRun = undefined;
-      return;
+      continue;
     }
     if (currentRun !== undefined) {
       currentRun.endIndex = index;
-      return;
+      continue;
     }
     currentRun = { startIndex: index, endIndex: index };
     runs.push(currentRun);
-  });
+  }
   return runs;
 }
 
-// Task 158: last row of a rewound branch, scoped to the same session so it can't be masked later.
-export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: number): boolean {
+// Task 158: last row of a rewound branch, scoped to one session so later rows cannot mask it.
+export function isNodeAbandonedBranchTip(nodes: TimelineNode[], index: number): boolean {
   const node = nodes[index]!;
   if (node.isOrphaned !== true) {
     return false;
@@ -85,8 +92,8 @@ export function checkNodeIsAbandonedBranchTip(nodes: TimelineNode[], index: numb
   return true;
 }
 
-// Commit/session-end rows are thin one-liners; the merged git-derived baseline row is the exception, expanding for file chips (task 121).
-export function checkRowIsExpandable(node: TimelineNode): boolean {
+// Commit and session-end rows are thin one-liners; the merged git baseline row expands for file chips (task 121).
+export function isRowExpandable(node: TimelineNode): boolean {
   if (node.kind === COMMIT_NODE_KIND) {
     return node.isGitBaseline === true;
   }
@@ -98,22 +105,21 @@ export function checkRowIsExpandable(node: TimelineNode): boolean {
 }
 
 // Task 85's header Prev/Next: fromIndex -1 means "before the first row".
-export function findAdjacentFileTouchedIndex(
-  nodes: TimelineNode[],
-  fromIndex: number,
-  direction: 1 | -1,
-): number | undefined {
+export function findAdjacentFileTouchedIndex(nodes: TimelineNode[], fromIndex: number, direction: 1 | -1): number | undefined {
   for (let index = fromIndex + direction; index >= 0 && index < nodes.length; index += direction) {
     const node = nodes[index]!;
-    if (node.kind === AGENT_TURN_NODE_KIND && (node.fileChanges ?? []).length > 0) {
+    const isAgentTurn = node.kind === AGENT_TURN_NODE_KIND;
+    const hasFileChanges = (node.fileChanges ?? []).length > 0;
+    const isFileTouchingTurn = isAgentTurn && hasFileChanges;
+    if (isFileTouchingTurn) {
       return index;
     }
   }
   return undefined;
 }
 
-// Commits are repo events with no record; a synthetic git-derived baseline node has no transcript line either (task 135).
-export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
+// Commits are repo events with no record; a synthetic git baseline node has no transcript line (task 135).
+export function isRowCarryingJsonRecordButton(node: TimelineNode): boolean {
   if (node.kind === COMMIT_NODE_KIND) {
     return false;
   }
@@ -121,10 +127,7 @@ export function checkRowCarriesJsonRecordButton(node: TimelineNode): boolean {
   if (node.kind === LINE_NODE_KIND) {
     return true;
   }
-  if (node.uuid === undefined) {
-    return false;
-  }
-  return true;
+  return node.uuid !== undefined;
 }
 
 // Task 131's header line-stepper; undefined means already at the end.
@@ -142,30 +145,3 @@ export function findAdjacentRowIndex(nodes: TimelineNode[], fromIndex: number, d
 // Assigned by first appearance so a session keeps its color for the whole list.
 export const SESSION_LANE_VARIABLES = ["--accent", "--green", "--orange", "--lane-violet", "--lane-teal"];
 export const ORPHAN_LANE_COLOR = "var(--muted)";
-
-// Exported so the boundary tests track this tuned-in-place value instead of hardcoding it.
-export const LARGE_TIMELINE_ROW_COUNT = 100;
-
-// Rows built per animation frame during a chunked (large-timeline) build.
-export const TIMELINE_BUILD_BATCH_SIZE = 10;
-
-export function checkTimelineNeedsProgressOverlay(rowCount: number): boolean {
-  return rowCount >= LARGE_TIMELINE_ROW_COUNT;
-}
-
-export function computeTimelineBuildProgressLabel(rowsBuilt: number, totalRows: number): string {
-  return `Building timeline… ${rowsBuilt} / ${totalRows} rows`;
-}
-
-// A zero total counts as fully built so an empty build never divides by zero.
-export function computeTimelineProgressFraction(rowsBuilt: number, totalRows: number): number {
-  if (totalRows === 0) {
-    return 1;
-  }
-  return rowsBuilt / totalRows;
-}
-
-// Resolve next frame so a just-applied DOM update paints before the next row batch blocks main thread (item 78).
-export function waitForNextAnimationFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}

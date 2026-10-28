@@ -3,7 +3,7 @@
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { DerivedCaches } from "./reconstruction_corpus.ts";
-import { checkTimestampPrecedesSkippedBaseline } from "./reconstruction_base_commit.ts";
+import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
 import {
   ScriptExecutorKind,
   findScriptExecutionRuns,
@@ -33,7 +33,7 @@ function isRunRollCapable(run: ScriptRun): boolean {
 
 // Roll-capable and not behind a declined baseline.
 function isRunDirectlyExecutable(run: ScriptRun): boolean {
-  return isRunRollCapable(run) && !checkTimestampPrecedesSkippedBaseline(run.timestamp);
+  return isRunRollCapable(run) && !isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
 }
 
 function compareRunsByTimestamp(a: ScriptRun, b: ScriptRun): number {

@@ -7,13 +7,13 @@ import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import { buildTimelineRow } from "./timeline-render-row.ts";
 import { appendSessionStartMarker } from "./timeline-render-row-cells.ts";
 import {
-  checkTimelineNeedsProgressOverlay,
   computeTimelineBuildProgressLabel,
   computeTimelineProgressFraction,
-  ORPHAN_LANE_COLOR,
+  isTimelineNeedingProgressOverlay,
   TIMELINE_BUILD_BATCH_SIZE,
   waitForNextAnimationFrame,
-} from "./timeline-sessions.ts";
+} from "./timeline-build-progress.ts";
+import { ORPHAN_LANE_COLOR } from "./timeline-sessions.ts";
 
 export async function buildTimelineRows(context: TimelineRenderContext, container: HTMLElement): Promise<void> {
   // Session-start markers show where a later session began in interleaved projects.
@@ -24,7 +24,7 @@ export async function buildTimelineRows(context: TimelineRenderContext, containe
   // Dashed gap rows for skipped transcript lines, keyed by the node index they precede.
   const gapRowBuckets = computeGapRowBuckets(context.reconstructionDocument, context.nodes);
   // Large timelines build in yielding batches behind an overlay; rows stay detached until done.
-  const showBuildProgress = checkTimelineNeedsProgressOverlay(context.nodes.length);
+  const showBuildProgress = isTimelineNeedingProgressOverlay(context.nodes.length);
   const rowFragment = document.createDocumentFragment();
   if (showBuildProgress) {
     showLoadingProgress(computeTimelineBuildProgressLabel(0, context.nodes.length), computeTimelineProgressFraction(0, context.nodes.length));

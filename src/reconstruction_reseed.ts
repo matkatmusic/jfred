@@ -2,7 +2,7 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { backupSeedWriteFor, clampSeedBetweenPreviousAndEdit } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite, normalizeSeedBetweenPreviousAndEdit } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
@@ -23,7 +23,7 @@ function findStaleEditSeed(
   if (isStale) {
     // s28 reversed base first, then the s19/s23/m6 backup seed.
     const reversedSeed = findReversedEditBaseSeed(records, event, reader);
-    return reversedSeed ?? backupSeedWriteFor(records, event.target, event.timestamp, reader, true);
+    return reversedSeed ?? getBackupSeedWrite(records, event.target, event.timestamp, reader, true);
   }
   return findOutOfWindowEditSeed(records, event, priorEvents, reader); // s34
 }
@@ -50,7 +50,7 @@ export function insertStaleEditBaseSeeds(
     const rawSeed = findStaleEditSeed(records, event, result, reader);
     if (rawSeed) {
       // task 224: the seed stamp can sit outside the event it follows and the edit it seeds.
-      const seed = clampSeedBetweenPreviousAndEdit(rawSeed, event.timestamp, result[result.length - 1]?.timestamp);
+      const seed = normalizeSeedBetweenPreviousAndEdit(rawSeed, event.timestamp, result[result.length - 1]?.timestamp);
       reportStaleSeed(event, seed);
       result.push(seed);
     }

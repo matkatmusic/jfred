@@ -2,7 +2,7 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { backupWritesFor } from "./reconstruction_sidecar.ts";
+import { getBackupWrites } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import { beaconSnippetFor } from "./reconstruction_user_edit.ts";
@@ -44,7 +44,7 @@ function findElidedBeaconSeed(
   if (!snippetIsElided) {
     return undefined;
   }
-  const backups = backupWritesFor(records, beacon.target, reader);
+  const backups = getBackupWrites(records, beacon.target, reader);
   let match: WriteEvent | undefined;
   for (const candidate of backups) {
     const isInBound = isBackupWithinBound(candidate, notAfter);

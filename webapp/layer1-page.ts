@@ -6,14 +6,14 @@ import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
 import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
 import { initFindFileBox } from "./layer1-find-file.ts";
 import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
-import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
+import { moveFirstVisibleNodeIntoView } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
 import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { wireBusyShield } from "./layer1-busy-shield.ts";
 import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
-import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
-import { wirePathPickers } from "./layer1-path-picker.ts";
+import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
+import { registerPathPickers } from "./layer1-path-picker.ts";
 import { wireBubbleFlash } from "./layer1-session-flash.ts";
 import { resetSessionSelection } from "./layer1-sessions.ts";
 import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
@@ -92,7 +92,7 @@ function markDirtyAndLoadView(): void {
 }
 
 function loadViewAfterRefCheck(): void {
-  void confirmRepoAndFillRefs();
+  void fillRefsFromRepo();
   void loadLayer1View();
 }
 
@@ -108,15 +108,15 @@ export async function initLayer1Page(): Promise<void> {
   // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
   showLayer1Progress("starting");
   // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
-  wirePathPickers(markDirtyAndLoadView);
+  registerPathPickers(markDirtyAndLoadView);
   wireSettingsSave();
   initSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
   wireTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
-  wireRefPickers(loadViewInBackground);
-  void confirmRepoAndFillRefs();
+  registerRefPickers(loadViewInBackground);
+  void fillRefsFromRepo();
   wireLayer1CancelButton();
   wireBusyShield();
   attachZoomControls();
@@ -137,7 +137,7 @@ export async function initLayer1Page(): Promise<void> {
   await seedSourceDefaults();
   await restoreSavedSettings().catch(getFailedRestoreResult);
   await loadLayer1View();
-  scrollToFirstVisibleNode();
+  moveFirstVisibleNodeIntoView();
   if (linkedNode !== undefined) {
     await openLinkedNodeAfterLoad(linkedNode);
   }

@@ -4,7 +4,8 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { collectRevisions } from "./reconstruction_replay.ts";
-import { fillRedirectContent, seedEditBaseFromBackup } from "./reconstruction_sidecar.ts";
+import { addEditBaseFromBackup } from "./reconstruction_sidecar.ts";
+import { fillRedirectContent } from "./reconstruction_sidecar_redirect.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { insertElidedBeaconSeeds } from "./reconstruction_beacons.ts";
 import { appendTruncatedBeaconCompletion } from "./reconstruction_beacons_truncated.ts";
@@ -13,7 +14,7 @@ import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts"
 import { countActiveLineageReplayFrames } from "./reconstruction_lineage_memo.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
 import { applyGitCommitEvidence } from "./reconstruction_git_placement.ts";
-import { seedBaseCommitBeacon } from "./reconstruction_base_commit.ts";
+import { insertBaseCommitBeacon } from "./reconstruction_base_commit.ts";
 import { insertStaleEditBaseSeeds } from "./reconstruction_reseed.ts";
 import {
   buildRenameChain,
@@ -70,10 +71,10 @@ function computeFileRevisionsOver(
     }
   }
   // task 119: each stage degrades to its input on throw instead of killing the file.
-  const baselined = executeStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, seedBaseCommitBeacon, records, lineage, finalTarget);
+  const baselined = executeStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, insertBaseCommitBeacon, records, lineage, finalTarget);
   const seeded = executeStageTolerantly("seedCopyEvents", finalTarget, baselined, fillCopySeeds, records, baselined, resolving, reader);
   const filled = reader ? executeStageTolerantly("fillRedirectContent", finalTarget, seeded, fillRedirectContent, records, seeded, reader) : seeded;
-  const based = reader ? executeStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, seedEditBaseFromBackup, records, filled, reader) : filled;
+  const based = reader ? executeStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, addEditBaseFromBackup, records, filled, reader) : filled;
   const scripted = reader
     ? executeStageTolerantly("injectScriptExecutions", finalTarget, based, applyScriptExecutions, records, based, reader, finalTarget, getLineageContentBefore(records, reader))
     : based;

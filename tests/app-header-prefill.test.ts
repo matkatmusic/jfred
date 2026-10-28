@@ -6,14 +6,14 @@ import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
 import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The dynamic import keeps every webapp module load AFTER the globals exist.
-async function initializeHeaderInFreshDom(): Promise<void> {
+async function initHeaderInFreshDom(): Promise<void> {
     initWebappDom();
     stubFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [{ name: "proj-a" }, { name: "proj-b" }],
     });
-    const { initializeHeader } = await import("../webapp/app-header.ts");
-    await initializeHeader();
+    const { initHeader } = await import("../webapp/app-header.ts");
+    await initHeader();
 }
 
 // The element with `id`, asserted present — a missing id fails the test naming the id.
@@ -45,47 +45,47 @@ function getRecordedConfigPostBody(recordedCalls: { url: string; init: RequestIn
 
 test("test_prefill_with_override_shows_fields_and_fills_value", async () => {
     // Task 153: a stored per-project override unhides the fields and fills the input.
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
+    await initHeaderInFreshDom();
+    const { fillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
     // prefill with a stored per-project override.
-    prefillFileHistoryOverrideField("/overrides/fh");
+    fillFileHistoryOverrideField("/overrides/fh");
     // the fields are visible and carry the override.
     assert.equal(getRequiredElementById("file-history-fields").hidden, false);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/overrides/fh");
     // clear the prefill so the module state ends in the derived state for later tests.
-    prefillFileHistoryOverrideField(undefined);
+    fillFileHistoryOverrideField(undefined);
 });
 
 test("test_prefill_without_override_restores_derived_state_after_a_prefill", async () => {
-    // Scenario (task 153): a project WITHOUT a stored override restores the derived state, so a prior project's prefill never leaks into the next project's popover.  Steps: boot the DOM, prefill for a project with a stored override...
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    prefillFileHistoryOverrideField("/overrides/fh");
+    // Scenario (task 153): a project without a stored override restores the derived state; no prefill leaks.
+    await initHeaderInFreshDom();
+    const { fillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
+    fillFileHistoryOverrideField("/overrides/fh");
     // ...then refresh for a project with no stored override.
-    prefillFileHistoryOverrideField(undefined);
+    fillFileHistoryOverrideField(undefined);
     // the fields hide again and the input shows the server-reported derived dir.
     assert.equal(getRequiredElementById("file-history-fields").hidden, true);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/tmp/file-history");
 });
 
 test("test_prefill_without_override_leaves_manual_gesture_alone", async () => {
-    // Scenario (task 153): with NO prefill active, the no-override call must not clobber the user's manual task-136 explicit-override gesture (fields toggled open, value typed).  Steps: boot the DOM, open the fields via the toggle and type a value — no prefill anywhere.
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
+    // Scenario (task 153): with no prefill active, a no-override call must not clobber a manual override.
+    await initHeaderInFreshDom();
+    const { fillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
     getRequiredElementById("file-history-toggle").click();
     (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/typed/by/user";
     // a no-override refresh runs (popover opened on a project without a stored entry).
-    prefillFileHistoryOverrideField(undefined);
+    fillFileHistoryOverrideField(undefined);
     // the manual gesture survives untouched.
     assert.equal(getRequiredElementById("file-history-fields").hidden, false);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/typed/by/user");
 });
 
 test("test_apply_posts_empty_file_history_when_value_is_unedited_prefill", async () => {
-    // Scenario (task 153): an UNEDITED prefilled per-project override posts "" (= re-derive) through the GLOBAL "Change folder" button — it must not silently become a global override.  Steps: boot the DOM and prefill the per-project override.
-    await initializeHeaderInFreshDom();
-    const { prefillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
-    prefillFileHistoryOverrideField("/overrides/fh");
+    // Scenario (task 153): an unedited prefilled override posts "" through the global "Change folder" button.
+    await initHeaderInFreshDom();
+    const { fillFileHistoryOverrideField } = await import("../webapp/app-header.ts");
+    fillFileHistoryOverrideField("/overrides/fh");
     const recordedCalls = recordFetchCalls();
     // apply the GLOBAL folder change with the prefill untouched.
     getRequiredElementById("projects-dir-change").click();
@@ -93,5 +93,5 @@ test("test_apply_posts_empty_file_history_when_value_is_unedited_prefill", async
     // the POST body carries the empty derive marker, not the per-project override.
     assert.equal(getRecordedConfigPostBody(recordedCalls).fileHistoryDir, "");
     // clear the prefill so the module state ends in the derived state.
-    prefillFileHistoryOverrideField(undefined);
+    fillFileHistoryOverrideField(undefined);
 });

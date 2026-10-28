@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Uuid } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { splitLines, getPreEditLines } from "./reconstruction_replay_edit.ts";
-import { backupSeedWriteFor, backupAfterWriteFor } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite, getBackupAfterWrite } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { EditEvent, FileEvent, WriteEvent } from "./reconstruction_events.ts";
 import { findLastPriorTime, getReconstructedBaseText, isFirstHunkMatchingBase, isLinePrefix } from "./reconstruction_reseed_base.ts";
@@ -34,7 +34,7 @@ export function findOutOfWindowEditSeed(
   reader: BackupReader,
 ): WriteEvent | undefined {
   const base = getReconstructedBaseText(priorEvents);
-  const backup = backupSeedWriteFor(records, event.target, event.timestamp, reader);
+  const backup = getBackupSeedWrite(records, event.target, event.timestamp, reader);
   const original = getOriginalFileSeed(event);
   const lastPrior = findLastPriorTime(event.target, priorEvents);
   // A candidate must extend the base by a trailing append and splice cleanly (s70 rejected).
@@ -62,7 +62,7 @@ export function findReversedEditBaseSeed(
   event: EditEvent,
   reader: BackupReader,
 ): WriteEvent | undefined {
-  const after = backupAfterWriteFor(records, event.target, event.timestamp, reader);
+  const after = getBackupAfterWrite(records, event.target, event.timestamp, reader);
   if (after === undefined) {
     return undefined;
   }
@@ -76,7 +76,7 @@ export function findReversedEditBaseSeed(
   }
   // Reverse only when an at-or-before backup differs from the reversed base (s28 signature).
   const reversedContent = reversed.join("\n") + "\n";
-  const atOrBefore = backupSeedWriteFor(records, event.target, event.timestamp, reader);
+  const atOrBefore = getBackupSeedWrite(records, event.target, event.timestamp, reader);
   if (atOrBefore === undefined) {
     return undefined;
   }

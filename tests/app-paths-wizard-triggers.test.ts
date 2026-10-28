@@ -37,8 +37,8 @@ async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<t
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip commit" }],
         "/api/repo-commit-match": { matchedCount: 4, totalCount: 4 },
     });
-    const { initializeHeader } = await import("../webapp/app-header.ts");
-    await initializeHeader();
+    const { initHeader } = await import("../webapp/app-header.ts");
+    await initHeader();
     const wizardModule = await import("../webapp/app-paths-wizard.ts");
     wizardModule.initializeWizard();
     return wizardModule;

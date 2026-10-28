@@ -45,7 +45,7 @@ export type LineNode = {
 };
 
 // A verdict line gets its own row unless a turn or tool-call row already shows that record.
-function checkLineNeedsOwnRow(verdict: WireLineVerdict, representedUuids: Set<string>): boolean {
+function isLineNeedingOwnRow(verdict: WireLineVerdict, representedUuids: Set<string>): boolean {
   if (verdict.uuid === undefined) {
     return true;
   }
@@ -54,32 +54,42 @@ function checkLineNeedsOwnRow(verdict: WireLineVerdict, representedUuids: Set<st
 
 // One node per not-yet-represented transcript line; timestamp-less records sort to the top via when="".
 // ponytail: label resolution downstream is O(rows×lines); precompute a uuid→line map per file if toggling large projects drags.
-export function deriveLineNodes(document: WireTimelineDocument): LineNode[] {
-  const representedUuids = new Set<string>([
-    ...document.messages.map((message) => message.uuid),
-    ...(document.toolCalls ?? []).map((call) => call.uuid),
-  ]);
-  return (document.lineVerdicts ?? [])
-    .filter((verdict) => checkLineNeedsOwnRow(verdict, representedUuids))
-    .map((verdict) => ({
+export function computeLineNodes(document: WireTimelineDocument): LineNode[] {
+  const representedUuids = new Set<string>();
+  for (const message of document.messages) {
+    representedUuids.add(message.uuid);
+  }
+  for (const call of document.toolCalls ?? []) {
+    representedUuids.add(call.uuid);
+  }
+  const lineNodes: LineNode[] = [];
+  for (const verdict of document.lineVerdicts ?? []) {
+    const needsOwnRow = isLineNeedingOwnRow(verdict, representedUuids);
+    if (!needsOwnRow) {
+      continue;
+    }
+    lineNodes.push({
       kind: LINE_NODE_KIND,
       when: verdict.timestamp ?? "",
       sessionId: verdict.sessionId,
       uuid: verdict.uuid,
       text: `${verdict.type} · ${verdict.verdict}`,
       sourceJsonlName: verdict.source === undefined ? undefined : verdict.source.filePath.split("/").pop(),
-      // ponytail: lineNumber-1 assumes no interior blank lines in the .jsonl (fetchRawRecords drops blanks); renumber against the raw text if a blank-line transcript ever appears.
+      // ponytail: lineNumber-1 assumes no blank lines in the .jsonl; renumber against raw text if blanks appear.
       sourceLineIndex: verdict.source === undefined ? undefined : verdict.source.lineNumber - 1,
-    }));
+    });
+  }
+  return lineNodes;
 }
 
 // The toggle's persisted state (sessionStorage, the task-56 precedent): default off.
-export function checkAllLinesIsOn(): boolean {
+export function isAllLinesOn(): boolean {
   return sessionStorage.getItem(ALL_LINES_STORAGE_KEY) === ALL_LINES_ON_VALUE;
 }
 
 export function toggleAllLinesSetting(): void {
-  if (checkAllLinesIsOn()) {
+  const allLinesAreOn = isAllLinesOn();
+  if (allLinesAreOn) {
     sessionStorage.removeItem(ALL_LINES_STORAGE_KEY);
     return;
   }

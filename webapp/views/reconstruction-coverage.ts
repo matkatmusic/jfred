@@ -21,9 +21,17 @@ export type CoverageSegment = { recovered: boolean; reason?: string; revisionInd
 export type TimelineGap = { count: number; reason: string; timestamp?: Date };
 
 // The banner's counts: revisions, unrecoverable placeholders, skipped lines, and survived failures; partial means any is non-zero.
-export function summarizeReconstructionCoverage(document: WireTimelineDocument): CoverageSummary {
-  const revisions = document.filesTouched.flatMap((history) => history.revisions);
-  const unrecoverableRevisions = revisions.filter((revision) => revision.unrecoverable !== undefined).length;
+export function computeReconstructionCoverage(document: WireTimelineDocument): CoverageSummary {
+  const revisions = [];
+  for (const history of document.filesTouched) {
+    revisions.push(...history.revisions);
+  }
+  let unrecoverableRevisions = 0;
+  for (const revision of revisions) {
+    if (revision.unrecoverable !== undefined) {
+      unrecoverableRevisions += 1;
+    }
+  }
   const skippedLineCount = (document.skippedLines ?? []).length;
   const failureCount = (document.failures ?? []).length;
   return {
@@ -37,15 +45,19 @@ export function summarizeReconstructionCoverage(document: WireTimelineDocument):
 
 // One strip segment per revision, in revision order; an unrecovered segment carries its reason for the strip's click-for-reason popover.
 export function buildFileCoverageSegments(history: WireFileHistory): CoverageSegment[] {
-  return history.revisions.map((revision, index) => ({
-    recovered: revision.unrecoverable === undefined,
-    reason: revision.unrecoverable?.reason,
-    revisionIndex: index,
-  }));
+  const segments: CoverageSegment[] = [];
+  for (const [index, revision] of history.revisions.entries()) {
+    segments.push({
+      recovered: revision.unrecoverable === undefined,
+      reason: revision.unrecoverable?.reason,
+      revisionIndex: index,
+    });
+  }
+  return segments;
 }
 
 // Whether a skipped line continues the previous run: same file, next line number.
-function checkLineExtendsRun(run: WireSkippedLine[] | undefined, line: WireSkippedLine): boolean {
+function isLineExtendingRun(run: WireSkippedLine[] | undefined, line: WireSkippedLine): boolean {
   if (run === undefined) {
     return false;
   }
@@ -58,7 +70,13 @@ function checkLineExtendsRun(run: WireSkippedLine[] | undefined, line: WireSkipp
 
 // One gap from one run: run length, first reason, and the first defined timestamp as a Date.
 function buildGapFromRun(run: WireSkippedLine[]): TimelineGap {
-  const rawTimestamp = run.find((line) => line.timestamp !== undefined)?.timestamp;
+  let rawTimestamp: string | undefined;
+  for (const line of run) {
+    if (line.timestamp !== undefined) {
+      rawTimestamp = line.timestamp;
+      break;
+    }
+  }
   return {
     count: run.length,
     reason: run[0]!.reason,
@@ -71,13 +89,18 @@ export function buildTimelineGaps(skippedLines: WireSkippedLine[]): TimelineGap[
   const runs: WireSkippedLine[][] = [];
   for (const line of skippedLines) {
     const currentRun = runs[runs.length - 1];
-    if (checkLineExtendsRun(currentRun, line)) {
+    const extendsRun = isLineExtendingRun(currentRun, line);
+    if (extendsRun) {
       currentRun!.push(line);
       continue;
     }
     runs.push([line]);
   }
-  return runs.map(buildGapFromRun);
+  const gaps: TimelineGap[] = [];
+  for (const run of runs) {
+    gaps.push(buildGapFromRun(run));
+  }
+  return gaps;
 }
 
 // The node index a gap renders before; a timestampless gap keys to 0, a trailing gap to the length.
@@ -86,11 +109,13 @@ function findGapInsertionIndex(gap: TimelineGap, nodeTimestamps: string[]): numb
     return 0;
   }
   const gapTime = gap.timestamp.getTime();
-  const index = nodeTimestamps.findIndex((when) => new Date(when).getTime() >= gapTime);
-  if (index < 0) {
-    return nodeTimestamps.length;
+  for (const [index, when] of nodeTimestamps.entries()) {
+    const nodeTime = new Date(when).getTime();
+    if (nodeTime >= gapTime) {
+      return index;
+    }
   }
-  return index;
+  return nodeTimestamps.length;
 }
 
 // Bucket the gaps by the node index each renders before, preserving gap order per bucket.

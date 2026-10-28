@@ -5,7 +5,8 @@ import type { AgentId, Uuid } from "./structures/domain.ts";
 import { getForkContextRefEntry } from "./structures/session-meta.ts";
 import { getRecordSource, setRecordSource } from "./parse/loadTranscript.ts";
 import type { ConversationBranch } from "./reconstruction_branch.ts";
-import { findDeepestPromptOrReply, indexRecordsByUuid } from "./reconstruction_tree.ts";
+import { buildRecordIndexByUuid } from "./reconstruction_tree.ts";
+import { findDeepestPromptOrReply } from "./reconstruction_descendants.ts";
 
 // True when the record is a sidechain chain root (no parent) owned by `agentId`.
 function isChainRootOfAgent(record: TranscriptRecord, agentId: AgentId): boolean {
@@ -21,7 +22,8 @@ function isChainRootOfAgent(record: TranscriptRecord, agentId: AgentId): boolean
 // The first chain root owned by `agentId`, or undefined when the subagent file was not loaded.
 function findChainRootOfAgent(records: TranscriptRecord[], agentId: AgentId): TranscriptRecord | undefined {
   for (const record of records) {
-    if (isChainRootOfAgent(record, agentId)) {
+    const isRoot = isChainRootOfAgent(record, agentId);
+    if (isRoot) {
       return record;
     }
   }
@@ -29,7 +31,7 @@ function findChainRootOfAgent(records: TranscriptRecord[], agentId: AgentId): Tr
 }
 
 // A copy of the root whose parentUuid points into the parent session; keeps the source stamp.
-function cloneRootWithParent(root: TranscriptRecord, parentUuid: Uuid): TranscriptRecord {
+function createRootWithParent(root: TranscriptRecord, parentUuid: Uuid): TranscriptRecord {
   const clone = { ...root, parentUuid } as TranscriptRecord;
   const source = getRecordSource(root);
   if (source !== undefined) {
@@ -40,7 +42,7 @@ function cloneRootWithParent(root: TranscriptRecord, parentUuid: Uuid): Transcri
 
 // Rewrites each loaded subagent root's parentUuid to its fork's parentLastUuid; same array when nothing grafts.
 export function attachForkedSubagentRoots(records: TranscriptRecord[]): TranscriptRecord[] {
-  const byUuid = indexRecordsByUuid(records);
+  const byUuid = buildRecordIndexByUuid(records);
   const clonesByRoot = new Map<TranscriptRecord, TranscriptRecord>();
   for (const record of records) {
     const forkRef = getForkContextRefEntry(record);
@@ -49,10 +51,13 @@ export function attachForkedSubagentRoots(records: TranscriptRecord[]): Transcri
     }
     const parentIsLoaded = byUuid.has(forkRef.parentLastUuid.toString());
     const root = findChainRootOfAgent(records, forkRef.agentId);
-    if (!parentIsLoaded || root === undefined) {
+    if (!parentIsLoaded) {
       continue;
     }
-    clonesByRoot.set(root, cloneRootWithParent(root, forkRef.parentLastUuid));
+    if (root === undefined) {
+      continue;
+    }
+    clonesByRoot.set(root, createRootWithParent(root, forkRef.parentLastUuid));
   }
   if (clonesByRoot.size === 0) {
     return records;
@@ -82,7 +87,8 @@ export function findForkedSubagentBranches(
     }
     const rootUuid = root.uuid!;
     const tip = findDeepestPromptOrReply(records, rootUuid) ?? rootUuid;
-    if (claimed.has(tip.toString())) {
+    const isClaimed = claimed.has(tip.toString());
+    if (isClaimed) {
       continue;
     }
     claimed.add(tip.toString());
@@ -100,7 +106,8 @@ function findGraftedRootOfAgent(
   for (const record of records) {
     const isAgentRecord = record.agentId === agentId.toString();
     const isGraftedHere = record.parentUuid?.toString() === parentLastUuid.toString();
-    if (isAgentRecord && isGraftedHere) {
+    const isAgentGrafted = isAgentRecord && isGraftedHere;
+    if (isAgentGrafted) {
       return record;
     }
   }

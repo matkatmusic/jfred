@@ -8,7 +8,7 @@ import { computePathReplay, type ReplayedEditNode } from "./layer1_edit_replay.t
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
-import { backupSeedWriteFor } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite } from "./reconstruction_sidecar.ts";
 import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
 import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -64,7 +64,7 @@ export function readBackupSeedLines(event: LayerEditEvent, recordsBySessionFile:
     return undefined;
   }
   const reader = createSidecarReader(event.sessionId, root);
-  const seed = backupSeedWriteFor(records, event.target, event.instant, reader, true);
+  const seed = getBackupSeedWrite(records, event.target, event.instant, reader, true);
   return seed === undefined ? undefined : splitLines(seed.content);
 }
 

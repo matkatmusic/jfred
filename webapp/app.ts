@@ -1,7 +1,7 @@
 // App shell entry: splitter wiring and the browser bootstrap; the other pieces live in their own app-*.ts modules.
 
 import { closeProgressConsole, initProgressTerminal, openProgressConsole } from "./app-console.ts";
-import { initializeHeader } from "./app-header.ts";
+import { initHeader } from "./app-header.ts";
 import { initProjectPathsSection } from "./app-paths-project.ts";
 import { initializeWizard, maybeStartFirstLaunchWizard } from "./app-paths-wizard.ts";
 import { renderRoute } from "./app-router.ts";
@@ -81,5 +81,5 @@ if (typeof window !== "undefined") {
   document.getElementById("console-hide")!.addEventListener("click", closeProgressConsole);
   document.getElementById("console-show")!.addEventListener("click", openProgressConsole);
   // task 164: #console-cancel retired; the progress box's Cancel navigates to "#/", aborting the load.
-  initializeHeader().then(initRoutingAfterHeader);
+  initHeader().then(initRoutingAfterHeader);
 }

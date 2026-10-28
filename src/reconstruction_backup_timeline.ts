@@ -42,6 +42,10 @@ export function buildBackupTimeline(
   return timeline;
 }
 
+function compareBackupTime(a: BackupPoint, b: BackupPoint): number {
+  return a.backupTime.getTime() - b.backupTime.getTime();
+}
+
 function computeBackupTimeline(
   records: TranscriptRecord[],
   cwd: Path | undefined,
@@ -56,7 +60,7 @@ function computeBackupTimeline(
       continue;
     }
     const recordLine = getRecordSource(record)?.lineNumber;
-    for (const [path, backup] of message.snapshot.trackedFileBackups.entries()) {
+    for (const [path, backup] of message.snapshot.trackedFileBackups.listEntries()) {
       const key = resolveAgainstCwd(cwd, path);
       const points = timeline.get(key) ?? [];
       points.push({
@@ -70,7 +74,7 @@ function computeBackupTimeline(
     }
   }
   for (const points of timeline.values()) {
-    points.sort((a, b) => a.backupTime.getTime() - b.backupTime.getTime());
+    points.sort(compareBackupTime);
   }
   return timeline;
 }
@@ -82,10 +86,7 @@ export function findBackupAfter(
   target: Path,
   when: Date,
 ): Path | undefined {
-  const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
-  const next = points.find(
-    (point) => point.backupFileName !== null && point.backupTime.getTime() > when.getTime(),
-  );
+  const next = findBackupPointAfter(timeline, cwd, target, when);
   return next?.backupFileName ?? undefined;
 }
 
@@ -98,8 +99,12 @@ export function findBackupAtOrBefore(
 ): BackupPoint | undefined {
   const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
   let chosen: BackupPoint | undefined;
+  const whenMillis = when.getTime();
   for (const point of points) {
-    if (point.backupFileName !== null && point.backupTime.getTime() <= when.getTime()) {
+    const hasBackup = point.backupFileName !== null;
+    const isAtOrBefore = point.backupTime.getTime() <= whenMillis;
+    const isCandidate = hasBackup && isAtOrBefore;
+    if (isCandidate) {
       chosen = point;
     }
   }
@@ -114,7 +119,14 @@ export function findBackupPointAfter(
   when: Date,
 ): BackupPoint | undefined {
   const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
-  return points.find(
-    (point) => point.backupFileName !== null && point.backupTime.getTime() > when.getTime(),
-  );
+  const whenMillis = when.getTime();
+  for (const point of points) {
+    const hasBackup = point.backupFileName !== null;
+    const isAfter = point.backupTime.getTime() > whenMillis;
+    const isCandidate = hasBackup && isAfter;
+    if (isCandidate) {
+      return point;
+    }
+  }
+  return undefined;
 }

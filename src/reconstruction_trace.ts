@@ -25,6 +25,10 @@ export type TraceOptions = {
 // One row in original line order, normalising an IgnoredLine's implicit `ignore` verdict.
 type TraceRow = { lineNumber: number; verdict: Verdict; raw: string };
 
+function compareRowsByLineNumber(a: TraceRow, b: TraceRow): number {
+  return a.lineNumber - b.lineNumber;
+}
+
 // Merge kept + ignored into one line-ordered row list (each ignored row's verdict is `ignore`).
 function sortRows(partition: LinePartition): TraceRow[] {
   const ignoredRows: TraceRow[] = [];
@@ -32,10 +36,10 @@ function sortRows(partition: LinePartition): TraceRow[] {
     ignoredRows.push({ ...line, verdict: Verdict.ignore });
   }
   const rows: TraceRow[] = [...partition.kept, ...ignoredRows];
-  return rows.sort((a, b) => a.lineNumber - b.lineNumber);
+  return rows.sort(compareRowsByLineNumber);
 }
 
-// Whether a row passes the kept/ignored filter. hideIgnored drops ignored rows; onlyIgnored drops kept rows (the two are inverses).
+// Whether a row passes the kept/ignored filter: hideIgnored drops ignored rows, onlyIgnored drops kept rows.
 function isRowPassingFilter(row: TraceRow, options: TraceOptions): boolean {
   if (options.onlyIgnored) {
     return row.verdict === Verdict.ignore;
@@ -61,12 +65,14 @@ function isRowSelected(row: TraceRow, selector: TraceDetailSelector): boolean {
 function collectErroredToolUseIdsInPartition(partition: LinePartition): Set<string> {
   const erroredIds = new Set<string>();
   for (const line of [...partition.kept, ...partition.ignored]) {
-    if (getRawRecordType(line.raw) === "?") {
+    const recordType = getRawRecordType(line.raw);
+    if (recordType === "?") {
       continue;
     }
     const content = (JSON.parse(line.raw) as { message?: { content?: unknown } }).message?.content;
     for (const block of Array.isArray(content) ? (content as Record<string, unknown>[]) : []) {
-      if (block.type === BlockType.tool_result && block.is_error === true) {
+      const isErroredToolResult = block.type === BlockType.tool_result && block.is_error === true;
+      if (isErroredToolResult) {
         erroredIds.add(String(block.tool_use_id));
       }
     }
@@ -101,9 +107,11 @@ function getRawRecordType(raw: string): string {
 // Render one row. A chosen row gets detail; a plain ignored row still shows its record type.
 function renderRow(row: TraceRow, options: TraceOptions, erroredIds: Set<string>): string {
   const base = `${row.lineNumber}: ${row.verdict}`;
-  if (options.details !== undefined && isRowSelected(row, options.details.selector)) {
+  const details = options.details;
+  const isDetailed = details !== undefined && isRowSelected(row, details.selector);
+  if (isDetailed) {
     const { type, kind, preview, pretty } = parseRawLineDescription(row.raw, erroredIds);
-    if (options.details.mode === TraceDetailMode.full) {
+    if (details.mode === TraceDetailMode.full) {
       return `${base} — type=${type} kind=${kind}\n${pretty}`;
     }
     return `${base} — type=${type} kind=${kind} preview="${preview}"`;
@@ -120,17 +128,23 @@ function getSoleLine(options: TraceOptions): number | undefined {
   return selector !== undefined && "byLine" in selector ? selector.byLine : undefined;
 }
 
-// Render one row per line in original order, filtered by hideIgnored / onlyIgnored (mutually exclusive) and enriched by an optional `details` selector. A `byLine` selector also restricts the output to that one line.
+// Render one row per line in order: filtered, optionally detailed; a `byLine` selector keeps one line.
 export function renderTrace(partition: LinePartition, options: TraceOptions): string {
-  if (options.hideIgnored && options.onlyIgnored) {
+  const areBothFiltersSet = options.hideIgnored && options.onlyIgnored;
+  if (areBothFiltersSet) {
     throw new Error("renderTrace: hideIgnored and onlyIgnored are mutually exclusive");
   }
   const only = getSoleLine(options);
   const orderedRows = sortRows(partition);
-  const filteredRows = orderedRows.filter((row) => isRowPassingFilter(row, options));
-  const selectedRows = filteredRows.filter((row) => only === undefined || row.lineNumber === only);
   const erroredIds = options.details === undefined ? new Set<string>() : collectErroredToolUseIdsInPartition(partition);
-  const renderedRows = selectedRows.map((row) => renderRow(row, options, erroredIds));
+  const renderedRows: string[] = [];
+  for (const row of orderedRows) {
+    const isSoleLine = only === undefined || row.lineNumber === only;
+    const isRendered = isRowPassingFilter(row, options) && isSoleLine;
+    if (isRendered) {
+      renderedRows.push(renderRow(row, options, erroredIds));
+    }
+  }
   return renderedRows.join("\n");
 }
 

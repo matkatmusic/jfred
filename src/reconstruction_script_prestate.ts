@@ -6,7 +6,7 @@ import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
-import { backupSeedWriteFor, type BackupReader } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite, type BackupReader } from "./reconstruction_sidecar.ts";
 import { relative } from "node:path";
 import { quotedFilename } from "./regex_expressions.ts";
 import { pythonWritePrimitive, shellWritePrimitive } from "./regex_script_detection.ts";
@@ -122,8 +122,8 @@ export function getPreExecutionState(
   for (const { currentPath, write } of latestWritesByCurrentPath.values()) {
     // Priority order: lineage (post-backup edits, earlier runs), then current-name backup, then rename-source backup, then the authored Write.
     const content = seedContent?.(currentPath, run.timestamp)
-            ?? backupSeedWriteFor(records, currentPath, run.timestamp, reader)?.content
-            ?? backupSeedWriteFor(records, write.target, run.timestamp, reader)?.content
+            ?? getBackupSeedWrite(records, currentPath, run.timestamp, reader)?.content
+            ?? getBackupSeedWrite(records, write.target, run.timestamp, reader)?.content
             ?? write.content;
     state.set(computeScriptStateKey(currentPath, run.cwd), content);
   }
@@ -135,7 +135,7 @@ export function getPreExecutionState(
     if (absolutePath === undefined)
       continue;
     const content = seedContent?.(absolutePath, run.timestamp)
-            ?? backupSeedWriteFor(records, absolutePath, run.timestamp, reader)?.content;
+            ?? getBackupSeedWrite(records, absolutePath, run.timestamp, reader)?.content;
     if (content !== undefined)
       state.set(ref, content);
   }

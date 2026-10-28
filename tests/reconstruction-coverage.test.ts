@@ -6,7 +6,7 @@ import {
     buildFileCoverageSegments,
     buildTimelineGaps,
     computeGapInsertionIndexes,
-    summarizeReconstructionCoverage,
+    computeReconstructionCoverage,
     type TimelineGap,
 } from "../webapp/views/reconstruction-coverage.ts";
 import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
@@ -29,7 +29,7 @@ function makeRevision(changeId: string, unrecoverable?: { reason: string }) {
     return { kind: EventKind.write as string, changeId, timestamp: "2026-07-01T10:00:00Z", unrecoverable };
 }
 
-test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () => {
+test("test_computeReconstructionCoverage_counts_unrecoverable_revisions", () => {
     // Step 1: three revisions with one placeholder, one skipped line, and one survived failure.
     const document = buildWireDocument({
         filesTouched: [
@@ -40,7 +40,7 @@ test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () =
         failures: [{ scope: "file-stage", stage: "fillRedirectContent", target: "/p/a.py", reason: "ENOENT: blob gone" }],
     });
     // Step 2: every count lands in the summary, and any non-zero count marks it partial.
-    assert.deepEqual(summarizeReconstructionCoverage(document), {
+    assert.deepEqual(computeReconstructionCoverage(document), {
         totalRevisions: 3,
         unrecoverableRevisions: 1,
         skippedLineCount: 1,
@@ -49,13 +49,13 @@ test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () =
     });
 });
 
-test("test_summarizeReconstructionCoverage_is_not_partial_for_clean_document", () => {
+test("test_computeReconstructionCoverage_is_not_partial_for_clean_document", () => {
     // Step 1: a fully recovered document with no skippedLines or failures fields.
     const document = buildWireDocument({
         filesTouched: [{ target: "/p/a.py", revisions: [makeRevision("toolu_A1")] }],
     });
     // Step 2: all failure counts are zero, so the banner stays hidden.
-    assert.deepEqual(summarizeReconstructionCoverage(document), {
+    assert.deepEqual(computeReconstructionCoverage(document), {
         totalRevisions: 1,
         unrecoverableRevisions: 0,
         skippedLineCount: 0,

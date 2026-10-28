@@ -9,7 +9,7 @@ import {
   createScriptExecutionEvent,
   getImmediatePostExecutionState,
   getPostExecutionBeacon,
-  linesMatchBeacon,
+  matchLinesToBeacon,
 } from "./reconstruction_script_stage_beacon.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
@@ -60,7 +60,7 @@ export function findScriptExecutionForBeacon(
   const snippet = beaconSnippetFor(records, beacon.changeId);
   if (snippet === undefined)
     return undefined;
-  const isWindowMatch = linesMatchBeacon(splitLines(resultContent), snippet);
+  const isWindowMatch = matchLinesToBeacon(splitLines(resultContent), snippet);
   if (!isWindowMatch)
     return undefined;
   return {

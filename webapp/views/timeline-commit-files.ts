@@ -5,7 +5,7 @@ import { COMMIT_NODE_KIND } from "./timeline-types.ts";
 import type { FileChange, TimelineNode } from "./timeline-node-types.ts";
 
 // True when the chip is a baseline seed; baseline state is pre-session, never a commit's delta.
-function checkChangeIsGitBaseline(change: FileChange): boolean {
+function isChangeGitBaseline(change: FileChange): boolean {
   if (change.changeId === undefined) {
     return false;
   }
@@ -22,15 +22,17 @@ function collectChangesAtOrBeforeCommit(node: TimelineNode, commitWhen: string, 
   }
 }
 
-export function deriveCommitChangedFiles(nodes: TimelineNode[], commitIndex: number): FileChange[] {
+export function computeCommitChangedFiles(nodes: TimelineNode[], commitIndex: number): FileChange[] {
   const commitWhen = nodes[commitIndex]!.when;
   const changes: FileChange[] = [];
   const seenPaths = new Set<string>();
   const collectChange = (change: FileChange): void => {
-    if (checkChangeIsGitBaseline(change)) {
+    const isBaseline = isChangeGitBaseline(change);
+    if (isBaseline) {
       return;
     }
-    if (seenPaths.has(change.path)) {
+    const isSeen = seenPaths.has(change.path);
+    if (isSeen) {
       return;
     }
     seenPaths.add(change.path);
@@ -64,16 +66,29 @@ export function deriveCommitChangedFiles(nodes: TimelineNode[], commitIndex: num
 // The rows a selected commit highlights: rows whose qualifying changes overlap the commit's paths, ascending.
 export function findContributingNodeIndexes(nodes: TimelineNode[], commitIndex: number): number[] {
   const commitWhen = nodes[commitIndex]!.when;
-  const changedPaths = new Set(deriveCommitChangedFiles(nodes, commitIndex).map((change) => change.path));
-  // A chip contributes when it is no baseline seed, is at or before the commit, and touches a changed path.
-  const checkChangeContributes = (change: FileChange): boolean => {
-    if (checkChangeIsGitBaseline(change)) {
+  const changedPaths = new Set<string>();
+  for (const change of computeCommitChangedFiles(nodes, commitIndex)) {
+    changedPaths.add(change.path);
+  }
+  // A chip contributes when it is no baseline seed, is not after the commit, and touches a changed path.
+  const isChangeContributing = (change: FileChange): boolean => {
+    const isBaseline = isChangeGitBaseline(change);
+    if (isBaseline) {
       return false;
     }
     if (change.when > commitWhen) {
       return false;
     }
     return changedPaths.has(change.path);
+  };
+  const containsContributingChange = (node: TimelineNode): boolean => {
+    for (const change of node.fileChanges ?? []) {
+      const isContributing = isChangeContributing(change);
+      if (isContributing) {
+        return true;
+      }
+    }
+    return false;
   };
   const indexes: number[] = [];
   for (let index = commitIndex - 1; index >= 0; index -= 1) {
@@ -84,7 +99,8 @@ export function findContributingNodeIndexes(nodes: TimelineNode[], commitIndex: 
     if (node.isOrphaned === true) {
       continue;
     }
-    if ((node.fileChanges ?? []).some(checkChangeContributes)) {
+    const isContributor = containsContributingChange(node);
+    if (isContributor) {
       indexes.push(index);
     }
   }
@@ -97,7 +113,8 @@ export function findContributingNodeIndexes(nodes: TimelineNode[], commitIndex: 
     if (node.isOrphaned === true) {
       continue;
     }
-    if ((node.fileChanges ?? []).some(checkChangeContributes)) {
+    const isContributor = containsContributingChange(node);
+    if (isContributor) {
       indexes.push(index);
     }
   }

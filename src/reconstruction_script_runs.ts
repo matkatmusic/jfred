@@ -1,7 +1,7 @@
 // Script-execution replay: memoized sandbox runs, run selection, lineage replay window, and script-born file discovery; consumed by reconstruction_script_stage.ts.
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
-import { checkTimestampPrecedesSkippedBaseline } from "./reconstruction_base_commit.ts";
+import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
 import { Path } from "./structures/domain.ts";
 import { resolveAgainstCwd } from "./structures/path-resolve.ts";
@@ -85,7 +85,7 @@ export function executeRunOnce(
     incrementReconstructionCounter(ReconstructionCounter.executionCacheHits);
     return cached;
   }
-  const isPreBaseline = checkTimestampPrecedesSkippedBaseline(run.timestamp);
+  const isPreBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
   if (isPreBaseline) {
     reportReconstructionProgress(`${PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const skipped: RunExecution = { pre: new Map(), post: undefined };

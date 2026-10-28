@@ -6,7 +6,6 @@ import { resolveAgainstCwd } from "./structures/path-resolve.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import {
   buildBackupTimeline,
-  findBackupAfter,
   findBackupAtOrBefore,
   findBackupPointAfter,
   findCwd,
@@ -17,16 +16,16 @@ import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 export type BackupReader = (backupFileName: Path, sessionId?: Uuid) => string;
 
 // Spec 39: an edit-first Write is abandoned, so a synthetic backup Write lets the edit splice onto real content.
-export function seedEditBaseFromBackup(
+export function addEditBaseFromBackup(
   records: TranscriptRecord[],
   events: FileEvent[],
   reader: BackupReader,
 ): FileEvent[] {
   const first = events[0];
-  if (first === undefined || first.kind !== EventKind.edit) {
+  if (first?.kind !== EventKind.edit) {
     return events;
   }
-  const seed = backupSeedWriteFor(records, first.target, first.timestamp, reader);
+  const seed = getBackupSeedWrite(records, first.target, first.timestamp, reader);
   if (seed) {
     noteStage({ stage: "seedEditBaseFromBackup", target: first.target, changeId: first.changeId, detail: "seeded an edit-first file's pre-edit content from backup", when: seed.timestamp });
   }
@@ -34,7 +33,7 @@ export function seedEditBaseFromBackup(
 }
 
 // Undefined when no backup precedes `when`; changeId is the blob name, keeping spec 40's base on the REAL Write.
-export function backupSeedWriteFor(
+export function getBackupSeedWrite(
   records: TranscriptRecord[],
   target: Path,
   when: Date,
@@ -46,7 +45,10 @@ export function backupSeedWriteFor(
   const atOrBefore = findBackupAtOrBefore(timeline, cwd, target, when);
   const base =
     atOrBefore ?? (includeAfter ? findBackupPointAfter(timeline, cwd, target, when) : undefined);
-  if (base === undefined || base.backupFileName === null) {
+  if (base === undefined) {
+    return undefined;
+  }
+  if (base.backupFileName === null) {
     return undefined;
   }
   return {
@@ -59,22 +61,23 @@ export function backupSeedWriteFor(
 }
 
 // Clamps a backup-stamped seed between the previous point and its edit so the timestamp ladder never goes backwards.
-export function clampSeedBetweenPreviousAndEdit(
+export function normalizeSeedBetweenPreviousAndEdit(
   seed: WriteEvent,
   editTime: Date,
   previousTime: Date | undefined,
 ): WriteEvent {
+  const seedMillis = seed.timestamp.getTime();
   const latestAllowed = editTime.getTime() - 1;
-  const earliestAllowed = previousTime === undefined ? seed.timestamp.getTime() : previousTime.getTime();
-  const placed = Math.min(Math.max(seed.timestamp.getTime(), earliestAllowed), latestAllowed);
-  if (placed === seed.timestamp.getTime()) {
+  const earliestAllowed = previousTime === undefined ? seedMillis : previousTime.getTime();
+  const placed = Math.min(Math.max(seedMillis, earliestAllowed), latestAllowed);
+  if (placed === seedMillis) {
     return seed;
   }
   return { ...seed, timestamp: new Date(placed) };
 }
 
 // Recovers an edit's pre-edit base from the post-edit backup when no at-or-before content exists (s28 scoped renames).
-export function backupAfterWriteFor(
+export function getBackupAfterWrite(
   records: TranscriptRecord[],
   target: Path,
   when: Date,
@@ -83,7 +86,10 @@ export function backupAfterWriteFor(
   const cwd = findCwd(records);
   const timeline = buildBackupTimeline(records, cwd);
   const after = findBackupPointAfter(timeline, cwd, target, when);
-  if (after === undefined || after.backupFileName === null) {
+  if (after === undefined) {
+    return undefined;
+  }
+  if (after.backupFileName === null) {
     return undefined;
   }
   return {
@@ -96,7 +102,7 @@ export function backupAfterWriteFor(
 }
 
 // Time-ascending: the version matching an ELIDED beacon isn't always latest, so callers must validate by content (s28).
-export function backupWritesFor(
+export function getBackupWrites(
   records: TranscriptRecord[],
   target: Path,
   reader: BackupReader,
@@ -121,33 +127,12 @@ export function backupWritesFor(
 }
 
 // Completes a TERMINAL truncated user-edit beacon (s27) using the newest point, sidestepping m6's ms-timing fragility.
-export function latestBackupWriteFor(
+export function getLatestBackupWrite(
   records: TranscriptRecord[],
   target: Path,
   reader: BackupReader,
 ): WriteEvent | undefined {
-  const writes = backupWritesFor(records, target, reader); // time-ascending; newest is last
+  const writes = getBackupWrites(records, target, reader); // time-ascending; newest is last
   return writes[writes.length - 1];
-}
-
-// A redirect with no resolvable backup keeps its empty content, defensive since a tracked file should always resolve.
-export function fillRedirectContent(
-  records: TranscriptRecord[],
-  events: FileEvent[],
-  reader: BackupReader,
-): FileEvent[] {
-  const cwd = findCwd(records);
-  const timeline = buildBackupTimeline(records, cwd);
-  return events.map((event) => {
-    if (event.kind !== EventKind.append && event.kind !== EventKind.overwrite) {
-      return event;
-    }
-    const backupFileName = findBackupAfter(timeline, cwd, event.target, event.timestamp);
-    if (!backupFileName) {
-      return event;
-    }
-    noteStage({ stage: "fillRedirectContent", target: event.target, changeId: event.changeId, detail: `filled ${event.kind} content from the file-history backup` });
-    return { ...event, content: reader(backupFileName) };
-  });
 }
 

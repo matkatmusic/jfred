@@ -1,7 +1,7 @@
 // Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { clearDiffPair } from "./layer1-drawer-diff.ts";
 import { wireImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "./layer1-drawer-open-node.ts";
@@ -81,7 +81,7 @@ function closeDrawer(): void {
   clearDiffPair();
   clearAnchor();
   storeOpenedNode(undefined);
-  drawLayer1Minimap();
+  renderLayer1Minimap();
 }
 
 export function installNodeDrawer(): void {

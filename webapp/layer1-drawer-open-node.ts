@@ -2,7 +2,7 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto } from "./layer1-drawer-image.ts";
@@ -38,7 +38,7 @@ function moveViewToAnchoredNode(): void {
     return;
   }
   moveToUncoveredCentre(anchor.node);
-  drawLayer1Minimap();
+  renderLayer1Minimap();
 }
 
 export async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {

@@ -7,7 +7,7 @@ import type { ConversationBranch } from "./reconstruction_branch.ts";
 import {
   collectDescendantUuids,
   findDeepestPromptOrReply,
-} from "./reconstruction_tree.ts";
+} from "./reconstruction_descendants.ts";
 import {
   findPromptForkPoints,
   isGenuineUserPrompt,
@@ -24,18 +24,18 @@ export function findStructuralRewoundBranches(
   for (const [forkIndex, forkPoint] of forkPoints.entries()) {
     // task 163: report progress so structural-only transcripts still show motion.
     reportReconstructionProgress("scanning branch tips", forkIndex + 1, forkPoints.length);
-    found.push(...rewoundBranchesAtFork(records, forkPoint, claimed));
+    found.push(...collectRewoundBranchesAtFork(records, forkPoint, claimed));
   }
   return found;
 }
 
 // Collects abandoned branches at one fork, skipping the latest child (surviving side).
-function rewoundBranchesAtFork(
+function collectRewoundBranchesAtFork(
   records: TranscriptRecord[],
   forkPoint: Uuid,
   claimed: Set<string>,
 ): ConversationBranch[] {
-  const children = genuinePromptChildrenOf(records, forkPoint);
+  const children = collectGenuinePromptChildren(records, forkPoint);
   if (children.length < 2) {
     return [];
   }
@@ -58,26 +58,38 @@ function buildRewoundBranchForPrompt(
   abandonedPrompt: Uuid,
   claimed: Set<string>,
 ): ConversationBranch | undefined {
-  if (subtreeHoldsClaimedTip(records, abandonedPrompt, claimed)) {
+  const isSubtreeClaimed = containsClaimedTip(records, abandonedPrompt, claimed);
+  if (isSubtreeClaimed) {
     return undefined;
   }
   const tip = findDeepestPromptOrReply(records, abandonedPrompt);
   if (tip === undefined) {
     return undefined;
   }
-  if (claimed.has(tip.toString())) {
+  const isTipClaimed = claimed.has(tip.toString());
+  if (isTipClaimed) {
     return undefined;
   }
   return { tip, rewindPoint: forkPoint, isSurviving: false };
 }
 
 // The genuine-prompt children of `forkPoint`, ordered by timestamp ascending.
-function genuinePromptChildrenOf(
+function collectGenuinePromptChildren(
   records: TranscriptRecord[],
   forkPoint: Uuid,
 ): TranscriptRecord[] {
-  const children = records.filter((record) => isPromptChildOf(record, forkPoint));
-  return children.sort((left, right) => promptTime(left) - promptTime(right));
+  const children: TranscriptRecord[] = [];
+  for (const record of records) {
+    const isChild = isPromptChildOf(record, forkPoint);
+    if (isChild) {
+      children.push(record);
+    }
+  }
+  return children.sort(compareByPromptTime);
+}
+
+function compareByPromptTime(left: TranscriptRecord, right: TranscriptRecord): number {
+  return getPromptTime(left) - getPromptTime(right);
 }
 
 // True when `record` is a genuine user prompt whose parent is `forkPoint`.
@@ -89,25 +101,27 @@ function isPromptChildOf(record: TranscriptRecord, forkPoint: Uuid): boolean {
   if (parent === null) {
     return false;
   }
-  if (parent.toString() !== forkPoint.toString()) {
+  const isForkChild = parent.toString() === forkPoint.toString();
+  if (!isForkChild) {
     return false;
   }
   return isGenuineUserPrompt(record);
 }
 
-function promptTime(record: TranscriptRecord): number {
+function getPromptTime(record: TranscriptRecord): number {
   return record.timestamp?.getTime() ?? 0;
 }
 
 // Dedup guard: skip subtrees already covered by head-based branch discovery.
-function subtreeHoldsClaimedTip(
+function containsClaimedTip(
   records: TranscriptRecord[],
   abandonedPrompt: Uuid,
   claimed: Set<string>,
 ): boolean {
   const subtree = collectDescendantUuids(records, abandonedPrompt);
   for (const tip of claimed) {
-    if (subtree.has(tip)) {
+    const isInSubtree = subtree.has(tip);
+    if (isInSubtree) {
       return true;
     }
   }

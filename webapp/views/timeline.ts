@@ -12,7 +12,7 @@ import { renderForkSidebar } from "./sidebar.ts";
 import { buildCoverageSegmentsByTarget, renderReconstructionBanner } from "./reconstruction-render.ts";
 import { buildFileTree } from "./timeline-file-tree.ts";
 import { buildFilesSidebarViewModel } from "./timeline-file-tree-sidebar.ts";
-import { checkAllLinesIsOn } from "./timeline-line-nodes.ts";
+import { isAllLinesOn } from "./timeline-line-nodes.ts";
 import { buildTurnTimelineViewModel } from "./timeline-nodes.ts";
 import { moveToSessionAnchor, openLineAnchor } from "./timeline-anchors.ts";
 import { createTimelineRenderContext } from "./timeline-context.ts";
@@ -21,7 +21,8 @@ import { renderTimelineFilterBar } from "./timeline-render-filterbar.ts";
 import { buildTimelineRows } from "./timeline-render-rows.ts";
 import { renderSelectbarButtons } from "./timeline-render-pickbar.ts";
 import { attachFileNavButtons, attachToggleAllButton } from "./timeline-render-selection.ts";
-import { buildSessionsSidebarViewModel, waitForNextAnimationFrame } from "./timeline-sessions.ts";
+import { waitForNextAnimationFrame } from "./timeline-build-progress.ts";
+import { buildSessionsSidebarViewModel } from "./timeline-sessions.ts";
 import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 import { buildSessionColors, fetchProjectListing, formatTimelineSummary } from "./timeline-view-setup.ts";
 import type { DetailsContext } from "./details-model.ts";
@@ -54,7 +55,7 @@ export async function renderTimelineView(container: HTMLElement, project: string
   // The view-model build blocks the thread; re-show an indicator first.
   showLoadingProgress("preparing timeline…", Number.NaN);
   await waitForNextAnimationFrame();
-  const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, checkAllLinesIsOn());
+  const { nodes } = buildTurnTimelineViewModel(reconstructionDocument, isAllLinesOn());
   const listing = await fetchProjectListing(project);
   const sessionColors = buildSessionColors(nodes);
 

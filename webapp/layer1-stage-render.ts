@@ -3,7 +3,7 @@
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
 import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
@@ -89,7 +89,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderSessionRanges(listSelectedSessions(), view.ruler);
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
-  drawLayer1Minimap();
+  renderLayer1Minimap();
   drawScriptConnectors(stage);
   if (isChunked) {
     hideLayer1Progress();

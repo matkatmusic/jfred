@@ -3,7 +3,7 @@
 import { clearBaselineChoice, getBaselineChoice } from "../app-choices.ts";
 import { clearProjectDocuments } from "../app-fetch.ts";
 import { renderRoute } from "../app-router.ts";
-import { checkAllLinesIsOn, toggleAllLinesSetting } from "./timeline-line-nodes.ts";
+import { isAllLinesOn, toggleAllLinesSetting } from "./timeline-line-nodes.ts";
 
 export const ACTIVE_BUTTON_CLASS = "active";
 
@@ -17,7 +17,7 @@ export function markActiveButton(buttons: HTMLButtonElement[], activeButton: HTM
 // Task 134: the raw-lines toggle changes node derivation, so it re-renders the whole route.
 export function initAllLinesButton(): void {
   const allLinesButton = document.getElementById("all-lines-btn") as HTMLButtonElement;
-  allLinesButton.classList.toggle(ACTIVE_BUTTON_CLASS, checkAllLinesIsOn());
+  allLinesButton.classList.toggle(ACTIVE_BUTTON_CLASS, isAllLinesOn());
   allLinesButton.onclick = () => {
     toggleAllLinesSetting();
     void renderRoute();

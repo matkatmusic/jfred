@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     buildSessionsSidebarViewModel,
-    checkNodeIsAbandonedBranchTip,
-    checkRowIsExpandable,
+    isNodeAbandonedBranchTip,
+    isRowExpandable,
     computeGraphLaneRuns,
     findJsonlForSession,
 } from "../webapp/views/timeline-sessions.ts";
@@ -76,43 +76,43 @@ test("test_computeGraphLaneRuns_returns_empty_when_nothing_is_orphaned", () => {
     assert.deepEqual(computeGraphLaneRuns(nodes), []);
 });
 
-test("test_checkRowIsExpandable_excludes_commits_and_session_ends", () => {
+test("test_isRowExpandable_excludes_commits_and_session_ends", () => {
     // Commit and session-end rows are thin one-liners; every turn and tool-call row expands.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const byKind = (kind: string) => nodes.find((node: { kind: string }) => node.kind === kind)!;
-    assert.equal(checkRowIsExpandable(byKind(COMMIT_NODE_KIND)), false);
-    assert.equal(checkRowIsExpandable(byKind(SESSION_END_NODE_KIND)), false);
-    assert.equal(checkRowIsExpandable(byKind(USER_TURN_NODE_KIND)), true);
-    assert.equal(checkRowIsExpandable(byKind(AGENT_TURN_NODE_KIND)), true);
+    assert.equal(isRowExpandable(byKind(COMMIT_NODE_KIND)), false);
+    assert.equal(isRowExpandable(byKind(SESSION_END_NODE_KIND)), false);
+    assert.equal(isRowExpandable(byKind(USER_TURN_NODE_KIND)), true);
+    assert.equal(isRowExpandable(byKind(AGENT_TURN_NODE_KIND)), true);
     // The s39 seed session supplies a real tool-call row.
     const { nodes: seedNodes } = buildTurnTimelineViewModel(s39SeedDocument);
     const toolCall = seedNodes.find((node: { kind: string }) => node.kind === TOOL_CALL_NODE_KIND)!;
-    assert.equal(checkRowIsExpandable(toolCall), true);
+    assert.equal(isRowExpandable(toolCall), true);
 });
 
-// (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135 checkRowCarriesJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
+// (task 85 findAdjacentFileTouchedIndex, task 131 findAdjacentRowIndex, and task 135 isRowCarryingJsonRecordButton tests live in timeline-row-navigation.test.ts — 250-line cap.)
 
-test("test_checkNodeIsAbandonedBranchTip_marks_last_orphaned_row_per_session", () => {
-    // Task 158: the abandoned pill marks a run's last orphaned row; between orphans 3 and 4, only 4 qualifies.
+test("test_isNodeAbandonedBranchTip_marks_last_orphaned_row_per_session", () => {
+    // Task 158: the abandoned pill marks a run's last orphaned row; of orphans 3 and 4, only 4.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
-    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 3), false);
-    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 4), true);
-    assert.equal(checkNodeIsAbandonedBranchTip(nodes, 0), false);
+    assert.equal(isNodeAbandonedBranchTip(nodes, 3), false);
+    assert.equal(isNodeAbandonedBranchTip(nodes, 4), true);
+    assert.equal(isNodeAbandonedBranchTip(nodes, 0), false);
     // An interleaved OTHER-session surviving row landing after the tip must not mask it.
     const turn = (sessionId: string, isOrphaned: boolean): TurnNode =>
         ({ kind: USER_TURN_NODE_KIND, when: "t1", sessionId, text: "", snapshots: [], gitOperations: [], isOrphaned });
     const interleaved = [turn("a", true), turn("b", false), turn("a", false)];
-    assert.equal(checkNodeIsAbandonedBranchTip(interleaved, 0), true);
+    assert.equal(isNodeAbandonedBranchTip(interleaved, 0), true);
     // A later same-session orphaned row means the run continues.
     const continuing = [turn("a", true), turn("b", false), turn("a", true)];
-    assert.equal(checkNodeIsAbandonedBranchTip(continuing, 0), false);
-    assert.equal(checkNodeIsAbandonedBranchTip(continuing, 2), true);
+    assert.equal(isNodeAbandonedBranchTip(continuing, 0), false);
+    assert.equal(isNodeAbandonedBranchTip(continuing, 2), true);
 });
 
-test("test_checkRowIsExpandable_expands_only_merged_baseline_commit_rows", () => {
+test("test_isRowExpandable_expands_only_merged_baseline_commit_rows", () => {
     // Task 121: only the merged git-derived baseline commit row expands, to show its file chips.
     const mergedBaselineCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t1", sessionId: "s", isGitBaseline: true };
-    assert.equal(checkRowIsExpandable(mergedBaselineCommit), true);
+    assert.equal(isRowExpandable(mergedBaselineCommit), true);
     const plainCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t1", sessionId: "s" };
-    assert.equal(checkRowIsExpandable(plainCommit), false);
+    assert.equal(isRowExpandable(plainCommit), false);
 });

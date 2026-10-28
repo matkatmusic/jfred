@@ -3,7 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
-import { latestBackupWriteFor } from "./reconstruction_sidecar.ts";
+import { getLatestBackupWrite } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
@@ -26,7 +26,7 @@ export function appendTruncatedBeaconCompletion(
   if (!lastIsUserEdit) {
     return events;
   }
-  const seed = latestBackupWriteFor(records, last.target, reader);
+  const seed = getLatestBackupWrite(records, last.target, reader);
   if (seed === undefined) {
     return events;
   }

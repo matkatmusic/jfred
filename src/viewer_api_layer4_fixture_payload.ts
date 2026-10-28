@@ -15,8 +15,20 @@ type FixtureWireScriptRun = Omit<WireScriptRunOf<Date, Path, Uuid>, "axisPx">;
 
 // A pair path is in a commit AND on disk; a git-only path draws nowhere.
 function listPairPaths(): Set<string> {
-  const diskPaths = new Set(DISK.map((row) => row.path));
-  return new Set(COMMITS.flatMap((commit) => commit.files).filter((path) => diskPaths.has(path)));
+  const diskPaths = new Set<string>();
+  for (const row of DISK) {
+    diskPaths.add(row.path);
+  }
+  const pairPaths = new Set<string>();
+  for (const commit of COMMITS) {
+    for (const path of commit.files) {
+      const isOnDisk = diskPaths.has(path);
+      if (isOnDisk) {
+        pairPaths.add(path);
+      }
+    }
+  }
+  return pairPaths;
 }
 
 function buildWireScriptRun(run: FixtureScriptRun): FixtureWireScriptRun {
@@ -37,13 +49,20 @@ function buildWireScriptRun(run: FixtureScriptRun): FixtureWireScriptRun {
 export function buildFixtureScriptRunsPayload(writeNdjsonLine: (value: unknown) => void): FixtureScriptRunsView {
   const pairPaths = listPairPaths();
   const runsByPath = new Map<string, FixtureWireScriptRun[]>();
-  SCRIPT_RUNS.forEach((run, index) => {
+  for (const [index, run] of SCRIPT_RUNS.entries()) {
     writeNdjsonLine({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS,
       current: index + 1, total: SCRIPT_RUNS.length });
     const wireRun = buildWireScriptRun(run);
-    for (const path of run.paths.filter((candidate) => pairPaths.has(candidate))) {
-      runsByPath.set(path, [...(runsByPath.get(path) ?? []), wireRun]);
+    for (const path of run.paths) {
+      const isPairPath = pairPaths.has(path);
+      if (isPairPath) {
+        runsByPath.set(path, [...(runsByPath.get(path) ?? []), wireRun]);
+      }
     }
-  });
-  return { pairs: [...runsByPath].map(([path, scriptRuns]) => ({ path: new Path(path), scriptRuns })) };
+  }
+  const pairs: FixtureScriptRunsView["pairs"] = [];
+  for (const [path, scriptRuns] of runsByPath) {
+    pairs.push({ path: new Path(path), scriptRuns });
+  }
+  return { pairs };
 }

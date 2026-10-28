@@ -1,7 +1,7 @@
 // Task 357 step 4: rewound branches become file-revision lanes, each with a rewind kind from the engine's pre-state check.
 
 import type { WireBranchesViewOf } from "../webapp/layer1-wire-branches.ts";
-import { loadSessionRewinds, groupSessionFiles, type SessionRewinds } from "./layer1_branch_sessions.ts";
+import { loadSessionRewinds, collectSessionFileGroups, type SessionRewinds } from "./layer1_branch_sessions.ts";
 import { buildGroupHistories, listLanes, type Lane } from "./layer1_branches_lanes.ts";
 import { computeLaneKind, collectWriteOriginalFiles, type PreStateEvidence, type WireBranchRow } from "./layer1_branches_wire_classify.ts";
 import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
@@ -70,7 +70,7 @@ export function buildBranchesView(
   sessionFiles: readonly Path[],
   reportProgress: ProgressSink = () => {},
 ): Layer1WireBranchesView {
-  const groups = groupSessionFiles(sessionFiles);
+  const groups = collectSessionFileGroups(sessionFiles);
   const groupsWithLanes: { rewinds: SessionRewinds; lanes: Lane[] }[] = [];
   for (const [index, group] of groups.entries()) {
     reportProgress({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, current: index + 1, total: groups.length });

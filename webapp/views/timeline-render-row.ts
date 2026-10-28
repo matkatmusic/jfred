@@ -14,9 +14,9 @@ import {
 import { buildGraphCell } from "./timeline-render-graph-cell.ts";
 import { buildPickCell } from "./timeline-render-pickbar.ts";
 import {
-  checkNodeIsAbandonedBranchTip,
-  checkRowCarriesJsonRecordButton,
-  checkRowIsExpandable,
+  isNodeAbandonedBranchTip,
+  isRowCarryingJsonRecordButton,
+  isRowExpandable,
 } from "./timeline-sessions.ts";
 import { COMMIT_NODE_KIND } from "./timeline-types.ts";
 import type { TimelineNode } from "./timeline-node-types.ts";
@@ -29,7 +29,7 @@ export function buildTimelineRow(context: TimelineRenderContext, node: TimelineN
   const main = createElement("div", { class: "tl-main" });
   const line = createElement("div", { class: "tl-line" });
   line.append(buildPickCell(context, node, index));
-  const isExpandable = checkRowIsExpandable(node);
+  const isExpandable = isRowExpandable(node);
   if (node.kind === COMMIT_NODE_KIND) {
     appendCommitCells(context, line, row, node);
   }
@@ -50,7 +50,7 @@ export function buildTimelineRow(context: TimelineRenderContext, node: TimelineN
   if (node.isError === true) {
     line.append(createElement("span", { class: "failed-badge", text: "FAILED" }));
   }
-  const isAbandonedTip = checkNodeIsAbandonedBranchTip(context.nodes, index);
+  const isAbandonedTip = isNodeAbandonedBranchTip(context.nodes, index);
   if (isAbandonedTip) {
     line.append(createElement("span", { class: "abandoned-badge", text: "(abandoned)" }));
   }
@@ -60,7 +60,7 @@ export function buildTimelineRow(context: TimelineRenderContext, node: TimelineN
   line.append(createElement("span", { class: "tl-ts", text: formatRowTimestamp(node.when) }));
   line.append(createElement("span", { class: "tl-pos", text: context.lineLabels.get(index) ?? "" }));
   line.append(createElement("span", { class: "tl-uuid", text: node.sessionId === undefined ? "" : computeSessionShortLabel(node.sessionId) }));
-  const carriesJsonRecordButton = checkRowCarriesJsonRecordButton(node);
+  const carriesJsonRecordButton = isRowCarryingJsonRecordButton(node);
   if (carriesJsonRecordButton) {
     appendJsonRecordButton(context, line, index);
   }

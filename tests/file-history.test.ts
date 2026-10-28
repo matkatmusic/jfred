@@ -24,7 +24,7 @@ function collectSnapshots(
 }
 
 test("test_file_history_snapshot_exposes_tracked_file_backups", () => {
-    // Scenario: the file-history-snapshot records expose per-path backups, and s1_delete.py is tracked with a numeric version and a nullable backupFileName.  Steps: collect every file-history-snapshot record in s1.
+    // Scenario: snapshot records expose per-path backups; s1_delete.py is tracked. Steps: collect snapshots in s1.
     const records = loadRecords(S1_JSONL);
     const snapshots = collectSnapshots(records);
     // every file-history-snapshot record is exposed — none dropped.
@@ -40,13 +40,13 @@ test("test_file_history_snapshot_exposes_tracked_file_backups", () => {
     // at least one snapshot tracks the path s1_delete.py, looked up by Path.
     const target = new Path("s1_delete.py");
     const tracking = snapshots.find(
-        (snapshot) => snapshot.snapshot.trackedFileBackups.has(target),
+        (snapshot) => snapshot.snapshot.trackedFileBackups.contains(target),
     );
     if (!tracking) {
         assert.fail("expected a snapshot tracking s1_delete.py");
     }
     // its keys are Path objects.
-    assert.ok(tracking.snapshot.trackedFileBackups.paths()[0] instanceof Path);
+    assert.ok(tracking.snapshot.trackedFileBackups.listPaths()[0] instanceof Path);
     // its backup carries a numeric version, a Date backupTime, and a Path|null backupFileName.
     const backup = tracking.snapshot.trackedFileBackups.get(target);
     if (!backup) {

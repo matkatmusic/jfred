@@ -1,8 +1,4 @@
-// Task 257 step 7: GET /api/layer1-file serves one file at one moment for the drawer.
-//
-// No server is spawned: the route is driven through a recording ServerResponse stand-in; refusals surface as throws.
-//
-// The temp-repo fixture is copied from tests/layer1-view-test-helpers.ts's pattern, not imported: this needs a dirty tree.
+// Task 257 step 7: GET /api/layer1-file driven through a recording ServerResponse stand-in; refusals throw.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +7,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { handleLayer1FileRequest } from "../src/viewer_api_layer1_file.ts";
+import { sendLayer1FileResponse } from "../src/viewer_api_layer1_file.ts";
 import { SESSION_A, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 
 const COMMITTED_TEXT = "committed line\n";
@@ -54,7 +50,7 @@ function requestLayer1File(parameters: Record<string, string>): RecordedResponse
         },
         end: (body: string | Buffer) => { recorded.body = body; },
     } as unknown as ServerResponse;
-    handleLayer1FileRequest(response, new URLSearchParams(parameters));
+    sendLayer1FileResponse(response, new URLSearchParams(parameters));
     return recorded;
 }
 

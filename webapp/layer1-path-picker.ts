@@ -1,4 +1,4 @@
-// Tasks 295/296: the source-folder dialog. ONE widget serves both lists — same rules, different title and different array — because the two differ only in what they count (plans/layer1-mockup.html:577-592, 1519-1572).  It edits a COPY: [cancel] drops the draft, [set and close] is what commits and rebuilds. That is what makes a mis-click on [−] recoverable without an undo stack.
+// Tasks 295/296: one source-folder dialog serves both lists; it edits a COPY, so [cancel] drops the draft.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
@@ -21,15 +21,20 @@ let draftPaths: string[] = [];
 let draftPick = -1;
 let alertTimer = 0;
 
+function createRowPicker(index: number): () => void {
+  return () => {
+    draftPick = index;
+    renderPicker();
+  };
+}
+
 function renderPicker(): void {
-  const rows = draftPaths.map((path, index) => {
+  const rows: HTMLElement[] = [];
+  for (const [index, path] of draftPaths.entries()) {
     const row = createElement("div", { class: index === draftPick ? "picked" : undefined, text: path });
-    row.addEventListener("click", () => {
-      draftPick = index;
-      renderPicker();
-    });
-    return row;
-  });
+    row.addEventListener("click", createRowPicker(index));
+    rows.push(row);
+  }
   getRequiredElementById("pp-list").replaceChildren(
     ...(rows.length > 0 ? rows : [createElement("div", { class: "mempty", text: "no source folders" })]),
   );
@@ -48,17 +53,19 @@ export function openPicker(kind: SourceKind): void {
 }
 
 // Shown briefly above the list, then auto-clears — the folder is refused, not the user.
-function flashEmptyAlert(kind: SourceKind): void {
+function hidePickerAlert(): void {
+  getRequiredElementById("pp-alert").hidden = true;
+}
+
+function reportEmptyFolder(kind: SourceKind): void {
   const alert = getRequiredElementById("pp-alert");
   alert.textContent = EMPTY_ALERT_BY_KIND[kind];
   alert.hidden = false;
   clearTimeout(alertTimer);
-  alertTimer = setTimeout(() => {
-    alert.hidden = true;
-  }, ALERT_VISIBLE_MS) as unknown as number;
+  alertTimer = setTimeout(hidePickerAlert, ALERT_VISIBLE_MS) as unknown as number;
 }
 
-// Does the chosen folder hold what this list is for, at ANY nesting depth? A folder that does not is refused rather than added — a source path that contributes nothing is a lie about the build's inputs. An unreachable server reads as "nothing found", which refuses rather than admits.
+// Count the files this list wants at ANY depth; zero refuses the folder, as does an unreachable server.
 async function countFilesUnder(path: string, kind: SourceKind): Promise<number> {
   const query = new URLSearchParams({ path, kind });
   const response = await fetch(`/api/scan-source?${query}`);
@@ -68,7 +75,7 @@ async function countFilesUnder(path: string, kind: SourceKind): Promise<number> 
   return (await response.json() as { found: number }).found;
 }
 
-// [+] — the OS folder chooser (GET /api/pick-folder, the existing osascript picker), then the scan.  An empty path is the user cancelling; a path already in the list is a no-op rather than a duplicate row.
+// [+] opens the OS folder chooser, then scans; an empty or known path is skipped.
 async function addPickedFolder(): Promise<void> {
   const response = await fetch(`/api/pick-folder?current=${encodeURIComponent(draftPaths[draftPick] ?? "")}`);
   if (!response.ok) {
@@ -77,11 +84,13 @@ async function addPickedFolder(): Promise<void> {
   const { paths } = await response.json() as { paths: string[] };
   let lastAddedIndex = -1;
   for (const path of paths) {
-    if (path === "" || draftPaths.includes(path)) {
+    const isSkipped = path === "" || draftPaths.includes(path);
+    if (isSkipped) {
       continue;
     }
-    if (await countFilesUnder(path, draftKind) === 0) {
-      flashEmptyAlert(draftKind);
+    const fileCount = await countFilesUnder(path, draftKind);
+    if (fileCount === 0) {
+      reportEmptyFolder(draftKind);
       continue;
     }
     draftPaths.push(path);
@@ -102,23 +111,39 @@ function removePickedFolder(): void {
   renderPicker();
 }
 
-// `onChanged` is passed in rather than imported, for the same no-cycle reason wireFolderPickers takes `afterPick`: the only caller is layer1-page.ts's boot, and reaching back for its loadLayer1View would make the two modules circular.
-export function wirePathPickers(onChanged: () => void): void {
-  getRequiredElementById("pick-jsonl").addEventListener("click", () => openPicker(SourceKind.jsonl));
-  getRequiredElementById("pick-fh").addEventListener("click", () => openPicker(SourceKind.fileHistory));
-  getRequiredElementById("pp-add").addEventListener("click", () => {
-    void addPickedFolder();
-  });
-  getRequiredElementById("pp-remove").addEventListener("click", removePickedFolder);
-  getRequiredElementById("pp-cancel").addEventListener("click", () => {
-    getRequiredElementById("pathpicker").hidden = true;
-  });
-  getRequiredElementById("pp-ok").addEventListener("click", () => {
+// `onChanged` is passed in, not imported from layer1-page.ts, because an import would make the modules circular.
+function openJsonlPicker(): void {
+  openPicker(SourceKind.jsonl);
+}
+
+function openFileHistoryPicker(): void {
+  openPicker(SourceKind.fileHistory);
+}
+
+function triggerAddPickedFolder(): void {
+  void addPickedFolder();
+}
+
+function hidePicker(): void {
+  getRequiredElementById("pathpicker").hidden = true;
+}
+
+function createPickerCommitter(onChanged: () => void): () => void {
+  return () => {
     const changed = writeSourcePaths(draftKind, draftPaths);
-    getRequiredElementById("pathpicker").hidden = true;
+    hidePicker();
     // Only a real edit rebuilds: committing an unchanged list is the same view.
     if (changed) {
       onChanged();
     }
-  });
+  };
+}
+
+export function registerPathPickers(onChanged: () => void): void {
+  getRequiredElementById("pick-jsonl").addEventListener("click", openJsonlPicker);
+  getRequiredElementById("pick-fh").addEventListener("click", openFileHistoryPicker);
+  getRequiredElementById("pp-add").addEventListener("click", triggerAddPickedFolder);
+  getRequiredElementById("pp-remove").addEventListener("click", removePickedFolder);
+  getRequiredElementById("pp-cancel").addEventListener("click", hidePicker);
+  getRequiredElementById("pp-ok").addEventListener("click", createPickerCommitter(onChanged));
 }

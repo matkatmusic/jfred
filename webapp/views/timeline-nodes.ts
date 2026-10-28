@@ -2,7 +2,7 @@
 
 import { buildRevisionIndex } from "./timeline-changes.ts";
 import { applyNodeFileChanges } from "./timeline-node-file-changes.ts";
-import { deriveLineNodes } from "./timeline-line-nodes.ts";
+import { computeLineNodes } from "./timeline-line-nodes.ts";
 import { attachSnapshotsToAgentTurns } from "./timeline-node-attach.ts";
 import { buildCommitNodes, buildToolCallNodes } from "./timeline-node-derive.ts";
 import { compareTimelineNodes, filterPreBaselineNodes, setStepNumbers } from "./timeline-node-order.ts";
@@ -52,7 +52,7 @@ function isMessageTextSystem(text: string): boolean {
   return text.includes("<system-reminder>");
 }
 
-// One node per turn plus session ends, commits, and tool rows; snapshots attach to the first owning agent turn.
+// One node per turn plus session ends, commits, and tool rows; snapshots attach to the first owning turn.
 export function buildTurnTimelineViewModel(document: WireTimelineDocument, includeAllLines = false): { nodes: TimelineNode[] } {
   const revisionIndex = buildRevisionIndex(document);
   const turnNodes: TurnNode[] = [];
@@ -76,7 +76,7 @@ export function buildTurnTimelineViewModel(document: WireTimelineDocument, inclu
   const toolCallNodes = buildToolCallNodes(document);
   appendSessionEndNodes(turnNodes, toolCallNodes);
   // task 134: opt-in raw-line rows for every record not already a turn or tool row.
-  const lineNodes = includeAllLines ? deriveLineNodes(document) : [];
+  const lineNodes = includeAllLines ? computeLineNodes(document) : [];
   const sortedNodes = [...turnNodes, ...commitNodes, ...toolCallNodes, ...lineNodes].sort(compareTimelineNodes);
   // (task 56) Drop pre-baseline nodes before numbering so step 1 is the baseline node.
   const nodes = filterPreBaselineNodes(sortedNodes, document.preBaselineSkipped === true);

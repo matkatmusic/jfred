@@ -1,7 +1,7 @@
 // ─── task 159: the Paths wizard's popover faces and per-screen prefill (state-free half of app-paths-wizard.ts).
 
 import { getInputById } from "./app-dom.ts";
-import { pickFolderInto } from "./app-header.ts";
+import { selectFolderInto } from "./app-header.ts";
 import { getDefaultCommitLabel } from "./app-paths-summary.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 
@@ -92,9 +92,9 @@ export function triggerCommitPicker(): void {
 }
 
 export function selectProjectsDir(): void {
-  void pickFolderInto(getInputById("projects-dir-input"));
+  void selectFolderInto(getInputById("projects-dir-input"));
 }
 
 export function selectRepoDir(): void {
-  void pickFolderInto(getInputById("repo-dir-input"));
+  void selectFolderInto(getInputById("repo-dir-input"));
 }

@@ -2,7 +2,7 @@
 
 import { createElement } from "../app-dom.ts";
 import { openDetailsPane } from "../inspector-pane.ts";
-import { deriveCommitChangedFiles } from "./timeline-commit-files.ts";
+import { computeCommitChangedFiles } from "./timeline-commit-files.ts";
 import { applyRenameBadgeLabels } from "./timeline-file-badges.ts";
 import { buildFileTree } from "./timeline-file-tree.ts";
 import { buildFilesSidebarViewModel, type FileSidebarEntry } from "./timeline-file-tree-sidebar.ts";
@@ -136,7 +136,7 @@ export function renderDetailsCommitMode(node: TimelineNode, nodeIndex: number, c
   setDetailsHeader(computeDetailsHeaderText(node, { index: nodeIndex, total: context.nodes.length }));
   const left = document.getElementById("details-left")!;
   left.replaceChildren(createElement("div", { class: "pane-title", text: "Changed files" }));
-  const changes = deriveCommitChangedFiles(context.nodes, nodeIndex);
+  const changes = computeCommitChangedFiles(context.nodes, nodeIndex);
   if (changes.length === 0) {
     left.append(createElement("div", { class: "dempty", text: "No files changed" }));
     setRightPaneLabel("—");

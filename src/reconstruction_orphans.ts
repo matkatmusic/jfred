@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Uuid } from "./structures/domain.ts";
 import {
   collectAncestorUuids,
-  indexRecordsByUuid,
+  buildRecordIndexByUuid,
 } from "./reconstruction_tree.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { containsAssistantText } from "./reconstruction_assistant_text.ts";
@@ -41,7 +41,7 @@ export function collectOrphanedUuids(records: TranscriptRecord[]): Set<string> {
     return new Set<string>();
   }
   const surviving = collectSurvivingUuids(records);
-  const byUuid = indexRecordsByUuid(records);
+  const byUuid = buildRecordIndexByUuid(records);
   const abandoned = new Set<string>();
   for (const branch of rewoundTips) {
     const exclusive = collectBranchExclusiveUuids(records, branch.tip, surviving);

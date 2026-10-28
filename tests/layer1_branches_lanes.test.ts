@@ -3,14 +3,14 @@
 import assert from "node:assert/strict";
 import { dirname } from "node:path";
 import { test } from "node:test";
-import { groupSessionFiles, loadSessionRewinds } from "../src/layer1_branch_sessions.ts";
+import { collectSessionFileGroups, loadSessionRewinds } from "../src/layer1_branch_sessions.ts";
 import { buildGroupHistories, listLanes } from "../src/layer1_branches_lanes.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { findScenarioJsonl } from "./fixtures.ts";
 
 function loadScenarioRewinds(scenarioDir: string) {
     const jsonl = findScenarioJsonl(scenarioDir);
-    const [group] = groupSessionFiles(listTranscriptFiles([dirname(jsonl)]));
+    const [group] = collectSessionFileGroups(listTranscriptFiles([dirname(jsonl)]));
     return loadSessionRewinds(group!);
 }
 

@@ -3,7 +3,7 @@
 import { getBaselineChoice, storeBaselineChoice } from "./app-choices.ts";
 import { getInputById } from "./app-dom.ts";
 import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
-import { pickFolderInto, prefillFileHistoryOverrideField } from "./app-header.ts";
+import { selectFolderInto, fillFileHistoryOverrideField } from "./app-header.ts";
 import { openCommitPickList } from "./app-paths-project-commits.ts";
 import { renderPathsSummary } from "./app-paths-summary.ts";
 import { collectSourceRows, initializeSourcesSection, renderSourceRows, type WireSourceEntryClient } from "./app-paths-sources.ts";
@@ -80,7 +80,7 @@ async function sendProjectPaths(persist: boolean): Promise<void> {
 export async function refreshProjectPathsSection(projectName: string): Promise<WireProjectPathsEntry> {
   activeProjectName = projectName;
   document.getElementById("project-paths-section")!.hidden = false;
-  (document.getElementById("repo-dir-open") as HTMLButtonElement).onclick = () => void pickFolderInto(getInputById("repo-dir-input"));
+  (document.getElementById("repo-dir-open") as HTMLButtonElement).onclick = () => void selectFolderInto(getInputById("repo-dir-input"));
   (document.getElementById("pick-commit-btn") as HTMLButtonElement).onclick = () => void openCommitPickList(projectName);
   (document.getElementById("project-paths-apply") as HTMLButtonElement).onclick = () => void sendProjectPaths(false);
   (document.getElementById("project-paths-store") as HTMLButtonElement).onclick = () => void sendProjectPaths(true);
@@ -88,7 +88,7 @@ export async function refreshProjectPathsSection(projectName: string): Promise<W
   getInputById("repo-dir-input").value = entry.repo ?? "";
   getInputById("base-commit-display").value = entry.baseCommit ?? "";
   // task 153: a stored per-project fileHistory override surfaces in the task-136 field.
-  prefillFileHistoryOverrideField(entry.fileHistory);
+  fillFileHistoryOverrideField(entry.fileHistory);
   // task 177: the Sources section prefills from the merged entry's sources list.
   initializeSourcesSection();
   renderSourceRows(entry.sources ?? []);

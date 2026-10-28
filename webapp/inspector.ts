@@ -19,8 +19,8 @@ import {
   openInspectorPane,
 } from "./inspector-pane.ts";
 import {
-  bumpShowLineRenderCount,
-  probeTrackedBackupPresence,
+  updateShowLineRenderCount,
+  scanTrackedBackupPresence,
 } from "./inspector-snapshots.ts";
 import { extractReadableText } from "./inspector-text.ts";
 
@@ -100,7 +100,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
   const openSnapshotDrawer = createSnapshotDrawerOpener(sessionId);
   const renderLine = (index: number) => {
     const clamped = Math.min(Math.max(index, 0), rawLines.length - 1);
-    const renderCountAtStart = bumpShowLineRenderCount();
+    const renderCountAtStart = updateShowLineRenderCount();
     let value: WireValue;
     try {
       value = JSON.parse(rawLines[clamped]!) as WireValue;
@@ -111,7 +111,7 @@ export function openTranscriptInspector({ jsonlName, rawLines, line, onJumpToLin
     // Probe tracked-backup presence, then re-render this line once the probes settle.
     const trackedBackups = (value as WireRecord | null)?.snapshot?.trackedFileBackups;
     if (trackedBackups !== undefined) {
-      probeTrackedBackupPresence(trackedBackups, sessionId, renderCountAtStart, renderLine, clamped);
+      scanTrackedBackupPresence(trackedBackups, sessionId, renderCountAtStart, renderLine, clamped);
     }
     // Tool-flow jumps (shown only on assistant tool_use lines): hook + result of THIS call.
     const toolTargets = findToolNavigationTargets(rawLines, value);

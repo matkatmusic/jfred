@@ -1,4 +1,4 @@
-// GET /api/layer1-file: commit `?repo&path&hash` (257), on-disk `?dir&path`, snapshot `?snapshotSession&sessionId&version&path&dir` (313), Edit `?editChangeId&side&path&dir&jsonl` (355).  Task 299: `&binary=1` answers raw bytes with an image content-type; the default stays `{ content }` as UTF-8.  Both inputs are trust boundaries: the hash reaches a git argument, the path reaches the filesystem.
+// GET /api/layer1-file: serves committed, on-disk, snapshot, or Edit bytes; hash and path are trust boundaries.
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -18,14 +18,17 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
 };
 
-function resolveContentType(filePath: Path): string {
-  const extension = filePath.toString().split(".").pop()?.toLowerCase() ?? "";
+function getContentType(filePath: Path): string {
+  const pathSegments = filePath.toString().split(".");
+  const lastSegment = pathSegments.pop() ?? "";
+  const extension = lastSegment.toLowerCase();
   return IMAGE_CONTENT_TYPES[extension] ?? "application/octet-stream";
 }
 
 // Committed bytes at <hash>:<path> via argument-array spawnSync (task-235 rule); the hash pattern is the boundary.
 export function readCommittedFileBytes(repoDir: Path, filePath: Path, hash: string): Buffer {
-  if (!COMMIT_HASH_PATTERN.test(hash)) {
+  const isCommitHash = COMMIT_HASH_PATTERN.test(hash);
+  if (!isCommitHash) {
     throw new Error(`not a commit hash: ${hash}`);
   }
   const result = spawnSync("git", ["show", `${hash}:${filePath.toString()}`], {
@@ -42,7 +45,8 @@ export function readCommittedFileBytes(repoDir: Path, filePath: Path, hash: stri
 export function readWorkingTreeFileBytes(projectFolder: Path, filePath: Path): Buffer {
   const folder = resolve(projectFolder.toString());
   const resolved = resolve(join(folder, filePath.toString()));
-  if (!resolved.startsWith(folder + sep)) {
+  const isInsideFolder = resolved.startsWith(folder + sep);
+  if (!isInsideFolder) {
     throw new Error(`path escapes the folder: ${filePath.toString()}`);
   }
   return readFileSync(resolved);
@@ -52,27 +56,35 @@ export function readWorkingTreeFileBytes(projectFolder: Path, filePath: Path): B
 export function readLayer1FileBytes(query: URLSearchParams, hashParam: string = "hash"): Buffer {
   const filePath = new Path(getRequiredParam(query, "path"));
   const hash = query.get(hashParam);
-  if (hash === null || hash.trim() === "") {
+  const trimmedHash = hash?.trim();
+  const isHashAbsent = trimmedHash === undefined;
+  const isHashBlank = trimmedHash === "";
+  const isOnDiskForm = isHashAbsent || isHashBlank;
+  if (isOnDiskForm) {
     return readWorkingTreeFileBytes(new Path(getRequiredParam(query, "dir")), filePath);
   }
-  return readCommittedFileBytes(new Path(getRequiredParam(query, "repo")), filePath, hash.trim());
+  return readCommittedFileBytes(new Path(getRequiredParam(query, "repo")), filePath, trimmedHash);
 }
 
 // Answers `{ content }`, or raw bytes when `binary=1`; failures throw so the server's outer catch 400s them.
-export function handleLayer1FileRequest(response: ServerResponse, query: URLSearchParams): void {
+export function sendLayer1FileResponse(response: ServerResponse, query: URLSearchParams): void {
   // Task 313: the snapshot form serves text from the owning session's sidecar, never a git/disk read.
-  if (isSnapshotFileRequest(query)) {
+  const isSnapshotForm = isSnapshotFileRequest(query);
+  if (isSnapshotForm) {
     sendJson(response, 200, readSnapshotFileContent(query));
     return;
   }
   // Task 355: the Edit form serves replayed Edit/Write/Read bytes from the owning transcripts.
-  if (isEditFileRequest(query)) {
+  const isEditForm = isEditFileRequest(query);
+  if (isEditForm) {
     sendJson(response, 200, readEditFileContent(query));
     return;
   }
   const bytes = readLayer1FileBytes(query);
-  if (query.get("binary") === "1") {
-    response.writeHead(200, { "Content-Type": resolveContentType(new Path(getRequiredParam(query, "path"))) });
+  const binaryParam = query.get("binary");
+  const isBinary = binaryParam === "1";
+  if (isBinary) {
+    response.writeHead(200, { "Content-Type": getContentType(new Path(getRequiredParam(query, "path"))) });
     response.end(bytes);
     return;
   }

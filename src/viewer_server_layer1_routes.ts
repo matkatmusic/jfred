@@ -4,7 +4,7 @@ import { type IncomingMessage, type ServerResponse } from "node:http";
 import { sendLayer1BranchesResponse } from "./viewer_api_layer1_branches.ts";
 import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "./viewer_api_layer1_diff.ts";
 import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
-import { handleLayer1FileRequest } from "./viewer_api_layer1_file.ts";
+import { sendLayer1FileResponse } from "./viewer_api_layer1_file.ts";
 import { handleLayer1RecordRequest } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
 import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
@@ -59,7 +59,7 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
     handleLayer1RecordRequest(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-file") {
-    handleLayer1FileRequest(response, url.searchParams);
+    sendLayer1FileResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-diff") {
     handleLayer1DiffRequest(response, url.searchParams);
