@@ -51,14 +51,42 @@ export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: 
 // The raw JSON reveal has no transcript to link to, so a link click does nothing.
 function addNoJsonLink(): void {}
 
-// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON.
-export function appendRawJsonReveal(record: unknown): void {
-  const jsonPre = renderHighlightedJson(
+function renderRawJson(record: unknown): HTMLElement {
+  return renderHighlightedJson(
     JSON.stringify(record, null, 4), record as WireValue, 0,
     { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
     addNoJsonLink, [], addNoJsonLink,
   );
-  const jsonBox = createElement("div", { class: "node-json" }, [jsonPre]);
+}
+
+// The [{ }] toggle fetches its JSONL line on the first click, so no node's drawer waits on a record.
+export function appendRawJsonRevealForLine(sessionFile: string, line: number): void {
+  const jsonBox = createElement("div", { class: "node-json" });
+  jsonBox.hidden = true;
+  let isRequested = false;
+  const jsonToggle = createElement("button", {
+    class: "json-toggle",
+    text: "[{ }]",
+    title: "Show raw transcript JSON",
+    onclick: async () => {
+      jsonBox.hidden = !jsonBox.hidden;
+      if (isRequested) {
+        return;
+      }
+      isRequested = true;
+      const response = await fetch(`/api/layer1-record?${new URLSearchParams({ jsonl: sessionFile, line: String(line) })}`);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      jsonBox.replaceChildren(renderRawJson(await response.json()));
+    },
+  });
+  getRequiredElementById("dbody").append(jsonToggle, jsonBox);
+}
+
+// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON.
+export function appendRawJsonReveal(record: unknown): void {
+  const jsonBox = createElement("div", { class: "node-json" }, [renderRawJson(record)]);
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
     class: "json-toggle",

@@ -6,6 +6,7 @@ import { clearDiffPair } from "./layer1-drawer-diff.ts";
 import { wireImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "./layer1-drawer-open-node.ts";
 import { applyDiffSelectionRange } from "./layer1-diff-selection-range.ts";
+import { storeOpenedNode } from "./layer1-node-link.ts";
 import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
@@ -79,6 +80,7 @@ function closeDrawer(): void {
   getRequiredElementById("dmulti").hidden = true;
   clearDiffPair();
   clearAnchor();
+  storeOpenedNode(undefined);
   drawLayer1Minimap();
 }
 

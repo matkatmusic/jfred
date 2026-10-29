@@ -16,8 +16,8 @@ import { countStepsInTranscript } from "../src/reconstruction_steps.ts";
 import { isGenuineUserPrompt } from "../src/reconstruction_prompts.ts";
 import { RecordType, BlockType } from "../src/structures/vocabulary.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
-    createSidecarReader,
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";
