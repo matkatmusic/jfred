@@ -67,3 +67,17 @@ test("test_scanTrackedBackupPresence_skips_reshow_after_a_newer_render", async (
     assert.equal(blobPresenceByKey.get("session-1|blob-B"), false);
     assert.deepEqual(shownLines, []);
 });
+
+test("test_scanTrackedBackupPresence_makes_no_fetch_for_a_null_backupFileName", async () => {
+    // Scenario: a tracked file with no backup (null name) must not ask the server for a blob named "null".
+    const { blobPresenceByKey, updateShowLineRenderCount, scanTrackedBackupPresence } = await importInspectorSnapshots();
+    installFetchRoutes({ "/api/blob": { exists: true } });
+    const stubbedFetch = globalThis.fetch;
+    const fetchedUrls: string[] = [];
+    Object.assign(globalThis, { fetch: (url: unknown) => { fetchedUrls.push(String(url)); return stubbedFetch(url as string); } });
+    scanTrackedBackupPresence({ "src/c.py": { backupFileName: null } }, "session-1", updateShowLineRenderCount(), () => {}, 3);
+    await waitForAsyncWork();
+    // assert no request went out and nothing was cached for "null".
+    assert.deepEqual(fetchedUrls, []);
+    assert.equal(blobPresenceByKey.has("session-1|null"), false);
+});
