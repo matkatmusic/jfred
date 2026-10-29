@@ -5,7 +5,7 @@ import {
     addEditBaseFromBackup,
 } from "../src/reconstruction_sidecar.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
-import { resolveAgainstCwd } from "../src/structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "../src/structures/path-resolve.ts";
 import type { AppendEvent, EditEvent, FileEvent, WriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
@@ -33,9 +33,9 @@ function buildCwdRecord(cwd: string): TranscriptRecord {
 
 test("test_resolve_against_cwd_joins_relative_and_passes_absolute_through", () => {
     const cwd = new Path("/work/dir");
-    assert.equal(resolveAgainstCwd(cwd, new Path("a.py")), "/work/dir/a.py");
+    assert.equal(normalizeAgainstCwd(cwd, new Path("a.py")), "/work/dir/a.py");
     // Idempotent on absolute paths — this is why S2's absolute mv stays correct.
-    assert.equal(resolveAgainstCwd(cwd, new Path("/abs/a.py")), "/abs/a.py");
+    assert.equal(normalizeAgainstCwd(cwd, new Path("/abs/a.py")), "/abs/a.py");
 });
 
 // Hunks stay empty: the seed only inspects events[0].kind, never the hunks.

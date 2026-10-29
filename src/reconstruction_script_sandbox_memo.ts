@@ -3,7 +3,7 @@
 import { Path } from "./structures/domain.ts";
 import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
+import { getCachedValueRefreshingRecency, removeLeastRecentlyUsedEntries } from "./cache_lru.ts";
 
 // One spawn per input suffices; ponytail: outcomes returned by reference, treat post-states read-only.
 export type SandboxOutcome = { post: Map<string, string> | undefined };
@@ -25,7 +25,7 @@ export function getMemoizedSandboxOutcome(inputKey: string): SandboxOutcome | un
 
 export function storeSandboxOutcome(inputKey: string, post: Map<string, string> | undefined): void {
   sandboxOutcomesByInput.set(inputKey, { post });
-  evictLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
+  removeLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
   // Persist per batch, not per spawn; writePendingSandboxMemoToDisk() catches the final tail.
   sandboxSpawnsSinceLastPersist += 1;
   if (sandboxSpawnsSinceLastPersist >= SANDBOX_MEMO_PERSIST_BATCH_SIZE) {

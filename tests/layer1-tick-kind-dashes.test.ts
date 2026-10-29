@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
-import { markMultiEventTicks, onExpansionRelayout, wireTickExpansion } from "../webapp/layer1-tick-files.ts";
+import { markMultiEventTicks, registerExpansionRelayout, registerTickExpansion } from "../webapp/layer1-tick-files.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;
@@ -36,8 +36,8 @@ function drawRowOf(kindClasses: string[]): HTMLElement {
     const tick = setAxisPx(createElement("div", { class: "tick", text: TICK_TEXT }), SHARED_PX);
     document.getElementById("ruler")!.appendChild(tick);
     attachRulerTickClick(tick, { axisPx: SHARED_PX, text: TICK_TEXT, axisPxList: [SHARED_PX], instants: [INSTANT] });
-    onExpansionRelayout(markMultiEventTicks);
-    wireTickExpansion();
+    registerExpansionRelayout(markMultiEventTicks);
+    registerTickExpansion();
     markMultiEventTicks();
     return tick;
 }

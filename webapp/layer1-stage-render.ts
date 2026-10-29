@@ -2,7 +2,7 @@
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
-import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
+import { attachLeaderHover } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
@@ -31,7 +31,7 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
 function renderLeaderLines(ruler: WireInstant[]): void {
   const leaders: HTMLElement[] = [];
   for (const entry of ruler) {
-    leaders.push(makeLeaderHoverable(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
+    leaders.push(attachLeaderHover(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
   }
   getRequiredElementById("leaders").replaceChildren(...leaders);
 }

@@ -9,7 +9,7 @@ import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
 import { moveFirstVisibleNodeIntoView } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
-import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
+import { attachLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { attachBusyShield } from "./layer1-busy-shield.ts";
 import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
 import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
@@ -20,8 +20,8 @@ import { attachSettingsSave, markSettingsDirty } from "./layer1-settings.ts";
 import { applySavedSettingsForCurrentDir, loadSavedSettings } from "./layer1-settings-restore.ts";
 import { loadSourceDefaults, resetSourcePathsOnProjectChange, syncSourceButtons } from "./layer1-source-paths.ts";
 import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "./layer1-sources.ts";
-import { closeRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
-import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
+import { closeRulerExpansion, registerTickExpansion } from "./layer1-tick-files.ts";
+import { registerTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -113,7 +113,7 @@ export async function initLayer1Page(): Promise<void> {
   attachSettingsSave();
   initSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
-  wireTimeSourceToggle(loadViewInBackground);
+  registerTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
   registerRefPickers(loadViewInBackground);
@@ -130,8 +130,8 @@ export async function initLayer1Page(): Promise<void> {
   wireBubbleFlash();
   installMultiFileDrawer();
   installCopyLinkButton();
-  wireTickExpansion();
-  wireLeaderVisibility();
+  registerTickExpansion();
+  attachLeaderVisibility();
   attachFolderPickers(loadViewAfterRefCheck);
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.

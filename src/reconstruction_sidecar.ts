@@ -2,8 +2,8 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import {
   buildBackupTimeline,
   findBackupAtOrBefore,
@@ -27,7 +27,7 @@ export function addEditBaseFromBackup(
   }
   const seed = getBackupSeedWrite(records, first.target, first.timestamp, reader);
   if (seed) {
-    noteStage({ stage: "seedEditBaseFromBackup", target: first.target, changeId: first.changeId, detail: "seeded an edit-first file's pre-edit content from backup", when: seed.timestamp });
+    addStageEntry({ stage: "seedEditBaseFromBackup", target: first.target, changeId: first.changeId, detail: "seeded an edit-first file's pre-edit content from backup", when: seed.timestamp });
   }
   return seed ? [seed, ...events] : events;
 }
@@ -109,7 +109,7 @@ export function getBackupWrites(
 ): WriteEvent[] {
   const cwd = findCwd(records);
   const timeline = buildBackupTimeline(records, cwd);
-  const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
+  const points = timeline.get(normalizeAgainstCwd(cwd, target)) ?? [];
   const writes: WriteEvent[] = [];
   for (const point of points) {
     if (point.backupFileName === null) {

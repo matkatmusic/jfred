@@ -45,11 +45,12 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
 
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
   const editChangeId = query.get("editChangeId");
-  if (editChangeId !== null && query.get("branch") === "1") {
-    sendJson(response, 200, readFixtureBranchFile(getRequiredParam(query, "path"), editChangeId, getRequiredParam(query, "side")));
-    return;
-  }
   if (editChangeId !== null) {
+    const isBranchRequest = query.get("branch") === "1";
+    if (isBranchRequest) {
+      sendJson(response, 200, readFixtureBranchFile(getRequiredParam(query, "path"), editChangeId, getRequiredParam(query, "side")));
+      return;
+    }
     sendJson(response, 200, readFixtureEditFile(editChangeId, getRequiredParam(query, "side")));
     return;
   }

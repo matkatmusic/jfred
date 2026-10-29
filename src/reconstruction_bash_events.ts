@@ -3,7 +3,7 @@
 import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type {
   CopyInfo,
   FileEvent,
@@ -114,8 +114,8 @@ export function extractBashEvents(
     return [{
       kind: EventKind.rename,
       changeId: block.id,
-      from: new Path(resolveAgainstCwd(cwd, moved.from)),
-      to: new Path(resolveAgainstCwd(cwd, moved.to)),
+      from: new Path(normalizeAgainstCwd(cwd, moved.from)),
+      to: new Path(normalizeAgainstCwd(cwd, moved.to)),
       timestamp,
     }];
   }

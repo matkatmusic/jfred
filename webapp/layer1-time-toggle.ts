@@ -14,14 +14,19 @@ function markSelectedTimeSource(): void {
   }
 }
 
+function createTimeSourceClickHandler(value: string, afterChange: () => void): () => void {
+  function applyTimeSourceClick(): void {
+    selectTimeSource(value);
+    markSelectedTimeSource();
+    afterChange();
+  }
+  return applyTimeSourceClick;
+}
+
 // Wire both buttons and sync `.current` to the seeded value; `afterChange` is passed in to avoid a cycle.
-export function wireTimeSourceToggle(afterChange: () => void): void {
+export function registerTimeSourceToggle(afterChange: () => void): void {
   for (const value of TIME_SOURCE_VALUES) {
-    findTimeSourceButton(value).addEventListener("click", () => {
-      selectTimeSource(value);
-      markSelectedTimeSource();
-      afterChange();
-    });
+    findTimeSourceButton(value).addEventListener("click", createTimeSourceClickHandler(value, afterChange));
   }
   markSelectedTimeSource();
 }

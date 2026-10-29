@@ -63,8 +63,9 @@ function collectEditDetailFromRecord(
     }
     const result = record.toolUseResult as EditResult | undefined;
     // Require structuredPatch — an Edit result lacking it produced no event before; don't build a hunkless edit.
-    if (result && result.structuredPatch) {
-      detailById.set(block.tool_use_id.toString(), { hunks: result.structuredPatch, originalFile: result.originalFile });
+    const structuredPatch = result?.structuredPatch;
+    if (structuredPatch) {
+      detailById.set(block.tool_use_id.toString(), { hunks: structuredPatch, originalFile: result?.originalFile });
     }
   }
 }

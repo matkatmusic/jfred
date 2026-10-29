@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { getBackupWrites } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import { getBeaconSnippet } from "./reconstruction_user_edit.ts";
 import type { FileEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 import {
@@ -73,7 +73,7 @@ function findElidedBeaconSeed(
 
 // Record that an elided-beacon completion fired, tagging the beacon (its changeId) and the backup time used.
 function logElidedSeed(beacon: UserEditEvent, seed: WriteEvent): void {
-  noteStage({
+  addStageEntry({
     stage: "completeElidedBeacons",
     target: beacon.target,
     changeId: beacon.changeId,

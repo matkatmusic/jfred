@@ -5,7 +5,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
@@ -47,7 +47,7 @@ export function insertAdditionsAfter(
     content: edited,
     timestamp: computeMidpointAfter(events, baseIndex, commitTimestamp),
   };
-  noteStage({
+  addStageEntry({
     stage: "placeGitCommitEvidence",
     target,
     changeId: userEdit.changeId,

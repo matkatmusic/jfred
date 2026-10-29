@@ -5,7 +5,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
 import { getLatestBackupWrite } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
 
 // Line-count gate excludes trailing-newline-only diffs; startsWith rejects poison backups.
@@ -34,7 +34,7 @@ export function appendTruncatedBeaconCompletion(
   if (!seedCompletesBeacon) {
     return events;
   }
-  noteStage({
+  addStageEntry({
     stage: "completeTruncatedBeacon",
     target: last.target,
     changeId: last.changeId,

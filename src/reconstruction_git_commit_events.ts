@@ -7,7 +7,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { gitAddCommand, gitCommitCommand } from "./regex_expressions.ts";
 import { splitCompoundCommandSegments } from "./reconstruction_git_operations.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 
 // Commit location, time, and owning session for timeline attribution.
 export type GitCommitEvent = { cwd?: Path; timestamp: Date; sessionId?: Uuid };
@@ -54,7 +54,7 @@ function parseAddEventsFromCommand(command: string, recordCwd: Path | undefined,
         continue;
       if (argument === ".")
         continue;
-      events.push({ path: new Path(resolveAgainstCwd(cwd, new Path(argument))), cwd, timestamp });
+      events.push({ path: new Path(normalizeAgainstCwd(cwd, new Path(argument))), cwd, timestamp });
     }
   }
   return events;

@@ -2,7 +2,7 @@
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { findLastRevisionAtOrBefore, getLinesText } from "./reconstruction_revisions.ts";
@@ -45,6 +45,6 @@ function fillOneCopySeed(
   if (!atCopy) {
     return { ...event, seedLines: [] };
   }
-  noteStage({ stage: "seedCopyEvents", target: event.to, changeId: event.changeId, detail: `seeded copy genesis from ${event.from}`, when: event.timestamp });
+  addStageEntry({ stage: "seedCopyEvents", target: event.to, changeId: event.changeId, detail: `seeded copy genesis from ${event.from}`, when: event.timestamp });
   return { ...event, seedLines: getLinesText(atCopy) };
 }

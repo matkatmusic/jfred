@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { getShortUuid } from "./reconstruction_branch_lookup.ts";
-import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
+import { getBaseName, trimChangeId } from "./reconstruction_labels.ts";
 import {
   buildConversationDag,
   buildFileDag,
@@ -39,7 +39,7 @@ function formatShortUuid(uuid: Uuid | undefined): string {
 function renderTurnCore(turn: GraphTurn, widths: TurnWidths): string {
   const kind = turn.kind.padEnd(widths.kind);
   const target = getBaseName(turn.target).padEnd(widths.target);
-  return `${turn.letter}  ${kind}  ${target}  #${shortenChangeId(turn.changeId)}`;
+  return `${turn.letter}  ${kind}  ${target}  #${trimChangeId(turn.changeId)}`;
 }
 
 // A branch wrapper's header: `branch <role> (<role>; tip #<tip>[; rewind @ #<rewindPoint>])`.
@@ -103,7 +103,7 @@ export function renderConversationDag(dag: ConversationDag): string {
 
 // A fileDAG turn line: `  <letter>  <kind>  #<changeId>` (no file column — the file is the header).
 function renderFileTurnLine(turn: GraphTurn, kindWidth: number): string {
-  return `  ${turn.letter}  ${turn.kind.padEnd(kindWidth)}  #${shortenChangeId(turn.changeId)}`;
+  return `  ${turn.letter}  ${turn.kind.padEnd(kindWidth)}  #${trimChangeId(turn.changeId)}`;
 }
 
 // Render the fileDAG: a header then, per file, its base-name line and its version-ordered turns.

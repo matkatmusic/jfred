@@ -22,14 +22,19 @@ export type LineVerdict = {
 
 // Surfaces getRecordVerdict + isGenuineUserPrompt per record, line-aligned.
 export function buildLineVerdicts(records: TranscriptRecord[]): LineVerdict[] {
-  return records.map((record, index) => ({
-    line: index,
-    uuid: record.uuid,
-    type: record.type,
-    verdict: getRecordVerdict(record),
-    isGenuinePrompt: isGenuineUserPrompt(record),
-    timestamp: record.timestamp,
-    sessionId: record.sessionId,
-    source: getRecordSource(record),
-  }));
+  const verdicts: LineVerdict[] = [];
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index]!;
+    verdicts.push({
+      line: index,
+      uuid: record.uuid,
+      type: record.type,
+      verdict: getRecordVerdict(record),
+      isGenuinePrompt: isGenuineUserPrompt(record),
+      timestamp: record.timestamp,
+      sessionId: record.sessionId,
+      source: getRecordSource(record),
+    });
+  }
+  return verdicts;
 }

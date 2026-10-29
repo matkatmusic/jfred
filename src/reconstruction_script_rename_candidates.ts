@@ -5,7 +5,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import { codeLiteralMoveCall, renameArrowLine } from "./regex_expressions.ts";
 
@@ -85,8 +85,8 @@ export function collectRenameCandidatesFromToolResult(block: ContentBlock, recor
     // }
     candidates.push({
       changeId: block.tool_use_id,
-      from: new Path(resolveAgainstCwd(executor.cwd, new Path(from!))),
-      to: new Path(resolveAgainstCwd(executor.cwd, new Path(to!))),
+      from: new Path(normalizeAgainstCwd(executor.cwd, new Path(from!))),
+      to: new Path(normalizeAgainstCwd(executor.cwd, new Path(to!))),
       timestamp: resultInstant,
     });
   }
@@ -105,8 +105,8 @@ export function collectRenameCandidatesFromCompletedRunCode(executor: ExecutorRu
     const [, from, to] = match;
     candidates.push({
       changeId: executor.id,
-      from: new Path(resolveAgainstCwd(executor.cwd, new Path(from!))),
-      to: new Path(resolveAgainstCwd(executor.cwd, new Path(to!))),
+      from: new Path(normalizeAgainstCwd(executor.cwd, new Path(from!))),
+      to: new Path(normalizeAgainstCwd(executor.cwd, new Path(to!))),
       timestamp: completionInstant,
     });
   }

@@ -4,7 +4,7 @@ import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import {
@@ -19,7 +19,7 @@ import { findBeaconlessScriptExecutions } from "./reconstruction_script_beaconle
 import type { FileEvent } from "./reconstruction_events.ts";
 
 function logInjection(event: ScriptExecutionEvent, detail: string): void {
-  noteStage({
+  addStageEntry({
     stage: "injectScriptExecutions",
     target: event.target,
     changeId: event.changeId,

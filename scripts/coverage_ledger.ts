@@ -4,7 +4,8 @@
 import { fileURLToPath } from "node:url";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { listCoveredScenarios } from "./coverage_scenarios.ts";
-import { checkScenarioResilient } from "./check_scenario_coverage.ts";
+import { validateScenarioResilient } from "./check_scenario_coverage.ts";
+import type { ScenarioResult } from "./coverage_report.ts";
 
 const LEDGER_PATH = new URL("../plans/coverage-ledger.md", import.meta.url);
 
@@ -12,7 +13,8 @@ const LEDGER_PATH = new URL("../plans/coverage-ledger.md", import.meta.url);
 function readPriorTimestamps(): Map<string, string> {
   const prior = new Map<string, string>();
   const path = fileURLToPath(LEDGER_PATH);
-  if (!existsSync(path)) {
+  const hasLedger = existsSync(path);
+  if (!hasLedger) {
     return prior;
   }
   for (const line of readFileSync(path, "utf8").split("\n")) {
@@ -25,25 +27,34 @@ function readPriorTimestamps(): Map<string, string> {
 }
 
 // Numeric order by scenario number (s9 before s10), so the ledger reads in attack order.
-function scenarioNumber(scenarioId: string): number {
+function getScenarioNumber(scenarioId: string): number {
   return Number(scenarioId.replace(/^s/, ""));
 }
 
-function main(): void {
+function compareByScenarioNumber(a: ScenarioResult, b: ScenarioResult): number {
+  return getScenarioNumber(a.scenario.scenarioId) - getScenarioNumber(b.scenario.scenarioId);
+}
+
+function executeLedgerWrite(): void {
   const now = new Date().toISOString();
   const prior = readPriorTimestamps();
-  const covered = listCoveredScenarios();
-  const results = covered.map(checkScenarioResilient);
-  results.sort((a, b) => scenarioNumber(a.scenario.scenarioId) - scenarioNumber(b.scenario.scenarioId));
+  const results: ScenarioResult[] = [];
+  for (const scenario of listCoveredScenarios()) {
+    results.push(validateScenarioResilient(scenario));
+  }
+  results.sort(compareByScenarioNumber);
 
-  const rows = results.map((result) => {
+  const rows: string[] = [];
+  let passCount = 0;
+  for (const result of results) {
     const id = result.scenario.scenarioId;
     const passing = result.mismatches.length === 0;
     const lastPassing = passing ? now : (prior.get(id) ?? "never");
-    return `| ${id} | ${passing ? "PASS" : "FAIL"} | ${result.passed}/${result.total} | ${lastPassing} |`;
-  });
-
-  const passCount = results.filter((r) => r.mismatches.length === 0).length;
+    if (passing) {
+      passCount += 1;
+    }
+    rows.push(`| ${id} | ${passing ? "PASS" : "FAIL"} | ${result.passed}/${result.total} | ${lastPassing} |`);
+  }
   const header = [
     "# Scenario coverage ledger",
     "",
@@ -58,8 +69,9 @@ function main(): void {
   console.log(`${passCount}/${results.length} passing — wrote ${fileURLToPath(LEDGER_PATH)}`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
+const isEntryPoint = process.argv[1] === fileURLToPath(import.meta.url);
+if (isEntryPoint) {
+  executeLedgerWrite();
 }
 
 

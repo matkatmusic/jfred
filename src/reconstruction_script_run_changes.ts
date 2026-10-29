@@ -2,7 +2,7 @@
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { type BackupReader } from "./reconstruction_sidecar.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -67,7 +67,7 @@ function computeRunFileOutcome(
     const isUnchanged = execution.pre.get(key) === execution.post.get(key);
     if (isUnchanged)
       continue;
-    const absolute = resolveAgainstCwd(run.cwd, new Path(key));
+    const absolute = normalizeAgainstCwd(run.cwd, new Path(key));
     const isAlreadyChanged = changed.has(absolute);
     if (!isAlreadyChanged)
       changed.set(absolute, new Path(absolute));
@@ -75,8 +75,8 @@ function computeRunFileOutcome(
   const renamedPaths: ScriptRenamePair[] = [];
   for (const pair of pairs) {
     renamedPaths.push({
-      from: new Path(resolveAgainstCwd(run.cwd, new Path(pair.fromKey))),
-      to: new Path(resolveAgainstCwd(run.cwd, new Path(pair.toKey))),
+      from: new Path(normalizeAgainstCwd(run.cwd, new Path(pair.fromKey))),
+      to: new Path(normalizeAgainstCwd(run.cwd, new Path(pair.toKey))),
     });
   }
   return { changedPaths: [...changed.values()], renamedPaths };

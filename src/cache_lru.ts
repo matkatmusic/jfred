@@ -12,7 +12,7 @@ export function getCachedValueRefreshingRecency<Value>(cache: Map<string, Value>
 }
 
 // Evict oldest entries until cache fits capacity; Map insertion order tracks recency.
-export function evictLeastRecentlyUsedEntries<Value>(cache: Map<string, Value>, capacity: number): void {
+export function removeLeastRecentlyUsedEntries<Value>(cache: Map<string, Value>, capacity: number): void {
   while (cache.size > capacity) {
     const leastRecentKey = cache.keys().next().value as string;
     cache.delete(leastRecentKey);

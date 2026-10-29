@@ -15,7 +15,7 @@ export interface Layer1RepoTree {
 const GITLINK_MODE = "160000";
 
 // Split on tab, not space — paths may contain spaces.
-function routeTreeRecord(record: string, tree: Layer1RepoTree): void {
+function pushTreeRecord(record: string, tree: Layer1RepoTree): void {
   const tabIndex = record.indexOf("\t");
   if (tabIndex === -1) {
     return;
@@ -43,7 +43,7 @@ export function readRepoTreeAtRef(repoDir: Path, ref: string = ACTIVE_BRANCH_REF
   const tree: Layer1RepoTree = { trackedFiles: [], submodulePaths: [] };
   for (const record of result.stdout.split("\0")) {
     if (record !== "") {
-      routeTreeRecord(record, tree);
+      pushTreeRecord(record, tree);
     }
   }
   return tree;

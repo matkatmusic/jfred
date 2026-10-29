@@ -9,7 +9,7 @@ import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { findBaseCommitEvidenceForTarget, readCommitFileContent, readCommitTimestamp } from "./reconstruction_base_commit_evidence.ts";
 import { reportReconstructionFailure } from "./reconstruction_health.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 
 export const BASE_COMMIT_CHANGE_ID_PREFIX = "gitBase:";
 
@@ -101,7 +101,7 @@ export function insertBaseCommitBeacon(records: TranscriptRecord[], events: File
   if (!preBaselineReconstructionAllowed) {
     // Task 56: drop pre-baseline events the beacon supersedes.
     const trimmed = [beacon, ...events.slice(insertionIndex)];
-    noteStage({
+    addStageEntry({
       stage: "seedBaseCommitBeacon",
       target,
       changeId,
@@ -112,7 +112,7 @@ export function insertBaseCommitBeacon(records: TranscriptRecord[], events: File
   }
   const seeded = [...events];
   seeded.splice(insertionIndex, 0, beacon);
-  noteStage({
+  addStageEntry({
     stage: "seedBaseCommitBeacon",
     target,
     changeId,

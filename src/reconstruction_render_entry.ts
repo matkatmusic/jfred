@@ -2,7 +2,7 @@
 
 import type { FileRevision } from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
+import { getBaseName, trimChangeId } from "./reconstruction_labels.ts";
 
 // The clock portion of a timestamp (HH:MM:SSZ).
 function formatShortTime(date: Date): string {
@@ -73,5 +73,5 @@ export function renderEntry(
 ): string {
   const label = getEntryLabel(revision.kind).padEnd(6);
   const detail = getEntryDetail(previous, revision);
-  return `  ${index}  ${label}  ${detail}   ${formatShortTime(revision.timestamp)}  #${shortenChangeId(revision.changeId)}`;
+  return `  ${index}  ${label}  ${detail}   ${formatShortTime(revision.timestamp)}  #${trimChangeId(revision.changeId)}`;
 }

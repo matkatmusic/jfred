@@ -9,7 +9,7 @@ import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
 import { renderSessionPane } from "./layer1-session-pane.ts";
 import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-sessions.ts";
 import { renderLayer1Stage } from "./layer1-stage-render.ts";
-import { closeRulerExpansion, onExpansionRelayout, readRulerExpansion } from "./layer1-tick-files.ts";
+import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-tick-files.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 // Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.
@@ -60,7 +60,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     closeRulerExpansion();
     renderFilteredStage();
   };
-  onExpansionRelayout(renderFilteredStage);
+  registerExpansionRelayout(renderFilteredStage);
   // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
   const onlySelectedButton = getRequiredElementById("filenav-only-selected");
   // A re-render builds a fresh button, so its class is derived from the surviving module state.

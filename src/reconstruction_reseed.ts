@@ -4,7 +4,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { getBackupSeedWrite, normalizeSeedBetweenPreviousAndEdit } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 import { isEditBaseStale } from "./reconstruction_reseed_base.ts";
 import { findOutOfWindowEditSeed, findReversedEditBaseSeed } from "./reconstruction_reseed_seeds.ts";
@@ -30,7 +30,7 @@ function findStaleEditSeed(
 
 // Record that a stale-edit-base reseed fired, tagging the edit it seeds.
 function reportStaleSeed(event: FileEvent, seed: WriteEvent): void {
-  noteStage({
+  addStageEntry({
     stage: "seedStaleEditBases",
     target: seed.target,
     changeId: event.kind === EventKind.edit ? event.changeId : seed.changeId,

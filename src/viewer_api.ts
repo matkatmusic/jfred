@@ -16,7 +16,7 @@ import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./recon
 import { writePendingSandboxMemoToDisk } from "./reconstruction_script_sandbox_memo.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
-import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
+import { getCachedValueRefreshingRecency, removeLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { readDocumentFromDiskCache, writeDocumentToDiskCache } from "./reconstruction_document_cache.ts";
 import type { Path } from "./structures/domain.ts";
 import {
@@ -98,7 +98,7 @@ export function buildReconstructionWithConsent(
   if (diskBuild !== undefined) {
     reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
     builtDocumentCache.set(cacheKey, diskBuild);
-    evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
+    removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
     return diskBuild;
   }
   setImpureExecutionAllowed(allowScripts);
@@ -116,7 +116,7 @@ export function buildReconstructionWithConsent(
     // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
     writePendingSandboxMemoToDisk();
     builtDocumentCache.set(cacheKey, built);
-    evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
+    removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
     writeDocumentToDiskCache(cacheKey, built);
     return built;
   }

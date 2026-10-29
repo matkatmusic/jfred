@@ -1,6 +1,6 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { EventKind } from "./structures/vocabulary.ts";
-import { noteStage } from "./reconstruction_provenance.ts";
+import { addStageEntry } from "./reconstruction_provenance.ts";
 import { buildBackupTimeline, findBackupAfter, findCwd } from "./reconstruction_backup_timeline.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
@@ -27,7 +27,7 @@ export function fillRedirectContent(
       filledEvents.push(event);
       continue;
     }
-    noteStage({ stage: "fillRedirectContent", target: event.target, changeId: event.changeId, detail: `filled ${event.kind} content from the file-history backup` });
+    addStageEntry({ stage: "fillRedirectContent", target: event.target, changeId: event.changeId, detail: `filled ${event.kind} content from the file-history backup` });
     filledEvents.push({ ...event, content: reader(backupFileName) });
   }
   return filledEvents;

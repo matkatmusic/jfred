@@ -9,7 +9,7 @@ import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { sortNodesOntoAxis } from "./layered_instants.ts";
-import { completeLayer1Timeline } from "./layered_end_state.ts";
+import { buildLayer1Timeline } from "./layered_end_state.ts";
 import { collectSessionNodes } from "./layered_load_nodes.ts";
 import { buildLineageEdges } from "./layered_lineage.ts";
 import type { LineageEvidence } from "./layered_lineage.ts";
@@ -56,7 +56,7 @@ export function findEvidenceRoots(
 function buildSessionTimeline(sessionFileKey: string, nodes: TimelineNode[], filename: Path): SessionTimeline {
   return {
     sessionFile: new Path(sessionFileKey),
-    timeline: { nodes: completeLayer1Timeline(sortNodesOntoAxis(nodes), filename) },
+    timeline: { nodes: buildLayer1Timeline(sortNodesOntoAxis(nodes), filename) },
   };
 }
 

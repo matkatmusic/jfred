@@ -1,4 +1,4 @@
-// Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (wireLeaderVisibility's precedent).
+// Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (attachLeaderVisibility's precedent).
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";

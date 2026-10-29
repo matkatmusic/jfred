@@ -4,7 +4,7 @@ import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
 import { getDerivedCaches } from "./reconstruction_corpus.ts";
 import { Path } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { type BackupReader } from "./reconstruction_sidecar.ts";
@@ -138,7 +138,7 @@ export function findScriptCreatedPaths(
       const isKnownOrJunk = execution.pre.has(key) || isJunkStateKey(key);
       if (isKnownOrJunk)
         continue;
-      const absolute = resolveAgainstCwd(run.cwd, new Path(key));
+      const absolute = normalizeAgainstCwd(run.cwd, new Path(key));
       const isNewPath = !created.has(absolute);
       if (isNewPath)
         created.set(absolute, new Path(absolute));

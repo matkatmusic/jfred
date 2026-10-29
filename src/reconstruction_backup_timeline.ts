@@ -2,7 +2,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getFileHistorySnapshot } from "./structures/file-history.ts";
 import { Path, Uuid } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { getRecordSource } from "./parse/loadTranscript.ts";
 
@@ -61,7 +61,7 @@ function computeBackupTimeline(
     }
     const recordLine = getRecordSource(record)?.lineNumber;
     for (const [path, backup] of message.snapshot.trackedFileBackups.listEntries()) {
-      const key = resolveAgainstCwd(cwd, path);
+      const key = normalizeAgainstCwd(cwd, path);
       const points = timeline.get(key) ?? [];
       points.push({
         backupTime: backup.backupTime,
@@ -97,7 +97,7 @@ export function findBackupAtOrBefore(
   target: Path,
   when: Date,
 ): BackupPoint | undefined {
-  const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
+  const points = timeline.get(normalizeAgainstCwd(cwd, target)) ?? [];
   let chosen: BackupPoint | undefined;
   const whenMillis = when.getTime();
   for (const point of points) {
@@ -118,7 +118,7 @@ export function findBackupPointAfter(
   target: Path,
   when: Date,
 ): BackupPoint | undefined {
-  const points = timeline.get(resolveAgainstCwd(cwd, target)) ?? [];
+  const points = timeline.get(normalizeAgainstCwd(cwd, target)) ?? [];
   const whenMillis = when.getTime();
   for (const point of points) {
     const hasBackup = point.backupFileName !== null;

@@ -6,7 +6,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import {
   computeScriptExecutionChangeId,
   findScriptExecutionRuns,
@@ -30,8 +30,8 @@ function appendPairsProvenByRun(
   appended: FileEvent[],
 ): void {
   for (const pair of matchRenamePairs(pre, post)) {
-    const from = new Path(resolveAgainstCwd(run.cwd, new Path(pair.fromKey)));
-    const to = new Path(resolveAgainstCwd(run.cwd, new Path(pair.toKey)));
+    const from = new Path(normalizeAgainstCwd(run.cwd, new Path(pair.fromKey)));
+    const to = new Path(normalizeAgainstCwd(run.cwd, new Path(pair.toKey)));
     const pairKey = renamePairKeyOf(from, to);
     const isKnownPair = knownPairKeys.has(pairKey);
     if (isKnownPair) {
