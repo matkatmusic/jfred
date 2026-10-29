@@ -14,7 +14,10 @@ const CHANGE_ID = "toolu_fixture_004";
 const RECORD = { type: "assistant", toolUseResult: { structuredPatch: [{ oldStart: 3 }] }, note: "raw record text" };
 
 function answerEditFile(params: URLSearchParams): object {
-  return { content: params.get("side") === "base" ? "old line" : "new line", title: "Second title", record: RECORD };
+  if (params.has("line")) {
+    return RECORD;
+  }
+  return { content: params.get("side") === "base" ? "old line" : "new line", title: "Second title" };
 }
 
 function drawEditNode(kind: string, kindClass: string): HTMLElement {
@@ -73,6 +76,7 @@ test("an edit node reveals a [{ }] button that toggles its raw transcript JSON",
   const jsonBox = getRequiredElementById("dbody").querySelector(".node-json") as HTMLElement;
   assert.equal(jsonBox.hidden, true);
   toggle.click();
+  await waitForPendingFetches();
   assert.equal(jsonBox.hidden, false);
   assert.ok(jsonBox.textContent?.includes("structuredPatch"));
   assert.ok(jsonBox.textContent?.includes("raw record text"));

@@ -6,8 +6,8 @@ import {
     disableProvenance,
     drainProvenance,
 } from "../src/reconstruction_provenance.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
-    createSidecarReader,
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";

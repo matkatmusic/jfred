@@ -17,3 +17,11 @@ test("test_list_transcript_files_skips_workflow_journal", () => {
     const names = listTranscriptFiles([folder]).map((path) => basename(path.toString())).sort();
     assert.deepEqual(names, ["agent-a1.jsonl", "agent-a2.jsonl"]);
 });
+
+test("test_list_transcript_files_skips_prompt_history", () => {
+    const folder = makeTempDir();
+    writeFileSync(join(folder, "a.jsonl"), "{}\n");
+    writeFileSync(join(folder, "history.jsonl"), '{"display":"hi","timestamp":1,"project":"/p","sessionId":"s"}\n');
+    const names = listTranscriptFiles([folder]).map((path) => basename(path.toString()));
+    assert.deepEqual(names, ["a.jsonl"]);
+});

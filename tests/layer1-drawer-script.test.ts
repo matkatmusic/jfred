@@ -51,6 +51,30 @@ test("task 356: clicking the shared connector opens the SAME drawer as clicking 
   assert.equal(getRequiredElementById("dpath").firstChild?.textContent, "rename_inv.py");
 });
 
+test("a script-run drawer reveals the raw JSONL line of its tool_use record", async () => {
+  initLayer1Dom();
+  installAnimationFrameStub();
+  const asks = installRecordingFetch((params) => (params.has("line") ? { type: "assistant", note: "script tool_use line" } : { content: DISK_FILE_CONTENT }));
+  const { nodeA } = buildScriptRunStage();
+  armScriptRunView();
+  installNodeDrawer();
+  nodeA.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await waitForPendingFetches();
+
+  const toggle = getRequiredElementById("dbody").querySelector(".json-toggle") as HTMLButtonElement;
+  toggle.click();
+  await waitForPendingFetches();
+  const recordAsk = new URLSearchParams(asks.find((ask) => ask.url.includes("layer1-record"))!.url.split("?")[1]);
+  assert.equal(recordAsk.get("jsonl"), SCRIPT_RUN.sessionFile);
+  assert.equal(recordAsk.get("line"), "83");
+  assert.ok(getRequiredElementById("dbody").querySelector(".node-json")?.textContent?.includes("script tool_use line"));
+});
+
+test("a script run with no source line shows no [{ }] button", async () => {
+  await openSingleRunDrawer({ ...SCRIPT_RUN, toolUseId: "toolu_noline", line: undefined });
+  assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
+});
+
 test("task 356: an unlabeled script run (no static filename) still opens, with a generated header", async () => {
   await openSingleRunDrawer({ ...SCRIPT_RUN, toolUseId: "toolu_inline", label: undefined });
 

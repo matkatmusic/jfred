@@ -6,29 +6,29 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { extname, join, resolve, sep } from "node:path";
 import {
-    scanProjects,
-    readBlobSnapshot,
-    resolveProjectFile,
-    computeStaticFileRelative,
-    resolveStaticFilePath,
-    getProjectsDir,
-    setProjectsDir,
-    setFileHistoryDir,
-    getEffectiveFileHistoryDir,
+  scanProjects,
+  readBlobSnapshot,
+  resolveProjectFile,
+  computeStaticFileRelative,
+  resolveStaticFilePath,
+  getProjectsDir,
+  setProjectsDir,
+  setFileHistoryDir,
+  getEffectiveFileHistoryDir,
 } from "./viewer_api_projects.ts";
 import {
-    sendJson,
-    sendText,
-    requireParam,
-    handleDocumentRequest,
-    handleDiffRequest,
-    handleRangePatchRequest,
-    handleStepFilesRequest,
+  sendJson,
+  sendText,
+  requireParam,
+  handleDocumentRequest,
+  handleDiffRequest,
+  handleRangePatchRequest,
+  handleStepFilesRequest,
 } from "./viewer_server_routes.ts";
 import {
-    handleProjectPathsRequest,
-    handleRepoCommitMatchRequest,
-    handleRepoCommitsRequest,
+  handleProjectPathsRequest,
+  handleRepoCommitMatchRequest,
+  handleRepoCommitsRequest,
 } from "./viewer_api_repo.ts";
 import { handlePrescanRequest } from "./viewer_api_prescan.ts";
 import { handleLayeredGraphRequest } from "./viewer_api_layered.ts";
@@ -49,87 +49,90 @@ const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(import.meta.dirname, "..", "webapp", "dist");
 
 const CONTENT_TYPES: Record<string, string> = {
-    ".html": "text/html; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-    ".css": "text/css; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".svg": "image/svg+xml",
-    ".png": "image/png",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
 };
 
 const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--fixture] [--resetSandboxMemo] [--resetDocumentCache]";
 
 // `--projects-dir` is MANDATORY: there is no default scan root.
 function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean } {
-    const dirIndex = argv.indexOf("--projects-dir");
-    if (dirIndex < 0 || argv[dirIndex + 1] === undefined) {
-        throw new Error(USAGE);
-    }
-    setProjectsDir(argv[dirIndex + 1]!);
-    // Item 46: after --projects-dir, so an explicit dir survives the folder switch's reset.
-    const fileHistoryIndex = argv.indexOf("--file-history-dir");
-    if (fileHistoryIndex >= 0 && argv[fileHistoryIndex + 1] !== undefined) {
-        setFileHistoryDir(argv[fileHistoryIndex + 1]!);
-    }
-    const settingsFileIndex = argv.indexOf("--settings-file");
-    if (settingsFileIndex >= 0 && argv[settingsFileIndex + 1] !== undefined) {
-        setLayer1SettingsPath(new Path(argv[settingsFileIndex + 1]!));
-    }
-    // Task 330: --projects-dir stays mandatory even here; the fixture routes just ignore its contents.
-    if (argv.includes("--fixture")) {
-        enableFixtureMode();
-    }
-    const portIndex = argv.indexOf("--port");
-    const port = portIndex >= 0 ? Number(argv[portIndex + 1]) : DEFAULT_PORT;
-    if (!Number.isInteger(port)) {
-        throw new Error(USAGE);
-    }
-    return {
-        port,
-        resetSandboxMemo: argv.includes("--resetSandboxMemo"),
-        resetDocumentCache: argv.includes("--resetDocumentCache"),
-    };
+  const dirIndex = argv.indexOf("--projects-dir");
+  if (dirIndex < 0 || argv[dirIndex + 1] === undefined) {
+    throw new Error(USAGE);
+  }
+  setProjectsDir(argv[dirIndex + 1]!);
+  // Item 46: after --projects-dir, so an explicit dir survives the folder switch's reset.
+  const fileHistoryIndex = argv.indexOf("--file-history-dir");
+  if (fileHistoryIndex >= 0 && argv[fileHistoryIndex + 1] !== undefined) {
+    setFileHistoryDir(argv[fileHistoryIndex + 1]!);
+  }
+  const settingsFileIndex = argv.indexOf("--settings-file");
+  if (settingsFileIndex >= 0 && argv[settingsFileIndex + 1] !== undefined) {
+    setLayer1SettingsPath(new Path(argv[settingsFileIndex + 1]!));
+  }
+  // Task 330: --projects-dir stays mandatory even here; the fixture routes just ignore its contents.
+  if (argv.includes("--fixture")) {
+    enableFixtureMode();
+  }
+  const portIndex = argv.indexOf("--port");
+  const port = portIndex >= 0 ? Number(argv[portIndex + 1]) : DEFAULT_PORT;
+  if (!Number.isInteger(port)) {
+    throw new Error(USAGE);
+  }
+  return {
+    port,
+    resetSandboxMemo: argv.includes("--resetSandboxMemo"),
+    resetDocumentCache: argv.includes("--resetDocumentCache"),
+  };
 }
 
 // Serves from webapp/dist/ then webapp/, refusing any resolved path outside those roots.
 function serveStaticFile(response: ServerResponse, urlPath: string): void {
-    const relative = computeStaticFileRelative(urlPath);
-    const resolved = realpathSync(resolveStaticFilePath(relative, WEBAPP_DIST_DIR, WEBAPP_DIR));
-    // The second clause is redundant today, but stops a future dist relocation opening a traversal hole.
-    if (!resolved.startsWith(WEBAPP_DIR + sep) && !resolved.startsWith(WEBAPP_DIST_DIR + sep)) {
-        sendText(response, 400, "path escapes webapp/");
-        return;
-    }
-    const contentType = CONTENT_TYPES[extname(resolved)] ?? "application/octet-stream";
-    sendText(response, 200, readFileSync(resolved, "utf8"), contentType);
+  const relative = computeStaticFileRelative(urlPath);
+  const resolved = realpathSync(resolveStaticFilePath(relative, WEBAPP_DIST_DIR, WEBAPP_DIR));
+  // The second clause is redundant today, but stops a future dist relocation opening a traversal hole.
+  if (!resolved.startsWith(WEBAPP_DIR + sep) && !resolved.startsWith(WEBAPP_DIST_DIR + sep)) {
+    sendText(response, 400, "path escapes webapp/");
+    return;
+  }
+  const contentType = CONTENT_TYPES[extname(resolved)] ?? "application/octet-stream";
+  sendText(response, 200, readFileSync(resolved, "utf8"), contentType);
 }
 
 // Order matters: the projects switch clears the override, so an explicit fileHistoryDir applies after it.
 function applyConfigUpdate(response: ServerResponse, body: string): void {
-    const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
-    if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
-        sendJson(response, 400, { error: "body must carry projectsDir and/or fileHistoryDir" });
-        return;
-    }
-    if (requested.projectsDir !== undefined) {
-        setProjectsDir(requested.projectsDir);
-    }
-    if (requested.fileHistoryDir !== undefined) {
-        setFileHistoryDir(requested.fileHistoryDir);
-    }
-    sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+  const requested = JSON.parse(body) as { projectsDir?: string; fileHistoryDir?: string };
+  if (requested.projectsDir === undefined && requested.fileHistoryDir === undefined) {
+    sendJson(response, 400, { error: "body must carry projectsDir and/or fileHistoryDir" });
+    return;
+  }
+  if (requested.projectsDir !== undefined) {
+    setProjectsDir(requested.projectsDir);
+  }
+  if (requested.fileHistoryDir !== undefined) {
+    setFileHistoryDir(requested.fileHistoryDir);
+  }
+  sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
 }
 
 function handleConfigUpdate(request: IncomingMessage, response: ServerResponse): void {
-    let body = "";
-    request.on("data", (chunk: Buffer) => { body += chunk.toString(); });
-    request.on("end", () => {
-        try {
-            applyConfigUpdate(response, body);
-        } catch (error) {
-            sendJson(response, 400, { error: String(error) });
-        }
-    });
+  let body = "";
+  request.on("data", (chunk: Buffer) => {
+    body += chunk.toString();
+  });
+  request.on("end", () => {
+    try {
+      applyConfigUpdate(response, body);
+    }
+    catch (error) {
+      sendJson(response, 400, { error: String(error) });
+    }
+  });
 }
 
 // GET /api/pick-folder — a native macOS osascript chooser; cancel or failure returns an empty path.
@@ -138,84 +141,103 @@ function handleConfigUpdate(request: IncomingMessage, response: ServerResponse):
 
 // ponytail: spawnSync blocks the server while the dialog is open; use spawn+promise if concurrency appears.
 function handleFolderPickRequest(response: ServerResponse, query: URLSearchParams): void {
-    const current = query.get("current");
-    const seed = current !== null && existsSync(current)
-        ? ` default location (POSIX file ${JSON.stringify(current)})`
-        : "";
-    const result = spawnSync("osascript", [
-        // The server is a background process — without activate the dialog opens behind the browser.
-        "-e", 'tell application "System Events" to activate',
-        "-e", `set chosenFolders to (choose folder with prompt "Select folder"${seed} with multiple selections allowed)`,
-        "-e", "set posixPaths to {}",
-        "-e", "repeat with f in chosenFolders",
-        "-e", "set end of posixPaths to POSIX path of f",
-        "-e", "end repeat",
-        "-e", "set AppleScript's text item delimiters to linefeed",
-        "-e", "posixPaths as text",
-    ], { encoding: "utf8" });
+  const current = query.get("current");
+  const seed = current !== null && existsSync(current)
+    ? ` default location (POSIX file ${JSON.stringify(current)})`
+    : "";
+  const result = spawnSync("osascript", [
+    // The server is a background process — without activate the dialog opens behind the browser.
+    "-e", 'tell application "System Events" to activate',
+    "-e", `set chosenFolders to (choose folder with prompt "Select folder"${seed} with multiple selections allowed)`,
+    "-e", "set posixPaths to {}",
+    "-e", "repeat with f in chosenFolders",
+    "-e", "set end of posixPaths to POSIX path of f",
+    "-e", "end repeat",
+    "-e", "set AppleScript's text item delimiters to linefeed",
+    "-e", "posixPaths as text",
+  ], { encoding: "utf8" });
     // Non-zero = user cancelled (-128) or osascript failed; both are "no picks" to the client.
-    const paths = result.status === 0
-        ? result.stdout.split("\n").map((line) => line.trim().replace(/\/$/, "")).filter((line) => line !== "")
-        : [];
+  const paths = result.status === 0
+    ? result.stdout.split("\n").map((line) => line.trim().replace(/\/$/, "")).filter((line) => line !== "")
+    : [];
     // `path` stays for callers filling a single input (app-header.ts, layer1-sources.ts); `paths` is the full multi-select result.
-    sendJson(response, 200, { path: paths[0] ?? "", paths });
+  sendJson(response, 200, { path: paths[0] ?? "", paths });
 }
 
 function serveRawTranscript(response: ServerResponse, query: URLSearchParams): void {
-    const jsonlPath = resolveProjectFile(
-        getProjectsDir(), requireParam(query, "project"), requireParam(query, "jsonl"));
-    sendText(response, 200, readFileSync(jsonlPath.toString(), "utf8"));
+  const jsonlPath = resolveProjectFile(
+    getProjectsDir(), requireParam(query, "project"), requireParam(query, "jsonl"));
+  sendText(response, 200, readFileSync(jsonlPath.toString(), "utf8"));
 }
 
 function handleRequest(request: IncomingMessage, response: ServerResponse): void {
-    const url = new URL(request.url ?? "/", "http://127.0.0.1");
-    try {
-        if (request.method === "POST" && url.pathname === "/api/config") {
-            handleConfigUpdate(request, response);
-        } else if (url.pathname === "/api/config") {
-            // item 46: sendJson(response, 200, { projectsDir: getProjectsDir() });
-            sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
-        } else if (url.pathname === "/api/repo-commits") {
-            handleRepoCommitsRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/repo-commit-match") {
-            handleRepoCommitMatchRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/project-paths") {
-            handleProjectPathsRequest(request, response, url.searchParams);
-        } else if (url.pathname === "/api/pick-folder") {
-            handleFolderPickRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/projects") {
-            sendJson(response, 200, scanProjects(getProjectsDir()));
-        } else if (url.pathname === "/api/prescan") {
-            handlePrescanRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/layered-graph") {
-            handleLayeredGraphRequest(response, url.searchParams);
-        } else if (dispatchLayer1Route(request, response, url)) {
-            // Handled by viewer_server_layer1_routes.ts.
-        } else if (url.pathname === "/api/file-ladder") {
-            handleFileLadderRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/document") {
-            handleDocumentRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/raw") {
-            serveRawTranscript(response, url.searchParams);
-        } else if (url.pathname === "/api/blob") {
-            // Always 200 + { exists, content }: the client branches on `exists`.
-            const session = new Uuid(requireParam(url.searchParams, "session"));
-            const name = new Path(requireParam(url.searchParams, "name"));
-            sendJson(response, 200, readBlobSnapshot(session, name));
-        } else if (url.pathname === "/api/diff") {
-            handleDiffRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/range-patch") {
-            handleRangePatchRequest(response, url.searchParams);
-        } else if (url.pathname === "/api/step-files") {
-            handleStepFilesRequest(response, url.searchParams);
-        } else if (url.pathname === "/" || url.pathname === "/webapp_old.html" || url.pathname.startsWith("/app/")) {
-            serveStaticFile(response, url.pathname);
-        } else {
-            sendText(response, 404, `no route: ${url.pathname}`);
-        }
-    } catch (error) {
-        sendText(response, 400, String(error));
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  try {
+    if (request.method === "POST" && url.pathname === "/api/config") {
+      handleConfigUpdate(request, response);
     }
+    else if (url.pathname === "/api/config") {
+      // item 46: sendJson(response, 200, { projectsDir: getProjectsDir() });
+      sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+    }
+    else if (url.pathname === "/api/repo-commits") {
+      handleRepoCommitsRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/repo-commit-match") {
+      handleRepoCommitMatchRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/project-paths") {
+      handleProjectPathsRequest(request, response, url.searchParams);
+    }
+    else if (url.pathname === "/api/pick-folder") {
+      handleFolderPickRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/projects") {
+      sendJson(response, 200, scanProjects(getProjectsDir()));
+    }
+    else if (url.pathname === "/api/prescan") {
+      handlePrescanRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/layered-graph") {
+      handleLayeredGraphRequest(response, url.searchParams);
+    }
+    else if (dispatchLayer1Route(request, response, url)) {
+      // Handled by viewer_server_layer1_routes.ts.
+    }
+    else if (url.pathname === "/api/file-ladder") {
+      handleFileLadderRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/document") {
+      handleDocumentRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/raw") {
+      serveRawTranscript(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/blob") {
+      // Always 200 + { exists, content }: the client branches on `exists`.
+      const session = new Uuid(requireParam(url.searchParams, "session"));
+      const name = new Path(requireParam(url.searchParams, "name"));
+      sendJson(response, 200, readBlobSnapshot(session, name));
+    }
+    else if (url.pathname === "/api/diff") {
+      handleDiffRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/range-patch") {
+      handleRangePatchRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/api/step-files") {
+      handleStepFilesRequest(response, url.searchParams);
+    }
+    else if (url.pathname === "/" || url.pathname === "/webapp_old.html" || url.pathname.startsWith("/app/")) {
+      serveStaticFile(response, url.pathname);
+    }
+    else {
+      sendText(response, 404, `no route: ${url.pathname}`);
+    }
+  }
+  catch (error) {
+    sendText(response, 400, String(error));
+  }
 }
 
 const { port, resetSandboxMemo, resetDocumentCache } = parseServerArgs(process.argv.slice(2));
@@ -225,14 +247,14 @@ setImpureExecutionAllowed(false);
 const sandboxMemoPath = new Path(join(import.meta.dirname, "..", ".cache", "sandbox-memo.json"));
 // Delete BEFORE configuring persistence, which loads it — a forced cold load for measurement.
 if (resetSandboxMemo) {
-    resetSandboxMemoOnDisk(sandboxMemoPath);
+  resetSandboxMemoOnDisk(sandboxMemoPath);
 }
 configureSandboxMemoPersistence(sandboxMemoPath);
 // Item 79: a respawn reads back the ~87 MB / 7.8 min reconstruction instead of rebuilding it.
 const documentCacheDir = new Path(join(import.meta.dirname, "..", ".cache", "built-documents"));
 // Delete the cache dir BEFORE configuring, for a forced cold rebuild.
 if (resetDocumentCache) {
-    resetDocumentCacheOnDisk(documentCacheDir);
+  resetDocumentCacheOnDisk(documentCacheDir);
 }
 configureDocumentCachePersistence(documentCacheDir);
 const server = createServer(handleRequest);
@@ -241,6 +263,6 @@ server.requestTimeout = 0;
 // Localhost-only: disable the 5s idle close whose FIN races undici's connection reuse into ECONNRESET.
 server.keepAliveTimeout = 0;
 server.listen(port, "127.0.0.1", () => {
-    console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);
+  console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);
 });
 

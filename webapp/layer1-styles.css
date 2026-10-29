@@ -95,7 +95,7 @@
   .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
   .viz-root[data-hidden-kinds~="script-run"] .script-connector { visibility: hidden; }
   /*
-    Task 357: the branch kind hides its lanes and gives back their width; while shown, a trunk edit a lane also holds draws once, in the lane.
+    Task 357: hiding branches frees lane width; when shown, a trunk edit inside a lane draws once.
   */
   .viz-root[data-hidden-kinds~="branch"] .blane { display: none; }
   .viz-root[data-hidden-kinds~="branch"] .filebox { min-width: 168px; }
@@ -198,7 +198,7 @@
   .pane-loadbar .loadbar-label { white-space: normal; }
 
   .timelines { flex: 1; min-width: 0; overflow: auto; position: relative;
-    padding: calc(18px + var(--slack-top, 0px)) calc(12px + var(--slack-right, 0px)) calc(40px + var(--slack-bottom, 0px)) var(--slack-left, 0px); }
+    padding: calc(18px + var(--slack-top, 0px)) calc(12px + var(--slack-right, 0px)) calc(40px + var(--slack-bottom, 0px)) 0; }
   /*
     Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
   */
@@ -209,6 +209,10 @@
     left: 0 pins the gutter under horizontal scroll; its width is --rail-x plus the rail border.
   */
   .ruler { position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+  /*
+    Left slack follows the ruler; dividing by --zoom cancels the canvas zoom.
+  */
+  .ruler + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
   /*
     Task 290: `+ var(--lane-y)` drops the label onto the node's own row, matching `.leader`.
@@ -309,7 +313,7 @@
     z-index: 6; width: 15px; height: 15px; border-radius: 50%;
     box-shadow: 0 0 0 2.5px var(--surface); }
   /*
-    Task 379: a forked lane. `.blane` sits at the lane's x; its dashed rail and elbows are dimmer than the solid trunk rail.
+    Task 379: a forked lane. `.blane` sits at the lane's x; its dashed rail is dimmer than the trunk.
   */
   .blane { position: absolute; top: 0; bottom: 0; width: 0; left: calc(var(--lane-index) * var(--lane-w) - 1px); }
   .brail { position: absolute; left: -1px; top: calc(var(--axis-px) * 1px); height: calc(var(--span-px) * 1px);
@@ -706,14 +710,14 @@
   .node.conf-derived { background: transparent; border: 2px dashed var(--node-colour); }
   .node.conf-reseeded { outline: 2px dotted var(--c-edit); outline-offset: 3.5px; }
   /*
-    Task 356: a script run is a hollow ring; a bash run is never provable, so its ring is dashed (as .kind-pre-anchor-stub).
+    Task 356: a script run is a hollow ring; a bash run is unprovable, so its ring is dashed.
   */
   .node.n-script { background: transparent; border: 3.5px solid var(--c-script); }
   .node.n-script.never-provable { border: 2px dashed var(--c-script); }
   /*
     Task 356: the connector joins one run's dots across bubbles; ::before widens the click target.
   */
-  .script-connector { position: absolute; z-index: 5; height: 0; border-top: 2px dashed var(--c-script);
+  .script-connector { position: absolute; z-index: -1; height: 0; border-top: 2px dashed var(--c-script);
     transform: translateY(-50%); cursor: pointer; }
   .script-connector::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 12px; }
   /*

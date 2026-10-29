@@ -9,8 +9,8 @@ import {
     someStepReproduces,
 } from "../src/reconstruction_steps.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
-    createSidecarReader,
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";

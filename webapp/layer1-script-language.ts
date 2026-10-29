@@ -2,6 +2,7 @@
 
 export const WireScriptLanguage = {
   javascript: "javascript",
+  node: "node",
   typescript: "typescript",
   python: "python",
   shell: "shell",
@@ -28,6 +29,7 @@ const HIGHLIGHT_LANGUAGE_BY_SCRIPT_LANGUAGE: ReadonlyMap<WireScriptLanguage, str
   [WireScriptLanguage.shell, "bash"],
   [WireScriptLanguage.bash, "bash"],
   [WireScriptLanguage.javascript, "javascript"],
+  [WireScriptLanguage.node, "javascript"],
   [WireScriptLanguage.typescript, "typescript"],
 ]);
 

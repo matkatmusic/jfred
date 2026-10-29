@@ -51,6 +51,14 @@ test("test_a_snapshotted_pair_draws_one_camera_node_per_version_at_the_wire_offs
     assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸"]);
 });
 
+test("test_a_snapshot_whose_backup_file_is_missing_is_labelled_camera_no_entry", async () => {
+    // Scenario: only the flagged node gets the 🚫; its neighbour keeps the plain 📸 label.
+    const missingSnap = { ...SNAP2, isBackupMissing: true };
+    const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1, missingSnap] };
+    await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1, missingSnap));
+    assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸🚫"]);
+});
+
 test("test_a_snapshot_node_carries_its_version_session_file_and_line_for_tasks_316_317", async () => {
     // Scenario: tasks 316/317 must act on a snapshot without a second fetch, so the DOM node carries its identity in data- attrs (task 280 rule), on the dot and its label alike.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1] };

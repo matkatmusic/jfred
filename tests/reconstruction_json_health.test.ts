@@ -12,8 +12,8 @@ import {
     noteReconstructionFailure,
 } from "../src/reconstruction_health.ts";
 import { Path } from "../src/structures/domain.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
-    createSidecarReader,
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";

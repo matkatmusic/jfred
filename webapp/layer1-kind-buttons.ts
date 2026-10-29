@@ -17,7 +17,7 @@ function markEditBoxChecked(): void {
 }
 
 // Spec S21.9: [4] implies [3]. The loads run one after the other: they share one busy shield.
-async function markEditAndScriptRunBoxesChecked(): Promise<void> {
+export async function markEditAndScriptRunBoxesChecked(): Promise<void> {
   for (const kind of [ShowRowKind.edit, ShowRowKind.scriptRun]) {
     const box = findKindBox(kind);
     if (!box.checked) {
