@@ -40,13 +40,16 @@ export function extractConversationMessages(records: TranscriptRecord[]): Conver
   const orphanedUuids = collectOrphanedUuids(records);
   const messages: ConversationMessage[] = [];
   for (const record of records) {
-    if (isGenuineUserPrompt(record)) {
+    const isUserPrompt = isGenuineUserPrompt(record);
+    if (isUserPrompt) {
       messages.push(buildConversationMessage(record, orphanedUuids));
       continue;
     }
-    if (record.type === RecordType.assistant && extractMessageText(record) !== "") {
+    if (record.type !== RecordType.assistant)
+      continue;
+    const messageText = extractMessageText(record);
+    if (messageText !== "")
       messages.push(buildConversationMessage(record, orphanedUuids));
-    }
   }
   return messages;
 }
@@ -58,13 +61,12 @@ export type BranchSummary = {
   wasRewound: boolean;
 };
 
-export function summarizeBranches(records: TranscriptRecord[]): BranchSummary[] {
-  return findConversationBranches(records).map((branch) => ({
-    tip: branch.tip,
-    rewindPoint: branch.rewindPoint,
-    isSurviving: branch.isSurviving,
-    wasRewound: !branch.isSurviving,
-  }));
+export function collectBranchSummaries(records: TranscriptRecord[]): BranchSummary[] {
+  const summaries: BranchSummary[] = [];
+  for (const branch of findConversationBranches(records)) {
+    summaries.push({ tip: branch.tip, rewindPoint: branch.rewindPoint, isSurviving: branch.isSurviving, wasRewound: !branch.isSurviving });
+  }
+  return summaries;
 }
 
 // Transcript-detected git commits; markers (not changeIds) are the viewer's commit signal.
@@ -77,14 +79,10 @@ export type CommitMarker = {
 export function findSessionTitles(records: TranscriptRecord[]): Record<string, string> {
   const titlesBySessionId: Record<string, string> = {};
   for (const record of records) {
-    if (record.type !== RecordType.customTitle)
-      continue;
-    if (record.sessionId === undefined)
-      continue;
     const title = record["customTitle"];
-    if (typeof title !== "string")
-      continue;
-    titlesBySessionId[String(record.sessionId)] = title;
+    const isSessionTitle = record.type === RecordType.customTitle && record.sessionId !== undefined && typeof title === "string";
+    if (isSessionTitle)
+      titlesBySessionId[String(record.sessionId)] = title;
   }
   return titlesBySessionId;
 }
@@ -123,10 +121,10 @@ export function buildReconstructionDocument(
   // task 119: each sub-phase uses buildPhaseTolerantly to degrade gracefully.
   reportReconstructionProgress("extracting conversation messages");
   // task 119: const messages = extractConversationMessages(records);
-  const messages = buildPhaseTolerantly("extractConversationMessages", [], () => extractConversationMessages(records));
+  const messages = buildPhaseTolerantly("extractConversationMessages", [], extractConversationMessages.bind(undefined, records));
   reportReconstructionProgress("summarizing branches");
-  // task 119: const branches = summarizeBranches(records);
-  const branches = buildPhaseTolerantly("summarizeBranches", [], () => summarizeBranches(records));
+  // task 119: const branches = collectBranchSummaries(records);
+  const branches = buildPhaseTolerantly("summarizeBranches", [], collectBranchSummaries.bind(undefined, records));
   const sections = buildDocumentSections(records, branched, reader, target);
   const document: ReconstructionDocument = {
     sessionId: findSessionId(records),

@@ -2,7 +2,7 @@
 
 import { renderDetailsCommitMode, renderDetailsMessageMode } from "./details.ts";
 import { renderDetailsScriptRunMode } from "./details-script-run.ts";
-import { clearFileSelectionIn } from "./sidebar.ts";
+import { clearFileSelectionIn } from "./sidebar-selection.ts";
 import { findContributingNodeIndexes } from "./timeline-commit-files.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
 import { findAdjacentFileTouchedIndex, findAdjacentRowIndex } from "./timeline-sessions.ts";

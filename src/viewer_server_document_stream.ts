@@ -29,14 +29,22 @@ export type DocumentStreamRequest = {
   baselineQuestion: BaselineQuestion | undefined;
 };
 
-export function streamDocumentResponse(response: ServerResponse, request: DocumentStreamRequest): void {
+export function writeDocumentResponseStream(response: ServerResponse, request: DocumentStreamRequest): void {
   const { projectName, jsonlName, allowScripts, declined, target, bound, reconstructPreBaseline, baselineQuestion } = request;
   // Progress stream: headers go out now, so failures become the terminal error line, not a 400.
   response.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8" });
   response.socket?.setNoDelay(true);   // sync build between writes — do not let Nagle batch the lines
   const writeNdjsonLine = (value: unknown): void => {
     // Client aborts surface only as a failed write (socket.writable false); the next call throws to cancel the build.
-    if (response.destroyed || response.socket === null || response.socket.destroyed || !response.socket.writable) {
+    const { socket } = response;
+    const isResponseDestroyed = response.destroyed;
+    const isSocketMissing = socket === null;
+    const isSocketDestroyed = socket?.destroyed === true;
+    const isSocketUnwritable = socket?.writable !== true;
+    const isResponseGone = isResponseDestroyed || isSocketMissing;
+    const isSocketGone = isSocketDestroyed || isSocketUnwritable;
+    const isClientGone = isResponseGone || isSocketGone;
+    if (isClientGone) {
       throw new Error("client disconnected — build cancelled");
     }
     response.write(JSON.stringify(value) + "\n");
@@ -66,14 +74,18 @@ export function streamDocumentResponse(response: ServerResponse, request: Docume
     reportStage(decision.kind === DocumentResponseKind.consentRequired
       ? `consent required — ${decision.scripts.length} recorded script execution(s)`
       : "no script-execution consent needed");
-    if (decision.kind === DocumentResponseKind.consentRequired && !declined) {
+    const isConsentRequired = decision.kind === DocumentResponseKind.consentRequired;
+    const isNotDeclined = !declined;
+    const isConsentNeeded = isConsentRequired && isNotDeclined;
+    if (isConsentNeeded) {
       response.end(JSON.stringify(decision) + "\n");
       return;
     }
-    const document = buildDocumentWithConsent(jsonlPaths, target, allowScripts, (event) => {
+    const writeAndLogProgress: ProgressSink = (event) => {
       writeNdjsonLine(event);
       logBuildProgressToConsole(event);
-    }, reconstructPreBaseline, bound);
+    };
+    const document = buildDocumentWithConsent(jsonlPaths, target, allowScripts, writeAndLogProgress, reconstructPreBaseline, bound);
     // Announce serializing first because stringify blocks the event loop; the byte size is known only after it. (item 82)
     reportStage(PROGRESS_LABEL_SERIALIZING_DOCUMENT);
     const serialized = JSON.stringify(document);

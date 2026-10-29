@@ -18,8 +18,8 @@ import { insertBaseCommitBeacon } from "./reconstruction_base_commit.ts";
 import { insertStaleEditBaseSeeds } from "./reconstruction_reseed.ts";
 import {
   buildRenameChain,
-  eventBelongsToLineage,
-  resolveFinalPath,
+  isEventInLineage,
+  getFinalPath,
 } from "./reconstruction_lineage.ts";
 import { executeStageTolerantly } from "./reconstruction_stage_runner.ts";
 import { fillCopySeeds } from "./reconstruction_copy_seeds.ts";
@@ -62,10 +62,10 @@ function computeFileRevisionsOver(
     ? executeStageTolerantly("appendScriptMoveRenames", target, extracted, appendScriptMoveRenames, extracted, records, reader, getLineageContentBefore(records, reader))
     : extracted;
   const renameChain = buildRenameChain(events);
-  const finalTarget = resolveFinalPath(target, renameChain);
+  const finalTarget = getFinalPath(target, renameChain);
   const lineage: FileEvent[] = [];
   for (const event of events) {
-    const belongsToLineage = eventBelongsToLineage(event, finalTarget, renameChain);
+    const belongsToLineage = isEventInLineage(event, finalTarget, renameChain);
     if (belongsToLineage) {
       lineage.push(event);
     }

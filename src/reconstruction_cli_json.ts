@@ -7,7 +7,7 @@ import { findBranchById } from "./reconstruction_branch_lookup.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { getRecordVerdict } from "./reconstruction_parse_lines.ts";
 import {
-  summarizeBranches,
+  collectBranchSummaries,
   buildReconstructionDocument,
 } from "./reconstruction_json.ts";
 import { buildStepSnapshots } from "./reconstruction_json_steps.ts";
@@ -58,7 +58,7 @@ export function renderJson(
     return JSON.stringify(filterByTarget(histories, options.target), null, 2);
   }
   if (options.listBranches) {
-    return JSON.stringify(summarizeBranches(records), null, 2);
+    return JSON.stringify(collectBranchSummaries(records), null, 2);
   }
   return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target).document, null, 2);
 }

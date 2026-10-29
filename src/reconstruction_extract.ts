@@ -16,7 +16,7 @@ import {
 } from "./reconstruction_extract_edit_details.ts";
 import { extractBashEvents } from "./reconstruction_bash_events.ts";
 import { extractScriptRenameEvents } from "./reconstruction_script_renames.ts";
-import { userEditEventFrom } from "./reconstruction_user_edit.ts";
+import { getUserEditEvent } from "./reconstruction_user_edit.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 
 // Turn a Write tool_use into a write event; newer transcripts name the input keys path/file_text.
@@ -80,7 +80,7 @@ function collectEventsFromRecord(
     }
     events.push(...convertToFileEvents(block, timestamp, detailById, cwd, erroredIds));
   }
-  const userEdit = userEditEventFrom(record);
+  const userEdit = getUserEditEvent(record);
   if (userEdit) {
     events.push(userEdit);
   }

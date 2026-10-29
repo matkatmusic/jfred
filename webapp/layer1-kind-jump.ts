@@ -3,7 +3,7 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden, registerKindBoxToggle } from "./layer1-kind-filter.ts";
-import { classifyNodeKind } from "./layer1-node-kind.ts";
+import { readNodeKind } from "./layer1-node-kind.ts";
 import { KindJumpDirection, ShowRowKind } from "./layer1-show-row.ts";
 
 // Within this a node counts as the one already landed on, so a second click never sticks on it.
@@ -44,7 +44,7 @@ function readAnchorY(): number {
 function listKindNodes(kind: ShowRowKind): MeasuredNode[] {
   const measuredNodes: MeasuredNode[] = [];
   for (const node of getRequiredElementById("stage").querySelectorAll<HTMLElement>(".node, .bnode")) {
-    const isRequestedKind = classifyNodeKind(node) === kind;
+    const isRequestedKind = readNodeKind(node) === kind;
     if (isRequestedKind) {
       measuredNodes.push({ node, centerY: readCenterY(node) });
     }

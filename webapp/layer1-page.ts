@@ -19,7 +19,7 @@ import { resetSessionSelection } from "./layer1-sessions.ts";
 import { attachSettingsSave, markSettingsDirty } from "./layer1-settings.ts";
 import { applySavedSettingsForCurrentDir, loadSavedSettings } from "./layer1-settings-restore.ts";
 import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
-import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "./layer1-sources.ts";
 import { closeRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
 import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
@@ -132,7 +132,7 @@ export async function initLayer1Page(): Promise<void> {
   installCopyLinkButton();
   wireTickExpansion();
   wireLeaderVisibility();
-  wireFolderPickers(loadViewAfterRefCheck);
+  attachFolderPickers(loadViewAfterRefCheck);
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
   await seedSourceDefaults();

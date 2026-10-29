@@ -1,6 +1,6 @@
 // Runtime-switchable folders (item 46), split from app-router.ts (task 115); header depends on router.
 
-import { reconcileServerBootId } from "./app-choices.ts";
+import { clearChoicesOnNewBootId } from "./app-choices.ts";
 import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
 import { initToolbarPopovers } from "./app-header-popovers.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
@@ -113,7 +113,7 @@ export async function initHeader(): Promise<void> {
   document.getElementById("file-history-toggle")!.addEventListener("click", toggleFileHistoryFields);
   const config = await fetchJson<WireConfig>("/api/config");
   // Runs before the first renderRoute, so a relaunched server drops stale consent choices (item 82).
-  reconcileServerBootId(config.bootId);
+  clearChoicesOnNewBootId(config.bootId);
   applyConfig(config);
   document.getElementById("projects-dir-change")!.addEventListener("click", sendConfigChange);
   document.getElementById("projects-dir-open")!.addEventListener("click", selectProjectsFolder);

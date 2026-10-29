@@ -1,6 +1,6 @@
 import { type ServerResponse } from "node:http";
 import { buildDocumentWithConsent } from "./viewer_api.ts";
-import { logBuildProgressToConsole, streamDocumentResponse } from "./viewer_server_document_stream.ts";
+import { logBuildProgressToConsole, writeDocumentResponseStream } from "./viewer_server_document_stream.ts";
 import { decideBaselineQuestion, decideDocumentResponse } from "./viewer_api_consent.ts";
 import { applyProjectOverrides } from "./viewer_api_projects.ts";
 import { findJsonlPaths } from "./viewer_api_sources.ts";
@@ -69,7 +69,7 @@ export function sendDocumentResponse(response: ServerResponse, query: URLSearchP
     return;
   }
 
-  streamDocumentResponse(response, { projectName, jsonlName, allowScripts, declined, target, bound, reconstructPreBaseline, baselineQuestion });
+  writeDocumentResponseStream(response, { projectName, jsonlName, allowScripts, declined, target, bound, reconstructPreBaseline, baselineQuestion });
 }
 
 // GET /api/diff: the revision-timeline or vs-base diff text for one file.

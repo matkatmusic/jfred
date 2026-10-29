@@ -7,7 +7,7 @@ import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { selectLiveBranch } from "./reconstruction_branch.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { buildRenameChain, distinctFinalPaths } from "./reconstruction_lineage.ts";
+import { buildRenameChain, collectDistinctFinalPaths } from "./reconstruction_lineage.ts";
 import { getSurvivingFileHistory } from "./reconstruction_target.ts";
 import { applyProjectOverrides } from "./viewer_api_projects.ts";
 import { findJsonlPaths } from "./viewer_api_sources.ts";
@@ -31,7 +31,7 @@ function loadMergedProjectRecords(projectName: string): { records: TranscriptRec
 function listFinalPaths(records: TranscriptRecord[]): string[] {
   const events = extractFileEvents(selectLiveBranch(records));
   const renameChain = buildRenameChain(events);
-  const finalPaths = distinctFinalPaths(events, renameChain);
+  const finalPaths = collectDistinctFinalPaths(events, renameChain);
   const pathStrings: string[] = [];
   for (const path of finalPaths)
     pathStrings.push(path.toString());

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "../webapp/layer1-sources.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "../webapp/layer1-sources.ts";
 
 function readBoxValue(id: string): string {
     return (document.getElementById(id) as HTMLInputElement).value;
@@ -14,7 +14,7 @@ function writeBoxValue(id: string, value: string): void {
 }
 
 test("test_source_boxes_round_trip_the_query_string", () => {
-    // Scenario: a ?dir=&repo=&ref= link opens with its three boxes already filled, and reading them back yields the same params — the two halves of S18's "one shareable link".  Steps: open the page on a fully-specified link.
+    // Scenario: a fully-specified link fills the three boxes, and reading them back yields the same params.
     initLayer1Dom("?dir=/w/projects&repo=/w/repo&ref=develop");
     fillSourceBoxesFromUrl();
     // every box carries its own param, decoded.
@@ -30,7 +30,7 @@ test("test_source_boxes_round_trip_the_query_string", () => {
 });
 
 test("test_a_blank_or_whitespace_box_contributes_no_param", () => {
-    // Scenario: the ref box is OPTIONAL — the endpoint reads an absent ref as the repo's active branch, so an empty box must be omitted rather than sent as ref="". Whitespace is the same case: a stray space would otherwise become a ref nothing resolves.  Steps: open an unseeded page and fill only the two required boxes, leaving ref whitespace.
+    // Scenario: a blank or whitespace ref box is omitted from the params, not sent as ref="".
     initLayer1Dom();
     writeBoxValue("dir", "/w/projects");
     writeBoxValue("repo", "/w/repo");
@@ -43,7 +43,7 @@ test("test_a_blank_or_whitespace_box_contributes_no_param", () => {
 });
 
 test("test_an_unseeded_box_keeps_whatever_the_user_typed", () => {
-    // Scenario: fillSourceBoxesFromUrl runs on every boot, including after a pick. A param the URL does NOT carry must leave its box alone — clearing it would wipe a folder the user just chose.  Steps: type into all three boxes, then open on a link that names only dir.
+    // Scenario: a param the URL does not carry leaves its typed box alone.
     initLayer1Dom("?dir=/w/from-url");
     writeBoxValue("dir", "/w/typed");
     writeBoxValue("repo", "/w/kept-repo");
@@ -56,11 +56,11 @@ test("test_an_unseeded_box_keeps_whatever_the_user_typed", () => {
 });
 
 test("test_a_picked_folder_lands_in_its_own_box_and_redraws_once", async () => {
-    // Scenario: each `button.pick` is bound to the box named by its `data-for`, so clicking the repo picker must not write into the dir box. The redraw callback is what re-runs the view, and it must fire exactly once per successful pick.  Steps: stub the picker endpoint and wire the buttons against the real markup.
+    // Scenario: a picker fills only its own `data-for` box and fires the redraw callback once.
     initLayer1Dom();
     globalThis.fetch = (async () => new Response(JSON.stringify({ path: "/w/picked-repo" }))) as typeof fetch;
     let redraws = 0;
-    wireFolderPickers(() => {
+    attachFolderPickers(() => {
         redraws += 1;
     });
     // click the REPO picker specifically.
@@ -73,11 +73,11 @@ test("test_a_picked_folder_lands_in_its_own_box_and_redraws_once", async () => {
 });
 
 test("test_a_cancelled_pick_leaves_the_box_alone", async () => {
-    // Scenario: GET /api/pick-folder answers a cancelled native dialog with an EMPTY path. Writing that through would erase a folder the user had already chosen, so it must be a no-op.  Steps: this is the empty-path branch of pickFolderInto, asserted through the same click path.
+    // Scenario: a cancelled dialog returns an empty path, which must not erase the chosen folder.
     initLayer1Dom();
     writeBoxValue("dir", "/w/already-chosen");
     globalThis.fetch = (async () => new Response(JSON.stringify({ path: "" }))) as typeof fetch;
-    wireFolderPickers(() => {});
+    attachFolderPickers(() => {});
     (document.querySelector('button.pick[data-for="dir"]') as HTMLButtonElement).click();
     // WITHOUT this the pick has not resolved yet and the assertion below proves nothing.
     await waitForAsyncWork();

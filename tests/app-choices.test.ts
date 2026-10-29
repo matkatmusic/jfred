@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { storeModeChoice, getModeChoice, clearModeChoice, reconcileServerBootId } from "../webapp/app-choices.ts";
+import { storeModeChoice, getModeChoice, clearModeChoice, clearChoicesOnNewBootId } from "../webapp/app-choices.ts";
 
 initWebappDom();
 
@@ -19,12 +19,12 @@ test("mode_choice_round_trips_full_and_bounded", () => {
 });
 
 test("boot_id_change_forgets_the_mode_choice", () => {
-    reconcileServerBootId("boot-one");
+    clearChoicesOnNewBootId("boot-one");
     storeModeChoice("proj-b", { mode: "bounded", file: "/repo/a.py", nth: 1 });
     // Same boot id: the choice survives.
-    reconcileServerBootId("boot-one");
+    clearChoicesOnNewBootId("boot-one");
     assert.notEqual(getModeChoice("proj-b"), null);
     // A relaunched server (new boot id) sweeps every per-project choice, mode included.
-    reconcileServerBootId("boot-two");
+    clearChoicesOnNewBootId("boot-two");
     assert.equal(getModeChoice("proj-b"), null);
 });

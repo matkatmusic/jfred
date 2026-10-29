@@ -16,7 +16,7 @@ interface MockBranchSpec {
   nodes: { at: string; label: string }[];
 }
 
-// forkAt sits one minute after its trunk commit (a fork owns a ladder slot); rejoinAt equals a trunk commit instant.
+// forkAt is one minute after a trunk commit; rejoinAt equals a trunk commit instant.
 const MOCK_BRANCHES: Record<string, MockBranchSpec[]> = {
   "src/util.ts": [
     { rewindKind: WireRewindKind.code, forkAt: "2026-06-01T14:31:00Z",
@@ -36,26 +36,43 @@ export function readFixtureBranchFile(path: string, changeId: string, side: stri
   return { content: (side === WireEditSide.base ? before : [...before, `// ${changeId}`]).join("\n") };
 }
 
-type FixtureBranchesView =WireBranchesViewOf<Date, Path, Uuid>;
+type FixtureBranchesView = WireBranchesViewOf<Date, Path, Uuid>;
+type FixtureBranch = FixtureBranchesView["pairs"][number]["branches"][number];
+type FixtureBranchNode = FixtureBranch["nodes"][number];
+
+function listFixtureBranchNodes(spec: MockBranchSpec, pathIndex: number, laneIndex: number): FixtureBranchNode[] {
+  const nodes: FixtureBranchNode[] = [];
+  for (const [nodeIndex, node] of spec.nodes.entries()) {
+    nodes.push({
+      instant: new Date(parseMs(node.at)),
+      changeId: new Uuid(`toolu_fixture_branch_${pathIndex}_${laneIndex}_${nodeIndex}`),
+      label: node.label,
+    });
+  }
+  return nodes;
+}
+
+function listFixtureBranches(specs: MockBranchSpec[], pathIndex: number): FixtureBranch[] {
+  const branches: FixtureBranch[] = [];
+  for (const [laneIndex, spec] of specs.entries()) {
+    branches.push({
+      rewindKind: spec.rewindKind,
+      forkAt: new Date(parseMs(spec.forkAt)),
+      ...(spec.rejoinAt === undefined ? {} : { rejoinAt: new Date(parseMs(spec.rejoinAt)) }),
+      nodes: listFixtureBranchNodes(spec, pathIndex, laneIndex),
+    });
+  }
+  return branches;
+}
 
 export function buildFixtureBranchesPayload(writeNdjsonLine: (value: unknown) => void): FixtureBranchesView {
   writeNdjsonLine({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, current: 1, total: 1 });
   writeNdjsonLine({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES, current: 1, total: 1 });
-  return {
-    pairs: Object.entries(MOCK_BRANCHES).map(([path, specs], pathIndex) => ({
-      path: new Path(path),
-      branches: specs.map((spec, laneIndex) => ({
-        rewindKind: spec.rewindKind,
-        forkAt: new Date(parseMs(spec.forkAt)),
-        ...(spec.rejoinAt === undefined ? {} : { rejoinAt: new Date(parseMs(spec.rejoinAt)) }),
-        nodes: spec.nodes.map((node, nodeIndex) => ({
-          instant: new Date(parseMs(node.at)),
-          changeId: new Uuid(`toolu_fixture_branch_${pathIndex}_${laneIndex}_${nodeIndex}`),
-          label: node.label,
-        })),
-      })),
-    })),
-  };
+  const pairs: FixtureBranchesView["pairs"] = [];
+  for (const [pathIndex, [path, specs]] of Object.entries(MOCK_BRANCHES).entries()) {
+    pairs.push({ path: new Path(path), branches: listFixtureBranches(specs, pathIndex) });
+  }
+  return { pairs };
 }
 
 /* Task 357: the fixture Layer 1 view no longer embeds lanes; they arrive from /api/layer1-branches.

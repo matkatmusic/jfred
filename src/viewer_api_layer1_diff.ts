@@ -1,6 +1,4 @@
-// GET /api/layer1-diff (task 305): unified-diff hunks between two revisions of ONE Layer 1 file.
-//
-// `baseHash`/`targetHash` pick commit blobs from `repo`; an absent hash means the working tree under `dir`.
+// GET /api/layer1-diff: unified-diff hunks between two revisions of one Layer 1 file.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { FULL_FILE_CONTEXT_LINES, runGitUnifiedDiff } from "./render_git_diff.ts";
@@ -11,7 +9,9 @@ import { sendJson } from "./viewer_server_routes.ts";
 // Text → lines for git's side files; a trailing newline's empty element is not a line.
 function splitContentLines(text: string): string[] {
   const lines = text.split("\n");
-  if (lines.at(-1) === "") {
+  const lastLine = lines.at(-1);
+  const hasTrailingNewline = lastLine === "";
+  if (hasTrailingNewline) {
     lines.pop();
   }
   return lines;
@@ -38,7 +38,11 @@ function buildAllContextHunk(lines: string[]): string {
   if (lines.length === 0) {
     return "";
   }
-  return [`@@ -1,${lines.length} +1,${lines.length} @@`, ...lines.map((line) => ` ${line}`)].join("\n");
+  const contextLines: string[] = [];
+  for (const line of lines) {
+    contextLines.push(` ${line}`);
+  }
+  return [`@@ -1,${lines.length} +1,${lines.length} @@`, ...contextLines].join("\n");
 }
 
 // The diff string between two revisions; task 330's fixture route feeds canned lines through the same rule.
@@ -49,19 +53,19 @@ export function buildLayer1DiffPayload(baseLines: string[], targetLines: string[
 }
 
 // Answers { diff }; empty when identical (unless context=full), failures 400 via the server's catch.
-export function handleLayer1DiffRequest(response: ServerResponse, query: URLSearchParams): void {
+export function sendLayer1Diff(response: ServerResponse, query: URLSearchParams): void {
   const baseLines = readSideLines(query, "base");
   const targetLines = readSideLines(query, "target");
   sendJson(response, 200, { diff: buildLayer1DiffPayload(baseLines, targetLines, query.get("context") === "full") });
 }
 
 // POST /api/layer1-diff-content (task 329): { base, target, context? } strings in, { diff } out.
-export function handleLayer1DiffContentRequest(request: IncomingMessage, response: ServerResponse): void {
+export function sendLayer1DiffContent(request: IncomingMessage, response: ServerResponse): void {
   let body = "";
-  request.on("data", (chunk: Buffer) => {
+  function appendChunk(chunk: Buffer): void {
     body += chunk.toString();
-  });
-  request.on("end", () => {
+  }
+  function sendDiffForBody(): void {
     try {
       const payload = JSON.parse(body) as { base: string; target: string; context?: string };
       sendJson(response, 200, {
@@ -72,5 +76,7 @@ export function handleLayer1DiffContentRequest(request: IncomingMessage, respons
     catch (error) {
       sendJson(response, 400, { error: String(error) });
     }
-  });
+  }
+  request.on("data", appendChunk);
+  request.on("end", sendDiffForBody);
 }

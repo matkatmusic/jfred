@@ -7,7 +7,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import type { ToolUseBlock } from "./structures/content-blocks.ts";
 import { BlockType, RecordType, ToolName, Verdict } from "./structures/vocabulary.ts";
-import { userEditEventFrom } from "./reconstruction_user_edit.ts";
+import { getUserEditEvent } from "./reconstruction_user_edit.ts";
 import {
   parseCpPaths,
   parseMvPaths,
@@ -89,7 +89,7 @@ export function getRecordVerdict(record: TranscriptRecord): Verdict {
   if (record.type === RecordType.fileHistorySnapshot) {
     return Verdict.fileHistorySnapshot;
   }
-  if (userEditEventFrom(record) !== undefined) {
+  if (getUserEditEvent(record) !== undefined) {
     return Verdict.userEdit;
   }
   return scanToolUseVerdict(record) ?? getResultVerdict(record) ?? Verdict.ignore;

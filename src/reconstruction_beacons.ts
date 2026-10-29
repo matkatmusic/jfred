@@ -5,7 +5,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { getBackupWrites } from "./reconstruction_sidecar.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
-import { beaconSnippetFor } from "./reconstruction_user_edit.ts";
+import { getBeaconSnippet } from "./reconstruction_user_edit.ts";
 import type { FileEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 import {
   computeBracketMidpointTime,
@@ -36,7 +36,7 @@ function findElidedBeaconSeed(
   notAfter: Date | undefined,
   lineage: FileEvent[],
 ): WriteEvent | undefined {
-  const snippet = beaconSnippetFor(records, beacon.changeId);
+  const snippet = getBeaconSnippet(records, beacon.changeId);
   if (snippet === undefined) {
     return undefined;
   }

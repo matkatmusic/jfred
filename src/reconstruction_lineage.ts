@@ -16,7 +16,7 @@ export function buildRenameChain(events: FileEvent[]): Map<string, Path> {
 }
 
 // Follows the rename chain; seen-set stops a recorded undo (mv a b; mv b a) from looping forever.
-export function resolveFinalPath(
+export function getFinalPath(
   path: Path,
   renameChain: Map<string, Path>,
 ): Path {
@@ -24,17 +24,19 @@ export function resolveFinalPath(
   const seen = new Set<string>([current.toString()]);
   while (renameChain.has(current.toString())) {
     const next = renameChain.get(current.toString())!;
-    if (seen.has(next.toString())) {
+    const nextKey = next.toString();
+    const isCycle = seen.has(nextKey);
+    if (isCycle) {
       return current;
     }
-    seen.add(next.toString());
+    seen.add(nextKey);
     current = next;
   }
   return current;
 }
 
 // The path a content event touches; for a rename or copy it is the destination.
-export function contentPathOf(event: FileEvent): Path {
+export function getContentPath(event: FileEvent): Path {
   if (event.kind === EventKind.rename) {
     return event.to;
   }
@@ -45,22 +47,22 @@ export function contentPathOf(event: FileEvent): Path {
 }
 
 // Whether an event belongs to the lineage that ends at finalTarget.
-export function eventBelongsToLineage(
+export function isEventInLineage(
   event: FileEvent,
   finalTarget: Path,
   renameChain: Map<string, Path>,
 ): boolean {
-  return resolveFinalPath(contentPathOf(event), renameChain).equals(finalTarget);
+  return getFinalPath(getContentPath(event), renameChain).equals(finalTarget);
 }
 
 // Unique lineage keys: rename sources collapse to their final destination.
-export function distinctFinalPaths(
+export function collectDistinctFinalPaths(
   events: FileEvent[],
   renameChain: Map<string, Path>,
 ): Path[] {
   const byPath = new Map<string, Path>();
   for (const event of events) {
-    const finalPath = resolveFinalPath(contentPathOf(event), renameChain);
+    const finalPath = getFinalPath(getContentPath(event), renameChain);
     byPath.set(finalPath.toString(), finalPath);
   }
   return [...byPath.values()];

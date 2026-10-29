@@ -3,7 +3,7 @@
 import { EventKind } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
-import { beaconSnippetFor } from "./reconstruction_user_edit.ts";
+import { getBeaconSnippet } from "./reconstruction_user_edit.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import {
   createScriptExecutionEvent,
@@ -57,7 +57,7 @@ export function findScriptExecutionForBeacon(
     }
   }
   // Fallback: windowed comparison (handles out-of-band changes between script and beacon)
-  const snippet = beaconSnippetFor(records, beacon.changeId);
+  const snippet = getBeaconSnippet(records, beacon.changeId);
   if (snippet === undefined)
     return undefined;
   const isWindowMatch = matchLinesToBeacon(splitLines(resultContent), snippet);

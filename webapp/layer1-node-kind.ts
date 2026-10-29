@@ -2,32 +2,29 @@
 
 import { ShowRowKind } from "./layer1-show-row.ts";
 
-// A label takes the class of the dot before it; created is checked before disk (nodes carry both).
-export function classifyNodeKind(element: HTMLElement): ShowRowKind | undefined {
-  const dot = element.matches(".nlabel") ? element.previousElementSibling : element;
+// Checked in order: created is checked before disk (nodes carry both).
+const NODE_KIND_SELECTORS: readonly (readonly [string, ShowRowKind])[] = [
+  [".n-created", ShowRowKind.created],
+  [".n-commit", ShowRowKind.commit],
+  [".n-disk", ShowRowKind.disk],
+  [".n-snap", ShowRowKind.snapshot],
+  [".n-edit, .n-read", ShowRowKind.edit],
+  [".n-script", ShowRowKind.scriptRun],
+  [".bnode", ShowRowKind.branch],
+];
+
+// A label takes the class of the dot before it.
+export function readNodeKind(element: HTMLElement): ShowRowKind | undefined {
+  const isLabel = element.matches(".nlabel");
+  const dot = isLabel ? element.previousElementSibling : element;
   if (dot === null) {
     return undefined;
   }
-  if (dot.matches(".n-created")) {
-    return ShowRowKind.created;
-  }
-  if (dot.matches(".n-commit")) {
-    return ShowRowKind.commit;
-  }
-  if (dot.matches(".n-disk")) {
-    return ShowRowKind.disk;
-  }
-  if (dot.matches(".n-snap")) {
-    return ShowRowKind.snapshot;
-  }
-  if (dot.matches(".n-edit, .n-read")) {
-    return ShowRowKind.edit;
-  }
-  if (dot.matches(".n-script")) {
-    return ShowRowKind.scriptRun;
-  }
-  if (dot.matches(".bnode")) {
-    return ShowRowKind.branch;
+  for (const [selector, kind] of NODE_KIND_SELECTORS) {
+    const isKind = dot.matches(selector);
+    if (isKind) {
+      return kind;
+    }
   }
   return undefined;
 }

@@ -5,7 +5,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { buildRenameChain, eventBelongsToLineage, resolveFinalPath } from "./reconstruction_lineage.ts";
+import { buildRenameChain, isEventInLineage, getFinalPath } from "./reconstruction_lineage.ts";
 
 export type LineageStaticInputs = { lineagePathStrings: string[]; ownInstantsMs: number[] };
 
@@ -60,10 +60,10 @@ function collectEventPathStrings(event: FileEvent): string[] {
 function buildStaticInputsForTarget(records: TranscriptRecord[], target: Path): LineageStaticInputs {
   const events = extractFileEvents(records);
   const renameChain = buildRenameChain(events);
-  const finalTarget = resolveFinalPath(target, renameChain);
+  const finalTarget = getFinalPath(target, renameChain);
   const lineageEvents: FileEvent[] = [];
   for (const event of events) {
-    const isInLineage = eventBelongsToLineage(event, finalTarget, renameChain);
+    const isInLineage = isEventInLineage(event, finalTarget, renameChain);
     if (isInLineage) {
       lineageEvents.push(event);
     }

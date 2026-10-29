@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     extractConversationMessages,
-    summarizeBranches,
+    collectBranchSummaries,
 } from "../src/reconstruction_json.ts";
 import { isGenuineUserPrompt } from "../src/reconstruction_prompts.ts";
 import { RecordType, BlockType } from "../src/structures/vocabulary.ts";
@@ -70,9 +70,9 @@ test("test_extractMessageText_joins_assistant_text_blocks", () => {
     }
 });
 
-test("test_summarizeBranches_marks_surviving_branch_not_rewound", () => {
+test("test_collectBranchSummaries_marks_surviving_branch_not_rewound", () => {
     // Behavior: the surviving branch is not rewound.
-    const branches = summarizeBranches(records);
+    const branches = collectBranchSummaries(records);
     const surviving = branches.filter((b) => b.isSurviving);
     assert.ok(surviving.length >= 1);
     for (const branch of surviving) {
@@ -80,9 +80,9 @@ test("test_summarizeBranches_marks_surviving_branch_not_rewound", () => {
     }
 });
 
-test("test_summarizeBranches_marks_abandoned_branch_rewound", () => {
+test("test_collectBranchSummaries_marks_abandoned_branch_rewound", () => {
     // Behavior: S19 has a rewound (abandoned) branch with a rewindPoint.
-    const branches = summarizeBranches(records);
+    const branches = collectBranchSummaries(records);
     const abandoned = branches.find((b) => !b.isSurviving);
     assert.ok(abandoned !== undefined);
     assert.equal(abandoned!.wasRewound, true);

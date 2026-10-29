@@ -10,7 +10,7 @@ import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { attachRulerTickClick } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
-import { drawScriptConnectors } from "./layer1-script-connectors.ts";
+import { renderScriptConnectors } from "./layer1-script-connectors.ts";
 import { listSelectedSessions } from "./layer1-sessions.ts";
 import { moveOpenRowToNewTicks, markMultiEventTicks } from "./layer1-tick-files.ts";
 import { setAxisPx } from "./layer1-lane-nodes.ts";
@@ -90,7 +90,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
   renderLayer1Minimap();
-  drawScriptConnectors(stage);
+  renderScriptConnectors(stage);
   if (isChunked) {
     hideLayer1Progress();
   }

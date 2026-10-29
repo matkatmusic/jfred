@@ -2,10 +2,10 @@
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { sendLayer1BranchesResponse } from "./viewer_api_layer1_branches.ts";
-import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "./viewer_api_layer1_diff.ts";
+import { sendLayer1Diff, sendLayer1DiffContent } from "./viewer_api_layer1_diff.ts";
 import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
 import { sendLayer1FileResponse } from "./viewer_api_layer1_file.ts";
-import { handleLayer1RecordRequest } from "./viewer_api_layer1_record.ts";
+import { sendLayer1Record } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
 import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
@@ -20,7 +20,7 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
   const isDiffContentPath = url.pathname === "/api/layer1-diff-content";
   const isDiffContentPost = isPost && isDiffContentPath;
   if (isDiffContentPost) {
-    handleLayer1DiffContentRequest(request, response);
+    sendLayer1DiffContent(request, response);
     return true;
   }
   // Task 330: --fixture serves these same paths from canned payloads; off by default, so nothing else changes.
@@ -56,13 +56,13 @@ export function dispatchLayer1Route(request: IncomingMessage, response: ServerRe
     sendLayer1BranchesResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-record") {
-    handleLayer1RecordRequest(response, url.searchParams);
+    sendLayer1Record(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-file") {
     sendLayer1FileResponse(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-diff") {
-    handleLayer1DiffRequest(response, url.searchParams);
+    sendLayer1Diff(response, url.searchParams);
   }
   else if (url.pathname === "/api/scan-source") {
     sendScanSourceResponse(response, url.searchParams);

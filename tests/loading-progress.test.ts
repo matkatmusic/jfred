@@ -11,7 +11,7 @@ import {
     loadProjectRecords,
 } from "../src/viewer_api_records.ts";
 import { matchJsonlSourceLink } from "../webapp/app-console-text.ts";
-import { reconcileServerBootId } from "../webapp/app-choices.ts";
+import { clearChoicesOnNewBootId } from "../webapp/app-choices.ts";
 import { findLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { copyFixtureIntoTempDir } from "./utilities.ts";
@@ -90,7 +90,7 @@ test("test_findLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
 
 // -------------------- server boot-id consent reset --------------------
 
-// Minimal in-memory sessionStorage stand-in for reconcileServerBootId; typed loosely since node has no DOM.
+// Minimal in-memory sessionStorage stand-in for clearChoicesOnNewBootId; typed loosely since node has no DOM.
 function makeSessionStorageStub(): any {
     const map = new Map<string, string>();
     return {
@@ -102,7 +102,7 @@ function makeSessionStorageStub(): any {
     };
 }
 
-test("test_reconcileServerBootId_clears_consent_only_when_boot_id_changes", () => {
+test("test_clearChoicesOnNewBootId_clears_consent_only_when_boot_id_changes", () => {
     const stub = makeSessionStorageStub();
     (globalThis as { sessionStorage?: unknown }).sessionStorage = stub;
     try {
@@ -110,17 +110,17 @@ test("test_reconcileServerBootId_clears_consent_only_when_boot_id_changes", () =
         stub.setItem("consent:projB", "0");
         stub.setItem("unrelated", "keep");
         // First launch (no stored boot id): drop consent, remember the id — but leave non-consent keys.
-        reconcileServerBootId("boot-1");
+        clearChoicesOnNewBootId("boot-1");
         assert.equal(stub.getItem("consent:projA"), null);
         assert.equal(stub.getItem("consent:projB"), null);
         assert.equal(stub.getItem("unrelated"), "keep");
         assert.equal(stub.getItem("serverBootId"), "boot-1");
         // Same id (page reload): consent preserved.
         stub.setItem("consent:projC", "1");
-        reconcileServerBootId("boot-1");
+        clearChoicesOnNewBootId("boot-1");
         assert.equal(stub.getItem("consent:projC"), "1");
         // New id (server relaunched): consent cleared again, id updated.
-        reconcileServerBootId("boot-2");
+        clearChoicesOnNewBootId("boot-2");
         assert.equal(stub.getItem("consent:projC"), null);
         assert.equal(stub.getItem("serverBootId"), "boot-2");
     } finally {

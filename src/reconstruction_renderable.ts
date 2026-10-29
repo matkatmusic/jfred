@@ -14,8 +14,8 @@ import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts"
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import {
   buildRenameChain,
-  distinctFinalPaths,
-  resolveFinalPath,
+  collectDistinctFinalPaths,
+  getFinalPath,
 } from "./reconstruction_lineage.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
@@ -33,7 +33,7 @@ function addScriptCreatedTargets(
     known.add(target.toString());
   }
   for (const path of findScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
-    const finalPath = resolveFinalPath(path, renameChain);
+    const finalPath = getFinalPath(path, renameChain);
     const isKnown = known.has(finalPath.toString());
     if (isKnown)
       continue;
@@ -63,7 +63,7 @@ export function getFileHistoriesOver(
   const extracted = extractFileEvents(records);
   const events = appendScriptMoveRenames(extracted, records, reader, reader ? getLineageContentBefore(records, reader) : undefined);
   const renameChain = buildRenameChain(events);
-  const targets = distinctFinalPaths(events, renameChain);
+  const targets = collectDistinctFinalPaths(events, renameChain);
   if (reader) {
     addScriptCreatedTargets(targets, records, reader, renameChain);
   }

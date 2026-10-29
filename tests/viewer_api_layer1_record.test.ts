@@ -6,7 +6,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { Path } from "../src/structures/domain.ts";
-import { handleLayer1RecordRequest, readTranscriptLine } from "../src/viewer_api_layer1_record.ts";
+import { readTranscriptLine, sendLayer1Record } from "../src/viewer_api_layer1_record.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 
 function writeSessionFile(name: string, text: string): Path {
@@ -33,10 +33,10 @@ test("readTranscriptLine refuses a file that is not a .jsonl transcript", () => 
     assert.throws(() => readTranscriptLine(file, 1), /not a transcript file/);
 });
 
-test("handleLayer1RecordRequest answers the record as JSON", () => {
+test("sendLayer1Record answers the record as JSON", () => {
     const file = writeSessionFile("s.jsonl", '{"type":"user"}\n');
     let body = "";
     const response = { writeHead: () => response, end: (chunk: string) => { body = chunk; } } as unknown as ServerResponse;
-    handleLayer1RecordRequest(response, new URLSearchParams({ jsonl: file.toString(), line: "1" }));
+    sendLayer1Record(response, new URLSearchParams({ jsonl: file.toString(), line: "1" }));
     assert.deepEqual(JSON.parse(body), { type: "user" });
 });

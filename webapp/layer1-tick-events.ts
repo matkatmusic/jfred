@@ -3,7 +3,7 @@
 import { createElement } from "./app-dom.ts";
 import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden } from "./layer1-kind-filter.ts";
-import { classifyNodeKind } from "./layer1-node-kind.ts";
+import { readNodeKind } from "./layer1-node-kind.ts";
 import type { ShowRowKind } from "./layer1-show-row.ts";
 import { flashSession } from "./layer1-session-flash.ts";
 import { listElementsDrawnAtAxisPx, collectStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
@@ -42,7 +42,7 @@ function readTickEvent(element: HTMLElement): TickEvent {
   }
   // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
   const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
-  return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: classifyNodeKind(element), session: element.dataset.sessionFile };
+  return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: readNodeKind(element), session: element.dataset.sessionFile };
 }
 
 // Every event drawn at one printed row's instants, hidden kinds included, in lookup order.

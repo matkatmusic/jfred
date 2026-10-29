@@ -1,6 +1,4 @@
-// Task 305: GET /api/layer1-diff answers unified hunks between two revisions of ONE Layer 1 file.
-//
-// Driven through a recording ServerResponse stand-in (viewer_api_layer1_file.test.ts's pattern); refusals surface as throws.
+// GET /api/layer1-diff answers unified hunks between two revisions of one file; refusals throw.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +9,7 @@ import { type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RecordType } from "../src/structures/vocabulary.ts";
-import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "../src/viewer_api_layer1_diff.ts";
+import { sendLayer1Diff, sendLayer1DiffContent } from "../src/viewer_api_layer1_diff.ts";
 import { makeTempDir } from "./overrides-test-helpers.ts";
 
 const FIRST_TEXT = "shared line\nfirst only\n";
@@ -48,7 +46,7 @@ function requestLayer1Diff(parameters: Record<string, string>): { status: number
         writeHead: (code: number) => { status = code; },
         end: (text: string) => { body = text; },
     } as unknown as ServerResponse;
-    handleLayer1DiffRequest(response, new URLSearchParams(parameters));
+    sendLayer1Diff(response, new URLSearchParams(parameters));
     return { status, diff: (JSON.parse(body) as { diff: string }).diff };
 }
 
@@ -109,7 +107,7 @@ function requestContentDiff(payload: object): { status: number; diff: string } {
         end: (text: string) => { body = text; },
     } as unknown as ServerResponse;
     const request = new EventEmitter() as unknown as IncomingMessage;
-    handleLayer1DiffContentRequest(request, response);
+    sendLayer1DiffContent(request, response);
     (request as unknown as EventEmitter).emit("data", Buffer.from(JSON.stringify(payload)));
     (request as unknown as EventEmitter).emit("end");
     return { status, diff: (JSON.parse(body) as { diff: string }).diff };

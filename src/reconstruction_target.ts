@@ -12,8 +12,8 @@ import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import {
   buildRenameChain,
-  distinctFinalPaths,
-  resolveFinalPath,
+  collectDistinctFinalPaths,
+  getFinalPath,
 } from "./reconstruction_lineage.ts";
 
 // The branch id that selects the surviving branch.
@@ -31,12 +31,12 @@ export function getFileHistoryOver(
     ? appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader))
     : extracted;
   const renameChain = buildRenameChain(events);
-  const resolvedTarget = resolveFinalPath(target, renameChain);
+  const resolvedTarget = getFinalPath(target, renameChain);
   const isFinalPathOfTarget = resolvedTarget.equals(target);
   if (!isFinalPathOfTarget) {
     return undefined;
   }
-  const finalPaths = distinctFinalPaths(events, renameChain);
+  const finalPaths = collectDistinctFinalPaths(events, renameChain);
   let isKnownFinalPath = false;
   for (const finalPath of finalPaths) {
     const isTarget = finalPath.equals(target);

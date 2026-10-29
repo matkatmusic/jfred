@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     buildRenameChain,
-    contentPathOf,
-    distinctFinalPaths,
-    eventBelongsToLineage,
-    resolveFinalPath,
+    getContentPath,
+    collectDistinctFinalPaths,
+    isEventInLineage,
+    getFinalPath,
 } from "../src/reconstruction_lineage.ts";
 import type {
     CopyEvent,
@@ -26,12 +26,12 @@ function createMoveEdit(): FileEvent[] {
     ];
 }
 
-// resolveFinalPath follows the chain from the source to where the file ends.
+// getFinalPath follows the chain from the source to where the file ends.
 test("test_resolve_final_path_follows_rename_chain", () => {
     const chain = buildRenameChain(createMoveEdit());
-    assert.equal(resolveFinalPath(new Path("/a.py"), chain).toString(), "/b.py");
+    assert.equal(getFinalPath(new Path("/a.py"), chain).toString(), "/b.py");
     // A path with no rename resolves to itself.
-    assert.equal(resolveFinalPath(new Path("/b.py"), chain).toString(), "/b.py");
+    assert.equal(getFinalPath(new Path("/b.py"), chain).toString(), "/b.py");
 });
 
 // Recorded undo (mv a b; mv b a) puts both directions in the chain map, forming a cycle.
@@ -42,13 +42,13 @@ function createRenameCycle(): FileEvent[] {
     ];
 }
 
-// resolveFinalPath terminates on a two-hop rename cycle instead of looping forever.
+// getFinalPath terminates on a two-hop rename cycle instead of looping forever.
 test("test_resolve_final_path_terminates_on_rename_cycle", () => {
     const chain = buildRenameChain(createRenameCycle());
     // From /a.py: hits /b.py, then would repeat /a.py — stop, don't loop.
-    assert.equal(resolveFinalPath(new Path("/a.py"), chain).toString(), "/b.py");
+    assert.equal(getFinalPath(new Path("/a.py"), chain).toString(), "/b.py");
     // From /b.py: same guard, opposite starting direction.
-    assert.equal(resolveFinalPath(new Path("/b.py"), chain).toString(), "/a.py");
+    assert.equal(getFinalPath(new Path("/b.py"), chain).toString(), "/a.py");
 });
 
 // Every event in the create/move/edit sequence belongs to the /b.py lineage.
@@ -57,7 +57,7 @@ test("test_every_event_belongs_to_the_final_lineage", () => {
     const chain = buildRenameChain(events);
     const finalTarget = new Path("/b.py");
     for (const event of events) {
-        assert.ok(eventBelongsToLineage(event, finalTarget, chain));
+        assert.ok(isEventInLineage(event, finalTarget, chain));
     }
 });
 
@@ -73,7 +73,7 @@ test("test_content_path_of_copy_is_its_destination", () => {
         timestamp: new Date("2026-06-18T16:16:27.224Z"),
     };
     // The path a copy touches is the destination it creates.
-    assert.ok(contentPathOf(copy).equals(new Path("/x/s3_copy.py")));
+    assert.ok(getContentPath(copy).equals(new Path("/x/s3_copy.py")));
 });
 
 // A copy is absent from the rename chain, so both source and destination survive as distinct paths.
@@ -96,7 +96,7 @@ test("test_distinct_final_paths_keeps_copy_source_and_destination", () => {
     };
     // A copy is absent from the rename chain, so both paths survive.
     const renameChain = buildRenameChain([write, copy]);
-    const finalPaths = distinctFinalPaths([write, copy], renameChain);
+    const finalPaths = collectDistinctFinalPaths([write, copy], renameChain);
     const finals = finalPaths.map((path) => path.toString());
     // Both the source and the copy destination are distinct histories.
     assert.ok(finals.some((path) => path.endsWith("/s3_source.py")));
@@ -107,7 +107,7 @@ test("test_distinct_final_paths_keeps_copy_source_and_destination", () => {
 // The rename source collapses into its destination — one distinct final path.
 test("test_distinct_final_paths_collapses_rename_source", () => {
     const events = createMoveEdit();
-    const finals = distinctFinalPaths(events, buildRenameChain(events));
+    const finals = collectDistinctFinalPaths(events, buildRenameChain(events));
     assert.equal(finals.length, 1);
     assert.equal(finals[0]!.toString(), "/b.py");
 });

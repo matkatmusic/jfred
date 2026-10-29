@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { parseRecord, UnknownRecordTypeError } from "./parseRecord.ts";
-import { findUnmodeledTopLevelKeys, UnmodeledFieldError } from "./recordKeys.ts";
+import { parseRecord } from "./parseRecord.ts";
+import { assertOnlyKnownTopLevelKeys, reportUnmodeledTopLevelFields } from "./unmodeledFields.ts";
+import { collectSkippedLineOrRethrow } from "./skippedLines.ts";
 import type { TranscriptRecord } from "../structures/envelope.ts";
 import { Path } from "../structures/domain.ts";
 import { DocumentResponseKind } from "../structures/vocabulary_views.ts";
@@ -39,41 +40,10 @@ export function formatRecordSourceToken(source: RecordSource | undefined): strin
 }
 
 
-function assertOnlyKnownTopLevelKeys(record: TranscriptRecord): void {
-  const unmodeled = findUnmodeledTopLevelKeys(record);
-  if (unmodeled.length > 0) {
-    throw new UnmodeledFieldError(record.type, unmodeled[0]!);
-  }
-}
-
 export function parseTranscriptLine(line: string): TranscriptRecord {
   const record = parseRecord(line);
   assertOnlyKnownTopLevelKeys(record);
   return record;
-}
-
-// Strict mode guards the CLI/tests; tolerant mode lets the viewer open real sessions with unmodeled fields, reporting each once.
-function reportUnmodeledTopLevelFields(
-  record: TranscriptRecord,
-  reportedUnmodeled: Set<string>,
-  onProgress: ProgressSink | undefined,
-): void {
-  for (const key of findUnmodeledTopLevelKeys(record)) {
-    reportUnmodeledFieldOnce(record, key, reportedUnmodeled, onProgress);
-  }
-}
-
-function reportUnmodeledFieldOnce(
-  record: TranscriptRecord,
-  key: string,
-  reportedUnmodeled: Set<string>,
-  onProgress: ProgressSink | undefined,
-): void {
-  const reportId = `${record.type}::${key}`;
-  if (!reportedUnmodeled.has(reportId)) {
-    reportedUnmodeled.add(reportId);
-    onProgress?.({ kind: DocumentResponseKind.progress, label: `unmodeled field "${key}" on ${record.type} record` });
-  }
 }
 
 // The timestamp is present when the raw JSON carried one; the webapp uses it to place the gap.
@@ -90,45 +60,6 @@ export type LoadedTranscript = {
   skippedLines: SkippedLine[];
 };
 
-// Best-effort: called only for lines whose JSON already parsed once, but the guard covers the theoretical re-parse throw anyway.
-function readLineTimestamp(text: string): Date | undefined {
-  try {
-    const raw = (JSON.parse(text) as { timestamp?: unknown }).timestamp;
-    return typeof raw === "string" ? new Date(raw) : undefined;
-  }
-  catch {
-    return undefined;
-  }
-}
-
-// An unknown record type keeps its timestamp because its JSON parsed; malformed JSON cannot.
-function describeSkippedLine(filePath: string, lineNumber: number, text: string, error: unknown): SkippedLine {
-  if (error instanceof UnknownRecordTypeError) {
-    return { filePath: new Path(filePath), lineNumber, timestamp: readLineTimestamp(text), reason: error.message };
-  }
-  if (error instanceof SyntaxError) {
-    return { filePath: new Path(filePath), lineNumber, reason: `malformed JSON: ${String(error)}` };
-  }
-  return { filePath: new Path(filePath), lineNumber, reason: String(error) };
-}
-
-// Tolerant mode only; strict mode rethrows unchanged. The skipped line still counts toward current/total via its loop index.
-function captureSkippedLineOrRethrow(
-  error: unknown,
-  tolerateUnmodeledFields: boolean,
-  source: RecordSource,
-  text: string,
-  skippedLines: SkippedLine[],
-  onProgress: ProgressSink | undefined,
-): void {
-  if (!tolerateUnmodeledFields) {
-    throw error;
-  }
-  const skipped = describeSkippedLine(source.filePath, source.lineNumber, text, error);
-  skippedLines.push(skipped);
-  onProgress?.({ kind: DocumentResponseKind.progress, label: `skipped line ${source.lineNumber}: ${skipped.reason}` });
-}
-
 export function loadTranscript(
   filePath: string,
   onProgress?: ProgressSink,
@@ -139,9 +70,12 @@ export function loadTranscript(
   const fileText = readFileSync(filePath, "utf8");
   const lines = fileText.split("\n");
   // Number lines BEFORE dropping blanks, so a record's source line matches what an editor shows.
-  const numberedLines = lines
-    .map((text, index) => ({ lineNumber: index + 1, text }))
-    .filter((entry) => entry.text.trim().length > 0);
+  const numberedLines: { lineNumber: number; text: string }[] = [];
+  for (const [index, text] of lines.entries()) {
+    const trimmedText = text.trim();
+    if (trimmedText.length > 0)
+      numberedLines.push({ lineNumber: index + 1, text });
+  }
   onProgress?.({ kind: DocumentResponseKind.progress, label: PROGRESS_LABEL_PARSING_RECORDS });
   const records: TranscriptRecord[] = [];
   const skippedLines: SkippedLine[] = [];
@@ -152,7 +86,7 @@ export function loadTranscript(
       record = parseRecord(text);
     }
     catch (error) {
-      captureSkippedLineOrRethrow(error, tolerateUnmodeledFields, { filePath, lineNumber }, text, skippedLines, onProgress);
+      collectSkippedLineOrRethrow(error, tolerateUnmodeledFields, { filePath, lineNumber }, text, skippedLines, onProgress);
       continue;
     }
     recordSources.set(record, { filePath, lineNumber });

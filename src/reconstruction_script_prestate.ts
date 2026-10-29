@@ -12,7 +12,7 @@ import { quotedFilename } from "./regex_expressions.ts";
 import { pythonWritePrimitive, shellWritePrimitive } from "./regex_script_detection.ts";
 import { isEveryImportReadOnlySafe, isEveryOpenCallRead } from "./reconstruction_script_prestate_gate.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
+import { buildRenameChain, getFinalPath } from "./reconstruction_lineage.ts";
 import type { WriteEvent } from "./reconstruction_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -114,7 +114,7 @@ export function getPreExecutionState(
     const isAfterRun = event.timestamp.getTime() > run.timestamp.getTime();
     if (isAfterRun)
       continue;
-    const currentPath = resolveFinalPath(event.target, renameChain);
+    const currentPath = getFinalPath(event.target, renameChain);
     const pathKey = currentPath.toString();
     latestWritesByCurrentPath.delete(pathKey);
     latestWritesByCurrentPath.set(pathKey, { currentPath, write: event });
