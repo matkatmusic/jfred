@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setProjectsDir, setSessionProjectPaths } from "../src/viewer_api_projects.ts";
 import { findJsonlPaths } from "../src/viewer_api_sources.ts";
-import { makeSourceTree } from "./multi-source-test-helpers.ts";
+import { createSourceTree } from "./multi-source-test-helpers.ts";
 
 const PROJECT_NAME = "-viewer-sources-proj";
 
@@ -19,8 +19,8 @@ afterEach(() => {
 
 // Two source trees with one JSONL each; the active dir is tree A.
 function makeTwoTreeServerFixture(): { jsonlA: string; jsonlB: string; treeAProjects: string; treeBProjects: string } {
-    const treeA = makeSourceTree(PROJECT_NAME);
-    const treeB = makeSourceTree("-viewer-sources-other");
+    const treeA = createSourceTree(PROJECT_NAME);
+    const treeB = createSourceTree("-viewer-sources-other");
     const jsonlA = join(treeA.projectDir, "a.jsonl");
     const jsonlB = join(treeB.projectDir, "b.jsonl");
     writeFileSync(jsonlA, `${JSON.stringify({ type: "aiTitle", sessionId: "aaaa", aiTitle: "t" })}\n`);

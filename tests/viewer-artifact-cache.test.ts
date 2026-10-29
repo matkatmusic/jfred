@@ -18,7 +18,7 @@ import {
     renderDiffVsBase,
 } from "../src/viewer_api_diffs.ts";
 import { Path } from "../src/structures/domain.ts";
-import { copyFixtureIntoTempDir, advanceFileMtimeByOneSecond } from "./utilities.ts";
+import { copyFixtureIntoTempDir, pushFileMtimeByOneSecond } from "./utilities.ts";
 import { S1_JSONL, S19_JSONL, S37_JSONL, S85_JSONL_PATHS } from "./fixtures.ts";
 
 test("test_transcript_set_stamp_is_stable_for_unchanged_files", () => {
@@ -38,7 +38,7 @@ test("test_transcript_set_stamp_changes_when_a_file_is_touched", () => {
     // A changed mtime is the whole invalidation signal.
     const copyPath = copyFixtureIntoTempDir(S1_JSONL);
     const beforeStamp = computeTranscriptSetStamp([copyPath]);
-    advanceFileMtimeByOneSecond(copyPath);
+    pushFileMtimeByOneSecond(copyPath);
     const afterStamp = computeTranscriptSetStamp([copyPath]);
     assert.notEqual(afterStamp, beforeStamp);
 });
@@ -53,7 +53,7 @@ test("test_load_project_records_returns_same_array_for_unchanged_files", () => {
 test("test_load_project_records_reparses_after_file_touch", () => {
     const copyPath = copyFixtureIntoTempDir(S1_JSONL);
     const staleRecords = loadProjectRecords([copyPath]).records;
-    advanceFileMtimeByOneSecond(copyPath);
+    pushFileMtimeByOneSecond(copyPath);
     const freshRecords = loadProjectRecords([copyPath]).records;
     assert.notEqual(freshRecords, staleRecords);
 });
@@ -82,7 +82,7 @@ test("test_build_with_consent_keeps_consent_variants_in_separate_entries", () =>
 test("test_build_with_consent_rebuilds_after_file_touch", () => {
     const copyPath = copyFixtureIntoTempDir(S1_JSONL);
     const staleDocument = buildDocumentWithConsent([copyPath], undefined, false);
-    advanceFileMtimeByOneSecond(copyPath);
+    pushFileMtimeByOneSecond(copyPath);
     const freshDocument = buildDocumentWithConsent([copyPath], undefined, false);
     assert.notEqual(freshDocument, staleDocument);
 });

@@ -12,7 +12,7 @@ import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar
 import { buildStepTimeline } from "../src/reconstruction_steps.ts";
 import { Path } from "../src/structures/domain.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
 
 interface LaneNodeSides { changeId: string; path: string; before: string; after: string; query: (side: string) => URLSearchParams }
 

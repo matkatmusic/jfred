@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { collectSessionFileGroups, loadSessionRewinds } from "../src/layer1_branch_sessions.ts";
 import { buildGroupHistories, listLanes } from "../src/layer1_branches_lanes.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
 
 function loadScenarioRewinds(scenarioDir: string) {
     const jsonl = findScenarioJsonl(scenarioDir);

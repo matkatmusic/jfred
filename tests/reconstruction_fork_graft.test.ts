@@ -5,7 +5,7 @@ import { findConversationBranches } from "../src/reconstruction_branch.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { lastPrompt } from "./reconstruction-branch-test-helpers.ts";
+import { createLastPromptRecord } from "./reconstruction-branch-test-helpers.ts";
 
 const AGENT = "agentX";
 
@@ -43,7 +43,7 @@ function buildParentRecords(): TranscriptRecord[] {
         buildTurn(RecordType.user, "u1", null, 1),
         buildTurn(RecordType.assistant, "a1", "u1", 2),
         buildTurn(RecordType.user, "u2", "a1", 3),
-        lastPrompt("u2"),
+        createLastPromptRecord("u2"),
     ];
 }
 
@@ -101,7 +101,7 @@ test("test_parallel_assistant_siblings_at_the_graft_point_give_one_non_surviving
         buildTurn(RecordType.assistant, "a1", "u1", 2, { messageId: "m1" }),
         buildTurn(RecordType.assistant, "a1b", "u1", 2, { messageId: "m1" }),
         buildTurn(RecordType.user, "u2", "a1", 3),
-        lastPrompt("u2"),
+        createLastPromptRecord("u2"),
         buildForkRef("a1b"),
         buildTurn(RecordType.assistant, "f1", null, 4, { agentId: AGENT, messageId: "m1" }),
         buildTurn(RecordType.user, "f2", "f1", 5, { agentId: AGENT }),

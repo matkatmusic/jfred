@@ -1,7 +1,7 @@
 // Linear state sequence driven by in-page eval, using the page's own click handlers.
 
 import type { HeadlessPage } from "./cdp.ts";
-import { pause } from "./cdp.ts";
+import { waitMilliseconds } from "./cdp.ts";
 
 // A drawer open waits on a file fetch; everything else is a synchronous re-render.
 const RENDER_TIMEOUT_MS = 60_000;
@@ -81,7 +81,7 @@ async function triggerClickInPage(page: HeadlessPage, expression: string, what: 
 // Wait for the app to settle, then let layout and scrolling land.
 async function waitUntilSettled(page: HeadlessPage, expression: string): Promise<void> {
   await page.waitFor(expression, RENDER_TIMEOUT_MS);
-  await pause(SETTLE_MS);
+  await waitMilliseconds(SETTLE_MS);
 }
 
 export const VISUAL_STATES: VisualState[] = [

@@ -3,7 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pause, type HeadlessPage } from "./cdp.ts";
+import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { validateCentring } from "./layer2-checks-centre.ts";
 import { collectOwnerBasenames, type ViewPayload } from "./layer2-payload.ts";
 import { reportCheck } from "./mockup-checks.ts";
@@ -46,7 +46,7 @@ async function findSnapshotRow(page: HeadlessPage): Promise<{ snap: string; coun
       return { snap, count: rows.length };
     }
     await page.evaluate(`document.querySelector('#ruler .tick.expanded')?.click()`);
-    await pause(120);
+    await waitMilliseconds(120);
   }
   return null;
 }
@@ -71,11 +71,11 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
     flashFile !== null && collectOwnerBasenames(payload).has(flashFile), flashFile);
   reportCheck("#303 the flash highlights, it does not select (nothing filtered)", selected === 0, selected);
   await saveScreenshot(page, "03-ruler-flash");
-  await pause(FADE_WAIT_MS);
+  await waitMilliseconds(FADE_WAIT_MS);
   reportCheck("#303 the highlight fades out on its own",
     await page.evaluate<number>(`document.querySelectorAll('.session-item.flash').length`) === 0);
   await page.evaluate(`document.querySelector('#ruler .tick.expanded')?.click()`);
-  await pause(200);
+  await waitMilliseconds(200);
 }
 
 // Replaced by layer2-checks-centre.ts, which picks a node that can really be centred.
@@ -90,7 +90,7 @@ interface ClickedNodeView {
   isCentredOrClamped: boolean;
 }
 
-// Boxes are [left, top, right, bottom]; an axis may miss the centre by a few px, or when #timelines is scrolled to its end.
+// Boxes are [left, top, right, bottom]; an axis may miss centre by a few px.
 const READ_CLICKED_NODE_VIEW = `(() => {
     const pane = document.getElementById('timelines');
     const read = (element) => { const r = element.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
@@ -131,8 +131,8 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
     drawer.meta.includes("file-history @v") && drawer.meta.includes(owner), drawer.meta);
   reportCheck("#305 the snapshot's bytes render", drawer.body.trim().length > 0, drawer.body.slice(0, 60));
   reportCheck("#317 clicking a snapshot node flashes its JSONL", await readFlashFile(page) === owner, owner);
-  await pause(300);
+  await waitMilliseconds(300);
   await saveScreenshot(page, "04-drawer");
   await validateCentring(page);
-  await pause(FADE_WAIT_MS);
+  await waitMilliseconds(FADE_WAIT_MS);
 }

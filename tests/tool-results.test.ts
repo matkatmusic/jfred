@@ -17,10 +17,10 @@ import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
 import { join } from "node:path";
 import {
     SESSION_A,
-    buildErroredToolResultRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildErroredToolResultRecordPair } from "./tool-call-record-pair-builders.ts";
 
 // Finds the first resolved tool result of a given tool in a transcript, so each test skips the scan.
 function findToolResult(file: string, toolName: ToolName) {
@@ -113,7 +113,7 @@ test("test_edit_result_carries_path_and_nonempty_structured_patch", () => {
 
 test("test_errored_tool_run_with_string_result_resolves_to_undefined", () => {
     // Scenario: a failed Read reports a plain string result; resolution yields undefined and does not crash.
-    const tree = makeSourceTree("-errored-read");
+    const tree = createSourceTree("-errored-read");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const erroredRead = buildErroredToolResultRecordPair(
         { sessionId: SESSION_A, cwd: workspaceRoot, timestamp: "2026-07-24T10:01:00.000Z", toolId: "toolu_err_r1", parentUuid: null },

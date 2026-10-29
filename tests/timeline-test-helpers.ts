@@ -1,4 +1,4 @@
-// Shared fixtures for the timeline view-model test files (split from timeline-viewmodels.test.ts).  Every test feeds the client's wire shape — JSON.parse(JSON.stringify(document)) — exactly what the browser sees after fetch. Role/kind assertions go through the vocabulary enum members (their values ARE the wire strings), never bare literals.
+// Shared fixtures for the timeline view-model tests, in the client's wire shape (JSON round-trip).
 
 import { COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
 import { buildProjectDocument } from "../src/viewer_api.ts";
@@ -24,13 +24,25 @@ export const s2Document = JSON.parse(JSON.stringify(buildProjectDocument([new Pa
 
 export const s45Document = JSON.parse(JSON.stringify(buildProjectDocument([new Path(S45_JSONL)], undefined)));
 
-// s39's git-baseline seed session alone (item 55): its tool calls and raw lines are known line-by-line (git init L32, ls L33, rtk-rewrite hook L39, mkdir L44, Writes L51/L55).
+// s39's git-baseline seed session alone, found by its session id prefix.
+function findSeedJsonlPath(paths: Path[], sessionPrefix: string): Path {
+  let seedPath: Path | undefined;
+  for (const path of paths) {
+    const pathText = path.toString();
+    const isSeedPath = pathText.includes(sessionPrefix);
+    if (isSeedPath) {
+      seedPath = path;
+      break;
+    }
+  }
+  return seedPath!;
+}
 
-export const S39_SEED_JSONL_PATH = S39_JSONL_PATHS.find((path) => path.toString().includes("b9783f4b"))!;
+export const S39_SEED_JSONL_PATH = findSeedJsonlPath(S39_JSONL_PATHS, "b9783f4b");
 
 export const s39SeedDocument = JSON.parse(JSON.stringify(buildProjectDocument([S39_SEED_JSONL_PATH], undefined)));
 
-// Shared fixture for the commit walk-back helpers: two surviving replies (alpha.py, beta.py), two ADJACENT orphaned replies (gamma.py, delta.py live only on the rewound branch), a first commit, one more surviving reply (alpha.py's second revision), and a second commit. Sorted node order: [0 prompt, 1 replyA, 2 replyB, 3 replyO1, 4 replyO2, 5 commit#1, 6 replyD, 7 session-end, 8 commit#2].
+// Commit walk-back fixture: surviving replies, two adjacent orphaned replies, then two commits.
 
 export const commitWalkDocument = {
   messages: [{
@@ -114,36 +126,13 @@ export const commitWalkDocument = {
 };
 
 // The indexes of a timeline's commit nodes, in order.
-
 export function findCommitNodeIndexes(nodes: { kind: string }[]): number[] {
-  return nodes.flatMap((node, index) => (node.kind === COMMIT_NODE_KIND ? [index] : []));
+  const indexes: number[] = [];
+  for (let index = 0; index < nodes.length; index++) {
+    if (nodes[index]!.kind === COMMIT_NODE_KIND) {
+      indexes.push(index);
+    }
+  }
+  return indexes;
 }
 
-// Minimal git-baseline document (task 86): one real turn pair, one gitBase-only step (no session), and one generic unattributed step (blob-ref style changeId resolving nowhere, changedPaths fallback) that must NOT merge into the baseline node.
-
-export const gitBaselineDocument = {
-  messages: [{
-    uuid: "prompt-1",
-    role: RecordType.user,
-    sessionId: "session-a",
-    timestamp: "2026-01-01T00:10:00.000Z",
-    text: "start working",
-  }, {
-    uuid: "reply-1",
-    role: RecordType.assistant,
-    sessionId: "session-a",
-    timestamp: "2026-01-01T00:10:10.000Z",
-    text: "working",
-  }],
-  steps: [
-    { index: 1, when: "2026-01-01T00:00:00.000Z", sessionId: undefined, changeIds: ["gitBase:abc1234:orders.py"], changedPaths: [], files: {} },
-    { index: 2, when: "2026-01-01T00:20:00.000Z", sessionId: undefined, changeIds: ["deadbeef00000000@v1"], changedPaths: ["notes.txt"], files: {} },
-  ],
-  filesTouched: [{
-    target: "orders.py",
-    revisions: [{ kind: EventKind.write, changeId: "gitBase:abc1234:orders.py", timestamp: "2026-01-01T00:00:00.000Z" }],
-  }],
-  rewoundFilesTouched: [],
-  commitMarkers: [],
-  gitOperations: [],
-};

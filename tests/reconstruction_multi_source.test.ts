@@ -17,11 +17,10 @@ import { getSnapshotFileText } from "../src/reconstruction_step_snapshot.ts";
 import {
     SESSION_A,
     SESSION_B,
-    makeSourceTree,
-    buildWriteRecordPair,
-    buildEditRecordPair,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair, buildEditRecordPair } from "./tool-call-record-pair-builders.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -35,7 +34,7 @@ function fabricateBareRecord(fields: object): TranscriptRecord {
 
 test("test_dedupe_drops_replicated_records_keeping_first", () => {
     // Scenario (§c1): a record in two sources survives once, first occurrence winning. Step: feed one fixture's records twice.
-    const tree = makeSourceTree("-dedupe-project");
+    const tree = createSourceTree("-dedupe-project");
     const pair = buildWriteRecordPair(
         { sessionId: SESSION_A, cwd: tree.treeRoot, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_dedupe", parentUuid: null },
         join(tree.treeRoot, "a.py"),
@@ -80,7 +79,7 @@ test("test_interleave_keeps_unstamped_leading_records_with_their_session", () =>
 
 test("test_single_source_records_pass_through_unchanged", () => {
     // Scenario: one list under one root: merge returns the same records in the same order.
-    const tree = makeSourceTree("-single-project");
+    const tree = createSourceTree("-single-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const pair = buildWriteRecordPair(
         { sessionId: SESSION_A, cwd: workspaceRoot, timestamp: "2026-07-22T10:00:00.000Z", toolId: "toolu_solo", parentUuid: null },
@@ -95,8 +94,8 @@ test("test_single_source_records_pass_through_unchanged", () => {
 
 test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
     // Scenario (task 179, s89): nested session roots give one file two relative paths: the absolute path keeps one ladder.
-    const treeA = makeSourceTree("-scen89-proj");
-    const treeB = makeSourceTree("-scen89-proj-tests");
+    const treeA = createSourceTree("-scen89-proj");
+    const treeB = createSourceTree("-scen89-proj-tests");
     const rootA = join(treeA.treeRoot, "proj");
     const rootB = join(rootA, "tests");
     const filePath = join(rootA, "tests", "test_x.py");

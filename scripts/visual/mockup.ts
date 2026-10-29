@@ -9,17 +9,17 @@ import { COMMITS, DISK, SESSIONS } from "../../src/viewer_api_layer1_fixture_dat
 import { SNAPSHOTS } from "../../src/viewer_api_layer2_fixture_data.ts";
 import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import {
-  // RENDER_SIGNATURE (task 352: only the retired 1 -> 2 -> 1 check used it)
-  // buildShapeProbe (task 386: only the retired self-comparison checks used it)
+  // RENDER_SIGNATURE (task 352) and buildShapeProbe (task 386): only retired checks used them.
   reportCheck, validateChrome, validateNavRows, validateOrdering,
   validateScale, failures, saveScreenshot,
 } from "./mockup-checks.ts";
-import { checkSnapshotToggle, validateDrawer, validateRulerRow, validateSnapshotNodes } from "./mockup-checks-snapshots.ts";
+import { validateDrawer } from "./mockup-checks-snapshot-drawer.ts";
+import { validateRulerRow, validateSnapshotNodes, validateSnapshotToggle } from "./mockup-checks-snapshots.ts";
 import { checkLayer3 } from "./layer3-checks.ts";
 import { checkLayer4 } from "./layer4-checks.ts";
 import { checkKindJump } from "./kind-jump-checks.ts";
 import { checkKindDashes } from "./kind-dash-checks.ts";
-import { checkLayer5 } from "./layer5-checks.ts";
+import { validateLayer5 } from "./layer5-checks.ts";
 // // checkBubbleFlash (task 386: the real page has no bubble-click flash)
 import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
 import {
@@ -52,7 +52,7 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   await checkLayer4(page, pageUrl);
   await checkKindJump(page, pageUrl);
   await checkKindDashes(page, pageUrl);
-  await checkLayer5(page, pageUrl);
+  await validateLayer5(page, pageUrl);
   // The page no longer sets window.__fixture; the checks read the arrays the server serves.
   await page.evaluate(`(window.__fixture = ${JSON.stringify({ SESSIONS, DISK, COMMITS, SNAPSHOTS })}, true)`);
   await page.waitFor(`document.querySelectorAll('.session-item').length > 0`, 10_000);
@@ -76,7 +76,7 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   // reportCheck("#304 a file with NO snapshots renders exactly as at Layer 1",
   //   await page.evaluate<string>(buildShapeProbe("README.md")) === readmeAtLayer1, readmeAtLayer1);
   // Task 63: replaces the block above; untick then retick the snapshot box on the same page.
-  await checkSnapshotToggle(page);
+  await validateSnapshotToggle(page);
   await saveScreenshot(page, "02-layer2");
 
   await validateRulerRow(page);

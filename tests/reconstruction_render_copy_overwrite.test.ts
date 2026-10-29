@@ -6,7 +6,7 @@ import type { FileRevision } from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { born } from "./reconstruction_render-test-helpers.ts";
+import { createBornLine } from "./reconstruction_render-test-helpers.ts";
 
 // --- s3-copy-file: copy entry rendering --------------------------------------
 
@@ -52,8 +52,8 @@ test("test_verbose_labels_copy_entry_with_arrow_and_body", () => {
 function createThenOverwriteRevs(): FileRevision[] {
     const t0 = new Date("2026-01-01T00:00:00Z");
     const t1 = new Date("2026-01-01T00:01:00Z");
-    const v1 = ["def version1():", "    return 1"].map((line) => born(line, t0));
-    const v2 = ["def version2():", "    return 2"].map((line) => born(line, t1));
+    const v1 = ["def version1():", "    return 1"].map((line) => createBornLine(line, t0));
+    const v2 = ["def version2():", "    return 2"].map((line) => createBornLine(line, t1));
     return [
         { kind: EventKind.write, changeId: new Uuid("w1"), timestamp: t0, lines: v1 },
         { kind: EventKind.overwrite, changeId: new Uuid("w2"), timestamp: t1, lines: v2 },

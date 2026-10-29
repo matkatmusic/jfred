@@ -8,9 +8,10 @@ import { join } from "node:path";
 import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/layer1_edits_wire.ts";
 import { sendLayer1EditsResponse } from "../src/viewer_api_layer1_edits.ts";
 import {
-    SESSION_A, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
+    SESSION_A, createSourceTree, writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function buildResponseStub(): { response: ServerResponse; body: () => string } {
     let body = "";
@@ -25,7 +26,7 @@ function buildResponseStub(): { response: ServerResponse; body: () => string } {
 }
 
 function writeSessionFolder(projectFolder: string): string {
-    const tree = makeSourceTree("-edits-route");
+    const tree = createSourceTree("-edits-route");
     const envelope = { sessionId: SESSION_A, cwd: projectFolder, timestamp: "2026-07-24T10:01:00.000Z", toolId: "toolu_w1", parentUuid: null };
     writeTranscriptFixture(tree.projectDir, "a.jsonl", buildWriteRecordPair(envelope, join(projectFolder, "a.py"), "one\n").records);
     return tree.projectDir;
@@ -41,7 +42,7 @@ function buildQuery(projectFolder: string, jsonlFolders: string[], progress: boo
 }
 
 test("test_edits_route_streams_progress_then_view", () => {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     const { response, body } = buildResponseStub();
     sendLayer1EditsResponse(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], true));
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
@@ -52,7 +53,7 @@ test("test_edits_route_streams_progress_then_view", () => {
 });
 
 test("test_edits_route_without_progress_sends_plain_json", () => {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     const { response, body } = buildResponseStub();
     sendLayer1EditsResponse(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], false));
     const payload = JSON.parse(body()) as { pairs: { path: string; edits: Record<string, unknown>[] }[] };
@@ -62,7 +63,7 @@ test("test_edits_route_without_progress_sends_plain_json", () => {
 
 test("test_edits_route_ignores_workflow_journal", () => {
     for (const progress of [false, true]) {
-        const projectFolder = makeTempDir();
+        const projectFolder = createTempDir();
         const jsonlFolder = writeSessionFolder(projectFolder);
         const workflowFolder = join(jsonlFolder, "subagents", "workflows", "wf_x");
         mkdirSync(workflowFolder, { recursive: true });
@@ -82,6 +83,6 @@ test("test_edits_route_missing_dir_throws", () => {
 
 test("test_edits_route_zero_jsonl_yields_empty_pairs", () => {
     const { response, body } = buildResponseStub();
-    sendLayer1EditsResponse(response, buildQuery(makeTempDir(), [], false));
+    sendLayer1EditsResponse(response, buildQuery(createTempDir(), [], false));
     assert.deepEqual(JSON.parse(body()), { pairs: [] });
 });

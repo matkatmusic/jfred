@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { findFreePort, openHeadlessPage, pause, waitForHttp, type HeadlessPage } from "./cdp.ts";
+import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { failures, reportCheck } from "./mockup-checks.ts";
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -106,7 +106,7 @@ async function executeMain(): Promise<void> {
   finally {
     await page.close();
     server.kill("SIGKILL");
-    await pause(200);
+    await waitMilliseconds(200);
     stopPort(port);
   }
   console.log(failures.length ? `\n${failures.length} FAILED:\n  ${failures.join("\n  ")}` : "\nALL NODE-LINK CHECKS PASSED");

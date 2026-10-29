@@ -7,8 +7,8 @@ import { test } from "node:test";
 import { collectSessionFileGroups, loadSessionRewinds } from "../src/layer1_branch_sessions.ts";
 import { Path } from "../src/structures/domain.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { SESSION_A, makeSourceTree } from "./multi-source-test-helpers.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
+import { SESSION_A, createSourceTree } from "./multi-source-test-helpers.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
 
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
@@ -17,7 +17,7 @@ function buildChatRecord(type: "user" | "assistant", uuid: string, parentUuid: s
 }
 
 function writeSession(name: string, tail: object[]): Path {
-    const tree = makeSourceTree("-branch-sessions");
+    const tree = createSourceTree("-branch-sessions");
     const chat = [
         buildChatRecord("user", "u1", null, "2026-07-24T10:00:00.000Z"),
         buildChatRecord("assistant", "a1", "u1", "2026-07-24T10:00:01.000Z"),

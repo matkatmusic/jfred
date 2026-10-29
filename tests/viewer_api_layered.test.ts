@@ -1,4 +1,4 @@
-// Server test for task 206 (spec S7/S8 plumbing): GET /api/layered-graph?project=<name> serves loadLayeredProject's graph as JSON. Spawned-process pattern (viewer_server.ts listens at import time — precedent: tests/viewer_server.test.ts), pointed at a real fixture tree.
+// Task 206: GET /api/layered-graph serves loadLayeredProject's graph as JSON, from a spawned server on a fixture tree.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,10 +7,10 @@ import { join, resolve } from "node:path";
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
 const PROJECT_NAME = "-layered-api-project";
@@ -19,7 +19,7 @@ const SCRATCH_PORT = 17900 + (process.pid % 500);
 
 // One session writing one file — the smallest graph with a beacon to assert on.
 function makeFixtureProjectsDir(): { projectsDir: string; alphaPath: string } {
-    const tree = makeSourceTree(PROJECT_NAME);
+    const tree = createSourceTree(PROJECT_NAME);
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const write = buildWriteRecordPair(
@@ -91,7 +91,7 @@ test("test_layered_graph_endpoint_returns_the_fixture_graph_json", async () => {
         assert.deepEqual(graph.renames, []);
         assert.deepEqual(graph.copies, []);
         assert.deepEqual(graph.scriptLinks, []);
-        // task 239 (spec S18): the shared ruler travels with the graph, keyed by the SAME ISO text the nodes carry — that key agreement is the whole contract, since the page looks an offset up by a node's `instant` string. The earliest instant sits at the origin; the maximum-vertical-gap-between-ruler-rows arithmetic itself is covered by tests/layer1-ruler-axis.test.ts.
+        // task 239: the ruler is keyed by each node's ISO `instant`; the earliest instant is the origin.
         assert.deepEqual(graph.axisOffsetsPx, { [nodes[0]!.instant]: 0 });
     } finally {
         child.kill();

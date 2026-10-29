@@ -10,7 +10,7 @@ import {
 import { computeDocumentDecision } from "../src/viewer_api_consent.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
 import { executeCli } from "../src/reconstruction_cli.ts";
@@ -19,7 +19,7 @@ import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { loadRecords } from "./utilities.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S19_JSONL, S37_JSONL } from "./fixtures.ts";
 
 
@@ -32,7 +32,7 @@ test("test_buildProjectDocument_single_jsonl_matches_cli_json", () => {
 
 test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
     // Scenario: s53's two agent transcripts unify into ONE document whose filesTouched covers the files of both.
-    const paths = jsonlPathsForScenario("s53");
+    const paths = getScenarioJsonlPaths("s53");
     assert.ok(paths.length >= 2, "s53 spans multiple JSONLs");
     const perTranscriptTargets = paths.map((path) =>
         buildProjectDocument([path], undefined).filesTouched.map((history) => history.target.toString()),
@@ -48,7 +48,7 @@ test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
 
 test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
     // Scenario (S4a): one reconstruction over JSONLs from two conversation-log folders, with the sources list riding to the sidecar reader.
-    const treeRoots = [makeTempDir(), makeTempDir()];
+    const treeRoots = [createTempDir(), createTempDir()];
     const jsonlPaths: Path[] = [];
     const sources = [];
     for (const [index, treeRoot] of treeRoots.entries()) {

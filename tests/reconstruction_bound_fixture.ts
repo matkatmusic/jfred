@@ -5,18 +5,17 @@ import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import {
   SESSION_A,
-  buildEditRecordPair,
   buildPromptRecord,
-  buildWriteRecordPair,
-  makeSourceTree,
+  createSourceTree,
   writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 export type BoundFixture = { records: TranscriptRecord[]; alphaPath: Path };
 
 // Three-turn fixture; withSidechainPrompt adds a subagent prompt inside turn 1.
 export function createBoundFixture(options: { withFinalPrompt: boolean; withSidechainPrompt: boolean }): BoundFixture {
-  const tree = makeSourceTree("-bound-project");
+  const tree = createSourceTree("-bound-project");
   const root = join(tree.treeRoot, "workspace");
   const alphaPath = join(root, "alpha_bound.py");
   const betaPath = join(root, "beta_bound.py");

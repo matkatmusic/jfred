@@ -11,8 +11,9 @@ import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar
 import { Path } from "../src/structures/domain.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
-import { SESSION_A, buildPromptRecord, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
+import { SESSION_A, buildPromptRecord, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 type WireBranchRow = Layer1WireBranchesView["pairs"][number]["branches"][number];
 
@@ -88,7 +89,7 @@ function writePairAt(cwd: string, toolId: string, timestamp: string, parentUuid:
 }
 
 test("test_unnamed_main_line_with_a_structural_rewind_gives_exactly_the_structural_lane", () => {
-    const tree = makeSourceTree("-unnamed-main-line");
+    const tree = createSourceTree("-unnamed-main-line");
     const cwd = "/tmp/unnamed-main-line";
     const trunkWrite = writePairAt(cwd, "toolu_t0", "2026-07-24T10:00:30.000Z", "p0", "trunk.txt", "trunk\n");
     const abandonedWrite = writePairAt(cwd, "toolu_t1", "2026-07-24T10:02:00.000Z", "p1", "f.txt", "abandoned\n");
@@ -113,7 +114,7 @@ test("test_unnamed_main_line_with_a_structural_rewind_gives_exactly_the_structur
 });
 
 test("test_parallel_tool_call_sibling_is_not_a_lane", () => {
-    const tree = makeSourceTree("-parallel-calls");
+    const tree = createSourceTree("-parallel-calls");
     const cwd = "/tmp/parallel-calls";
     const first = writePairAt(cwd, "toolu_a", "2026-07-24T10:00:10.000Z", "p0", "a.txt", "a\n");
     const sibling = writePairAt(cwd, "toolu_b", "2026-07-24T10:00:11.000Z", "toolu_a-assistant", "b.txt", "b\n");

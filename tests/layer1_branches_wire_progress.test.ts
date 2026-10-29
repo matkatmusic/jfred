@@ -11,11 +11,11 @@ import {
 import { loadTranscript, type ProgressSink } from "../src/parse/loadTranscript.ts";
 import { Path } from "../src/structures/domain.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
-import { buildPromptRecord, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
+import { buildPromptRecord, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 
 test("test_progress_counts_groups_then_groups_with_a_lane", () => {
-    const tree = makeSourceTree("-progress");
+    const tree = createSourceTree("-progress");
     writeTranscriptFixture(tree.projectDir, "empty.jsonl", [buildPromptRecord("p0", null, "2026-07-24T10:00:00.000Z", "/tmp/x")]);
     const files = [...listTranscriptFiles([dirname(findScenarioJsonl("s17-multi-edit-conv-only-re-edit"))]), ...listTranscriptFiles([tree.projectDir])];
     const { records } = loadTranscript(findScenarioJsonl("s17-multi-edit-conv-only-re-edit"), undefined, true);

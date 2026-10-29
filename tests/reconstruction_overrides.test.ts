@@ -12,7 +12,7 @@ import {
     writeProjectPathsEntry,
     PROJECT_PATHS_CONFIG_NAME,
 } from "../src/reconstruction_overrides.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -59,14 +59,14 @@ test("test_serialize_path_overrides_is_stable_and_distinguishes_values", () => {
 
 test("test_read_project_paths_config_returns_empty_map_when_file_missing", () => {
     // Scenario: a projects folder with no reveng-paths.json means no overrides.
-    const projectsDir = makeTempDir();
+    const projectsDir = createTempDir();
     // Step: the read yields an empty map, no throw.
     assert.deepEqual(readProjectPathsConfig(new Path(projectsDir)), {});
 });
 
 test("test_read_project_paths_config_reads_project_entry", () => {
     // Scenario: a config file maps project dir names to their path entries.
-    const projectsDir = makeTempDir();
+    const projectsDir = createTempDir();
     const wireConfig = {
         "-Users-me-Programming-jot": {
             cwd: "/Users/me/Programming/jot",
@@ -82,7 +82,7 @@ test("test_read_project_paths_config_reads_project_entry", () => {
 
 test("test_read_project_paths_config_throws_on_malformed_json", () => {
     // Scenario: a malformed config must fail loudly, never silently drop the overrides.
-    const projectsDir = makeTempDir();
+    const projectsDir = createTempDir();
     writeFileSync(join(projectsDir, PROJECT_PATHS_CONFIG_NAME), "not json");
     // Step: the read throws.
     assert.throws(() => readProjectPathsConfig(new Path(projectsDir)));
@@ -90,7 +90,7 @@ test("test_read_project_paths_config_throws_on_malformed_json", () => {
 
 test("test_write_project_paths_entry_merges_into_existing_config", () => {
     // Scenario: writing an entry merges field-wise; other projects survive and a missing file is created.
-    const projectsDir = makeTempDir();
+    const projectsDir = createTempDir();
     writeFileSync(join(projectsDir, PROJECT_PATHS_CONFIG_NAME), JSON.stringify({
         "proj-a": { cwd: "/original/a" },
         "proj-b": { repo: "/repos/b" },
@@ -103,7 +103,7 @@ test("test_write_project_paths_entry_merges_into_existing_config", () => {
     // the unrelated project is untouched.
     assert.deepEqual(config["proj-b"], { repo: "/repos/b" });
     // Step: a brand-new project name creates its entry (and would create the file if missing).
-    const emptyProjectsDir = makeTempDir();
+    const emptyProjectsDir = createTempDir();
     writeProjectPathsEntry(new Path(emptyProjectsDir), "proj-new", { fileHistory: "/tmp/fh" });
     assert.deepEqual(readProjectPathsConfig(new Path(emptyProjectsDir))["proj-new"], { fileHistory: "/tmp/fh" });
 });

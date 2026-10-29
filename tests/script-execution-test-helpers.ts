@@ -3,6 +3,7 @@ import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
+import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 
 // A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp`, with the record-level `cwd` transcripts carry.
 export function buildToolRecord(
@@ -22,11 +23,13 @@ export function buildToolRecord(
 // Collect sandbox-SPAWN announcements while `action` runs (memo hits announce differently).
 export function collectSandboxSpawnLabels(action: () => void): string[] {
   const spawnLabels: string[] = [];
-  setReconstructionProgressSink((event) => {
-    if (event.label.startsWith(PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX)) {
+  function collectSpawnLabel(event: ProgressEvent): void {
+    const isSpawnLabel = event.label.startsWith(PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX);
+    if (isSpawnLabel) {
       spawnLabels.push(event.label);
     }
-  });
+  }
+  setReconstructionProgressSink(collectSpawnLabel);
   try {
     action();
   }

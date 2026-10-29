@@ -1,19 +1,19 @@
 // Minimal CDP driver: launch headless Chrome, eval expressions, capture screenshots.
-//
-// ponytail: plain Node + the global WebSocket against system Chrome, NOT puppeteer. The recipe was already proven for this repo (task 96) and adding a browser-automation dependency to drive five clicks is the kind of weight this project has repeatedly refused. Everything Chrome needs lives in one throwaway --user-data-dir so a run can never inherit a previous run's state.
+// ponytail: plain Node and global WebSocket on system Chrome, not puppeteer; one throwaway profile per run.
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { openCdpSession } from "./cdp-session.ts";
 
 const CHROME_BINARY = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 // How long Chrome gets to answer /json/version before the run gives up.
 const CHROME_BOOT_TIMEOUT_MS = 15_000;
 
-export function pause(milliseconds: number): Promise<void> {
+export function waitMilliseconds(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
@@ -22,11 +22,15 @@ export function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const probe = createServer();
     probe.on("error", reject);
-    probe.listen(0, "127.0.0.1", () => {
+    function closeProbe(): void {
       const address = probe.address();
       const port = typeof address === "object" && address !== null ? address.port : 0;
-      probe.close(() => resolve(port));
-    });
+      function sendPort(): void {
+        resolve(port);
+      }
+      probe.close(sendPort);
+    }
+    probe.listen(0, "127.0.0.1", closeProbe);
   });
 }
 
@@ -39,24 +43,25 @@ export async function waitForHttp(url: string, timeoutMs: number): Promise<void>
       return;
     }
     catch {
-      await pause(120);
+      await waitMilliseconds(120);
     }
   }
   throw new Error(`nothing answered ${url} within ${timeoutMs}ms`);
 }
 
 // Standalone to avoid triple nesting inside openHeadlessPage.
-export async function pollUntilTruthy(
+export async function waitUntilTruthy(
   evaluate: <T>(expression: string) => Promise<T>,
   expression: string,
   timeoutMs: number,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await evaluate<boolean>(`!!(${expression})`)) {
+    const isTruthy = await evaluate<boolean>(`!!(${expression})`);
+    if (isTruthy) {
       return;
     }
-    await pause(250);
+    await waitMilliseconds(250);
   }
   throw new Error(`page never satisfied: ${expression}`);
 }
@@ -70,11 +75,6 @@ export interface HeadlessPage {
   // A viewport PNG, base64-encoded exactly as Page.captureScreenshot returns it.
   screenshot: () => Promise<string>;
   close: () => Promise<void>;
-}
-
-interface PendingCall {
-  resolve: (result: Record<string, unknown>) => void;
-  reject: (error: Error) => void;
 }
 
 // The websocket URL of a fresh about:blank target. PUT, not GET: /json/new refuses GET since M111.
@@ -106,40 +106,13 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
   const chrome = launchChrome(debugPort, profileDir, width, height);
   await waitForHttp(`http://127.0.0.1:${debugPort}/json/version`, CHROME_BOOT_TIMEOUT_MS);
 
-  const socket = new WebSocket(await openTargetSocketUrl(debugPort));
-  const pending = new Map<number, PendingCall>();
-  let nextCallId = 0;
-  await new Promise<void>((resolve) => socket.addEventListener("open", () => resolve(), { once: true }));
-  socket.addEventListener("message", (event: MessageEvent) => {
-    const message = JSON.parse(String(event.data)) as {
-      id?: number; result?: Record<string, unknown>; error?: { message: string };
-    };
-    const call = message.id === undefined ? undefined : pending.get(message.id);
-    if (call === undefined || message.id === undefined) {
-      return;
-    }
-    pending.delete(message.id);
-    if (message.error !== undefined) {
-      call.reject(new Error(message.error.message));
-      return;
-    }
-    call.resolve(message.result ?? {});
-  });
-
-  function send(method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    const id = ++nextCallId;
-    return new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
-      socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
+  const { send, socket } = await openCdpSession(await openTargetSocketUrl(debugPort));
   await send("Page.enable");
   await send("Runtime.enable");
   // Sets the layout viewport that bounding-box assertions measure against.
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 
-  async function evaluate<T>(expression: string): Promise<T> {
+  async function executeExpression<T>(expression: string): Promise<T> {
     const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
     const thrown = result.exceptionDetails as { text?: string; exception?: { description?: string } } | undefined;
     if (thrown !== undefined) {
@@ -148,10 +121,10 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
     return (result.result as { value: T }).value;
   }
 
-  const waitFor = (expression: string, timeoutMs: number) => pollUntilTruthy(evaluate, expression, timeoutMs);
+  const waitFor = (expression: string, timeoutMs: number) => waitUntilTruthy(executeExpression, expression, timeoutMs);
 
   return {
-    evaluate,
+    evaluate: executeExpression,
     waitFor,
     async navigate(url: string): Promise<void> {
       await send("Page.navigate", { url });
@@ -165,8 +138,8 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
       socket.close();
       chrome.kill("SIGKILL");
       // Helpers outlive the parent briefly; wait + retry avoids ENOTEMPTY.
-      await new Promise<void>((resolve) => chrome.once("exit", () => resolve()));
-      await pause(300);
+      await new Promise<unknown>((resolve) => chrome.once("exit", resolve));
+      await waitMilliseconds(300);
       rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     },
   };

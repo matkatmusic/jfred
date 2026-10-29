@@ -5,8 +5,9 @@ import type { ServerResponse } from "node:http";
 import { test } from "node:test";
 import { LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES } from "../src/layer1_branches_wire.ts";
 import { sendLayer1BranchesResponse } from "../src/viewer_api_layer1_branches.ts";
-import { SESSION_A, buildPromptRecord, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { SESSION_A, buildPromptRecord, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function buildResponseStub(): { response: ServerResponse; body: () => string } {
     let body = "";
@@ -22,7 +23,7 @@ function buildResponseStub(): { response: ServerResponse; body: () => string } {
 
 // One session whose prompt p0 has two prompt children: the earlier one writes f.txt and is abandoned.
 function writeRewoundSession(projectFolder: string): string {
-    const tree = makeSourceTree("-branches-route");
+    const tree = createSourceTree("-branches-route");
     const envelope = { sessionId: SESSION_A, cwd: projectFolder, timestamp: "2026-07-24T10:02:00.000Z", toolId: "toolu_w1", parentUuid: "p1" };
     const abandoned = buildWriteRecordPair(envelope, `${projectFolder}/f.txt`, "abandoned\n");
     const kept = buildWriteRecordPair({ ...envelope, toolId: "toolu_w2", timestamp: "2026-07-24T10:06:00.000Z", parentUuid: "p2" }, `${projectFolder}/f.txt`, "kept\n");
@@ -49,7 +50,7 @@ function buildQuery(projectFolder: string, jsonlFolders: string[], progress: boo
 type BranchesPayload = { pairs: { path: string; branches: { rewindKind: string; forkAt: string; nodes: { changeId: string; label: string }[] }[] }[] };
 
 test("test_branches_route_streams_progress_then_view", () => {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     const { response, body } = buildResponseStub();
     sendLayer1BranchesResponse(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], true));
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
@@ -63,7 +64,7 @@ test("test_branches_route_streams_progress_then_view", () => {
 });
 
 test("test_branches_route_without_progress_sends_plain_json", () => {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     const { response, body } = buildResponseStub();
     sendLayer1BranchesResponse(response, buildQuery(projectFolder, [writeRewoundSession(projectFolder)], false));
     const payload = JSON.parse(body()) as BranchesPayload;

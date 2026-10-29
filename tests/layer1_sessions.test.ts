@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { BlockType, RecordType } from "../src/structures/vocabulary.ts";
 import { buildSessionMetadata, findTitleAtLine } from "../src/layer1_sessions.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
 
@@ -39,7 +39,7 @@ function writeRecord(timestamp: string, filePath: string): object {
 }
 
 function writeSession(records: object[]): Path {
-    const jsonlPath = join(makeTempDir(), `${SESSION_ID}.jsonl`);
+    const jsonlPath = join(createTempDir(), `${SESSION_ID}.jsonl`);
     writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
     return new Path(jsonlPath);
 }

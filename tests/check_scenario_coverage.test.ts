@@ -11,10 +11,10 @@ import { renderStepProvenance } from "../scripts/coverage_step_mismatch.ts";
 import {
     findCoveredScenarios,
     listCoveredScenarios,
-    buildUuidLineIndex,
-    readStepStateFiles,
     type CoveredScenario,
 } from "../scripts/coverage_scenarios.ts";
+import { buildUuidLineIndex } from "../scripts/jsonl_uuid_line_index.ts";
+import { readStepStateFiles } from "../scripts/step_state_files.ts";
 import { findFirstLineDifference, selectBestEngineStep } from "../scripts/coverage_compare.ts";
 import { S19_JSONL } from "./fixtures.ts";
 

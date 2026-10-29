@@ -10,13 +10,11 @@ import { collectReadEchoNodes, getRequiredNodeContent, selectAnchorNode } from "
 import type { ReconstructionEntity, Timeline } from "../src/layered_types.ts";
 import {
     SESSION_A,
-    buildEditRecordPair,
     buildPromptRecord,
-    buildReadRecordPair,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildReadRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 // Phase-A tests never dereference this pointer.
 const STUB_EVIDENCE = { sessionFile: new Path("/tmp/a.jsonl"), line: 1 };
@@ -25,7 +23,7 @@ type EvidenceClassFixture = { projectDir: string; alphaPath: string };
 
 // One session touches alpha.py five ways: partial read and originalFile-less edit are stubs; the rest are beacons.
 function makeEvidenceClassFixture(): EvidenceClassFixture {
-    const tree = makeSourceTree("-anchor-project");
+    const tree = createSourceTree("-anchor-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const hunk = { oldStart: 1, oldLines: 2, newStart: 1, newLines: 2, lines: [" line one", "-line two", "+line 2"] };
@@ -120,7 +118,7 @@ test("test_anchor_skips_pre_anchor_stubs_before_first_full_content_evidence", ()
 });
 
 test("test_read_echo_placement_carries_change_id_and_instant", () => {
-    const tree = makeSourceTree("-placement-project");
+    const tree = createSourceTree("-placement-project");
     const readPair = buildReadRecordPair(
         { sessionId: SESSION_A, cwd: "/work", timestamp: "2026-07-24T10:04:00.000Z", toolId: "toolu_read_1", parentUuid: null },
         "/work/a.py",

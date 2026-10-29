@@ -17,10 +17,10 @@ import type { BeaconNode, PreAnchorStubNode, ReconstructionEntity } from "../src
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 function makeBeacon(instantIso: string, content: string): BeaconNode {
     return { kind: LayeredNodeKind.beacon, instant: new Date(instantIso), content, evidence: undefined };
@@ -117,7 +117,7 @@ test("test_buildLayer1Timeline_appends_end_state_then_inserts_gaps", () => {
 
 test("test_loadLayeredProject_session_timeline_ends_with_end_state_and_gap", () => {
     // A loaded timeline whose file exists on disk with different bytes ends with gap plus end state.
-    const tree = makeSourceTree("-layered-end-state");
+    const tree = createSourceTree("-layered-end-state");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const gammaPath = join(workspaceRoot, "gamma.py");
     const writeGamma = buildWriteRecordPair(

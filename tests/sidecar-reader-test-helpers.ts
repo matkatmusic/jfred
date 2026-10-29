@@ -4,11 +4,11 @@ import { join } from "node:path";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 // A copied-out-of-~/.claude tree: <X>/projects plus, optionally, the <X>/file-history sibling.
 export function createCopiedTree(withSibling: boolean): { treeRoot: string; projectDir: string } {
-  const treeRoot = makeTempDir();
+  const treeRoot = createTempDir();
   const projectDir = join(treeRoot, "projects", "-copied-project");
   mkdirSync(projectDir, { recursive: true });
   if (withSibling) {

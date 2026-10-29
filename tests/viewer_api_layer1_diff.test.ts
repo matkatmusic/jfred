@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { sendLayer1Diff, sendLayer1DiffContent } from "../src/viewer_api_layer1_diff.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const FIRST_TEXT = "shared line\nfirst only\n";
 const SECOND_TEXT = "shared line\nsecond only\n";
@@ -129,7 +129,7 @@ test("test_layer1_diff_content_endpoint_answers_the_whole_file_for_identical_sid
 test("test_layer1_diff_endpoint_diffs_a_snapshot_side_against_the_working_tree", () => {
     const sessionId = "b21d84c5-0000-0000-0000-000000000001";
     const relativePath = "src/util.ts";
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const projectDir = mkdtempSync(join(tmpdir(), "layer1-diff-snap-project-"));
     mkdirSync(join(projectDir, "src"), { recursive: true });
     writeFileSync(join(projectDir, relativePath), "shared line\ndisk only\n");

@@ -10,7 +10,7 @@ import { renderRangePatch, computePatchRoot, parseRangePatchQuery, computeStepFi
 import { computeFilesAtStep } from "../src/reconstruction_steps.ts";
 import { S85_JSONL_PATHS } from "./fixtures.ts";
 import {
-    materializeSnapshotIntoDirectory,
+    writeSnapshotIntoDirectory,
     git_initRepositoryWithCommit,
     git_applyPatch,
     listRepositoryFiles,
@@ -42,7 +42,7 @@ test("test_range_patch_applies_cleanly_and_reproduces_after_state", () => {
     const workDir = mkdtempSync(join(tmpdir(), "range-patch-"));
     const repoDir = join(workDir, "repo");
     mkdirSync(repoDir);
-    materializeSnapshotIntoDirectory(beforeFiles, root, repoDir);
+    writeSnapshotIntoDirectory(beforeFiles, root, repoDir);
     git_initRepositoryWithCommit(repoDir);
 
     const patchFile = join(workDir, "range.patch");

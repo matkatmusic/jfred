@@ -7,8 +7,8 @@ import { test } from "node:test";
 import { join } from "node:path";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS } from "../src/layer1_script_runs_wire.ts";
 import { sendLayer1ScriptRunsResponse } from "../src/viewer_api_layer1_script_runs.ts";
-import { SESSION_A, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { SESSION_A, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function buildResponseStub(): { response: ServerResponse; body: () => string } {
     let body = "";
@@ -23,13 +23,13 @@ function buildResponseStub(): { response: ServerResponse; body: () => string } {
 }
 
 function makeProjectFolder(): string {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     writeFileSync(join(projectFolder, "a.py"), "one\n");
     return projectFolder;
 }
 
 function writeSessionFolder(projectFolder: string): string {
-    const tree = makeSourceTree("-script-runs-route");
+    const tree = createSourceTree("-script-runs-route");
     const bashRecord = {
         type: "assistant", uuid: "toolu_b1-assistant", parentUuid: null, sessionId: SESSION_A,
         timestamp: "2026-07-24T10:01:00.000Z", cwd: projectFolder,

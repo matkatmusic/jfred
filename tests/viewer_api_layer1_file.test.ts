@@ -8,7 +8,8 @@ import { type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sendLayer1FileResponse } from "../src/viewer_api_layer1_file.ts";
-import { SESSION_A, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { SESSION_A, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 const COMMITTED_TEXT = "committed line\n";
 const WORKING_TREE_TEXT = "committed line\nedited since the commit\n";
@@ -87,7 +88,7 @@ test("test_layer1_file_endpoint_serves_raw_image_bytes_for_both_forms_when_binar
 
 test("test_layer1_file_endpoint_serves_the_edit_form_when_edit_change_id_is_asked", () => {
     // Task 355: editChangeId selects the replayed Edit bytes, never a git or disk read of `path`.
-    const tree = makeSourceTree("-file-edit-form");
+    const tree = createSourceTree("-file-edit-form");
     const envelope = { sessionId: SESSION_A, cwd: repoDir, timestamp: "2026-07-24T10:01:00.000Z", toolId: "toolu_w1", parentUuid: null };
     writeTranscriptFixture(tree.projectDir, "a.jsonl", buildWriteRecordPair(envelope, join(repoDir, "x.py"), "one\ntwo\n").records);
     const recorded = requestLayer1File({ editChangeId: "toolu_w1", side: "target", path: "x.py", dir: repoDir, jsonl: tree.projectDir });

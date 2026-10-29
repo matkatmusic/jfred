@@ -7,10 +7,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Path } from "../src/structures/domain.ts";
 import { readTranscriptLine, sendLayer1Record } from "../src/viewer_api_layer1_record.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function writeSessionFile(name: string, text: string): Path {
-    const file = join(makeTempDir(), name);
+    const file = join(createTempDir(), name);
     writeFileSync(file, text);
     return new Path(file);
 }

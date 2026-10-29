@@ -8,7 +8,8 @@ import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { buildFileRevisions, buildAllFileHistories } from "../src/reconstruction_engine.ts";
 import type { FileRevision } from "../src/reconstruction_events.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
-import { makeTwoSourceEditFixture, buildEditRecordPair, SESSION_A } from "./multi-source-test-helpers.ts";
+import { createTwoSourceEditFixture, SESSION_A } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair } from "./tool-call-record-pair-builders.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -22,7 +23,7 @@ function readRevisionLines(revision: FileRevision): string[] {
 
 test("test_same_relative_path_with_content_agreement_joins_into_one_history", () => {
     // Scenario (§a): A writes <alpha>/app.py at t1; B edits <beta>/app.py at t2 with matching evidence; one ladder.
-    const fixture = makeTwoSourceEditFixture("line one\n");
+    const fixture = createTwoSourceEditFixture("line one\n");
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     // Test action: reconstruct under the PRIMARY (earlier) root's absolute path.
     const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
@@ -36,7 +37,7 @@ test("test_same_relative_path_with_content_agreement_joins_into_one_history", ()
 
 test("test_same_relative_path_with_content_disagreement_keeps_two_histories", () => {
     // Scenario (§a): B's pre-state evidence does not match A's state, so the join is refused.
-    const fixture = makeTwoSourceEditFixture("divergent\n");
+    const fixture = createTwoSourceEditFixture("divergent\n");
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     const targets = buildAllFileHistories(merged).map((history) => history.target.toString());
     // Test verification: both absolute paths survive as separate histories.
@@ -46,7 +47,7 @@ test("test_same_relative_path_with_content_disagreement_keeps_two_histories", ()
 
 test("test_cross_source_interleave_orders_revisions_by_wall_clock", () => {
     // Scenario (§c3 + §d): A writes t1, B edits t2, A edits t3; one strictly time-ordered ladder.
-    const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
+    const fixture = createTwoSourceEditFixture("line one\n", (locations) =>
         buildEditRecordPair(
             {
                 sessionId: SESSION_A,

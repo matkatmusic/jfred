@@ -4,7 +4,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { HeadlessPage } from "../scripts/visual/cdp.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
-import { checkSnapshotToggle, validateRulerRow, validateSnapshotNodes } from "../scripts/visual/mockup-checks-snapshots.ts";
+import { validateRulerRow, validateSnapshotNodes, validateSnapshotToggle } from "../scripts/visual/mockup-checks-snapshots.ts";
 
 function fakePage(answers: unknown[]): HeadlessPage {
     const queue = [...answers];
@@ -44,16 +44,16 @@ test("validateSnapshotNodes fails the order check when the pre-commit snapshot i
 
 const TOGGLE_BEFORE = "100:abc12345/on disk";
 
-test("checkSnapshotToggle passes when the toggle hides and restores snapshots without re-laying-out", async () => {
+test("validateSnapshotToggle passes when the toggle hides and restores snapshots without re-laying-out", async () => {
     const page = fakePage([TOGGLE_BEFORE, undefined, TOGGLE_BEFORE, [true, true], undefined, TOGGLE_BEFORE,
         [false, false], "abc12345/on disk", 0, true]);
-    assert.deepEqual(await failuresAddedBy(() => checkSnapshotToggle(page)), []);
+    assert.deepEqual(await failuresAddedBy(() => validateSnapshotToggle(page)), []);
 });
 
-test("checkSnapshotToggle fails only the first check when the unticked probe differs from before", async () => {
+test("validateSnapshotToggle fails only the first check when the unticked probe differs from before", async () => {
     const page = fakePage([TOGGLE_BEFORE, undefined, "250:abc12345/on disk", [true, true], undefined, TOGGLE_BEFORE,
         [false, false], "abc12345/on disk", 0, true]);
-    assert.deepEqual(await failuresAddedBy(() => checkSnapshotToggle(page)),
+    assert.deepEqual(await failuresAddedBy(() => validateSnapshotToggle(page)),
         ["#304 unticking snapshots leaves a snapshot-free file exactly as it was"]);
 });
 

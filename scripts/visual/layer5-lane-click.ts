@@ -1,12 +1,13 @@
-// Task 357: a branch lane node opens the Details drawer like a trunk edit node and ends up fully visible beside it.
-//
-// Boxes are [left, top, right, bottom]. TRAP: the probes are template literals, so no backtick or dollar-brace inside them.
+// Task 357: a branch lane node opens the Details drawer and ends up fully visible beside it.
 
-import { pause, type HeadlessPage } from "./cdp.ts";
+// Boxes are [left, top, right, bottom]. TRAP: probes are template literals, so no backtick or dollar-brace.
+
+import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 
 const DRAWER_TIMEOUT_MS = 120_000;
 const RECENTRE_WAIT_MS = 600;
+const DRAWER_HEAD_PATTERN = /^\S+ \S/;
 
 export interface LaneClickOptions {
   // Only lane nodes in the bubble of this path; any bubble when absent.
@@ -22,7 +23,7 @@ interface ClickedLaneNode {
   isShown: boolean; isInsidePane: boolean; touchesDrawer: boolean; drawerOpen: boolean;
 }
 
-const pickDot = (options: LaneClickOptions, index: number) => `(() => {
+export const buildDotProbe = (options: LaneClickOptions, index: number) => `(() => {
     document.querySelectorAll('[data-lane-click]').forEach((node) => node.removeAttribute('data-lane-click'));
     const boxes = [...document.querySelectorAll('.filebox')].filter((box) => ${options.path === undefined ? "true" : `box.querySelector('.fname')?.dataset.path === ${JSON.stringify(options.path)}`});
     const dots = boxes.flatMap((box) => [...box.querySelectorAll('.bnode')]).filter((node) => node.offsetParent !== null);
@@ -53,20 +54,22 @@ const READ_CLICKED = `(() => {
         drawerOpen: document.getElementById('drawer').classList.contains('open') };
 })()`;
 
-export async function checkLaneNodeClicks(page: HeadlessPage, tag: string, options: LaneClickOptions): Promise<void> {
+export async function validateLaneNodeClicks(page: HeadlessPage, tag: string, options: LaneClickOptions): Promise<void> {
   let clicked = 0;
   for (let index = 0; index < options.max; index += 1) {
-    const dotCount = await page.evaluate<number>(pickDot(options, index));
+    const dotCount = await page.evaluate<number>(buildDotProbe(options, index));
     if (dotCount < 0) {
       break;
     }
     await page.evaluate(CLICK_DOT);
     await page.waitFor(`document.getElementById('drawer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`, DRAWER_TIMEOUT_MS);
-    await pause(RECENTRE_WAIT_MS);
+    await waitMilliseconds(RECENTRE_WAIT_MS);
     const facts = await page.evaluate<ClickedLaneNode>(READ_CLICKED);
     const label = `${tag} lane node ${index + 1}/${dotCount}`;
+    const headHasFileAndLabel = DRAWER_HEAD_PATTERN.test(facts.head);
+    const metaNamesBranchRevision = facts.meta.startsWith("branch revision · ");
     reportCheck(`${tag} clicking ${label} opens the drawer, headed '<file> <label>', named as a branch revision`,
-      facts.drawerOpen && /^\S+ \S/.test(facts.head) && facts.meta.startsWith("branch revision · "), [facts.head, facts.meta]);
+      facts.drawerOpen && headHasFileAndLabel && metaNamesBranchRevision, [facts.head, facts.meta]);
     reportCheck(`${tag} ${label}: the diff shows a non-empty before or after`, facts.rows > 0 && facts.changedText > 0, { rows: facts.rows, changedText: facts.changedText });
     reportCheck(`${tag} ${label}: the node is shown, inside the pane and clear of the drawer`,
       facts.isShown && facts.isInsidePane && !facts.touchesDrawer, facts);

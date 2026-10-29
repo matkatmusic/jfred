@@ -8,7 +8,7 @@ import {
     markSettingsDirty,
     saveFolderCollapseState,
 } from "../webapp/layer1-settings.ts";
-import { SAVED_PROJECT, settle, stubSettingsRoute } from "./layer1-settings-test-helpers.ts";
+import { SAVED_PROJECT, waitForSettle, createSettingsRouteStub } from "./layer1-settings-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function isSaveButtonDisabled(): boolean {
@@ -17,7 +17,7 @@ function isSaveButtonDisabled(): boolean {
 
 test("editing a saved field arms the button and drops the stale note", () => {
     initLayer1Dom();
-    stubSettingsRoute(null, true);
+    createSettingsRouteStub(null, true);
     attachSettingsSave();
     getRequiredElementById("saved-note").textContent = "saved";
     assert.equal(isSaveButtonDisabled(), true);
@@ -30,14 +30,14 @@ test("editing a saved field arms the button and drops the stale note", () => {
 
 test("a successful save posts the whole record and disarms the button", async () => {
     initLayer1Dom();
-    const route = stubSettingsRoute(null, true);
+    const route = createSettingsRouteStub(null, true);
     attachSettingsSave();
     getInputById("dir").value = SAVED_PROJECT.dir;
     getInputById("repo").value = SAVED_PROJECT.repo;
     markSettingsDirty();
 
     getRequiredElementById("save-settings").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settle();
+    await waitForSettle();
 
     assert.equal(route.posted().length, 1);
     assert.deepEqual(Object.keys(route.posted()[0] as object).sort(),
@@ -48,12 +48,12 @@ test("a successful save posts the whole record and disarms the button", async ()
 
 test("a refused save leaves the button armed and says so", async () => {
     initLayer1Dom();
-    stubSettingsRoute(null, false);
+    createSettingsRouteStub(null, false);
     attachSettingsSave();
     markSettingsDirty();
 
     getRequiredElementById("save-settings").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-    await settle();
+    await waitForSettle();
 
     assert.equal(isSaveButtonDisabled(), false);
     assert.match(getRequiredElementById("saved-note").textContent ?? "", /save failed/);
@@ -61,22 +61,22 @@ test("a refused save leaves the button armed and says so", async () => {
 
 test("saving folder collapse state posts dir and the folder list", async () => {
     initLayer1Dom();
-    const route = stubSettingsRoute(null, true);
+    const route = createSettingsRouteStub(null, true);
     getInputById("dir").value = SAVED_PROJECT.dir;
 
     saveFolderCollapseState(["src/a", "src/b"]);
-    await settle();
+    await waitForSettle();
 
     assert.deepEqual(route.posted(), [{ dir: SAVED_PROJECT.dir, collapsedFolders: ["src/a", "src/b"] }]);
 });
 
 test("saving folder collapse state with no project open posts nothing", async () => {
     initLayer1Dom();
-    const route = stubSettingsRoute(null, true);
+    const route = createSettingsRouteStub(null, true);
     getInputById("dir").value = "";
 
     saveFolderCollapseState(["src/a"]);
-    await settle();
+    await waitForSettle();
 
     assert.deepEqual(route.posted(), []);
 });

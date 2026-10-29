@@ -10,13 +10,13 @@ import type { LineageEvidence } from "../src/layered_lineage.ts";
 import type { TimelineNode } from "../src/layered_types.ts";
 import {
     SESSION_A,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 test("test_collectSessionNodes_write_event_becomes_beacon_under_file_and_session", () => {
-    const tree = makeSourceTree("-layered-nodes-project");
+    const tree = createSourceTree("-layered-nodes-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const write = buildWriteRecordPair(

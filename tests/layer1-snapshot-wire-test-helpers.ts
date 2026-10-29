@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 import { DISK_ONLY_FILE_MTIME, SHARED_FILE_MTIME } from "./layer1-view-test-helpers.ts";
 
 export const SESSION_ONE = "b21d84c5-0000-0000-0000-000000000001";
@@ -34,13 +34,16 @@ export function writeSessionTranscript(treeRoot: string, sessionId: string, reco
   const projectDir = join(treeRoot, "projects", "-demo");
   mkdirSync(projectDir, { recursive: true });
   const jsonlPath = join(projectDir, `${sessionId}.jsonl`);
-  writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+  const lines: string[] = [];
+  for (const record of records)
+    lines.push(JSON.stringify(record));
+  writeFileSync(jsonlPath, lines.join("\n") + "\n");
   return new Path(jsonlPath);
 }
 
 // One session snapshotting shared.txt twice, once where nothing else sits, once ON its mtime, and disk-only.txt on ITS mtime.
 export function writeFixtureSessions(diskDir: string): Path[] {
-  const treeRoot = makeTempDir();
+  const treeRoot = createTempDir();
   return [
     writeSessionTranscript(treeRoot, SESSION_ONE, [
       buildSessionCwdRecord(diskDir, SESSION_ONE),

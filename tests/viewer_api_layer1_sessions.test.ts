@@ -7,7 +7,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
-import { SESSION_A, SESSION_B, buildPromptRecord, buildWriteRecordPair } from "./multi-source-test-helpers.ts";
+import { SESSION_A, SESSION_B, buildPromptRecord } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 import { LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING } from "../src/viewer_api_layer1_sessions.ts";
 import type { WireSession } from "../webapp/layer1-wire.ts";
 

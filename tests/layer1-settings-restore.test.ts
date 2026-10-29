@@ -7,12 +7,12 @@ import { getCollapsedFoldersForProject } from "../webapp/layer1-settings.ts";
 import { loadSavedSettings } from "../webapp/layer1-settings-restore.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
-import { SAVED_PROJECT, stubSettingsRoute } from "./layer1-settings-test-helpers.ts";
+import { SAVED_PROJECT, createSettingsRouteStub } from "./layer1-settings-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 test("the saved file fills the boxes and the two source lists", async () => {
     initLayer1Dom();
-    stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
+    createSettingsRouteStub({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
 
     assert.equal(await loadSavedSettings(), true);
 
@@ -24,7 +24,7 @@ test("the saved file fills the boxes and the two source lists", async () => {
 test("a link wins for the fields it names, and only those", async () => {
     // Precedence is PER FIELD: a ?dir=&repo= link leaves the source lists alone.
     initLayer1Dom("?dir=/Users/you/code/other-app&repo=/Users/you/code/other-app");
-    stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
+    createSettingsRouteStub({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     getInputById("dir").value = "/Users/you/code/other-app";
 
     assert.equal(await loadSavedSettings(), true);
@@ -35,7 +35,7 @@ test("a link wins for the fields it names, and only those", async () => {
 
 test("a link carrying its own source list keeps it", async () => {
     initLayer1Dom("?dir=/Users/you/code/other-app&jsonl=%2Flinked%2Fprojects");
-    stubSettingsRoute({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
+    createSettingsRouteStub({ lastDir: SAVED_PROJECT.dir, projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT } }, true);
     writeSourcePaths(SourceKind.jsonl, ["/linked/projects"]);
 
     await loadSavedSettings();
@@ -46,7 +46,7 @@ test("a link carrying its own source list keeps it", async () => {
 test("debugConfig defaults fill the page when nothing is saved", async () => {
     const DEFAULTS = { dir: "/cfg/project", repo: "/cfg/project", jsonl: ["/cfg/a", "/cfg/b", "/cfg/c"] };
     initLayer1Dom();
-    stubSettingsRoute({ lastDir: null, projects: {}, defaults: DEFAULTS }, true);
+    createSettingsRouteStub({ lastDir: null, projects: {}, defaults: DEFAULTS }, true);
     writeSourcePaths(SourceKind.jsonl, []);
 
     assert.equal(await loadSavedSettings(), true);
@@ -57,7 +57,7 @@ test("debugConfig defaults fill the page when nothing is saved", async () => {
 
 test("a saved project beats the debugConfig defaults", async () => {
     initLayer1Dom();
-    stubSettingsRoute({
+    createSettingsRouteStub({
         lastDir: SAVED_PROJECT.dir,
         projects: { [SAVED_PROJECT.dir]: SAVED_PROJECT },
         defaults: { dir: "/cfg/project", jsonl: ["/cfg/a"] },
@@ -73,7 +73,7 @@ test("restoring settings makes every saved project's collapsed folders available
     initLayer1Dom();
     const dirA = SAVED_PROJECT.dir;
     const dirB = "/Users/you/code/other-app";
-    stubSettingsRoute({
+    createSettingsRouteStub({
         lastDir: dirA,
         projects: {
             [dirA]: { ...SAVED_PROJECT, collapsedFolders: ["src/x"] },

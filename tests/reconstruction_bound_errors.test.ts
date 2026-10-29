@@ -11,10 +11,10 @@ import { createBoundFixture } from "./reconstruction_bound_fixture.ts";
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 test("test_bound_rejects_out_of_range_ordinal", () => {
     // Scenario: an out-of-range ordinal fails loudly, and the message teaches the valid range.
@@ -36,7 +36,7 @@ test("test_bound_rejects_unknown_target", () => {
 
 // Task 193: --until-revision bounds the whole reconstruction at the turn end, unlike --file which filters after full reconstruction.
 test("test_cli_until_revision_bounds_all_views", () => {
-    const tree = makeSourceTree("-cli-until-rev");
+    const tree = createSourceTree("-cli-until-rev");
     const root = join(tree.treeRoot, "ws");
     const alphaPath = join(root, "alpha_until.py");
     const turnOneWrite = buildWriteRecordPair(

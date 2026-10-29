@@ -1,7 +1,4 @@
-// Server tests for task 183 (per-file debug viewer): GET /api/file-ladder?project=<name> lists
-// the reconstructable final paths; adding &file=<path> serves that file's revision ladder from
-// the merged multi-source reconstruction. Spawned-process pattern (viewer_server.ts listens at
-// import time — precedent: tests/viewer_api_layered.test.ts), pointed at a real fixture tree.
+// Task 183: GET /api/file-ladder lists final paths; adding &file= serves that file's revision ladder.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,10 +7,10 @@ import { join, resolve } from "node:path";
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
 const PROJECT_NAME = "-ladder-api-project";
@@ -22,7 +19,7 @@ const SCRATCH_PORT = 18400 + (process.pid % 500);
 
 // One session writing one file — the smallest project with a one-revision ladder.
 function makeFixtureProjectsDir(): { projectsDir: string; alphaPath: string } {
-    const tree = makeSourceTree(PROJECT_NAME);
+    const tree = createSourceTree(PROJECT_NAME);
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const write = buildWriteRecordPair(
@@ -63,14 +60,14 @@ function fetchLadderRoute(query: string): Promise<Response> {
     return fetch(`http://127.0.0.1:${SCRATCH_PORT}/api/file-ladder?project=${encodeURIComponent(PROJECT_NAME)}${query}`);
 }
 
-// The wire form of a FileHistory: Path/Uuid serialize via toJSON, Dates to ISO strings; each LineEntry carries its sighting history — the LAST value is the line's content at this revision.
+// The wire form of a FileHistory: Path/Uuid via toJSON, Dates as ISO strings.
 type WireLadder = {
     target: string;
     revisions: Array<{ kind: string; lines: Array<{ values: Array<{ line: string }> }> }>;
 };
 
 test("test_file_ladder_endpoint_lists_final_paths", async () => {
-    // Scenario: without a file param the endpoint lists the project's reconstructable final paths.  Steps: spawn the server over the one-write fixture and ask for the list.
+    // Without a file param the endpoint lists the project's final paths.
     const fixture = makeFixtureProjectsDir();
     const child = spawnViewerProcess(fixture.projectsDir);
     try {
@@ -86,7 +83,7 @@ test("test_file_ladder_endpoint_lists_final_paths", async () => {
 });
 
 test("test_file_ladder_endpoint_returns_one_files_revision_ladder", async () => {
-    // Scenario: with &file= the endpoint serves that file's FileHistory from the merged multi-source reconstruction (surviving-branch fast path).  Steps: spawn the server and request alpha.py's ladder.
+    // With &file= the endpoint serves that file's FileHistory from the merged reconstruction.
     const fixture = makeFixtureProjectsDir();
     const child = spawnViewerProcess(fixture.projectsDir);
     try {
@@ -109,7 +106,7 @@ test("test_file_ladder_endpoint_returns_one_files_revision_ladder", async () => 
 });
 
 test("test_file_ladder_endpoint_refuses_an_unknown_file", async () => {
-    // Scenario: a file the reconstruction never exposes as a final path is a 400 refusal, not an empty ladder.  Steps: spawn the server and request a path with no evidence.
+    // A file with no final path is a 400 refusal, not an empty ladder.
     const fixture = makeFixtureProjectsDir();
     const child = spawnViewerProcess(fixture.projectsDir);
     try {

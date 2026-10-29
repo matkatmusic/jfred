@@ -9,10 +9,10 @@ import { Path } from "../src/structures/domain.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
 import { buildBranchedReconstruction } from "../src/reconstruction_engine.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { resolveScenarioDir } from "./fixtures.ts";
+import { findScenarioDir } from "./scenario-locator.ts";
 
 const SCENARIO_ROOT = fileURLToPath(new URL("../scenarios/executed", import.meta.url));
-const FORK_DIR = resolveScenarioDir([SCENARIO_ROOT], "fork-stitch");
+const FORK_DIR = findScenarioDir([SCENARIO_ROOT], "fork-stitch");
 const PARENT_SESSION = "1370c498-2c5d-4160-b186-35050cf1cffa";
 const PARENT_JSONL = join(FORK_DIR, `${PARENT_SESSION}.jsonl`);
 const SUBAGENT_JSONL = join(FORK_DIR, PARENT_SESSION, "subagents", "agent-a7b575676defea277.jsonl");

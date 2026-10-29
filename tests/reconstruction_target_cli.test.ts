@@ -6,15 +6,15 @@ import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     SESSION_A,
     SESSION_B,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 // The alpha/beta two-source CLI fixture shared by the JSON and text fast-path tests.
 function buildTwoSourceCliFixture(suffix: string): { jsonlPaths: string[]; alphaPath: string } {
-    const treeA = makeSourceTree(`-target-a${suffix}`);
-    const treeB = makeSourceTree(`-target-b${suffix}`);
+    const treeA = createSourceTree(`-target-a${suffix}`);
+    const treeB = createSourceTree(`-target-b${suffix}`);
     const rootA = join(treeA.treeRoot, "ws-a");
     const rootB = join(treeB.treeRoot, "ws-b");
     const alphaPath = join(rootA, "alpha.py");

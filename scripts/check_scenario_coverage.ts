@@ -9,7 +9,9 @@ import { isReproducedBySomeStep } from "../src/reconstruction_step_snapshot.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { mergeMultiSourceRecords, splitRecordsBySession } from "../src/reconstruction_multi_source.ts";
 import { enableProvenance, disableProvenance, getAndClearProvenance } from "../src/reconstruction_provenance.ts";
-import { listCoveredScenarios, findUncovered, buildUuidLineIndex, readStepStateFiles, stepFolders, stepNumberOf, type CoveredScenario } from "./coverage_scenarios.ts";
+import { listCoveredScenarios, findUncovered, type CoveredScenario } from "./coverage_scenarios.ts";
+import { buildUuidLineIndex } from "./jsonl_uuid_line_index.ts";
+import { readStepStateFiles, listStepFolders, parseStepNumber } from "./step_state_files.ts";
 import { buildStepMismatch, type StepMismatch } from "./coverage_step_mismatch.ts";
 import { printResult, type ScenarioResult } from "./coverage_report.ts";
 
@@ -49,7 +51,7 @@ export function validateScenario(scenario: CoveredScenario): ScenarioResult {
   const mismatches: StepMismatch[] = [];
   let passed = 0;
   let userEdits = 0;
-  const folders = stepFolders(scenario.stepStatesDir);
+  const folders = listStepFolders(scenario.stepStatesDir);
   for (let i = 0; i < folders.length; i += 1) {
     const groundTruth = readStepStateFiles(join(scenario.stepStatesDir, folders[i]!));
     const isReproduced = isReproducedBySomeStep(steps, groundTruth);
@@ -65,7 +67,7 @@ export function validateScenario(scenario: CoveredScenario): ScenarioResult {
       continue;
     }
     mismatches.push(
-      buildStepMismatch(stepNumberOf(folders[i]!), groundTruth, steps, stepChanges, uuidLineIndex, provenance),
+      buildStepMismatch(parseStepNumber(folders[i]!), groundTruth, steps, stepChanges, uuidLineIndex, provenance),
     );
   }
   return { scenario, passed, userEdits, total: folders.length, mismatches };

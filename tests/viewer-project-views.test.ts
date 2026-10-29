@@ -7,7 +7,7 @@ import { buildConversationViewModel } from "../webapp/views/conversation-model.t
 import { buildProjectViewModel } from "../webapp/views/project.ts";
 import { filterProjectsByName } from "../webapp/views/projects.ts";
 import { readNonEmptyLines } from "./utilities.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 
@@ -85,7 +85,7 @@ test("test_filterProjectsByName_returns_all_projects_for_empty_filter", () => {
 
 test("test_file_state_viewmodel_unifies_multi_jsonl", () => {
     // Scenario: s53 (two concurrent-agent transcripts) — the project view model's files-touched list covers files originating from BOTH JSONLs.
-    const paths = jsonlPathsForScenario("s53");
+    const paths = getScenarioJsonlPaths("s53");
     const perTranscriptTargets = paths.map((path) =>
         JSON.parse(JSON.stringify(buildProjectDocument([path], undefined)))
             .filesTouched.map((history: any) => history.target),

@@ -12,12 +12,11 @@ import {
 import {
     SESSION_A,
     SESSION_B,
-    buildEditRecordPair,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 type LayeredFixture = {
     projectDir: string;
@@ -30,7 +29,7 @@ type LayeredFixture = {
 
 // Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py; session B (b.jsonl) writes beta.py.
 function makeLayeredFixture(): LayeredFixture {
-    const tree = makeSourceTree("-layered-project");
+    const tree = createSourceTree("-layered-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const betaPath = join(workspaceRoot, "beta.py");

@@ -2,7 +2,7 @@ import { RecordType } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
-export function rec(type: RecordType, uuid: string, parent: string | null, blocks?: unknown[]): TranscriptRecord {
+export function createRecord(type: RecordType, uuid: string, parent: string | null, blocks?: unknown[]): TranscriptRecord {
   return {
     type,
     uuid: new Uuid(uuid),
@@ -10,6 +10,6 @@ export function rec(type: RecordType, uuid: string, parent: string | null, block
     ...(blocks !== undefined ? { message: { content: blocks } } : {}),
   } as TranscriptRecord;
 }
-export function lastPrompt(leaf: string): TranscriptRecord {
+export function createLastPromptRecord(leaf: string): TranscriptRecord {
   return { type: RecordType.lastPrompt, leafUuid: leaf } as unknown as TranscriptRecord;
 }

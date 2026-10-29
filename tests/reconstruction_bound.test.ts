@@ -10,10 +10,10 @@ import {
     SESSION_A,
     SESSION_B,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 test("test_bound_reports_total_revision_count", () => {
     // Scenario: the total revision count covers the FULL stream regardless of where the bound cuts.
@@ -33,7 +33,7 @@ test("test_bound_truncates_after_containing_turn_end", () => {
 
 test("test_bound_instant_reports_turn_end_not_last_record", () => {
     // Task 192: boundInstant is the actual turn-end boundary used, not the last record's stamp; streams are grouped by file.
-    const tree = makeSourceTree("-bound-instant");
+    const tree = createSourceTree("-bound-instant");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
     const writeAlpha = buildWriteRecordPair(

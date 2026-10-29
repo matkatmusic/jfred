@@ -15,10 +15,8 @@ import {
     TOOL_CALL_NODE_KIND,
     USER_TURN_NODE_KIND,
 } from "../webapp/views/timeline-types.ts";
-import {
-    s39SeedDocument,
-    gitBaselineDocument,
-} from "./timeline-test-helpers.ts";
+import { s39SeedDocument } from "./timeline-test-helpers.ts";
+import { gitBaselineDocument } from "./timeline-git-baseline-fixture.ts";
 
 test("test_computeRolePillLabel_names_each_row_kind", () => {
     // Scenario: user, agent, and tool-call rows get a pill; session-end rows get none.

@@ -9,7 +9,7 @@ import { RecordType } from "../src/structures/vocabulary.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { collectSnapshotPlacements } from "../src/layer1_snapshots.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const SESSION_ONE = "b21d84c5-0000-0000-0000-000000000001";
 const SESSION_TWO = "d4a06b8f-0000-0000-0000-000000000002";
@@ -50,7 +50,7 @@ function writeBlob(treeRoot: string, sessionId: string, blobName: string, conten
 
 test("test_collectSnapshotPlacements_keeps_each_session_as_the_owner_of_its_own_version", () => {
     // Scenario: two sessions name one blob "abc123@v2" with different bytes; losing the owner reads the wrong bytes.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     // Session ONE snapshots util.ts into abc123@v2 at T1.
     const sessionOneFile = writeSessionTranscript(treeRoot, SESSION_ONE, [
         buildSessionCwdRecord("/work", SESSION_ONE),
@@ -93,7 +93,7 @@ test("test_collectSnapshotPlacements_keeps_each_session_as_the_owner_of_its_own_
 
 test("test_collectSnapshotPlacements_skips_a_snapshot_with_no_blob", () => {
     // Scenario: a null backupFileName holds no blob, so it can never be shown or fetched.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionFile = writeSessionTranscript(treeRoot, SESSION_ONE, [
         buildSessionCwdRecord("/work", SESSION_ONE),
         buildSnapshotRecord("notes.txt", null, 1, "2026-07-23T19:40:00.000Z"),
@@ -105,7 +105,7 @@ test("test_collectSnapshotPlacements_skips_a_snapshot_with_no_blob", () => {
 
 test("test_collectSnapshotPlacements_records_a_repeated_snapshot_entry_once", () => {
     // Scenario: snapshot records are cumulative; one real transcript repeats a single entry 101 times.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const repeated = buildSnapshotRecord("src/index.ts", "def456@v3", 3, "2026-07-24T08:15:00.000Z");
     const sessionFile = writeSessionTranscript(treeRoot, SESSION_TWO, [
         buildSessionCwdRecord("/work", SESSION_TWO),
@@ -125,7 +125,7 @@ test("test_collectSnapshotPlacements_records_a_repeated_snapshot_entry_once", ()
 
 test("test_collectSnapshotPlacements_flags_only_the_placement_whose_backup_file_is_missing", () => {
     // Scenario: one blob is on disk, the other never was, so only the second placement is flagged.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionFile = writeSessionTranscript(treeRoot, SESSION_ONE, [
         buildSessionCwdRecord("/work", SESSION_ONE),
         buildSnapshotRecord("src/present.ts", "aaa111@v1", 1, "2026-07-23T19:40:00.000Z"),

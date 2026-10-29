@@ -11,11 +11,10 @@ import { buildFileRevisions } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
 import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
 import {
-    makeTwoSourceEditFixture,
-    buildEditRecordPair,
+    createTwoSourceEditFixture,
     SESSION_A,
-    type WireHunk,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, type WireHunk } from "./tool-call-record-pair-builders.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -41,7 +40,7 @@ function buildSecondEditOfA(
 
 test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline", () => {
     // A writes t1, B edits t2 (join), then A's t3 edit has stale originalFile that contradicts the merge.
-    const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
+    const fixture = createTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline three\n", "line one\n", {
             oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line three"],
         }));
@@ -60,7 +59,7 @@ test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline
 test("test_agreeing_cross_source_stream_emits_no_conflict_note", () => {
     // Scenario: the same alternating stream but A's t3 evidence saw B's line — no contradiction,
     // so the conflict path must stay silent.
-    const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
+    const fixture = createTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline two\nline three\n", "line one\nline two\n", {
             oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [" line one", " line two", "+line three"],
         }));

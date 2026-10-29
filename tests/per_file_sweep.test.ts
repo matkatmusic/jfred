@@ -9,10 +9,10 @@ import { executeSweep } from "../scripts/per_file_sweep.ts";
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 const BASELINE_CONTENT = "one\ntwo\n";
 const REWRITTEN_CONTENT = "one\ntwo\nthree\n";
@@ -49,7 +49,7 @@ function makeBaselineRepo(repoRoot: string): string {
 
 test("test_executeSweep_reports_a_recovered_ladder_and_resumes_on_a_second_run", () => {
     // Scenario: one M candidate with both endpoints matching gives verdict ok; a rerun adds no rows.
-    const tree = makeSourceTree("-per-file-sweep");
+    const tree = createSourceTree("-per-file-sweep");
     const repoRoot = join(tree.treeRoot, "repo");
     const baselineCommit = makeBaselineRepo(repoRoot);
     const fileHistoryRoot = join(tree.treeRoot, "file-history");

@@ -8,7 +8,7 @@ import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { buildSidecarReader, findFileHistoryRootFromRecords, findSessionId, getDefaultFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { S43_JSONL_PATHS } from "./fixtures.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 import { createCopiedTree, loadMinimalTranscript, writeBlobForSession } from "./sidecar-reader-test-helpers.ts";
 
 // Spec-S4 two-source fixture: same blob name in both trees, so only per-source resolution reads both correctly.
@@ -46,7 +46,7 @@ test("test_build_sidecar_reader_reads_each_sessions_blob_from_its_own_source", (
 test("test_build_sidecar_reader_source_fileHistoryDir_wins_over_sibling_derivation", () => {
     // Config-first: a source's explicit fileHistoryDir outranks the derivable sibling.
     const fixture = makeTwoSourceFixture();
-    const customHistoryDir = makeTempDir();
+    const customHistoryDir = createTempDir();
     // writeBlobForSession appends file-history/<session>, so write the custom dir's blob directly.
     mkdirSync(join(customHistoryDir, fixture.sessionB), { recursive: true });
     writeFileSync(join(customHistoryDir, fixture.sessionB, SHARED_BLOB_NAME), "content from custom dir");

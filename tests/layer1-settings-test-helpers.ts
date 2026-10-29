@@ -9,24 +9,24 @@ export const SAVED_PROJECT = {
   fileHistory: ["/Users/you/.claude/file-history"],
 };
 
-function respondWith(body: unknown, ok: boolean, text: string): Response {
+function buildResponse(body: unknown, ok: boolean, text: string): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body, text: async () => text } as unknown as Response;
 }
 
 // Records every POST body so the save's payload can be asserted, and answers GET with `savedFile`.
-export function stubSettingsRoute(savedFile: unknown, saveSucceeds: boolean): { posted: () => unknown[] } {
+export function createSettingsRouteStub(savedFile: unknown, saveSucceeds: boolean): { posted: () => unknown[] } {
   const posted: unknown[] = [];
-  const answer = async (_url: unknown, init?: { method?: string; body?: string }): Promise<Response> => {
+  const fetchStubbed = async (_url: unknown, init?: { method?: string; body?: string }): Promise<Response> => {
     if (init?.method !== "POST") {
-      return respondWith(savedFile, true, "");
+      return buildResponse(savedFile, true, "");
     }
     posted.push(JSON.parse(init.body ?? "{}"));
-    return respondWith({ saved: saveSucceeds }, saveSucceeds, "disk full");
+    return buildResponse({ saved: saveSucceeds }, saveSucceeds, "disk full");
   };
-  Object.assign(globalThis, { fetch: answer });
+  Object.assign(globalThis, { fetch: fetchStubbed });
   return { posted: () => posted };
 }
 
-export async function settle(): Promise<void> {
+export async function waitForSettle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }

@@ -4,23 +4,23 @@ import { DOES_NOT_EXIST_YET } from "../src/structures/line-model.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
 // A line carried forward unchanged from index i of the previous revision.
-export function carried(i: number, line: string, when: Date): LineEntry {
+export function createCarriedLine(i: number, line: string, when: Date): LineEntry {
   return { oldLineNum: i, values: [{ line, timestamp: when }] };
 }
 
 // A line born here (no predecessor).
-export function born(line: string, when: Date): LineEntry {
+export function createBornLine(line: string, when: Date): LineEntry {
   return { oldLineNum: DOES_NOT_EXIST_YET, values: [{ line, timestamp: when }] };
 }
 
-// A minimal two-revision history (create 2 lines, then delete) to render against, built from literals so these stay pure unit tests with no transcript.
+// A two-revision history, create 2 lines then delete, built from literals.
 export function createThenDelete(): FileRevision[] {
   const created = new Date("2026-01-01T00:00:00Z");
   const deleted = new Date("2026-01-01T00:01:00Z");
-  const lines = ["def hello():", '    print("hello")'].map((line) => ({
-    oldLineNum: DOES_NOT_EXIST_YET,
-    values: [{ line, timestamp: created }],
-  }));
+  const lines: LineEntry[] = [];
+  for (const line of ["def hello():", '    print("hello")']) {
+    lines.push({ oldLineNum: DOES_NOT_EXIST_YET, values: [{ line, timestamp: created }] });
+  }
   return [
     { kind: EventKind.write, changeId: new Uuid("write-id"), timestamp: created, lines },
     { kind: EventKind.delete, changeId: new Uuid("rm-id"), timestamp: deleted, lines: [] },
@@ -32,8 +32,8 @@ export function createThenAppendRevs(): FileRevision[] {
   const t0 = new Date("2026-01-01T00:00:00Z");
   const t1 = new Date("2026-01-01T00:01:00Z");
   return [
-    { kind: EventKind.write, changeId: new Uuid("w1"), timestamp: t0, lines: [born("line one", t0)] },
-    { kind: EventKind.append, changeId: new Uuid("a1"), timestamp: t1, lines: [carried(0, "line one", t0), born("line two", t1)] },
+    { kind: EventKind.write, changeId: new Uuid("w1"), timestamp: t0, lines: [createBornLine("line one", t0)] },
+    { kind: EventKind.append, changeId: new Uuid("a1"), timestamp: t1, lines: [createCarriedLine(0, "line one", t0), createBornLine("line two", t1)] },
   ];
 }
 
@@ -42,7 +42,7 @@ export function createThenAppendRevs(): FileRevision[] {
 export const FROM = new Path("/abs/s2_original.py");
 export const TO = new Path("/abs/s2_moved.py");
 
-// A create -> rename -> edit(add goodbye) history for the moved file, from literals so these stay pure unit tests.
+// A create, rename, then edit (add goodbye) history for the moved file, from literals.
 export function createRenameEdit(): FileRevision[] {
   const t0 = new Date("2026-01-01T00:00:00Z");
   const t1 = new Date("2026-01-01T00:01:00Z");
@@ -51,13 +51,13 @@ export function createRenameEdit(): FileRevision[] {
     kind: EventKind.write,
     changeId: new Uuid("w"),
     timestamp: t0,
-    lines: [born("def hello():", t0), born('    print("hello")', t0)],
+    lines: [createBornLine("def hello():", t0), createBornLine('    print("hello")', t0)],
   };
   const rename: FileRevision = {
     kind: EventKind.rename,
     changeId: new Uuid("m"),
     timestamp: t1,
-    lines: [carried(0, "def hello():", t0), carried(1, '    print("hello")', t0)],
+    lines: [createCarriedLine(0, "def hello():", t0), createCarriedLine(1, '    print("hello")', t0)],
     rename: { from: FROM, to: TO },
   };
   const edit: FileRevision = {
@@ -65,12 +65,12 @@ export function createRenameEdit(): FileRevision[] {
     changeId: new Uuid("e"),
     timestamp: t2,
     lines: [
-      carried(0, "def hello():", t0),
-      carried(1, '    print("hello")', t0),
-      born("", t2),
-      born("", t2),
-      born("def goodbye():", t2),
-      born('    print("goodbye")', t2),
+      createCarriedLine(0, "def hello():", t0),
+      createCarriedLine(1, '    print("hello")', t0),
+      createBornLine("", t2),
+      createBornLine("", t2),
+      createBornLine("def goodbye():", t2),
+      createBornLine('    print("goodbye")', t2),
     ],
   };
   return [create, rename, edit];

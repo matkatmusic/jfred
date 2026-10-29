@@ -8,16 +8,15 @@ import { trimRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
 import {
     SESSION_A,
     SESSION_B,
-    buildEditRecordPair,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () => {
     // Scenario: two sessions interleave; the cut is the owning session's next prompt.
-    const tree = makeSourceTree("-bound-interleaved");
+    const tree = createSourceTree("-bound-interleaved");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
     const writeAlpha = buildWriteRecordPair(

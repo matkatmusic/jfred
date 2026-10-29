@@ -10,7 +10,7 @@ import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { lastPrompt } from "./reconstruction-branch-test-helpers.ts";
+import { createLastPromptRecord } from "./reconstruction-branch-test-helpers.ts";
 
 // An assistant record on the parentUuid tree carrying one timestamped tool_use.
 function buildTreeToolRecord(
@@ -40,7 +40,7 @@ function buildTwoFileRecords(): TranscriptRecord[] {
     return [
         buildTreeToolRecord("A", null, ToolName.Write, { file_path: "/proj/alpha.py", content: "alpha = 1\n" }, "2026-01-01T00:00:01Z"),
         buildTreeToolRecord("B", "A", ToolName.Write, { file_path: "/proj/beta.py", content: "beta = 2\n" }, "2026-01-01T00:00:02Z"),
-        lastPrompt("B"),
+        createLastPromptRecord("B"),
     ];
 }
 
@@ -49,9 +49,9 @@ function buildRewoundRecords(): TranscriptRecord[] {
     return [
         buildTreeToolRecord("A", null, ToolName.Write, { file_path: "/proj/alpha.py", content: "alpha = 1\n" }, "2026-01-01T00:00:01Z"),
         buildTreeToolRecord("C", "A", ToolName.Write, { file_path: "/proj/gamma.py", content: "gamma = 3\n" }, "2026-01-01T00:00:02Z"),
-        lastPrompt("C"),
+        createLastPromptRecord("C"),
         buildTreeToolRecord("D", "A", ToolName.Write, { file_path: "/proj/alpha.py", content: "alpha = 2\n" }, "2026-01-01T00:00:03Z"),
-        lastPrompt("D"),
+        createLastPromptRecord("D"),
     ];
 }
 
@@ -89,7 +89,7 @@ test("test_targeted_history_for_old_rename_source_is_undefined", () => {
     const records = [
         buildTreeToolRecord("A", null, ToolName.Write, { file_path: "/proj/a.py", content: "a = 1\n" }, "2026-01-01T00:00:01Z"),
         buildTreeToolRecord("B", "A", ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z"),
-        lastPrompt("B"),
+        createLastPromptRecord("B"),
     ];
     assert.equal(getSurvivingFileHistory(records, new Path("/proj/a.py")), undefined);
     const viaAllFiles = selectSurvivingHistoryViaAllFiles(records, new Path("/proj/b.py"));

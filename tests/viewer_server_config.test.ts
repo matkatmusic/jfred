@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { ServerResponse } from "node:http";
 import { test } from "node:test";
 import { SERVER_BOOT_ID, applyConfigUpdate } from "../src/viewer_server_config.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function captureResponse(): { response: ServerResponse; status: () => number | undefined; body: () => unknown } {
     let status: number | undefined;
@@ -29,7 +29,7 @@ test("test_apply_config_update_refuses_an_empty_body", () => {
 
 test("test_apply_config_update_switches_projects_dir_and_reports_boot_id", () => {
     const captured = captureResponse();
-    const projectsDir = makeTempDir();
+    const projectsDir = createTempDir();
     applyConfigUpdate(captured.response, JSON.stringify({ projectsDir }));
     assert.equal(captured.status(), 200);
     const body = captured.body() as { projectsDir: string; bootId: string };

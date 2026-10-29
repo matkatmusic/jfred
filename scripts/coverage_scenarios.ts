@@ -1,8 +1,8 @@
 // Discovery + ground-truth IO for the scenario coverage checker.  Design: plans/i-need-a-script-peppy-twilight.md (Phase 1).
 
-import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+import { readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { SourceEntry } from "../src/reconstruction_overrides.ts";
 
@@ -15,54 +15,73 @@ export type CoveredScenario = {
   sources?: SourceEntry[];
 };
 
-// `.claude` holds harness permission metadata with no JSONL event or file-history backup, so it's outside what the engine reconstructs.
-const NON_SOURCE_NAMES = new Set(["manifest.json", "__pycache__", ".pytest_cache", ".claude"]);
+const SCENARIO_ID_PATTERN = /^[a-z]+\d+/;
 
 export function isDirectory(path: string): boolean {
   return existsSync(path) && statSync(path).isDirectory();
 }
 
 // Extracts the scenario id prefix (e.g. "s19") from a directory name.
-function scenarioIdOf(dirName: string): string {
-  return dirName.match(/^[a-z]+\d+/)?.[0] ?? dirName;
+function parseScenarioId(dirName: string): string {
+  const idMatch = dirName.match(SCENARIO_ID_PATTERN);
+  return idMatch?.[0] ?? dirName;
 }
 
-// Sorted for deterministic order; all are returned because a split run's sessions merge into one record stream at reconstruction.
-export function allJsonls(dir: string): string[] {
+// Sorted for deterministic order; a split run's sessions all merge into one record stream.
+export function listJsonls(dir: string): string[] {
   const entryNames = readdirSync(dir);
-  const jsonlNames = entryNames.filter((name) => name.endsWith(".jsonl"));
-  jsonlNames.sort();
-  const jsonlPaths = jsonlNames.map((name) => join(dir, name));
+  entryNames.sort();
+  const jsonlPaths: string[] = [];
+  for (const name of entryNames) {
+    const isJsonl = name.endsWith(".jsonl");
+    if (isJsonl) {
+      jsonlPaths.push(join(dir, name));
+    }
+  }
   return jsonlPaths;
 }
 
 // The per-source trees of a multi-source capture; each also holds a sibling `file-history/`.
 export function findSourceTrees(dir: string): string[] {
-  const treeNames = readdirSync(dir).filter(
-    (name) => name.startsWith("source-") && isDirectory(join(dir, name, "projects")),
-  );
+  const treeNames: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const hasProjectsDir = name.startsWith("source-") && isDirectory(join(dir, name, "projects"));
+    if (hasProjectsDir) {
+      treeNames.push(name);
+    }
+  }
   treeNames.sort();
   return treeNames;
 }
 
-function allSourceTreeJsonls(dir: string, treeNames: string[]): string[] {
-  return treeNames.flatMap((treeName) => {
+function listSourceTreeJsonls(dir: string, treeNames: string[]): string[] {
+  const jsonlPaths: string[] = [];
+  for (const treeName of treeNames) {
     const projectsRoot = join(dir, treeName, "projects");
-    return readdirSync(projectsRoot)
-      .filter((projectName) => isDirectory(join(projectsRoot, projectName)))
-      .sort()
-      .flatMap((projectName) => allJsonls(join(projectsRoot, projectName)));
-  });
+    const projectNames = readdirSync(projectsRoot);
+    projectNames.sort();
+    for (const projectName of projectNames) {
+      const projectDir = join(projectsRoot, projectName);
+      const isProjectDir = isDirectory(projectDir);
+      if (isProjectDir) {
+        jsonlPaths.push(...listJsonls(projectDir));
+      }
+    }
+  }
+  return jsonlPaths;
 }
 
-// With `source-*` trees present, flat root jsonls are IGNORED: they duplicate the same sessions and have no file-history sibling.
+// With `source-*` trees present, flat root jsonls are ignored: they duplicate the sessions.
 function collectScenarioInputs(dir: string): { jsonls: string[]; sources?: SourceEntry[] } {
   const treeNames = findSourceTrees(dir);
   if (treeNames.length === 0) {
-    return { jsonls: allJsonls(dir) };
+    return { jsonls: listJsonls(dir) };
   }
-  const sources = treeNames.map((treeName) => ({ projectsDir: new Path(join(dir, treeName, "projects")) }));
-  return { jsonls: allSourceTreeJsonls(dir, treeNames), sources };
+  const sources: SourceEntry[] = [];
+  for (const treeName of treeNames) {
+    sources.push({ projectsDir: new Path(join(dir, treeName, "projects")) });
+  }
+  return { jsonls: listSourceTreeJsonls(dir, treeNames), sources };
 }
 
 // A dir with `.step_states` but no jsonl is logged and skipped: nothing to reconstruct from.
@@ -72,7 +91,10 @@ export function findCoveredScenarios(executedRoot: URL): CoveredScenario[] {
   for (const dirName of readdirSync(root)) {
     const dir = join(root, dirName);
     const stepStatesDir = join(dir, ".step_states");
-    if (!isDirectory(dir) || !existsSync(stepStatesDir)) {
+    const isNotDirectory = !isDirectory(dir);
+    const hasNoStepStates = !existsSync(stepStatesDir);
+    const isNotCovered = isNotDirectory || hasNoStepStates;
+    if (isNotCovered) {
       continue;
     }
     const { jsonls, sources } = collectScenarioInputs(dir);
@@ -80,8 +102,11 @@ export function findCoveredScenarios(executedRoot: URL): CoveredScenario[] {
       console.warn(`skip ${dirName}: no .jsonl transcript`);
       continue;
     }
-    const jsonlPaths = jsonls.map((jsonl) => new Path(jsonl));
-    covered.push({ scenarioId: scenarioIdOf(dirName), dirName, jsonlPaths, stepStatesDir, sources });
+    const jsonlPaths: Path[] = [];
+    for (const jsonl of jsonls) {
+      jsonlPaths.push(new Path(jsonl));
+    }
+    covered.push({ scenarioId: parseScenarioId(dirName), dirName, jsonlPaths, stepStatesDir, sources });
   }
   return covered;
 }
@@ -94,76 +119,18 @@ export function listCoveredScenarios(): CoveredScenario[] {
 // Scenario dirs with a transcript but no `.step_states`, reported as uncovered (informational).
 export function findUncovered(executedRoot: URL, covered: CoveredScenario[]): string[] {
   const root = fileURLToPath(executedRoot);
-  const coveredDirs = new Set(covered.map((scenario) => scenario.dirName));
-  return readdirSync(root).filter((dirName) => {
+  const coveredDirs = new Set<string>();
+  for (const scenario of covered) {
+    coveredDirs.add(scenario.dirName);
+  }
+  const uncovered: string[] = [];
+  for (const dirName of readdirSync(root)) {
     const dir = join(root, dirName);
-    return isDirectory(dir) && !coveredDirs.has(dirName) && allJsonls(dir).length > 0;
-  });
-}
-
-function uuidOfLine(line: string): string | undefined {
-  if (line.trim().length === 0) {
-    return undefined;
-  }
-  try {
-    const uuid = (JSON.parse(line) as { uuid?: unknown }).uuid;
-    return typeof uuid === "string" ? uuid : undefined;
-  }
-  catch {
-    return undefined;
-  }
-}
-
-// Uuid-less lines are skipped but still counted, so line numbers stay true to the file.
-function indexOneJsonl(jsonlPath: Path, index: Map<string, number>): void {
-  readFileSync(jsonlPath.toString(), "utf8").split("\n").forEach((line, offset) => {
-    const uuid = uuidOfLine(line);
-    if (uuid !== undefined) {
-      index.set(uuid, offset + 1);
+    const isUncoveredDir = isDirectory(dir) && !coveredDirs.has(dirName) && listJsonls(dir).length > 0;
+    if (isUncoveredDir) {
+      uncovered.push(dirName);
     }
-  });
-}
-
-// Spans every session jsonl: uuids are globally unique, so the merged index is unambiguous.
-export function buildUuidLineIndex(jsonlPaths: Path[]): Map<string, number> {
-  console.log(`   Building uuid→line index from ${jsonlPaths.length} JSONL files`);
-  const index = new Map<string, number>();
-  for (const jsonlPath of jsonlPaths) {
-    indexOneJsonl(jsonlPath, index);
   }
-  return index;
+  return uncovered;
 }
-
-function walkSourceFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const name of readdirSync(dir)) {
-    if (NON_SOURCE_NAMES.has(name)) {
-      continue;
-    }
-    const absolute = join(dir, name);
-    found.push(...(isDirectory(absolute) ? walkSourceFiles(absolute) : [absolute]));
-  }
-  return found;
-}
-
-// Keyed by path relative to the folder, e.g. "tests/test_x.py".
-export function readStepStateFiles(stepDir: string): Map<string, string> {
-  const files = new Map<string, string>();
-  for (const absolute of walkSourceFiles(stepDir)) {
-    files.set(relative(stepDir, absolute), readFileSync(absolute, "utf8"));
-  }
-  return files;
-}
-
-export function stepNumberOf(folderName: string): number {
-  return Number(folderName.slice("step-".length));
-}
-
-export function stepFolders(stepStatesDir: string): string[] {
-  const entryNames = readdirSync(stepStatesDir);
-  const stepNames = entryNames.filter((name) => name.startsWith("step-"));
-  stepNames.sort((a, b) => stepNumberOf(a) - stepNumberOf(b));
-  return stepNames;
-}
-
 
