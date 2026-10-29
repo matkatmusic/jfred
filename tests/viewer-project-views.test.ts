@@ -1,18 +1,18 @@
-// Tests for the conversation, project, and projects-listing view models (webapp/views/conversation.ts, project.ts, projects.ts — plain ES modules, DOM-free).  See tests/viewer-test-helpers.ts for the fixture rationale.
+// Tests for the conversation, project, and projects-listing view models; see viewer-test-helpers.ts for fixtures.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildProjectDocument } from "../src/viewer_api.ts";
-import { buildConversationViewModel } from "../webapp/views/conversation.ts";
+import { buildConversationViewModel } from "../webapp/views/conversation-model.ts";
 import { buildProjectViewModel } from "../webapp/views/project.ts";
 import { filterProjectsByName } from "../webapp/views/projects.ts";
 import { readNonEmptyLines } from "./utilities.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 
 test("test_conversation_viewmodel_shows_scenario_turns", () => {
-    // Scenario: the conversation view model's turns are exactly document.messages (genuine user prompts + text-bearing assistant replies), in order — and the first user prompt's text matches the raw JSONL line, so the view model can't silently drop or reorder turns.
+    // Scenario: view model turns equal document.messages in order, and the first prompt matches its raw JSONL line.
     const document = buildS19ClientDocument();
     const viewModel = buildConversationViewModel(document);
     const turns = viewModel.entries.filter((entry: any) => entry.kind === "message");
@@ -34,7 +34,7 @@ test("test_conversation_viewmodel_shows_scenario_turns", () => {
 });
 
 test("test_conversation_viewmodel_interleaves_collapsed_stubs", () => {
-    // Scenario: between two adjacent turns, the view model lists stub entries whose uuids are exactly the lineVerdicts uuids between those messages' lines.
+    // Scenario: stub entries between two adjacent turns carry exactly the lineVerdicts uuids between those lines.
     const document = buildS19ClientDocument();
     const viewModel = buildConversationViewModel(document);
     // find the first pair of adjacent message entries with at least one stub between them.
@@ -66,7 +66,7 @@ test("test_conversation_viewmodel_interleaves_collapsed_stubs", () => {
 });
 
 test("test_filterProjectsByName_matches_case_insensitive_substring", () => {
-    // Scenario: filtering a project listing by a mixed-case fragment keeps exactly the projects whose name contains that fragment, ignoring case.  Steps: a listing holds three projects with distinct names.
+    // Scenario: a mixed-case fragment keeps exactly the projects whose name contains it, ignoring case.
     const projectListing = [{ name: "alpha-app" }, { name: "Beta-Tool" }, { name: "gamma-app" }];
     // filter with a fragment that case-insensitively matches only the second project.
     const filteredProjects = filterProjectsByName(projectListing, "beta");
@@ -85,7 +85,7 @@ test("test_filterProjectsByName_returns_all_projects_for_empty_filter", () => {
 
 test("test_file_state_viewmodel_unifies_multi_jsonl", () => {
     // Scenario: s53 (two concurrent-agent transcripts) — the project view model's files-touched list covers files originating from BOTH JSONLs.
-    const paths = jsonlPathsForScenario("s53");
+    const paths = getScenarioJsonlPaths("s53");
     const perTranscriptTargets = paths.map((path) =>
         JSON.parse(JSON.stringify(buildProjectDocument([path], undefined)))
             .filesTouched.map((history: any) => history.target),

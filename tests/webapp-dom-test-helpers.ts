@@ -20,7 +20,7 @@ class FakeXtermTerminal {
   resize(_columns: number, _rows: number): void {}
 }
 
-// proposeDimensions returning undefined makes fitProgressColumns a no-op.
+// proposeDimensions returning undefined makes updateProgressSize a no-op.
 class FakeXtermFitAddon {
   fit(): void {}
   proposeDimensions(): undefined {

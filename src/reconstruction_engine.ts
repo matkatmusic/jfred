@@ -11,29 +11,29 @@ import {
   type ConversationBranch,
 } from "./reconstruction_branch.ts";
 import { selectBranchRecords } from "./reconstruction_branch_records.ts";
-import { reconstructFileOver } from "./reconstruction_branches.ts";
-import { reconstructFilesOver } from "./reconstruction_renderable.ts";
+import { getFileRevisionsOver } from "./reconstruction_branches.ts";
+import { getFileHistoriesOver } from "./reconstruction_renderable.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // --- Reconstruction: the public API ------------------------------------------
 
 // Pre-selects the surviving branch, then delegates to reconstructFileOver.
-export function reconstructFile(
+export function buildFileRevisions(
   records: TranscriptRecord[],
   target: Path,
   reader?: BackupReader,
 ): FileRevision[] {
-  return reconstructFileOver(selectLiveBranch(records), target, new Set<string>(), reader);
+  return getFileRevisionsOver(selectLiveBranch(records), target, new Set<string>(), reader);
 }
 
 // Pre-selects the surviving branch, then reconstructs all files.
-export function reconstructAll(
+export function buildAllFileHistories(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): FileHistory[] {
   reportReconstructionProgress(`reconstructing surviving files across ${records.length} records`);
-  return reconstructFilesOver(selectLiveBranch(records), reader);
+  return getFileHistoriesOver(selectLiveBranch(records), reader);
 }
 
 // --- Branch-aware reconstruction: surviving + retrievable rewound branches -----
@@ -53,7 +53,7 @@ export type BranchedReconstruction = {
 };
 
 // Surviving files plus every unmerged rewound branch's file changes.
-export function reconstructBranches(
+export function buildBranchedReconstruction(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): BranchedReconstruction {
@@ -71,7 +71,7 @@ export function reconstructBranches(
       rewoundBranches.push(branch);
     }
   }
-  const surviving = reconstructAll(records, reader);
+  const surviving = buildAllFileHistories(records, reader);
   const rewound: RewoundBranchHistory[] = [];
   for (const [branchIndex, branch] of rewoundBranches.entries()) {
     // task 163: report branch-level progress; prefix must be "reconstructing " for webapp phase 4.
@@ -108,7 +108,7 @@ function buildRewoundBranchHistory(
     return undefined;
   }
   const histories: FileHistory[] = [];
-  for (const history of reconstructFilesOver(branchRecords, reader)) {
+  for (const history of getFileHistoriesOver(branchRecords, reader)) {
     let touchesDiverging = false;
     for (const revision of history.revisions) {
       const isDivergingRevision = divergingIds.has(revision.changeId.toString());

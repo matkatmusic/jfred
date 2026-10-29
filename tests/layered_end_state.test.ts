@@ -9,7 +9,7 @@ import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
     buildEndStateNode,
-    completeLayer1Timeline,
+    buildLayer1Timeline,
     insertPresumedUserEditGaps,
 } from "../src/layered_end_state.ts";
 import { loadLayeredProject } from "../src/layered_load.ts";
@@ -17,10 +17,10 @@ import type { BeaconNode, PreAnchorStubNode, ReconstructionEntity } from "../src
 import {
     SESSION_A,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 function makeBeacon(instantIso: string, content: string): BeaconNode {
     return { kind: LayeredNodeKind.beacon, instant: new Date(instantIso), content, evidence: undefined };
@@ -100,12 +100,12 @@ test("test_insertPresumedUserEditGaps_skips_byteless_stubs_when_pairing", () => 
     );
 });
 
-test("test_completeLayer1Timeline_appends_end_state_then_inserts_gaps", () => {
+test("test_buildLayer1Timeline_appends_end_state_then_inserts_gaps", () => {
     // The on-disk end state is appended last, then a gap marks its diff from the final beacon.
     const dir = mkdtempSync(join(tmpdir(), "layered-end-state-"));
     const targetPath = join(dir, "target.py");
     writeFileSync(targetPath, "changed\n");
-    const completed = completeLayer1Timeline(
+    const completed = buildLayer1Timeline(
         [makeBeacon("2026-07-24T10:01:00.000Z", "original\n")],
         new Path(targetPath),
     );
@@ -117,7 +117,7 @@ test("test_completeLayer1Timeline_appends_end_state_then_inserts_gaps", () => {
 
 test("test_loadLayeredProject_session_timeline_ends_with_end_state_and_gap", () => {
     // A loaded timeline whose file exists on disk with different bytes ends with gap plus end state.
-    const tree = makeSourceTree("-layered-end-state");
+    const tree = createSourceTree("-layered-end-state");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const gammaPath = join(workspaceRoot, "gamma.py");
     const writeGamma = buildWriteRecordPair(

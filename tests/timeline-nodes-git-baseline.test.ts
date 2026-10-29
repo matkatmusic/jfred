@@ -6,9 +6,9 @@ import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND } from "../webapp/views/timeline-types.ts";
 import { RecordType, EventKind } from "../src/structures/vocabulary.ts";
 import { GitOperationKind } from "../src/structures/vocabulary_views.ts";
-import { gitBaselineDocument } from "./timeline-test-helpers.ts";
+import { gitBaselineDocument } from "./timeline-git-baseline-fixture.ts";
 
-// A MID-timeline baseline (task 56): one prompt/reply pair BEFORE the gitBase step, one generic step after it — the shape where declining pre-baseline reconstruction visibly changes what the timeline shows.
+// Mid-timeline baseline (task 56): a prompt/reply pair before the gitBase step, one generic step after.
 const midBaselineDocument = {
     messages: [{
         uuid: "prompt-1",
@@ -37,7 +37,7 @@ const midBaselineDocument = {
 };
 
 test("test_buildTurnTimelineViewModel_routes_gitBase_only_step_to_baseline_node", () => {
-    // Scenario: a step whose every changeId is a gitBase: beacon becomes its own agent-turn node flagged isGitBaseline, carrying the baseline file chips (task 86).  Steps: build the timeline from the git-baseline document.
+    // Scenario: a step with only gitBase: changeIds becomes its own flagged agent-turn node (task 86).
     const { nodes } = buildTurnTimelineViewModel(gitBaselineDocument);
     // find the baseline node and assert it exists exactly once.
     const baselineNodes = nodes.filter((node) => node.isGitBaseline === true);
@@ -48,7 +48,7 @@ test("test_buildTurnTimelineViewModel_routes_gitBase_only_step_to_baseline_node"
 });
 
 test("test_buildTurnTimelineViewModel_names_base_commit_in_baseline_node_text", () => {
-    // Scenario: the baseline node's message text names the base commit hash extracted from the gitBase:<hash>:<target> changeId, so the row summary reads meaningfully.  Steps: build the timeline and find the baseline node.
+    // Scenario: the baseline node's text names the base commit hash taken from the gitBase changeId.
     const { nodes } = buildTurnTimelineViewModel(gitBaselineDocument);
     const baselineNode = nodes.find((node) => node.isGitBaseline === true);
     // assert its text mentions the hash.
@@ -56,7 +56,7 @@ test("test_buildTurnTimelineViewModel_names_base_commit_in_baseline_node_text", 
 });
 
 test("test_timeline_drops_nodes_before_baseline_node_when_pre_baseline_skipped", () => {
-    // Scenario (task 56): the document was built with pre-baseline reconstruction declined — the git-baseline node is the FIRST shown step; everything earlier is hidden.  Steps: build the timeline from the mid-baseline document with the wire flag set.
+    // Scenario (task 56): with pre-baseline reconstruction declined, the git-baseline node is the first shown step.
     const { nodes } = buildTurnTimelineViewModel({ ...midBaselineDocument, preBaselineSkipped: true });
     // assert the first node IS the baseline node.
     assert.equal(nodes[0]!.isGitBaseline, true);
@@ -69,7 +69,7 @@ test("test_timeline_drops_nodes_before_baseline_node_when_pre_baseline_skipped",
 });
 
 test("test_timeline_keeps_all_nodes_when_pre_baseline_flag_absent", () => {
-    // Scenario (task 56): the same document WITHOUT the flag renders every node — the filter must never fire on ordinary builds.  Steps: build the timeline from the mid-baseline document as-is.
+    // Scenario (task 56): without the flag every node renders, so the filter never fires on ordinary builds.
     const { nodes } = buildTurnTimelineViewModel(midBaselineDocument);
     // assert the pre-baseline prompt is still shown.
     assert.ok(nodes.some((node) => node.text === "early work"));
@@ -77,7 +77,7 @@ test("test_timeline_keeps_all_nodes_when_pre_baseline_flag_absent", () => {
     assert.ok(nodes.some((node) => node.isGitBaseline === true));
 });
 
-// task 121: the same baseline shape, but the session RECORDED the base commit — one commit whose short resultHash prefixes the full gitBase hash (the merge host) and one control commit that must keep the plain commit dress.
+// Task 121: same shape, but the session recorded the base commit, plus one control commit.
 const BASELINE_FULL_HASH = "14e26eced65bfc384a65a533e87a0da11221726c";
 const recordedBaseCommitDocument = {
     messages: [{
@@ -114,7 +114,7 @@ const recordedBaseCommitDocument = {
 };
 
 test("test_buildTurnTimelineViewModel_merges_baseline_into_recorded_base_commit_row", () => {
-    // Scenario (task 121): the session recorded the base commit, so the baseline turn is absorbed into that commit's row — ONE commit-kind node carrying the baseline flag, text, and file chips; no separate agent-turn baseline node exists.  Steps: build the timeline from the recorded-base-commit document.
+    // Scenario (task 121): a recorded base commit absorbs the baseline turn into one flagged commit node.
     const { nodes } = buildTurnTimelineViewModel(recordedBaseCommitDocument);
     // assert exactly one node carries the baseline flag.
     const baselineNodes = nodes.filter((node) => node.isGitBaseline === true);
@@ -131,7 +131,7 @@ test("test_buildTurnTimelineViewModel_merges_baseline_into_recorded_base_commit_
 });
 
 test("test_buildTurnTimelineViewModel_keeps_other_commit_rows_plain", () => {
-    // Scenario (task 121): only the base-commit row wears the baseline dress — every other commit keeps the plain commit row (no flag, no chips).  Steps: build the timeline from the recorded-base-commit document.
+    // Scenario (task 121): only the base-commit row is flagged; other commits stay plain, with no flag or chips.
     const { nodes } = buildTurnTimelineViewModel(recordedBaseCommitDocument);
     // find the control commit by its non-matching hash.
     const controlCommitNode = nodes.find((node) => node.resultHash === "fffffff");
@@ -142,7 +142,7 @@ test("test_buildTurnTimelineViewModel_keeps_other_commit_rows_plain", () => {
 });
 
 test("test_buildTurnTimelineViewModel_keeps_standalone_baseline_when_no_commit_matches", () => {
-    // Scenario (task 121 fallback): the session never recorded the base commit (e.g. a back-dated commit) — the standalone green baseline agent-turn must survive.  Steps: build the timeline with only the non-matching control commit recorded.
+    // Scenario (task 121 fallback): when the base commit is never recorded, the standalone baseline agent-turn survives.
     const unrecordedDocument = { ...recordedBaseCommitDocument, gitOperations: [recordedBaseCommitDocument.gitOperations[1]!] };
     const { nodes } = buildTurnTimelineViewModel(unrecordedDocument);
     // assert the single baseline node is the standalone agent turn.
@@ -154,7 +154,7 @@ test("test_buildTurnTimelineViewModel_keeps_standalone_baseline_when_no_commit_m
 });
 
 test("test_timeline_drops_nodes_before_merged_baseline_row_when_pre_baseline_skipped", () => {
-    // Scenario (task 121 × task 56): pre-baseline reconstruction was declined AND the baseline merged into its commit row — the task-56 filter keys on the flag, not the node kind, so the merged COMMIT row is the timeline's first shown node.  Steps: build the timeline with the wire flag set.
+    // Scenario (tasks 121, 56): the filter keys on the flag, so the merged commit row shows first.
     const { nodes } = buildTurnTimelineViewModel({ ...recordedBaseCommitDocument, preBaselineSkipped: true });
     // assert the first node is the merged baseline commit row.
     assert.equal(nodes[0]!.isGitBaseline, true);
@@ -162,7 +162,7 @@ test("test_timeline_drops_nodes_before_merged_baseline_row_when_pre_baseline_ski
 });
 
 test("test_buildTurnTimelineViewModel_keeps_generic_unattributed_step_out_of_baseline_node", () => {
-    // Scenario: a generic unattributed step (non-gitBase changeIds) still collects into the plain synthetic turn — it must NOT merge into the baseline node.  Steps: build the timeline from the git-baseline document.
+    // Scenario: a generic unattributed step stays in the plain synthetic turn and does not merge into the baseline node.
     const { nodes } = buildTurnTimelineViewModel(gitBaselineDocument);
     // find the plain synthetic turn by its notes.txt fallback chip.
     const genericNode = nodes.find((node) => (node.fileChanges ?? []).some((change) => change.path === "notes.txt"));

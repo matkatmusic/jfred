@@ -38,6 +38,7 @@ export function listFixtureSnapshotPlacements(path: string): SnapshotPlacement[]
       sessionFile: buildSessionFile(s.session),
       line: s.line,
       backupFileName: new Path(`${s.session}-${s.version}`),
+      isBackupMissing: false,
     });
   }
   return placements.sort(compareByInstant);

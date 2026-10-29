@@ -12,7 +12,7 @@ let expandedRow: RulerExpansion | undefined;
 // Task 300: the redraw the expansion triggers, registered by layer1-page.ts so no import cycle forms.
 let triggerStageRelayout: () => void = () => {};
 
-export function onExpansionRelayout(callback: () => void): void {
+export function registerExpansionRelayout(callback: () => void): void {
   triggerStageRelayout = callback;
 }
 
@@ -123,8 +123,8 @@ function closeOpenRowOnEscape(event: KeyboardEvent): void {
   triggerStageRelayout();
 }
 
-// Escape shuts the open row; wired once from bootLayer1Page since ticks are replaced every render.
-export function wireTickExpansion(): void {
+// Escape shuts the open row; wired once from initLayer1Page since ticks are replaced every render.
+export function registerTickExpansion(): void {
   registerKindFilterChange(refreshTicksForKindFilter);
   document.addEventListener("keydown", closeOpenRowOnEscape);
 }

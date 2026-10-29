@@ -7,12 +7,12 @@
 //
 // // layer1-page.ts boots at module scope, so re-importing it would wire the toggle twice; absorb that boot here first.
 // initLayer1Dom();
-// const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+// const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 //
 // // A fresh, once-booted page; the empty query returns before any fetch, so no endpoint stub is needed.
 // function openPage(): void {
 //     initLayer1Dom();
-//     bootLayer1Page();
+//     initLayer1Page();
 // }
 //
 // function vizLayer(): string | undefined {

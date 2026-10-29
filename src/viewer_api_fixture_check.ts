@@ -4,7 +4,8 @@ import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import type { BulkFixtureTarget } from "./viewer_api_fixture_bulk.ts";
 import { parseMs, type FixtureDisk, type FixtureSession } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
-import { replayFixtureEvent } from "./viewer_api_layer3_fixture_replay.ts";
+import { listHunkProblems } from "./viewer_api_fixture_hunk_problems.ts";
+import { computeFixtureReplay } from "./viewer_api_layer3_fixture_replay.ts";
 
 interface PlacementContext {
   diskByPath: Map<string, FixtureDisk>;
@@ -50,11 +51,15 @@ function listPlacementProblems(
   if (!disk) {
     problems.push(`${where}: no DISK entry`);
   }
-  else if (atMs < parseMs(disk.born)) {
-    problems.push(`${where}: before born ${disk.born}`);
-  }
-  else if (atMs > parseMs(disk.at)) {
-    problems.push(`${where}: after mtime ${disk.at}`);
+  else {
+    const isBeforeBorn = atMs < parseMs(disk.born);
+    const isAfterMtime = atMs > parseMs(disk.at);
+    if (isBeforeBorn) {
+      problems.push(`${where}: before born ${disk.born}`);
+    }
+    else if (isAfterMtime) {
+      problems.push(`${where}: after mtime ${disk.at}`);
+    }
   }
   if (!owner) {
     problems.push(`${where}: owning session is missing`);
@@ -71,7 +76,7 @@ function listPlacementProblems(
   return problems;
 }
 
-function throwIfAny(heading: string, problems: string[]): void {
+function assertNoProblems(heading: string, problems: string[]): void {
   if (problems.length > 0) {
     throw new Error(`${heading}:\n  ${problems.join("\n  ")}`);
   }
@@ -83,29 +88,7 @@ export function assertFixtureOrder(target: BulkFixtureTarget): void {
   for (const s of target.snapshots) {
     bad.push(...listPlacementProblems(`${s.path} ${s.version} (${s.session})`, s.at, s.path, s.session, s.line, context));
   }
-  throwIfAny("fixture is out of order", bad);
-}
-
-function listHunkProblems(where: string, event: FixtureEvent): string[] {
-  if (event.hunks === undefined || event.hunks.length === 0) {
-    return [`${where}: an edit has no hunks`];
-  }
-  const problems: string[] = [];
-  for (const hunk of event.hunks) {
-    const oldRows = hunk.lines.filter((row) => row.startsWith(" ") || row.startsWith("-")).length;
-    const newRows = hunk.lines.filter((row) => row.startsWith(" ") || row.startsWith("+")).length;
-    const unprefixed = hunk.lines.filter((row) => !/^[ +-]/.test(row)).length;
-    if (hunk.oldLines !== oldRows || hunk.newLines !== newRows) {
-      problems.push(`${where}: hunk counts ${hunk.oldLines}/${hunk.newLines} disagree with its rows ${oldRows}/${newRows}`);
-    }
-    if (hunk.oldStart < 1 || hunk.newStart < 1) {
-      problems.push(`${where}: hunk starts at line ${hunk.oldStart}/${hunk.newStart}`);
-    }
-    if (unprefixed > 0) {
-      problems.push(`${where}: ${unprefixed} hunk rows have no + - or space prefix`);
-    }
-  }
-  return problems;
+  assertNoProblems("fixture is out of order", bad);
 }
 
 function listEventProblems(event: FixtureEvent, context: PlacementContext): string[] {
@@ -114,14 +97,15 @@ function listEventProblems(event: FixtureEvent, context: PlacementContext): stri
   if (event.kind === WireEditKind.edit) {
     problems.push(...listHunkProblems(where, event));
   }
-  if (event.kind === WireEditKind.write && (event.content ?? []).length === 0) {
+  const isEmptyWrite = event.kind === WireEditKind.write && (event.content ?? []).length === 0;
+  if (isEmptyWrite) {
     problems.push(`${where}: a write has no content`);
   }
   if (problems.length > 0) {
     return problems;
   }
   const expected = event.expectDerived === true ? WireConfidence.derived : WireConfidence.verified;
-  const replayed = replayFixtureEvent(event).confidence;
+  const replayed = computeFixtureReplay(event).confidence;
   return replayed === expected ? [] : [`${where}: replay says ${replayed}, the fixture declares ${expected}`];
 }
 
@@ -131,7 +115,7 @@ export function assertEventsPlaced(target: BulkFixtureTarget): void {
   for (const event of target.edits) {
     bad.push(...listEventProblems(event, context));
   }
-  throwIfAny("fixture events are out of place", bad);
+  assertNoProblems("fixture events are out of place", bad);
 }
 
 export function assertScriptRunsInSessions(target: BulkFixtureTarget): void {

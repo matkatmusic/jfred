@@ -29,13 +29,13 @@ async function validateLayer1HidesSnapshots(page: HeadlessPage): Promise<void> {
   //     await page.evaluate<string>(`document.querySelector('.viz-root').dataset.layer`) === "1");
   reportCheck("#312 snapshot nodes are always in the DOM (shipped, not refetched)",
     await page.evaluate<number>(`document.querySelectorAll('.node.n-snap').length`) > 0);
-  // Task 64: checkSnapshotToggle replaces these.
+  // Task 64: validateSnapshotToggle replaces these.
   // reportCheck("#314 at Layer 1 no snapshot node is visible",
   //     (await page.evaluate<string[]>(VISIBLE_SNAP_LABELS)).length === 0);
 }
 
-// Task 64: replaces the #314 Layer 1 and 1 -> 2 -> 1 checks; the snapshot box hides snapshots by CSS and must not re-lay-out.
-async function checkSnapshotToggle(page: HeadlessPage, payload: ViewPayload): Promise<void> {
+// Task 64: replaces the #314 Layer 1 and 1->2->1 checks; snapshot box hides by CSS, no re-layout.
+async function validateSnapshotToggle(page: HeadlessPage, payload: ViewPayload): Promise<void> {
   const snapshotBox = `document.querySelector('#show-row input[data-kind="snapshot"]')`;
   let bare: string | undefined;
   for (const pair of payload.pairs) {
@@ -120,7 +120,7 @@ async function validateSnapshotNodes(page: HeadlessPage, payload: ViewPayload): 
 export async function executeLayer2Checks(page: HeadlessPage, payload: ViewPayload): Promise<void> {
   await validateChrome(page);
   await validateLayer1HidesSnapshots(page);
-  await checkSnapshotToggle(page, payload);
+  await validateSnapshotToggle(page, payload);
   // const layer1Signature = await page.evaluate<string>(RENDER_SIGNATURE);
   await saveScreenshot(page, "01-layer1");
 
@@ -131,7 +131,7 @@ export async function executeLayer2Checks(page: HeadlessPage, payload: ViewPaylo
   await validateDrawer(page);
 
   await page.evaluate(`document.getElementById('dclose').click()`);
-  // Task 64: checkSnapshotToggle replaces these.
+  // Task 64: validateSnapshotToggle replaces these.
   // await page.waitFor(`document.querySelector('.viz-root').dataset.layer === "1"`, 5_000);
   // reportCheck("#314 at Layer 1 again no snapshot node is visible",
   //     (await page.evaluate<string[]>(VISIBLE_SNAP_LABELS)).length === 0);

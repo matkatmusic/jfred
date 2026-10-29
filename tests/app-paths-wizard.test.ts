@@ -1,9 +1,9 @@
-// DOM tests for webapp/app-paths-wizard.ts (task 159): the Paths wizard state machine — the summary default face, single-screen Edit round trips, the screen-3 "no" skip, the Finish store prompt (baseline mirror + preBaseline riding the POST), Cancel posting nothing, and the two auto-run triggers (no-entry project load, first launch with no global config).  Module state (the offered-projects set) persists across tests — every test uses a UNIQUE project name.
+// DOM tests for app-paths-wizard.ts (task 159); module state persists, so each test uses a UNIQUE project name.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const TIP_COMMIT_HASH = "c".repeat(40);
 
@@ -18,7 +18,7 @@ function getInput(id: string): HTMLInputElement {
     return getRequiredElementById(id) as HTMLInputElement;
 }
 
-// Wrap the current stubbed fetch with a recorder so a test can inspect POST bodies while the canned routes keep answering (app-header.test.ts's recordFetchCalls pattern).
+// Wrap the stubbed fetch with a recorder so tests can inspect POST bodies (app-header.test.ts pattern).
 function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     const recordedCalls: { url: string; init: RequestInit | undefined }[] = [];
     const delegate = globalThis.fetch;
@@ -31,25 +31,25 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     return recordedCalls;
 }
 
-// Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap (fills the folder inputs), and wire the wizard listeners.
+// Boot a fresh DOM with the wizard's routes stubbed, run the header bootstrap, wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [],
         "/api/project-paths": projectPathsEntry,
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip commit" }],
         "/api/repo-commit-match": { matchedCount: 4, totalCount: 4 },
     });
-    const { initializeHeader } = await import("../webapp/app-header.ts");
-    await initializeHeader();
+    const { initHeader } = await import("../webapp/app-header.ts");
+    await initHeader();
     const wizardModule = await import("../webapp/app-paths-wizard.ts");
     wizardModule.initializeWizard();
     return wizardModule;
 }
 
 test("test_paths_button_shows_summary_default_face_with_global_rows", async () => {
-    // Scenario: on a non-project route, Paths… opens the popover on the summary face with the two GLOBAL rows (projects folder + file history) and no wizard screen visible.
+    // Scenario: on a non-project route, Paths… opens the summary with two GLOBAL rows and no wizard screen.
     await initializeWizardInFreshDom({});
     getRequiredElementById("paths-btn").click();
     assert.equal(getRequiredElementById("paths-popover").hidden, false);
@@ -64,7 +64,7 @@ test("test_paths_button_shows_summary_default_face_with_global_rows", async () =
 });
 
 test("test_summary_edit_opens_single_screen_whose_next_is_finish", async () => {
-    // Scenario (mockup §b): with a project refreshed, the summary shows all 5 rows; the Git repo row's [Edit] jumps to screen 3 alone — Back disabled, Next relabeled Finish.
+    // Scenario (mockup §b): the Git repo row's [Edit] opens screen 3 alone, Back disabled, Next is Finish.
     await initializeWizardInFreshDom({ repo: "/repos/p" });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-edit");
@@ -82,7 +82,7 @@ test("test_summary_edit_opens_single_screen_whose_next_is_finish", async () => {
 });
 
 test("test_screen3_answered_no_skips_4_and_5_and_clears_repo_fields", async () => {
-    // Scenario (mockup flow): a project run reaching screen 3 with "No" checked jumps straight to the Finish face and clears repo + base commit, so the project reconstructs exactly as with no reveng-paths entry.
+    // Scenario (mockup flow): choosing "No" on screen 3 jumps to Finish and clears repo and base commit.
     const wizard = await initializeWizardInFreshDom({ repo: "/repos/p", baseCommit: TIP_COMMIT_HASH });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-skip");
@@ -103,7 +103,7 @@ test("test_screen3_answered_no_skips_4_and_5_and_clears_repo_fields", async () =
 });
 
 test("test_full_project_run_finish_stores_mirror_and_posts_preBaseline", async () => {
-    // Scenario: screens 2→3(yes)→4(default)→5(yes)→Finish; "Apply to session only" stores the task-56 mirror BEFORE the POST, whose entry carries preBaseline; the popover closes.
+    // Scenario: screens 2→3(yes)→4→5(yes)→Finish; "Apply to session only" stores the task-56 mirror BEFORE the POST; popover closes.
     const wizard = await initializeWizardInFreshDom({ repo: "/repos/p" });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-full");

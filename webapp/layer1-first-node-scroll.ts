@@ -1,18 +1,55 @@
-// After the page's first render: when no visible node is inside the timeline pane, bring the topmost visible one into view.
+// After first render: if no visible node is in the timeline pane, scroll the topmost into view.
 
 import { getRequiredElementById } from "./app-dom.ts";
 
-export function scrollToFirstVisibleNode(): void {
-    const pane = getRequiredElementById("timelines").getBoundingClientRect();
-    const visibleNodes = [...document.querySelectorAll<HTMLElement>("#stage .node")]
-        .filter((node) => node.checkVisibility())
-        .map((node) => ({ node, rect: node.getBoundingClientRect() }));
-    const isOnScreen = visibleNodes.some(({ rect }) =>
-        rect.bottom > pane.top && rect.top < pane.bottom && rect.right > pane.left && rect.left < pane.right);
-    if (isOnScreen || visibleNodes.length === 0) {
-        return;
+interface NodeBox {
+  node: HTMLElement;
+  rect: DOMRect;
+}
+
+function collectVisibleNodeBoxes(): NodeBox[] {
+  const boxes: NodeBox[] = [];
+  for (const node of document.querySelectorAll<HTMLElement>("#stage .node")) {
+    const isVisible = node.checkVisibility();
+    if (isVisible) {
+      boxes.push({ node, rect: node.getBoundingClientRect() });
     }
-    const topmost = visibleNodes.reduce((best, candidate) => candidate.rect.top < best.rect.top ? candidate : best);
-    // Native scrollIntoView, like landOnBubble: it works under the CSS zoom without any arithmetic.
-    topmost.node.scrollIntoView({ block: "center", inline: "center" });
+  }
+  return boxes;
+}
+
+function isInsidePane(rect: DOMRect, pane: DOMRect): boolean {
+  const isBelowPaneTop = rect.bottom > pane.top;
+  const isAbovePaneBottom = rect.top < pane.bottom;
+  const isRightOfPaneLeft = rect.right > pane.left;
+  const isLeftOfPaneRight = rect.left < pane.right;
+  const isInsideVertically = isBelowPaneTop && isAbovePaneBottom;
+  const isInsideHorizontally = isRightOfPaneLeft && isLeftOfPaneRight;
+  return isInsideVertically && isInsideHorizontally;
+}
+
+function findTopmostBox(boxes: NodeBox[]): NodeBox {
+  let topmost = boxes[0]!;
+  for (const box of boxes) {
+    if (box.rect.top < topmost.rect.top) {
+      topmost = box;
+    }
+  }
+  return topmost;
+}
+
+export function moveFirstVisibleNodeIntoView(): void {
+  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const boxes = collectVisibleNodeBoxes();
+  if (boxes.length === 0) {
+    return;
+  }
+  for (const box of boxes) {
+    const isOnScreen = isInsidePane(box.rect, pane);
+    if (isOnScreen) {
+      return;
+    }
+  }
+  // Native scrollIntoView, like landOnBubble: it works under the CSS zoom without any arithmetic.
+  findTopmostBox(boxes).node.scrollIntoView({ block: "center", inline: "center" });
 }

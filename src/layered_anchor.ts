@@ -40,7 +40,8 @@ export function isNodeCarryingBytes(node: TimelineNode): node is BeaconNode | En
 
 // Returns verified bytes; byteless kinds throw (spec S2).
 export function getRequiredNodeContent(node: TimelineNode): string {
-  if (isNodeCarryingBytes(node)) {
+  const carriesBytes = isNodeCarryingBytes(node);
+  if (carriesBytes) {
     return node.content;
   }
   throw new Error(`${node.kind} node refuses byte operations (display/placement only)`);
@@ -56,7 +57,8 @@ function isReadEchoComplete(result: ReadResult): boolean {
 
 // Complete echo becomes beacon; partial window becomes pre-anchor stub.
 function buildReadEchoNode(result: ReadResult, instant: Date, evidence: JsonlRef): TimelineNode {
-  if (isReadEchoComplete(result)) {
+  const isComplete = isReadEchoComplete(result);
+  if (isComplete) {
     return { kind: LayeredNodeKind.beacon, instant, content: result.file.content, evidence };
   }
   return { kind: LayeredNodeKind.preAnchorStub, instant, evidence };
@@ -80,7 +82,8 @@ function buildReadEchoPlacement(
   nameById: Map<string, string>,
   sessionFile: Path,
 ): ReadEchoPlacement | undefined {
-  if (findToolNameForRecord(record, nameById) !== ToolName.Read) {
+  const toolName = findToolNameForRecord(record, nameById);
+  if (toolName !== ToolName.Read) {
     return undefined;
   }
   const resolved = getToolResultForUserRecord(record, nameById);

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import {
     buildNode, findArrow, readLandedY, refreshKindJumpArrows, renderViewWithSyntheticStage,
 } from "./layer1-kind-jump-helpers.ts";
@@ -31,7 +31,7 @@ test("test_the_arrows_are_disabled_for_a_kind_with_no_nodes_and_for_a_hidden_kin
 
 test("test_the_branch_arrows_step_between_branch_dots_once_the_branch_box_is_ticked", async () => {
     await renderViewWithSyntheticStage();
-    stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
+    installStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
     const box = document.querySelector<HTMLInputElement>("#show-row input[data-kind=branch]")!;
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));

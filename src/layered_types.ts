@@ -8,45 +8,45 @@ export type Instant = Date;
 
 // Evidence pointer "<jsonl>:L67"; snapshots resolve via owning session's sidecar (Q12).
 export interface JsonlRef {
-    sessionFile: Path;
-    line: number;
+  sessionFile: Path;
+  line: number;
 }
 
 // Full-content evidence; timeline's first beacon is its ANCHOR (Q14).
 export interface BeaconNode {
-    kind: LayeredNodeKind.beacon;
-    instant: Instant;
-    content: string;
-    // Undefined for git or sidecar backup beacons (no JSONL line exists).
-    evidence: JsonlRef | undefined;
+  kind: LayeredNodeKind.beacon;
+  instant: Instant;
+  content: string;
+  // Undefined for git or sidecar backup beacons (no JSONL line exists).
+  evidence: JsonlRef | undefined;
 }
 
 // A byteless mention before the anchor (Q14): position + evidence known, content unknown. Display/placement only; byte-consuming operations refuse stubs.
 export interface PreAnchorStubNode {
-    kind: LayeredNodeKind.preAnchorStub;
-    instant: Instant;
-    evidence: JsonlRef;
+  kind: LayeredNodeKind.preAnchorStub;
+  instant: Instant;
+  evidence: JsonlRef;
 }
 
 // The file's current on-disk state — every timeline's final node (spec S2).
 export interface EndStateNode {
-    kind: LayeredNodeKind.endState;
-    instant: Instant;
-    content: string;
+  kind: LayeredNodeKind.endState;
+  instant: Instant;
+  content: string;
 }
 
 // Unexplained adjacent-pair diff (Q8); presumed user edit until explained.
 export interface PresumedUserEditNode {
-    kind: LayeredNodeKind.presumedUserEdit;
-    instant: Instant;
+  kind: LayeredNodeKind.presumedUserEdit;
+  instant: Instant;
 }
 
 // Recorded script execution; `code` is reconstructed text (Q20).
 export interface ScriptRunNode {
-    kind: LayeredNodeKind.scriptRun;
-    instant: Instant;
-    code: string;
-    evidence: JsonlRef;
+  kind: LayeredNodeKind.scriptRun;
+  instant: Instant;
+  code: string;
+  evidence: JsonlRef;
 }
 
 export type TimelineNode =
@@ -58,65 +58,65 @@ export type TimelineNode =
 
 // One file's nodes, ordered by Instant.
 export interface Timeline {
-    nodes: TimelineNode[];
+  nodes: TimelineNode[];
 }
 
 // One file as seen by ONE session (Q12) — evidence stays scoped to its owning session.
 export interface SessionTimeline {
-    sessionFile: Path;
-    timeline: Timeline;
+  sessionFile: Path;
+  timeline: Timeline;
 }
 
 // Merged multi-session node (S5); per-session timelines remain stored truth (Q13).
 export interface MergedNode {
-    node: TimelineNode;
-    // Observing session; undefined for end states and merged-level presumption gaps.
-    sessionFile: Path | undefined;
-    // Other sessions observing these bytes; drives S8 cross-lane lines.
-    corroboratedBy: Path[];
+  node: TimelineNode;
+  // Observing session; undefined for end states and merged-level presumption gaps.
+  sessionFile: Path | undefined;
+  // Other sessions observing these bytes; drives S8 cross-lane lines.
+  corroboratedBy: Path[];
 }
 
 // One entity's nodes across every session, ordered on the shared instant axis.
 export interface MergedTimeline {
-    nodes: MergedNode[];
+  nodes: MergedNode[];
 }
 
 // One entity per distinct file; identity is cwd-resolved absolute path (Q13, S5).
 export interface ReconstructionEntity {
-    filename: Path;
-    sessionTimelines: SessionTimeline[];
+  filename: Path;
+  sessionTimelines: SessionTimeline[];
 }
 
 // Typed directed edges (Q11) replace untyped linked-entity groups; lineage is derived by walking RenameEdges on demand (spec S6).
 
 // Sequential identity: renamedFrom's timeline ends here; renamedTo's begins.
 export interface RenameEdge {
-    renamedFrom: ReconstructionEntity;
-    renamedTo: ReconstructionEntity;
-    timestampOfRename: Instant;
-    evidence: JsonlRef;
+  renamedFrom: ReconstructionEntity;
+  renamedTo: ReconstructionEntity;
+  timestampOfRename: Instant;
+  evidence: JsonlRef;
 }
 
 // Fork, not sequence: both entities alive after the copy; bornCopy's first content is copiedFrom's reconstructed state at timestampOfCopy.
 export interface CopyEdge {
-    copiedFrom: ReconstructionEntity;
-    timestampOfCopy: Instant;
-    bornCopy: ReconstructionEntity;
-    evidence: JsonlRef;
+  copiedFrom: ReconstructionEntity;
+  timestampOfCopy: Instant;
+  bornCopy: ReconstructionEntity;
+  evidence: JsonlRef;
 }
 
 // Evidence dependency, not identity, consulted only by the layer-10 executor; a verified replay confirms nodes on every filesWritten timeline.
 export interface ScriptDependsOn {
-    scriptRun: ScriptRunNode;
-    filesRead: ReconstructionEntity[];
-    filesWritten: ReconstructionEntity[];
-    evidence: JsonlRef;
+  scriptRun: ScriptRunNode;
+  filesRead: ReconstructionEntity[];
+  filesWritten: ReconstructionEntity[];
+  evidence: JsonlRef;
 }
 
 export interface ReconstructionGraph {
-    entities: ReconstructionEntity[];
-    renames: RenameEdge[];
-    copies: CopyEdge[];
-    scriptLinks: ScriptDependsOn[];
+  entities: ReconstructionEntity[];
+  renames: RenameEdge[];
+  copies: CopyEdge[];
+  scriptLinks: ScriptDependsOn[];
 }
 

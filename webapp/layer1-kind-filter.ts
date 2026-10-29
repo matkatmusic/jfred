@@ -1,11 +1,11 @@
 // Task 360: the show row's checkboxes hide node kinds by CSS attribute; no relayout, no refetch.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { hasLoadedBranches, loadBranchesOnce } from "./layer1-branches.ts";
-import { hasLoadedEdits, loadEditsOnce } from "./layer1-edits.ts";
+import { isBranchesLoaded, loadBranchesOnce } from "./layer1-branches.ts";
+import { isEditsLoaded, loadEditsOnce } from "./layer1-edits.ts";
 import { attachKindButtons } from "./layer1-kind-buttons.ts";
-import { hasLoadedScriptRuns, loadScriptRunsOnce } from "./layer1-script-runs.ts";
-import { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
+import { isScriptRunsLoaded, loadScriptRunsOnce } from "./layer1-script-runs.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { getHiddenKindsForProject, saveHiddenKinds } from "./layer1-settings.ts";
 import { ShowRowKind, renderShowRow } from "./layer1-show-row.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -51,7 +51,7 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     }
   }
   const isEditBoxTurningOn = kind === ShowRowKind.edit && box.checked;
-  const needsEditLoad = isEditBoxTurningOn && !hasLoadedEdits(drawnView!);
+  const needsEditLoad = isEditBoxTurningOn && !isEditsLoaded(drawnView!);
   if (needsEditLoad) {
     const isLoaded = await loadEditsOnce(drawnView!);
     if (!isLoaded) {
@@ -59,7 +59,7 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
       return;
     }
     // The kind shows before the redraw so edit nodes appear as drawn; the bar stays up.
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_EDITS);
+    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_EDITS);
     await waitForPaintedFrame();
     hiddenKinds.delete(kind);
     applyHiddenKindsAttribute();
@@ -68,7 +68,7 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     return;
   }
   const isScriptRunBoxTurningOn = kind === ShowRowKind.scriptRun && box.checked;
-  const needsScriptRunLoad = isScriptRunBoxTurningOn && !hasLoadedScriptRuns(drawnView!);
+  const needsScriptRunLoad = isScriptRunBoxTurningOn && !isScriptRunsLoaded(drawnView!);
   if (needsScriptRunLoad) {
     const isLoaded = await loadScriptRunsOnce(drawnView!);
     if (!isLoaded) {
@@ -78,7 +78,7 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     await redrawStage!();
   }
   const isBranchBoxTurningOn = kind === ShowRowKind.branch && box.checked;
-  const needsBranchLoad = isBranchBoxTurningOn && !hasLoadedBranches(drawnView!);
+  const needsBranchLoad = isBranchBoxTurningOn && !isBranchesLoaded(drawnView!);
   if (needsBranchLoad) {
     const isLoaded = await loadBranchesOnce(drawnView!);
     if (!isLoaded) {

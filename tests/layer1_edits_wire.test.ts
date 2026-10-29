@@ -1,4 +1,4 @@
-// Task 355 step 5: events join to pairs by relative path and shape into the wire view; transcripts load from temp trees.
+// Task 355 step 5: events join to pairs by relative path and shape into the wire view.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -12,9 +12,12 @@ import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import {
-    SESSION_A, SESSION_B, buildEditRecordPair, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
-    type RecordEnvelope,
+    SESSION_A, SESSION_B, createSourceTree, writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import {
+    buildEditRecordPair, buildWriteRecordPair,
+    type RecordEnvelope,
+} from "./tool-call-record-pair-builders.ts";
 
 const PROJECT_FOLDER = new Path("/work");
 const HUNK = { oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ["-one", "+uno"] };
@@ -23,9 +26,9 @@ function buildEnvelope(sessionId: string, toolId: string, minute: number): Recor
     return { sessionId, cwd: "/work", timestamp: `2026-07-24T10:0${minute}:00.000Z`, toolId, parentUuid: null };
 }
 
-// Session A writes "one" then edits it; session B writes the same path later and writes one file outside /work.
+// Session A writes then edits a file; session B later writes the same path and one file outside /work.
 function writeTwoSessions(): Path[] {
-    const tree = makeSourceTree("-edits-wire");
+    const tree = createSourceTree("-edits-wire");
     const writeA = buildWriteRecordPair(buildEnvelope(SESSION_A, "toolu_a1", 1), "/work/a.py", "one\n");
     const editA = buildEditRecordPair(buildEnvelope(SESSION_A, "toolu_a2", 2), "/work/a.py", "uno\n", "one\n", HUNK);
     const writeB = buildWriteRecordPair(buildEnvelope(SESSION_B, "toolu_b1", 3), "/work/a.py", "tres\n");
@@ -83,7 +86,7 @@ test("test_absent_line_key_is_absent", () => {
 });
 
 test("test_seed_reader_returns_the_backup_lines_owned_by_the_session", () => {
-    const tree = makeSourceTree("-edits-wire-seed-hit");
+    const tree = createSourceTree("-edits-wire-seed-hit");
     const edit = buildEditRecordPair(buildEnvelope(SESSION_A, "toolu_a2", 2), "/work/a.py", "uno\n", "one\n", HUNK);
     const backupTime = "2026-07-24T10:00:30.000Z";
     const snapshot = { type: "file-history-snapshot", messageId: "m1", isSnapshotUpdate: false, snapshot: {
@@ -98,7 +101,7 @@ test("test_seed_reader_returns_the_backup_lines_owned_by_the_session", () => {
 });
 
 test("test_seed_is_undefined_when_session_backup_folder_is_missing", () => {
-    const tree = makeSourceTree("-edits-wire-seed-no-folder");
+    const tree = createSourceTree("-edits-wire-seed-no-folder");
     const edit = buildEditRecordPair(buildEnvelope(SESSION_A, "toolu_a2", 2), "/work/a.py", "uno\n", "one\n", HUNK);
     const backupTime = "2026-07-24T10:00:30.000Z";
     const snapshot = { type: "file-history-snapshot", messageId: "m1", isSnapshotUpdate: false, snapshot: {
@@ -111,7 +114,7 @@ test("test_seed_is_undefined_when_session_backup_folder_is_missing", () => {
 });
 
 test("test_seed_reader_returns_undefined_when_the_session_has_no_backup", () => {
-    const tree = makeSourceTree("-edits-wire-seed");
+    const tree = createSourceTree("-edits-wire-seed");
     const edit = buildEditRecordPair(buildEnvelope(SESSION_A, "toolu_a2", 2), "/work/a.py", "uno\n", "one\n", HUNK);
     writeTranscriptFixture(tree.projectDir, "a.jsonl", edit.records);
     const [event] = collectViewEditEventsByRelativePath(PROJECT_FOLDER, [new Path(join(tree.projectDir, "a.jsonl"))]).get("a.py")!;

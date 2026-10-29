@@ -5,7 +5,7 @@ import { rmSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { findFreePort, openHeadlessPage, pause, waitForHttp, type HeadlessPage } from "./cdp.ts";
+import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { executeLayer2Checks } from "./layer2-checks.ts";
 import { countExpectedSnapshots, type ViewPayload } from "./layer2-payload.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";
@@ -87,7 +87,7 @@ async function executeMain(): Promise<void> {
   }
   finally {
     server.kill("SIGKILL");
-    await pause(200);
+    await waitMilliseconds(200);
     stopPort(port);
   }
   console.log(failures.length

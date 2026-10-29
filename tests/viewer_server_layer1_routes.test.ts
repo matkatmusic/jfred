@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { test } from "node:test";
 import { dispatchLayer1Route } from "../src/viewer_server_layer1_routes.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 function dispatchGet(pathAndQuery: string): { handled: boolean; body: string } {
     let body = "";
@@ -17,13 +17,13 @@ function dispatchGet(pathAndQuery: string): { handled: boolean; body: string } {
 }
 
 test("test_dispatch_routes_layer1_edits_to_the_real_handler", () => {
-    const { handled, body } = dispatchGet(`/api/layer1-edits?dir=${encodeURIComponent(makeTempDir())}`);
+    const { handled, body } = dispatchGet(`/api/layer1-edits?dir=${encodeURIComponent(createTempDir())}`);
     assert.equal(handled, true);
     assert.deepEqual(JSON.parse(body), { pairs: [] });
 });
 
 test("test_dispatch_routes_layer1_branches_to_the_real_handler", () => {
-    const { handled, body } = dispatchGet(`/api/layer1-branches?dir=${encodeURIComponent(makeTempDir())}`);
+    const { handled, body } = dispatchGet(`/api/layer1-branches?dir=${encodeURIComponent(createTempDir())}`);
     assert.equal(handled, true);
     assert.deepEqual(JSON.parse(body), { pairs: [] });
 });

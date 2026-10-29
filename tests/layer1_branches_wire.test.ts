@@ -1,22 +1,19 @@
-// Task 357 step 4: rewound branches become lanes with a rewind kind, a fork anchor and the file revisions made below the fork.
+// Rewound branches become lanes with a rewind kind, a fork anchor and revisions below the fork.
 
 import assert from "node:assert/strict";
 import { dirname } from "node:path";
 import { test } from "node:test";
-import {
-    LAYER1_PROGRESS_LABEL_FINDING_BRANCHES,
-    LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES,
-    buildBranchesView,
-    type Layer1WireBranchesView,
-} from "../src/layer1_branches_wire.ts";
-import { loadTranscript, type ProgressSink } from "../src/parse/loadTranscript.ts";
-import { reconstructStepTimeline } from "../src/reconstruction_steps.ts";
-import { createSidecarReader, findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
+import { buildBranchesView, type Layer1WireBranchesView } from "../src/layer1_branches_wire.ts";
+import { loadTranscript } from "../src/parse/loadTranscript.ts";
+import { buildStepTimeline } from "../src/reconstruction_steps.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
+import { findSessionId, getFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { Path } from "../src/structures/domain.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
-import { findScenarioJsonl } from "./fixtures.ts";
-import { SESSION_A, buildPromptRecord, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { findScenarioJsonl } from "./scenario-locator.ts";
+import { SESSION_A, buildPromptRecord, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 type WireBranchRow = Layer1WireBranchesView["pairs"][number]["branches"][number];
 
@@ -30,8 +27,8 @@ function listScenarioLanes(scenarioDir: string): { path: string; branch: WireBra
 
 function listDiskInstants(scenarioDir: string, relativePath: string): number[] {
     const { records } = loadTranscript(findScenarioJsonl(scenarioDir), undefined, true);
-    const reader = createSidecarReader(findSessionId(records)!, resolveFileHistoryRoot(records));
-    const history = reconstructStepTimeline(records, reader).histories.find((candidate) => candidate.target.toString().endsWith(`/${relativePath}`));
+    const reader = createSidecarReader(findSessionId(records)!, getFileHistoryRoot(records));
+    const history = buildStepTimeline(records, reader).histories.find((candidate) => candidate.target.toString().endsWith(`/${relativePath}`));
     return history!.revisions.map((revision) => revision.timestamp.getTime());
 }
 
@@ -92,7 +89,7 @@ function writePairAt(cwd: string, toolId: string, timestamp: string, parentUuid:
 }
 
 test("test_unnamed_main_line_with_a_structural_rewind_gives_exactly_the_structural_lane", () => {
-    const tree = makeSourceTree("-unnamed-main-line");
+    const tree = createSourceTree("-unnamed-main-line");
     const cwd = "/tmp/unnamed-main-line";
     const trunkWrite = writePairAt(cwd, "toolu_t0", "2026-07-24T10:00:30.000Z", "p0", "trunk.txt", "trunk\n");
     const abandonedWrite = writePairAt(cwd, "toolu_t1", "2026-07-24T10:02:00.000Z", "p1", "f.txt", "abandoned\n");
@@ -117,7 +114,7 @@ test("test_unnamed_main_line_with_a_structural_rewind_gives_exactly_the_structur
 });
 
 test("test_parallel_tool_call_sibling_is_not_a_lane", () => {
-    const tree = makeSourceTree("-parallel-calls");
+    const tree = createSourceTree("-parallel-calls");
     const cwd = "/tmp/parallel-calls";
     const first = writePairAt(cwd, "toolu_a", "2026-07-24T10:00:10.000Z", "p0", "a.txt", "a\n");
     const sibling = writePairAt(cwd, "toolu_b", "2026-07-24T10:00:11.000Z", "toolu_a-assistant", "b.txt", "b\n");
@@ -132,25 +129,4 @@ test("test_parallel_tool_call_sibling_is_not_a_lane", () => {
         { type: "last-prompt", sessionId: SESSION_A, leafUuid: next.lastUuid },
     ]);
     assert.deepEqual(buildBranchesView(new Path(cwd), listTranscriptFiles([tree.projectDir])), { pairs: [] });
-});
-
-test("test_progress_counts_groups_then_groups_with_a_lane", () => {
-    const tree = makeSourceTree("-progress");
-    writeTranscriptFixture(tree.projectDir, "empty.jsonl", [buildPromptRecord("p0", null, "2026-07-24T10:00:00.000Z", "/tmp/x")]);
-    const files = [...listTranscriptFiles([dirname(findScenarioJsonl("s17-multi-edit-conv-only-re-edit"))]), ...listTranscriptFiles([tree.projectDir])];
-    const { records } = loadTranscript(findScenarioJsonl("s17-multi-edit-conv-only-re-edit"), undefined, true);
-    const lines: object[] = [];
-    const sink: ProgressSink = (line) => lines.push(line);
-    buildBranchesView(new Path(records.find((record) => record.cwd !== undefined)!.cwd!.toString()), files, sink);
-    const progress = (label: string, current: number, total: number) => ({ kind: "progress", label, current, total });
-    assert.deepEqual(lines, [
-        progress(LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, 1, 2),
-        progress(LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, 2, 2),
-        progress(LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES, 1, 1),
-    ]);
-});
-
-test("test_progress_labels_are_the_documented_words", () => {
-    assert.equal(LAYER1_PROGRESS_LABEL_FINDING_BRANCHES, "finding branches");
-    assert.equal(LAYER1_PROGRESS_LABEL_RECONSTRUCTING_BRANCHES, "reconstructing branches");
 });

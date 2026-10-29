@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type WireEditsView } from "../../webapp/layer1-wire-edits.ts";
-import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
+import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds } from "./cdp.ts";
 import { executeLayer3RealChecks } from "./layer3-real-checks.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";
 
@@ -85,13 +85,16 @@ async function executeMain(): Promise<void> {
   const server = await launchViewer(port);
   try {
     const payload = await fetchEditsPayload(port);
-    const editTotal = payload.pairs.flatMap((pair) => pair.edits).length;
+    let editTotal = 0;
+    for (const pair of payload.pairs) {
+      editTotal += pair.edits.length;
+    }
     reportCheck("#355 the real endpoint returns edits to verify against", editTotal > 0, editTotal);
     await executeDriveAndCheck(port, payload);
   }
   finally {
     server.kill("SIGKILL");
-    await pause(200);
+    await waitMilliseconds(200);
     stopPort(port);
   }
   console.log(failures.length

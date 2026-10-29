@@ -1,10 +1,10 @@
-// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.  The counted-line test drives readLayer1ViewStream directly: loadLayer1View's finally resets the strip, erasing what it painted.
+// Layer 1 progress strip (S18 step 4c): visible while the stream runs, gone once the timeline draws.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
-import { paintLoadbar, readLayer1ViewStream } from "../webapp/layer1-progress.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
 const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
@@ -14,13 +14,13 @@ const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 
 // layer1-page.ts boots at MODULE SCOPE; absorb that first boot against a throwaway DOM with an empty query.
 initLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 
 // Fresh page naming both roots, endpoint answering `lines`; the strip is up by the time this returns.
 function openPageStreaming(lines: unknown[]): void {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", lines);
-    bootLayer1Page();
+    installStreamRoute("/api/layer1-view", lines);
+    initLayer1Page();
 }
 
 function checkLoadbarIsHidden(): boolean {
@@ -54,7 +54,7 @@ test("test_the_progress_bar_shows_while_the_view_streams_and_hides_when_it_ends"
 test("test_a_counted_progress_line_fills_the_bar_to_its_fraction", async () => {
     // Scenario (step 4c): a {current, total} line fills the track and spells the count out beside it.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", [
+    installStreamRoute("/api/layer1-view", [
         { kind: "progress", label: "reading file history", current: 5, total: 10 },
         EMPTY_VIEW,
     ]);
@@ -67,14 +67,14 @@ test("test_a_counted_progress_line_fills_the_bar_to_its_fraction", async () => {
 });
 
 test("test_a_countless_paint_marks_the_fill_indeterminate_and_a_counted_paint_clears_it", () => {
-    // Scenario: a stage with no count must still show a moving bar; the first count hands the bar back to its fraction.
+    // Scenario: a stage with no count shows a moving bar; the first count returns the bar to its fraction.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     const fill = document.getElementById("loadbar-fill") as HTMLElement;
     const labelHost = document.getElementById("loadbar-label") as HTMLElement;
-    paintLoadbar(fill, labelHost, "starting");
+    renderLoadbar(fill, labelHost, "starting");
     assert.equal(fill.classList.contains("indeterminate"), true);
     assert.equal(labelHost.textContent, "starting");
-    paintLoadbar(fill, labelHost, "reading file history", 5, 10);
+    renderLoadbar(fill, labelHost, "reading file history", 5, 10);
     assert.equal(fill.classList.contains("indeterminate"), false);
     assert.equal(fill.style.width, "50%");
 });
@@ -97,7 +97,7 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
     // Scenario (task 302): Yes-cancel aborts the stream; crumb reports cancellation, strip hides, stage stays empty.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubHangingViewRoute();
-    bootLayer1Page();
+    initLayer1Page();
     await waitForAsyncWork();
     assert.equal(checkLoadbarIsHidden(), false);
     document.getElementById("loadbar-cancel")!.click();

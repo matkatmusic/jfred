@@ -4,49 +4,49 @@ import { Path } from "../src/structures/domain.ts";
 import {
     enableProvenance,
     disableProvenance,
-    noteStage,
-    drainProvenance,
+    addStageEntry,
+    getAndClearProvenance,
     clearProvenance,
 } from "../src/reconstruction_provenance.ts";
 
 // A throwaway provenance entry for a named stage.
-function entryFor(stage: string): Parameters<typeof noteStage>[0] {
+function entryFor(stage: string): Parameters<typeof addStageEntry>[0] {
     return { stage, target: new Path("/t/x.py"), detail: "did a thing" };
 }
 
-test("test_noteStage_records_an_entry_when_provenance_is_enabled", () => {
+test("test_addStageEntry_records_an_entry_when_provenance_is_enabled", () => {
     // Behavior: with provenance on, a noted stage is captured.
     enableProvenance();
-    noteStage(entryFor("seedCopyEvents"));
-    assert.equal(drainProvenance().length, 1);
+    addStageEntry(entryFor("seedCopyEvents"));
+    assert.equal(getAndClearProvenance().length, 1);
     disableProvenance();
 });
 
-test("test_noteStage_records_nothing_when_provenance_is_disabled", () => {
+test("test_addStageEntry_records_nothing_when_provenance_is_disabled", () => {
     // Behavior: disabled is the default no-op state — noted stages are dropped.
     disableProvenance();
     clearProvenance();
-    noteStage(entryFor("seedCopyEvents"));
-    assert.equal(drainProvenance().length, 0);
+    addStageEntry(entryFor("seedCopyEvents"));
+    assert.equal(getAndClearProvenance().length, 0);
 });
 
 test("test_enableProvenance_clears_any_prior_entries", () => {
     // Behavior: enabling starts a fresh capture (any prior buffer is cleared).
     enableProvenance();
-    noteStage(entryFor("completeElidedBeacons"));
+    addStageEntry(entryFor("completeElidedBeacons"));
     enableProvenance();
-    assert.equal(drainProvenance().length, 0);
+    assert.equal(getAndClearProvenance().length, 0);
     disableProvenance();
 });
 
-test("test_drainProvenance_returns_entries_then_empties_the_buffer", () => {
+test("test_getAndClearProvenance_returns_entries_then_empties_the_buffer", () => {
     // Behavior: draining returns the captured entries and leaves the buffer empty.
     enableProvenance();
-    noteStage(entryFor("seedStaleEditBases"));
-    noteStage(entryFor("completeTruncatedBeacon"));
-    const drained = drainProvenance();
+    addStageEntry(entryFor("seedStaleEditBases"));
+    addStageEntry(entryFor("completeTruncatedBeacon"));
+    const drained = getAndClearProvenance();
     assert.equal(drained.length, 2);
-    assert.equal(drainProvenance().length, 0);
+    assert.equal(getAndClearProvenance().length, 0);
     disableProvenance();
 });
 

@@ -1,9 +1,9 @@
-// Tasks 295/296: the shared source-folder dialog.  What is guarded here is the two rules a folder picker can silently get wrong: a folder holding none of what the list is for must be REFUSED rather than added (a source path that contributes nothing is a lie about the build's inputs), and [cancel] must leave the live list exactly as it was — the dialog edits a copy precisely so a mis-click on [−] is recoverable.
+// Tasks 295/296: an empty folder must be REFUSED, and [cancel] must leave the live list unchanged.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { openPicker, wirePathPickers } from "../webapp/layer1-path-picker.ts";
+import { openPicker, registerPathPickers } from "../webapp/layer1-path-picker.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -23,14 +23,14 @@ function stubPickerRoutes(pickedPath: string, found: number): void {
     });
 }
 
-// Fresh DOM, fresh stub, and both source lists emptied — the lists are module state shared with the picker, so a list a previous test committed would make the next test's [+] a duplicate and a no-op. `onChanged` is returned as a counter so the commit path can be asserted exactly once.
+// Fresh DOM and stub with both lists emptied, since lists are shared module state; returns an onChanged counter.
 function openPickerPage(pickedPath: string, found: number): { changes: () => number } {
     initLayer1Dom();
     stubPickerRoutes(pickedPath, found);
     writeSourcePaths(SourceKind.jsonl, []);
     writeSourcePaths(SourceKind.fileHistory, []);
     let changeCount = 0;
-    wirePathPickers(() => { changeCount += 1; });
+    registerPathPickers(() => { changeCount += 1; });
     return { changes: () => changeCount };
 }
 

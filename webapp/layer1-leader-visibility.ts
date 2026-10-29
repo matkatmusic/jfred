@@ -57,18 +57,18 @@ function findLeaderFor(element: HTMLElement | undefined): HTMLElement | undefine
 }
 
 // Exported for the test, which drives which element maps to which line without synthetic pointer events.
-export function showLeaderForHoveredElement(element: HTMLElement | undefined): void {
+export function updateHoveredLeader(element: HTMLElement | undefined): void {
   hoveredLeader = findLeaderFor(element);
   renderShownLeaders();
 }
 
-export function wireLeaderVisibility(): void {
+export function attachLeaderVisibility(): void {
   const pane = getRequiredElementById("timelines");
   function updateLeaderOnPointerOver(event: PointerEvent): void {
-    showLeaderForHoveredElement(event.target as HTMLElement);
+    updateHoveredLeader(event.target as HTMLElement);
   }
   function updateLeaderOnPointerLeave(): void {
-    showLeaderForHoveredElement(undefined);
+    updateHoveredLeader(undefined);
   }
   function updateSelectedLeaderOnLanding(event: Event): void {
     selectedLeader = findLeaderFor((event as CustomEvent<HTMLElement>).detail);

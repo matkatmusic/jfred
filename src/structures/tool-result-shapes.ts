@@ -17,7 +17,10 @@ export function readWriteInput(block: ToolUseBlock): { filePath: Path; content: 
   const input = block.input as { file_path?: string; path?: string; content?: string; file_text?: string };
   const filePath = input.file_path ?? input.path;
   const content = input.content ?? input.file_text;
-  if (filePath === undefined || content === undefined) {
+  const isMissingFilePath = filePath === undefined;
+  const isMissingContent = content === undefined;
+  const isMissingInput = isMissingFilePath || isMissingContent;
+  if (isMissingInput) {
     throw new Error(`Write tool_use ${block.id.toString()} has no path/content in its input`);
   }
   return { filePath: new Path(filePath), content };

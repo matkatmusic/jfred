@@ -1,23 +1,22 @@
-// task 193: the per-session turn-walk half of the bound tests, split from reconstruction_bound.test.ts (task 192 pushed that file past the 250-line cap).
+// task 193: per-session turn-walk bound tests, split from reconstruction_bound.test.ts.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { truncateRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
+import { trimRecordsAtRevisionTurnEnd } from "../src/reconstruction_bound.ts";
 import {
     SESSION_A,
     SESSION_B,
-    buildEditRecordPair,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () => {
-    // Scenario: two sessions ran CONCURRENTLY, so the merged time-ordered stream interleaves their turns. The turn end must be the OWNING session's next prompt — another session's prompt landing mid-turn must not cut session A's turn short — and the cut is by wall clock, so the other session's records inside the window stay in.  Merged stream: promptA1 10:00 | write alpha (A) 10:01 | promptB1 (B) 10:03 | edit alpha (A) 10:04 | write beta (B) 10:05 | promptA2 (A) 10:08 | write gamma (B) 10:09
-    const tree = makeSourceTree("-bound-interleaved");
+    // Scenario: two sessions interleave; the cut is the owning session's next prompt.
+    const tree = createSourceTree("-bound-interleaved");
     const root = join(tree.treeRoot, "workspace");
     const alphaPath = join(root, "alpha_bound.py");
     const writeAlpha = buildWriteRecordPair(
@@ -51,7 +50,7 @@ test("test_bound_uses_owning_sessions_next_prompt_on_interleaved_streams", () =>
         buildPromptRecord("prompt-a2", editAlpha.lastUuid, "2026-07-23T10:08:00.000Z", root),
         ...writeGamma.records,
     ]);
-    const bound = truncateRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
+    const bound = trimRecordsAtRevisionTurnEnd(records, new Path(alphaPath), 1);
     // Session B's 10:03 prompt did NOT end A's turn: the same-turn 10:04 edit is kept.
     assert.ok(bound.records.some((record) => record.uuid?.toString() === "toolu_il_e1-result"));
     // The wall-clock cut keeps B's in-window activity (beta) and drops post-bound work (gamma).

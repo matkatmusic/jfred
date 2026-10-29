@@ -1,8 +1,8 @@
-// Tests that deterministic reconstruction work is never repeated: a script run executes once (not once per nested lineage replay), and a file's lineage seed is replayed once per (target, before) instant (not once per Write event that requests it). Root causes and log evidence: ~/.claude/plans/2026-07-07-reveng-repeated-reconstruction-work.md.
+// Tests that script runs execute once and each lineage seed replays once per (target, before) instant.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reconstructFilesOver } from "../src/reconstruction_renderable.ts";
+import { getFileHistoriesOver } from "../src/reconstruction_renderable.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -17,10 +17,10 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
     } as unknown as TranscriptRecord;
 }
 
-// A reader with no backups to offer — every pre-state seed comes from the authored Writes.
+// A reader with no backups: every pre-state seed comes from the authored Writes.
 const emptyReader: BackupReader = () => "";
 
-// Every progress label reported while `work` runs; the sink is always restored afterwards so no other test observes this one's instrumentation.
+// Every progress label reported while `work` runs; the sink is restored afterwards.
 function collectProgressLabels(work: () => void): string[] {
     const labels: string[] = [];
     setReconstructionProgressSink((event) => {
@@ -56,7 +56,7 @@ function buildThreeFileOneRunRecords(): TranscriptRecord[] {
     ];
 }
 
-// Like buildThreeFileOneRunRecords, but alpha.py is written TWICE before the run — so the run's pre-execution state requests alpha's lineage once per Write event.
+// Like buildThreeFileOneRunRecords, but alpha.py is written TWICE before the run.
 function buildTwiceWrittenFileRecords(): TranscriptRecord[] {
     return [
         buildToolRecord(ToolName.Write, { file_path: "/proj/alpha.py", content: "alpha = 'old'\n" }, "2026-01-01T00:00:01Z"),
@@ -70,26 +70,26 @@ function buildTwiceWrittenFileRecords(): TranscriptRecord[] {
 }
 
 test("test_lineage_of_a_twice_written_file_replays_once_per_prestate", () => {
-    // Scenario: getPreExecutionState requests alpha.py's lineage once per Write event of that file; the replay is deterministic for (records, target, before) and must be cached, not recomputed per request.  Steps: reconstruct all files over records holding 2 Writes of alpha.py and 1 run rewriting it.
+    // Scenario: alpha.py's lineage replay is deterministic per (records, target, before), so it must be cached.
     const labels = collectProgressLabels(() => {
-        reconstructFilesOver(buildTwiceWrittenFileRecords(), emptyReader);
+        getFileHistoriesOver(buildTwiceWrittenFileRecords(), emptyReader);
     });
     // assert alpha.py's lineage was replayed exactly once.
     const alphaReplays = labels.filter((label) => label === "replaying lineage of /proj/alpha.py");
     assert.equal(alphaReplays.length, 1);
 });
 
-test("test_reconstructFilesOver_executes_each_script_run_exactly_once", () => {
-    // Scenario: one script run seeding 3 files must execute once, not once per nested lineage replay — building the run's pre-execution state replays each seeded file's lineage, and each replay's script stage must not re-enter the same still-in-flight execution.  Steps: reconstruct all files over records holding 3 Writes and 1 run that rewrites all 3.
+test("test_getFileHistoriesOver_executes_each_script_run_exactly_once", () => {
+    // Scenario: one script run seeding 3 files executes once, not once per nested lineage replay.
     const labels = collectProgressLabels(() => {
-        reconstructFilesOver(buildThreeFileOneRunRecords(), emptyReader);
+        getFileHistoriesOver(buildThreeFileOneRunRecords(), emptyReader);
     });
     // assert the run was executed exactly once.
     const executions = labels.filter((label) => label.startsWith("executing script run @"));
     assert.equal(executions.length, 1);
 });
 
-// Five written files and two script runs that each rewrite all of them — the logs3.txt duplicate pattern (32 replays of one file, 20 executions of one run) in miniature.
+// Five written files and two script runs that each rewrite all of them.
 const FIVE_FILENAMES = ["alpha.py", "beta.py", "gamma.py", "delta.py", "epsilon.py"];
 
 function buildFiveFileTwoRunRecords(): TranscriptRecord[] {
@@ -108,9 +108,9 @@ function buildFiveFileTwoRunRecords(): TranscriptRecord[] {
 }
 
 test("test_five_files_two_runs_execute_twice_and_replay_each_lineage_once_per_run", () => {
-    // Scenario: with 5 seeded files and 2 runs, the engine must execute each run once (2 total) and replay each file's lineage once per run instant (2 per file) — not the quadratic cascade the duplicate-log audit observed.  Steps: reconstruct all files over 5 Writes + 2 rewrite-everything runs.
+    // Scenario: 5 files and 2 runs execute each run once and replay each lineage once per run.
     const labels = collectProgressLabels(() => {
-        reconstructFilesOver(buildFiveFileTwoRunRecords(), emptyReader);
+        getFileHistoriesOver(buildFiveFileTwoRunRecords(), emptyReader);
     });
     // assert each run executed exactly once.
     const executions = labels.filter((label) => label.startsWith("executing script run @"));

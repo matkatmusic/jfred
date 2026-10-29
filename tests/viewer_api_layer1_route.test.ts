@@ -1,21 +1,21 @@
-// Step 4a of the S18 Layer 1 feedback fixes: GET /api/layer1-view?progress=1 serves the view as an NDJSON stream so the page can draw a determinate bar during the route's ~10 s build.  This file owns the STREAMED path of src/viewer_api_layer1_route.ts. The PLAIN path's three bad-input 400s stay in tests/viewer_api_layer1.test.ts, unchanged — a bad `dir`/`repo` must keep 400-ing even when the caller asked for a stream, which is why both folder checks run before any header is written.
+// Step 4a of the S18 fixes: tests the streamed path (progress=1) of src/viewer_api_layer1_route.ts.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { type AddressInfo } from "node:net";
-import { streamNdjsonBuild } from "../src/viewer_api_layer1_route.ts";
+import { sendNdjsonBuild } from "../src/viewer_api_layer1_route.ts";
 import {
     buildViewUrl,
-    makeFixtureDiskFolder,
-    makeFixtureRepo,
-    startFixtureViewer,
+    createFixtureDiskFolder,
+    createFixtureRepo,
+    launchFixtureViewer,
     type WireLayer1View,
 } from "./layer1-view-test-helpers.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 
-// 17400 (viewer_server.test.ts), 17900 (viewer_api_layered.test.ts), 18400 (viewer_api_ladder), 18900 (viewer_api_layer1), 19400 (viewer_api_layer1_placement) and 19900 (layer1-acceptance) are taken — parallel test files must never collide.
+// Ports 17400, 17900, 18400, 18900, 19400 and 19900 are taken by other test files.
 const SCRATCH_PORT = 20400 + (process.pid % 500);
 
 // One parsed NDJSON line: a progress or error line carries `kind`, the terminal view carries none.
@@ -26,19 +26,19 @@ type StreamLine = Partial<WireLayer1View> & {
     total?: number;
 };
 
-const diskDir = makeFixtureDiskFolder();
-const repoDir = makeFixtureRepo();
+const diskDir = createFixtureDiskFolder();
+const repoDir = createFixtureRepo();
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(diskDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(diskDir, SCRATCH_PORT);
 });
 
 after(() => {
     child?.kill();
 });
 
-// Every line of the streamed response, in arrival order. The whole body is read before splitting: this asserts CONTENT, and chunk boundaries are already covered by splitNdjsonChunk's own test.
+// Every line of the streamed response, in arrival order; chunk boundaries are tested elsewhere.
 async function readStreamLines(parameters: Record<string, string>): Promise<StreamLine[]> {
     const response = await fetch(buildViewUrl(SCRATCH_PORT, { ...parameters, progress: "1" }));
     assert.equal(response.status, 200);
@@ -47,7 +47,7 @@ async function readStreamLines(parameters: Record<string, string>): Promise<Stre
 }
 
 test("test_layer1_view_stream_ends_with_the_same_view_the_plain_route_returns", async () => {
-    // Scenario: `progress=1` changes only the FRAMING, never the view. This is what freezes the two paths together — a divergence would let the streamed page render something the plain endpoint (and every other server test in this suite) never sees.  Steps: fetch the plain form and the streamed form of the same request.
+    // Scenario: `progress=1` changes only the framing, never the view; compare plain and streamed forms.
     const plain = await (await fetch(buildViewUrl(SCRATCH_PORT, { dir: diskDir, repo: repoDir }))).json();
     const lines = await readStreamLines({ dir: diskDir, repo: repoDir });
     // the stream's terminal line is the view, carrying NO kind discriminant...
@@ -58,13 +58,13 @@ test("test_layer1_view_stream_ends_with_the_same_view_the_plain_route_returns", 
 });
 
 test("test_layer1_view_stream_emits_a_counted_progress_line_before_the_view", async () => {
-    // Scenario: a determinate bar needs a current/total, and every progress line must arrive BEFORE the terminal view — a progress line after it would advance a bar the page has already hidden.  Steps: read the streamed form of the fixture request.
+    // Scenario: every progress line carries current/total and arrives before the terminal view line.
     const lines = await readStreamLines({ dir: diskDir, repo: repoDir });
     const progressLines = lines.filter((line) => line.kind === DocumentResponseKind.progress);
     // at least one progress line carries a numeric current AND total.
     const counted = progressLines.filter((line) => typeof line.current === "number" && typeof line.total === "number");
     assert.ok(counted.length > 0, `no counted progress line in ${lines.length} lines`);
-    // every progress line precedes the terminal line, which is the LAST line and the only one without a kind.
+    // every progress line precedes the terminal line: the LAST line, the only one without a kind.
     const terminalIndex = lines.length - 1;
     assert.equal(lines[terminalIndex]!.kind, undefined);
     assert.equal(lines.filter((line) => line.kind === undefined).length, 1);
@@ -74,7 +74,7 @@ test("test_layer1_view_stream_emits_a_counted_progress_line_before_the_view", as
 });
 
 test("test_layer1_view_stream_reports_an_unresolvable_ref_as_a_terminal_error_line", async () => {
-    // Scenario: the header is already written by the time readRepoTreeAtRef runs, so a bad ref cannot be a 400 on this path the way it is on the plain one. It becomes a terminal error line instead, and the page surfaces both through the same crumb.  Steps: stream a request naming a ref that does not resolve.
+    // Scenario: a bad ref on the streamed path becomes a terminal error line, not a 400.
     const lines = await readStreamLines({ dir: diskDir, repo: repoDir, ref: "no-such-ref" });
     const terminal = lines.at(-1)!;
     // the last line is an error line...
@@ -88,10 +88,10 @@ test("test_layer1_view_stream_reports_an_unresolvable_ref_as_a_terminal_error_li
 });
 
 test("test_layer1_stream_leaves_neither_the_response_nor_the_socket_corked_after_a_progress_line", async () => {
-    // Scenario: on newer Node the response corks itself after res.write, so a socket-only uncork flushes nothing during the synchronous build.  Steps: serve a build that writes one progress line, then records both cork counts.
+    // Scenario: newer Node corks the response after write, so both response and socket must uncork.
     const recordedCorks: number[] = [];
     const server: Server = createServer((_request, response) => {
-        streamNdjsonBuild(response, (writeNdjsonLine) => {
+        sendNdjsonBuild(response, (writeNdjsonLine) => {
             writeNdjsonLine({ kind: DocumentResponseKind.progress, label: "probe" });
             recordedCorks.push(response.writableCorked, response.socket!.writableCorked);
             return { done: true };

@@ -1,9 +1,9 @@
-// deriveCommitChangedFiles / findContributingNodeIndexes over a commit-walk document — wire-shape inputs; shared fixtures in timeline-test-helpers.ts.
+// computeCommitChangedFiles / findContributingNodeIndexes over a commit-walk document — wire-shape inputs; shared fixtures in timeline-test-helpers.ts.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    deriveCommitChangedFiles,
+    computeCommitChangedFiles,
     findContributingNodeIndexes,
 } from "../webapp/views/timeline-commit-files.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
@@ -17,38 +17,38 @@ import {
     findCommitNodeIndexes,
 } from "./timeline-test-helpers.ts";
 
-test("test_deriveCommitChangedFiles_unions_files_since_previous_commit", () => {
-    // Scenario: a commit's changed-file list is the union of every file change on the surviving rows between it and the previous commit (or the timeline start) — the mockup's findContributingRows data.  Steps: build the commit-walk timeline and take the FIRST commit.
+test("test_computeCommitChangedFiles_unions_files_since_previous_commit", () => {
+    // Scenario: a commit lists the union of file changes since the previous commit. Steps: take the FIRST commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
     // assert its changed files union alpha.py and beta.py (the two surviving replies before it).
-    const changes = deriveCommitChangedFiles(nodes, firstCommitIndex!);
+    const changes = computeCommitChangedFiles(nodes, firstCommitIndex!);
     assert.deepEqual(changes.map((change) => change.path).sort(), ["alpha.py", "beta.py"]);
 });
 
-test("test_deriveCommitChangedFiles_stops_at_previous_commit", () => {
-    // Scenario: the walk back from a commit stops at the previous commit EXCLUSIVE — files committed earlier never leak into the later commit's list.  Steps: build the commit-walk timeline and take the SECOND commit.
+test("test_computeCommitChangedFiles_stops_at_previous_commit", () => {
+    // Scenario: the walk back stops at the previous commit EXCLUSIVE. Steps: take the SECOND commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const commitIndexes = findCommitNodeIndexes(nodes);
-    const changes = deriveCommitChangedFiles(nodes, commitIndexes[1]!);
+    const changes = computeCommitChangedFiles(nodes, commitIndexes[1]!);
     // assert only replyD's alpha.py revision (after commit #1) is listed — via its changeId.
     assert.equal(changes.length, 1);
     assert.equal(changes[0]!.path, "alpha.py");
     assert.equal(changes[0]!.changeId, "change-alpha-2");
 });
 
-test("test_deriveCommitChangedFiles_skips_orphaned_nodes", () => {
-    // Scenario: orphaned (rewound-branch) rows never contribute to a commit's changed files — their edits were rewound before the commit happened.  Steps: build the commit-walk timeline and take the first commit (the orphans sit just before it).
+test("test_computeCommitChangedFiles_skips_orphaned_nodes", () => {
+    // Scenario: orphaned (rewound-branch) rows never contribute changed files. Steps: take the first commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
     // assert neither rewound-branch file appears.
-    const paths = deriveCommitChangedFiles(nodes, firstCommitIndex!).map((change) => change.path);
+    const paths = computeCommitChangedFiles(nodes, firstCommitIndex!).map((change) => change.path);
     assert.ok(!paths.includes("gamma.py"));
     assert.ok(!paths.includes("delta.py"));
 });
 
-test("test_deriveCommitChangedFiles_dedupes_paths_keeping_latest", () => {
-    // Scenario: when two rows before one commit touch the SAME path, the commit lists the path once, keeping the occurrence closest to the commit (the latest revision).  Steps: build a minimal document: two replies each revising alpha.py, then one commit.
+test("test_computeCommitChangedFiles_dedupes_paths_keeping_latest", () => {
+    // Scenario: two rows touch the SAME path; the commit lists it once, latest revision. Steps: two replies, one commit.
     const document = {
         messages: [{
             uuid: "prompt-1",
@@ -92,7 +92,7 @@ test("test_deriveCommitChangedFiles_dedupes_paths_keeping_latest", () => {
     };
     const { nodes } = buildTurnTimelineViewModel(document);
     const [commitIndex] = findCommitNodeIndexes(nodes);
-    const changes = deriveCommitChangedFiles(nodes, commitIndex!);
+    const changes = computeCommitChangedFiles(nodes, commitIndex!);
     // assert alpha.py appears exactly once, carrying the LATER revision's changeId.
     assert.equal(changes.length, 1);
     assert.equal(changes[0]!.path, "alpha.py");
@@ -100,7 +100,7 @@ test("test_deriveCommitChangedFiles_dedupes_paths_keeping_latest", () => {
 });
 
 test("test_findContributingNodeIndexes_marks_nodes_touching_commit_files", () => {
-    // Scenario: selecting a commit highlights every surviving row (since the previous commit) whose file changes overlap the commit's changed files — the mockup's `.contrib` rows.  Steps: build the commit-walk timeline and take the first commit.
+    // Scenario: selecting a commit highlights each row whose file changes overlap its files. Steps: take the first commit.
     const { nodes } = buildTurnTimelineViewModel(commitWalkDocument);
     const [firstCommitIndex] = findCommitNodeIndexes(nodes);
     // assert exactly replyA (index 1) and replyB (index 2) contribute — never the prompt or the orphaned replies.
@@ -108,7 +108,7 @@ test("test_findContributingNodeIndexes_marks_nodes_touching_commit_files", () =>
 });
 
 test("test_findContributingNodeIndexes_returns_empty_for_no_overlap", () => {
-    // Scenario: a commit preceded by rows that changed no files highlights nothing.  Steps: build a minimal document: prompt, snapshot-less reply, then a commit.
+    // Scenario: a commit after rows with no file changes highlights nothing. Steps: prompt, bare reply, commit.
     const document = {
         messages: [{
             uuid: "prompt-1",

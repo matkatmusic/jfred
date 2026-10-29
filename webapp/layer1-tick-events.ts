@@ -1,11 +1,11 @@
 // Tasks 284, 360: the events a ruler row stands for, and the file list built from them.
 
 import { createElement } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { isKindHidden } from "./layer1-kind-filter.ts";
-import { classifyNodeKind } from "./layer1-node-kind.ts";
+import { readNodeKind } from "./layer1-node-kind.ts";
 import type { ShowRowKind } from "./layer1-show-row.ts";
-import { flashSession } from "./layer1-sessions.ts";
+import { flashSession } from "./layer1-session-flash.ts";
 import { listElementsDrawnAtAxisPx, collectStageBubbles, type BubbleSnapshot } from "./layer1-ruler-click.ts";
 import type { RulerRow } from "./layer1-ruler-rows.ts";
 
@@ -24,7 +24,7 @@ export interface TickEvent {
 export const rowsByTick = new WeakMap<HTMLElement, RulerRow>();
 
 // Remember what a tick absorbed when layer1-ruler-click.ts wires it; kept beside the only reader.
-export function rememberRow(tick: HTMLElement, row: RulerRow): void {
+export function storeRow(tick: HTMLElement, row: RulerRow): void {
   rowsByTick.set(tick, row);
 }
 
@@ -42,7 +42,7 @@ function readTickEvent(element: HTMLElement): TickEvent {
   }
   // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
   const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
-  return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: classifyNodeKind(element), session: element.dataset.sessionFile };
+  return { path: readOwningPath(element), kind: label ?? "", element, nodeKind: readNodeKind(element), session: element.dataset.sessionFile };
 }
 
 // Every event drawn at one printed row's instants, hidden kinds included, in lookup order.
@@ -88,8 +88,8 @@ function buildTickFileButton(event: TickEvent): HTMLElement {
     onclick: (clickEvent: Event) => {
       clickEvent.stopPropagation();
       // The same jump a single-event tick makes (layer1-ruler-click.ts).
-      scrollToUncoveredCentre(event.element);
-      highlightLandedElement(event.element);
+      moveToUncoveredCentre(event.element);
+      markLandedElement(event.element);
       if (event.session !== undefined) {
         // flashSession keys rows by basename (like the drawer), so a full path never matches.
         flashSession(event.session.split("/").pop() ?? event.session);

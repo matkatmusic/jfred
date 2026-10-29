@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const COMMIT = { hash: "b7c8d9e0f1a23445566778899aabbccddeeff001", instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const ON_DISK = { instant: "2026-06-03T09:00:00.000Z", axisPx: 60 };
@@ -27,9 +27,9 @@ function viewWithOnePair(pair: object, ...ticks: { instant: string; axisPx: numb
 
 async function loadPageWithView(view: object): Promise<void> {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", [view]);
-    const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-    bootLayer1Page();
+    installStreamRoute("/api/layer1-view", [view]);
+    const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+    initLayer1Page();
     await waitForAsyncWork();
 }
 
@@ -42,7 +42,7 @@ function readAxisOffsetPx(element: HTMLElement): number {
 }
 
 test("test_a_snapshotted_pair_draws_one_camera_node_per_version_at_the_wire_offsets", async () => {
-    // Scenario: a pair carrying two snapshots renders a 📸 dot and label per version, each at its own axisPx relative to the widget's earliest node (the commit at 30).
+    // Scenario: two snapshots render a 📸 dot and label each, at their own axisPx relative to the earliest node.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1, SNAP2] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1, SNAP2));
     // one snapshot dot per version, placed at axisPx - startPx (startPx is the commit's 30).
@@ -51,8 +51,16 @@ test("test_a_snapshotted_pair_draws_one_camera_node_per_version_at_the_wire_offs
     assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸"]);
 });
 
+test("test_a_snapshot_whose_backup_file_is_missing_is_labelled_camera_no_entry", async () => {
+    // Scenario: only the flagged node gets the 🚫; its neighbour keeps the plain 📸 label.
+    const missingSnap = { ...SNAP2, isBackupMissing: true };
+    const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1, missingSnap] };
+    await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1, missingSnap));
+    assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸🚫"]);
+});
+
 test("test_a_snapshot_node_carries_its_version_session_file_and_line_for_tasks_316_317", async () => {
-    // Scenario: tasks 316/317 must act on a snapshot without a second fetch, so the DOM node carries its identity in data- attrs (task 280 rule), on the dot and its label alike.
+    // Scenario: tasks 316/317 act without a second fetch, so dot and label carry identity in data- attrs (task 280).
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1));
     for (const element of listMatching("#stage .n-snap")) {
@@ -63,7 +71,7 @@ test("test_a_snapshot_node_carries_its_version_session_file_and_line_for_tasks_3
 });
 
 test("test_a_snapshot_free_pair_is_unchanged_from_layer_1", async () => {
-    // Scenario: the snapshots key is omitted when empty, so a snapshot-free pair draws no 📸 node and keeps its Layer 1 anchor and span.
+    // Scenario: an empty snapshots key draws no 📸 node and keeps the pair's Layer 1 anchor and span.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK));
     assert.equal(listMatching("#stage .n-snap").length, 0);
@@ -73,7 +81,7 @@ test("test_a_snapshot_free_pair_is_unchanged_from_layer_1", async () => {
 });
 
 test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_group_of_same_timestamp_nodes", async () => {
-    // Scenario (mockup src/index.ts @v3): a snapshot on the on-disk instant takes the same-timestamp group's next row slot — its axisPx differs from the disk node's — and the dashed nodes-with-same-timestamp rectangle is drawn over the run.
+    // Scenario (mockup src/index.ts @v3): a snapshot on the disk instant takes the next row slot.
     const pair = { path: "src/index.ts", commits: [COMMIT], onDisk: TIED_ON_DISK, snapshots: [TIED_SNAP] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, TIED_ON_DISK));
     const startPx = COMMIT.axisPx;

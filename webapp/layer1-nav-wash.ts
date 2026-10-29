@@ -8,19 +8,36 @@ import { listOrphanLadderInstants, listPairLadderInstants } from "./layer1-wire-
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 // ponytail: gitOrphans excluded per the brief's ladder list; add them here if that scope changes.
-export function resolveNavWashInstants(view: WireLayer1View, targets: readonly string[]): { oldest: string; newest: string } | undefined {
+export function computeNavWashInstants(view: WireLayer1View, targets: readonly string[]): { oldest: string; newest: string } | undefined {
   const selected = new Set(targets);
-  const instants = [
-    ...view.pairs.filter((pair) => selected.has(pair.path)).flatMap(listPairLadderInstants),
-    ...view.diskOrphans.filter((orphan) => selected.has(orphan.path)).flatMap(listOrphanLadderInstants),
-  ];
+  const instants: string[] = [];
+  for (const pair of view.pairs) {
+    const isSelected = selected.has(pair.path);
+    if (isSelected) {
+      instants.push(...listPairLadderInstants(pair));
+    }
+  }
+  for (const orphan of view.diskOrphans) {
+    const isSelected = selected.has(orphan.path);
+    if (isSelected) {
+      instants.push(...listOrphanLadderInstants(orphan));
+    }
+  }
   if (instants.length === 0) {
     return undefined;
   }
-  return instants.reduce((range, instant) => ({
-    oldest: Date.parse(instant) < Date.parse(range.oldest) ? instant : range.oldest,
-    newest: Date.parse(instant) > Date.parse(range.newest) ? instant : range.newest,
-  }), { oldest: instants[0]!, newest: instants[0]! });
+  const range = { oldest: instants[0]!, newest: instants[0]! };
+  for (const instant of instants) {
+    const isOlder = Date.parse(instant) < Date.parse(range.oldest);
+    const isNewer = Date.parse(instant) > Date.parse(range.newest);
+    if (isOlder) {
+      range.oldest = instant;
+    }
+    if (isNewer) {
+      range.newest = instant;
+    }
+  }
+  return range;
 }
 
 export function clearNavWash(): void {
@@ -32,7 +49,7 @@ export function clearNavWash(): void {
 // Every stage render replaces #washes wholesale, so this repaints fresh each time, not just on selection change.
 export function renderNavWash(view: WireLayer1View, targets: readonly string[]): void {
   clearNavWash();
-  const range = resolveNavWashInstants(view, targets);
+  const range = computeNavWashInstants(view, targets);
   if (range === undefined) {
     return;
   }

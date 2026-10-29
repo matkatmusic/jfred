@@ -40,11 +40,14 @@ const LOAD_PHASE_MATCHERS: string[][] = [
 ];
 
 // The 1-based phase for a progress label, or undefined when no family matches.
-export function classifyLoadPhase(label: string): number | undefined {
+export function findLoadPhase(label: string): number | undefined {
   const lowered = label.toLowerCase();
   for (let phaseIndex = 0; phaseIndex < LOAD_PHASE_MATCHERS.length; phaseIndex++) {
-    if (LOAD_PHASE_MATCHERS[phaseIndex]!.some((needle) => lowered.includes(needle))) {
-      return phaseIndex + 1;
+    for (const needle of LOAD_PHASE_MATCHERS[phaseIndex]!) {
+      const isNeedleFound = lowered.includes(needle);
+      if (isNeedleFound) {
+        return phaseIndex + 1;
+      }
     }
   }
   return undefined;
@@ -61,17 +64,17 @@ function buildCancelControls(): HTMLElement[] {
     confirmNoButton,
   ]);
   confirmRow.hidden = true;
-  cancelButton.addEventListener("click", () => {
-    cancelButton.hidden = true;
-    confirmRow.hidden = false;
-  });
-  confirmNoButton.addEventListener("click", () => {
-    confirmRow.hidden = true;
-    cancelButton.hidden = false;
-  });
-  confirmYesButton.addEventListener("click", () => {
+  const toggleConfirmRow = (event: Event): void => {
+    const isConfirmShown = event.currentTarget === cancelButton;
+    confirmRow.hidden = !isConfirmShown;
+    cancelButton.hidden = isConfirmShown;
+  };
+  const openProjectsRoute = (): void => {
     window.location.hash = "#/";
-  });
+  };
+  cancelButton.addEventListener("click", toggleConfirmRow);
+  confirmNoButton.addEventListener("click", toggleConfirmRow);
+  confirmYesButton.addEventListener("click", openProjectsRoute);
   return [cancelButton, confirmRow];
 }
 
@@ -82,7 +85,7 @@ function updateElapsedLabel(): void {
 }
 
 // A non-finite `fraction` shimmers instead of filling, so a silent multi-second stage never reads as frozen.
-export function showLoadingProgress(label: string, fraction: number): void {
+export function renderLoadingProgress(label: string, fraction: number): void {
   if (loadingProgressElements === null) {
     const phaseLabel = createElement("div", { class: "timeline-progress-phase" });
     const elapsed = createElement("div", { class: "timeline-progress-elapsed" });
@@ -101,7 +104,7 @@ export function showLoadingProgress(label: string, fraction: number): void {
   }
   const elements = loadingProgressElements;
   elements.label.textContent = label;
-  const phase = classifyLoadPhase(label);
+  const phase = findLoadPhase(label);
   if (phase !== undefined) {
     loadingProgressCurrentPhase = phase;
   }
@@ -109,7 +112,8 @@ export function showLoadingProgress(label: string, fraction: number): void {
     elements.phaseLabel.textContent = `${LOAD_PHASES[loadingProgressCurrentPhase - 1]} · phase ${loadingProgressCurrentPhase} of ${LOAD_PHASE_COUNT}`;
     elements.phaseFill.style.width = `${(loadingProgressCurrentPhase / LOAD_PHASE_COUNT) * 100}%`;
   }
-  if (Number.isFinite(fraction)) {
+  const isFractionFinite = Number.isFinite(fraction);
+  if (isFractionFinite) {
     elements.stageTrack.classList.remove("indeterminate");
     elements.fill.style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
   }

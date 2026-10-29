@@ -57,7 +57,11 @@ export function collectErroredToolUseIds(
   const erroredIds = new Set<string>();
   for (const record of records) {
     for (const block of getContentBlocks(record)) {
-      if (block.type === BlockType.tool_result && block.is_error === true) {
+      if (block.type !== BlockType.tool_result) {
+        continue;
+      }
+      const isErrored = block.is_error === true;
+      if (isErrored) {
         erroredIds.add(block.tool_use_id.toString());
       }
     }
@@ -94,7 +98,7 @@ function getTypedToolResult(toolName: string, raw: unknown): ResolvedToolResult 
   throw new UnknownToolNameError(toolName);
 }
 
-// Resolve and type the tool result attached to a user record, or undefined when the record carries no toolUseResult, no resolvable tool name, or an errored run.
+// Type the tool result of a user record, or undefined when none can be resolved.
 export function getToolResultForUserRecord(
   record: TranscriptRecord,
   nameById: Map<string, string>,
@@ -103,7 +107,7 @@ export function getToolResultForUserRecord(
   if (!raw) {
     return undefined;
   }
-  // An errored or rejected run reports a plain string ("Error: File does not exist.", "User rejected tool use") instead of a structured payload — nothing to type.
+  // An errored or rejected run reports a plain string: nothing to type.
   if (typeof raw === "string") {
     return undefined;
   }

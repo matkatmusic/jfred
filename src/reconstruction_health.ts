@@ -6,27 +6,27 @@ import { FailureScope } from "./structures/vocabulary_views.ts";
 
 // One survived failure: scope, stage, optional target file, and reason.
 export type ReconstructionFailure = {
-    scope: FailureScope;
-    stage: string;
-    target?: Path;
-    reason: string;
+  scope: FailureScope;
+  stage: string;
+  target?: Path;
+  reason: string;
 };
 
 let buffer: ReconstructionFailure[] = [];
 
 // Record one survived failure.
-export function noteReconstructionFailure(failure: ReconstructionFailure): void {
-    buffer.push(failure);
+export function reportReconstructionFailure(failure: ReconstructionFailure): void {
+  buffer.push(failure);
 }
 
 // Return the captured failures and empty the buffer.
-export function drainReconstructionFailures(): ReconstructionFailure[] {
-    const drained = buffer;
-    buffer = [];
-    return drained;
+export function popReconstructionFailures(): ReconstructionFailure[] {
+  const drained = buffer;
+  buffer = [];
+  return drained;
 }
 
 // Prevents a prior aborted build's leftovers from leaking into the next.
 export function clearReconstructionFailures(): void {
-    buffer = [];
+  buffer = [];
 }

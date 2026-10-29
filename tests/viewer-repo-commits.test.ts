@@ -10,7 +10,7 @@ import {
     countPathsInTree,
     listRepoCommits,
     parseGitLogOutput,
-} from "../src/viewer_api_repo.ts";
+} from "../src/viewer_api_repo_commits.ts";
 import { Path } from "../src/structures/domain.ts";
 
 test("test_parseGitLogOutput_splits_hash_date_subject", () => {

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const COMMIT = { hash: "b7c8d9e0f1a23445566778899aabbccddeeff001", instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const ON_DISK = { instant: "2026-06-03T09:00:00.000Z", axisPx: 60 };
@@ -32,17 +32,17 @@ let editRequests = 0;
 async function loadPage(edits: object[] = [READ, EDIT, STALE]): Promise<void> {
   editRequests = 0;
   initLayer1Dom(BOTH_ROOTS_SEARCH);
-  stubStreamRoute("/api/layer1-view", [VIEW]);
+  installStreamRoute("/api/layer1-view", [VIEW]);
   const viewFetch = globalThis.fetch;
-  stubStreamRoute("/api/layer1-edits", [{ pairs: [{ path: "src/run.ts", edits }] }]);
+  installStreamRoute("/api/layer1-edits", [{ pairs: [{ path: "src/run.ts", edits }] }]);
   const editsFetch = globalThis.fetch;
   Object.assign(globalThis, { fetch: (url: unknown, init?: RequestInit) => {
     const isEditsRequest = String(url).includes("/api/layer1-edits");
     editRequests += isEditsRequest ? 1 : 0;
     return (isEditsRequest ? editsFetch : viewFetch)(url as string, init);
   } });
-  const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-  bootLayer1Page();
+  const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+  initLayer1Page();
   await waitForAsyncWork();
 }
 

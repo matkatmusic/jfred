@@ -6,32 +6,36 @@ import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
-import { backupSeedWriteFor, type BackupReader } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite, type BackupReader } from "./reconstruction_sidecar.ts";
 import { relative } from "node:path";
 import { quotedFilename } from "./regex_expressions.ts";
 import { pythonWritePrimitive, shellWritePrimitive } from "./regex_script_detection.ts";
 import { isEveryImportReadOnlySafe, isEveryOpenCallRead } from "./reconstruction_script_prestate_gate.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
-import { buildRenameChain, resolveFinalPath } from "./reconstruction_lineage.ts";
+import { buildRenameChain, getFinalPath } from "./reconstruction_lineage.ts";
 import type { WriteEvent } from "./reconstruction_events.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { extractPathBasename } from "./reconstruction_script_indirection.ts";
 import {
   ReconstructionCounter,
-  incrementReconstructionCounter,
+  addToReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 
 // Whether the script could change files; unparseable code counts as may-write. ponytail: raw-text scan, aliased builtins evade it.
 export function isScriptCodeWriteCapable(code: string): boolean {
-  if (shellWritePrimitive.test(code))
+  const hasShellWrite = shellWritePrimitive.test(code);
+  if (hasShellWrite)
     return true;
-  if (pythonWritePrimitive.test(code))
+  const hasPythonWrite = pythonWritePrimitive.test(code);
+  if (hasPythonWrite)
     return true;
-  if (!isEveryImportReadOnlySafe(code))
+  const hasOnlySafeImports = isEveryImportReadOnlySafe(code);
+  if (!hasOnlySafeImports)
     return true;
-  if (!isEveryOpenCallRead(code))
+  const hasOnlyReadOpens = isEveryOpenCallRead(code);
+  if (!hasOnlyReadOpens)
     return true;
   return false;
 }
@@ -43,15 +47,20 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
       if (block.type !== BlockType.tool_use)
         continue;
       if (block.name === ToolName.Write) {
-        if (erroredIds.has(block.id.toString()))
+        const isErrored = erroredIds.has(block.id.toString());
+        if (isErrored)
           continue;
         const { filePath } = readWriteInput(block);
-        if (extractPathBasename(filePath.toString()) === basename)
+        const writeBasename = extractPathBasename(filePath.toString());
+        if (writeBasename === basename)
           return filePath;
         continue;
       }
       const filePath = (block.input as { file_path?: string }).file_path;
-      if (filePath !== undefined && extractPathBasename(filePath) === basename)
+      if (filePath === undefined)
+        continue;
+      const inputBasename = extractPathBasename(filePath);
+      if (inputBasename === basename)
         return new Path(filePath);
     }
   }
@@ -61,8 +70,13 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
 
 // All file-path-like quoted strings in the script source (e.g. "billing.py", "renames.csv").
 export function parseScriptFileRefs(code: string): string[] {
-  const matches = code.match(quotedFilename) ?? [];
-  return [...new Set(matches.map((m) => m.slice(1, -1)))];
+  const matches = code.match(quotedFilename);
+  const refs = new Set<string>();
+  if (matches === null)
+    return [];
+  for (const quoted of matches)
+    refs.add(quoted.slice(1, -1));
+  return [...refs];
 }
 
 // Undefined when the lineage has no revision strictly before that instant.
@@ -72,7 +86,8 @@ export type LineageContentBefore = (target: Path, before: Date) => string | unde
 export function computeScriptStateKey(filePath: Path, runCwd: Path | undefined): string {
   if (runCwd !== undefined) {
     const cwdRelativePath = relative(runCwd.toString(), filePath.toString());
-    if (cwdRelativePath !== "" && !cwdRelativePath.startsWith("..")) {
+    const isInsideCwd = cwdRelativePath !== "" && !cwdRelativePath.startsWith("..");
+    if (isInsideCwd) {
       return cwdRelativePath;
     }
   }
@@ -86,7 +101,7 @@ export function getPreExecutionState(
   reader: BackupReader,
   seedContent?: LineageContentBefore,
 ): Map<string, string> {
-  incrementReconstructionCounter(ReconstructionCounter.preStateBuilds);
+  addToReconstructionCounter(ReconstructionCounter.preStateBuilds);
   reportReconstructionProgress(`building pre-execution state for run @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
   const events = extractFileEvents(records);
   const renameChain = buildRenameChain(events);
@@ -96,9 +111,10 @@ export function getPreExecutionState(
   for (const event of events) {
     if (event.kind !== EventKind.write)
       continue;
-    if (event.timestamp.getTime() > run.timestamp.getTime())
+    const isAfterRun = event.timestamp.getTime() > run.timestamp.getTime();
+    if (isAfterRun)
       continue;
-    const currentPath = resolveFinalPath(event.target, renameChain);
+    const currentPath = getFinalPath(event.target, renameChain);
     const pathKey = currentPath.toString();
     latestWritesByCurrentPath.delete(pathKey);
     latestWritesByCurrentPath.set(pathKey, { currentPath, write: event });
@@ -106,19 +122,20 @@ export function getPreExecutionState(
   for (const { currentPath, write } of latestWritesByCurrentPath.values()) {
     // Priority order: lineage (post-backup edits, earlier runs), then current-name backup, then rename-source backup, then the authored Write.
     const content = seedContent?.(currentPath, run.timestamp)
-            ?? backupSeedWriteFor(records, currentPath, run.timestamp, reader)?.content
-            ?? backupSeedWriteFor(records, write.target, run.timestamp, reader)?.content
+            ?? getBackupSeedWrite(records, currentPath, run.timestamp, reader)?.content
+            ?? getBackupSeedWrite(records, write.target, run.timestamp, reader)?.content
             ?? write.content;
     state.set(computeScriptStateKey(currentPath, run.cwd), content);
   }
   for (const ref of parseScriptFileRefs(run.code)) {
-    if (state.has(ref))
+    const isAlreadySeeded = state.has(ref);
+    if (isAlreadySeeded)
       continue;
     const absolutePath = findPathByBasename(records, extractPathBasename(ref));
     if (absolutePath === undefined)
       continue;
     const content = seedContent?.(absolutePath, run.timestamp)
-            ?? backupSeedWriteFor(records, absolutePath, run.timestamp, reader)?.content;
+            ?? getBackupSeedWrite(records, absolutePath, run.timestamp, reader)?.content;
     if (content !== undefined)
       state.set(ref, content);
   }

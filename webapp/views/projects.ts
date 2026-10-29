@@ -1,8 +1,8 @@
-// Projects tree (#/): every project in the active folder, most recently active first (the server's scan order), narrowable by a live name filter.
+// Projects tree (#/): every project, most recently active first, narrowable by a live name filter.
 
 import { createElement as createElementUntyped } from "../app-dom.ts";
 import { fetchJson } from "../app-fetch.ts";
-import { routeToProject } from "../app-routes.ts";
+import { getProjectRoute } from "../app-routes.ts";
 
 // Wire shapes for /api/projects (dates arrive as plain ISO strings).
 type WireJsonlFile = { modifiedAt: string };
@@ -12,10 +12,17 @@ type WireProject = { name: string; jsonlFiles: WireJsonlFile[] };
 type ElAttributes = Record<string, string | (() => void)>;
 const createElement = createElementUntyped as (tag: string, attrs?: ElAttributes, children?: HTMLElement[]) => HTMLElement;
 
-// Pure view model for the projects view (no DOM): the listing rows whose project name contains the filter text, case-insensitive. An empty filter keeps every row (includes("") is always true — no branch needed).
+// Rows whose project name contains the filter text, case-insensitive; an empty filter keeps every row.
 export function filterProjectsByName<ProjectType extends { name: string }>(projects: ProjectType[], filterText: string): ProjectType[] {
   const loweredFilterText = filterText.toLowerCase();
-  return projects.filter((project) => project.name.toLowerCase().includes(loweredFilterText));
+  const matchingProjects: ProjectType[] = [];
+  for (const project of projects) {
+    const isNameMatch = project.name.toLowerCase().includes(loweredFilterText);
+    if (isNameMatch) {
+      matchingProjects.push(project);
+    }
+  }
+  return matchingProjects;
 }
 
 function appendProjectRow(listPane: HTMLElement, project: WireProject): void {
@@ -23,10 +30,10 @@ function appendProjectRow(listPane: HTMLElement, project: WireProject): void {
   listPane.append(createElement("div", {
     class: "project-row",
     onclick: () => {
-      location.hash = routeToProject(project.name);
+      location.hash = getProjectRoute(project.name);
     },
   }, [
-    createElement("a", { href: routeToProject(project.name), text: project.name }),
+    createElement("a", { href: getProjectRoute(project.name), text: project.name }),
     createElement("span", { class: "project-count", text: `${project.jsonlFiles.length} jsonl` }),
     createElement("span", { class: "muted", text: latest === undefined ? "" : new Date(latest.modifiedAt).toLocaleString() }),
   ]));

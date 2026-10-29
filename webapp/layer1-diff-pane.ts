@@ -1,9 +1,8 @@
 // Task 329: THE diff pane — the single-pair drawer and every multi-file section share this one controller.
 
-import { createElement, getRequiredElementById } from "./app-dom.ts";
+import { createElement } from "./app-dom.ts";
 import { appendColumnsDiff, appendInlineDiff } from "./diff-render.ts";
-
-const TOAST_MILLISECONDS = 2600;
+import { buildPairText, buildPatchText, computeArrowDisabledFlags, openToast, fetchDiffContent, savePatchFile, type DiffPane, type DiffPaneMounts, type DiffPaneOptions } from "./layer1-diff-pane-support.ts";
 
 export const DiffPaneMode = Object.freeze({ side: "side", inline: "inline" } as const);
 export type DiffPaneModeValue = (typeof DiffPaneMode)[keyof typeof DiffPaneMode];
@@ -16,44 +15,6 @@ export type DiffStep = {
   loadContent: () => Promise<string>;
 };
 
-// The pane's mounted elements: the drawer passes its fixed-id rows, a multi section its own.
-export type DiffPaneMounts = {
-  pairLabel: HTMLElement;
-  meta: HTMLElement;
-  body: HTMLElement;
-  modeButtons: HTMLElement[];
-  fullToggle: HTMLInputElement;
-  exportButton: HTMLElement;
-  // The whole mode/full/export row, hidden while equal sides show one revision instead of a diff.
-  toolsRow?: HTMLElement;
-  // base ↑, base ↓, target ↑, target ↓ — older is up, matching the lane's axis.
-  arrows: [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement];
-};
-
-export type DiffPaneOptions = {
-  mode: DiffPaneModeValue;
-  fullContents: boolean;
-  onSidesChanged?: (baseIndex: number, targetIndex: number) => void;
-};
-
-export type DiffPane = {
-  showPair(path: string, steps: DiffStep[], baseIndex: number, targetIndex: number): Promise<void>;
-  clear(): void;
-};
-
-let toastTimer: ReturnType<typeof setTimeout> | undefined;
-
-// The refusal is VISIBLE, never a silent no-op (task 305). One #dtoast serves every pane.
-export function flashToast(text: string): void {
-  const toast = getRequiredElementById("dtoast");
-  toast.textContent = text;
-  toast.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.hidden = true;
-  }, TOAST_MILLISECONDS);
-}
-
 export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions): DiffPane {
   let mode = options.mode;
   let fullContents = options.fullContents;
@@ -62,7 +23,7 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
   // Same STRING on both sides — same revision picked twice, or no change between revisions.
   let identicalSides = false;
 
-  function paintControls(): void {
+  function updateControls(): void {
     for (const button of mounts.modeButtons) {
       button.classList.toggle("current", button.dataset.mode === mode);
     }
@@ -77,18 +38,17 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     if (mounts.toolsRow !== undefined) {
       mounts.toolsRow.style.display = identicalSides ? "none" : "";
     }
-    const indices = [shown.baseIndex, shown.targetIndex] as const;
-    mounts.arrows.forEach((arrow, at) => {
-      const landing = indices[at < 2 ? 0 : 1]! + (at % 2 === 0 ? -1 : 1);
-      arrow.disabled = landing < 0 || landing > shown!.steps.length - 1;
-    });
+    const disabledFlags = computeArrowDisabledFlags(shown.baseIndex, shown.targetIndex, shown.steps.length);
+    for (let at = 0; at < mounts.arrows.length; at++) {
+      mounts.arrows[at]!.disabled = disabledFlags[at]!;
+    }
   }
 
   function renderBody(): void {
     if (shown === undefined) {
       return;
     }
-    paintControls();
+    updateControls();
     if (diffText === "") {
       mounts.body.replaceChildren(createElement("div", { class: "dbinary", text: "No text differences between these revisions." }));
       return;
@@ -97,18 +57,13 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     (mode === DiffPaneMode.inline ? appendInlineDiff : appendColumnsDiff)(mounts.body, diffText, shown.path);
   }
 
-  // diff = buildDiffFrom(base, target): both sides resolve to strings, the pure route diffs them.
   async function loadDiffText(): Promise<boolean> {
     const { steps, baseIndex, targetIndex } = shown!;
     mounts.body.textContent = "loading…";
     try {
       const [base, target] = await Promise.all([steps[baseIndex]!.loadContent(), steps[targetIndex]!.loadContent()]);
       identicalSides = base === target;
-      const response = await fetch("/api/layer1-diff-content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base, target, context: fullContents || identicalSides ? "full" : undefined }),
-      });
+      const response = await fetchDiffContent(base, target, fullContents || identicalSides);
       if (!response.ok) {
         mounts.body.textContent = await response.text();
         return false;
@@ -122,75 +77,73 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     }
   }
 
-  async function showPair(path: string, steps: DiffStep[], baseIndex: number, targetIndex: number): Promise<void> {
+  async function loadAndRenderDiff(): Promise<void> {
+    const loaded = await loadDiffText();
+    if (loaded) {
+      renderBody();
+    }
+  }
+
+  async function selectPair(path: string, steps: DiffStep[], baseIndex: number, targetIndex: number): Promise<void> {
     shown = { path, steps, baseIndex, targetIndex };
-    // Equal sides ARE one revision (a full-content view), so the label says it once.
-    mounts.pairLabel.textContent = baseIndex === targetIndex
-      ? steps[targetIndex]!.marker
-      : `${steps[baseIndex]!.marker} - ${steps[targetIndex]!.marker}`;
-    // No path (the name plate has it); equal sides say nothing — the pair label already names the revision.
-    mounts.meta.textContent = baseIndex === targetIndex
-      ? ""
-      : `base ${steps[baseIndex]!.marker} → target ${steps[targetIndex]!.marker}`;
-    paintControls();
+    const pairText = buildPairText(steps[baseIndex]!.marker, steps[targetIndex]!.marker, baseIndex === targetIndex);
+    mounts.pairLabel.textContent = pairText.label;
+    mounts.meta.textContent = pairText.meta;
+    updateControls();
     options.onSidesChanged?.(baseIndex, targetIndex);
-    if (await loadDiffText()) {
-      renderBody();
-    }
+    await loadAndRenderDiff();
   }
 
-  // "export as patch": headers + hunks make one git-apply-able file patch (task 218's shape).
-  function exportPatch(): void {
-    if (shown === undefined || diffText === "") {
-      flashToast("no differences to export");
-      return;
-    }
-    const path = shown.path;
-    const patch = `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n${diffText}\n`;
-    const link = createElement("a") as HTMLAnchorElement;
-    link.href = URL.createObjectURL(new Blob([patch], { type: "text/x-patch" }));
-    link.download = `${path.split("/").pop()}.patch`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+  function selectMode(event: Event): void {
+    event.preventDefault();
+    mode = (event.currentTarget as HTMLElement).dataset.mode as DiffPaneModeValue;
+    renderBody();
   }
 
-  // Wired once per pane. preventDefault: inside a <summary>, the default click would fold the section.
-  for (const button of mounts.modeButtons) {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      mode = button.dataset.mode as DiffPaneModeValue;
-      renderBody();
-    });
-  }
   // Task 320: full content is a context-width toggle — the diff stays shown, refetched wider/narrower.
-  mounts.fullToggle.addEventListener("change", () => {
+  function toggleFullContents(): void {
     fullContents = mounts.fullToggle.checked;
     if (shown === undefined) {
       return;
     }
-    void loadDiffText().then((loaded) => {
-      if (loaded) {
-        renderBody();
-      }
-    });
-  });
-  mounts.arrows.forEach((arrow, at) => {
-    arrow.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (shown === undefined || arrow.disabled) {
-        return;
-      }
-      const side = at < 2 ? "baseIndex" : "targetIndex";
-      shown[side] += at % 2 === 0 ? -1 : 1;
-      void showPair(shown.path, shown.steps, shown.baseIndex, shown.targetIndex);
-    });
-  });
-  mounts.exportButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    exportPatch();
-  });
+    void loadAndRenderDiff();
+  }
 
-  return { showPair, clear: () => {
+  function moveSide(event: Event): void {
+    event.preventDefault();
+    const arrow = event.currentTarget as HTMLButtonElement;
+    const isBlocked = shown === undefined || arrow.disabled;
+    if (isBlocked) {
+      return;
+    }
+    const at = mounts.arrows.indexOf(arrow);
+    const side = at < 2 ? "baseIndex" : "targetIndex";
+    shown![side] += at % 2 === 0 ? -1 : 1;
+    void selectPair(shown!.path, shown!.steps, shown!.baseIndex, shown!.targetIndex);
+  }
+
+  function savePatch(event: Event): void {
+    event.preventDefault();
+    const hasNoDiff = shown === undefined || diffText === "";
+    if (hasNoDiff) {
+      openToast("no differences to export");
+      return;
+    }
+    savePatchFile(shown!.path, buildPatchText(shown!.path, diffText));
+  }
+
+  function clearShown(): void {
     shown = undefined;
-  } };
+  }
+
+  for (const button of mounts.modeButtons) {
+    button.addEventListener("click", selectMode);
+  }
+  mounts.fullToggle.addEventListener("change", toggleFullContents);
+  for (const arrow of mounts.arrows) {
+    arrow.addEventListener("click", moveSide);
+  }
+  mounts.exportButton.addEventListener("click", savePatch);
+
+  return { showPair: selectPair, clear: clearShown };
 }

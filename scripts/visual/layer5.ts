@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type WireBranchesView } from "../../webapp/layer1-wire-branches.ts";
-import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
+import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds } from "./cdp.ts";
 import { executeLayer5RealChecks } from "./layer5-real-checks.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";
 
@@ -86,14 +86,17 @@ async function executeMain(): Promise<void> {
   try {
     const startedAt = Date.now();
     const payload = await fetchBranchesPayload(port);
-    const laneTotal = payload.pairs.flatMap((pair) => pair.branches).length;
+    let laneTotal = 0;
+    for (const pair of payload.pairs) {
+      laneTotal += pair.branches.length;
+    }
     reportCheck("l5-real the real endpoint answers with at least one pair", payload.pairs.length > 0, Date.now() - startedAt);
     console.log(`payload: ${payload.pairs.length} pairs, ${laneTotal} lanes`);
     await executeDriveAndCheck(port, payload);
   }
   finally {
     server.kill("SIGKILL");
-    await pause(200);
+    await waitMilliseconds(200);
   }
   console.log(failures.length
     ? `\n${failures.length} FAILED:\n  ${failures.join("\n  ")}`

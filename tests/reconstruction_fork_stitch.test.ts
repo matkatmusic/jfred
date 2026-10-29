@@ -7,12 +7,12 @@ import { fileURLToPath } from "node:url";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { Path } from "../src/structures/domain.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
-import { reconstructBranches } from "../src/reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "../src/reconstruction_engine.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
-import { resolveScenarioDir } from "./fixtures.ts";
+import { findScenarioDir } from "./scenario-locator.ts";
 
 const SCENARIO_ROOT = fileURLToPath(new URL("../scenarios/executed", import.meta.url));
-const FORK_DIR = resolveScenarioDir([SCENARIO_ROOT], "fork-stitch");
+const FORK_DIR = findScenarioDir([SCENARIO_ROOT], "fork-stitch");
 const PARENT_SESSION = "1370c498-2c5d-4160-b186-35050cf1cffa";
 const PARENT_JSONL = join(FORK_DIR, `${PARENT_SESSION}.jsonl`);
 const SUBAGENT_JSONL = join(FORK_DIR, PARENT_SESSION, "subagents", "agent-a7b575676defea277.jsonl");
@@ -23,8 +23,8 @@ test("test_forked_subagent_adds_one_rewound_branch_and_leaves_the_surviving_side
     const subagent = loadTranscript(SUBAGENT_JSONL, undefined, true);
     const sources = [{ projectsDir: new Path(FORK_DIR) }];
     const merged = mergeMultiSourceRecords([parent.records, subagent.records], sources);
-    const parentOnly = reconstructBranches(parent.records, buildSidecarReader(parent.records));
-    const stitched = reconstructBranches(merged, buildSidecarReader(merged, sources));
+    const parentOnly = buildBranchedReconstruction(parent.records, buildSidecarReader(parent.records));
+    const stitched = buildBranchedReconstruction(merged, buildSidecarReader(merged, sources));
     // One extra non-surviving branch, forked at the parent's last record before the fork.
     assert.equal(stitched.rewound.length, parentOnly.rewound.length + 1);
     const forkBranch = stitched.rewound[stitched.rewound.length - 1]!;

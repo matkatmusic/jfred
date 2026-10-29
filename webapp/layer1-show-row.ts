@@ -27,20 +27,52 @@ export const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
 
 type ShowRowView = Pick<WireLayer1View, "pairs" | "gitOrphans" | "diskOrphans">;
 
-// Kinds present in the view, in ShowRowKind order. Absent kinds get no box; Edit and script run are always present.
+function containsCreated(pairs: ShowRowView["pairs"]): boolean {
+  for (const pair of pairs) {
+    const isCreated = pair.created !== undefined;
+    if (isCreated)
+      return true;
+  }
+  return false;
+}
+
+function containsCommit(pairs: ShowRowView["pairs"]): boolean {
+  for (const pair of pairs) {
+    const hasCommits = pair.commits.length > 0;
+    if (hasCommits)
+      return true;
+  }
+  return false;
+}
+
+function containsSnapshot(owners: { snapshots?: unknown[] }[]): boolean {
+  for (const owner of owners) {
+    const hasSnapshots = (owner.snapshots ?? []).length > 0;
+    if (hasSnapshots)
+      return true;
+  }
+  return false;
+}
+
+// Kinds present in the view, in ShowRowKind order. Edit, script run and branch always show.
 export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
   const owners = [...view.pairs, ...view.gitOrphans, ...view.diskOrphans];
   const present: Record<ShowRowKind, boolean> = {
-    [ShowRowKind.created]: view.pairs.some((pair) => pair.created !== undefined),
-    [ShowRowKind.commit]: view.pairs.some((pair) => pair.commits.length > 0),
+    [ShowRowKind.created]: containsCreated(view.pairs),
+    [ShowRowKind.commit]: containsCommit(view.pairs),
     [ShowRowKind.disk]: view.pairs.length > 0 || view.diskOrphans.length > 0,
-    [ShowRowKind.snapshot]: owners.some((owner) => (owner.snapshots ?? []).length > 0),
+    [ShowRowKind.snapshot]: containsSnapshot(owners),
     [ShowRowKind.edit]: true,
     // [ShowRowKind.scriptRun]: view.pairs.some((pair) => (pair.scriptRuns ?? []).length > 0),
     [ShowRowKind.scriptRun]: true,
     [ShowRowKind.branch]: true,
   };
-  return Object.values(ShowRowKind).filter((kind) => present[kind]);
+  const kinds: ShowRowKind[] = [];
+  for (const kind of Object.values(ShowRowKind)) {
+    if (present[kind])
+      kinds.push(kind);
+  }
+  return kinds;
 }
 
 function buildKindCheckbox(kind: ShowRowKind): HTMLElement {
@@ -59,16 +91,22 @@ const KIND_JUMP_SYMBOLS: Record<KindJumpDirection, string> = {
 };
 
 function buildKindColumn(kind: ShowRowKind): HTMLElement {
-  const arrows = Object.values(KindJumpDirection).map((direction) => createElement("button", {
-    type: "button", class: "kind-jump", "data-jump-kind": kind, "data-jump": direction,
-    title: `${direction} ${SHOW_ROW_LABELS[kind]}`, text: KIND_JUMP_SYMBOLS[direction],
-  }));
+  const arrows: HTMLElement[] = [];
+  for (const direction of Object.values(KindJumpDirection)) {
+    arrows.push(createElement("button", {
+      type: "button", class: "kind-jump", "data-jump-kind": kind, "data-jump": direction,
+      title: `${direction} ${SHOW_ROW_LABELS[kind]}`, text: KIND_JUMP_SYMBOLS[direction],
+    }));
+  }
   return createElement("div", { class: "show-kind-col" }, [buildKindCheckbox(kind), createElement("div", { class: "kind-jumps" }, arrows)]);
 }
 
 export function renderShowRow(view: ShowRowView): void {
+  const columns: HTMLElement[] = [];
+  for (const kind of listPresentKinds(view))
+    columns.push(buildKindColumn(kind));
   getRequiredElementById("show-row").replaceChildren(
     createElement("span", { class: "lbl", text: "show:" }),
-    ...listPresentKinds(view).map(buildKindColumn),
+    ...columns,
   );
 }

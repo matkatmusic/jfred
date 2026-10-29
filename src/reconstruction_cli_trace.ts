@@ -12,12 +12,11 @@ const KNOWN_VERDICT_SET = new Set<string>(KNOWN_VERDICTS);
 
 // True when token is a --details arg (verdict, line number, or mode), not a path.
 function isDetailToken(token: string): boolean {
-  return (
-    KNOWN_VERDICT_SET.has(token) ||
-        numbersOnly.test(token) ||
-        token === TraceDetailMode.previewOnly ||
-        token === TraceDetailMode.full
-  );
+  const isVerdict = KNOWN_VERDICT_SET.has(token);
+  const isLineNumber = numbersOnly.test(token);
+  const isPreviewMode = token === TraceDetailMode.previewOnly;
+  const isFullMode = token === TraceDetailMode.full;
+  return isVerdict || isLineNumber || isPreviewMode || isFullMode;
 }
 
 // Resolve --details selector: --line N wins, then positional verdict/number, then all.
@@ -27,10 +26,15 @@ function parseSelector(argv: string[], detailsAt: number): TraceDetailSelector {
     return { byLine: line };
   }
   const token = argv[detailsAt + 1];
-  if (token !== undefined && KNOWN_VERDICT_SET.has(token)) {
+  if (token === undefined) {
+    return { all: true };
+  }
+  const isVerdict = KNOWN_VERDICT_SET.has(token);
+  if (isVerdict) {
     return { byClass: token as Verdict };
   }
-  if (token !== undefined && numbersOnly.test(token)) {
+  const isLineNumber = numbersOnly.test(token);
+  if (isLineNumber) {
     return { byLine: Number(token) };
   }
   return { all: true };
@@ -43,7 +47,10 @@ function parseMode(argv: string[]): TraceDetailMode {
     return TraceDetailMode.previewOnly;
   }
   const value = argv[at + 1];
-  if (value === TraceDetailMode.full || value === TraceDetailMode.previewOnly) {
+  const isFullMode = value === TraceDetailMode.full;
+  const isPreviewMode = value === TraceDetailMode.previewOnly;
+  const isKnownMode = isFullMode || isPreviewMode;
+  if (isKnownMode) {
     return value;
   }
   throw new Error(`--mode must be '${TraceDetailMode.previewOnly}' or '${TraceDetailMode.full}'`);
@@ -74,7 +81,15 @@ function parseTraceOptions(argv: string[]): TraceOptions {
 
 // The transcript path: the first positional that is neither a flag nor a `--details` selector token.
 function findTranscriptPath(argv: string[]): string | undefined {
-  return argv.find((arg) => !arg.startsWith("--") && !isDetailToken(arg));
+  for (const arg of argv) {
+    const isFlag = arg.startsWith("--");
+    const isSelectorToken = isDetailToken(arg);
+    const isPath = !isFlag && !isSelectorToken;
+    if (isPath) {
+      return arg;
+    }
+  }
+  return undefined;
 }
 
 // The `--trace --help` text, documenting each flag and the `--details` selector + mode values.
@@ -100,10 +115,12 @@ export type TraceInvocation = { jsonlPath: string; options: TraceOptions; help?:
 
 // Returns undefined when --trace absent; throws if --trace given without a transcript path.
 export function parseTraceArgs(argv: string[]): TraceInvocation | undefined {
-  if (!argv.includes("--trace")) {
+  const hasTraceFlag = argv.includes("--trace");
+  if (!hasTraceFlag) {
     return undefined;
   }
-  if (argv.includes("--help")) {
+  const hasHelpFlag = argv.includes("--help");
+  if (hasHelpFlag) {
     return { jsonlPath: "", options: {}, help: true };
   }
   const jsonlPath = findTranscriptPath(argv);
@@ -114,7 +131,7 @@ export function parseTraceArgs(argv: string[]): TraceInvocation | undefined {
 }
 
 // Render the verdict trace for a parsed `--trace` invocation (or the help text when `--help` was given).
-export function runTrace(invocation: TraceInvocation): string {
+export function executeTrace(invocation: TraceInvocation): string {
   if (invocation.help) {
     return TRACE_HELP;
   }

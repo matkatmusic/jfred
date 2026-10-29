@@ -8,12 +8,13 @@ import { Path } from "../src/structures/domain.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { isEditFileRequest, readEditFileContent } from "../src/viewer_api_layer1_edit_file.ts";
 import {
-    SESSION_A, buildEditRecordPair, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
+    SESSION_A, createSourceTree, writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const HUNK = { oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ["-one", "+uno"] };
-const PROJECT_FOLDER = makeTempDir();
+const PROJECT_FOLDER = createTempDir();
 
 function buildEnvelope(toolId: string, minute: number): { sessionId: string; cwd: string; timestamp: string; toolId: string; parentUuid: null } {
     return { sessionId: SESSION_A, cwd: PROJECT_FOLDER, timestamp: `2026-07-24T10:0${minute}:00.000Z`, toolId, parentUuid: null };
@@ -25,7 +26,7 @@ function buildTitle(title: string): object {
 
 // Lines: 1 title, 2-3 write, 4-5 edit, 6 later title.
 function writeSession(): string {
-    const tree = makeSourceTree("-edit-file");
+    const tree = createSourceTree("-edit-file");
     const filePath = join(PROJECT_FOLDER, "a.py");
     const write = buildWriteRecordPair(buildEnvelope("toolu_w1", 1), filePath, "one\n");
     const edit = buildEditRecordPair(buildEnvelope("toolu_e1", 2), filePath, "uno\n", "one\n", HUNK);

@@ -19,12 +19,12 @@ export function reportCheck(name: string, ok: boolean, detail: unknown = ""): vo
 
 // `data-path` lives on the bubble's .fname child, so a bubble is found through it.
 export const BUBBLES = `.filebox:has(> .fname[data-path])`;
-export const bubbleOf = (path: string) => `.filebox:has(> .fname[data-path=${JSON.stringify(path)}])`;
+export const buildBubbleSelector = (path: string) => `.filebox:has(> .fname[data-path=${JSON.stringify(path)}])`;
 
 // A bubble's identity: its anchor (--axis-px) and node rows, in order.
 export const buildShapeProbe =(path: string) =>
   `(b => b.style.getPropertyValue('--axis-px') + ':' + [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/'))
-     (document.querySelector('${bubbleOf(path)}'))`;
+     (document.querySelector('${buildBubbleSelector(path)}'))`;
 
 // Every bubble's path, offset and node rows — the whole-render signature #304's idempotency needs.
 export const RENDER_SIGNATURE =
@@ -71,10 +71,17 @@ export async function validateNavRows(page: HeadlessPage): Promise<void> {
   }
   reportCheck("#306 every row reads sname, then title(s), then the timestamp",
     everyRowWellFormed, rows.slice(0, 4));
-  const rowOf = (stem: string) => rows.find(row => row.file === `${stem}.jsonl`);
-  const titledRow = rowOf("0f3c9a7e");
-  const renamedRow = rowOf("b21d84c5");
-  const unnamedRow = rowOf("7ce50a19");
+  const findRow = (stem: string) => {
+    for (const row of rows) {
+      const rowIsStem = row.file === `${stem}.jsonl`;
+      if (rowIsStem)
+        return row;
+    }
+    return undefined;
+  };
+  const titledRow = findRow("0f3c9a7e");
+  const renamedRow = findRow("b21d84c5");
+  const unnamedRow = findRow("7ce50a19");
   reportCheck("#306 a titled session leads with its title",
     titledRow?.kids[1] === "stitle|seed the demo app", titledRow?.kids);
   let secondRowTitleCount = 0;

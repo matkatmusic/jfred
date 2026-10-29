@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findBranchById, shortUuid } from "../src/reconstruction_branch_lookup.ts";
+import { findBranchById, getShortUuid } from "../src/reconstruction_branch_lookup.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import type { BranchedReconstruction } from "../src/reconstruction_engine.ts";
 
 test("test_short_uuid_keeps_first_eight_characters", () => {
-    assert.equal(shortUuid(new Uuid("0123456789abcdef")), "01234567");
+    assert.equal(getShortUuid(new Uuid("0123456789abcdef")), "01234567");
 });
 
 test("test_find_branch_by_id_resolves_surviving_and_rewound_ids", () => {

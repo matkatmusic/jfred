@@ -25,17 +25,16 @@ function collectWrittenContentOfBlock(block: ContentBlock, timestamp: Date | und
   if (block.name !== ToolName.Write) {
     return;
   }
-  if (erroredIds.has(block.id.toString())) {
+  const blockId = block.id.toString();
+  const isErrored = erroredIds.has(blockId);
+  if (isErrored) {
     return;
   }
   const { filePath, content } = readWriteInput(block);
   const basename = extractPathBasename(filePath.toString());
-  const bodies = writtenBodiesByBasename.get(basename);
-  if (bodies === undefined) {
-    writtenBodiesByBasename.set(basename, [{ timestamp, content }]);
-    return;
-  }
+  const bodies = writtenBodiesByBasename.get(basename) ?? [];
   bodies.push({ timestamp, content });
+  writtenBodiesByBasename.set(basename, bodies);
 }
 
 export function collectWrittenContentByBasename(records: TranscriptRecord[]): Map<string, WrittenScriptBody[]> {
@@ -56,14 +55,13 @@ function findBodyAtInstant(bodies: WrittenScriptBody[], when: Date): string | un
     if (body.timestamp === undefined) {
       continue;
     }
-    if (body.timestamp.getTime() > when.getTime()) {
+    const bodyTime = body.timestamp.getTime();
+    const isAfterWhen = bodyTime > when.getTime();
+    if (isAfterWhen) {
       continue;
     }
-    if (best === undefined) {
-      best = body;
-      continue;
-    }
-    if (body.timestamp.getTime() >= best.timestamp!.getTime()) {
+    const isNotOlderThanBest = best === undefined || bodyTime >= best.timestamp!.getTime();
+    if (isNotOlderThanBest) {
       best = body;
     }
   }
@@ -79,7 +77,8 @@ const SCRIPT_EXTENSIONS = [".py", ".sh", ".js", ".ts"];
 // Whether a filename ends with a known script extension.
 function isScriptFile(name: string): boolean {
   for (const ext of SCRIPT_EXTENSIONS) {
-    if (name.endsWith(ext)) {
+    const hasExtension = name.endsWith(ext);
+    if (hasExtension) {
       return true;
     }
   }
@@ -90,13 +89,15 @@ function isScriptFile(name: string): boolean {
 function parseDirectInvocation(code: string): string | undefined {
   const runners = ["python3", "python", "bash", "sh", "node", "npx tsx"];
   for (const runner of runners) {
-    if (!code.includes(runner)) {
+    const runnerIndex = code.indexOf(runner);
+    if (runnerIndex < 0) {
       continue;
     }
-    const after = code.slice(code.indexOf(runner) + runner.length).trimStart();
+    const after = code.slice(runnerIndex + runner.length).trimStart();
     // first word after the runner, e.g. "apply.py --dry-run" -> "apply.py".
     const filename = after.split(singleWhitespace)[0] ?? "";
-    if (isScriptFile(filename)) {
+    const isScript = isScriptFile(filename);
+    if (isScript) {
       return filename;
     }
   }

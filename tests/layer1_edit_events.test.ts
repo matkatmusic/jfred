@@ -8,9 +8,12 @@ import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from ".
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import {
-    SESSION_A, buildEditRecordPair, buildReadRecordPair, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture,
-    type RecordEnvelope,
+    SESSION_A, createSourceTree, writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import {
+    buildEditRecordPair, buildReadRecordPair, buildWriteRecordPair,
+    type RecordEnvelope,
+} from "./tool-call-record-pair-builders.ts";
 
 const FILE_PATH = "/work/a.py";
 const HUNK = { oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ["-one", "+uno"] };
@@ -21,7 +24,7 @@ function buildEnvelope(toolId: string, minute: number): RecordEnvelope {
 }
 
 function loadEventsFrom(records: object[]): LayerEditEvent[] {
-    const tree = makeSourceTree("-events-project");
+    const tree = createSourceTree("-events-project");
     writeTranscriptFixture(tree.projectDir, "a.jsonl", records);
     return readSessionEditEvents(new Path(join(tree.projectDir, "a.jsonl")));
 }
@@ -92,7 +95,7 @@ test("test_events_sort_by_instant_then_line", () => {
 });
 
 test("test_session_events_are_cached_until_file_mtime_changes", () => {
-    const tree = makeSourceTree("-events-project");
+    const tree = createSourceTree("-events-project");
     const sessionFile = join(tree.projectDir, "a.jsonl");
     const write = buildWriteRecordPair(buildEnvelope("toolu_w1", 1), FILE_PATH, "body\n");
     writeTranscriptFixture(tree.projectDir, "a.jsonl", write.records);

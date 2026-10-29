@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { computeStaticFileRelative, listSubagentTranscripts, resolveStaticFilePath } from "../src/viewer_api_projects.ts";
+import { listSubagentTranscripts } from "../src/viewer_api_project_scan.ts";
+import { computeStaticFileRelative, findStaticFilePath } from "../src/viewer_api_static_files.ts";
 
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(WEBAPP_DIR, "dist");
@@ -17,7 +18,7 @@ test("test_root_maps_to_layered_index_page", () => {
 
 test("test_layered_index_resolves_to_existing_source_file", () => {
     // Scenario (task 205): the served root page actually exists in webapp/.
-    const resolved = resolveStaticFilePath("index.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
+    const resolved = findStaticFilePath("index.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
     assert.equal(resolved, resolve(WEBAPP_DIR, "index.html"));
     assert.ok(existsSync(resolved));
 });
@@ -32,7 +33,7 @@ test("app_prefixed_assets_strip_to_plain_names", () => {
 });
 
 test("webapp_old_resolves_to_existing_source_file", () => {
-    const resolved = resolveStaticFilePath("webapp_old.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
+    const resolved = findStaticFilePath("webapp_old.html", WEBAPP_DIST_DIR, WEBAPP_DIR);
     assert.equal(resolved, resolve(WEBAPP_DIR, "webapp_old.html"));
     assert.ok(existsSync(resolved));
 });

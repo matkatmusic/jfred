@@ -1,13 +1,13 @@
-// Real-browser check of scrollToFirstVisibleNode: DOM-only setup, so no settings are written.
+// Real-browser check of moveFirstVisibleNodeIntoView: DOM-only setup, so no settings are written.
 
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 
 const SCROLL_TIMEOUT_MS = 10_000;
 
-// Keeps one visible node, pushes it off screen, calls the real module, and reports where the node ended up.
+// Keeps one visible node, pushes it off screen, calls the real module, reports where it ended.
 const RUN_FIRST_NODE_SCROLL = `(async () => {
-    const { scrollToFirstVisibleNode } = await import('/app/layer1-first-node-scroll.js');
+    const { moveFirstVisibleNodeIntoView } = await import('/app/layer1-first-node-scroll.js');
     const pane = document.getElementById('timelines');
     const visible = [...document.querySelectorAll('#stage .node')].filter(n => n.checkVisibility());
     if (visible.length === 0) return { visibleCount: 0 };
@@ -17,21 +17,32 @@ const RUN_FIRST_NODE_SCROLL = `(async () => {
         const p = pane.getBoundingClientRect(), r = lastNode.getBoundingClientRect();
         return r.bottom > p.top && r.top < p.bottom && r.right > p.left && r.left < p.right;
     };
-    // The demo bundle fits one screen, so push the lone node far below it, then scroll to the top.
+    // The demo fits one screen: push the lone node far below it, then scroll to top.
     lastNode.style.marginTop = '5000px';
     pane.scrollTo(0, 0);
     const onScreenBefore = isOnScreen();
-    scrollToFirstVisibleNode();
+    moveFirstVisibleNodeIntoView();
     await new Promise(resolve => setTimeout(resolve, 500));
     return { visibleCount: visible.length, onScreenBefore, onScreenAfter: isOnScreen(), scrollHeight: pane.scrollHeight, clientHeight: pane.clientHeight };
 })()`;
 
-export async function checkFirstNodeScroll(page: HeadlessPage): Promise<void> {
+export interface FirstNodeScrollProbe {
+  visibleCount: number; onScreenBefore?: boolean; onScreenAfter?: boolean; scrollHeight?: number; clientHeight?: number;
+}
+
+export function isSetupValid(probe: FirstNodeScrollProbe): boolean {
+  const hasVisibleNode = probe.visibleCount > 0;
+  const startsOffScreen = probe.onScreenBefore === false;
+  return hasVisibleNode && startsOffScreen;
+}
+
+export function isBroughtOnScreen(probe: FirstNodeScrollProbe): boolean {
+  return probe.onScreenAfter === true;
+}
+
+export async function validateFirstNodeScroll(page: HeadlessPage): Promise<void> {
   await page.waitFor(`document.querySelectorAll('#stage .node').length > 0`, SCROLL_TIMEOUT_MS);
-  const result = await page.evaluate<{
-    visibleCount: number; onScreenBefore?: boolean; onScreenAfter?: boolean; scrollHeight?: number; clientHeight?: number;
-  }>(RUN_FIRST_NODE_SCROLL);
-  reportCheck("first-node-scroll setup: the lone visible node starts off screen",
-    result.visibleCount > 0 && result.onScreenBefore === false, result);
-  reportCheck("first-node-scroll: scrollToFirstVisibleNode brings the lone node onto the screen", result.onScreenAfter === true, result);
+  const result = await page.evaluate<FirstNodeScrollProbe>(RUN_FIRST_NODE_SCROLL);
+  reportCheck("first-node-scroll setup: the lone visible node starts off screen", isSetupValid(result), result);
+  reportCheck("first-node-scroll: moveFirstVisibleNodeIntoView brings the lone node onto the screen", isBroughtOnScreen(result), result);
 }

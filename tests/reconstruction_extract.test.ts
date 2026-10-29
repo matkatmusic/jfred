@@ -5,14 +5,14 @@ import { getRecordVerdict } from "../src/reconstruction_parse_lines.ts";
 import { BlockType, EventKind, RecordType, ToolName, Verdict } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { rec } from "./reconstruction-branch-test-helpers.ts";
+import { createRecord } from "./reconstruction-branch-test-helpers.ts";
 import { loadRecords } from "./utilities.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S1_JSONL, S2_JSONL, S3_JSONL, S4_JSONL } from "./fixtures.ts";
 
 // Dropping every `ignore` record before extraction gives the same file events as using all records.
 test("test_extraction_ignore_gate_changes_no_s37_events", () => {
-    const full = jsonlPathsForScenario("s37").flatMap((path) => loadRecords(path.toString()));
+    const full = getScenarioJsonlPaths("s37").flatMap((path) => loadRecords(path.toString()));
     const evidence = full.filter((record) => getRecordVerdict(record) !== Verdict.ignore);
     // The gate is non-vacuous: s37 carries records the classifier ignores (prose, thinking, the ctx_execute run, non-file-op bash).
     assert.ok(evidence.length < full.length);
@@ -93,7 +93,7 @@ test("test_extract_finds_rename_from_mv", () => {
 // Newer Claude Code transcripts record a Write input as { path, file_text }.
 test("test_extract_reads_write_input_with_path_and_file_text", () => {
     const writeRecord = {
-        ...rec(RecordType.assistant, "w1", null, [
+        ...createRecord(RecordType.assistant, "w1", null, [
             {
                 type: BlockType.tool_use,
                 id: new Uuid("toolu_new_write"),
@@ -112,13 +112,13 @@ test("test_extract_reads_write_input_with_path_and_file_text", () => {
 
 function buildErroredWriteRecords(toolUseId: string, input: Record<string, unknown>, errorText: string): TranscriptRecord[] {
     const toolUse = {
-        ...rec(RecordType.assistant, `${toolUseId}-a`, null, [
+        ...createRecord(RecordType.assistant, `${toolUseId}-a`, null, [
             { type: BlockType.tool_use, id: new Uuid(toolUseId), name: ToolName.Write, input, caller: { type: "direct" } },
         ]),
         timestamp: new Date("2026-01-01T00:00:00Z"),
     } as TranscriptRecord;
     const toolResult = {
-        ...rec(RecordType.user, `${toolUseId}-u`, `${toolUseId}-a`, [
+        ...createRecord(RecordType.user, `${toolUseId}-u`, `${toolUseId}-a`, [
             { type: BlockType.tool_result, tool_use_id: new Uuid(toolUseId), is_error: true, content: errorText },
         ]),
         timestamp: new Date("2026-01-01T00:00:01Z"),

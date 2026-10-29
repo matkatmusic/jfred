@@ -1,4 +1,4 @@
-// The zoom control for the tall Layer 1 render; tests read the published CSS var since happy-dom lacks zoom layout.
+// Zoom control for the tall Layer 1 render; tests read the CSS var because happy-dom lacks zoom layout.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,12 +7,12 @@ import { ZOOM_MINIMUM } from "../webapp/layer1-zoom.ts";
 
 // layer1-page.ts boots at module scope, so re-importing it would wire zoom buttons twice; absorb that boot here first.
 initLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 
-// A fresh, once-booted page; no endpoint stub needed since wireZoomControls runs before the empty query's no-op fetch.
+// A fresh, once-booted page; no endpoint stub needed since attachZoomControls runs before the empty query's no-op fetch.
 function openZoomablePage(): void {
     initLayer1Dom();
-    bootLayer1Page();
+    initLayer1Page();
 }
 
 // The zoom value lives on .viz-root so it inherits down; .canvas only consumes it, never sets it.
@@ -69,7 +69,7 @@ test("test_zoom_with_nothing_lit_scrolls_nothing", () => {
 });
 
 test("test_zoom_out_clamps_at_the_minimum", () => {
-    // The zoom step is multiplicative with no floor, so a clamp stops a held button from shrinking the render away.
+    // The zoom step is multiplicative with no floor, so a clamp stops the render from shrinking away.
     openZoomablePage();
     for (let click = 0; click < 30; click++) {
         clickButtonById("zoom-out");

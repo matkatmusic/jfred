@@ -1,11 +1,11 @@
-// Unit tests for webapp/views/timeline-line-nodes.ts (task 134): the raw-line rows behind the timeline's "show every JSONL line" toggle. DOM-free — model only, like timeline-nodes.test.ts.
+// Unit tests for timeline-line-nodes.ts (task 134): raw-line rows behind the "show every JSONL line" toggle, DOM-free.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LINE_NODE_KIND, deriveLineNodes } from "../webapp/views/timeline-line-nodes.ts";
+import { LINE_NODE_KIND, computeLineNodes } from "../webapp/views/timeline-line-nodes.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 
-// A minimal document: one prompt turn, one tool call, and three verdict lines — the prompt's line (already a turn row), a hook line nobody else shows, and a uuid-less summary line.
+// A minimal document: one prompt turn, one tool call, and verdict lines for prompt, hook, and summary.
 function buildLineVerdictDocument() {
     return {
         messages: [{
@@ -37,8 +37,8 @@ function buildLineVerdictDocument() {
 }
 
 test("test_derive_line_nodes_emits_one_node_per_unrepresented_verdict", () => {
-    // Scenario: only lines NO existing row shows become raw-line nodes.  Steps: derive over a document whose verdicts include a turn line, a tool line, a hook line, and a uuid-less summary line.
-    const lineNodes = deriveLineNodes(buildLineVerdictDocument());
+    // Scenario: only lines that no existing row shows become raw-line nodes.
+    const lineNodes = computeLineNodes(buildLineVerdictDocument());
     // the turn and tool lines are skipped; hook + summary get their own rows.
     assert.deepEqual(lineNodes.map((node) => node.uuid), ["hook-1", undefined]);
     // every emitted node carries the raw-line kind and its "<type> · <verdict>" text.
@@ -51,14 +51,14 @@ test("test_derive_line_nodes_emits_one_node_per_unrepresented_verdict", () => {
 
 test("test_derive_line_nodes_defaults_missing_timestamp_to_empty_when", () => {
     // Scenario: a timestamp-less record (e.g. a summary line) sorts to the top via when="".
-    const lineNodes = deriveLineNodes(buildLineVerdictDocument());
+    const lineNodes = computeLineNodes(buildLineVerdictDocument());
     // the uuid-less summary verdict became a node whose when is the empty string.
     assert.equal(lineNodes[1]!.when, "");
     assert.equal(lineNodes[1]!.sessionId, undefined);
 });
 
 test("test_view_model_includes_line_nodes_only_when_toggled", () => {
-    // Scenario: buildTurnTimelineViewModel emits raw-line rows only when the toggle is on, and never numbers them (step numbers drive picks and range patches).  Steps: build the view model with the toggle ON.
+    // Scenario: raw-line rows appear only with the toggle on, and never get step numbers.
     const { nodes } = buildTurnTimelineViewModel(buildLineVerdictDocument(), true);
     const lineNodes = nodes.filter((node) => node.kind === LINE_NODE_KIND);
     // both unrepresented lines are rows, interleaved by their when instants.
@@ -75,13 +75,13 @@ test("test_view_model_includes_line_nodes_only_when_toggled", () => {
 });
 
 test("test_derive_line_nodes_carries_source_coordinates", () => {
-    // Scenario (task 160): a verdict with source {filePath, lineNumber} yields a node with sourceJsonlName = the file's basename and sourceLineIndex = lineNumber - 1 (the raw-line fetch is 0-based); a verdict without source (pre-task-160 cached document) yields undefined for both.  Steps: derive over a document whose unrepresented verdicts differ in source presence.
+    // Scenario (task 160): a verdict source gives file basename and lineNumber - 1; no source gives undefined.
     const document = buildLineVerdictDocument();
     document.lineVerdicts[2] = {
         ...document.lineVerdicts[2]!,
         source: { filePath: "/home/user/.claude/projects/p/session-a.jsonl", lineNumber: 3 },
     } as unknown as (typeof document.lineVerdicts)[number];
-    const nodes = deriveLineNodes(document as never);
+    const nodes = computeLineNodes(document as never);
     // the hook line (verdict index 2) carries basename + 0-based line.
     const hookNode = nodes.find((node) => node.uuid === "hook-1")!;
     assert.equal(hookNode.sourceJsonlName, "session-a.jsonl");

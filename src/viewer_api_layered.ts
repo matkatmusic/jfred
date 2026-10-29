@@ -1,58 +1,72 @@
-// Layered-graph server surface: parse the query, resolve the project, serialize loadLayeredProject's graph.
+// Layered-graph server surface: resolve the project and serialize its graph.
 
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
-import { resolveInstantOffsets } from "../webapp/layer1-ruler-axis.ts";
+import { computeInstantOffsets } from "../webapp/layer1-ruler-axis.ts";
 import { loadLayeredProject } from "./layered_load.ts";
 import { mergeSessionTimelines } from "./layered_merge.ts";
 import type { Instant, ReconstructionEntity, ReconstructionGraph } from "./layered_types.ts";
 import { Path } from "./structures/domain.ts";
-import { getProjectsDir, scanProjects } from "./viewer_api_projects.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getProjectsDir } from "./viewer_api_projects.ts";
+import { scanProjects } from "./viewer_api_project_scan.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
-// The graph as the layered page consumes it: stored fields plus derived spec-S8 corroborated instants.
+// The graph as the layered page reads it: stored fields plus derived corroborated instants.
 interface WireLayeredEntity extends ReconstructionEntity {
-    corroboratedInstants: Instant[];
+  corroboratedInstants: Instant[];
 }
 
 interface WireLayeredGraph extends Omit<ReconstructionGraph, "entities"> {
-    entities: WireLayeredEntity[];
-    // Every instant in the graph, keyed by its ISO text, resolved to its pixel offset on the one shared ruler (task 239). The page reads an offset by the same ISO string its nodes already carry on the wire, so no instant arithmetic survives in the browser.
-    axisOffsetsPx: Record<string, number>;
+  entities: WireLayeredEntity[];
+  // Pixel offset on the shared ruler, keyed by each instant's ISO text.
+  axisOffsetsPx: Record<string, number>;
 }
 
-// Spec S8's dashed cross-lane lines sit exactly where S5 marked corroboration — a property of the DERIVED merged view (`mergeSessionTimelines`), never of the stored per-session timelines.  webapp/ may not import from src/, so the merge runs here and only its S8 input travels: the instants whose bytes two DISTINCT sessions both observed.
+// Instants whose bytes two distinct sessions both observed, from the derived merged view.
 function listCorroboratedInstants(entity: ReconstructionEntity): Instant[] {
-    return mergeSessionTimelines(entity).nodes
-        .filter((merged) => merged.corroboratedBy.length > 0)
-        .map((merged) => merged.node.instant);
+  const instants: Instant[] = [];
+  for (const merged of mergeSessionTimelines(entity).nodes) {
+    const isCorroborated = merged.corroboratedBy.length > 0;
+    if (isCorroborated)
+      instants.push(merged.node.instant);
+  }
+  return instants;
 }
 
-// The S18 maximum-vertical-gap-between-ruler-rows ruler ACCUMULATES — an instant's pixel offset depends on every earlier gap, so it cannot be derived from that instant alone and CSS cannot express it the way S8's `--axis-ms` was (task 239). resolveInstantOffsets runs once here over the WHOLE graph, so every widget, node dot and corroboration line shares one axis; the page then emits a single finished number per element and layered-styles.css still does all the placing.
-function mapInstantsToAxisPixels(entities: WireLayeredEntity[]): Record<string, number> {
-    const instants = entities.flatMap((entity) => [
-        ...entity.corroboratedInstants,
-        ...entity.sessionTimelines.flatMap((session) => session.timeline.nodes.map((node) => node.instant)),
-    ]);
-    return Object.fromEntries(resolveInstantOffsets(instants)
-        .map((position) => [position.instant.toISOString(), position.offsetPx]));
-}
-
-function describeGraphForWire(graph: ReconstructionGraph): WireLayeredGraph {
-    const entities = graph.entities.map((entity) => ({
-        ...entity,
-        corroboratedInstants: listCorroboratedInstants(entity),
-    }));
-    return { ...graph, entities, axisOffsetsPx: mapInstantsToAxisPixels(entities) };
-}
-
-// GET /api/layered-graph?project=<name> — the project's layered ReconstructionGraph as JSON (Path/Uuid serialize via toJSON, Dates to ISO strings — the graph is JSON-clean as-is).  scanProjects membership doubles as the traversal guard: an unknown or path-shaped name throws into the server's outer catch (400), the same posture as resolveJsonlPaths' legacy branch.
-export function handleLayeredGraphRequest(response: ServerResponse, query: URLSearchParams): void {
-    const projectName = requireParam(query, "project");
-    const listing = scanProjects(getProjectsDir()).find((project) => project.name === projectName);
-    if (listing === undefined) {
-        throw new Error(`no project named ${projectName}`);
+// The ruler accumulates gaps, so offsets resolve once over the whole graph.
+function computeAxisPixelOffsets(entities: WireLayeredEntity[]): Record<string, number> {
+  const instants: Instant[] = [];
+  for (const entity of entities) {
+    instants.push(...entity.corroboratedInstants);
+    for (const session of entity.sessionTimelines) {
+      for (const node of session.timeline.nodes)
+        instants.push(node.instant);
     }
-    const projectFolder = new Path(join(getProjectsDir().toString(), projectName));
-    sendJson(response, 200, describeGraphForWire(loadLayeredProject(projectFolder, {})));
+  }
+  const offsetEntries: [string, number][] = [];
+  for (const position of computeInstantOffsets(instants))
+    offsetEntries.push([position.instant.toISOString(), position.offsetPx]);
+  return Object.fromEntries(offsetEntries);
+}
+
+function buildGraphForWire(graph: ReconstructionGraph): WireLayeredGraph {
+  const entities: WireLayeredEntity[] = [];
+  for (const entity of graph.entities)
+    entities.push({ ...entity, corroboratedInstants: listCorroboratedInstants(entity) });
+  return { ...graph, entities, axisOffsetsPx: computeAxisPixelOffsets(entities) };
+}
+
+// GET /api/layered-graph?project=<name>; scanProjects membership is the traversal guard.
+export function sendLayeredGraphResponse(response: ServerResponse, query: URLSearchParams): void {
+  const projectName = getRequiredParam(query, "project");
+  let isKnownProject = false;
+  for (const listing of scanProjects(getProjectsDir())) {
+    if (listing.name === projectName)
+      isKnownProject = true;
+  }
+  if (!isKnownProject) {
+    throw new Error(`no project named ${projectName}`);
+  }
+  const projectFolder = new Path(join(getProjectsDir().toString(), projectName));
+  sendJson(response, 200, buildGraphForWire(loadLayeredProject(projectFolder, {})));
 }

@@ -26,7 +26,10 @@ function getBlockKindPreview(block: Record<string, unknown>, erroredIds: Set<str
     if (input.command !== undefined) {
       return { kind: String(block.name), preview: trimPreview(input.command) };
     }
-    if (block.name === ToolName.Write && erroredIds.has(String(block.id))) {
+    const isWrite = block.name === ToolName.Write;
+    const isErrored = erroredIds.has(String(block.id));
+    const isErroredWrite = isWrite && isErrored;
+    if (isErroredWrite) {
       return { kind: String(block.name), preview: "" };
     }
     if (block.name === ToolName.Write) {

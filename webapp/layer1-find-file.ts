@@ -11,7 +11,7 @@ let litElements: HTMLElement[] = [];
 export const LANDED_EVENT = "layer1-landed";
 
 // Only one thing carries `.found` at a time, and it stays lit (user, 2026-07-26).
-export function highlightLandedElement(landed: HTMLElement): void {
+export function markLandedElement(landed: HTMLElement): void {
   for (const lit of litElements) {
     lit.classList.remove("found");
   }
@@ -30,7 +30,7 @@ export function highlightLandedElement(landed: HTMLElement): void {
 }
 
 // Centres the element in the part of #timelines the Details drawer leaves uncovered.
-export function scrollToUncoveredCentre(element: HTMLElement): void {
+export function moveToUncoveredCentre(element: HTMLElement): void {
   const pane = getRequiredElementById("timelines");
   const view = pane.getBoundingClientRect();
   const drawer = getRequiredElementById("drawer").getBoundingClientRect();
@@ -38,13 +38,16 @@ export function scrollToUncoveredCentre(element: HTMLElement): void {
   const isCovered = Math.min(view.right, drawer.right) > Math.max(view.left, drawer.left)
         && Math.min(view.bottom, drawer.bottom) > Math.max(view.top, drawer.top);
   const coversFullHeight = drawer.top <= view.top && drawer.bottom >= view.bottom;
-  if (isCovered && coversFullHeight && drawer.left > view.left) {
+  const isDrawerOnRight = isCovered && coversFullHeight && drawer.left > view.left;
+  const isDrawerOnLeft = isCovered && coversFullHeight;
+  const isDrawerOnBottom = isCovered && drawer.top > view.top;
+  if (isDrawerOnRight) {
     area.right = drawer.left;
   }
-  else if (isCovered && coversFullHeight) {
+  else if (isDrawerOnLeft) {
     area.left = drawer.right;
   }
-  else if (isCovered && drawer.top > view.top) {
+  else if (isDrawerOnBottom) {
     area.bottom = drawer.top;
   }
   else if (isCovered) {
@@ -62,11 +65,11 @@ export function scrollToUncoveredCentre(element: HTMLElement): void {
 // Shared by the typed box and File Nav click; `block: "start"` avoids centring above the viewport.
 function moveToBubble(bubble: HTMLElement): void {
   bubble.scrollIntoView({ block: "start", inline: "center" });
-  highlightLandedElement(bubble);
+  markLandedElement(bubble);
 }
 
 // Jump to the next (or, with step -1, the previous) bubble named by `term`.
-export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement | undefined {
+export function moveToNamedBubble(term: string, step: number = 1): HTMLElement | undefined {
   const trimmed = term.trim();
   if (trimmed === "") {
     return undefined;
@@ -79,7 +82,7 @@ export function jumpToNamedBubble(term: string, step: number = 1): HTMLElement |
 }
 
 // The File Nav's caller: a leaf knows its exact path, so it needs no substring match or cycle.
-export function jumpToBubbleAtPath(path: string): HTMLElement | undefined {
+export function moveToBubbleAtPath(path: string): HTMLElement | undefined {
   let owner: HTMLElement | undefined;
   for (const nameElement of listNameElements()) {
     const isOwner = nameElement.dataset.path === path;
@@ -109,24 +112,28 @@ function clearFindState(): void {
 }
 
 // The two buttons step the same cycle from whatever the box holds, so they read `box.value`.
-export function wireFindFileBox(): void {
+export function initFindFileBox(): void {
   const box = getRequiredElementById("find-file") as HTMLInputElement;
-  box.addEventListener("keydown", (event) => {
+  function moveOnEnter(event: Event): void {
     if ((event as KeyboardEvent).key === "Enter") {
-      jumpToNamedBubble(box.value);
+      moveToNamedBubble(box.value);
     }
-  });
+  }
+  function clearOnEmptyInput(): void {
+    const isBoxEmpty = box.value.trim() === "";
+    if (isBoxEmpty) {
+      clearFindState();
+    }
+  }
+  function moveToPreviousMatch(): void {
+    moveToNamedBubble(box.value, -1);
+  }
+  function moveToNextMatch(): void {
+    moveToNamedBubble(box.value, 1);
+  }
+  box.addEventListener("keydown", moveOnEnter);
   // `input`, not `keyup`: it fires for paste, cut, and the clear button, which a key listener misses.
-  box.addEventListener("input", () => {
-    if (box.value.trim() !== "") {
-      return;
-    }
-    clearFindState();
-  });
-  getRequiredElementById("find-prev").addEventListener("click", () => {
-    jumpToNamedBubble(box.value, -1);
-  });
-  getRequiredElementById("find-next").addEventListener("click", () => {
-    jumpToNamedBubble(box.value, 1);
-  });
+  box.addEventListener("input", clearOnEmptyInput);
+  getRequiredElementById("find-prev").addEventListener("click", moveToPreviousMatch);
+  getRequiredElementById("find-next").addEventListener("click", moveToNextMatch);
 }

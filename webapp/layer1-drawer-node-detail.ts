@@ -1,7 +1,7 @@
 // Task 257.5: the single-node drawer's header, meta row, fetch params and raw JSON reveal.
 
 import { createElement, getInputById, getRequiredElementById } from "./app-dom.ts";
-import { describeEditDrawer, isEditNode, nodeCommitHash } from "./layer1-drawer-diff.ts";
+import { createEditDrawer, getNodeCommitHash, isEditNode } from "./layer1-drawer-diff.ts";
 import { renderHighlightedJson } from "./inspector-json.ts";
 import type { WireValue } from "./inspector-links.ts";
 
@@ -11,7 +11,7 @@ const SHORT_HASH_LENGTH = 8;
 export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
   const isEdit = isEditNode(node);
   if (isEdit) {
-    return describeEditDrawer(node, path);
+    return createEditDrawer(node, path);
   }
   const basename = path.split("/").pop() ?? path;
   // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
@@ -33,7 +33,7 @@ export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: 
       flashFile,
     };
   }
-  const hash = nodeCommitHash(node);
+  const hash = getNodeCommitHash(node);
   if (hash === undefined) {
     return {
       params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
@@ -51,14 +51,42 @@ export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: 
 // The raw JSON reveal has no transcript to link to, so a link click does nothing.
 function addNoJsonLink(): void {}
 
-// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON.
-export function appendRawJsonReveal(record: unknown): void {
-  const jsonPre = renderHighlightedJson(
+function renderRawJson(record: unknown): HTMLElement {
+  return renderHighlightedJson(
     JSON.stringify(record, null, 4), record as WireValue, 0,
     { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
     addNoJsonLink, [], addNoJsonLink,
   );
-  const jsonBox = createElement("div", { class: "node-json" }, [jsonPre]);
+}
+
+// The [{ }] toggle fetches its JSONL line on first click, so drawers never wait.
+export function appendRawJsonRevealForLine(sessionFile: string, line: number): void {
+  const jsonBox = createElement("div", { class: "node-json" });
+  jsonBox.hidden = true;
+  let isRequested = false;
+  const jsonToggle = createElement("button", {
+    class: "json-toggle",
+    text: "[{ }]",
+    title: "Show raw transcript JSON",
+    onclick: async () => {
+      jsonBox.hidden = !jsonBox.hidden;
+      if (isRequested) {
+        return;
+      }
+      isRequested = true;
+      const response = await fetch(`/api/layer1-record?${new URLSearchParams({ jsonl: sessionFile, line: String(line) })}`);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      jsonBox.replaceChildren(renderRawJson(await response.json()));
+    },
+  });
+  getRequiredElementById("dbody").append(jsonToggle, jsonBox);
+}
+
+// Task 213: [{ }] toggles the clicked snapshot's raw transcript JSON.
+export function appendRawJsonReveal(record: unknown): void {
+  const jsonBox = createElement("div", { class: "node-json" }, [renderRawJson(record)]);
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
     class: "json-toggle",

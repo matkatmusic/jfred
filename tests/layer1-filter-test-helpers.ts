@@ -25,15 +25,24 @@ export const FULL_VIEW: WireLayer1View = {
   gitOrphans: [{ path: "src/drop/gone.ts", instant: T7, axisPx: 198 }],
   diskOrphans: [{ path: "src/keep/extra.ts", instant: T2, axisPx: 66 }],
   // The filter RE-MEASURES eventCount rather than carrying it over, so these expectations drop with the records they counted.
-  ruler: [EARLY, T0, T1, T2, T3, T4, T5, T6, T7].map((instant, index) => ({
-    instant,
-    axisPx: [0, 22, 44, 66, 88, 132, 154, 176, 198][index]!,
-    eventCount: [1, 1, 1, 2, 2, 1, 1, 1, 1][index]!,
-  })),
+  ruler: buildRuler(),
 };
 
+function buildRuler(): WireLayer1View["ruler"] {
+  const instants = [EARLY, T0, T1, T2, T3, T4, T5, T6, T7];
+  const axisPxs = [0, 22, 44, 66, 88, 132, 154, 176, 198];
+  const eventCounts = [1, 1, 1, 2, 2, 1, 1, 1, 1];
+  const ruler: WireLayer1View["ruler"] = [];
+  for (let index = 0; index < instants.length; index++) {
+    ruler.push({ instant: instants[index]!, axisPx: axisPxs[index]!, eventCount: eventCounts[index]! });
+  }
+  return ruler;
+}
+
 export function findPair(view: WireLayer1View, path: string) {
-  const pair = view.pairs.find((candidate) => candidate.path === path);
-  assert.ok(pair !== undefined, `no pair for ${path}`);
-  return pair;
+  for (const pair of view.pairs) {
+    if (pair.path === path)
+      return pair;
+  }
+  assert.fail(`no pair for ${path}`);
 }

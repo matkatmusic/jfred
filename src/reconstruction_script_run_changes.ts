@@ -2,7 +2,7 @@
 
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { type BackupReader } from "./reconstruction_sidecar.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -22,16 +22,20 @@ export type ScriptRunFileChanges = {
   renamedPaths: ScriptRenamePair[];
 };
 
-export function summarizeScriptRunFileChanges(
+export function collectScriptRunFileChanges(
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
 ): ScriptRunFileChanges[] {
-  return findScriptExecutionRuns(records).map((run) => ({
-    toolUseId: run.toolUseId,
-    timestamp: run.timestamp,
-    code: run.code,
-    ...computeRunFileOutcome(run, records, reader),
-  }));
+  const results: ScriptRunFileChanges[] = [];
+  for (const run of findScriptExecutionRuns(records)) {
+    results.push({
+      toolUseId: run.toolUseId,
+      timestamp: run.timestamp,
+      code: run.code,
+      ...computeRunFileOutcome(run, records, reader),
+    });
+  }
+  return results;
 }
 
 // Paths executeRunOnce's diff shows changed; empty when execution is declined or no sidecar reader exists (task 143).
@@ -40,28 +44,40 @@ function computeRunFileOutcome(
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
 ): { changedPaths: Path[]; renamedPaths: ScriptRenamePair[] } {
-  if (reader === undefined || !isImpureExecutionAllowed())
+  if (reader === undefined)
+    return { changedPaths: [], renamedPaths: [] };
+  const isExecutionAllowed = isImpureExecutionAllowed();
+  if (!isExecutionAllowed)
     return { changedPaths: [], renamedPaths: [] };
   const execution = executeRunOnce(run, records, reader);
   if (execution.post === undefined)
     return { changedPaths: [], renamedPaths: [] };
   const pairs = matchRenamePairs(execution.pre, execution.post);
-  const pairSourceKeys = new Set(pairs.map((pair) => pair.fromKey));
+  const pairSourceKeys = new Set<string>();
+  for (const pair of pairs)
+    pairSourceKeys.add(pair.fromKey);
   const changed = new Map<string, Path>();
   for (const key of new Set([...execution.pre.keys(), ...execution.post.keys()])) {
-    if (isJunkStateKey(key))
+    const isJunk = isJunkStateKey(key);
+    if (isJunk)
       continue;
-    if (pairSourceKeys.has(key))
+    const isRenameSource = pairSourceKeys.has(key);
+    if (isRenameSource)
       continue;
-    if (execution.pre.get(key) === execution.post.get(key))
+    const isUnchanged = execution.pre.get(key) === execution.post.get(key);
+    if (isUnchanged)
       continue;
-    const absolute = resolveAgainstCwd(run.cwd, new Path(key));
-    if (!changed.has(absolute))
+    const absolute = normalizeAgainstCwd(run.cwd, new Path(key));
+    const isAlreadyChanged = changed.has(absolute);
+    if (!isAlreadyChanged)
       changed.set(absolute, new Path(absolute));
   }
-  const renamedPaths = pairs.map((pair) => ({
-    from: new Path(resolveAgainstCwd(run.cwd, new Path(pair.fromKey))),
-    to: new Path(resolveAgainstCwd(run.cwd, new Path(pair.toKey))),
-  }));
+  const renamedPaths: ScriptRenamePair[] = [];
+  for (const pair of pairs) {
+    renamedPaths.push({
+      from: new Path(normalizeAgainstCwd(run.cwd, new Path(pair.fromKey))),
+      to: new Path(normalizeAgainstCwd(run.cwd, new Path(pair.toKey))),
+    });
+  }
   return { changedPaths: [...changed.values()], renamedPaths };
 }

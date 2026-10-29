@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
-// One diff response per /api/diff call, watermarked with the requested file so the test can assert WHICH file's diff the right pane shows. Served through a hand-rolled fetch (the shared stubFetchRoutes helper serves JSON; fetchRevisionDiffBlocks reads text()).
+// One diff per /api/diff call, watermarked with the file name; hand-rolled fetch because the diff reader needs text().
 function stubDiffFetchByFile(): void {
     const fetchStub = async (url: unknown): Promise<Response> => {
         const parsed = new URL(String(url), "http://localhost:7343");

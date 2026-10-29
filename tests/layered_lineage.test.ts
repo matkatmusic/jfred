@@ -1,4 +1,4 @@
-// Task 203 (spec S6): typed rename/copy edges built from the engine's extracted mv/cp events, lineage DERIVED by walking RenameEdges end-to-end (never stored as a group), and a copy's genesis bytes read from the source's merged timeline at the copy instant — with both sides of a copy fork keeping their own, independent lineage.
+// Task 203 (spec S6): typed rename/copy edges, derived lineage, and copy genesis bytes.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,9 +7,9 @@ import { EventKind } from "../src/structures/vocabulary.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import {
     buildLineageEdges,
-    checkEventIsLineageEdge,
     findCopyBornContent,
-    lineageOf,
+    getLineageOf,
+    isEventLineageEdge,
 } from "../src/layered_lineage.ts";
 import type { LineageEvidence } from "../src/layered_lineage.ts";
 import type { CopyEvent, RenameEvent } from "../src/reconstruction_events.ts";
@@ -32,7 +32,7 @@ function makeRenameEvent(from: string, to: string, instantMs: number): RenameEve
     };
 }
 
-// The engine's cp event shape; seedLines is empty at extraction time (the cp result carries no content) — the layered graph derives the genesis instead.
+// The engine's cp event shape; seedLines is empty because the cp result has no content.
 function makeCopyEvent(from: string, to: string, instantMs: number): CopyEvent {
     return {
         kind: EventKind.copy,
@@ -65,8 +65,8 @@ function indexEntities(entities: ReconstructionEntity[]): Map<string, Reconstruc
     return new Map(entities.map((entity) => [entity.filename.toString(), entity]));
 }
 
-function listLineagePaths(entity: ReconstructionEntity, renames: Parameters<typeof lineageOf>[1]): string {
-    return lineageOf(entity, renames).map((step) => step.filename.toString()).join(" -> ");
+function listLineagePaths(entity: ReconstructionEntity, renames: Parameters<typeof getLineageOf>[1]): string {
+    return getLineageOf(entity, renames).map((step) => step.filename.toString()).join(" -> ");
 }
 
 test("test_lineage_edges_carry_timestamps_and_jsonl_evidence", () => {
@@ -89,7 +89,7 @@ test("test_lineage_edges_carry_timestamps_and_jsonl_evidence", () => {
     assert.equal(copies[0]!.timestampOfCopy.getTime(), 2000);
     assert.deepEqual(copies[0]!.evidence, makeEvidence(9));
 
-    // Endpoints with no content evidence of their own still get exactly one entity each, and the rename destination is the SAME object the copy source points at.
+    // Each endpoint gets one entity; the rename destination is the same object as the copy source.
     assert.deepEqual([...entitiesByPath.keys()].sort(), ["/w/a.py", "/w/b.py", "/w/copy.py"]);
     assert.equal(renames[0]!.renamedTo, copies[0]!.copiedFrom);
 });
@@ -131,10 +131,10 @@ test("test_copy_fork_leaves_both_lineages_independent", () => {
     );
     const fork = copies[0]!.bornCopy;
 
-    // A copy is a fork, not a sequence: neither side enters the other's lineage, and no RenameEdge was created for it.
+    // A copy is a fork: neither side enters the other's lineage, and no RenameEdge exists.
     assert.equal(renames.length, 0);
-    assert.deepEqual(lineageOf(source, renames), [source]);
-    assert.deepEqual(lineageOf(fork, renames), [fork]);
+    assert.deepEqual(getLineageOf(source, renames), [source]);
+    assert.deepEqual(getLineageOf(fork, renames), [fork]);
     // Both entities stay alive in the graph.
     assert.deepEqual([...entitiesByPath.keys()].sort(), ["/w/fork.py", "/w/src.py"]);
 });
@@ -166,10 +166,10 @@ test("test_copy_before_any_verified_source_state_has_unknown_genesis", () => {
 });
 
 test("test_only_rename_and_copy_events_become_edges", () => {
-    assert.equal(checkEventIsLineageEdge(makeRenameEvent("/w/a.py", "/w/b.py", 1)), true);
-    assert.equal(checkEventIsLineageEdge(makeCopyEvent("/w/a.py", "/w/b.py", 1)), true);
+    assert.equal(isEventLineageEdge(makeRenameEvent("/w/a.py", "/w/b.py", 1)), true);
+    assert.equal(isEventLineageEdge(makeCopyEvent("/w/a.py", "/w/b.py", 1)), true);
     assert.equal(
-        checkEventIsLineageEdge({
+        isEventLineageEdge({
             kind: EventKind.write,
             changeId: new Uuid("toolu_w"),
             target: new Path("/w/a.py"),

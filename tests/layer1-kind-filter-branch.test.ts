@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { buildFreshView, readHiddenKinds, toggleBox } from "./layer1-kind-filter-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -12,7 +12,7 @@ const { renderShowRowWithKindFilter } = await import("../webapp/layer1-kind-filt
 
 test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
     initLayer1Dom();
-    stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
+    installStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
     let redraws = 0;
     renderShowRowWithKindFilter(buildFreshView(), () => {
         redraws += 1;
@@ -31,7 +31,7 @@ test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_f
 
 test("test_the_branch_box_waits_for_the_redraw_promise_before_it_unhides_the_kind", async () => {
     initLayer1Dom();
-    stubStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
+    installStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
     let finishRedraw: () => void = () => {};
     renderShowRowWithKindFilter(buildFreshView(), () => new Promise<void>((resolve) => {
         finishRedraw = resolve;

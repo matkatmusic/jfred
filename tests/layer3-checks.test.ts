@@ -1,17 +1,17 @@
-// Tests for the pure expression builder in scripts/visual/layer3-checks.ts.
+// Tests for the pure label helper in scripts/visual/layer3-checks.ts.
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildDotFinder } from "../scripts/visual/layer3-checks.ts";
+import { isNonEmptyAllEqual } from "../scripts/visual/layer3-checks.ts";
 
-test("buildDotFinder scopes the search to the path's bubble and the dot class", () => {
-    const expression = buildDotFinder("src/util.ts", "n-edit");
-    assert.ok(expression.includes(`.fname[data-path="src/util.ts"]`));
-    assert.ok(expression.includes("i.node.n-edit"));
-    assert.ok(expression.includes(".find(d => true)"));
+test("isNonEmptyAllEqual is true when every text matches", () => {
+    assert.equal(isNonEmptyAllEqual(["[e]", "[e]"], "[e]"), true);
 });
 
-test("buildDotFinder carries the caller's filter into find", () => {
-    assert.ok(buildDotFinder("a.ts", "n-read", "d.dataset.confidence === 'derived'")
-        .includes(".find(d => d.dataset.confidence === 'derived')"));
+test("isNonEmptyAllEqual is false for an empty list", () => {
+    assert.equal(isNonEmptyAllEqual([], "[e]"), false);
+});
+
+test("isNonEmptyAllEqual is false when one text differs", () => {
+    assert.equal(isNonEmptyAllEqual(["[e]", "[R]"], "[e]"), false);
 });

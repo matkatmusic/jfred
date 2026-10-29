@@ -1,4 +1,4 @@
-// Per-file debug viewer (task 183 skeleton, task 184 ladder rendering): file selection over /api/file-ladder plus a deep-link per file (?project=<name>&file=<path>), and the selected file's revision ladder rendered as a plain ordered list. A DEBUG surface — it may expose engine internals freely (source attribution, conflict notes, seed hashes).
+// Debug viewer: lists files, deep-links each one, and renders the selected file's revision ladder.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 
@@ -12,9 +12,13 @@ export function renderDebugStatus(text: string): void {
 
 // One deep-link anchor per file, replacing the previous listing.
 export function renderDebugFileList(projectName: string, files: string[]): void {
-  const anchors = files.map((file) =>
-    createElement("a", { href: `${DEBUG_PAGE_PATH}?project=${encodeURIComponent(projectName)}&file=${encodeURIComponent(file)}`, text: file }));
-  getRequiredElementById("debug-file-list").replaceChildren(...anchors.map((anchor) => createElement("div", {}, [anchor])));
+  const rows: HTMLElement[] = [];
+  for (const file of files) {
+    const href = `${DEBUG_PAGE_PATH}?project=${encodeURIComponent(projectName)}&file=${encodeURIComponent(file)}`;
+    const anchor = createElement("a", { href, text: file });
+    rows.push(createElement("div", {}, [anchor]));
+  }
+  getRequiredElementById("debug-file-list").replaceChildren(...rows);
 }
 
 // Fetch the project's pickable final paths and list them as deep links.
@@ -29,7 +33,7 @@ async function loadFileList(projectName: string): Promise<void> {
   renderDebugStatus("select a file to load its revision ladder");
 }
 
-// The wire form of one file's revision ladder — what JSON.parse yields from /api/file-ladder?file=: Path/Uuid arrive as plain strings and Dates as ISO text, so this is NOT the engine's FileHistory (precedent: WireLayeredGraph in layered-app.ts).
+// Wire form of one file's ladder: plain strings and ISO text, not the engine's FileHistory.
 interface WireFileRevision {
   kind: string;
   changeId: string;
@@ -42,17 +46,18 @@ interface WireFileLadder {
   revisions: WireFileRevision[];
 }
 
-// A `gitBase:<hash>:<target>` changeId marks a base-commit seed (reconstruction_base_commit.ts); its hash is the commit this revision was seeded from. Any other changeId has no seed.
+// A `gitBase:<hash>:<target>` changeId marks a base-commit seed; other changeIds have no seed.
 const SEED_CHANGE_ID_PREFIX = "gitBase:";
 
 function extractSeedHash(changeId: string): string | undefined {
-  if (!changeId.startsWith(SEED_CHANGE_ID_PREFIX)) {
+  const isSeedChangeId = changeId.startsWith(SEED_CHANGE_ID_PREFIX);
+  if (!isSeedChangeId) {
     return undefined;
   }
   return changeId.slice(SEED_CHANGE_ID_PREFIX.length).split(":")[0];
 }
 
-// The definition rows for one revision: source attribution (the event kind that produced it plus its changeId — the only per-revision provenance the ladder carries) and the timestamp always, the seed hash and the conflict note only where the revision has them.
+// Definition rows for one revision: source and time always, seed and conflict only when present.
 function buildRevisionRows(revision: WireFileRevision): (Node | string)[] {
   const rows: (Node | string)[] = [
     createElement("dt", { text: "source" }),
@@ -70,9 +75,13 @@ function buildRevisionRows(revision: WireFileRevision): (Node | string)[] {
   return rows;
 }
 
-// Render the ladder as an ordered list — the <li> position IS the revision index — replacing any previously rendered ladder.
+// Render the ladder as an ordered list, replacing any previous ladder.
 export function renderDebugLadder(ladder: WireFileLadder): void {
-  const items = ladder.revisions.map((revision) => createElement("li", {}, [createElement("dl", {}, buildRevisionRows(revision))]));
+  const items: HTMLElement[] = [];
+  for (const revision of ladder.revisions) {
+    const definitionList = createElement("dl", {}, buildRevisionRows(revision));
+    items.push(createElement("li", {}, [definitionList]));
+  }
   getRequiredElementById("debug-ladder").replaceChildren(...items);
 }
 
@@ -88,8 +97,8 @@ async function loadLadder(projectName: string, file: string): Promise<void> {
   renderDebugStatus(`${file}: ${ladder.revisions.length} revision(s) loaded`);
 }
 
-// Boot for the three URL shapes: no project -> guidance; project -> the file list; project + file (a deep link) -> that file's ladder.
-export async function bootDebugApp(): Promise<void> {
+// Start for three URL shapes: no project, project only, project plus file.
+export async function initDebugApp(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const projectName = params.get("project");
   if (projectName === null) {
@@ -104,4 +113,4 @@ export async function bootDebugApp(): Promise<void> {
   await loadLadder(projectName, file);
 }
 
-void bootDebugApp();
+void initDebugApp();

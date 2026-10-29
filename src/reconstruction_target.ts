@@ -1,4 +1,4 @@
-// Target-scoped surviving-branch reconstruction (task 192, optimizations.md Phase 1): the `--branch surviving --file <path>` fast path. Reconstructs EXACTLY the requested final target over the surviving records — never touching reconstructBranches, buildRewoundBranchHistory, reconstructFilesOver, discoverScriptCreatedPaths, collectAcceptedUserEditIds, or the step/document builders — while preserving the all-files path's exact-final-path selector contract byte for byte.
+// Target-scoped surviving-branch fast path for `--branch surviving --file <path>` (task 192).
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Path } from "./structures/domain.ts";
@@ -8,70 +8,79 @@ import type { FileHistory } from "./reconstruction_events.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { selectLiveBranch } from "./reconstruction_branch.ts";
 import { appendScriptMoveRenames } from "./reconstruction_script_move_events.ts";
-import { getLineageContentBefore, reconstructFileOver } from "./reconstruction_branches.ts";
+import { getFileRevisionsOver } from "./reconstruction_branches.ts";
+import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import {
-    buildRenameChain,
-    distinctFinalPaths,
-    resolveFinalPath,
+  buildRenameChain,
+  collectDistinctFinalPaths,
+  getFinalPath,
 } from "./reconstruction_lineage.ts";
 
-// The literal branch id that selects the surviving branch — the one branch the fast path serves.
+// The branch id that selects the surviving branch.
 const SURVIVING_BRANCH_ID = "surviving";
 
-// One file's history over EXACTLY the records given, or undefined when the all-files reconstruction would not expose `target` as a final path: a request for an old rename source must NOT become a new result (parity with the CLI's exact-final-path filter).
-export function reconstructFileHistoryOver(
-    records: TranscriptRecord[],
-    target: Path,
-    reader?: BackupReader,
+// One file's history over the given records, or undefined when target is not a final path.
+export function getFileHistoryOver(
+  records: TranscriptRecord[],
+  target: Path,
+  reader?: BackupReader,
 ): FileHistory | undefined {
-    const extracted = extractFileEvents(records);
-    // Sandbox-proven script moves join the chain exactly as in reconstructFilesOver — the executions are memoized per records identity, so reconstructFileOver pays them anyway.
-    const events = reader
-        ? appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader))
-        : extracted;
-    const renameChain = buildRenameChain(events);
-    if (resolveFinalPath(target, renameChain).toString() !== target.toString()) {
-        return undefined;
-    }
-    const finalPaths = distinctFinalPaths(events, renameChain);
-    const isKnownFinalPath = finalPaths.some((path) => path.toString() === target.toString());
-    const revisions = reconstructFileOver(records, target, new Set<string>(), reader);
-    if (isKnownFinalPath) {
-        return { target, revisions };
-    }
-    // ponytail: a discovered-but-zero-revision script-born path returns undefined here where the all-files path emits an empty history; no scenario exercises that corner.
-    if (revisions.length > 0) {
-        return { target, revisions };
-    }
+  const extracted = extractFileEvents(records);
+  // Script moves join the rename chain, as in getFileHistoriesOver.
+  const events = reader
+    ? appendScriptMoveRenames(extracted, records, reader, getLineageContentBefore(records, reader))
+    : extracted;
+  const renameChain = buildRenameChain(events);
+  const resolvedTarget = getFinalPath(target, renameChain);
+  const isFinalPathOfTarget = resolvedTarget.equals(target);
+  if (!isFinalPathOfTarget) {
     return undefined;
+  }
+  const finalPaths = collectDistinctFinalPaths(events, renameChain);
+  let isKnownFinalPath = false;
+  for (const finalPath of finalPaths) {
+    const isTarget = finalPath.equals(target);
+    if (isTarget) {
+      isKnownFinalPath = true;
+    }
+  }
+  const revisions = getFileRevisionsOver(records, target, new Set<string>(), reader);
+  if (isKnownFinalPath) {
+    return { target, revisions };
+  }
+  // ponytail: a zero-revision script-born path returns undefined here; no scenario exercises it.
+  if (revisions.length > 0) {
+    return { target, revisions };
+  }
+  return undefined;
 }
 
-// The surviving-branch wrapper: select the surviving records once (corpus-memoized), then reconstruct only the requested target over them.
-export function reconstructSurvivingFileHistory(
-    records: TranscriptRecord[],
-    target: Path,
-    reader?: BackupReader,
+// Selects the surviving records once, then builds only the requested target's history.
+export function getSurvivingFileHistory(
+  records: TranscriptRecord[],
+  target: Path,
+  reader?: BackupReader,
 ): FileHistory | undefined {
-    return reconstructFileHistoryOver(selectLiveBranch(records), target, reader);
+  return getFileHistoryOver(selectLiveBranch(records), target, reader);
 }
 
-// Whether a CLI request selects exactly (surviving branch, one target) — the condition that routes both JSON and text dispatch through the fast path before reconstructBranches.
+// Whether a CLI request selects the surviving branch and one target.
 export function isTargetedSurvivingRequest(options: CliOptions): boolean {
-    if (options.branch !== SURVIVING_BRANCH_ID) {
-        return false;
-    }
-    return options.target !== undefined;
+  if (options.branch !== SURVIVING_BRANCH_ID) {
+    return false;
+  }
+  return options.target !== undefined;
 }
 
-// The zero-or-one history array the CLI renders for a targeted surviving request — the same shape filterByTarget produces from the all-files reconstruction.
+// The zero-or-one history array the CLI renders for a targeted surviving request.
 export function listTargetedSurvivingHistories(
-    records: TranscriptRecord[],
-    reader: BackupReader | undefined,
-    target: Path,
+  records: TranscriptRecord[],
+  reader: BackupReader | undefined,
+  target: Path,
 ): FileHistory[] {
-    const history = reconstructSurvivingFileHistory(records, target, reader);
-    if (history === undefined) {
-        return [];
-    }
-    return [history];
+  const history = getSurvivingFileHistory(records, target, reader);
+  if (history === undefined) {
+    return [];
+  }
+  return [history];
 }

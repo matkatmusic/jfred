@@ -1,6 +1,4 @@
-// Task 305: GET /api/layer1-diff answers unified hunks between two revisions of ONE Layer 1 file.
-//
-// Driven through a recording ServerResponse stand-in (viewer_api_layer1_file.test.ts's pattern); refusals surface as throws.
+// GET /api/layer1-diff answers unified hunks between two revisions of one file; refusals throw.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,8 +9,8 @@ import { type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RecordType } from "../src/structures/vocabulary.ts";
-import { handleLayer1DiffContentRequest, handleLayer1DiffRequest } from "../src/viewer_api_layer1_diff.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { sendLayer1Diff, sendLayer1DiffContent } from "../src/viewer_api_layer1_diff.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const FIRST_TEXT = "shared line\nfirst only\n";
 const SECOND_TEXT = "shared line\nsecond only\n";
@@ -48,7 +46,7 @@ function requestLayer1Diff(parameters: Record<string, string>): { status: number
         writeHead: (code: number) => { status = code; },
         end: (text: string) => { body = text; },
     } as unknown as ServerResponse;
-    handleLayer1DiffRequest(response, new URLSearchParams(parameters));
+    sendLayer1Diff(response, new URLSearchParams(parameters));
     return { status, diff: (JSON.parse(body) as { diff: string }).diff };
 }
 
@@ -109,7 +107,7 @@ function requestContentDiff(payload: object): { status: number; diff: string } {
         end: (text: string) => { body = text; },
     } as unknown as ServerResponse;
     const request = new EventEmitter() as unknown as IncomingMessage;
-    handleLayer1DiffContentRequest(request, response);
+    sendLayer1DiffContent(request, response);
     (request as unknown as EventEmitter).emit("data", Buffer.from(JSON.stringify(payload)));
     (request as unknown as EventEmitter).emit("end");
     return { status, diff: (JSON.parse(body) as { diff: string }).diff };
@@ -131,7 +129,7 @@ test("test_layer1_diff_content_endpoint_answers_the_whole_file_for_identical_sid
 test("test_layer1_diff_endpoint_diffs_a_snapshot_side_against_the_working_tree", () => {
     const sessionId = "b21d84c5-0000-0000-0000-000000000001";
     const relativePath = "src/util.ts";
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const projectDir = mkdtempSync(join(tmpdir(), "layer1-diff-snap-project-"));
     mkdirSync(join(projectDir, "src"), { recursive: true });
     writeFileSync(join(projectDir, relativePath), "shared line\ndisk only\n");

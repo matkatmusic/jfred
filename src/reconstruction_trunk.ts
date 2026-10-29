@@ -7,10 +7,10 @@ import { buildHeadChains, filterUniqueUuids, isChainOverlapping, isMaximalTip } 
 import {
   collectAncestorUuids,
   collectHeadUuids,
-  indexRecordsByUuid,
+  buildRecordIndexByUuid,
 } from "./reconstruction_tree.ts";
 
-// The final head of every conversation tree the surviving head does NOT belong to. A multi-session project (EndCurrentAgentAndSpawnNewAgent) is a FOREST of parentUuid-disconnected trees — each predecessor session is a completed chapter whose final head the next session continues from, so its chain is surviving trunk, never a rewound branch. Rewinds only exist WITHIN a tree.
+// Final head of each tree not holding the surviving head: predecessor sessions are surviving trunk, never rewinds.
 function collectPredecessorFinalHeads(records: TranscriptRecord[], survivingHead: Uuid): Uuid[] {
   const heads = filterUniqueUuids(collectHeadUuids(records));
   const chains = buildHeadChains(records, heads);
@@ -46,7 +46,7 @@ function collectPredecessorFinalHeads(records: TranscriptRecord[], survivingHead
   return finalHeads;
 }
 
-// The uuid strings on the surviving trunk across every session tree: the surviving head's own chain plus each predecessor tree's final-head chain, with same-turn parallel-tool-call siblings absorbed (task 145).
+// Uuid strings of the surviving trunk across all session trees, absorbing same-turn parallel-tool-call siblings (task 145).
 export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivingHead: Uuid): Set<string> {
   const trunk = collectAncestorUuids(records, survivingHead);
   for (const head of collectPredecessorFinalHeads(records, survivingHead)) {
@@ -59,13 +59,13 @@ export function collectSurvivingTrunkUuids(records: TranscriptRecord[], survivin
 }
 
 
-// The rewind point of an abandoned tip: the deepest record on the tip's path that also lies on the surviving path — found by walking tip -> root and returning the first uuid in `survivingSet`.
+// Rewind point of an abandoned tip: first uuid on its path to the root that is in `survivingSet`.
 export function findRewindPoint(
   records: TranscriptRecord[],
   tip: Uuid,
   survivingSet: Set<string>,
 ): Uuid | undefined {
-  const byUuid = indexRecordsByUuid(records);
+  const byUuid = buildRecordIndexByUuid(records);
   const visited = new Set<string>();
   let current = byUuid.get(tip.toString());
   while (current !== undefined) {

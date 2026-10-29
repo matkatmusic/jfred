@@ -1,4 +1,4 @@
-// The task-56 pre-baseline question dialog: when a project's reveng-paths.json supplies a base commit (item 46), the server asks — before any build — whether file states that precede that commit should be reconstructed at all. "No" makes the baseline commit the timeline's first shown step (the engine drops the work the beacon supersedes); "Yes" reconstructs exactly as before. The choice is remembered per project for this browser session only, mirroring the script-consent dialog (app-consent.ts).
+// Task 56 dialog: asks whether to reconstruct file states that precede the baseline commit.
 
 import { createElement } from "./app-dom.ts";
 import { storeBaselineChoice } from "./app-choices.ts";
@@ -11,20 +11,20 @@ export function formatShortCommitHash(commitHash: string): string {
 }
 
 export function renderBaselineQuestionDialog(container: HTMLElement, project: string, question: WireBaselineQuestion): void {
-  // Mirrors the consent dialog's decide: store the answer, re-render the route — the re-issued /api/document request carries the choice as the preBaseline param.
-  const decide = (choice: string) => {
+  // Store the answer, then re-render so the document request carries it as preBaseline.
+  const storeChoiceAndRender = (choice: string) => {
     storeBaselineChoice(project, choice);
     renderRoute();
   };
   const reconstructButton = createElement("button", {
     class: "toolbar-btn consent-run",
     text: "Reconstruct pre-baseline states",
-    onclick: () => decide("1"),
+    onclick: () => storeChoiceAndRender("1"),
   });
   const startAtBaselineButton = createElement("button", {
     class: "toolbar-btn",
     text: "Start at the baseline commit",
-    onclick: () => decide("0"),
+    onclick: () => storeChoiceAndRender("0"),
   });
   const box = createElement("div", { class: "consent-box" }, [
     createElement("div", { class: "consent-header" }, [
