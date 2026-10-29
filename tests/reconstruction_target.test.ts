@@ -4,7 +4,7 @@ import {
     listTargetedSurvivingHistories,
     getSurvivingFileHistory,
 } from "../src/reconstruction_target.ts";
-import { reconstructBranches } from "../src/reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "../src/reconstruction_engine.ts";
 import type { FileHistory } from "../src/reconstruction_events.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -31,7 +31,7 @@ function buildTreeToolRecord(
 
 // The all-files path's answer for one target, which the targeted fast path must reproduce exactly.
 function selectSurvivingHistoryViaAllFiles(records: TranscriptRecord[], target: Path): FileHistory | undefined {
-    const surviving = reconstructBranches(records).surviving;
+    const surviving = buildBranchedReconstruction(records).surviving;
     return surviving.find((history) => history.target.toString() === target.toString());
 }
 

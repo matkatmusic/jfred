@@ -12,7 +12,7 @@ import {
 import {
     ReconstructionCounter,
     resetReconstructionCounters,
-    snapshotReconstructionCounters,
+    getReconstructionCounterSnapshot,
 } from "../src/reconstruction_counters.ts";
 import { getSurvivingFileHistory } from "../src/reconstruction_target.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
@@ -54,7 +54,7 @@ test("test_bash_run_skips_prestate_and_sandbox", () => {
     });
     // the skip is announced with its distinct reason, and no expensive work ran.
     assert.ok(labels.some((label) => label.startsWith(PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX)));
-    const snapshot = snapshotReconstructionCounters();
+    const snapshot = getReconstructionCounterSnapshot();
     assert.equal(snapshot[ReconstructionCounter.preStateBuilds], 0);
     assert.equal(snapshot[ReconstructionCounter.sandboxSpawns], 0);
 });
@@ -73,7 +73,7 @@ test("test_python_run_still_executes", () => {
     // the sandbox produced a post-state with the transformed file.
     assert.ok(execution.post !== undefined);
     assert.equal(execution.post.get("data.txt"), "after\n");
-    const snapshot = snapshotReconstructionCounters();
+    const snapshot = getReconstructionCounterSnapshot();
     assert.equal(snapshot[ReconstructionCounter.preStateBuilds], 1);
 });
 

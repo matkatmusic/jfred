@@ -27,16 +27,16 @@ function isKnownRecordType(value: unknown): value is RecordType {
 }
 
 // Null parentUuid (conversation root) is intentionally left as-is.
-function hydrateIdKey(record: Record<string, unknown>, key: string): void {
+function convertIdKey(record: Record<string, unknown>, key: string): void {
   if (typeof record[key] === "string") {
     record[key] = new Uuid(record[key] as string);
   }
 }
 
 // Convert wire strings to domain types (Uuid, Path, Date) in place.
-function hydrateEnvelope(record: Record<string, unknown>): void {
+function convertEnvelope(record: Record<string, unknown>): void {
   for (const key of ENVELOPE_ID_KEYS) {
-    hydrateIdKey(record, key);
+    convertIdKey(record, key);
   }
   if (typeof record.cwd === "string") {
     record.cwd = new Path(record.cwd);
@@ -51,10 +51,11 @@ export function parseRecord(line: string): TranscriptRecord {
   const parsed = JSON.parse(line) as Record<string, unknown> & {
     type?: unknown;
   };
-  if (!isKnownRecordType(parsed.type)) {
+  const isKnownType = isKnownRecordType(parsed.type);
+  if (!isKnownType) {
     throw new UnknownRecordTypeError(String(parsed.type));
   }
-  hydrateEnvelope(parsed);
+  convertEnvelope(parsed);
   return parsed as TranscriptRecord;
 }
 

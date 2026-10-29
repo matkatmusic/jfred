@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reconstructAll } from "../src/reconstruction_engine.ts";
+import { buildAllFileHistories } from "../src/reconstruction_engine.ts";
 import { getLinesText } from "../src/reconstruction_revisions.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
@@ -13,7 +13,7 @@ function reconstructLedger() {
     // Task 165: the reader needs each record's on-disk source to find sidecars; source-less records fall back to live file-history.
     const records = jsonlPathsForScenario("s37").flatMap((path) => loadTranscript(path.toString()).records);
     const reader = buildSidecarReader(records)!;
-    const histories = reconstructAll(records, reader);
+    const histories = buildAllFileHistories(records, reader);
     const ledger = histories.find(
         (history) =>
             history.target.toString().endsWith("/ledger.py") &&

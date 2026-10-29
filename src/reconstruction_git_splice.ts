@@ -9,7 +9,7 @@ import { noteStage } from "./reconstruction_provenance.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
-import { applyAdditions, pureAdditionsFrom, type LineAddition } from "./reconstruction_git_additions.ts";
+import { applyAdditions, extractPureAdditions, type LineAddition } from "./reconstruction_git_additions.ts";
 import {
   applyScriptRunsOver,
   computeMidpointAfter,
@@ -79,7 +79,7 @@ export function findBlobDiffPlacement(
   const atEvidence = events[beforeEvidence[beforeEvidence.length - 1]!] as FullContentEvent;
   if (atEvidence.content === blob)
     return undefined;
-  const additions = pureAdditionsFrom(splitLines(atEvidence.content), splitLines(blob));
+  const additions = extractPureAdditions(splitLines(atEvidence.content), splitLines(blob));
   if (additions === undefined)
     return undefined;
   for (let position = 0; position < beforeEvidence.length; position += 1) {

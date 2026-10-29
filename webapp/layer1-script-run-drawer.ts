@@ -8,7 +8,7 @@ import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
 import { computeRunBracket,listDiffableSteps } from "./layer1-drawer-steps.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { renderCellCode } from "./diff-render.ts";
-import { computeScriptHighlightLanguage, describeScriptLanguage } from "./layer1-script-language.ts";
+import { computeScriptHighlightLanguage, formatScriptRunLabel } from "./layer1-script-language.ts";
 import { buildScriptRunFileFold, buildScriptRunFold } from "./layer1-script-run-folds.ts";
 import { storeOpenedNode } from "./layer1-node-link.ts";
 import { flashSession } from "./layer1-session-flash.ts";
@@ -78,13 +78,13 @@ export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
 
 // A script run's title: its script file's label, else its language's.
 export function getScriptRunTitle(run: WireScriptRun): string {
-  return run.label ?? describeScriptLanguage(run.language);
+  return run.label ?? formatScriptRunLabel(run.language);
 }
 
 // Task 356: the meta fold and the script body fold of a script-run drawer.
 export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
   const metaRows: [string, string][] = [
-    ["kind", "script run (layer 4)"], ["executor", describeScriptLanguage(run.language)], ["instant", run.instant],
+    ["kind", "script run (layer 4)"], ["executor", formatScriptRunLabel(run.language)], ["instant", run.instant],
     ["session", run.sessionFile],
   ];
   const provenanceParts = ["resolved body", run.sessionFile];

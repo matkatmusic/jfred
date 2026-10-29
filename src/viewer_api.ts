@@ -6,7 +6,7 @@ import {
   type ReconstructionDocument,
   type BuiltReconstruction,
 } from "./reconstruction_json.ts";
-import { reconstructBranches } from "./reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { getPathOverrides, formatPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
@@ -58,7 +58,7 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
   reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
   const reader = buildSidecarReader(records, sources);
   reportStage(onProgress, PROGRESS_LABEL_CONSTRUCTING_BRANCHES);
-  const branched = reconstructBranches(records, reader);
+  const branched = buildBranchedReconstruction(records, reader);
   reportStage(onProgress, PROGRESS_LABEL_BUILDING_DOCUMENT);
   return buildReconstructionDocument(records, branched, reader, target, skippedLines);
 }

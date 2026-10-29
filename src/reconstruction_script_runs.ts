@@ -22,7 +22,7 @@ import {
 import { isJunkStateKey, executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import {
   ReconstructionCounter,
-  incrementReconstructionCounter,
+  addToReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 // Memoized per run per records array since each sandbox run costs ~100ms; invalidated alongside its derived-cache siblings.
@@ -77,12 +77,12 @@ export function executeRunOnce(
   reader: BackupReader,
   seedContent?: LineageContentBefore,
 ): RunExecution {
-  incrementReconstructionCounter(ReconstructionCounter.executionRequests);
+  addToReconstructionCounter(ReconstructionCounter.executionRequests);
   const byRun = getDerivedCaches(records, reader).executionsByRun;
   const key = computeRunExecutionKey(run);
   const cached = byRun.get(key);
   if (cached !== undefined) {
-    incrementReconstructionCounter(ReconstructionCounter.executionCacheHits);
+    addToReconstructionCounter(ReconstructionCounter.executionCacheHits);
     return cached;
   }
   const isPreBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp);

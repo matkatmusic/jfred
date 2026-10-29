@@ -25,7 +25,8 @@ function computeOpLetter(change: FileChange): string {
   if (change.eventKind === "script-execution") {
     return "S";
   }
-  if (change.eventKind === "write" && change.isFirstRevision) {
+  const isFirstWrite = change.eventKind === "write" && change.isFirstRevision;
+  if (isFirstWrite) {
     return "A";
   }
   return "M";
@@ -63,7 +64,7 @@ export function markChipActive(context: TimelineRenderContext, chipElement: HTML
   chipElement.classList.add("active");
 }
 
-function showCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
+function openCausingRecordForChip(event: Event, context: TimelineRenderContext, node: TurnNode | CommitNode, previewPane: HTMLElement, causingLocation: TranscriptLocation | undefined, change: FileChange, changeId: string): void {
   event.stopPropagation();
   // The turn fallback stays here since it needs `node`, which the Revision View has no notion of.
   if (causingLocation === undefined) {
@@ -79,11 +80,11 @@ function appendCausingRecordChipButton(buttons: HTMLElement[], context: Timeline
     class: "timeline-chip timeline-chip-action",
     title: "Show this file's causing record in inspector",
     text: "{ }",
-    onclick: (event: Event) => showCausingRecordForChip(event, context, node, previewPane, causingLocation, change, changeId),
+    onclick: (event: Event) => openCausingRecordForChip(event, context, node, previewPane, causingLocation, change, changeId),
   }));
 }
 
-function showRevisionDiffForChip(event: Event, context: TimelineRenderContext, change: FileChange, changeId: string): void {
+function openRevisionDiffForChip(event: Event, context: TimelineRenderContext, change: FileChange, changeId: string): void {
   event.stopPropagation();
   markChipActive(context, event.currentTarget as HTMLElement);
   renderDetailsFileMode(change.path, context.detailsContext, { changeId, mode: RevisionViewMode.diff });
@@ -106,7 +107,7 @@ function appendSnapshotJumpButton(buttons: HTMLElement[], context: TimelineRende
 // One file's button row: each button deep-links into the Revision View, differing only in the mode requested.
 export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNode | CommitNode, nodeIndex: number, change: FileChange, previewPane: HTMLElement): HTMLElement {
   const causingLocation = context.chipLineLocations.get(`${nodeIndex}:${change.path}`);
-  const buttons = [renderFileChip(change, (event: Event) => {
+  const openChipRevision = (event: Event): void => {
     event.stopPropagation();
     markChipActive(context, event.currentTarget as HTMLElement);
     // A chip with no changeId names no revision — open on #1, the treeview's own default.
@@ -115,7 +116,8 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
       return;
     }
     renderDetailsFileMode(change.path, context.detailsContext, { changeId: change.changeId, mode: RevisionViewMode.content });
-  })];
+  };
+  const buttons = [renderFileChip(change, openChipRevision)];
   if (change.changeId !== undefined) {
     // Narrowed once: TypeScript won't carry this narrowing into callbacks below, and non-null assertions are banned here.
     const changeId = change.changeId;
@@ -127,7 +129,7 @@ export function renderFileButtonRow(context: TimelineRenderContext, node: TurnNo
       class: "timeline-chip timeline-chip-action",
       title: "Show Diff in Inspector",
       text: "+/-",
-      onclick: (event: Event) => showRevisionDiffForChip(event, context, change, changeId),
+      onclick: (event: Event) => openRevisionDiffForChip(event, context, change, changeId),
     }));
     // Computed as a presence test: undefined means no File History Snapshot, so the button's absence signals that (user-decided).
     const jumpRoute = computeSnapshotJumpRoute(context.project, context.reconstructionDocument.filesTouched, change);

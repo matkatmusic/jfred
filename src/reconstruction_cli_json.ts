@@ -2,7 +2,7 @@
 
 import { USAGE, type CliOptions } from "./reconstruction_cli_args.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { reconstructBranches } from "./reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { findBranchById } from "./reconstruction_branch_lookup.ts";
 import { isGenuineUserPrompt } from "./reconstruction_prompts.ts";
 import { getRecordVerdict } from "./reconstruction_parse_lines.ts";
@@ -49,7 +49,7 @@ export function renderJson(
   if (isTargetedSurviving) {
     return JSON.stringify(listTargetedSurvivingHistories(records, reader, options.target!), null, 2);
   }
-  const branched = reconstructBranches(records, reader);
+  const branched = buildBranchedReconstruction(records, reader);
   if (options.branch !== undefined) {
     const histories = findBranchById(branched, options.branch);
     if (histories === undefined) {

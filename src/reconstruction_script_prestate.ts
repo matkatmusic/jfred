@@ -19,7 +19,7 @@ import { formatRunSource, type ScriptRun } from "./reconstruction_script_executi
 import { extractPathBasename } from "./reconstruction_script_indirection.ts";
 import {
   ReconstructionCounter,
-  incrementReconstructionCounter,
+  addToReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 
@@ -101,7 +101,7 @@ export function getPreExecutionState(
   reader: BackupReader,
   seedContent?: LineageContentBefore,
 ): Map<string, string> {
-  incrementReconstructionCounter(ReconstructionCounter.preStateBuilds);
+  addToReconstructionCounter(ReconstructionCounter.preStateBuilds);
   reportReconstructionProgress(`building pre-execution state for run @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
   const events = extractFileEvents(records);
   const renameChain = buildRenameChain(events);

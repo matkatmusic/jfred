@@ -1,4 +1,4 @@
-// Task 203 (spec S6): rename/copy events become typed lineage edges; lineageOf walks on demand (Q11).
+// Task 203 (spec S6): rename/copy events become typed lineage edges; getLineageOf walks on demand (Q11).
 
 import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
@@ -22,7 +22,7 @@ export interface LineageEvidence {
 }
 
 // Whether this extracted event connects two paths (from/to) rather than touching one target.
-export function checkEventIsLineageEdge(event: FileEvent): event is LineageEvent {
+export function isEventLineageEdge(event: FileEvent): event is LineageEvent {
   if (event.kind === EventKind.rename) {
     return true;
   }
@@ -106,7 +106,7 @@ function collectRenameChain(
 }
 
 // Spec S6: returns the full rename chain oldest-first; copies are separate lineages.
-export function lineageOf(
+export function getLineageOf(
   entity: ReconstructionEntity,
   renames: RenameEdge[],
 ): ReconstructionEntity[] {

@@ -8,7 +8,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { findBaseCommitEvidenceForTarget, readCommitFileContent, readCommitTimestamp } from "./reconstruction_base_commit_evidence.ts";
-import { noteReconstructionFailure } from "./reconstruction_health.ts";
+import { reportReconstructionFailure } from "./reconstruction_health.ts";
 import { noteStage } from "./reconstruction_provenance.ts";
 
 export const BASE_COMMIT_CHANGE_ID_PREFIX = "gitBase:";
@@ -78,7 +78,7 @@ export function insertBaseCommitBeacon(records: TranscriptRecord[], events: File
   const timestamp = readCommitTimestamp(repoDir, baseCommit);
   if (timestamp === undefined) {
     // Commit unreadable despite being configured — note as missing evidence.
-    noteReconstructionFailure({ scope: FailureScope.fileStage, stage: "seedBaseCommitBeacon", target, reason: "git baseline commit unreadable (recorded repo missing)" });
+    reportReconstructionFailure({ scope: FailureScope.fileStage, stage: "seedBaseCommitBeacon", target, reason: "git baseline commit unreadable (recorded repo missing)" });
     return events;
   }
   const content = readCommitFileContent(repoDir, baseCommit, relativePath);

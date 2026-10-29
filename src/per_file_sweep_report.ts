@@ -42,7 +42,7 @@ export function selectCandidatesByStatus(nameStatusText: string, status: string)
 }
 
 // Endpoint matches alone are not sufficient; unrecoverable revisions yield `gaps`.
-export function classifySweepRow(row: SweepRow): SweepVerdict {
+export function computeSweepVerdict(row: SweepRow): SweepVerdict {
   if (row.revisions === 0) {
     return SweepVerdict.none;
   }
@@ -74,7 +74,7 @@ function renderSweepRow(row: SweepRow): string {
     renderFlagCell(row.baselineBlobMatched),
     renderFlagCell(row.diskMatched),
     String(row.unrecoverable),
-    classifySweepRow(row),
+    computeSweepVerdict(row),
     String(row.seconds),
     renderNoteCell(row.note),
   ].join(" | ");
@@ -84,7 +84,10 @@ function renderSweepRow(row: SweepRow): string {
 export function formatSweepTable(rows: SweepRow[]): string {
   const header = "| file | revisions | baseline blob | final = disk | unrecoverable | verdict | seconds | note |";
   const alignment = "| --- | --- | --- | --- | --- | --- | --- | --- |";
-  const body = rows.map((row) => `| ${renderSweepRow(row)} |`);
+  const body: string[] = [];
+  for (const row of rows) {
+    body.push(`| ${renderSweepRow(row)} |`);
+  }
   return [header, alignment, ...body].join("\n");
 }
 

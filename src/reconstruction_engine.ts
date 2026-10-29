@@ -19,7 +19,7 @@ import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 // --- Reconstruction: the public API ------------------------------------------
 
 // Pre-selects the surviving branch, then delegates to reconstructFileOver.
-export function reconstructFile(
+export function buildFileRevisions(
   records: TranscriptRecord[],
   target: Path,
   reader?: BackupReader,
@@ -28,7 +28,7 @@ export function reconstructFile(
 }
 
 // Pre-selects the surviving branch, then reconstructs all files.
-export function reconstructAll(
+export function buildAllFileHistories(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): FileHistory[] {
@@ -53,7 +53,7 @@ export type BranchedReconstruction = {
 };
 
 // Surviving files plus every unmerged rewound branch's file changes.
-export function reconstructBranches(
+export function buildBranchedReconstruction(
   records: TranscriptRecord[],
   reader?: BackupReader,
 ): BranchedReconstruction {
@@ -71,7 +71,7 @@ export function reconstructBranches(
       rewoundBranches.push(branch);
     }
   }
-  const surviving = reconstructAll(records, reader);
+  const surviving = buildAllFileHistories(records, reader);
   const rewound: RewoundBranchHistory[] = [];
   for (const [branchIndex, branch] of rewoundBranches.entries()) {
     // task 163: report branch-level progress; prefix must be "reconstructing " for webapp phase 4.

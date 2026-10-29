@@ -1,4 +1,4 @@
-// task 194: the reconstruction-mode selection view — a project's own pre-build view, shown after the paths are set and BEFORE any reconstruction work begins (no console overlay, no empty timeline, no empty file-nav). Two modes: full (today's behavior — every file, slow on large projects) and bounded to one file's nth revision (task-193 semantics: the cut is the end of the containing agent turn). The file list is the cheap parse-only /api/prescan: each touched file with its FIRST modifying event; a script-attributed instant is a static basename-mention candidate, marked as such — never replay-proven.
+// Reconstruction-mode selection view: full, or bounded to one file's nth revision, shown before any work begins.
 
 import { createElement } from "./app-dom.ts";
 import { fetchJson } from "./app-fetch.ts";
@@ -46,8 +46,8 @@ export async function renderModeSelectionView(container: HTMLElement, project: s
     row.style.outline = "2px solid currentColor";
     selectedRow = row;
   };
-    // Mirrors the consent/baseline dialogs' decide: store the answer, re-render the route — the re-issued /api/document request carries the choice as boundFile/boundNth.
-  const startReconstruction = (): void => {
+  // Store the choice, then re-render the route so /api/document carries it.
+  const launchReconstruction = (): void => {
     if (fullRadio.checked) {
       storeModeChoice(project, { mode: "full" });
     }
@@ -59,15 +59,19 @@ export async function renderModeSelectionView(container: HTMLElement, project: s
     }
     renderRoute();
   };
+  const fileRows: HTMLElement[] = [];
+  for (const file of files) {
+    fileRows.push(buildFileRow(file, selectAsBoundFile));
+  }
   const box = createElement("div", { class: "consent-box" }, [
     createElement("div", { class: "consent-header" }, [
       createElement("h2", { text: "How should this project be reconstructed?" }),
       createElement("label", { style: "display:block" }, [fullRadio, " Full reconstruction — every file, every revision (can take a long time)"]),
       createElement("label", { style: "display:block" }, [boundedRadio, " Bounded — reconstruct all touched files only until the chosen file's revision ", nthInput, " end of agent turn"]),
       createElement("div", { class: "muted", text: "pick the bound file below — each row shows the file's first modifying event; script-run instants are static candidates, not replay-proven" }),
-      createElement("button", { class: "toolbar-btn consent-run", text: "Start reconstruction", onclick: startReconstruction }),
+      createElement("button", { class: "toolbar-btn consent-run", text: "Start reconstruction", onclick: launchReconstruction }),
     ]),
-    createElement("div", { class: "mode-file-list" }, files.map((file) => buildFileRow(file, selectAsBoundFile))),
+    createElement("div", { class: "mode-file-list" }, fileRows),
   ]);
   container.replaceChildren(box);
 }

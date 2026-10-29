@@ -5,7 +5,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType } from "./structures/vocabulary.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { buildStepTimeline } from "./reconstruction_steps.ts";
-import { reconstructAll } from "./reconstruction_engine.ts";
+import { buildAllFileHistories } from "./reconstruction_engine.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX } from "./reconstruction_reseed_seeds.ts";
@@ -96,7 +96,7 @@ export function buildStepSnapshots(
 ): { steps: StepSnapshot[]; stepFileHistories: FileHistory[] } {
   const { histories, changes } = buildStepTimeline(records, reader);
   reportReconstructionProgress("indexing change ids across surviving files");
-  const pathOf = buildChangeIdsToPaths(surviving ?? reconstructAll(records, reader));
+  const pathOf = buildChangeIdsToPaths(surviving ?? buildAllFileHistories(records, reader));
   const sessionOf = buildChangeIdsToSessionIds(records);
   const steps: StepSnapshot[] = [];
   for (const [index, change] of changes.entries()) {

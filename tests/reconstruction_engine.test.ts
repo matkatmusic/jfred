@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    reconstructFile,
-    reconstructAll,
+    buildFileRevisions,
+    buildAllFileHistories,
 } from "../src/reconstruction_engine.ts";
 import type {
     CopyEvent,
@@ -22,7 +22,7 @@ import type { TranscriptRecord } from "../src/structures/envelope.ts";
 
 function reconstructDeleted(file: string): FileRevision[] {
     const records = loadRecords(file);
-    return reconstructFile(records, findDeletedTarget(records)!);
+    return buildFileRevisions(records, findDeletedTarget(records)!);
 }
 
 // Extraction specs live in reconstruction_extract.test.ts.
@@ -44,15 +44,15 @@ test("test_finds_deleted_target_and_reconstructs_two_revisions", () => {
     const records = loadRecords(S1_JSONL);
     const target = findDeletedTarget(records);
     assert.ok(target?.toString().endsWith("s1_delete.py"));
-    const revisions = reconstructFile(records, target!);
+    const revisions = buildFileRevisions(records, target!);
     assert.equal(revisions.length, 2);
     // 2 lines is s1_delete.py's own content, not the test file's 7.
     assert.equal(revisions[0]!.lines.length, 2);
 });
 
-// reconstructAll accounts for EVERY touched file, not just the deleted one.
+// buildAllFileHistories accounts for EVERY touched file, not just the deleted one.
 test("test_reconstruct_all_accounts_for_every_touched_file", () => {
-    const histories = reconstructAll(loadRecords(S1_JSONL));
+    const histories = buildAllFileHistories(loadRecords(S1_JSONL));
     assert.equal(histories.length, 2);
     const source = histories.find((h) => h.target.toString().endsWith("/s1_delete.py"));
     const testFile = histories.find((h) => h.target.toString().includes("test_s1_delete.py"));
@@ -109,7 +109,7 @@ function s2TestFilePath(records: TranscriptRecord[]): Path {
 // One Edit splices into a removal revision then an addition revision sharing its changeId.
 test("test_edit_splices_into_paired_removal_and_addition_revisions", () => {
     const records = loadRecords(S2_JSONL);
-    const revisions = reconstructFile(records, s2TestFilePath(records));
+    const revisions = buildFileRevisions(records, s2TestFilePath(records));
     assert.equal(revisions.length, 3);
     assert.equal(revisions[1]!.kind, EventKind.edit);
     assert.equal(revisions[1]!.lines.length, 5);
@@ -126,7 +126,7 @@ test("test_moved_file_history_spans_create_rename_edit", () => {
     const finalPath = extractFileEvents(records).find(
         (event) => event.kind === EventKind.rename,
     )!.to;
-    const revisions = reconstructFile(records, finalPath);
+    const revisions = buildFileRevisions(records, finalPath);
     assert.equal(revisions.length, 3);
     assert.equal(revisions[0]!.kind, EventKind.write);
     assert.equal(revisions[1]!.kind, EventKind.rename);
@@ -140,7 +140,7 @@ test("test_moved_file_history_spans_create_rename_edit", () => {
 
 // A moved file is keyed by its FINAL path, never the pre-rename one.
 test("test_reconstruct_all_returns_two_s2_lineages", () => {
-    const histories = reconstructAll(loadRecords(S2_JSONL));
+    const histories = buildAllFileHistories(loadRecords(S2_JSONL));
     assert.equal(histories.length, 2);
     const moved = histories.find((h) => h.target.toString().endsWith("/s2_moved.py"))!;
     assert.equal(moved.revisions.length, 3);
@@ -165,7 +165,7 @@ function s3CopyTargetPath(records: TranscriptRecord[]): Path {
 // The copy revision is seeded from the source's state as of the COPY TIME.
 test("test_copied_file_history_spans_copy_then_paired_edit", () => {
     const records = loadRecords(S3_JSONL);
-    const revisions = reconstructFile(records, s3CopyTargetPath(records));
+    const revisions = buildFileRevisions(records, s3CopyTargetPath(records));
     assert.equal(revisions.length, 3);
     assert.equal(revisions[0]!.kind, EventKind.copy);
     assert.equal(revisions[0]!.lines.length, 2);
@@ -184,7 +184,7 @@ test("test_copied_file_history_spans_copy_then_paired_edit", () => {
 
 // Unlike a rename, a copy must not collapse the source into the destination.
 test("test_reconstruct_all_returns_three_s3_histories", () => {
-    const histories = reconstructAll(loadRecords(S3_JSONL));
+    const histories = buildAllFileHistories(loadRecords(S3_JSONL));
     // The exact total is not pinned — a re-run may capture extra sibling files.
     assert.ok(histories.length >= 3);
     const source = histories.find((history) =>

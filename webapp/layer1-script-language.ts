@@ -18,7 +18,7 @@ export const WireScriptLanguage = {
 export type WireScriptLanguage = (typeof WireScriptLanguage)[keyof typeof WireScriptLanguage];
 
 // Every language reads "<language> run" (the node label, the drawer title and the executor row).
-export function describeScriptLanguage(language: WireScriptLanguage): string {
+export function formatScriptRunLabel(language: WireScriptLanguage): string {
   // return language === WireScriptLanguage.bash ? "$" : `${language} run`;
   return `${language} run`;
 }
@@ -38,9 +38,10 @@ export function computeScriptHighlightLanguage(language: WireScriptLanguage): st
 
 // A parsed wire value: a free-form string from a tool input becomes the vocabulary or throws.
 export function parseScriptLanguage(value: string): WireScriptLanguage {
-  const language = Object.values(WireScriptLanguage).find((candidate) => candidate === value);
-  if (language === undefined) {
-    throw new Error(`unknown script language: ${value}`);
+  for (const candidate of Object.values(WireScriptLanguage)) {
+    if (candidate === value) {
+      return candidate;
+    }
   }
-  return language;
+  throw new Error(`unknown script language: ${value}`);
 }

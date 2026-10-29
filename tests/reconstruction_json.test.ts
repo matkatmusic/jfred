@@ -7,7 +7,7 @@ import {
 } from "../src/reconstruction_json.ts";
 import { buildStepSnapshots } from "../src/reconstruction_json_steps.ts";
 import {
-    reconstructBranches,
+    buildBranchedReconstruction,
 } from "../src/reconstruction_engine.ts";
 import type { FileHistory } from "../src/reconstruction_events.ts";
 import { countStepsInTranscript } from "../src/reconstruction_steps.ts";
@@ -43,7 +43,7 @@ test("test_buildStepSnapshots_produce_skeleton_steps_without_file_contents", () 
 
 test("test_buildReconstructionDocument_returns_branch_agnostic_histories_alongside_document", () => {
     // Compact histories return NEXT TO the document, never as a document field, which would defeat the wire-size fix.
-    const branched = reconstructBranches(records, reader);
+    const branched = buildBranchedReconstruction(records, reader);
     const result = buildReconstructionDocument(records, branched, reader, undefined);
     assert.ok(result.stepFileHistories.length > 0);
     assert.ok(result.stepFileHistories.every((history) => Array.isArray(history.revisions)));
@@ -62,7 +62,7 @@ test("test_buildStepSnapshots_aligns_steps_with_change_ids", () => {
 
 test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_files", () => {
     // changedPaths is a best-effort changeId->path hint; off-branch/re-stamped steps may resolve to [] since their changeId isn't surviving.
-    const branched = reconstructBranches(records, reader);
+    const branched = buildBranchedReconstruction(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     const touched = new Set(document.filesTouched.map((h: FileHistory) => h.target.toString()));
     let resolvedAny = false;
@@ -82,14 +82,14 @@ test("test_buildStepSnapshots_changedPaths_link_resolvable_steps_to_touched_file
 
 test("test_buildReconstructionDocument_step_count_matches_countStepsInTranscript", () => {
     // Behavior: the document's step count matches the engine's step counter.
-    const branched = reconstructBranches(records, reader);
+    const branched = buildBranchedReconstruction(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     assert.equal(document.steps.length, countStepsInTranscript(records, reader));
 });
 
 test("test_buildReconstructionDocument_includes_messages_branches_and_files", () => {
     // Behavior: messages, branches, filesTouched are all populated for S19.
-    const branched = reconstructBranches(records, reader);
+    const branched = buildBranchedReconstruction(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     assert.ok(document.messages.length > 0);
     assert.ok(document.branches.length > 0);
@@ -98,7 +98,7 @@ test("test_buildReconstructionDocument_includes_messages_branches_and_files", ()
 
 test("test_buildReconstructionDocument_includes_line_verdicts_for_every_record", () => {
     // Behavior: lineVerdicts has one entry per parsed record.
-    const branched = reconstructBranches(records, reader);
+    const branched = buildBranchedReconstruction(records, reader);
     const { document } = buildReconstructionDocument(records, branched, reader, undefined);
     assert.equal(document.lineVerdicts.length, records.length);
 });

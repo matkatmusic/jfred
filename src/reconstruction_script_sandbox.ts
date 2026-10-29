@@ -10,7 +10,7 @@ import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { getMemoizedSandboxOutcome, storeSandboxOutcome } from "./reconstruction_script_sandbox_memo.ts";
 import {
   ReconstructionCounter,
-  incrementReconstructionCounter,
+  addToReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 function readAllFiles(dir: string, base: string = dir): [string, string][] {
@@ -73,7 +73,7 @@ export function executeScriptAgainstState(
   const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
   const memoizedOutcome = getMemoizedSandboxOutcome(inputKey);
   if (memoizedOutcome !== undefined) {
-    incrementReconstructionCounter(ReconstructionCounter.sandboxMemoHits);
+    addToReconstructionCounter(ReconstructionCounter.sandboxMemoHits);
     reportReconstructionProgress(
       `${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${formatScriptForProgress(script)}`,
     );
@@ -82,7 +82,7 @@ export function executeScriptAgainstState(
   reportReconstructionProgress(
     `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${formatScriptForProgress(script)}`,
   );
-  incrementReconstructionCounter(ReconstructionCounter.sandboxSpawns);
+  addToReconstructionCounter(ReconstructionCounter.sandboxSpawns);
   const post = spawnSandboxRun(script, preState, recordedCwd);
   storeSandboxOutcome(inputKey, post);
   return post;

@@ -1,4 +1,4 @@
-// Grafts forked-subagent chains onto the parent session tree so reconstructBranches sees each fork as a branch.
+// Grafts forked-subagent chains onto the parent session tree so buildBranchedReconstruction sees each fork as a branch.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { AgentId, Uuid } from "./structures/domain.ts";

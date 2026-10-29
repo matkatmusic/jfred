@@ -4,17 +4,23 @@
 export type LineAddition = { anchor: string | undefined; line: string };
 
 // Extracts pure insertions from base to blob; undefined if any base line was changed.
-export function pureAdditionsFrom(baseLines: string[], blobLines: string[]): LineAddition[] | undefined {
+export function extractPureAdditions(baseLines: string[], blobLines: string[]): LineAddition[] | undefined {
   const additions: LineAddition[] = [];
   let baseIndex = 0;
   for (const line of blobLines) {
-    if (baseIndex < baseLines.length && line === baseLines[baseIndex]) {
+    const hasBaseLineLeft = baseIndex < baseLines.length;
+    const matchesBaseLine = line === baseLines[baseIndex];
+    const isBaseLineKept = hasBaseLineLeft && matchesBaseLine;
+    if (isBaseLineKept) {
       baseIndex += 1;
       continue;
     }
     additions.push({ anchor: baseIndex > 0 ? baseLines[baseIndex - 1] : undefined, line });
   }
-  if (baseIndex !== baseLines.length || additions.length === 0)
+  const isBaseLineChanged = baseIndex !== baseLines.length;
+  const hasNoAdditions = additions.length === 0;
+  const isNotPureAddition = isBaseLineChanged || hasNoAdditions;
+  if (isNotPureAddition)
     return undefined;
   return additions;
 }

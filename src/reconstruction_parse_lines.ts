@@ -75,10 +75,12 @@ function getResultVerdict(record: TranscriptRecord): Verdict | undefined {
   if (!result) {
     return undefined;
   }
-  if (isReadResult(result)) {
+  const isRead = isReadResult(result);
+  if (isRead) {
     return Verdict.readBeacon;
   }
-  if (isEditResult(result)) {
+  const isEdit = isEditResult(result);
+  if (isEdit) {
     return Verdict.editResult;
   }
   return undefined;
@@ -89,7 +91,8 @@ export function getRecordVerdict(record: TranscriptRecord): Verdict {
   if (record.type === RecordType.fileHistorySnapshot) {
     return Verdict.fileHistorySnapshot;
   }
-  if (getUserEditEvent(record) !== undefined) {
+  const userEditEvent = getUserEditEvent(record);
+  if (userEditEvent !== undefined) {
     return Verdict.userEdit;
   }
   return scanToolUseVerdict(record) ?? getResultVerdict(record) ?? Verdict.ignore;

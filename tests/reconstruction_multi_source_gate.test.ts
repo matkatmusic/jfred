@@ -7,9 +7,9 @@ import { EventKind } from "../src/structures/vocabulary.ts";
 import type { EditEvent } from "../src/reconstruction_events.ts";
 import { isEditEvidenceMatchingState } from "../src/reconstruction_multi_source_gate.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
-import { reconstructFile } from "../src/reconstruction_engine.ts";
+import { buildFileRevisions } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
-import { clearReconstructionFailures, drainReconstructionFailures } from "../src/reconstruction_health.ts";
+import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
 import {
     makeTwoSourceEditFixture,
     buildEditRecordPair,
@@ -48,12 +48,12 @@ test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline
     clearReconstructionFailures();
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     // Test verification 1: exactly one conflict note, targeting the joined primary path.
-    const conflicts = drainReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
+    const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 1);
     assert.equal(conflicts[0]!.target?.toString(), fixture.alphaPath);
     assert.match(conflicts[0]!.reason, /cross-source conflict/);
     // Test verification 2: the timeline is still COMPLETE — all three revisions present.
-    const revisions = reconstructFile(merged, new Path(fixture.alphaPath));
+    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
     assert.equal(revisions.length, 3);
 });
 
@@ -66,7 +66,7 @@ test("test_agreeing_cross_source_stream_emits_no_conflict_note", () => {
         }));
     clearReconstructionFailures();
     mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
-    const conflicts = drainReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
+    const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 0);
 });
 

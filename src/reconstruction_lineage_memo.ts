@@ -2,7 +2,7 @@
 
 import {
   ReconstructionCounter,
-  incrementReconstructionCounter,
+  addToReconstructionCounter,
 } from "./reconstruction_counters.ts";
 
 // Cached seed text plus the transitive set of queried cycle keys.
@@ -28,7 +28,7 @@ export function isLineageKeyOnReplayStack(cycleKey: string): boolean {
 
 // Propagate this key into every ancestor frame's dependency set.
 export function markLineageKeyQueried(cycleKey: string): void {
-  incrementReconstructionCounter(ReconstructionCounter.lineageReplayRequests);
+  addToReconstructionCounter(ReconstructionCounter.lineageReplayRequests);
   for (const frame of activeFrames) {
     frame.queriedKeys.add(cycleKey);
   }
@@ -91,7 +91,7 @@ export function findServableLineageSeed(
 
 // Serving a cached entry makes its dependencies the caller's dependencies.
 export function markLineageCacheServe(entry: LineageSeedEntry): void {
-  incrementReconstructionCounter(ReconstructionCounter.lineageCacheServes);
+  addToReconstructionCounter(ReconstructionCounter.lineageCacheServes);
   for (const frame of activeFrames) {
     for (const queriedKey of entry.queriedKeys) {
       frame.queriedKeys.add(queriedKey);

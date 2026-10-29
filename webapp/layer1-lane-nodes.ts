@@ -1,7 +1,7 @@
 // The per-node and per-branch-lane DOM pieces of a Layer 1 pair bubble, split out of layer1-widgets.ts.
 
 import { createElement } from "./app-dom.ts";
-import { describeScriptLanguage } from "./layer1-script-language.ts";
+import { formatScriptRunLabel } from "./layer1-script-language.ts";
 import { WireRewindKind, type WireBranch } from "./layer1-wire-branches.ts";
 import { WireEditKind, type WireEdit } from "./layer1-wire-edits.ts";
 import { WireScriptExecutorKind, type WireScriptRun } from "./layer1-wire-script-runs.ts";
@@ -66,11 +66,11 @@ export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit
   );
 }
 
-// Task 356: dot and label share the identity attrs; a bash run is never provable, so its ring is dashed.
+// Task 356: dot and label share identity attrs; bash runs get a dashed ring.
 export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
   const isBash = run.executorKind === WireScriptExecutorKind.bash;
   const identity = {
-    title: run.label ?? describeScriptLanguage(run.language),
+    title: run.label ?? formatScriptRunLabel(run.language),
     "data-tool-use-id": run.toolUseId,
     "data-executor-kind": run.executorKind,
     "data-instant": run.instant,
@@ -78,7 +78,7 @@ export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: Wire
     "data-session-file": run.sessionFile,
     "data-line": run.line === undefined ? undefined : String(run.line),
   };
-  const iconText = describeScriptLanguage(run.language);
+  const iconText = formatScriptRunLabel(run.language);
   lane.append(
     setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
     setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),

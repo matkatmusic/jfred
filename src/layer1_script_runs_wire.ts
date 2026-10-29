@@ -1,7 +1,7 @@
 // Task l4-wire-real: the static path scan joins located script runs to pairs for the /api/layer1-script-runs view.
 
 import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
-import { WireScriptLanguage, describeScriptLanguage, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -44,7 +44,7 @@ function buildWireScriptRun(run: ScriptRun, sessionId: Uuid, sessionFile: Path):
     ...(run.source === undefined ? {} : { line: run.source.lineNumber }),
     code: run.code,
     // An absent label must stay absent: a `label: undefined` KEY differs under deep equality.
-    ...(run.invokedScriptFile === undefined ? {} : { label: `${describeScriptLanguage(language)} ${run.invokedScriptFile}` }),
+    ...(run.invokedScriptFile === undefined ? {} : { label: `${formatScriptRunLabel(language)} ${run.invokedScriptFile}` }),
     sessionId,
     sessionFile,
   };

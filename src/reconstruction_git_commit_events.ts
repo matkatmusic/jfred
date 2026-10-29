@@ -49,7 +49,8 @@ function parseAddEventsFromCommand(command: string, recordCwd: Path | undefined,
     for (const argument of (match[2] ?? "").trim().split(/\s+/)) {
       if (argument === "")
         continue;
-      if (argument.startsWith("-"))
+      const isFlag = argument.startsWith("-");
+      if (isFlag)
         continue;
       if (argument === ".")
         continue;
@@ -72,7 +73,8 @@ export function findGitAddEvents(records: TranscriptRecord[]): GitAddEvent[] {
       continue;
     const recordCwd = (record as { cwd?: Path }).cwd;
     for (const block of getContentBlocks(record)) {
-      if (block.type !== BlockType.tool_use || block.name !== ToolName.Bash)
+      const isBashToolUse = block.type === BlockType.tool_use && block.name === ToolName.Bash;
+      if (!isBashToolUse)
         continue;
       const command = (block.input as { command?: string }).command;
       if (command === undefined)
@@ -97,7 +99,8 @@ export function findGitCommitEvents(records: TranscriptRecord[]): GitCommitEvent
       continue;
     const recordCwd = (record as { cwd?: Path }).cwd;
     for (const block of getContentBlocks(record)) {
-      if (block.type !== BlockType.tool_use || block.name !== ToolName.Bash)
+      const isBashToolUse = block.type === BlockType.tool_use && block.name === ToolName.Bash;
+      if (!isBashToolUse)
         continue;
       const command = (block.input as { command?: string }).command;
       if (command === undefined)

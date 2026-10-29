@@ -42,10 +42,16 @@ function computeBranchRecords(
   if (branchUuids.size === 0) {
     return records;
   }
-  const selected = records.filter(
-    (record) => record.uuid === undefined || branchUuids.has(record.uuid.toString()),
-  );
-    // Nothing dropped: keep the input's identity so downstream identity-keyed memos hit.
+  const selected: TranscriptRecord[] = [];
+  for (const record of records) {
+    const isUuidless = record.uuid === undefined;
+    const isOnBranch = record.uuid !== undefined && branchUuids.has(record.uuid.toString());
+    const isKept = isUuidless || isOnBranch;
+    if (isKept) {
+      selected.push(record);
+    }
+  }
+  // Nothing dropped: keep the input's identity so downstream identity-keyed memos hit.
   if (selected.length === records.length) {
     return records;
   }

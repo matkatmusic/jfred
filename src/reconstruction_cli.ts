@@ -11,7 +11,7 @@ import { applyRevisionBound } from "./reconstruction_bound.ts";
 import { parseArgs, type CliOptions } from "./reconstruction_cli_args.ts";
 import { applyCliPathOverrides } from "./reconstruction_cli_path_overrides.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { reconstructBranches } from "./reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import {
   formatReconstructionCountersLine,
@@ -92,7 +92,7 @@ function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefine
   if (isTargetedSurviving) {
     return renderChosen(listTargetedSurvivingHistories(records, reader, options.target!), options);
   }
-  const branched = reconstructBranches(records, reader);
+  const branched = buildBranchedReconstruction(records, reader);
   if (options.listBranches) {
     return renderBranchSummary(branched);
   }

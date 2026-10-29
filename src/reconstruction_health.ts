@@ -15,12 +15,12 @@ export type ReconstructionFailure = {
 let buffer: ReconstructionFailure[] = [];
 
 // Record one survived failure.
-export function noteReconstructionFailure(failure: ReconstructionFailure): void {
+export function reportReconstructionFailure(failure: ReconstructionFailure): void {
   buffer.push(failure);
 }
 
 // Return the captured failures and empty the buffer.
-export function drainReconstructionFailures(): ReconstructionFailure[] {
+export function popReconstructionFailures(): ReconstructionFailure[] {
   const drained = buffer;
   buffer = [];
   return drained;

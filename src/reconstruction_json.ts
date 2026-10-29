@@ -5,7 +5,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SkippedLine } from "./parse/loadTranscript.ts";
 import { RecordType } from "./structures/vocabulary.ts";
 import {
-  drainReconstructionFailures,
+  popReconstructionFailures,
   type ReconstructionFailure,
 } from "./reconstruction_health.ts";
 import { buildConversationMessage, extractMessageText } from "./reconstruction_json_messages.ts";
@@ -140,8 +140,8 @@ export function buildReconstructionDocument(
     toolCalls: sections.toolCalls,
     scriptRuns: sections.scriptRuns,
     skippedLines,
-    // Drained LAST so stage/file notes accumulated during reconstructBranches (earlier in the build) ride along with the phase notes above.
-    failures: drainReconstructionFailures(),
+    // Drained LAST so stage/file notes accumulated during buildBranchedReconstruction (earlier in the build) ride along with the phase notes above.
+    failures: popReconstructionFailures(),
   };
   return { document, stepFileHistories: sections.stepFileHistories };
 }

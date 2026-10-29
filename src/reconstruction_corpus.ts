@@ -79,11 +79,13 @@ export function getDerivedCaches(
     state.derived = buildDerivedCaches(reader);
     return state.derived;
   }
-  if (state.derived.impureAllowed !== isImpureExecutionAllowed()) {
+  const impureAllowedNow = isImpureExecutionAllowed();
+  if (state.derived.impureAllowed !== impureAllowedNow) {
     state.derived = buildDerivedCaches(reader);
     return state.derived;
   }
-  if (state.derived.preBaselineAllowed !== isPreBaselineReconstructionAllowed()) {
+  const preBaselineAllowedNow = isPreBaselineReconstructionAllowed();
+  if (state.derived.preBaselineAllowed !== preBaselineAllowedNow) {
     state.derived = buildDerivedCaches(reader);
   }
   return state.derived;

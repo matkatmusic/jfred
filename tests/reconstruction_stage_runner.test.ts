@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { executeStageTolerantly } from "../src/reconstruction_stage_runner.ts";
-import { clearReconstructionFailures, drainReconstructionFailures } from "../src/reconstruction_health.ts";
+import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
 import { Path } from "../src/structures/domain.ts";
 import { FailureScope } from "../src/structures/vocabulary_views.ts";
 import type { FileEvent } from "../src/reconstruction_events.ts";
@@ -19,7 +19,7 @@ test("test_executeStageTolerantly_returns_the_stage_result_and_passes_args", () 
     const result = executeStageTolerantly("s", TARGET, [], runStage, 1, 2);
     assert.equal(result, output);
     assert.deepEqual(seenArgs, [1, 2]);
-    assert.equal(drainReconstructionFailures().length, 0);
+    assert.equal(popReconstructionFailures().length, 0);
 });
 
 test("test_executeStageTolerantly_returns_the_input_and_notes_a_failure_on_throw", () => {
@@ -30,7 +30,7 @@ test("test_executeStageTolerantly_returns_the_input_and_notes_a_failure_on_throw
     }
     const result = executeStageTolerantly("badStage", TARGET, input, runFailingStage);
     assert.equal(result, input);
-    const failures = drainReconstructionFailures();
+    const failures = popReconstructionFailures();
     assert.equal(failures.length, 1);
     assert.equal(failures[0]?.scope, FailureScope.fileStage);
     assert.equal(failures[0]?.stage, "badStage");

@@ -8,7 +8,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
 import { LayeredNodeKind } from "./structures/vocabulary_views.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
-import { checkEventIsLineageEdge } from "./layered_lineage.ts";
+import { isEventLineageEdge } from "./layered_lineage.ts";
 import type { LineageEvidence } from "./layered_lineage.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 import type { JsonlRef, TimelineNode } from "./layered_types.ts";
@@ -96,7 +96,7 @@ export function collectSessionNodes(
     if (evidence === undefined) {
       continue;
     }
-    const isLineageEdge = checkEventIsLineageEdge(event);
+    const isLineageEdge = isEventLineageEdge(event);
     if (isLineageEdge) {
       lineageEvidence.push({ event, evidence });
       continue;

@@ -3,13 +3,13 @@
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
-import { reconstructFile } from "./reconstruction_engine.ts";
+import { buildFileRevisions } from "./reconstruction_engine.ts";
 import type { EditEvent, FileEvent } from "./reconstruction_events.ts";
 import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findLastRevisionAtOrBefore, findLastRevisionStrictlyBefore, getLinesText } from "./reconstruction_revisions.ts";
-import { noteReconstructionFailure } from "./reconstruction_health.ts";
+import { reportReconstructionFailure } from "./reconstruction_health.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 
@@ -48,7 +48,7 @@ export function validateJoinContentAgreement(
   }
   const editEvidence: EditEvent = evidence;
   const reader = buildSidecarReader(earlierRecords, sources);
-  const revisions = reconstructFile(earlierRecords, primaryPath, reader);
+  const revisions = buildFileRevisions(earlierRecords, primaryPath, reader);
   const base = findLastRevisionAtOrBefore(revisions, editEvidence.timestamp);
   if (base === undefined) {
     return false;
@@ -78,7 +78,7 @@ export function reportJoinedPathConflicts(
   sources: SourceEntry[],
 ): void {
   const reader = buildSidecarReader(mergedRecords, sources);
-  const revisions = reconstructFile(mergedRecords, primaryPath, reader);
+  const revisions = buildFileRevisions(mergedRecords, primaryPath, reader);
   for (const event of extractFileEvents(mergedRecords)) {
     const isNotEdit = event.kind !== EventKind.edit;
     if (isNotEdit) {
@@ -100,7 +100,7 @@ export function reportJoinedPathConflicts(
     if (isAgreeing) {
       continue;
     }
-    noteReconstructionFailure({
+    reportReconstructionFailure({
       scope: FailureScope.fileStage,
       stage: "noteJoinedPathConflicts",
       target: primaryPath,

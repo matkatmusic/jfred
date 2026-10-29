@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { selectLiveBranch } from "../src/reconstruction_branch.ts";
 import { selectBranchRecords } from "../src/reconstruction_branch_records.ts";
-import { reconstructAll } from "../src/reconstruction_engine.ts";
+import { buildAllFileHistories } from "../src/reconstruction_engine.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { Uuid } from "../src/structures/domain.ts";
@@ -56,11 +56,11 @@ test("test_selectLiveBranch_returns_the_same_array_instance_for_the_same_records
     assert.equal(selectLiveBranch(records), selectLiveBranch(records));
 });
 
-test("test_reconstructAll_reuses_memoized_histories_across_passes", () => {
-    // Scenario: two reconstructAll passes over the same records share the memoized per-file revisions.
+test("test_buildAllFileHistories_reuses_memoized_histories_across_passes", () => {
+    // Scenario: two buildAllFileHistories passes over the same records share the memoized per-file revisions.
     const { records } = loadTranscript(S19_JSONL);
-    const first = reconstructAll(records);
-    const second = reconstructAll(records);
+    const first = buildAllFileHistories(records);
+    const second = buildAllFileHistories(records);
     assert.ok(first.length > 0);
     for (const [index, history] of first.entries()) {
         assert.equal(second[index]!.revisions, history.revisions);
@@ -71,10 +71,10 @@ test("test_reconstruction_memo_is_invalidated_when_the_exec_gate_flips", () => {
     // Scenario: histories built with the gate on are never served after it turns off.
     assert.equal(isImpureExecutionAllowed(), true);
     const { records } = loadTranscript(S19_JSONL);
-    const gateOn = reconstructAll(records);
+    const gateOn = buildAllFileHistories(records);
     try {
         setImpureExecutionAllowed(false);
-        const gateOff = reconstructAll(records);
+        const gateOff = buildAllFileHistories(records);
         assert.notEqual(gateOff[0]!.revisions, gateOn[0]!.revisions);
     } finally {
         setImpureExecutionAllowed(true);
@@ -98,8 +98,8 @@ test("test_derived_caches_are_invalidated_when_the_reader_identity_changes", () 
     const { records } = loadTranscript(S19_JSONL);
     const readerA: BackupReader = () => "";
     const readerB: BackupReader = () => "";
-    const withReaderA = reconstructAll(records, readerA);
-    const withReaderB = reconstructAll(records, readerB);
+    const withReaderA = buildAllFileHistories(records, readerA);
+    const withReaderB = buildAllFileHistories(records, readerB);
     assert.ok(withReaderA.length > 0);
     assert.notEqual(withReaderB[0]!.revisions, withReaderA[0]!.revisions);
 });

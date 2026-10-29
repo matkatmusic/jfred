@@ -1,11 +1,11 @@
-// Task 186 (spec S11): the per-file sweep's pure half — candidate selection out of git's name-status output, the endpoint/gap verdict (endpoint matches are necessary but NOT sufficient), and a markdown table no note can break.
+// Task 186 (spec S11): the sweep's pure half: candidate selection, verdict, and markdown table.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
 import { SweepVerdict } from "../src/structures/vocabulary_views.ts";
 import {
-    classifySweepRow,
+    computeSweepVerdict,
     formatSweepTable,
     selectCandidatesByStatus,
     type SweepRow,
@@ -58,26 +58,26 @@ test("test_selectCandidatesByStatus_takes_the_destination_of_a_rename_line", () 
     );
 });
 
-test("test_classifySweepRow_calls_a_complete_ladder_ok", () => {
+test("test_computeSweepVerdict_calls_a_complete_ladder_ok", () => {
     // Scenario: both endpoints match and nothing failed to replay.
-    assert.equal(classifySweepRow(makeRow({})), SweepVerdict.ok);
+    assert.equal(computeSweepVerdict(makeRow({})), SweepVerdict.ok);
 });
 
-test("test_classifySweepRow_calls_matched_endpoints_with_unrecoverable_revisions_gaps", () => {
-    // Scenario: the S11 user correction — endpoint matches do NOT make a pass when the ladder holds revisions the engine could not replay.
-    assert.equal(classifySweepRow(makeRow({ unrecoverable: 3 })), SweepVerdict.gaps);
+test("test_computeSweepVerdict_calls_matched_endpoints_with_unrecoverable_revisions_gaps", () => {
+    // Scenario: matched endpoints do not pass when some revisions could not be replayed.
+    assert.equal(computeSweepVerdict(makeRow({ unrecoverable: 3 })), SweepVerdict.gaps);
 });
 
-test("test_classifySweepRow_calls_either_missed_endpoint_an_endpoint_miss", () => {
+test("test_computeSweepVerdict_calls_either_missed_endpoint_an_endpoint_miss", () => {
     // Scenario: a wrong baseline blob or a final revision that is not today's disk content.
-    assert.equal(classifySweepRow(makeRow({ baselineBlobMatched: false })), SweepVerdict.endpointMiss);
-    assert.equal(classifySweepRow(makeRow({ diskMatched: false })), SweepVerdict.endpointMiss);
+    assert.equal(computeSweepVerdict(makeRow({ baselineBlobMatched: false })), SweepVerdict.endpointMiss);
+    assert.equal(computeSweepVerdict(makeRow({ diskMatched: false })), SweepVerdict.endpointMiss);
 });
 
-test("test_classifySweepRow_calls_an_empty_ladder_none", () => {
+test("test_computeSweepVerdict_calls_an_empty_ladder_none", () => {
     // Scenario: no revisions at all — reported as its own verdict, never as an endpoint miss.
     assert.equal(
-        classifySweepRow(makeRow({ revisions: 0, baselineBlobMatched: false, diskMatched: false })),
+        computeSweepVerdict(makeRow({ revisions: 0, baselineBlobMatched: false, diskMatched: false })),
         SweepVerdict.none,
     );
 });
@@ -98,7 +98,7 @@ test("test_formatSweepTable_emits_a_markdown_table_with_one_row_per_candidate", 
 });
 
 test("test_formatSweepTable_keeps_a_multiline_note_inside_its_cell", () => {
-    // Scenario: an engine error message carrying newlines or pipes must not break the table — every row stays exactly one line with the same column count.
+    // Scenario: newlines or pipes in a note must not break the table rows.
     const table = formatSweepTable([makeRow({ note: "threw:\nhunk | mismatch\nat line 4" })]);
 
     const rowLine = table.split("\n")[2]!;

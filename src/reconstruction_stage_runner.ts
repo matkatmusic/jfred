@@ -2,7 +2,7 @@
 
 import type { Path } from "./structures/domain.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
-import { noteReconstructionFailure } from "./reconstruction_health.ts";
+import { reportReconstructionFailure } from "./reconstruction_health.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
 
@@ -19,7 +19,7 @@ export function executeStageTolerantly<Args extends unknown[]>(
     return run(...args);
   }
   catch (error) {
-    noteReconstructionFailure({ scope: FailureScope.fileStage, stage, target, reason: String(error) });
+    reportReconstructionFailure({ scope: FailureScope.fileStage, stage, target, reason: String(error) });
     return input;
   }
 }

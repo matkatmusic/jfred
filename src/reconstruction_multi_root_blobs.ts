@@ -4,18 +4,19 @@ import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { Path, type Uuid } from "./structures/domain.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
-import { noteReconstructionFailure } from "./reconstruction_health.ts";
+import { reportReconstructionFailure } from "./reconstruction_health.ts";
 
 function readBlobIfPresent(root: Path, sessionId: Uuid, backupFileName: Path): string | undefined {
   const blobPath = join(root.toString(), sessionId.toString(), backupFileName.toString());
-  if (!existsSync(blobPath)) {
+  const isBlobPresent = existsSync(blobPath);
+  if (!isBlobPresent) {
     return undefined;
   }
   return readFileSync(blobPath, "utf8");
 }
 
 // A blob missing in an earlier root falls through to the next; undefined when no root holds it.
-export function resolveBlobAcrossRoots(
+export function readBlobAcrossRoots(
   roots: readonly Path[],
   sessionId: Uuid,
   backupFileName: Path,
@@ -31,9 +32,9 @@ export function resolveBlobAcrossRoots(
       continue;
     }
     if (content !== winner.content) {
-      noteReconstructionFailure({
+      reportReconstructionFailure({
         scope: FailureScope.fileStage,
-        stage: "resolveBlobAcrossRoots",
+        stage: "readBlobAcrossRoots",
         target: new Path(join(sessionId.toString(), backupFileName.toString())),
         reason: `cross-root snapshot conflict: bytes in ${root.toString()} differ from earlier root ${winner.root.toString()}; using the earlier root`,
       });
