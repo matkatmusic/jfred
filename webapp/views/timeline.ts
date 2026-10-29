@@ -16,7 +16,7 @@ import { isAllLinesOn } from "./timeline-line-nodes.ts";
 import { buildTurnTimelineViewModel } from "./timeline-nodes.ts";
 import { moveToSessionAnchor, openLineAnchor } from "./timeline-anchors.ts";
 import { createTimelineRenderContext } from "./timeline-context.ts";
-import { resolveChipLineLocations, resolveLineLabels } from "./timeline-render-inspectors.ts";
+import { loadChipLineLocations, loadLineLabels } from "./timeline-line-locations.ts";
 import { renderTimelineFilterBar } from "./timeline-render-filterbar.ts";
 import { buildTimelineRows } from "./timeline-render-rows.ts";
 import { renderSelectbarButtons } from "./timeline-render-pickbar.ts";
@@ -75,8 +75,8 @@ export async function renderTimelineView(container: HTMLElement, project: string
   activeDetailsContext = context.detailsContext;
 
   renderSelectbarButtons(context);
-  await resolveLineLabels(context);
-  await resolveChipLineLocations(context);
+  await loadLineLabels(context);
+  await loadChipLineLocations(context);
   await buildTimelineRows(context, container);
   renderTimelineFilterBar(context, document.getElementById("timeline-filter-bar")!);
   attachToggleAllButton(context);

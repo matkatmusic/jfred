@@ -3,7 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { shortUuid } from "./reconstruction_branch_lookup.ts";
+import { getShortUuid } from "./reconstruction_branch_lookup.ts";
 import { getBaseName, shortenChangeId } from "./reconstruction_labels.ts";
 import {
   buildConversationDag,
@@ -32,7 +32,7 @@ function computeTurnWidths(turns: GraphTurn[]): TurnWidths {
 
 // A short tip/root id, or a placeholder when absent (no rooted record).
 function formatShortUuid(uuid: Uuid | undefined): string {
-  return uuid === undefined ? "????????" : shortUuid(uuid);
+  return uuid === undefined ? "????????" : getShortUuid(uuid);
 }
 
 // Format a turn's core columns, aligned to the given widths.

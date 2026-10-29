@@ -2,7 +2,7 @@
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
+import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
 import { computeRunBracket,listDiffableSteps } from "./layer1-drawer-steps.ts";
@@ -140,7 +140,7 @@ export async function openScriptRunDrawer(toolUseId: string | undefined): Promis
   getRequiredElementById("dmeta").replaceChildren(buildScriptRunFileFold(getScriptRunTitle(run), paths));
   getRequiredElementById("drawer").classList.add("open");
   setDrawerTools("none");
-  displayDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+  renderDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {
     appendRawJsonRevealForLine(run.sessionFile, run.line);
   }

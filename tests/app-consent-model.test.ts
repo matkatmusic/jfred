@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkConsentScriptOverflowsPreview, clampConsentSelectionStep, ConsentBlockKind, findDefaultConsentSelectionIndex, formatConsentSourceToken, groupConsentScriptsIntoBlocks, splitInlineInterpreterCode } from "../webapp/app-consent-model.ts";
+import { isConsentScriptOverflowingPreview, computeConsentSelectionStep, ConsentBlockKind, findDefaultConsentSelectionIndex, formatConsentSourceToken, splitConsentScriptsIntoBlocks, splitInlineInterpreterCode } from "../webapp/app-consent-model.ts";
 
 // -------------------- consent dialog display blocks (item 69) --------------------
 
@@ -11,11 +11,11 @@ function makeConsentScript(index: number, readOnly: boolean): { timestamp: strin
     return { timestamp: `2026-01-01T00:00:0${index}Z`, code: `print(${index})`, readOnly };
 }
 
-test("test_groupConsentScriptsIntoBlocks_collapses_contiguous_read_only_runs", () => {
+test("test_splitConsentScriptsIntoBlocks_collapses_contiguous_read_only_runs", () => {
     // Scenario: [ro, ro, mod, ro] yields [read-only run of 2, modifying, read-only run of 1],
     // preserving chronological order.
     const scripts = [makeConsentScript(1, true), makeConsentScript(2, true), makeConsentScript(3, false), makeConsentScript(4, true)];
-    const blocks = groupConsentScriptsIntoBlocks(scripts);
+    const blocks = splitConsentScriptsIntoBlocks(scripts);
     assert.equal(blocks.length, 3);
     assert.equal(blocks[0]!.kind, ConsentBlockKind.readOnlyRun);
     assert.equal(blocks[0]!.kind === ConsentBlockKind.readOnlyRun ? blocks[0]!.scripts.length : 0, 2);
@@ -23,31 +23,31 @@ test("test_groupConsentScriptsIntoBlocks_collapses_contiguous_read_only_runs", (
     assert.equal(blocks[2]!.kind, ConsentBlockKind.readOnlyRun);
 });
 
-test("test_groupConsentScriptsIntoBlocks_treats_missing_flag_as_modifying", () => {
+test("test_splitConsentScriptsIntoBlocks_treats_missing_flag_as_modifying", () => {
     // Scenario: a script with no readOnly field (older server) renders as a full modifying row — the dialog degrades to today's behavior, never hides anything untagged.
     const scripts = [{ timestamp: "2026-01-01T00:00:01Z", code: "x" }];
-    const blocks = groupConsentScriptsIntoBlocks(scripts);
+    const blocks = splitConsentScriptsIntoBlocks(scripts);
     assert.equal(blocks.length, 1);
     assert.equal(blocks[0]!.kind, ConsentBlockKind.modifying);
 });
 
-test("test_groupConsentScriptsIntoBlocks_returns_no_blocks_for_no_scripts", () => {
+test("test_splitConsentScriptsIntoBlocks_returns_no_blocks_for_no_scripts", () => {
     // Scenario: an empty script list yields an empty block list (no phantom summary line).
-    assert.equal(groupConsentScriptsIntoBlocks([]).length, 0);
+    assert.equal(splitConsentScriptsIntoBlocks([]).length, 0);
 });
 
-test("test_checkConsentScriptOverflowsPreview_returns_false_for_short_script", () => {
+test("test_isConsentScriptOverflowingPreview_returns_false_for_short_script", () => {
     // Scenario: a script that fits inside the 200px preview needs no Expand button.  Steps: build a script whose line count is exactly the preview capacity (12 lines).
     const code = Array.from({ length: 12 }, (_, index) => `line ${index}`).join("\n");
     // the overflow check must say the preview does NOT overflow.
-    assert.equal(checkConsentScriptOverflowsPreview(code), false);
+    assert.equal(isConsentScriptOverflowingPreview(code), false);
 });
 
-test("test_checkConsentScriptOverflowsPreview_returns_true_for_script_longer_than_preview", () => {
+test("test_isConsentScriptOverflowingPreview_returns_true_for_script_longer_than_preview", () => {
     // Scenario: a script one line taller than the preview capacity gets an Expand button.  Steps: build a script whose line count is one over the preview capacity (13 lines).
     const code = Array.from({ length: 13 }, (_, index) => `line ${index}`).join("\n");
     // the overflow check must say the preview DOES overflow.
-    assert.equal(checkConsentScriptOverflowsPreview(code), true);
+    assert.equal(isConsentScriptOverflowingPreview(code), true);
 });
 
 test("test_splitInlineInterpreterCode_splits_python_dash_c_wrapper_from_inline_body", () => {
@@ -80,7 +80,7 @@ test("test_findDefaultConsentSelectionIndex_picks_first_modifying_script", () =>
 });
 
 test("test_findDefaultConsentSelectionIndex_treats_missing_flag_as_modifying", () => {
-    // Scenario: a script without a readOnly flag counts as modifying (same rule as groupConsentScriptsIntoBlocks).  Steps: a script list holds one read-only script followed by one with no flag at all.
+    // Scenario: a script without a readOnly flag counts as modifying (same rule as splitConsentScriptsIntoBlocks).  Steps: a script list holds one read-only script followed by one with no flag at all.
     const scripts = [makeConsentScript(1, true), { timestamp: "2026-01-01T00:00:02Z", code: "print(2)" }];
     // the unflagged script is the default selection.
     assert.equal(findDefaultConsentSelectionIndex(scripts), 1);
@@ -93,24 +93,24 @@ test("test_findDefaultConsentSelectionIndex_returns_undefined_when_all_read_only
     assert.equal(findDefaultConsentSelectionIndex(scripts), undefined);
 });
 
-test("test_clampConsentSelectionStep_advances_within_bounds", () => {
+test("test_computeConsentSelectionStep_advances_within_bounds", () => {
     // Scenario: stepping forward from the middle of three visible scripts selects the next one.
-    assert.equal(clampConsentSelectionStep(1, 1, 3), 2);
+    assert.equal(computeConsentSelectionStep(1, 1, 3), 2);
 });
 
-test("test_clampConsentSelectionStep_clamps_at_last_script", () => {
+test("test_computeConsentSelectionStep_clamps_at_last_script", () => {
     // Scenario: stepping forward from the last visible script stays on the last script (no wrap).
-    assert.equal(clampConsentSelectionStep(2, 1, 3), 2);
+    assert.equal(computeConsentSelectionStep(2, 1, 3), 2);
 });
 
-test("test_clampConsentSelectionStep_clamps_at_first_script", () => {
+test("test_computeConsentSelectionStep_clamps_at_first_script", () => {
     // Scenario: stepping backward from the first visible script stays on the first script (no wrap).
-    assert.equal(clampConsentSelectionStep(0, -1, 3), 0);
+    assert.equal(computeConsentSelectionStep(0, -1, 3), 0);
 });
 
-test("test_clampConsentSelectionStep_enters_list_from_no_selection", () => {
+test("test_computeConsentSelectionStep_enters_list_from_no_selection", () => {
     // Scenario: with no current selection (index -1, e.g. every row was hidden until a read-only block opened), stepping forward lands on the first visible script.
-    assert.equal(clampConsentSelectionStep(-1, 1, 3), 0);
+    assert.equal(computeConsentSelectionStep(-1, 1, 3), 0);
 });
 
 // -------------------- consent script source token (task 97) --------------------

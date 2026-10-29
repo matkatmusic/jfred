@@ -8,19 +8,23 @@ import type { WireStepSnapshot } from "./timeline-wire-types.ts";
 // The base-commit row: the commit node whose short resultHash prefixes the baseline beacon's commit hash.
 function findBaseCommitNode(commitNodes: CommitNode[], snapshot: WireStepSnapshot): CommitNode | undefined {
   const baselineCommitHash = extractGitBaseCommitHash(snapshot.changeIds[0]!);
-  return commitNodes.find((node) => {
+  for (const node of commitNodes) {
     if (node.resultHash === undefined) {
-      return false;
+      continue;
     }
     if (node.resultHash === "") {
-      return false;
+      continue;
     }
-    return baselineCommitHash.startsWith(node.resultHash);
-  });
+    const isBaseCommit = baselineCommitHash.startsWith(node.resultHash);
+    if (isBaseCommit) {
+      return node;
+    }
+  }
+  return undefined;
 }
 
 // The node hosting baseline snapshots: the base-commit row, else a new baseline turn pushed into turnNodes.
-function claimBaselineHost(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot): TurnNode | CommitNode {
+function getBaselineHost(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot): TurnNode | CommitNode {
   const baseCommitNode = findBaseCommitNode(commitNodes, snapshot);
   if (baseCommitNode !== undefined) {
     baseCommitNode.isGitBaseline = true;
@@ -42,9 +46,9 @@ function claimBaselineHost(turnNodes: TurnNode[], commitNodes: CommitNode[], sna
 }
 
 // Attaches a gitBase-only snapshot to the baseline host, claiming it on first use; returns the host.
-export function recordGitBaselineSnapshot(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot, baselineHost: TurnNode | CommitNode | undefined): TurnNode | CommitNode {
+export function addGitBaselineSnapshot(turnNodes: TurnNode[], commitNodes: CommitNode[], snapshot: WireStepSnapshot, baselineHost: TurnNode | CommitNode | undefined): TurnNode | CommitNode {
   if (baselineHost === undefined) {
-    baselineHost = claimBaselineHost(turnNodes, commitNodes, snapshot);
+    baselineHost = getBaselineHost(turnNodes, commitNodes, snapshot);
   }
   baselineHost.snapshots!.push(snapshot);
   return baselineHost;

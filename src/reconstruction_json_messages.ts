@@ -8,13 +8,17 @@ import type { ConversationMessage } from "./reconstruction_json.ts";
 // Extracts displayed text from a record; joins TextBlocks or returns "".
 export function extractMessageText(record: TranscriptRecord): string {
   const message = record.message as { content?: unknown } | undefined;
-  if (message !== undefined && typeof message.content === "string") {
-    return message.content;
+  const content = message?.content;
+  if (typeof content === "string") {
+    return content;
   }
-  const textBlocks = getContentBlocks(record).filter(
-    (block): block is TextBlock => block.type === BlockType.text,
-  );
-  return textBlocks.map((block) => block.text).join("\n");
+  const texts: string[] = [];
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.text) {
+      texts.push((block as TextBlock).text);
+    }
+  }
+  return texts.join("\n");
 }
 
 // Build one ConversationMessage from a record (caller has already decided it qualifies).

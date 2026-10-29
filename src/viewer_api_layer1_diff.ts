@@ -1,7 +1,7 @@
 // GET /api/layer1-diff: unified-diff hunks between two revisions of one Layer 1 file.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
-import { FULL_FILE_CONTEXT_LINES, runGitUnifiedDiff } from "./render_git_diff.ts";
+import { FULL_FILE_CONTEXT_LINES, getGitUnifiedDiff } from "./render_git_diff.ts";
 import { readLayer1FileBytes } from "./viewer_api_layer1_file.ts";
 import { readSnapshotFileContent } from "./viewer_api_layer1_snapshot.ts";
 import { sendJson } from "./viewer_server_routes.ts";
@@ -47,7 +47,7 @@ function buildAllContextHunk(lines: string[]): string {
 
 // The diff string between two revisions; task 330's fixture route feeds canned lines through the same rule.
 export function buildLayer1DiffPayload(baseLines: string[], targetLines: string[], wantsFullContext: boolean): string {
-  const diff = runGitUnifiedDiff(baseLines, targetLines, wantsFullContext ? FULL_FILE_CONTEXT_LINES : undefined);
+  const diff = getGitUnifiedDiff(baseLines, targetLines, wantsFullContext ? FULL_FILE_CONTEXT_LINES : undefined);
   // Task 320: the drawer's full-content toggle widens an identical-sides diff to the whole file.
   return diff === "" && wantsFullContext ? buildAllContextHunk(targetLines) : diff;
 }

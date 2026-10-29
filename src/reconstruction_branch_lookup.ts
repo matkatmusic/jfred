@@ -9,7 +9,7 @@ import type { FileHistory } from "./reconstruction_events.ts";
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 
 // Canonical short-id: first 8 chars of a branch tip's uuid string.
-export function shortUuid(uuid: Uuid): string {
+export function getShortUuid(uuid: Uuid): string {
   return uuid.toString().slice(0, 8);
 }
 
@@ -21,19 +21,24 @@ export function findBranchById(
   if (id === "surviving") {
     return branched.surviving;
   }
-  const match = branched.rewound.find((entry) => shortUuid(entry.tip) === id);
-  if (match === undefined) {
-    return undefined;
+  for (const entry of branched.rewound) {
+    const isMatch = getShortUuid(entry.tip) === id;
+    if (isMatch) {
+      return entry.histories;
+    }
   }
-  return match.histories;
+  return undefined;
 }
 
 // Return the first file deleted on the surviving branch, if any, as a default target.
 export function findDeletedTarget(
   records: TranscriptRecord[],
 ): Path | undefined {
-  const deletion = extractFileEvents(selectLiveBranch(records)).find(
-    (event) => event.kind === EventKind.delete,
-  );
-  return deletion?.kind === EventKind.delete ? deletion.target : undefined;
+  const events = extractFileEvents(selectLiveBranch(records));
+  for (const event of events) {
+    if (event.kind === EventKind.delete) {
+      return event.target;
+    }
+  }
+  return undefined;
 }

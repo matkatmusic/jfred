@@ -3,7 +3,7 @@
 import { createElement } from "./app-dom.ts";
 import { storeConsentChoice } from "./app-choices.ts";
 import { type WireConsentScript } from "./app-fetch.ts";
-import { ConsentBlockKind, groupConsentScriptsIntoBlocks } from "./app-consent-model.ts";
+import { ConsentBlockKind, splitConsentScriptsIntoBlocks } from "./app-consent-model.ts";
 import { attachConsentNavigation } from "./app-consent-nav.ts";
 import { appendReadOnlyScriptsBlock, buildConsentScriptRow, toggleReadOnlyBlocksVisibility } from "./app-consent-rows.ts";
 import { attachToggleAllButton } from "./app-consent-toggle-all.ts";
@@ -54,7 +54,7 @@ export function renderConsentDialog(container: HTMLElement, project: string, scr
       onclick: () => toggleReadOnlyBlocksVisibility(box),
     }));
   }
-  for (const block of groupConsentScriptsIntoBlocks(scripts)) {
+  for (const block of splitConsentScriptsIntoBlocks(scripts)) {
     if (block.kind === ConsentBlockKind.modifying) {
       box.append(buildConsentScriptRow(block.script));
     }

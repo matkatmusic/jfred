@@ -7,7 +7,7 @@ import {
     buildProjectReconstruction,
     buildDocumentWithConsent,
 } from "../src/viewer_api.ts";
-import { decideDocumentResponse } from "../src/viewer_api_consent.ts";
+import { computeDocumentDecision } from "../src/viewer_api_consent.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeTempDir } from "./overrides-test-helpers.ts";
@@ -66,10 +66,10 @@ test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
 });
 
 
-test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => {
+test("test_computeDocumentDecision_requires_consent_when_scripts_present", () => {
     // Script runs without consent yield a consent-required decision carrying each script's code.
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
     assert.ok(decision.kind === DocumentResponseKind.consentRequired && decision.scripts.length > 0);
     for (const script of decision.kind === DocumentResponseKind.consentRequired ? decision.scripts : []) {
@@ -77,10 +77,10 @@ test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => 
     }
 });
 
-test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
+test("test_computeDocumentDecision_tags_each_script_with_read_only_flag", () => {
     // Every script's readOnly tag must agree with the execution gate's classifier (item 68).
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
     for (const script of decision.kind === DocumentResponseKind.consentRequired ? decision.scripts : []) {
         assert.equal(typeof script.readOnly, "boolean");
@@ -88,14 +88,14 @@ test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
     }
 });
 
-test("test_decideDocumentResponse_builds_when_consented", () => {
+test("test_computeDocumentDecision_builds_when_consented", () => {
     // Scenario: the same script-bearing records WITH consent decide to build.
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, true);
+    const decision = computeDocumentDecision(records, true);
     assert.equal(decision.kind, DocumentResponseKind.document);
 });
 
-test("test_decideDocumentResponse_builds_when_no_scripts", () => {
+test("test_computeDocumentDecision_builds_when_no_scripts", () => {
     // A script-free transcript never prompts. Synthetic, since every captured transcript carries harness probes.
     const records = [
         {
@@ -112,7 +112,7 @@ test("test_decideDocumentResponse_builds_when_no_scripts", () => {
             },
         } as unknown as TranscriptRecord,
     ];
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.document);
 });
 

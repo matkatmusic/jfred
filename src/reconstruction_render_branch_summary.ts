@@ -2,7 +2,7 @@
 
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
-import { shortUuid } from "./reconstruction_branch_lookup.ts";
+import { getShortUuid } from "./reconstruction_branch_lookup.ts";
 import { getBaseName } from "./reconstruction_labels.ts";
 
 // The basenames of the files a branch touched, comma-joined (its "files changed" column).
@@ -19,12 +19,12 @@ export function renderBranchSummary(branched: BranchedReconstruction): string {
   const lines: string[] = [];
   if (branched.survivingTip !== undefined) {
     const files = listBranchFiles(branched.surviving);
-    lines.push(`surviving  tip #${shortUuid(branched.survivingTip)}    ${files}`);
+    lines.push(`surviving  tip #${getShortUuid(branched.survivingTip)}    ${files}`);
   }
   for (const entry of branched.rewound) {
     const files = listBranchFiles(entry.histories);
     lines.push(
-      `rewound    tip #${shortUuid(entry.tip)}  rewind @ #${shortUuid(entry.rewindPoint)}    ${files}`,
+      `rewound    tip #${getShortUuid(entry.tip)}  rewind @ #${getShortUuid(entry.rewindPoint)}    ${files}`,
     );
   }
   return lines.join("\n");

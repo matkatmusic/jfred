@@ -4,7 +4,7 @@ import type { FileRevision } from "./reconstruction_events.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { getCurrentText } from "./reconstruction_render.ts";
 import { computeDiffBlockHeader } from "./reconstruction_render_diff.ts";
-import { runGitUnifiedDiff, DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES } from "./render_git_diff.ts";
+import { getGitUnifiedDiff,DEFAULT_DIFF_CONTEXT_LINES, FULL_FILE_CONTEXT_LINES } from "./render_git_diff.ts";
 
 // const DIFF_CONTEXT_LINE_COUNT = 3;
 
@@ -110,7 +110,7 @@ function appendGitHunksForRevision(
 ): void {
   const beforeLines = collectLineTexts(previous);
   const afterLines = collectLineTexts(revision);
-  const hunks = runGitUnifiedDiff(beforeLines, afterLines, contextLines);
+  const hunks = getGitUnifiedDiff(beforeLines, afterLines, contextLines);
   if (hunks !== "") {
     blockLines.push(hunks);
   }

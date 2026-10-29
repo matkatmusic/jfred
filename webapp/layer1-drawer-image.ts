@@ -8,7 +8,8 @@ const ZOOM_OUT_FACTOR = 0.8;
 
 // Files the drawer shows as pictures; other binaries keep the placeholder sentence.
 export function isImagePath(path: string): boolean {
-  return IMAGE_EXTENSIONS.has(path.split(".").pop()?.toLowerCase() ?? "");
+  const extension = path.split(".").pop() ?? "";
+  return IMAGE_EXTENSIONS.has(extension.toLowerCase());
 }
 
 // 0 = fit-to-pane (the first-render state); otherwise a multiple of the image's natural size.
@@ -27,7 +28,7 @@ function applyImageScale(): void {
   image.style.width = imageScale === 0 ? "" : `${image.naturalWidth * imageScale}px`;
 }
 
-function stepImageZoom(factor: number): void {
+function updateImageZoom(factor: number): void {
   const image = findDrawerImage();
   if (image === null) {
     return;
@@ -45,12 +46,22 @@ export function renderImageInto(host: HTMLElement, sourceUrl: string): void {
   ]));
 }
 
-// Wired once (installNodeDrawer); the buttons live in the drawer header's #imgtools strip.
-export function wireImageZoomTools(): void {
-  getRequiredElementById("img-zoom-in").addEventListener("click", () => stepImageZoom(ZOOM_IN_FACTOR));
-  getRequiredElementById("img-zoom-out").addEventListener("click", () => stepImageZoom(ZOOM_OUT_FACTOR));
-  getRequiredElementById("img-zoom-fit").addEventListener("click", () => {
-    imageScale = 0;
-    applyImageScale();
-  });
+function applyZoomIn(): void {
+  updateImageZoom(ZOOM_IN_FACTOR);
+}
+
+function applyZoomOut(): void {
+  updateImageZoom(ZOOM_OUT_FACTOR);
+}
+
+function resetImageZoom(): void {
+  imageScale = 0;
+  applyImageScale();
+}
+
+// Installed once (installNodeDrawer); the buttons live in the drawer header's #imgtools strip.
+export function installImageZoomTools(): void {
+  getRequiredElementById("img-zoom-in").addEventListener("click", applyZoomIn);
+  getRequiredElementById("img-zoom-out").addEventListener("click", applyZoomOut);
+  getRequiredElementById("img-zoom-fit").addEventListener("click", resetImageZoom);
 }

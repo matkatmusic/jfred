@@ -3,7 +3,7 @@
 import { fetchRawRecords } from "../app-fetch.ts";
 import { findTimelineNodeIndexForRawLine } from "./timeline-labels-raw-line.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import { openTranscriptInspectorSynced } from "./timeline-render-inspectors.ts";
+import { openTranscriptInspectorSynced } from "./timeline-inspector-sync.ts";
 import type { TimelineNode } from "./timeline-node-types.ts";
 
 export function findFirstNodeIndexForJsonl(nodes: TimelineNode[], anchorJsonl: string): number {

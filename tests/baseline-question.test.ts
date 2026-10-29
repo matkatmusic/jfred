@@ -5,7 +5,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { decideBaselineQuestion } from "../src/viewer_api_consent.ts";
+import { computeBaselineQuestion } from "../src/viewer_api_consent.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -16,7 +16,7 @@ test("test_baseline_question_required_when_base_commit_configured_and_no_choice_
     // Scenario: repoDir and baseCommit are set, no choice arrived; the question payload has the discriminant, repo, and commit.
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
     // Step: no choice made yet -> the question is required.
-    const question = decideBaselineQuestion(false);
+    const question = computeBaselineQuestion(false);
     assert.ok(question !== undefined);
     // Step: the payload carries the enum discriminant and both display fields.
     assert.ok(question.kind === DocumentResponseKind.baselineQuestionRequired);
@@ -29,15 +29,15 @@ test("test_no_baseline_question_without_base_commit_override", () => {
     // whether or not a choice param arrived.
     setPathOverrides({});
     // Step: empty overrides -> undefined either way.
-    assert.equal(decideBaselineQuestion(false), undefined);
-    assert.equal(decideBaselineQuestion(true), undefined);
+    assert.equal(computeBaselineQuestion(false), undefined);
+    assert.equal(computeBaselineQuestion(true), undefined);
 });
 
 test("test_no_baseline_question_when_choice_already_made", () => {
     // Scenario: the client already answered (preBaseline present), so the gate stands aside and the build proceeds.
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
     // Step: choiceMade true -> undefined even with a configured baseline.
-    assert.equal(decideBaselineQuestion(true), undefined);
+    assert.equal(computeBaselineQuestion(true), undefined);
 });
 
 // task 152: re-ask control primitives: forget the stored answer, and evict cached documents so the next fetch re-asks.

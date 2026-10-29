@@ -4,11 +4,9 @@ import { createElement } from "../app-dom.ts";
 import { openInspectorPane } from "../inspector-pane.ts";
 import { clearActiveChip, markChipActive } from "./timeline-render-chips.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
-import {
-  findTranscriptLineForChangeId,
-  openNodeInspector,
-  openTranscriptInspectorSynced,
-} from "./timeline-render-inspectors.ts";
+import { openTranscriptInspectorSynced } from "./timeline-inspector-sync.ts";
+import { findTranscriptLineForChangeId } from "./timeline-line-locations.ts";
+import { openNodeInspector } from "./timeline-render-inspectors.ts";
 import { fetchRangePatch } from "./timeline-render-selectbar.ts";
 import { updateSelectbar } from "./timeline-render-pickbar.ts";
 import { moveToTimelineRow, resetRowFlash, selectTimelineRow } from "./timeline-render-selection.ts";

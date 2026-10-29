@@ -1,6 +1,6 @@
 // Attaches step snapshots to the agent turn that owns them.
 
-import { recordGitBaselineSnapshot } from "./timeline-baseline-host.ts";
+import { addGitBaselineSnapshot } from "./timeline-baseline-host.ts";
 import { isSnapshotGitBaseline } from "./timeline-changes.ts";
 import { AGENT_TURN_NODE_KIND } from "./timeline-types.ts";
 import type { CommitNode, SnapshotInstant, TurnNode } from "./timeline-node-types.ts";
@@ -34,7 +34,7 @@ export function attachSnapshotsToAgentTurns(turnNodes: TurnNode[], commitNodes: 
   for (const snapshot of steps) {
     const isGitBaseline = isSnapshotGitBaseline(snapshot);
     if (isGitBaseline) {
-      baselineHost = recordGitBaselineSnapshot(turnNodes, commitNodes, snapshot, baselineHost);
+      baselineHost = addGitBaselineSnapshot(turnNodes, commitNodes, snapshot, baselineHost);
       continue;
     }
     const owner = findSnapshotOwner(turnNodes, snapshot);

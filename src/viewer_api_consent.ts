@@ -14,10 +14,15 @@ export type DocumentDecision =
     | { kind: DocumentResponseKind.document };
 
 // The scripts ride along so the consent dialog can show each one's code.
-export function decideDocumentResponse(records: TranscriptRecord[], allowScripts: boolean): DocumentDecision {
+export function computeDocumentDecision(records: TranscriptRecord[], allowScripts: boolean): DocumentDecision {
   const scripts = findScriptExecutionRuns(records);
-  if (scripts.length > 0 && !allowScripts) {
-    const taggedScripts = scripts.map((run) => ({ ...run, readOnly: !isScriptCodeWriteCapable(run.code) }));
+  const hasScripts = scripts.length > 0;
+  const needsConsent = hasScripts && !allowScripts;
+  if (needsConsent) {
+    const taggedScripts: ConsentScript[] = [];
+    for (const run of scripts) {
+      taggedScripts.push({ ...run, readOnly: !isScriptCodeWriteCapable(run.code) });
+    }
     return { kind: DocumentResponseKind.consentRequired, scripts: taggedScripts };
   }
   return { kind: DocumentResponseKind.document };
@@ -30,7 +35,7 @@ export type BaselineQuestion = {
   repo: string;
 };
 
-export function decideBaselineQuestion(choiceMade: boolean): BaselineQuestion | undefined {
+export function computeBaselineQuestion(choiceMade: boolean): BaselineQuestion | undefined {
   if (choiceMade) {
     return undefined;
   }

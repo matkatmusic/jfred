@@ -1,8 +1,8 @@
-// ─── the Paths popover's per-project Sources list (task 177): lets a project declare MULTIPLE conversation-log roots (each with its own optional file-history dir + workspace root), riding inside the existing #project-paths-section per the task-159 wizard constraint — stable ids now, the wizard redesign absorbs this later. ───
+// The Paths popover's Sources list: a project can declare several conversation-log roots.
 
 import { createElement } from "./app-dom.ts";
 
-// One source entry on the wire (WireSourceEntry server-side) — the client-side copy, precedent: app-paths-project.ts declares its own WireProjectPathsEntry client copy.
+// Client-side copy of the server's WireSourceEntry.
 export type WireSourceEntryClient = { projectsDir: string; fileHistoryDir?: string; root?: string };
 
 function getSourcesList(): HTMLElement {
@@ -13,7 +13,7 @@ function getRowInput(row: HTMLElement, className: string): HTMLInputElement {
   return row.querySelector(`.${className}`) as HTMLInputElement;
 }
 
-// One source row: three inputs (projects dir required, file-history dir + root optional) plus a remove button. onclick assignment (not addEventListener) — each row is freshly built, so there is no stacking risk, but it matches the file's convention.
+// One source row: three inputs (only projects dir required) plus a remove button.
 function buildSourceRow(entry: WireSourceEntryClient): HTMLElement {
   const row = createElement("div", { class: "source-row" }, [
     createElement("input", { class: "source-projects-dir", placeholder: "projects dir", value: entry.projectsDir }),
@@ -27,7 +27,11 @@ function buildSourceRow(entry: WireSourceEntryClient): HTMLElement {
 
 // Rebuild #project-sources-list from `sources`, one .source-row per entry (task 177).
 export function renderSourceRows(sources: WireSourceEntryClient[]): void {
-  getSourcesList().replaceChildren(...sources.map(buildSourceRow));
+  const rows: HTMLElement[] = [];
+  for (const source of sources) {
+    rows.push(buildSourceRow(source));
+  }
+  getSourcesList().replaceChildren(...rows);
 }
 
 // "Add source": append one empty row without touching the existing rows.
@@ -35,8 +39,8 @@ function appendEmptySourceRow(): void {
   getSourcesList().append(buildSourceRow({ projectsDir: "" }));
 }
 
-// Bind #project-sources-add's click once per popover refresh. onclick assignment (not addEventListener) so repeated calls never stack handlers — safe to call on every refresh.
-export function initializeSourcesSection(): void {
+// Bind the add button's click; onclick assignment keeps repeated calls from stacking handlers.
+export function initSourcesSection(): void {
   (document.getElementById("project-sources-add") as HTMLButtonElement).onclick = appendEmptySourceRow;
 }
 
@@ -58,9 +62,15 @@ function collectSourceRow(row: HTMLElement): WireSourceEntryClient | undefined {
   return entry;
 }
 
-// Read every row in DOM order, keeping only rows with a non-empty projects-dir; undefined when no row qualifies so the POSTed entry omits `sources` entirely (legacy entries stay legacy).
+// Read rows with a projects dir in DOM order; undefined when none qualify.
 export function collectSourceRows(): WireSourceEntryClient[] | undefined {
-  const rows = [...getSourcesList().querySelectorAll(".source-row")] as HTMLElement[];
-  const entries = rows.map(collectSourceRow).filter((entry): entry is WireSourceEntryClient => entry !== undefined);
+  const rows = getSourcesList().querySelectorAll<HTMLElement>(".source-row");
+  const entries: WireSourceEntryClient[] = [];
+  for (const row of rows) {
+    const entry = collectSourceRow(row);
+    if (entry !== undefined) {
+      entries.push(entry);
+    }
+  }
   return entries.length === 0 ? undefined : entries;
 }

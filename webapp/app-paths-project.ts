@@ -6,7 +6,7 @@ import { documentCache, fetchJson, rawLinesCache } from "./app-fetch.ts";
 import { selectFolderInto, fillFileHistoryOverrideField } from "./app-header.ts";
 import { openCommitPickList } from "./app-paths-project-commits.ts";
 import { renderPathsSummary } from "./app-paths-summary.ts";
-import { collectSourceRows, initializeSourcesSection, renderSourceRows, type WireSourceEntryClient } from "./app-paths-sources.ts";
+import { collectSourceRows, initSourcesSection, renderSourceRows, type WireSourceEntryClient } from "./app-paths-sources.ts";
 import { startProjectWizard, startSingleScreenEdit } from "./app-paths-wizard.ts";
 import { parseRouteSegments } from "./app-routes.ts";
 import { renderRoute, resetLastLoadedProject, setBreadcrumb } from "./app-router.ts";
@@ -90,7 +90,7 @@ export async function refreshProjectPathsSection(projectName: string): Promise<W
   // task 153: a stored per-project fileHistory override surfaces in the task-136 field.
   fillFileHistoryOverrideField(entry.fileHistory);
   // task 177: the Sources section prefills from the merged entry's sources list.
-  initializeSourcesSection();
+  initSourcesSection();
   renderSourceRows(entry.sources ?? []);
   // task 159: a stored screen-5 answer seeds the mirror only when the session has no answer.
   const storedPreBaseline = entry.preBaseline;

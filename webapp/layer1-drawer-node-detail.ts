@@ -1,7 +1,7 @@
 // Task 257.5: the single-node drawer's header, meta row, fetch params and raw JSON reveal.
 
 import { createElement, getInputById, getRequiredElementById } from "./app-dom.ts";
-import { describeEditDrawer, isEditNode, nodeCommitHash } from "./layer1-drawer-diff.ts";
+import { createEditDrawer, getNodeCommitHash, isEditNode } from "./layer1-drawer-diff.ts";
 import { renderHighlightedJson } from "./inspector-json.ts";
 import type { WireValue } from "./inspector-links.ts";
 
@@ -11,7 +11,7 @@ const SHORT_HASH_LENGTH = 8;
 export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: URLSearchParams; head: string; meta: string; flashFile?: string } {
   const isEdit = isEditNode(node);
   if (isEdit) {
-    return describeEditDrawer(node, path);
+    return createEditDrawer(node, path);
   }
   const basename = path.split("/").pop() ?? path;
   // Task 317: a snapshot reads the OWNING session's sidecar; its header title arrives with the bytes.
@@ -33,7 +33,7 @@ export function getNodeDrawerDetail(node: HTMLElement, path: string): { params: 
       flashFile,
     };
   }
-  const hash = nodeCommitHash(node);
+  const hash = getNodeCommitHash(node);
   if (hash === undefined) {
     return {
       params: new URLSearchParams({ dir: getInputById("dir").value.trim(), path }),
@@ -59,7 +59,7 @@ function renderRawJson(record: unknown): HTMLElement {
   );
 }
 
-// The [{ }] toggle fetches its JSONL line on the first click, so no node's drawer waits on a record.
+// The [{ }] toggle fetches its JSONL line on first click, so drawers never wait.
 export function appendRawJsonRevealForLine(sessionFile: string, line: number): void {
   const jsonBox = createElement("div", { class: "node-json" });
   jsonBox.hidden = true;

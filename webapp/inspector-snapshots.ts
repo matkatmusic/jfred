@@ -7,7 +7,7 @@ import {
   type WireRecord,
   type WireTrackedBackup,
 } from "./inspector-links.ts";
-import { createElement } from "./inspector-json.ts";
+import { createElement } from "./app-dom.ts";
 
 // Whether each probed blob is on disk, keyed "<session>|<blobName>"; fetched once per session.
 export const blobPresenceByKey = new Map<string, boolean | undefined>();

@@ -1,7 +1,7 @@
 // Consent dialog header navigation: Prev/Next buttons stepping a selection through the visible script rows.
 
 import { type WireConsentScript } from "./app-fetch.ts";
-import { clampConsentSelectionStep, findDefaultConsentSelectionIndex } from "./app-consent-model.ts";
+import { computeConsentSelectionStep, findDefaultConsentSelectionIndex } from "./app-consent-model.ts";
 
 export type ConsentNavControls = { prevButton: HTMLButtonElement; nextButton: HTMLButtonElement; navCounter: HTMLElement };
 
@@ -52,7 +52,7 @@ export function attachConsentNavigation(box: HTMLElement, scripts: WireConsentSc
       return;
     }
     const currentIndex = selectedRow === undefined ? -1 : visibleRows.indexOf(selectedRow);
-    selectedRow = visibleRows[clampConsentSelectionStep(currentIndex, delta, visibleRows.length)];
+    selectedRow = visibleRows[computeConsentSelectionStep(currentIndex, delta, visibleRows.length)];
     updateScriptNavState();
     selectedRow?.scrollIntoView({ block: "center", behavior: "smooth" });
   }

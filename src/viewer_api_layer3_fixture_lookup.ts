@@ -1,7 +1,7 @@
 // Layer 3 fixture lookups: small searches over one path's ordered events and hunks.
 
 import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
-import { checkHunkMatchesBase } from "./layer1_edit_hunks.ts";
+import { isHunkMatchingBase } from "./layer1_edit_hunks.ts";
 import type { FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
 
 export function readEventContent(event: FixtureEvent): string[] {
@@ -31,7 +31,7 @@ export function findNextReadIndex(events: FixtureEvent[], startIndex: number): n
 
 export function isEveryHunkMatching(base: string[], hunks: NonNullable<FixtureEvent["hunks"]>): boolean {
   for (const hunk of hunks) {
-    const isHunkMatching = checkHunkMatchesBase(base, hunk);
+    const isHunkMatching = isHunkMatchingBase(base, hunk);
     if (!isHunkMatching) {
       return false;
     }

@@ -3,7 +3,7 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { clearDiffPair } from "./layer1-drawer-diff.ts";
-import { wireImageZoomTools } from "./layer1-drawer-image.ts";
+import { installImageZoomTools } from "./layer1-drawer-image.ts";
 import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "./layer1-drawer-open-node.ts";
 import { applyDiffSelectionRange } from "./layer1-diff-selection-range.ts";
 import { storeOpenedNode } from "./layer1-node-link.ts";
@@ -85,7 +85,7 @@ function closeDrawer(): void {
 }
 
 export function installNodeDrawer(): void {
-  wireImageZoomTools();
+  installImageZoomTools();
   getRequiredElementById("stage").addEventListener("click", applyStageClick);
   getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);
   getRequiredElementById("dnext").addEventListener("click", openNextNeighbour);

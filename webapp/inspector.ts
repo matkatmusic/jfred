@@ -11,7 +11,7 @@ import {
   type WireValue,
 } from "./inspector-links.ts";
 import { findToolNavigationTargets } from "./inspector-tool-nav.ts";
-import { createElement } from "./inspector-json.ts";
+import { createElement } from "./app-dom.ts";
 import {
   appendToolNavigationButtons,
   buildHighlightedJsonBody,

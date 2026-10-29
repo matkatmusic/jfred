@@ -4,12 +4,12 @@ import { getRequiredElementById } from "./app-dom.ts";
 import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
+import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto } from "./layer1-drawer-image.ts";
-import { clearDiffPair, describeNodeStep, isBranchNode, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { clearDiffPair, createNodeStep, isBranchNode, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { appendRawJsonRevealForLine, getNodeDrawerDetail } from "./layer1-drawer-node-detail.ts";
 import { readNodeIdentity, storeOpenedNode } from "./layer1-node-link.ts";
-import { describeEditSteps } from "./layer1-revision-sources.ts";
+import { createEditSteps } from "./layer1-revision-sources.ts";
 import { flashSession } from "./layer1-session-flash.ts";
 
 // Task 305: the last plainly-clicked node — the diff pair's anchor.
@@ -75,9 +75,9 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   const isBranch = isBranchNode(node);
   const isEditOrBranch = isEditNodeClass || isBranch;
   const steps = isEditOrBranch
-    ? describeEditSteps(path, node.dataset.changeId ?? "", isBranch)
-    : [describeNodeStep(node, path)];
-  displayDetailView([buildDiffView(path, steps, {
+    ? createEditSteps(path, node.dataset.changeId ?? "", isBranch)
+    : [createNodeStep(node, path)];
+  renderDetailView([buildDiffView(path, steps, {
     revisionControlsShown: steps.length > 1,
     mode: DiffPaneMode.inline,
     fullContents: steps.length === 1,

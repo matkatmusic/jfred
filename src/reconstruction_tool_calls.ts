@@ -1,4 +1,4 @@
-// The document's toolCalls[] (item 55): every non-file-edit tool call in the transcript, for the timeline's un-bubbled `* <summary> * [{ }] <TS> L:n` rows. Two sources: tool_use blocks from assistant records, and the rewritten command a PreToolUse hook actually ran when it differs from the tool_use's own command (s39's rtk-rewrite hook turns `ls …` into `rtk ls …` — both rows render). Write/Edit calls are represented as file chips, never rows.
+// Every non-file-edit tool call in the transcript, as timeline rows: tool_use blocks plus hook-rewritten commands.
 
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
 import { Uuid } from "./structures/domain.ts";
@@ -7,7 +7,7 @@ import { getContentBlocks } from "./structures/content-blocks.ts";
 import { getAttachmentEntry } from "./structures/session-meta.ts";
 import { collectOrphanedUuids } from "./reconstruction_orphans.ts";
 
-// One tool call, parsed for the timeline: the tool's name, a one-line summary of what it did (command / file path / pattern), when and which session ran it (for chronological placement), the record's own uuid (the viewer resolves the row's JSONL line through it), and the tool_use id (hook attachments and tool_results carry it verbatim, so the inspector's raw-line sync can map those lines back to the row).
+// One tool call parsed for the timeline: name, summary, time, session, record uuid, and tool_use id.
 export type ToolCall = {
   toolName: string;
   summary: string;
@@ -15,7 +15,7 @@ export type ToolCall = {
   sessionId: Uuid | undefined;
   uuid: Uuid;
   toolUseId: Uuid;
-  // True when the call's record sits on a rewound (abandoned) conversation branch — the timeline dims its row alongside the branch's turns (collectOrphanedUuids).
+  // True when the call's record sits on a rewound conversation branch.
   isOrphaned: boolean;
 };
 
@@ -34,14 +34,15 @@ export function computeToolCallSummary(block: { input: unknown }): string {
   if (typeof input.pattern === "string") {
     return input.pattern;
   }
-  const firstStringValue = Object.values(input).find((value) => typeof value === "string");
-  if (typeof firstStringValue === "string") {
-    return firstStringValue;
+  for (const value of Object.values(input)) {
+    if (typeof value === "string") {
+      return value;
+    }
   }
   return "";
 }
 
-// The rewritten command inside a hook attachment's stdout, or undefined when the attachment is not a command rewrite (hook-run attachments like SessionStart/Stop have no updatedInput).
+// The rewritten command in a hook attachment's stdout, or undefined when it is not a rewrite.
 function parseHookRewrittenCommand(stdout: unknown): string | undefined {
   if (typeof stdout !== "string") {
     return undefined;
@@ -55,10 +56,7 @@ function parseHookRewrittenCommand(stdout: unknown): string | undefined {
   }
   const hookOutput = (parsed as { hookSpecificOutput?: { updatedInput?: { command?: unknown } } }).hookSpecificOutput;
   const command = hookOutput?.updatedInput?.command;
-  if (typeof command !== "string") {
-    return undefined;
-  }
-  return command;
+  return typeof command === "string" ? command : undefined;
 }
 
 // The tool name a hook ran for, from its hookName's suffix ("PreToolUse:Bash" -> "Bash").
@@ -94,7 +92,7 @@ function appendToolUseRow(
   });
 }
 
-// Every non-file-edit tool call in the transcript, in record order: pass 1 emits tool_use rows and indexes every block's summary by toolUseId; pass 2 emits one extra row per PreToolUse command rewrite whose command differs from the tool_use's own.
+// Tool calls in record order: tool_use rows first, then one extra row per differing hook rewrite.
 export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
   const orphanedUuids = collectOrphanedUuids(records);
   const calls: ToolCall[] = [];
@@ -112,7 +110,8 @@ export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
         continue;
       const summary = computeToolCallSummary(block);
       summaryByToolUseId.set(block.id.toString(), summary);
-      if (FILE_EDIT_TOOL_NAMES.has(block.name))
+      const isFileEditTool = FILE_EDIT_TOOL_NAMES.has(block.name);
+      if (isFileEditTool)
         continue;
       appendToolUseRow(calls, block, summary, timestamp, record.sessionId, recordUuid, orphanedUuids);
     }
@@ -126,12 +125,14 @@ export function findToolCalls(records: TranscriptRecord[]): ToolCall[] {
     const toolUseId = entry.attachment.toolUseID;
     if (typeof toolUseId !== "string")
       continue;
-    if (rewrittenToolUseIds.has(toolUseId))
+    const isAlreadyRewritten = rewrittenToolUseIds.has(toolUseId);
+    if (isAlreadyRewritten)
       continue;
     const rewrittenCommand = parseHookRewrittenCommand(entry.attachment.stdout);
     if (rewrittenCommand === undefined)
       continue;
-    if (rewrittenCommand === summaryByToolUseId.get(toolUseId))
+    const originalSummary = summaryByToolUseId.get(toolUseId);
+    if (rewrittenCommand === originalSummary)
       continue;
     rewrittenToolUseIds.add(toolUseId);
     calls.push({

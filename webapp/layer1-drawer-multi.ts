@@ -2,7 +2,7 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView, syncFoldAllLabel } from "./layer1-diff-view.ts";
+import { buildDiffView, renderDetailView,syncFoldAllLabel } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { listDatedSteps, listDiffableSteps } from "./layer1-drawer-steps.ts";
 import { hasInstantInRange, resolveRangeStepIndexes } from "./layer1-range-steps.ts";
@@ -90,13 +90,13 @@ export function openDetailViewForFiles(view: WireLayer1View, targets: string[]):
   getRequiredElementById("dnext").hidden = true;
   const sorted = [...targets].sort();
   const header = getRequiredElementById("dpath");
-  // A lone file is named ONCE, here; its section plate is removed by displayDetailView.
+  // A lone file is named ONCE, here; its section plate is removed by renderDetailView.
   header.textContent = sorted.length === 1
     ? `${sorted[0]!.split("/").pop()} — Current on-disk state`
     : `${sorted.length} files — Current on-disk state`;
   header.title = sorted.join("\n");
   getRequiredElementById("dmeta").textContent = `working tree   ·   ${sorted.length} selected`;
-  displayDetailView(createDetailViewsForFiles(view, sorted));
+  renderDetailView(createDetailViewsForFiles(view, sorted));
 }
 
 // The one fold button closes every section while any is open, else opens them all.

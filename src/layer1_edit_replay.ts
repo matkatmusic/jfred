@@ -1,7 +1,7 @@
 // Task 355 step 4: replay one path's ordered events into base, target and confidence, in memory.
 
 import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
-import { applyHunksToLines, checkHunkMatchesBase } from "./layer1_edit_hunks.ts";
+import { applyHunksToLines, isHunkMatchingBase } from "./layer1_edit_hunks.ts";
 import type { LayerEditEvent } from "./layer1_edit_events.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
 
@@ -28,7 +28,7 @@ function readEventHunks(event: LayerEditEvent): EventHunks {
 
 function validateAllHunksMatch(base: string[], hunks: EventHunks): boolean {
   for (const hunk of hunks) {
-    const isMatch = checkHunkMatchesBase(base, hunk);
+    const isMatch = isHunkMatchingBase(base, hunk);
     if (!isMatch) {
       return false;
     }

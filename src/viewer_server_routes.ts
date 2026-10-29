@@ -1,7 +1,7 @@
 import { type ServerResponse } from "node:http";
 import { buildDocumentWithConsent } from "./viewer_api.ts";
 import { logBuildProgressToConsole, writeDocumentResponseStream } from "./viewer_server_document_stream.ts";
-import { decideBaselineQuestion, decideDocumentResponse } from "./viewer_api_consent.ts";
+import { computeBaselineQuestion, computeDocumentDecision } from "./viewer_api_consent.ts";
 import { applyProjectOverrides } from "./viewer_api_projects.ts";
 import { findJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
@@ -47,7 +47,7 @@ export function sendDocumentResponse(response: ServerResponse, query: URLSearchP
   // item 46: project overrides apply to all code below, before any header.
   applyProjectOverrides(projectName);
   // task 56: a configured base commit needs the user's answer before any scan.
-  const baselineQuestion = decideBaselineQuestion(preBaselineChoice !== null);
+  const baselineQuestion = computeBaselineQuestion(preBaselineChoice !== null);
 
   // Non-progress path: refusals return 400; consent-required is HTTP 200 with a kind field.
   const isProgressRequest = query.get("progress") === "1";
@@ -58,7 +58,7 @@ export function sendDocumentResponse(response: ServerResponse, query: URLSearchP
     }
     const jsonlPaths = findJsonlPaths(projectName, jsonlName);
     const { records } = loadProjectRecords(jsonlPaths);
-    const decision = decideDocumentResponse(records, allowScripts);
+    const decision = computeDocumentDecision(records, allowScripts);
     const isConsentRequired = decision.kind === DocumentResponseKind.consentRequired;
     const needsConsentReply = isConsentRequired && !declined;
     if (needsConsentReply) {

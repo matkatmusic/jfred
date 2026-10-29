@@ -1,13 +1,13 @@
 // Consent dialog Expand All / Collapse All button: expands every long preview and read-only block together.
 
-import { checkConsentScriptOverflowsPreview } from "./app-consent-model.ts";
+import { isConsentScriptOverflowingPreview } from "./app-consent-model.ts";
 import { isAnyBlockClosed, listReadOnlyBlocks, updateRowExpandButtonLabel } from "./app-consent-rows.ts";
 
 // Re-queried per click since Expand and Show/hide share state.
 function collectExpandables(box: HTMLElement): { previews: HTMLPreElement[]; readOnlyBlocks: HTMLDetailsElement[] } {
   const previews: HTMLPreElement[] = [];
   for (const pre of box.querySelectorAll<HTMLPreElement>(".consent-script pre")) {
-    const overflowsPreview = checkConsentScriptOverflowsPreview(pre.textContent ?? "");
+    const overflowsPreview = isConsentScriptOverflowingPreview(pre.textContent ?? "");
     if (overflowsPreview) {
       previews.push(pre);
     }

@@ -4,7 +4,7 @@ import {
   PROGRESS_LABEL_SERIALIZING_DOCUMENT,
   formatSendingDocumentLabel,
 } from "./viewer_api.ts";
-import { decideDocumentResponse, type BaselineQuestion } from "./viewer_api_consent.ts";
+import { computeDocumentDecision, type BaselineQuestion } from "./viewer_api_consent.ts";
 import { findJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
@@ -70,7 +70,7 @@ export function writeDocumentResponseStream(response: ServerResponse, request: D
     // This parse is the only one; the build reuses its records from the cache.
     const { records } = loadProjectRecords(jsonlPaths, writeNdjsonLine);
     reportStage("scanning parsed records for recorded script executions");
-    const decision = decideDocumentResponse(records, allowScripts);
+    const decision = computeDocumentDecision(records, allowScripts);
     reportStage(decision.kind === DocumentResponseKind.consentRequired
       ? `consent required — ${decision.scripts.length} recorded script execution(s)`
       : "no script-execution consent needed");

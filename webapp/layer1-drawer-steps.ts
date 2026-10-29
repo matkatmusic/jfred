@@ -1,7 +1,7 @@
 // Task 329/356: one path's diffable revision ladder, shared by the file-nav drawer and the script-run drawer.
 
 import type { DiffStep } from "./layer1-diff-pane.ts";
-import { describeCommitStep, describeDiskStep, describeSnapshotStep } from "./layer1-revision-sources.ts";
+import { createCommitStep, createDiskStep, createSnapshotStep } from "./layer1-revision-sources.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 type DatedStep = { instant: string; step: DiffStep };
@@ -36,12 +36,12 @@ export function listDatedSteps(view: WireLayer1View, path: string): DatedStep[] 
   }
   const dated: DatedStep[] = [];
   for (const commit of pair?.commits ?? []) {
-    dated.push({ instant: commit.instant, step: describeCommitStep(path, commit.hash) });
+    dated.push({ instant: commit.instant, step: createCommitStep(path, commit.hash) });
   }
   for (const snapshot of (pair?.snapshots ?? diskOrphan?.snapshots) ?? []) {
-    dated.push({ instant: snapshot.instant, step: describeSnapshotStep(path, snapshot) });
+    dated.push({ instant: snapshot.instant, step: createSnapshotStep(path, snapshot) });
   }
-  dated.push({ instant: (pair?.onDisk ?? diskOrphan!).instant, step: describeDiskStep(path) });
+  dated.push({ instant: (pair?.onDisk ?? diskOrphan!).instant, step: createDiskStep(path) });
   return dated.sort(compareDatedSteps);
 }
 

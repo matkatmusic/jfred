@@ -1,7 +1,7 @@
 import { type ServerResponse } from "node:http";
 import { buildReconstructionWithConsent } from "./viewer_api.ts";
 import { logBuildProgressToConsole } from "./viewer_server_document_stream.ts";
-import { decideDocumentResponse } from "./viewer_api_consent.ts";
+import { computeDocumentDecision } from "./viewer_api_consent.ts";
 import { applyProjectOverrides } from "./viewer_api_projects.ts";
 import { findJsonlPaths } from "./viewer_api_sources.ts";
 import { loadProjectRecords } from "./viewer_api_records.ts";
@@ -19,7 +19,7 @@ export function sendRangePatchResponse(response: ServerResponse, query: URLSearc
   const declined = query.get("declined") === "1";
   const jsonlPaths = findJsonlPaths(projectName, null);
   const { records } = loadProjectRecords(jsonlPaths);
-  const decision = decideDocumentResponse(records, allowScripts);
+  const decision = computeDocumentDecision(records, allowScripts);
   const isConsentRequired = decision.kind === DocumentResponseKind.consentRequired;
   const needsConsentReply = isConsentRequired && !declined;
   if (needsConsentReply) {
@@ -40,7 +40,7 @@ export function sendStepFilesResponse(response: ServerResponse, query: URLSearch
   const declined = query.get("declined") === "1";
   const jsonlPaths = findJsonlPaths(projectName, null);
   const { records } = loadProjectRecords(jsonlPaths);
-  const decision = decideDocumentResponse(records, allowScripts);
+  const decision = computeDocumentDecision(records, allowScripts);
   const isConsentRequired = decision.kind === DocumentResponseKind.consentRequired;
   const needsConsentReply = isConsentRequired && !declined;
   if (needsConsentReply) {

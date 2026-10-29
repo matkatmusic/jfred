@@ -11,7 +11,8 @@ import {
   type WireTrackedBackup,
   type WireValue,
 } from "./inspector-links.ts";
-import { createElement, renderHighlightedJson } from "./inspector-json.ts";
+import { createElement } from "./app-dom.ts";
+import { renderHighlightedJson } from "./inspector-json.ts";
 import { blobPresenceByKey, buildSnapshotDrawer } from "./inspector-snapshots.ts";
 
 // Show the Details pane without touching its contents; diff and file modes paint their own columns.

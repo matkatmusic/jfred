@@ -3,7 +3,7 @@
 import { USAGE, type CliOptions } from "./reconstruction_cli_args.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
-import { findBranchById, shortUuid } from "./reconstruction_branch_lookup.ts";
+import { findBranchById, getShortUuid } from "./reconstruction_branch_lookup.ts";
 import { renderChosen } from "./reconstruction_render_chosen.ts";
 import { buildStepStates } from "./reconstruction_steps.ts";
 import { renderRepoSnapshot } from "./reconstruction_step_snapshot.ts";
@@ -13,10 +13,10 @@ import type { BackupReader } from "./reconstruction_sidecar.ts";
 export function listAvailableBranchIds(branched: BranchedReconstruction): string {
   const ids: string[] = [];
   if (branched.survivingTip !== undefined) {
-    ids.push(`surviving (#${shortUuid(branched.survivingTip)})`);
+    ids.push(`surviving (#${getShortUuid(branched.survivingTip)})`);
   }
   for (const entry of branched.rewound) {
-    ids.push(`#${shortUuid(entry.tip)}`);
+    ids.push(`#${getShortUuid(entry.tip)}`);
   }
   return ids.join(", ");
 }

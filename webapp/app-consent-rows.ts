@@ -3,7 +3,7 @@
 import { createElement } from "./app-dom.ts";
 import { type WireConsentScript } from "./app-fetch.ts";
 import {
-  checkConsentScriptOverflowsPreview,
+  isConsentScriptOverflowingPreview,
   CONSENT_SCRIPT_LANGUAGE_PATH,
   formatConsentSourceToken,
   splitInlineInterpreterCode,
@@ -26,7 +26,7 @@ export function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     createElement("div", { class: "muted", text: new Date(script.timestamp).toLocaleString() + (script.cwd ? `  ·  cwd ${script.cwd}` : "") + formatConsentSourceToken(script.source) }),
     pre,
   ]);
-  const overflowsPreview = checkConsentScriptOverflowsPreview(script.code);
+  const overflowsPreview = isConsentScriptOverflowingPreview(script.code);
   if (overflowsPreview) {
     const expandButton = createElement("button", { class: "toolbar-btn", text: "Expand" });
     expandButton.onclick = () => {
