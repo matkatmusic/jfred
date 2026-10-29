@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { buildStepStates, buildStepChanges, type RepoSnapshot } from "../src/reconstruction_steps.ts";
-import { someStepReproduces } from "../src/reconstruction_step_snapshot.ts";
+import { isReproducedBySomeStep } from "../src/reconstruction_step_snapshot.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { mergeMultiSourceRecords, splitRecordsBySession } from "../src/reconstruction_multi_source.ts";
 import { enableProvenance, disableProvenance, getAndClearProvenance } from "../src/reconstruction_provenance.ts";
@@ -17,7 +17,7 @@ import { printResult, type ScenarioResult } from "./coverage_report.ts";
 function isReproducedLater(steps: RepoSnapshot[], stepStatesDir: string, laterFolders: string[]): boolean {
   for (const later of laterFolders) {
     const laterGroundTruth = readStepStateFiles(join(stepStatesDir, later));
-    const isReproduced = someStepReproduces(steps, laterGroundTruth);
+    const isReproduced = isReproducedBySomeStep(steps, laterGroundTruth);
     if (isReproduced) {
       return true;
     }
@@ -52,7 +52,7 @@ export function validateScenario(scenario: CoveredScenario): ScenarioResult {
   const folders = stepFolders(scenario.stepStatesDir);
   for (let i = 0; i < folders.length; i += 1) {
     const groundTruth = readStepStateFiles(join(scenario.stepStatesDir, folders[i]!));
-    const isReproduced = someStepReproduces(steps, groundTruth);
+    const isReproduced = isReproducedBySomeStep(steps, groundTruth);
     if (isReproduced) {
       passed += 1;
       continue;

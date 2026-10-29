@@ -86,7 +86,7 @@ export async function fetchRangePatch(context: TimelineRenderContext, fromStep: 
 //             createElement("button", {
 //                 class: "row-btn",
 //                 text: "Export file state",
-//                 onclick: () => downloadText(`${computeBaseName(change.path)}.step${node.stepNumber}`, content ?? ""),
+//                 onclick: () => saveTextFile(`${computeBaseName(change.path)}.step${node.stepNumber}`, content ?? ""),
 //             }),
 //         ]),
 //         contentPane,

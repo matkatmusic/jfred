@@ -38,7 +38,7 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   return server;
 }
 
-function buildPageUrl(port: number, extra: Record<string, string>): string {
+export function buildPageUrl(port: number, extra: Record<string, string>): string {
   const params = new URLSearchParams({ dir: JOT_REPO, repo: JOT_REPO, ...extra });
   params.append("jsonl", join(JOT_RECOVERY_DIR, "projects", "-Users-matkatmusicllc-Programming-jot"));
   return `http://127.0.0.1:${port}/app/layer1.html?${params}`;
@@ -113,4 +113,7 @@ async function executeMain(): Promise<void> {
   process.exit(failures.length ? 1 : 0);
 }
 
-await executeMain();
+const isEntryPoint = process.argv[1] === fileURLToPath(import.meta.url);
+if (isEntryPoint) {
+  await executeMain();
+}

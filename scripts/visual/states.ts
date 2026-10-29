@@ -1,6 +1,4 @@
-// Linear state sequence driven via in-page eval, not synthesized mouse events.
-//
-// Each step exercises the page's own click handlers, not computed coordinates.
+// Linear state sequence driven by in-page eval, using the page's own click handlers.
 
 import type { HeadlessPage } from "./cdp.ts";
 import { pause } from "./cdp.ts";
@@ -73,14 +71,15 @@ const ZOOM_OUT_THREE_STEPS = `(() => {
 })()`;
 
 // Throws if the page has nothing to click, preventing a meaningless duplicate state.
-async function clickInPage(page: HeadlessPage, expression: string, what: string): Promise<void> {
-  if (!await page.evaluate<boolean>(expression)) {
+async function triggerClickInPage(page: HeadlessPage, expression: string, what: string): Promise<void> {
+  const clicked = await page.evaluate<boolean>(expression);
+  if (!clicked) {
     throw new Error(`state cannot be reached: the page has no ${what}`);
   }
 }
 
 // Wait for the app to settle, then let layout and scrolling land.
-async function settle(page: HeadlessPage, expression: string): Promise<void> {
+async function waitUntilSettled(page: HeadlessPage, expression: string): Promise<void> {
   await page.waitFor(expression, RENDER_TIMEOUT_MS);
   await pause(SETTLE_MS);
 }
@@ -88,43 +87,43 @@ async function settle(page: HeadlessPage, expression: string): Promise<void> {
 export const VISUAL_STATES: VisualState[] = [
   {
     name: "01-initial-load",
-    drive: async (page) => settle(page, READY_EXPRESSION),
+    drive: async (page) => waitUntilSettled(page, READY_EXPRESSION),
   },
   {
     name: "02-folder-filter",
     drive: async (page) => {
-      await clickInPage(page, CLICK_FIRST_FOLDER, "folder row in the File Nav");
-      await settle(page, READY_EXPRESSION);
+      await triggerClickInPage(page, CLICK_FIRST_FOLDER, "folder row in the File Nav");
+      await waitUntilSettled(page, READY_EXPRESSION);
     },
   },
   {
     name: "03-file-selected",
     drive: async (page) => {
-      await clickInPage(page, CLICK_FIRST_NODE, "pair bubble with a node");
-      await settle(page, "document.querySelector('#drawer.open') && document.getElementById('dpath').textContent");
+      await triggerClickInPage(page, CLICK_FIRST_NODE, "pair bubble with a node");
+      await waitUntilSettled(page, "document.querySelector('#drawer.open') && document.getElementById('dpath').textContent");
     },
   },
   {
     name: "04-ruler-expanded",
     drive: async (page) => {
-      await clickInPage(page, CLEAR_FOLDER_FILTER, "selected folder to unfilter");
-      await settle(page, READY_EXPRESSION);
-      await clickInPage(page, CLICK_MULTI_TICK, "multi-event ruler row");
-      await settle(page, "document.querySelector('#ruler .tickfiles button')");
+      await triggerClickInPage(page, CLEAR_FOLDER_FILTER, "selected folder to unfilter");
+      await waitUntilSettled(page, READY_EXPRESSION);
+      await triggerClickInPage(page, CLICK_MULTI_TICK, "multi-event ruler row");
+      await waitUntilSettled(page, "document.querySelector('#ruler .tickfiles button')");
     },
   },
   {
     name: "05-jump-to-bubble",
     drive: async (page) => {
-      await clickInPage(page, JUMP_TO_LAST_BUBBLE, "pair bubble to jump to");
-      await settle(page, "document.querySelector('#stage .filebox.found')");
+      await triggerClickInPage(page, JUMP_TO_LAST_BUBBLE, "pair bubble to jump to");
+      await waitUntilSettled(page, "document.querySelector('#stage .filebox.found')");
     },
   },
   {
     name: "06-zoomed-out",
     drive: async (page) => {
-      await clickInPage(page, ZOOM_OUT_THREE_STEPS, "zoom control");
-      await settle(page, "document.getElementById('zoom-level').textContent !== '100%'");
+      await triggerClickInPage(page, ZOOM_OUT_THREE_STEPS, "zoom control");
+      await waitUntilSettled(page, "document.getElementById('zoom-level').textContent !== '100%'");
     },
   },
 ];

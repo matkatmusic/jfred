@@ -2,11 +2,11 @@
 
 import type { RepoSnapshot } from "../src/reconstruction_steps.ts";
 import {
-  snapshotFileText,
-  stripTrailingNewline,
+  getSnapshotFileText,
+  trimTrailingNewline,
 } from "../src/reconstruction_step_snapshot.ts";
 
-export function firstLineDifference(
+export function findFirstLineDifference(
   expected: string,
   actual: string,
 ): { lineNo: number; expected: string; actual: string } | undefined {
@@ -36,19 +36,25 @@ function countDifferingLines(expected: string, actual: string): number {
 }
 
 // How many of the ground-truth files this snapshot reproduces byte-for-byte (trailing newline stripped).
-function reproducedCount(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): number {
-  return [...groundTruth].filter(
-    ([relativePath, content]) => snapshotFileText(snapshot, relativePath) === stripTrailingNewline(content),
-  ).length;
+function countReproducedFiles(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): number {
+  let reproduced = 0;
+  for (const [relativePath, content] of groundTruth) {
+    const isReproduced = getSnapshotFileText(snapshot, relativePath) === trimTrailingNewline(content);
+    if (isReproduced) {
+      reproduced += 1;
+    }
+  }
+  return reproduced;
 }
 
 // The first ground-truth file this snapshot does NOT reproduce, or undefined when it reproduces them all.
-export function firstDifferingFile(
+export function findFirstDifferingFile(
   snapshot: RepoSnapshot,
   groundTruth: ReadonlyMap<string, string>,
 ): string | undefined {
   for (const [relativePath, content] of groundTruth) {
-    if (snapshotFileText(snapshot, relativePath) !== stripTrailingNewline(content)) {
+    const isDifferent = getSnapshotFileText(snapshot, relativePath) !== trimTrailingNewline(content);
+    if (isDifferent) {
       return relativePath;
     }
   }
@@ -56,13 +62,13 @@ export function firstDifferingFile(
 }
 
 // Tie-breaker: differing-line count on the first non-matching file.
-function tieBreakLines(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): number {
-  const file = firstDifferingFile(snapshot, groundTruth);
+function countTieBreakLines(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): number {
+  const file = findFirstDifferingFile(snapshot, groundTruth);
   if (file === undefined) {
     return 0;
   }
-  const expected = stripTrailingNewline(groundTruth.get(file)!);
-  return countDifferingLines(expected, snapshotFileText(snapshot, file) ?? "");
+  const expected = trimTrailingNewline(groundTruth.get(file)!);
+  return countDifferingLines(expected, getSnapshotFileText(snapshot, file) ?? "");
 }
 
 // Tie-breaks on fewest differing lines so attribution is independent of step count.
@@ -70,15 +76,17 @@ export function selectBestEngineStep(steps: RepoSnapshot[], groundTruth: Readonl
   let bestIndex = 0;
   let bestReproduced = -1;
   let bestTie = Number.POSITIVE_INFINITY;
-  steps.forEach((snapshot, index) => {
-    const reproduced = reproducedCount(snapshot, groundTruth);
-    const tie = tieBreakLines(snapshot, groundTruth);
-    if (reproduced > bestReproduced || (reproduced === bestReproduced && tie < bestTie)) {
+  for (const [index, snapshot] of steps.entries()) {
+    const reproduced = countReproducedFiles(snapshot, groundTruth);
+    const tie = countTieBreakLines(snapshot, groundTruth);
+    const isMoreReproduced = reproduced > bestReproduced;
+    const isTiedAndCloser = reproduced === bestReproduced && tie < bestTie;
+    const isBetter = isMoreReproduced || isTiedAndCloser;
+    if (isBetter) {
       bestIndex = index;
       bestReproduced = reproduced;
       bestTie = tie;
     }
-  });
+  }
   return bestIndex;
 }
-

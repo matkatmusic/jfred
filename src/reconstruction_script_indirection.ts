@@ -55,14 +55,13 @@ function findBodyAtInstant(bodies: WrittenScriptBody[], when: Date): string | un
     if (body.timestamp === undefined) {
       continue;
     }
-    if (body.timestamp.getTime() > when.getTime()) {
+    const bodyTime = body.timestamp.getTime();
+    const isAfterWhen = bodyTime > when.getTime();
+    if (isAfterWhen) {
       continue;
     }
-    if (best === undefined) {
-      best = body;
-      continue;
-    }
-    if (body.timestamp.getTime() >= best.timestamp!.getTime()) {
+    const isNotOlderThanBest = best === undefined || bodyTime >= best.timestamp!.getTime();
+    if (isNotOlderThanBest) {
       best = body;
     }
   }

@@ -7,7 +7,7 @@ function matchKeyToPath(keyPath: Path, relativePath: string): boolean {
   return key === relativePath || key.endsWith(`/${relativePath}`);
 }
 
-export function snapshotFileText(snapshot: RepoSnapshot, relativePath: string): string | undefined {
+export function getSnapshotFileText(snapshot: RepoSnapshot, relativePath: string): string | undefined {
   for (const [path, text] of snapshot) {
     const isMatch = matchKeyToPath(path, relativePath);
     if (isMatch) {
@@ -18,14 +18,14 @@ export function snapshotFileText(snapshot: RepoSnapshot, relativePath: string): 
 }
 
 // The engine's newline-joined text omits the trailing newline that on-disk ground-truth files keep.
-export function stripTrailingNewline(text: string): string {
+export function trimTrailingNewline(text: string): string {
   return text.endsWith("\n") ? text.slice(0, -1) : text;
 }
 
 function containsGroundTruth(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<string, string>): boolean {
   for (const [relativePath, content] of groundTruth) {
-    const reconstructed = snapshotFileText(snapshot, relativePath);
-    const expected = stripTrailingNewline(content);
+    const reconstructed = getSnapshotFileText(snapshot, relativePath);
+    const expected = trimTrailingNewline(content);
     if (reconstructed !== expected) {
       return false;
     }
@@ -34,7 +34,7 @@ function containsGroundTruth(snapshot: RepoSnapshot, groundTruth: ReadonlyMap<st
 }
 
 // Pass/fail is "some step matches", never a positional alignment with instruction-numbered folders.
-export function someStepReproduces(
+export function isReproducedBySomeStep(
   steps: RepoSnapshot[],
   groundTruth: ReadonlyMap<string, string>,
 ): boolean {

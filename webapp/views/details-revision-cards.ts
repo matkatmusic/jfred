@@ -8,7 +8,7 @@ import {
 } from "./details-model.ts";
 import { isFullContentsOn } from "./details-stored-choices.ts";
 import { renderContentInDetails } from "./details-diff.ts";
-import { downloadText } from "./download.ts";
+import { saveTextFile } from "./download.ts";
 
 function moveToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
   let ownerIndex = -1;
@@ -65,7 +65,7 @@ export function buildRevisionActionsElement(
     renderContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
   }
   function saveRevisionVersion(): void {
-    downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "");
+    saveTextFile(`${baseName}.rev${card.revisionNumber}`,revisionContents[index]?.content ?? "");
   }
   async function copyRevisionPatch(): Promise<void> {
     const diffBlocks = await getDiffBlocks(isFullContentsOn());
@@ -73,7 +73,7 @@ export function buildRevisionActionsElement(
   }
   async function saveRevisionPatch(): Promise<void> {
     const diffBlocks = await getDiffBlocks(isFullContentsOn());
-    downloadText(`${baseName}.rev${card.revisionNumber}.patch`, diffBlocks[index] ?? "");
+    saveTextFile(`${baseName}.rev${card.revisionNumber}.patch`, diffBlocks[index] ?? "");
   }
   return createElement("div", { class: "rev-actions" }, [
     buildActionButton("Show content", openRevisionContent),

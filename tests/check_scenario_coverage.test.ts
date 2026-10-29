@@ -15,7 +15,7 @@ import {
     readStepStateFiles,
     type CoveredScenario,
 } from "../scripts/coverage_scenarios.ts";
-import { firstLineDifference, selectBestEngineStep } from "../scripts/coverage_compare.ts";
+import { findFirstLineDifference, selectBestEngineStep } from "../scripts/coverage_compare.ts";
 import { S19_JSONL } from "./fixtures.ts";
 
 // The repo root and the executed-scenarios root, derived from this test file's location.
@@ -73,13 +73,13 @@ test("test_readStepStateFiles_includes_source_files_and_excludes_manifest_and_ca
 
 test("test_firstLineDifference_returns_the_first_differing_line", () => {
     // Behavior: the first line that differs is reported with its 1-based number and both sides.
-    const diff = firstLineDifference("a\nb\nc", "a\nX\nc");
+    const diff = findFirstLineDifference("a\nb\nc", "a\nX\nc");
     assert.deepEqual(diff, { lineNo: 2, expected: "b", actual: "X" });
 });
 
 test("test_firstLineDifference_returns_undefined_when_texts_are_equal", () => {
     // Behavior: identical texts have no first difference.
-    assert.equal(firstLineDifference("a\nb", "a\nb"), undefined);
+    assert.equal(findFirstLineDifference("a\nb", "a\nb"), undefined);
 });
 
 test("test_selectBestEngineStep_returns_the_step_reproducing_the_most_files", () => {

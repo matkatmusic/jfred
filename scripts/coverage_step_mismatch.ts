@@ -1,10 +1,10 @@
 // Builds the mismatch detail for one step folder the engine could not reproduce.
 
-import { stripTrailingNewline, snapshotFileText } from "../src/reconstruction_step_snapshot.ts";
+import { trimTrailingNewline, getSnapshotFileText } from "../src/reconstruction_step_snapshot.ts";
 import type { RepoSnapshot, StepChange } from "../src/reconstruction_steps.ts";
 import type { Path } from "../src/structures/domain.ts";
 import type { ProvenanceEntry } from "../src/reconstruction_provenance.ts";
-import { firstLineDifference, firstDifferingFile, selectBestEngineStep } from "./coverage_compare.ts";
+import { findFirstLineDifference, findFirstDifferingFile, selectBestEngineStep } from "./coverage_compare.ts";
 
 // Mismatch details for one step folder the engine could not reproduce.
 export type StepMismatch = { stepNum: number; jsonlLine: string; diff: string; provenance: string };
@@ -49,7 +49,7 @@ function getJsonlLineFor(change: StepChange | undefined, uuidLineIndex: Map<stri
 
 // A one-line description of where the best engine step diverges from the ground-truth file.
 function formatDiffDescription(file: string, expected: string, actual: string): string {
-  const lineDiff = firstLineDifference(expected, actual);
+  const lineDiff = findFirstLineDifference(expected, actual);
   if (lineDiff === undefined) {
     return `${file} (file absent or only-trailing difference)`;
   }
@@ -75,9 +75,9 @@ export function buildStepMismatch(
     };
   }
   const best = selectBestEngineStep(steps, groundTruth);
-  const file = firstDifferingFile(steps[best]!, groundTruth) ?? [...groundTruth.keys()][0]!;
-  const expected = stripTrailingNewline(groundTruth.get(file)!);
-  const actual = snapshotFileText(steps[best]!, file) ?? "";
+  const file = findFirstDifferingFile(steps[best]!, groundTruth) ?? [...groundTruth.keys()][0]!;
+  const expected = trimTrailingNewline(groundTruth.get(file)!);
+  const actual = getSnapshotFileText(steps[best]!, file) ?? "";
   const diff = formatDiffDescription(file, expected, actual);
   const stepProvenance = renderStepProvenance(provenance, file, stepChanges[best]!.when);
   return { stepNum, jsonlLine: getJsonlLineFor(stepChanges[best], uuidLineIndex), diff, provenance: stepProvenance };

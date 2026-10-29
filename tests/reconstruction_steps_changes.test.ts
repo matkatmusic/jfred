@@ -6,9 +6,9 @@ import {
     buildStepTimeline,
 } from "../src/reconstruction_steps.ts";
 import {
-    snapshotFileText,
-    stripTrailingNewline,
-    someStepReproduces,
+    getSnapshotFileText,
+    trimTrailingNewline,
+    isReproducedBySomeStep,
 } from "../src/reconstruction_step_snapshot.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
@@ -33,7 +33,7 @@ test("test_snapshotFileText_returns_engine_text_for_a_file_present_at_a_step", (
     const records = loadRecords(S19_JSONL);
     const steps = buildStepStates(records, realReader(records));
     // Verify: the first step's scenario19.py text is the bare add definition.
-    assert.equal(snapshotFileText(steps[0]!, "scenario19.py"), ADD_ONLY);
+    assert.equal(getSnapshotFileText(steps[0]!, "scenario19.py"), ADD_ONLY);
 });
 
 test("test_snapshotFileText_returns_undefined_for_a_file_absent_at_a_step", () => {
@@ -41,7 +41,7 @@ test("test_snapshotFileText_returns_undefined_for_a_file_absent_at_a_step", () =
     const records = loadRecords(S19_JSONL);
     const steps = buildStepStates(records, realReader(records));
     // Verify: the test file is absent at the first step.
-    assert.equal(snapshotFileText(steps[0]!, "tests/test_scenario19.py"), undefined);
+    assert.equal(getSnapshotFileText(steps[0]!, "tests/test_scenario19.py"), undefined);
 });
 
 test("test_someStepReproduces_is_true_when_an_engine_step_matches_ground_truth", () => {
@@ -50,7 +50,7 @@ test("test_someStepReproduces_is_true_when_an_engine_step_matches_ground_truth",
     const steps = buildStepStates(records, realReader(records));
     const groundTruth = new Map([["scenario19.py", ADD_ONLY]]);
     // Verify: some engine step reproduces it.
-    assert.ok(someStepReproduces(steps, groundTruth));
+    assert.ok(isReproducedBySomeStep(steps, groundTruth));
 });
 
 test("test_someStepReproduces_is_false_when_no_engine_step_matches_ground_truth", () => {
@@ -59,7 +59,7 @@ test("test_someStepReproduces_is_false_when_no_engine_step_matches_ground_truth"
     const steps = buildStepStates(records, realReader(records));
     const groundTruth = new Map([["scenario19.py", "def never_written(): pass"]]);
     // Verify: no engine step reproduces it.
-    assert.equal(someStepReproduces(steps, groundTruth), false);
+    assert.equal(isReproducedBySomeStep(steps, groundTruth), false);
 });
 
 test("test_buildStepChanges_has_one_entry_per_buildStepStates_step", () => {
@@ -109,10 +109,10 @@ test("test_buildStepTimeline_returns_histories_and_change_metadata_without_per_s
     assert.equal((timeline as Record<string, unknown>)["states"], undefined);
 });
 
-// stripTrailingNewline is exercised indirectly above; assert its contract directly too.
-test("test_stripTrailingNewline_drops_exactly_one_trailing_newline", () => {
+// trimTrailingNewline is exercised indirectly above; assert its contract directly too.
+test("test_trimTrailingNewline_drops_exactly_one_trailing_newline", () => {
     // Verify: one trailing newline is removed, the rest of the text is untouched.
-    assert.equal(stripTrailingNewline("a\nb\n"), "a\nb");
-    assert.equal(stripTrailingNewline("a\nb"), "a\nb");
+    assert.equal(trimTrailingNewline("a\nb\n"), "a\nb");
+    assert.equal(trimTrailingNewline("a\nb"), "a\nb");
 });
 

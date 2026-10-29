@@ -1,7 +1,7 @@
 // Timeline pick checkboxes and the selectbar strip: rule hint, summary text, export and clear buttons.
 
 import { createElement } from "../app-dom.ts";
-import { downloadText } from "./download.ts";
+import { saveTextFile } from "./download.ts";
 import { isNodePickable, isPickLegal, computeRangeSummary } from "./timeline-picks.ts";
 import { fetchRangePatch } from "./timeline-render-selectbar.ts";
 import type { TimelineRenderContext } from "./timeline-render-context.ts";
@@ -59,7 +59,7 @@ export function renderSelectbarButtons(context: TimelineRenderContext): void {
     onclick: async () => {
       const summary = computeRangeSummary(context.nodes, context.pickedIndexes);
       const patchText = await fetchRangePatch(context, summary.fromStepIndex, summary.toStepIndex);
-      downloadText(`${context.project}-steps-${summary.fromStepIndex}-${summary.toStepIndex}.patch`, patchText);
+      saveTextFile(`${context.project}-steps-${summary.fromStepIndex}-${summary.toStepIndex}.patch`, patchText);
     },
   }), createElement("button", {
     class: "toolbar-btn",

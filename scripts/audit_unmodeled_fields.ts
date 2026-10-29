@@ -14,6 +14,7 @@ export const SYNTHETIC_RECONSTRUCTED_VERSION = "0.0.0-reconstructed";
 
 // One aggregated finding: how often, in how many files, and where first seen.
 export type FindingTally = { count: number; files: Set<string>; example: string };
+type FindingEntry = [string, FindingTally];
 
 // The audit's mutable aggregate across all files.
 export type AuditFindings = {
@@ -25,41 +26,27 @@ export type AuditFindings = {
 };
 
 export function createAuditFindings(): AuditFindings {
-  return {
-    unknownTypes: new Map(),
-    unmodeledFields: new Map(),
-    totalLines: 0,
-    unparseableLines: 0,
-    syntheticRecordsSkipped: 0,
-  };
+  return { unknownTypes: new Map(), unmodeledFields: new Map(), totalLines: 0, unparseableLines: 0, syntheticRecordsSkipped: 0 };
 }
 
 // Count one occurrence under `key`, tracking the carrying file and first example.
-function tallyFinding(
-  findings: Map<string, FindingTally>,
-  key: string,
-  fileLabel: string,
-  lineNumber: number,
-): void {
+function countFinding(findings: Map<string, FindingTally>, key: string, fileLabel: string, lineNumber: number): void {
   const existing = findings.get(key);
   if (existing === undefined) {
-    findings.set(key, {
-      count: 1,
-      files: new Set([fileLabel]),
-      example: `${fileLabel}:${lineNumber}`,
-    });
+    findings.set(key, { count: 1, files: new Set([fileLabel]), example: `${fileLabel}:${lineNumber}` });
     return;
   }
   existing.count += 1;
   existing.files.add(fileLabel);
 }
 
-// Audit one transcript's text into `findings`. Split from file walking so tests can feed fixture lines directly.
-export function auditJsonlText(fileLabel: string, text: string, findings: AuditFindings): void {
+// Scan one transcript's text into `findings`. Split from file walking so tests can feed fixture lines directly.
+export function scanJsonlText(fileLabel: string, text: string, findings: AuditFindings): void {
   const lines = text.split("\n");
   for (const [index, line] of lines.entries()) {
     const lineNumber = index + 1;
-    if (line.trim().length === 0) {
+    const isBlankLine = line.trim().length === 0;
+    if (isBlankLine) {
       continue;
     }
     findings.totalLines += 1;
@@ -77,11 +64,11 @@ export function auditJsonlText(fileLabel: string, text: string, findings: AuditF
     }
     const allowed = ALLOWED_TOP_LEVEL_KEYS[record.type];
     if (allowed === undefined) {
-      tallyFinding(findings.unknownTypes, String(record.type), fileLabel, lineNumber);
+      countFinding(findings.unknownTypes, String(record.type), fileLabel, lineNumber);
       continue;
     }
     for (const key of findUnmodeledTopLevelKeys(record)) {
-      tallyFinding(findings.unmodeledFields, `${record.type}::${key}`, fileLabel, lineNumber);
+      countFinding(findings.unmodeledFields, `${record.type}::${key}`, fileLabel, lineNumber);
     }
   }
 }
@@ -91,30 +78,39 @@ function collectJsonlPaths(root: string): string[] {
   const collected: string[] = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     const fullPath = join(root, entry.name);
-    if (lstatSync(fullPath).isSymbolicLink()) {
+    const isSymlink = lstatSync(fullPath).isSymbolicLink();
+    if (isSymlink) {
       continue;
     }
-    if (entry.isDirectory()) {
+    const isDirectory = entry.isDirectory();
+    if (isDirectory) {
       collected.push(...collectJsonlPaths(fullPath));
       continue;
     }
-    if (entry.name.endsWith(".jsonl")) {
+    const isJsonlFile = entry.name.endsWith(".jsonl");
+    if (isJsonlFile) {
       collected.push(fullPath);
     }
   }
   return collected;
 }
 
+function compareByCountDescending(a: FindingEntry, b: FindingEntry): number {
+  return b[1].count - a[1].count;
+}
+
 // "<key>  count=… files=…  first: <file:line>" lines, most frequent first.
 function formatFindingLines(findings: Map<string, FindingTally>): string[] {
   const entries = [...findings.entries()];
-  entries.sort((a, b) => b[1].count - a[1].count);
-  return entries.map(
-    ([key, tally]) => `  ${key}  count=${tally.count} files=${tally.files.size}  first: ${tally.example}`,
-  );
+  entries.sort(compareByCountDescending);
+  const formatted: string[] = [];
+  for (const [key, tally] of entries) {
+    formatted.push(`  ${key}  count=${tally.count} files=${tally.files.size}  first: ${tally.example}`);
+  }
+  return formatted;
 }
 
-function main(): void {
+function executeAudit(): void {
   const projectsDir = process.argv[2];
   if (projectsDir === undefined) {
     console.error("usage: npx tsx scripts/audit_unmodeled_fields.ts <projectsDir>");
@@ -123,7 +119,7 @@ function main(): void {
   const jsonlPaths = collectJsonlPaths(projectsDir);
   const findings = createAuditFindings();
   for (const jsonlPath of jsonlPaths) {
-    auditJsonlText(relative(projectsDir, jsonlPath), readFileSync(jsonlPath, "utf8"), findings);
+    scanJsonlText(relative(projectsDir, jsonlPath), readFileSync(jsonlPath, "utf8"), findings);
   }
   console.log(
     `scanned ${jsonlPaths.length} .jsonl files, ${findings.totalLines} lines ` +
@@ -141,8 +137,7 @@ function main(): void {
   process.exit(hasFindings ? 1 : 0);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
+const isEntryPoint = process.argv[1] === fileURLToPath(import.meta.url);
+if (isEntryPoint) {
+  executeAudit();
 }
-
-

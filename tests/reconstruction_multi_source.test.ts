@@ -13,7 +13,7 @@ import {
 } from "../src/reconstruction_multi_source.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { buildStepStates } from "../src/reconstruction_steps.ts";
-import { snapshotFileText } from "../src/reconstruction_step_snapshot.ts";
+import { getSnapshotFileText } from "../src/reconstruction_step_snapshot.ts";
 import {
     SESSION_A,
     SESSION_B,
@@ -128,6 +128,6 @@ test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
     const merged = mergeMultiSourceRecords([listA, listB], sources);
     const steps = buildStepStates(merged, buildSidecarReader(merged, sources));
     // Test verification: three engine steps carry the ONE interleaved ladder (engine text drops the trailing newline).
-    const ladder = steps.map((step) => snapshotFileText(step, filePath));
+    const ladder = steps.map((step) => getSnapshotFileText(step, filePath));
     assert.deepEqual(ladder, versions.map((text) => text.slice(0, -1)));
 });
