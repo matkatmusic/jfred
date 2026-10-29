@@ -3,18 +3,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes, stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes, installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 test("test_fetchJson_returns_the_stubbed_payload", async () => {
   initWebappDom();
-  stubFetchRoutes({ "/api/projects": [{ name: "proj-a" }] });
+  installFetchRoutes({ "/api/projects": [{ name: "proj-a" }] });
   const { fetchJson } = await import("../webapp/app-fetch.ts");
   assert.deepEqual(await fetchJson("/api/projects"), [{ name: "proj-a" }]);
 });
 
 test("test_fetchJson_throws_on_an_unstubbed_route", async () => {
   initWebappDom();
-  stubFetchRoutes({});
+  installFetchRoutes({});
   const { fetchJson } = await import("../webapp/app-fetch.ts");
   await assert.rejects(fetchJson("/api/missing"), /404/);
 });
@@ -33,11 +33,11 @@ test("test_clearProjectDocuments_drops_only_that_projects_keys", async () => {
 test("test_fetchDocument_streams_then_serves_the_second_call_from_cache", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   initWebappDom();
-  stubStreamRoute("/api/document", [{ kind: "progress", label: "loading" }, { messages: [] }]);
+  installStreamRoute("/api/document", [{ kind: "progress", label: "loading" }, { messages: [] }]);
   const { fetchDocument } = await import("../webapp/app-fetch.ts");
   const first = await fetchDocument("proj-doc");
   assert.deepEqual(first.document, { messages: [] });
-  stubFetchRoutes({});
+  installFetchRoutes({});
   const second = await fetchDocument("proj-doc");
   assert.deepEqual(second.document, { messages: [] });
 });

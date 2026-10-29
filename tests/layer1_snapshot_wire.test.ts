@@ -9,7 +9,7 @@ import {
     convertToProjectRelativePath,
 } from "../src/layer1_snapshot_wire.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
-import { makeFixtureDiskFolder } from "./layer1-view-test-helpers.ts";
+import { createFixtureDiskFolder } from "./layer1-view-test-helpers.ts";
 import {
     SESSION_ONE,
     SESSION_TWO,
@@ -26,7 +26,7 @@ test("test_convertToProjectRelativePath_requires_the_separator_so_a_sibling_fold
 });
 
 test("test_collectViewSnapshotsByRelativePath_keys_by_project_relative_path_and_counts_each_session", () => {
-    const diskDir = makeFixtureDiskFolder();
+    const diskDir = createFixtureDiskFolder();
     const treeRoot = createTempDir();
     const first = writeSessionTranscript(treeRoot, SESSION_ONE, [
         buildSessionCwdRecord(diskDir, SESSION_ONE),
@@ -54,7 +54,7 @@ test("test_collectViewSnapshotsByRelativePath_keys_by_project_relative_path_and_
 });
 
 test("test_collectViewSnapshotsByRelativePath_drops_a_session_that_wrote_outside_the_project_folder", () => {
-    const diskDir = makeFixtureDiskFolder();
+    const diskDir = createFixtureDiskFolder();
     const treeRoot = createTempDir();
     const elsewhere = writeSessionTranscript(treeRoot, SESSION_ONE, [
         buildSessionCwdRecord("/somewhere/else", SESSION_ONE),

@@ -1,10 +1,10 @@
-// DOM test for webapp/views/project.ts (task 185): the File Nav drawer's JSONL list lives in its own scroll container capped at half the column, so a project with many JSONLs leaves the files-touched tree visible below it. (The DOM-free view-model tests for this module live in tests/viewer-project-views.test.ts.)
+// DOM test for webapp/views/project.ts (task 185): the capped JSONL list keeps the files tree visible.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const MANY_JSONLS = Array.from({ length: 40 }, (_, index) => ({
     fileName: `session-${String(index).padStart(2, "0")}.jsonl`,
@@ -14,7 +14,7 @@ const MANY_JSONLS = Array.from({ length: 40 }, (_, index) => ({
 
 test("test_drawer_caps_jsonl_list_and_keeps_file_tree_outside_it", async () => {
     initWebappDom();
-    stubFetchRoutes({ "/api/projects": [{ name: "proj-185", jsonlFiles: MANY_JSONLS }] });
+    installFetchRoutes({ "/api/projects": [{ name: "proj-185", jsonlFiles: MANY_JSONLS }] });
     const { documentCache } = await import("../webapp/app-fetch.ts");
     documentCache.set("proj-185|*", {
         filesTouched: [{ target: "/ws/parser.py" }, { target: "/ws/tests/test_parser.py" }],
@@ -24,12 +24,12 @@ test("test_drawer_caps_jsonl_list_and_keeps_file_tree_outside_it", async () => {
     const drawer = document.getElementById("drawer")!;
     await renderProjectDrawer(drawer as never, "proj-185", {});
 
-    // Every JSONL link renders inside the capped .drawer-jsonl-list container — none as a direct drawer child, or the CSS height cap would not bound them.
+    // Every JSONL link renders inside the capped .drawer-jsonl-list container.
     const jsonlList = drawer.querySelector(".drawer-jsonl-list");
     assert.ok(jsonlList !== null, "the JSONL list container exists");
     assert.equal(jsonlList!.querySelectorAll("a.drawer-item").length, MANY_JSONLS.length);
 
-    // The files-touched tree renders OUTSIDE the capped container, so it stays visible no matter how many JSONLs the project has.
+    // The files-touched tree renders outside the capped container, so it stays visible.
     const treeFiles = drawer.querySelectorAll(".drawer-file");
     assert.equal(treeFiles.length, 2);
     for (const treeFile of treeFiles) {

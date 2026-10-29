@@ -64,19 +64,16 @@ function buildCancelControls(): HTMLElement[] {
     confirmNoButton,
   ]);
   confirmRow.hidden = true;
-  const showConfirmRow = (): void => {
-    cancelButton.hidden = true;
-    confirmRow.hidden = false;
-  };
-  const hideConfirmRow = (): void => {
-    confirmRow.hidden = true;
-    cancelButton.hidden = false;
+  const toggleConfirmRow = (event: Event): void => {
+    const isConfirmShown = event.currentTarget === cancelButton;
+    confirmRow.hidden = !isConfirmShown;
+    cancelButton.hidden = isConfirmShown;
   };
   const openProjectsRoute = (): void => {
     window.location.hash = "#/";
   };
-  cancelButton.addEventListener("click", showConfirmRow);
-  confirmNoButton.addEventListener("click", hideConfirmRow);
+  cancelButton.addEventListener("click", toggleConfirmRow);
+  confirmNoButton.addEventListener("click", toggleConfirmRow);
   confirmYesButton.addEventListener("click", openProjectsRoute);
   return [cancelButton, confirmRow];
 }

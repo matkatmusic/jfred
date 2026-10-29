@@ -9,7 +9,7 @@ function buildJsonResponse(payload: unknown, ok: boolean, status: number): Respo
     ok,
     status,
     json: async () => payload,
-    text: async () => (ok ? "" : "pathname not stubbed by stubFetchRoutes"),
+    text: async () => (ok ? "" : "pathname not stubbed by installFetchRoutes"),
   } as unknown as Response;
 }
 
@@ -25,7 +25,7 @@ function buildStubbedFetch(routesByPathname: Record<string, unknown>): (url: unk
 }
 
 // Replace global fetch for the duration of a test with the canned-route stub above.
-export function stubFetchRoutes(routesByPathname: Record<string, unknown>): void {
+export function installFetchRoutes(routesByPathname: Record<string, unknown>): void {
   Object.assign(globalThis, { fetch: buildStubbedFetch(routesByPathname) });
 }
 
@@ -54,8 +54,8 @@ function buildStubbedStreamFetch(pathname: string, lines: unknown[]): (url: unkn
   };
 }
 
-// Replace global fetch with one answering `pathname` with a canned NDJSON stream, ignoring query strings like stubFetchRoutes.
-export function stubStreamRoute(pathname: string, lines: unknown[]): void {
+// Replace global fetch with one answering `pathname` with a canned NDJSON stream, ignoring query strings like installFetchRoutes.
+export function installStreamRoute(pathname: string, lines: unknown[]): void {
   Object.assign(globalThis, { fetch: buildStubbedStreamFetch(pathname, lines) });
 }
 

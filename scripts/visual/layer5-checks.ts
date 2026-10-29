@@ -4,7 +4,7 @@ import { type HeadlessPage } from "./cdp.ts";
 import { buildBubbleProbe, isNear, PLAIN_BUBBLE_TRUNK_RAIL_LEFT, TICK_ROWS, type BubbleFacts } from "./layer5-bubble-facts.ts";
 import { validateDotRows, validateElbows, validateTrunkAndRails, validateWidening } from "./layer5-bubble-checks.ts";
 import { validateLaneNodeClicks } from "./layer5-lane-click.ts";
-import { bubbleOf, reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { buildBubbleSelector, reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
@@ -46,7 +46,7 @@ export async function validateLayer5(page: HeadlessPage, pageUrl: string): Promi
   reportCheck("L5 exactly one ruler", await page.evaluate<number>(`document.querySelectorAll('.ruler').length`) === 1);
 
   // Bubbles are 10000px tall: pan to index.ts, then down to its first fork, clear of the ruler.
-  const indexBubble = `document.querySelector(${JSON.stringify(bubbleOf(INDEX_PATH))})`;
+  const indexBubble = `document.querySelector(${JSON.stringify(buildBubbleSelector(INDEX_PATH))})`;
   await page.evaluate(`${indexBubble}.scrollIntoView({ block: 'nearest', inline: 'start' });
         ${indexBubble}.querySelector('.split-elbow').scrollIntoView({ block: 'start', inline: 'nearest' });
         document.querySelector('.timelines').scrollBy(-190, -120)`);

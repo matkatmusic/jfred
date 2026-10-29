@@ -1,11 +1,11 @@
 // Snapshot drawer checks; split out of mockup-checks-snapshots.ts, run order lives in mockup.ts.
 
 import type { HeadlessPage } from "./cdp.ts";
-import { bubbleOf, reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { buildBubbleSelector, reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 export async function validateDrawer(page: HeadlessPage): Promise<void> {
   const open = async (sessionStem: string) => {
-    const node = `${bubbleOf("src/util.ts")} i.n-snap[data-session-file$="${sessionStem}.jsonl"][data-version="2"]`;
+    const node = `${buildBubbleSelector("src/util.ts")} i.n-snap[data-session-file$="${sessionStem}.jsonl"][data-version="2"]`;
     await page.evaluate(`document.querySelector('${node}').click()`);
     await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, 5_000);
     // The title, body and session flash all land after an async fetch.

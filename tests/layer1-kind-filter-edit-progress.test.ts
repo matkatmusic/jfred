@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
@@ -45,7 +45,7 @@ function sampleLoadbarEveryStep(): string[] {
 
 test("test_the_loadbar_names_every_phase_from_the_edit_fetch_to_the_drawn_nodes", async () => {
   initLayer1Dom();
-  stubStreamRoute("/api/layer1-edits", [
+  installStreamRoute("/api/layer1-edits", [
     { kind: "progress", label: "reading Edit/Write events", current: 1, total: 1 },
     { pairs: [{ path: "src/file0.ts", edits: [EDIT] }] },
   ]);

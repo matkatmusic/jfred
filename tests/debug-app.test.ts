@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initDebugDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The element with `id`, asserting it exists.
 function getById(id: string): HTMLElement {
@@ -45,7 +45,7 @@ test("test_debug_boot_without_project_shows_guidance", async () => {
 test("test_debug_boot_with_project_fetches_and_renders_file_list", async () => {
     // Scenario: ?project=proj fetches the file list and renders deep-link anchors.
     initDebugDom("?project=proj");
-    stubFetchRoutes({ "/api/file-ladder": { files: ["/w/alpha.py"] } });
+    installFetchRoutes({ "/api/file-ladder": { files: ["/w/alpha.py"] } });
     const { initDebugApp } = await import("../webapp/debug-app.ts");
     await initDebugApp();
     // one anchor per listed file appears, and the status invites a pick.
@@ -73,7 +73,7 @@ test("test_debug_boot_with_deep_linked_file_renders_the_ladder", async () => {
     // Steps:
     // boot over a deep-linked URL with the ladder response stubbed.
     initDebugDom("?project=proj&file=%2Fw%2Falpha.py");
-    stubFetchRoutes({ "/api/file-ladder": LADDER_PAYLOAD });
+    installFetchRoutes({ "/api/file-ladder": LADDER_PAYLOAD });
     const { initDebugApp } = await import("../webapp/debug-app.ts");
     await initDebugApp();
     // one <li> per revision appears, and the status names the file and its 2 fetched revisions.
@@ -118,7 +118,7 @@ test("test_renderDebugLadder_shows_conflict_notes_on_unrecoverable_revisions", a
 test("test_debug_boot_with_failed_fetch_reports_the_failure", async () => {
     // Scenario: a failed list fetch shows in the status line, not a silent empty page.
     initDebugDom("?project=proj");
-    stubFetchRoutes({});
+    installFetchRoutes({});
     const { initDebugApp } = await import("../webapp/debug-app.ts");
     await initDebugApp();
     // the status carries the failure.

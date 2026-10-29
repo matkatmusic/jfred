@@ -6,7 +6,7 @@ import { createElement, getInputById, getRequiredElementById } from "../webapp/a
 import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 import {
     COMMIT_CONTENT, DISK_FILE_CONTENT, DISK_FILE_PATH, FULL_DIFF, buildDiskNodeStage, getFirstPane,
     installAnimationFrameStub, installRecordingFetch, listPaneArrows, waitForPendingFetches,
@@ -44,7 +44,7 @@ test("clicking an on-disk node opens one DiffView pane showing the whole file, c
 test("a click on anything that is not a node leaves the drawer shut", async () => {
     initLayer1Dom();
     installAnimationFrameStub();
-    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
+    installFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     buildDiskNodeStage();
     installNodeDrawer();
 
@@ -108,7 +108,7 @@ test("a commit node with no hash on it falls back to the working tree, never to 
 test("task 325: a File Nav leaf click selects the on-disk node and opens the drawer", async () => {
     initLayer1Dom();
     installAnimationFrameStub();
-    stubFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
+    installFetchRoutes({ "/api/layer1-file": { content: DISK_FILE_CONTENT }, "/api/layer1-diff-content": { diff: FULL_DIFF } });
     const node = buildDiskNodeStage();
     installNodeDrawer();
 

@@ -1,9 +1,9 @@
-// Task 238: the acceptance test runs a real folder and repo through the live view route into the page.
+// Task 238: runs a real folder and repo through the live view route into the page.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
-import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
+import { launchFixtureViewer } from "./layer1-view-test-helpers.ts";
 import {
     SUBMODULE_FIXTURE_FOLDER,
     createSubmoduleFixtureRoot,
@@ -24,7 +24,7 @@ const submoduleRoot = createSubmoduleFixtureRoot();
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(diskDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(diskDir, SCRATCH_PORT);
 });
 
 after(() => {
@@ -45,7 +45,7 @@ function listMatching(selector: string): HTMLElement[] {
     return [...document.querySelectorAll(selector)] as HTMLElement[];
 }
 
-// Find a bucket by TITLE, never by index: the buckets mirror each other, so an inverted binding would pass.
+// Find a bucket by TITLE, never by index: mirrored buckets would hide an inverted binding.
 function findBucketTitled(title: string): HTMLElement | undefined {
     return listMatching("#stage .filebox.bucket")
         .find((bucket) => bucket.querySelector(".fname")?.textContent === title);

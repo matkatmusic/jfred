@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const FIRST_COMMIT_HASH = "a".repeat(40);
 const SECOND_COMMIT_HASH = "b".repeat(40);
@@ -24,7 +24,7 @@ function getRequiredElementById(id: string): HTMLElement {
 test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
     // Scenario (task 137): "Pick commit…" lists commits; a clicked row fills the base commit; poor matches warn.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },
         "/api/repo-commits": [
             { hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" },
@@ -61,14 +61,14 @@ test("test_commit_pick_list_renders_and_pick_fills_base_commit", async () => {
 test("test_refresh_prefills_file_history_field_from_stored_override", async () => {
     // Scenario (task 153): a stored fileHistory entry fills the task-136 field on refresh; a project without one restores.
     initWebappDom();
-    stubFetchRoutes({ "/api/project-paths": { repo: "/repos/p", fileHistory: "/stored/fh" } });
+    installFetchRoutes({ "/api/project-paths": { repo: "/repos/p", fileHistory: "/stored/fh" } });
     const { refreshProjectPathsSection } = await import("../webapp/app-paths-project.ts");
     await refreshProjectPathsSection("proj-a");
     // the task-136 fields unhide and carry the stored override.
     assert.equal(getRequiredElementById("file-history-fields").hidden, false);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/stored/fh");
     // refresh for a project WITHOUT an override: fields hide, value restores to derived dir ("" here).
-    stubFetchRoutes({ "/api/project-paths": { repo: "/repos/q" } });
+    installFetchRoutes({ "/api/project-paths": { repo: "/repos/q" } });
     await refreshProjectPathsSection("proj-b");
     assert.equal(getRequiredElementById("file-history-fields").hidden, true);
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "");
@@ -77,7 +77,7 @@ test("test_refresh_prefills_file_history_field_from_stored_override", async () =
 test("test_commit_pick_filter_narrows_rows", async () => {
     // Scenario (task 154): typing in the filter narrows the pick list (hash, date, subject); clearing restores all.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/project-paths": { repo: "/repos/p" },
         "/api/repo-commits": [
             { hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" },

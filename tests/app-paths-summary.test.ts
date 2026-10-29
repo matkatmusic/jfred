@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const STORED_COMMIT_HASH = "a".repeat(40);
 const TIP_COMMIT_HASH = "b".repeat(40);
@@ -49,7 +49,7 @@ test("test_renderPathsSummary_project_rows_reflect_fields_and_mirror", async () 
 test("test_getDefaultCommitLabel_prefers_stored_then_repo_tip", async () => {
     // Scenario: a stored base commit labels as the baseline; an empty display uses the repo tip.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip subject" }],
     });
     const { getDefaultCommitLabel } = await import("../webapp/app-paths-summary.ts");

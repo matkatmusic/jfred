@@ -6,7 +6,7 @@ import { type ChildProcess } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
+import { launchFixtureViewer } from "./layer1-view-test-helpers.ts";
 
 // 20900 is taken by the sessions test; parallel files must never collide.
 const SCRATCH_PORT = 21400 + (process.pid % 500);
@@ -17,7 +17,7 @@ const emptyDir = mkdtempSync(join(tmpdir(), "layer1-scan-empty-"));
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(sourceDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(sourceDir, SCRATCH_PORT);
 });
 
 after(() => {

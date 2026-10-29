@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 import { filterProjectsByName } from "../webapp/views/projects.ts";
 
 const PROJECTS = [
@@ -26,7 +26,7 @@ test("test_filterProjectsByName_empty_filter_keeps_every_project", () => {
 test("test_renderProjectsView_lists_rows_and_narrows_on_input", async () => {
     // Scenario: the view lists one row per project, links each row, and narrows live as the filter changes.
     initWebappDom();
-    stubFetchRoutes({ "/api/projects": PROJECTS });
+    installFetchRoutes({ "/api/projects": PROJECTS });
     const { renderProjectsView } = await import("../webapp/views/projects.ts");
     const container = document.createElement("div");
     await renderProjectsView(container);

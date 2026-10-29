@@ -2,7 +2,7 @@
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { type Layer1RefsView, type RepoCommitRow, SourceKind } from "../webapp/layer1-wire.ts";
-import { sendFixtureDiff, sendFixtureFile } from "./viewer_api_layer1_fixture_file.ts";
+import { sendFixtureDiff, sendFixtureFile, sendFixtureRecord } from "./viewer_api_layer1_fixture_file.ts";
 import { buildFixtureLayer1View } from "./viewer_api_layer1_fixture_view.ts";
 import { BRANCHES, COMMITS, SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureCommit } from "./viewer_api_layer1_fixture_data.ts";
@@ -120,6 +120,9 @@ export function dispatchLayer1FixtureRoute(request: IncomingMessage, response: S
   }
   else if (url.pathname === "/api/layer1-file") {
     sendFixtureFile(response, url.searchParams);
+  }
+  else if (url.pathname === "/api/layer1-record") {
+    sendFixtureRecord(response, url.searchParams);
   }
   else if (url.pathname === "/api/layer1-diff") {
     sendFixtureDiff(response, url.searchParams);

@@ -1,6 +1,6 @@
 // Page facts, the page probe, and small helpers for the Layer 5 fixture-mode checks.
 
-import { bubbleOf } from "./mockup-checks.ts";
+import { buildBubbleSelector } from "./mockup-checks.ts";
 
 export const TOLERANCE_PX = 1;
 
@@ -54,7 +54,7 @@ export const buildBubbleProbe = (path: string, forks: string[], rejoin: string) 
                 forkCentreY: tickCentreY(${JSON.stringify(forks)}[i]),
                 rejoinCentreY: merge ? commitCentreY(rejoinInstant) : undefined };
         }) };
-})(document.querySelector(${JSON.stringify(bubbleOf(path))}))`;
+})(document.querySelector(${JSON.stringify(buildBubbleSelector(path))}))`;
 
 export const PLAIN_BUBBLE_TRUNK_RAIL_LEFT = `(b => b.querySelector('.lrail').getBoundingClientRect().left - b.getBoundingClientRect().left)
     ([...document.querySelectorAll('.filebox')].find(b => b.querySelector('.fname[data-path]') && !b.querySelector('.blane')))`;

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // The on-disk state sits BEFORE both commits (inverted case); hashes are real 40-character values so truncation bugs show.
 const DISK_FIRST_ON_DISK = { instant: "2026-06-01T09:00:00.000Z", axisPx: 10 };
@@ -28,7 +28,7 @@ const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 // Boot a fresh page on a stubbed stream ending in `view`; initLayer1Page runs explicitly because boot runs once.
 async function loadPageWithView(view: object): Promise<void> {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", [view]);
+    installStreamRoute("/api/layer1-view", [view]);
     const { initLayer1Page } = await import("../webapp/layer1-page.ts");
     initLayer1Page();
     await waitForAsyncWork();

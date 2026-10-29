@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const FIRST_COMMIT_HASH = "a".repeat(40);
 const SECOND_COMMIT_HASH = "b".repeat(40);
@@ -18,7 +18,7 @@ function getRequiredElementById(id: string): HTMLElement {
 test("test_open_pick_list_renders_one_row_per_commit", async () => {
     // Scenario: opening the list fetches the repo's commits and renders one row each, with the filter box shown.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/repo-commits": [
             { hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" },
             { hash: SECOND_COMMIT_HASH, date: "2026-07-20", subject: "older change" },
@@ -38,7 +38,7 @@ test("test_open_pick_list_renders_one_row_per_commit", async () => {
 test("test_pick_row_fills_base_commit_and_warns_on_poor_match", async () => {
     // Scenario: picking a row fills the base commit; a poor path match shows the warning.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/repo-commits": [{ hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" }],
         "/api/repo-commit-match": { matchedCount: 1, totalCount: 4 },
     });
@@ -54,7 +54,7 @@ test("test_pick_row_fills_base_commit_and_warns_on_poor_match", async () => {
 test("test_pick_row_with_good_match_leaves_warning_empty", async () => {
     // Scenario: when at least half of the recorded paths match, the warning stays empty.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/repo-commits": [{ hash: FIRST_COMMIT_HASH, date: "2026-07-21", subject: "newest change" }],
         "/api/repo-commit-match": { matchedCount: 3, totalCount: 4 },
     });

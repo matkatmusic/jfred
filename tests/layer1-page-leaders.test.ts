@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // `eventCount` is task 275's per-instant count. It is required: layer1-ruler-rows.ts rejects an entry without it.
 interface FixtureInstant {
@@ -38,7 +38,7 @@ const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";
 
 async function loadPageWithView(view: object): Promise<void> {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", [view]);
+    installStreamRoute("/api/layer1-view", [view]);
     const { initLayer1Page } = await import("../webapp/layer1-page.ts");
     initLayer1Page();
     await waitForAsyncWork();

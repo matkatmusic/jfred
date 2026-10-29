@@ -8,7 +8,7 @@ import { loadLayer1Sessions, resetSessionSelection } from "../webapp/layer1-sess
 import { writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const SESSION = { file: "a.jsonl", fullPath: "/p/a.jsonl", titles: [],
     started: "2026-06-01T08:00:00Z", ended: "2026-06-01T09:00:00Z", paths: ["src/a.ts"] };
@@ -16,7 +16,7 @@ const SESSION = { file: "a.jsonl", fullPath: "/p/a.jsonl", titles: [],
 async function openBubble(): Promise<{ name: HTMLElement; node: HTMLElement }> {
     initLayer1Dom();
     writeSourcePaths(SourceKind.jsonl, ["/p"]);
-    stubStreamRoute("/api/layer1-sessions", [{ sessions: [SESSION] }]);
+    installStreamRoute("/api/layer1-sessions", [{ sessions: [SESSION] }]);
     resetSessionSelection();
     await loadLayer1Sessions();
     renderSessionPane(() => {});

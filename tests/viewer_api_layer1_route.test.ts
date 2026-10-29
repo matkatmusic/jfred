@@ -8,9 +8,9 @@ import { type AddressInfo } from "node:net";
 import { sendNdjsonBuild } from "../src/viewer_api_layer1_route.ts";
 import {
     buildViewUrl,
-    makeFixtureDiskFolder,
-    makeFixtureRepo,
-    startFixtureViewer,
+    createFixtureDiskFolder,
+    createFixtureRepo,
+    launchFixtureViewer,
     type WireLayer1View,
 } from "./layer1-view-test-helpers.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
@@ -26,12 +26,12 @@ type StreamLine = Partial<WireLayer1View> & {
     total?: number;
 };
 
-const diskDir = makeFixtureDiskFolder();
-const repoDir = makeFixtureRepo();
+const diskDir = createFixtureDiskFolder();
+const repoDir = createFixtureRepo();
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(diskDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(diskDir, SCRATCH_PORT);
 });
 
 after(() => {
@@ -64,7 +64,7 @@ test("test_layer1_view_stream_emits_a_counted_progress_line_before_the_view", as
     // at least one progress line carries a numeric current AND total.
     const counted = progressLines.filter((line) => typeof line.current === "number" && typeof line.total === "number");
     assert.ok(counted.length > 0, `no counted progress line in ${lines.length} lines`);
-    // every progress line precedes the terminal line, which is the LAST line and the only one without a kind.
+    // every progress line precedes the terminal line: the LAST line, the only one without a kind.
     const terminalIndex = lines.length - 1;
     assert.equal(lines[terminalIndex]!.kind, undefined);
     assert.equal(lines.filter((line) => line.kind === undefined).length, 1);

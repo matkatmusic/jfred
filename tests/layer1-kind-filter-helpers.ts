@@ -11,15 +11,15 @@ export function buildFreshView(): never {
   return { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never;
 }
 
-export function stubSettingsRoute(savedFile: unknown): { posted: () => unknown[] } {
+export function installSettingsRoute(savedFile: unknown): { posted: () => unknown[] } {
   const posted: unknown[] = [];
-  const answer = async (_url: unknown, init?: { method?: string; body?: string }): Promise<Response> => {
+  const sendReply = async (_url: unknown, init?: { method?: string; body?: string }): Promise<Response> => {
     if (init?.method === "POST") {
       posted.push(JSON.parse(init.body ?? "{}"));
     }
     return { ok: true, status: 200, json: async () => savedFile, text: async () => "" } as unknown as Response;
   };
-  Object.assign(globalThis, { fetch: answer });
+  Object.assign(globalThis, { fetch: sendReply });
   return { posted: () => posted };
 }
 

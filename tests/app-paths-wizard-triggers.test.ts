@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const TIP_COMMIT_HASH = "c".repeat(40);
 
@@ -30,7 +30,7 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
 // Boot a fresh DOM with the wizard routes stubbed, run the header bootstrap, and wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [],
         "/api/project-paths": projectPathsEntry,
@@ -75,7 +75,7 @@ test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
 test("test_first_launch_with_empty_projects_dir_starts_full_wizard", async () => {
     // Scenario: no global config leaves the projects-dir input empty, so the full wizard starts at screen 1.
     initWebappDom();
-    stubFetchRoutes({});
+    installFetchRoutes({});
     const wizard = await import("../webapp/app-paths-wizard.ts");
     wizard.initializeWizard();
     wizard.maybeStartFirstLaunchWizard();

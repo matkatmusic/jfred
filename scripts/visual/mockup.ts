@@ -15,17 +15,18 @@ import {
 } from "./mockup-checks.ts";
 import { validateDrawer } from "./mockup-checks-snapshot-drawer.ts";
 import { validateRulerRow, validateSnapshotNodes, validateSnapshotToggle } from "./mockup-checks-snapshots.ts";
-import { checkLayer3 } from "./layer3-checks.ts";
-import { checkLayer4 } from "./layer4-checks.ts";
-import { checkKindJump } from "./kind-jump-checks.ts";
-import { checkKindDashes } from "./kind-dash-checks.ts";
+import { executeLayer3Checks } from "./layer3-checks.ts";
+import { validateLayer4 } from "./layer4-checks.ts";
+import { validateKindJump } from "./kind-jump-checks.ts";
+import { validateKindDashes } from "./kind-dash-checks.ts";
 import { validateLayer5 } from "./layer5-checks.ts";
-// // checkBubbleFlash (task 386: the real page has no bubble-click flash)
-import { checkBubbleFlash, checkMultiFileDrawer, checkSessionSearch } from "./mockup-checks-nav.ts";
+// // validateBubbleFlash (task 386: the real page has no bubble-click flash)
+import { validateBubbleFlash, validateSessionSearch } from "./mockup-checks-nav.ts";
+import { validateMultiFileDrawer } from "./mockup-checks-multi-drawer.ts";
+import { validateDiffPair, validateDiffTools, validatePairArrows } from "./mockup-checks-diff.ts";
 import {
-  checkCrossBubbleRefusal, checkDiffPair, checkDiffTools, checkNavBugs, checkNavOpensDiskNode,
-  checkPairArrows, checkShowOnlySelected,
-} from "./mockup-checks-diff.ts";
+  validateCrossBubbleRefusal, validateNavBugs, validateNavOpensDiskNode, validateShowOnlySelected,
+} from "./mockup-checks-diff-nav.ts";
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // --projects-dir stays mandatory but the fixture routes ignore it; any existing folder does.
@@ -48,10 +49,10 @@ async function openLayer2(page: HeadlessPage): Promise<void> {
 
 async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void> {
   // Task 343: first, ahead of the old checks that crash on window.__fixture; it ends on a fresh page.
-  await checkLayer3(page, pageUrl);
-  await checkLayer4(page, pageUrl);
-  await checkKindJump(page, pageUrl);
-  await checkKindDashes(page, pageUrl);
+  await executeLayer3Checks(page, pageUrl);
+  await validateLayer4(page, pageUrl);
+  await validateKindJump(page, pageUrl);
+  await validateKindDashes(page, pageUrl);
   await validateLayer5(page, pageUrl);
   // The page no longer sets window.__fixture; the checks read the arrays the server serves.
   await page.evaluate(`(window.__fixture = ${JSON.stringify({ SESSIONS, DISK, COMMITS, SNAPSHOTS })}, true)`);
@@ -81,20 +82,20 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
 
   await validateRulerRow(page);
   // // Task 386: the real page has no bubble-click flash (#308).
-  await checkBubbleFlash(page);
-  await checkSessionSearch(page);
+  await validateBubbleFlash(page);
+  await validateSessionSearch(page);
   await validateDrawer(page);
 
   // Tasks #324/#325/#326; each restores what it changed, so the round-trip below still matches.
-  await checkDiffPair(page);
-  await checkPairArrows(page);
-  await checkDiffTools(page);
-  await checkCrossBubbleRefusal(page);
+  await validateDiffPair(page);
+  await validatePairArrows(page);
+  await validateDiffTools(page);
+  await validateCrossBubbleRefusal(page);
   await saveScreenshot(page, "03-diff-pair");
-  await checkNavOpensDiskNode(page);
-  await checkShowOnlySelected(page);
-  await checkNavBugs(page);
-  await checkMultiFileDrawer(page);
+  await validateNavOpensDiskNode(page);
+  await validateShowOnlySelected(page);
+  await validateNavBugs(page);
+  await validateMultiFileDrawer(page);
 
   await page.evaluate(`document.getElementById('dclose').click()`);
   // await page.waitFor(`document.querySelectorAll('.n-snap').length === 0`, 10_000);

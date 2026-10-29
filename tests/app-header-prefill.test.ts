@@ -3,12 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The dynamic import keeps every webapp module load AFTER the globals exist.
 async function initHeaderInFreshDom(): Promise<void> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [{ name: "proj-a" }, { name: "proj-b" }],
     });

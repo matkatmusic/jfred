@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const TIP_COMMIT_HASH = "c".repeat(40);
 
@@ -34,7 +34,7 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
 // Boot a fresh DOM with the wizard's routes stubbed, run the header bootstrap, wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [],
         "/api/project-paths": projectPathsEntry,

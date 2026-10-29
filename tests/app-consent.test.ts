@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const SCRIPTS = [
     { timestamp: "2026-01-01T00:00:00Z", code: "print(1)" },
@@ -12,7 +12,7 @@ const SCRIPTS = [
 
 async function renderDialogInFreshDom(): Promise<HTMLElement> {
     initWebappDom();
-    stubFetchRoutes({ "/api/projects": [] });
+    installFetchRoutes({ "/api/projects": [] });
     const { renderConsentDialog } = await import("../webapp/app-consent.ts");
     const container = document.createElement("div");
     renderConsentDialog(container, "proj-a", SCRIPTS);

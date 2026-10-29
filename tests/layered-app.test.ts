@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayeredDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The element with `id`, asserting it exists.
 function getById(id: string): HTMLElement {
@@ -105,7 +105,7 @@ function buildWireGraphFixture(): object {
 test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {
     // Scenario: the page fetches /api/layered-graph on load and fills the drawer.
     initLayeredDom();
-    stubFetchRoutes({ "/api/layered-graph": buildWireGraphFixture() });
+    installFetchRoutes({ "/api/layered-graph": buildWireGraphFixture() });
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     await loadLayeredGraphIntoDrawer("p1");
     await waitForAsyncWork();
@@ -117,7 +117,7 @@ test("test_boot_fetches_layered_graph_and_fills_drawer", async () => {
 test("test_boot_without_a_project_param_keeps_the_empty_skeleton", async () => {
     // Scenario: a bare page load with no ?project= fetches nothing and renders empty.
     initLayeredDom();
-    stubFetchRoutes({});
+    installFetchRoutes({});
     const { loadLayeredGraphIntoDrawer } = await import("../webapp/layered-app.ts");
     // The window URL has no ?project=, so the default argument is null.
     await loadLayeredGraphIntoDrawer();

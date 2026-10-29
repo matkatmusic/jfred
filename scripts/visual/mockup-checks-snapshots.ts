@@ -1,7 +1,7 @@
 // Snapshot node, ruler row and drawer checks; split out of mockup-checks.ts, run order lives in mockup.ts.
 
 import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
-import { FADE_WAIT_MS, bubbleOf, buildShapeProbe, reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { FADE_WAIT_MS, buildBubbleSelector, buildShapeProbe, reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
 export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
   const labels = await page.evaluate<string[]>(
@@ -35,14 +35,14 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
       `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
   reportCheck("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
     await page.evaluate<number>(
-      `document.querySelectorAll('${bubbleOf("src/index.ts")} .nodes-with-same-timestamp').length`) === 1);
+      `document.querySelectorAll('${buildBubbleSelector("src/index.ts")} .nodes-with-same-timestamp').length`) === 1);
   // Task 386: compared the page to itself since the layer switcher was retired.
   // reportCheck("#301 the bubble anchor stays on `created at`",
   //   await page.evaluate<string>(
   //     `document.querySelector('[data-path="src/index.ts"]').dataset.instant`) === indexAnchor);
   reportCheck("#301 the pre-commit snapshot sits between `created at` and the first commit",
     await page.evaluate<boolean>(`(() => {
-        const cell = '${bubbleOf("src/index.ts")} .nlabel';
+        const cell = '${buildBubbleSelector("src/index.ts")} .nlabel';
         const axisOf = n => Number(n.style.getPropertyValue('--axis-px'));
         const rows = [...document.querySelectorAll(cell)].sort((a, b) => axisOf(a) - axisOf(b)).map(n => n.textContent);
         return rows[0] === 'created at' && rows[1] === '@v1 📸' && /^[0-9a-f]{8}$/.test(rows[2]);
@@ -52,7 +52,7 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
 // Task 63: replaces #304's Layer 1 vs 2 compare; the snapshot box hides snapshots by CSS.
 export async function validateSnapshotToggle(page: HeadlessPage): Promise<void> {
   const snapshotBox = `document.querySelector('#show-row input[data-kind="snapshot"]')`;
-  const hiddenProbe = `[...document.querySelectorAll('${bubbleOf("src/index.ts")} .nlabel.n-snap')]
+  const hiddenProbe = `[...document.querySelectorAll('${buildBubbleSelector("src/index.ts")} .nlabel.n-snap')]
         .map(n => getComputedStyle(n).display === 'none')`;
   const before = await page.evaluate<string>(buildShapeProbe("README.md"));
   await page.evaluate(`${snapshotBox}.click()`);
@@ -66,7 +66,7 @@ export async function validateSnapshotToggle(page: HeadlessPage): Promise<void> 
         .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
         .map(c => c.hash.slice(0, 8)).concat('on disk').join('/')`);
   const readmeSnapCount = await page.evaluate<number>(
-    `document.querySelectorAll('${bubbleOf("README.md")} .n-snap').length`);
+    `document.querySelectorAll('${buildBubbleSelector("README.md")} .n-snap').length`);
   const boxTicked = await page.evaluate<boolean>(`${snapshotBox}.checked`);
   reportCheck("#304 unticking snapshots leaves a snapshot-free file exactly as it was",
     unticked === before, { before, unticked });

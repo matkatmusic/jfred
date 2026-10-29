@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // Load the module AFTER the happy-dom globals exist: its imports expect browser globals.
 async function importInspectorSnapshots(): Promise<typeof import("../webapp/inspector-snapshots.ts")> {
@@ -41,7 +41,7 @@ test("test_buildSnapshotDrawer_close_button_removes_drawer_and_split_class", asy
 test("test_scanTrackedBackupPresence_records_presence_and_reshows_current_line", async () => {
     // Scenario: an unprobed backup name is fetched via /api/blob; the probe records it and re-shows the line.
     const { blobPresenceByKey, updateShowLineRenderCount, scanTrackedBackupPresence } = await importInspectorSnapshots();
-    stubFetchRoutes({ "/api/blob": { exists: true } });
+    installFetchRoutes({ "/api/blob": { exists: true } });
     const shownLines: number[] = [];
     // the probing render is the current one for the whole probe lifetime.
     const renderCountAtStart = updateShowLineRenderCount();
@@ -55,7 +55,7 @@ test("test_scanTrackedBackupPresence_records_presence_and_reshows_current_line",
 test("test_scanTrackedBackupPresence_skips_reshow_after_a_newer_render", async () => {
     // Scenario: the pane showed another line mid-probe; the probe records presence but must NOT re-show.
     const { blobPresenceByKey, updateShowLineRenderCount, scanTrackedBackupPresence } = await importInspectorSnapshots();
-    stubFetchRoutes({ "/api/blob": { exists: false } });
+    installFetchRoutes({ "/api/blob": { exists: false } });
     const shownLines: number[] = [];
     // blob-B: the presence cache from the previous test must not short-circuit this probe.
     const renderCountAtStart = updateShowLineRenderCount();
@@ -66,4 +66,18 @@ test("test_scanTrackedBackupPresence_skips_reshow_after_a_newer_render", async (
     // assert the presence still landed but no re-show happened.
     assert.equal(blobPresenceByKey.get("session-1|blob-B"), false);
     assert.deepEqual(shownLines, []);
+});
+
+test("test_scanTrackedBackupPresence_makes_no_fetch_for_a_null_backupFileName", async () => {
+    // Scenario: a tracked file with no backup (null name) must not ask the server for a blob named "null".
+    const { blobPresenceByKey, updateShowLineRenderCount, scanTrackedBackupPresence } = await importInspectorSnapshots();
+    installFetchRoutes({ "/api/blob": { exists: true } });
+    const stubbedFetch = globalThis.fetch;
+    const fetchedUrls: string[] = [];
+    Object.assign(globalThis, { fetch: (url: unknown) => { fetchedUrls.push(String(url)); return stubbedFetch(url as string); } });
+    scanTrackedBackupPresence({ "src/c.py": { backupFileName: null } }, "session-1", updateShowLineRenderCount(), () => {}, 3);
+    await waitForAsyncWork();
+    // assert no request went out and nothing was cached for "null".
+    assert.deepEqual(fetchedUrls, []);
+    assert.equal(blobPresenceByKey.has("session-1|null"), false);
 });

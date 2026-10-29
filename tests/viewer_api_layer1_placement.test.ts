@@ -14,21 +14,21 @@ import {
     SECOND_COMMIT_PX,
     SHARED_FILE_MTIME,
     SHARED_FILE_PX,
-    makeFixtureDiskFolder,
-    makeFixtureRepo,
-    requestFixtureView,
-    startFixtureViewer,
+    createFixtureDiskFolder,
+    createFixtureRepo,
+    fetchFixtureView,
+    launchFixtureViewer,
 } from "./layer1-view-test-helpers.ts";
 
 // 17400, 17900, 18400 and 18900 are taken — parallel test files must never collide.
 const SCRATCH_PORT = 19400 + (process.pid % 500);
 
-const diskDir = makeFixtureDiskFolder();
-const repoDir = makeFixtureRepo();
+const diskDir = createFixtureDiskFolder();
+const repoDir = createFixtureRepo();
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(diskDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(diskDir, SCRATCH_PORT);
 });
 
 after(() => {
@@ -37,7 +37,7 @@ after(() => {
 
 test("test_layer1_view_endpoint_places_every_pair_node_on_the_shared_ruler", async () => {
     // The page emits --axis-px straight from the wire, so the endpoint owes a finished offset per node.
-    const view = await requestFixtureView(SCRATCH_PORT, diskDir, repoDir);
+    const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
     const pair = view.pairs[0]!;
     assert.deepEqual(pair.commits.map((commit) => commit.instant), [
         new Date(FIRST_COMMIT_INSTANT).toISOString(),
@@ -53,7 +53,7 @@ test("test_layer1_view_endpoint_places_every_pair_node_on_the_shared_ruler", asy
 
 test("test_layer1_view_endpoint_returns_the_ruler_ticks_ascending_with_the_gap_cap_applied", async () => {
     // The ruler resolves all distinct instants globally, so a disk orphan's mtime is a tick too.
-    const view = await requestFixtureView(SCRATCH_PORT, diskDir, repoDir);
+    const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
     assert.deepEqual(view.ruler.map((position) => position.instant), [
         new Date(EARLY_DISK_ORPHAN_MTIME).toISOString(),
         new Date(FIRST_COMMIT_INSTANT).toISOString(),
@@ -71,7 +71,7 @@ test("test_layer1_view_endpoint_returns_the_ruler_ticks_ascending_with_the_gap_c
 
 test("test_layer1_view_endpoint_places_each_orphan_bucket_row_at_its_own_instant", async () => {
     // The page places a bucket at its first row, so rows must arrive earliest-first.
-    const view = await requestFixtureView(SCRATCH_PORT, diskDir, repoDir);
+    const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
     assert.equal(view.gitOrphans[0]!.instant, new Date(FIRST_COMMIT_INSTANT).toISOString());
     assert.equal(view.gitOrphans[0]!.axisPx, FIRST_COMMIT_PX);
     // rows[0] is the EARLIEST member even though the disk walk yields it second (path order).

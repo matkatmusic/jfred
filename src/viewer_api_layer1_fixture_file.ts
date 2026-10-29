@@ -6,7 +6,8 @@ import { buildLayer1DiffPayload } from "./viewer_api_layer1_diff.ts";
 import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
-import { readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
+import { EDITS } from "./viewer_api_layer3_fixture_data.ts";
+import { buildFixtureRecord, readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
 import { readFixtureBranchFile } from "./viewer_api_layer5_mockup_branches.ts";
 import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
@@ -41,6 +42,17 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
     }
   }
   return findTitleAt(sessionFile, line);
+}
+
+// The fixture's stand-in for a transcript line: the edit event recorded at that session and line.
+export function sendFixtureRecord(response: ServerResponse, query: URLSearchParams): void {
+  const session = basename(getRequiredParam(query, "jsonl"));
+  const line = Number(getRequiredParam(query, "line"));
+  const event = EDITS.find((entry) => entry.session === session && entry.line === line);
+  if (event === undefined) {
+    throw new Error(`no fixture record at line ${line} of ${session}`);
+  }
+  sendJson(response, 200, buildFixtureRecord(event));
 }
 
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {

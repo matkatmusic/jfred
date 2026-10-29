@@ -1,4 +1,4 @@
-// Task 312 (spec S19): snapshot nodes in the built Layer 1 view, the shared ruler, and the client mirror.
+// Task 312: snapshot nodes in the built Layer 1 view, the shared ruler, and the client mirror.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,8 +8,8 @@ import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import { relayOutLayer1View } from "../webapp/layer1-filter.ts";
 import {
     SHARED_FILE_MTIME,
-    makeFixtureDiskFolder,
-    makeFixtureRepo,
+    createFixtureDiskFolder,
+    createFixtureRepo,
 } from "./layer1-view-test-helpers.ts";
 import {
     SESSION_ONE,
@@ -18,8 +18,8 @@ import {
 } from "./layer1-snapshot-wire-test-helpers.ts";
 
 test("test_buildLayer1View_gives_a_snapshot_only_instant_its_own_ruler_entry", () => {
-    const diskDir = makeFixtureDiskFolder();
-    const view = buildLayer1View(new Path(diskDir), new Path(makeFixtureRepo()), "HEAD",
+    const diskDir = createFixtureDiskFolder();
+    const view = buildLayer1View(new Path(diskDir), new Path(createFixtureRepo()), "HEAD",
         undefined, undefined, writeFixtureSessions(diskDir));
     const tick = view.ruler.find((entry) => entry.instant.toISOString() === SNAPSHOT_ONLY_INSTANT);
     assert.ok(tick, "the snapshot-only instant is missing from the ruler");
@@ -27,8 +27,8 @@ test("test_buildLayer1View_gives_a_snapshot_only_instant_its_own_ruler_entry", (
 });
 
 test("test_buildLayer1View_counts_a_snapshot_alongside_the_node_it_shares_an_instant_with", () => {
-    const diskDir = makeFixtureDiskFolder();
-    const view = buildLayer1View(new Path(diskDir), new Path(makeFixtureRepo()), "HEAD",
+    const diskDir = createFixtureDiskFolder();
+    const view = buildLayer1View(new Path(diskDir), new Path(createFixtureRepo()), "HEAD",
         undefined, undefined, writeFixtureSessions(diskDir));
     const pair = view.pairs.find((candidate) => candidate.path.toString() === "shared.txt")!;
     const mtimeMs = new Date(SHARED_FILE_MTIME).getTime();
@@ -44,8 +44,8 @@ test("test_buildLayer1View_counts_a_snapshot_alongside_the_node_it_shares_an_ins
 });
 
 test("test_buildLayer1View_carries_snapshots_on_a_disk_orphan", () => {
-    const diskDir = makeFixtureDiskFolder();
-    const view = buildLayer1View(new Path(diskDir), new Path(makeFixtureRepo()), "HEAD",
+    const diskDir = createFixtureDiskFolder();
+    const view = buildLayer1View(new Path(diskDir), new Path(createFixtureRepo()), "HEAD",
         undefined, undefined, writeFixtureSessions(diskDir));
     const orphan = view.diskOrphans.find((candidate) => candidate.path.toString() === "disk-only.txt")!;
     assert.equal(orphan.snapshots?.length, 1);
@@ -53,8 +53,8 @@ test("test_buildLayer1View_carries_snapshots_on_a_disk_orphan", () => {
 });
 
 test("test_buildLayer1View_omits_snapshots_entirely_when_no_session_is_supplied", () => {
-    const diskDir = makeFixtureDiskFolder();
-    const repoDir = makeFixtureRepo();
+    const diskDir = createFixtureDiskFolder();
+    const repoDir = createFixtureRepo();
     const withSessions = buildLayer1View(new Path(diskDir), new Path(repoDir), "HEAD",
         undefined, undefined, writeFixtureSessions(diskDir));
     const without = buildLayer1View(new Path(diskDir), new Path(repoDir), "HEAD");
@@ -66,9 +66,9 @@ test("test_buildLayer1View_omits_snapshots_entirely_when_no_session_is_supplied"
 });
 
 test("test_relayOutLayer1View_reproduces_the_servers_offsets_for_a_snapshot_bearing_view", () => {
-    const diskDir = makeFixtureDiskFolder();
+    const diskDir = createFixtureDiskFolder();
     const served = JSON.parse(JSON.stringify(buildLayer1View(
-        new Path(diskDir), new Path(makeFixtureRepo()), "HEAD", undefined, undefined, writeFixtureSessions(diskDir),
+        new Path(diskDir), new Path(createFixtureRepo()), "HEAD", undefined, undefined, writeFixtureSessions(diskDir),
     )));
     // The client mirrors the server's ladder; if it added snapshots differently the offsets would disagree.
     assert.deepEqual(relayOutLayer1View(served), served);

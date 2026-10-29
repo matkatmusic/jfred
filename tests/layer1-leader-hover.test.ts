@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 // One placed moment as the endpoint ships it: absolute ruler offsets, no time arithmetic anywhere.
 interface FixtureInstant {
@@ -74,7 +74,7 @@ function stubPaneScrolledAwayFromTargets(): void {
 // Boot a fresh page at a deep link with the view stubbed; initLayer1Page runs explicitly.
 async function loadPageWithView(view: object): Promise<void> {
     initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
-    stubStreamRoute("/api/layer1-view", [view]);
+    installStreamRoute("/api/layer1-view", [view]);
     const { initLayer1Page } = await import("../webapp/layer1-page.ts");
     initLayer1Page();
     await waitForAsyncWork();

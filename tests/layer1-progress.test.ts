@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
@@ -19,7 +19,7 @@ const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 // Fresh page naming both roots, endpoint answering `lines`; the strip is up by the time this returns.
 function openPageStreaming(lines: unknown[]): void {
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", lines);
+    installStreamRoute("/api/layer1-view", lines);
     initLayer1Page();
 }
 
@@ -54,7 +54,7 @@ test("test_the_progress_bar_shows_while_the_view_streams_and_hides_when_it_ends"
 test("test_a_counted_progress_line_fills_the_bar_to_its_fraction", async () => {
     // Scenario (step 4c): a {current, total} line fills the track and spells the count out beside it.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
-    stubStreamRoute("/api/layer1-view", [
+    installStreamRoute("/api/layer1-view", [
         { kind: "progress", label: "reading file history", current: 5, total: 10 },
         EMPTY_VIEW,
     ]);

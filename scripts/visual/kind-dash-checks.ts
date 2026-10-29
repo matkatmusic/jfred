@@ -1,4 +1,4 @@
-// Ruler kind dashes on the fixture-mode page; mockup.ts calls checkKindDashes and it leaves a fresh page behind.
+// Ruler kind dashes on the fixture-mode page; mockup.ts calls validateKindDashes and it leaves a fresh page behind.
 
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
@@ -6,7 +6,7 @@ import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 const SCRIPT_DOTS = `document.querySelectorAll('#stage i.node.n-script')`;
 const STRIP_IDLE = `document.getElementById('loadbar').hidden`;
 const LOAD_TIMEOUT_MS = 15_000;
-const box = (kind: string) => `document.querySelector('#show-row input[data-kind="${kind}"]')`;
+const selectKindBox = (kind: string) => `document.querySelector('#show-row input[data-kind="${kind}"]')`;
 const countDashes = (kindClass: string) => `document.querySelectorAll('#ruler .tick .kdash-${kindClass}').length`;
 
 interface DashProbe {
@@ -24,7 +24,7 @@ const READ_FIRST_DASH = `(() => {
         visible: style.display !== 'none' && style.visibility !== 'hidden' && style.backgroundColor !== 'rgba(0, 0, 0, 0)' };
 })()`;
 
-async function checkDashesDrawn(page: HeadlessPage): Promise<void> {
+async function validateDashesDrawn(page: HeadlessPage): Promise<void> {
   const total = await page.evaluate<number>(`document.querySelectorAll('#ruler .tick .kdash').length`);
   reportCheck("KD ticks show dashes", total > 0, total);
   const mixedMulti = await page.evaluate<number>(
@@ -44,27 +44,27 @@ async function checkDashesDrawn(page: HeadlessPage): Promise<void> {
   await saveScreenshot(page, "10-kind-dashes");
 }
 
-async function checkScriptDashAppears(page: HeadlessPage): Promise<void> {
+async function validateScriptDashAppears(page: HeadlessPage): Promise<void> {
   const before = await page.evaluate<number>(countDashes("script-run"));
-  await page.evaluate(`${box("script-run")}.click()`);
+  await page.evaluate(`${selectKindBox("script-run")}.click()`);
   await page.waitFor(`${SCRIPT_DOTS}.length > 0 && ${STRIP_IDLE}`, LOAD_TIMEOUT_MS);
   const after = await page.evaluate<number>(countDashes("script-run"));
   reportCheck("KD ticking the Script box gives some tick a script dash", before === 0 && after > 0, { before, after });
   await saveScreenshot(page, "11-kind-dashes-script");
 }
 
-async function checkUntickRemovesDashes(page: HeadlessPage): Promise<void> {
+async function validateUntickRemovesDashes(page: HeadlessPage): Promise<void> {
   for (const [kind, kindClass] of [["script-run", "script-run"], ["commit", "commit"]]) {
-    await page.evaluate(`${box(kind!)}.click()`);
+    await page.evaluate(`${selectKindBox(kind!)}.click()`);
     const left = await page.evaluate<number>(countDashes(kindClass!));
     reportCheck(`KD unticking ${kind} removes its dashes`, left === 0, left);
   }
 }
 
-export async function checkKindDashes(page: HeadlessPage, pageUrl: string): Promise<void> {
-  await checkDashesDrawn(page);
-  await checkScriptDashAppears(page);
-  await checkUntickRemovesDashes(page);
+export async function validateKindDashes(page: HeadlessPage, pageUrl: string): Promise<void> {
+  await validateDashesDrawn(page);
+  await validateScriptDashAppears(page);
+  await validateUntickRemovesDashes(page);
   await page.navigate(pageUrl);
   await page.waitFor(`document.querySelectorAll('.filebox').length > 0 && ${STRIP_IDLE}`, 30_000);
 }

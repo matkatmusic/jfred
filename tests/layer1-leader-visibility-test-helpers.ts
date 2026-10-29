@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
   instant: string;
@@ -49,7 +49,7 @@ export function buildSharedInstantView(): object {
 
 export async function loadPageWithView(view: object): Promise<void> {
   initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
-  stubStreamRoute("/api/layer1-view", [view]);
+  installStreamRoute("/api/layer1-view", [view]);
   const { initLayer1Page } = await import("../webapp/layer1-page.ts");
   initLayer1Page();
   await waitForAsyncWork();

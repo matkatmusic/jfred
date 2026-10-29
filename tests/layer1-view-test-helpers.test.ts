@@ -6,19 +6,19 @@ import { execSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import {
-    EARLY_DISK_ORPHAN_MTIME, FIRST_COMMIT_INSTANT, SECOND_COMMIT_INSTANT, makeFixtureDiskFolder, makeFixtureRepo,
+    EARLY_DISK_ORPHAN_MTIME, FIRST_COMMIT_INSTANT, SECOND_COMMIT_INSTANT, createFixtureDiskFolder, createFixtureRepo,
 } from "./layer1-view-test-helpers.ts";
 
-test("makeFixtureDiskFolder pins early.txt to the stated early mtime", () => {
-    const diskDir = makeFixtureDiskFolder();
+test("createFixtureDiskFolder pins early.txt to the stated early mtime", () => {
+    const diskDir = createFixtureDiskFolder();
 
     const mtime = statSync(join(diskDir, "early.txt")).mtime;
 
     assert.equal(mtime.getTime(), new Date(EARLY_DISK_ORPHAN_MTIME).getTime());
 });
 
-test("makeFixtureRepo makes two commits stamped with the stated committer dates", () => {
-    const repoDir = makeFixtureRepo();
+test("createFixtureRepo makes two commits stamped with the stated committer dates", () => {
+    const repoDir = createFixtureRepo();
 
     const log = execSync("git log --format=%cI", { cwd: repoDir, encoding: "utf8" }).trim().split("\n");
 

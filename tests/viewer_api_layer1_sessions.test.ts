@@ -6,7 +6,7 @@ import { type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startFixtureViewer } from "./layer1-view-test-helpers.ts";
+import { launchFixtureViewer } from "./layer1-view-test-helpers.ts";
 import { SESSION_A, SESSION_B, buildPromptRecord } from "./multi-source-test-helpers.ts";
 import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 import { LAYER1_SESSIONS_PROGRESS_LABEL_SCANNING } from "../src/viewer_api_layer1_sessions.ts";
@@ -55,7 +55,7 @@ const { sourceDir, onePath, twoPath } = makeSessionsFixture();
 let child: ChildProcess | undefined = undefined;
 
 before(async () => {
-    child = await startFixtureViewer(sourceDir, SCRATCH_PORT);
+    child = await launchFixtureViewer(sourceDir, SCRATCH_PORT);
 });
 
 after(() => {
