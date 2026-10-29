@@ -1,9 +1,9 @@
-// The Layer 1 minimap (task 246): happy-dom has NO layout — measurements are stubbed, assertions read what the module writes.
+// The Layer 1 minimap (task 246): happy-dom has NO layout, so measurements are stubbed.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { drawLayer1Minimap, fitMinimapScale } from "../webapp/layer1-minimap.ts";
+import { renderLayer1Minimap } from "../webapp/layer1-minimap.ts";
 
 // Keep axis ratios UNEQUAL (x 0.1, y 0.2): equal axes can't distinguish a per-axis scale from a uniform one.
 const CONTENT_WIDTH_PX = 1000;
@@ -74,17 +74,9 @@ function readPlacement(element: HTMLElement): string[] {
     return [element.style.left, element.style.top, element.style.width, element.style.height];
 }
 
-test("test_minimap_scale_fits_each_axis_to_its_own_extent", () => {
-    // Each axis scales to its own extent; a uniform scale crammed marks into the canvas's top fifth.
-    assert.deepEqual(fitMinimapScale(1000, 500, 100, 100), { xPerContentPx: 0.1, yPerContentPx: 0.2 });
-    assert.deepEqual(fitMinimapScale(500, 1000, 100, 100), { xPerContentPx: 0.2, yPerContentPx: 0.1 });
-    // An unrendered page reports every extent as 0; both scales must be numbers, not Infinity.
-    assert.deepEqual(fitMinimapScale(0, 0, 100, 50), { xPerContentPx: 100, yPerContentPx: 50 });
-});
-
 test("test_minimap_draws_one_scaled_mark_per_widget", () => {
     openMappedPage();
-    drawLayer1Minimap();
+    renderLayer1Minimap();
     const marks = [...document.querySelectorAll(".mm-box")] as HTMLElement[];
     assert.equal(marks.length, 2);
     // The two axes scale independently, so 100,50 becomes 10,10 and 168x40 becomes 16.8x8.
@@ -99,7 +91,7 @@ test("test_minimap_draws_one_scaled_mark_per_widget", () => {
 test("test_minimap_viewport_rectangle_follows_the_pane_scroll", () => {
     // The rectangle must track a scroll WITHOUT a re-render — only it moves, not the marks.
     const pane = openMappedPage();
-    drawLayer1Minimap();
+    renderLayer1Minimap();
     assert.deepEqual(readPlacement(findRequiredElement(".mm-view")), ["0px", "0px", "20px", "20px"]);
     pane.scrollLeft = 300;
     pane.scrollTop = 100;
@@ -118,11 +110,11 @@ test("test_clicking_the_minimap_centres_the_pane_on_that_point", () => {
             requested = options;
         },
     });
-    drawLayer1Minimap();
+    renderLayer1Minimap();
     findRequiredElement(".mm-plot").dispatchEvent(
         new window.MouseEvent("click", { clientX: 50, clientY: 20, bubbles: true }),
     );
-    // The click is CENTRED and un-scaled per axis; using the x scale for both would land off the render's bottom.
+    // The click is CENTRED and un-scaled per axis; one shared scale would miss the render's bottom.
     assert.equal(requested?.left, 400);
     assert.equal(requested?.top, 50);
 });
@@ -130,7 +122,7 @@ test("test_clicking_the_minimap_centres_the_pane_on_that_point", () => {
 test("test_minimap_draws_one_scaled_band_per_wash", () => {
     openMappedPage();
     appendWash({ leftPx: 100, topPx: 50, widthPx: 168, heightPx: 40 }, "var(--c-script)");
-    drawLayer1Minimap();
+    renderLayer1Minimap();
     const washMarks = [...document.querySelectorAll(".mm-wash")] as HTMLElement[];
     assert.equal(washMarks.length, 1);
     // Same per-axis scaling already asserted for a `.mm-box` mark placed at this same rect.

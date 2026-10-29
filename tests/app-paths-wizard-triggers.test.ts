@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const TIP_COMMIT_HASH = "c".repeat(40);
 
@@ -27,18 +27,18 @@ function recordFetchCalls(): { url: string; init: RequestInit | undefined }[] {
     return recordedCalls;
 }
 
-// Boot a fresh DOM with the routes the wizard touches stubbed, run the header bootstrap (fills the folder inputs), and wire the wizard listeners.
+// Boot a fresh DOM with the wizard routes stubbed, run the header bootstrap, and wire the wizard listeners.
 async function initializeWizardInFreshDom(projectPathsEntry: unknown): Promise<typeof import("../webapp/app-paths-wizard.ts")> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [],
         "/api/project-paths": projectPathsEntry,
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip commit" }],
         "/api/repo-commit-match": { matchedCount: 4, totalCount: 4 },
     });
-    const { initializeHeader } = await import("../webapp/app-header.ts");
-    await initializeHeader();
+    const { initHeader } = await import("../webapp/app-header.ts");
+    await initHeader();
     const wizardModule = await import("../webapp/app-paths-wizard.ts");
     wizardModule.initializeWizard();
     return wizardModule;
@@ -59,23 +59,23 @@ test("test_cancel_abandons_run_with_nothing_posted", async () => {
 });
 
 test("test_project_load_with_no_entry_offers_screens_2_to_5", async () => {
-    // Scenario (mockup trigger): a project loading with NO reveng-paths entry auto-opens the wizard at screen 2; a configured project does not.
+    // Scenario: a project with no reveng-paths entry opens the wizard at screen 2; a configured one does not.
     await initializeWizardInFreshDom({});
-    const { maybeOfferProjectPathsWizard } = await import("../webapp/app-paths-project.ts");
-    await maybeOfferProjectPathsWizard("proj-offer");
+    const { triggerProjectPathsWizardOffer } = await import("../webapp/app-paths-project.ts");
+    await triggerProjectPathsWizardOffer("proj-offer");
     assert.equal(getRequiredElementById("paths-popover").hidden, false);
     assert.equal(getRequiredElementById("wizard-screen-2").hidden, false);
     // a configured project (fresh DOM, stored repo) gets no auto-run.
     await initializeWizardInFreshDom({ repo: "/repos/p" });
     const reimported = await import("../webapp/app-paths-project.ts");
-    await reimported.maybeOfferProjectPathsWizard("proj-offer-configured");
+    await reimported.triggerProjectPathsWizardOffer("proj-offer-configured");
     assert.equal(getRequiredElementById("paths-popover").hidden, true);
 });
 
 test("test_first_launch_with_empty_projects_dir_starts_full_wizard", async () => {
-    // Scenario (mockup trigger): no global config leaves the projects-dir input empty at boot — the full wizard starts at screen 1 (screen-1-only run without a project: Next is Finish).
+    // Scenario: no global config leaves the projects-dir input empty, so the full wizard starts at screen 1.
     initWebappDom();
-    stubFetchRoutes({});
+    installFetchRoutes({});
     const wizard = await import("../webapp/app-paths-wizard.ts");
     wizard.initializeWizard();
     wizard.maybeStartFirstLaunchWizard();

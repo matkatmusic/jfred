@@ -14,9 +14,9 @@ import {
   createEditEvent,
   type EditDetail,
 } from "./reconstruction_extract_edit_details.ts";
-import { bashEventsFrom } from "./reconstruction_bash_events.ts";
+import { extractBashEvents } from "./reconstruction_bash_events.ts";
 import { extractScriptRenameEvents } from "./reconstruction_script_renames.ts";
-import { userEditEventFrom } from "./reconstruction_user_edit.ts";
+import { getUserEditEvent } from "./reconstruction_user_edit.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 
 // Turn a Write tool_use into a write event; newer transcripts name the input keys path/file_text.
@@ -40,14 +40,16 @@ function convertToFileEvents(
   erroredIds: Set<string>,
 ): FileEvent[] {
   if (block.name === ToolName.Write) {
-    if (erroredIds.has(block.id.toString())) {
+    const blockIdString = block.id.toString();
+    const isErrored = erroredIds.has(blockIdString);
+    if (isErrored) {
       return [];
     }
     const e = writeEventFrom(block, timestamp);
     return e ? [e] : [];
   }
   if (block.name === ToolName.Bash) {
-    return bashEventsFrom(block, timestamp, cwd);
+    return extractBashEvents(block, timestamp, cwd);
   }
   if (block.name === ToolName.Edit) {
     const e = createEditEvent(block, timestamp, detailById);
@@ -63,7 +65,8 @@ function collectEventsFromRecord(
   erroredIds: Set<string>,
 ): void {
   // Skip records the classifier marks as `ignore`.
-  if (getRecordVerdict(record) === Verdict.ignore) {
+  const verdict = getRecordVerdict(record);
+  if (verdict === Verdict.ignore) {
     return;
   }
   const timestamp = record.timestamp;
@@ -77,10 +80,14 @@ function collectEventsFromRecord(
     }
     events.push(...convertToFileEvents(block, timestamp, detailById, cwd, erroredIds));
   }
-  const userEdit = userEditEventFrom(record);
+  const userEdit = getUserEditEvent(record);
   if (userEdit) {
     events.push(userEdit);
   }
+}
+
+function compareEventTimestamps(a: FileEvent, b: FileEvent): number {
+  return a.timestamp.getTime() - b.timestamp.getTime();
 }
 
 // Extract all file events from the transcript, memoized per corpus identity.
@@ -96,6 +103,6 @@ export function extractFileEvents(records: TranscriptRecord[]): FileEvent[] {
     collectEventsFromRecord(record, events, detailById, erroredIds);
   }
   events.push(...extractScriptRenameEvents(records));
-  state.fileEvents = events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  state.fileEvents = events.sort(compareEventTimestamps);
   return state.fileEvents;
 }

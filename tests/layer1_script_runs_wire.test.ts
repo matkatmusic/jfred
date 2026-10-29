@@ -1,4 +1,4 @@
-// Task l4-wire-real: script runs located in session transcripts join to pairs by the static scan and shape into the /api/layer1-script-runs wire view.
+// Task l4-wire-real: script runs found in transcripts join to pairs and shape into the script-runs wire view.
 
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -8,18 +8,19 @@ import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS, buildScriptRunsView } from "
 import { Path } from "../src/structures/domain.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
-import { SESSION_A, SESSION_B, buildWriteRecordPair, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { SESSION_A, SESSION_B, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const APPLY_BODY = 'import pathlib\npathlib.Path("billing.py").write_text("x")\n';
 
 type ProjectFixture = { projectFolder: string; sessionDir: string };
 
 function makeProject(): ProjectFixture {
-    const projectFolder = makeTempDir();
+    const projectFolder = createTempDir();
     writeFileSync(join(projectFolder, "billing.py"), "a\n");
     writeFileSync(join(projectFolder, "ledger.py"), "a\n");
-    return { projectFolder, sessionDir: makeSourceTree("-script-runs").projectDir };
+    return { projectFolder, sessionDir: createSourceTree("-script-runs").projectDir };
 }
 
 function buildBashToolUseRecord(sessionId: string, projectFolder: string, toolId: string, timestamp: string, command: string): object {

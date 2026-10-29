@@ -4,12 +4,13 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { WireEditOf, WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
 import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
-import { replayPathEvents, type ReplayedEditNode } from "./layer1_edit_replay.ts";
-import { relativizeToProjectFolder } from "./layer1_snapshot_wire.ts";
+import { computePathReplay, type ReplayedEditNode } from "./layer1_edit_replay.ts";
+import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
-import { backupSeedWriteFor } from "./reconstruction_sidecar.ts";
-import { createSidecarReader, resolveFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { getBackupSeedWrite } from "./reconstruction_sidecar.ts";
+import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
+import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
@@ -27,7 +28,8 @@ export function collectViewEditEventsByRelativePath(
   reportProgress: ProgressSink = () => {},
 ): Map<string, LayerEditEvent[]> {
   const byRelativePath = new Map<string, LayerEditEvent[]>();
-  sessionFiles.forEach((sessionFile, index) => {
+  for (let index = 0; index < sessionFiles.length; index++) {
+    const sessionFile = sessionFiles[index]!;
     reportProgress({
       kind: DocumentResponseKind.progress,
       label: LAYER1_PROGRESS_LABEL_READING_EDITS,
@@ -35,13 +37,13 @@ export function collectViewEditEventsByRelativePath(
       total: sessionFiles.length,
     });
     for (const event of readSessionEditEvents(sessionFile)) {
-      const relativePath = relativizeToProjectFolder(projectFolder, event.target.toString());
+      const relativePath = convertToProjectRelativePath(projectFolder, event.target.toString());
       if (relativePath === undefined) {
         continue;
       }
       byRelativePath.set(relativePath, (byRelativePath.get(relativePath) ?? []).concat(event));
     }
-  });
+  }
   for (const events of byRelativePath.values()) {
     events.sort(compareEditEvents);
   }
@@ -51,16 +53,18 @@ export function collectViewEditEventsByRelativePath(
 // The pre-edit lines from the owning session's file-history backup; undefined when no backup exists.
 export function readBackupSeedLines(event: LayerEditEvent, recordsBySessionFile: Map<string, TranscriptRecord[]> = new Map()): string[] | undefined {
   const sessionFile = event.sessionFile.toString();
-  if (!recordsBySessionFile.has(sessionFile)) {
+  const isLoaded = recordsBySessionFile.has(sessionFile);
+  if (!isLoaded) {
     recordsBySessionFile.set(sessionFile, loadTranscript(sessionFile, undefined, true).records);
   }
   const records = recordsBySessionFile.get(sessionFile)!;
-  const root = resolveFileHistoryRoot(records);
-  if (!existsSync(join(root.toString(), event.sessionId.toString()))) {
+  const root = getFileHistoryRoot(records);
+  const hasSessionDir = existsSync(join(root.toString(), event.sessionId.toString()));
+  if (!hasSessionDir) {
     return undefined;
   }
   const reader = createSidecarReader(event.sessionId, root);
-  const seed = backupSeedWriteFor(records, event.target, event.instant, reader, true);
+  const seed = getBackupSeedWrite(records, event.target, event.instant, reader, true);
   return seed === undefined ? undefined : splitLines(seed.content);
 }
 
@@ -85,6 +89,7 @@ export function buildEditsView(
   const pairs: Layer1WireEditsView["pairs"] = [];
   const recordsBySessionFile = new Map<string, TranscriptRecord[]>();
   const eventsByPath = collectViewEditEventsByRelativePath(projectFolder, sessionFiles, reportProgress);
+  const readSeedLines = (event: LayerEditEvent): string[] | undefined => readBackupSeedLines(event, recordsBySessionFile);
   for (const [relativePath, events] of eventsByPath) {
     reportProgress({
       kind: DocumentResponseKind.progress,
@@ -92,11 +97,12 @@ export function buildEditsView(
       current: pairs.length + 1,
       total: eventsByPath.size,
     });
-    const nodes = replayPathEvents(events, (event) => readBackupSeedLines(event, recordsBySessionFile));
-    pairs.push({
-      path: new Path(relativePath),
-      edits: events.map((event) => buildWireEdit(event, nodes.get(event.changeId.toString())!)),
-    });
+    const nodes = computePathReplay(events, readSeedLines);
+    const edits: Layer1WireEditsView["pairs"][number]["edits"] = [];
+    for (const event of events) {
+      edits.push(buildWireEdit(event, nodes.get(event.changeId.toString())!));
+    }
+    pairs.push({ path: new Path(relativePath), edits });
   }
   return { pairs };
 }

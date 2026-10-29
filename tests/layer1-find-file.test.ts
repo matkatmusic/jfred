@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     COLLIDING_PATHS,
-    jumpToNamedBubble,
+    moveToNamedBubble,
     openFoundPage,
     readFindStatusText,
     scrolledOptions,
@@ -14,7 +14,7 @@ import {
 test("test_a_bare_basename_scrolls_to_its_bubble", () => {
     // The bubble label is the basename, so the box accepts what the user sees.
     openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
-    jumpToNamedBubble("settings.json");
+    moveToNamedBubble("settings.json");
     assert.deepEqual(scrolledPaths, [".vscode/settings.json"]);
     assert.equal(document.querySelectorAll(".filebox.found").length, 1);
     assert.equal(document.querySelector(".filebox.found .fname")!.getAttribute("data-path"), ".vscode/settings.json");
@@ -26,7 +26,7 @@ test("test_a_colliding_basename_cycles_through_every_match_and_wraps", () => {
     // A colliding basename is no error: repeat submits walk matches in order, and the fourth wraps.
     openFoundPage(COLLIDING_PATHS);
     for (let submit = 0; submit < 4; submit++) {
-        jumpToNamedBubble("launch.json");
+        moveToNamedBubble("launch.json");
     }
     assert.deepEqual(scrolledPaths, [
         ".claude/launch.json",
@@ -42,7 +42,7 @@ test("test_a_colliding_basename_cycles_through_every_match_and_wraps", () => {
 test("test_a_partial_path_narrows_a_colliding_basename_to_one_bubble", () => {
     // One substring rule serves this and the bare-basename case, so the module has no path branch.
     openFoundPage(COLLIDING_PATHS);
-    jumpToNamedBubble(".vscode/tasks");
+    moveToNamedBubble(".vscode/tasks");
     assert.deepEqual(scrolledPaths, [".vscode/tasks.json"]);
     assert.match(readFindStatusText(), /1 of 1 · \.vscode\/tasks\.json/);
 });
@@ -50,7 +50,7 @@ test("test_a_partial_path_narrows_a_colliding_basename_to_one_bubble", () => {
 test("test_an_unmatched_name_reports_instead_of_doing_nothing", () => {
     // A typo must never look like a broken page: the readout quotes the term back.
     openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
-    jumpToNamedBubble("no-such-file.txt");
+    moveToNamedBubble("no-such-file.txt");
     assert.deepEqual(scrolledPaths, []);
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
     assert.equal(readFindStatusText(), 'find "no-such-file.txt": no bubble matches');
@@ -59,7 +59,7 @@ test("test_an_unmatched_name_reports_instead_of_doing_nothing", () => {
 test("test_a_jump_aligns_the_bubbles_top_edge_rather_than_its_middle", () => {
     // A `.filebox` is as tall as its ladder span, so centring puts its top above the viewport.
     openFoundPage([".vscode/settings.json", "src/reconstruction_cli.ts"]);
-    jumpToNamedBubble("settings.json");
+    moveToNamedBubble("settings.json");
     assert.equal(scrolledOptions[0]!.block, "start");
     assert.equal(scrolledOptions[0]!.inline, "center");
 });

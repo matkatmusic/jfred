@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { appendScriptMoveRenames } from "../src/reconstruction_script_move_events.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
-import { reconstructFilesOver } from "../src/reconstruction_renderable.ts";
+import { getFileHistoriesOver } from "../src/reconstruction_renderable.ts";
 import { setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { SCRIPT_RUN_CHANGE_ID_PREFIX } from "../src/reconstruction_script_execution.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
@@ -11,7 +11,7 @@ import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vo
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
-// A synthetic assistant record carrying one tool_use of `name` with `input`, at `timestamp` (the reconstruction_script_stage.test.ts fixture pattern).
+// A synthetic assistant record with one tool_use of `name` and `input`, at `timestamp`.
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -20,10 +20,10 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
     } as unknown as TranscriptRecord;
 }
 
-// A reader with no backups to offer — every pre-state seed comes from the authored Writes.
+// A reader with no backups: every pre-state seed comes from the authored Writes.
 const emptyReader: BackupReader = () => "";
 
-// The s85 shape: a glob-driven move — no printed `old -> new` line, no two-string-literal move call — so only the sandbox pre/post diff can prove the rename.
+// The s85 shape: a glob-driven move that only the sandbox pre/post diff can prove.
 const GLOB_MOVE_SCRIPT = 'import glob, shutil\n'
     + 'for path in sorted(glob.glob("*.py")):\n'
     + '    if path.startswith("core_"):\n'
@@ -50,7 +50,7 @@ function renameEventsOf(events: FileEvent[]): RenameEvent[] {
 }
 
 test("test_sandbox_proven_move_becomes_rename_event", () => {
-    // Scenario: a glob-driven shutil.move leaves no arrow line and no literal call — the sandbox diff is the only proof, and the channel must emit it as a rename event.  Steps: build records with a Write of /proj/one.py and the glob-move run.
+    // Scenario: a glob-driven shutil.move leaves only sandbox-diff proof; the channel must emit a rename event.
     const records = buildGlobMoveRecords();
     const extracted = extractFileEvents(records);
     // append the sandbox-proven moves.
@@ -68,7 +68,7 @@ test("test_sandbox_proven_move_becomes_rename_event", () => {
 });
 
 test("test_declined_consent_appends_nothing", () => {
-    // Scenario: a declined build may execute nothing — the channel must return its input as-is.  Steps: build the same glob-move records, then decline consent.
+    // Scenario: a declined build executes nothing, so the channel returns its input unchanged.
     const records = buildGlobMoveRecords();
     const extracted = extractFileEvents(records);
     setImpureExecutionAllowed(false);
@@ -83,7 +83,7 @@ test("test_declined_consent_appends_nothing", () => {
 });
 
 test("test_missing_reader_appends_nothing", () => {
-    // Scenario: without a sidecar reader the channel cannot execute runs — input unchanged.
+    // Scenario: without a sidecar reader the channel cannot execute runs, so input is unchanged.
     const records = buildGlobMoveRecords();
     const extracted = extractFileEvents(records);
     const events = appendScriptMoveRenames(extracted, records, undefined);
@@ -91,7 +91,7 @@ test("test_missing_reader_appends_nothing", () => {
 });
 
 test("test_pair_already_evidenced_is_not_duplicated", () => {
-    // Scenario: the stdout / code-literal channels already evidenced the same move — this channel must not add a second rename event for the identical from/to pair.  Steps: build the glob-move records and fabricate the rename event another channel produced.
+    // Scenario: when another channel already evidenced the move, this channel adds no duplicate rename event.
     const records = buildGlobMoveRecords();
     const priorRename: FileEvent = {
         kind: EventKind.rename,
@@ -108,9 +108,9 @@ test("test_pair_already_evidenced_is_not_duplicated", () => {
 });
 
 test("test_move_source_history_merges_into_destination", () => {
-    // Scenario: with the rename in the chain, the moved-away source must stop being its own alive history — its Write merges into the destination's ladder (the task-155 fix).  Steps: reconstruct every file over the glob-move records.
+    // Scenario: after a rename, the moved-away source merges into the destination's ladder (task-155 fix).
     const records = buildGlobMoveRecords();
-    const histories = reconstructFilesOver(records, emptyReader);
+    const histories = getFileHistoriesOver(records, emptyReader);
     // assert no history is keyed by the moved-away source path.
     assert.ok(!histories.some((history) => history.target.toString() === "/proj/one.py"));
     // assert the destination history exists.

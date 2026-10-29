@@ -6,5 +6,5 @@ import { S19_JSONL } from "./fixtures.ts";
 
 // The s19 document as the CLIENT sees it: built once, JSON round-tripped (Path/Uuid/Date -> strings).
 export function buildS19ClientDocument(): any {
-    return JSON.parse(JSON.stringify(buildProjectDocument([new Path(S19_JSONL)], undefined)));
+  return JSON.parse(JSON.stringify(buildProjectDocument([new Path(S19_JSONL)], undefined)));
 }

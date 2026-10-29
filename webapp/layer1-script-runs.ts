@@ -1,34 +1,45 @@
 // Task 356: the script-run box's first tick fetches /api/layer1-script-runs once per loaded view and merges it in place.
 
-import { closeBusyShield, openBusyShield, paintBusyShield, showBusyShieldError } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress } from "./layer1-progress.ts";
-import type { WireScriptRunsView } from "./layer1-wire-script-runs.ts";
+import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-busy-shield.ts";
+import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
+import type { WireScriptRun, WireScriptRunsView } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 const viewsWithScriptRuns = new WeakSet<WireLayer1View>();
 
-export function hasLoadedScriptRuns(view: WireLayer1View): boolean {
+export function isScriptRunsLoaded(view: WireLayer1View): boolean {
   return viewsWithScriptRuns.has(view);
+}
+
+function renderBothProgress(label: string, current?: number, total?: number): void {
+  renderLayer1Progress(label, current, total);
+  renderBusyShield(label, current, total);
+}
+
+function convertScriptRuns(runs: WireScriptRunsView["pairs"][number]["scriptRuns"]): WireScriptRun[] {
+  const placedRuns: WireScriptRun[] = [];
+  for (const run of runs) {
+    placedRuns.push({ ...run, axisPx: 0 });
+  }
+  return placedRuns;
 }
 
 // False when the user cancelled or the fetch failed (the shield then shows the error); the view is untouched.
 export async function loadScriptRunsOnce(view: WireLayer1View): Promise<boolean> {
-  if (viewsWithScriptRuns.has(view)) {
+  const isAlreadyLoaded = viewsWithScriptRuns.has(view);
+  if (isAlreadyLoaded) {
     return true;
   }
   const params = new URLSearchParams(location.search);
   params.set("progress", "1");
   openBusyShield("starting");
-  showLayer1Progress("starting");
+  renderLayer1Progress("starting");
   let payload: WireScriptRunsView | undefined;
   try {
-    payload = await readLayer1ViewStream<WireScriptRunsView>(`/api/layer1-script-runs?${params}`, (label, current, total) => {
-      showLayer1Progress(label, current, total);
-      paintBusyShield(label, current, total);
-    });
+    payload = await readLayer1ViewStream<WireScriptRunsView>(`/api/layer1-script-runs?${params}`, renderBothProgress);
   }
   catch (error) {
-    showBusyShieldError(String(error));
+    renderBusyShieldError(String(error));
     return false;
   }
   finally {
@@ -38,11 +49,14 @@ export async function loadScriptRunsOnce(view: WireLayer1View): Promise<boolean>
   if (payload === undefined) {
     return false;
   }
-  const runsByPath = new Map(payload.pairs.map((entry) => [entry.path, entry.scriptRuns]));
+  const runsByPath = new Map<string, WireScriptRunsView["pairs"][number]["scriptRuns"]>();
+  for (const entry of payload.pairs) {
+    runsByPath.set(entry.path, entry.scriptRuns);
+  }
   for (const pair of view.pairs) {
     const runs = runsByPath.get(pair.path);
     if (runs !== undefined) {
-      pair.scriptRuns = runs.map((run) => ({ ...run, axisPx: 0 }));
+      pair.scriptRuns = convertScriptRuns(runs);
     }
   }
   viewsWithScriptRuns.add(view);

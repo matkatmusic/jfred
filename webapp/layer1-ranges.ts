@@ -1,21 +1,45 @@
-// Task 292: per picked JSONL, a bar for the session's extent and a wash over the stretch of timeline it covers (plans/layer1-mockup.html:715-726, 871-895).  This is the page's ONLY time arithmetic, and it exists because a session opens and closes BETWEEN events rather than on them: the S18 ruler is capped and floored rather than linear in time, so an arbitrary instant's position can only be read by interpolating between the two ticks it falls between. Everything else on this page is handed a finished `axisPx`.
+// Task 292: per picked JSONL, a session bar and a wash over the timeline it covers.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { RULER_NODE_ROW_PIXELS } from "./layer1-ruler-axis.ts";
 import { spawnWash } from "./layer1-wash.ts";
 import type { WireRulerTick, WireSession } from "./layer1-wire.ts";
 
-// Where an ARBITRARY instant sits on an axis built from events. Clamped at both ends: a session that opened before the first recorded event still has to start somewhere on screen.
-export function resolveAxisPixelsAt(instantMs: number, ticks: readonly WireRulerTick[]): number {
+interface AxisBand {
+  fromPx: number;
+  toPx: number;
+}
+
+interface SessionMarks {
+  bar: HTMLElement;
+  band: AxisBand;
+  wash: HTMLElement | undefined;
+}
+
+// The ruler is capped and floored, so an arbitrary instant is interpolated between its two ticks.
+function findTickIndexAtOrAfter(instantMs: number, ticks: readonly WireRulerTick[]): number {
+  for (const [index, tick] of ticks.entries()) {
+    const tickMs = Date.parse(tick.instant);
+    if (tickMs >= instantMs) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+// Where an arbitrary instant sits on the axis, clamped at both ends.
+export function computeAxisPixelsAt(instantMs: number, ticks: readonly WireRulerTick[]): number {
   const first = ticks[0];
   const last = ticks[ticks.length - 1];
-  if (first === undefined || last === undefined) {
+  const hasNoTicks = first === undefined || last === undefined;
+  if (hasNoTicks) {
     return 0;
   }
-  if (instantMs <= Date.parse(first.instant)) {
+  const firstMs = Date.parse(first.instant);
+  if (instantMs <= firstMs) {
     return first.axisPx;
   }
-  const afterIndex = ticks.findIndex((tick) => Date.parse(tick.instant) >= instantMs);
+  const afterIndex = findTickIndexAtOrAfter(instantMs, ticks);
   if (afterIndex < 0) {
     return last.axisPx;
   }
@@ -42,13 +66,20 @@ function buildMark(className: string, fromPx: number, spanPx: number): HTMLEleme
 function buildSessionWash(session: WireSession, ticks: readonly WireRulerTick[]): HTMLElement | undefined {
   const startedMs = Date.parse(session.started);
   const endedMs = Date.parse(session.ended);
-  const covered = ticks.filter((tick) => {
+  const covered: WireRulerTick[] = [];
+  for (const tick of ticks) {
     const instantMs = Date.parse(tick.instant);
-    return instantMs >= startedMs && instantMs <= endedMs;
-  });
+    const isAfterStart = instantMs >= startedMs;
+    const isBeforeEnd = instantMs <= endedMs;
+    const isCovered = isAfterStart && isBeforeEnd;
+    if (isCovered) {
+      covered.push(tick);
+    }
+  }
   const firstCovered = covered[0];
   const lastCovered = covered[covered.length - 1];
-  if (firstCovered === undefined || lastCovered === undefined) {
+  const hasNoCoveredTick = firstCovered === undefined || lastCovered === undefined;
+  if (hasNoCoveredTick) {
     return undefined;
   }
   const topPx = firstCovered.axisPx - RULER_NODE_ROW_PIXELS / 2;
@@ -58,33 +89,51 @@ function buildSessionWash(session: WireSession, ticks: readonly WireRulerTick[])
   return wash;
 }
 
-// A gutter row whose position falls inside a picked session's band is marked, so the ruler says which timestamps the session is answerable for. Read off the ELEMENT's own `--axis-px` rather than off its instants: the bands are already in axis pixels, and a merged row stands for several instants but sits at exactly one offset.
-function markTicksInsideBands(bands: readonly { fromPx: number; toPx: number }[]): void {
+function isInsideAnyBand(axisPx: number, bands: readonly AxisBand[]): boolean {
+  for (const band of bands) {
+    const isInsideBand = axisPx >= band.fromPx && axisPx <= band.toPx;
+    if (isInsideBand) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Mark gutter rows inside a band, read from the row's own `--axis-px` since merged rows hold one offset.
+function markTicksInsideBands(bands: readonly AxisBand[]): void {
   for (const tick of getRequiredElementById("ruler").querySelectorAll(".tick")) {
     const axisPx = Number((tick as HTMLElement).style.getPropertyValue("--axis-px"));
-    tick.classList.toggle("inrange", bands.some((band) => axisPx >= band.fromPx && axisPx <= band.toPx));
+    const isInRange = isInsideAnyBand(axisPx, bands);
+    tick.classList.toggle("inrange", isInRange);
   }
 }
 
-// One session's bar, its band, and its wash if it covers anything. `slot` is which lane the 7 px bar occupies, so two picked sessions never overlap.
-function buildSessionMarks(session: WireSession, slot: number, ticks: readonly WireRulerTick[]) {
-  const fromPx = resolveAxisPixelsAt(Date.parse(session.started), ticks);
-  const toPx = resolveAxisPixelsAt(Date.parse(session.ended), ticks);
+// One session's bar, band and wash; `slot` is its lane so bars never overlap.
+function buildSessionMarks(session: WireSession, slot: number, ticks: readonly WireRulerTick[]): SessionMarks {
+  const fromPx = computeAxisPixelsAt(Date.parse(session.started), ticks);
+  const toPx = computeAxisPixelsAt(Date.parse(session.ended), ticks);
   const bar = buildMark("range", fromPx, toPx - fromPx);
   bar.style.setProperty("--slot", String(slot));
-  // The name is a tooltip rather than printed text — the lane is 7 px wide, which is the price of never covering a bubble.
+  // The name is a tooltip because the 7 px lane must never cover a bubble.
   bar.title = `${session.file}\n${session.started} → ${session.ended}`;
   return { bar, band: { fromPx, toPx }, wash: buildSessionWash(session, ticks) };
 }
 
-// Draw every picked session's bar and wash, and mark the gutter rows they cover. Called at the end of a stage render, because both are measured against the ruler the stage was just drawn with.
+// Draw every picked session's bar and wash, and mark the gutter rows they cover.
 export function renderSessionRanges(sessions: readonly WireSession[], ticks: readonly WireRulerTick[]): void {
-  const marks = ticks.length === 0
-    ? []
-    : sessions.map((session, slot) => buildSessionMarks(session, slot, ticks));
-  getRequiredElementById("washes").replaceChildren(
-    ...marks.map((mark) => mark.wash).filter((wash) => wash !== undefined),
-  );
-  getRequiredElementById("ranges").replaceChildren(...marks.map((mark) => mark.bar));
-  markTicksInsideBands(marks.map((mark) => mark.band));
+  const sessionsToMark = ticks.length === 0 ? [] : sessions;
+  const bars: HTMLElement[] = [];
+  const washes: HTMLElement[] = [];
+  const bands: AxisBand[] = [];
+  for (const [slot, session] of sessionsToMark.entries()) {
+    const marks = buildSessionMarks(session, slot, ticks);
+    bars.push(marks.bar);
+    bands.push(marks.band);
+    if (marks.wash !== undefined) {
+      washes.push(marks.wash);
+    }
+  }
+  getRequiredElementById("washes").replaceChildren(...washes);
+  getRequiredElementById("ranges").replaceChildren(...bars);
+  markTicksInsideBands(bands);
 }

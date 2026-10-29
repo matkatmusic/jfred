@@ -1,10 +1,10 @@
-// View-model tests for the script-run timeline/details wiring (task 67): the wire document's scriptRuns join onto tool-call nodes, and the Details pane's script-run view model resolves each changed file to the revision whose diff shows the run's before/after. Fixtures are wire-shaped literals (what the browser sees after fetch + JSON.parse).
+// View-model tests for script-run wiring: scriptRuns join tool-call nodes and resolve to revisions.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveToolCallNodes } from "../webapp/views/timeline-node-derive.ts";
+import { buildToolCallNodes } from "../webapp/views/timeline-node-derive.ts";
 import { buildScriptRunDetailsViewModel } from "../webapp/views/details-script-run-model.ts";
-import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-types.ts";
+import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 
 function buildWireDocument(overrides: Partial<WireTimelineDocument>): WireTimelineDocument {
     return {
@@ -22,8 +22,8 @@ function buildSingleHistoryDocument(target: string, revisions: WireFileHistory["
     return buildWireDocument({ filesTouched: [history] });
 }
 
-test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
-    // Scenario: only a run the sandbox proved modified files rides its tool-call row — a read-only run (empty changedPaths) and a document without scriptRuns stamp nothing.
+test("test_buildToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
+    // Scenario: only a run that modified files rides its tool-call row; read-only runs stamp nothing.
     const document = buildWireDocument({
         toolCalls: [
             { toolName: "Bash", summary: "python3 rename.py", timestamp: "2026-07-01T10:00:00Z", uuid: "u1", toolUseId: "toolu_1" },
@@ -34,15 +34,15 @@ test("test_deriveToolCallNodes_stamps_scriptRun_on_modifying_runs", () => {
             { toolUseId: "toolu_2", timestamp: "2026-07-01T10:01:00Z", code: "ls", changedPaths: [] },
         ],
     });
-    const nodes = deriveToolCallNodes(document);
+    const nodes = buildToolCallNodes(document);
     assert.deepEqual(nodes[0]!.scriptRun, document.scriptRuns![0]);
     assert.equal(nodes[1]!.scriptRun, undefined);
-    const withoutRuns = deriveToolCallNodes(buildWireDocument({ toolCalls: document.toolCalls }));
+    const withoutRuns = buildToolCallNodes(buildWireDocument({ toolCalls: document.toolCalls }));
     assert.equal(withoutRuns[0]!.scriptRun, undefined);
 });
 
 test("test_buildScriptRunDetailsViewModel_resolves_files_to_revisions", () => {
-    // Scenario: a changed path with a scriptRun:<toolUseId>: revision resolves to that revision (1-based); a path no history tracks resolves to nothing and renders as a note.
+    // Scenario: a scriptRun changeId resolves to its 1-based revision; an untracked path resolves to nothing.
     const revisions = [
         { kind: "write", changeId: "toolu_0", timestamp: "2026-07-01T09:00:00Z" },
         { kind: "script-execution", changeId: "scriptRun:toolu_1:/p/a.py", timestamp: "2026-07-01T10:00:00Z" },
@@ -58,7 +58,7 @@ test("test_buildScriptRunDetailsViewModel_resolves_files_to_revisions", () => {
 });
 
 test("test_buildScriptRunDetailsViewModel_falls_back_to_first_revision_at_or_after_run", () => {
-    // Scenario: beacon-evidenced script effects carry no scriptRun: changeId (s25), so the file resolves to the FIRST revision at/after the run instant — the run's own effect — and, when every revision precedes the run, to the LAST (the state the run acted on).
+    // Scenario: without a scriptRun changeId, a file resolves to the first revision at or after the run.
     const revisions = [
         { kind: "write", changeId: "toolu_0", timestamp: "2026-07-01T09:00:00Z" },
         { kind: "edit", changeId: "a.py@v2", timestamp: "2026-07-01T10:05:00Z" },

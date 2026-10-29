@@ -4,7 +4,7 @@ import { getRecordSource } from "./parse/loadTranscript.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
 import { Path, type Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { resolveAgainstCwd } from "./structures/path-resolve.ts";
+import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import { getToolResultForUserRecord, buildToolUseNamesById } from "./structures/tool-results.ts";
 import type { BashResult } from "./structures/tool-result-shapes.ts";
 import { BlockType, ToolName } from "./structures/vocabulary.ts";
@@ -19,7 +19,9 @@ function buildBashCommandsById(records: TranscriptRecord[]): Map<string, string>
   const commandById = new Map<string, string>();
   for (const record of records) {
     for (const block of getContentBlocks(record)) {
-      if (block.type === BlockType.tool_use && block.name === ToolName.Bash) {
+      const isToolUse = block.type === BlockType.tool_use;
+      const isBash = isToolUse && block.name === ToolName.Bash;
+      if (isBash) {
         commandById.set(block.id.toString(), String(block.input.command));
       }
     }
@@ -87,7 +89,7 @@ function buildCatBeacon(
   }
   return {
     changeId: resultBlock.tool_use_id,
-    target: new Path(resolveAgainstCwd(record.cwd, new Path(argument))),
+    target: new Path(normalizeAgainstCwd(record.cwd, new Path(argument))),
     instant: record.timestamp,
     content: resolved.result.stdout,
     evidence: { sessionFile, line: source.lineNumber },

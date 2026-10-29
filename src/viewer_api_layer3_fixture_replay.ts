@@ -1,15 +1,16 @@
 // Layer 3 fixture replay: each Read/Edit/Write event's base and target bytes, and its confidence, computed once.
 
 import { WireConfidence, WireEditKind, WireEditSide, type WireEditOf, type WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
-import { applyHunksToLines, checkHunkMatchesBase } from "./layer1_edit_hunks.ts";
+import { applyHunksToLines } from "./layer1_edit_hunks.ts";
 import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "./layer1_edits_wire.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { listTemplateLines } from "./viewer_api_layer1_fixture_content.ts";
 import { buildSessionFile, buildSessionId, findTitleAt, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import { EDITS, findFixtureEvent, listFixtureEvents, type FixtureEvent } from "./viewer_api_layer3_fixture_data.ts";
+import { findEventIndex, findNextReadIndex, isEveryHunkMatching, readEventContent } from "./viewer_api_layer3_fixture_lookup.ts";
 
-// Task 355: the label moved to layer1_edits_wire.ts. 343's tests still import it from here; re-point them, then drop this line.
+// Task 355: label moved to layer1_edits_wire.ts; re-point 343's tests, then drop this line.
 // export { LAYER1_PROGRESS_LABEL_READING_EDITS } from "./layer1_edits_wire.ts";
 // export const LAYER1_PROGRESS_LABEL_READING_EDITS = "reading Edit/Write events";
 
@@ -23,13 +24,6 @@ type FixtureWireEdit = Omit<WireEditOf<Date, Path, Uuid>, "axisPx">;
 const statesByChangeId = new Map<string, EventStates>();
 const replayedByChangeId = new Map<string, ReplayedEvent>();
 
-function requireContent(event: FixtureEvent): string[] {
-  if (event.content === undefined) {
-    throw new Error(`fixture event ${event.changeId} has no content`);
-  }
-  return event.content;
-}
-
 function computeBase(events: FixtureEvent[], index: number): string[] {
   const predecessor = events[index - 1];
   return predecessor === undefined ? listTemplateLines(events[index]!.path) : computeStates(predecessor).target;
@@ -42,17 +36,17 @@ function computeStates(event: FixtureEvent): EventStates {
     return known;
   }
   const events = listFixtureEvents(event.path);
-  const index = events.findIndex((candidate) => candidate.changeId === event.changeId);
+  const index = findEventIndex(events, event.changeId);
   let states: EventStates;
   if (event.kind === WireEditKind.read) {
-    states = { base: requireContent(event), target: requireContent(event), isMatched: true };
+    states = { base: readEventContent(event), target: readEventContent(event), isMatched: true };
   }
   else if (event.kind === WireEditKind.write) {
-    states = { base: computeBase(events, index), target: requireContent(event), isMatched: true };
+    states = { base: computeBase(events, index), target: readEventContent(event), isMatched: true };
   }
   else {
     const base = computeBase(events, index);
-    const isMatched = event.hunks!.every((hunk) => checkHunkMatchesBase(base, hunk));
+    const isMatched = isEveryHunkMatching(base, event.hunks!);
     states = { base, target: applyHunksToLines(base, event.hunks!), isMatched };
   }
   statesByChangeId.set(event.changeId, states);
@@ -60,21 +54,21 @@ function computeStates(event: FixtureEvent): EventStates {
 }
 
 function computeEditConfidence(event: FixtureEvent): WireConfidence {
-  if (!computeStates(event).isMatched) {
+  const states = computeStates(event);
+  if (!states.isMatched) {
     return WireConfidence.derived;
   }
   const events = listFixtureEvents(event.path);
-  const later = events.slice(events.findIndex((candidate) => candidate.changeId === event.changeId) + 1);
-  const nextRead = later.find((candidate) => candidate.kind === WireEditKind.read);
-  if (nextRead === undefined) {
+  const nextReadIndex = findNextReadIndex(events, findEventIndex(events, event.changeId) + 1);
+  if (nextReadIndex === -1) {
     return WireConfidence.verified;
   }
-  const beforeRead = events[events.indexOf(nextRead) - 1]!;
-  const isSame = computeStates(beforeRead).target.join("\n") === requireContent(nextRead).join("\n");
+  const beforeRead = events[nextReadIndex - 1]!;
+  const isSame = computeStates(beforeRead).target.join("\n") === readEventContent(events[nextReadIndex]!).join("\n");
   return isSame ? WireConfidence.verified : WireConfidence.derived;
 }
 
-export function replayFixtureEvent(event: FixtureEvent): ReplayedEvent {
+export function computeFixtureReplay(event: FixtureEvent): ReplayedEvent {
   const known = replayedByChangeId.get(event.changeId);
   if (known !== undefined) {
     return known;
@@ -98,12 +92,14 @@ export function buildFixtureRecord(event: FixtureEvent): object {
 
 export function readFixtureEditFile(changeId: string, side: string): { content: string; title: string; record: object } {
   const event = findFixtureEvent(changeId);
-  const replayed = replayFixtureEvent(event);
-  if (side !== WireEditSide.base && side !== WireEditSide.target) {
+  const replayed = computeFixtureReplay(event);
+  const isBase = side === WireEditSide.base;
+  const isUnknownSide = !isBase && side !== WireEditSide.target;
+  if (isUnknownSide) {
     throw new Error(`side must be base or target, got ${side}`);
   }
   return {
-    content: (side === WireEditSide.base ? replayed.base : replayed.target).join("\n"),
+    content: (isBase ? replayed.base : replayed.target).join("\n"),
     title: findTitleAt(event.session, event.line),
     record: buildFixtureRecord(event),
   };
@@ -114,7 +110,7 @@ function buildWireEdit(event: FixtureEvent): FixtureWireEdit {
     instant: new Date(parseMs(event.at)),
     kind: event.kind,
     changeId: new Uuid(event.changeId),
-    confidence: replayFixtureEvent(event).confidence,
+    confidence: computeFixtureReplay(event).confidence,
     sessionId: buildSessionId(event.session),
     sessionFile: buildSessionFile(event.session),
     line: event.line,
@@ -123,18 +119,32 @@ function buildWireEdit(event: FixtureEvent): FixtureWireEdit {
 
 // One progress line per session file; pairs join by relative path, as the fixture stores events.
 export function buildFixtureEditsPayload(writeNdjsonLine: (value: unknown) => void): FixtureEditsView {
-  const sessionFiles = [...new Set(EDITS.map((event) => event.session))];
+  const sessionList: string[] = [];
+  for (const event of EDITS) {
+    sessionList.push(event.session);
+  }
+  const sessionFiles = [...new Set(sessionList)];
   const wireByChangeId = new Map<string, FixtureWireEdit>();
   for (let done = 0; done < sessionFiles.length; done += 1) {
     writeNdjsonLine({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_READING_EDITS,
       current: done + 1, total: sessionFiles.length });
-    for (const event of EDITS.filter((candidate) => candidate.session === sessionFiles[done])) {
-      wireByChangeId.set(event.changeId, buildWireEdit(event));
+    for (const event of EDITS) {
+      if (event.session === sessionFiles[done]) {
+        wireByChangeId.set(event.changeId, buildWireEdit(event));
+      }
     }
   }
-  const paths = [...new Set(EDITS.map((event) => event.path))];
-  return { pairs: paths.map((path) => ({
-    path: new Path(path),
-    edits: listFixtureEvents(path).map((event) => wireByChangeId.get(event.changeId)!),
-  })) };
+  const pathList: string[] = [];
+  for (const event of EDITS) {
+    pathList.push(event.path);
+  }
+  const pairs: FixtureEditsView["pairs"] = [];
+  for (const path of new Set(pathList)) {
+    const edits: FixtureWireEdit[] = [];
+    for (const event of listFixtureEvents(path)) {
+      edits.push(wireByChangeId.get(event.changeId)!);
+    }
+    pairs.push({ path: new Path(path), edits });
+  }
+  return { pairs };
 }

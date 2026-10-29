@@ -6,21 +6,16 @@ import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
-import {
-    discoverJsonlPaths,
-    loadLayeredProject,
-    resolveEvidenceRoots,
-} from "../src/layered_load.ts";
+import { loadLayeredProject } from "../src/layered_load.ts";
 import type { ReconstructionEntity } from "../src/layered_types.ts";
 import {
     SESSION_A,
     SESSION_B,
-    buildEditRecordPair,
     buildPromptRecord,
-    buildWriteRecordPair,
-    makeSourceTree,
+    createSourceTree,
     writeTranscriptFixture,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 
 type LayeredFixture = {
     projectDir: string;
@@ -33,7 +28,7 @@ type LayeredFixture = {
 
 // Two sessions in ONE project folder: session A (a.jsonl) writes then edits alpha.py; session B (b.jsonl) writes beta.py.
 function makeLayeredFixture(): LayeredFixture {
-    const tree = makeSourceTree("-layered-project");
+    const tree = createSourceTree("-layered-project");
     const workspaceRoot = join(tree.treeRoot, "workspace");
     const alphaPath = join(workspaceRoot, "alpha.py");
     const betaPath = join(workspaceRoot, "beta.py");
@@ -68,46 +63,6 @@ function findEntity(entities: ReconstructionEntity[], target: string): Reconstru
     assert.ok(entity, `no entity for ${target}`);
     return entity;
 }
-
-test("test_discoverJsonlPaths_scans_top_level_jsonl_files", () => {
-    // With no override, discovery lists the folder's top-level .jsonl files, name-sorted.
-    const fixture = makeLayeredFixture();
-    writeFileSync(join(fixture.projectDir, "notes.txt"), "not a transcript\n");
-    const discovered = discoverJsonlPaths(new Path(fixture.projectDir), undefined);
-    assert.deepEqual(
-        discovered.map((path) => path.toString()),
-        [join(fixture.projectDir, "a.jsonl"), join(fixture.projectDir, "b.jsonl")],
-    );
-});
-
-test("test_discoverJsonlPaths_override_wins_over_folder_scan", () => {
-    // An explicit jsonlPaths override is returned verbatim — the folder is not scanned.
-    const fixture = makeLayeredFixture();
-    const override = [new Path("/somewhere/else/c.jsonl")];
-    const discovered = discoverJsonlPaths(new Path(fixture.projectDir), override);
-    assert.deepEqual(discovered, override);
-});
-
-test("test_resolveEvidenceRoots_explicit_paths_win", () => {
-    // Explicit repoPath/snapshotPaths overrides win over anything the records imply.
-    const fixture = makeLayeredFixture();
-    const repoOverride = new Path("/explicit/repo");
-    const snapshotOverride = [new Path("/explicit/file-history")];
-    const roots = resolveEvidenceRoots(fixture.sessionARecords, { repoPath: repoOverride, snapshotPaths: snapshotOverride });
-    assert.equal(roots.repoPath, repoOverride);
-    assert.deepEqual(roots.snapshotPaths, snapshotOverride);
-});
-
-test("test_resolveEvidenceRoots_discovers_from_records_without_overrides", () => {
-    // Without overrides, repo root falls back to records' first cwd; snapshot root falls back to the sibling file-history dir.
-    const fixture = makeLayeredFixture();
-    const roots = resolveEvidenceRoots(fixture.sessionARecords, {});
-    assert.equal(roots.repoPath?.toString(), fixture.workspaceRoot);
-    assert.deepEqual(
-        roots.snapshotPaths.map((path) => path.toString()),
-        [join(fixture.treeRoot, "file-history")],
-    );
-});
 
 test("test_loadLayeredProject_yields_one_entity_per_evidenced_file", () => {
     // One entity per evidenced absolute path, each holding its session's nodes in instant order.

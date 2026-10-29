@@ -5,43 +5,43 @@
 // TRAP: the probe is a template literal, so no backtick or dollar-brace.
 
 export interface Box {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 // `ownerPath` traces a label/dot back to its parent bubble's file path.
 export interface Measured {
-    group: string;
-    cls: string;
-    text: string;
-    path: string | null;
-    ownerPath: string | null;
-    laneIndex: number;
-    isBucket: boolean;
-    box: Box;
-    scrollWidth: number;
-    clientWidth: number;
-    clientHeight: number;
-    lineHeight: number;
+  group: string;
+  cls: string;
+  text: string;
+  path: string | null;
+  ownerPath: string | null;
+  laneIndex: number;
+  isBucket: boolean;
+  box: Box;
+  scrollWidth: number;
+  clientWidth: number;
+  clientHeight: number;
+  lineHeight: number;
 }
 
 export interface StateGeometry {
-    state: string;
-    zoom: string;
-    crumb: string;
-    findStatus: string;
-    viewport: { w: number; h: number };
-    // The scroll container the timeline is drawn inside — the "viewport" a jump has to land within.
-    scroller: Box & { scrollLeft: number; scrollTop: number };
-    fileboxes: Measured[];
-    fnames: Measured[];
-    nodes: Measured[];
-    labels: Measured[];
-    ticks: Measured[];
-    tickFiles: Measured[];
-    found: Measured[];
+  state: string;
+  zoom: string;
+  crumb: string;
+  findStatus: string;
+  viewport: { w: number; h: number };
+  // The scroll container the timeline is drawn inside — the "viewport" a jump has to land within.
+  scroller: Box & { scrollLeft: number; scrollTop: number };
+  fileboxes: Measured[];
+  fnames: Measured[];
+  nodes: Measured[];
+  labels: Measured[];
+  ticks: Measured[];
+  tickFiles: Measured[];
+  found: Measured[];
 }
 
 // Bucket headings assertions check for the title-instead-of-path bug.

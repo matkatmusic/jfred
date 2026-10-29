@@ -3,15 +3,15 @@
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { DerivedCaches } from "./reconstruction_corpus.ts";
-import { checkTimestampPrecedesSkippedBaseline } from "./reconstruction_base_commit.ts";
+import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
 import {
   ScriptExecutorKind,
   findScriptExecutionRuns,
   type ScriptRun,
 } from "./reconstruction_script_execution.ts";
-import { computeRunExecutionKey, type RunExecution } from "./reconstruction_script_runs.ts";
+import { computeRunExecutionKey } from "./reconstruction_script_runs.ts";
 import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
-import { isJunkStateKey } from "./reconstruction_script_sandbox.ts";
+import { getChangedStateKeysOnce, isAnyKeyOnLineagePath } from "./reconstruction_lineage_changed_keys.ts";
 import type { LineageStaticInputs } from "./reconstruction_lineage_inputs.ts";
 
 const runKeysByRun = new WeakMap<ScriptRun, string>();
@@ -25,51 +25,19 @@ function getRunExecutionKeyOnce(run: ScriptRun): string {
   return key;
 }
 
-// The state keys one memoized execution changed, created, or deleted.
-function computeChangedStateKeys(execution: RunExecution): string[] {
-  if (execution.post === undefined) {
-    return [];
-  }
-  const unionKeys = new Set([...execution.pre.keys(), ...execution.post.keys()]);
-  const changedKeys: string[] = [];
-  for (const key of unionKeys) {
-    if (isJunkStateKey(key)) {
-      continue;
-    }
-    if (execution.pre.get(key) === execution.post.get(key)) {
-      continue;
-    }
-    changedKeys.push(key);
-  }
-  return changedKeys;
-}
-
-const changedKeysByExecution = new WeakMap<RunExecution, string[]>();
-
-// Computed once per execution object — the full-content comparison is what makes a per-query diff too expensive.
-function getChangedStateKeysOnce(execution: RunExecution): string[] {
-  let changedKeys = changedKeysByExecution.get(execution);
-  if (changedKeys === undefined) {
-    changedKeys = computeChangedStateKeys(execution);
-    changedKeysByExecution.set(execution, changedKeys);
-  }
-  return changedKeys;
-}
-
-// State key matches if it equals the path or the path ends with "/<key>".
-function checkKeyMatchesLineagePath(stateKey: string, lineagePathStrings: string[]): boolean {
-  return lineagePathStrings.some((pathString) => pathString === stateKey || pathString.endsWith(`/${stateKey}`));
-}
-
 // Whether a beaconless rolling branch could re-execute this run.
-function checkRunCanRollForward(run: ScriptRun): boolean {
+function isRunRollCapable(run: ScriptRun): boolean {
   return (run.executorKind ?? ScriptExecutorKind.python) !== ScriptExecutorKind.bash
     && isScriptCodeWriteCapable(run.code);
 }
 
 // Roll-capable and not behind a declined baseline.
-function checkRunIsDirectlyExecutable(run: ScriptRun): boolean {
-  return checkRunCanRollForward(run) && !checkTimestampPrecedesSkippedBaseline(run.timestamp);
+function isRunDirectlyExecutable(run: ScriptRun): boolean {
+  return isRunRollCapable(run) && !isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
+}
+
+function compareRunsByTimestamp(a: ScriptRun, b: ScriptRun): number {
+  return a.timestamp.getTime() - b.timestamp.getTime();
 }
 
 export type RunScanState = {
@@ -81,8 +49,9 @@ export type RunScanState = {
 const runScansByDerived = new WeakMap<DerivedCaches, Map<string, RunScanState>>();
 
 // Relevant if executable and unmemoized, or memoized with a diff touching this lineage.
-function checkRunIsRelevantByMemo(run: ScriptRun, derived: DerivedCaches, inputs: LineageStaticInputs): boolean {
-  if (!checkRunIsDirectlyExecutable(run)) {
+function isRunRelevantByMemo(run: ScriptRun, derived: DerivedCaches, inputs: LineageStaticInputs): boolean {
+  const isExecutable = isRunDirectlyExecutable(run);
+  if (!isExecutable) {
     return false;
   }
   const execution = derived.executionsByRun.get(getRunExecutionKeyOnce(run));
@@ -92,7 +61,7 @@ function checkRunIsRelevantByMemo(run: ScriptRun, derived: DerivedCaches, inputs
   if (execution.post === undefined) {
     return false;
   }
-  return getChangedStateKeysOnce(execution).some((key) => checkKeyMatchesLineagePath(key, inputs.lineagePathStrings));
+  return isAnyKeyOnLineagePath(getChangedStateKeysOnce(execution), inputs.lineagePathStrings);
 }
 
 // One target's relevant run instants, scanned in ascending run order.
@@ -102,17 +71,15 @@ function computeRunScan(
   derived: DerivedCaches,
   inputs: LineageStaticInputs,
 ): RunScanState {
-  const sortedRuns = [...findScriptExecutionRuns(records)].sort(
-    (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
-  );
+  const sortedRuns = [...findScriptExecutionRuns(records)].sort(compareRunsByTimestamp);
   const relevantInstantsMs: number[] = [];
   let firstDiffRelevantMs: number | undefined;
   for (const run of sortedRuns) {
     const runMs = run.timestamp.getTime();
     const rollingModePossible = firstDiffRelevantMs !== undefined && runMs > firstDiffRelevantMs;
     const relevant = rollingModePossible
-      ? checkRunCanRollForward(run)
-      : checkRunIsRelevantByMemo(run, derived, inputs);
+      ? isRunRollCapable(run)
+      : isRunRelevantByMemo(run, derived, inputs);
     if (!relevant) {
       continue;
     }
@@ -137,8 +104,11 @@ export function getRunScanForTarget(
     runScansByDerived.set(derived, scansByTarget);
   }
   const cached = scansByTarget.get(target.toString());
-  if (cached !== undefined && cached.executionsSeen === derived.executionsByRun.size) {
-    return cached;
+  if (cached !== undefined) {
+    const isCacheCurrent = cached.executionsSeen === derived.executionsByRun.size;
+    if (isCacheCurrent) {
+      return cached;
+    }
   }
   const scan = computeRunScan(records, derived, inputs);
   scansByTarget.set(target.toString(), scan);

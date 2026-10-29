@@ -3,8 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stripTrailingNewline } from "../src/reconstruction_steps.ts";
-import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, findRevisionForChangeId, splitDiffBlocks } from "../webapp/views/file-history-model.ts";
+import { trimTrailingNewline } from "../src/reconstruction_step_snapshot.ts";
+import { buildFileHistoryViewModel, computeAnchoredRevisionIndex, findRevisionForChangeId } from "../webapp/views/file-history-model.ts";
+import { splitDiffBlocks } from "../webapp/views/file-history-diff-blocks.ts";
 import { buildS19ClientDocument } from "./viewer-test-helpers.ts";
 
 const S19_STEP_STATES_DIR = "scenarios/executed/s19-user-edit-conv-rewind/.step_states";
@@ -15,9 +16,9 @@ function findScenario19Target(document: any): string {
     return history.target;
 }
 
-// Ground-truth states end in a trailing newline the engine strips; compare both sides via stripTrailingNewline like the coverage checker.
+// Ground-truth states end in a trailing newline the engine strips; compare both sides via trimTrailingNewline like the coverage checker.
 function readStrippedGroundTruth(stepName: string): string {
-    return stripTrailingNewline(readFileSync(`${S19_STEP_STATES_DIR}/${stepName}/scenario19.py`, "utf8"));
+    return trimTrailingNewline(readFileSync(`${S19_STEP_STATES_DIR}/${stepName}/scenario19.py`, "utf8"));
 }
 
 test("test_file_state_viewmodel_matches_scenario_step_states", () => {
@@ -27,7 +28,7 @@ test("test_file_state_viewmodel_matches_scenario_step_states", () => {
     const viewModel = buildFileHistoryViewModel(document, target);
     assert.ok(viewModel.revisions.length >= 2, `2+ revisions, got ${viewModel.revisions.length}`);
     const finalRevision = viewModel.revisions[viewModel.revisions.length - 1]!;
-    assert.equal(stripTrailingNewline(finalRevision.content!), readStrippedGroundTruth("step-009"));
+    assert.equal(trimTrailingNewline(finalRevision.content!), readStrippedGroundTruth("step-009"));
 });
 
 test("test_file_state_viewmodel_matches_intermediate_step", () => {
@@ -37,7 +38,7 @@ test("test_file_state_viewmodel_matches_intermediate_step", () => {
     const viewModel = buildFileHistoryViewModel(document, target);
     const intermediateGroundTruth = readStrippedGroundTruth("step-003");
     assert.notEqual(intermediateGroundTruth, readStrippedGroundTruth("step-009"), "the intermediate state is genuinely different");
-    const nonFinalContents = viewModel.revisions.slice(0, -1).map((revision: any) => stripTrailingNewline(revision.content));
+    const nonFinalContents = viewModel.revisions.slice(0, -1).map((revision: any) => trimTrailingNewline(revision.content));
     assert.ok(nonFinalContents.includes(intermediateGroundTruth), "a non-final revision carries the step-003 state");
 });
 

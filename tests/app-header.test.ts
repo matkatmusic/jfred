@@ -1,17 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 // The dynamic import keeps every webapp module load AFTER the globals exist.
-async function initializeHeaderInFreshDom(): Promise<void> {
+async function initHeaderInFreshDom(): Promise<void> {
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/config": { projectsDir: "/tmp/projects", fileHistoryDir: "/tmp/file-history", bootId: "boot-1" },
         "/api/projects": [{ name: "proj-a" }, { name: "proj-b" }],
     });
-    const { initializeHeader } = await import("../webapp/app-header.ts");
-    await initializeHeader();
+    const { initHeader } = await import("../webapp/app-header.ts");
+    await initHeader();
 }
 
 // The element with `id`, asserted present — a missing id fails the test naming the id.
@@ -21,17 +21,17 @@ function getRequiredElementById(id: string): HTMLElement {
     return element;
 }
 
-test("test_initializeHeader_fills_folder_inputs_from_config", async () => {
-    // Scenario: initializeHeader fetches /api/config and mirrors the reported folders into the two Paths inputs.  Steps: boot the DOM and run initializeHeader against the stubbed config.
-    await initializeHeaderInFreshDom();
+test("test_initHeader_fills_folder_inputs_from_config", async () => {
+    // Scenario: initHeader mirrors the /api/config folders into the two Paths inputs.  Steps: boot the DOM, run initHeader.
+    await initHeaderInFreshDom();
     // assert both folder inputs carry the stubbed config values.
     assert.equal((getRequiredElementById("projects-dir-input") as HTMLInputElement).value, "/tmp/projects");
     assert.equal((getRequiredElementById("file-history-dir-input") as HTMLInputElement).value, "/tmp/file-history");
 });
 
 test("test_projects_button_opens_menu_and_document_click_closes_it", async () => {
-    // Scenario: the Projects button opens its popover (its stopPropagation keeps the document-level closer out), the menu fills with one row per project, and a plain document click closes every popover again.  Steps: boot the DOM and run initializeHeader.
-    await initializeHeaderInFreshDom();
+    // Scenario: the Projects button opens its menu, one row per project; a document click closes it.
+    await initHeaderInFreshDom();
     const projectsMenu = getRequiredElementById("projects-menu");
     // the menu starts hidden (index.html markup).
     assert.equal(projectsMenu.hidden, true);
@@ -71,8 +71,8 @@ function getRecordedConfigPostBody(recordedCalls: { url: string; init: RequestIn
 }
 
 test("test_file_history_fields_start_hidden_and_toggle_shows_them", async () => {
-    // Scenario (task 136): the file-history field + Open… button start hidden (derived dir); the "Set File History Snapshots" button toggles their visibility.  Steps: boot the DOM and run initializeHeader.
-    await initializeHeaderInFreshDom();
+    // Scenario (task 136): the file-history field starts hidden; the toggle button shows and hides it.
+    await initHeaderInFreshDom();
     const fileHistoryFields = getRequiredElementById("file-history-fields");
     // the fields start hidden (index.html markup).
     assert.equal(fileHistoryFields.hidden, true);
@@ -85,8 +85,8 @@ test("test_file_history_fields_start_hidden_and_toggle_shows_them", async () => 
 });
 
 test("test_apply_posts_empty_file_history_while_fields_hidden", async () => {
-    // Scenario (task 136): while the fields are hidden the dir is DERIVED — the apply POST carries "" even when the (hidden) input holds text.  Steps: boot the DOM, leave the fields hidden, put a value in the hidden input.
-    await initializeHeaderInFreshDom();
+    // Scenario (task 136): hidden fields mean the apply POST carries "" even if the input has text.
+    await initHeaderInFreshDom();
     (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/tmp/should-not-post";
     const recordedCalls = recordFetchCalls();
     // apply the folder change.
@@ -97,8 +97,8 @@ test("test_apply_posts_empty_file_history_while_fields_hidden", async () => {
 });
 
 test("test_apply_posts_edited_file_history_when_fields_shown", async () => {
-    // Scenario (task 136): showing the fields is the explicit-override gesture — an edited value posts through.  Steps: boot the DOM, show the fields, edit the input.
-    await initializeHeaderInFreshDom();
+    // Scenario (task 136): showing the fields is the explicit-override gesture, so an edited value posts.
+    await initHeaderInFreshDom();
     getRequiredElementById("file-history-toggle").click();
     (getRequiredElementById("file-history-dir-input") as HTMLInputElement).value = "/tmp/custom-history";
     const recordedCalls = recordFetchCalls();
@@ -110,8 +110,8 @@ test("test_apply_posts_edited_file_history_when_fields_shown", async () => {
 });
 
 test("test_paths_popover_stays_open_on_inside_click", async () => {
-    // Scenario: clicks inside the paths popover (typing in the inputs) stop propagation so the document-level closer never fires; only the apply button lets its click through.  Steps: boot the DOM and run initializeHeader.
-    await initializeHeaderInFreshDom();
+    // Scenario: inside clicks on the paths popover stop propagation; only the apply button lets its click through.
+    await initHeaderInFreshDom();
     const pathsPopover = getRequiredElementById("paths-popover");
     // open the popover via its toolbar button.
     getRequiredElementById("paths-btn").click();

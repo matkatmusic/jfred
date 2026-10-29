@@ -1,41 +1,59 @@
-// Script-run Details view-model half (task 67; DOM-free, tested in tests/script-run-details-view.test.ts): resolve a run's sandbox-proven changed paths to the revisions whose per-revision diffs show the run's before/after. The DOM renderer lives in details-script-run.ts (the details-model.ts / details.ts split precedent).
+// DOM-free view model (task 67): maps a script run's changed paths to the revisions that show its diffs.
 
 import { SCRIPT_RUN_CHANGE_ID_PREFIX } from "./timeline-changes.ts";
-import type { WireFileHistory, WireScriptRun, WireTimelineDocument } from "./timeline-types.ts";
+import type { WireFileHistory, WireScriptRun, WireTimelineDocument } from "./timeline-wire-types.ts";
 
-// One changed file resolved for the right pane: target/revisionNumber are undefined when no reconstructed history tracks the path (the pane renders a note instead of a diff).
+// One changed file for the right pane; target and revisionNumber are undefined when no history tracks the path.
 export type ScriptRunFileEntry = { path: string; target: string | undefined; revisionNumber: number | undefined };
 export type ScriptRunDetailsViewModel = { code: string; files: ScriptRunFileEntry[] };
 
 export function buildScriptRunDetailsViewModel(
-    scriptRun: WireScriptRun,
-    document: WireTimelineDocument,
+  scriptRun: WireScriptRun,
+  document: WireTimelineDocument,
 ): ScriptRunDetailsViewModel {
-    return {
-        code: scriptRun.code,
-        files: scriptRun.changedPaths.map((path) => resolveChangedFileEntry(path, scriptRun, document.filesTouched)),
-    };
+  const files: ScriptRunFileEntry[] = [];
+  for (const path of scriptRun.changedPaths) {
+    files.push(computeChangedFileEntry(path, scriptRun, document.filesTouched));
+  }
+  return { code: scriptRun.code, files };
 }
 
-// The engine's refForTarget join, mirrored: exact target match, else the changed path names the same file by a trailing path segment (the sandbox's state keys may be cwd-relative).
-function resolveChangedFileEntry(path: string, scriptRun: WireScriptRun, histories: WireFileHistory[]): ScriptRunFileEntry {
-    const history = histories.find((candidate) => candidate.target === path || candidate.target.endsWith(`/${path}`) || path.endsWith(`/${candidate.target}`));
-    if (history === undefined) {
-        return { path, target: undefined, revisionNumber: undefined };
+// Mirrors the engine's findRefForTarget join: exact match, else a trailing path segment match.
+function findMatchingHistory(path: string, histories: WireFileHistory[]): WireFileHistory | undefined {
+  for (const candidate of histories) {
+    const isExactTarget = candidate.target === path;
+    const isTargetSuffix = candidate.target.endsWith(`/${path}`);
+    const isPathSuffix = path.endsWith(`/${candidate.target}`);
+    const isMatch = isExactTarget || isTargetSuffix || isPathSuffix;
+    if (isMatch) {
+      return candidate;
     }
-    return { path, target: history.target, revisionNumber: pickRunRevisionNumber(history, scriptRun) };
+  }
+  return undefined;
 }
 
-// The 1-based revision showing this run's effect: (1) the revision the run's own deterministic scriptRun:<toolUseId>: changeId stamped; (2) the first revision at/after the run instant (the beacon-evidenced case — ISO-8601 wire timestamps compare lexicographically); (3) the last revision, when every revision precedes the run.
-function pickRunRevisionNumber(history: WireFileHistory, scriptRun: WireScriptRun): number {
-    const runPrefix = `${SCRIPT_RUN_CHANGE_ID_PREFIX}${scriptRun.toolUseId}:`;
-    const stamped = history.revisions.findIndex((revision) => revision.changeId.startsWith(runPrefix));
-    if (stamped !== -1) {
-        return stamped + 1;
+function computeChangedFileEntry(path: string, scriptRun: WireScriptRun, histories: WireFileHistory[]): ScriptRunFileEntry {
+  const history = findMatchingHistory(path, histories);
+  if (history === undefined) {
+    return { path, target: undefined, revisionNumber: undefined };
+  }
+  return { path, target: history.target, revisionNumber: selectRunRevisionNumber(history, scriptRun) };
+}
+
+// The 1-based revision showing this run's effect: its stamped changeId, else first at or after the run, else last.
+function selectRunRevisionNumber(history: WireFileHistory, scriptRun: WireScriptRun): number {
+  const runPrefix = `${SCRIPT_RUN_CHANGE_ID_PREFIX}${scriptRun.toolUseId}:`;
+  for (const [index, revision] of history.revisions.entries()) {
+    const isStamped = revision.changeId.startsWith(runPrefix);
+    if (isStamped) {
+      return index + 1;
     }
-    const atOrAfter = history.revisions.findIndex((revision) => revision.timestamp >= scriptRun.timestamp);
-    if (atOrAfter !== -1) {
-        return atOrAfter + 1;
+  }
+  for (const [index, revision] of history.revisions.entries()) {
+    const isAtOrAfterRun = revision.timestamp >= scriptRun.timestamp;
+    if (isAtOrAfterRun) {
+      return index + 1;
     }
-    return history.revisions.length;
+  }
+  return history.revisions.length;
 }

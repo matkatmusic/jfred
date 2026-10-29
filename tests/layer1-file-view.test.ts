@@ -1,9 +1,9 @@
-// Task 294: the Detail View drawer's body is a line-number column beside ONE highlighted block.  No `hljs` global is defined here — node:test never loads the vendored script — so every case below exercises renderCodeInto's plain-text fallback. That is deliberate: what this file guards is the SHAPE (two columns, honest line count, real text) rather than the vendored tokeniser, which is not ours to test.
+// Guards the drawer body shape: a gutter column beside one code block, using the plain-text fallback.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeLanguageForPath } from "../webapp/highlight.ts";
-import { looksBinary } from "../webapp/layer1-file-view.ts";
+import { isBinaryContent } from "../webapp/layer1-file-view.ts";
 import { renderFileContentInto } from "../webapp/layer1-file-view.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -33,16 +33,16 @@ test("a file the highlighter has no language for is not an error", () => {
 });
 
 test("a binary file is named, not dumped as mojibake", () => {
-    // The route reads every file as UTF-8, so a PNG arrives as replacement characters around a NUL. Numbering thousands of rows of that says nothing about the file — task 299 shows it.
+    // A PNG read as UTF-8 arrives as replacement characters around a NUL.
     const png = "\u0089PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\ufffd\ufffd\ufffd\ufffd";
-    assert.equal(looksBinary(png), true);
+    assert.equal(isBinaryContent(png), true);
     const host = renderIntoHost(png, "assets/hero-timeline.png");
     assert.equal(host.querySelector(".dbinary")?.textContent, "Binary file — not shown as text.");
     assert.equal(host.querySelector(".dgutter"), null);
 });
 
 test("real source text is never mistaken for binary", () => {
-    assert.equal(looksBinary("const x = 1;\nexport default x;\n"), false);
+    assert.equal(isBinaryContent("const x = 1;\nexport default x;\n"), false);
     // A single replacement character in prose is legitimate and must not trip the sniff.
-    assert.equal(looksBinary("a line with one odd char \ufffd and plenty of ordinary text after"), false);
+    assert.equal(isBinaryContent("a line with one odd char \ufffd and plenty of ordinary text after"), false);
 });

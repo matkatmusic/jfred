@@ -1,12 +1,12 @@
-// Task 292: where a session's band lands on the S18 axis.  The interpolation is the only real risk here. The ruler is CAPPED and FLOORED, so time and pixels are not proportional — an instant halfway between two ticks in TIME is halfway between them in PIXELS, and computing it from the instant alone would put it somewhere else entirely.
+// Task 292: where a session's band lands on the capped, floored S18 axis, so time is not pixels.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderSessionRanges, resolveAxisPixelsAt } from "../webapp/layer1-ranges.ts";
+import { renderSessionRanges, computeAxisPixelsAt } from "../webapp/layer1-ranges.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick, WireSession } from "../webapp/layer1-wire.ts";
 
-// Two ticks one hour apart in TIME and 100 px apart on the AXIS — a gap the cap has squashed, which is exactly the case a time-proportional reading would get wrong.
+// Two ticks one hour apart in time and 100 px apart on the axis: a squashed gap.
 const FIRST_TICK_INSTANT = "2026-06-01T10:00:00Z";
 const LAST_TICK_INSTANT = "2026-06-01T11:00:00Z";
 const TICKS: WireRulerTick[] = [
@@ -19,18 +19,18 @@ function buildSession(started: string, ended: string): WireSession {
 }
 
 test("an instant halfway between two ticks lands halfway between their offsets", () => {
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-06-01T10:30:00Z"), TICKS), 70);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-06-01T10:30:00Z"), TICKS), 70);
 });
 
 test("an instant on a tick takes that tick's own offset", () => {
-    assert.equal(resolveAxisPixelsAt(Date.parse(FIRST_TICK_INSTANT), TICKS), 20);
-    assert.equal(resolveAxisPixelsAt(Date.parse(LAST_TICK_INSTANT), TICKS), 120);
+    assert.equal(computeAxisPixelsAt(Date.parse(FIRST_TICK_INSTANT), TICKS), 20);
+    assert.equal(computeAxisPixelsAt(Date.parse(LAST_TICK_INSTANT), TICKS), 120);
 });
 
 test("instants outside the ruler clamp to its ends", () => {
     // A session that opened before the first recorded event still has to start somewhere on screen.
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-05-01T00:00:00Z"), TICKS), 20);
-    assert.equal(resolveAxisPixelsAt(Date.parse("2026-08-01T00:00:00Z"), TICKS), 120);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-05-01T00:00:00Z"), TICKS), 20);
+    assert.equal(computeAxisPixelsAt(Date.parse("2026-08-01T00:00:00Z"), TICKS), 120);
 });
 
 test("a session that covers no event gets a bar and no wash", () => {
@@ -45,7 +45,7 @@ test("a covering session's wash closes half a node row clear of the events it re
     initLayer1Dom();
     renderSessionRanges([buildSession("2026-06-01T09:00:00Z", "2026-06-01T12:00:00Z")], TICKS);
     const wash = document.querySelector("#washes .range-wash") as HTMLElement;
-    // RULER_NODE_ROW_PIXELS is 22, so half a row is 11: 20 - 11 = 9, and 120 + 11 - 9 = 122.
+    // Row height 22 px; the wash starts half a row early and ends half a row late.
     assert.equal(wash.style.getPropertyValue("--axis-px"), "9");
     assert.equal(wash.style.getPropertyValue("--span-px"), "122");
 });
@@ -61,7 +61,7 @@ test("a gutter row inside a picked session's band is marked", () => {
     outsideTick.style.setProperty("--axis-px", "120");
     ruler.append(insideTick, outsideTick);
 
-    // Opens before the first tick and closes on the gap, so it covers the first row and not the last.
+    // Opens before the first tick and closes in the gap: first row only.
     renderSessionRanges([buildSession("2026-06-01T09:00:00Z", "2026-06-01T10:30:00Z")], TICKS);
 
     assert.ok(insideTick.classList.contains("inrange"));

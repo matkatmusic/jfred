@@ -1,23 +1,45 @@
-// Rev-card DOM builders for the Revision View (split from details-revision-view.ts at the 250-line cap, task 126). Pure element construction — selection, focus, and diff routing stay in details-revision-view.ts.
+// Rev-card DOM builders split from details-revision-view.ts: pure element construction only.
 
 import { createElement } from "../app-dom.ts";
 import { buildFileHistoryViewModel } from "./file-history-model.ts";
 import {
   type DetailsContext,
   type RevisionCard,
-  fullContentsIsOn,
 } from "./details-model.ts";
-import { showContentInDetails } from "./details-diff.ts";
-import { downloadText } from "./download.ts";
+import { isFullContentsOn } from "./details-stored-choices.ts";
+import { renderContentInDetails } from "./details-diff.ts";
+import { saveTextFile } from "./download.ts";
 
-function jumpToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
-  const ownerIndex = context.nodes.findIndex(
-    (candidate) => (candidate.fileChanges ?? []).some((change) => change.changeId === card.changeId),
-  );
-    // No owning row (rewound / synthetic revisions): the button is a no-op.
+function moveToOwningTimelineStep(context: DetailsContext, card: RevisionCard): void {
+  let ownerIndex = -1;
+  for (const [nodeIndex, candidate] of context.nodes.entries()) {
+    for (const change of candidate.fileChanges ?? []) {
+      const isFirstOwner = change.changeId === card.changeId && ownerIndex < 0;
+      if (isFirstOwner) {
+        ownerIndex = nodeIndex;
+      }
+    }
+  }
+  // No owning row (rewound / synthetic revisions): the button is a no-op.
   if (ownerIndex >= 0) {
     context.selectTimelineRow(ownerIndex);
   }
+}
+
+type BuildActionButton = (text: string, onActivate: () => unknown) => HTMLElement;
+
+function buildJumpButton(buildActionButton: BuildActionButton, context: DetailsContext, card: RevisionCard): HTMLElement {
+  function moveToStep(): void {
+    moveToOwningTimelineStep(context, card);
+  }
+  return buildActionButton("Jump to timeline step", moveToStep);
+}
+
+function buildJsonButton(buildActionButton: BuildActionButton, context: DetailsContext, card: RevisionCard): HTMLElement {
+  function openRecord(): void {
+    context.openRecordForChangeId(card.changeId);
+  }
+  return buildActionButton("{ }", openRecord);
 }
 
 export function buildRevisionHeadElement(rangeToggle: HTMLElement, card: RevisionCard): HTMLElement {
@@ -39,18 +61,32 @@ export function buildRevisionActionsElement(
   revisionContents: ReturnType<typeof buildFileHistoryViewModel>["revisions"],
   getDiffBlocks: (full: boolean) => Promise<string[]>,
 ): HTMLElement {
+  function openRevisionContent(): void {
+    renderContentInDetails(target, card.revisionNumber, revisionContents[index]?.content);
+  }
+  function saveRevisionVersion(): void {
+    saveTextFile(`${baseName}.rev${card.revisionNumber}`,revisionContents[index]?.content ?? "");
+  }
+  async function copyRevisionPatch(): Promise<void> {
+    const diffBlocks = await getDiffBlocks(isFullContentsOn());
+    await navigator.clipboard.writeText(diffBlocks[index] ?? "");
+  }
+  async function saveRevisionPatch(): Promise<void> {
+    const diffBlocks = await getDiffBlocks(isFullContentsOn());
+    saveTextFile(`${baseName}.rev${card.revisionNumber}.patch`, diffBlocks[index] ?? "");
+  }
   return createElement("div", { class: "rev-actions" }, [
-    buildActionButton("Show content", () => showContentInDetails(target, card.revisionNumber, revisionContents[index]?.content)),
-    buildActionButton("Export this version", () => downloadText(`${baseName}.rev${card.revisionNumber}`, revisionContents[index]?.content ?? "")),
-    buildActionButton("Copy patch", async () => navigator.clipboard.writeText((await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
-    buildActionButton("Export .patch", async () => downloadText(`${baseName}.rev${card.revisionNumber}.patch`, (await getDiffBlocks(fullContentsIsOn()))[index] ?? "")),
-    buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
-    // item 84: the ONLY route to a file-modifying event's JSON. The timeline chip's { } delegates here, so this is load-bearing for the unification rule, not a nicety — without it the Revision View has no JSON route at all.
-    buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+    buildActionButton("Show content", openRevisionContent),
+    buildActionButton("Export this version", saveRevisionVersion),
+    buildActionButton("Copy patch", copyRevisionPatch),
+    buildActionButton("Export .patch", saveRevisionPatch),
+    buildJumpButton(buildActionButton, context, card),
+    // item 84: the only route to a file-modifying event's JSON; the timeline chip delegates here.
+    buildJsonButton(buildActionButton, context, card),
   ]);
 }
 
-// task 119: an unrecoverable placeholder's card — dashed "rev N ✗" head. task 129: the .why line says which revision (of how many) failed to apply which operation; the raw engine error survives as the hover title. task 130: ONLY the jump + { } actions — the placeholder's lines are the prior revision carried forward, so content/export/patch actions would lie.
+// task 130: an unrecoverable placeholder card offers only jump and { }; its lines are carried forward.
 export function buildMissingRevisionCard(
   buildActionButton: (text: string, onActivate: () => unknown) => HTMLElement,
   context: DetailsContext,
@@ -68,8 +104,8 @@ export function buildMissingRevisionCard(
       text: `rev ${card.revisionNumber} (of ${revisionCount}) failed to apply ${card.opLabel}`,
     }),
     createElement("div", { class: "rev-actions" }, [
-      buildActionButton("Jump to timeline step", () => jumpToOwningTimelineStep(context, card)),
-      buildActionButton("{ }", () => context.openRecordForChangeId(card.changeId)),
+      buildJumpButton(buildActionButton, context, card),
+      buildJsonButton(buildActionButton, context, card),
     ]),
   ]);
 }

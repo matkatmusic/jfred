@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findTimelineNodeIndexForRawLine, formatRowTimestamp } from "../webapp/views/timeline-labels.ts";
+import { findTimelineNodeIndexForRawLine } from "../webapp/views/timeline-labels-raw-line.ts";
+import { formatRowTimestamp } from "../webapp/views/timeline-labels.ts";
 import { buildTurnTimelineViewModel } from "../webapp/views/timeline-nodes.ts";
 import {
     AGENT_TURN_NODE_KIND,

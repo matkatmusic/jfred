@@ -3,6 +3,7 @@
 import { WireConfidence, WireEditKind, type WireEditsView } from "../../webapp/layer1-wire-edits.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { containsCounterLabel, findUncertainEdit, listAllEdits, listEditsOnPaths } from "./layer3-real-edits.ts";
 
 const EDIT_BOX = `document.querySelector('#show-row input[data-kind="edit"]')`;
 const COUNT_EDIT_NODES = `document.querySelectorAll('i.node.n-edit, i.node.n-read').length`;
@@ -37,8 +38,7 @@ const WATCH_BUSY = `(() => {
         .observe(label, { childList: true, characterData: true, subtree: true });
 })()`;
 
-const buildNodeByChangeId = (changeId: string) =>
-  `document.querySelector('i.node[data-change-id=${JSON.stringify(changeId)}]')`;
+const buildNodeByChangeId = (changeId: string) => `document.querySelector('i.node[data-change-id=${JSON.stringify(changeId)}]')`;
 
 const readFlashFile = (page: HeadlessPage) =>
   page.evaluate<string | null>(`document.querySelector('.session-item.flash')?.dataset.file ?? null`);
@@ -48,10 +48,6 @@ async function listViewPaths(page: HeadlessPage): Promise<Set<string>> {
   return new Set(paths);
 }
 
-function listEditsOnPaths(payload: WireEditsView, paths: Set<string>): WireEditsView["pairs"][number]["edits"] {
-  return payload.pairs.filter((pair) => paths.has(pair.path)).flatMap((pair) => pair.edits);
-}
-
 async function openNode(page: HeadlessPage, dot: string): Promise<void> {
   await page.evaluate(`document.getElementById('dbody').replaceChildren(); ${dot}.click()`);
   await page.waitFor(
@@ -59,12 +55,12 @@ async function openNode(page: HeadlessPage, dot: string): Promise<void> {
     DRAWER_TIMEOUT_MS);
 }
 
-async function checkBeforeTick(page: HeadlessPage): Promise<void> {
+async function assertBeforeTick(page: HeadlessPage): Promise<void> {
   reportCheck("#355 before the box: no Edit or Read node is drawn", await page.evaluate<number>(COUNT_EDIT_NODES) === 0);
   reportCheck("#355 before the box: no /api/layer1-edits request yet", await page.evaluate<number>(COUNT_EDIT_REQUESTS) === 0);
 }
 
-async function checkFirstFetch(page: HeadlessPage, payload: WireEditsView, fetchTimeoutMs: number): Promise<void> {
+async function assertFirstFetch(page: HeadlessPage, payload: WireEditsView, fetchTimeoutMs: number): Promise<void> {
   const viewPaths = await listViewPaths(page);
   const expectedNodes = listEditsOnPaths(payload, viewPaths).length;
   await page.evaluate(WATCH_BUSY);
@@ -72,7 +68,7 @@ async function checkFirstFetch(page: HeadlessPage, payload: WireEditsView, fetch
   await page.waitFor(`${COUNT_EDIT_NODES} > 0 && ${SHIELD_HIDDEN}`, fetchTimeoutMs);
   const busy = await page.evaluate<{ shieldShown: boolean; stripShown: boolean; labels: string[]; blocked: boolean | null }>(`window.__busy`);
   reportCheck("#355 the blocking shield shows during the fetch", busy.shieldShown);
-  reportCheck("#355 the shield label counts n / m", busy.labels.some((text) => /\d+ \/ \d+/.test(text)), busy.labels.slice(-3));
+  reportCheck("#355 the shield label counts n / m", containsCounterLabel(busy.labels), busy.labels.slice(-3));
   reportCheck("#355 while the shield shows, a click on a file box hits the shield", busy.blocked === true, busy.blocked);
   reportCheck("#355 the loadbar strip shows during the fetch", busy.stripShown);
   reportCheck("#355 the shield is hidden once the payload lands", await page.evaluate<boolean>(SHIELD_HIDDEN));
@@ -82,15 +78,22 @@ async function checkFirstFetch(page: HeadlessPage, payload: WireEditsView, fetch
   reportCheck("#355 the node count equals the payload edit count on drawn paths", drawn === expectedNodes, { drawn, expectedNodes });
 }
 
-async function checkConfidences(page: HeadlessPage, payload: WireEditsView): Promise<void> {
+async function assertConfidences(page: HeadlessPage, payload: WireEditsView): Promise<void> {
   const drawn = await page.evaluate<[string, string][]>(
     `[...document.querySelectorAll('i.node.n-edit, i.node.n-read')].map(n => [n.dataset.changeId, n.dataset.confidence])`);
-  const wire = new Map(payload.pairs.flatMap((pair) => pair.edits).map((edit) => [edit.changeId, edit.confidence]));
-  const mismatched = drawn.filter(([changeId, confidence]) => wire.get(changeId!) !== confidence);
+  const wire = new Map<string, string>();
+  for (const edit of listAllEdits(payload))
+    wire.set(edit.changeId, edit.confidence);
+  const mismatched: [string, string][] = [];
+  for (const [changeId, confidence] of drawn) {
+    const wireConfidence = wire.get(changeId);
+    if (wireConfidence !== confidence)
+      mismatched.push([changeId, confidence]);
+  }
   reportCheck("#355 every node's confidence equals the payload's", drawn.length > 0 && mismatched.length === 0, mismatched.slice(0, 3));
 }
 
-async function checkToggle(page: HeadlessPage): Promise<void> {
+async function assertToggle(page: HeadlessPage): Promise<void> {
   const counts = await page.evaluate<{ off: number; on: number }>(`(() => {
         const box = ${EDIT_BOX};
         const visible = () => [...document.querySelectorAll('i.node.n-edit, i.node.n-read')]
@@ -104,7 +107,7 @@ async function checkToggle(page: HeadlessPage): Promise<void> {
   reportCheck("#355 toggling afterwards adds no request", await page.evaluate<number>(COUNT_EDIT_REQUESTS) === 1);
 }
 
-async function checkVerifiedEdit(page: HeadlessPage): Promise<void> {
+async function assertVerifiedEdit(page: HeadlessPage): Promise<void> {
   const dot = `document.querySelector('i.node.n-edit.conf-verified[data-kind="${WireEditKind.edit}"]')`;
   const found = await page.evaluate<boolean>(`${dot} !== null`);
   reportCheck("#355 the page draws a verified Edit node", found);
@@ -118,12 +121,13 @@ async function checkVerifiedEdit(page: HeadlessPage): Promise<void> {
   reportCheck("#355 the owning JSONL flashes", await readFlashFile(page) === drawer.file, drawer.file);
   await page.waitFor(`document.querySelector('#dbody .json-toggle') !== null`, DRAWER_TIMEOUT_MS);
   await page.evaluate(`document.querySelector('#dbody .json-toggle').click()`);
+  await page.waitFor(`document.querySelector('#dbody .node-json').textContent !== ''`, DRAWER_TIMEOUT_MS);
   const json = await page.evaluate<boolean>(`document.querySelector('#dbody .node-json').textContent.includes('structuredPatch')`);
   reportCheck("#355 the { } reveal shows structuredPatch", json);
 }
 
-async function checkUncertainEdit(page: HeadlessPage, payload: WireEditsView): Promise<void> {
-  const uncertain = payload.pairs.flatMap((pair) => pair.edits).find((edit) => edit.confidence !== WireConfidence.verified);
+async function assertUncertainEdit(page: HeadlessPage, payload: WireEditsView): Promise<void> {
+  const uncertain = findUncertainEdit(payload);
   if (uncertain === undefined) {
     console.log("SKIP  #355 no derived or reseeded edit in the payload");
     return;
@@ -137,11 +141,11 @@ async function checkUncertainEdit(page: HeadlessPage, payload: WireEditsView): P
 export async function executeLayer3RealChecks(
   page: HeadlessPage, payload: WireEditsView, fetchTimeoutMs: number, screenshotName: string,
 ): Promise<void> {
-  await checkBeforeTick(page);
-  await checkFirstFetch(page, payload, fetchTimeoutMs);
-  await checkConfidences(page, payload);
-  await checkToggle(page);
-  await checkVerifiedEdit(page);
-  await checkUncertainEdit(page, payload);
+  await assertBeforeTick(page);
+  await assertFirstFetch(page, payload, fetchTimeoutMs);
+  await assertConfidences(page, payload);
+  await assertToggle(page);
+  await assertVerifiedEdit(page);
+  await assertUncertainEdit(page, payload);
   await saveScreenshot(page, screenshotName);
 }

@@ -1,60 +1,64 @@
-// The viewer's JSONL-path resolution (spec S6, task 177): one named file, a whole project, or —
-// for a project declaring `sources` — the union across every source's projects root. Split out
-// of viewer_api_projects.ts (250-line cap); moved here from viewer_server_routes.ts (same cap).
+// Viewer JSONL-path lookup: one file, one project, or the union across a project's declared sources.
 
 import { Path } from "./structures/domain.ts";
-import { hydrateProjectSources, type SourceEntry } from "./reconstruction_overrides.ts";
-import {
-    getMergedProjectPaths,
-    getProjectsDir,
-    resolveProjectFile,
-    scanProjects,
-    type ProjectListing,
-} from "./viewer_api_projects.ts";
+import { buildProjectSources, type SourceEntry } from "./reconstruction_overrides.ts";
+import { getMergedProjectPaths, getProjectsDir } from "./viewer_api_projects.ts";
+import { scanProjects, type ProjectListing } from "./viewer_api_project_scan.ts";
+import { findProjectFile } from "./viewer_api_trust_boundary.ts";
 
-// One listing's JSONLs appended (de-duplicated by resolved path — a source may repeat the active projects dir), resolved through the same trust boundary as the active dir's files.
+// Append one listing's JSONLs through the trust boundary, skipping paths already seen.
 function appendListingJsonlPaths(
-    projectsDir: Path,
-    listing: ProjectListing,
-    seenPaths: Set<string>,
-    jsonlPaths: Path[],
+  projectsDir: Path,
+  listing: ProjectListing,
+  seenPaths: Set<string>,
+  jsonlPaths: Path[],
 ): void {
-    for (const entry of listing.jsonlFiles) {
-        const resolved = resolveProjectFile(projectsDir, listing.name, entry.fileName.toString());
-        if (seenPaths.has(resolved.toString())) {
-            continue;
-        }
-        seenPaths.add(resolved.toString());
-        jsonlPaths.push(resolved);
+  for (const entry of listing.jsonlFiles) {
+    const resolved = findProjectFile(projectsDir, listing.name, entry.fileName.toString());
+    const resolvedKey = resolved.toString();
+    const isAlreadySeen = seenPaths.has(resolvedKey);
+    if (isAlreadySeen) {
+      continue;
     }
+    seenPaths.add(resolvedKey);
+    jsonlPaths.push(resolved);
+  }
 }
 
-// One source's project JSONLs: every listing under its projects root.
+// Collect the JSONLs of every listing under one source's projects root.
 function collectOneSourceJsonlPaths(source: SourceEntry, seenPaths: Set<string>, jsonlPaths: Path[]): void {
-    for (const listing of scanProjects(source.projectsDir)) {
-        appendListingJsonlPaths(source.projectsDir, listing, seenPaths, jsonlPaths);
-    }
+  for (const listing of scanProjects(source.projectsDir)) {
+    appendListingJsonlPaths(source.projectsDir, listing, seenPaths, jsonlPaths);
+  }
 }
 
-// The resolved JSONL path(s) for a project: one named file, or every JSONL in the project (the unified view) when no file name is given. Spec S6: a project entry declaring `sources` serves the union of ALL sources' project JSONLs instead — the declared list is authoritative, so the config author lists every source including the primary (legacy entries keep the single-dir scan).
-export function resolveJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
-    if (jsonlName !== null) {
-        return [resolveProjectFile(getProjectsDir(), projectName, jsonlName)];
+// Find the project JSONL path(s): one named file, a sources union, or every JSONL in the project.
+export function findJsonlPaths(projectName: string, jsonlName: string | null): Path[] {
+  if (jsonlName !== null) {
+    return [findProjectFile(getProjectsDir(), projectName, jsonlName)];
+  }
+  const wireEntry = getMergedProjectPaths(projectName);
+  if (wireEntry.sources !== undefined) {
+    const seenPaths = new Set<string>();
+    const jsonlPaths: Path[] = [];
+    for (const source of buildProjectSources(getProjectsDir(), wireEntry)) {
+      collectOneSourceJsonlPaths(source, seenPaths, jsonlPaths);
     }
-    const wireEntry = getMergedProjectPaths(projectName);
-    if (wireEntry.sources !== undefined) {
-        const seenPaths = new Set<string>();
-        const jsonlPaths: Path[] = [];
-        for (const source of hydrateProjectSources(getProjectsDir(), wireEntry)) {
-            collectOneSourceJsonlPaths(source, seenPaths, jsonlPaths);
-        }
-        return jsonlPaths;
+    return jsonlPaths;
+  }
+  let listing: ProjectListing | undefined;
+  for (const candidate of scanProjects(getProjectsDir())) {
+    if (candidate.name === projectName) {
+      listing = candidate;
+      break;
     }
-    const listing = scanProjects(getProjectsDir()).find((project) => project.name === projectName);
-    if (listing === undefined) {
-        throw new Error(`no project named ${projectName}`);
-    }
-    return listing.jsonlFiles.map((entry) =>
-        resolveProjectFile(getProjectsDir(), projectName, entry.fileName.toString()),
-    );
+  }
+  if (listing === undefined) {
+    throw new Error(`no project named ${projectName}`);
+  }
+  const jsonlPaths: Path[] = [];
+  for (const entry of listing.jsonlFiles) {
+    jsonlPaths.push(findProjectFile(getProjectsDir(), projectName, entry.fileName.toString()));
+  }
+  return jsonlPaths;
 }

@@ -3,13 +3,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    clickCycleButton,
     COLLIDING_PATHS,
-    jumpToNamedBubble,
+    dispatchCycleButtonClick,
+    moveToNamedBubble,
     openFoundPage,
     readFindStatusText,
     scrolledPaths,
-    submitTermWithEnter,
+    sendTermWithEnter,
 } from "./layer1-find-file-helpers.ts";
 
 test("test_the_enter_key_on_the_box_is_what_submits", () => {
@@ -27,24 +27,24 @@ test("test_the_enter_key_on_the_box_is_what_submits", () => {
 test("test_clearing_the_find_box_clears_its_result_readout", () => {
     // Emptying the box drops the abandoned search state, so the next term starts at its first match.
     openFoundPage(COLLIDING_PATHS);
-    jumpToNamedBubble("launch.json");
-    jumpToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
     assert.match(readFindStatusText(), /2 of 3/);
     const box = document.getElementById("find-file") as HTMLInputElement;
     box.value = "";
     box.dispatchEvent(new window.Event("input", { bubbles: true }));
     assert.equal(readFindStatusText(), "");
     assert.equal(document.querySelectorAll(".filebox.found").length, 0);
-    jumpToNamedBubble("launch.json");
+    moveToNamedBubble("launch.json");
     assert.equal(scrolledPaths.at(-1), ".claude/launch.json");
 });
 
 test("test_the_next_button_steps_forward_through_the_matches", () => {
     // Repeat-Enter was the only way to reach later matches, so the button continues the same cycle.
     openFoundPage(COLLIDING_PATHS);
-    submitTermWithEnter("launch.json");
-    clickCycleButton("find-next");
-    clickCycleButton("find-next");
+    sendTermWithEnter("launch.json");
+    dispatchCycleButtonClick("find-next");
+    dispatchCycleButtonClick("find-next");
     assert.deepEqual(scrolledPaths, [
         ".claude/launch.json",
         ".vscode/launch.json",
@@ -56,8 +56,8 @@ test("test_the_next_button_steps_forward_through_the_matches", () => {
 test("test_the_previous_button_steps_backward_and_wraps", () => {
     // Stepping back from the first match must wrap to the last, avoiding a full forward cycle.
     openFoundPage(COLLIDING_PATHS);
-    submitTermWithEnter("launch.json");
-    clickCycleButton("find-prev");
+    sendTermWithEnter("launch.json");
+    dispatchCycleButtonClick("find-prev");
     assert.equal(scrolledPaths.at(-1), ".vscode-parent/launch.json");
     assert.match(readFindStatusText(), /3 of 3/);
 });

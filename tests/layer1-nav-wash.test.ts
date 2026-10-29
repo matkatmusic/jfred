@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearNavWash, renderNavWash, resolveNavWashInstants } from "../webapp/layer1-nav-wash.ts";
+import { clearNavWash, renderNavWash, computeNavWashInstants } from "../webapp/layer1-nav-wash.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireLayer1View, WireRulerTick } from "../webapp/layer1-wire.ts";
 
@@ -17,7 +17,7 @@ function buildView(overrides: Partial<WireLayer1View> = {}): WireLayer1View {
     return { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [], ...overrides };
 }
 
-test("resolveNavWashInstants spans a single pair's whole ladder", () => {
+test("computeNavWashInstants spans a single pair's whole ladder", () => {
     const view = buildView({
         pairs: [{
             path: "a.ts",
@@ -27,20 +27,20 @@ test("resolveNavWashInstants spans a single pair's whole ladder", () => {
             snapshots: [{ instant: T4, axisPx: 0, version: 1, sessionId: "s1", sessionFile: "s1.jsonl" }],
         }],
     });
-    assert.deepEqual(resolveNavWashInstants(view, ["a.ts"]), { oldest: T0, newest: T4 });
+    assert.deepEqual(computeNavWashInstants(view, ["a.ts"]), { oldest: T0, newest: T4 });
 });
 
-test("resolveNavWashInstants unions across two non-overlapping selected files", () => {
+test("computeNavWashInstants unions across two non-overlapping selected files", () => {
     const view = buildView({
         pairs: [
             { path: "a.ts", commits: [], onDisk: { instant: T1, axisPx: 0 } },
             { path: "b.ts", commits: [], onDisk: { instant: T4, axisPx: 0 } },
         ],
     });
-    assert.deepEqual(resolveNavWashInstants(view, ["a.ts", "b.ts"]), { oldest: T1, newest: T4 });
+    assert.deepEqual(computeNavWashInstants(view, ["a.ts", "b.ts"]), { oldest: T1, newest: T4 });
 });
 
-test("resolveNavWashInstants includes a selected disk orphan's own instant and snapshots", () => {
+test("computeNavWashInstants includes a selected disk orphan's own instant and snapshots", () => {
     const view = buildView({
         diskOrphans: [{
             path: "c.ts",
@@ -49,21 +49,21 @@ test("resolveNavWashInstants includes a selected disk orphan's own instant and s
             snapshots: [{ instant: T5, axisPx: 0, version: 2, sessionId: "s1", sessionFile: "s1.jsonl" }],
         }],
     });
-    assert.deepEqual(resolveNavWashInstants(view, ["c.ts"]), { oldest: T2, newest: T5 });
+    assert.deepEqual(computeNavWashInstants(view, ["c.ts"]), { oldest: T2, newest: T5 });
 });
 
-test("resolveNavWashInstants ignores a target that only names a gitOrphan", () => {
+test("computeNavWashInstants ignores a target that only names a gitOrphan", () => {
     const view = buildView({
         gitOrphans: [{ path: "d.ts", instant: T2, axisPx: 0 }],
     });
-    assert.equal(resolveNavWashInstants(view, ["d.ts"]), undefined);
+    assert.equal(computeNavWashInstants(view, ["d.ts"]), undefined);
 });
 
-test("resolveNavWashInstants with no targets is undefined", () => {
+test("computeNavWashInstants with no targets is undefined", () => {
     const view = buildView({
         pairs: [{ path: "a.ts", commits: [], onDisk: { instant: T1, axisPx: 0 } }],
     });
-    assert.equal(resolveNavWashInstants(view, []), undefined);
+    assert.equal(computeNavWashInstants(view, []), undefined);
 });
 
 const TICKS: WireRulerTick[] = [

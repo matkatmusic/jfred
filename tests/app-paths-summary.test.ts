@@ -1,9 +1,9 @@
-// DOM tests for webapp/app-paths-summary.ts (task 159): the summary panel's rows (global vs per-project, values from the popover's current fields) and the screen-4 default-commit label resolution (stored baseline first, else the repo tip from /api/repo-commits).
+// DOM tests for webapp/app-paths-summary.ts (task 159): the summary rows and the screen-4 default-commit label.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initWebappDom } from "./webapp-dom-test-helpers.ts";
-import { stubFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 
 const STORED_COMMIT_HASH = "a".repeat(40);
 const TIP_COMMIT_HASH = "b".repeat(40);
@@ -13,7 +13,7 @@ function getInput(id: string): HTMLInputElement {
 }
 
 test("test_renderPathsSummary_shows_global_rows_without_a_project", async () => {
-    // Scenario: with no project, only the two GLOBAL rows render — projects folder (field value) and file history ("auto-derived" while the task-136 fields are hidden).
+    // Scenario: with no project, only the two GLOBAL rows render: projects folder and file history.
     initWebappDom();
     const { renderPathsSummary } = await import("../webapp/app-paths-summary.ts");
     getInput("projects-dir-input").value = "/tmp/projects";
@@ -25,7 +25,7 @@ test("test_renderPathsSummary_shows_global_rows_without_a_project", async () => 
 });
 
 test("test_renderPathsSummary_project_rows_reflect_fields_and_mirror", async () => {
-    // Scenario: with a project, rows 3–5 render from the repo field, the base-commit display (short hash), and the task-56 baseline mirror; each row's Edit passes its screen number.
+    // Scenario: with a project, rows 3–5 render from the repo, base commit, and baseline mirror.
     initWebappDom();
     const { renderPathsSummary } = await import("../webapp/app-paths-summary.ts");
     const { storeBaselineChoice } = await import("../webapp/app-choices.ts");
@@ -46,20 +46,20 @@ test("test_renderPathsSummary_project_rows_reflect_fields_and_mirror", async () 
     assert.deepEqual(editedScreens, [1, 2, 3, 4, 5]);
 });
 
-test("test_resolveDefaultCommitLabel_prefers_stored_then_repo_tip", async () => {
-    // Scenario: a stored base commit labels as the session baseline without fetching; an empty display resolves the repo tip from /api/repo-commits' newest row (never a hardcoded branch).
+test("test_getDefaultCommitLabel_prefers_stored_then_repo_tip", async () => {
+    // Scenario: a stored base commit labels as the baseline; an empty display uses the repo tip.
     initWebappDom();
-    stubFetchRoutes({
+    installFetchRoutes({
         "/api/repo-commits": [{ hash: TIP_COMMIT_HASH, date: "2026-07-22", subject: "tip subject" }],
     });
-    const { resolveDefaultCommitLabel } = await import("../webapp/app-paths-summary.ts");
+    const { getDefaultCommitLabel } = await import("../webapp/app-paths-summary.ts");
     getInput("base-commit-display").value = STORED_COMMIT_HASH;
-    const storedLabel = await resolveDefaultCommitLabel("proj-label");
+    const storedLabel = await getDefaultCommitLabel("proj-label");
     assert.ok(storedLabel.includes(STORED_COMMIT_HASH.slice(0, 12)), storedLabel);
     assert.ok(storedLabel.includes("session baseline"), storedLabel);
     getInput("base-commit-display").value = "";
     getInput("repo-dir-input").value = "/repos/p";
-    const tipLabel = await resolveDefaultCommitLabel("proj-label");
+    const tipLabel = await getDefaultCommitLabel("proj-label");
     await waitForAsyncWork();
     assert.ok(tipLabel.includes(TIP_COMMIT_HASH.slice(0, 12)), tipLabel);
     assert.ok(tipLabel.includes("tip subject"), tipLabel);

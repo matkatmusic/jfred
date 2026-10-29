@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
+const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 
 const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
@@ -15,7 +15,7 @@ const SNAPSHOT = { ...INSTANT, version: 1, sessionId: "s-1", sessionFile: "alpha
 
 function renderViewAndListShownKinds(pair: object | undefined): string[] {
     initLayer1Dom();
-    bootLayer1Page();
+    initLayer1Page();
     renderLayer1View({ pairs: pair === undefined ? [] : [pair], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
     return [...document.querySelectorAll<HTMLInputElement>("#show-row input[type=checkbox]")]
         .map((box) => box.dataset["kind"]!);

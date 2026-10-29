@@ -1,4 +1,4 @@
-// Task 203 (spec S6): rename/copy events become typed lineage edges; lineageOf walks on demand (Q11).
+// Task 203 (spec S6): rename/copy events become typed lineage edges; getLineageOf walks on demand (Q11).
 
 import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
@@ -22,7 +22,7 @@ export interface LineageEvidence {
 }
 
 // Whether this extracted event connects two paths (from/to) rather than touching one target.
-export function checkEventIsLineageEdge(event: FileEvent): event is LineageEvent {
+export function isEventLineageEdge(event: FileEvent): event is LineageEvent {
   if (event.kind === EventKind.rename) {
     return true;
   }
@@ -62,16 +62,28 @@ export function buildLineageEdges(
   return { renames, copies };
 }
 
+function getRenamedTo(edge: RenameEdge): ReconstructionEntity {
+  return edge.renamedTo;
+}
+
+function getRenamedFrom(edge: RenameEdge): ReconstructionEntity {
+  return edge.renamedFrom;
+}
+
 // Indexes rename edges by one side's path for directional traversal.
-function indexRenamesByEntity(
+function buildRenameIndex(
   renames: RenameEdge[],
   side: (edge: RenameEdge) => ReconstructionEntity,
 ): Map<string, RenameEdge> {
-  return new Map(renames.map((edge) => [side(edge).filename.toString(), edge]));
+  const index = new Map<string, RenameEdge>();
+  for (const edge of renames) {
+    index.set(side(edge).filename.toString(), edge);
+  }
+  return index;
 }
 
 // Walks rename edges in one direction from start, stopping at cycles tracked via shared `seen` set.
-function walkRenameEdges(
+function collectRenameChain(
   start: ReconstructionEntity,
   edgesByEntity: Map<string, RenameEdge>,
   step: (edge: RenameEdge) => ReconstructionEntity,
@@ -82,7 +94,8 @@ function walkRenameEdges(
   let edge = edgesByEntity.get(current.filename.toString());
   while (edge !== undefined) {
     current = step(edge);
-    if (seen.has(current.filename.toString())) {
+    const alreadySeen = seen.has(current.filename.toString());
+    if (alreadySeen) {
       break;
     }
     seen.add(current.filename.toString());
@@ -93,21 +106,21 @@ function walkRenameEdges(
 }
 
 // Spec S6: returns the full rename chain oldest-first; copies are separate lineages.
-export function lineageOf(
+export function getLineageOf(
   entity: ReconstructionEntity,
   renames: RenameEdge[],
 ): ReconstructionEntity[] {
   const seen = new Set([entity.filename.toString()]);
-  const earlierNames = walkRenameEdges(
+  const earlierNames = collectRenameChain(
     entity,
-    indexRenamesByEntity(renames, (edge) => edge.renamedTo),
-    (edge) => edge.renamedFrom,
+    buildRenameIndex(renames, getRenamedTo),
+    getRenamedFrom,
     seen,
   );
-  const laterNames = walkRenameEdges(
+  const laterNames = collectRenameChain(
     entity,
-    indexRenamesByEntity(renames, (edge) => edge.renamedFrom),
-    (edge) => edge.renamedTo,
+    buildRenameIndex(renames, getRenamedFrom),
+    getRenamedTo,
     seen,
   );
   return [...earlierNames.reverse(), entity, ...laterNames];
@@ -115,10 +128,19 @@ export function lineageOf(
 
 // Derives copy genesis from source's merged timeline at copy instant; undefined if no prior state (Q8).
 export function findCopyBornContent(edge: CopyEdge): string | undefined {
-  const observed = mergeSessionTimelines(edge.copiedFrom).nodes
-    .map((merged) => merged.node)
-    .filter(isNodeCarryingBytes)
-    .filter((node) => node.instant.getTime() <= edge.timestampOfCopy.getTime());
-  return observed.at(-1)?.content;
+  const sourceTimeline = mergeSessionTimelines(edge.copiedFrom);
+  let bornContent: string | undefined;
+  for (const mergedNode of sourceTimeline.nodes) {
+    const node = mergedNode.node;
+    const carriesBytes = isNodeCarryingBytes(node);
+    if (!carriesBytes) {
+      continue;
+    }
+    const isAtOrBeforeCopy = node.instant.getTime() <= edge.timestampOfCopy.getTime();
+    if (isAtOrBeforeCopy) {
+      bornContent = node.content;
+    }
+  }
+  return bornContent;
 }
 

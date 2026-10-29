@@ -4,12 +4,12 @@ import {
     collectAcceptedUserEditIds,
     extractRenderableEvents,
 } from "../src/reconstruction_renderable.ts";
-import { reconstructAll, reconstructBranches, reconstructFile } from "../src/reconstruction_engine.ts";
+import { buildAllFileHistories, buildBranchedReconstruction, buildFileRevisions } from "../src/reconstruction_engine.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import {
     clearReconstructionFailures,
-    drainReconstructionFailures,
+    popReconstructionFailures,
 } from "../src/reconstruction_health.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
@@ -42,16 +42,16 @@ test("test_extractRenderableEvents_drops_the_S13_disk_echo_turn", () => {
 test("test_reconstructFile_survives_a_throwing_reader_stage", () => {
     clearReconstructionFailures();
     const records = loadRecords(S19_JSONL);
-    const expected = reconstructAll(records);
+    const expected = buildAllFileHistories(records);
     assert.ok(expected.length > 0);
     const throwingReader: BackupReader = () => {
         throw new Error("ENOENT: blob gone");
     };
     for (const history of expected) {
-        const revisions = reconstructFile(records, history.target, throwingReader);
+        const revisions = buildFileRevisions(records, history.target, throwingReader);
         assert.deepStrictEqual(revisions, history.revisions);
     }
-    const failures = drainReconstructionFailures();
+    const failures = popReconstructionFailures();
     assert.ok(failures.some((failure) => failure.scope === FailureScope.fileStage));
 });
 
@@ -60,11 +60,11 @@ test("test_run_stage_tolerantly_announces_each_stage_through_the_progress_sink",
     const capturedLabels: string[] = [];
     setReconstructionProgressSink((event) => capturedLabels.push(event.label));
     try {
-        reconstructAll(loadRecords(S15_JSONL));
+        buildAllFileHistories(loadRecords(S15_JSONL));
     } finally {
         setReconstructionProgressSink(undefined);
     }
-    // The first chain stage announced itself with the target and the stage name — the label keeps the `reconstructing ` prefix so the webapp's phase classifier stays in phase 4.
+    // The first chain stage announces its target and name, keeping the `reconstructing ` prefix.
     assert.ok(capturedLabels.some((label) => /^reconstructing .+ — seedBaseCommitBeacon$/.test(label)));
 });
 
@@ -93,7 +93,7 @@ test("test_find_conversation_branches_announces_each_abandoned_tip_scan", () => 
     const capturedEvents: ProgressEvent[] = [];
     setReconstructionProgressSink((event) => capturedEvents.push(event));
     try {
-        reconstructBranches(loadRecords(S19_JSONL));
+        buildBranchedReconstruction(loadRecords(S19_JSONL));
     } finally {
         setReconstructionProgressSink(undefined);
     }
@@ -109,7 +109,7 @@ test("test_reconstruct_branches_announces_each_rewound_branch", () => {
     const capturedEvents: ProgressEvent[] = [];
     setReconstructionProgressSink((event) => capturedEvents.push(event));
     try {
-        reconstructBranches(loadRecords(S19_JSONL));
+        buildBranchedReconstruction(loadRecords(S19_JSONL));
     } finally {
         setReconstructionProgressSink(undefined);
     }

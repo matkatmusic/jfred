@@ -1,4 +1,4 @@
-// Raw-lines view (#/project/<name>/jsonl/<file>/lines): the transcript's numbered lines with the legacy filter modes (Show All / File Only / Edits Only) plus a substring filter.  Clicking a line opens the JSON inspector.
+// Raw-lines view (#/project/<name>/jsonl/<file>/lines): numbered transcript lines with mode and substring filters; a click opens the JSON inspector.
 
 import { createElement as createElementUntyped } from "../app-dom.ts";
 import { fetchDocument, fetchRawRecords } from "../app-fetch.ts";
@@ -7,14 +7,14 @@ import { renderBaselineQuestionDialog } from "../app-baseline-question.ts";
 import { openTranscriptInspector } from "../inspector.ts";
 import { findLineForChangeId } from "./file-history-model.ts";
 
-// Wire shapes for the pieces of the /api/document payload this view reads (ids/dates arrive as plain strings over the wire, so these stay local rather than importing engine types).
+// Wire shapes for the /api/document pieces this view reads; ids and dates arrive as plain strings.
 type WireRevision = { changeId: string };
 type WireFileHistory = { revisions: WireRevision[] };
 type WireLineVerdict = { line: number; verdict: string };
 type WireDocument = { filesTouched: WireFileHistory[]; lineVerdicts: WireLineVerdict[] };
 type RawLineEntry = { line: number; verdict: string; text: string };
 
-// Locally-typed view of app.ts's DOM builder (app.ts is being typed separately; its untyped `children = []` default infers never[], which rejects every child).
+// Typed view of the DOM builder: its untyped `children = []` default infers never[], rejecting every child.
 type ElAttributes = Record<string, string | ((event: Event) => void)>;
 const createElement = createElementUntyped as <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -22,7 +22,7 @@ const createElement = createElementUntyped as <K extends keyof HTMLElementTagNam
   children?: HTMLElement[],
 ) => HTMLElementTagNameMap[K];
 
-// Pure filter over the document's per-line verdicts. mode: "all" | "file" (verdict marks file relevance, i.e. not "ignore") | "edits" (the line carries a revision's changeId — the plan's steps[].changeIds are re-stamped uuids that rarely match raw lines, so the changeId scan is the honest edit set).
+// Pure filter over per-line verdicts: mode all, file (verdict not ignore) or edits (line carries a revision changeId).
 export function buildRawLinesViewModel(
   document: WireDocument,
   rawLines: string[],
@@ -40,12 +40,21 @@ export function buildRawLinesViewModel(
   const lowered = substring.toLowerCase();
   const entries: RawLineEntry[] = [];
   for (const verdict of document.lineVerdicts) {
-    if (mode === "file" && verdict.verdict === "ignore")
+    const isFileMode = mode === "file";
+    const isIgnored = verdict.verdict === "ignore";
+    const isSkippedByFileMode = isFileMode && isIgnored;
+    if (isSkippedByFileMode)
       continue;
-    if (mode === "edits" && !editLines.has(verdict.line))
+    const isEditsMode = mode === "edits";
+    const isEditLine = editLines.has(verdict.line);
+    const isSkippedByEditsMode = isEditsMode && !isEditLine;
+    if (isSkippedByEditsMode)
       continue;
     const text = rawLines[verdict.line] ?? "";
-    if (lowered !== "" && !text.toLowerCase().includes(lowered))
+    const hasSubstring = lowered !== "";
+    const textMatches = text.toLowerCase().includes(lowered);
+    const isSkippedBySubstring = hasSubstring && !textMatches;
+    if (isSkippedBySubstring)
       continue;
     entries.push({ line: verdict.line, verdict: verdict.verdict, text });
   }
@@ -78,15 +87,16 @@ export async function renderRawLinesView(container: HTMLElement, project: string
   const rawLines = await fetchRawRecords(project, jsonl);
 
   // Inspector navigation scrolls the visible row list in step (a filtered-out line just has no row to highlight).
-  const highlightLine = (line: number): void => {
+  const markLineAnchored = (line: number): void => {
     const row = listPane.querySelector(`[data-line="${line}"]`);
     if (row === null)
       return;
-    listPane.querySelectorAll(".anchored").forEach((old) => old.classList.remove("anchored"));
+    for (const old of listPane.querySelectorAll(".anchored"))
+      old.classList.remove("anchored");
     row.classList.add("anchored");
     row.scrollIntoView({ block: "center" });
   };
-  const inspectLine = (line: number): void => openTranscriptInspector({ jsonlName: jsonl, rawLines, line, onJumpToLine: highlightLine });
+  const openLineInspector = (line: number): void => openTranscriptInspector({ jsonlName: jsonl, rawLines, line, onJumpToLine: markLineAnchored });
 
   const modeSelect = createElement("select", {}, [
     createElement("option", { value: "all", text: "Show All" }),
@@ -102,7 +112,7 @@ export async function renderRawLinesView(container: HTMLElement, project: string
     countLabel.textContent = `${viewModel.entries.length} / ${rawLines.length} lines`;
     listPane.replaceChildren();
     for (const entry of viewModel.entries) {
-      appendRawLineRow(listPane, entry, inspectLine);
+      appendRawLineRow(listPane, entry, openLineInspector);
     }
   };
   modeSelect.addEventListener("change", renderList);

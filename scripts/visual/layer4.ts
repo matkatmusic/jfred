@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type WireScriptRunsView } from "../../webapp/layer1-wire-script-runs.ts";
-import { findFreePort, openHeadlessPage, pause, waitForHttp } from "./cdp.ts";
+import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds } from "./cdp.ts";
 import { executeLayer4RealChecks } from "./layer4-real-checks.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";
 
@@ -86,14 +86,17 @@ async function executeMain(): Promise<void> {
   try {
     const startedAt = Date.now();
     const payload = await fetchScriptRunsPayload(port);
-    const runTotal = payload.pairs.flatMap((pair) => pair.scriptRuns).length;
+    let runTotal = 0;
+    for (const pair of payload.pairs) {
+      runTotal += pair.scriptRuns.length;
+    }
     reportCheck("l4-wire-real the real endpoint answers in under 5 s", Date.now() - startedAt < 5_000, Date.now() - startedAt);
     console.log(`payload: ${payload.pairs.length} pairs, ${runTotal} runs`);
     await executeDriveAndCheck(port, payload);
   }
   finally {
     server.kill("SIGKILL");
-    await pause(200);
+    await waitMilliseconds(200);
     stopPort(port);
   }
   console.log(failures.length

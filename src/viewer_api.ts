@@ -6,17 +6,17 @@ import {
   type ReconstructionDocument,
   type BuiltReconstruction,
 } from "./reconstruction_json.ts";
-import { reconstructBranches } from "./reconstruction_engine.ts";
+import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { getPathOverrides, serializePathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
-import { mergeMultiSourceRecords, groupRecordsBySession } from "./reconstruction_multi_source.ts";
+import { getPathOverrides, formatPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
 import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
-import { truncateRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
-import { flushSandboxMemoToDisk } from "./reconstruction_script_sandbox.ts";
+import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
+import { writePendingSandboxMemoToDisk } from "./reconstruction_script_sandbox_memo.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
-import { getCachedValueRefreshingRecency, evictLeastRecentlyUsedEntries } from "./cache_lru.ts";
+import { getCachedValueRefreshingRecency, removeLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { readDocumentFromDiskCache, writeDocumentToDiskCache } from "./reconstruction_document_cache.ts";
 import type { Path } from "./structures/domain.ts";
 import {
@@ -48,17 +48,17 @@ export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | un
   // ponytail: memoize per (stamp, sources) if profiling ever shows it.
   const merged = sources === undefined || sources.length === 0
     ? loaded.records
-    : mergeMultiSourceRecords(groupRecordsBySession(loaded.records), sources);
+    : mergeMultiSourceRecords(splitRecordsBySession(loaded.records), sources);
     // Task 194: the bound cut must happen BEFORE any engine work, like the CLI's --until-revision.
   const records = bound === undefined
     ? merged
-    : truncateRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
+    : trimRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
     // task 119: a previous build's aborted leftovers must not leak into this document's failures.
   clearReconstructionFailures();
   reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
   const reader = buildSidecarReader(records, sources);
   reportStage(onProgress, PROGRESS_LABEL_CONSTRUCTING_BRANCHES);
-  const branched = reconstructBranches(records, reader);
+  const branched = buildBranchedReconstruction(records, reader);
   reportStage(onProgress, PROGRESS_LABEL_BUILDING_DOCUMENT);
   return buildReconstructionDocument(records, branched, reader, target, skippedLines);
 }
@@ -87,7 +87,7 @@ export function buildReconstructionWithConsent(
   const targetKey = target === undefined ? "" : target.toString();
   const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
   // Each build kind gets its own cache entry; the key includes active overrides, so config edits miss.
-  const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${serializePathOverrides()}`;
+  const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${formatPathOverrides()}`;
   const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
   if (cachedBuild !== undefined) {
     reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
@@ -98,7 +98,7 @@ export function buildReconstructionWithConsent(
   if (diskBuild !== undefined) {
     reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
     builtDocumentCache.set(cacheKey, diskBuild);
-    evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
+    removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
     return diskBuild;
   }
   setImpureExecutionAllowed(allowScripts);
@@ -108,13 +108,15 @@ export function buildReconstructionWithConsent(
     // Spec S6: sources ride the process-wide overrides, set by the caller before any build.
     const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
     // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
-    if (!reconstructPreBaseline && getPathOverrides().baseCommit !== undefined) {
+    const hasBaseCommit = getPathOverrides().baseCommit !== undefined;
+    const isPreBaselineSkipped = !reconstructPreBaseline && hasBaseCommit;
+    if (isPreBaselineSkipped) {
       built.document.preBaselineSkipped = true;
     }
     // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
-    flushSandboxMemoToDisk();
+    writePendingSandboxMemoToDisk();
     builtDocumentCache.set(cacheKey, built);
-    evictLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
+    removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
     writeDocumentToDiskCache(cacheKey, built);
     return built;
   }

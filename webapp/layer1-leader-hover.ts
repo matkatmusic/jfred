@@ -44,7 +44,7 @@ function markLeaderAimedAtVisibleTargets(leader: HTMLElement): void {
 }
 
 // Wire one positioned leader and return it; `pointerenter`/`pointerleave` do not refire along one line.
-export function makeLeaderHoverable(leader: HTMLElement): HTMLElement {
+export function attachLeaderHover(leader: HTMLElement): HTMLElement {
   function markAimedOnEnter(): void {
     markLeaderAimedAtVisibleTargets(leader);
   }

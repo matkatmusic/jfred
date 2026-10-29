@@ -2,18 +2,19 @@
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
-import { makeLeaderHoverable } from "./layer1-leader-hover.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { attachLeaderHover } from "./layer1-leader-hover.ts";
+import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
-import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, showLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
+import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { attachRulerTickClick } from "./layer1-ruler-click.ts";
 import { listRulerRows } from "./layer1-ruler-rows.ts";
-import { drawScriptConnectors } from "./layer1-script-connectors.ts";
+import { renderScriptConnectors } from "./layer1-script-connectors.ts";
 import { listSelectedSessions } from "./layer1-sessions.ts";
 import { moveOpenRowToNewTicks, markMultiEventTicks } from "./layer1-tick-files.ts";
-import { buildOrphanBucket, buildStagePairs, setAxisPx } from "./layer1-widgets.ts";
+import { setAxisPx } from "./layer1-lane-nodes.ts";
+import { buildOrphanBucket, buildStagePairs } from "./layer1-widgets.ts";
 import type { WireInstant, WireLayer1View, WireRulerTick } from "./layer1-wire.ts";
 
 // Builds elements only; layer1-ruler-rows.ts decides which entries print and what each row reads.
@@ -30,7 +31,7 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
 function renderLeaderLines(ruler: WireInstant[]): void {
   const leaders: HTMLElement[] = [];
   for (const entry of ruler) {
-    leaders.push(makeLeaderHoverable(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
+    leaders.push(attachLeaderHover(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
   }
   getRequiredElementById("leaders").replaceChildren(...leaders);
 }
@@ -67,7 +68,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     if (!isChunked) {
       continue;
     }
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
+    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
       Math.min(done + STAGE_CHUNK_WIDGETS, widgets.length), widgets.length);
     await waitForPaintedFrame();
     if (pass !== stageRenderPass) {
@@ -75,7 +76,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
     }
   }
   if (isChunked) {
-    showLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
+    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
     await waitForPaintedFrame();
     if (pass !== stageRenderPass) {
       return;
@@ -88,8 +89,8 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderSessionRanges(listSelectedSessions(), view.ruler);
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
-  drawLayer1Minimap();
-  drawScriptConnectors(stage);
+  renderLayer1Minimap();
+  renderScriptConnectors(stage);
   if (isChunked) {
     hideLayer1Progress();
   }

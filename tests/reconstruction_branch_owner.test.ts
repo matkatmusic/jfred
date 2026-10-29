@@ -6,7 +6,7 @@ import {
 } from "../src/reconstruction_branch.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { rec, lastPrompt } from "./reconstruction-branch-test-helpers.ts";
+import { createRecord, createLastPromptRecord } from "./reconstruction-branch-test-helpers.ts";
 
 // A null backupFileName (the `backups` default) is what marks a refresh snapshot.
 function snapshotRec(
@@ -33,12 +33,12 @@ function snapshotRec(
 // R = root checkpoint; Wa = write turn's head (tree changes to file@2); Hc = conv-only rewind, writes nothing.
 function buildConversationRewindRecords(): TranscriptRecord[] {
     return [
-        rec(RecordType.user, "R", null),
-        rec(RecordType.assistant, "Wa", "R"),       // the write turn's tail
-        lastPrompt("Wa"),                            // head: the code branch
+        createRecord(RecordType.user, "R", null),
+        createRecord(RecordType.assistant, "Wa", "R"),       // the write turn's tail
+        createLastPromptRecord("Wa"),                            // head: the code branch
         snapshotRec("Wa", { "file.py": 2 }),         // working tree changed -> file@2
-        rec(RecordType.user, "Hc", "R"),             // conversation-only rewind to root: a new Hello
-        lastPrompt("Hc"),                            // final head, but it wrote nothing
+        createRecord(RecordType.user, "Hc", "R"),             // conversation-only rewind to root: a new Hello
+        createLastPromptRecord("Hc"),                            // final head, but it wrote nothing
         snapshotRec("Hc", { "file.py": 2 }),         // working tree UNCHANGED (still file@2)
     ];
 }
@@ -60,12 +60,12 @@ test("test_select_live_branch_follows_working_tree_after_conversation_rewind", (
 // A read-only `code` rewind re-versions the SAME on-disk content with a NULL backupFileName.
 function buildCodeRestoreNoPostEditRecords(): TranscriptRecord[] {
     return [
-        rec(RecordType.user, "R", null),
-        rec(RecordType.assistant, "Wb", "R"),                          // the write turn's tail
-        lastPrompt("Wb"),                                              // head: the code (write) branch
+        createRecord(RecordType.user, "R", null),
+        createRecord(RecordType.assistant, "Wb", "R"),                          // the write turn's tail
+        createLastPromptRecord("Wb"),                                              // head: the code (write) branch
         snapshotRec("Wb", { "file.py": 2 }, { "file.py": "backup-A@v2" }), // real content backup
-        rec(RecordType.user, "Hr", "R"),                              // code rewind to root: a read-only turn
-        lastPrompt("Hr"),                                              // final head, but it wrote nothing
+        createRecord(RecordType.user, "Hr", "R"),                              // code rewind to root: a read-only turn
+        createLastPromptRecord("Hr"),                                              // final head, but it wrote nothing
         snapshotRec("Hr", { "file.py": 3 }),                          // refresh: version bumped, content unchanged (null bfn)
     ];
 }
@@ -84,15 +84,15 @@ test("test_select_live_branch_follows_restored_code_after_code_rewind", () => {
     assert.deepEqual(uuids, ["R", "Wb"]);
 });
 
-// A conv-only rewind repeats the SAME version and real backup; a code restore bumps it with a null backup instead.
+// A conv-only rewind repeats the same version and backup; a code restore bumps it with a null backup.
 function buildConversationOnlyRewindRealBackupRecords(): TranscriptRecord[] {
     return [
-        rec(RecordType.user, "R", null),
-        rec(RecordType.assistant, "Wa", "R"),                              // the write turn's tail
-        lastPrompt("Wa"),                                                  // head: the write branch
+        createRecord(RecordType.user, "R", null),
+        createRecord(RecordType.assistant, "Wa", "R"),                              // the write turn's tail
+        createLastPromptRecord("Wa"),                                                  // head: the write branch
         snapshotRec("Wa", { "file.py": 2 }, { "file.py": "backup-A@v2" }), // real content backup
-        rec(RecordType.user, "Hc", "R"),                                   // conv-only rewind to root: a read-only turn
-        lastPrompt("Hc"),                                                  // final head, but it wrote nothing
+        createRecord(RecordType.user, "Hc", "R"),                                   // conv-only rewind to root: a read-only turn
+        createLastPromptRecord("Hc"),                                                  // final head, but it wrote nothing
         snapshotRec("Hc", { "file.py": 2 }, { "file.py": "backup-A@v2" }), // SAME version, SAME real backup
     ];
 }
@@ -108,12 +108,12 @@ test("test_find_conversation_branches_survives_working_tree_when_conv_only_refre
 // The rewrite's backup shares Wa's path-hash but differs in the @v4 suffix, so the working-tree owner must advance.
 function buildCodeRestoreThenRewriteRecords(): TranscriptRecord[] {
     return [
-        rec(RecordType.user, "R", null),
-        rec(RecordType.assistant, "Wa", "R"),                              // first write turn (add)
-        lastPrompt("Wa"),                                                  // head: the abandoned write branch
+        createRecord(RecordType.user, "R", null),
+        createRecord(RecordType.assistant, "Wa", "R"),                              // first write turn (add)
+        createLastPromptRecord("Wa"),                                                  // head: the abandoned write branch
         snapshotRec("Wa", { "file.py": 2 }, { "file.py": "backup-A@v2" }), // add head: real backup @v2
-        rec(RecordType.user, "Wb", "R"),                                   // code rewind to root, then rewrite
-        lastPrompt("Wb"),                                                  // head: the surviving (rewrite) branch
+        createRecord(RecordType.user, "Wb", "R"),                                   // code rewind to root, then rewrite
+        createLastPromptRecord("Wb"),                                                  // head: the surviving (rewrite) branch
         snapshotRec("Wb", { "file.py": 3 }),                               // code-restore refresh: v3, null bfn
         snapshotRec("Wb", { "file.py": 4 }, { "file.py": "backup-A@v4" }), // rewrite: NEW real backup @v4
     ];

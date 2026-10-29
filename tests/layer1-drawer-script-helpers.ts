@@ -17,7 +17,11 @@ export const SCRIPT_RUN: WireScriptRun = {
   sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl",
 };
 
-export function armScriptRunView(): void {
+function buildDiskFileBody(): object {
+  return { content: DISK_FILE_CONTENT };
+}
+
+export function storeScriptRunView(): void {
   rememberDrawnView({
     pairs: [
       { path: "src/a.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 }, scriptRuns: [SCRIPT_RUN] },
@@ -51,9 +55,9 @@ export function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement;
 export async function openScriptRunDrawerByClick(): Promise<void> {
   initLayer1Dom();
   installAnimationFrameStub();
-  installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+  installRecordingFetch(buildDiskFileBody);
   const { nodeA } = buildScriptRunStage();
-  armScriptRunView();
+  storeScriptRunView();
   installNodeDrawer();
   nodeA.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await waitForPendingFetches();
@@ -63,7 +67,7 @@ export async function openScriptRunDrawerByClick(): Promise<void> {
 export async function openSingleRunDrawer(run: WireScriptRun): Promise<HTMLElement> {
   initLayer1Dom();
   installAnimationFrameStub();
-  installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
+  installRecordingFetch(buildDiskFileBody);
   rememberDrawnView({
     pairs: [{ path: "src/a.ts", commits: [], onDisk: { instant: LANE_T2, axisPx: 40 }, scriptRuns: [run] }],
     gitOrphans: [], diskOrphans: [],

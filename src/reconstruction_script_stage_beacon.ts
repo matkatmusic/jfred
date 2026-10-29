@@ -4,14 +4,17 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BeaconSnippet } from "./reconstruction_user_edit.ts";
-import { backupSeedWriteFor, type BackupReader } from "./reconstruction_sidecar.ts";
+import { getBackupSeedWrite, type BackupReader } from "./reconstruction_sidecar.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import type { UserEditEvent } from "./reconstruction_events.ts";
 
 // True when `lines` matches every visible beacon line at its 1-based number. The beacon may be a window.
-export function linesMatchBeacon(lines: string[], snippet: BeaconSnippet): boolean {
+export function matchLinesToBeacon(lines: string[], snippet: BeaconSnippet): boolean {
   for (const { lineNo, text } of snippet.lines) {
-    if (lineNo - 1 >= lines.length || lines[lineNo - 1] !== text)
+    const isPastEnd = lineNo - 1 >= lines.length;
+    const isTextDifferent = lines[lineNo - 1] !== text;
+    const isMismatch = isPastEnd || isTextDifferent;
+    if (isMismatch)
       return false;
   }
   return true;
@@ -24,7 +27,7 @@ export function getPostExecutionBeacon(
   records: TranscriptRecord[],
   reader: BackupReader,
 ): string | undefined {
-  const backup = backupSeedWriteFor(records, target, beaconTimestamp, reader);
+  const backup = getBackupSeedWrite(records, target, beaconTimestamp, reader);
   return backup?.content;
 }
 

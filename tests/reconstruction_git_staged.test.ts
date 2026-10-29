@@ -1,4 +1,4 @@
-// Staged (git add) blobs as evidence (s87): `git add` with no later commit leaves content NOWHERE else — the driver's external edit exists ONLY in the repo's index.
+// Staged blobs as evidence (s87): without a commit, the external edit lives only in the index.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,14 +8,14 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readStagedFileContent } from "../src/reconstruction_git_evidence.ts";
 import { findGitAddEvents } from "../src/reconstruction_git_commit_events.ts";
-import { placeGitCommitEvidence } from "../src/reconstruction_git_placement.ts";
-import { injectScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { applyGitCommitEvidence } from "../src/reconstruction_git_placement.ts";
+import { applyScriptExecutions } from "../src/reconstruction_script_stage.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
 
-// An assistant record carrying one Bash tool_use running `command`, with the record-level cwd.
+// An assistant record with one Bash tool_use running `command`, plus the record-level cwd.
 function buildBashRecord(command: string, timestamp: string, cwd?: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -25,7 +25,7 @@ function buildBashRecord(command: string, timestamp: string, cwd?: string): Tran
     } as unknown as TranscriptRecord;
 }
 
-// An assistant record carrying one tool_use of `name` with `input`, with the record-level cwd.
+// An assistant record with one `name` tool_use carrying `input`, plus the record-level cwd.
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string, cwd: string): TranscriptRecord {
     return {
         type: RecordType.assistant,
@@ -38,7 +38,7 @@ function buildToolRecord(name: ToolName, input: Record<string, unknown>, timesta
 const emptyReader: BackupReader = () => "";
 
 test("test_findGitAddEvents_parses_explicit_paths_and_compound_segments", () => {
-    // Steps: a bare `git add <file>`, an add inside a compound command, and path-less forms (-A, .).
+    // Steps: a bare `git add <file>`, an add in a compound command, and path-less forms (-A, .).
     const records = [
         buildBashRecord("git add reporting_core.py", "2026-01-01T00:20:19Z", "/tmp/repo"),
         buildBashRecord('git add apply_renames.py && git -C /tmp/repo commit -m "x"', "2026-01-01T00:30:45Z", "/tmp/repo"),
@@ -72,7 +72,7 @@ test("test_readStagedFileContent_returns_the_index_blob_not_the_worktree", () =>
 });
 
 test("test_gitStagedEvidence_places_an_unexplained_diff_using_the_index_blob", () => {
-    // Scenario (s87 in miniature): a move run births core_two.py, a rename run rewrites it, and a `# reviewed by ops` comment exists ONLY in the blob staged by a later `git add` — there is NO commit. The stage must splice a user-edit carrying the comment between the move and the rename run, and rebuild the run event's content so the comment survives it.
+    // Scenario (s87 miniature): a comment only in the staged blob must splice between move and rename.
     const repo = mkdtempSync(join(tmpdir(), "reveng-git-"));
     try {
         const moved = '"""Module two."""\n\n\ndef f_two(x):\n    return x + 2\n';
@@ -90,9 +90,9 @@ test("test_gitStagedEvidence_places_an_unexplained_diff_using_the_index_blob", (
             buildBashRecord("git add core_two.py", "2026-01-01T00:00:19Z", repo),
         ];
         const target = new Path(join(repo, "core_two.py"));
-        const events = injectScriptExecutions(records, [], emptyReader, target);
+        const events = applyScriptExecutions(records, [], emptyReader, target);
         assert.equal(events.length, 2);
-        const placed = placeGitCommitEvidence(records, events, emptyReader, target);
+        const placed = applyGitCommitEvidence(records, events, emptyReader, target);
         assert.equal(placed.length, 3);
         // The spliced user-edit carries the comment on the PRE-rename content...
         assert.equal(placed[1]!.kind, EventKind.userEdit);

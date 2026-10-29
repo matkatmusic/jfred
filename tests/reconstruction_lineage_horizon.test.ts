@@ -4,11 +4,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { computeLineageSeedHorizonKey } from "../src/reconstruction_lineage_horizon.ts";
-import { getLineageContentBefore } from "../src/reconstruction_branches.ts";
+import { getLineageContentBefore } from "../src/reconstruction_lineage_content.ts";
 import {
     ReconstructionCounter,
     resetReconstructionCounters,
-    snapshotReconstructionCounters,
+    getReconstructionCounterSnapshot,
 } from "../src/reconstruction_counters.ts";
 import { getDerivedCaches } from "../src/reconstruction_corpus.ts";
 import { computeRunExecutionKey } from "../src/reconstruction_script_runs.ts";
@@ -95,7 +95,7 @@ test("test_second_query_between_inputs_serves_the_cached_seed", () => {
     const secondText = seedContent(TARGET, new Date("2026-01-01T00:00:20Z"));
     assert.equal(firstText, "v1\n");
     assert.equal(secondText, firstText);
-    const snapshot = snapshotReconstructionCounters();
+    const snapshot = getReconstructionCounterSnapshot();
     assert.equal(snapshot[ReconstructionCounter.lineageReplayRequests], 2);
     assert.equal(snapshot[ReconstructionCounter.lineageCacheServes], 1);
 });

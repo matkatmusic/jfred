@@ -57,7 +57,7 @@ export function insertPresumedUserEditGaps(nodes: TimelineNode[]): TimelineNode[
 }
 
 // End state appended positionally (spec S2), then presumption gaps inserted.
-export function completeLayer1Timeline(nodes: TimelineNode[], filename: Path): TimelineNode[] {
+export function buildLayer1Timeline(nodes: TimelineNode[], filename: Path): TimelineNode[] {
   const endState = buildEndStateNode(filename);
   const withEndState = endState === undefined ? nodes : [...nodes, endState];
   return insertPresumedUserEditGaps(withEndState);

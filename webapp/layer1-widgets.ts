@@ -2,23 +2,12 @@
 
 import { createElement } from "./app-dom.ts";
 import { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
+import { appendAxisNode, appendBranchLane, appendEditNode, appendScriptRunNode, appendSnapshotNode, setAxisPx } from "./layer1-lane-nodes.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
-import { buildNodesWithSameTimestampMarkers } from "./layer1-nodes-with-same-timestamp.ts";
-import { WireRewindKind, type WireBranch } from "./layer1-wire-branches.ts";
-import { WireEditKind, type WireEdit } from "./layer1-wire-edits.ts";
+import { buildNodesWithSameTimestampMarkers, type NodeWithSameTimestamp } from "./layer1-nodes-with-same-timestamp.ts";
+import type { WireBranch } from "./layer1-wire-branches.ts";
 import { findRejoinWithOwnSlot, listTrunkLadderInstants } from "./layer1-wire-ladder.ts";
-import { WireScriptExecutorKind, type WireScriptRun } from "./layer1-wire-script-runs.ts";
-import type { WireOrphan, WirePair, WireSnapshot } from "./layer1-wire.ts";
-import { describeScriptLanguage } from "./layer1-script-language.ts";
-
-// Height of the dashed elbow's curve; a branch rail starts below the fork elbow and stops above the rejoin elbow.
-const BRANCH_ELBOW_PX = 16;
-
-// Task 379 mockup: dot tooltip tail per rewind kind.
-const BRANCH_NODE_NOTE = {
-  [WireRewindKind.code]: "abandoned tip (code reverted, dead end)",
-  [WireRewindKind.conversation]: "conversation rewound, code kept",
-} as const satisfies Record<WireRewindKind, string>;
+import type { WireOrphan, WirePair } from "./layer1-wire.ts";
 
 // User-locked 2026-07-25: a full 40-char hash is wider than a widget, so only the label is shortened.
 const SHORT_HASH_LENGTH = 8;
@@ -31,123 +20,32 @@ const CREATED_NOT_TRUSTED_SENTENCE = {
   [CreatedNotTrustedReason.birthAfterFirstCommit]: "The birth time is later than the file's first commit.",
 } as const satisfies Record<CreatedNotTrustedReason, string>;
 
-// The only value JS contributes to layout; every placement rule lives in layer1-styles.css.
-export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
-  node.style.setProperty("--axis-px", String(axisPx));
-  return node;
-}
-
-// The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
-function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, titleText?: string): void {
-  lane.append(
-    setAxisPx(createElement("i", { class: `node ${nodeClass}`, title: titleText, "data-instant": instant }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel", text, title: titleText, "data-instant": instant }), axisPx),
-  );
-}
-
-// Task 315: identity on `data-` attrs (task 280), on both elements; `n-snap` on both is task 314's hide handle.
-function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSnapshot): void {
-  const identity = {
-    "data-instant": snapshot.instant,
-    "data-version": String(snapshot.version),
-    "data-session-id": snapshot.sessionId,
-    "data-session-file": snapshot.sessionFile,
-    "data-line": snapshot.line === undefined ? undefined : String(snapshot.line),
-  };
-  lane.append(
-    setAxisPx(createElement("i", { class: "node n-snap", ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸`, ...identity }), axisPx),
-  );
-}
-
-// Task 343: the dot class hides the node; confidence is a ring class, never a fill swap.
-function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMoved: boolean): void {
-  const isRead = edit.kind === WireEditKind.read;
-  // Task 357: a trunk edit that a branch lane also holds hides while the branch kind is shown.
-  const kindClass = `${isRead ? "n-read" : "n-edit"}${isMoved ? " n-moved" : ""}`;
-  const identity = {
-    title: edit.confidence,
-    "data-change-id": edit.changeId,
-    "data-kind": edit.kind,
-    "data-confidence": edit.confidence,
-    "data-instant": edit.instant,
-    "data-session-id": edit.sessionId,
-    "data-session-file": edit.sessionFile,
-    "data-line": edit.line === undefined ? undefined : String(edit.line),
-  };
-  lane.append(
-    setAxisPx(createElement("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
-  );
-}
-
-// Task 356: dot and label share the identity attrs; a bash run is never provable, so its ring is dashed.
-function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
-  const isBash = run.executorKind === WireScriptExecutorKind.bash;
-  const identity = {
-    title: run.label ?? describeScriptLanguage(run.language),
-    "data-tool-use-id": run.toolUseId,
-    "data-executor-kind": run.executorKind,
-    "data-instant": run.instant,
-    "data-session-id": run.sessionId,
-    "data-session-file": run.sessionFile,
-  };
-  const iconText = describeScriptLanguage(run.language);
-  lane.append(
-    setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
-  );
-}
-
-// Task 379 mockup, replaced by the layout's own fork and rejoin offsets (task 357): it threw when a fork matched no trunk node.
-// function findTrunkAxisPx(trunkNodes: WireInstant[], instant: string): number {
-//     const trunkNode = trunkNodes.find((candidate) => candidate.instant === instant);
-//     if (trunkNode === undefined) {
-//         throw new Error(`branch instant ${instant} matches no trunk node`);
-//     }
-//     return trunkNode.axisPx;
-// }
-
-// Task 357: bnode/blabel, never node/nlabel, so the drawer and the trunk node checks ignore branch dots; keptToEnd merges into the rail end.
-function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneIndex: number, railEndPx: number, startPx: number): void {
-  const forkPx = branch.forkAt.axisPx - startPx;
-  const rejoinPx = branch.rejoinAt === undefined ? (branch.keptToEnd === true ? railEndPx - startPx : undefined) : branch.rejoinAt.axisPx - startPx;
-  const railFromPx = forkPx + BRANCH_ELBOW_PX;
-  const railToPx = rejoinPx === undefined ? Math.max(...branch.nodes.map((node) => node.axisPx - startPx)) : rejoinPx - BRANCH_ELBOW_PX;
-  const branchLane = createElement("div", { class: "blane" });
-  branchLane.style.setProperty("--lane-index", String(laneIndex));
-  const rail = setAxisPx(createElement("div", { class: "brail" }), railFromPx);
-  rail.style.setProperty("--span-px", String(railToPx - railFromPx));
-  branchLane.append(setAxisPx(createElement("div", { class: "split-elbow" }), forkPx), rail);
-  if (rejoinPx !== undefined) {
-    branchLane.append(setAxisPx(createElement("div", { class: "merge-elbow" }), rejoinPx));
+// Task 357: a lane's fork, nodes and own-slot rejoin take ladder rows too.
+function listLaneLadderNodes(branches: WireBranch[], trunkInstants: string[]): NodeWithSameTimestamp[] {
+  const laneNodes: NodeWithSameTimestamp[] = [];
+  for (const [index, branch] of branches.entries()) {
+    const ownSlotRejoin = findRejoinWithOwnSlot(trunkInstants, branch);
+    const branchNodes = [branch.forkAt, ...branch.nodes, ...(ownSlotRejoin === undefined ? [] : [ownSlotRejoin])];
+    for (const node of branchNodes) {
+      laneNodes.push({ ...node, laneIndex: index + 1 });
+    }
   }
-  for (const node of branch.nodes) {
-    const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
-    branchLane.append(
-      setAxisPx(createElement("i", { class: "bnode", ...identity }), node.axisPx - startPx),
-      setAxisPx(createElement("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
-    );
-  }
-  lane.append(branchLane);
+  return laneNodes;
 }
 
 function buildPairWidget(pair: WirePair): HTMLElement {
-  // Snapshots, edits and script runs go last, as the server orders the ladder, so same-timestamp runs and the span stay right.
+  // Snapshots, edits and script runs go last, matching the server's ladder order.
   const snapshots = pair.snapshots ?? [];
   const edits = pair.edits ?? [];
   const scriptRuns = pair.scriptRuns ?? [];
   // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
   const trunk = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns];
-  // Task 357: a lane's fork, nodes and own-slot rejoin take ladder rows too, so the span and the tie markers see them.
   const branches = pair.branches ?? [];
-  const trunkInstants = listTrunkLadderInstants(pair);
-  const laneNodes = branches.flatMap((branch, index) => {
-    const ownSlotRejoin = findRejoinWithOwnSlot(trunkInstants, branch);
-    return [branch.forkAt, ...branch.nodes, ...(ownSlotRejoin === undefined ? [] : [ownSlotRejoin])].map((node) => ({ ...node, laneIndex: index + 1 }));
-  });
-  const ladder = [...trunk, ...laneNodes];
-  const nodePx = ladder.map((node) => node.axisPx);
+  const ladder = [...trunk, ...listLaneLadderNodes(branches, listTrunkLadderInstants(pair))];
+  const nodePx: number[] = [];
+  for (const node of ladder) {
+    nodePx.push(node.axisPx);
+  }
   const startPx = Math.min(...nodePx);
   const lane = setAxisPx(createElement("div", { class: "lane" }), 0);
   lane.style.setProperty("--span-px", String(Math.max(...nodePx) - startPx));
@@ -163,7 +61,12 @@ function buildPairWidget(pair: WirePair): HTMLElement {
   for (const snapshot of snapshots) {
     appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
   }
-  const laneChangeIds = new Set(branches.flatMap((branch) => branch.nodes.map((node) => node.changeId)));
+  const laneChangeIds = new Set<string>();
+  for (const branch of branches) {
+    for (const node of branch.nodes) {
+      laneChangeIds.add(node.changeId);
+    }
+  }
   for (const edit of edits) {
     appendEditNode(lane, edit.axisPx - startPx, edit, laneChangeIds.has(edit.changeId));
   }
@@ -171,7 +74,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
     appendScriptRunNode(lane, run.axisPx - startPx, run);
   }
   const railEndPx = Math.max(...nodePx);
-  branches.forEach((branch, index) => appendBranchLane(lane, branch, index + 1, railEndPx, startPx));
+  for (const [index, branch] of branches.entries()) {
+    appendBranchLane(lane, branch, index + 1, railEndPx, startPx);
+  }
   const untrustedNotes = pair.createdNotTrusted === undefined ? [] : [
     createElement("div", { class: "created-untrusted", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
   ];
@@ -193,14 +98,17 @@ export function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElemen
     return undefined;
   }
   // Task 266: rows carry the same `--axis-px` a `.node` does, so ruler clicks find bucket rows too.
-  const list = createElement("ul", {}, rows.map((row) => setAxisPx(createElement("li", {}, [
-    createElement("span", { text: row.path }),
-    createElement("em", { text: formatInstantLabel(row.instant) }),
-  ]), row.axisPx - earliest.axisPx)));
+  const items: HTMLElement[] = [];
+  for (const row of rows) {
+    items.push(setAxisPx(createElement("li", {}, [
+      createElement("span", { text: row.path }),
+      createElement("em", { text: formatInstantLabel(row.instant) }),
+    ]), row.axisPx - earliest.axisPx));
+  }
   return setAxisPx(createElement("div", { class: "filebox bucket" }, [
     createElement("div", { class: "fname", text: title }),
     createElement("div", { class: "sub", text: `${rows.length} files` }),
-    list,
+    createElement("ul", {}, items),
   ]), earliest.axisPx);
 }
 
@@ -209,5 +117,9 @@ export function buildStagePairs(pairs: WirePair[]): HTMLElement[] {
   if (pairs.length === 0) {
     return [createElement("div", { class: "nopairs", text: "No git ↔ on-disk pairs." })];
   }
-  return pairs.map(buildPairWidget);
+  const widgets: HTMLElement[] = [];
+  for (const pair of pairs) {
+    widgets.push(buildPairWidget(pair));
+  }
+  return widgets;
 }

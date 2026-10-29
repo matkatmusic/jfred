@@ -1,15 +1,16 @@
 // Task 257.5/305/323: opening the single-node drawer, and the anchor the next shift-click or arrow starts from.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { highlightLandedElement, scrollToUncoveredCentre } from "./layer1-find-file.ts";
-import { drawLayer1Minimap } from "./layer1-minimap.ts";
+import { markLandedElement, moveToUncoveredCentre } from "./layer1-find-file.ts";
+import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
+import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { isImagePath, renderImageInto } from "./layer1-drawer-image.ts";
-import { clearDiffPair, describeNodeStep, isBranchNode, setDrawerTools } from "./layer1-drawer-diff.ts";
-import { appendRawJsonReveal, getNodeDrawerDetail } from "./layer1-drawer-node-detail.ts";
-import { describeEditSteps } from "./layer1-revision-sources.ts";
-import { flashSession } from "./layer1-sessions.ts";
+import { clearDiffPair, createNodeStep, isBranchNode, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { appendRawJsonRevealForLine, getNodeDrawerDetail } from "./layer1-drawer-node-detail.ts";
+import { readNodeIdentity, storeOpenedNode } from "./layer1-node-link.ts";
+import { createEditSteps } from "./layer1-revision-sources.ts";
+import { flashSession } from "./layer1-session-flash.ts";
 
 // Task 305: the last plainly-clicked node — the diff pair's anchor.
 let anchor: { node: HTMLElement; path: string } | undefined;
@@ -36,14 +37,15 @@ function moveViewToAnchoredNode(): void {
   if (anchor === undefined) {
     return;
   }
-  scrollToUncoveredCentre(anchor.node);
-  drawLayer1Minimap();
+  moveToUncoveredCentre(anchor.node);
+  renderLayer1Minimap();
 }
 
 export async function openNodeDrawer(node: HTMLElement, path: string): Promise<void> {
   // A plain click resets to a one-node selection (task 305) and anchors the next shift-click.
   clearDiffPair();
   anchor = { node, path };
+  storeOpenedNode(readNodeIdentity(node));
   // Task 323: STOP at the timeline's ends — a missing neighbour disables that arrow, no wrap.
   for (const [id, offset] of [["dprev", -1], ["dnext", 1]] as const) {
     const arrow = getRequiredElementById(id) as HTMLButtonElement;
@@ -56,7 +58,7 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   header.title = path;
   getRequiredElementById("dmeta").textContent = detail.meta;
   // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
-  highlightLandedElement(node);
+  markLandedElement(node);
   getRequiredElementById("drawer").classList.add("open");
   requestAnimationFrame(moveViewToAnchoredNode);
   const isImage = isImagePath(path);
@@ -73,25 +75,29 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   const isBranch = isBranchNode(node);
   const isEditOrBranch = isEditNodeClass || isBranch;
   const steps = isEditOrBranch
-    ? describeEditSteps(path, node.dataset.changeId ?? "", isBranch)
-    : [describeNodeStep(node, path)];
-  displayDetailView([buildDiffView(path, steps, {
+    ? createEditSteps(path, node.dataset.changeId ?? "", isBranch)
+    : [createNodeStep(node, path)];
+  renderDetailView([buildDiffView(path, steps, {
     revisionControlsShown: steps.length > 1,
     mode: DiffPaneMode.inline,
     fullContents: steps.length === 1,
     baseIndex: 0,
     targetIndex: steps.length - 1,
   })]);
+  // The reveal needs only the node's own session file and line, so a failed backup read cannot remove it.
+  const { sessionFile, line } = node.dataset;
+  const hasSessionFile = sessionFile !== undefined;
+  const hasLine = line !== undefined;
+  const hasRevealTarget = hasSessionFile && hasLine;
+  if (hasRevealTarget) {
+    appendRawJsonRevealForLine(sessionFile, Number(line));
+  }
   // Task 317: a snapshot's header still carries the title in effect at its line; flash its JSONL.
   if (detail.flashFile !== undefined) {
     const response = await fetch(`/api/layer1-file?${detail.params}`);
     if (response.ok) {
-      const payload = await response.json() as { title?: string; record?: unknown };
+      const payload = await response.json() as { title?: string };
       header.textContent = payload.title === undefined ? detail.head : `${detail.head} - ${payload.title}`;
-      // Task 213: only a snapshot carries a transcript line, so only here does the reveal appear.
-      if (payload.record !== undefined) {
-        appendRawJsonReveal(payload.record);
-      }
     }
     flashSession(detail.flashFile);
   }

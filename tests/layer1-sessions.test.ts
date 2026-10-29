@@ -1,20 +1,20 @@
-// Task 292: the JSONLs pane's selection rules and the filter targets they produce.  Pinned because "a re-click on the ONLY pick clears it" is the half that is easy to drop.
+// Task 292: the JSONLs pane's selection rules and the filter targets they produce.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     listSelectedSessions,
     listSessionFilterTargets,
-    renderSessionPane,
     resetSessionSelection,
     setKnownProjectPaths,
-    wireBubbleFlash,
 } from "../webapp/layer1-sessions.ts";
+import { renderSessionPane } from "../webapp/layer1-session-pane.ts";
+import { wireBubbleFlash } from "../webapp/layer1-session-flash.ts";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const PROJECT_FOLDER = "/Users/you/code/demo-app";
 // Transcripts record ABSOLUTE paths; the fixture is absolute so the relative translation is exercised, not assumed.
@@ -39,7 +39,7 @@ async function openSessionPane(sessions: object[] = SESSIONS): Promise<void> {
     initLayer1Dom();
     writeSourcePaths(SourceKind.jsonl, ["/p"]);
     // Task 304: the pane reads the endpoint as an NDJSON stream, so the stub answers one.
-    stubStreamRoute("/api/layer1-sessions", [
+    installStreamRoute("/api/layer1-sessions", [
         { kind: "progress", label: "scanning JSONL files", current: 1, total: 3 },
         { sessions },
     ]);
@@ -185,7 +185,7 @@ test("typing in the search box redraws the pane without calling onChange", async
     assert.equal(changeCount, 0);
 });
 
-// Task 308: a bubble click lights the JSONLs that touched its file; the lead is the one nearest the clicked level.
+// Task 308: a bubble click lights the JSONLs that touched its file; the lead is nearest.
 const TOP_NODE_INSTANT = "2026-06-01T08:50:00Z";
 const BOTTOM_NODE_INSTANT = "2026-06-03T12:00:00Z";
 const TOP_NODE_CENTER_Y = 100;

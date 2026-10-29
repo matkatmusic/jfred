@@ -3,25 +3,29 @@
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
 import { installNodeDrawer } from "./layer1-drawer.ts";
 import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { wireFileNavResize, wireSessionPaneResize } from "./layer1-filenav-resize.ts";
-import { wireFindFileBox } from "./layer1-find-file.ts";
-import { wireBucketJumpButtons } from "./layer1-jump-buckets.ts";
-import { scrollToFirstVisibleNode } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
-import { wireLeaderVisibility } from "./layer1-leader-visibility.ts";
-import { wireBusyShield } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, readLayer1ViewStream, showLayer1Progress, wireLayer1CancelButton } from "./layer1-progress.ts";
-import { confirmRepoAndFillRefs, wireRefPickers } from "./layer1-refs.ts";
-import { wirePathPickers } from "./layer1-path-picker.ts";
-import { resetSessionSelection, wireBubbleFlash } from "./layer1-sessions.ts";
-import { applySavedSettingsForCurrentDir, markSettingsDirty, restoreSavedSettings, wireSettingsSave } from "./layer1-settings.ts";
-import { resetSourcePathsOnProjectChange, seedSourceDefaults, syncSourceButtons } from "./layer1-source-paths.ts";
-import { fillSourceBoxesFromUrl, readSourceParams, wireFolderPickers } from "./layer1-sources.ts";
-import { closeRulerExpansion, wireTickExpansion } from "./layer1-tick-files.ts";
-import { wireTimeSourceToggle } from "./layer1-time-toggle.ts";
+import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
+import { initFindFileBox } from "./layer1-find-file.ts";
+import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
+import { moveFirstVisibleNodeIntoView } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
+import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
+import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
+import { attachLeaderVisibility } from "./layer1-leader-visibility.ts";
+import { attachBusyShield } from "./layer1-busy-shield.ts";
+import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
+import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
+import { registerPathPickers } from "./layer1-path-picker.ts";
+import { wireBubbleFlash } from "./layer1-session-flash.ts";
+import { resetSessionSelection } from "./layer1-sessions.ts";
+import { attachSettingsSave, markSettingsDirty } from "./layer1-settings.ts";
+import { applySavedSettingsForCurrentDir, loadSavedSettings } from "./layer1-settings-restore.ts";
+import { loadSourceDefaults, resetSourcePathsOnProjectChange, syncSourceButtons } from "./layer1-source-paths.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "./layer1-sources.ts";
+import { closeRulerExpansion, registerTickExpansion } from "./layer1-tick-files.ts";
+import { registerTimeSourceToggle } from "./layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
-import { wireZoomControls } from "./layer1-zoom.ts";
+import { attachZoomControls } from "./layer1-zoom.ts";
 
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
@@ -60,7 +64,7 @@ export async function loadLayer1View(): Promise<void> {
   clearFolderFilterState();
   closeRulerExpansion();
   resetSessionSelection();
-  showLayer1Progress("starting");
+  renderLayer1Progress("starting");
   try {
     const view = await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`);
     if (view === undefined) {
@@ -89,7 +93,7 @@ function markDirtyAndLoadView(): void {
 }
 
 function loadViewAfterRefCheck(): void {
-  void confirmRepoAndFillRefs();
+  void fillRefsFromRepo();
   void loadLayer1View();
 }
 
@@ -97,40 +101,47 @@ function getFailedRestoreResult(): boolean {
   return false;
 }
 
-export async function bootLayer1Page(): Promise<void> {
+export async function initLayer1Page(): Promise<void> {
+  // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
+  const linkedNode = readNodeLinkIdentity(location.search);
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
   fillSourceBoxesFromUrl();
   // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
-  showLayer1Progress("starting");
+  renderLayer1Progress("starting");
   // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
-  wirePathPickers(markDirtyAndLoadView);
-  wireSettingsSave();
-  wireSessionPaneResize();
+  registerPathPickers(markDirtyAndLoadView);
+  attachSettingsSave();
+  initSessionPaneResize();
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
-  wireTimeSourceToggle(loadViewInBackground);
+  registerTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
-  wireRefPickers(loadViewInBackground);
-  void confirmRepoAndFillRefs();
-  wireLayer1CancelButton();
-  wireBusyShield();
-  wireZoomControls();
+  registerRefPickers(loadViewInBackground);
+  void fillRefsFromRepo();
+  attachLayer1CancelButton();
+  attachBusyShield();
+  attachZoomControls();
   // wireLayerToggle();
-  wireFileNavResize();
-  wireBucketJumpButtons();
-  wireFindFileBox();
+  initFileNavResize();
+  attachBucketJumpButtons();
+  initFindFileBox();
   // All three are delegated, since every bubble, tick and leader is replaced on each render.
   installNodeDrawer();
   wireBubbleFlash();
   installMultiFileDrawer();
-  wireTickExpansion();
-  wireLeaderVisibility();
-  wireFolderPickers(loadViewAfterRefCheck);
+  installCopyLinkButton();
+  registerTickExpansion();
+  attachLeaderVisibility();
+  attachFolderPickers(loadViewAfterRefCheck);
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
-  await seedSourceDefaults();
-  await restoreSavedSettings().catch(getFailedRestoreResult);
-  void loadLayer1View().then(scrollToFirstVisibleNode);
+  await loadSourceDefaults();
+  await loadSavedSettings().catch(getFailedRestoreResult);
+  await loadLayer1View();
+  moveFirstVisibleNodeIntoView();
+  if (linkedNode !== undefined) {
+    await openLinkedNodeAfterLoad(linkedNode);
+  }
 }
 
-void bootLayer1Page();
+void initLayer1Page();

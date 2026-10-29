@@ -1,8 +1,8 @@
-// ─── task 159: the Paths popover's summary rows + the wizard's screen-4 default-commit label.  The summary panel is the popover's default face (plans/159-paths-wizard-mockup.md §b); the same rows (minus the Edit buttons) fill the Finish face. The state machine that the Edit buttons jump into lives in app-paths-wizard.ts — passed in as a callback so the import direction stays wizard → summary.
+// ─── task 159: the Paths popover's summary rows and the wizard's screen-4 default-commit label.
 
 import { getBaselineChoice } from "./app-choices.ts";
 import { createElement, getInputById } from "./app-dom.ts";
-import { fetchJson, peekCachedDocument } from "./app-fetch.ts";
+import { fetchJson, getCachedDocument } from "./app-fetch.ts";
 import { formatShortCommitHash } from "./app-baseline-question.ts";
 import { extractGitBaseCommitHash, GIT_BASE_CHANGE_ID_PREFIX } from "./views/timeline-changes.ts";
 
@@ -16,7 +16,7 @@ export type StartScreenEdit = (screenNumber: number, projectName: string | undef
 type WireRepoCommitTip = { hash: string; subject: string };
 
 // The pre-baseline row's display text, from the task-56 sessionStorage mirror.
-function describeBaselineChoice(projectName: string): string {
+function getBaselineChoiceLabel(projectName: string): string {
   const choice = getBaselineChoice(projectName);
   if (choice === "1") {
     return "yes";
@@ -42,7 +42,7 @@ function computeProjectSummaryRows(projectName: string): SummaryRow[] {
   return [
     { label: "Git repo", value: repo === "" ? "(none)" : repo, screenNumber: 3 },
     { label: "Base commit", value: baseCommit === "" ? "(default)" : formatShortCommitHash(baseCommit), screenNumber: 4 },
-    { label: "Pre-baseline", value: describeBaselineChoice(projectName), screenNumber: 5 },
+    { label: "Pre-baseline", value: getBaselineChoiceLabel(projectName), screenNumber: 5 },
   ];
 }
 
@@ -68,31 +68,47 @@ function buildSummaryRow(row: SummaryRow, projectName: string | undefined, start
   return createElement("div", { class: "summary-row" }, children);
 }
 
-// Rebuild the summary panel's rows from the popover's CURRENT field values. Rows 3–5 render only with a project; each Edit jumps to its single wizard screen via `startEdit`.
+// Rebuild the summary rows from the popover's CURRENT field values; rows 3–5 need a project.
 export function renderPathsSummary(projectName: string | undefined, startEdit: StartScreenEdit): void {
-  const rows = computeSummaryRows(projectName).map((row) => buildSummaryRow(row, projectName, startEdit));
+  const rows: HTMLElement[] = [];
+  for (const row of computeSummaryRows(projectName)) {
+    rows.push(buildSummaryRow(row, projectName, startEdit));
+  }
   document.getElementById("paths-summary-rows")!.replaceChildren(...rows);
 }
 
 // The Finish face's value recap — the same rows without Edit buttons (mockup's Apply box).
 export function renderFinishRows(projectName: string | undefined): void {
-  const rows = computeSummaryRows(projectName).map((row) => buildSummaryRow(row, projectName, undefined));
+  const rows: HTMLElement[] = [];
+  for (const row of computeSummaryRows(projectName)) {
+    rows.push(buildSummaryRow(row, projectName, undefined));
+  }
   document.getElementById("wizard-finish-rows")!.replaceChildren(...rows);
 }
 
-// The gitBase:<hash> beacon inside the already-loaded document, when the session recorded a baseline commit (s85-style). Never triggers a build — peeks the cache only.
+// The gitBase:<hash> beacon in the already-loaded document, if any; reads the cache only, never builds.
 function findSessionRecordedBaselineHash(projectName: string | undefined): string | undefined {
   if (projectName === undefined) {
     return undefined;
   }
-  const cached = peekCachedDocument<{ steps?: { changeIds?: string[] }[] }>(projectName);
-  const changeIds = (cached?.steps ?? []).flatMap((step) => step.changeIds ?? []);
-  const beacon = changeIds.find((changeId) => changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX));
+  const cached = getCachedDocument<{ steps?: { changeIds?: string[] }[] }>(projectName);
+  const changeIds: string[] = [];
+  for (const step of cached?.steps ?? []) {
+    changeIds.push(...(step.changeIds ?? []));
+  }
+  let beacon: string | undefined;
+  for (const changeId of changeIds) {
+    const isBeacon = changeId.startsWith(GIT_BASE_CHANGE_ID_PREFIX);
+    if (isBeacon) {
+      beacon = changeId;
+      break;
+    }
+  }
   return beacon === undefined ? undefined : extractGitBaseCommitHash(beacon);
 }
 
-// The repo's tip described from /api/repo-commits' newest row — the resolved default-branch tip, never a hardcoded branch name (mockup resolved ambiguity 3).
-async function describeRepoTip(): Promise<string> {
+// The repo tip from /api/repo-commits' newest row, never a hardcoded branch name.
+async function fetchRepoTipLabel(): Promise<string> {
   const repo = getInputById("repo-dir-input").value;
   const rows = await fetchJson<WireRepoCommitTip[]>(`/api/repo-commits?repo=${encodeURIComponent(repo)}`);
   const tip = rows[0];
@@ -102,8 +118,8 @@ async function describeRepoTip(): Promise<string> {
   return `Default: ${formatShortCommitHash(tip.hash)} "${tip.subject}" (repo tip)`;
 }
 
-// Screen 4's default-radio label: the stored/session-recorded baseline when one exists, else the repo tip (fetched). The wizard stamps the resolving placeholder before awaiting this.
-export async function resolveDefaultCommitLabel(projectName: string | undefined): Promise<string> {
+// Screen 4's default-radio label: the recorded baseline when one exists, else the fetched repo tip.
+export async function getDefaultCommitLabel(projectName: string | undefined): Promise<string> {
   const stored = getInputById("base-commit-display").value;
   if (stored !== "") {
     return `Default: ${formatShortCommitHash(stored)} (session baseline)`;
@@ -112,5 +128,5 @@ export async function resolveDefaultCommitLabel(projectName: string | undefined)
   if (recorded !== undefined) {
     return `Default: ${formatShortCommitHash(recorded)} (session-recorded baseline)`;
   }
-  return describeRepoTip();
+  return fetchRepoTipLabel();
 }

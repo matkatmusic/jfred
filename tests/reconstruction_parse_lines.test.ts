@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Verdict } from "../src/structures/vocabulary.ts";
 import { getLineVerdict, splitTranscriptLines } from "../src/reconstruction_parse_lines.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S37_JSONL } from "./fixtures.ts";
 import { Path } from "../src/structures/domain.ts";
 
 // The single s37 transcript (the entry containing the rename run). Line numbers below are the literal
 // 1-based file lines, pinned against this fixture (see the plan's Context table, corrected to the real
 // tool_use / attachment lines: the renames.csv Write tool_use is line 117, its result is 118).
-// const S37 = jsonlPathsForScenario("s37")[0]!;
+// const S37 = getScenarioJsonlPaths("s37")[0]!;
 
 // One raw JSONL line by 1-based file line number.
 function rawLine(lineNumber: number): string {

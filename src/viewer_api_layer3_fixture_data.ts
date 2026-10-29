@@ -39,7 +39,7 @@ export function buildReplaceHunk(base: string[], index: number, newLine: string)
   return { oldStart: start + 1, oldLines: end - start, newStart: start + 1, newLines: end - start, lines };
 }
 
-// Task 355: matchesBase and applyHunkLines moved to layer1_edit_hunks.ts as checkHunkMatchesBase and applyHunksToLines.
+// Task 355: matchesBase and applyHunkLines moved to layer1_edit_hunks.ts as isHunkMatchingBase and applyHunksToLines.
 // export function matchesBase(base: string[], hunk: StructuredPatchHunk): boolean {
 //   let cursor = hunk.oldStart - 1;
 //   for (const row of hunk.lines) {
@@ -77,7 +77,7 @@ export function buildReplaceHunk(base: string[], index: number, newLine: string)
 // }
 
 // // 343's tests still import the old names; re-point them to layer1_edit_hunks.ts, then drop this line.
-// export { applyHunksToLines as applyHunkLines, checkHunkMatchesBase as matchesBase } from "./layer1_edit_hunks.ts";
+// export { applyHunksToLines as applyHunkLines, isHunkMatchingBase as matchesBase } from "./layer1_edit_hunks.ts";
 
 function buildBaseEvent(kind: WireEditKind, spec: FixtureEventSpec): FixtureEvent {
   return { ...spec, changeId: buildChangeId(), kind };
@@ -115,13 +115,22 @@ function compareByInstant(left: FixtureEvent, right: FixtureEvent): number {
 }
 
 export function listFixtureEvents(path: string): FixtureEvent[] {
-  return EDITS.filter((event) => event.path === path).sort(compareByInstant);
+  const matches: FixtureEvent[] = [];
+  for (const event of EDITS) {
+    const isOnPath = event.path === path;
+    if (isOnPath) {
+      matches.push(event);
+    }
+  }
+  return matches.sort(compareByInstant);
 }
 
 export function findFixtureEvent(changeId: string): FixtureEvent {
-  const found = EDITS.find((event) => event.changeId === changeId);
-  if (found === undefined) {
-    throw new Error(`no fixture event ${changeId}`);
+  for (const event of EDITS) {
+    const isMatch = event.changeId === changeId;
+    if (isMatch) {
+      return event;
+    }
   }
-  return found;
+  throw new Error(`no fixture event ${changeId}`);
 }

@@ -47,7 +47,7 @@ test("task 213: a snapshot node reveals a [{ }] button that toggles its raw tran
     initLayer1Dom();
     installAnimationFrameStub();
     const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
-    installRecordingFetch(() => ({ content: COMMIT_CONTENT, title: "Second title", record: rawRecord }));
+    installRecordingFetch((params) => (params.has("line") ? rawRecord : { content: COMMIT_CONTENT, title: "Second title" }));
     getInputById("dir").value = "/work";
     const node = createElement("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
@@ -70,10 +70,52 @@ test("task 213: a snapshot node reveals a [{ }] button that toggles its raw tran
     assert.equal(jsonBox.hidden, true);
     // Step: clicking the button reveals the highlighted-JSON pre carrying the record text.
     toggle.click();
+    await waitForPendingFetches();
     assert.equal(jsonBox.hidden, false);
     assert.ok(jsonBox.querySelector("pre.inspector-json"));
     assert.ok(jsonBox.textContent?.includes("hello raw json"));
     // Step: clicking the button again hides the JSON body.
     toggle.click();
     assert.equal(jsonBox.hidden, true);
+});
+
+test("a snapshot node whose backup file is missing still reveals its raw JSON, and the pane keeps the backup error", async () => {
+    initLayer1Dom();
+    installAnimationFrameStub();
+    const asks: string[] = [];
+    Object.assign(globalThis, {
+        fetch: async (url: unknown): Promise<Response> => {
+            asks.push(String(url));
+            const isRecordAsk = String(url).includes("layer1-record");
+            return {
+                ok: isRecordAsk, status: isRecordAsk ? 200 : 400,
+                json: async () => ({ type: "file-history-snapshot", note: "line 437 record" }),
+                text: async () => "ENOENT: no such backup file",
+            } as unknown as Response;
+        },
+    });
+    getInputById("dir").value = "/work";
+    const node = createElement("i", { class: "node n-snap", "data-version": "1",
+        "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "437" });
+    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+        createElement("div", { class: "fname", text: "plugin.json", "data-path": SNAPSHOT_PATH }),
+        createElement("div", { class: "lane" }, [node]),
+    ]));
+    getRequiredElementById("sessions").replaceChildren(
+        createElement("div", { class: "session-item", "data-file": "b21d84c5.jsonl" }),
+    );
+    installNodeDrawer();
+
+    node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await waitForPendingFetches();
+
+    assert.ok(getFirstPane().textContent?.includes("ENOENT: no such backup file"));
+    const toggle = getRequiredElementById("dbody").querySelector(".json-toggle") as HTMLButtonElement;
+    assert.ok(toggle, "the button must not depend on the backup read");
+    toggle.click();
+    await waitForPendingFetches();
+    const recordAsk = new URLSearchParams(asks.find((url) => url.includes("layer1-record"))!.split("?")[1]);
+    assert.equal(recordAsk.get("jsonl"), SNAPSHOT_SESSION_FILE);
+    assert.equal(recordAsk.get("line"), "437");
+    assert.ok(getRequiredElementById("dbody").querySelector(".node-json")?.textContent?.includes("line 437 record"));
 });

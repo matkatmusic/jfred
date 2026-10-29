@@ -1,6 +1,4 @@
-// The Layer 1 View's cold-start defaults, read from the gitignored .config/debugConfig.json.
-//
-// The file is hand-edited and absent on every machine but the author's, so what matters is that a missing, malformed or half-typed one degrades to "no defaults" rather than reaching the client as something it will try to render. The reader is the only trust boundary the Layer 1 page has that no HTTP validation sits in front of.
+// Layer 1 defaults: a bad or missing config file gives "no defaults".
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { computeLayer1Defaults, DEBUG_CONFIG_PATH } from "../src/viewer_api_layer1_defaults.ts";
 
-// The real file is on the author's machine only, and a test must not read or destroy it — so it is moved aside for the duration and put back, whether the body passed or threw.
+// Move the real config aside during the body, and put it back even if the body throws.
 function withConfigContents(contents: string | undefined, body: () => void): void {
     const parked = join(mkdtempSync(join(tmpdir(), "jfred-debugconfig-")), "parked.json");
     let hadFile = true;
@@ -41,7 +39,7 @@ test("no config file means no defaults", () => {
 });
 
 test("a config that is not JSON is not an error", () => {
-    // The normal way to break a hand-edited file is a trailing comma. It must not stop the server answering — the page loads with empty boxes, exactly as it did before this file existed.
+    // A trailing comma is the usual typo; the page must still load with empty boxes.
     withConfigContents('{ "dir": "/a", }', () => {
         assert.equal(computeLayer1Defaults().dir, undefined);
     });
@@ -64,7 +62,7 @@ test("a full config comes back whole", () => {
 });
 
 test("a field of the wrong shape is dropped, not passed through", () => {
-    // `jsonl` as a bare string, or a list holding a number, is a typo — the page expects an array of strings and would render the mistake rather than ignoring it.
+    // A bare-string `jsonl`, or a list holding a number, is a typo: drop it.
     withConfigContents(JSON.stringify({ dir: 42, jsonl: "/j/one", fileHistory: ["/fh", 7] }), () => {
         const defaults = computeLayer1Defaults();
         assert.equal(defaults.dir, undefined);

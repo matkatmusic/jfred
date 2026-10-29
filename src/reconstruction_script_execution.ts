@@ -3,7 +3,7 @@
 import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structures/vocabulary.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getContentBlocks, type ContentBlock, type ToolUseBlock } from "./structures/content-blocks.ts";
+import { getContentBlocks, type ToolUseBlock } from "./structures/content-blocks.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { collectWrittenContentByBasename, applyScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
@@ -51,7 +51,8 @@ export function computeScriptExecutionChangeId(run: ScriptRun, target: Path): Uu
 
 // Undefined for non-scriptRun ids, so record uuids, originalFile: seeds and blob refs pass through.
 export function getScriptRunSourceIdFromChangeId(changeId: string): string | undefined {
-  if (!changeId.startsWith(SCRIPT_RUN_CHANGE_ID_PREFIX)) {
+  const isScriptRunChangeId = changeId.startsWith(SCRIPT_RUN_CHANGE_ID_PREFIX);
+  if (!isScriptRunChangeId) {
     return undefined;
   }
   const rest = changeId.slice(SCRIPT_RUN_CHANGE_ID_PREFIX.length);
@@ -66,7 +67,8 @@ export function formatRunSource(run: ScriptRun): string {
 
 // `input.code` (MCP execute) or `input.command` (Bash); undefined for a non-executor tool.
 function getScriptCode(block: ToolUseBlock): string | undefined {
-  if (!EXECUTOR_TOOL_NAMES.has(block.name)) {
+  const isExecutorTool = EXECUTOR_TOOL_NAMES.has(block.name);
+  if (!isExecutorTool) {
     return undefined;
   }
   const input = block.input as { code?: string; command?: string };
@@ -104,7 +106,7 @@ function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
   return runs;
 }
 
-// A run invoking a written script file resolves to that file's body; memoized since repair chain calls this per file.
+// A run invoking a written script resolves to that script's body; memoized per file.
 export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[] {
   const state = getCorpusState(records);
   if (state.scriptRuns !== undefined) {

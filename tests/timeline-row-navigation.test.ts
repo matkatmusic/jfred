@@ -3,18 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    checkRowCarriesJsonRecordButton,
+    isRowCarryingJsonRecordButton,
     findAdjacentFileTouchedIndex,
     findAdjacentRowIndex,
 } from "../webapp/views/timeline-sessions.ts";
-import {
-    AGENT_TURN_NODE_KIND,
-    COMMIT_NODE_KIND,
-    USER_TURN_NODE_KIND,
-    type CommitNode,
-    type FileChange,
-    type TurnNode,
-} from "../webapp/views/timeline-types.ts";
+import { AGENT_TURN_NODE_KIND, COMMIT_NODE_KIND, USER_TURN_NODE_KIND } from "../webapp/views/timeline-types.ts";
+import type { CommitNode, FileChange, TurnNode } from "../webapp/views/timeline-node-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 
@@ -83,21 +77,21 @@ test("test_findAdjacentFileTouchedIndex_returns_undefined_when_no_candidate_in_d
 });
 
 
-test("test_checkRowCarriesJsonRecordButton_true_for_turn_with_uuid", () => {
+test("test_isRowCarryingJsonRecordButton_true_for_turn_with_uuid", () => {
     const turnWithRecord = { ...makeTurnNodeFixture(AGENT_TURN_NODE_KIND, []), uuid: "rec-1" };
-    assert.equal(checkRowCarriesJsonRecordButton(turnWithRecord), true);
+    assert.equal(isRowCarryingJsonRecordButton(turnWithRecord), true);
 });
 
-test("test_checkRowCarriesJsonRecordButton_false_for_commit_rows", () => {
+test("test_isRowCarryingJsonRecordButton_false_for_commit_rows", () => {
     // Commits are repo events with no JSONL record behind them.
     const plainCommit: CommitNode = { kind: COMMIT_NODE_KIND, when: "t1", sessionId: "s" };
-    assert.equal(checkRowCarriesJsonRecordButton(plainCommit), false);
+    assert.equal(isRowCarryingJsonRecordButton(plainCommit), false);
 });
 
-test("test_checkRowCarriesJsonRecordButton_false_for_uuid_less_synthetic_turns", () => {
+test("test_isRowCarryingJsonRecordButton_false_for_uuid_less_synthetic_turns", () => {
     // The git baseline turn is synthetic, so a { } button on it could only error.
     const baselineTurn = { ...makeTurnNodeFixture(AGENT_TURN_NODE_KIND, []), isGitBaseline: true };
-    assert.equal(checkRowCarriesJsonRecordButton(baselineTurn), false);
+    assert.equal(isRowCarryingJsonRecordButton(baselineTurn), false);
 });
 
 
@@ -138,5 +132,5 @@ test("test_uuid_less_line_node_rows_carry_the_json_record_button", async () => {
         sourceJsonlName: "session-a.jsonl",
         sourceLineIndex: 3,
     };
-    assert.equal(checkRowCarriesJsonRecordButton(summaryLineNode as never), true);
+    assert.equal(isRowCarryingJsonRecordButton(summaryLineNode as never), true);
 });

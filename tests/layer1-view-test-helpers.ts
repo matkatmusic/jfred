@@ -52,7 +52,7 @@ export function writeFileWithPinnedMtime(folder: string, name: string, contents:
 }
 
 // early.txt's name is load-bearing: sorted walk order yields disk-only.txt first, opposite their instant order, catching wrong bucket placement.
-export function makeFixtureDiskFolder(): string {
+export function createFixtureDiskFolder(): string {
   const diskDir = mkdtempSync(join(tmpdir(), "layer1-view-dir-"));
   writeFileWithPinnedMtime(diskDir, "shared.txt", "on disk\n", SHARED_FILE_MTIME);
   writeFileWithPinnedMtime(diskDir, "disk-only.txt", "never committed\n", DISK_ONLY_FILE_MTIME);
@@ -61,7 +61,7 @@ export function makeFixtureDiskFolder(): string {
 }
 
 // repo-only.txt ships in the first commit only, so its single instant is that commit.
-export function makeFixtureRepo(): string {
+export function createFixtureRepo(): string {
   const repoDir = mkdtempSync(join(tmpdir(), "layer1-view-repo-"));
   executeGitCommand(repoDir, "init -q");
   writeFileSync(join(repoDir, "shared.txt"), "committed\n");
@@ -104,7 +104,7 @@ function waitUntilListening(started: ChildProcess): Promise<void> {
 }
 
 // One viewer per test file (node:test runs a file's tests sequentially) costs one boot, not one each.
-export async function startFixtureViewer(diskDir: string, port: number): Promise<ChildProcess> {
+export async function launchFixtureViewer(diskDir: string, port: number): Promise<ChildProcess> {
   const started = spawnViewerProcess(diskDir, port);
   await waitUntilListening(started);
   return started;
@@ -115,7 +115,7 @@ export function buildViewUrl(port: number, parameters: Record<string, string>): 
   return `http://127.0.0.1:${port}/api/layer1-view?${query}`;
 }
 
-export async function requestFixtureView(port: number, diskDir: string, repoDir: string): Promise<WireLayer1View> {
+export async function fetchFixtureView(port: number, diskDir: string, repoDir: string): Promise<WireLayer1View> {
   const response = await fetch(buildViewUrl(port, { dir: diskDir, repo: repoDir }));
   assert.equal(response.status, 200);
   return await response.json() as WireLayer1View;

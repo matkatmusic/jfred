@@ -1,41 +1,52 @@
-// task 119: the Files pane's coverage strip and its click-for-reason popover. Split out of views/sidebar.ts (task 253 — the 250-line cap; split, never condense), which now holds only the sessions/files trees themselves. Nothing here is shared with the details pane's "Files touched" tree: that one passes no coverage and renders plain revision counts.
+// The Files pane's coverage strip and its click-for-reason popover.
 
 import { createElement } from "../app-dom.ts";
 import type { CoverageSegment } from "./reconstruction-coverage.ts";
 
-// The one open coverage popover and the segment that opened it (clicking that segment again closes it). One document-level click closes it from anywhere, the toolbar popovers' pattern (app-header.ts) — in-popover and segment clicks stopPropagation to stay open.
+// The open coverage popover and its segment; a document click closes it.
 let openCoveragePopover: { segment: HTMLElement; popover: HTMLElement } | undefined;
 
 function hideCoveragePopover(): void {
   openCoveragePopover?.popover.remove();
   openCoveragePopover = undefined;
 }
-// Guarded like app.ts's bootstrap: the node test suite imports this module without a DOM.
+// Guarded because the node test suite imports this module without a DOM.
 if (typeof document !== "undefined") {
   document.addEventListener("click", hideCoveragePopover);
 }
 
-// The strip on a partially-recovered file's row: one segment per revision (red = unrecoverable, click for the reason popover) and "<recovered> / <total> revs" in place of the plain count.
+// The strip on a partly-recovered file row: one segment per revision, plus a recovered count.
 export function appendCoverageStrip(item: HTMLElement, target: string, segments: CoverageSegment[]): void {
-  item.append(createElement("span", { class: "covbar" },
-    segments.map((segment) => buildCoverageSegmentElement(item, target, segment))));
-  const recovered = segments.filter((segment) => segment.recovered).length;
+  const segmentCells: HTMLElement[] = [];
+  let recovered = 0;
+  for (const segment of segments) {
+    segmentCells.push(buildCoverageSegmentElement(item, target, segment));
+    if (segment.recovered) {
+      recovered++;
+    }
+  }
+  item.append(createElement("span", { class: "covbar" }, segmentCells));
   item.append(createElement("span", { class: "revcount", text: `${recovered} / ${segments.length} revs` }));
 }
 
-// One strip segment; a red (unrecovered) one toggles the reason popover under the row. The stopPropagation keeps the click from also selecting the file row (and from the document-level closer instantly hiding the popover it just opened).
+// One strip segment; a red one toggles the reason popover. stopPropagation keeps the row unselected.
 function buildCoverageSegmentElement(item: HTMLElement, target: string, segment: CoverageSegment): HTMLElement {
   const cell = createElement("span", { class: segment.recovered ? "" : "miss" });
   if (!segment.recovered) {
-    cell.addEventListener("click", (event) => {
+    function toggleSegmentReasonPopover(event: Event): void {
       event.stopPropagation();
       toggleCoveragePopover(cell, item, target, segment);
-    });
+    }
+    cell.addEventListener("click", toggleSegmentReasonPopover);
   }
   return cell;
 }
 
-// Show (or hide, when its own segment is re-clicked) the reason popover, inserted into the flow right under the segment's file row.
+function stopEventPropagation(event: Event): void {
+  event.stopPropagation();
+}
+
+// Show the reason popover under the file row, or hide it when its own segment is re-clicked.
 function toggleCoveragePopover(cell: HTMLElement, item: HTMLElement, target: string, segment: CoverageSegment): void {
   const wasOpen = openCoveragePopover?.segment === cell;
   hideCoveragePopover();
@@ -46,7 +57,7 @@ function toggleCoveragePopover(cell: HTMLElement, item: HTMLElement, target: str
     createElement("div", { text: `${target} — rev ${segment.revisionIndex + 1} ✗ unrecoverable` }),
     createElement("div", { class: "muted", text: `reason: ${segment.reason ?? "unknown"}` }),
   ]);
-  popover.addEventListener("click", (event) => event.stopPropagation());
+  popover.addEventListener("click", stopEventPropagation);
   item.after(popover);
   openCoveragePopover = { segment: cell, popover };
 }

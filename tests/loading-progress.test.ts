@@ -1,4 +1,4 @@
-// Item 82 — loading-progress overhaul. Pure-helper coverage: the server's document size-label (A1), the cache-hit record-replay throttle (B1), and the client's phase classifier (C1). The overlay DOM, elapsed clock, and paint-yield are visually verified by the user (project console-helper convention), so they carry no unit test.
+// Item 82 loading-progress overhaul: pure-helper coverage; the overlay DOM and clock are checked visually.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,9 +10,9 @@ import {
     RECORD_PROGRESS_MAX_LINES,
     loadProjectRecords,
 } from "../src/viewer_api_records.ts";
-import { matchJsonlSourceLink } from "../webapp/app-console.ts";
-import { reconcileServerBootId } from "../webapp/app-choices.ts";
-import { classifyLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
+import { matchJsonlSourceLink } from "../webapp/app-console-text.ts";
+import { clearChoicesOnNewBootId } from "../webapp/app-choices.ts";
+import { findLoadPhase, LOAD_PHASE_COUNT } from "../webapp/app-progress.ts";
 import { S19_JSONL } from "./fixtures.ts";
 import { copyFixtureIntoTempDir } from "./utilities.ts";
 
@@ -34,7 +34,7 @@ test("test_computeRecordProgressStride_bounds_line_count", () => {
 });
 
 test("test_cached_record_replay_is_throttled_counted_and_token_bearing", () => {
-    // Prime both caches, then re-run the cache-hit replay through a spy sink and assert the per-record events are bounded, monotonic, reach 100%, and still carry the clickable source token.
+    // Replay through a spy sink: events are bounded, monotonic, reach 100%, and keep the source token.
     const jsonlPath = copyFixtureIntoTempDir(S19_JSONL);
     const recordCount = loadTranscript(jsonlPath.toString()).records.length;
     loadProjectRecords([jsonlPath]);
@@ -54,7 +54,7 @@ test("test_cached_record_replay_is_throttled_counted_and_token_bearing", () => {
 
 // -------------------- C1: client phase classifier --------------------
 
-test("test_classifyLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
+test("test_findLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
     const cases: [string, number | undefined][] = [
         ["resolving transcript files for X", 1],
         ["resolved 16 transcript file(s)", 1],
@@ -75,22 +75,22 @@ test("test_classifyLoadPhase_maps_real_stage_labels_to_ordered_phases", () => {
         ["???", undefined],
     ];
     for (const [label, expected] of cases) {
-        assert.equal(classifyLoadPhase(label), expected, `phase for "${label}"`);
+        assert.equal(findLoadPhase(label), expected, `phase for "${label}"`);
     }
 });
 
-test("test_classifyLoadPhase_total_is_six", () => {
+test("test_findLoadPhase_total_is_six", () => {
     assert.equal(LOAD_PHASE_COUNT, 6);
 });
 
-// task 163: the branch-enumeration counter must land in phase 4 (Building document), like every other deep-engine label of the build stage.
-test("test_classifyLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
-    assert.equal(classifyLoadPhase("scanning branch tips — 3 / 12"), 4);
+// task 163: the branch-enumeration counter must land in phase 4 (Building document).
+test("test_findLoadPhase_places_branch_tip_scanning_in_the_build_phase", () => {
+    assert.equal(findLoadPhase("scanning branch tips — 3 / 12"), 4);
 });
 
 // -------------------- server boot-id consent reset --------------------
 
-// Minimal in-memory stand-in for the browser's sessionStorage (reconcileServerBootId reads length/key/getItem and mutates set/removeItem). Typed loosely — the test runs under node, not DOM.
+// Minimal in-memory sessionStorage stand-in for clearChoicesOnNewBootId; typed loosely since node has no DOM.
 function makeSessionStorageStub(): any {
     const map = new Map<string, string>();
     return {
@@ -102,7 +102,7 @@ function makeSessionStorageStub(): any {
     };
 }
 
-test("test_reconcileServerBootId_clears_consent_only_when_boot_id_changes", () => {
+test("test_clearChoicesOnNewBootId_clears_consent_only_when_boot_id_changes", () => {
     const stub = makeSessionStorageStub();
     (globalThis as { sessionStorage?: unknown }).sessionStorage = stub;
     try {
@@ -110,17 +110,17 @@ test("test_reconcileServerBootId_clears_consent_only_when_boot_id_changes", () =
         stub.setItem("consent:projB", "0");
         stub.setItem("unrelated", "keep");
         // First launch (no stored boot id): drop consent, remember the id — but leave non-consent keys.
-        reconcileServerBootId("boot-1");
+        clearChoicesOnNewBootId("boot-1");
         assert.equal(stub.getItem("consent:projA"), null);
         assert.equal(stub.getItem("consent:projB"), null);
         assert.equal(stub.getItem("unrelated"), "keep");
         assert.equal(stub.getItem("serverBootId"), "boot-1");
         // Same id (page reload): consent preserved.
         stub.setItem("consent:projC", "1");
-        reconcileServerBootId("boot-1");
+        clearChoicesOnNewBootId("boot-1");
         assert.equal(stub.getItem("consent:projC"), "1");
         // New id (server relaunched): consent cleared again, id updated.
-        reconcileServerBootId("boot-2");
+        clearChoicesOnNewBootId("boot-2");
         assert.equal(stub.getItem("consent:projC"), null);
         assert.equal(stub.getItem("serverBootId"), "boot-2");
     } finally {

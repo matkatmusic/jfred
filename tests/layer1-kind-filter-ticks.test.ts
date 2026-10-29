@@ -7,7 +7,7 @@ import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
 import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
 import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
 import {
-    markMultiEventTicks, onExpansionRelayout, readRulerExpansion, toggleExpandedRow, wireTickExpansion,
+    markMultiEventTicks, registerExpansionRelayout, readRulerExpansion, toggleExpandedRow, registerTickExpansion,
 } from "../webapp/layer1-tick-files.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -38,8 +38,8 @@ function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElemen
     const tick = setAxisPx(createElement("div", { class: "tick" }), SHARED_PX);
     document.getElementById("ruler")!.appendChild(tick);
     attachRulerTickClick(tick, { axisPx: SHARED_PX, text: "", axisPxList: [SHARED_PX], instants: [INSTANT] });
-    onExpansionRelayout(markMultiEventTicks);
-    wireTickExpansion();
+    registerExpansionRelayout(markMultiEventTicks);
+    registerTickExpansion();
     return tick;
 }
 

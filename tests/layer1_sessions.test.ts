@@ -1,4 +1,4 @@
-// Task 311 (spec S19): buildSessionMetadata + titleInEffectAtLine. Temp-tree fixtures load via loadTranscript.
+// Task 311 (spec S19): buildSessionMetadata + findTitleAtLine. Temp-tree fixtures load via loadTranscript.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -6,8 +6,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { BlockType, RecordType } from "../src/structures/vocabulary.ts";
-import { buildSessionMetadata, titleInEffectAtLine } from "../src/layer1_sessions.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { buildSessionMetadata, findTitleAtLine } from "../src/layer1_sessions.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const SESSION_ID = "b21d84c5-0000-0000-0000-000000000001";
 
@@ -39,7 +39,7 @@ function writeRecord(timestamp: string, filePath: string): object {
 }
 
 function writeSession(records: object[]): Path {
-    const jsonlPath = join(makeTempDir(), `${SESSION_ID}.jsonl`);
+    const jsonlPath = join(createTempDir(), `${SESSION_ID}.jsonl`);
     writeFileSync(jsonlPath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
     return new Path(jsonlPath);
 }
@@ -68,20 +68,20 @@ test("test_two_title_session_returns_a_range_per_rename", () => {
 test("test_title_in_effect_picks_the_range_the_line_falls_in", () => {
     // Scenario: a snapshot at line 4 belongs to the first title, one at line 6 to the second.
     const [session] = buildSessionMetadata([buildTwoTitleSession()]);
-    assert.equal(titleInEffectAtLine(session!.titles, 4), "first pass");
-    assert.equal(titleInEffectAtLine(session!.titles, 6), "second pass");
+    assert.equal(findTitleAtLine(session!.titles, 4), "first pass");
+    assert.equal(findTitleAtLine(session!.titles, 6), "second pass");
 });
 
 test("test_title_before_the_first_custom_title_record_is_undefined", () => {
     // Scenario: line 1 precedes every rename, so the session was not yet named there.
     const [session] = buildSessionMetadata([buildTwoTitleSession()]);
-    assert.equal(titleInEffectAtLine(session!.titles, 1), undefined);
+    assert.equal(findTitleAtLine(session!.titles, 1), undefined);
 });
 
 test("test_unnamed_session_yields_no_title_ranges", () => {
     const session = buildSessionMetadata([writeSession([userRecord("2026-07-20T15:38:00.000Z")])])[0];
     assert.deepEqual(session!.titles, []);
-    assert.equal(titleInEffectAtLine(session!.titles, 5), undefined);
+    assert.equal(findTitleAtLine(session!.titles, 5), undefined);
 });
 
 test("test_started_and_ended_are_the_first_and_last_record_instants", () => {

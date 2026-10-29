@@ -2,10 +2,11 @@
 
 import { createElement } from "../app-dom.ts";
 import type { CoverageSegment } from "./reconstruction-coverage.ts";
-import { appendCoverageStrip } from "./sidebar-coverage.ts";
+import { renderFileTreeLeaf } from "./sidebar-file-leaf.ts";
+import { FOLDER_NAME_CLASS, SELECTED_CLASS, clearFileSelectionIn, folderTargetsBySummary, listDescendantTargets, listSelectedNavTargets } from "./sidebar-selection.ts";
 
 // Files with full coverage are absent, keeping the plain revision count on their rows.
-type CoverageByTarget = Map<string, CoverageSegment[]>;
+export type CoverageByTarget = Map<string, CoverageSegment[]>;
 
 type SessionSidebarEntry = {
   sessionId: string;
@@ -15,7 +16,7 @@ type SessionSidebarEntry = {
   firstNodeIndex: number;
 };
 
-type FileSidebarEntry = {
+export type FileSidebarEntry = {
   target: string;
   revisionCount: number;
   // True only when the file's LAST revision is a delete; the leaf renders struck-through.
@@ -26,7 +27,7 @@ type FileSidebarEntry = {
 };
 
 // Mirrored, not imported: timeline.ts imports this module, so importing back would be a cycle.
-type FileTreeNode = {
+export type FileTreeNode = {
   kind: string;
   name: string;
   children: FileTreeNode[];
@@ -35,32 +36,16 @@ type FileTreeNode = {
 
 const FOLDER_NODE_KIND = "folder";
 
-const SELECTED_CLASS = "selected";
-
-const FOLDER_NAME_CLASS = "file-folder-name";
-
-// A WeakMap, so the `selected` class stays the only selection state and a discarded tree's entries go with it.
-const folderTargetsBySummary = new WeakMap<HTMLElement, string[]>();
-
 // The narrower half of ForkSidebarCallbacks: two panes render the SAME tree with different click meanings.
 export type FileTreeCallbacks = {
   onFileClick: (target: string) => void;
-  // Receives the de-duplicated union of every selected folder's LEAF paths; empty means cleared.
-
-  // Optional: folders stay inert for owners that pass nothing.
+  // Gets the union of selected leaf paths (empty = cleared); folders stay inert when omitted.
   onFolderClick?: (targets: string[]) => void;
 };
 
 type ForkSidebarCallbacks = FileTreeCallbacks & {
   onSessionClick: (firstNodeIndex: number) => void;
 };
-
-// The root is explicit so a click in one on-screen tree cannot clear the other's selection.
-export function clearFileSelectionIn(root: HTMLElement): void {
-  for (const item of root.querySelectorAll(`.${SELECTED_CLASS}`)) {
-    item.classList.remove(SELECTED_CLASS);
-  }
-}
 
 function appendSessionItem(drawer: HTMLElement, session: SessionSidebarEntry, callbacks: ForkSidebarCallbacks): void {
   const item = createElement("div", { class: "session-item", title: session.jsonlFileName ?? session.sessionId }, [
@@ -70,7 +55,10 @@ function appendSessionItem(drawer: HTMLElement, session: SessionSidebarEntry, ca
       ` · ${session.rowCount} rows`,
     ]),
   ]);
-  item.addEventListener("click", () => callbacks.onSessionClick(session.firstNodeIndex));
+  function selectSession(): void {
+    callbacks.onSessionClick(session.firstNodeIndex);
+  }
+  item.addEventListener("click", selectSession);
   drawer.append(item);
 }
 
@@ -104,8 +92,11 @@ export function renderFileTreeNode(
   if (node.kind === FOLDER_NODE_KIND) {
     // Full path from the stripped root; node.name alone is only this one level's segment.
     const folderPath = path === "" ? node.name : `${path}/${node.name}`;
-    const kids = createElement("div", { class: "file-folder-kids" },
-      node.children.map((child) => renderFileTreeNode(child, callbacks, selectionRoot, coverage, collapse, folderPath)));
+    const childElements: HTMLElement[] = [];
+    for (const child of node.children) {
+      childElements.push(renderFileTreeNode(child, callbacks, selectionRoot, coverage, collapse, folderPath));
+    }
+    const kids = createElement("div", { class: "file-folder-kids" }, childElements);
     const summary = createElement("summary", { class: FOLDER_NAME_CLASS, text: node.name });
     attachFolderClick(summary, node, callbacks, selectionRoot);
     const isOpen = !(collapse?.collapsedPaths.has(folderPath) ?? false);
@@ -129,7 +120,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
   const toggle = createElement("span", { class: "file-folder-toggle" });
   summary.prepend(toggle);
   folderTargetsBySummary.set(summary, listDescendantTargets(node));
-  summary.addEventListener("click", (event) => {
+  function selectFolder(event: MouseEvent): void {
     // Returning early rather than cancelling: expanding is this click's default action anyway.
     if (event.target === toggle) {
       return;
@@ -140,77 +131,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
       clearFileSelectionIn(selectionRoot);
     }
     summary.classList.toggle(SELECTED_CLASS, !wasSelected);
-    onFolderClick(listSelectedNavTargets(selectionRoot));
-  });
-}
-
-// De-duplicated because a selected parent and child folder overlap; only folder rows count here.
-function listSelectedFolderTargets(selectionRoot: HTMLElement): string[] {
-  const union = new Set<string>();
-  for (const summary of selectionRoot.querySelectorAll(`.${FOLDER_NAME_CLASS}.${SELECTED_CLASS}`)) {
-    for (const target of folderTargetsBySummary.get(summary as HTMLElement) ?? []) {
-      union.add(target);
-    }
+    onFolderClick!(listSelectedNavTargets(selectionRoot));
   }
-  return [...union];
+  summary.addEventListener("click", selectFolder);
 }
-
-// Task 326: selected file rows join the folder union so both feed one nav-selection filter.
-function listSelectedNavTargets(selectionRoot: HTMLElement): string[] {
-  const fileTargets = [...selectionRoot.querySelectorAll<HTMLElement>(`.file-item.${SELECTED_CLASS}`)]
-    .map((item) => item.dataset.target ?? "");
-  return [...new Set([...listSelectedFolderTargets(selectionRoot), ...fileTargets])];
-}
-
-// Recurses on `entry` rather than `kind`, since `entry` is what the leaf renderer requires.
-function listDescendantTargets(node: FileTreeNode): string[] {
-  if (node.entry !== undefined) {
-    return [node.entry.target];
-  }
-  return node.children.flatMap(listDescendantTargets);
-}
-
-// Basename only, with the full path in the tooltip: the full path was truncated to uselessness.
-function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, callbacks: FileTreeCallbacks, selectionRoot: HTMLElement, coverage?: CoverageByTarget): HTMLElement {
-  // The name gets its own span so IT ellipsises — never the (n) revcount after it.
-  const item = createElement("div", {
-    class: entry.isDeleted ? "file-item deleted" : "file-item",
-    title: entry.isDeleted ? `${entry.target} (deleted)` : entry.target,
-    "data-target": entry.target,
-  }, [createElement("span", { class: "file-label", text: node.name })]);
-  const segments = coverage?.get(entry.target);
-  if (segments === undefined) {
-    item.append(createElement("span", { class: "revcount", text: `(${entry.revisionCount})` }));
-  }
-  else {
-    appendCoverageStrip(item, entry.target, segments);
-  }
-  if (entry.originalPath !== undefined) {
-    item.append(createElement("span", {
-      class: "rename-badge",
-      // The label is pre-disambiguated; the basename fallback keeps unstamped entries working.
-      text: `← ${entry.renameBadgeLabel ?? basenameOf(entry.originalPath)}`,
-      title: `renamed from ${entry.originalPath}`,
-    }));
-  }
-  item.addEventListener("click", (event) => {
-    // Task 326: shift toggles the row into the selection without opening its drawer (folders' gesture).
-    if (event.shiftKey) {
-      item.classList.toggle(SELECTED_CLASS);
-      callbacks.onFolderClick?.(listSelectedNavTargets(selectionRoot));
-      return;
-    }
-    clearFileSelectionIn(selectionRoot);
-    item.classList.add(SELECTED_CLASS);
-    // Every selection change reports, so a stale folder filter can never outlive its marks.
-    callbacks.onFolderClick?.(listSelectedNavTargets(selectionRoot));
-    callbacks.onFileClick(entry.target);
-  });
-  return item;
-}
-
-function basenameOf(path: string): string {
-  return path.slice(path.lastIndexOf("/") + 1);
-}
-
-// Coverage strip + reason popover moved to views/sidebar-coverage.ts for the 250-line cap.

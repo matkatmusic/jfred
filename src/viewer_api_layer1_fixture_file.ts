@@ -6,10 +6,11 @@ import { buildLayer1DiffPayload } from "./viewer_api_layer1_diff.ts";
 import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
-import { readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
+import { EDITS } from "./viewer_api_layer3_fixture_data.ts";
+import { buildFixtureRecord, readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
 import { readFixtureBranchFile } from "./viewer_api_layer5_mockup_branches.ts";
 import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
-import { requireParam, sendJson } from "./viewer_server_routes.ts";
+import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
   const scriptRunId = query.get("scriptRun");
@@ -18,8 +19,8 @@ function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
   }
   const isSnapshotRequest = query.get("snapshotSession") !== null;
   if (isSnapshotRequest) {
-    return { kind: "snapshot", version: `@v${requireParam(query, "version")}`,
-      session: basename(requireParam(query, "snapshotSession")) };
+    return { kind: "snapshot", version: `@v${getRequiredParam(query, "version")}`,
+      session: basename(getRequiredParam(query, "snapshotSession")) };
   }
   const hash = (query.get("hash") ?? "").trim();
   if (hash !== "") {
@@ -29,9 +30,9 @@ function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
 }
 
 function getFixtureSnapshotTitle(query: URLSearchParams): string {
-  const sessionFile = basename(requireParam(query, "snapshotSession"));
-  const version = `@v${requireParam(query, "version")}`;
-  const path = requireParam(query, "path");
+  const sessionFile = basename(getRequiredParam(query, "snapshotSession"));
+  const version = `@v${getRequiredParam(query, "version")}`;
+  const path = getRequiredParam(query, "path");
   let line = 0;
   for (const entry of SNAPSHOTS) {
     const isTarget = entry.path === path && entry.session === sessionFile && entry.version === version;
@@ -43,17 +44,29 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
   return findTitleAt(sessionFile, line);
 }
 
+// The fixture's stand-in for a transcript line: the edit event recorded at that session and line.
+export function sendFixtureRecord(response: ServerResponse, query: URLSearchParams): void {
+  const session = basename(getRequiredParam(query, "jsonl"));
+  const line = Number(getRequiredParam(query, "line"));
+  const event = EDITS.find((entry) => entry.session === session && entry.line === line);
+  if (event === undefined) {
+    throw new Error(`no fixture record at line ${line} of ${session}`);
+  }
+  sendJson(response, 200, buildFixtureRecord(event));
+}
+
 export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
   const editChangeId = query.get("editChangeId");
-  if (editChangeId !== null && query.get("branch") === "1") {
-    sendJson(response, 200, readFixtureBranchFile(requireParam(query, "path"), editChangeId, requireParam(query, "side")));
-    return;
-  }
   if (editChangeId !== null) {
-    sendJson(response, 200, readFixtureEditFile(editChangeId, requireParam(query, "side")));
+    const isBranchRequest = query.get("branch") === "1";
+    if (isBranchRequest) {
+      sendJson(response, 200, readFixtureBranchFile(getRequiredParam(query, "path"), editChangeId, getRequiredParam(query, "side")));
+      return;
+    }
+    sendJson(response, 200, readFixtureEditFile(editChangeId, getRequiredParam(query, "side")));
     return;
   }
-  const path = requireParam(query, "path");
+  const path = getRequiredParam(query, "path");
   const node = buildFixtureNode(query);
   const content = listContentLines(path, node).join("\n");
   const isBinary = query.get("binary") === "1";
@@ -70,7 +83,7 @@ export function sendFixtureFile(response: ServerResponse, query: URLSearchParams
 }
 
 function getFixtureDiffLines(query: URLSearchParams, hashParam: string): string[] {
-  const path = requireParam(query, "path");
+  const path = getRequiredParam(query, "path");
   const hash = (query.get(hashParam) ?? "").trim();
   const node: FixtureRevisionNode = hash !== "" ? { kind: "commit", hash } : { kind: "working tree" };
   return listContentLines(path, node);

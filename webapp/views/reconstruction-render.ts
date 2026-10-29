@@ -1,4 +1,4 @@
-// Partial-reconstruction DOM half (task 119): the pane-header banner, the timeline's dashed gap rows, and the per-file coverage-segment map the Files sidebar's strips render from.  The DOM-free counting/grouping lives in reconstruction-coverage.ts; this render half is untested by the project's dual-renderer convention. Split out of timeline.ts / timeline-render-rows.ts, both of which sit at the 250-line cap.
+// Partial-reconstruction DOM half (task 119): banner, gap rows, and per-file coverage segments; counting lives in reconstruction-coverage.ts.
 
 import { createElement } from "../app-dom.ts";
 import {
@@ -7,21 +7,26 @@ import {
   buildFileCoverageSegments,
   buildTimelineGaps,
   computeGapInsertionIndexes,
-  summarizeReconstructionCoverage,
+  computeReconstructionCoverage,
 } from "./reconstruction-coverage.ts";
-import type { TimelineNode, WireTimelineDocument } from "./timeline-types.ts";
+import type { TimelineNode } from "./timeline-node-types.ts";
+import type { WireTimelineDocument } from "./timeline-wire-types.ts";
 
-// Mount the ⚠ banner beside #timeline-summary when the document is partial; any prior banner is removed first so re-renders never stack (and a clean re-render leaves none). The native title tooltip carries the full failure reasons, one per line — no "show gaps" popover: the gap rows and coverage strips already show every gap in place.
+// Mount the ⚠ banner beside #timeline-summary when partial; a prior banner is removed first so re-renders never stack.
 export function renderReconstructionBanner(reconstructionDocument: WireTimelineDocument): void {
   document.querySelector("#timeline-pane-header .recon-banner")?.remove();
-  const coverage = summarizeReconstructionCoverage(reconstructionDocument);
+  const coverage = computeReconstructionCoverage(reconstructionDocument);
   if (!coverage.isPartial) {
     return;
   }
   const skippedClause = coverage.skippedLineCount === 0 ? "" : ` · ${coverage.skippedLineCount} records skipped`;
+  const failureReasons: string[] = [];
+  for (const failure of reconstructionDocument.failures ?? []) {
+    failureReasons.push(failure.reason);
+  }
   const banner = createElement("div", {
     class: "recon-banner",
-    title: (reconstructionDocument.failures ?? []).map((failure) => failure.reason).join("\n"),
+    title: failureReasons.join("\n"),
   }, [
     createElement("span", { class: "warn", text: "⚠ Partial reconstruction" }),
     ` — ${coverage.unrecoverableRevisions} of ${coverage.totalRevisions} revisions unrecoverable${skippedClause}`,
@@ -29,10 +34,14 @@ export function renderReconstructionBanner(reconstructionDocument: WireTimelineD
   document.getElementById("timeline-summary")!.after(banner);
 }
 
-// The timeline's gap rows bucketed by the node index each renders before (bucket nodes.length = after the last row); computed once per buildTimelineRows pass.
+// Gap rows bucketed by the node index each renders before; bucket nodes.length means after the last row.
 export function computeGapRowBuckets(reconstructionDocument: WireTimelineDocument, nodes: TimelineNode[]): Map<number, TimelineGap[]> {
   const gaps = buildTimelineGaps(reconstructionDocument.skippedLines ?? []);
-  return computeGapInsertionIndexes(gaps, nodes.map((node) => node.when));
+  const nodeTimestamps: string[] = [];
+  for (const node of nodes) {
+    nodeTimestamps.push(node.when);
+  }
+  return computeGapInsertionIndexes(gaps, nodeTimestamps);
 }
 
 // One dashed .tl-gap-row per gap in a bucket (undefined bucket = no gaps at this index).
@@ -45,10 +54,20 @@ export function appendGapRows(rowFragment: DocumentFragment, gaps: TimelineGap[]
   }
 }
 
-// The Files sidebar's strip input: coverage segments per target, ONLY for files with at least one unrecovered revision — fully recovered files keep their plain row (real files can have 100+ revisions; a strip on every row is noise).
+// Coverage segments per target, only for files with an unrecovered revision; recovered files keep their plain row.
 export function buildCoverageSegmentsByTarget(reconstructionDocument: WireTimelineDocument): Map<string, CoverageSegment[]> {
-  const entries = reconstructionDocument.filesTouched
-    .map((history) => [history.target, buildFileCoverageSegments(history)] as const)
-    .filter(([, segments]) => segments.some((segment) => !segment.recovered));
-  return new Map(entries);
+  const segmentsByTarget = new Map<string, CoverageSegment[]>();
+  for (const history of reconstructionDocument.filesTouched) {
+    const segments = buildFileCoverageSegments(history);
+    let hasUnrecoveredSegment = false;
+    for (const segment of segments) {
+      if (!segment.recovered) {
+        hasUnrecoveredSegment = true;
+      }
+    }
+    if (hasUnrecoveredSegment) {
+      segmentsByTarget.set(history.target, segments);
+    }
+  }
+  return segmentsByTarget;
 }

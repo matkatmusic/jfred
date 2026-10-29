@@ -2,11 +2,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hasLoadedBranches, loadBranchesOnce } from "../webapp/layer1-branches.ts";
-import { cancelLayer1Load } from "../webapp/layer1-progress.ts";
+import { isBranchesLoaded, loadBranchesOnce } from "../webapp/layer1-branches.ts";
+import { stopLayer1Load } from "../webapp/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const NODE = { instant: "2026-06-01T09:03:00.000Z", changeId: "toolu_lane_1", label: "edit" };
 const CONVERSATION_LANE = { rewindKind: "conversation", forkAt: "2026-06-01T09:01:00.000Z", rejoinAt: "2026-06-02T09:00:00.000Z", nodes: [NODE] };
@@ -44,7 +44,7 @@ function countFetchesTo(pathname: string): () => number {
 
 test("test_loadBranchesOnce_merges_lanes_into_the_matching_pair_with_zero_axes_and_absent_keys_stay_absent", async () => {
   initLayer1Dom("?dir=%2Fw&repo=%2Fw");
-  stubStreamRoute("/api/layer1-branches", [PROGRESS, PAYLOAD]);
+  installStreamRoute("/api/layer1-branches", [PROGRESS, PAYLOAD]);
   const view = buildView();
   assert.equal(await loadBranchesOnce(view), true);
   const [conversation, kept, code] = view.pairs[0]!.branches!;
@@ -58,7 +58,7 @@ test("test_loadBranchesOnce_merges_lanes_into_the_matching_pair_with_zero_axes_a
 
 test("test_loadBranchesOnce_asks_with_the_page_query_and_progress", async () => {
   initLayer1Dom("?dir=%2Fw&repo=%2Fw");
-  stubStreamRoute("/api/layer1-branches", [PAYLOAD]);
+  installStreamRoute("/api/layer1-branches", [PAYLOAD]);
   const urls: string[] = [];
   const inner = globalThis.fetch;
   Object.assign(globalThis, { fetch: (url: unknown, init?: RequestInit) => {
@@ -71,12 +71,12 @@ test("test_loadBranchesOnce_asks_with_the_page_query_and_progress", async () => 
 
 test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
   initLayer1Dom();
-  stubStreamRoute("/api/layer1-branches", [PAYLOAD]);
+  installStreamRoute("/api/layer1-branches", [PAYLOAD]);
   const fetchCount = countFetchesTo("/api/layer1-branches");
   const view = buildView();
-  assert.equal(hasLoadedBranches(view), false);
+  assert.equal(isBranchesLoaded(view), false);
   await loadBranchesOnce(view);
-  assert.equal(hasLoadedBranches(view), true);
+  assert.equal(isBranchesLoaded(view), true);
   assert.equal(await loadBranchesOnce(view), true);
   assert.equal(fetchCount(), 1);
   await loadBranchesOnce(buildView());
@@ -86,7 +86,7 @@ test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {
 test("test_a_cancelled_fetch_answers_false_and_leaves_the_view_untouched", async () => {
   initLayer1Dom();
   Object.assign(globalThis, { fetch: async () => {
-    cancelLayer1Load();
+    stopLayer1Load();
     throw new Error("aborted");
   } });
   const view = buildView();
@@ -106,7 +106,7 @@ test("test_a_failed_fetch_shows_the_error_on_the_shield_and_answers_false", asyn
 
 test("test_a_success_closes_the_shield_after_the_merge", async () => {
   initLayer1Dom();
-  stubStreamRoute("/api/layer1-branches", [PROGRESS, PAYLOAD]);
+  installStreamRoute("/api/layer1-branches", [PROGRESS, PAYLOAD]);
   const view = buildView();
   assert.equal(await loadBranchesOnce(view), true);
   assert.equal(document.getElementById("busy-shield")!.hasAttribute("hidden"), true);

@@ -1,21 +1,20 @@
-// Spec S5 (task 176) §c4 conflict notes: a cross-source contradiction on a JOINED file must not abort — it surfaces as a task-119 health-sink conflict note while the merged timeline still completes; an agreeing cross-source stream stays silent.
+// Task 176 §c4: a cross-source contradiction on a joined file emits a conflict note, never aborts.
 
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { EditEvent } from "../src/reconstruction_events.ts";
-import { editEvidenceAgreesWithState } from "../src/reconstruction_multi_source_gate.ts";
+import { isEditEvidenceMatchingState } from "../src/reconstruction_multi_source_gate.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
-import { reconstructFile } from "../src/reconstruction_engine.ts";
+import { buildFileRevisions } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
-import { clearReconstructionFailures, drainReconstructionFailures } from "../src/reconstruction_health.ts";
+import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
 import {
-    makeTwoSourceEditFixture,
-    buildEditRecordPair,
+    createTwoSourceEditFixture,
     SESSION_A,
-    type WireHunk,
 } from "./multi-source-test-helpers.ts";
+import { buildEditRecordPair, type WireHunk } from "./tool-call-record-pair-builders.ts";
 
 // Overrides are process-wide module state — never let one test's state leak into the next.
 afterEach(() => {
@@ -40,33 +39,33 @@ function buildSecondEditOfA(
 }
 
 test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline", () => {
-    // Scenario (§c4): A writes at t1, B's t2 edit agrees (join fires), then A's t3 edit carries pre-state evidence that contradicts the merged state at t3 (it never saw B's line).  Steps: A write "line one" t1 → B edit +"line two" t2 → A edit t3, originalFile still "line one" (stale — the contradiction).
-    const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
+    // A writes t1, B edits t2 (join), then A's t3 edit has stale originalFile that contradicts the merge.
+    const fixture = createTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline three\n", "line one\n", {
             oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line three"],
         }));
     clearReconstructionFailures();
     const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
     // Test verification 1: exactly one conflict note, targeting the joined primary path.
-    const conflicts = drainReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
+    const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 1);
     assert.equal(conflicts[0]!.target?.toString(), fixture.alphaPath);
     assert.match(conflicts[0]!.reason, /cross-source conflict/);
     // Test verification 2: the timeline is still COMPLETE — all three revisions present.
-    const revisions = reconstructFile(merged, new Path(fixture.alphaPath));
+    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
     assert.equal(revisions.length, 3);
 });
 
 test("test_agreeing_cross_source_stream_emits_no_conflict_note", () => {
     // Scenario: the same alternating stream but A's t3 evidence saw B's line — no contradiction,
     // so the conflict path must stay silent.
-    const fixture = makeTwoSourceEditFixture("line one\n", (locations) =>
+    const fixture = createTwoSourceEditFixture("line one\n", (locations) =>
         buildSecondEditOfA(locations, "line one\nline two\nline three\n", "line one\nline two\n", {
             oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [" line one", " line two", "+line three"],
         }));
     clearReconstructionFailures();
     mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
-    const conflicts = drainReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
+    const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 0);
 });
 
@@ -83,6 +82,6 @@ function buildEditEventWithNullOriginalFile(): EditEvent {
 
 test("test_edit_with_null_original_file_falls_through_to_hunk_pre_side_check", () => {
     const edit = buildEditEventWithNullOriginalFile();
-    assert.equal(editEvidenceAgreesWithState(edit, "line one"), true);
-    assert.equal(editEvidenceAgreesWithState(edit, "other text"), false);
+    assert.equal(isEditEvidenceMatchingState(edit, "line one"), true);
+    assert.equal(isEditEvidenceMatchingState(edit, "other text"), false);
 });

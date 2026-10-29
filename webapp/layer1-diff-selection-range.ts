@@ -1,10 +1,11 @@
 // Task 329: the shift-click range gesture; the second clicked node closes a wash over every nav-selected file.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { displayDetailView } from "./layer1-diff-view.ts";
+import { renderDetailView } from "./layer1-diff-view.ts";
 import { setDrawerTools } from "./layer1-drawer-diff.ts";
 import { createDetailViewsForFiles, listWashFiles } from "./layer1-drawer-multi.ts";
-import { paintDiffWash, readDrawnView, readNavTargets, readNodeInstant } from "./layer1-diff-wash.ts";
+import { paintDiffWash, readDrawnView, readNavTargets } from "./layer1-diff-wash.ts";
+import { readNodeInstant } from "./layer1-node-instant.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
 
 export function applyDiffSelectionRange(anchor: { node: HTMLElement; path: string }, node: HTMLElement, path: string): void {
@@ -45,5 +46,5 @@ export function applyDiffSelectionRange(anchor: { node: HTMLElement; path: strin
   setDrawerTools("none");
   getRequiredElementById("dprev").hidden = true;
   getRequiredElementById("dnext").hidden = true;
-  displayDetailView(createDetailViewsForFiles(view, files, { baseInstant, targetInstant }));
+  renderDetailView(createDetailViewsForFiles(view, files, { baseInstant, targetInstant }));
 }

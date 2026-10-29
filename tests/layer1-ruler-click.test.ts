@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { stubStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 interface FixtureInstant {
     instant: string;
@@ -61,7 +61,7 @@ function buildSharedInstantView(): object {
 
 interface ScrollRequest { target: HTMLElement }
 
-// A landing measures the drawer and then its target (scrollToUncoveredCentre); layout code measures other elements too, so only the element measured right after the drawer counts. Must be installed AFTER booting: initLayer1Dom builds a fresh window.
+// The element measured right after the drawer is the scroll target. Install AFTER booting: initLayer1Dom builds a fresh window.
 function recordScrollRequests(): ScrollRequest[] {
     const requests: ScrollRequest[] = [];
     let isDrawerJustMeasured = false;
@@ -75,12 +75,12 @@ function recordScrollRequests(): ScrollRequest[] {
     return requests;
 }
 
-// bootLayer1Page is called explicitly: node's module cache runs the module's boot line only on first import.
+// initLayer1Page is called explicitly: node's module cache runs the module's boot line only on first import.
 async function loadPageWithView(view: object): Promise<void> {
     initLayer1Dom("?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj");
-    stubStreamRoute("/api/layer1-view", [view]);
-    const { bootLayer1Page } = await import("../webapp/layer1-page.ts");
-    bootLayer1Page();
+    installStreamRoute("/api/layer1-view", [view]);
+    const { initLayer1Page } = await import("../webapp/layer1-page.ts");
+    initLayer1Page();
     await waitForAsyncWork();
 }
 

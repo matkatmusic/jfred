@@ -7,32 +7,32 @@ import {
     buildProjectReconstruction,
     buildDocumentWithConsent,
 } from "../src/viewer_api.ts";
-import { decideDocumentResponse } from "../src/viewer_api_consent.ts";
+import { computeDocumentDecision } from "../src/viewer_api_consent.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
-import { runCli } from "../src/reconstruction_cli.ts";
+import { executeCli } from "../src/reconstruction_cli.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { loadRecords } from "./utilities.ts";
-import { jsonlPathsForScenario } from "./fixtures.ts";
+import { getScenarioJsonlPaths } from "./scenario-locator.ts";
 import { S19_JSONL, S37_JSONL } from "./fixtures.ts";
 
 
 test("test_buildProjectDocument_single_jsonl_matches_cli_json", () => {
     // For one JSONL the viewer's document matches the CLI --json output exactly.
     const viaViewer = JSON.parse(JSON.stringify(buildProjectDocument([new Path(S19_JSONL)], undefined)));
-    const viaCli = JSON.parse(runCli([S19_JSONL, "--json"]));
+    const viaCli = JSON.parse(executeCli([S19_JSONL, "--json"]));
     assert.deepEqual(viaViewer, viaCli);
 });
 
 test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
     // Scenario: s53's two agent transcripts unify into ONE document whose filesTouched covers the files of both.
-    const paths = jsonlPathsForScenario("s53");
+    const paths = getScenarioJsonlPaths("s53");
     assert.ok(paths.length >= 2, "s53 spans multiple JSONLs");
     const perTranscriptTargets = paths.map((path) =>
         buildProjectDocument([path], undefined).filesTouched.map((history) => history.target.toString()),
@@ -48,7 +48,7 @@ test("test_buildProjectDocument_multi_jsonl_unifies_records", () => {
 
 test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
     // Scenario (S4a): one reconstruction over JSONLs from two conversation-log folders, with the sources list riding to the sidecar reader.
-    const treeRoots = [makeTempDir(), makeTempDir()];
+    const treeRoots = [createTempDir(), createTempDir()];
     const jsonlPaths: Path[] = [];
     const sources = [];
     for (const [index, treeRoot] of treeRoots.entries()) {
@@ -66,10 +66,10 @@ test("test_build_project_reconstruction_accepts_two_source_transcripts", () => {
 });
 
 
-test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => {
+test("test_computeDocumentDecision_requires_consent_when_scripts_present", () => {
     // Script runs without consent yield a consent-required decision carrying each script's code.
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
     assert.ok(decision.kind === DocumentResponseKind.consentRequired && decision.scripts.length > 0);
     for (const script of decision.kind === DocumentResponseKind.consentRequired ? decision.scripts : []) {
@@ -77,10 +77,10 @@ test("test_decideDocumentResponse_requires_consent_when_scripts_present", () => 
     }
 });
 
-test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
+test("test_computeDocumentDecision_tags_each_script_with_read_only_flag", () => {
     // Every script's readOnly tag must agree with the execution gate's classifier (item 68).
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.consentRequired);
     for (const script of decision.kind === DocumentResponseKind.consentRequired ? decision.scripts : []) {
         assert.equal(typeof script.readOnly, "boolean");
@@ -88,14 +88,14 @@ test("test_decideDocumentResponse_tags_each_script_with_read_only_flag", () => {
     }
 });
 
-test("test_decideDocumentResponse_builds_when_consented", () => {
+test("test_computeDocumentDecision_builds_when_consented", () => {
     // Scenario: the same script-bearing records WITH consent decide to build.
     const records = loadRecords(S37_JSONL);
-    const decision = decideDocumentResponse(records, true);
+    const decision = computeDocumentDecision(records, true);
     assert.equal(decision.kind, DocumentResponseKind.document);
 });
 
-test("test_decideDocumentResponse_builds_when_no_scripts", () => {
+test("test_computeDocumentDecision_builds_when_no_scripts", () => {
     // A script-free transcript never prompts. Synthetic, since every captured transcript carries harness probes.
     const records = [
         {
@@ -112,7 +112,7 @@ test("test_decideDocumentResponse_builds_when_no_scripts", () => {
             },
         } as unknown as TranscriptRecord,
     ];
-    const decision = decideDocumentResponse(records, false);
+    const decision = computeDocumentDecision(records, false);
     assert.equal(decision.kind, DocumentResponseKind.document);
 });
 

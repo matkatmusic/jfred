@@ -6,15 +6,16 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { RepoSnapshot } from "../src/reconstruction_steps.ts";
 import type { ProvenanceEntry } from "../src/reconstruction_provenance.ts";
-import { checkScenario, renderStepProvenance } from "../scripts/check_scenario_coverage.ts";
+import { validateScenario } from "../scripts/check_scenario_coverage.ts";
+import { renderStepProvenance } from "../scripts/coverage_step_mismatch.ts";
 import {
     findCoveredScenarios,
     listCoveredScenarios,
-    buildUuidLineIndex,
-    readStepStateFiles,
     type CoveredScenario,
 } from "../scripts/coverage_scenarios.ts";
-import { firstLineDifference, selectBestEngineStep } from "../scripts/coverage_compare.ts";
+import { buildUuidLineIndex } from "../scripts/jsonl_uuid_line_index.ts";
+import { readStepStateFiles } from "../scripts/step_state_files.ts";
+import { findFirstLineDifference, selectBestEngineStep } from "../scripts/coverage_compare.ts";
 import { S19_JSONL } from "./fixtures.ts";
 
 // The repo root and the executed-scenarios root, derived from this test file's location.
@@ -47,7 +48,7 @@ test("test_findCoveredScenarios_includes_s19", () => {
 });
 
 test("test_buildUuidLineIndex_maps_a_record_uuid_to_its_one_based_line_number", () => {
-    // Behavior: a record's uuid maps to its true 1-based line number (the first uuid-bearing line, since the transcript may open with a uuid-less meta line).
+    // Behavior: a record's uuid maps to its 1-based line number, skipping uuid-less meta lines.
     const index = buildUuidLineIndex([new Path(S19_JSONL)]);
     const lines = readFileSync(S19_JSONL, "utf8").split("\n");
     const firstUuidLine = lines.findIndex((line) => {
@@ -72,13 +73,13 @@ test("test_readStepStateFiles_includes_source_files_and_excludes_manifest_and_ca
 
 test("test_firstLineDifference_returns_the_first_differing_line", () => {
     // Behavior: the first line that differs is reported with its 1-based number and both sides.
-    const diff = firstLineDifference("a\nb\nc", "a\nX\nc");
+    const diff = findFirstLineDifference("a\nb\nc", "a\nX\nc");
     assert.deepEqual(diff, { lineNo: 2, expected: "b", actual: "X" });
 });
 
 test("test_firstLineDifference_returns_undefined_when_texts_are_equal", () => {
     // Behavior: identical texts have no first difference.
-    assert.equal(firstLineDifference("a\nb", "a\nb"), undefined);
+    assert.equal(findFirstLineDifference("a\nb", "a\nb"), undefined);
 });
 
 test("test_selectBestEngineStep_returns_the_step_reproducing_the_most_files", () => {
@@ -91,7 +92,7 @@ test("test_selectBestEngineStep_returns_the_step_reproducing_the_most_files", ()
     assert.equal(selectBestEngineStep(steps, groundTruth), 1);
 });
 
-test("test_checkScenario_reports_every_step_passes_for_s19", () => {
+test("test_validateScenario_reports_every_step_passes_for_s19", () => {
     // Behavior: s19 is the known-good control — every captured step folder is reproduced by some engine step.
     const scenario: CoveredScenario = {
         scenarioId: "s19",
@@ -99,48 +100,48 @@ test("test_checkScenario_reports_every_step_passes_for_s19", () => {
         jsonlPaths: [new Path(S19_JSONL)],
         stepStatesDir: S19_STEP_STATES,
     };
-    const result = checkScenario(scenario);
+    const result = validateScenario(scenario);
     assert.equal(result.mismatches.length, 0, JSON.stringify(result.mismatches));
     assert.equal(result.passed, result.total);
 });
 
-// The discovered CoveredScenario for a scenario id, reproducing the sweep's own discovery exactly (all session jsonls merged, the real .step_states dir). Used for the recoverable-gap scenarios — git-baseline s40/s41 especially, whose baseline session must come through the SAME discovery, never hand-excluded.
+// The CoveredScenario for an id, found by the sweep's own discovery, never hand-excluded.
 function discoverScenario(scenarioId: string): CoveredScenario {
     const scenario = listCoveredScenarios().find((covered) => covered.scenarioId === scenarioId);
     assert.ok(scenario, `${scenarioId} should be a covered scenario`);
     return scenario!;
 }
 
-test("test_checkScenario_reports_every_step_passes_for_s28", () => {
-    // Behavior: every captured step folder of s28 (scoped script rename) is reproduced by some engine step — catalog_view.py's renamed-no-preview state (load_catalog) is recovered, not the stale pre-rename load_all.
-    const result = checkScenario(discoverScenario("s28"));
+test("test_validateScenario_reports_every_step_passes_for_s28", () => {
+    // Behavior: every captured s28 step folder is reproduced, with the renamed load_catalog state recovered.
+    const result = validateScenario(discoverScenario("s28"));
     assert.equal(result.mismatches.length, 0, JSON.stringify(result.mismatches));
     assert.equal(result.passed, result.total);
 });
 
-test("test_checkScenario_reports_every_step_passes_for_s40", () => {
-    // Behavior: every captured step folder of s40 (git-baseline user edits) is reproduced — orders.py's intermediate "# reviewed by ops"-only state becomes its own revision, not coalesced into the final echo.
-    const result = checkScenario(discoverScenario("s40"));
+test("test_validateScenario_reports_every_step_passes_for_s40", () => {
+    // Behavior: every captured s40 step folder is reproduced, with orders.py's reviewed-only state as its own revision.
+    const result = validateScenario(discoverScenario("s40"));
     assert.equal(result.mismatches.length, 0, JSON.stringify(result.mismatches));
     assert.equal(result.passed, result.total);
 });
 
-test("test_checkScenario_reports_every_step_passes_for_s41", () => {
-    // Behavior: every captured step folder of s41 (git-baseline mid-commit) is reproduced — same intermediate reviewed-only orders.py revision as s40, surfaced from the distinct earlier in-window backup.
-    const result = checkScenario(discoverScenario("s41"));
+test("test_validateScenario_reports_every_step_passes_for_s41", () => {
+    // Behavior: every captured s41 step folder is reproduced, with the same reviewed-only revision as s40.
+    const result = validateScenario(discoverScenario("s41"));
     assert.equal(result.mismatches.length, 0, JSON.stringify(result.mismatches));
     assert.equal(result.passed, result.total);
 });
 
-test("test_checkScenario_reports_every_step_passes_for_s34", () => {
-    // Behavior: every captured step folder of s34 (script-rename driver-back-and-forth) is reproduced.  The rename runs via `python3 apply_renames.py` (an indirected Bash script), so the clean post-rename ledger.py (record_entry, no comment) is computed by script replay and surfaces as its own revision — the out-of-band "# names normalized via rename script" append is NOT spliced onto that clean step's ledger.py.
-    const result = checkScenario(discoverScenario("s34"));
+test("test_validateScenario_reports_every_step_passes_for_s34", () => {
+    // Behavior: every captured s34 step folder is reproduced; script replay yields the clean post-rename ledger.py.
+    const result = validateScenario(discoverScenario("s34"));
     assert.equal(result.mismatches.length, 0, JSON.stringify(result.mismatches));
     assert.equal(result.passed, result.total);
 });
 
 test("test_renderStepProvenance_keeps_only_entries_for_the_differing_file_at_or_before_the_step", () => {
-    // Behavior: only entries whose target is the differing file AND whose backup time is at or before the step are kept; other files and later backups are dropped.
+    // Behavior: only entries for the differing file at or before the step are kept.
     const stepTime = new Date("2026-01-01T00:00:10Z");
     const entries: ProvenanceEntry[] = [
         { stage: "completeElidedBeacons", target: new Path("/t/pkg/a.py"), detail: "kept entry", when: new Date("2026-01-01T00:00:05Z") },
@@ -159,15 +160,15 @@ test("test_renderStepProvenance_returns_empty_string_when_no_entry_matches", () 
     assert.equal(renderStepProvenance([], "pkg/a.py", new Date("2026-01-01T00:00:10Z")), "");
 });
 
-test("test_checkScenario_reports_a_mismatch_with_the_broken_fixture", () => {
-    // Behavior: the deliberately-wrong step-001 (scenario19.py mangled) is reported as a mismatch with the folder number, the differing file in the diff, and a JSONL-line lead.
+test("test_validateScenario_reports_a_mismatch_with_the_broken_fixture", () => {
+    // Behavior: the broken step-001 is reported as a mismatch naming the folder, file, and JSONL line.
     const scenario: CoveredScenario = {
         scenarioId: "s19",
         dirName: "broken-step-states",
         jsonlPaths: [new Path(S19_JSONL)],
         stepStatesDir: BROKEN_STEP_STATES,
     };
-    const result = checkScenario(scenario);
+    const result = validateScenario(scenario);
     assert.ok(result.mismatches.length >= 1, "expected a mismatch");
     const mismatch = result.mismatches[0]!;
     assert.equal(mismatch.stepNum, 1);

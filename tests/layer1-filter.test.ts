@@ -1,4 +1,4 @@
-// Expected pixels are hand-derived, never from layOutNodeLadders — that would pass whatever it did.
+// Expected pixels are hand-derived, never from computeNodeLadderLayout — that would pass whatever it did.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

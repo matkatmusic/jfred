@@ -162,3 +162,4 @@ node_modules
 scripts/visual/out/
 **/.DS_Store
 plans/tackle-metrics.jsonl
+.claude_hooks/

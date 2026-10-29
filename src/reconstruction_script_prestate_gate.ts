@@ -23,15 +23,18 @@ export function isEveryImportReadOnlySafe(code: string): boolean {
   for (const match of code.matchAll(importStatementLine)) {
     for (const item of match[1]!.split(",")) {
       const root = item.trim().split(singleWhitespace)[0]?.split(".")[0] ?? "";
-      if (!READ_ONLY_SAFE_IMPORT_ROOTS.has(root))
+      const isSafeRoot = READ_ONLY_SAFE_IMPORT_ROOTS.has(root);
+      if (!isSafeRoot)
         return false;
     }
   }
   for (const match of code.matchAll(fromImportStatementLine)) {
     const root = match[1]!.split(".")[0] ?? "";
-    if (!READ_ONLY_SAFE_IMPORT_ROOTS.has(root))
+    const isSafeRoot = READ_ONLY_SAFE_IMPORT_ROOTS.has(root);
+    if (!isSafeRoot)
       return false;
-    if (writingImportedName.test(match[2]!))
+    const importsWritingName = writingImportedName.test(match[2]!);
+    if (importsWritingName)
       return false;
   }
   return true;
@@ -46,22 +49,26 @@ export function isEveryOpenCallRead(code: string): boolean {
       return false;
     const args = code.slice(argsStart, argsEnd);
     // A nested call could hide a write mode, so treat the script as may-write.
-    if (args.includes("("))
+    const hasNestedCall = args.includes("(");
+    if (hasNestedCall)
       return false;
     const parts = args.split(",");
     const isDotCall = match.index! > 0 && code[match.index! - 1] === ".";
     if (isDotCall) {
       // Path.open(): no arguments defaults to mode "r".
-      if (args.trim() === "")
+      const hasNoArguments = args.trim() === "";
+      if (hasNoArguments)
         continue;
-      if (!readOnlyOpenArgument.test(parts[0]!))
+      const isReadModeArgument = readOnlyOpenArgument.test(parts[0]!);
+      if (!isReadModeArgument)
         return false;
       continue;
     }
     // builtin open(file): a single argument defaults to mode "r".
     if (parts.length === 1)
       continue;
-    if (!readOnlyOpenArgument.test(parts[1]!))
+    const isReadModeArgument = readOnlyOpenArgument.test(parts[1]!);
+    if (!isReadModeArgument)
       return false;
   }
   return true;

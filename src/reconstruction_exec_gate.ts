@@ -3,10 +3,10 @@
 let impureExecutionAllowed = true;
 
 export function setImpureExecutionAllowed(allowed: boolean): void {
-    impureExecutionAllowed = allowed;
+  impureExecutionAllowed = allowed;
 }
 
 export function isImpureExecutionAllowed(): boolean {
-    return impureExecutionAllowed;
+  return impureExecutionAllowed;
 }
 

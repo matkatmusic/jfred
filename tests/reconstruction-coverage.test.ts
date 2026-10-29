@@ -1,4 +1,4 @@
-// Pure view-model tests for the partial-reconstruction coverage helpers (task 119, webapp/views/reconstruction-coverage.ts): the session-banner summary, per-file coverage segments, timeline gap grouping, and gap-row insertion indexes. Fixtures are wire-shaped literals (what the browser sees after fetch + JSON.parse).
+// View-model tests for the partial-reconstruction coverage helpers, using wire-shaped literal fixtures.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -6,10 +6,10 @@ import {
     buildFileCoverageSegments,
     buildTimelineGaps,
     computeGapInsertionIndexes,
-    summarizeReconstructionCoverage,
+    computeReconstructionCoverage,
     type TimelineGap,
 } from "../webapp/views/reconstruction-coverage.ts";
-import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-types.ts";
+import type { WireFileHistory, WireTimelineDocument } from "../webapp/views/timeline-wire-types.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 
 // The wire document with only the coverage-relevant fields varying.
@@ -29,8 +29,8 @@ function makeRevision(changeId: string, unrecoverable?: { reason: string }) {
     return { kind: EventKind.write as string, changeId, timestamp: "2026-07-01T10:00:00Z", unrecoverable };
 }
 
-test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () => {
-    // Step 1: two files with three revisions total, one of them an unrecoverable placeholder, plus one skipped line and one survived engine failure.
+test("test_computeReconstructionCoverage_counts_unrecoverable_revisions", () => {
+    // Step 1: three revisions with one placeholder, one skipped line, and one survived failure.
     const document = buildWireDocument({
         filesTouched: [
             { target: "/p/a.py", revisions: [makeRevision("toolu_A1"), makeRevision("toolu_A2", { reason: "sidecar backup missing" })] },
@@ -40,7 +40,7 @@ test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () =
         failures: [{ scope: "file-stage", stage: "fillRedirectContent", target: "/p/a.py", reason: "ENOENT: blob gone" }],
     });
     // Step 2: every count lands in the summary, and any non-zero count marks it partial.
-    assert.deepEqual(summarizeReconstructionCoverage(document), {
+    assert.deepEqual(computeReconstructionCoverage(document), {
         totalRevisions: 3,
         unrecoverableRevisions: 1,
         skippedLineCount: 1,
@@ -49,13 +49,13 @@ test("test_summarizeReconstructionCoverage_counts_unrecoverable_revisions", () =
     });
 });
 
-test("test_summarizeReconstructionCoverage_is_not_partial_for_clean_document", () => {
-    // Step 1: a fully recovered document — no unrecoverable revisions, and the optional skippedLines / failures fields absent entirely (an older cached document's shape).
+test("test_computeReconstructionCoverage_is_not_partial_for_clean_document", () => {
+    // Step 1: a fully recovered document with no skippedLines or failures fields.
     const document = buildWireDocument({
         filesTouched: [{ target: "/p/a.py", revisions: [makeRevision("toolu_A1")] }],
     });
     // Step 2: all failure counts are zero, so the banner stays hidden.
-    assert.deepEqual(summarizeReconstructionCoverage(document), {
+    assert.deepEqual(computeReconstructionCoverage(document), {
         totalRevisions: 1,
         unrecoverableRevisions: 0,
         skippedLineCount: 0,
@@ -74,7 +74,7 @@ test("test_buildFileCoverageSegments_marks_unrecoverable_revisions", () => {
             makeRevision("toolu_A3"),
         ],
     };
-    // Step 2: one segment per revision in order; only the placeholder is unrecovered, and it carries the reason for the strip's click-for-reason popover.
+    // Step 2: one segment per revision; only the placeholder is unrecovered and carries its reason.
     assert.deepEqual(buildFileCoverageSegments(history), [
         { recovered: true, reason: undefined, revisionIndex: 0 },
         { recovered: false, reason: "sidecar backup missing", revisionIndex: 1 },
@@ -83,20 +83,20 @@ test("test_buildFileCoverageSegments_marks_unrecoverable_revisions", () => {
 });
 
 test("test_buildTimelineGaps_groups_consecutive_lines_into_one_gap", () => {
-    // Step 1: three consecutive skipped lines from one transcript; only the middle one still carried a parseable timestamp in its raw JSON.
+    // Step 1: three consecutive skipped lines; only the middle one has a parseable timestamp.
     const gaps = buildTimelineGaps([
         { filePath: "/p/s.jsonl", lineNumber: 5, reason: "malformed JSON: SyntaxError" },
         { filePath: "/p/s.jsonl", lineNumber: 6, timestamp: "2026-07-01T10:00:00Z", reason: 'unknown record type "future-nonsense"' },
         { filePath: "/p/s.jsonl", lineNumber: 7, reason: "malformed JSON: SyntaxError" },
     ]);
-    // Step 2: one gap — count is the run length, reason the FIRST line's, timestamp the run's first defined one, hydrated to a Date.
+    // Step 2: one gap with the run length, the first reason, and the first timestamp as a Date.
     assert.deepEqual(gaps, [
         { count: 3, reason: "malformed JSON: SyntaxError", timestamp: new Date("2026-07-01T10:00:00Z") },
     ]);
 });
 
 test("test_buildTimelineGaps_splits_non_consecutive_lines", () => {
-    // Step 1: a jump in line numbers within one file, then a different file at the very next line number — both break the run.
+    // Step 1: a line-number jump and a file change each break the run.
     const gaps = buildTimelineGaps([
         { filePath: "/p/s.jsonl", lineNumber: 2, reason: "reason-a" },
         { filePath: "/p/s.jsonl", lineNumber: 5, reason: "reason-b" },
@@ -118,7 +118,7 @@ test("test_computeGapInsertionIndexes_places_gap_before_first_later_node", () =>
         [between, trailing],
         ["2026-07-01T10:00:00Z", "2026-07-01T11:00:00Z", "2026-07-01T12:00:00Z"],
     );
-    // Step 2: the between-gap keys to node 1 (the first node at or after it); the trailing gap keys past the last node, where the row loop appends it at the end.
+    // Step 2: the between-gap keys to node 1; the trailing gap keys past the last node.
     assert.deepEqual(indexes, new Map([[1, [between]], [3, [trailing]]]));
 });
 

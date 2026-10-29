@@ -1,10 +1,11 @@
-// Layer 1 on-disk file walk: mtime-stamped paths via git when available, manual walk otherwise.  Birthtime is read only when trustworthy — see readCreatedState.
+// Layer 1 on-disk file walk: git paths when available, manual walk otherwise.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
 import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { isPathIgnored, readIgnoreRules, type IgnoreRule } from "./layer1_ignore_rules.ts";
 
 // One file on disk: its path relative to the project folder, and its timestamps.
 export interface DiskFileState {
@@ -14,13 +15,15 @@ export interface DiskFileState {
   createdNotTrusted?: CreatedNotTrustedReason;
 }
 
-// macOS/APFS records a real birthtime; ext4 frequently reports epoch 0 or echoes the mtime, and a copied file can claim a birth LATER than its mtime. Each of those yields no created node, with the reason kept.
+// Birthtime is trusted only when real and earlier than mtime; otherwise the reason is kept.
 export function readCreatedState(stats: { birthtime: Date; mtime: Date }): Pick<DiskFileState, "createdAt" | "createdNotTrusted"> {
   const birth = stats.birthtime.getTime();
+  const mtimeMs = stats.mtime.getTime();
   if (birth <= 0) {
     return { createdNotTrusted: CreatedNotTrustedReason.noBirthTime };
   }
-  if (birth >= stats.mtime.getTime()) {
+  const isBirthNotBeforeMtime = birth >= mtimeMs;
+  if (isBirthNotBeforeMtime) {
     return { createdNotTrusted: CreatedNotTrustedReason.birthNotBeforeMtime };
   }
   return { createdAt: stats.birthtime };
@@ -29,80 +32,26 @@ export function readCreatedState(stats: { birthtime: Date; mtime: Date }): Pick<
 // Never walked, with or without a .gitignore (S18).
 const ALWAYS_EXCLUDED_NAMES = [".git", "node_modules"];
 
-// One usable line of a .gitignore, pre-compiled.
-interface IgnoreRule {
-  matcher: RegExp;
-  directoriesOnly: boolean;
-  anchored: boolean;
-}
-
-// Converts a glob pattern to an anchored regex (`*`/`?` only).
-function buildPatternMatcher(pattern: string): RegExp {
-  const source = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\?/g, "[^/]");
-  return new RegExp(`^${source}$`);
-}
-
-// The rules of the project folder's top-level .gitignore, or none when it has no .gitignore.
-// ponytail: minimal matcher — blanks, `#` comments, a trailing `/` directory form, a leading `/` root-anchored form and `*`/`?` globs. NOT supported: `!` negations (skipped outright), `**` spans, nested .gitignore files, core.excludesFile, and git's escape syntax. Upgrade to the `ignore` package only when a real project folder is mis-walked because of one of those.
-function readIgnoreRules(projectFolder: Path): IgnoreRule[] {
-  let text: string;
-  try {
-    text = readFileSync(join(projectFolder.toString(), ".gitignore")).toString();
-  }
-  catch {
-    return [];
-  }
-  const rules: IgnoreRule[] = [];
-  for (const line of text.split("\n")) {
-    const pattern = line.trim();
-    if (pattern === "" || pattern.startsWith("#") || pattern.startsWith("!")) {
-      continue;
-    }
-    const directoriesOnly = pattern.endsWith("/");
-    const trimmed = pattern.replace(/\/$/, "").replace(/^\//, "");
-    // Patterns with a separator are root-anchored; bare names match at any depth.
-    rules.push({
-      matcher: buildPatternMatcher(trimmed),
-      directoriesOnly,
-      anchored: trimmed.includes("/") || pattern.startsWith("/"),
-    });
-  }
-  return rules;
-}
-
-// Returns true if any ignore rule matches; ignored directories are never descended into.
-function checkPathIsIgnored(relativePath: string, isDirectory: boolean, rules: IgnoreRule[]): boolean {
-  const name = relativePath.split("/").at(-1) ?? relativePath;
-  for (const rule of rules) {
-    if (rule.directoriesOnly && !isDirectory) {
-      continue;
-    }
-    if (rule.matcher.test(rule.anchored ? relativePath : name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Depth-first walk; skips symlinks and sockets since Layer 1 needs real bytes on disk.
 function collectFolderFiles(projectFolder: Path, relativeFolder: string, rules: IgnoreRule[], found: DiskFileState[]): void {
   const absoluteFolder = join(projectFolder.toString(), relativeFolder);
   for (const entry of readdirSync(absoluteFolder, { withFileTypes: true })) {
-    if (ALWAYS_EXCLUDED_NAMES.includes(entry.name)) {
+    const isExcludedName = ALWAYS_EXCLUDED_NAMES.includes(entry.name);
+    if (isExcludedName) {
       continue;
     }
     const relativePath = relativeFolder === "" ? entry.name : `${relativeFolder}/${entry.name}`;
-    if (checkPathIsIgnored(relativePath, entry.isDirectory(), rules)) {
+    const isDirectory = entry.isDirectory();
+    const isIgnored = isPathIgnored(relativePath, isDirectory, rules);
+    if (isIgnored) {
       continue;
     }
-    if (entry.isDirectory()) {
+    if (isDirectory) {
       collectFolderFiles(projectFolder, relativePath, rules, found);
       continue;
     }
-    if (!entry.isFile()) {
+    const isFile = entry.isFile();
+    if (!isFile) {
       continue;
     }
     const stats = statSync(join(absoluteFolder, entry.name));
@@ -120,40 +69,59 @@ function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
   if (result.status !== 0) {
     return undefined;
   }
-  return result.stdout.split("\0").filter((path) => path !== "");
+  const paths: string[] = [];
+  for (const path of result.stdout.split("\0")) {
+    if (path !== "") {
+      paths.push(path);
+    }
+  }
+  return paths;
 }
 
 // Git omits `.git` but untracked `node_modules` would flood results without this guard.
-function checkPathIsAlwaysExcluded(relativePath: string): boolean {
-  return relativePath.split("/").some((segment) => ALWAYS_EXCLUDED_NAMES.includes(segment));
+function isPathAlwaysExcluded(relativePath: string): boolean {
+  for (const segment of relativePath.split("/")) {
+    const isExcludedName = ALWAYS_EXCLUDED_NAMES.includes(segment);
+    if (isExcludedName) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Stats each path; submodule gitlinks and deleted files drop out via the isFile check.
-function statWorkingTreePaths(projectFolder: Path, relativePaths: string[]): DiskFileState[] {
+function collectWorkingTreeFiles(projectFolder: Path, relativePaths: string[]): DiskFileState[] {
   const found: DiskFileState[] = [];
   for (const relativePath of relativePaths) {
-    if (checkPathIsAlwaysExcluded(relativePath)) {
+    const isExcluded = isPathAlwaysExcluded(relativePath);
+    if (isExcluded) {
       continue;
     }
     const stats = statSync(join(projectFolder.toString(), relativePath), { throwIfNoEntry: false });
-    if (stats?.isFile() === true) {
+    if (stats === undefined) {
+      continue;
+    }
+    const isFile = stats.isFile();
+    if (isFile) {
       found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, ...readCreatedState(stats) });
     }
   }
   return found;
 }
 
+function compareByRelativePath(left: DiskFileState, right: DiskFileState): number {
+  return left.relativePath.toString() < right.relativePath.toString() ? -1 : 1;
+}
+
 // The `current file state` of `projectFolder`, sorted by relative path for determinism.
-export function walkCurrentFileState(projectFolder: Path): DiskFileState[] {
+export function listCurrentFileState(projectFolder: Path): DiskFileState[] {
   const gitPaths = listGitWorkingTreeFiles(projectFolder);
   const found: DiskFileState[] = [];
   if (gitPaths === undefined) {
     collectFolderFiles(projectFolder, "", readIgnoreRules(projectFolder), found);
   }
   else {
-    found.push(...statWorkingTreePaths(projectFolder, gitPaths));
+    found.push(...collectWorkingTreeFiles(projectFolder, gitPaths));
   }
-  return found.sort((left, right) => (left.relativePath.toString() < right.relativePath.toString() ? -1 : 1));
+  return found.sort(compareByRelativePath);
 }
-
-

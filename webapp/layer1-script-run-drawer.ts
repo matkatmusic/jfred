@@ -2,14 +2,16 @@
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
-import { buildDiffView, displayDetailView } from "./layer1-diff-view.ts";
+import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
-import { computeRunBracket, listDiffableSteps } from "./layer1-drawer-steps.ts";
+import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
+import { computeRunBracket,listDiffableSteps } from "./layer1-drawer-steps.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { renderCellCode } from "./diff-render.ts";
-import { computeScriptHighlightLanguage, describeScriptLanguage } from "./layer1-script-language.ts";
+import { computeScriptHighlightLanguage, formatScriptRunLabel } from "./layer1-script-language.ts";
 import { buildScriptRunFileFold, buildScriptRunFold } from "./layer1-script-run-folds.ts";
-import { flashSession } from "./layer1-sessions.ts";
+import { storeOpenedNode } from "./layer1-node-link.ts";
+import { flashSession } from "./layer1-session-flash.ts";
 import type { WireScriptRun } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
@@ -76,13 +78,13 @@ export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
 
 // A script run's title: its script file's label, else its language's.
 export function getScriptRunTitle(run: WireScriptRun): string {
-  return run.label ?? describeScriptLanguage(run.language);
+  return run.label ?? formatScriptRunLabel(run.language);
 }
 
 // Task 356: the meta fold and the script body fold of a script-run drawer.
 export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
   const metaRows: [string, string][] = [
-    ["kind", "script run (layer 4)"], ["executor", describeScriptLanguage(run.language)], ["instant", run.instant],
+    ["kind", "script run (layer 4)"], ["executor", formatScriptRunLabel(run.language)], ["instant", run.instant],
     ["session", run.sessionFile],
   ];
   const provenanceParts = ["resolved body", run.sessionFile];
@@ -128,6 +130,7 @@ export async function openScriptRunDrawer(toolUseId: string | undefined): Promis
     return;
   }
   clearDiffPair();
+  storeOpenedNode({ instant: run.instant, sessionFile: run.sessionFile, line: run.line });
   for (const id of ["dprev", "dnext"] as const) {
     getRequiredElementById(id).hidden = true;
   }
@@ -137,6 +140,9 @@ export async function openScriptRunDrawer(toolUseId: string | undefined): Promis
   getRequiredElementById("dmeta").replaceChildren(buildScriptRunFileFold(getScriptRunTitle(run), paths));
   getRequiredElementById("drawer").classList.add("open");
   setDrawerTools("none");
-  displayDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+  renderDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+  if (run.line !== undefined) {
+    appendRawJsonRevealForLine(run.sessionFile, run.line);
+  }
   flashSession(run.sessionFile.split("/").pop() ?? run.sessionFile);
 }

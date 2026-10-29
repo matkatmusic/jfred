@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { collectBashCatBeacons } from "../src/layer1_cat_beacons.ts";
 import { Path } from "../src/structures/domain.ts";
-import { SESSION_A, makeSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
+import { SESSION_A, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 
 const CWD = "/work/app";
 const SESSION_FILE = new Path("/tmp/session.jsonl");
@@ -28,7 +28,7 @@ function buildBashPair(toolId: string, command: string, outcome: BashOutcome): o
 }
 
 function collectBeaconsFor(command: string, outcome: BashOutcome = CLEAN_OUTCOME) {
-    const tree = makeSourceTree("-cat-project");
+    const tree = createSourceTree("-cat-project");
     const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", buildBashPair("toolu_cat_1", command, outcome));
     return collectBashCatBeacons(records, SESSION_FILE);
 }
@@ -73,7 +73,7 @@ test("test_unmodeled_tool_result_makes_no_beacon_and_does_not_throw", () => {
         },
     ];
     const catPair = buildBashPair("toolu_cat_2", "cat /work/app/src/a.ts", CLEAN_OUTCOME);
-    const tree = makeSourceTree("-cat-project");
+    const tree = createSourceTree("-cat-project");
     const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", [...toolSearchPair, ...catPair]);
     assert.equal(collectBashCatBeacons(records, SESSION_FILE).length, 1);
 });

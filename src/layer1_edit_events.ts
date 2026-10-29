@@ -31,7 +31,7 @@ type CachedEvents = { mtimeMs: number; events: LayerEditEvent[] };
 // ponytail: unbounded, fine for a local viewer
 const eventsBySessionFile = new Map<string, CachedEvents>();
 
-function indexResultLinesByToolUseId(records: TranscriptRecord[]): Map<string, number | undefined> {
+function collectResultLinesByToolUseId(records: TranscriptRecord[]): Map<string, number | undefined> {
   const lineById = new Map<string, number | undefined>();
   for (const record of records) {
     for (const block of getContentBlocks(record)) {
@@ -61,7 +61,7 @@ function buildSessionEditEvents(sessionFile: Path): LayerEditEvent[] {
   if (sessionId === undefined) {
     throw new Error(`no session id in ${sessionFile.toString()}`);
   }
-  const lineById = indexResultLinesByToolUseId(records);
+  const lineById = collectResultLinesByToolUseId(records);
   const identity = { sessionId, sessionFile };
   const events: LayerEditEvent[] = [];
   for (const event of extractFileEvents(records)) {
@@ -88,7 +88,10 @@ export function readSessionEditEvents(sessionFile: Path): LayerEditEvent[] {
   const key = sessionFile.toString();
   const mtimeMs = statSync(key).mtimeMs;
   const cached = eventsBySessionFile.get(key);
-  if (cached !== undefined && cached.mtimeMs === mtimeMs) {
+  const isCached = cached !== undefined;
+  const isFresh = cached?.mtimeMs === mtimeMs;
+  const isFreshCache = isCached && isFresh;
+  if (isFreshCache) {
     return cached.events;
   }
   const events = buildSessionEditEvents(sessionFile);

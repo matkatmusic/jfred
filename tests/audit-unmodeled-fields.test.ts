@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     createAuditFindings,
-    auditJsonlText,
+    scanJsonlText,
     SYNTHETIC_RECONSTRUCTED_VERSION,
 } from "../scripts/audit_unmodeled_fields.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 
-test("test_auditJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
-    // Scenario: one transcript carries an unknown record type, a known record with an unmodeled field, a fully modeled record, and a synthetic reconstructed record with a tool-invented field. The auditor reports the first two, keyed with counts and a file:line example, and skips the synthetic record entirely.  Steps: build the four-line transcript text.
+test("test_scanJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
+    // Scenario: unknown types and unmodeled fields are reported; synthetic records are skipped.
     const lines = [
         JSON.stringify({ type: "made-up-type", payload: 1 }),
         JSON.stringify({ type: RecordType.mode, sessionId: "s", mode: "normal", bogusKey: 1 }),
@@ -21,7 +21,7 @@ test("test_auditJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
     ].join("\n");
     // audit the text under a file label.
     const findings = createAuditFindings();
-    auditJsonlText("proj/a.jsonl", lines, findings);
+    scanJsonlText("proj/a.jsonl", lines, findings);
     // the unknown type is reported once with its example line.
     assert.equal(findings.unknownTypes.size, 1);
     const unknownType = findings.unknownTypes.get("made-up-type");
@@ -38,12 +38,12 @@ test("test_auditJsonlText_collects_unknown_types_and_unmodeled_fields", () => {
     assert.equal(findings.syntheticRecordsSkipped, 1);
 });
 
-test("test_auditJsonlText_accumulates_across_files", () => {
-    // Scenario: the same unmodeled field seen in two files counts both occurrences and both distinct files, keeping the FIRST example.  Steps: audit the same one-line transcript under two file labels.
+test("test_scanJsonlText_accumulates_across_files", () => {
+    // Scenario: one field in two files counts both files and keeps the first example.
     const line = JSON.stringify({ type: RecordType.mode, sessionId: "s", mode: "normal", bogusKey: 1 });
     const findings = createAuditFindings();
-    auditJsonlText("proj/a.jsonl", line, findings);
-    auditJsonlText("proj/b.jsonl", line, findings);
+    scanJsonlText("proj/a.jsonl", line, findings);
+    scanJsonlText("proj/b.jsonl", line, findings);
     // both occurrences and both files are counted; the first example wins.
     const unmodeledField = findings.unmodeledFields.get(`${RecordType.mode}::bogusKey`);
     assert.equal(unmodeledField?.count, 2);

@@ -14,7 +14,7 @@ test("test_fixture_data_module_imports_without_throwing", () => {
 });
 
 test("test_fixture_view_axis_offsets_accumulate", () => {
-    // Scenario: every axisPx comes from ONE layOutNodeLadders call, so offsets must only ever rise.
+    // Scenario: every axisPx comes from ONE computeNodeLadderLayout call, so offsets must only ever rise.
     const view = buildFixtureLayer1View();
     const assertAscends = (path: unknown, label: string, run: number[]): void => {
         for (let node = 1; node < run.length; node += 1) {

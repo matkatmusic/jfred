@@ -10,7 +10,7 @@ export const WireScriptExecutorKind = {
 } as const;
 export type WireScriptExecutorKind = (typeof WireScriptExecutorKind)[keyof typeof WireScriptExecutorKind];
 
-// Replaced by describeScriptLanguage (layer1-script-language.ts), the one label source: WireScriptExecutorIcon.
+// Replaced by formatScriptRunLabel (layer1-script-language.ts), the one label source: WireScriptExecutorIcon.
 
 // Task 356: a script-run node; identity is scriptRun:<toolUseId> — one shared drawer across every bubble it touches.
 export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {

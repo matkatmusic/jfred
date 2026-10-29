@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { readSnapshotFileContent, isSnapshotFileRequest } from "../src/viewer_api_layer1_snapshot.ts";
-import { makeTempDir } from "./overrides-test-helpers.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 
 const SESSION_ONE = "b21d84c5-0000-0000-0000-000000000001";
 const SESSION_TWO = "d4a06b8f-0000-0000-0000-000000000002";
@@ -32,7 +32,7 @@ function buildSnapshotRecord(backupFileName: string | null, version: number, bac
     };
 }
 
-// A copied-out-of-~/.claude tree, which is what deriveSiblingFileHistoryRoot needs.
+// A copied-out-of-~/.claude tree, which is what findSiblingFileHistoryRoot needs.
 function writeSession(treeRoot: string, sessionId: string, backupTime: string): Path {
     const projectDir = join(treeRoot, "projects", "-demo");
     mkdirSync(projectDir, { recursive: true });
@@ -61,7 +61,7 @@ function snapshotQuery(sessionFile: Path, sessionId: string): URLSearchParams {
 
 test("test_snapshot_form_reads_owning_session_bytes_for_a_shared_blob_name", () => {
     // Scenario: both sessions name one blob "abc123@v2"; the session id must select the right bytes.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionOne = writeSession(treeRoot, SESSION_ONE, "2026-06-03T10:30:00.000Z");
     writeBlob(treeRoot, SESSION_ONE, "bytes A\n");
     const sessionTwo = writeSession(treeRoot, SESSION_TWO, "2026-07-24T08:00:00.000Z");
@@ -73,7 +73,7 @@ test("test_snapshot_form_reads_owning_session_bytes_for_a_shared_blob_name", () 
 
 // Task 317: a session renamed part-way through must attribute each snapshot to the title over ITS line.
 test("test_snapshot_form_returns_the_customTitle_in_effect_at_the_snapshot_line", () => {
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionId = SESSION_ONE;
     const projectDir = join(treeRoot, "projects", "-demo");
     mkdirSync(projectDir, { recursive: true });
@@ -105,7 +105,7 @@ test("test_snapshot_form_returns_the_customTitle_in_effect_at_the_snapshot_line"
 });
 
 test("test_snapshot_form_refuses_a_session_id_that_escapes_the_root", () => {
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionOne = writeSession(treeRoot, SESSION_ONE, "2026-06-03T10:30:00.000Z");
     writeBlob(treeRoot, SESSION_ONE, "bytes A\n");
     const query = snapshotQuery(sessionOne, "../../etc");
@@ -114,7 +114,7 @@ test("test_snapshot_form_refuses_a_session_id_that_escapes_the_root", () => {
 
 test("test_snapshot_form_rejects_an_unknown_session_without_a_matching_placement", () => {
     // A well-shaped but unrecorded session id is a clean refusal, not a stack trace.
-    const treeRoot = makeTempDir();
+    const treeRoot = createTempDir();
     const sessionOne = writeSession(treeRoot, SESSION_ONE, "2026-06-03T10:30:00.000Z");
     writeBlob(treeRoot, SESSION_ONE, "bytes A\n");
     const query = snapshotQuery(sessionOne, SESSION_TWO);
