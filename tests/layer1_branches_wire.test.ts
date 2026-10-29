@@ -11,7 +11,8 @@ import {
 } from "../src/layer1_branches_wire.ts";
 import { loadTranscript, type ProgressSink } from "../src/parse/loadTranscript.ts";
 import { reconstructStepTimeline } from "../src/reconstruction_steps.ts";
-import { createSidecarReader, findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
+import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
+import { findSessionId, resolveFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { Path } from "../src/structures/domain.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";

@@ -56,7 +56,7 @@ function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: WireSna
   };
   lane.append(
     setAxisPx(createElement("i", { class: "node n-snap", ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸`, ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸${snapshot.isBackupMissing ? "🚫" : ""}`, ...identity }), axisPx),
   );
 }
 
@@ -91,6 +91,7 @@ function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptR
     "data-instant": run.instant,
     "data-session-id": run.sessionId,
     "data-session-file": run.sessionFile,
+    "data-line": run.line === undefined ? undefined : String(run.line),
   };
   const iconText = describeScriptLanguage(run.language);
   lane.append(

@@ -26,6 +26,8 @@ export interface WireSnapshotOf<I, P, U> extends WireInstantOf<I> {
   sessionId: U;
   sessionFile: P;
   line?: number;
+  // Present only when the file-history backup file is absent from disk.
+  isBackupMissing?: boolean;
 }
 
 export interface WirePairOf<I, P, U> {
