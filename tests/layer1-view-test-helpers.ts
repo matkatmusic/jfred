@@ -76,10 +76,14 @@ export function createFixtureRepo(): string {
 
 // parseServerArgs REQUIRES --projects-dir even though this route reads no JSONL; the disk fixture doubles as a harmless scan root.
 function spawnViewerProcess(diskDir: string, port: number): ChildProcess {
+  // An empty settings file keeps the user's real ~/.jfred-layer1-settings.json (ref, jsonl lists) out of the page.
+  const settingsFile = join(mkdtempSync(join(tmpdir(), "layer1-view-settings-")), "settings.json");
+  writeFileSync(settingsFile, "{}");
   return spawn(process.execPath, [
     "--import", "tsx", "src/viewer_server.ts",
     "--projects-dir", diskDir,
     "--port", String(port),
+    "--settings-file", settingsFile,
   ], { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "inherit"] });
 }
 
