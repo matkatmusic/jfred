@@ -39,7 +39,23 @@ function sampleLoadbarEveryStep(): string[] {
     samples.push(readBar());
     return paintFrame(callback);
   };
-  new window.MutationObserver(() => samples.push(readBar())).observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+  // happy-dom's MutationObserver holds its callback weakly, so a GC silently stops it; hook the two writes instead.
+  // new window.MutationObserver(() => samples.push(readBar())).observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+  const bar = document.getElementById("loadbar")!;
+  const setBarAttribute = bar.setAttribute.bind(bar);
+  bar.setAttribute = (name, value) => {
+    setBarAttribute(name, value);
+    samples.push(readBar());
+  };
+  const labelHost = document.getElementById("loadbar-label")!;
+  const labelText = Object.getOwnPropertyDescriptor(window.Element.prototype, "textContent")!;
+  Object.defineProperty(labelHost, "textContent", {
+    get: labelText.get,
+    set(text: string) {
+      labelText.set!.call(this, text);
+      samples.push(readBar());
+    },
+  });
   return samples;
 }
 
