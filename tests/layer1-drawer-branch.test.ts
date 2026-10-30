@@ -1,7 +1,8 @@
-// A branch lane node (.bnode) opens the same drawer as a trunk edit node, reading its sides from the branch revision route.
+// A branch lane node (.bnode) opens the trunk edit drawer, reading sides from the branch revision route.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -55,6 +56,14 @@ test("clicking a lane label opens the same drawer, named for the file and the re
   assert.ok(listBranchAsks(asks).every((entry) => entry.get("branch") === "1"));
   assert.equal(getRequiredElementById("dpath").textContent, "util.ts Edit");
   assert.equal(getRequiredElementById("dmeta").textContent, "branch revision · edit");
+});
+
+test("clicking a lane dot lights it and the stylesheet paints the [ ] marker on a lit lane dot", async () => {
+  await openLaneNode((nodes) => nodes.dot);
+  assert.ok(document.querySelector(".bnode")!.classList.contains("found"));
+  const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.bnode\.found::before/);
+  assert.match(css, /\.bnode\.found::after/);
 });
 
 test("a trunk edit node's reads carry no branch flag", async () => {

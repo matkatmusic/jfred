@@ -317,9 +317,9 @@
   */
   .blane { position: absolute; top: 0; bottom: 0; width: 0; left: calc(var(--lane-index) * var(--lane-w) - 1px); }
   .brail { position: absolute; left: -1px; top: calc(var(--axis-px) * 1px); height: calc(var(--span-px) * 1px);
-    border-left: 2px dashed var(--baseline); opacity: .5; }
+    border-left: 2px dashed var(--baseline); opacity: .3; }
   .split-elbow, .merge-elbow { position: absolute; right: -1px; width: calc(var(--lane-index) * var(--lane-w));
-    height: 16px; box-sizing: border-box; border-right: 2px dashed var(--baseline); opacity: .6; pointer-events: none; }
+    height: 16px; box-sizing: border-box; border-right: 2px dashed var(--baseline); opacity: .35; pointer-events: none; }
   .split-elbow { top: calc(var(--axis-px) * 1px); border-top: 2px dashed var(--baseline); border-top-right-radius: 10px; }
   .merge-elbow { top: calc(var(--axis-px) * 1px - 16px); border-bottom: 2px dashed var(--baseline); border-bottom-right-radius: 10px; }
   .bnode { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
@@ -332,6 +332,7 @@
   .n-created { border-style: dotted; border-color: var(--muted); }
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
+  .nlabel .nfile { display: block; }
 
   /*
     Task 259: this rectangle marks nodes at one instant. Its geometry is derived from `.node` above.
@@ -366,14 +367,14 @@
   /*
     Tasks 283/267: a tick click on a node paints `[ ]` brackets in `var(--sel-edge)`. `.aimed` paints the same marks.
   */
-  .node.found::before, .node.found::after,
+  .node.found::before, .node.found::after, .bnode.found::before, .bnode.found::after,
   .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px;
     /*
       Task 327: hug the dot — the right bracket must end before .nlabel's 14px start.
     */
     width: 3px; border: 2px solid var(--sel-edge); }
-  .node.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
-  .node.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
+  .node.found::before, .bnode.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
+  .node.found::after, .bnode.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
   .bucket li.found, .bucket li.aimed { outline: 2px solid var(--sel-edge); outline-offset: 1px;
     border-radius: 3px; }
 
@@ -557,6 +558,7 @@
   .drawer .dhead #dclose { margin-left: auto; }
   .drawer .dpath { flex: 1; min-width: 0; font: 600 12px ui-monospace, Menlo, monospace;
     color: var(--c-snap); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drawer .dpath .run-check { color: var(--c-script); }
   /*
     Tasks 299/305: ONE header control strip — image zoom for an image, diff controls for a pair.
   */
@@ -567,6 +569,10 @@
     Task 324: the pair label between the base and target arrow pairs.
   */
   .dpair { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); padding: 0 4px; }
+  .dfile-head .dtools { align-items: flex-end; }
+  .dside { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .dside-name { font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); }
+  .dside-arrows { display: flex; gap: 4px; }
   .dfull-toggle { font-size: 11px; color: var(--ink2); display: inline-flex; align-items: center; gap: 4px; }
   /*
     Task 299: the image pane; `.fit` is the first-render state — the whole image on screen.

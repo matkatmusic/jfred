@@ -69,8 +69,10 @@ export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
   const badges: (string | HTMLElement)[] = [];
   for (const check of checks) {
     const passed = SCRIPT_RUN_STATUS[check];
-    // dpath collapses normal spaces, so the groups are separated by two non-breaking spaces.
-    badges.push(`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
+    // dpath collapses normal spaces, so each | is padded with two non-breaking spaces.
+    // badges.push(`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
+    //   createElement("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
+    badges.push("  |  ", createElement("span", { class: "run-check", text: `${check[0]!.toUpperCase()}${check.slice(1)}: ` }),
       createElement("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
   }
   return badges;

@@ -172,7 +172,7 @@ fold FileEvent[] → FileRevision[]
     P4 -->|"--json / --step /
 --count-steps / DAGs"| ALT["direct views: renderJson
 (wire doc incl. gitOperations[]) ·
-reconstructStepStates · renderGraphs"]
+buildStepStates · renderGraphs"]
     P4 -->|"content / branch views
 (default)"| P5
     P5 --> P6 --> P7 --> P8 --> P9 --> P9b --> P10 --> P11 --> P12 --> P13 --> P14 --> P15
@@ -402,7 +402,7 @@ default compact list)"]
         renderBranchSum["renderBranchSummary /
 renderOneBranch → findBranchById"]
         steps["reconstruction_steps:
-reconstructStepStates →
+buildStepStates →
 produceRepoStateAtTime →
 RepoSnapshot[] (branch-AGNOSTIC)"]
         graphs["reconstruction_graph(+_render):
@@ -532,7 +532,7 @@ commit hard-stops)
   byte-for-byte reproduce the ground-truth snapshots captured in <code>.step_states/step-NNN/</code>?</i>
   The dashed box is the <b>engine boundary</b> — the only functions the checker imports from <code>src/</code>.
   Note the deliberate seam: the checker injects its own cross-session <code>BackupReader</code> through
-  <code>reconstructStepStates(records, reader?)</code> instead of using the engine's single-session default.</p>
+  <code>buildStepStates(records, reader?)</code> instead of using the engine's single-session default.</p>
   <div class="diagram">
 <pre class="mermaid">
 flowchart TD
@@ -557,7 +557,7 @@ across all sessions in the stream"]
         uuidIdx["buildUuidLineIndex
 uuid → 1-based JSONL line#
 (for blame output)"]
-        folders["stepFolders → sorted
+        folders["listStepFolders → sorted
 step-NNN ground-truth dirs"]
         loop{"per step folder:
 does ANY engine snapshot
@@ -566,10 +566,10 @@ byte-for-byte?"}
         lookahead{"look-ahead: does a
 LATER folder match?"}
         mismatch["buildStepMismatch
-selectBestEngineStep → firstDifferingFile
+selectBestEngineStep → findFirstDifferingFile
 (coverage_compare.ts)
-→ firstLineDifference ('expected… got…')
-+ jsonlLineFor + renderStepProvenance"]
+→ findFirstLineDifference ('expected… got…')
++ getJsonlLineFor + renderStepProvenance"]
         printRes["printResult
 OK/FAIL id passed/total (+N user-edit)
 + per-mismatch blame lines"]
@@ -584,22 +584,22 @@ OK/FAIL id passed/total (+N user-edit)
         loadT["loadTranscript(path)
 → TranscriptRecord[]
 (flat-merged across sessions)"]
-        stepStates["reconstructStepStates(records, reader?)
+        stepStates["buildStepStates(records, reader?)
 → RepoSnapshot[]
 one whole-repo Map&lt;Path,string&gt;
 per disk-mutation instant"]
-        stepChanges["reconstructStepChanges(records, reader?)
+        stepChanges["buildStepChanges(records, reader?)
 → StepChange[] {when, changeIds}
 aligned 1:1 with snapshots"]
-        oracle["someStepReproduces(steps, groundTruth)
+        oracle["isReproducedBySomeStep(steps, groundTruth)
 THE PASS/FAIL ORACLE
 (set-membership, never positional —
 engine step count ≠ folder count is fine)"]
-        snapText["snapshotFileText ·
-stripTrailingNewline
+        snapText["getSnapshotFileText ·
+trimTrailingNewline
 (newline-normalized compare)"]
         prov["reconstruction_provenance:
-enableProvenance → drainProvenance
+enableProvenance → getAndClearProvenance
 → disableProvenance
 (which repair stage touched
 the differing file?)"]

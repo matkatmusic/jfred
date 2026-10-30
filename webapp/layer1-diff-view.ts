@@ -49,7 +49,10 @@ export function buildDiffView(path: string, steps: DiffStep[], config: DiffViewC
     buildArrowButton("↑", "target"), buildArrowButton("↓", "target"),
   ];
   const pairLabel = createElement("span", { class: "dpair" });
-  const revisionArrows = createElement("span", { class: "dtools" }, [arrows[0], arrows[1], pairLabel, arrows[2], arrows[3]]);
+  // const revisionArrows = createElement("span", { class: "dtools" }, [arrows[0], arrows[1], pairLabel, arrows[2], arrows[3]]);
+  const baseSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Base commit" }), createElement("span", { class: "dside-arrows" }, [arrows[0], arrows[1]])]);
+  const targetSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Target commit" }), createElement("span", { class: "dside-arrows" }, [arrows[2], arrows[3]])]);
+  const revisionArrows = createElement("span", { class: "dtools" }, [baseSide, pairLabel, targetSide]);
   const summary = createElement("summary", { class: "dhead dfile-head" }, [namePlate, revisionArrows]);
   const modeButtons = [
     createElement("button", { "data-mode": DiffPaneMode.side, text: "diff side-by-side" }),

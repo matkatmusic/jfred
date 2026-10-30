@@ -79,9 +79,12 @@ export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: Wire
     "data-line": run.line === undefined ? undefined : String(run.line),
   };
   const iconText = formatScriptRunLabel(run.language);
+  // A labelled run puts its file name on its own line, so the label stays inside the bubble.
+  const labelParts = run.label === undefined ? [iconText] : [iconText, " ", createElement("span", { class: "nfile", text: run.label.slice(iconText.length + 1) })];
   lane.append(
     setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
+    // setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-script", ...identity }, labelParts), axisPx),
   );
 }
 

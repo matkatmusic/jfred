@@ -94,6 +94,16 @@ test("test_a_labelled_python_run_shows_its_label_and_a_bash_run_without_a_label_
   assert.equal(bash.title, "bash run");
 });
 
+test("test_a_labelled_script_run_puts_its_file_name_on_its_own_line", async () => {
+  await loadPage();
+  await tickScriptRunBox();
+  const python = readBubble("src/run.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
+  const bash = readBubble("src/plain.ts").querySelector<HTMLElement>(".nlabel.n-script")!;
+  assert.equal(python.querySelector(".nfile")?.textContent, "rewrite.py");
+  assert.equal(python.textContent, "python run rewrite.py");
+  assert.equal(bash.querySelector(".nfile"), null);
+});
+
 test("test_only_a_bash_run_dot_is_never_provable", async () => {
   await loadPage();
   await tickScriptRunBox();
