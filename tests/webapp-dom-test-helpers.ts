@@ -41,10 +41,12 @@ function readIndexHtmlBodyMarkup(): string {
   return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 
-// Safe to call once per test: each call replaces every global, so stale listeners resolve against an abandoned document.
-export function initWebappDom(): void {
-  // Port 7343 matches the real viewer server default so location.origin looks authentic.
-  const browserWindow = new Window({ url: "http://localhost:7343/" });
+// Port 7343 matches the real viewer server default so location.origin looks authentic.
+function createWebappWindow(): Window {
+  return new Window({ url: "http://localhost:7343/" });
+}
+
+function installWindowGlobals(browserWindow: Window): void {
   Object.assign(globalThis, {
     window: browserWindow,
     document: browserWindow.document,
@@ -56,12 +58,24 @@ export function initWebappDom(): void {
     HTMLElement: browserWindow.HTMLElement,
     HTMLInputElement: browserWindow.HTMLInputElement,
     HTMLButtonElement: browserWindow.HTMLButtonElement,
+  });
+}
+
+function installVendorFakeGlobals(): void {
+  Object.assign(globalThis, {
     ResizeObserver: FakeResizeObserver,
     Terminal: FakeXtermTerminal,
     FitAddon: { FitAddon: FakeXtermFitAddon },
     // Task 127: happy-dom has no CSS global; a Map covers the highlight set/delete calls.
     CSS: { highlights: new Map() },
   });
+}
+
+// Safe to call once per test: each call replaces every global, so stale listeners resolve against an abandoned document.
+export function initWebappDom(): void {
+  const browserWindow = createWebappWindow();
+  installWindowGlobals(browserWindow);
+  installVendorFakeGlobals();
   browserWindow.document.body.innerHTML = readIndexHtmlBodyMarkup();
 }
 
