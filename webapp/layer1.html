@@ -166,7 +166,7 @@
     <main class="timelines" id="timelines"><div class="canvas">
       <div class="leaders" id="leaders"></div>
       <!--
-        Task 292: two layers, not one. The wash rides BEHIND the bubbles so a file's whole history still reads through it; the bars ride in FRONT, in the empty lane left of the stage, so a 7 px marker never covers a bubble.
+        Task 292: the wash sits behind the bubbles; the bars sit in the empty lane left of the stage.
       -->
       <div class="washes" id="washes"></div>
       <div class="ranges" id="ranges"></div>
@@ -177,7 +177,7 @@
       <div class="mm-plot" id="mm-plot"><div class="mm-view" id="mm-view"></div></div>
     </div>
     <!--
-      Task 257: the Detail View drawer — the file's bytes at the clicked node's moment. A third flex child of .stagewrap rather than an overlay, so opening it SHRINKS the timeline pane instead of covering the render it is describing; webapp/layer1-drawer.ts re-centres the clicked node against the post-reflow layout, which is why .drawer carries no width transition. #dbody is a div, not a <pre>: layer1-file-view.ts renders numbered lines.
+      Task 257: drawer shows the clicked node's file bytes and shrinks the timeline; no width transition.
     -->
     <aside class="drawer" id="drawer">
       <div class="dhead"><div class="dpath" id="dpath"></div>
@@ -214,7 +214,7 @@
   <div class="dtoast" id="dtoast" hidden></div>
 
   <!--
-    Tasks 295/296: ONE dialog serves both source lists — same widget, same rules, different title and different array. `position: fixed` and centred over everything, so it is in front of the timeline rather than scrolling with it. It edits a COPY: [cancel] drops the draft, [set and close] commits it and rebuilds the view.
+    Tasks 295/296: one fixed, centred dialog serves both source lists; it edits a copy that [set and close] commits.
   -->
   <div class="modal-wrap" id="pathpicker" hidden>
     <div class="modal">
@@ -225,6 +225,8 @@
       <div class="mbuttons">
         <button id="pp-add" title="Add a folder">+</button>
         <button id="pp-remove" title="Remove the selected folder" disabled>−</button>
+        <button id="pp-up" title="Move the selected folder up" disabled>↑</button>
+        <button id="pp-down" title="Move the selected folder down" disabled>↓</button>
         <span class="mspacer"></span>
         <button id="pp-cancel">cancel</button>
         <button id="pp-ok">set and close</button>

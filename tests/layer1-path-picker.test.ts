@@ -80,6 +80,46 @@ test("cancel drops the draft; set-and-close commits it and reports the change on
     assert.equal(page.changes(), 1);
 });
 
+function isDisabled(id: string): boolean {
+    return (getRequiredElementById(id) as HTMLButtonElement).disabled;
+}
+
+async function pickRow(index: number): Promise<void> {
+    getRequiredElementById("pp-list").children[index]!.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+test("up and down are disabled with no row selected, and at the ends of the list", async () => {
+    openPickerPage(PICKED_FOLDER, 148);
+    writeSourcePaths(SourceKind.jsonl, ["/a", "/b", "/c"]);
+    openPicker(SourceKind.jsonl);
+    assert.equal(isDisabled("pp-up"), true);
+    assert.equal(isDisabled("pp-down"), true);
+    await pickRow(0);
+    assert.equal(isDisabled("pp-up"), true);
+    assert.equal(isDisabled("pp-down"), false);
+    await pickRow(2);
+    assert.equal(isDisabled("pp-up"), false);
+    assert.equal(isDisabled("pp-down"), true);
+});
+
+test("up and down move the selected row one place, keep it selected, and set-and-close saves the order", async () => {
+    const page = openPickerPage(PICKED_FOLDER, 148);
+    writeSourcePaths(SourceKind.jsonl, ["/a", "/b", "/c"]);
+    openPicker(SourceKind.jsonl);
+    await pickRow(1);
+    await clickAndSettle("pp-up");
+    assert.deepEqual(listDrawnPaths(), ["/b", "/a", "/c"]);
+    assert.equal(getRequiredElementById("pp-list").children[0]!.classList.contains("picked"), true);
+    await pickRow(1);
+    await clickAndSettle("pp-down");
+    assert.deepEqual(listDrawnPaths(), ["/b", "/c", "/a"]);
+    assert.equal(getRequiredElementById("pp-list").children[2]!.classList.contains("picked"), true);
+    await clickAndSettle("pp-ok");
+    assert.deepEqual([...readSourcePaths(SourceKind.jsonl)], ["/b", "/c", "/a"]);
+    assert.equal(page.changes(), 1);
+});
+
 test("opening the other list hides an alert the first one left up", async () => {
     openPickerPage(PICKED_FOLDER, 0);
     openPicker(SourceKind.jsonl);

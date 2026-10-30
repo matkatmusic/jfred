@@ -1,6 +1,7 @@
 // Tasks 295/296: one source-folder dialog serves both lists; it edits a COPY, so [cancel] drops the draft.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
+import { reportEmptyFolder } from "./layer1-path-picker-alert.ts";
 import { readSourcePaths, writeSourcePaths } from "./layer1-source-paths.ts";
 import { SourceKind } from "./layer1-wire.ts";
 
@@ -8,18 +9,11 @@ const PICKER_TITLE_BY_KIND: Record<SourceKind, string> = {
   [SourceKind.jsonl]: "JSONL Source Paths",
   [SourceKind.fileHistory]: "File History Snapshot Paths",
 };
-// What the folder held none of, named per kind so the message matches the list.
-const EMPTY_ALERT_BY_KIND: Record<SourceKind, string> = {
-  [SourceKind.jsonl]: "no JSONL files found",
-  [SourceKind.fileHistory]: "no snapshots found",
-};
-const ALERT_VISIBLE_MS = 2600;
 
 let draftKind: SourceKind = SourceKind.jsonl;
 let draftPaths: string[] = [];
 // -1 = nothing selected, which is also what disables [−].
 let draftPick = -1;
-let alertTimer = 0;
 
 function createRowPicker(index: number): () => void {
   return () => {
@@ -39,6 +33,8 @@ function renderPicker(): void {
     ...(rows.length > 0 ? rows : [createElement("div", { class: "mempty", text: "no source folders" })]),
   );
   (getRequiredElementById("pp-remove") as HTMLButtonElement).disabled = draftPick < 0;
+  (getRequiredElementById("pp-up") as HTMLButtonElement).disabled = draftPick <= 0;
+  (getRequiredElementById("pp-down") as HTMLButtonElement).disabled = draftPick < 0 || draftPick >= draftPaths.length - 1;
 }
 
 export function openPicker(kind: SourceKind): void {
@@ -50,19 +46,6 @@ export function openPicker(kind: SourceKind): void {
   getRequiredElementById("pp-alert").hidden = true;
   getRequiredElementById("pathpicker").hidden = false;
   renderPicker();
-}
-
-// Shown briefly above the list, then auto-clears — the folder is refused, not the user.
-function hidePickerAlert(): void {
-  getRequiredElementById("pp-alert").hidden = true;
-}
-
-function reportEmptyFolder(kind: SourceKind): void {
-  const alert = getRequiredElementById("pp-alert");
-  alert.textContent = EMPTY_ALERT_BY_KIND[kind];
-  alert.hidden = false;
-  clearTimeout(alertTimer);
-  alertTimer = setTimeout(hidePickerAlert, ALERT_VISIBLE_MS) as unknown as number;
 }
 
 // Count the files this list wants at ANY depth; zero refuses the folder, as does an unreachable server.
@@ -111,6 +94,15 @@ function removePickedFolder(): void {
   renderPicker();
 }
 
+function createPickedFolderMover(offset: number): () => void {
+  return () => {
+    const target = draftPick + offset;
+    [draftPaths[draftPick], draftPaths[target]] = [draftPaths[target]!, draftPaths[draftPick]!];
+    draftPick = target;
+    renderPicker();
+  };
+}
+
 // `onChanged` is passed in, not imported from layer1-page.ts, because an import would make the modules circular.
 function openJsonlPicker(): void {
   openPicker(SourceKind.jsonl);
@@ -144,6 +136,8 @@ export function registerPathPickers(onChanged: () => void): void {
   getRequiredElementById("pick-fh").addEventListener("click", openFileHistoryPicker);
   getRequiredElementById("pp-add").addEventListener("click", triggerAddPickedFolder);
   getRequiredElementById("pp-remove").addEventListener("click", removePickedFolder);
+  getRequiredElementById("pp-up").addEventListener("click", createPickedFolderMover(-1));
+  getRequiredElementById("pp-down").addEventListener("click", createPickedFolderMover(1));
   getRequiredElementById("pp-cancel").addEventListener("click", hidePicker);
   getRequiredElementById("pp-ok").addEventListener("click", createPickerCommitter(onChanged));
 }
