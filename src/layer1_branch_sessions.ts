@@ -27,7 +27,7 @@ export interface SessionRewinds {
   branches: RewoundBranch[];
 }
 
-// ponytail: unbounded, fine for a local viewer
+// ponytail: only rewinding groups keep records; evict by size if logs outgrow the heap
 const rewindsByParentFile = new Map<string, { mtimeKey: string; rewinds: SessionRewinds }>();
 
 // A subagent file with no loaded parent is skipped.
@@ -95,7 +95,8 @@ export function loadSessionRewinds(group: SessionFileGroup): SessionRewinds {
     }
   }
   const records = loadGroupRecords(group);
-  const rewinds = { parentFile: group.parentFile, records, branches: listRewoundBranches(records) };
+  const branches = listRewoundBranches(records);
+  const rewinds = { parentFile: group.parentFile, records: branches.length > 0 ? records : [], branches };
   rewindsByParentFile.set(key, { mtimeKey, rewinds });
   return rewinds;
 }

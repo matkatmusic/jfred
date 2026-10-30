@@ -59,6 +59,14 @@ test("test_zero_uuid_explicit_sentinel_gives_no_rewound_branch", () => {
     assert.deepEqual(loadSessionRewinds(group!).branches, []);
 });
 
+test("test_group_without_rewound_branches_keeps_no_records", () => {
+    const sessionFile = writeSession("norewind.jsonl", []);
+    const [group] = collectSessionFileGroups([sessionFile]);
+    const rewinds = loadSessionRewinds(group!);
+    assert.deepEqual(rewinds.branches, []);
+    assert.equal(rewinds.records.length, 0);
+});
+
 test("test_load_is_cached_until_a_file_mtime_changes", () => {
     const sessionFile = writeSession("cached.jsonl", []);
     const [group] = collectSessionFileGroups([sessionFile]);
