@@ -28,6 +28,8 @@ export enum BlockType {
   tool_use = "tool_use",
   tool_result = "tool_result",
   image = "image",
+  server_tool_use = "server_tool_use",
+  advisor_tool_result = "advisor_tool_result",
 }
 
 export const KNOWN_CONTENT_BLOCK_TYPES: BlockType[] = Object.values(BlockType);

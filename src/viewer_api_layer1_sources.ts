@@ -11,10 +11,13 @@ import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 // The Workflow tool's journal is not a chat transcript.
 const WORKFLOW_JOURNAL_NAME = "journal.jsonl";
 
+// Claude Code's prompt history is not a chat transcript.
+const PROMPT_HISTORY_NAME = "history.jsonl";
+
 // File-history snapshots are named by hash, so every regular file matches; only JSONL narrows by name.
 function isMatchingSourceKind(name: string, kind: SourceKind): boolean {
   if (kind === SourceKind.jsonl) {
-    return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME;
+    return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME && name !== PROMPT_HISTORY_NAME;
   }
   return true;
 }

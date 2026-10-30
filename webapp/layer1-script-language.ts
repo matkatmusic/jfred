@@ -2,8 +2,10 @@
 
 export const WireScriptLanguage = {
   javascript: "javascript",
+  node: "node",
   typescript: "typescript",
   python: "python",
+  python3: "python3",
   shell: "shell",
   ruby: "ruby",
   go: "go",
@@ -14,6 +16,7 @@ export const WireScriptLanguage = {
   elixir: "elixir",
   csharp: "csharp",
   bash: "bash",
+  html: "html",
 } as const;
 export type WireScriptLanguage = (typeof WireScriptLanguage)[keyof typeof WireScriptLanguage];
 
@@ -25,10 +28,13 @@ export function formatScriptRunLabel(language: WireScriptLanguage): string {
 
 const HIGHLIGHT_LANGUAGE_BY_SCRIPT_LANGUAGE: ReadonlyMap<WireScriptLanguage, string> = new Map([
   [WireScriptLanguage.python, "python"],
+  [WireScriptLanguage.python3, "python"],
   [WireScriptLanguage.shell, "bash"],
   [WireScriptLanguage.bash, "bash"],
   [WireScriptLanguage.javascript, "javascript"],
+  [WireScriptLanguage.node, "javascript"],
   [WireScriptLanguage.typescript, "typescript"],
+  [WireScriptLanguage.html, "xml"],
 ]);
 
 // The highlight.js language for a script language; undefined (plain text) for the rest.

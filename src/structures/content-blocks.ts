@@ -35,12 +35,29 @@ export type ImageBlock = {
   source: { type: string; data: string; media_type: string };
 };
 
+// The Advisor tool's call block. It changes no files, so no consumer reads it.
+export type ServerToolUseBlock = {
+  type: BlockType.server_tool_use;
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+};
+
+// The Advisor tool's result block. Payload kept as observed on the wire; no consumer reads it.
+export type AdvisorToolResultBlock = {
+  type: BlockType.advisor_tool_result;
+  tool_use_id: string;
+  content: { type: string; encrypted_content: string };
+};
+
 export type ContentBlock =
     | TextBlock
     | ThinkingBlock
     | ToolUseBlock
     | ToolResultBlock
-    | ImageBlock;
+    | ImageBlock
+    | ServerToolUseBlock
+    | AdvisorToolResultBlock;
 
 // Thrown when a content block has a `type` outside the s1 vocabulary, so unmodeled shapes cannot pass silently.
 export class UnknownContentBlockTypeError extends Error {
