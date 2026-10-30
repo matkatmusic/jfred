@@ -3,7 +3,7 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
 import { buildDiffView, renderDetailView,syncFoldAllLabel } from "./layer1-diff-view.ts";
-import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
+import { clearDiffPair, moveDiffRingsToSteps, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { listDatedSteps, listDiffableSteps } from "./layer1-drawer-steps.ts";
 import { hasInstantInRange, resolveRangeStepIndexes } from "./layer1-range-steps.ts";
 import { storeOpenedNode } from "./layer1-node-link.ts";
@@ -32,6 +32,7 @@ function buildRangeView(view: WireLayer1View, path: string, range: DiffWashRange
   return buildDiffView(path, listDiffableSteps(view, path), {
     revisionControlsShown: true, mode: DiffPaneMode.inline, fullContents: false,
     baseIndex: indexes.baseIndex, targetIndex: indexes.targetIndex,
+    onSidesChanged: (baseIndex, targetIndex) => moveDiffRingsToSteps(view, path, baseIndex, targetIndex),
   });
 }
 

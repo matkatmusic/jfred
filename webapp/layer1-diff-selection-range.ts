@@ -2,7 +2,7 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { renderDetailView } from "./layer1-diff-view.ts";
-import { setDrawerTools } from "./layer1-drawer-diff.ts";
+import { applyDiffRings, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { createDetailViewsForFiles, listWashFiles } from "./layer1-drawer-multi.ts";
 import { paintDiffWash, readDrawnView, readNavTargets } from "./layer1-diff-wash.ts";
 import { readNodeInstant } from "./layer1-node-instant.ts";
@@ -29,11 +29,7 @@ export function applyDiffSelectionRange(anchor: { node: HTMLElement; path: strin
     ? [anchor.node, anchorInstant, nodeInstant]
     : [node, nodeInstant, anchorInstant];
   const targetNode = baseNode === anchor.node ? node : anchor.node;
-  for (const lit of document.querySelectorAll(".found, .diff-base, .diff-target")) {
-    lit.classList.remove("found", "diff-base", "diff-target");
-  }
-  baseNode.classList.add("diff-base");
-  targetNode.classList.add("diff-target");
+  applyDiffRings(baseNode, targetNode);
   paintDiffWash(baseInstant, targetInstant, view.ruler);
   const files = listWashFiles(view, { baseInstant, targetInstant }, [...readNavTargets(), anchor.path, path]);
   const header = getRequiredElementById("dpath");

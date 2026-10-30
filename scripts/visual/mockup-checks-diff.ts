@@ -55,9 +55,12 @@ export async function validatePairArrows(page: HeadlessPage): Promise<void> {
 
   await page.evaluate(`${getPaneArrow(1)}.click()`);
   await page.waitFor(PANE_SETTLED, 10_000);
-  // Task 386: pane arrows step only their section (onSidesChanged unwired); the label is the oracle, not the ring.
+  // Task 386: the label and the lane rings both follow the pane arrows.
   reportCheck("#324 the base arrow moves the BASE and leaves the target alone",
     await page.evaluate<string>(PANE_LABEL) === `${names[1]} - ${names[3]}`);
+  reportCheck("#324 the base arrow moves the base ring onto that node and leaves the target ring",
+    await page.evaluate<string | null>(getRingMarker("diff-base")) === names[1]
+        && await page.evaluate<string | null>(getRingMarker("diff-target")) === names[3]);
   reportCheck("#324 the pane's meta line follows the moved base",
     await page.evaluate<string>(`${PANE}.querySelector('.dmeta').textContent`) === `base ${names[1]} → target ${names[3]}`);
 
@@ -65,6 +68,9 @@ export async function validatePairArrows(page: HeadlessPage): Promise<void> {
   await page.waitFor(PANE_SETTLED, 10_000);
   reportCheck("#324 the target arrow moves the TARGET and leaves the base alone",
     await page.evaluate<string>(PANE_LABEL) === `${names[1]} - ${names[2]}`);
+  reportCheck("#324 the target arrow moves the target ring onto that node and leaves the base ring",
+    await page.evaluate<string | null>(getRingMarker("diff-base")) === names[1]
+        && await page.evaluate<string | null>(getRingMarker("diff-target")) === names[2]);
 
   // Task 329: stepping ONTO the other side is allowed — equal sides read as one revision.
   await page.evaluate(`${getPaneArrow(1)}.click()`);
@@ -79,6 +85,9 @@ export async function validatePairArrows(page: HeadlessPage): Promise<void> {
   reportCheck("#324 an arrow at the lane's end STOPS rather than wrapping round",
     await page.evaluate<string>(PANE_LABEL) === `${names[0]} - ${names[2]}`
         && await page.evaluate<boolean>(`${getPaneArrow(0)}.disabled`));
+  reportCheck("#324 the rings sit on the lane's first node and the target's node after the walk",
+    await page.evaluate<string | null>(getRingMarker("diff-base")) === names[0]
+        && await page.evaluate<string | null>(getRingMarker("diff-target")) === names[2]);
 }
 
 // ---- tasks #319/#320: the pane's tools row -------------------------------------------------------

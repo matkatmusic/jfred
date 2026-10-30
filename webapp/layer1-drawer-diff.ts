@@ -3,7 +3,10 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { type DiffStep } from "./layer1-diff-pane.ts";
 import { clearDiffWash } from "./layer1-diff-wash.ts";
+import { listDatedSteps } from "./layer1-drawer-steps.ts";
+import { readNodeInstant } from "./layer1-node-instant.ts";
 import { createCommitStep, createDiskStep, createEditSide, createSnapshotStep } from "./layer1-revision-sources.ts";
+import type { WireLayer1View } from "./layer1-wire.ts";
 import { WireEditKind } from "./layer1-wire-edits.ts";
 
 // Task 357: a branch lane dot; its sides come from the branch revision route.
@@ -60,6 +63,39 @@ export function createNodeStep(node: HTMLElement, path: string): DiffStep {
 // Task 329 retired the drawer's fixed pair rows; only the image strip remains header chrome.
 export function setDrawerTools(tools: "img" | "none"): void {
   getRequiredElementById("imgtools").hidden = tools !== "img";
+}
+
+const RING_CLASSES = ["found", "diff-base", "diff-target"];
+
+// The one ring painter: the shift-click range and the pane arrows both land here.
+export function applyDiffRings(baseNode: HTMLElement, targetNode: HTMLElement): void {
+  for (const lit of document.querySelectorAll(".found, .diff-base, .diff-target")) {
+    lit.classList.remove(...RING_CLASSES);
+  }
+  baseNode.classList.add("diff-base");
+  targetNode.classList.add("diff-target");
+}
+
+// A step's lane node: the revision-bearing dot of path's bubble that carries the step's instant.
+function findStepNode(view: WireLayer1View, path: string, instant: string): HTMLElement {
+  for (const nameElement of document.querySelectorAll<HTMLElement>(".fname")) {
+    if (nameElement.dataset.path !== path) {
+      continue;
+    }
+    const dots = nameElement.closest(".filebox")!.querySelectorAll<HTMLElement>(".node:is(.n-commit, .n-snap, .n-disk):not(.n-created)");
+    for (const dot of dots) {
+      if (readNodeInstant(view, path, dot) === instant) {
+        return dot;
+      }
+    }
+  }
+  throw new Error(`no lane node for ${path} at ${instant}`);
+}
+
+// Task 386: a pane arrow stepped path's base/target, so the lane rings follow to those steps' nodes.
+export function moveDiffRingsToSteps(view: WireLayer1View, path: string, baseIndex: number, targetIndex: number): void {
+  const steps = listDatedSteps(view, path);
+  applyDiffRings(findStepNode(view, path, steps[baseIndex]!.instant), findStepNode(view, path, steps[targetIndex]!.instant));
 }
 
 export function clearDiffPair(): void {

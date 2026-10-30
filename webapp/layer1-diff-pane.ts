@@ -90,7 +90,6 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     mounts.pairLabel.textContent = pairText.label;
     mounts.meta.textContent = pairText.meta;
     updateControls();
-    options.onSidesChanged?.(baseIndex, targetIndex);
     await loadAndRenderDiff();
   }
 
@@ -120,6 +119,7 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     const side = at < 2 ? "baseIndex" : "targetIndex";
     shown![side] += at % 2 === 0 ? -1 : 1;
     void selectPair(shown!.path, shown!.steps, shown!.baseIndex, shown!.targetIndex);
+    options.onSidesChanged?.(shown!.baseIndex, shown!.targetIndex);
   }
 
   function savePatch(event: Event): void {

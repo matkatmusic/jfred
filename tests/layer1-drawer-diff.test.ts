@@ -56,10 +56,7 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     listPaneArrows()[1]!.click();
     await waitForPendingFetches();
 
-    // Task 329: rings mark the WASH boundary nodes, so an arrow step moves the pane, never the rings.
     assert.equal(getFirstPane().querySelector(".dpair")?.textContent, "b2c3d4e5 - on disk");
-    assert.ok(commitNode.classList.contains("diff-base"));
-    assert.equal(middleNode.classList.contains("diff-base"), false);
     assert.ok(diskNode.classList.contains("diff-target"));
     // Differing sides ARE a diff, so the mode/full/export tools row is visible.
     assert.equal(getFirstPane().querySelector<HTMLElement>("div.dhead")!.style.display, "");
@@ -74,4 +71,31 @@ test("task 324/329: the pane's base arrow steps freely and equal sides read as o
     // Only the ladder's ends disable an arrow now.
     assert.equal(listPaneArrows()[1]!.disabled, true);
     assert.equal(listPaneArrows()[0]!.disabled, false);
+});
+
+test("task 386: the pane's arrows move the lane rings onto the nodes of the stepped revisions", async () => {
+    initLayer1Dom();
+    installAnimationFrameStub();
+    installRecordingFetch((params) => ({ content: params.has("hash") ? COMMIT_CONTENT : DISK_FILE_CONTENT }));
+    getInputById("dir").value = "/project";
+    getInputById("repo").value = "/repo";
+    const { commitNode, middleNode, diskNode } = buildLaneStage(true);
+    applyLaneView(true);
+    installNodeDrawer();
+
+    diskNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await waitForPendingFetches();
+    commitNode.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
+    await waitForPendingFetches();
+    listPaneArrows()[1]!.click();
+    await waitForPendingFetches();
+    assert.ok(middleNode.classList.contains("diff-base"));
+    assert.equal(commitNode.classList.contains("diff-base"), false);
+    assert.ok(diskNode.classList.contains("diff-target"));
+
+    listPaneArrows()[2]!.click();
+    await waitForPendingFetches();
+    assert.ok(middleNode.classList.contains("diff-base"));
+    assert.ok(middleNode.classList.contains("diff-target"));
+    assert.equal(diskNode.classList.contains("diff-target"), false);
 });
