@@ -346,7 +346,13 @@
   .n-created { border-style: dotted; border-color: var(--muted); }
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
-  .nlabel .nfile { display: block; }
+  .nlabel .nfile { display: block; overflow: hidden; text-overflow: ellipsis; }
+  /*
+    Script labels end in an ellipsis at the bubble edge; hover shows the full name.
+  */
+  .nlabel.n-script { max-width: calc(100% - 14px); }
+  .lane .nlabel.n-script:hover { max-width: none; z-index: 7; background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
+  .lane .nlabel.n-script:hover .nfile { overflow: visible; }
 
   /*
     Task 259: this rectangle marks nodes at one instant. Its geometry is derived from `.node` above.

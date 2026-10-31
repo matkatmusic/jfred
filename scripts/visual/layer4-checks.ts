@@ -11,7 +11,7 @@ import {
 
 const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
-const PYTHON_LABEL = "python run rewrite.py";
+const PYTHON_LABEL = "python run orchestrator-dispatch-todo-roundtrip-test.py";
 
 async function waitForFreshPage(page: HeadlessPage, pageUrl: string): Promise<void> {
   await page.navigate(pageUrl);
@@ -78,12 +78,22 @@ async function validateNodeLook(page: HeadlessPage): Promise<void> {
   const solidRings = JSON.stringify(look.pythonRings) === JSON.stringify(["solid", "solid"]);
   reportCheck("L4 the python run has 2 nodes in 2 different bubbles, one of them src/index.ts",
     look.pythonNodeCount === 2 && new Set(look.pythonBubbles).size === 2 && look.pythonBubbles.includes(INDEX_PATH), look.pythonBubbles);
-  reportCheck("L4 each python label reads python run rewrite.py", labelsMatch, look.pythonLabels);
+  reportCheck("L4 each python label reads python run orchestrator-dispatch-todo-roundtrip-test.py", labelsMatch, look.pythonLabels);
   reportCheck("L4 each python ring is solid", solidRings, look.pythonRings);
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
   reportCheck("L4 the bash label reads exactly bash run", look.bashLabel === "bash run", look.bashLabel);
   reportCheck("L4 the bash dot has .never-provable and a dashed ring", look.bashClass && look.bashRing === "dashed", look);
   reportCheck("L4 executor kinds are python, python, bash", [...look.kinds].sort().join(",") === "bash,python,python", look.kinds);
+}
+
+async function validateFileNameStaysInBubble(page: HeadlessPage): Promise<void> {
+  const overflowing = await page.evaluate<string[]>(`[...document.querySelectorAll('.nlabel.n-script .nfile')]
+    .filter(f => f.getBoundingClientRect().right > f.closest('.filebox').getBoundingClientRect().right)
+    .map(f => f.textContent)`);
+  const cutCount = await page.evaluate<number>(
+    `[...document.querySelectorAll('.nlabel.n-script .nfile')].filter(f => f.scrollWidth > f.clientWidth).length`);
+  reportCheck("L4 every script file name ends inside its bubble", overflowing.length === 0, overflowing);
+  reportCheck("L4 at least one script file name is cut with an ellipsis", cutCount > 0, cutCount);
 }
 
 async function validateConnector(page: HeadlessPage): Promise<void> {
@@ -130,6 +140,7 @@ export async function validateLayer4(page: HeadlessPage, pageUrl: string): Promi
   await validateTickFetch(page);
   await validateInstantToggle(page);
   await validateNodeLook(page);
+  await validateFileNameStaysInBubble(page);
   await saveScreenshot(page, "07-layer4-nodes");
   await validateConnector(page);
   const pythonPre = await validatePythonDrawer(page);

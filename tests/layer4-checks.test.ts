@@ -12,7 +12,7 @@ import { validateLayer4 } from "../scripts/visual/layer4-checks.ts";
 const SCREENSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out");
 const SCREENSHOT_FILES = ["mockup-07-layer4-nodes.png", "mockup-08-layer4-drawer.png"].map((name) => join(SCREENSHOT_DIR, name));
 
-const drawerState = { path: "rewrite.py", preText: "import pathlib", hasHead: true, panes: 2 };
+const drawerState = { path: "orchestrator-dispatch-todo-roundtrip-test.py", preText: "import pathlib", hasHead: true, panes: 2 };
 const layoutState = {
     badgeTitles: [], titleText: "", metaText: "", panePaths: [], metaTerms: [], metaRows: [], prov: "", hljsSpans: 0,
 };

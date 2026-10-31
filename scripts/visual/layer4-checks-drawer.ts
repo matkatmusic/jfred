@@ -63,8 +63,9 @@ export async function validateScriptRunDrawerLayout(page: HeadlessPage): Promise
   reportCheck("L4 python dot: the provenance head names the line and the tool use id",
     drawer.prov.includes(`line ${PYTHON_RUN_LINE}`) && drawer.prov.includes(PYTHON_RUN_ID), drawer.prov);
   reportCheck("L4 python dot: the python script body holds hljs token spans", drawer.hljsSpans > 0, drawer.hljsSpans);
-  reportCheck("L4 python dot: the node label and the drawer title read python run rewrite.py",
-    drawer.nodeLabel === "python run rewrite.py" && drawer.titleLabel === "python run rewrite.py", drawer);
+  reportCheck("L4 python dot: the node label and the drawer title read python run orchestrator-dispatch-todo-roundtrip-test.py",
+    drawer.nodeLabel === "python run orchestrator-dispatch-todo-roundtrip-test.py"
+      && drawer.titleLabel === "python run orchestrator-dispatch-todo-roundtrip-test.py", drawer);
 }
 
 // Clears the drawer, runs the click, waits for the script body and at least one diff pane.
@@ -92,7 +93,7 @@ const readDrawer = (page: HeadlessPage) => page.evaluate<{
 export async function validatePythonDrawer(page: HeadlessPage): Promise<string> {
   await openScriptDrawer(page, `${pythonDots}[0].click()`);
   const drawer = await readDrawer(page);
-  reportCheck("L4 python dot: the drawer path names rewrite.py", drawer.path.includes("rewrite.py"), drawer.path);
+  reportCheck("L4 python dot: the drawer path names orchestrator-dispatch-todo-roundtrip-test.py", drawer.path.includes("orchestrator-dispatch-todo-roundtrip-test.py"), drawer.path);
   await validateScriptRunDrawerLayout(page);
   reportCheck("L4 python dot: the script body has a head and shows import pathlib",
     drawer.hasHead && drawer.preText.includes("import pathlib"), drawer);

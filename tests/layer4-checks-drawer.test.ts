@@ -40,7 +40,7 @@ const layoutState = {
     metaRows: ["line=83", "tool use id=toolu_fixture_py_rewrite"],
     prov: "line 83 toolu_fixture_py_rewrite",
     hljsSpans: 4,
-    titleLabel: "python run rewrite.py", nodeLabel: "python run rewrite.py",
+    titleLabel: "python run orchestrator-dispatch-todo-roundtrip-test.py", nodeLabel: "python run orchestrator-dispatch-todo-roundtrip-test.py",
 };
 
 test("validateScriptRunDrawerLayout passes for a well-formed python drawer", async () => {
@@ -60,6 +60,6 @@ test("validateBashDrawer passes for a bash drawer with one diff pane", async () 
 
 test("validateConnectorDrawer fails when the path differs from the python dot", async () => {
     const page = fakePage(() => ({ path: "bash run", preText: "echo hi", panes: 1 }));
-    const added = await runCollectingFailures(() => validateConnectorDrawer(page, "python run rewrite.py", "echo hi"));
+    const added = await runCollectingFailures(() => validateConnectorDrawer(page, "python run orchestrator-dispatch-todo-roundtrip-test.py", "echo hi"));
     assert.equal(added.length, 1);
 });
