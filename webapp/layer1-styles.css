@@ -5,8 +5,8 @@
     color-scheme: light;
     --page: #f9f9f7; --surface: #fcfcfb;
     --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
-    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,.10);
-    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --branch-line: #c3c2b7; --border: rgba(11,11,11,.10);
+    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834; --c-branch-node: #eb6834;
     --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
     --c-edit: #4d8c1f; --c-read: #1b8f8f;
     --seg-a: rgba(27,175,122,.12);
@@ -17,8 +17,8 @@
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19;
       --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
-      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
-      --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+      --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
+      --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
       --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
       --c-edit: #62a331; --c-read: #2fa5a5;
       --seg-a: rgba(25,158,112,.15);
@@ -29,8 +29,8 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19;
     --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,.10);
-    --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926;
+    --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
+    --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
     --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
     --c-edit: #62a331; --c-read: #2fa5a5;
     --seg-a: rgba(25,158,112,.15);
@@ -312,7 +312,10 @@
     z-index: 1; background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
 
   .lane { position: relative; margin-left: 6px; min-height: calc(var(--span-px) * 1px + 18px); }
-  .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--baseline); }
+  .lane .lrail { position: absolute; left: 0; top: 0; bottom: 0; border-left: 1.5px solid var(--branch-line); }
+  /*
+    .lane .lrail border-left was 1.5px solid var(--baseline)
+  */
   .node { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
     z-index: 6; width: 15px; height: 15px; border-radius: 50%;
     box-shadow: 0 0 0 2.5px var(--surface); }
@@ -321,13 +324,20 @@
   */
   .blane { position: absolute; top: 0; bottom: 0; width: 0; left: calc(var(--lane-index) * var(--lane-w) - 1px); }
   .brail { position: absolute; left: -1px; top: calc(var(--axis-px) * 1px); height: calc(var(--span-px) * 1px);
-    border-left: 2px dashed var(--baseline); opacity: .3; }
+    /*
+      Bug 477: --branch-line is brighter than --baseline in dark mode, so the dashes show.
+    */
+    /* border-left: 2px dashed var(--muted); opacity: .2; } */
+    border-left: 2px dashed var(--branch-line); opacity: .5; }
   .split-elbow, .merge-elbow { position: absolute; right: -1px; width: calc(var(--lane-index) * var(--lane-w));
-    height: 16px; box-sizing: border-box; border-right: 2px dashed var(--baseline); opacity: .35; pointer-events: none; }
-  .split-elbow { top: calc(var(--axis-px) * 1px); border-top: 2px dashed var(--baseline); border-top-right-radius: 10px; }
-  .merge-elbow { top: calc(var(--axis-px) * 1px - 16px); border-bottom: 2px dashed var(--baseline); border-bottom-right-radius: 10px; }
+    height: 16px; box-sizing: border-box; border-right: 2px dashed var(--branch-line); opacity: .6; pointer-events: none; }
+  .split-elbow { top: calc(var(--axis-px) * 1px); border-top: 2px dashed var(--branch-line); border-top-right-radius: 10px; }
+  .merge-elbow { top: calc(var(--axis-px) * 1px - 16px); border-bottom: 2px dashed var(--branch-line); border-bottom-right-radius: 10px; }
   .bnode { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); transform: translate(-50%, -50%);
-    z-index: 6; width: 15px; height: 15px; border-radius: 50%; background: var(--c-user); opacity: .38;
+    z-index: 6; width: 15px; height: 15px; border-radius: 50%; background: var(--c-branch-node); opacity: .38;
+    /*
+      Dark mode: --c-branch-node is brighter than --c-user. Was: background: var(--c-user).
+    */
     box-shadow: 0 0 0 2.5px var(--surface); }
   .blabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; opacity: .38; }
@@ -372,13 +382,18 @@
     Tasks 283/267: a tick click on a node paints `[ ]` brackets in `var(--sel-edge)`. `.aimed` paints the same marks.
   */
   .node.found::before, .node.found::after, .bnode.found::before, .bnode.found::after,
-  .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px;
+  /*
+    Bug 495: brackets are only as tall as their dot, so they miss neighbour nodes.
+  */
+  /* .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px; */
+  .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: 0; bottom: 0;
     /*
       Task 327: hug the dot — the right bracket must end before .nlabel's 14px start.
     */
     width: 3px; border: 2px solid var(--sel-edge); }
   .node.found::before, .bnode.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
   .node.found::after, .bnode.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
+  /* .bnode.found::before, .bnode.found::after { top: 0; bottom: 0; } */
   .bucket li.found, .bucket li.aimed { outline: 2px solid var(--sel-edge); outline-offset: 1px;
     border-radius: 3px; }
 
