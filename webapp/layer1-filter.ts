@@ -86,7 +86,7 @@ function listViewLadders(view: WireLayer1View): NodeLadder[] {
 }
 
 // Task 300: a draft pass learns which row absorbs the expanded instant, the real pass adds its height.
-function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansion): WireLayer1View {
+export function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansion): WireLayer1View {
   const ladders = listViewLadders(view);
   const diskOrphanLadderBase = view.pairs.length + view.gitOrphans.length;
   const extraGapPx = measureExpansionGapPx(computeNodeLadderLayout(ladders), expansion);
@@ -110,7 +110,7 @@ function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansio
   return { pairs, gitOrphans, diskOrphans, ruler: listRulerWire(layout) };
 }
 
-export { computeRelaidLayer1View as relayOutLayer1View };
+// export { computeRelaidLayer1View as relayOutLayer1View };
 
 function filterByPath<Item extends { path: string }>(items: Item[], selected: Set<string>): Item[] {
   const kept: Item[] = [];

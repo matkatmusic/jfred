@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterLayer1ViewByTargets, relayOutLayer1View } from "../webapp/layer1-filter.ts";
+import { filterLayer1ViewByTargets, computeRelaidLayer1View } from "../webapp/layer1-filter.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { EARLY, FULL_VIEW, KEEP_TARGETS, T0, T1, T2, T3, T4, T5, T6, T7, findPair } from "./layer1-filter-test-helpers.ts";
@@ -16,7 +16,7 @@ test("test_the_relayout_places_edits_after_snapshots_at_their_own_ruler_offsets"
             snapshots: [snapshot], edits: [edit as never] }],
         gitOrphans: [], diskOrphans: [], ruler: [],
     };
-    const pair = findPair(relayOutLayer1View(view), "src/keep/a.ts");
+    const pair = findPair(computeRelaidLayer1View(view), "src/keep/a.ts");
     assert.deepEqual(pair.snapshots!.map((node) => node.axisPx), [44]);
     assert.deepEqual(pair.edits!.map((node) => node.axisPx), [66]);
     assert.equal(pair.edits![0]!.changeId, "toolu_1");
@@ -33,7 +33,7 @@ test("test_the_relayout_places_edits_after_snapshots_at_their_own_ruler_offsets"
 //             ] }],
 //         gitOrphans: [], diskOrphans: [], ruler: [],
 //     };
-//     const relaid = relayOutLayer1View(view);
+//     const relaid = computeRelaidLayer1View(view);
 //     const pair = findPair(relaid, "src/keep/a.ts");
 //     assert.deepEqual(pair.commits.map((node) => node.axisPx), [0, 22]);
 //     assert.equal(pair.onDisk.axisPx, 44);
@@ -54,7 +54,7 @@ test("test_the_relayout_gives_a_fork_its_own_slot_and_a_rejoin_its_trunk_nodes_o
             ] }],
         gitOrphans: [], diskOrphans: [], ruler: [],
     };
-    const relaid = relayOutLayer1View(view);
+    const relaid = computeRelaidLayer1View(view);
     const pair = findPair(relaid, "src/keep/a.ts");
     assert.deepEqual(pair.commits.map((node) => node.axisPx), [22, 44]);
     assert.equal(pair.onDisk.axisPx, 66);
@@ -80,26 +80,26 @@ test("test_the_relayout_places_script_runs_after_snapshots_and_edits_at_their_ow
             snapshots: [snapshot], edits: [edit as never], scriptRuns: [scriptRun as never] }],
         gitOrphans: [], diskOrphans: [], ruler: [],
     };
-    const pair = findPair(relayOutLayer1View(view), "src/keep/a.ts");
+    const pair = findPair(computeRelaidLayer1View(view), "src/keep/a.ts");
     assert.deepEqual(pair.edits!.map((node) => node.axisPx), [66]);
     assert.deepEqual(pair.scriptRuns!.map((node) => node.axisPx), [88]);
     assert.equal(pair.scriptRuns![0]!.toolUseId, "toolu_2");
 });
 
 test("test_a_pair_without_script_runs_gets_no_script_runs_key_from_the_relayout", () => {
-    const pair = findPair(relayOutLayer1View(FULL_VIEW), "src/keep/a.ts");
+    const pair = findPair(computeRelaidLayer1View(FULL_VIEW), "src/keep/a.ts");
     assert.ok(!("scriptRuns" in pair));
 });
 
 test("test_a_pair_without_edits_gets_no_edits_key_from_the_relayout", () => {
-    const pair = findPair(relayOutLayer1View(FULL_VIEW), "src/keep/a.ts");
+    const pair = findPair(computeRelaidLayer1View(FULL_VIEW), "src/keep/a.ts");
     assert.ok(!("edits" in pair));
 });
 
 test("test_the_relayout_does_not_mutate_the_view_it_is_given", () => {
     // Task 253: the page re-filters from a cached payload, so a mutating re-layout corrupts the second click.
     const originalAxisPx = FULL_VIEW.pairs[0]!.commits[0]!.axisPx;
-    relayOutLayer1View(filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS));
+    computeRelaidLayer1View(filterLayer1ViewByTargets(FULL_VIEW, KEEP_TARGETS));
     // the source view still holds it.
     assert.equal(FULL_VIEW.pairs[0]!.commits[0]!.axisPx, originalAxisPx);
 });

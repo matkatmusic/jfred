@@ -49,7 +49,7 @@ export type FileDagEntry = { target: Path; turns: GraphTurn[] };
 export type FileDag = { files: FileDagEntry[] };
 
 // The single source of letters for both graphs; `accepted` drops disk-echo edits.
-function getTurnLetters(records: TranscriptRecord[], accepted?: Set<string>): Map<string, string> {
+export function getTurnLetters(records: TranscriptRecord[], accepted?: Set<string>): Map<string, string> {
   const letters = new Map<string, string>();
   let index = 0;
   for (const event of extractRenderableEvents(records, accepted)) {
@@ -59,7 +59,7 @@ function getTurnLetters(records: TranscriptRecord[], accepted?: Set<string>): Ma
   return letters;
 }
 
-export { getTurnLetters as assignTurnLetters };
+// export { getTurnLetters as assignTurnLetters };
 
 // True cross-branch disk lineage (decision 9); events are already timestamp-sorted.
 export function buildFileDag(records: TranscriptRecord[], reader?: BackupReader): FileDag {

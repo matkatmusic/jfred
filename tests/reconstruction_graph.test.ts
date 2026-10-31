@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    assignTurnLetters,
+    getTurnLetters,
     buildConversationDag,
     buildFileDag,
 } from "../src/reconstruction_graph.ts";
@@ -17,7 +17,7 @@ function buildWriteBlock(toolId: string, filePath: string, content: string): Rec
     return { type: BlockType.tool_use, id: toolId, name: ToolName.Write, input: { file_path: filePath, content } };
 }
 
-// A synthetic assistant record carrying one Write tool_use (the file-changing turn the graph models).  `toolId` becomes the turn's changeId; uuid/parent place it in the conversation tree.
+// A synthetic assistant record with one Write tool_use; toolId becomes the changeId.
 function buildWriteRecord(
     toolId: string,
     uuid: string,
@@ -60,7 +60,7 @@ function buildLinearRecords(): TranscriptRecord[] {
     ];
 }
 
-// A rewind fork (mirrors S12 shape with writes on both branches): a rewound branch that writes two files at 16:09, then a conversation-only rewind to root and a surviving branch that writes two files at 16:10. No snapshots → the surviving head is the final last-prompt (Et).
+// A rewind fork like S12: a rewound branch and a surviving branch each write two files.
 function buildForkedRecords(): TranscriptRecord[] {
     return [
         buildUserRecord("R", null, "2026-01-01T16:00:00Z"),
@@ -74,7 +74,7 @@ function buildForkedRecords(): TranscriptRecord[] {
     ];
 }
 
-// assignTurnLetters letters every file-changing turn by timestamp order, starting at "B" ("A" is reserved for the conversation root), regardless of the records' supplied order.
+// getTurnLetters letters file turns from "B" by timestamp order; "A" is the root.
 test("test_assign_turn_letters_numbers_file_turns_from_B_in_timestamp_order", () => {
     // Three writes supplied OUT of timestamp order.
     const records = [
@@ -82,21 +82,21 @@ test("test_assign_turn_letters_numbers_file_turns_from_B_in_timestamp_order", ()
         buildWriteRecord("u1", "Wa", "R", "/work/a.py", "a\n", "2026-01-01T16:01:00Z"),
         buildWriteRecord("u2", "Wb", "Wa", "/work/b.py", "b\n", "2026-01-01T16:02:00Z"),
     ];
-    const letters = assignTurnLetters(records);
+    const letters = getTurnLetters(records);
     // Lettered by timestamp, not supplied order: 16:01 -> B, 16:02 -> C, 16:03 -> D.
     assert.equal(letters.get("u1"), "B");
     assert.equal(letters.get("u2"), "C");
     assert.equal(letters.get("u3"), "D");
 });
 
-// buildFileDag groups every turn under the file it touched, ordered files by first touch and turns by version; the letters are the SAME as assignTurnLetters (one letter per turn, shared by both graphs).
+// buildFileDag groups turns by file, in first-touch order, with the same letters as getTurnLetters.
 test("test_build_file_dag_groups_by_target_with_shared_letters", () => {
     const records = [
         buildWriteRecord("u1", "Wa", "R", "/work/a.py", "a\n", "2026-01-01T16:01:00Z"),
         buildWriteRecord("u2", "Wb", "Wa", "/work/b.py", "b\n", "2026-01-01T16:02:00Z"),
         buildWriteRecord("u3", "Wc", "Wb", "/work/a.py", "aa\n", "2026-01-01T16:03:00Z"),
     ];
-    const letters = assignTurnLetters(records);
+    const letters = getTurnLetters(records);
     const dag = buildFileDag(records);
     // Two files, ordered by first touch (a.py @16:01 before b.py @16:02).
     assert.equal(dag.files.length, 2);
@@ -105,7 +105,7 @@ test("test_build_file_dag_groups_by_target_with_shared_letters", () => {
     // a.py has two turns in version order (B then D); b.py has one (C).
     assert.deepEqual(dag.files[0]!.turns.map((turn) => turn.letter), ["B", "D"]);
     assert.deepEqual(dag.files[1]!.turns.map((turn) => turn.letter), ["C"]);
-    // The fileDAG letters cross-link to assignTurnLetters (shared-letter invariant).
+    // The fileDAG letters cross-link to getTurnLetters (shared-letter invariant).
     assert.equal(dag.files[0]!.turns[0]!.letter, letters.get("u1"));
     assert.equal(dag.files[0]!.turns[1]!.letter, letters.get("u3"));
 });
@@ -119,7 +119,7 @@ test("test_build_conversation_dag_is_linear_when_no_fork", () => {
     assert.deepEqual(dag.trunk.map((turn) => turn.letter), ["B", "C"]);
 });
 
-// With a rewind that changed files on both sides, buildConversationDag FORKS into two branch wrappers ordered oldest-first (the rewound branch's turns are older), each carrying only its post-fork turns.
+// A rewind that changed files on both sides forks into two branches, oldest first, with post-fork turns only.
 test("test_build_conversation_dag_forks_into_rewound_and_surviving", () => {
     const dag = buildConversationDag(buildForkedRecords());
     // The root is the conversation root R.
@@ -135,7 +135,7 @@ test("test_build_conversation_dag_forks_into_rewound_and_surviving", () => {
     assert.deepEqual(dag.branches[1]!.turns.map((turn) => turn.letter), ["D", "E"]);
 });
 
-// S13's surviving branch only Read (zero post-fork file turns) while the abandoned branch edited a file. The fork must still render: the file-less surviving branch is KEPT as a branch (so the DAG shows two branches and roots at the rewind point 8faab841), not collapsed into a misleading trunk.
+// S13: the surviving branch has no file turns, but the fork must still render as two branches.
 test("test_a_file_less_surviving_branch_is_kept_when_a_rewound_branch_exists", () => {
     // Build the conversationDAG for the real S13 transcript.
     const dag = buildConversationDag(loadRecords(S13_JSONL));
@@ -150,7 +150,7 @@ test("test_a_file_less_surviving_branch_is_kept_when_a_rewound_branch_exists", (
     assert.equal(surviving.turns.length, 0);
 });
 
-// The file-less surviving branch sorts BELOW the rewound branch that has a real turn — matching S11's oldest-first / rewound-above-surviving ordering (an empty branch has no time, so it renders last).
+// The file-less surviving branch sorts below the rewound branch, because an empty branch has no time.
 test("test_an_empty_surviving_branch_sorts_below_a_rewound_branch_with_turns", () => {
     // Build the conversationDAG for the real S13 transcript.
     const dag = buildConversationDag(loadRecords(S13_JSONL));

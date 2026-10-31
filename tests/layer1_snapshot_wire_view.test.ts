@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
 import { buildLayer1View } from "../src/viewer_api_layer1.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
-import { relayOutLayer1View } from "../webapp/layer1-filter.ts";
+import { computeRelaidLayer1View } from "../webapp/layer1-filter.ts";
 import {
     SHARED_FILE_MTIME,
     createFixtureDiskFolder,
@@ -65,11 +65,11 @@ test("test_buildLayer1View_omits_snapshots_entirely_when_no_session_is_supplied"
     assert.ok(withSessions.ruler.length > without.ruler.length);
 });
 
-test("test_relayOutLayer1View_reproduces_the_servers_offsets_for_a_snapshot_bearing_view", () => {
+test("test_computeRelaidLayer1View_reproduces_the_servers_offsets_for_a_snapshot_bearing_view", () => {
     const diskDir = createFixtureDiskFolder();
     const served = JSON.parse(JSON.stringify(buildLayer1View(
         new Path(diskDir), new Path(createFixtureRepo()), "HEAD", undefined, undefined, writeFixtureSessions(diskDir),
     )));
     // The client mirrors the server's ladder; if it added snapshots differently the offsets would disagree.
-    assert.deepEqual(relayOutLayer1View(served), served);
+    assert.deepEqual(computeRelaidLayer1View(served), served);
 });
