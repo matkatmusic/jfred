@@ -2,6 +2,7 @@
 
 import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { FileStampCache, saveFileStampCachesIfChanged } from "./file_stamp_cache.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";
 import { ScriptExecutorKind, findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -58,6 +59,40 @@ function compareRunInstants(left: WireScriptRunWithoutAxis, right: WireScriptRun
   return left.instant.getTime() - right.instant.getTime();
 }
 
+function deriveWriteCapableRuns(sessionFile: Path): WireScriptRunWithoutAxis[] {
+  const { records } = loadTranscript(sessionFile.toString(), undefined, true);
+  const sessionId = findSessionId(records);
+  if (sessionId === undefined) {
+    throw new Error(`no session id in ${sessionFile.toString()}`);
+  }
+  const wireRuns: WireScriptRunWithoutAxis[] = [];
+  for (const run of findScriptExecutionRuns(records)) {
+    const isWriteCapable = isScriptCodeWriteCapable(run.code);
+    if (isWriteCapable) {
+      wireRuns.push(buildWireScriptRun(run, sessionId, sessionFile));
+    }
+  }
+  return wireRuns;
+}
+
+type SavedWireRun = { instant: string; toolUseId: string; sessionId: string; sessionFile: string } & Pick<WireScriptRunWithoutAxis, "executorKind" | "language" | "code">;
+
+// JSON drops Date/Path/Uuid types: decode rebuilds them. Optional `line`/`label` stay absent when absent.
+function decodeWireRuns(json: unknown): WireScriptRunWithoutAxis[] {
+  return (json as SavedWireRun[]).map((saved) => ({
+    ...saved,
+    instant: new Date(saved.instant),
+    toolUseId: new Uuid(saved.toolUseId),
+    sessionId: new Uuid(saved.sessionId),
+    sessionFile: new Path(saved.sessionFile),
+  }));
+}
+
+const writeCapableRunsBySessionFile = new FileStampCache<WireScriptRunWithoutAxis[]>("writeCapableScriptRuns", {
+  encode: (wireRuns) => wireRuns,
+  decode: decodeWireRuns,
+});
+
 // Sessions run in lexical order; the first run per pair and tool_use id stands.
 export function buildScriptRunsView(
   projectFolder: Path,
@@ -77,18 +112,9 @@ export function buildScriptRunsView(
       current: index + 1,
       total: orderedSessionFiles.length,
     });
-    const { records } = loadTranscript(sessionFile.toString(), undefined, true);
-    const sessionId = findSessionId(records);
-    if (sessionId === undefined) {
-      throw new Error(`no session id in ${sessionFile.toString()}`);
-    }
-    for (const run of findScriptExecutionRuns(records)) {
-      const isWriteCapable = isScriptCodeWriteCapable(run.code);
-      if (!isWriteCapable) {
-        continue;
-      }
-      const wireRun = buildWireScriptRun(run, sessionId, sessionFile);
-      for (const path of findAffectedPathsForRun(run, candidatePaths)) {
+    for (const wireRun of writeCapableRunsBySessionFile.readThrough(sessionFile, () => deriveWriteCapableRuns(sessionFile))) {
+      // findAffectedPathsForRun reads only the code.
+      for (const path of findAffectedPathsForRun({ code: wireRun.code, timestamp: wireRun.instant }, candidatePaths)) {
         const runsByToolUseId = runsByPath.get(path.toString()) ?? new Map<string, WireScriptRunWithoutAxis>();
         runsByPath.set(path.toString(), runsByToolUseId);
         const toolUseKey = wireRun.toolUseId.toString();
@@ -104,5 +130,6 @@ export function buildScriptRunsView(
     const scriptRuns = [...runsByToolUseId.values()].sort(compareRunInstants);
     pairs.push({ path: new Path(path), scriptRuns });
   }
+  saveFileStampCachesIfChanged();
   return { pairs };
 }

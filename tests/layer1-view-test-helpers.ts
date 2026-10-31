@@ -84,6 +84,7 @@ function spawnViewerProcess(diskDir: string, port: number): ChildProcess {
     "--projects-dir", diskDir,
     "--port", String(port),
     "--settings-file", settingsFile,
+    "--cache-file", join(mkdtempSync(join(tmpdir(), "layer1-view-cache-")), "cache.json"),
   ], { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "inherit"] });
 }
 

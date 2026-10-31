@@ -49,7 +49,7 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   writeFileSync(settingsFile, "{}");
   const server = spawn("node_modules/.bin/tsx", [
     "src/viewer_server.ts", "--projects-dir", join(dataDir, "projects"),
-    "--file-history-dir", join(dataDir, "file-history"), "--port", String(port), "--settings-file", settingsFile,
+    "--file-history-dir", join(dataDir, "file-history"), "--port", String(port), "--settings-file", settingsFile, "--cache-file", join(mkdtempSync(join(tmpdir(), "jfred-cache-")), "cache.json"),
   ], { cwd: JFRED_ROOT, stdio: "ignore" });
   await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
   return server;

@@ -1,6 +1,7 @@
 // Task 310 (spec S19): per-session file-history snapshot placements; no blob bytes are read here.
 
 import { Path, Uuid } from "./structures/domain.ts";
+import { FileStampCache } from "./file_stamp_cache.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
 import { buildBackupTimeline, findCwd, type BackupPoint } from "./reconstruction_backup_timeline.ts";
 import { existsSync } from "node:fs";
@@ -64,8 +65,36 @@ function buildPlacementsFromBackupPoints(
   return placements;
 }
 
+type SavedPlacement = { path: string; instant: string; sessionId: string; sessionFile: string; backupFileName: string } & Pick<SnapshotPlacement, "version" | "line" | "isBackupMissing">;
+
+// JSON drops Date/Path/Uuid types: decode rebuilds them. `line` stays an own key, as a fresh placement has it.
+function decodePlacementsByPath(json: unknown): Map<string, SnapshotPlacement[]> {
+  const placementsByPath = new Map<string, SnapshotPlacement[]>();
+  for (const [fileKey, savedPlacements] of json as [string, SavedPlacement[]][]) {
+    placementsByPath.set(fileKey, savedPlacements.map((saved) => ({
+      ...saved,
+      path: new Path(saved.path),
+      instant: new Date(saved.instant),
+      sessionId: new Uuid(saved.sessionId),
+      sessionFile: new Path(saved.sessionFile),
+      line: saved.line,
+      backupFileName: new Path(saved.backupFileName),
+    })));
+  }
+  return placementsByPath;
+}
+
+const placementsBySessionFile = new FileStampCache<Map<string, SnapshotPlacement[]>>("snapshotPlacements", {
+  encode: (placementsByPath) => [...placementsByPath],
+  decode: decodePlacementsByPath,
+});
+
 // Tolerant parsing matches the viewer's loader: a real session with unmodeled fields must still open.
 function buildPlacementsForSession(sessionFile: Path): Map<string, SnapshotPlacement[]> {
+  return placementsBySessionFile.readThrough(sessionFile, () => derivePlacementsForSession(sessionFile));
+}
+
+function derivePlacementsForSession(sessionFile: Path): Map<string, SnapshotPlacement[]> {
   const records = loadTranscript(sessionFile.toString(), undefined, true).records;
   const timeline = buildBackupTimeline(records, findCwd(records));
   const fallbackSessionId = findSessionId(records);

@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { WireEditOf, WireEditsViewOf } from "../webapp/layer1-wire-edits.ts";
+import { saveFileStampCachesIfChanged } from "./file_stamp_cache.ts";
 import { compareEditEvents, readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { computePathReplay, type ReplayedEditNode } from "./layer1_edit_replay.ts";
 import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
@@ -47,6 +48,7 @@ export function collectViewEditEventsByRelativePath(
   for (const events of byRelativePath.values()) {
     events.sort(compareEditEvents);
   }
+  saveFileStampCachesIfChanged();
   return byRelativePath;
 }
 

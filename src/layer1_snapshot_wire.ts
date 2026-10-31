@@ -1,5 +1,6 @@
 // Task 312 (spec S19): snapshot placements as Layer 1 wire nodes, keyed the way the view keys files.
 
+import { saveFileStampCachesIfChanged } from "./file_stamp_cache.ts";
 import { collectSnapshotPlacements, type SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
@@ -49,6 +50,7 @@ export function collectViewSnapshotsByRelativePath(
   for (const placements of byRelativePath.values()) {
     placements.sort(comparePlacementInstants);
   }
+  saveFileStampCachesIfChanged();
   return byRelativePath;
 }
 

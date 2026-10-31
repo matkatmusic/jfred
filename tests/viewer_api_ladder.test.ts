@@ -3,6 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
     SESSION_A,
@@ -39,6 +41,7 @@ function spawnViewerProcess(projectsDir: string): ChildProcess {
         "--import", "tsx", "src/viewer_server.ts",
         "--projects-dir", projectsDir,
         "--port", String(SCRATCH_PORT),
+        "--cache-file", join(mkdtempSync(join(tmpdir(), "ladder-cache-")), "cache.json"),
     ], { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "inherit"] });
 }
 

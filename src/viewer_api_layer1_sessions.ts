@@ -3,6 +3,7 @@
 import { type ServerResponse } from "node:http";
 import { basename } from "node:path";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
+import { FileStampCache, saveFileStampCachesIfChanged } from "./file_stamp_cache.ts";
 import { collectTitleRanges } from "./layer1_sessions.ts";
 import { readFirstUserPrompt } from "./reconstruction_prompts.ts";
 import { Path } from "./structures/domain.ts";
@@ -40,8 +41,17 @@ function measureSessionWindow(records: TranscriptRecord[]): { started: Date; end
   return { started: new Date(earliest), ended: new Date(latest) };
 }
 
-// One row, or undefined when the file yields nothing placeable — including on any parse throw.
+const sessionSummaryByFile = new FileStampCache<WireSession | undefined>("sessionSummary", {
+  encode: (summary) => summary ?? null,
+  decode: (json) => (json === null ? undefined : (json as WireSession)),
+});
+
 function buildSessionSummary(jsonlPath: Path): WireSession | undefined {
+  return sessionSummaryByFile.readThrough(jsonlPath, () => deriveSessionSummary(jsonlPath));
+}
+
+// One row, or undefined when the file yields nothing placeable — including on any parse throw.
+function deriveSessionSummary(jsonlPath: Path): WireSession | undefined {
   try {
     const { records } = loadProjectRecords([jsonlPath]);
     const window = measureSessionWindow(records);
@@ -92,6 +102,7 @@ export function buildLayer1Sessions(folders: readonly string[], reportProgress: 
       sessions.push(session);
     }
   }
+  saveFileStampCachesIfChanged();
   return sessions.sort(compareSessionStarts);
 }
 

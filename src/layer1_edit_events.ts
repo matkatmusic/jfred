@@ -1,6 +1,5 @@
 // Task 355 step 2: one session transcript becomes Edit/Write/Read events that carry the wire identity.
 
-import { statSync } from "node:fs";
 import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import { collectReadEchoNodes } from "./layered_anchor.ts";
 import { collectBashCatBeacons } from "./layer1_cat_beacons.ts";
@@ -8,7 +7,8 @@ import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findSessionId } from "./reconstruction_sidecar_reader.ts";
 import { getContentBlocks } from "./structures/content-blocks.ts";
-import type { Path, Uuid } from "./structures/domain.ts";
+import { FileStampCache } from "./file_stamp_cache.ts";
+import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
 import { BlockType, EventKind } from "./structures/vocabulary.ts";
@@ -26,10 +26,20 @@ export interface LayerEditEvent {
   content?: string;
 }
 
-type CachedEvents = { mtimeMs: number; events: LayerEditEvent[] };
+// JSON drops Date/Path/Uuid types: decode rebuilds them. `line` stays an own key, as a fresh event has it.
+function decodeEditEvents(json: unknown): LayerEditEvent[] {
+  return (json as (LayerEditEvent & { changeId: string; target: string; instant: string; sessionId: string; sessionFile: string })[]).map((saved) => ({
+    ...saved,
+    changeId: new Uuid(saved.changeId),
+    target: new Path(saved.target),
+    instant: new Date(saved.instant),
+    sessionId: new Uuid(saved.sessionId),
+    sessionFile: new Path(saved.sessionFile),
+    line: saved.line,
+  }));
+}
 
-// ponytail: unbounded, fine for a local viewer
-const eventsBySessionFile = new Map<string, CachedEvents>();
+const eventsBySessionFile = new FileStampCache<LayerEditEvent[]>("editEvents", { encode: (events) => events, decode: decodeEditEvents });
 
 function collectResultLinesByToolUseId(records: TranscriptRecord[]): Map<string, number | undefined> {
   const lineById = new Map<string, number | undefined>();
@@ -85,16 +95,5 @@ function buildSessionEditEvents(sessionFile: Path): LayerEditEvent[] {
 }
 
 export function readSessionEditEvents(sessionFile: Path): LayerEditEvent[] {
-  const key = sessionFile.toString();
-  const mtimeMs = statSync(key).mtimeMs;
-  const cached = eventsBySessionFile.get(key);
-  const isCached = cached !== undefined;
-  const isFresh = cached?.mtimeMs === mtimeMs;
-  const isFreshCache = isCached && isFresh;
-  if (isFreshCache) {
-    return cached.events;
-  }
-  const events = buildSessionEditEvents(sessionFile);
-  eventsBySessionFile.set(key, { mtimeMs, events });
-  return events;
+  return eventsBySessionFile.readThrough(sessionFile, () => buildSessionEditEvents(sessionFile));
 }

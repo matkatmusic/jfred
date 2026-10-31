@@ -12,12 +12,17 @@ export function reportStage(onProgress: ProgressSink | undefined, label: string)
   onProgress?.({ kind: DocumentResponseKind.progress, label });
 }
 
-// Sorted "path:mtimeMs:size" segments. ponytail: misses same-millisecond same-size rewrites; use content hashing if needed.
+// ponytail: misses same-millisecond same-size rewrites; use content hashing if needed.
+export function computeTranscriptFileStamp(path: Path): string {
+  const stats = statSync(path.toString());
+  return `${path.toString()}:${stats.mtimeMs}:${stats.size}`;
+}
+
+// Sorted "path:mtimeMs:size" segments.
 export function computeTranscriptSetStamp(jsonlPaths: Path[]): string {
   const stampSegments: string[] = [];
   for (const path of jsonlPaths) {
-    const stats = statSync(path.toString());
-    stampSegments.push(`${path.toString()}:${stats.mtimeMs}:${stats.size}`);
+    stampSegments.push(computeTranscriptFileStamp(path));
   }
   stampSegments.sort();
   return stampSegments.join("|");
