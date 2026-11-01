@@ -98,6 +98,7 @@
     Task 357: hiding branches frees lane width; when shown, a trunk edit inside a lane draws once.
   */
   .viz-root[data-hidden-kinds~="branch"] .blane { display: none; }
+  .viz-root[data-hidden-kinds~="branch"] .nodes-with-same-timestamp.branch-tie { display: none; }
   .viz-root[data-hidden-kinds~="branch"] .filebox { min-width: 168px; }
   .viz-root:not([data-hidden-kinds~="branch"]) .n-moved { display: none; }
 

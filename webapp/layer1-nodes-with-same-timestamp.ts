@@ -44,9 +44,16 @@ export function buildNodesWithSameTimestampMarkers(ladder: readonly NodeWithSame
     const marker = createElement("div", { class: "nodes-with-same-timestamp" });
     const axisPxValues: number[] = [];
     const laneIndexValues: number[] = [];
+    let trunkNodeCount = 0;
     for (const node of run) {
       axisPxValues.push(node.axisPx);
       laneIndexValues.push(node.laneIndex ?? 0);
+      if (node.laneIndex === undefined) {
+        trunkNodeCount++;
+      }
+    }
+    if (trunkNodeCount < 2) {
+      marker.classList.add("branch-tie");
     }
     const firstPx = Math.min(...axisPxValues);
     marker.style.setProperty("--axis-px", String(firstPx - startPx));

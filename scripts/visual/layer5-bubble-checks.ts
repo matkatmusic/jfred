@@ -1,5 +1,6 @@
 // Layer 5 checks on the facts of one file bubble: trunk, rails, elbows, widening, and dot rows.
 
+import { RULER_NODE_ROW_PIXELS } from "../../webapp/layer1-ruler-axis.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { formatTickStamp, isNear, TOLERANCE_PX, type BubbleFacts, type LaneFacts, type Rect } from "./layer5-bubble-facts.ts";
 
@@ -115,7 +116,8 @@ export function validateDotRows(lanes: LaneFacts[], ticks: { text: string; cy: n
     let hasTickRow = false;
     for (const tick of ticks) {
       const isSameInstant = tick.text.startsWith(formatTickStamp(node.instant));
-      const isSameRow = isNear(tick.cy, node.cy);
+      // A node tied with a trunk node takes the stacked row below the one shared tick.
+      const isSameRow = isNear(tick.cy, node.cy) || isNear(tick.cy + RULER_NODE_ROW_PIXELS, node.cy);
       const isMatchingTick = isSameInstant && isSameRow;
       if (isMatchingTick) {
         hasTickRow = true;

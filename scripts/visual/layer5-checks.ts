@@ -10,7 +10,10 @@ const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
 // Fork and rejoin instants of the canned lanes (src/viewer_api_layer5_mockup_branches.ts): a fork owns a tick.
 const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
-const UTIL_FORKS = ["2026-06-01T14:31:00Z"];
+// A marker spanning a lane carries --lanes-spanned; visible means it takes layout space.
+const COUNT_VISIBLE_BRANCH_TIE_MARKERS = `[...document.querySelectorAll('.nodes-with-same-timestamp[style*="lanes-spanned"]')]
+  .filter(marker => getComputedStyle(marker).display !== 'none' && marker.getClientRects().length > 0).length`;
+const UTIL_FORKS =["2026-06-01T14:31:00Z"];
 const INDEX_FORKS = ["2026-06-01T14:31:00Z", "2026-06-03T18:21:00Z"];
 const INDEX_REJOIN = "2026-06-03T18:20:00Z";
 
@@ -54,6 +57,15 @@ export async function validateLayer5(page: HeadlessPage, pageUrl: string): Promi
   console.log("L5 screenshot: scripts/visual/out/mockup-10-layer5-branches.png");
 
   await validateLaneNodeClicks(page, "L5", { max: 2 });
+  // Bug 480: a branch node tied with one trunk node is the only reason this marker exists.
+  await page.evaluate(`${BRANCH_BOX}.click()`);
+  await page.waitFor(`document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  const branchOffTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
+  reportCheck("L5 bug 480: with the branch box off, no pink marker of a branch-node tie is visible", branchOffTieCount === 0, branchOffTieCount);
+  await page.evaluate(`${BRANCH_BOX}.click()`);
+  await page.waitFor(`!document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  const branchOnTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
+  reportCheck("L5 bug 480: with the branch box on, a pink marker of a branch-node tie is visible", branchOnTieCount > 0, branchOnTieCount);
   await page.navigate(pageUrl);
   await page.waitFor(`document.querySelectorAll('.filebox').length > 0 && document.getElementById('loadbar').hidden`, 30_000);
 }

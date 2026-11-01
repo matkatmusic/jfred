@@ -16,11 +16,13 @@ interface MockBranchSpec {
   nodes: { at: string; label: string }[];
 }
 
-// forkAt is one minute after a trunk commit; rejoinAt equals a trunk commit instant.
+// forkAt is one minute after a trunk commit; rejoinAt and util.ts "tune trim" tie trunk commits.
 const MOCK_BRANCHES: Record<string, MockBranchSpec[]> = {
   "src/util.ts": [
+    // { rewindKind: WireRewindKind.code, forkAt: "2026-06-01T14:31:00Z",
+    //   nodes: [{ at: "2026-06-02T10:30:00Z", label: "try alt trim" }, { at: "2026-06-02T12:00:00Z", label: "tune trim" }] },
     { rewindKind: WireRewindKind.code, forkAt: "2026-06-01T14:31:00Z",
-      nodes: [{ at: "2026-06-02T10:30:00Z", label: "try alt trim" }, { at: "2026-06-02T12:00:00Z", label: "tune trim" }] },
+      nodes: [{ at: "2026-06-02T10:30:00Z", label: "try alt trim" }, { at: "2026-06-03T11:00:00Z", label: "tune trim" }] },
   ],
   "src/index.ts": [
     { rewindKind: WireRewindKind.conversation, forkAt: "2026-06-01T14:31:00Z", rejoinAt: "2026-06-03T18:20:00Z",
