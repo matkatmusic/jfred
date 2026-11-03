@@ -4,7 +4,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { Path } from "./structures/domain.ts";
 import { computeTranscriptFileStamp } from "./viewer_api_records.ts";
 
-const CACHE_FILE_FORMAT_VERSION = 1;
+const CACHE_FILE_FORMAT_VERSION = 2;
 
 export type FileStampCodec<Value> = { encode(value: Value): unknown; decode(json: unknown): Value };
 

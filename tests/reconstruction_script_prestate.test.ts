@@ -62,6 +62,30 @@ test("test_getPreExecutionState_resolves_a_referenced_file_by_a_write_with_path_
     assert.equal(state.get("core.py"), "seeded\n");
 });
 
+test("test_getPreExecutionState_resolves_a_referenced_file_by_an_edit_with_path_and_no_file_path", () => {
+    // The Edit lands AFTER the run, so only the basename lookup can find the referenced file.
+    const records = [buildToolRecord(ToolName.Edit, { path: "/proj/core.py", old_string: "a", new_string: "b" }, "2026-01-01T00:00:09Z", "/proj")];
+    const run: ScriptRun = {
+        code: 'text = open("core.py").read()',
+        timestamp: new Date("2026-01-01T00:00:02Z"),
+        cwd: new Path("/proj"),
+    };
+    const state = getPreExecutionState(run, records, emptyReader, () => "seeded\n");
+    assert.equal(state.get("core.py"), "seeded\n");
+});
+
+test("test_getPreExecutionState_does_not_resolve_a_referenced_file_by_a_grep_path", () => {
+    // Grep uses `path` for a search folder, so a matching basename must not resolve the file.
+    const records = [buildToolRecord(ToolName.Grep, { pattern: "add", path: "/proj/core.py" }, "2026-01-01T00:00:09Z", "/proj")];
+    const run: ScriptRun = {
+        code: 'text = open("core.py").read()',
+        timestamp: new Date("2026-01-01T00:00:02Z"),
+        cwd: new Path("/proj"),
+    };
+    const state = getPreExecutionState(run, records, emptyReader, () => "seeded\n");
+    assert.ok(!state.has("core.py"));
+});
+
 test("test_getPreExecutionState_prefers_lineage_content_over_backups", () => {
     // Lineage can carry an Edit the last backup missed, so it must win over the stale backup.
     const records = [

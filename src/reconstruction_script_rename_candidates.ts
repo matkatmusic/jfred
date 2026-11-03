@@ -51,7 +51,8 @@ export function collectExecutorAndWrittenBasename(block: ContentBlock, timestamp
     writtenBasenames.add(getBasenameOf(readWriteInput(block).filePath.toString()));
   }
   if (block.name === ToolName.Edit) {
-    const filePath = (block.input as { file_path?: string }).file_path;
+    const input = block.input as { file_path?: string; path?: string };
+    const filePath = input.file_path ?? input.path;
     if (filePath !== undefined) {
       writtenBasenames.add(getBasenameOf(filePath));
     }

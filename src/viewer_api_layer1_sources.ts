@@ -1,6 +1,6 @@
 // GET /api/scan-source (task 296) plus the recursive walker; the scan is the walk stopped at the first hit.
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
@@ -20,6 +20,11 @@ function isMatchingSourceKind(name: string, kind: SourceKind): boolean {
     return name.endsWith(".jsonl") && name !== WORKFLOW_JOURNAL_NAME && name !== PROMPT_HISTORY_NAME;
   }
   return true;
+}
+
+// Claude Code can create a zero-byte transcript for a subagent that never wrote a record.
+function isEmptyTranscript(filePath: string, kind: SourceKind): boolean {
+  return kind === SourceKind.jsonl && statSync(filePath).size === 0;
 }
 
 // Every matching file under `root` at any depth, up to `limit`; symlinked folders are not followed.
@@ -42,7 +47,7 @@ export function listSourceFilesUnder(root: Path, kind: SourceKind, limit = Numbe
       }
       const isFile = entry.isFile();
       const isKindMatch = isMatchingSourceKind(entry.name, kind);
-      const isWantedFile = isFile && isKindMatch;
+      const isWantedFile = isFile && isKindMatch && !isEmptyTranscript(join(folder, entry.name), kind);
       if (isWantedFile) {
         found.push(new Path(join(folder, entry.name)));
         if (found.length >= limit) {

@@ -47,10 +47,11 @@ test("test_block_type_enum_holds_the_s1_wire_strings", () => {
 });
 
 test("test_tool_name_enum_holds_the_observed_wire_strings", () => {
-    // Scenario: ToolName holds the tool names used so far: Bash, Write, Read, Edit, and the context-mode execution tools.
+    // Scenario: ToolName holds the tool names used so far: Bash, Write, Read, Edit, Grep, and the context-mode execution tools.
     assert.deepEqual(Object.values(ToolName).sort(), [
         "Bash",
         "Edit",
+        "Grep",
         "Read",
         "Write",
         "mcp__plugin_context-mode_context-mode__ctx_batch_execute",

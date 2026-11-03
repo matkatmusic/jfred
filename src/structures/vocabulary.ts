@@ -40,6 +40,7 @@ export enum ToolName {
   Write = "Write",
   Read = "Read",
   Edit = "Edit",
+  Grep = "Grep",
   CtxExecute = "mcp__plugin_context-mode_context-mode__ctx_execute",
   CtxExecuteFile = "mcp__plugin_context-mode_context-mode__ctx_execute_file",
   CtxBatchExecute = "mcp__plugin_context-mode_context-mode__ctx_batch_execute",

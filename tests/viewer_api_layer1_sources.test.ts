@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { test } from "node:test";
-import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
+import { listSourceFilesUnder, listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
+import { Path } from "../src/structures/domain.ts";
+import { SourceKind } from "../webapp/layer1-wire.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 
 test("test_list_transcript_files_skips_workflow_journal", () => {
@@ -24,4 +26,21 @@ test("test_list_transcript_files_skips_prompt_history", () => {
     writeFileSync(join(folder, "history.jsonl"), '{"display":"hi","timestamp":1,"project":"/p","sessionId":"s"}\n');
     const names = listTranscriptFiles([folder]).map((path) => basename(path.toString()));
     assert.deepEqual(names, ["a.jsonl"]);
+});
+
+test("test_list_source_files_leaves_out_zero_byte_jsonl", () => {
+    // A subagent that never wrote a record leaves a zero-byte transcript; a non-empty one next to it stays.
+    const folder = createTempDir();
+    writeFileSync(join(folder, "agent-empty.jsonl"), "");
+    writeFileSync(join(folder, "agent-full.jsonl"), "{}\n");
+    const names = listSourceFilesUnder(new Path(folder), SourceKind.jsonl).map((path) => basename(path.toString()));
+    assert.deepEqual(names, ["agent-full.jsonl"]);
+});
+
+test("test_list_source_files_keeps_zero_byte_file_history_file", () => {
+    // File-history snapshots may legitimately be empty files.
+    const folder = createTempDir();
+    writeFileSync(join(folder, "abc123@v1"), "");
+    const names = listSourceFilesUnder(new Path(folder), SourceKind.fileHistory).map((path) => basename(path.toString()));
+    assert.deepEqual(names, ["abc123@v1"]);
 });

@@ -21,15 +21,19 @@ export function createEditEvent(
   timestamp: Date,
   detailById: Map<string, EditDetail>,
 ): EditEvent | undefined {
-  const input = block.input as { file_path: string };
+  const input = block.input as { file_path?: string; path?: string };
+  const filePath = input.file_path ?? input.path;
   const detail = detailById.get(block.id.toString());
   if (!detail) {
     return undefined;
   }
+  if (filePath === undefined) {
+    throw new Error(`Edit tool_use ${block.id.toString()} has no path in its input`);
+  }
   return {
     kind: EventKind.edit,
     changeId: block.id,
-    target: new Path(input.file_path),
+    target: new Path(filePath),
     hunks: detail.hunks,
     originalFile: detail.originalFile,
     timestamp,

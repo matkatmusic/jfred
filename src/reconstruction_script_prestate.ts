@@ -56,7 +56,9 @@ function findPathByBasename(records: TranscriptRecord[], basename: string): Path
           return filePath;
         continue;
       }
-      const filePath = (block.input as { file_path?: string }).file_path;
+      const input = block.input as { file_path?: string; path?: string };
+      // Grep and Glob use `path` for a search folder, so only Edit may read it.
+      const filePath = block.name === ToolName.Edit ? input.file_path ?? input.path : input.file_path;
       if (filePath === undefined)
         continue;
       const inputBasename = extractPathBasename(filePath);

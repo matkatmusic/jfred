@@ -43,7 +43,7 @@ test("test_cache_file_round_trips_domain_types_and_skips_the_transcript_read", (
     const fresh = readSessionEditEvents(new Path(sessionFile));
     assert.equal(fresh.length, 2);
     saveFileStampCachesIfChanged();
-    assert.equal(JSON.parse(readFileSync(cacheFile, "utf8")).version, 1);
+    assert.equal(JSON.parse(readFileSync(cacheFile, "utf8")).version, 2);
     // stat still works on an unreadable file, so a re-read would throw EACCES.
     chmodSync(sessionFile, 0o000);
     clearFileStampCaches();
@@ -60,7 +60,7 @@ test("test_cache_file_with_another_format_version_is_ignored", () => {
     const sessionFile = new Path(join(tree.projectDir, "a.jsonl"));
     readSessionEditEvents(sessionFile);
     saveFileStampCachesIfChanged();
-    writeFileSync(cacheFile, readFileSync(cacheFile, "utf8").replace('"version":1', '"version":0'));
+    writeFileSync(cacheFile, readFileSync(cacheFile, "utf8").replace('"version":2', '"version":0'));
     clearFileStampCaches();
     assert.equal(readSessionEditEvents(sessionFile).length, 1);
 });
