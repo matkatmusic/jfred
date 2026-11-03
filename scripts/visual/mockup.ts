@@ -10,7 +10,7 @@ import { SNAPSHOTS } from "../../src/viewer_api_layer2_fixture_data.ts";
 import { findFreePort, openHeadlessPage, waitForHttp, type HeadlessPage } from "./cdp.ts";
 import {
   // RENDER_SIGNATURE (task 352) and buildShapeProbe (task 386): only retired checks used them.
-  reportCheck, validateChrome, validateNavRows, validateOrdering,
+  validateChrome, validateNavRows, validateOrdering,
   validateScale, failures, saveScreenshot,
 } from "./mockup-checks.ts";
 import { validateDrawer } from "./mockup-checks-snapshot-drawer.ts";
@@ -20,6 +20,7 @@ import { validateLayer4 } from "./layer4-checks.ts";
 import { validateKindJump } from "./kind-jump-checks.ts";
 import { validateKindDashes } from "./kind-dash-checks.ts";
 import { validateLayer5 } from "./layer5-checks.ts";
+import { validateLayer6 } from "./layer6-checks.ts";
 // // validateBubbleFlash (task 386: the real page has no bubble-click flash)
 import { validateBubbleFlash, validateSessionSearch } from "./mockup-checks-nav.ts";
 import { validateMultiFileDrawer } from "./mockup-checks-multi-drawer.ts";
@@ -48,12 +49,23 @@ async function openLayer2(page: HeadlessPage): Promise<void> {
 }
 
 async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void> {
+  await executeFreshPageChecks(page, pageUrl);
+  await executeLayer1Checks(page);
+  await executeLayer2Checks(page);
+  await executeDiffChecks(page);
+}
+
+async function executeFreshPageChecks(page: HeadlessPage, pageUrl: string): Promise<void> {
   // Task 343: first, ahead of the old checks that crash on window.__fixture; it ends on a fresh page.
   await executeLayer3Checks(page, pageUrl);
   await validateLayer4(page, pageUrl);
   await validateKindJump(page, pageUrl);
   await validateKindDashes(page, pageUrl);
   await validateLayer5(page, pageUrl);
+  await validateLayer6(page, pageUrl);
+}
+
+async function executeLayer1Checks(page: HeadlessPage): Promise<void> {
   // The page no longer sets window.__fixture; the checks read the arrays the server serves.
   await page.evaluate(`(window.__fixture = ${JSON.stringify({ SESSIONS, DISK, COMMITS, SNAPSHOTS })}, true)`);
   await page.waitFor(`document.querySelectorAll('.session-item').length > 0`, 10_000);
@@ -67,7 +79,9 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   // reportCheck("#304 Layer 1 draws no snapshot node",
   //     await page.evaluate<number>(`document.querySelectorAll('.n-snap').length`) === 0);
   await saveScreenshot(page, "01-layer1");
+}
 
+async function executeLayer2Checks(page: HeadlessPage): Promise<void> {
   await openLayer2(page);
   await validateScale(page);
   await validateOrdering(page);
@@ -85,7 +99,9 @@ async function executeChecks(page: HeadlessPage, pageUrl: string): Promise<void>
   await validateBubbleFlash(page);
   await validateSessionSearch(page);
   await validateDrawer(page);
+}
 
+async function executeDiffChecks(page: HeadlessPage): Promise<void> {
   // Tasks #324/#325/#326; each restores what it changed, so the round-trip below still matches.
   await validateDiffPair(page);
   await validatePairArrows(page);
@@ -122,11 +138,7 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   return server;
 }
 
-async function executeMain(): Promise<void> {
-  buildWebapp();
-  const port = await findFreePort();
-  stopPort(port);
-  const server = await launchViewer(port);
+async function executePageChecks(server: ChildProcess, port: number): Promise<void> {
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   try {
     const pageUrl = `http://127.0.0.1:${port}/app/layer1.html`;
@@ -140,6 +152,14 @@ async function executeMain(): Promise<void> {
     server.kill("SIGKILL");
     stopPort(port);
   }
+}
+
+async function executeMain(): Promise<void> {
+  buildWebapp();
+  const port = await findFreePort();
+  stopPort(port);
+  const server = await launchViewer(port);
+  await executePageChecks(server, port);
   console.log(failures.length
     ? `\n${failures.length} FAILED:\n  ${failures.join("\n  ")}`
     : "\nALL CHECKS PASSED — screenshots in scripts/visual/out/");

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-script-run-drawer.ts";
+import { buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-script-run-drawer.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -32,6 +32,18 @@ test("listScriptRunPaths finds every pair carrying this run's toolUseId, in path
     gitOrphans: [], diskOrphans: [], ruler: [],
   };
   assert.deepEqual(listScriptRunPaths(view, "toolu_1"), ["src/a.ts", "src/b.ts"]);
+});
+
+test("buildScriptRunDetail of a stateful run starts with the run console button", () => {
+  initLayer1Dom();
+  const detail = buildScriptRunDetail({ ...SCRIPT_RUN, confidence: "mismatch" });
+  assert.ok(detail[0]!.querySelector(".run-console-open"));
+});
+
+test("buildScriptRunDetail of a stateless run has no run console button", () => {
+  initLayer1Dom();
+  const detail = buildScriptRunDetail({ ...SCRIPT_RUN, confidence: undefined });
+  assert.equal(detail.filter((element) => element.querySelector(".run-console-open") !== null).length, 0);
 });
 
 test("buildScriptRunDiffPanes renders one pane per affected path, bracketed on the run instant", async () => {

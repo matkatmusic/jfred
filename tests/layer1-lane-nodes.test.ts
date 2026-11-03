@@ -4,9 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { WireRewindKind, type WireBranch } from "../webapp/layer1-wire-branches.ts";
+import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
+import { WireScriptExecutorKind, type WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 
 initLayer1Dom();
-const { appendAxisNode, appendBranchLane, setAxisPx } = await import("../webapp/layer1-lane-nodes.ts");
+const { appendAxisNode, appendBranchLane, appendScriptRunNode, setAxisPx } = await import("../webapp/layer1-lane-nodes.ts");
 
 const INSTANT = "2026-06-02T09:00:00.000Z";
 
@@ -27,6 +29,40 @@ test("test_appendAxisNode_adds_a_dot_and_a_label_with_the_title_and_instant", ()
   assert.equal(dot?.getAttribute("data-instant"), INSTANT);
   assert.equal(label?.textContent, "abc12345");
   assert.equal((label as HTMLElement).style.getPropertyValue("--axis-px"), "10");
+});
+
+const SCRIPT_RUN = {
+  toolUseId: "toolu_1",
+  executorKind: WireScriptExecutorKind.python,
+  language: "python",
+  instant: INSTANT,
+  axisPx: 10,
+  code: "print(1)",
+  sessionId: "s1",
+  sessionFile: "s1.jsonl",
+} as WireScriptRun;
+
+test("test_appendScriptRunNode_adds_the_run_state_class_for_a_known_confidence", () => {
+  // Scenario: a python run with confidence mismatch.
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, { ...SCRIPT_RUN, confidence: WireConfidence.mismatch });
+  assert.ok(lane.querySelector("i.node.n-script")?.classList.contains("run-state-mismatch"));
+});
+
+test("test_appendScriptRunNode_adds_no_run_state_class_without_a_confidence", () => {
+  // Scenario: a pre-execution python run.
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, SCRIPT_RUN);
+  assert.ok(!(lane.querySelector("i.node.n-script")?.className ?? "").includes("run-state-"));
+});
+
+test("test_appendScriptRunNode_marks_a_bash_run_never_provable_with_no_state_class", () => {
+  // Scenario: a bash run with no confidence.
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, { ...SCRIPT_RUN, executorKind: WireScriptExecutorKind.bash });
+  const dot = lane.querySelector("i.node.n-script") as HTMLElement;
+  assert.ok(dot.classList.contains("never-provable"));
+  assert.ok(!dot.className.includes("run-state-"));
 });
 
 test("test_appendBranchLane_makes_a_lane_with_elbows_rail_and_branch_dots", () => {

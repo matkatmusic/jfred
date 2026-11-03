@@ -1,6 +1,7 @@
 // Layer 1's script-run node vocabulary on the wire (task 356).
 
 import type { WireScriptLanguage } from "./layer1-script-language.ts";
+import type { WireConfidence } from "./layer1-wire-edits.ts";
 import type { WireInstantOf } from "./layer1-wire.ts";
 
 // Wire spelling of ScriptExecutorKind (src/reconstruction_script_execution.ts) — drives the never-provable idiom.
@@ -22,6 +23,8 @@ export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
   code: string;
   // Absent when the engine's static scan named no file for this pair; the node still renders, unlabeled.
   label?: string;
+  // Fixture mode only; absent means pre-execution.
+  confidence?: WireConfidence;
   sessionId: U;
   sessionFile: P;
 }

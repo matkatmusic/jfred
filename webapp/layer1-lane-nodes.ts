@@ -46,11 +46,8 @@ export function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: 
 }
 
 // Task 343: the dot class hides the node; confidence is a ring class, never a fill swap.
-export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMoved: boolean): void {
-  const isRead = edit.kind === WireEditKind.read;
-  // Task 357: a trunk edit that a branch lane also holds hides while the branch kind is shown.
-  const kindClass = `${isRead ? "n-read" : "n-edit"}${isMoved ? " n-moved" : ""}`;
-  const identity = {
+function buildEditIdentity(edit: WireEdit) {
+  return {
     title: edit.confidence,
     "data-change-id": edit.changeId,
     "data-kind": edit.kind,
@@ -60,6 +57,13 @@ export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit
     "data-session-file": edit.sessionFile,
     "data-line": edit.line === undefined ? undefined : String(edit.line),
   };
+}
+
+export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit, isMoved: boolean): void {
+  const isRead = edit.kind === WireEditKind.read;
+  // Task 357: a trunk edit that a branch lane also holds hides while the branch kind is shown.
+  const kindClass = `${isRead ? "n-read" : "n-edit"}${isMoved ? " n-moved" : ""}`;
+  const identity = buildEditIdentity(edit);
   lane.append(
     setAxisPx(createElement("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
     setAxisPx(createElement("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
@@ -67,9 +71,8 @@ export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit
 }
 
 // Task 356: dot and label share identity attrs; bash runs get a dashed ring.
-export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
-  const isBash = run.executorKind === WireScriptExecutorKind.bash;
-  const identity = {
+function buildScriptRunIdentity(run: WireScriptRun) {
+  return {
     title: run.label ?? formatScriptRunLabel(run.language),
     "data-tool-use-id": run.toolUseId,
     "data-executor-kind": run.executorKind,
@@ -78,11 +81,17 @@ export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: Wire
     "data-session-file": run.sessionFile,
     "data-line": run.line === undefined ? undefined : String(run.line),
   };
+}
+
+export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: WireScriptRun): void {
+  const isBash = run.executorKind === WireScriptExecutorKind.bash;
+  const identity = buildScriptRunIdentity(run);
   const iconText = formatScriptRunLabel(run.language);
   // A labelled run puts its file name on its own line, so the label stays inside the bubble.
   const labelParts = run.label === undefined ? [iconText] : [iconText, " ", createElement("span", { class: "nfile", text: run.label.slice(iconText.length + 1) })];
+  const isStateKnown = run.confidence !== undefined;
   lane.append(
-    setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}`, ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}${isStateKnown ? ` run-state-${run.confidence}` : ""}`, ...identity }), axisPx),
     // setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
     setAxisPx(createElement("span", { class: "nlabel n-script", ...identity }, labelParts), axisPx),
   );
@@ -105,6 +114,22 @@ function findLastBranchNodePx(branch: WireBranch, startPx: number): number {
   return Math.max(...nodePxList);
 }
 
+function createBranchRail(railFromPx: number, railToPx: number): HTMLElement {
+  const rail = setAxisPx(createElement("div", { class: "brail" }), railFromPx);
+  rail.style.setProperty("--span-px", String(railToPx - railFromPx));
+  return rail;
+}
+
+function appendBranchNodes(branchLane: HTMLElement, branch: WireBranch, startPx: number): void {
+  for (const node of branch.nodes) {
+    const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
+    branchLane.append(
+      setAxisPx(createElement("i", { class: "bnode", ...identity }), node.axisPx - startPx),
+      setAxisPx(createElement("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
+    );
+  }
+}
+
 // Task 357: branch dots use bnode/blabel so the drawer ignores them; keptToEnd rejoins at the rail end.
 export function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneIndex: number, railEndPx: number, startPx: number): void {
   const forkPx = branch.forkAt.axisPx - startPx;
@@ -113,18 +138,11 @@ export function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneInde
   const railToPx = rejoinPx === undefined ? findLastBranchNodePx(branch, startPx) : rejoinPx - BRANCH_ELBOW_PX;
   const branchLane = createElement("div", { class: "blane" });
   branchLane.style.setProperty("--lane-index", String(laneIndex));
-  const rail = setAxisPx(createElement("div", { class: "brail" }), railFromPx);
-  rail.style.setProperty("--span-px", String(railToPx - railFromPx));
+  const rail = createBranchRail(railFromPx, railToPx);
   branchLane.append(setAxisPx(createElement("div", { class: "split-elbow" }), forkPx), rail);
   if (rejoinPx !== undefined) {
     branchLane.append(setAxisPx(createElement("div", { class: "merge-elbow" }), rejoinPx));
   }
-  for (const node of branch.nodes) {
-    const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
-    branchLane.append(
-      setAxisPx(createElement("i", { class: "bnode", ...identity }), node.axisPx - startPx),
-      setAxisPx(createElement("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
-    );
-  }
+  appendBranchNodes(branchLane, branch, startPx);
   lane.append(branchLane);
 }

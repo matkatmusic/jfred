@@ -12,6 +12,13 @@ test("test_payload_writes_one_progress_line_per_script_run", () => {
     assert.equal((lines[lines.length - 1] as { current: number }).current, SCRIPT_RUNS.length);
 });
 
+test("test_readme_pair_carries_seven_runs_and_five_confidences", () => {
+    const payload = buildFixtureScriptRunsPayload(() => undefined);
+    const readme = payload.pairs.find((pair) => pair.path.toString() === "README.md")!;
+    assert.equal(readme.scriptRuns.length, 7);
+    assert.equal(readme.scriptRuns.filter((run) => run.confidence !== undefined).length, 5);
+});
+
 test("test_payload_pairs_join_every_run_that_names_the_path", () => {
     const payload = buildFixtureScriptRunsPayload(() => undefined);
     assert.ok(payload.pairs.length > 0);

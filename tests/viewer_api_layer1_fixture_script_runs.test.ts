@@ -31,7 +31,7 @@ test("the streamed script-runs route sends one progress line per run and ends wi
   const progress = lines.slice(0, -1);
   assert.equal(progress.length, SCRIPT_RUNS.length);
   assert.ok(progress.every((line) => line["kind"] === "progress" && line["label"] === LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS));
-  assert.deepEqual(progress.map((line) => line["current"]), [1, 2, 3]);
+  assert.deepEqual(progress.map((line) => line["current"]), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   assert.ok(Array.isArray(terminal["pairs"]));
   assert.equal(terminal["kind"], undefined);
 });
@@ -39,7 +39,7 @@ test("the streamed script-runs route sends one progress line per run and ends wi
 test("the plain script-runs route answers pair paths with ISO instants, joined code and session ids", () => {
   const { body } = dispatchGet("/api/layer1-script-runs");
   const payload = JSON.parse(body) as { pairs: { path: string; scriptRuns: WireRunRow[] }[] };
-  assert.deepEqual(payload.pairs.map((pair) => pair.path).sort(), ["src/index.ts", "src/util.ts"]);
+  assert.deepEqual(payload.pairs.map((pair) => pair.path).sort(), ["README.md", "src/index.ts", "src/util.ts"]);
   const index = payload.pairs.find((pair) => pair.path === "src/index.ts")!;
   assert.equal(index.scriptRuns.length, 1);
   const python = index.scriptRuns[0]!;

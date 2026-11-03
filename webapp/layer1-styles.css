@@ -8,7 +8,7 @@
     --grid: #e1e0d9; --baseline: #c3c2b7; --branch-line: #c3c2b7; --border: rgba(11,11,11,.10);
     --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834; --c-branch-node: #eb6834;
     --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
-    --c-edit: #4d8c1f; --c-read: #1b8f8f;
+    --c-edit: #4d8c1f; --c-read: #1b8f8f; --c-mismatch: #d03b3b;
     --seg-a: rgba(27,175,122,.12);
     --sel-edge: #1baf7a; --box: #d98a2b;
   }
@@ -20,7 +20,7 @@
       --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
       --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
       --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
-      --c-edit: #62a331; --c-read: #2fa5a5;
+      --c-edit: #62a331; --c-read: #2fa5a5; --c-mismatch: #e46a6a;
       --seg-a: rgba(25,158,112,.15);
       --sel-edge: #199e70; --box: #b57427;
     }
@@ -32,7 +32,7 @@
     --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
     --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
     --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
-    --c-edit: #62a331; --c-read: #2fa5a5;
+    --c-edit: #62a331; --c-read: #2fa5a5; --c-mismatch: #e46a6a;
     --seg-a: rgba(25,158,112,.15);
     --sel-edge: #199e70; --box: #b57427;
   }
@@ -343,7 +343,10 @@
   .blabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; opacity: .38; }
   .n-commit { border-radius: 4px; background: var(--c-commit); }
-  .n-disk { background: transparent; border: 3px double var(--c-disk); }
+  /*
+    .n-disk background was: transparent.
+  */
+  .n-disk { background: var(--surface); border: 3px double var(--c-disk); }
   .n-created { border-style: dotted; border-color: var(--muted); }
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
@@ -739,13 +742,55 @@
   .node.n-edit { --node-colour: var(--c-edit); border-radius: 3px; }
   .node.n-read { --node-colour: var(--c-read); }
   .node.conf-verified { outline: 2px solid var(--node-colour); outline-offset: 3.5px; }
-  .node.conf-derived { background: transparent; border: 2px dashed var(--node-colour); }
+  /*
+    .node.conf-derived background was: transparent.
+  */
+  .node.conf-derived { background: var(--surface); border: 2px dashed var(--node-colour); }
   .node.conf-reseeded { outline: 2px dotted var(--c-edit); outline-offset: 3.5px; }
   /*
     Task 356: a script run is a hollow ring; a bash run is unprovable, so its ring is dashed.
   */
-  .node.n-script { background: transparent; border: 3.5px solid var(--c-script); }
+  /*
+    Script ring was: transparent background, 15px default size, outline-offset 3.5px, mismatch radial-gradient 3px dot, 4px double mismatch outline.
+  */
+  .node.n-script { background: var(--surface); border: 3.5px solid var(--c-script); width: 13px; height: 13px; }
   .node.n-script.never-provable { border: 2px dashed var(--c-script); }
+  .node.n-script.run-state-verified { outline: 2px solid var(--c-edit); outline-offset: 1px; }
+  .node.n-script.run-state-derived { outline: 2px dashed var(--c-edit); outline-offset: 1px; }
+  .node.n-script.run-state-mismatch { border-color: var(--c-mismatch); background: radial-gradient(var(--c-mismatch) 0 2px, var(--surface) 2px);
+    outline: 3px double var(--c-mismatch); outline-offset: 1px; }
+  .node.n-script.run-state-original-failed { outline: 2px solid var(--c-echo); outline-offset: 1px; }
+  .node.n-script.run-state-injected-unverified { outline: 2px dotted var(--muted); outline-offset: 1px; }
+  /*
+    Task l6-mockup: run console sits over the timeline inside .stagewrap, above the minimap (20), below .modal-wrap (50).
+  */
+  .run-console { position: absolute; top: 12px; left: calc(var(--filenav-w) + 12px); z-index: 30; width: min(540px, calc(100% - var(--filenav-w) - 24px));
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  .run-console[hidden] { display: none; }
+  .run-console-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 12.5px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); }
+  .run-console-head .run-console-close { margin-left: auto; }
+  .run-console-body { padding: 14px; max-height: 70vh; overflow-y: auto; }
+  .run-console-row { display: flex; padding: 4px 0 8px; }
+  .run-console-open { align-self: flex-start; }
+  .console-output { border: 1px solid var(--grid); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
+  .console-pre { font: 11.5px/1.55 ui-monospace, Menlo, monospace; color: var(--ink2); white-space: pre; overflow-x: auto; }
+  .console-caption { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 8px; }
+  .state-caption { font-size: 11.5px; color: var(--muted); margin: 14px 0 6px; }
+  .cancel-state-row, .terminal-state-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .state-frame { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .state-label { font-size: 10.5px; color: var(--muted); }
+  .cancel-btn.btn-idle { opacity: .5; }
+  .cancel-btn.btn-live { border-color: var(--c-mismatch); color: var(--c-mismatch); }
+  .cancel-btn.btn-cancelled { opacity: .5; text-decoration: line-through; }
+  .terminal-block { border: 1px solid var(--grid); border-radius: 8px; padding: 8px 10px; min-width: 160px; flex: 1 1 160px;
+    background: var(--surface); }
+  .terminal-title { display: block; font-size: 12px; margin-bottom: 4px; }
+  .terminal-desc { font-size: 11px; color: var(--ink2); }
+  .term-cancelled .terminal-title { color: var(--muted); }
+  .term-verified .terminal-title { color: var(--c-edit); }
+  .term-mismatch .terminal-title { color: var(--c-mismatch); }
+  .term-original-failed .terminal-title { color: var(--c-echo); }
   /*
     Task 356: the connector joins one run's dots across bubbles; ::before widens the click target.
   */

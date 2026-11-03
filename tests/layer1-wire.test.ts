@@ -54,7 +54,7 @@ test("test_pair_ladder_places_edits_after_snapshots_and_before_script_runs", () 
 
 test("test_edit_kind_and_confidence_values_are_the_wire_spellings", () => {
     assert.deepEqual(Object.values(WireEditKind), ["edit", "write", "read"]);
-    assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded"]);
+    assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded", "mismatch", "original-failed", "injected-unverified"]);
 });
 
 test("test_edit_side_values_are_the_wire_spellings", () => {

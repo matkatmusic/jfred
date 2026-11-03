@@ -57,6 +57,7 @@ test("test_python_indirection_run_lands_on_named_pair", () => {
     assert.equal(runs[0]!.executorKind, WireScriptExecutorKind.python);
     assert.equal(runs[0]!.code, APPLY_BODY);
     assert.equal(runs[0]!.label, "python run apply.py");
+    assert.equal("confidence" in runs[0]!, false);
     assert.equal(runs[0]!.language, WireScriptLanguage.python);
     // The Bash record follows the Write pair's records, one JSONL line each.
     assert.equal(runs[0]!.line, writePair.records.length + 1);

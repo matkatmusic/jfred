@@ -36,14 +36,18 @@ async function validateTickFetch(page: HeadlessPage): Promise<void> {
   const requests = await page.evaluate<number>(COUNT_SCRIPT_REQUESTS);
   reportCheck("L4 ticking the script-run box: exactly one /api/layer1-script-runs request", requests === 1, requests);
   reportCheck("L4 ticking the script-run box: the box reads checked", await page.evaluate<boolean>(`${SCRIPT_BOX}.checked`));
+  await validateScriptNodesAfterTick(page, ticksBefore);
+}
+
+async function validateScriptNodesAfterTick(page: HeadlessPage, ticksBefore: number): Promise<void> {
   const dotCount = await page.evaluate<number>(COUNT_SCRIPT_DOTS);
-  reportCheck("L4 ticking the script-run box: exactly 3 script nodes", dotCount === 3, dotCount);
+  reportCheck("L4 ticking the script-run box: exactly 10 script nodes", dotCount === 10, dotCount);
   const ticksAfter = await page.evaluate<number>(COUNT_TICKS);
   reportCheck("L4 the ruler grew to include the script-run instants", ticksAfter > ticksBefore, { ticksBefore, ticksAfter });
   const levelFlags = await page.evaluate<boolean[]>(
     `[...${SCRIPT_DOTS}].map(d => ${buildRulerMatchProbe("d")})`);
   const allLevel = !levelFlags.includes(false);
-  reportCheck("L4 every script node sits level with a ruler tick", levelFlags.length === 3 && allLevel, levelFlags);
+  reportCheck("L4 every script node sits level with a ruler tick", levelFlags.length === 10 && allLevel, levelFlags);
 }
 
 async function validateInstantToggle(page: HeadlessPage): Promise<void> {
@@ -54,17 +58,19 @@ async function validateInstantToggle(page: HeadlessPage): Promise<void> {
     endsTicked: boolean;
   }>(buildToggleProbe());
   reportCheck("L4 untick hides script nodes, labels and connector with visibility, tick shows them, in one synchronous run",
-    toggled.afterUntick.hidden && toggled.afterTick.visible && toggled.afterSecondUntick.hidden && toggled.afterTick.count === 7, toggled);
+    toggled.afterUntick.hidden && toggled.afterTick.visible && toggled.afterSecondUntick.hidden && toggled.afterTick.count === 21, toggled);
   reportCheck("L4 the toggle run ends with the box ticked", toggled.endsTicked);
   reportCheck("L4 toggling afterwards adds no request", await page.evaluate<number>(COUNT_SCRIPT_REQUESTS) === 1);
 }
 
+type NodeLook = {
+  pythonNodeCount: number; pythonBubbles: string[]; pythonLabels: string[]; pythonRings: string[];
+  bashLabel: string | undefined; bashClass: boolean; bashRing: string | undefined; bashBubble: string | undefined;
+  kinds: string[];
+};
+
 async function validateNodeLook(page: HeadlessPage): Promise<void> {
-  const look = await page.evaluate<{
-    pythonNodeCount: number; pythonBubbles: string[]; pythonLabels: string[]; pythonRings: string[];
-    bashLabel: string | undefined; bashClass: boolean; bashRing: string | undefined; bashBubble: string | undefined;
-    kinds: string[];
-  }>(`({
+  const look = await page.evaluate<NodeLook>(`({
         pythonNodeCount: ${pythonDots}.length,
         pythonBubbles: ${pythonDots}.map(d => ${buildBubblePathExpression("d")}),
         pythonLabels: ${pythonLabels}.map(l => l.textContent),
@@ -74,16 +80,25 @@ async function validateNodeLook(page: HeadlessPage): Promise<void> {
         bashRing: (d => d && getComputedStyle(d).borderStyle)(${bashDot}),
         bashBubble: (d => d && ${buildBubblePathExpression("d")})(${bashDot}),
         kinds: [...${SCRIPT_DOTS}].map(d => d.dataset.executorKind) })`);
+  validatePythonLook(look);
+  validateBashLook(look);
+}
+
+function validatePythonLook(look: NodeLook): void {
   const labelsMatch = JSON.stringify(look.pythonLabels) === JSON.stringify([PYTHON_LABEL, PYTHON_LABEL]);
   const solidRings = JSON.stringify(look.pythonRings) === JSON.stringify(["solid", "solid"]);
   reportCheck("L4 the python run has 2 nodes in 2 different bubbles, one of them src/index.ts",
     look.pythonNodeCount === 2 && new Set(look.pythonBubbles).size === 2 && look.pythonBubbles.includes(INDEX_PATH), look.pythonBubbles);
   reportCheck("L4 each python label reads python run orchestrator-dispatch-todo-roundtrip-test.py", labelsMatch, look.pythonLabels);
   reportCheck("L4 each python ring is solid", solidRings, look.pythonRings);
+}
+
+function validateBashLook(look: NodeLook): void {
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
   reportCheck("L4 the bash label reads exactly bash run", look.bashLabel === "bash run", look.bashLabel);
   reportCheck("L4 the bash dot has .never-provable and a dashed ring", look.bashClass && look.bashRing === "dashed", look);
-  reportCheck("L4 executor kinds are python, python, bash", [...look.kinds].sort().join(",") === "bash,python,python", look.kinds);
+  const expectedKinds = ["bash", "bash", ...Array<string>(8).fill("python")].join(",");
+  reportCheck("L4 executor kinds are 2 bash and 8 python", [...look.kinds].sort().join(",") === expectedKinds, look.kinds);
 }
 
 async function validateFileNameStaysInBubble(page: HeadlessPage): Promise<void> {
@@ -96,10 +111,8 @@ async function validateFileNameStaysInBubble(page: HeadlessPage): Promise<void> 
   reportCheck("L4 at least one script file name is cut with an ellipsis", cutCount > 0, cutCount);
 }
 
-async function validateConnector(page: HeadlessPage): Promise<void> {
-  const shape = await page.evaluate<{
-    count: number; total: number; centreDeltaY: number; leftDelta: number; rightDelta: number;
-  }>(`(() => {
+function buildConnectorProbe(): string {
+  return `(() => {
         const dots = ${pythonDots}.map(d => d.getBoundingClientRect());
         const line = ${connector}?.getBoundingClientRect();
         const centres = dots.map(r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
@@ -110,7 +123,13 @@ async function validateConnector(page: HeadlessPage): Promise<void> {
             centreDeltaY: line ? Math.max(...centres.map(c => Math.abs(line.top + line.height / 2 - c.y))) : 99999,
             leftDelta: line ? Math.abs(line.left - Math.min(...xs)) : 99999,
             rightDelta: line ? Math.abs(line.right - Math.max(...xs)) : 99999 };
-    })()`);
+    })()`;
+}
+
+async function validateConnector(page: HeadlessPage): Promise<void> {
+  const shape = await page.evaluate<{
+    count: number; total: number; centreDeltaY: number; leftDelta: number; rightDelta: number;
+  }>(buildConnectorProbe());
   reportCheck("L4 exactly one python connector in #stage, and none for the bash run", shape.count === 1 && shape.total === 1, shape);
   reportCheck("L4 the connector is level with both python dots (within 2px)", shape.centreDeltaY <= 2, shape);
   reportCheck("L4 the connector spans from one dot centre to the other (within 3px)",
@@ -132,15 +151,19 @@ async function validateLayerButton(page: HeadlessPage): Promise<void> {
   reportCheck("L4 the [4] button: one /api/layer1-edits and one /api/layer1-script-runs request",
     result.edits === 1 && result.scriptRuns === 1, result);
   reportCheck("L4 the [4] button: both the Edit box and the script-run box read checked", result.editBox && result.scriptBox, result);
-  reportCheck("L4 the [4] button: exactly 3 script nodes", result.dots === 3, result.dots);
+  reportCheck("L4 the [4] button: exactly 10 script nodes", result.dots === 10, result.dots);
 }
 
-export async function validateLayer4(page: HeadlessPage, pageUrl: string): Promise<void> {
+async function validateTickedNodes(page: HeadlessPage): Promise<void> {
   await validateBeforeTick(page);
   await validateTickFetch(page);
   await validateInstantToggle(page);
   await validateNodeLook(page);
   await validateFileNameStaysInBubble(page);
+}
+
+export async function validateLayer4(page: HeadlessPage, pageUrl: string): Promise<void> {
+  await validateTickedNodes(page);
   await saveScreenshot(page, "07-layer4-nodes");
   await validateConnector(page);
   const pythonPre = await validatePythonDrawer(page);

@@ -14,11 +14,14 @@ export type WireEditKind = (typeof WireEditKind)[keyof typeof WireEditKind];
 export const WireEditSide = { base: "base", target: "target" } as const;
 export type WireEditSide = (typeof WireEditSide)[keyof typeof WireEditSide];
 
-// Task 343: only the confidence states layer 3 emits; the other four arrive with their layers.
+// Task 343: layer 3 emits verified, derived and reseeded; the L6 mockup adds the three script-run states.
 export const WireConfidence = {
   verified: "verified",
   derived: "derived",
   reseeded: "reseeded",
+  mismatch: "mismatch",
+  originalFailed: "original-failed",
+  injectedUnverified: "injected-unverified",
 } as const;
 export type WireConfidence = (typeof WireConfidence)[keyof typeof WireConfidence];
 

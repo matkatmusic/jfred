@@ -14,7 +14,10 @@ test("test_WireEditSide_names_base_and_target", () => {
     assert.deepEqual(WireEditSide, { base: "base", target: "target" });
 });
 
-test("test_WireConfidence_names_the_three_layer_3_states", () => {
-    // Verify: only verified, derived and reseeded exist.
-    assert.deepEqual(WireConfidence, { verified: "verified", derived: "derived", reseeded: "reseeded" });
+test("test_WireConfidence_names_the_layer_3_and_layer_6_states", () => {
+    // Verify: the three layer 3 states and the three layer 6 run states keep their wire spelling.
+    assert.deepEqual(WireConfidence, {
+        verified: "verified", derived: "derived", reseeded: "reseeded",
+        mismatch: "mismatch", originalFailed: "original-failed", injectedUnverified: "injected-unverified",
+    });
 });

@@ -1,5 +1,6 @@
 // Layer 4 fixture data: canned script runs and their resolved bodies.
 
+import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
 // import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
@@ -16,6 +17,7 @@ export interface FixtureScriptRun {
   paths: string[];
   code: string[];
   label?: string;
+  confidence?: WireConfidence;
 }
 
 export const SCRIPT_RUNS: FixtureScriptRun[] = [
@@ -33,6 +35,40 @@ export const SCRIPT_RUNS: FixtureScriptRun[] = [
     language: WireScriptLanguage.bash, line: 5,
     at: "2026-06-02T10:00:00Z", session: "b21d84c5.jsonl", paths: ["src/util.ts"],
     code: ["cat <<'EOF' > src/util.ts", "export const trim = (text: string) => text.trim();", "EOF"] },
+  { toolUseId: "toolu_fixture_l6_pre", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 31,
+    at: "2026-07-20T16:30:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-pending.py",
+    code: ["import pathlib", 'pathlib.Path("README.md").write_text("# demo\\n")'] },
+  { toolUseId: "toolu_fixture_l6_verified", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 38,
+    at: "2026-07-20T17:00:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-verified.py", confidence: WireConfidence.verified,
+    code: ["import pathlib", 'pathlib.Path("README.md").write_text("# demo app\\n")'] },
+  { toolUseId: "toolu_fixture_l6_derived", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 45,
+    at: "2026-07-20T17:30:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-derived.py", confidence: WireConfidence.derived,
+    code: ["import pathlib", 'pathlib.Path("README.md").write_text("# demo app\\n\\nA small demo.\\n")'] },
+  { toolUseId: "toolu_fixture_l6_mismatch", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 52,
+    at: "2026-07-20T18:00:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-mismatch.py", confidence: WireConfidence.mismatch,
+    code: ["import pathlib", 'pathlib.Path("README.md").write_text("# demo app v2\\n")'] },
+  { toolUseId: "toolu_fixture_l6_original_failed", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 59,
+    at: "2026-07-20T18:30:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-failed.py", confidence: WireConfidence.originalFailed,
+    code: ["import pathlib", 'pathlib.Path("missing/README.md").write_text("# demo\\n")'] },
+  { toolUseId: "toolu_fixture_l6_injected", executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python, line: 66,
+    at: "2026-07-20T19:00:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    label: "python run replay-injected.py", confidence: WireConfidence.injectedUnverified,
+    code: ["import pathlib", 'pathlib.Path("README.md").write_text("# demo app v3\\n")'] },
+  { toolUseId: "toolu_fixture_l6_never_provable", executorKind: WireScriptExecutorKind.bash,
+    language: WireScriptLanguage.bash, line: 73,
+    at: "2026-07-20T19:30:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
+    code: ["echo '# demo app' > README.md"] },
 ];
 
 export function findFixtureScriptRun(toolUseId: string): FixtureScriptRun {
