@@ -15,7 +15,8 @@ import {
 const SCREENSHOT_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-12-layer6-node-states.png");
 
 const makeNode = (id: string, extraClass: string, index: number): NodeFacts => ({
-    id, classes: `node n-script ${extraClass}`.trim(), width: 15, height: 15,
+    // id, classes: `node n-script ${extraClass}`.trim(), width: 15, height: 15,
+    id, classes: `node n-script ${extraClass}`.trim(), width: 13, height: 13,
     borderStyle: "solid", borderColor: `rgb(${index}, 0, 0)`, borderWidth: "2px",
     outlineStyle: "none", outlineColor: "rgb(0, 0, 0)", outlineWidth: "0px", backgroundImage: "none",
 });

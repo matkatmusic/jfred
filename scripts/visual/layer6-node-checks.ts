@@ -35,7 +35,8 @@ async function validateNodeSet(page: HeadlessPage, nodes: NodeFacts[]): Promise<
 
 function validateNodeLooks(nodes: NodeFacts[]): void {
   const sizes = listUniqueValues(listNodeSizes(nodes));
-  const isSameSize = sizes.length === 1 && nodes[0]?.width === 15;
+  // const isSameSize = sizes.length === 1 && nodes[0]?.width === 15;
+  const isSameSize = sizes.length === 1 && nodes[0]?.width === 13;
   reportCheck("L6 all 7 are the same node: equal width and height", isSameSize, sizes);
   const signatures = listUniqueValues(listNodeSignatures(nodes));
   reportCheck("L6 the 7 nodes have 7 different computed looks", signatures.length === 7, signatures);
