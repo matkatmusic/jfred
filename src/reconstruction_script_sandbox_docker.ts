@@ -33,12 +33,32 @@ export function chooseSandboxMount(recordedCwd: Path | undefined): Path {
   return recordedCwd;
 }
 
-export function killSandboxContainer(runId: Uuid): void {
-  const result = spawnSync("docker", ["kill", runId.toString()], { encoding: "utf8" });
+export const DOCKER_CONTROL_TIMEOUT_MS = 10000;
+
+export class DockerStuckError extends Error {
+  constructor() {
+    super("Docker is stuck: the script container never started. Restart Docker Desktop.");
+  }
+}
+
+export function killSandboxContainer(runId: Uuid, timeoutMs = DOCKER_CONTROL_TIMEOUT_MS): void {
+  const result = spawnSync("docker", ["kill", runId.toString()], { encoding: "utf8", timeout: timeoutMs, killSignal: "SIGKILL" });
   const isContainerEnded = /No such container|is not running/.test(result.stderr);
   if (result.status !== 0 && !isContainerEnded) {
     throw new Error(`docker kill ${runId} failed: ${result.stderr || result.error}`);
   }
+}
+
+// "No such object" means --rm already removed the container, so it goes on to the kill.
+export function stopTimedOutContainer(runId: Uuid, timeoutMs = DOCKER_CONTROL_TIMEOUT_MS): void {
+  const result = spawnSync("docker", ["inspect", "--format", "{{.State.Status}}", runId.toString()], { encoding: "utf8", timeout: timeoutMs, killSignal: "SIGKILL" });
+  if (result.error !== undefined) {
+    throw new Error(`docker inspect ${runId} failed: ${result.error}`);
+  }
+  if (result.stdout.trim() === "created") {
+    throw new DockerStuckError();
+  }
+  killSandboxContainer(runId, timeoutMs);
 }
 
 export function assertSandboxImagePresent(): void {

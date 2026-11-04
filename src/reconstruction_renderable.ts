@@ -5,6 +5,7 @@ import type { Path } from "./structures/domain.ts";
 import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 import { reportReconstructionFailure } from "./reconstruction_health.ts";
+import { rethrowBuildStoppingError } from "./reconstruction_stage_runner.ts";
 import { extractFileEvents } from "./reconstruction_extract.ts";
 import { findConversationBranches } from "./reconstruction_branch.ts";
 import { selectBranchRecords } from "./reconstruction_branch_records.ts";
@@ -49,6 +50,7 @@ function getFileHistoryOrEmpty(records: TranscriptRecord[], target: Path, reader
     return { target, revisions };
   }
   catch (error) {
+    rethrowBuildStoppingError(error);
     reportReconstructionFailure({ scope: FailureScope.file, stage: "getFileHistoriesOver", target, reason: String(error) });
     return { target, revisions: [] };
   }

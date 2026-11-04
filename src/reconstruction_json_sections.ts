@@ -4,6 +4,7 @@ import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 import { reportReconstructionFailure } from "./reconstruction_health.ts";
+import { rethrowBuildStoppingError } from "./reconstruction_stage_runner.ts";
 import { buildLineVerdicts } from "./reconstruction_line_verdicts.ts";
 import { findGitCommitEvents } from "./reconstruction_git_commit_events.ts";
 import { findGitOperations } from "./reconstruction_git_operations.ts";
@@ -20,6 +21,7 @@ export function buildPhaseTolerantly<T>(phase: string, fallback: T, run: () => T
     return run();
   }
   catch (error) {
+    rethrowBuildStoppingError(error);
     reportReconstructionFailure({ scope: FailureScope.documentPhase, stage: phase, reason: String(error) });
     return fallback;
   }

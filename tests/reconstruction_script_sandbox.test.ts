@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { executeScriptAgainstState } from "../src/reconstruction_script_sandbox.ts";
+import { createHash } from "node:crypto";
+import { computeSandboxInputKey, executeScriptAgainstState } from "../src/reconstruction_script_sandbox.ts";
+import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
+import { DockerUnavailableError, SANDBOX_IMAGE } from "../src/reconstruction_script_sandbox_docker.ts";
 import { Path } from "../src/structures/domain.ts";
 import { collectSandboxSpawnLabels } from "./script-execution-test-helpers.ts";
 
@@ -17,12 +20,8 @@ test("test_executeScriptAgainstState_returns_files_the_script_creates", () => {
     assert.equal(result!.get("out.txt"), "created\n");
 });
 
-test("test_executeScriptAgainstState_remaps_recorded_cwd_into_sandbox", () => {
-    // Scenario: a script hardcodes its RECORDED cwd as an absolute path literal (s87 step 57);
-    // with the recorded cwd passed in, the sandbox must rewrite that literal to the sandbox dir
-    // so the transform applies to the SANDBOX copy and the real recorded directory is untouched.
-    // Steps:
-    // create a real directory standing in for the recorded cwd, holding the same file the pre-state seeds.
+test("test_executeScriptAgainstState_mounts_the_sandbox_at_the_recorded_cwd", () => {
+    // Docker mounts the sandbox copy AT the recorded cwd (no text swap), so the real directory stays untouched.
     const recordedDir = mkdtempSync(join(tmpdir(), "reveng-recorded-"));
     try {
         writeFileSync(join(recordedDir, "demo.py"), "def add():\n    add()\n");
@@ -94,4 +93,51 @@ test("test_executeScriptAgainstState_memoizes_failed_runs", () => {
     assert.equal(spawnLabels.length, 1);
     assert.equal(firstResult, undefined);
     assert.equal(secondResult, undefined);
+});
+
+function readStoredOutcome(script: string) {
+    return getMemoizedSandboxOutcome(computeSandboxInputKey(script, new Map()));
+}
+
+test("test_executeScriptAgainstState_cannot_write_a_full_host_path_outside_the_mount", () => {
+    const hostDir = mkdtempSync(join(tmpdir(), "reveng-host-"));
+    const canary = join(hostDir, "canary.txt");
+    writeFileSync(canary, "safe\n");
+    try {
+        const script = `open("${canary}", "w").write("pwned")\n`;
+        assert.equal(executeScriptAgainstState(script, new Map(), "", new Path("/work")), undefined);
+        assert.equal(readFileSync(canary, "utf8"), "safe\n");
+    } finally {
+        rmSync(hostDir, { recursive: true, force: true });
+    }
+});
+
+test("test_executeScriptAgainstState_throws_DockerUnavailableError_when_docker_is_missing_and_stores_nothing", () => {
+    const script = 'print("no docker program")\n';
+    const savedPath = process.env.PATH;
+    process.env.PATH = "";
+    try {
+        assert.throws(() => executeScriptAgainstState(script, new Map()), DockerUnavailableError);
+    } finally {
+        process.env.PATH = savedPath;
+    }
+    assert.equal(readStoredOutcome(script), undefined);
+});
+
+test("test_executeScriptAgainstState_reads_exit_125_as_docker_off_and_stores_nothing", () => {
+    const script = "import sys\nsys.exit(125)\n";
+    assert.throws(() => executeScriptAgainstState(script, new Map()), DockerUnavailableError);
+    assert.equal(readStoredOutcome(script), undefined);
+});
+
+test("test_computeSandboxInputKey_adds_the_runtime_line_after_the_script", () => {
+    const script = "pass\n";
+    const preState = new Map([["b.txt", "2"], ["a.txt", "1"]]);
+    const cwd = new Path("/Users/me/proj");
+    const oldKeyParts = ["\0cwd\0" + cwd, "\0a.txt\x001", "\0b.txt\x002"];
+    const oldKey = oldKeyParts.reduce((hash, part) => hash.update(part), createHash("sha256").update(script)).digest("hex");
+    const newKey = createHash("sha256").update(script).update("\0runtime\0" + SANDBOX_IMAGE);
+    const expectedKey = oldKeyParts.reduce((hash, part) => hash.update(part), newKey).digest("hex");
+    assert.equal(computeSandboxInputKey(script, preState, cwd), expectedKey);
+    assert.notEqual(computeSandboxInputKey(script, preState, cwd), oldKey);
 });
