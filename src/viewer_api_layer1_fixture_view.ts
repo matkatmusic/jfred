@@ -9,6 +9,7 @@ import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import { type FixturePair, buildFixturePair, sortByInstant } from "./viewer_api_layer1_fixture_pair.ts";
 import { listFixtureSnapshotPlacements } from "./viewer_api_layer2_fixture_data.ts";
 import { buildFixtureAnnotations, placeToolNodes } from "./viewer_api_layer7_fixture_data.ts";
+import { buildFixtureJfredCommits } from "./viewer_api_layer9_fixture_data.ts";
 // import { buildMockBranchesField, listMockBranchInstants } from "./viewer_api_layer5_mockup_branches.ts";
 
 interface DiskOrphanRow { path: Path; instant: Date; snaps: SnapshotPlacement[]; }
@@ -137,5 +138,6 @@ export function buildFixtureLayer1View(): Layer1WireView {
     diskOrphans: sortByInstant(placedDiskOrphans),
     ruler,
     annotations: buildFixtureAnnotations(ruler),
+    jfredCommits: buildFixtureJfredCommits(),
   };
 }

@@ -26,3 +26,9 @@ test("test_the_stage_after_the_session_column_gets_the_same_slack_rule_as_after_
   const columnBody = readRuleBody(".atrack + .stage").split("{")[1];
   assert.equal(columnBody, rulerBody);
 });
+
+test("test_the_stage_after_the_commit_strip_gets_the_same_slack_rule_as_after_the_ruler", () => {
+  const rulerBody = readRuleBody(".ruler + .stage").split("{")[1];
+  const stripBody = readRuleBody(".jfred-strip + .stage").split("{")[1];
+  assert.equal(stripBody, rulerBody);
+});

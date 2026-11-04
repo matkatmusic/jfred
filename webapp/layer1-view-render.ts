@@ -6,6 +6,7 @@ import { rememberNavTargets } from "./layer1-diff-wash.ts";
 import { openDetailViewForFiles } from "./layer1-drawer-multi.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
 import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
+import { rememberJfredCommits } from "./layer1-jfred-mode.ts";
 import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
 import { renderSessionPane } from "./layer1-session-pane.ts";
 import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-sessions.ts";
@@ -83,6 +84,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
   };
   renderLayer1FileNav(view, selectFolderTargets);
   rememberAnnotations(view);
+  rememberJfredCommits(view);
   renderShowRowWithKindFilter(view, renderFilteredStage);
   const stageDrawn = renderLayer1Stage(view);
   // The pane keeps only transcripts that touched one of these files.

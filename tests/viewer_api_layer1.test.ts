@@ -43,6 +43,7 @@ test("test_layer1_view_endpoint_never_emits_annotations_or_tool_nodes", async ()
     // The real builder leaves both fixture-only fields out, so nothing renders outside fixture mode.
     const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
     assert.equal(Object.hasOwn(view, "annotations"), false);
+    assert.equal(Object.hasOwn(view, "jfredCommits"), false);
     for (const pair of view.pairs) {
         assert.equal(Object.hasOwn(pair, "toolNodes"), false);
     }

@@ -4,6 +4,7 @@ import type { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
 import type { WireAnnotationOf, WireToolNodeOf } from "./layer1-wire-annotations.ts";
 import type { WireBranchOf } from "./layer1-wire-branches.ts";
 import type { WireEditOf } from "./layer1-wire-edits.ts";
+import type { WireJfredCommitsOf } from "./layer1-wire-jfred.ts";
 import type { WireScriptRunOf } from "./layer1-wire-script-runs.ts";
 
 export interface WireInstantOf<I> {
@@ -63,6 +64,8 @@ export interface WireLayer1ViewOf<I, P, U> {
   ruler: WireRulerTickOf<I>[];
   // Task 382: fixture mode only; the real builder never sets it.
   annotations?: WireAnnotationOf<I, U>[];
+  // Task 383: fixture mode only; the real builder never sets it.
+  jfredCommits?: WireJfredCommitsOf<I>;
 }
 
 // The client instantiation: what JSON.parse yields from /api/layer1-view — `Path`/`Uuid` are plain strings and `Instant` is ISO text.

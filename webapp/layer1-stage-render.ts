@@ -3,6 +3,8 @@
 import { createElement, getRequiredElementById } from "./app-dom.ts";
 import { renderAnnotationTrack } from "./layer1-annotation-track.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
+import { repaintCutMarks } from "./layer1-cut-paint.ts";
+import { renderJfredStrip } from "./layer1-jfred-strip.ts";
 import { attachLeaderHover } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
@@ -91,6 +93,8 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
   renderAnnotationTrack(view.ruler);
+  renderJfredStrip(view.ruler);
+  repaintCutMarks();
   renderLayer1Minimap();
   renderScriptConnectors(stage);
   if (isChunked) {

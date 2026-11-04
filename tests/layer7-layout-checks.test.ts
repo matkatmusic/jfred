@@ -11,10 +11,12 @@ import {
 import { SCROLL_HOME, buildScrollTo } from "../scripts/visual/layer7-probes.ts";
 
 const SCROLL_RIGHT = buildScrollTo(0, 400);
-const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, stageLeft: 360, bubbleLeft: 360, isTrackOnTop: true };
+// beforeStageRight: right edge of the track, or of the jfred strip when it sits between.
+const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, beforeStageRight: 346, stageLeft: 360, bubbleLeft: 360, isTrackOnTop: true };
+const GOOD_LAYOUT_WITH_STRIP: LayoutFacts = { ...GOOD_LAYOUT, beforeStageRight: 466, stageLeft: 480, bubbleLeft: 480 };
 const GOOD_RULES: RuleFacts = { rulerRules: 1, trackRules: 1, marginWith: "0px", marginWithout: "0px" };
 // Scrolled 400px right: the pane starts at 232, the ruler and column stay pinned, the stage slid left.
-const SCROLLED_LAYOUT: LayoutFacts = { rulerRight: 384, trackLeft: 384, trackRight: 578, stageLeft: 192, bubbleLeft: 192, isTrackOnTop: true };
+const SCROLLED_LAYOUT: LayoutFacts = { rulerRight: 384, trackLeft: 384, trackRight: 578, beforeStageRight: 578, stageLeft: 192, bubbleLeft: 192, isTrackOnTop: true };
 
 interface Setup { atHome: LayoutFacts; scrolled: LayoutFacts; scrollLeft: number; rules: RuleFacts }
 const makeSetup = (change: Partial<Setup> = {}): Setup => ({ atHome: GOOD_LAYOUT, scrolled: SCROLLED_LAYOUT, scrollLeft: 400, rules: GOOD_RULES, ...change });
@@ -73,6 +75,14 @@ test("a column that is too close to the ruler or the stage fails only the betwee
     assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
 });
 
+test("with the jfred strip between, the 14px gap is measured from the strip, not the column", async () => {
+    assert.deepEqual((await runChecks(makeSetup({ atHome: GOOD_LAYOUT_WITH_STRIP }))).newFailures, []);
+    const gapFromColumn = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, beforeStageRight: 346 } }));
+    assert.deepEqual(gapFromColumn.newFailures, [BETWEEN_TITLE]);
+    const crowded = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, stageLeft: 470 } }));
+    assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
+});
+
 test("a bubble that starts under the column fails only the between check", async () => {
     const { newFailures } = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, bubbleLeft: 200 } }));
     assert.deepEqual(newFailures, [BETWEEN_TITLE]);
@@ -94,6 +104,7 @@ test("a missing rule or a margin that moves with the column fails only the rule 
 test("the probes read the column, the stage and the two slack rules", () => {
     assert.ok(LAYOUT_FACTS.includes("annotation-track"));
     assert.ok(LAYOUT_FACTS.includes("elementFromPoint"));
+    assert.ok(LAYOUT_FACTS.includes("previousElementSibling"));
     assert.ok(RULE_FACTS.includes(".ruler + .stage"));
     assert.ok(RULE_FACTS.includes(".atrack + .stage"));
     assert.doesNotThrow(() => new Function(`return (${LAYOUT_FACTS});`));

@@ -27,11 +27,14 @@ export const buildSetHideIgnored = (isOn: boolean) => `(box => { if (box.checked
 export const buildHideSettled = (isOn: boolean) => `${VIZ_ROOT}.hasAttribute('data-hide-ignored') === ${isOn}`;
 export const buildRecordDot = (id: string) => `document.querySelector('i[data-record-id="${id}"]')`;
 
+// Task 383: the jfred strip may sit between the column and the stage.
 export const TRACK_FACTS = `(() => {
     const track = document.getElementById('annotation-track');
+    const before = document.getElementById('stage').previousElementSibling;
+    const isStripAfterTrack = before.id === 'jfred-strip' && before.previousElementSibling === track;
     return { count: document.querySelectorAll('#annotation-track').length,
         isAfterRuler: document.getElementById('ruler').nextElementSibling === track,
-        isBeforeStage: document.getElementById('stage').previousElementSibling === track,
+        isBeforeStage: before === track || isStripAfterTrack,
         position: getComputedStyle(track).position };
 })()`;
 

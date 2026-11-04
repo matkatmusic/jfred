@@ -6,6 +6,32 @@ import * as probes from "../scripts/visual/layer7-probes.ts";
 
 const parseExpression = (expression: string) => new Function(`return (${expression});`);
 
+interface FakeNode { id: string; previousElementSibling: FakeNode | null; nextElementSibling: FakeNode | null }
+const makeNode = (id: string): FakeNode => ({ id, previousElementSibling: null, nextElementSibling: null });
+
+// Builds the element order before #stage for each layout the probe must judge.
+function fakeNodes(kind: string): Record<string, FakeNode> {
+    const ruler = makeNode("ruler");
+    const track = makeNode("annotation-track");
+    const strip = makeNode("jfred-strip");
+    const stage = makeNode("stage");
+    const stranger = makeNode("stranger");
+    ruler.nextElementSibling = track;
+    if (kind === "track")
+        stage.previousElementSibling = track;
+    if (kind === "strip") {
+        strip.previousElementSibling = track;
+        stage.previousElementSibling = strip;
+    }
+    if (kind === "other")
+        stage.previousElementSibling = stranger;
+    if (kind === "stripWrongSide") {
+        strip.previousElementSibling = stranger;
+        stage.previousElementSibling = strip;
+    }
+    return { ruler, "annotation-track": track, stage };
+}
+
 test("buildRecordDot puts the record id inside the node selector", () => {
     const expression = probes.buildRecordDot("l7-block-3");
     assert.ok(expression.includes('i[data-record-id="l7-block-3"]'));
@@ -60,6 +86,19 @@ test("builder output parses as JavaScript", () => {
 
 test("a broken expression is caught by the parse check", () => {
     assert.throws(() => parseExpression("document.querySelector("));
+});
+
+test("TRACK_FACTS accepts the jfred strip between the column and the stage, and nothing else", () => {
+    assert.ok(probes.TRACK_FACTS.includes("jfred-strip"));
+    const run = (layout: string) => {
+        const nodes = fakeNodes(layout);
+        return new Function("document", "getComputedStyle", `return (${probes.TRACK_FACTS});`)(
+            { getElementById: (id: string) => nodes[id], querySelectorAll: () => [1] }, () => ({ position: "sticky" })) as { isBeforeStage: boolean };
+    };
+    assert.equal(run("track").isBeforeStage, true);
+    assert.equal(run("strip").isBeforeStage, true);
+    assert.equal(run("other").isBeforeStage, false);
+    assert.equal(run("stripWrongSide").isBeforeStage, false);
 });
 
 test("the two pair ids are distinct toolu_fixture_l7 strings", () => {

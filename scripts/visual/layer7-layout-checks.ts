@@ -6,7 +6,7 @@ import { isNear } from "./layer7-facts.ts";
 import { SCROLL_HOME, buildScrollTo } from "./layer7-probes.ts";
 
 export interface LayoutFacts {
-  rulerRight: number; trackLeft: number; trackRight: number; stageLeft: number; bubbleLeft: number; isTrackOnTop: boolean;
+  rulerRight: number; trackLeft: number; trackRight: number; beforeStageRight: number; stageLeft: number; bubbleLeft: number; isTrackOnTop: boolean;
 }
 export interface RuleFacts { rulerRules: number; trackRules: number; marginWith: string; marginWithout: string }
 
@@ -17,12 +17,14 @@ const TRACK_TO_STAGE_PX = 14;
 const TOLERANCE_PX = 1;
 const SCROLL_RIGHT_PX = 400;
 
-export const LAYOUT_FACTS = `(() => {
+// Task 383: the gap is measured from the element just before #stage, the column or the jfred strip.
+export const LAYOUT_FACTS =`(() => {
     const edge = id => document.getElementById(id).getBoundingClientRect();
     const track = document.getElementById('annotation-track');
     const mark = track.querySelector('i.anode:not(.is-ignored)').getBoundingClientRect();
     const hit = document.elementFromPoint(mark.left + mark.width / 2, mark.top + mark.height / 2);
     return { rulerRight: edge('ruler').right, trackLeft: edge('annotation-track').left, trackRight: edge('annotation-track').right,
+        beforeStageRight: document.getElementById('stage').previousElementSibling.getBoundingClientRect().right,
         stageLeft: edge('stage').left, bubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
         isTrackOnTop: hit !== null && track.contains(hit) };
 })()`;
@@ -47,7 +49,7 @@ export function isColumnAfterRuler(facts: LayoutFacts): boolean {
 }
 
 export function isColumnBetween(facts: LayoutFacts): boolean {
-  const isBeforeStage = isNear(facts.stageLeft - facts.trackRight, TRACK_TO_STAGE_PX, TOLERANCE_PX);
+  const isBeforeStage = isNear(facts.stageLeft - facts.beforeStageRight, TRACK_TO_STAGE_PX, TOLERANCE_PX);
   return isColumnAfterRuler(facts) && isBeforeStage;
 }
 
