@@ -11,11 +11,12 @@ const NODE_KIND_SELECTORS: readonly (readonly [string, ShowRowKind])[] = [
   [".n-edit, .n-read", ShowRowKind.edit],
   [".n-script", ShowRowKind.scriptRun],
   [".bnode", ShowRowKind.branch],
+  [".tnode", ShowRowKind.tool],
 ];
 
 // A label takes the class of the dot before it.
 export function readNodeKind(element: HTMLElement): ShowRowKind | undefined {
-  const isLabel = element.matches(".nlabel");
+  const isLabel = element.matches(".nlabel, .tlabel");
   const dot = isLabel ? element.previousElementSibling : element;
   if (dot === null) {
     return undefined;

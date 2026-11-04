@@ -4,6 +4,7 @@ import { createElement } from "./app-dom.ts";
 import { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
 import { appendAxisNode, appendBranchLane, appendEditNode, appendScriptRunNode, appendSnapshotNode, setAxisPx } from "./layer1-lane-nodes.ts";
 import { formatInstantLabel } from "./layer1-ruler-rows.ts";
+import { appendToolNodes } from "./layer1-tool-nodes.ts";
 import { buildNodesWithSameTimestampMarkers, type NodeWithSameTimestamp } from "./layer1-nodes-with-same-timestamp.ts";
 import type { WireBranch } from "./layer1-wire-branches.ts";
 import { findRejoinWithOwnSlot, listTrunkLadderInstants } from "./layer1-wire-ladder.ts";
@@ -38,8 +39,9 @@ function buildPairWidget(pair: WirePair): HTMLElement {
   const snapshots = pair.snapshots ?? [];
   const edits = pair.edits ?? [];
   const scriptRuns = pair.scriptRuns ?? [];
+  const toolNodes = pair.toolNodes ?? [];
   // Spans earliest to latest of any kind: a pre-commit mtime gave a negative offset over the header.
-  const trunk = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns];
+  const trunk = [...(pair.created === undefined ? [] : [pair.created]), ...pair.commits, pair.onDisk, ...snapshots, ...edits, ...scriptRuns, ...toolNodes];
   const branches = pair.branches ?? [];
   const ladder = [...trunk, ...listLaneLadderNodes(branches, listTrunkLadderInstants(pair))];
   const nodePx: number[] = [];
@@ -73,6 +75,7 @@ function buildPairWidget(pair: WirePair): HTMLElement {
   for (const run of scriptRuns) {
     appendScriptRunNode(lane, run.axisPx - startPx, run);
   }
+  appendToolNodes(lane, toolNodes, startPx);
   const railEndPx = Math.max(...nodePx);
   for (const [index, branch] of branches.entries()) {
     appendBranchLane(lane, branch, index + 1, railEndPx, startPx);

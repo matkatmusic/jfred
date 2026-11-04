@@ -18,7 +18,13 @@ test("test_readNodeKind_maps_node_classes_to_show_row_kinds", () => {
     assert.equal(readKindOf("node n-read"), "edit");
     assert.equal(readKindOf("node n-script"), "script-run");
     assert.equal(readKindOf("bnode"), "branch");
+    assert.equal(readKindOf("tnode a-tool-use"), "tool");
     assert.equal(readNodeKind(createElement("li")), undefined);
+});
+
+test("test_readNodeKind_reads_a_tool_label_as_tool_through_its_dot", () => {
+    const lane = createElement("div", {}, [createElement("i", { class: "tnode a-tool-result" }), createElement("span", { class: "tlabel" })]);
+    assert.equal(readNodeKind(lane.querySelector<HTMLElement>(".tlabel")!), "tool");
 });
 
 test("test_readNodeKind_label_takes_previous_dot_kind", () => {

@@ -1,6 +1,7 @@
 // Draws the Layer 1 stage: ruler ticks, leader lines, pairs and orphans, in chunks.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
+import { renderAnnotationTrack } from "./layer1-annotation-track.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
 import { attachLeaderHover } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
@@ -89,6 +90,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderSessionRanges(listSelectedSessions(), view.ruler);
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
+  renderAnnotationTrack(view.ruler);
   renderLayer1Minimap();
   renderScriptConnectors(stage);
   if (isChunked) {

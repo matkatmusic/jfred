@@ -3,29 +3,28 @@
 import type { WireBranchOf } from "./layer1-wire-branches.ts";
 import type { WireInstantOf, WireOrphanOf, WirePairOf } from "./layer1-wire.ts";
 
-// Trunk ladder ORDER (task 331): created, commits, on-disk, snapshots, edits (task 343), script runs; raw `I`.
+export function pushNodeInstants<I>(instants: I[], nodes: readonly WireInstantOf<I>[] | undefined): void {
+  for (const node of nodes ?? []) {
+    instants.push(node.instant);
+  }
+}
+
+// Trunk ladder order (tasks 331, 343, 382): created, commits, on-disk, snapshots, edits, script runs, tool nodes; raw `I`.
 export function listTrunkLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
   const instants: I[] = [];
   if (pair.created !== undefined) {
     instants.push(pair.created.instant);
   }
-  for (const commit of pair.commits) {
-    instants.push(commit.instant);
-  }
+  pushNodeInstants(instants, pair.commits);
   instants.push(pair.onDisk.instant);
-  for (const snapshot of pair.snapshots ?? []) {
-    instants.push(snapshot.instant);
-  }
-  for (const edit of pair.edits ?? []) {
-    instants.push(edit.instant);
-  }
-  for (const run of pair.scriptRuns ?? []) {
-    instants.push(run.instant);
-  }
+  pushNodeInstants(instants, pair.snapshots);
+  pushNodeInstants(instants, pair.edits);
+  pushNodeInstants(instants, pair.scriptRuns);
+  pushNodeInstants(instants, pair.toolNodes);
   return instants;
 }
 
-// Task 357: a rejoin on a trunk instant reuses that node's slot; one on no trunk node (its edit is not loaded) owns a slot.
+// Task 357: a rejoin on a trunk instant reuses that slot; a rejoin with no trunk node owns one.
 export function findRejoinWithOwnSlot<I, U>(trunkInstants: readonly I[], branch: WireBranchOf<I, U>): WireInstantOf<I> | undefined {
   if (branch.rejoinAt === undefined) {
     return undefined;
@@ -34,7 +33,7 @@ export function findRejoinWithOwnSlot<I, U>(trunkInstants: readonly I[], branch:
   return isOnTrunk ? undefined : branch.rejoinAt;
 }
 
-// Pair ladder ORDER: the trunk, then per branch its fork, its nodes, and a rejoin that has no trunk node.
+// Pair ladder order: trunk, then per branch the fork, nodes, and any rejoin lacking a trunk node.
 export function listPairLadderInstants<I, P, U>(pair: WirePairOf<I, P, U>): I[] {
   const trunkInstants = listTrunkLadderInstants(pair);
   const instants: I[] = [...trunkInstants];

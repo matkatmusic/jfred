@@ -1,6 +1,7 @@
-// Single source for Layer 1's wire vocabulary (task 331): generic shapes per instant/path/id, const objects not `enum`.  Edits, script runs, branches and the ladder order live in layer1-wire-*.ts.
+// Single source of Layer 1 wire vocabulary (const objects, not `enum`); edits, scripts, branches, ladder live in layer1-wire-*.ts.
 
 import type { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
+import type { WireAnnotationOf, WireToolNodeOf } from "./layer1-wire-annotations.ts";
 import type { WireBranchOf } from "./layer1-wire-branches.ts";
 import type { WireEditOf } from "./layer1-wire-edits.ts";
 import type { WireScriptRunOf } from "./layer1-wire-script-runs.ts";
@@ -42,6 +43,8 @@ export interface WirePairOf<I, P, U> {
   edits?: WireEditOf<I, P, U>[];
   // Task 356: absent unless this pair's path is one the engine's static scan named for some script run.
   scriptRuns?: WireScriptRunOf<I, P, U>[];
+  // Task 382: fixture mode only; the real builder never sets it.
+  toolNodes?: WireToolNodeOf<I, U>[];
   // Task 357: absent until the branch box is ticked, so a branch-free pair's shape is unchanged.
   branches?: WireBranchOf<I, U>[];
   // branches?: WireMockBranchOf<I>[];
@@ -58,6 +61,8 @@ export interface WireLayer1ViewOf<I, P, U> {
   diskOrphans: WireOrphanOf<I, P, U>[];
   // Every distinct instant the view draws, ascending.
   ruler: WireRulerTickOf<I>[];
+  // Task 382: fixture mode only; the real builder never sets it.
+  annotations?: WireAnnotationOf<I, U>[];
 }
 
 // The client instantiation: what JSON.parse yields from /api/layer1-view — `Path`/`Uuid` are plain strings and `Instant` is ISO text.

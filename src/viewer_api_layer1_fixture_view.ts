@@ -8,9 +8,15 @@ import type { Layer1WireOrphan, Layer1WirePair, Layer1WireView } from "./viewer_
 import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import { type FixturePair, buildFixturePair, sortByInstant } from "./viewer_api_layer1_fixture_pair.ts";
 import { listFixtureSnapshotPlacements } from "./viewer_api_layer2_fixture_data.ts";
+import { buildFixtureAnnotations, placeToolNodes } from "./viewer_api_layer7_fixture_data.ts";
 // import { buildMockBranchesField, listMockBranchInstants } from "./viewer_api_layer5_mockup_branches.ts";
 
 interface DiskOrphanRow { path: Path; instant: Date; snaps: SnapshotPlacement[]; }
+
+function buildToolNodesField(pair: FixturePair, firstOffset: number, nodeOffsetsPx: number[]): Pick<Layer1WirePair, "toolNodes"> {
+  const toolNodes = placeToolNodes(pair.path.toString(), nodeOffsetsPx.slice(firstOffset));
+  return toolNodes.length === 0 ? {} : { toolNodes };
+}
 
 function buildPlacedFixturePair(pair: FixturePair, nodeOffsetsPx: number[]): Layer1WirePair {
   const firstCommit = pair.created === undefined ? 0 : 1;
@@ -27,6 +33,7 @@ function buildPlacedFixturePair(pair: FixturePair, nodeOffsetsPx: number[]): Lay
     commits,
     onDisk: { instant: pair.mtime, axisPx: nodeOffsetsPx[onDiskIndex]! },
     ...(placedSnapshots.length === 0 ? {} : { snapshots: placedSnapshots }),
+    ...buildToolNodesField(pair, onDiskIndex + 1 + pair.snaps.length, nodeOffsetsPx),
     // ...buildMockBranchesField(pair.path, nodeOffsetsPx.slice(pair.ladder.length)),
   };
 }
@@ -129,5 +136,6 @@ export function buildFixtureLayer1View(): Layer1WireView {
     gitOrphans: sortByInstant(placedGitOrphans),
     diskOrphans: sortByInstant(placedDiskOrphans),
     ruler,
+    annotations: buildFixtureAnnotations(ruler),
   };
 }

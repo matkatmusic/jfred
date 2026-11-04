@@ -214,6 +214,7 @@
     Left slack follows the ruler; dividing by --zoom cancels the canvas zoom.
   */
   .ruler + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
+  .atrack + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
   .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
   /*
     Task 290: `+ var(--lane-y)` drops the label onto the node's own row, matching `.leader`.
@@ -830,3 +831,64 @@
   .dtoast { position: fixed; right: 18px; bottom: 18px; z-index: 60; background: var(--c-anchor);
     color: #fff; font: 600 11px system-ui; padding: 6px 12px; border-radius: 16px; }
   .dtoast[hidden] { display: none; }
+
+  /*
+    Task 382: session column (.atrack) and bubble tool nodes (.tnode); tokens only, so dark mode follows.
+  */
+  /* .atrack { position: sticky; left: calc(var(--rail-x) + 46px); z-index: 8; flex: none; width: 150px; margin-left: 30px;
+    background: var(--page); } */
+  /*
+    Column touches ruler: margin-left cancels canvas gap, width keeps bubbles put; --bars holds session bars; z-index 7 raises them.
+  */
+  .atrack { --bars: 44px; position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: 194px; margin-left: -14px;
+    background: var(--page); }
+  .canvas:has(> .atrack) .ranges { z-index: 8; }
+  .anode, .alabel { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }
+  /* .anode { left: calc(22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;
+    border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); } */
+  .anode { left: calc(var(--bars) + 22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;
+    border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); }
+  /* .alabel { left: calc(34px + var(--stack, 0) * 16px); transform: translateY(-50%); font-size: 10px; color: var(--muted);
+    white-space: nowrap; } */
+  /*
+    A stacked record's label drops one 15px text line per step, so two labels at one offset never overlap.
+  */
+  /* .alabel { left: calc(34px + var(--stack, 0) * 16px); transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
+    color: var(--muted); white-space: nowrap; } */
+  /*
+    One fixed left clears a stack of 2 nodes, so no node covers the start of a label.
+  */
+  /* .alabel { left: 50px; transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
+    color: var(--muted); white-space: nowrap; } */
+  .alabel { left: calc(var(--bars) + 50px); transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
+    color: var(--muted); white-space: nowrap; }
+  /* .abracket { position: absolute; left: 2px; width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; } */
+  .abracket { position: absolute; left: calc(var(--bars) + 2px); width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; }
+  .tnode { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); width: 13px; height: 13px; box-sizing: border-box;
+    border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); z-index: 6; }
+  .tlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%); font-size: 10px;
+    color: var(--muted); white-space: nowrap; }
+  .tbracket { position: absolute; left: -14px; width: 8px; top: calc(var(--axis-px) * 1px); height: calc(var(--span-px) * 1px);
+    border: 2px dashed var(--muted); border-right: none; }
+  /*
+    One shape per record kind; no position here, so .anode and .tnode share these.
+  */
+  .a-user { border-color: var(--c-user); background: var(--c-user); }
+  .a-assistant { border-color: var(--c-user); }
+  .a-tool-use { border-radius: 3px; background: var(--ink); }
+  .a-tool-result { border-radius: 3px; }
+  .a-attachment { width: 8px; height: 8px; border-color: var(--muted); background: var(--muted); }
+  .a-permission-mode { width: 8px; height: 8px; border-color: var(--muted); }
+  .a-custom-title { border-radius: 0; border-color: var(--muted); transform: translate(-50%, -50%) rotate(45deg); }
+  .a-unknown { border-style: dashed; }
+  .anode.is-ignored, .alabel.is-ignored { opacity: .38; }
+  .viz-root[data-hide-ignored] .is-ignored { display: none; }
+  .viz-root[data-hidden-kinds~="tool"] .tnode,
+  .viz-root[data-hidden-kinds~="tool"] .tlabel,
+  .viz-root[data-hidden-kinds~="tool"] .tbracket { display: none; }
+  .show-row .sw-tool { background: var(--ink); border-radius: 3px; }
+  /* .atrack .atitle { position: sticky; top: 0; z-index: 1; padding: 2px 0 0 14px; font-size: 10px; color: var(--muted); background: var(--page); } */
+  .atrack .atitle { position: sticky; top: 0; z-index: 1; padding: 2px 0 0 calc(var(--bars) + 14px); font-size: 10px; color: var(--muted);
+    background: var(--page); }

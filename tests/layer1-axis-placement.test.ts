@@ -28,6 +28,21 @@ test("test_set_pair_axis_px_places_commits_then_on_disk_then_snapshots", () => {
     assert.equal("created" in placed, false);
 });
 
+test("test_set_pair_axis_px_reads_tool_nodes_after_the_script_runs", () => {
+    const pair = {
+        path: "a.ts",
+        commits: [],
+        onDisk: { instant: T0, axisPx: 0 },
+        edits: [{ instant: T1, axisPx: 0 }] as never,
+        scriptRuns: [{ instant: T2, axisPx: 0 }] as never,
+        toolNodes: [{ instant: T3, axisPx: 0, id: "t", kind: "tool_use", pairId: "p", label: "Grep" }] as never,
+    };
+    const placed = setPairAxisPx(pair, [10, 20, 30, 40]);
+    assert.equal(placed.scriptRuns![0]!.axisPx, 30);
+    assert.equal(placed.toolNodes![0]!.axisPx, 40);
+    assert.equal("toolNodes" in setPairAxisPx({ path: "a.ts", commits: [], onDisk: { instant: T0, axisPx: 0 } }, [10]), false);
+});
+
 test("test_set_pair_axis_px_gives_created_the_first_offset", () => {
     const pair = {
         path: "a.ts",

@@ -1,6 +1,7 @@
 // Task 385: show-row mockup, one checkbox per node kind in the view; filtering waits for task 360.
 
 import { createElement, getRequiredElementById } from "./app-dom.ts";
+import { buildHideIgnoredControl } from "./layer1-hide-ignored.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 // Order is the order the checkboxes print; values double as the swatch class suffix and the `data-kind` attribute.
@@ -12,6 +13,7 @@ export const ShowRowKind = {
   edit: "edit",
   scriptRun: "script-run",
   branch: "branch",
+  tool: "tool",
 } as const;
 export type ShowRowKind = (typeof ShowRowKind)[keyof typeof ShowRowKind];
 
@@ -23,9 +25,19 @@ export const SHOW_ROW_LABELS: Record<ShowRowKind, string> = {
   [ShowRowKind.edit]: "edit",
   [ShowRowKind.scriptRun]: "script run",
   [ShowRowKind.branch]: "branch",
+  [ShowRowKind.tool]: "tool call",
 };
 
-type ShowRowView = Pick<WireLayer1View, "pairs" | "gitOrphans" | "diskOrphans">;
+type ShowRowView = Pick<WireLayer1View, "pairs" | "gitOrphans" | "diskOrphans" | "annotations">;
+
+function containsToolNodes(pairs: ShowRowView["pairs"]): boolean {
+  for (const pair of pairs) {
+    const hasToolNodes = (pair.toolNodes ?? []).length > 0;
+    if (hasToolNodes)
+      return true;
+  }
+  return false;
+}
 
 function containsCreated(pairs: ShowRowView["pairs"]): boolean {
   for (const pair of pairs) {
@@ -66,6 +78,7 @@ export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
     // [ShowRowKind.scriptRun]: view.pairs.some((pair) => (pair.scriptRuns ?? []).length > 0),
     [ShowRowKind.scriptRun]: true,
     [ShowRowKind.branch]: true,
+    [ShowRowKind.tool]: containsToolNodes(view.pairs),
   };
   const kinds: ShowRowKind[] = [];
   for (const kind of Object.values(ShowRowKind)) {
@@ -105,8 +118,10 @@ export function renderShowRow(view: ShowRowView): void {
   const columns: HTMLElement[] = [];
   for (const kind of listPresentKinds(view))
     columns.push(buildKindColumn(kind));
+  const isTrackShown = view.annotations !== undefined;
   getRequiredElementById("show-row").replaceChildren(
     createElement("span", { class: "lbl", text: "show:" }),
     ...columns,
+    ...(isTrackShown ? [buildHideIgnoredControl()] : []),
   );
 }

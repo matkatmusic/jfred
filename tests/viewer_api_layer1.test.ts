@@ -39,6 +39,15 @@ test("test_layer1_view_endpoint_pairs_disk_files_against_the_repo_tree", async (
     assert.deepEqual(view.diskOrphans.map((orphan) => orphan.path), ["early.txt", "disk-only.txt"]);
 });
 
+test("test_layer1_view_endpoint_never_emits_annotations_or_tool_nodes", async () => {
+    // The real builder leaves both fixture-only fields out, so nothing renders outside fixture mode.
+    const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
+    assert.equal(Object.hasOwn(view, "annotations"), false);
+    for (const pair of view.pairs) {
+        assert.equal(Object.hasOwn(pair, "toolNodes"), false);
+    }
+});
+
 test("test_layer1_view_endpoint_rejects_a_ref_that_does_not_resolve", async () => {
     // A bad typed `ref` is a displayable client error: never a 500, never a stack trace.
     const response = await fetch(buildViewUrl(SCRATCH_PORT, { dir: diskDir, repo: repoDir, ref: "no-such-ref" }));

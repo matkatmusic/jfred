@@ -40,6 +40,14 @@ test("test_listTrunkLadderInstants_orders_created_commits_disk_snapshots_edits_r
   assert.deepEqual(instants, ["created", "commit", "disk", "snap", "edit", "run"]);
 });
 
+test("test_listPairLadderInstants_puts_tool_nodes_after_runs_and_before_branches", () => {
+  // Verify: tool node instants follow the script runs and lead the branch instants.
+  const toolNode = { ...makeInstant("tool"), id: "t", kind: "tool_use", pairId: "p", label: "Grep" } as const;
+  const pair = { ...makeFullPair(), toolNodes: [toolNode] };
+  assert.deepEqual(listTrunkLadderInstants(pair), ["created", "commit", "disk", "snap", "edit", "run", "tool"]);
+  assert.deepEqual(listPairLadderInstants(pair).slice(5, 8), ["run", "tool", "f"]);
+});
+
 test("test_listTrunkLadderInstants_skips_absent_optional_parts", () => {
   // Verify: a bare pair gives only its on-disk instant.
   const pair: WirePairOf<string, string, string> = { path: "/a", commits: [], onDisk: makeInstant("disk") };

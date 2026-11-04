@@ -12,6 +12,7 @@ const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const COMMIT = { ...INSTANT, hash: "b7c8d9e0f1a23445566778899aabbccddeeff001" };
 const SNAPSHOT = { ...INSTANT, version: 1, sessionId: "s-1", sessionFile: "alpha.jsonl" };
+const TOOL_NODE = { ...INSTANT, id: "l7-tool-0", kind: "tool_use", pairId: "toolu_fixture_l7_grep", label: "Grep" };
 
 function renderViewAndListShownKinds(pair: object | undefined): string[] {
     initLayer1Dom();
@@ -47,4 +48,44 @@ test("test_the_show_row_boxes_start_checked_except_edit_and_script_run_and_the_l
     assert.equal(boxes.find((box) => box.dataset["kind"] === "edit")!.checked, false);
     assert.equal(boxes.find((box) => box.dataset["kind"] === "script-run")!.checked, false);
     assert.equal(document.querySelector(".legend"), null);
+});
+
+function renderViewWithExtras(extras: object, pairExtras: object): void {
+    initLayer1Dom();
+    initLayer1Page();
+    const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT, ...pairExtras };
+    renderLayer1View({ pairs: [pair], gitOrphans: [], diskOrphans: [], ruler: [], ...extras } as never);
+}
+
+test("test_a_view_with_annotations_shows_the_hide_ignored_box_after_the_kind_columns", () => {
+    // Scenario: the box is the last child of the show row and carries the exact label.
+    renderViewWithExtras({ annotations: [] }, {});
+    const lastChild = document.getElementById("show-row")!.lastElementChild!;
+    assert.equal(lastChild.querySelector("#hide-ignored")?.id, "hide-ignored");
+    assert.equal(lastChild.textContent!.trim(), "hide ignored nodes");
+    assert.equal(document.querySelectorAll("#show-row #hide-ignored").length, 1);
+});
+
+test("test_a_view_without_annotations_shows_no_hide_ignored_box", () => {
+    // Scenario: real data never sets annotations, so the show row and the viz root stay as before.
+    renderViewWithExtras({}, {});
+    assert.equal(document.getElementById("hide-ignored"), null);
+    assert.equal(document.querySelector(".viz-root")!.hasAttribute("data-hide-ignored"), false);
+});
+
+test("test_a_view_with_tool_nodes_lists_the_tool_kind_last", () => {
+    // Scenario: one pair with a tool node adds a tool box after the branch box.
+    renderViewWithExtras({}, { toolNodes: [TOOL_NODE] });
+    const kinds: string[] = [];
+    for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
+        kinds.push(box.dataset["kind"]!);
+    }
+    assert.deepEqual(kinds,["commit", "disk", "edit", "script-run", "branch", "tool"]);
+    assert.equal(document.querySelector<HTMLInputElement>("#show-row input[data-kind=tool]")!.checked, true);
+});
+
+test("test_a_view_without_tool_nodes_lists_the_old_kinds_unchanged", () => {
+    // Scenario: no pair has toolNodes, so there is no tool box.
+    renderViewWithExtras({}, {});
+    assert.equal(document.querySelector("#show-row input[data-kind=tool]"), null);
 });

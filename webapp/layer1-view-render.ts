@@ -1,6 +1,7 @@
 // Draws a whole Layer 1 view and keeps the folder-selection filter state.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { rememberAnnotations } from "./layer1-annotation-track.ts";
 import { rememberNavTargets } from "./layer1-diff-wash.ts";
 import { openDetailViewForFiles } from "./layer1-drawer-multi.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
@@ -81,6 +82,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     }
   };
   renderLayer1FileNav(view, selectFolderTargets);
+  rememberAnnotations(view);
   renderShowRowWithKindFilter(view, renderFilteredStage);
   const stageDrawn = renderLayer1Stage(view);
   // The pane keeps only transcripts that touched one of these files.

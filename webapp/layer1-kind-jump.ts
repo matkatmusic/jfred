@@ -43,7 +43,7 @@ function readAnchorY(): number {
 
 function listKindNodes(kind: ShowRowKind): MeasuredNode[] {
   const measuredNodes: MeasuredNode[] = [];
-  for (const node of getRequiredElementById("stage").querySelectorAll<HTMLElement>(".node, .bnode")) {
+  for (const node of getRequiredElementById("stage").querySelectorAll<HTMLElement>(".node, .bnode, .tnode")) {
     const isRequestedKind = readNodeKind(node) === kind;
     if (isRequestedKind) {
       measuredNodes.push({ node, centerY: readCenterY(node) });

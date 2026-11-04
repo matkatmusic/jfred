@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findArrow, PANE_HEIGHT_PX, readLandedY, renderViewWithSyntheticStage } from "./layer1-kind-jump-helpers.ts";
+import { createElement } from "../webapp/app-dom.ts";
+import { buildNode, findArrow, PANE_HEIGHT_PX, readLandedY, refreshKindJumpArrows, renderViewWithSyntheticStage } from "./layer1-kind-jump-helpers.ts";
 
 test("test_each_kind_box_has_a_previous_and_a_next_arrow_under_it", async () => {
     await renderViewWithSyntheticStage();
@@ -58,6 +59,27 @@ test("test_an_arrow_with_no_node_in_its_direction_is_disabled", async () => {
     findArrow("commit", "next").click();
     assert.equal(findArrow("commit", "next").disabled, true);
     assert.equal(findArrow("commit", "previous").disabled, false);
+});
+
+function buildToolArrow(direction: string): HTMLButtonElement {
+    return createElement("button", { type: "button", "data-jump-kind": "tool", "data-jump": direction }) as HTMLButtonElement;
+}
+
+test("test_the_tool_arrows_land_on_a_tnode_that_is_not_a_node", async () => {
+    // Scenario: two tool nodes (class tnode, not node); next lands on the first, then the second.
+    await renderViewWithSyntheticStage();
+    const first = buildNode("", 400);
+    const second = buildNode("", 700);
+    for (const toolNode of [first, second]) {
+        toolNode.className = "tnode a-tool-use";
+    }
+    document.getElementById("stage")!.replaceChildren(first, second);
+    document.getElementById("show-row")!.append(buildToolArrow("previous"), buildToolArrow("next"));
+    refreshKindJumpArrows();
+    findArrow("tool", "next").click();
+    assert.equal(readLandedY(), "400");
+    findArrow("tool", "next").click();
+    assert.equal(readLandedY(), "700");
 });
 
 test("test_a_kind_jump_does_not_toggle_the_checkbox", async () => {

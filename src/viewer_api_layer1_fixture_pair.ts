@@ -7,6 +7,7 @@ import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureDisk } from "./viewer_api_layer1_fixture_data.ts";
 import { listFixtureSnapshotPlacements } from "./viewer_api_layer2_fixture_data.ts";
+import { listToolNodeInstants } from "./viewer_api_layer7_fixture_data.ts";
 
 export interface CommitInstant { hash: string; instant: Date; }
 
@@ -17,6 +18,7 @@ export interface FixturePair {
   mtime: Date;
   snaps: SnapshotPlacement[];
   ladder: NodeLadder;
+  toolNodes: Date[];
 }
 
 function compareByInstant(left: { instant: Date }, right: { instant: Date }): number {
@@ -47,6 +49,20 @@ function findDiskEntry(path: string): FixtureDisk {
   throw new Error(`no DISK entry for ${path}`);
 }
 
+function listFixtureLadder(pair: Omit<FixturePair, "path" | "ladder">): NodeLadder {
+  const ladder: NodeLadder = [];
+  if (pair.created !== undefined) {
+    ladder.push(pair.created);
+  }
+  for (const commit of pair.commits) {
+    ladder.push(commit.instant);
+  }
+  ladder.push(pair.mtime);
+  ladder.push(...listSnapshotInstants(pair.snaps));
+  ladder.push(...pair.toolNodes);
+  return ladder;
+}
+
 // created is present only when born < mtime (the plan's rule); README.md's born === mtime, so it has none.
 export function buildFixturePair(path: string): FixturePair {
   const disk = findDiskEntry(path);
@@ -55,14 +71,7 @@ export function buildFixturePair(path: string): FixturePair {
   const commits = listCommitInstants(path);
   const created = parseMs(disk.born) < parseMs(disk.at) ? born : undefined;
   const snaps = listFixtureSnapshotPlacements(path);
-  const ladder: NodeLadder = [];
-  if (created !== undefined) {
-    ladder.push(created);
-  }
-  for (const commit of commits) {
-    ladder.push(commit.instant);
-  }
-  ladder.push(mtime);
-  ladder.push(...listSnapshotInstants(snaps));
-  return { path: new Path(path), commits, created, mtime, snaps, ladder };
+  const toolNodes = listToolNodeInstants(path);
+  const ladder = listFixtureLadder({ commits, created, mtime, snaps, toolNodes });
+  return { path: new Path(path), commits, created, mtime, snaps, ladder, toolNodes };
 }

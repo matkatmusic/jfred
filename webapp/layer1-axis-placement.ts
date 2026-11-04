@@ -18,21 +18,26 @@ export function setNodesAxisPx<Node extends WireInstant>(nodes: Node[] | undefin
   return placedNodes;
 }
 
-// Task 357: each branch holds forkAt, its nodes, then a rejoin only if no trunk node shares it.  A rejoin sharing a trunk node takes that node's offset.
+// Task 357: branch holds forkAt, nodes, then a rejoin; a rejoin on a trunk node takes that node's offset.
+export function setBranchAxisPx(branch: WireBranch, trunkInstants: string[], ladderOffsetsPx: number[], placedCount: number): WireBranch {
+  const forkAt = setNodeAxisPx(branch.forkAt, ladderOffsetsPx[placedCount]!);
+  const nodes = setNodesAxisPx(branch.nodes, ladderOffsetsPx.slice(placedCount + 1));
+  if (branch.rejoinAt === undefined) {
+    return { ...branch, forkAt, nodes };
+  }
+  const ownSlotIndex = placedCount + 1 + branch.nodes.length;
+  const hasOwnSlot = findRejoinWithOwnSlot(trunkInstants, branch) !== undefined;
+  const rejoinOffsetPx = hasOwnSlot ? ladderOffsetsPx[ownSlotIndex]! : ladderOffsetsPx[trunkInstants.indexOf(branch.rejoinAt.instant)]!;
+  return { ...branch, forkAt, rejoinAt: setNodeAxisPx(branch.rejoinAt, rejoinOffsetPx), nodes };
+}
+
 export function setBranchesAxisPx(branches: WireBranch[], trunkInstants: string[], ladderOffsetsPx: number[]): WireBranch[] {
   let placedCount = trunkInstants.length;
   const placedBranches: WireBranch[] = [];
   for (const branch of branches) {
-    const forkAt = setNodeAxisPx(branch.forkAt, ladderOffsetsPx[placedCount]!);
-    const nodes = setNodesAxisPx(branch.nodes, ladderOffsetsPx.slice(placedCount + 1));
-    placedCount += 1 + branch.nodes.length;
-    if (branch.rejoinAt === undefined) {
-      placedBranches.push({ ...branch, forkAt, nodes });
-      continue;
-    }
+    placedBranches.push(setBranchAxisPx(branch, trunkInstants, ladderOffsetsPx, placedCount));
     const hasOwnSlot = findRejoinWithOwnSlot(trunkInstants, branch) !== undefined;
-    const rejoinOffsetPx = hasOwnSlot ? ladderOffsetsPx[placedCount++]! : ladderOffsetsPx[trunkInstants.indexOf(branch.rejoinAt.instant)]!;
-    placedBranches.push({ ...branch, forkAt, rejoinAt: setNodeAxisPx(branch.rejoinAt, rejoinOffsetPx), nodes });
+    placedCount += 1 + branch.nodes.length + (hasOwnSlot ? 1 : 0);
   }
   return placedBranches;
 }
@@ -47,26 +52,31 @@ export function setBranchesAxisPx(branches: WireBranch[], trunkInstants: string[
 //     });
 // }
 
+// Snapshots, edits, script runs, tool nodes in ladder order from `tailStart`; each key is spread only when present.
+export function setTailNodesAxisPx(pair: WirePair, nodeOffsetsPx: number[], tailStart: number): Pick<WirePair, "snapshots" | "edits" | "scriptRuns" | "toolNodes"> {
+  const editsStart = tailStart + (pair.snapshots ?? []).length;
+  const scriptRunsStart = editsStart + (pair.edits ?? []).length;
+  const toolNodesStart = scriptRunsStart + (pair.scriptRuns ?? []).length;
+  return {
+    ...(pair.snapshots === undefined ? {} : { snapshots: setNodesAxisPx(pair.snapshots, nodeOffsetsPx.slice(tailStart)) }),
+    ...(pair.edits === undefined ? {} : { edits: setNodesAxisPx(pair.edits, nodeOffsetsPx.slice(editsStart)) }),
+    ...(pair.scriptRuns === undefined ? {} : { scriptRuns: setNodesAxisPx(pair.scriptRuns, nodeOffsetsPx.slice(scriptRunsStart)) }),
+    ...(pair.toolNodes === undefined ? {} : { toolNodes: setNodesAxisPx(pair.toolNodes, nodeOffsetsPx.slice(toolNodesStart)) }),
+  };
+}
+
 // `nodeOffsetsPx` is parallel to listWirePairLadder's output: commits oldest-first, on-disk last.
 export function setPairAxisPx(pair: WirePair, nodeOffsetsPx: number[]): WirePair {
   const firstCommit = pair.created === undefined ? 0 : 1;
   const onDiskIndex = firstCommit + pair.commits.length;
-  const tailStart = onDiskIndex + 1;
-  const editsStart = tailStart + (pair.snapshots ?? []).length;
-  const scriptRunsStart = editsStart + (pair.edits ?? []).length;
-  const commits: WireCommit[] = [];
-  for (const [node, commit] of pair.commits.entries()) {
-    commits.push(setNodeAxisPx(commit, nodeOffsetsPx[firstCommit + node]!));
-  }
+  const commits: WireCommit[] = setNodesAxisPx(pair.commits, nodeOffsetsPx.slice(firstCommit));
   return {
     ...pair,
     // Spread conditionally: a `created: undefined` KEY differs from an absent one under deep equality.
     ...(pair.created === undefined ? {} : { created: setNodeAxisPx(pair.created, nodeOffsetsPx[0]!) }),
     commits,
     onDisk: setNodeAxisPx(pair.onDisk, nodeOffsetsPx[onDiskIndex]!),
-    ...(pair.snapshots === undefined ? {} : { snapshots: setNodesAxisPx(pair.snapshots, nodeOffsetsPx.slice(tailStart)) }),
-    ...(pair.edits === undefined ? {} : { edits: setNodesAxisPx(pair.edits, nodeOffsetsPx.slice(editsStart)) }),
-    ...(pair.scriptRuns === undefined ? {} : { scriptRuns: setNodesAxisPx(pair.scriptRuns, nodeOffsetsPx.slice(scriptRunsStart)) }),
+    ...setTailNodesAxisPx(pair, nodeOffsetsPx, onDiskIndex + 1),
     ...(pair.branches === undefined ? {} : { branches: setBranchesAxisPx(pair.branches, listTrunkLadderInstants(pair), nodeOffsetsPx) }),
   };
 }

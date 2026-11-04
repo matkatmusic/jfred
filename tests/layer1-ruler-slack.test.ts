@@ -20,3 +20,9 @@ test("test_the_stage_after_the_ruler_gets_the_left_slack_divided_by_zoom", () =>
   const body = readRuleBody(".ruler + .stage");
   assert.match(body, /margin-left: calc\(var\(--slack-left, 0px\) \/ var\(--zoom, 1\)\)/);
 });
+
+test("test_the_stage_after_the_session_column_gets_the_same_slack_rule_as_after_the_ruler", () => {
+  const rulerBody = readRuleBody(".ruler + .stage").split("{")[1];
+  const columnBody = readRuleBody(".atrack + .stage").split("{")[1];
+  assert.equal(columnBody, rulerBody);
+});
