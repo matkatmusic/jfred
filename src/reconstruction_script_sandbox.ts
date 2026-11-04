@@ -21,7 +21,7 @@ import {
   killSandboxContainer,
   stopTimedOutContainer,
 } from "./reconstruction_script_sandbox_docker.ts";
-import { assertSpawnAllowed, noteMemoHit } from "./reconstruction_script_sandbox_spawn_guard.ts";
+import { assertSpawnAllowed, reportMemoHit } from "./reconstruction_script_sandbox_spawn_guard.ts";
 
 const SPAWN_ERROR_NO_PROGRAM = "ENOENT";
 const SPAWN_ERROR_TIMED_OUT = "ETIMEDOUT";
@@ -50,10 +50,7 @@ export function computeSandboxInputKey(script: string, preState: Map<string, str
   const hash = createHash("sha256");
   hash.update(script);
   hash.update("\0runtime\0" + SANDBOX_IMAGE);
-  if (recordedCwd !== undefined) {
-    hash.update("\0cwd\0");
-    hash.update(recordedCwd.toString());
-  }
+  hash.update(recordedCwd === undefined ? "" : "\0cwd\0" + recordedCwd.toString());
   const sortedPaths = [...preState.keys()].sort();
   for (const path of sortedPaths) {
     hash.update("\0");
@@ -64,30 +61,27 @@ export function computeSandboxInputKey(script: string, preState: Map<string, str
   return hash.digest("hex");
 }
 
-function serveMemoizedOutcome(outcome: SandboxOutcome, script: string, sourceLabel: string): Map<string, string> | undefined {
+function reportMemoizedOutcome(outcome: SandboxOutcome, script: string, sourceLabel: string): Map<string, string> | undefined {
   addToReconstructionCounter(ReconstructionCounter.sandboxMemoHits);
-  reportReconstructionProgress(
-    `${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${formatScriptForProgress(script)}`,
-  );
-  noteMemoHit(script, sourceLabel, outcome.post);
+  reportReconstructionProgress(`${PROGRESS_LABEL_SANDBOX_MEMO_PREFIX}${sourceLabel}: ${formatScriptForProgress(script)}`);
+  reportMemoHit(script, sourceLabel, outcome.post);
   return outcome.post;
 }
 
-export function executeScriptAgainstState(
-  script: string,
-  preState: Map<string, string>,
-  sourceLabel = "",
-  recordedCwd?: Path,
-): Map<string, string> | undefined {
+export function executeScriptAgainstState(script: string, preState: Map<string, string>, sourceLabel = "", recordedCwd?: Path): Map<string, string> | undefined {
   const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
   const memoizedOutcome = getMemoizedSandboxOutcome(inputKey);
   if (memoizedOutcome !== undefined) {
-    return serveMemoizedOutcome(memoizedOutcome, script, sourceLabel);
+    return reportMemoizedOutcome(memoizedOutcome, script, sourceLabel);
   }
   const isSpawnAllowed = assertSpawnAllowed(script, sourceLabel);
   if (!isSpawnAllowed) {
     return undefined;
   }
+  return spawnAndStoreOutcome(inputKey, script, preState, sourceLabel, recordedCwd);
+}
+
+function spawnAndStoreOutcome(inputKey: string, script: string, preState: Map<string, string>, sourceLabel: string, recordedCwd?: Path): Map<string, string> | undefined {
   reportReconstructionProgress(
     `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${formatScriptForProgress(script)}`,
   );
@@ -98,28 +92,35 @@ export function executeScriptAgainstState(
 }
 
 // Seeds a temp dir, runs python3 in a closed Docker container, reads back the tree.
-function spawnSandboxRun(
-  script: string,
-  preState: Map<string, string>,
-  recordedCwd?: Path,
-): SandboxOutcome {
+function spawnSandboxRun(script: string, preState: Map<string, string>, recordedCwd?: Path): SandboxOutcome {
   const tempDir = prepareSandboxDirectory(script, preState);
   try {
     const runId = new Uuid(randomUUID());
     const dockerArgs = buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd));
     // SIGKILL: python as PID 1 ignores the SIGTERM docker forwards, so the timeout would never end the wait.
     const result = spawnSync("docker", dockerArgs, { timeout: SANDBOX_TIMEOUT_MS, killSignal: "SIGKILL", stdio: "pipe", encoding: "utf8" });
-    return interpretSandboxResult(result, runId, tempDir);
+    return parseSandboxResult(result, runId, tempDir);
   }
   finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
-function interpretSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, tempDir: string): SandboxOutcome {
+function collectSandboxPostState(tempDir: string): Map<string, string> {
+  const post = new Map<string, string>();
+  for (const [relativePath, content] of readAllFiles(tempDir)) {
+    const isScriptFile = relativePath === "__script__.py";
+    if (!isScriptFile) {
+      post.set(relativePath, content);
+    }
+  }
+  return post;
+}
+
+function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, tempDir: string): SandboxOutcome {
   const output: SandboxOutput = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status ?? undefined, timedOut: false };
   if (result.error !== undefined) {
-    return interpretSpawnError(result.error, output, runId);
+    return parseSpawnError(result.error, output, runId);
   }
   // ponytail: a script calling sys.exit(125) reads as Docker off.
   if (result.status === DOCKER_FAILURE_STATUS) {
@@ -128,11 +129,10 @@ function interpretSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, t
   if (result.status !== 0) {
     return { post: undefined, output };
   }
-  const post = new Map(readAllFiles(tempDir).filter(([relativePath]) => relativePath !== "__script__.py"));
-  return { post, output };
+  return { post: collectSandboxPostState(tempDir), output };
 }
 
-function interpretSpawnError(error: Error, output: SandboxOutput, runId: Uuid): SandboxOutcome {
+function parseSpawnError(error: Error, output: SandboxOutput, runId: Uuid): SandboxOutcome {
   const errorCode = (error as NodeJS.ErrnoException).code;
   if (errorCode === SPAWN_ERROR_NO_PROGRAM) {
     throw new DockerUnavailableError();

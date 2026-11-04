@@ -7,6 +7,7 @@ import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { renderJfredStrip } from "./layer1-jfred-strip.ts";
 import { attachLeaderHover } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "./layer1-minimap.ts";
+import { installRunViewportWatcher } from "./layer1-run-viewport.ts";
 import { renderNavWash } from "./layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "./layer1-progress.ts";
 import { refreshKindJumpArrows } from "./layer1-kind-jump.ts";
@@ -96,6 +97,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderJfredStrip(view.ruler);
   repaintCutMarks();
   renderLayer1Minimap();
+  installRunViewportWatcher();
   renderScriptConnectors(stage);
   if (isChunked) {
     hideLayer1Progress();

@@ -41,13 +41,13 @@ async function validateTickFetch(page: HeadlessPage): Promise<void> {
 
 async function validateScriptNodesAfterTick(page: HeadlessPage, ticksBefore: number): Promise<void> {
   const dotCount = await page.evaluate<number>(COUNT_SCRIPT_DOTS);
-  reportCheck("L4 ticking the script-run box: exactly 10 script nodes", dotCount === 10, dotCount);
+  reportCheck("L4 ticking the script-run box: exactly 20 script nodes", dotCount === 20, dotCount);
   const ticksAfter = await page.evaluate<number>(COUNT_TICKS);
   reportCheck("L4 the ruler grew to include the script-run instants", ticksAfter > ticksBefore, { ticksBefore, ticksAfter });
   const levelFlags = await page.evaluate<boolean[]>(
     `[...${SCRIPT_DOTS}].map(d => ${buildRulerMatchProbe("d")})`);
   const allLevel = !levelFlags.includes(false);
-  reportCheck("L4 every script node sits level with a ruler tick", levelFlags.length === 10 && allLevel, levelFlags);
+  reportCheck("L4 every script node sits level with a ruler tick", levelFlags.length === 20 && allLevel, levelFlags);
 }
 
 async function validateInstantToggle(page: HeadlessPage): Promise<void> {
@@ -58,7 +58,7 @@ async function validateInstantToggle(page: HeadlessPage): Promise<void> {
     endsTicked: boolean;
   }>(buildToggleProbe());
   reportCheck("L4 untick hides script nodes, labels and connector with visibility, tick shows them, in one synchronous run",
-    toggled.afterUntick.hidden && toggled.afterTick.visible && toggled.afterSecondUntick.hidden && toggled.afterTick.count === 21, toggled);
+    toggled.afterUntick.hidden && toggled.afterTick.visible && toggled.afterSecondUntick.hidden && toggled.afterTick.count === 41, toggled);
   reportCheck("L4 the toggle run ends with the box ticked", toggled.endsTicked);
   reportCheck("L4 toggling afterwards adds no request", await page.evaluate<number>(COUNT_SCRIPT_REQUESTS) === 1);
 }
@@ -97,8 +97,8 @@ function validateBashLook(look: NodeLook): void {
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
   reportCheck("L4 the bash label reads exactly bash run", look.bashLabel === "bash run", look.bashLabel);
   reportCheck("L4 the bash dot has .never-provable and a dashed ring", look.bashClass && look.bashRing === "dashed", look);
-  const expectedKinds = ["bash", "bash", ...Array<string>(8).fill("python")].join(",");
-  reportCheck("L4 executor kinds are 2 bash and 8 python", [...look.kinds].sort().join(",") === expectedKinds, look.kinds);
+  const expectedKinds = ["bash", "bash", "bash", ...Array<string>(17).fill("python")].join(",");
+  reportCheck("L4 executor kinds are 3 bash and 17 python", [...look.kinds].sort().join(",") === expectedKinds, look.kinds);
 }
 
 async function validateFileNameStaysInBubble(page: HeadlessPage): Promise<void> {
@@ -151,7 +151,7 @@ async function validateLayerButton(page: HeadlessPage): Promise<void> {
   reportCheck("L4 the [4] button: one /api/layer1-edits and one /api/layer1-script-runs request",
     result.edits === 1 && result.scriptRuns === 1, result);
   reportCheck("L4 the [4] button: both the Edit box and the script-run box read checked", result.editBox && result.scriptBox, result);
-  reportCheck("L4 the [4] button: exactly 10 script nodes", result.dots === 10, result.dots);
+  reportCheck("L4 the [4] button: exactly 20 script nodes", result.dots === 20, result.dots);
 }
 
 async function validateTickedNodes(page: HeadlessPage): Promise<void> {

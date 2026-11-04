@@ -38,31 +38,30 @@ function sendRawTranscript(response: ServerResponse, query: URLSearchParams): vo
   sendText(response, 200, readFileSync(jsonlPath.toString(), "utf8"));
 }
 
+// Always 200 + { exists, content }: the client branches on `exists`.
+function sendBlobResponse(response: ServerResponse, query: URLSearchParams): void {
+  const session = new Uuid(getRequiredParam(query, "session"));
+  const name = new Path(getRequiredParam(query, "name"));
+  sendJson(response, 200, readBlobSnapshot(session, name));
+}
+
+type TailRoute = (response: ServerResponse, query: URLSearchParams) => void;
+
+const TAIL_ROUTES = new Map<string, TailRoute>([
+  ["/api/file-ladder", sendFileLadder],
+  ["/api/document", sendDocumentResponse],
+  ["/api/raw", sendRawTranscript],
+  ["/api/blob", sendBlobResponse],
+  ["/api/diff", sendDiffResponse],
+  ["/api/range-patch", sendRangePatchResponse],
+  ["/api/step-files", sendStepFilesResponse],
+]);
+
 function dispatchTailRoute(response: ServerResponse, url: URL): void {
   const isStaticPath = url.pathname === "/" || url.pathname === "/webapp_old.html" || url.pathname.startsWith("/app/");
-  if (url.pathname === "/api/file-ladder") {
-    sendFileLadder(response, url.searchParams);
-  }
-  else if (url.pathname === "/api/document") {
-    sendDocumentResponse(response, url.searchParams);
-  }
-  else if (url.pathname === "/api/raw") {
-    sendRawTranscript(response, url.searchParams);
-  }
-  else if (url.pathname === "/api/blob") {
-    // Always 200 + { exists, content }: the client branches on `exists`.
-    const session = new Uuid(getRequiredParam(url.searchParams, "session"));
-    const name = new Path(getRequiredParam(url.searchParams, "name"));
-    sendJson(response, 200, readBlobSnapshot(session, name));
-  }
-  else if (url.pathname === "/api/diff") {
-    sendDiffResponse(response, url.searchParams);
-  }
-  else if (url.pathname === "/api/range-patch") {
-    sendRangePatchResponse(response, url.searchParams);
-  }
-  else if (url.pathname === "/api/step-files") {
-    sendStepFilesResponse(response, url.searchParams);
+  const tailRoute = TAIL_ROUTES.get(url.pathname);
+  if (tailRoute !== undefined) {
+    tailRoute(response, url.searchParams);
   }
   else if (isStaticPath) {
     sendStaticFile(response, url.pathname);
@@ -72,45 +71,41 @@ function dispatchTailRoute(response: ServerResponse, url: URL): void {
   }
 }
 
+function sendConfigResponse(request: IncomingMessage, response: ServerResponse): void {
+  if (request.method === "POST") {
+    receiveConfigUpdate(request, response);
+    return;
+  }
+  // item 46: sendJson(response, 200, { projectsDir: getProjectsDir() });
+  sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
+}
+
+// Layer 1 routes sit before the tail routes; the dispatcher returns whether it owned the request.
+function dispatchLayer1OrTailRoute(request: IncomingMessage, response: ServerResponse, url: URL): void {
+  const isHandledByLayer1 = dispatchLayer1Route(request, response, url);
+  if (!isHandledByLayer1) {
+    dispatchTailRoute(response, url);
+  }
+}
+
+type HeadRoute = (request: IncomingMessage, response: ServerResponse, url: URL) => void;
+
+const HEAD_ROUTES = new Map<string, HeadRoute>([
+  ["/api/config", (request, response) => sendConfigResponse(request, response)],
+  ["/api/repo-commits", (_request, response, url) => sendRepoCommitsResponse(response, url.searchParams)],
+  ["/api/repo-commit-match", (_request, response, url) => sendRepoCommitMatchResponse(response, url.searchParams)],
+  ["/api/project-paths", (request, response, url) => dispatchProjectPathsRequest(request, response, url.searchParams)],
+  ["/api/pick-folder", (_request, response, url) => selectFolders(response, url.searchParams)],
+  ["/api/projects", (_request, response) => sendJson(response, 200, scanProjects(getProjectsDir()))],
+  ["/api/prescan", (_request, response, url) => sendPrescanResponse(response, url.searchParams)],
+  ["/api/layered-graph", (_request, response, url) => sendLayeredGraphResponse(response, url.searchParams)],
+]);
+
 function dispatchRequest(request: IncomingMessage, response: ServerResponse): void {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
-  const isConfigPost = request.method === "POST" && url.pathname === "/api/config";
+  const headRoute = HEAD_ROUTES.get(url.pathname) ?? dispatchLayer1OrTailRoute;
   try {
-    if (isConfigPost) {
-      receiveConfigUpdate(request, response);
-    }
-    else if (url.pathname === "/api/config") {
-      // item 46: sendJson(response, 200, { projectsDir: getProjectsDir() });
-      sendJson(response, 200, { projectsDir: getProjectsDir(), fileHistoryDir: getEffectiveFileHistoryDir(), bootId: SERVER_BOOT_ID });
-    }
-    else if (url.pathname === "/api/repo-commits") {
-      sendRepoCommitsResponse(response, url.searchParams);
-    }
-    else if (url.pathname === "/api/repo-commit-match") {
-      sendRepoCommitMatchResponse(response, url.searchParams);
-    }
-    else if (url.pathname === "/api/project-paths") {
-      dispatchProjectPathsRequest(request, response, url.searchParams);
-    }
-    else if (url.pathname === "/api/pick-folder") {
-      selectFolders(response, url.searchParams);
-    }
-    else if (url.pathname === "/api/projects") {
-      sendJson(response, 200, scanProjects(getProjectsDir()));
-    }
-    else if (url.pathname === "/api/prescan") {
-      sendPrescanResponse(response, url.searchParams);
-    }
-    else if (url.pathname === "/api/layered-graph") {
-      sendLayeredGraphResponse(response, url.searchParams);
-    }
-    else {
-      // Layer 1 routes sit before the tail routes; the dispatcher returns whether it owned the request.
-      const isHandledByLayer1 = dispatchLayer1Route(request, response, url);
-      if (!isHandledByLayer1) {
-        dispatchTailRoute(response, url);
-      }
-    }
+    headRoute(request, response, url);
   }
   catch (error) {
     sendText(response, 400, String(error));
@@ -121,11 +116,11 @@ function logListening(): void {
   console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);
 }
 
-const { port, resetSandboxMemo, resetDocumentCache } = parseServerArgs(process.argv.slice(2));
+const { port, resetSandboxMemo, resetDocumentCache, sandboxMemoFile } = parseServerArgs(process.argv.slice(2));
 // App posture: impure stages OFF until a consented build turns them on for its own duration.
 setImpureExecutionAllowed(false);
 // Item 11: only the viewer opts into the disk memo, so restarts stop re-spawning python. CLI stays memory-only.
-const sandboxMemoPath = new Path(join(import.meta.dirname, "..", ".cache", "sandbox-memo.json"));
+const sandboxMemoPath = new Path(sandboxMemoFile ?? join(import.meta.dirname, "..", ".cache", "sandbox-memo-docker.json"));
 // Delete BEFORE configuring persistence, which loads it: a forced cold load for measurement.
 if (resetSandboxMemo) {
   resetSandboxMemoOnDisk(sandboxMemoPath);

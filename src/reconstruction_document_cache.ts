@@ -1,10 +1,11 @@
 // Opt-in disk persistence for BuiltReconstruction; avoids costly rebuilds after server respawn.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { BuiltReconstruction } from "./reconstruction_json.ts";
+import { removeOldestBeyondCapacity } from "./reconstruction_document_cache_disk.ts";
 
 // Bump on persisted-shape changes; mismatched versions are treated as cache misses.
 const SCHEMA_VERSION = 3;   // 3: lineVerdicts gained source (task 160); 2: scriptRuns (task 67)
@@ -46,6 +47,10 @@ function decodeDomainValue(_key: string, value: unknown): unknown {
   if (!isTagged) {
     return value;
   }
+  return decodeTaggedDomainValue(value);
+}
+
+function decodeTaggedDomainValue(value: TaggedDomainValue): unknown {
   if (value[DOMAIN_TAG] === DomainType.path) {
     return new Path(value.value as string);
   }
@@ -72,10 +77,6 @@ export function parseBuild(text: string): BuiltReconstruction | undefined {
   return parsed.build;
 }
 
-// Cap on persisted cache files; exported so eviction tests reference it directly.
-// ponytail: coarse mtime-ordered eviction, not true LRU; raise the cap or track recency in memory if a dev keeps more live projects warm than this at once.
-export const DOCUMENT_CACHE_CAPACITY = 4;
-
 // undefined = memory-only (CLI + tests). Only viewer_server.ts sets a directory.
 let cacheDirectory: Path | undefined;
 
@@ -86,6 +87,13 @@ export function setDocumentCachePersistence(directory: Path | undefined): void {
 // Wipe cache directory so the next run rebuilds from scratch.
 export function resetDocumentCacheOnDisk(directory: Path): void {
   rmSync(directory.toString(), { recursive: true, force: true });
+}
+
+// Wipe the configured directory; with none configured there is nothing on disk.
+export function clearDocumentCache(): void {
+  if (cacheDirectory !== undefined) {
+    resetDocumentCacheOnDisk(cacheDirectory);
+  }
 }
 
 // One collision-safe filename per cacheKey.
@@ -103,6 +111,10 @@ export function readDocumentFromDiskCache(cacheKey: string): BuiltReconstruction
   if (!fileExists) {
     return undefined;
   }
+  return parseCacheFile(filePath);
+}
+
+function parseCacheFile(filePath: string): BuiltReconstruction | undefined {
   try {
     return parseBuild(readFileSync(filePath, "utf8"));
   }
@@ -125,27 +137,6 @@ export function writeDocumentToDiskCache(cacheKey: string, built: BuiltReconstru
   catch (error) {
     // Persistence failure is tolerable; losing the response is not.
     console.error(`document cache not persisted: ${String(error)}`);
-  }
-}
-
-// Evict oldest files by mtime when count exceeds DOCUMENT_CACHE_CAPACITY.
-function compareByModifiedTime(a: { mtimeMs: number }, b: { mtimeMs: number }): number {
-  return a.mtimeMs - b.mtimeMs;
-}
-
-function removeOldestBeyondCapacity(directory: Path): void {
-  const oldestFirst: { name: string; mtimeMs: number }[] = [];
-  for (const name of readdirSync(directory.toString())) {
-    const isCacheFile = name.endsWith(".json");
-    if (isCacheFile) {
-      oldestFirst.push({ name, mtimeMs: statSync(join(directory.toString(), name)).mtimeMs });
-    }
-  }
-  oldestFirst.sort(compareByModifiedTime);
-  const excessCount = Math.max(0, oldestFirst.length - DOCUMENT_CACHE_CAPACITY);
-  for (const { name } of oldestFirst.slice(0, excessCount)) {
-    rmSync(join(directory.toString(), name), { force: true });
-    console.error(`document cache evicted ${name} (capacity ${DOCUMENT_CACHE_CAPACITY})`);
   }
 }
 

@@ -9,20 +9,22 @@ import {
 import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { getPathOverrides, formatPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
-import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
-import { setPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
-import { trimRecordsAtRevisionTurnEnd, type RevisionBoundRequest } from "./reconstruction_bound.ts";
+import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import type { RevisionBoundRequest } from "./reconstruction_bound.ts";
 import { writePendingSandboxMemoToDisk } from "./reconstruction_script_sandbox_memo.ts";
-import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
-import { setReconstructionProgressSink } from "./reconstruction_progress.ts";
+import {
+  selectBuildRecords,
+  computeBuildCacheKey,
+  applyBuildGates,
+  resetBuildGates,
+  markPreBaselineSkipped,
+} from "./viewer_api_build_support.ts";
 import { getCachedValueRefreshingRecency, removeLeastRecentlyUsedEntries } from "./cache_lru.ts";
 import { readDocumentFromDiskCache, writeDocumentToDiskCache } from "./reconstruction_document_cache.ts";
 import type { Path } from "./structures/domain.ts";
 import {
   reportStage,
   loadProjectRecords,
-  computeTranscriptSetStamp,
   ARTIFACT_CACHE_CAPACITY,
 } from "./viewer_api_records.ts";
 
@@ -43,17 +45,8 @@ export function formatSendingDocumentLabel(byteLength: number): string {
 export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest): BuiltReconstruction {
   const loaded = loadProjectRecords(jsonlPaths);
   const { skippedLines } = loaded;
-  // Spec S5a: the merge builds a NEW array, so per-records WeakMap memos run cold on multi-source builds.
-
-  // ponytail: memoize per (stamp, sources) if profiling ever shows it.
-  const merged = sources === undefined || sources.length === 0
-    ? loaded.records
-    : mergeMultiSourceRecords(splitRecordsBySession(loaded.records), sources);
-    // Task 194: the bound cut must happen BEFORE any engine work, like the CLI's --until-revision.
-  const records = bound === undefined
-    ? merged
-    : trimRecordsAtRevisionTurnEnd(merged, bound.file, bound.ordinal).records;
-    // task 119: a previous build's aborted leftovers must not leak into this document's failures.
+  const records = selectBuildRecords(loaded.records, sources, bound);
+  // task 119: a previous build's aborted leftovers must not leak into this document's failures.
   clearReconstructionFailures();
   reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
   const reader = buildSidecarReader(records, sources);
@@ -73,6 +66,10 @@ export const PROGRESS_LABEL_ARTIFACT_CACHE_HIT = "reusing cached document artifa
 // allowScripts is in the key because consented and degraded builds yield different documents.
 const builtDocumentCache = new Map<string, BuiltReconstruction>();
 
+export function clearBuiltDocumentCache(): void {
+  builtDocumentCache.clear();
+}
+
 // The exec gate runs only for a consented build's synchronous duration; a cache hit returns before that lifecycle starts.
 export function buildReconstructionWithConsent(
   jsonlPaths: Path[],
@@ -84,46 +81,49 @@ export function buildReconstructionWithConsent(
   // task 194: bounded mode — absent means a full build, today's behavior.
   bound?: RevisionBoundRequest,
 ): BuiltReconstruction {
-  const targetKey = target === undefined ? "" : target.toString();
-  const boundKey = bound === undefined ? "" : `${bound.file.toString()}#${bound.ordinal}`;
-  // Each build kind gets its own cache entry; the key includes active overrides, so config edits miss.
-  const cacheKey = `${computeTranscriptSetStamp(jsonlPaths)}|${allowScripts}|${reconstructPreBaseline}|${targetKey}|${boundKey}|${formatPathOverrides()}`;
-  const cachedBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
+  const cacheKey = computeBuildCacheKey(jsonlPaths, target, allowScripts, reconstructPreBaseline, bound);
+  const cachedBuild = readCachedBuild(cacheKey, onProgress);
   if (cachedBuild !== undefined) {
-    reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
     return cachedBuild;
   }
-  // Item 79: after a server respawn the disk cache saves a multi-minute rebuild.
+  return executeConsentedBuild(cacheKey, jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, bound);
+}
+
+// Memory first, then the disk cache (item 79: after a server respawn it saves a multi-minute rebuild).
+function readCachedBuild(cacheKey: string, onProgress?: ProgressSink): BuiltReconstruction | undefined {
+  const memoryBuild = getCachedValueRefreshingRecency(builtDocumentCache, cacheKey);
+  if (memoryBuild !== undefined) {
+    reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
+    return memoryBuild;
+  }
   const diskBuild = readDocumentFromDiskCache(cacheKey);
   if (diskBuild !== undefined) {
     reportStage(onProgress, PROGRESS_LABEL_ARTIFACT_CACHE_HIT);
     builtDocumentCache.set(cacheKey, diskBuild);
     removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
-    return diskBuild;
   }
-  setImpureExecutionAllowed(allowScripts);
-  setPreBaselineReconstructionAllowed(reconstructPreBaseline);
-  setReconstructionProgressSink(onProgress);
+  return diskBuild;
+}
+
+// Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
+function storeBuiltDocument(cacheKey: string, built: BuiltReconstruction): void {
+  writePendingSandboxMemoToDisk();
+  builtDocumentCache.set(cacheKey, built);
+  removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
+  writeDocumentToDiskCache(cacheKey, built);
+}
+
+function executeConsentedBuild(cacheKey: string, jsonlPaths: Path[], target: Path | undefined, allowScripts: boolean, onProgress: ProgressSink | undefined, reconstructPreBaseline: boolean, bound?: RevisionBoundRequest): BuiltReconstruction {
+  applyBuildGates(allowScripts, reconstructPreBaseline, onProgress);
   try {
     // Spec S6: sources ride the process-wide overrides, set by the caller before any build.
     const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
-    // Stamped BEFORE caching — cached copies must carry the flag their cache key promises.
-    const hasBaseCommit = getPathOverrides().baseCommit !== undefined;
-    const isPreBaselineSkipped = !reconstructPreBaseline && hasBaseCommit;
-    if (isPreBaselineSkipped) {
-      built.document.preBaselineSkipped = true;
-    }
-    // Sandbox spawns persist per batch (the O(N²)-write fix); flush the tail before responding.
-    writePendingSandboxMemoToDisk();
-    builtDocumentCache.set(cacheKey, built);
-    removeLeastRecentlyUsedEntries(builtDocumentCache, ARTIFACT_CACHE_CAPACITY);
-    writeDocumentToDiskCache(cacheKey, built);
+    markPreBaselineSkipped(built, reconstructPreBaseline);
+    storeBuiltDocument(cacheKey, built);
     return built;
   }
   finally {
-    setImpureExecutionAllowed(false);
-    setPreBaselineReconstructionAllowed(true);
-    setReconstructionProgressSink(undefined);
+    resetBuildGates();
   }
 }
 

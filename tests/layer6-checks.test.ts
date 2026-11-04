@@ -1,129 +1,85 @@
-// Tests for validateLayer6 in layer6-checks.ts, using a fake page whose button and popup answers follow the clicks.
+// Tests for validateLayer6 in layer6-checks.ts: a fake page walks the whole flow and answers each probe with good data.
 
 import { strict as assert } from "node:assert";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
-import { type HeadlessPage } from "../scripts/visual/cdp.ts";
-import { failures } from "../scripts/visual/mockup-checks.ts";
 import { validateLayer6 } from "../scripts/visual/layer6-checks.ts";
 import {
-    BUTTON_FACTS, CLICK_CLOSE, CLICK_OPEN_BUTTON, CLOSE_LABEL, COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, MISMATCH_ID, NEVER_PROVABLE_ID,
-    PENDING_ID, POPUP_FACTS, README_NODE_FACTS, type PopupFacts,
+  BUTTON_FACTS, CLICK_CLOSE, CLICK_OPEN_BUTTON, CLOSE_LABEL, CONSENT_FACTS, COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, COUNT_CONSENT_DIALOGS, NEVER_PROVABLE_ID, PENDING_ID, POPUP_FACTS,
+  POPUP_TEXT, README_NODE_FACTS, READ_DIALOG_COUNT, READ_FETCH_LOG, RESOURCE_NAMES, SHOW_BOX_KINDS, type PopupFacts,
 } from "../scripts/visual/layer6-probes.ts";
+import { COUNT_SCRIPT_DOTS } from "../scripts/visual/layer4-probes.ts";
+import { collectLines, createFakePage, findLine } from "./layer6-fake-page.ts";
 
-const SCREENSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out");
-const SCREENSHOT_FILES = ["mockup-12-layer6-node-states.png", "mockup-13-layer6-popup.png"].map((name) => join(SCREENSHOT_DIR, name));
-const TOOL_USE_ID = /data-tool-use-id="([^"]+)"/;
-const POPUP_SHAPE = {
-    width: 300, height: 200, insideDrawer: false, drawerOpen: true, popupRect: [], stageRect: [], drawerRect: [],
-    terminalClasses: [], terminalColours: [], cancelledDecoration: "",
-} as unknown as PopupFacts;
+const SCREENSHOTS = ["mockup-12-layer6-node-states.png", "mockup-13-layer6-popup.png"];
+const POPUP: PopupFacts = {
+  hidden: false, width: 300, height: 200, popupRect: [0, 0, 100, 50], stageRect: [0, 0, 500, 500], drawerRect: [120, 0, 400, 500],
+  insideDrawer: false, drawerOpen: true, position: "absolute", insideStagewrap: true, overlapsTimelines: true,
+  preCount: 1, preWhiteSpace: "pre", preText: "reading README.md\nwriting README.md\ndone", noteTexts: [],
+  cancelButtons: 1, cancelClass: "cancel-btn btn-idle", cancelDisabled: true, cancelBorderColor: "grey", cancelDecoration: "none",
+  terminalClasses: ["term-verified"], terminalColours: ["green"],
+};
+const CONSENT = { count: 1, text: "Docker container: copied files only, no network. Docker must be on.", insideVizRoot: true };
+const BLOCKED = {
+  count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "", insideStagewrap: true, insideTimelines: true,
+  popupRect: [0, 0, 1, 1], dotRect: [2, 0, 3, 1], drawerRect: [5, 0, 9, 9], paneRect: [0, 0, 5, 9], drawerOpen: true,
+};
 
-interface FakeOptions { buttonNodeIds: string[]; closeLabel: string }
+interface Knobs { dotTotal: number; consent: typeof CONSENT; openedIds: string[] }
 
-function makeFake(options: FakeOptions) {
-    const state = { currentNodeId: "", openedNodeIds: [] as string[], navigations: [] as string[], isPopupHidden: true };
-    const countButtons = () => options.buttonNodeIds.includes(state.currentNodeId) ? 1 : 0;
-    const answerFor = (expression: string): unknown => {
-        if (expression.includes("replaceChildren")) {
-            state.currentNodeId = TOOL_USE_ID.exec(expression)?.[1] ?? "";
-            state.openedNodeIds.push(state.currentNodeId);
-            state.isPopupHidden = true;
-            return undefined;
-        }
-        if (expression === COUNT_CONSOLE_BUTTONS)
-            return countButtons();
-        if (expression === BUTTON_FACTS)
-            return { count: countButtons(), text: "Open run console", insideDrawer: true };
-        if (expression === CLOSE_LABEL)
-            return options.closeLabel;
-        if (expression === CLICK_CLOSE)
-            state.isPopupHidden = true;
-        if (expression === CLICK_OPEN_BUTTON)
-            state.isPopupHidden = false;
-        if (expression === COUNT_CONSOLES)
-            return 1;
-        if (expression === POPUP_FACTS)
-            return { ...POPUP_SHAPE, hidden: state.isPopupHidden };
-        if (expression === README_NODE_FACTS)
-            return [];
-        if (expression.includes("performance.getEntriesByType") || expression.includes("#show-row"))
-            return [];
-        return 0;
-    };
-    const page: HeadlessPage = {
-        evaluate: async <T>(expression: string) => answerFor(expression) as T,
-        waitFor: async () => {},
-        navigate: async (url: string) => { state.navigations.push(url); },
-        screenshot: async () => "",
-        close: async () => {},
-    };
-    return { page, state };
+function buildAnswers(knobs: Knobs): (expression: string) => unknown {
+  const exact = new Map<string, unknown>([
+    [COUNT_SCRIPT_DOTS, knobs.dotTotal], [README_NODE_FACTS, []], [SHOW_BOX_KINDS, []], [CONSENT_FACTS, knobs.consent],
+    [BUTTON_FACTS, { count: 1, text: "Open run console", insideDrawer: true }], [POPUP_TEXT, "run console"],
+    [CLOSE_LABEL, "Close"], [COUNT_CONSOLES, 1], [COUNT_CONSOLE_BUTTONS, 0], [COUNT_CONSENT_DIALOGS, 0], [READ_FETCH_LOG, []],
+    [READ_DIALOG_COUNT, 0], [RESOURCE_NAMES, []],
+  ]);
+  let isPopupHidden = false;
+  return (expression: string): unknown => {
+    if (expression === CLICK_CLOSE) isPopupHidden = true;
+    if (expression === CLICK_OPEN_BUTTON) isPopupHidden = false;
+    if (expression === POPUP_FACTS) return { ...POPUP, hidden: isPopupHidden };
+    if (exact.has(expression)) return exact.get(expression);
+    if (expression.includes("replaceChildren") && expression.includes(".click()"))
+      knobs.openedIds.push(/data-tool-use-id="([^"]+)"/.exec(expression)![1]!);
+    if (expression.includes("confirmHidden")) return { confirmHidden: false, buttonHidden: true };
+    if (expression.includes("run-blocked-popup") && expression.includes("buttons")) return BLOCKED;
+    if (expression.endsWith(".className")) return "node n-script";
+    if (expression.includes("reply.needs")) return [];
+    if (expression.includes("closest('.filebox')")) return ["a.ts", "b.ts"];
+    return undefined;
+  };
 }
 
-async function runLayer6(options: FakeOptions) {
-    const savedScreenshots = new Map<string, Buffer>();
-    for (const file of SCREENSHOT_FILES) {
-        if (existsSync(file))
-            savedScreenshots.set(file, readFileSync(file));
-    }
-    const failuresBefore = failures.length;
-    const log = console.log;
-    const lines: string[] = [];
-    console.log = (line: string) => { lines.push(line); };
-    const fake = makeFake(options);
-    try {
-        await validateLayer6(fake.page, "http://page.test/");
-    } finally {
-        console.log = log;
-        for (const file of SCREENSHOT_FILES) {
-            const saved = savedScreenshots.get(file);
-            if (saved === undefined)
-                rmSync(file, { force: true });
-            else
-                writeFileSync(file, saved);
-        }
-    }
-    const newFailures = failures.splice(failuresBefore);
-    return { lines, state: fake.state, newFailures };
+async function runLayer6(knobs: Knobs) {
+  const fake = createFakePage(buildAnswers(knobs));
+  const lines = await collectLines(() => validateLayer6(fake.page, "http://page.test/"), SCREENSHOTS);
+  return { lines, navigations: fake.navigations };
 }
 
-function findLine(lines: string[], text: string): string {
-    for (const line of lines) {
-        if (line.includes(text))
-            return line;
-    }
-    throw new Error(`no line contains: ${text}`);
-}
+const GOOD: () => Knobs = () => ({ dotTotal: 20, consent: CONSENT, openedIds: [] });
 
-const NO_BUTTON_PENDING = "L6 the pending node opens the drawer with no Open run console button";
-const NO_BUTTON_NEVER = "L6 the never-provable node opens the drawer with no Open run console button";
-const MISMATCH_BUTTON = "L6 the mismatch node shows one Open run console button, inside the drawer";
-const CLOSE_CHECK = "L6 Close hides the popup and leaves the drawer open";
-const REOPEN_CHECK = "L6 Open run console again shows the same single popup";
-
-test("validateLayer6 opens the three drawers in order, reloads twice and passes every own check", async () => {
-    const { lines, state, newFailures } = await runLayer6({ buttonNodeIds: [MISMATCH_ID], closeLabel: "Close" });
-    assert.deepEqual(state.openedNodeIds, [PENDING_ID, NEVER_PROVABLE_ID, MISMATCH_ID]);
-    assert.deepEqual(state.navigations, ["http://page.test/", "http://page.test/"]);
-    for (const name of [NO_BUTTON_PENDING, NO_BUTTON_NEVER, MISMATCH_BUTTON, CLOSE_CHECK, REOPEN_CHECK])
-        assert.ok(findLine(lines, name).startsWith("PASS"), name);
-    assert.ok(!newFailures.includes(CLOSE_CHECK));
+test("validateLayer6 opens four fresh pages, opens the pending and bash drawers first and runs every group", async () => {
+  const knobs = GOOD();
+  const { lines, navigations } = await runLayer6(knobs);
+  assert.equal(navigations.length, 4);
+  assert.deepEqual(navigations, Array(4).fill("http://page.test/"));
+  assert.deepEqual(knobs.openedIds.slice(0, 2), [PENDING_ID, NEVER_PROVABLE_ID]);
+  assert.ok(knobs.openedIds.includes(PENDING_ID));
+  for (const name of ["L6 the page draws 20 script nodes", "L6 the consent dialog is open once", "L6 the dialog names copied files only",
+    "L6 the started pending run shows one Open run console button", "L6 Close hides the popup", "L6 Open run console again shows the same single popup"])
+    assert.ok(findLine(lines, name).startsWith("PASS"), name);
+  assert.ok(lines.some((line) => line.includes("L6 the blocked dot shows")));
+  assert.ok(lines.some((line) => line.includes("L6 the clear button asks first")));
 });
 
-test("validateLayer6 fails the pending check when the pending node shows a button, and only that one", async () => {
-    const { lines, newFailures } = await runLayer6({ buttonNodeIds: [PENDING_ID, MISMATCH_ID], closeLabel: "Close" });
-    assert.ok(findLine(lines, NO_BUTTON_PENDING).startsWith("FAIL"));
-    assert.ok(findLine(lines, NO_BUTTON_NEVER).startsWith("PASS"));
-    assert.ok(newFailures.includes(NO_BUTTON_PENDING));
+test("validateLayer6 fails the dot-total check for another count and the consent check for a second dialog", async () => {
+  const { lines } = await runLayer6({ ...GOOD(), dotTotal: 10, consent: { ...CONSENT, count: 2 } });
+  assert.ok(findLine(lines, "L6 the page draws 20 script nodes").startsWith("FAIL"));
+  assert.ok(findLine(lines, "L6 the consent dialog is open once").startsWith("FAIL"));
+  assert.ok(findLine(lines, "L6 the dialog names copied files only").startsWith("PASS"));
 });
 
-test("validateLayer6 fails the mismatch check without a button and the close check with a wrong label", async () => {
-    const { lines, newFailures } = await runLayer6({ buttonNodeIds: [], closeLabel: "Dismiss" });
-    assert.ok(findLine(lines, MISMATCH_BUTTON).startsWith("FAIL"));
-    assert.ok(findLine(lines, CLOSE_CHECK).startsWith("FAIL"));
-    assert.ok(findLine(lines, NO_BUTTON_PENDING).startsWith("PASS"));
-    assert.ok(newFailures.includes(MISMATCH_BUTTON) && newFailures.includes(CLOSE_CHECK));
+test("validateLayer6 fails the consent text check when the dialog says full access", async () => {
+  const { lines } = await runLayer6({ ...GOOD(), consent: { ...CONSENT, text: `${CONSENT.text} full access` } });
+  assert.ok(findLine(lines, "L6 the dialog names copied files only").startsWith("FAIL"));
 });

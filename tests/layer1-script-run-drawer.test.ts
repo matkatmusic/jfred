@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-script-run-drawer.ts";
+import { markRunStarted, resetRunResults } from "../webapp/layer1-run-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -34,16 +35,26 @@ test("listScriptRunPaths finds every pair carrying this run's toolUseId, in path
   assert.deepEqual(listScriptRunPaths(view, "toolu_1"), ["src/a.ts", "src/b.ts"]);
 });
 
-test("buildScriptRunDetail of a stateful run starts with the run console button", () => {
+function countConsoleButtons(run: WireScriptRun): number {
   initLayer1Dom();
-  const detail = buildScriptRunDetail({ ...SCRIPT_RUN, confidence: "mismatch" });
-  assert.ok(detail[0]!.querySelector(".run-console-open"));
+  return buildScriptRunDetail(run, () => undefined).filter((element) => element.querySelector(".run-console-open") !== null).length;
+}
+
+test("buildScriptRunDetail shows the run console button only after a python run started", () => {
+  // Verify: absent before the start, present after it, and still present once the run holds a confidence.
+  resetRunResults();
+  assert.equal(countConsoleButtons(SCRIPT_RUN), 0);
+  markRunStarted(SCRIPT_RUN.toolUseId);
+  assert.equal(countConsoleButtons(SCRIPT_RUN), 1);
+  assert.equal(countConsoleButtons({ ...SCRIPT_RUN, confidence: "mismatch" }), 1);
 });
 
-test("buildScriptRunDetail of a stateless run has no run console button", () => {
-  initLayer1Dom();
-  const detail = buildScriptRunDetail({ ...SCRIPT_RUN, confidence: undefined });
-  assert.equal(detail.filter((element) => element.querySelector(".run-console-open") !== null).length, 0);
+test("buildScriptRunDetail never shows the run console button for a bash run or a javascript run", () => {
+  // Verify: bash is excluded by its executor even when marked started; javascript never starts.
+  resetRunResults();
+  markRunStarted("toolu_bash");
+  assert.equal(countConsoleButtons({ ...SCRIPT_RUN, toolUseId: "toolu_bash", executorKind: "bash", language: "bash" }), 0);
+  assert.equal(countConsoleButtons({ ...SCRIPT_RUN, toolUseId: "toolu_js", language: "javascript" }), 0);
 });
 
 test("buildScriptRunDiffPanes renders one pane per affected path, bracketed on the run instant", async () => {

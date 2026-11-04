@@ -3,6 +3,7 @@
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { L6_FIXTURE_RUNS } from "./viewer_api_layer6_fixture_blocked_runs.ts";
 // import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 
 export const SCRIPT_RUN_NODE_KIND = "scriptRun";
@@ -69,6 +70,7 @@ export const SCRIPT_RUNS: FixtureScriptRun[] = [
     language: WireScriptLanguage.bash, line: 73,
     at: "2026-07-20T19:30:00Z", session: "7ce50a19.jsonl", paths: ["README.md"],
     code: ["echo '# demo app' > README.md"] },
+  ...L6_FIXTURE_RUNS,
 ];
 
 export function findFixtureScriptRun(toolUseId: string): FixtureScriptRun {

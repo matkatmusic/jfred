@@ -19,7 +19,8 @@
     "visual:layer2": "node --import tsx scripts/visual/layer2.ts",
     "visual:layer3": "node --import tsx scripts/visual/layer3.ts",
     "visual:layer4": "node --import tsx scripts/visual/layer4.ts",
-    "visual:layer5": "node --import tsx scripts/visual/layer5.ts"
+    "visual:layer5": "node --import tsx scripts/visual/layer5.ts",
+    "visual:layer6-real": "node --import tsx scripts/visual/layer6-real.ts --jot"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",
