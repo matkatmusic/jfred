@@ -17,12 +17,13 @@ export class EarlierRunNotSavedError extends Error {
 interface SpawnGuard {
   neverRunScripts: Set<string>;
   reports: EarlierRunReport[] | undefined;
+  isSkippingMisses: boolean;
 }
 
 // ponytail: process-wide flag like the exec gate; builds are synchronous.
 let activeGuard: SpawnGuard | undefined;
 
-function runUnderGuard<T>(guard: SpawnGuard, compute: () => T): T {
+function executeUnderGuard<T>(guard: SpawnGuard, compute: () => T): T {
   const previousGuard = activeGuard;
   activeGuard = guard;
   try {
@@ -33,14 +34,22 @@ function runUnderGuard<T>(guard: SpawnGuard, compute: () => T): T {
   }
 }
 
-export function runWithoutSpawning<T>(neverRunScripts: Set<string>, compute: () => T): T {
-  return runUnderGuard({ neverRunScripts, reports: undefined }, compute);
+export function executeWithoutSpawning<T>(neverRunScripts: Set<string>, compute: () => T): T {
+  return executeUnderGuard({ neverRunScripts, reports: undefined, isSkippingMisses: false }, compute);
 }
 
-export function runCollectingEarlierRuns(neverRunScripts: Set<string>, compute: () => void): EarlierRunReport[] {
+export function collectEarlierRuns(neverRunScripts: Set<string>, compute: () => void): EarlierRunReport[] {
   const reports: EarlierRunReport[] = [];
-  runUnderGuard({ neverRunScripts, reports }, compute);
+  executeUnderGuard({ neverRunScripts, reports, isSkippingMisses: false }, compute);
   return reports;
+}
+
+// With a guard on, a memo miss inside compute returns false: nothing runs, nothing is reported.
+export function executeSkippingMisses<T>(compute: () => T): T {
+  if (activeGuard === undefined) {
+    return compute();
+  }
+  return executeUnderGuard({ neverRunScripts: activeGuard.neverRunScripts, reports: undefined, isSkippingMisses: true }, compute);
 }
 
 // True means go on and spawn; false means the caller returns undefined and stores nothing.
@@ -48,7 +57,9 @@ export function assertSpawnAllowed(script: string, label: string): boolean {
   if (activeGuard === undefined) {
     return true;
   }
-  if (activeGuard.neverRunScripts.has(script)) {
+  const isNeverRun = activeGuard.neverRunScripts.has(script);
+  const isSkipped = isNeverRun || activeGuard.isSkippingMisses;
+  if (isSkipped) {
     return false;
   }
   if (activeGuard.reports === undefined) {
@@ -58,11 +69,12 @@ export function assertSpawnAllowed(script: string, label: string): boolean {
   return false;
 }
 
-export function noteMemoHit(script: string, label: string, post: Map<string, string> | undefined): void {
+export function reportMemoHit(script: string, label: string, post: Map<string, string> | undefined): void {
   if (activeGuard?.reports === undefined) {
     return;
   }
-  if (activeGuard.neverRunScripts.has(script)) {
+  const isNeverRun = activeGuard.neverRunScripts.has(script);
+  if (isNeverRun) {
     return;
   }
   if (post === undefined) {

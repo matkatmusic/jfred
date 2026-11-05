@@ -8,6 +8,7 @@ import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
 import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { executeSkippingMisses } from "./reconstruction_script_sandbox_spawn_guard.ts";
 import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 
 // A lineage event carrying the file's FULL content at its instant (not a hunk-based edit).
@@ -47,34 +48,33 @@ export function findRunAtInstant(runs: ScriptRun[], event: FileEvent): ScriptRun
 
 // Replay content through successive script runs, returning final and per-event results.
 export function applyScriptRunsOver(
-  content: string,
-  eventIndices: number[],
-  events: FileEvent[],
-  runs: ScriptRun[],
-  target: Path,
-  records: TranscriptRecord[],
-  reader: BackupReader,
+  content: string, eventIndices: number[], events: FileEvent[], runs: ScriptRun[], target: Path, records: TranscriptRecord[], reader: BackupReader,
 ): { final: string; rewrites: Map<number, string> } | undefined {
   let rolling = content;
   const rewrites = new Map<number, string>();
   for (const index of eventIndices) {
-    const event = events[index]!;
-    if (event.kind !== EventKind.scriptExecution)
-      return undefined;
-    const run = findRunAtInstant(runs, event);
-    if (run === undefined)
-      return undefined;
-    const key = computeScriptStateKey(target, run.cwd);
-    const preState = new Map(executeRunOnce(run, records, reader).pre);
-    preState.set(key, rolling);
-    const postState = executeScriptAgainstState(run.code, preState, "", run.cwd);
-    const post = postState?.get(key);
+    const post = computeScriptEventPost(events[index]!, runs, rolling, target, records, reader);
     if (post === undefined)
       return undefined;
     rewrites.set(index, post);
     rolling = post;
   }
   return { final: rolling, rewrites };
+}
+
+function computeScriptEventPost(
+  event: FileEvent, runs: ScriptRun[], rolling: string, target: Path, records: TranscriptRecord[], reader: BackupReader,
+): string | undefined {
+  if (event.kind !== EventKind.scriptExecution)
+    return undefined;
+  const run = findRunAtInstant(runs, event);
+  if (run === undefined)
+    return undefined;
+  const key = computeScriptStateKey(target, run.cwd);
+  const preState = new Map(executeRunOnce(run, records, reader).pre);
+  preState.set(key, rolling);
+  const executeRun = () => executeScriptAgainstState(run.code, preState, "", run.cwd);
+  return executeSkippingMisses(executeRun)?.get(key);
 }
 
 // Timestamp halfway between event[index] and its successor.

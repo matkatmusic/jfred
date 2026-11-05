@@ -1,4 +1,4 @@
-// Prints which call site makes earlier-run entries in a guarded build; asserts nothing spawns.
+// Prints which call site makes earlier-run entries in a guarded build; asserts git replay makes none and nothing spawns.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reco
 import { setRecordSource } from "../src/parse/loadTranscript.ts";
 import { getReconstructionCounterSnapshot, resetReconstructionCounters } from "../src/reconstruction_counters.ts";
 import { setSandboxMemoPersistence, writePendingSandboxMemoToDisk } from "../src/reconstruction_script_sandbox_memo.ts";
-import { runCollectingEarlierRuns } from "../src/reconstruction_script_sandbox_spawn_guard.ts";
+import { collectEarlierRuns } from "../src/reconstruction_script_sandbox_spawn_guard.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -68,7 +68,7 @@ function collectReports(repo: string, shape: Shape, target: Path): { label: stri
     let reports: { label: string }[] = [];
     runWithImpureOn(() => {
         const records = buildRecords(repo, shape.hasCommitRecord);
-        reports = runCollectingEarlierRuns(new Set(), () => getFileRevisionsOver(records, target, new Set(), emptyReader));
+        reports = collectEarlierRuns(new Set(), () => getFileRevisionsOver(records, target, new Set(), emptyReader));
     });
     return reports;
 }
@@ -108,6 +108,7 @@ test("test_guardedBuild_never_spawns_and_prints_the_call_site_table", () => {
     for (const shape of SHAPES) {
         const row = runShape(shape);
         rows[shape.name] = { executeRunOnce: row.fromExecuteRunOnce, gitReplay: row.fromGitReplay };
+        assert.equal(row.fromGitReplay, 0, shape.name);
         assert.equal(row.spawns, 0, shape.name);
         assert.equal(row.isMemoSame, true, shape.name);
     }
