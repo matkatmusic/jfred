@@ -53,13 +53,17 @@ function makeRepoWithOneCommit(): string {
     return repoDir;
 }
 
-// Writes the session file and the file-history blob; returns the session file path.
-function writeSession(records: object[]): Path {
+// Writes the session file and the sibling file-history blob; returns the tree and the session file path.
+function writeSessionTree(records: object[]): { treeRoot: string; session: Path } {
     const tree = createSourceTree("-beacon-candidates");
     writeTranscriptFixture(tree.projectDir, "a.jsonl", records);
     mkdirSync(join(tree.treeRoot, "file-history", SESSION_A), { recursive: true });
     writeFileSync(join(tree.treeRoot, "file-history", SESSION_A, "abc@v1"), "history bytes\n");
-    return new Path(join(tree.projectDir, "a.jsonl"));
+    return { treeRoot: tree.treeRoot, session: new Path(join(tree.projectDir, "a.jsonl")) };
+}
+
+function writeSession(records: object[]): Path {
+    return writeSessionTree(records).session;
 }
 
 function listSources(candidates: BeaconCandidate[]): BeaconSource[] {
@@ -74,7 +78,7 @@ test("test_beacon_source_names_map_the_users_five_names_to_four_sources", () => 
 test("test_read_echo_alone_gives_one_read_echo_candidate", () => {
     const target = "/work/notes.txt";
     const session = writeSession(buildReadRecordPair(buildEnvelope("/work", "toolu_r1", 1), target, "read bytes\n", COMPLETE_WINDOW).records);
-    const candidates = listBeaconCandidates(new Path(target), [session], new Path(makeEmptyFolder()));
+    const candidates = listBeaconCandidates(new Path(target), [session], new Path(makeEmptyFolder()), undefined);
     assert.deepEqual(listSources(candidates), [BeaconSource.readEcho]);
     assert.equal(candidates[0]!.content, "read bytes\n");
 });
@@ -83,12 +87,12 @@ test("test_partial_read_gives_no_candidate", () => {
     const target = "/work/notes.txt";
     const partial = { startLine: 1, numLines: 1, totalLines: 3 };
     const session = writeSession(buildReadRecordPair(buildEnvelope("/work", "toolu_r1", 1), target, "read bytes\n", partial).records);
-    assert.deepEqual(listBeaconCandidates(new Path(target), [session], new Path(makeEmptyFolder())), []);
+    assert.deepEqual(listBeaconCandidates(new Path(target), [session], new Path(makeEmptyFolder()), undefined), []);
 });
 
 test("test_bash_cat_alone_gives_one_bash_cat_candidate", () => {
     const session = writeSession(buildCatRecords("/work", "toolu_c1", 2, "cat bytes\n"));
-    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()));
+    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), undefined);
     assert.deepEqual(listSources(candidates), [BeaconSource.bashCat]);
     assert.equal(candidates[0]!.content, "cat bytes\n");
 });
@@ -96,14 +100,26 @@ test("test_bash_cat_alone_gives_one_bash_cat_candidate", () => {
 test("test_file_history_alone_gives_one_file_history_candidate", () => {
     const cwdRecords = buildCatRecords("/work", "toolu_x", 0, "");
     const session = writeSession([cwdRecords[0]!, buildSnapshotRecord("2026-07-24T10:03:00.000Z")]);
-    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()));
+    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), undefined);
     assert.deepEqual(listSources(candidates), [BeaconSource.fileHistory]);
     assert.equal(candidates[0]!.content, "history bytes\n");
 });
 
+test("test_declared_sources_choose_the_file_history_folder", () => {
+    const cwdRecords = buildCatRecords("/work", "toolu_x", 0, "");
+    const { treeRoot, session } = writeSessionTree([cwdRecords[0]!, buildSnapshotRecord("2026-07-24T10:03:00.000Z")]);
+    const declaredHistory = mkdtempSync(join(tmpdir(), "beacon-candidates-declared-"));
+    mkdirSync(join(declaredHistory, SESSION_A), { recursive: true });
+    writeFileSync(join(declaredHistory, SESSION_A, "abc@v1"), "declared bytes\n");
+    const sources = [{ projectsDir: new Path(join(treeRoot, "projects")), fileHistoryDir: new Path(declaredHistory) }];
+    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), sources);
+    assert.deepEqual(listSources(candidates), [BeaconSource.fileHistory]);
+    assert.equal(candidates[0]!.content, "declared bytes\n");
+});
+
 test("test_commit_alone_gives_one_commit_candidate", () => {
     const repoDir = makeRepoWithOneCommit();
-    const candidates = listBeaconCandidates(new Path(join(repoDir, "notes.txt")), [], new Path(repoDir));
+    const candidates = listBeaconCandidates(new Path(join(repoDir, "notes.txt")), [], new Path(repoDir), undefined);
     assert.deepEqual(listSources(candidates), [BeaconSource.commit]);
     assert.equal(candidates[0]!.content, "commit bytes\n");
 });
@@ -113,6 +129,6 @@ test("test_crafted_session_holds_all_four_sources_sorted_by_instant", () => {
     const target = join(repoDir, "notes.txt");
     const read = buildReadRecordPair(buildEnvelope(repoDir, "toolu_r1", 1), target, "read bytes\n", COMPLETE_WINDOW);
     const session = writeSession([...read.records, ...buildCatRecords(repoDir, "toolu_c1", 2, "cat bytes\n"), buildSnapshotRecord("2026-07-24T10:03:00.000Z")]);
-    const candidates = listBeaconCandidates(new Path(target), [session], new Path(repoDir));
+    const candidates = listBeaconCandidates(new Path(target), [session], new Path(repoDir), undefined);
     assert.deepEqual(listSources(candidates), [BeaconSource.commit, BeaconSource.readEcho, BeaconSource.bashCat, BeaconSource.fileHistory]);
 });

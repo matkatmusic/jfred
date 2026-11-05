@@ -5,8 +5,9 @@ import { collectCommitBeaconNodes } from "./layered_git_beacons.ts";
 import type { BeaconNode } from "./layered_types.ts";
 import { collectSnapshotBeaconNodes } from "./layered_snapshot_beacons.ts";
 import { collectBashCatBeacons } from "./layer1_cat_beacons.ts";
-import { readSessionEditEvents } from "./layer1_edit_events.ts";
+import { readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
+import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -43,25 +44,32 @@ function compareCandidateInstants(left: BeaconCandidate, right: BeaconCandidate)
 }
 
 // readSessionEditEvents holds complete Read echoes only: a partial window becomes a stub, never an event.
+function buildReadCandidate(event: LayerEditEvent, target: Path, bashCatIds: Set<string>): BeaconCandidate | undefined {
+  const isReadOfTarget = event.kind === WireEditKind.read && event.target.equals(target);
+  if (!isReadOfTarget) {
+    return undefined;
+  }
+  if (event.content === undefined) {
+    return undefined;
+  }
+  const source = bashCatIds.has(event.changeId.toString()) ? BeaconSource.bashCat : BeaconSource.readEcho;
+  return { source, instant: event.instant, content: event.content };
+}
+
 function listReadCandidates(target: Path, sessionFile: Path, records: TranscriptRecord[]): BeaconCandidate[] {
   const bashCatIds = collectBashCatIds(records, sessionFile);
   const candidates: BeaconCandidate[] = [];
   for (const event of readSessionEditEvents(sessionFile)) {
-    const isReadOfTarget = event.kind === WireEditKind.read && event.target.equals(target);
-    if (!isReadOfTarget) {
-      continue;
+    const candidate = buildReadCandidate(event, target, bashCatIds);
+    if (candidate !== undefined) {
+      candidates.push(candidate);
     }
-    if (event.content === undefined) {
-      continue;
-    }
-    const source = bashCatIds.has(event.changeId.toString()) ? BeaconSource.bashCat : BeaconSource.readEcho;
-    candidates.push({ source, instant: event.instant, content: event.content });
   }
   return candidates;
 }
 
-function listFileHistoryCandidates(target: Path, records: TranscriptRecord[]): BeaconCandidate[] {
-  const reader = buildSidecarReader(records);
+function listFileHistoryCandidates(target: Path, records: TranscriptRecord[], sources: SourceEntry[] | undefined): BeaconCandidate[] {
+  const reader = buildSidecarReader(records, sources);
   if (reader === undefined) {
     return [];
   }
@@ -69,15 +77,15 @@ function listFileHistoryCandidates(target: Path, records: TranscriptRecord[]): B
   return buildCandidatesFromBeacons(BeaconSource.fileHistory, beacons);
 }
 
-function listSessionCandidates(target: Path, sessionFile: Path): BeaconCandidate[] {
+function listSessionCandidates(target: Path, sessionFile: Path, sources: SourceEntry[] | undefined): BeaconCandidate[] {
   const { records } = loadTranscript(sessionFile.toString(), undefined, true);
-  return [...listReadCandidates(target, sessionFile, records), ...listFileHistoryCandidates(target, records)];
+  return [...listReadCandidates(target, sessionFile, records), ...listFileHistoryCandidates(target, records, sources)];
 }
 
-export function listBeaconCandidates(target: Path, sessionFiles: Path[], repoPath: Path): BeaconCandidate[] {
+export function listBeaconCandidates(target: Path, sessionFiles: Path[], repoPath: Path, sources: SourceEntry[] | undefined): BeaconCandidate[] {
   const candidates: BeaconCandidate[] = [];
   for (const sessionFile of sessionFiles) {
-    candidates.push(...listSessionCandidates(target, sessionFile));
+    candidates.push(...listSessionCandidates(target, sessionFile, sources));
   }
   candidates.push(...buildCandidatesFromBeacons(BeaconSource.commit, collectCommitBeaconNodes(repoPath, target)));
   return candidates.sort(compareCandidateInstants);
