@@ -136,7 +136,7 @@ test("test_stopTimedOutContainer_goes_on_to_the_kill_for_a_running_or_already_en
 
 test("test_stopTimedOutContainer_throws_when_docker_inspect_hangs", () => {
     withFakeDocker(FAKE_HANGS, (readCalls) => {
-        assert.throws(() => stopTimedOutContainer(newRunId(), 200), /docker inspect .* failed/);
+        assert.throws(() => stopTimedOutContainer(newRunId(), 2000), /docker inspect .* failed/);
         assert.deepEqual(readCalls(), ["inspect"]);
     });
 });

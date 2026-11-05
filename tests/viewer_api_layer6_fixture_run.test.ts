@@ -75,7 +75,7 @@ test("a result with a confidence lists that confidence for each file the run cha
 
 test("the pre run streams three stdout lines and joins them into the result", async () => {
     const { lines } = await streamRun(FIXTURE_RUN_ID.pre);
-    assert.deepEqual(lines.slice(0, 3).map((line) => line["text"]), ["reading README.md", "writing README.md", "done"]);
+    assert.deepEqual(lines.slice(0, 3).map((line) => line["text"]), ["reading README.md\n", "writing README.md\n", "done\n"]);
     assert.equal(lines.at(-1)!["stdout"], "reading README.md\nwriting README.md\ndone");
 });
 

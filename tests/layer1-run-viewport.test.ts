@@ -38,12 +38,14 @@ function installNeedsFetch(): string[] {
 }
 
 test("test_listOnScreenRunIds_keeps_inside_dots_and_drops_outside_and_zero_sized_dots", () => {
+  initLayer1Dom("?dir=%2Fw");
   // Verify: inside stays, outside drops, a zero-sized (filter-hidden) dot drops, a run with two dots is listed once.
   const dots = [buildDot("inside", 10, 8), buildDot("outside", 200, 8), buildDot("hidden", 10, 0), buildDot("inside", 40, 8)];
   assert.deepEqual(listOnScreenRunIds(PANE, dots), ["inside"]);
 });
 
 test("test_listOnScreenRunIds_a_dot_that_only_touches_the_pane_edge_is_outside", () => {
+  initLayer1Dom("?dir=%2Fw");
   // Verify: the intersection is strict.
   assert.deepEqual(listOnScreenRunIds(PANE, [buildDot("edge", 100, 8), buildDot("partly", 95, 8)]), ["partly"]);
 });

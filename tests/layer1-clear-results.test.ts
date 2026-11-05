@@ -115,7 +115,8 @@ test("test_yes_aborts_the_running_script_before_the_post", async () => {
     initPage();
     const log = installServer({ holdRuns: true });
     const probe = installAbortProbe();
-    await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+    const view = buildView({ "a.ts": [buildRun("slow", 1)] });
+    await addRunsToQueue(view, ["slow"]);
     await waitAndAcceptConsent();
     await waitUntil(() => log.runCalls.length === 1);
     attachClearResultsButton(() => undefined);
@@ -123,6 +124,9 @@ test("test_yes_aborts_the_running_script_before_the_post", async () => {
     clickById("clear-results-yes");
     await waitUntil(() => probe.wasAbortedAtPost !== undefined);
     assert.equal(probe.wasAbortedAtPost, true);
+    // Drain the late needs request so it cannot hit the next test's stub fetch.
+    await waitUntil(() => runQueueState.runningId === undefined);
+    await addRunsToQueue(view, []);
 });
 
 test("test_a_failed_post_keeps_the_run_stores_skips_the_reload_and_shows_the_error", async () => {

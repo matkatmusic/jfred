@@ -98,7 +98,7 @@ export function selectRunConsoleCancelKey(isCancelled: boolean, isRunning: boole
   return isRunning ? "running-cancelable" : "idle";
 }
 
-// A page cancel wins; failed and skipped replays have no block.
+// A page cancel wins; failed, skipped, and unverified replays have no block.
 export function selectRunConsoleTerminalKey(isCancelled: boolean, result: WireScriptResult | undefined): string | undefined {
   if (isCancelled) {
     return "cancelled";
@@ -109,7 +109,8 @@ export function selectRunConsoleTerminalKey(isCancelled: boolean, result: WireSc
   if (result.outcome === WireRunOutcome.originalFailed) {
     return WireConfidence.originalFailed;
   }
-  return result.outcome === WireRunOutcome.replayed ? result.confidence : undefined;
+  const isUnverified = result.confidence === WireConfidence.injectedUnverified;
+  return result.outcome === WireRunOutcome.replayed && !isUnverified ? result.confidence : undefined;
 }
 
 function listOutcomeNotes(result: WireScriptResult): string[] {

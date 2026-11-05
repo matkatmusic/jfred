@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { rmSync } from "node:fs";
 import { Path, Uuid } from "./structures/domain.ts";
+import { ReconstructionCounter, addToReconstructionCounter } from "./reconstruction_counters.ts";
 import type { SandboxOutput } from "./reconstruction_script_sandbox_memo.ts";
 import { SANDBOX_TIMEOUT_MS, prepareSandboxDirectory, readAllFiles } from "./reconstruction_script_sandbox_dir.ts";
 import {
@@ -117,12 +118,12 @@ export async function executeSandboxStreaming(script: string, preState: Map<stri
   const tempDir = prepareSandboxDirectory(script, preState);
   try {
     const runId = new Uuid(randomUUID());
+    addToReconstructionCounter(ReconstructionCounter.sandboxSpawns);
     const child = spawn("docker", buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd)), { stdio: "pipe" });
     const state: RunState = { output: { stdout: "", stderr: "", timedOut: false }, isCancelled: false };
     collectOutput(child, state.output, onOutput);
     const status = await waitForExit(child, runId, signal, timeoutMs, state);
-    const post = readStreamedPost(status, state, tempDir);
-    return { post, output: { ...state.output, exitCode: status ?? undefined }, isCancelled: state.isCancelled };
+    return { post: readStreamedPost(status, state, tempDir), output: { ...state.output, exitCode: status ?? undefined }, isCancelled: state.isCancelled };
   }
   finally {
     rmSync(tempDir, { recursive: true, force: true });

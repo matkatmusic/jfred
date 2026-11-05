@@ -13,7 +13,7 @@ test("layer5.ts exports nothing, so importing it is not an option", () => {
 
 test("layer5.ts fetches an endpoint the viewer server routes", () => {
     assert.ok(LAYER5_SOURCE.includes("/api/layer1-branches"));
-    assert.ok(BRANCHES_ROUTE_SOURCE.includes(`url.pathname === "/api/layer1-branches"`));
+    assert.ok(BRANCHES_ROUTE_SOURCE.includes(`["/api/layer1-branches",`));
 });
 
 test("layer5.ts hands the page to the real-data checks", () => {

@@ -26,17 +26,21 @@ function reportClearFailure(error: unknown): void {
   renderBusyShieldError(String(error));
 }
 
+function openConfirmRow(clear: HTMLElement, confirmRow: HTMLElement): void {
+  clear.setAttribute("hidden", "");
+  confirmRow.removeAttribute("hidden");
+}
+
+function hideConfirmRow(clear: HTMLElement, confirmRow: HTMLElement): void {
+  confirmRow.setAttribute("hidden", "");
+  clear.removeAttribute("hidden");
+}
+
 export function attachClearResultsButton(reload: () => void): void {
   const clear = getRequiredElementById("clear-results");
   const confirmRow = getRequiredElementById("clear-results-confirm");
-  const openConfirm = (): void => {
-    clear.setAttribute("hidden", "");
-    confirmRow.removeAttribute("hidden");
-  };
-  const closeConfirm = (): void => {
-    confirmRow.setAttribute("hidden", "");
-    clear.removeAttribute("hidden");
-  };
+  const openConfirm = (): void => openConfirmRow(clear, confirmRow);
+  const closeConfirm = (): void => hideConfirmRow(clear, confirmRow);
   const sendAndClose = (): void => {
     closeConfirm();
     void sendClearResults(reload).catch(reportClearFailure);

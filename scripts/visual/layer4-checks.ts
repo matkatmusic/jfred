@@ -97,8 +97,8 @@ function validateBashLook(look: NodeLook): void {
   reportCheck("L4 the bash run has 1 node in the src/util.ts bubble", look.bashBubble === UTIL_PATH, look.bashBubble);
   reportCheck("L4 the bash label reads exactly bash run", look.bashLabel === "bash run", look.bashLabel);
   reportCheck("L4 the bash dot has .never-provable and a dashed ring", look.bashClass && look.bashRing === "dashed", look);
-  const expectedKinds = ["bash", "bash", ...Array<string>(8).fill("python")].join(",");
-  reportCheck("L4 executor kinds are 2 bash and 8 python", [...look.kinds].sort().join(",") === expectedKinds, look.kinds);
+  const expectedKinds = ["bash", "bash", "bash", ...Array<string>(17).fill("python")].join(",");
+  reportCheck("L4 executor kinds are 3 bash and 17 python", [...look.kinds].sort().join(",") === expectedKinds, look.kinds);
 }
 
 async function validateFileNameStaysInBubble(page: HeadlessPage): Promise<void> {

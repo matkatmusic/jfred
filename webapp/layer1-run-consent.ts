@@ -89,6 +89,14 @@ function buildRunConsentOverlay(scripts: WireConsentScript[], answer: (isAllowed
   return createElement("div", { class: "modal-wrap run-consent" }, [box]);
 }
 
+function appendConsentOverlay(overlay: HTMLElement): void {
+  const page = document.querySelector(".viz-root");
+  if (page === null) {
+    throw new Error("run consent needs the .viz-root page element");
+  }
+  page.append(overlay);
+}
+
 export function openRunConsent(view: WireLayer1View): Promise<boolean> {
   if (consentAnswer !== undefined) {
     return Promise.resolve(consentAnswer === "allowed");
@@ -100,11 +108,7 @@ export function openRunConsent(view: WireLayer1View): Promise<boolean> {
       resolve(isAllowed);
     };
     const overlay = buildRunConsentOverlay(buildRunConsentScripts(view), storeConsentAnswer);
-    const page = document.querySelector(".viz-root");
-    if (page === null) {
-      throw new Error("run consent needs the .viz-root page element");
-    }
-    page.append(overlay);
+    appendConsentOverlay(overlay);
   };
   return new Promise(openConsentOverlay);
 }

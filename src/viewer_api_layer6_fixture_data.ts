@@ -24,6 +24,8 @@ function buildStdoutLines(...texts: string[]): CannedFixtureRun["lines"] {
 const CANNED_RUNS: Record<string, CannedFixtureRun> = {
   [FIXTURE_RUN_ID.pre]: { outcome: WireRunOutcome.replayed, confidence: WireConfidence.verified, exitCode: 0, lineDelayMs: 0,
     lines: buildStdoutLines("reading README.md", "writing README.md", "done") },
+  toolu_fixture_py_rewrite: { outcome: WireRunOutcome.replayed, confidence: WireConfidence.verified, exitCode: 0, lineDelayMs: 0,
+    lines: buildStdoutLines("rewrote the files") },
   [FIXTURE_RUN_ID.blocker]: { outcome: WireRunOutcome.replayed, confidence: WireConfidence.verified, exitCode: 0, lineDelayMs: 0,
     lines: buildStdoutLines("wrote the blocker file") },
   [FIXTURE_RUN_ID.blocked]: { outcome: WireRunOutcome.replayed, confidence: WireConfidence.verified, exitCode: 0, lineDelayMs: 0,

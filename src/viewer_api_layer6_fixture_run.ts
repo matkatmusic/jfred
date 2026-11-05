@@ -61,7 +61,8 @@ async function sendCannedOutput(canned: CannedFixtureRun, response: ServerRespon
     if (isClosed) {
       return;
     }
-    writeRunLine(response, { kind: WireRunStreamKind.output, ...line });
+    // writeRunLine(response, { kind: WireRunStreamKind.output, ...line });
+    writeRunLine(response, { kind: WireRunStreamKind.output, ...line, text: `${line.text}\n` });
     await waitMs(canned.lineDelayMs);
   }
 }
