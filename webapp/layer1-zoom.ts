@@ -11,6 +11,10 @@ export const ZOOM_MAXIMUM = 4;
 // The page's ONE zoom value, applied by CSS via `.canvas { zoom: var(--zoom, 1) }`.
 let currentZoom = 1;
 
+export function getCurrentZoom(): number {
+  return currentZoom;
+}
+
 // Clamp, publish, and report. `--zoom` goes on `.viz-root` so any zoom-aware rule inherits it; only `.canvas` uses it today.
 export function applyZoom(requestedZoom: number): void {
   currentZoom = Math.min(Math.max(requestedZoom, ZOOM_MINIMUM), ZOOM_MAXIMUM);

@@ -4,7 +4,7 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { buildBubblePathExpression } from "./layer4-probes.ts";
 import {
-  CLICK_BLOCKED_CLOSE, CLICK_BLOCKED_GO, COUNT_BLOCKED_POPUPS, isBlockedClearOfDrawer, isBlockedPopupRight, readBlockedFacts,
+  CLICK_BLOCKED_CLOSE, CLICK_BLOCKED_GO, COUNT_BLOCKED_POPUPS, isBlockedBesideDot, isBlockedClearOfDrawer, isBlockedPopupRight, readBlockedFacts,
 } from "./layer6-blocked-facts.ts";
 import {
   BLOCKED_ID, BLOCKER_ID, CLEAR_RESULTS_PROBE, CLICK_RUN_SCRIPTS, COUNT_CONSENT_DIALOGS, NEVER_PROVABLE_ID, READ_DIALOG_COUNT, buildDotClasses,
@@ -25,6 +25,7 @@ async function validateShown(page: HeadlessPage): Promise<void> {
   const posts = await readRunPostIds(page);
   reportCheck("L6 the blocked dot shows #run-blocked-popup with close and Go to first unreplayed script node, and sends no run request",
     isBlockedPopupRight(facts) && !posts.includes(BLOCKED_ID), { facts, posts });
+  reportCheck("L6 the blocked popup sits beside the blocked dot", isBlockedBesideDot(facts), facts);
   await waitForDebounce();
   const later = await readBlockedFacts(page);
   reportCheck("L6 after 400 ms, more than two debounces, there is still one popup", later.count === 1, later);

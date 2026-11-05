@@ -21,7 +21,7 @@ const POPUP: PopupFacts = {
 const CONSENT = { count: 1, text: "Docker container: copied files only, no network. Docker must be on.", insideVizRoot: true };
 const BLOCKED = {
   count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "", insideStagewrap: true,
-  popupRect: [0, 0, 1, 1], drawerRect: [5, 0, 9, 9], drawerOpen: true,
+  popupRect: [0, 0, 1, 1], dotRect: [2, 0, 3, 1], drawerRect: [5, 0, 9, 9], drawerOpen: true,
 };
 
 interface Knobs { dotTotal: number; consent: typeof CONSENT; openedIds: string[] }

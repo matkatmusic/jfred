@@ -98,7 +98,7 @@ function renderFirstBlocker(view: WireLayer1View, run: WireScriptRun, first: Blo
   const dotKey = `${run.toolUseId}|${listRunBubbles(view, run.toolUseId)[0]}`;
   const moveToFirst = (): void => moveToBlocker(first);
   if (!isPending) {
-    renderBlockedPopup(dotKey, first, moveToFirst);
+    renderBlockedPopup(dotKey, run.toolUseId, first, moveToFirst);
   }
 }
 

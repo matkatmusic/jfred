@@ -2,23 +2,14 @@
 
 import { getRequiredElementById } from "./app-dom.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
+import { isDotOnScreen, type PaneBounds } from "./layer1-dot-on-screen.ts";
 import { addRunsToQueue } from "./layer1-run-queue.ts";
 
 const DOT_SELECTOR = "i.node.n-script[data-tool-use-id]";
 const DEBOUNCE_MS = 150;
 
-export type PaneBounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
-
 let debounceTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 let observedCanvas: Element | null = null;
-
-function isDotOnScreen(dot: HTMLElement, pane: PaneBounds): boolean {
-  const rect = dot.getBoundingClientRect();
-  const isSized = rect.width > 0 && rect.height > 0;
-  const isInsideAcross = rect.right > pane.left && rect.left < pane.right;
-  const isInsideDown = rect.bottom > pane.top && rect.top < pane.bottom;
-  return isSized && isInsideAcross && isInsideDown;
-}
 
 // A zero-sized dot is filter-hidden and drops out; a run with several dots is listed once.
 export function listOnScreenRunIds(pane: PaneBounds, dots: HTMLElement[]): string[] {

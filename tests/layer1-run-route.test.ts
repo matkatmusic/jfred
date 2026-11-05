@@ -8,6 +8,7 @@ import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireNeedState, WireRunOutcome, type WireNeededRun } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
+import { appendBlockedDot } from "./layer1-blocked-dot-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function buildRun(id: string, minute: number, overrides: Partial<WireScriptRun> = {}): WireScriptRun {
@@ -50,6 +51,9 @@ function listQueuedIds(): string[] {
 
 function resetRouteState(): void {
   initLayer1Dom("?dir=%2Fw");
+  for (const blockedId of ["blocked-id", "late-id", "waiting-b"]) {
+    appendBlockedDot(blockedId);
+  }
   resetRunResults();
   clearNeedsCache();
   runQueueState.queue = [];
