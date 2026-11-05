@@ -43,7 +43,7 @@ test("clicking a snapshot node reads the owning session and sets the range-corre
     assert.ok(getRequiredElementById("sessions").querySelector(".flash-lead"));
 });
 
-test("task 213: a snapshot node reveals a [{ }] button that toggles its raw transcript JSON", async () => {
+test("task 213: a snapshot node reveals a { } button that toggles its raw transcript JSON", async () => {
     initLayer1Dom();
     installAnimationFrameStub();
     const rawRecord = { type: "user", uuid: SNAPSHOT_SESSION_ID, message: { content: "hello raw json" } };
@@ -65,7 +65,7 @@ test("task 213: a snapshot node reveals a [{ }] button that toggles its raw tran
 
     // Step: the reveal button is present and its JSON body starts hidden.
     const toggle = getRequiredElementById("dbody").querySelector(".json-toggle") as HTMLButtonElement;
-    assert.ok(toggle, "a snapshot node should get a [{ }] button");
+    assert.ok(toggle, "a snapshot node should get a { } button");
     const jsonBox = getRequiredElementById("dbody").querySelector(".node-json") as HTMLElement;
     assert.equal(jsonBox.hidden, true);
     // Step: clicking the button reveals the highlighted-JSON pre carrying the record text.

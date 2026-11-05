@@ -6,11 +6,17 @@ import { buildLayer1DiffPayload } from "./viewer_api_layer1_diff.ts";
 import { listContentLines, type FixtureRevisionNode } from "./viewer_api_layer1_fixture_content.ts";
 import { findTitleAt } from "./viewer_api_layer1_fixture_data.ts";
 import { SNAPSHOTS } from "./viewer_api_layer2_fixture_data.ts";
-import { EDITS } from "./viewer_api_layer3_fixture_data.ts";
-import { buildFixtureRecord, readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
+// import { EDITS } from "./viewer_api_layer3_fixture_data.ts";
+import { findFixtureLineRecord } from "./viewer_api_layer1_fixture_record.ts";
+import { readFixtureEditFile } from "./viewer_api_layer3_fixture_replay.ts";
 import { readFixtureBranchFile } from "./viewer_api_layer5_mockup_branches.ts";
 import { SCRIPT_RUN_NODE_KIND } from "./viewer_api_layer4_fixture_data.ts";
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
+
+function buildFixtureSnapshotNode(query: URLSearchParams): FixtureRevisionNode {
+  return { kind: "snapshot", version: `@v${getRequiredParam(query, "version")}`,
+    session: basename(getRequiredParam(query, "snapshotSession")) };
+}
 
 function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
   const scriptRunId = query.get("scriptRun");
@@ -19,8 +25,7 @@ function buildFixtureNode(query: URLSearchParams): FixtureRevisionNode {
   }
   const isSnapshotRequest = query.get("snapshotSession") !== null;
   if (isSnapshotRequest) {
-    return { kind: "snapshot", version: `@v${getRequiredParam(query, "version")}`,
-      session: basename(getRequiredParam(query, "snapshotSession")) };
+    return buildFixtureSnapshotNode(query);
   }
   const hash = (query.get("hash") ?? "").trim();
   if (hash !== "") {
@@ -44,31 +49,29 @@ function getFixtureSnapshotTitle(query: URLSearchParams): string {
   return findTitleAt(sessionFile, line);
 }
 
-// The fixture's stand-in for a transcript line: the edit event recorded at that session and line.
+// The fixture's stand-in for a transcript line: the entry (edit, snapshot, script run or annotation) recorded there.
 export function sendFixtureRecord(response: ServerResponse, query: URLSearchParams): void {
   const session = basename(getRequiredParam(query, "jsonl"));
   const line = Number(getRequiredParam(query, "line"));
-  const event = EDITS.find((entry) => entry.session === session && entry.line === line);
-  if (event === undefined) {
+  const record = findFixtureLineRecord(session, line);
+  if (record === undefined) {
     throw new Error(`no fixture record at line ${line} of ${session}`);
   }
-  sendJson(response, 200, buildFixtureRecord(event));
+  sendJson(response, 200, record);
 }
 
-export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
-  const editChangeId = query.get("editChangeId");
-  if (editChangeId !== null) {
-    const isBranchRequest = query.get("branch") === "1";
-    if (isBranchRequest) {
-      sendJson(response, 200, readFixtureBranchFile(getRequiredParam(query, "path"), editChangeId, getRequiredParam(query, "side")));
-      return;
-    }
-    sendJson(response, 200, readFixtureEditFile(editChangeId, getRequiredParam(query, "side")));
+function sendFixtureEditFile(response: ServerResponse, query: URLSearchParams, editChangeId: string): void {
+  const isBranchRequest = query.get("branch") === "1";
+  if (isBranchRequest) {
+    sendJson(response, 200, readFixtureBranchFile(getRequiredParam(query, "path"), editChangeId, getRequiredParam(query, "side")));
     return;
   }
-  const path = getRequiredParam(query, "path");
+  sendJson(response, 200, readFixtureEditFile(editChangeId, getRequiredParam(query, "side")));
+}
+
+function sendFixtureContent(response: ServerResponse, query: URLSearchParams): void {
   const node = buildFixtureNode(query);
-  const content = listContentLines(path, node).join("\n");
+  const content = listContentLines(getRequiredParam(query, "path"), node).join("\n");
   const isBinary = query.get("binary") === "1";
   if (isBinary) {
     response.writeHead(200, { "Content-Type": "application/octet-stream" });
@@ -80,6 +83,15 @@ export function sendFixtureFile(response: ServerResponse, query: URLSearchParams
     return;
   }
   sendJson(response, 200, { content });
+}
+
+export function sendFixtureFile(response: ServerResponse, query: URLSearchParams): void {
+  const editChangeId = query.get("editChangeId");
+  if (editChangeId !== null) {
+    sendFixtureEditFile(response, query, editChangeId);
+    return;
+  }
+  sendFixtureContent(response, query);
 }
 
 function getFixtureDiffLines(query: URLSearchParams, hashParam: string): string[] {

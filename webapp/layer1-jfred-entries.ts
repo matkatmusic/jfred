@@ -21,6 +21,8 @@ export interface JfredEntry {
   parentShortHash: string | undefined;
   instant: string;
   label: string;
+  // Undefined for the base: it has no message.
+  message: string | undefined;
 }
 
 // Base first, then the commits in order, then the pending mark; the pending parent is the tip.
@@ -28,11 +30,11 @@ export function listJfredEntries(branch: JfredBranch): JfredEntry[] {
   if (branch.base === undefined)
     return [];
   const { base } = branch;
-  const entries: JfredEntry[] = [{ kind: JfredEntryKind.base, shortHash: base.shortHash, parentShortHash: undefined, instant: base.instant, label: `base ${base.shortHash}` }];
+  const entries: JfredEntry[] = [{ kind: JfredEntryKind.base, shortHash: base.shortHash, parentShortHash: undefined, instant: base.instant, label: `base ${base.shortHash}`, message: undefined }];
   for (const commit of branch.commits)
-    entries.push({ kind: JfredEntryKind.commit, shortHash: commit.shortHash, parentShortHash: commit.parentShortHash, instant: commit.instant, label: commit.shortHash });
+    entries.push({ kind: JfredEntryKind.commit, shortHash: commit.shortHash, parentShortHash: commit.parentShortHash, instant: commit.instant, label: commit.shortHash, message: commit.message });
   if (branch.pending !== undefined)
-    entries.push({ kind: JfredEntryKind.pending, shortHash: undefined, parentShortHash: (branch.commits.at(-1) ?? base).shortHash, instant: branch.pending.instant, label: "pending" });
+    entries.push({ kind: JfredEntryKind.pending, shortHash: undefined, parentShortHash: (branch.commits.at(-1) ?? base).shortHash, instant: branch.pending.instant, label: "pending", message: branch.pending.message });
   return entries;
 }
 
@@ -43,7 +45,8 @@ function buildEntryElement(tag: string, className: string, entry: JfredEntry, ti
     "data-short-hash": entry.shortHash,
     "data-parent-hash": entry.parentShortHash,
     "data-instant": entry.instant,
-    title: `${entry.label} | ${entry.instant}`,
+    // The hover popup shows the message; only the base keeps a native title.
+    title: entry.message === undefined ? `${entry.label} | ${entry.instant}` : undefined,
     text,
   });
   element.style.setProperty("--axis-px", String(computeAxisPixelsAt(Date.parse(entry.instant), ticks)));

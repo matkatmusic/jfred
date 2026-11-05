@@ -26,6 +26,14 @@ test("a snapshot node reads its owning session's file-history and names the file
   assert.equal(detail.params.get("version"), "3");
 });
 
+test("test_the_raw_json_button_reads_braces_without_square_brackets", () => {
+  // Steps: add the reveal, then read the toggle text.
+  initLayer1Dom();
+  getRequiredElementById("dbody").replaceChildren();
+  appendRawJsonReveal({ type: "user" });
+  assert.equal(getRequiredElementById("dbody").querySelector<HTMLElement>(".json-toggle")?.textContent, "{ }");
+});
+
 test("appendRawJsonReveal adds a hidden JSON box that its toggle shows", () => {
   initLayer1Dom();
   getRequiredElementById("dbody").replaceChildren();

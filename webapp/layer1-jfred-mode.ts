@@ -3,6 +3,7 @@
 import { getRequiredElementById } from "./app-dom.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { installCutMarkClick } from "./layer1-cut-marks.ts";
+import { refreshJfredStrip } from "./layer1-jfred-strip.ts";
 import { loadJfredBranch, readJfredBranch, setArmed } from "./layer1-jfred-state.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
@@ -13,6 +14,7 @@ function toggleCommitMode(): void {
   setArmed(!readJfredBranch().isArmed);
   getRequiredElementById("commit-mode").classList.toggle("current", readJfredBranch().isArmed);
   repaintCutMarks();
+  refreshJfredStrip();
 }
 
 export function rememberJfredCommits(view: WireLayer1View): void {

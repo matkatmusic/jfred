@@ -210,7 +210,8 @@
     Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
   */
   .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
-    isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; }
+    isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; --head-h: 44px; }
+  /* .canvas { ... --track-w: 0px; --jfred-w: 104px; } */
 
   /*
     left: 0 pins the gutter under horizontal scroll; its width is --rail-x plus the rail border.
@@ -418,7 +419,7 @@
   /*
     Task 246: .stagewrap is the minimap's parent and holds the File Nav width (task 279).
   */
-  .stagewrap { --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
+  .stagewrap { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
     display: flex; overflow: hidden; }
 
   /*
@@ -544,6 +545,11 @@
     width: 176px; height: 124px; padding: 6px; cursor: crosshair;
     border: 1px solid var(--border); border-radius: 8px;
     background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }
+  /*
+    The minimap sits flush against the ruler's right edge and follows the open columns.
+  */
+  .stagewrap:has(.ruler-sessions) .minimap { left: calc(var(--filenav-w) + (152px + var(--track-w)) * var(--zoom, 1)); }
+  .stagewrap:has(#jfred-strip) .minimap { left: calc(var(--filenav-w) + (152px + var(--track-w) + var(--jfred-w)) * var(--zoom, 1)); }
   .minimap .mm-title { position: absolute; top: -8px; left: 8px; padding: 0 4px; font-size: 9px;
     color: var(--muted); background: var(--page); }
   /*
@@ -873,14 +879,25 @@
   /*
     Column touches ruler: margin-left cancels canvas gap, width keeps bubbles put; --bars holds session bars; z-index 7 raises them.
   */
-  .atrack { --bars: 44px; position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: 194px; margin-left: -14px;
-    background: var(--page); }
+  /* .atrack { --bars: 44px; position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: 194px; margin-left: -14px;
+    background: var(--page); } */
+  /* .atrack { position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: var(--track-w); margin-left: -14px;
+    background: var(--page); } */
+  .atrack { position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: var(--track-w); margin-left: -14px;
+    background: var(--surface); border-right: 1px solid var(--muted); box-sizing: border-box; }
   .canvas:has(> .atrack) .ranges { z-index: 8; }
-  .anode, .alabel { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }
+  /* .anode, .alabel { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); } */
+  .anode { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }
   /* .anode { left: calc(22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;
     border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); } */
-  .anode { left: calc(var(--bars) + 22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;
-    border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); }
+  /* .anode { left: calc(var(--bars) + 22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;
+    border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); } */
+  /*
+    Letter dot in the session color. Two classes beat every `.a-<kind>` shape rule, so all kinds look alike.
+  */
+  .atrack .anode { left: calc(var(--lane-x) + var(--stack, 0) * 14px); z-index: 2; width: 14px; height: 14px; box-sizing: border-box;
+    border-radius: 50%; border: 2px solid var(--session-color); background: var(--session-color); color: black;
+    display: grid; place-items: center; font: 700 11px/1 ui-monospace, Menlo, monospace; transform: translate(-50%, -50%); cursor: pointer; }
   /* .alabel { left: calc(34px + var(--stack, 0) * 16px); transform: translateY(-50%); font-size: 10px; color: var(--muted);
     white-space: nowrap; } */
   /*
@@ -893,12 +910,18 @@
   */
   /* .alabel { left: 50px; transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
     color: var(--muted); white-space: nowrap; } */
-  .alabel { left: calc(var(--bars) + 50px); transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
-    color: var(--muted); white-space: nowrap; }
+  /* .alabel { left: calc(var(--bars) + 50px); transform: translateY(calc(-50% + var(--stack, 0) * 15px)); font-size: 10px;
+    color: var(--muted); white-space: nowrap; } */
   /* .abracket { position: absolute; left: 2px; width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
     height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; } */
-  .abracket { position: absolute; left: calc(var(--bars) + 2px); width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
+  /* .abracket { position: absolute; left: calc(var(--bars) + 2px); width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; } */
+  /* .abracket { position: absolute; left: calc(var(--lane-x) - 17px); width: 8px; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; } */
+  .abracket { position: absolute; left: calc(var(--lane-x) - 15px); width: 6px; top: calc(var(--axis-px) * 1px + var(--lane-y));
     height: calc(var(--span-px) * 1px); border: 2px dashed var(--muted); border-right: none; }
+  .sline { position: absolute; left: var(--lane-x); z-index: 1; width: 0; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: calc(var(--span-px) * 1px); border-left: 2px solid var(--session-color); transform: translateX(-1px); }
   .tnode { position: absolute; left: 0; top: calc(var(--axis-px) * 1px); width: 13px; height: 13px; box-sizing: border-box;
     border: 2px solid var(--ink); background: var(--surface); transform: translate(-50%, -50%); z-index: 6; }
   .tlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%); font-size: 10px;
@@ -916,31 +939,40 @@
   .a-permission-mode { width: 8px; height: 8px; border-color: var(--muted); }
   .a-custom-title { border-radius: 0; border-color: var(--muted); transform: translate(-50%, -50%) rotate(45deg); }
   .a-unknown { border-style: dashed; }
-  .anode.is-ignored, .alabel.is-ignored { opacity: .38; }
+  /* .anode.is-ignored, .alabel.is-ignored { opacity: .38; } */
+  .anode.is-ignored { opacity: .38; }
   .viz-root[data-hide-ignored] .is-ignored { display: none; }
   .viz-root[data-hidden-kinds~="tool"] .tnode,
   .viz-root[data-hidden-kinds~="tool"] .tlabel,
   .viz-root[data-hidden-kinds~="tool"] .tbracket { display: none; }
   .show-row .sw-tool { background: var(--ink); border-radius: 3px; }
   /* .atrack .atitle { position: sticky; top: 0; z-index: 1; padding: 2px 0 0 14px; font-size: 10px; color: var(--muted); background: var(--page); } */
-  .atrack .atitle { position: sticky; top: 0; z-index: 1; padding: 2px 0 0 calc(var(--bars) + 14px); font-size: 10px; color: var(--muted);
-    background: var(--page); }
+  /* .atrack .atitle { position: sticky; top: 0; z-index: 1; padding: 2px 0 0 calc(var(--bars) + 14px); font-size: 10px; color: var(--muted);
+    background: var(--page); } */
 
   /*
     Task 383: commit strip, cut marks and commit message; colour tokens only so dark mode follows.
   */
-  .jfred-strip { --track-w: 194px; position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
-    width: 120px; margin-left: -14px; background: var(--page); }
-  .jfred-strip .jhead { position: sticky; top: 0; z-index: 1; padding: 2px 4px 4px 8px; background: var(--page); font-size: 10px; color: var(--muted); }
+  /* .jfred-strip { --track-w: 194px; position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
+    width: 120px; margin-left: -14px; background: var(--page); } */
+  /*
+    The negative right margin makes the strip take no space, so it lies over the bubbles and pushes nothing.
+  */
+  /* .jfred-strip { position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
+    width: var(--jfred-w); margin-left: -14px; margin-right: calc(var(--jfred-w) * -1); background: var(--page); border-left: 1px solid var(--border); } */
+  .jfred-strip { position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
+    width: var(--jfred-w); margin-left: -14px; margin-right: calc(var(--jfred-w) * -1); background: var(--surface); border-left: 1px solid var(--border); }
+  /* .jfred-strip .jhead { position: sticky; top: 0; z-index: 1; padding: 2px 4px 4px 8px; background: var(--page); font-size: 10px; color: var(--muted); } */
+  .jfred-strip .jhead { overflow: hidden; padding: 2px 4px 4px 8px; font-size: 10px; color: var(--muted); }
   .jnode, .jlabel, .jchain, .jline { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }
-  .jnode { left: 18px; width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--ink);
+  .jnode { left: 12px; width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--ink);
     background: var(--ink); transform: translate(-50%, -50%); cursor: pointer; }
   .jnode.j-base { border-radius: 3px; background: var(--page); }
   .jnode.j-pending { border-color: var(--sel-edge); border-style: dashed; background: transparent; }
-  .jlabel { left: 30px; transform: translateY(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
-  .jchain { left: 17px; height: calc(var(--span-px) * 1px); border-left: 2px solid var(--ink); }
+  .jlabel { left: 24px; transform: translateY(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .jchain { left: 11px; height: calc(var(--span-px) * 1px); border-left: 2px solid var(--ink); }
   .jchain.j-pending { border-left-style: dashed; border-color: var(--sel-edge); }
-  .jline { left: calc(var(--track-w) * -1); width: calc(var(--track-w) + 18px); border-top: 1px dashed var(--muted); pointer-events: none; }
+  .jline { left: calc(var(--track-w) * -1); width: calc(var(--track-w) + 12px); border-top: 1px dashed var(--muted); pointer-events: none; }
   .ruler .tick.cut-ok::after, .ruler .tick.cut-set::after, .ruler .tick.cut-pending::after, .ruler .tick.cut-base::after {
     content: "\2702"; position: absolute; left: 142px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--ink2); }
   .ruler .tick.cut-no { opacity: .38; }
@@ -957,9 +989,55 @@
   */
   .canvas:has(> .jfred-strip) .atrack { z-index: 8; background: transparent; }
   .jfred-strip::before { content: ""; position: absolute; left: calc(var(--track-w) * -1); width: var(--track-w); top: 0; bottom: 0;
-    background: var(--page); pointer-events: none; }
-  .canvas:has(> .jfred-strip) .alabel { background: var(--page); }
+    background: var(--surface); pointer-events: none; }
+  /* .canvas:has(> .jfred-strip) .alabel { background: var(--page); } */
   .canvas:has(> .jfred-strip) .ranges { z-index: 9; }
+
+  /*
+    Opaque sticky heads: ticks scroll under them, and z-index 3 clears the dots.
+  */
+  /* .ruler-head, .atrack .ahead, .jfred-strip .jhead { position: sticky; top: 0; z-index: 3; height: var(--head-h); box-sizing: border-box;
+    background: var(--page); border-bottom: 1px dotted var(--muted); } */
+  /*
+    Sticky rests below the pane's top padding, which grows with jump space.
+  */
+  .ruler-head, .atrack .ahead, .jfred-strip .jhead { position: sticky; top: 0; z-index: 3; height: var(--head-h); box-sizing: border-box;
+    border-bottom: 1px dotted var(--muted); transform: translateY(calc((-18px - var(--slack-top, 0px)) / var(--zoom, 1))); }
+  .ruler-head { background: var(--page); }
+  .atrack .ahead, .jfred-strip .jhead { background: var(--surface); }
+  .ruler-head { display: flex; align-items: center; justify-content: flex-end; padding: 0 12px 0 8px; }
+  .session-toggle { height: 24px; }
+  .session-toggle.current { background: var(--c-snap); border-color: var(--c-snap); color: var(--page); }
+
+  /*
+    Dashes sit under the time, count to its right; scoped so the real page stays put.
+  */
+  /*
+    One fixed line height, so no child can grow the tick and lift the time off its axis.
+  */
+  .ruler-sessions .tick { height: 15px; }
+  .ruler-sessions .tick .tcount { display: inline-block; vertical-align: top; width: 5ch; margin-left: 4px; text-align: left; }
+  .ruler-sessions .tick .kind-dashes { position: absolute; top: calc(100% - 1px); right: calc(5ch + 4px); height: 4px; margin: 0; }
+  .ruler-sessions .tick .kdash::after { inset: -3px -1px; }
+  .ruler-sessions .tick.expanded .tcount { display: none; }
+  .ruler-sessions .tick.expanded .kind-dashes { position: static; height: 14px; margin-left: 6px; }
+  .ruler-sessions .tick.s-coloured { color: var(--session-color); }
+
+  /*
+    File lines match their dash color; the tool kind has no dash color, so it uses ink.
+  */
+  .ruler-sessions .tf-created { color: var(--muted); }
+  .ruler-sessions .tf-commit { color: var(--c-commit); }
+  .ruler-sessions .tf-disk { color: var(--c-disk); }
+  .ruler-sessions .tf-snapshot { color: var(--c-snap); }
+  .ruler-sessions .tf-edit { color: var(--c-edit); }
+  .ruler-sessions .tf-script-run { color: var(--c-script); }
+  .ruler-sessions .tf-branch { color: var(--c-user); }
+  .ruler-sessions .tf-tool { color: var(--ink); }
+
+  .hover-popup { position: fixed; z-index: 40; max-width: 50ch; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); font: 11px ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
+  .hover-popup[style*="background-color"] { color: black; }
 
   /*
     Task 358 part D: the console ends left of the open drawer and its output scrolls.

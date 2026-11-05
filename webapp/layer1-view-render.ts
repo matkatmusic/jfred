@@ -1,7 +1,7 @@
 // Draws a whole Layer 1 view and keeps the folder-selection filter state.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { rememberAnnotations } from "./layer1-annotation-track.ts";
+import { storeAnnotations } from "./layer1-annotation-track.ts";
 import { rememberNavTargets } from "./layer1-diff-wash.ts";
 import { openDetailViewForFiles } from "./layer1-drawer-multi.ts";
 import { renderLayer1FileNav } from "./layer1-filenav.ts";
@@ -13,6 +13,18 @@ import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } fr
 import { renderLayer1Stage } from "./layer1-stage-render.ts";
 import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-tick-files.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
+
+function listSharedPaths(folders: readonly string[], sessions: readonly string[]): string[] {
+  const touched = new Set(sessions);
+  const shared: string[] = [];
+  for (const path of folders) {
+    const isShared = touched.has(path);
+    if (isShared) {
+      shared.push(path);
+    }
+  }
+  return shared;
+}
 
 // Task 326: an idle picker doesn't filter (both idle = undefined); an empty INTERSECTION draws nothing.
 export function getIntersectedFilterTargets(folders: readonly string[], sessions: readonly string[]): string[] | undefined {
@@ -28,15 +40,7 @@ export function getIntersectedFilterTargets(folders: readonly string[], sessions
   if (noSessions) {
     return [...folders];
   }
-  const touched = new Set(sessions);
-  const shared: string[] = [];
-  for (const path of folders) {
-    const isShared = touched.has(path);
-    if (isShared) {
-      shared.push(path);
-    }
-  }
-  return shared;
+  return listSharedPaths(folders, sessions);
 }
 
 // Module state because the nav's redraw would wipe a selection the session pane still re-applies.
@@ -52,9 +56,13 @@ export function clearFolderFilterState(): void {
   getRequiredElementById("filenav-only-selected").classList.remove("current");
 }
 
-// Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
-export function renderLayer1View(view: WireLayer1View): Promise<void> {
-  // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
+interface StageRenderers {
+  renderFilteredStage: () => Promise<void>;
+  closeRowAndRenderStage: () => void;
+}
+
+// Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
+function createStageRenderers(view: WireLayer1View): StageRenderers {
   const renderFilteredStage = (): Promise<void> => renderLayer1Stage(filterLayer1ViewByTargets(
     view, getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
   ));
@@ -63,7 +71,11 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     renderFilteredStage();
   };
   registerExpansionRelayout(renderFilteredStage);
-  // Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
+  return { renderFilteredStage, closeRowAndRenderStage };
+}
+
+// Task 326: wired by assignment, like the nav search box, so re-renders never stack listeners.
+function attachOnlySelectedButton(closeRowAndRenderStage: () => void): void {
   const onlySelectedButton = getRequiredElementById("filenav-only-selected");
   // A re-render builds a fresh button, so its class is derived from the surviving module state.
   onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
@@ -72,7 +84,10 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
     onlySelectedButton.classList.toggle("current", onlySelectedIsOn);
     closeRowAndRenderStage();
   };
-  const selectFolderTargets = (targets: string[]): void => {
+}
+
+function createFolderTargetSelector(view: WireLayer1View, closeRowAndRenderStage: () => void): (targets: string[]) => void {
+  return (targets: string[]): void => {
     folderTargets = targets;
     rememberNavTargets(targets);
     // Task 333: a multi-selection stays on the FULL timeline; the nav wash alone shows where it falls.
@@ -82,12 +97,10 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
       openDetailViewForFiles(view, targets);
     }
   };
-  renderLayer1FileNav(view, selectFolderTargets);
-  rememberAnnotations(view);
-  rememberJfredCommits(view);
-  renderShowRowWithKindFilter(view, renderFilteredStage);
-  const stageDrawn = renderLayer1Stage(view);
-  // The pane keeps only transcripts that touched one of these files.
+}
+
+// The pane keeps only transcripts that touched one of these files.
+function listKnownPaths(view: WireLayer1View): string[] {
   const knownPaths: string[] = [];
   for (const pair of view.pairs) {
     knownPaths.push(pair.path);
@@ -95,7 +108,19 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
   for (const orphan of [...view.gitOrphans, ...view.diskOrphans]) {
     knownPaths.push(orphan.path);
   }
-  setKnownProjectPaths(getInputById("dir").value.trim(), knownPaths);
+  return knownPaths;
+}
+
+// Callbacks capture the unfiltered `view`; returns the stage render so the loadbar outlives it.
+export function renderLayer1View(view: WireLayer1View): Promise<void> {
+  const { renderFilteredStage, closeRowAndRenderStage } = createStageRenderers(view);
+  attachOnlySelectedButton(closeRowAndRenderStage);
+  renderLayer1FileNav(view, createFolderTargetSelector(view, closeRowAndRenderStage));
+  storeAnnotations(view);
+  rememberJfredCommits(view);
+  renderShowRowWithKindFilter(view, renderFilteredStage);
+  const stageDrawn = renderLayer1Stage(view);
+  setKnownProjectPaths(getInputById("dir").value.trim(), listKnownPaths(view));
   const renderPaneAfterSessionsLoad = (): void => renderSessionPane(closeRowAndRenderStage);
   // Fetched after the stage is up rather than delaying it: the timeline is the page.
   void loadLayer1Sessions().then(renderPaneAfterSessionsLoad);

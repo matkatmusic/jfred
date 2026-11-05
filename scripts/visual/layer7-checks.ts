@@ -6,7 +6,7 @@ import { reportCheck } from "./mockup-checks.ts";
 import { validateBubble } from "./layer7-bubble-checks.ts";
 import { validateColourTokens, validateIgnored } from "./layer7-ignored-checks.ts";
 import { validateLayout } from "./layer7-layout-checks.ts";
-import { HIDDEN_KINDS, SCROLL_HOME } from "./layer7-probes.ts";
+import { HIDDEN_KINDS, SCROLL_HOME, openSessionColumn } from "./layer7-probes.ts";
 import { validateColumnNodes, validateTrack } from "./layer7-track-checks.ts";
 
 export interface RangeFacts { left: number; right: number; trackLeft: number; nodeLeft: number; isHit: boolean }
@@ -77,6 +77,7 @@ async function validateRewind(page: HeadlessPage): Promise<void> {
 
 export async function validateLayer7(page: HeadlessPage, pageUrl: string): Promise<void> {
   await waitForFreshPage(page, pageUrl);
+  await openSessionColumn(page);
   await validateTrack(page);
   await validateColumnNodes(page);
   await validateIgnored(page);

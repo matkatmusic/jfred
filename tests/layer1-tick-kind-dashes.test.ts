@@ -35,7 +35,7 @@ function drawRowOf(kindClasses: string[]): HTMLElement {
     ]), SHARED_PX));
     const tick = setAxisPx(createElement("div", { class: "tick", text: TICK_TEXT }), SHARED_PX);
     document.getElementById("ruler")!.appendChild(tick);
-    attachRulerTickClick(tick, { axisPx: SHARED_PX, text: TICK_TEXT, axisPxList: [SHARED_PX], instants: [INSTANT] });
+    attachRulerTickClick(tick, { axisPx: SHARED_PX, text: TICK_TEXT, axisPxList: [SHARED_PX], instants: [INSTANT], eventCount: 3 });
     registerExpansionRelayout(markMultiEventTicks);
     registerTickExpansion();
     markMultiEventTicks();

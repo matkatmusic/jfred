@@ -24,32 +24,56 @@ function readTickInstantMs(tick: HTMLElement): number {
 
 function listStateClasses(instantMs: number, branch: JfredBranch): string[] {
   const classes: string[] = [];
-  if (branch.base !== undefined && Date.parse(branch.base.instant) === instantMs)
+  const hasBase = branch.base !== undefined;
+  if (hasBase && Date.parse(branch.base!.instant) === instantMs)
     classes.push(CutClass.base);
   for (const commit of branch.commits) {
     if (Date.parse(commit.instant) === instantMs)
       classes.push(CutClass.set);
   }
-  if (branch.pending !== undefined && Date.parse(branch.pending.instant) === instantMs)
+  const hasPending = branch.pending !== undefined;
+  if (hasPending && Date.parse(branch.pending!.instant) === instantMs)
     classes.push(CutClass.pending);
   return classes;
 }
 
-function paintArmedTick(tick: HTMLElement, snapshot: BubbleSnapshot[]): void {
-  const refusal = findCutRefusal({ ...readTickBeaconFacts(tick, snapshot), tipMs: readTipMs() });
-  tick.classList.add(refusal === undefined ? CutClass.ok : CutClass.no);
-  if (refusal !== undefined)
-    tick.title = CUT_REFUSAL_TEXT[refusal];
+// A tick with the full-time attribute keeps it as its title; a real-page tick has no title.
+function restoreTickTitle(tick: HTMLElement): void {
+  const fullTime = tick.dataset["fullTime"];
+  if (fullTime === undefined) {
+    tick.removeAttribute("title");
+    return;
+  }
+  tick.title = fullTime;
 }
 
+function buildRefusalTitle(tick: HTMLElement, refusalText: string): string {
+  const fullTime = tick.dataset["fullTime"];
+  if (fullTime === undefined)
+    return refusalText;
+  return `${refusalText}\n${fullTime}`;
+}
+
+function paintArmedTick(tick: HTMLElement, snapshot: BubbleSnapshot[]): void {
+  const refusal = findCutRefusal({ ...readTickBeaconFacts(tick, snapshot), tipMs: readTipMs() });
+  if (refusal === undefined) {
+    tick.classList.add(CutClass.ok);
+    return;
+  }
+  tick.classList.add(CutClass.no);
+  tick.title = buildRefusalTitle(tick, CUT_REFUSAL_TEXT[refusal]);
+}
+
+// Marks show only while Commit mode is on; unarmed ticks carry no cut class.
 export function repaintCutMarks(): void {
   const branch = readJfredBranch();
   const snapshot = branch.isArmed ? collectStageBubbles() : [];
   for (const tick of getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick")) {
     tick.classList.remove(...Object.values(CutClass));
-    tick.removeAttribute("title");
-    tick.classList.add(...listStateClasses(readTickInstantMs(tick), branch));
-    if (branch.isArmed)
+    restoreTickTitle(tick);
+    if (branch.isArmed) {
+      tick.classList.add(...listStateClasses(readTickInstantMs(tick), branch));
       paintArmedTick(tick, snapshot);
+    }
   }
 }

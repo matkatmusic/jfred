@@ -70,7 +70,7 @@ test("a script-run drawer reveals the raw JSONL line of its tool_use record", as
   assert.ok(getRequiredElementById("dbody").querySelector(".node-json")?.textContent?.includes("script tool_use line"));
 });
 
-test("a script run with no source line shows no [{ }] button", async () => {
+test("a script run with no source line shows no { } button", async () => {
   await openSingleRunDrawer({ ...SCRIPT_RUN, toolUseId: "toolu_noline", line: undefined });
   assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
 });

@@ -25,6 +25,14 @@ test("test_look_letters_are_unique", () => {
     assert.equal(new Set(letters).size, KINDS.length);
 });
 
+test("test_dot_letters_are_eight_distinct_single_characters", () => {
+    // Scenario: dots show the bare letter; the bubble label keeps its brackets.
+    const dotLetters = KINDS.map((kind) => ANNOTATION_LOOKS[kind].dotLetter);
+    assert.equal(new Set(dotLetters).size, 8);
+    assert.deepEqual(dotLetters.sort(), "u a t r h m n ?".split(" ").sort());
+    assert.ok(KINDS.every((kind) => ANNOTATION_LOOKS[kind].letter === `[${ANNOTATION_LOOKS[kind].dotLetter}]`));
+});
+
 test("test_the_unknown_kind_reads_as_a_question_mark", () => {
     // Scenario: the catch-all kind prints [?].
     assert.equal(ANNOTATION_LOOKS[WireRecordKind.unknown].letter, "[?]");

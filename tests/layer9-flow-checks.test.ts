@@ -8,23 +8,32 @@ import {
 } from "../scripts/visual/layer9-flow-checks.ts";
 import { REQUEST_COUNT } from "../scripts/visual/layer7-probes.ts";
 import {
-    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildRefusalClick,
+    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildFindTick, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-cut-rules.ts";
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
-const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: `${label} (1)`, classes, title: "", opacity: 1, after: "none", ...extra });
+// The visible text is the short ruler time; only fullTime starts with the label.
+// const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: `${label} (1)`, classes, title: "", opacity: 1, after: "none", ...extra });
+const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: "01-01-2026:00:00 (1)", fullTime: label, classes, title: "", opacity: 1, after: "none", ...extra });
 const REASON: Record<string, CutRefusal> = {
     [TICK_LABELS.createdOnly]: CutRefusal.noVerifiedNode, [TICK_LABELS.derivedOnly]: CutRefusal.noVerifiedNode,
     [TICK_LABELS.behindTip]: CutRefusal.notForward, [TICK_LABELS.atTip]: CutRefusal.notForward,
 };
-const makeDim = (label: string, refusal: CutRefusal) => makeState(label, "tick cut-no", { opacity: 0.38, title: CUT_REFUSAL_TEXT[refusal] });
+// On the test page a refused tick's title is the refusal text, a newline, then the full time.
+const makeDim = (label: string, refusal: CutRefusal) => makeState(label, "tick cut-no", { opacity: 0.38, title: `${CUT_REFUSAL_TEXT[refusal]}\n${label}` });
 const makeScissors = (label: string) => makeState(label, "tick cut-ok", { after: '"✂"' });
-const UNARMED: TickState[] = [makeState(TICK_LABELS.base, "tick multi cut-base"), makeState(TICK_LABELS.afterBase, "tick cut-set"), makeState(TICK_LABELS.atTip, "tick cut-set"), makeState("07-01 00:00:00.000")];
+// Commit mode off: no tick carries any cut-* class.
+// const UNARMED: TickState[] = [makeState(TICK_LABELS.base, "tick multi cut-base"), makeState(TICK_LABELS.afterBase, "tick cut-set"), makeState(TICK_LABELS.atTip, "tick cut-set"), makeState("07-01 00:00:00.000")];
+const UNARMED: TickState[] = [makeState(TICK_LABELS.base, "tick multi"), makeState(TICK_LABELS.afterBase), makeState(TICK_LABELS.atTip), makeState("07-01 00:00:00.000")];
+const ARMED_MARKS: TickState[] = [
+    makeState(TICK_LABELS.base, "tick cut-base cut-ok", { after: '"✂"' }), makeState(TICK_LABELS.afterBase, "tick cut-set cut-ok", { after: '"✂"' }),
+    makeState("07-02 00:00:00.000", "tick cut-set cut-no", { opacity: 0.38, title: "reason\n07-02 00:00:00.000" }),
+];
 const ARMED: TickState[] = [
     makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode),
-    makeDim(TICK_LABELS.behindTip, CutRefusal.notForward), makeDim(TICK_LABELS.atTip, CutRefusal.notForward),
+    makeDim(TICK_LABELS.behindTip, CutRefusal.notForward), makeDim(TICK_LABELS.atTip, CutRefusal.notForward), ...ARMED_MARKS,
 ];
 
 const makeEntry = (kind: string, shortHash: string | null, parentHash: string | null): EntryFacts => ({ kind, shortHash, parentHash, instant: "2026-06-03T18:20:00.000Z", cx: 0, cy: 0, tickCy: 0 });
@@ -51,12 +60,36 @@ test("validateNormalClick passes when the list opens and then closes, and fails 
     assert.deepEqual(await run([1, 1]), ["L9 normal"]);
 });
 
-test("validateUnarmedPaint needs one base tick, two set ticks and no scissors or dim tick", async () => {
-    const run = (states: TickState[]) => failuresOf(() => validateUnarmedPaint(makeScriptedPage(new Map([[TICK_STATES, [states]]]))));
-    assert.deepEqual(await run(UNARMED), []);
-    assert.equal((await run([...UNARMED, makeScissors("07-02 00:00:00.000")])).length, 1);
-    assert.equal((await run([UNARMED[0]!, UNARMED[1]!, UNARMED[3]!])).length, 1);
-    assert.equal(isUnarmedPaintRight([...UNARMED, makeDim("07-02 00:00:00.000", CutRefusal.notForward)]), false);
+// test("validateUnarmedPaint needs one base tick, two set ticks and no scissors or dim tick", async () => {
+//     const run = (states: TickState[]) => failuresOf(() => validateUnarmedPaint(makeScriptedPage(new Map([[TICK_STATES, [states]]]))));
+//     assert.deepEqual(await run(UNARMED), []);
+//     assert.equal((await run([...UNARMED, makeScissors("07-02 00:00:00.000")])).length, 1);
+//     assert.equal((await run([UNARMED[0]!, UNARMED[1]!, UNARMED[3]!])).length, 1);
+//     assert.equal(isUnarmedPaintRight([...UNARMED, makeDim("07-02 00:00:00.000", CutRefusal.notForward)]), false);
+// });
+
+const runUnarmed = (states: TickState[], stripCount: number) =>
+    failuresOf(() => validateUnarmedPaint(makeScriptedPage(new Map<string, unknown[]>([[TICK_STATES, [states]], [STRIP_COUNT, [stripCount]]]))));
+
+test("test_commit_mode_off_means_no_cut_class_on_any_tick_and_no_strip", async () => {
+    // Setup: ticks with no cut-* class and a page with no #jfred-strip.  The check passes.
+    assert.deepEqual(await runUnarmed(UNARMED, 0), []);
+    // A strip on the page fails the check.
+    assert.equal((await runUnarmed(UNARMED, 1)).length, 1);
+    // A cut-base, cut-set, cut-pending, cut-ok or cut-no class on any one tick fails the check.
+    for (const name of ["cut-base", "cut-set", "cut-pending", "cut-ok", "cut-no"])
+        assert.equal((await runUnarmed([...UNARMED, makeState("07-02 00:00:00.000", `tick ${name}`)], 0)).length, 1, name);
+    // The judge agrees.
+    assert.equal(isUnarmedPaintRight(UNARMED, 0), true);
+    assert.equal(isUnarmedPaintRight([...UNARMED, makeDim("07-02 00:00:00.000", CutRefusal.notForward)], 0), false);
+});
+
+test("test_every_tick_lookup_reads_the_full_time_and_not_the_visible_text", () => {
+    // The finder passes the label to startsWith on dataset.fullTime and never reads textContent.
+    assert.ok(buildFindTick("06-03 18:20:00.000").includes("t.dataset.fullTime.startsWith"));
+    assert.ok(!buildFindTick("06-03 18:20:00.000").includes("textContent"));
+    // A state whose text does not start with the label is still found by its full time.
+    assert.equal(findTickState(UNARMED, TICK_LABELS.base).fullTime, TICK_LABELS.base);
 });
 
 const runArmed = (isCurrent: boolean, states: TickState[]) =>
@@ -69,6 +102,18 @@ test("validateArmedPaint passes the good paint and fails each single bad fact", 
     assert.equal((await runArmed(true, [...ARMED.slice(0, 3), makeDim(TICK_LABELS.derivedOnly, CutRefusal.notForward), ...ARMED.slice(4)])).length, 1);
     assert.equal((await runArmed(true, [...ARMED, makeState("07-05 00:00:00.000", "tick cut-no", { opacity: 0.38 })])).length, 1);
     assert.equal(isArmedPaintRight(true, [...ARMED.slice(0, 5), makeState(TICK_LABELS.atTip, "tick cut-no", { opacity: 0.38, title: "" })]), false);
+});
+
+test("test_armed_paint_needs_cut_base_on_one_tick_and_cut_set_on_two_ticks", async () => {
+    // The good armed paint carries one cut-base tick and two cut-set ticks: no failure.
+    assert.deepEqual(await runArmed(true, ARMED), []);
+    // Without the cut-base tick the check fails.
+    assert.equal((await runArmed(true, ARMED.filter((state) => !state.classes.includes("cut-base")))).length, 1);
+    // With only one cut-set tick the check fails.
+    assert.equal((await runArmed(true, ARMED.filter((state) => state.fullTime !== "07-02 00:00:00.000"))).length, 1);
+    // A refusal title without the full time after the newline fails the check.
+    const bareTitle = makeState(TICK_LABELS.atTip, "tick cut-no", { opacity: 0.38, title: CUT_REFUSAL_TEXT[CutRefusal.notForward] });
+    assert.equal(isArmedPaintRight(true, [...ARMED.filter((state) => state.fullTime !== TICK_LABELS.atTip), bareTitle]), false);
 });
 
 test("findTickState throws for a missing tick", () => {

@@ -107,7 +107,8 @@ export const VISUAL_STATES: VisualState[] = [
     name: "04-ruler-expanded",
     drive: async (page) => {
       await triggerClickInPage(page, CLEAR_FOLDER_FILTER, "selected folder to unfilter");
-      await waitUntilSettled(page, READY_EXPRESSION);
+      // The multi mark comes after the chunked render ends, so wait for it.
+      await waitUntilSettled(page, "document.querySelector('#ruler .tick.multi')");
       await triggerClickInPage(page, CLICK_MULTI_TICK, "multi-event ruler row");
       await waitUntilSettled(page, "document.querySelector('#ruler .tickfiles button')");
     },

@@ -26,7 +26,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
   const tick = document.createElement("div");
   tick.className = "tick";
   document.getElementById("ruler")!.append(tick);
-  storeRow(tick, { axisPx, text: "t", axisPxList: [axisPx], instants: [buildInstant(hour)] });
+  storeRow(tick, { axisPx, text: "t", axisPxList: [axisPx], instants: [buildInstant(hour)], eventCount: 1 });
   const bubble = document.createElement("div");
   bubble.className = "filebox";
   bubble.style.setProperty("--axis-px", String(axisPx));
@@ -84,9 +84,7 @@ test("test_disarming_removes_the_classes_and_titles", () => {
   }
 });
 
-test("test_base_set_and_pending_classes_show_when_not_armed", () => {
-  // Verify: the base tick, a committed tick and the pending tick keep their classes with the mode off.
-  const { commit, created, snap } = buildPage();
+function loadMarkedBranch(): void {
   loadJfredBranch({
     ...EMPTY_VIEW,
     jfredCommits: {
@@ -95,20 +93,65 @@ test("test_base_set_and_pending_classes_show_when_not_armed", () => {
     },
   });
   setPending({ instant: buildInstant(3), message: "m" });
+}
+
+test("test_unarmed_paints_no_class_even_with_base_commits_and_pending", () => {
+  // Verify: marks show only while Commit mode is on.
+  const { commit, created, snap } = buildPage();
+  loadMarkedBranch();
+  repaintCutMarks();
+  for (const tick of [commit, created, snap])
+    assert.equal(tick.className, "tick");
+});
+
+test("test_armed_paints_base_set_and_pending_classes", () => {
+  // Verify: the base tick, a committed tick and the pending tick carry their classes while armed.
+  const { commit, created, snap } = buildPage();
+  loadMarkedBranch();
+  setArmed(true);
   repaintCutMarks();
   assert.equal(commit.classList.contains("cut-base"), true);
   assert.equal(created.classList.contains("cut-set"), true);
   assert.equal(snap.classList.contains("cut-pending"), true);
-  assert.equal(snap.classList.contains("cut-ok"), false);
+});
+
+test("test_a_tick_with_full_time_keeps_it_as_title_when_unarmed", () => {
+  // Verify: the title is the full time, restored on every repaint.
+  const { snap } = buildPage();
+  snap.dataset["fullTime"] = "06-01 03:00:00.000";
+  repaintCutMarks();
+  assert.equal(snap.title, "06-01 03:00:00.000");
+});
+
+test("test_a_tick_with_full_time_gets_refusal_then_full_time_when_armed", () => {
+  // Verify: a refused tick shows the refusal text, a new line, then the time.
+  const { created } = buildPage();
+  created.dataset["fullTime"] = "06-01 02:00:00.000";
+  setBase({ instant: buildInstant(1), shortHash: "a1b2c3d4" });
+  setArmed(true);
+  repaintCutMarks();
+  assert.equal(created.title, `${CUT_REFUSAL_TEXT[CutRefusal.noVerifiedNode]}\n06-01 02:00:00.000`);
+});
+
+test("test_an_accepted_armed_tick_with_full_time_keeps_the_time_title", () => {
+  // Verify: an ok tick has no refusal, so its title stays the full time.
+  const { snap } = buildPage();
+  snap.dataset["fullTime"] = "06-01 03:00:00.000";
+  setBase({ instant: buildInstant(1), shortHash: "a1b2c3d4" });
+  setArmed(true);
+  repaintCutMarks();
+  assert.equal(snap.title, "06-01 03:00:00.000");
 });
 
 test("test_a_second_paint_after_the_branch_is_deleted_clears_the_state_classes", () => {
   // Verify: delete empties base, commits and pending, so no state class remains.
   const { commit } = buildPage();
   setBase({ instant: buildInstant(1), shortHash: "a1b2c3d4" });
+  setArmed(true);
   repaintCutMarks();
   assert.equal(commit.classList.contains("cut-base"), true);
   deleteJfredBranch();
+  setArmed(false);
   repaintCutMarks();
   assert.equal(commit.className, "tick");
 });

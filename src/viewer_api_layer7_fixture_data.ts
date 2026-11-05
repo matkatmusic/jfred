@@ -4,12 +4,17 @@ import { Uuid } from "./structures/domain.ts";
 import { WireRecordKind, type WireAnnotationOf, type WireToolNodeOf } from "../webapp/layer1-wire-annotations.ts";
 import type { Layer1WireView } from "./viewer_api_layer1.ts";
 import { parseMs } from "./viewer_api_layer1_fixture_data.ts";
+import {
+  buildSameInstantAnnotation, listMidAnnotations, listRowAnnotations, readBlockSession, readFillerSession, readSessionFields,
+  type AnnotationDraft,
+} from "./viewer_api_layer7_fixture_sessions.ts";
 
 type Annotation = WireAnnotationOf<Date, Uuid>;
 type ToolNode = WireToolNodeOf<Date, Uuid>;
 type Ruler = Layer1WireView["ruler"];
-type CannedRecord = Omit<Annotation, "id" | "instant">;
+type CannedRecord = Omit<Annotation, "id" | "instant" | "sessionId" | "sessionTitle" | "sessionFile" | "line">;
 
+const FIRST_LINE = 1000;
 const FILLER_COUNT = 60;
 const BLOCK_START_AT = "2026-06-01T08:44:00Z";
 const BASH_PAIR_ID = new Uuid("toolu_fixture_l7_bash");
@@ -57,8 +62,8 @@ function findBlockStart(ruler: Ruler): number {
   return start;
 }
 
-function fillStamplessInstants(rows: Annotation[]): Annotation[] {
-  const filled: Annotation[] = [];
+function fillStamplessInstants(rows: AnnotationDraft[]): AnnotationDraft[] {
+  const filled: AnnotationDraft[] = [];
   for (const [index, row] of rows.entries()) {
     const isStampless = row.isStampless === true;
     filled.push(isStampless ? { ...row, instant: rows[index - 1]!.instant } : row);
@@ -66,29 +71,57 @@ function fillStamplessInstants(rows: Annotation[]): Annotation[] {
   return filled;
 }
 
-function buildBlockAnnotations(ruler: Ruler, start: number): Annotation[] {
-  const rows: Annotation[] = [];
+function buildBlockAnnotations(ruler: Ruler, start: number): AnnotationDraft[] {
+  const rows: AnnotationDraft[] = [];
   for (const [index, record] of BLOCK_RECORDS.entries()) {
-    rows.push({ ...record, id: ANNOTATION_BLOCK_IDS[index]!, instant: ruler[start + index]!.instant });
+    const sessionFields = readSessionFields(readBlockSession());
+    rows.push({ ...record, ...sessionFields, id: ANNOTATION_BLOCK_IDS[index]!, instant: ruler[start + index]!.instant });
   }
   return fillStamplessInstants(rows);
 }
 
-function buildFillerAnnotations(ruler: Ruler, firstTick: number): Annotation[] {
+function buildFillerAnnotations(ruler: Ruler, firstTick: number): AnnotationDraft[] {
   const span = ruler.length - firstTick;
-  const rows: Annotation[] = [];
+  const rows: AnnotationDraft[] = [];
   for (const [index, id] of listFillerIds().entries()) {
     const isUser = index % 2 === 0;
     const kind = isUser ? WireRecordKind.user : WireRecordKind.assistant;
     const instant = ruler[firstTick + Math.floor((index * span) / FILLER_COUNT)]!.instant;
-    rows.push({ id, kind, instant, label: `${isUser ? "prompt" : "reply"} ${index}` });
+    const sessionFields = readSessionFields(readFillerSession(index));
+    rows.push({ id, kind, instant, label: `${isUser ? "prompt" : "reply"} ${index}`, ...sessionFields });
   }
   return rows;
 }
 
+function compareAnnotationInstants(left: AnnotationDraft, right: AnnotationDraft): number {
+  return left.instant.getTime() - right.instant.getTime();
+}
+
+// Lines count up from 1000 in each session file, in list order.
+function addLineNumbers(sorted: AnnotationDraft[]): Annotation[] {
+  const nextLineByFile = new Map<string, number>();
+  const numbered: Annotation[] = [];
+  for (const draft of sorted) {
+    const line = nextLineByFile.get(draft.sessionFile) ?? FIRST_LINE;
+    nextLineByFile.set(draft.sessionFile, line + 1);
+    numbered.push({ ...draft, line });
+  }
+  return numbered;
+}
+
+// Array.sort is stable: the stampless record and the same-instant record keep their place after their predecessor.
 export function buildFixtureAnnotations(ruler: Ruler): Annotation[] {
   const start = findBlockStart(ruler);
-  return [...buildBlockAnnotations(ruler, start), ...buildFillerAnnotations(ruler, start + BLOCK_RECORDS.length)];
+  const fillers = buildFillerAnnotations(ruler, start + BLOCK_RECORDS.length);
+  const canned = [
+    ...buildBlockAnnotations(ruler, start),
+    ...fillers,
+    ...listMidAnnotations(fillers, ruler),
+    buildSameInstantAnnotation(fillers),
+  ].sort(compareAnnotationInstants);
+  // return all.sort(compareAnnotationInstants);
+  const all = [...canned, ...listRowAnnotations(canned, ruler)].sort(compareAnnotationInstants);
+  return addLineNumbers(all);
 }
 
 export const TOOL_NODE_PATH = "src/components/interim-run-scenario/test_run_scenario_dispatcher.ts";
@@ -111,7 +144,7 @@ export function listToolNodeInstants(path: string): Date[] {
   return instants;
 }
 
-export function placeToolNodes(path: string, offsetsPx: number[]): ToolNode[] {
+export function buildToolNodes(path: string, offsetsPx: number[]): ToolNode[] {
   const placed: ToolNode[] = [];
   if (path !== TOOL_NODE_PATH) {
     return placed;

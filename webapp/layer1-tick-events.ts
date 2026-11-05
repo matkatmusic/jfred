@@ -83,6 +83,7 @@ function readBasename(path: string): string {
 // `title` carries the full path since the 300px button can't; `stopPropagation` stops the click from closing the row.
 function buildTickFileButton(event: TickEvent): HTMLElement {
   return createElement("button", {
+    class: event.nodeKind === undefined ? undefined : `tf-${event.nodeKind}`,
     text: `${readBasename(event.path)}  ${event.kind}`.trimEnd(),
     title: event.path,
     onclick: (clickEvent: Event) => {

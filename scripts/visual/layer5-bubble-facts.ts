@@ -25,7 +25,7 @@ export const buildBubbleProbe = (path: string, forks: string[], rejoin: string) 
     const tickCentreY = (instant) => {
         const iso = new Date(instant).toISOString();
         const stamp = iso.slice(5, 10) + ' ' + iso.slice(11, 23);
-        const tick = [...document.querySelectorAll('.ruler .tick')].find(t => t.textContent.startsWith(stamp));
+        const tick = [...document.querySelectorAll('.ruler .tick')].find(t => t.dataset.fullTime.startsWith(stamp));
         return tick ? rect(tick).cy : undefined; };
     const lanes = [...b.querySelectorAll('.blane')];
     const rejoinInstant = ${JSON.stringify(rejoin)};
@@ -58,9 +58,9 @@ export const buildBubbleProbe = (path: string, forks: string[], rejoin: string) 
 
 export const PLAIN_BUBBLE_TRUNK_RAIL_LEFT = `(b => b.querySelector('.lrail').getBoundingClientRect().left - b.getBoundingClientRect().left)
     ([...document.querySelectorAll('.filebox')].find(b => b.querySelector('.fname[data-path]') && !b.querySelector('.blane')))`;
-export const TICK_ROWS = `[...document.querySelectorAll('.ruler .tick')].map(t => { const r = t.getBoundingClientRect(); return { text: t.textContent, cy: r.top + r.height / 2 }; })`;
+export const TICK_ROWS = `[...document.querySelectorAll('.ruler .tick')].map(t => { const r = t.getBoundingClientRect(); return { text: t.dataset.fullTime, cy: r.top + r.height / 2 }; })`;
 
-// A tick reads "MM-DD HH:MM:SS.mmm (n)" in UTC; this is that stamp for an ISO instant.
+// A tick's data-full-time reads "MM-DD HH:MM:SS.mmm" in UTC; this is that stamp for an ISO instant.
 export const formatTickStamp = (instant: string) => `${instant.slice(5, 10)} ${instant.slice(11, 23)}`;
 
 export const isNear = (a: number | undefined, b: number | undefined) =>

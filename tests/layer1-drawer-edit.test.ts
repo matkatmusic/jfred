@@ -68,7 +68,7 @@ test("an edit node's drawer names the kind, the confidence and the owning sessio
   assert.ok(getRequiredElementById("sessions").querySelector(".flash-lead"));
 });
 
-test("an edit node reveals a [{ }] button that toggles its raw transcript JSON", async () => {
+test("an edit node reveals a { } button that toggles its raw transcript JSON", async () => {
   setUpPage();
   await clickNode(drawEditNode("write", "n-edit"));
   assert.equal(getRequiredElementById("dpath").textContent, "util.ts Write - Second title");

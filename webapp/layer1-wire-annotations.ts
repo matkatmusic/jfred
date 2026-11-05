@@ -25,6 +25,11 @@ export interface WireAnnotationOf<I, U> {
   // The instant is borrowed from the previous record.
   isStampless?: boolean;
   pairId?: U;
+  sessionId: U;
+  // The session title in effect at this record.
+  sessionTitle: string;
+  sessionFile: string;
+  line: number;
 }
 
 // One tool node in a file's bubble: laid out like an edit, so it has axisPx.

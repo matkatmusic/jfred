@@ -7,8 +7,8 @@ import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { openPendingMessage, redrawJfredStrip, renderJfredStrip } = await import("../webapp/layer1-jfred-strip.ts");
-const { loadJfredBranch, readJfredBranch, setPending } = await import("../webapp/layer1-jfred-state.ts");
+const { openPendingMessage, renderJfredEntries, renderJfredStrip } = await import("../webapp/layer1-jfred-strip.ts");
+const { loadJfredBranch, readJfredBranch, setArmed, setPending } = await import("../webapp/layer1-jfred-state.ts");
 
 const TICKS: WireRulerTick[] = [
   { instant: "2026-06-01T09:00:00.000Z", axisPx: 100, eventCount: 1 },
@@ -31,6 +31,7 @@ const CANNED_VIEW = {
 beforeEach(() => {
   initLayer1Dom();
   loadJfredBranch(CANNED_VIEW);
+  setArmed(true);
 });
 
 function addAnnotationTrack(): HTMLElement {
@@ -73,10 +74,10 @@ test("test_the_head_holds_the_title_and_the_delete_button", () => {
   assert.equal(document.querySelector("#jfred-strip .jhead button.jdelete")!.textContent, "Delete jfred branch");
 });
 
-test("test_no_jfred_state_removes_the_strip", () => {
-  // Verify: a view without the field empties the state, so the next render removes the strip.
+test("test_commit_mode_off_removes_the_strip", () => {
+  // Verify: with Commit mode off the next render removes the strip.
   renderJfredStrip(TICKS);
-  loadJfredBranch(EMPTY_VIEW);
+  setArmed(false);
   renderJfredStrip(TICKS);
   assert.equal(document.getElementById("jfred-strip"), null);
 });
@@ -145,6 +146,6 @@ test("test_redraw_builds_the_strip_from_the_stored_ticks", () => {
   renderJfredStrip(TICKS);
   document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
   loadJfredBranch(CANNED_VIEW);
-  redrawJfredStrip();
+  renderJfredEntries();
   assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
 });

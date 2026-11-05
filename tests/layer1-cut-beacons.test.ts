@@ -25,7 +25,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
   tick.className = "tick";
   tick.style.setProperty("--axis-px", String(axisPx));
   document.getElementById("ruler")!.append(tick);
-  storeRow(tick, { axisPx, text: "t", axisPxList: [axisPx], instants: [buildInstant(hour)] });
+  storeRow(tick, { axisPx, text: "t", eventCount: 1, axisPxList: [axisPx], instants: [buildInstant(hour)] });
   const bubble = document.createElement("div");
   bubble.className = "filebox";
   bubble.style.setProperty("--axis-px", String(axisPx));

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     TICK_LABEL_MIN_GAP_PX,
+    formatInstantDisplay,
     formatInstantLabel,
     listRulerRows,
 } from "../webapp/layer1-ruler-rows.ts";
@@ -86,4 +87,35 @@ test("test_listRulerRows_refuses_an_entry_with_no_event_count", () => {
     const malformed = { instant: "2026-06-01T09:00:00.000Z", axisPx: 0 } as WireRulerTick;
     // the entry is named in the refusal, so the offending instant is identifiable.
     assert.throws(() => listRulerRows([malformed]), /carries no event count/);
+});
+
+test("test_listRulerRows_carries_the_summed_event_count_on_each_row", () => {
+    const rows = listRulerRows([
+        makeTick("2026-06-01T09:00:00.000Z", 0, 1),
+        makeTick("2026-06-01T10:36:00.000Z", 4, 3),
+        makeTick("2026-06-01T14:36:00.000Z", 14, 2),
+    ]);
+    assert.deepEqual(rows.map((row) => row.eventCount), [4, 2]);
+});
+
+test("test_listRulerRows_keeps_two_ticks_in_one_minute_on_two_rows", () => {
+    // The trap: never merge on minutes. Different seconds mean different labels, and 22px clears the collision gap.
+    const rows = listRulerRows([
+        makeTick("2026-06-01T09:05:07.000Z", 0, 1),
+        makeTick("2026-06-01T09:05:41.000Z", 22, 1),
+    ]);
+    assert.equal(rows.length, 2);
+});
+
+test("test_listRulerRows_still_merges_two_ticks_with_an_equal_label", () => {
+    const rows = listRulerRows([
+        makeTick("2026-06-01T09:05:07.123Z", 0, 1),
+        makeTick("2026-06-01T09:05:07.123Z", 22, 2),
+    ]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.text, "06-01 09:05:07.123 (3)");
+});
+
+test("test_formatInstantDisplay_prints_month_day_year_hour_minute", () => {
+    assert.equal(formatInstantDisplay("2026-06-01T09:05:07.123Z"), "06-01-2026:09:05");
 });

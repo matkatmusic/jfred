@@ -8,30 +8,34 @@ import type { Layer1WireOrphan, Layer1WirePair, Layer1WireView } from "./viewer_
 import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import { type FixturePair, buildFixturePair, sortByInstant } from "./viewer_api_layer1_fixture_pair.ts";
 import { listFixtureSnapshotPlacements } from "./viewer_api_layer2_fixture_data.ts";
-import { buildFixtureAnnotations, placeToolNodes } from "./viewer_api_layer7_fixture_data.ts";
+import { buildFixtureAnnotations, buildToolNodes } from "./viewer_api_layer7_fixture_data.ts";
 import { buildFixtureJfredCommits } from "./viewer_api_layer9_fixture_data.ts";
 // import { buildMockBranchesField, listMockBranchInstants } from "./viewer_api_layer5_mockup_branches.ts";
 
 interface DiskOrphanRow { path: Path; instant: Date; snaps: SnapshotPlacement[]; }
 
 function buildToolNodesField(pair: FixturePair, firstOffset: number, nodeOffsetsPx: number[]): Pick<Layer1WirePair, "toolNodes"> {
-  const toolNodes = placeToolNodes(pair.path.toString(), nodeOffsetsPx.slice(firstOffset));
+  const toolNodes = buildToolNodes(pair.path.toString(), nodeOffsetsPx.slice(firstOffset));
   return toolNodes.length === 0 ? {} : { toolNodes };
+}
+
+function buildPlacedCommits(pair: FixturePair, firstCommit: number, nodeOffsetsPx: number[]): Layer1WirePair["commits"] {
+  const commits: Layer1WirePair["commits"] = [];
+  for (let node = 0; node < pair.commits.length; node += 1) {
+    const commit = pair.commits[node]!;
+    commits.push({ hash: commit.hash, instant: commit.instant, axisPx: nodeOffsetsPx[firstCommit + node]! });
+  }
+  return commits;
 }
 
 function buildPlacedFixturePair(pair: FixturePair, nodeOffsetsPx: number[]): Layer1WirePair {
   const firstCommit = pair.created === undefined ? 0 : 1;
   const onDiskIndex = firstCommit + pair.commits.length;
   const placedSnapshots = createAxisWireSnapshots(pair.snaps, nodeOffsetsPx.slice(onDiskIndex + 1));
-  const commits: Layer1WirePair["commits"] = [];
-  for (let node = 0; node < pair.commits.length; node += 1) {
-    const commit = pair.commits[node]!;
-    commits.push({ hash: commit.hash, instant: commit.instant, axisPx: nodeOffsetsPx[firstCommit + node]! });
-  }
   return {
     path: pair.path,
     ...(pair.created === undefined ? {} : { created: { instant: pair.created, axisPx: nodeOffsetsPx[0]! } }),
-    commits,
+    commits: buildPlacedCommits(pair, firstCommit, nodeOffsetsPx),
     onDisk: { instant: pair.mtime, axisPx: nodeOffsetsPx[onDiskIndex]! },
     ...(placedSnapshots.length === 0 ? {} : { snapshots: placedSnapshots }),
     ...buildToolNodesField(pair, onDiskIndex + 1 + pair.snaps.length, nodeOffsetsPx),
@@ -71,14 +75,20 @@ function findLastCommitInstant(path: string): Date {
   return new Date(lastAt);
 }
 
-export function buildFixtureLayer1View(): Layer1WireView {
+interface GitOrphanRow { path: Path; instant: Date; }
+
+function listDiskPaths(): Set<string> {
   const diskPaths = new Set<string>();
   for (const entry of DISK) {
     diskPaths.add(entry.path);
   }
-  // pairedPaths have both a commit and a disk file; gitOrphans are commit-only paths.
+  return diskPaths;
+}
+
+// pairedPaths have both a commit and a disk file; gitOrphans are commit-only paths.
+function splitRepoPaths(diskPaths: Set<string>): { pairedPaths: string[]; gitOrphans: GitOrphanRow[] } {
   const pairedPaths: string[] = [];
-  const gitOrphans: { path: Path; instant: Date }[] = [];
+  const gitOrphans: GitOrphanRow[] = [];
   for (const path of listRepoPaths()) {
     const hasDiskFile = diskPaths.has(path);
     if (hasDiskFile) {
@@ -88,10 +98,10 @@ export function buildFixtureLayer1View(): Layer1WireView {
       gitOrphans.push({ path: new Path(path), instant: findLastCommitInstant(path) });
     }
   }
-  const pairs: FixturePair[] = [];
-  for (const path of pairedPaths) {
-    pairs.push(buildFixturePair(path));
-  }
+  return { pairedPaths, gitOrphans };
+}
+
+function listDiskOrphanRows(pairedPaths: string[]): DiskOrphanRow[] {
   const diskOrphans: DiskOrphanRow[] = [];
   for (const entry of DISK) {
     const isPaired = pairedPaths.includes(entry.path);
@@ -101,6 +111,10 @@ export function buildFixtureLayer1View(): Layer1WireView {
       });
     }
   }
+  return diskOrphans;
+}
+
+function listFixtureLadders(pairs: FixturePair[], gitOrphans: GitOrphanRow[], diskOrphans: DiskOrphanRow[]): NodeLadder[] {
   const ladders: NodeLadder[] = [];
   for (const pair of pairs) {
     // ladders.push([...pair.ladder, ...listMockBranchInstants(pair.path)]);
@@ -112,30 +126,63 @@ export function buildFixtureLayer1View(): Layer1WireView {
   for (const orphan of diskOrphans) {
     ladders.push([orphan.instant, ...listSnapshotInstants(orphan.snaps)]);
   }
-  const layout = computeNodeLadderLayout(ladders);
+  return ladders;
+}
+
+function buildPlacedGitOrphans(gitOrphans: GitOrphanRow[], ticks: ReturnType<typeof computeNodeLadderLayout>["ticks"]): Layer1WireView["gitOrphans"] {
   const offsets = new Map<number, number>();
-  const ruler: Layer1WireView["ruler"] = [];
-  for (const tick of layout.ticks) {
+  for (const tick of ticks) {
     offsets.set(tick.instant.getTime(), tick.offsetPx);
+  }
+  const placed: Layer1WireView["gitOrphans"] = [];
+  for (const orphan of gitOrphans) {
+    placed.push({ path: orphan.path, instant: orphan.instant, axisPx: offsets.get(orphan.instant.getTime())! });
+  }
+  return placed;
+}
+
+function buildFixtureRuler(ticks: ReturnType<typeof computeNodeLadderLayout>["ticks"]): Layer1WireView["ruler"] {
+  const ruler: Layer1WireView["ruler"] = [];
+  for (const tick of ticks) {
     ruler.push({ instant: tick.instant, axisPx: tick.offsetPx, eventCount: tick.eventCount });
   }
-  const placedPairs: Layer1WirePair[] = [];
-  for (let index = 0; index < pairs.length; index += 1) {
-    placedPairs.push(buildPlacedFixturePair(pairs[index]!, layout.ladderOffsetsPx[index]!));
-  }
-  const placedGitOrphans: Layer1WireView["gitOrphans"] = [];
-  for (const orphan of gitOrphans) {
-    placedGitOrphans.push({ path: orphan.path, instant: orphan.instant, axisPx: offsets.get(orphan.instant.getTime())! });
-  }
-  const diskOrphanBase = pairs.length + gitOrphans.length;
-  const placedDiskOrphans: Layer1WireOrphan[] = [];
+  return ruler;
+}
+
+function buildPlacedDiskOrphans(diskOrphans: DiskOrphanRow[], firstLadder: number, ladderOffsetsPx: number[][]): Layer1WireOrphan[] {
+  const placed: Layer1WireOrphan[] = [];
   for (let index = 0; index < diskOrphans.length; index += 1) {
-    placedDiskOrphans.push(buildPlacedDiskOrphan(diskOrphans[index]!, layout.ladderOffsetsPx[diskOrphanBase + index]!));
+    placed.push(buildPlacedDiskOrphan(diskOrphans[index]!, ladderOffsetsPx[firstLadder + index]!));
   }
+  return placed;
+}
+
+function buildPlacedPairs(pairs: FixturePair[], ladderOffsetsPx: number[][]): Layer1WirePair[] {
+  const placed: Layer1WirePair[] = [];
+  for (let index = 0; index < pairs.length; index += 1) {
+    placed.push(buildPlacedFixturePair(pairs[index]!, ladderOffsetsPx[index]!));
+  }
+  return placed;
+}
+
+function buildFixturePairs(pairedPaths: string[]): FixturePair[] {
+  const pairs: FixturePair[] = [];
+  for (const path of pairedPaths) {
+    pairs.push(buildFixturePair(path));
+  }
+  return pairs;
+}
+
+export function buildFixtureLayer1View(): Layer1WireView {
+  const { pairedPaths, gitOrphans } = splitRepoPaths(listDiskPaths());
+  const pairs = buildFixturePairs(pairedPaths);
+  const diskOrphans = listDiskOrphanRows(pairedPaths);
+  const layout = computeNodeLadderLayout(listFixtureLadders(pairs, gitOrphans, diskOrphans));
+  const ruler = buildFixtureRuler(layout.ticks);
   return {
-    pairs: placedPairs,
-    gitOrphans: sortByInstant(placedGitOrphans),
-    diskOrphans: sortByInstant(placedDiskOrphans),
+    pairs: buildPlacedPairs(pairs, layout.ladderOffsetsPx),
+    gitOrphans: sortByInstant(buildPlacedGitOrphans(gitOrphans, layout.ticks)),
+    diskOrphans: sortByInstant(buildPlacedDiskOrphans(diskOrphans, pairs.length + gitOrphans.length, layout.ladderOffsetsPx)),
     ruler,
     annotations: buildFixtureAnnotations(ruler),
     jfredCommits: buildFixtureJfredCommits(),

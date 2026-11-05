@@ -20,6 +20,7 @@ const WAIT_MS = 10_000;
 const TOLERANCE_PX = 2;
 const RAIL_TOLERANCE_PX = 1;
 const TOOL_BOX_LABEL = "tool call";
+const COLUMN_PAIR_DOT_COUNT = 2;
 const BUBBLE_BRACKET = buildBracketProbe(DISPATCHER_BUBBLE, `.tbracket[data-pair-id="${BUBBLE_PAIR_ID}"]`);
 
 function countToolNodesWithClass(tnodes: ToolNodeFacts[], cssClass: string): number {
@@ -61,7 +62,8 @@ function isToolHidden(facts: ToolBoxFacts): boolean {
 
 export function isToolBoxRight(facts: ToolBoxFacts): boolean {
   const isBoxRight = facts.exists && facts.isChecked === true && facts.label === TOOL_BOX_LABEL;
-  return isBoxRight && !isToolHidden(facts) && facts.toolShown > 0 && facts.columnToolShown === 1;
+  // return isBoxRight && !isToolHidden(facts) && facts.toolShown > 0 && facts.columnToolShown === 1;
+  return isBoxRight && !isToolHidden(facts) && facts.toolShown > 0 && facts.columnToolShown === COLUMN_PAIR_DOT_COUNT;
 }
 
 export function isToolBoxOff(before: ToolBoxFacts, off: ToolBoxFacts): boolean {

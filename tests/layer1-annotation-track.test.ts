@@ -11,7 +11,7 @@ import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 initLayer1Dom();
 const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { rememberAnnotations, renderAnnotationTrack } = await import("../webapp/layer1-annotation-track.ts");
+const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionColumn } = await import("../webapp/layer1-annotation-track.ts");
 
 const RECORD_COUNT = 70;
 const TICK_SPACING_PX = 50;
@@ -27,17 +27,30 @@ function buildTicks(): WireRulerTick[] {
 }
 
 function buildRecords(ticks: WireRulerTick[]): WireAnnotation[] {
-    return ticks.map((tick, index) => ({ id: `r-${index}`, kind: WireRecordKind.user, instant: tick.instant, label: `prompt ${index}` }));
+    return ticks.map((tick, index) => ({
+        id: `r-${index}`, kind: WireRecordKind.user, instant: tick.instant, label: `prompt ${index}`, sessionId: "s1", sessionTitle: "first", sessionFile: "/x/s1.jsonl", line: 1000 + index,
+    }));
+}
+
+function buildSessionRecord(id: string, kind: WireRecordKind, instant: string, sessionId: string): WireAnnotation {
+    return { id, kind, instant, label: id, sessionId, sessionTitle: `title ${sessionId}`, sessionFile: `/x/${sessionId}.jsonl`, line: 1000 };
 }
 
 function readDrawnIds(): string[] {
     return [...document.querySelectorAll<HTMLElement>("#annotation-track .anode")].map((node) => node.dataset["recordId"]!);
 }
 
-function renderRecords(records: WireAnnotation[], ticks: WireRulerTick[]): void {
+// The column is off by default; module state outlives a test, so reset it first.
+function renderRecords(records: WireAnnotation[], ticks: WireRulerTick[], shouldShowSession = true): void {
+    if (isSessionColumnShown()) {
+        toggleSessionColumn();
+    }
     initLayer1Dom();
-    rememberAnnotations({ annotations: records });
+    storeAnnotations({ annotations: records });
     renderAnnotationTrack(ticks);
+    if (shouldShowSession) {
+        toggleSessionColumn();
+    }
 }
 
 test("test_the_column_draws_fewer_nodes_than_records", () => {
@@ -83,13 +96,13 @@ test("test_no_annotations_leave_no_track_and_remove_an_old_one", () => {
     // Scenario: real data has no annotations, so nothing is built; a track from a fixture view goes away.
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks);
-    rememberAnnotations({});
+    storeAnnotations({});
     renderAnnotationTrack(ticks);
     assert.equal(document.getElementById("annotation-track"), null);
 });
 
 test("test_empty_ticks_draw_nothing", () => {
-    renderRecords(buildRecords(buildTicks()), []);
+    renderRecords(buildRecords(buildTicks()), [], false);
     assert.equal(document.querySelectorAll(".anode").length, 0);
 });
 
@@ -98,7 +111,7 @@ test("test_a_node_carries_its_record_attributes_and_label", () => {
     const ticks = buildTicks();
     const record: WireAnnotation = {
         id: "x-1", kind: WireRecordKind.toolUse, instant: ticks[1]!.instant, label: "Bash: npm test",
-        isIgnored: true, isStampless: true, pairId: "toolu-1",
+        isIgnored: true, isStampless: true, pairId: "toolu-1", sessionId: "s1", sessionTitle: "first", sessionFile: "/x/s1.jsonl", line: 1000,
     };
     renderRecords([record], ticks);
     const node = document.querySelector<HTMLElement>("#annotation-track .anode")!;
@@ -109,17 +122,19 @@ test("test_a_node_carries_its_record_attributes_and_label", () => {
     assert.equal(node.dataset["pairId"], "toolu-1");
     assert.equal(node.dataset["instant"], record.instant);
     assert.equal(node.style.getPropertyValue("--axis-px"), "50");
-    assert.match(node.title, /no timestamp: placed at the previous record/);
-    assert.equal(document.querySelector("#annotation-track .alabel")!.textContent, "[t] Bash: npm test");
+    assert.equal(node.dataset["recordLabel"], "Bash: npm test");
+    assert.equal(node.textContent, "t");
+    assert.equal(node.hasAttribute("title"), false);
+    assert.equal(document.querySelector("#annotation-track .alabel"), null);
 });
 
 test("test_the_column_bracket_joins_the_pair_and_survives_hiding", () => {
     // Scenario: tool_use at 50 px, tool_result at 250 px; the bracket spans them and hiding ignored nodes leaves it.
     const ticks = buildTicks();
     const records: WireAnnotation[] = [
-        { id: "u", kind: WireRecordKind.toolUse, instant: ticks[1]!.instant, label: "a", pairId: "p" },
-        { id: "m", kind: WireRecordKind.attachment, instant: ticks[2]!.instant, label: "b", isIgnored: true },
-        { id: "r", kind: WireRecordKind.toolResult, instant: ticks[5]!.instant, label: "c", pairId: "p" },
+        { ...buildSessionRecord("u", WireRecordKind.toolUse, ticks[1]!.instant, "s1"), pairId: "p" },
+        { ...buildSessionRecord("m", WireRecordKind.attachment, ticks[2]!.instant, "s1"), isIgnored: true },
+        { ...buildSessionRecord("r", WireRecordKind.toolResult, ticks[5]!.instant, "s1"), pairId: "p" },
     ];
     renderRecords(records, ticks);
     document.querySelector(".viz-root")!.setAttribute("data-hide-ignored", "");
@@ -127,6 +142,7 @@ test("test_the_column_bracket_joins_the_pair_and_survives_hiding", () => {
     assert.equal(bracket.dataset["pairId"], "p");
     assert.equal(bracket.style.getPropertyValue("--axis-px"), "50");
     assert.equal(bracket.style.getPropertyValue("--span-px"), "200");
+    assert.equal(bracket.style.getPropertyValue("--lane-x"), "18px");
 });
 
 test("test_a_view_without_annotations_leaves_no_track_and_no_hide_control", () => {
@@ -138,10 +154,73 @@ test("test_a_view_without_annotations_leaves_no_track_and_no_hide_control", () =
     assert.equal(document.getElementById("hide-ignored"), null);
 });
 
-test("test_a_view_with_annotations_gets_a_track_through_the_render", () => {
+test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_button_click", () => {
     const ticks = buildTicks();
+    if (isSessionColumnShown()) {
+        toggleSessionColumn();
+    }
     initLayer1Dom();
     initLayer1Page();
     renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: ticks, annotations: buildRecords(ticks) } as never);
+    assert.equal(document.querySelectorAll("#annotation-track").length, 0);
+    document.getElementById("session-toggle")!.click();
     assert.equal(document.querySelectorAll("#annotation-track").length, 1);
+});
+
+test("test_a_view_without_annotations_has_no_session_ui", () => {
+    // Gate A: the real page gets none of the new session parts.
+    initLayer1Dom();
+    initLayer1Page();
+    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: buildTicks() } as never);
+    for (const selector of ["#ruler-head", "#session-toggle", ".ruler-sessions", "[data-full-time]", ".ttime", ".tcount", "#hover-popup", ".sline"]) {
+        assert.equal(document.querySelector(selector), null, selector);
+    }
+});
+
+test("test_by_default_there_is_a_head_with_the_session_button_and_no_track", () => {
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    const button = document.querySelector("#ruler > #ruler-head > button#session-toggle")!;
+    assert.equal(button.textContent, "session");
+    assert.equal(document.getElementById("annotation-track"), null);
+    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "0px");
+});
+
+test("test_the_button_builds_the_track_with_the_computed_width_and_a_second_click_removes_it", () => {
+    // One session needs one lane: 18 + 22 = 40 px.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    document.getElementById("session-toggle")!.click();
+    assert.ok(document.getElementById("annotation-track")!.querySelector(":scope > .ahead"));
+    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "40px");
+    assert.ok(document.getElementById("session-toggle")!.classList.contains("current"));
+    document.getElementById("session-toggle")!.click();
+    assert.equal(document.getElementById("annotation-track"), null);
+    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "0px");
+});
+
+test("test_dots_of_one_session_share_a_color_and_overlapping_sessions_take_two_lanes", () => {
+    const ticks = buildTicks();
+    const records = [
+        buildSessionRecord("a1", WireRecordKind.user, ticks[1]!.instant, "s1"),
+        buildSessionRecord("b1", WireRecordKind.user, ticks[2]!.instant, "s2"),
+        buildSessionRecord("a2", WireRecordKind.user, ticks[3]!.instant, "s1"),
+        buildSessionRecord("b2", WireRecordKind.user, ticks[4]!.instant, "s2"),
+    ];
+    renderRecords(records, ticks);
+    const readColor = (id: string): string => document.querySelector<HTMLElement>(`[data-record-id="${id}"]`)!.style.getPropertyValue("--session-color");
+    assert.equal(readColor("a1"), readColor("a2"));
+    assert.notEqual(readColor("a1"), readColor("b1"));
+    assert.equal(document.querySelectorAll("#annotation-track .sline").length, 2);
+    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "57px");
+});
+
+test("test_a_dot_popup_shows_the_session_title_then_the_log_line_in_the_session_color", () => {
+    const ticks = buildTicks();
+    renderRecords([{ ...buildSessionRecord("p1", WireRecordKind.toolUse, ticks[1]!.instant, "s1"), label: "Bash: npm test" }], ticks);
+    const dot = document.querySelector<HTMLElement>("#annotation-track .anode")!;
+    dot.dispatchEvent(new window.Event("mouseover", { bubbles: true }));
+    const popup = document.getElementById("hover-popup")!;
+    assert.deepEqual([...popup.querySelectorAll(".hp-line")].map((line) => line.textContent), ["title s1", "Bash: npm test"]);
+    assert.equal(popup.style.backgroundColor, dot.style.getPropertyValue("--session-color"));
 });

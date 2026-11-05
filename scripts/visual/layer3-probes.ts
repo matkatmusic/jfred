@@ -33,7 +33,7 @@ export const buildRulerMatchProbe = (dot: string, tickText: string) => `(d => {
     const box = d.getBoundingClientRect();
     return [...document.querySelectorAll('.ruler .tick')].some(t => {
         const row = t.getBoundingClientRect();
-        return t.textContent.startsWith(${JSON.stringify(tickText)})
+        return t.dataset.fullTime.startsWith(${JSON.stringify(tickText)})
             && Math.abs(row.top + row.height / 2 - (box.top + box.height / 2)) <= 2;
     });
 })(${dot})`;

@@ -106,6 +106,21 @@ test("test_the_pending_entry_has_no_hash_and_the_tip_as_parent", () => {
   assert.equal(last.parentShortHash, "c0ffee02");
 });
 
+test("test_commit_and_pending_entries_carry_their_message_and_the_base_has_none", () => {
+  // Verify: the message rides on the entry for the hover popup.
+  setPending({ instant: TICKS[3]!.instant, message: "draft" });
+  const messages = listJfredEntries(readJfredBranch()).map((entry) => entry.message);
+  assert.deepEqual(messages, [undefined, "one", "two", "draft"]);
+});
+
+test("test_only_the_base_keeps_a_native_title", () => {
+  // Verify: entries with a message use the popup, so they carry no title attribute.
+  const nodes = listByClasses(buildJfredEntries(readJfredBranch(), TICKS), "jnode");
+  assert.equal(nodes[0]!.hasAttribute("title"), true);
+  assert.equal(nodes[1]!.hasAttribute("title"), false);
+  assert.equal(nodes[2]!.hasAttribute("title"), false);
+});
+
 test("test_no_base_gives_no_entries", () => {
   // Verify: an empty branch draws nothing.
   loadJfredBranch(EMPTY_VIEW);

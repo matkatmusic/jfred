@@ -94,7 +94,7 @@ export async function validateSnapshotToggle(page: HeadlessPage): Promise<void> 
 export async function validateRulerRow(page: HeadlessPage): Promise<void> {
   const tickIndex = await page.evaluate<number>(`(() => {
         const ticks = [...document.querySelectorAll('.ruler .tick.multi')];
-        return ticks.findIndex(t => t.textContent.startsWith('07-24 08:15:00'));
+        return ticks.findIndex(t => t.dataset.fullTime.startsWith('07-24 08:15:00'));
     })()`);
   reportCheck("#302 the snapshot's instant has its own expandable tick", tickIndex >= 0, tickIndex);
   if (tickIndex < 0) {

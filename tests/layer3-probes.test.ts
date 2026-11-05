@@ -2,7 +2,13 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildDotFinder, buildRowsProbe, buildTokenColour } from "../scripts/visual/layer3-probes.ts";
+import { buildDotFinder, buildRowsProbe, buildRulerMatchProbe, buildTokenColour } from "../scripts/visual/layer3-probes.ts";
+
+test("buildRulerMatchProbe finds the tick by its data-full-time stamp, not its text", () => {
+    const expression = buildRulerMatchProbe("d", "07-24 08:15:00");
+    assert.ok(expression.includes(`t.dataset.fullTime.startsWith("07-24 08:15:00")`));
+    assert.ok(!expression.includes("t.textContent"));
+});
 
 test("buildDotFinder scopes the search to the path's bubble and the dot class", () => {
     const expression = buildDotFinder("src/util.ts", "n-edit");

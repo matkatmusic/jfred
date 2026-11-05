@@ -7,6 +7,7 @@ import {
   ANNOTATION_BLOCK_IDS, TOOL_NODE_IDS, TOOL_NODE_PATH, buildFixtureAnnotations, listFillerIds, listToolNodeInstants,
 } from "../src/viewer_api_layer7_fixture_data.ts";
 import { buildFixturePair } from "../src/viewer_api_layer1_fixture_pair.ts";
+import { ANNOTATION_MID_IDS } from "../src/viewer_api_layer7_fixture_sessions.ts";
 
 const SRC_DIR = join(import.meta.dirname, "..", "src");
 const TICK_COUNT = 300;
@@ -19,7 +20,9 @@ function buildRuler(tickCount: number) {
 }
 
 function listBlock() {
-  return buildFixtureAnnotations(buildRuler(TICK_COUNT)).slice(0, ANNOTATION_BLOCK_IDS.length);
+  // return buildFixtureAnnotations(buildRuler(TICK_COUNT)).slice(0, ANNOTATION_BLOCK_IDS.length);
+  const blockIds = new Set(ANNOTATION_BLOCK_IDS.map((id) => id.toString()));
+  return buildFixtureAnnotations(buildRuler(TICK_COUNT)).filter((record) => blockIds.has(record.id.toString()));
 }
 
 test("test_block_holds_eight_distinct_kinds_including_unknown", () => {
@@ -55,12 +58,26 @@ test("test_ids_are_unique_filler_is_sixty_and_exactly_two_are_ignored", () => {
   const ids = records.map((record) => record.id.toString());
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(listFillerIds().length, 60);
-  assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60);
+  // assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60 + ANNOTATION_MID_IDS.length + 1);
+  // assert.equal(records.length, 81);
+  assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60 + ANNOTATION_MID_IDS.length + 1 + 233);
+  assert.equal(records.length, 81 + 233);
   assert.equal(records.filter((record) => record.isIgnored === true).length, 2);
 });
 
+test("test_the_whole_list_is_sorted_ascending_and_every_record_has_a_session", () => {
+  const records = buildFixtureAnnotations(buildRuler(TICK_COUNT));
+  for (let index = 1; index < records.length; index += 1) {
+    assert.ok(records[index]!.instant.getTime() >= records[index - 1]!.instant.getTime());
+  }
+  for (const record of records) {
+    assert.ok(record.sessionTitle.length > 0);
+  }
+});
+
 test("test_filler_alternates_user_and_assistant_in_ascending_order", () => {
-  const filler = buildFixtureAnnotations(buildRuler(TICK_COUNT)).slice(ANNOTATION_BLOCK_IDS.length);
+  const fillerIds = new Set(listFillerIds().map((id) => id.toString()));
+  const filler = buildFixtureAnnotations(buildRuler(TICK_COUNT)).filter((record) => fillerIds.has(record.id.toString()));
   assert.equal(filler[0]!.kind, WireRecordKind.user);
   assert.equal(filler[1]!.kind, WireRecordKind.assistant);
   for (let index = 1; index < filler.length; index += 1) {

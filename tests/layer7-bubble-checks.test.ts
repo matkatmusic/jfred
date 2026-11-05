@@ -27,7 +27,7 @@ const FACTS: BubbleToolFacts = {
 const BRACKET: BracketFacts = { count: 1, style: "dashed", top: 500, bottom: 560 };
 const BOX_ON: ToolBoxFacts = {
     exists: true, isChecked: true, label: "tool call", hiddenKinds: "edit script-run branch", otherBoxes: "edit:false,branch:false",
-    toolShown: 5, columnToolShown: 1,
+    toolShown: 5, columnToolShown: 2,
 };
 const BOX_OFF: ToolBoxFacts = { ...BOX_ON, isChecked: false, hiddenKinds: "edit script-run branch tool", toolShown: 0 };
 
@@ -138,4 +138,17 @@ test("the judges read the pair, the id set and the box state", () => {
     assert.equal(isToolBoxRight(BOX_ON), true);
     assert.equal(isToolBoxRight(BOX_OFF), false);
     assert.equal(isToolBoxOff(BOX_ON, BOX_OFF), true);
+});
+
+test("test_isToolBoxRight_needs_exactly_the_two_column_pair_dots_shown", () => {
+    // Steps: one dot or a third tool dot counted in the column fails; the pair of two passes.
+    assert.equal(isToolBoxRight({ ...BOX_ON, columnToolShown: 2 }), true);
+    assert.equal(isToolBoxRight({ ...BOX_ON, columnToolShown: 1 }), false);
+    assert.equal(isToolBoxRight({ ...BOX_ON, columnToolShown: 3 }), false);
+    assert.equal(isToolBoxOff(BOX_ON, { ...BOX_OFF, columnToolShown: 3 }), false);
+});
+
+test("test_TOOL_BOX_FACTS_counts_the_column_dots_by_the_pair_id", () => {
+    assert.ok(TOOL_BOX_FACTS.includes(`#annotation-track i[data-pair-id="${COLUMN_PAIR_ID}"]`));
+    assert.ok(!TOOL_BOX_FACTS.includes("i.a-tool-use"));
 });

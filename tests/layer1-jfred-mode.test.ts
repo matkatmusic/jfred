@@ -34,13 +34,25 @@ test("test_real_data_leaves_the_button_hidden_and_draws_no_strip", async () => {
   assert.equal(getButton().onclick, null);
 });
 
-test("test_fixture_data_shows_the_button_and_draws_the_strip", async () => {
-  // Verify: the button shows with its text and the strip holds the canned entries.
+test("test_fixture_data_shows_the_button_and_no_strip_until_commit_mode_is_on", async () => {
+  // Verify: the button shows with its text; the strip needs Commit mode.
   initLayer1Dom();
+  setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(getButton().hidden, false);
   assert.equal(getButton().textContent, "Commit mode");
+  assert.equal(document.getElementById("jfred-strip"), null);
+});
+
+test("test_the_click_draws_the_strip_and_a_second_click_removes_it", async () => {
+  // Verify: Commit mode on shows the canned entries; off hides the column.
+  initLayer1Dom();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  getButton().click();
   assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  getButton().click();
+  assert.equal(document.getElementById("jfred-strip"), null);
 });
 
 test("test_the_button_toggles_current_and_the_armed_state", async () => {
@@ -61,6 +73,7 @@ test("test_a_second_render_keeps_the_fake_commits", async () => {
   initLayer1Dom();
   setPending({ instant: "2026-06-03T18:20:00.000Z", message: "three" });
   commitPending();
+  setArmed(true);
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(readJfredBranch().commits.length, 3);
   assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 4);
@@ -70,6 +83,7 @@ test("test_a_second_render_keeps_the_delete", async () => {
   // Verify: Delete stays done after another render; only a page reload brings the canned data back.
   initLayer1Dom();
   deleteJfredBranch();
+  setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(readJfredBranch().base, undefined);
   assert.equal(document.getElementById("jfred-strip"), null);

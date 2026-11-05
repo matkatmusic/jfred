@@ -120,7 +120,7 @@ test("task 325: a File Nav leaf click selects the on-disk node and opens the dra
     assert.ok(node.classList.contains("found"));
 });
 
-test("task 213: a commit node shows no [{ }] button (it has no transcript line)", async () => {
+test("task 213: a commit node shows no { } button (it has no transcript line)", async () => {
     initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: COMMIT_CONTENT }));
@@ -134,7 +134,7 @@ test("task 213: a commit node shows no [{ }] button (it has no transcript line)"
     assert.equal(getRequiredElementById("dbody").querySelector(".json-toggle"), null);
 });
 
-test("task 213: an on-disk node shows no [{ }] button (it has no transcript line)", async () => {
+test("task 213: an on-disk node shows no { } button (it has no transcript line)", async () => {
     initLayer1Dom();
     installAnimationFrameStub();
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));

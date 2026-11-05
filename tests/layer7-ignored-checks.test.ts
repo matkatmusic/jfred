@@ -120,6 +120,15 @@ test("the judges refuse a third ignored node, a visible ignored node and a chang
     assert.equal(isFilterUntouched(HIDDEN, { ...HIDDEN, kindBoxes: "edit:true" }), false);
 });
 
+test("test_a_colour_literal_in_a_new_ruler_rule_fails_the_token_check_and_var_tokens_pass", async () => {
+    // Steps: new-selector rules with a literal fail; the same rules with tokens pass.
+    const literal = await runChecks(makeSetup({ rules: [...GOOD_RULES, ".sline { border-left: 2px solid hsl(10 65% 60%); }", ".tf-snapshot { color: #1baf7a; }"] }));
+    assert.deepEqual(literal.newFailures, ["L7 the new rules hold no colour literal, so dark mode follows the tokens"]);
+    const tokens = await runChecks(makeSetup({ rules: [...GOOD_RULES, ".sline { border-left: 2px solid var(--session-color); }", ".tf-snapshot { color: var(--c-snap); }"] }));
+    assert.deepEqual(tokens.newFailures, []);
+    assert.equal(listColourLiteralRules([".hover-popup { background: rgba(0, 0, 0, .5); }"]).length, 1);
+});
+
 test("listColourLiteralRules keeps hex, rgb and hsl rules and drops token rules", () => {
     const found = listColourLiteralRules([...GOOD_RULES, "a { color: #abc; }", "b { color: hsla(1, 2%, 3%, 1); }", "c { color: rgba(0,0,0,.5); }"]);
     assert.equal(found.length, 3);

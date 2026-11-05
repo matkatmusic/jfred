@@ -13,10 +13,17 @@ export function formatInstantLabel(instant: string): string {
   return monthToMillisecond.replace("T", " ");
 }
 
+// "MM-DD-YYYY:HH:MM" in UTC: the short time a ruler row shows on the test page.
+export function formatInstantDisplay(instant: string): string {
+  const isoText = new Date(instant).toISOString();
+  return `${isoText.slice(5, 7)}-${isoText.slice(8, 10)}-${isoText.slice(0, 4)}:${isoText.slice(11, 16)}`;
+}
+
 // One printed gutter row: where it sits, what it reads, and every entry it stands for.
 export interface RulerRow {
   axisPx: number;
   text: string;
+  eventCount: number;
   // Task 284: every ABSORBED entry's offset, this row's own first, so an expansion sees them all.
   axisPxList: number[];
   // Task 300: absorbed instants, parallel to axisPxList; the LAST carries an expansion's extra height.
@@ -65,8 +72,8 @@ function mergeTickIntoPreviousRow(tallies: RowTally[], tick: WireRulerTick, labe
   return true;
 }
 
-// The gutter's rows, in ruler order, each labelled "<timestamp> (<events>)" (task 275).
-export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
+// Folds the ruler's entries into row tallies, merging entries that cannot hold a row of their own.
+function listRowTallies(ruler: WireRulerTick[]): RowTally[] {
   const tallies: RowTally[] = [];
   for (const tick of ruler) {
     const label = formatInstantLabel(tick.instant);
@@ -76,11 +83,17 @@ export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
     }
     tallies.push({ axisPx: tick.axisPx, label, eventCount: readEventCount(tick), axisPxList: [tick.axisPx], instants: [tick.instant] });
   }
+  return tallies;
+}
+
+// The gutter's rows, in ruler order, each labelled "<timestamp> (<events>)" (task 275).
+export function listRulerRows(ruler: WireRulerTick[]): RulerRow[] {
   const rows: RulerRow[] = [];
-  for (const row of tallies) {
+  for (const row of listRowTallies(ruler)) {
     rows.push({
       axisPx: row.axisPx,
       text: `${row.label} (${row.eventCount})`,
+      eventCount: row.eventCount,
       axisPxList: row.axisPxList,
       instants: row.instants,
     });

@@ -1,6 +1,7 @@
 // Own page (not a hash route) so its query-string inputs make a shareable link; no time arithmetic, offsets relative.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
+import { installAnnotationClick } from "./layer1-annotation-click.ts";
 import { installNodeDrawer } from "./layer1-drawer.ts";
 import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
 import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
@@ -31,8 +32,7 @@ import { attachZoomControls } from "./layer1-zoom.ts";
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
 
-// replaceState, not pushState: re-loading the same page is not a navigation.
-export async function loadLayer1View(): Promise<void> {
+async function applySavedSettingsOnProjectSwitch(): Promise<void> {
   // Task 364: a switch to a different project folder drops the previous project's source lists first.
   resetSourcePathsOnProjectChange();
   // Task 366: after the wipe and before defaults derive, load the newly-named project's saved settings.
@@ -44,21 +44,22 @@ export async function loadLayer1View(): Promise<void> {
     await applySavedSettingsForCurrentDir();
   }
   appliedProjectDir = currentDir;
-  // Runs before the params are read: an untouched source list is re-derived from the project box.
-  syncSourceButtons();
-  const params = readSourceParams();
-  history.replaceState(null, "", `?${params}`);
-  const crumb = getRequiredElementById("crumb");
+}
+
+function isSourceMissing(params: URLSearchParams): boolean {
   const hasDir = params.has("dir");
   const hasRepo = params.has("repo");
-  const isMissingSource = !hasDir || !hasRepo;
-  if (isMissingSource) {
-    crumb.textContent = "pick a project folder and a git repo";
-    // There is no build to report, so boot's opening strip must not be left hanging.
-    hideLayer1Progress();
-    return;
-  }
-  // Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
+  return !hasDir || !hasRepo;
+}
+
+function reportMissingSource(crumb: HTMLElement): void {
+  crumb.textContent = "pick a project folder and a git repo";
+  // There is no build to report, so boot's opening strip must not be left hanging.
+  hideLayer1Progress();
+}
+
+// Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
+function clearViewBeforeBuild(crumb: HTMLElement): void {
   crumb.textContent = "";
   getRequiredElementById("stage").replaceChildren();
   getRequiredElementById("filenav-tree").replaceChildren();
@@ -66,14 +67,21 @@ export async function loadLayer1View(): Promise<void> {
   closeRulerExpansion();
   resetSessionSelection();
   renderLayer1Progress("starting");
+}
+
+async function renderViewOrReportCancel(params: URLSearchParams, crumb: HTMLElement): Promise<void> {
+  const view = await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`);
+  if (view === undefined) {
+    // Task 302: an aborted stream is a clean stop, reported plainly rather than as an error.
+    crumb.textContent = "load cancelled";
+    return;
+  }
+  await renderLayer1View(view);
+}
+
+async function renderViewOrReportError(params: URLSearchParams, crumb: HTMLElement): Promise<void> {
   try {
-    const view = await readLayer1ViewStream<WireLayer1View>(`/api/layer1-view?${params}&progress=1`);
-    if (view === undefined) {
-      // Task 302: an aborted stream is a clean stop, reported plainly rather than as an error.
-      crumb.textContent = "load cancelled";
-      return;
-    }
-    await renderLayer1View(view);
+    await renderViewOrReportCancel(params, crumb);
   }
   catch (error) {
     // The crumb is the whole error surface; no alert(), because native dialogs block headless automation.
@@ -82,6 +90,23 @@ export async function loadLayer1View(): Promise<void> {
   finally {
     hideLayer1Progress();
   }
+}
+
+// replaceState, not pushState: re-loading the same page is not a navigation.
+export async function loadLayer1View(): Promise<void> {
+  await applySavedSettingsOnProjectSwitch();
+  // Runs before the params are read: an untouched source list is re-derived from the project box.
+  syncSourceButtons();
+  const params = readSourceParams();
+  history.replaceState(null, "", `?${params}`);
+  const crumb = getRequiredElementById("crumb");
+  const isMissingSource = isSourceMissing(params);
+  if (isMissingSource) {
+    reportMissingSource(crumb);
+    return;
+  }
+  clearViewBeforeBuild(crumb);
+  await renderViewOrReportError(params, crumb);
 }
 
 function loadViewInBackground(): void {
@@ -102,14 +127,7 @@ function getFailedRestoreResult(): boolean {
   return false;
 }
 
-export async function initLayer1Page(): Promise<void> {
-  // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
-  const linkedNode = readNodeLinkIdentity(location.search);
-  // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
-  fillSourceBoxesFromUrl();
-  // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
-  renderLayer1Progress("starting");
-  // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
+function attachSettingsControls(): void {
   registerPathPickers(markDirtyAndLoadView);
   attachSettingsSave();
   initSessionPaneResize();
@@ -119,6 +137,9 @@ export async function initLayer1Page(): Promise<void> {
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
   registerRefPickers(loadViewInBackground);
   void fillRefsFromRepo();
+}
+
+function attachViewControls(): void {
   attachLayer1CancelButton();
   attachClearResultsButton(loadViewInBackground);
   attachBusyShield();
@@ -127,13 +148,36 @@ export async function initLayer1Page(): Promise<void> {
   initFileNavResize();
   attachBucketJumpButtons();
   initFindFileBox();
-  // All three are delegated, since every bubble, tick and leader is replaced on each render.
+}
+
+// All three are delegated, since every bubble, tick and leader is replaced on each render.
+function installDelegatedHandlers(): void {
   installNodeDrawer();
+  installAnnotationClick();
   wireBubbleFlash();
   installMultiFileDrawer();
   installCopyLinkButton();
   registerTickExpansion();
   attachLeaderVisibility();
+}
+
+async function openLinkedNodeIfPresent(linkedNode: ReturnType<typeof readNodeLinkIdentity>): Promise<void> {
+  if (linkedNode !== undefined) {
+    await openLinkedNodeAfterLoad(linkedNode);
+  }
+}
+
+export async function initLayer1Page(): Promise<void> {
+  // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
+  const linkedNode = readNodeLinkIdentity(location.search);
+  // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.
+  fillSourceBoxesFromUrl();
+  // Up before the awaits below, or a deep link shows an idle page for two whole round trips.
+  renderLayer1Progress("starting");
+  // Every listener is wired before the awaits below, so a slow endpoint cannot leave a control dead.
+  attachSettingsControls();
+  attachViewControls();
+  installDelegatedHandlers();
   attachFolderPickers(loadViewAfterRefCheck);
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
@@ -141,9 +185,7 @@ export async function initLayer1Page(): Promise<void> {
   await loadSavedSettings().catch(getFailedRestoreResult);
   await loadLayer1View();
   moveFirstVisibleNodeIntoView();
-  if (linkedNode !== undefined) {
-    await openLinkedNodeAfterLoad(linkedNode);
-  }
+  await openLinkedNodeIfPresent(linkedNode);
 }
 
 void initLayer1Page();

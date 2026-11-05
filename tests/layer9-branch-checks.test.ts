@@ -3,16 +3,21 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-    isBaseKept, isBaseOnly, isBranchGone, isBranchKept, isModeOffClean, validateCommitSurvivesRerender, validateDeleteAndRebase,
+    isBaseKept, isBaseOnly, isBranchGone, isBranchKept, isModeOffClean, isStripHeadKept, validateCommitSurvivesRerender, validateDeleteAndRebase,
 } from "../scripts/visual/layer9-branch-checks.ts";
-import { ENTRY_FACTS, MARK_FACTS, MODE_STATE, TICK_LABELS, TICK_STATES, buildRefusalClick, type EntryFacts, type MarkFacts, type RefusalFacts, type TickState } from "../scripts/visual/layer9-probes.ts";
+import {
+    ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, buildRefusalClick,
+    type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+} from "../scripts/visual/layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-cut-rules.ts";
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
 const makeEntry = (kind: string, shortHash: string | null, parentHash: string | null): EntryFacts => ({ kind, shortHash, parentHash, instant: "2026-06-01T09:00:00.000Z", cx: 0, cy: 0, tickCy: 0 });
 const BASE = makeEntry("base", "a1b2c3d4", null);
 const KEPT = [BASE, makeEntry("commit", "c0ffee01", "a1b2c3d4"), makeEntry("commit", "c0ffee02", "c0ffee01"), makeEntry("commit", "c0ffee03", "c0ffee02")];
-const makeState = (classes: string): TickState => ({ text: "x (1)", classes, title: "", opacity: 1, after: "none" });
+// const makeState = (classes: string): TickState => ({ text: "x (1)", classes, title: "", opacity: 1, after: "none" });
+const makeState = (classes: string): TickState => ({ text: "x (1)", fullTime: "06-01 09:00:00.000", classes, title: "", opacity: 1, after: "none" });
+const KEPT_HEAD: StripHeadFacts = { stripCount: 1, headText: "commits", deleteCount: 1 };
 const CLEAN = [makeState("tick"), makeState("tick multi")];
 const shown = (refusal: CutRefusal): RefusalFacts => ({ text: CUT_REFUSAL_TEXT[refusal], isShown: true, tickFiles: 0, entries: 0, ticks: 0 });
 const NO_TOAST: RefusalFacts = { text: "", isShown: false, tickFiles: 0, entries: 0, ticks: 0 };
@@ -30,22 +35,38 @@ test("validateCommitSurvivesRerender needs the commit added by the user to be in
     assert.equal((await run([])).length, 1);
 });
 
-interface Setup { afterDelete: EntryFacts[]; afterRerender: EntryFacts[]; states: TickState[]; refused: RefusalFacts; accepted: RefusalFacts; afterBase: EntryFacts[]; marked: MarkFacts; isCurrent: boolean }
+interface Setup {
+    afterDelete: EntryFacts[]; afterRerender: EntryFacts[]; head: StripHeadFacts; states: TickState[]; refused: RefusalFacts; accepted: RefusalFacts;
+    afterBase: EntryFacts[]; marked: MarkFacts; isCurrent: boolean;
+}
 const GOOD: Setup = {
-    afterDelete: [], afterRerender: [], states: CLEAN, refused: shown(CutRefusal.baseNeedsCommit), accepted: NO_TOAST, afterBase: [BASE], marked: PENDING, isCurrent: false,
+    afterDelete: [], afterRerender: [], head: KEPT_HEAD, states: CLEAN, refused: shown(CutRefusal.baseNeedsCommit), accepted: NO_TOAST, afterBase: [BASE], marked: PENDING, isCurrent: false,
 };
 const runDelete = (change: Partial<Setup> = {}) => {
     const setup = { ...GOOD, ...change };
     const answers: Answers = new Map<string, unknown[]>([
         [ENTRY_FACTS, [setup.afterDelete, setup.afterRerender, setup.afterBase]], [TICK_STATES, [setup.states]],
         [buildRefusalClick(TICK_LABELS.baseNeedsCommit), [setup.refused]], [buildRefusalClick(TICK_LABELS.base), [setup.accepted]],
-        [MARK_FACTS, [setup.marked]], [MODE_STATE, [{ isCurrent: setup.isCurrent }]],
+        [MARK_FACTS, [setup.marked]], [MODE_STATE, [{ isCurrent: setup.isCurrent }]], [STRIP_HEAD_FACTS, [setup.head]],
     ]);
     return failuresOf(() => validateDeleteAndRebase(makeScriptedPage(answers)));
 };
 
-test("validateDeleteAndRebase passes the good flow: 6 checks and no failure", async () => {
+test("validateDeleteAndRebase passes the good flow: 7 checks and no failure", async () => {
     assert.deepEqual(await runDelete(), []);
+});
+
+test("test_strip_head_and_delete_button_stay_after_delete_and_a_stage_redraw", async () => {
+    // Setup: strip, commits head and one Delete button remain after the re-render.
+    assert.deepEqual(await runDelete(), []);
+    // A missing strip fails exactly one check.
+    assert.equal((await runDelete({ head: { ...KEPT_HEAD, stripCount: 0 } })).length, 1);
+    // A missing Delete button fails exactly one check.
+    assert.equal((await runDelete({ head: { ...KEPT_HEAD, deleteCount: 0 } })).length, 1);
+    // A head without the word commits fails exactly one check.
+    assert.equal((await runDelete({ head: { ...KEPT_HEAD, headText: "" } })).length, 1);
+    // The judge agrees.
+    assert.equal(isStripHeadKept(KEPT_HEAD), true);
 });
 
 test("a Delete that keeps entries or tick marks, or a re-render that brings them back, fails one check each", async () => {

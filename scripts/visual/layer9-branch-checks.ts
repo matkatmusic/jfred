@@ -5,8 +5,8 @@ import { STRIP_IDLE } from "./layer4-probes.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { isRefusalShown } from "./layer9-flow-checks.ts";
 import {
-  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED,
-  buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type TickState,
+  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED,
+  buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
 } from "./layer9-probes.ts";
 import { CutRefusal } from "../../webapp/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-jfred-entries.ts";
@@ -41,6 +41,11 @@ export function isModeOffClean(isCurrent: boolean, states: TickState[]): boolean
   return isClean;
 }
 
+// Commit mode stays on after Delete, so the strip keeps its head and its Delete button.
+export function isStripHeadKept(facts: StripHeadFacts): boolean {
+  return facts.stripCount === 1 && facts.headText.includes("commits") && facts.deleteCount === 1;
+}
+
 export function isBaseOnly(entries: EntryFacts[]): boolean {
   return entries.length === 1 && entries[0]!.kind === JfredEntryKind.base && entries[0]!.shortHash === FIXTURE_BASE_HASH;
 }
@@ -73,6 +78,8 @@ async function validateDelete(page: HeadlessPage): Promise<void> {
   await rerenderThroughTimeToggle(page);
   const afterRerender = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
   reportCheck("L9 after a re-render through the time toggle the deleted branch stays deleted", afterRerender.length === 0, afterRerender);
+  const head = await page.evaluate<StripHeadFacts>(STRIP_HEAD_FACTS);
+  reportCheck("L9 after Delete and a stage re-render the strip still shows its commits head and the Delete button", isStripHeadKept(head), head);
 }
 
 async function validateNewBase(page: HeadlessPage): Promise<void> {

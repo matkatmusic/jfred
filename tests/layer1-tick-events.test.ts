@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
-import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
+import { buildTickFileList, listEventsAtRow } from "../webapp/layer1-tick-events.ts";
+import { ShowRowKind } from "../webapp/layer1-show-row.ts";
 import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -124,6 +125,20 @@ test("test_listEventsAtRow_skips_a_stacked_node_of_a_different_instant", () => {
         ...buildInstantNode(RULER_NODE_ROW_PIXELS, "@v3 📸", OTHER_INSTANT, "n-snap"),
     ])]);
     assert.deepEqual(listEventsAtRow([SHARED_PX]).map((event) => event.kind), ["on disk"]);
+});
+
+test("test_buildTickFileList_gives_a_snapshot_button_the_tf_snapshot_class_and_leaves_its_text", () => {
+    drawStage(() => [buildPairBubble("src/index.ts", SHARED_PX, buildSnapshotNode(0, 2, "sess-a.jsonl"))]);
+    const [button] = buildTickFileList(listEventsAtRow([SHARED_PX])).querySelectorAll("button");
+    assert.equal(button!.className, `tf-${ShowRowKind.snapshot}`);
+    assert.equal(button!.textContent, "index.ts  @v2 📸");
+});
+
+test("test_buildTickFileList_gives_an_orphan_button_no_tf_class", () => {
+    drawStage(() => [buildOrphanBubble("No repository match", "notes/scratch.txt", SHARED_PX)]);
+    const [button] = buildTickFileList(listEventsAtRow([SHARED_PX])).querySelectorAll("button");
+    assert.equal(button!.className, "");
+    assert.equal(button!.textContent, "scratch.txt");
 });
 
 test("test_listEventsAtRow_names_an_orphan_by_its_own_row_and_not_its_buckets_heading", () => {

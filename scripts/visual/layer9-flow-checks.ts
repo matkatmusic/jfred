@@ -4,7 +4,7 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { REQUEST_COUNT } from "./layer7-probes.ts";
 import {
-  COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, TICKFILES_COUNT, TICK_LABELS, TICK_STATES,
+  COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES,
   buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
 } from "./layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-cut-rules.ts";
@@ -19,34 +19,71 @@ const hasClass = (state: TickState, name: string) => state.classes.split(" ").in
 
 export function findTickState(states: TickState[], label: string): TickState {
   for (const state of states) {
-    if (state.text.startsWith(label))
+    // if (state.text.startsWith(label))
+    if (state.fullTime.startsWith(label))
       return state;
   }
-  throw new Error(`no ruler tick starts with ${label}`);
+  throw new Error(`no ruler tick has a full time starting with ${label}`);
 }
 
-export function isUnarmedPaintRight(states: TickState[]): boolean {
-  let setCount = 0;
-  let baseCount = 0;
-  for (const state of states) {
-    if (hasClass(state, CutClass.ok) || hasClass(state, CutClass.no))
-      return false;
-    setCount += hasClass(state, CutClass.set) ? 1 : 0;
-    baseCount += hasClass(state, CutClass.base) ? 1 : 0;
+function isCutPainted(state: TickState): boolean {
+  for (const name of state.classes.split(" ")) {
+    const isCutClass = name.startsWith("cut-");
+    if (isCutClass)
+      return true;
   }
-  return setCount === 2 && baseCount === 1;
+  return false;
+}
+
+function countTicksWithClass(states: TickState[], name: string): number {
+  let count = 0;
+  for (const state of states) {
+    const hasName = hasClass(state, name);
+    if (hasName)
+      count++;
+  }
+  return count;
+}
+
+// export function isUnarmedPaintRight(states: TickState[]): boolean {
+//   let setCount = 0;
+//   let baseCount = 0;
+//   for (const state of states) {
+//     if (hasClass(state, CutClass.ok) || hasClass(state, CutClass.no))
+//       return false;
+//     setCount += hasClass(state, CutClass.set) ? 1 : 0;
+//     baseCount += hasClass(state, CutClass.base) ? 1 : 0;
+//   }
+//   return setCount === 2 && baseCount === 1;
+// }
+
+// Commit mode off: no tick carries a cut-* class and the page has no #jfred-strip.
+export function isUnarmedPaintRight(states: TickState[], stripCount: number): boolean {
+  let isClean = stripCount === 0;
+  for (const state of states)
+    isClean &&= !isCutPainted(state);
+  return isClean;
 }
 
 function isScissorsTick(state: TickState): boolean {
   return hasClass(state, CutClass.ok) && state.after !== "none" && state.after !== "normal";
 }
 
+// function isDimTickWithReason(state: TickState, refusal: CutRefusal): boolean {
+//   return hasClass(state, CutClass.no) && state.opacity < 1 && state.title === CUT_REFUSAL_TEXT[refusal];
+// }
+// On the test page a refused tick's title is the refusal text, a newline, then the full time.
 function isDimTickWithReason(state: TickState, refusal: CutRefusal): boolean {
-  return hasClass(state, CutClass.no) && state.opacity < 1 && state.title === CUT_REFUSAL_TEXT[refusal];
+  return hasClass(state, CutClass.no) && state.opacity < 1 && state.title === `${CUT_REFUSAL_TEXT[refusal]}\n${state.fullTime}`;
+}
+
+// Armed: the base tick and the two commit ticks carry cut-base and cut-set.
+function isMarkPaintRight(states: TickState[]): boolean {
+  return countTicksWithClass(states, CutClass.base) === 1 && countTicksWithClass(states, CutClass.set) === 2;
 }
 
 export function isArmedPaintRight(isCurrent: boolean, states: TickState[]): boolean {
-  let isRight = isCurrent && isScissorsTick(findTickState(states, TICK_LABELS.late)) && isScissorsTick(findTickState(states, TICK_LABELS.early));
+  let isRight = isCurrent && isMarkPaintRight(states) && isScissorsTick(findTickState(states, TICK_LABELS.late)) && isScissorsTick(findTickState(states, TICK_LABELS.early));
   for (const [label, refusal] of REFUSAL_CASES)
     isRight &&= isDimTickWithReason(findTickState(states, label), refusal);
   for (const state of states)
@@ -91,14 +128,17 @@ export async function validateNormalClick(page: HeadlessPage, title: string): Pr
 
 export async function validateUnarmedPaint(page: HeadlessPage): Promise<void> {
   const states = await page.evaluate<TickState[]>(TICK_STATES);
-  reportCheck("L9 Commit mode off: no tick is scissors or dim; the base tick and two commit ticks keep their marks", isUnarmedPaintRight(states));
+  const stripCount = await page.evaluate<number>(STRIP_COUNT);
+  // reportCheck("L9 Commit mode off: no tick is scissors or dim; the base tick and two commit ticks keep their marks", isUnarmedPaintRight(states));
+  reportCheck("L9 Commit mode off: no tick carries a cut-* class and there is no #jfred-strip", isUnarmedPaintRight(states, stripCount), [stripCount]);
 }
 
 export async function validateArmedPaint(page: HeadlessPage): Promise<void> {
   await page.evaluate(COMMIT_MODE_CLICK);
   const mode = await page.evaluate<{ isCurrent: boolean }>(MODE_STATE);
   const states = await page.evaluate<TickState[]>(TICK_STATES);
-  reportCheck("L9 Commit mode on: markable ticks show scissors, the others are dim with their refusal text as title", isArmedPaintRight(mode.isCurrent, states));
+  // reportCheck("L9 Commit mode on: markable ticks show scissors, the others are dim with their refusal text as title", isArmedPaintRight(mode.isCurrent, states));
+  reportCheck("L9 Commit mode on: base and commit ticks carry cut-base and cut-set, markable ticks show scissors, the others are dim with refusal text then full time as title", isArmedPaintRight(mode.isCurrent, states));
 }
 
 export async function validateRefusals(page: HeadlessPage): Promise<void> {
