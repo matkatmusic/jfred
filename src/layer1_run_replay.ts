@@ -47,9 +47,9 @@ async function executeOrRecallRun(run: ScriptRun, pre: Map<string, string>, box:
   return { post: streamed.post, output: streamed.output };
 }
 
-function createFinishedResult(input: ReplayInput, loaded: LoadedRun, pre: Map<string, string>, saved: SandboxOutcome): WireScriptResult {
+function createFinishedResult(input: ReplayInput, loaded: LoadedRun, pre: Map<string, string>, saved: SandboxOutcome, box: SandboxBox): WireScriptResult {
   if (saved.post === undefined) {
-    return createFailedResult(input.toolUseId, loaded.run, saved);
+    return createFailedResult(input.toolUseId, saved, box.root);
   }
   const context = createCompareContext(input, loaded);
   const files = compareChangedFiles(context, listChangedFiles(saved.post, pre));
@@ -63,7 +63,7 @@ async function executeReplayWithStartFiles(input: ReplayInput, loaded: LoadedRun
     return undefined;
   }
   reportStep(onProgress, 4);
-  const result = createFinishedResult(input, loaded, pre, saved);
+  const result = createFinishedResult(input, loaded, pre, saved, box);
   writePendingSandboxMemoToDisk();
   reportStep(onProgress, 5);
   return result;

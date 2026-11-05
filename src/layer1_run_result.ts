@@ -6,7 +6,7 @@ import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { findRunConfidence, type RunFile } from "./layer1_run_compare.ts";
 import { formatReplayFailure } from "./layer1_run_skip.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
-import { chooseSandboxMount } from "./reconstruction_script_sandbox_docker.ts";
+// import { chooseSandboxMount } from "./reconstruction_script_sandbox_docker.ts";
 import type { SandboxOutcome, SandboxOutput } from "./reconstruction_script_sandbox_memo.ts";
 import { findAffectedPathsForRun } from "./reconstruction_script_probe.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
@@ -39,8 +39,8 @@ export function createOriginalFailedResult(toolUseId: Uuid, run: ScriptRun, dir:
   return createResult(toolUseId, WireRunOutcome.originalFailed, { confidence: WireConfidence.originalFailed, files });
 }
 
-export function createFailedResult(toolUseId: Uuid, run: ScriptRun, saved: SandboxOutcome): WireScriptResult {
-  const mount = chooseSandboxMount(run.cwd);
+export function createFailedResult(toolUseId: Uuid, saved: SandboxOutcome, mount: Path): WireScriptResult {
+  // const mount = chooseSandboxMount(run.cwd);
   const reason = saved.output === undefined ? OUTPUT_NOT_SAVED_REASON : formatReplayFailure(saved.output, mount);
   return createResult(toolUseId, WireRunOutcome.replayFailed, { reason, ...formatOutputFields(saved.output) });
 }

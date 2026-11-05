@@ -114,8 +114,10 @@ function findBackupOwner(sessionIds: Uuid[], root: string, name: string): Uuid |
   return undefined;
 }
 
-// The file-history reader across every session dir the records reference; undefined when no session id exists.
-export function buildSidecarReader(records: TranscriptRecord[], sources?: SourceEntry[]): BackupReader | undefined {
+export type BackupPathResolver = (backupFileName: Path, sessionId?: Uuid) => Path;
+
+// Where the reader opens a backup blob; undefined when no session id exists.
+export function buildBackupPathResolver(records: TranscriptRecord[], sources?: SourceEntry[]): BackupPathResolver | undefined {
   const sessionIds = collectSessionIds(records);
   if (sessionIds.length === 0) {
     return undefined;
@@ -124,14 +126,23 @@ export function buildSidecarReader(records: TranscriptRecord[], sources?: Source
   const root = getFileHistoryRoot(records).toString();
   // With declared sources, each session reads from its own source root.
   const sessionRoots = sources === undefined ? undefined : computeSessionFileHistoryRoots(records, sources);
-  // Blob reads are lazy, so a hang after this line belongs to the next stage.
-  reportReconstructionProgress(`sidecar reader ready: ${sessionIds.length} session(s), root ${root}`);
   return (backupFileName, sessionId) => {
     const name = backupFileName.toString();
     // Read the owning session's copy, since merged sessions reuse `@vN` names; search only if unknown.
     const owner = sessionId ?? findBackupOwner(sessionIds, root, name);
     const ownerRoot = sessionRoots?.get((owner ?? sessionIds[0]!).toString()) ?? root;
-    return readFileSync(join(ownerRoot, (owner ?? sessionIds[0]!).toString(), name), "utf8");
+    return new Path(join(ownerRoot, (owner ?? sessionIds[0]!).toString(), name));
   };
+}
+
+// The file-history reader across every session dir the records reference; undefined when no session id exists.
+export function buildSidecarReader(records: TranscriptRecord[], sources?: SourceEntry[]): BackupReader | undefined {
+  const resolveBackupPath = buildBackupPathResolver(records, sources);
+  if (resolveBackupPath === undefined) {
+    return undefined;
+  }
+  // Blob reads are lazy, so a hang after this line belongs to the next stage.
+  reportReconstructionProgress(`sidecar reader ready: ${collectSessionIds(records).length} session(s), root ${getFileHistoryRoot(records)}`);
+  return (backupFileName, sessionId) => readFileSync(resolveBackupPath(backupFileName, sessionId).toString(), "utf8");
 }
 

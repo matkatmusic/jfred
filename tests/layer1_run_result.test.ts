@@ -18,6 +18,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 
 const TOOL_USE_ID = new Uuid("toolu_r");
 const RUN: ScriptRun = { code: 'open("a.txt", "w").write("x")\n', timestamp: new Date("2026-07-24T10:00:05Z") };
+const MOUNT = new Path("/repo");
 
 test("test_createResult_fills_the_wire_defaults", () => {
     const result = createResult(TOOL_USE_ID, WireRunOutcome.notReplayed, { reason: "why" });
@@ -60,14 +61,21 @@ test("test_createReplayedResult_has_no_confidence_key_for_no_files_and_marks_mis
 
 test("test_createFailedResult_reports_a_timeout_a_crash_a_box_block_and_missing_output", () => {
     const failed = (stderr: string, timedOut: boolean, exitCode?: number) =>
-        createFailedResult(TOOL_USE_ID, RUN, { post: undefined, output: { stdout: "", stderr, timedOut, ...(exitCode === undefined ? {} : { exitCode }) } });
+        createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut, ...(exitCode === undefined ? {} : { exitCode }) } }, MOUNT);
     assert.equal(failed("", true).timedOut, true);
     assert.match(failed("", true).reason!, /5 seconds/);
     assert.match(failed("ValueError: bad\n", false, 1).reason!, /exit code 1/);
     assert.ok(failed("OSError: Network is unreachable\n", false, 1).reason!.startsWith(BOX_BLOCKED_REASON_PREFIX));
     assert.equal(failed("x", false, 1).outcome, WireRunOutcome.replayFailed);
     assert.equal("confidence" in failed("x", false, 1), false);
-    const unsaved = createFailedResult(TOOL_USE_ID, RUN, { post: undefined });
+    const unsaved = createFailedResult(TOOL_USE_ID, { post: undefined }, MOUNT);
     assert.equal(unsaved.reason, OUTPUT_NOT_SAVED_REASON);
     assert.equal(unsaved.isOutputSaved, false);
+});
+
+test("test_createFailedResult_does_not_report_a_box_block_for_a_repo_file_outside_the_cwd", () => {
+    // The box mount is the repo root, so a repo file outside the cwd is inside the box.
+    const stderr = "FileNotFoundError: [Errno 2] No such file or directory: '/repo/other.py'\n";
+    const result = createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut: false, exitCode: 1 } }, MOUNT);
+    assert.equal(result.reason!.startsWith(BOX_BLOCKED_REASON_PREFIX), false);
 });

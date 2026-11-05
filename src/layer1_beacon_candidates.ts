@@ -3,12 +3,12 @@
 import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
 import { collectCommitBeaconNodes } from "./layered_git_beacons.ts";
 import type { BeaconNode } from "./layered_types.ts";
-import { collectSnapshotBeaconNodes } from "./layered_snapshot_beacons.ts";
+import { collectTargetSnapshotBeaconNodes } from "./layered_snapshot_beacons.ts";
 import { collectBashCatBeacons } from "./layer1_cat_beacons.ts";
 import { readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
-import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
+import { buildBackupPathResolver, buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 
@@ -70,10 +70,14 @@ function listReadCandidates(target: Path, sessionFile: Path, records: Transcript
 
 function listFileHistoryCandidates(target: Path, records: TranscriptRecord[], sources: SourceEntry[] | undefined): BeaconCandidate[] {
   const reader = buildSidecarReader(records, sources);
+  const resolveBackupPath = buildBackupPathResolver(records, sources);
   if (reader === undefined) {
     return [];
   }
-  const beacons = collectSnapshotBeaconNodes(records, reader).get(target.toString()) ?? [];
+  if (resolveBackupPath === undefined) {
+    return [];
+  }
+  const beacons = collectTargetSnapshotBeaconNodes(records, target, reader, resolveBackupPath);
   return buildCandidatesFromBeacons(BeaconSource.fileHistory, beacons);
 }
 

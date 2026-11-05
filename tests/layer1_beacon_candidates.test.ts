@@ -28,11 +28,25 @@ function buildCatRecords(cwd: string, toolId: string, minute: number, content: s
     ];
 }
 
-function buildSnapshotRecord(backupTime: string): object {
+function buildSnapshotRecord(backupTime: string, backupFileNames: Record<string, string> = { "notes.txt": "abc@v1" }): object {
+    const trackedFileBackups: Record<string, object> = {};
+    for (const [file, backupFileName] of Object.entries(backupFileNames)) {
+        trackedFileBackups[file] = { backupFileName, version: 1, backupTime };
+    }
     return { type: "file-history-snapshot", messageId: "m1", isSnapshotUpdate: false, snapshot: {
-        messageId: "m1", timestamp: backupTime,
-        trackedFileBackups: { "notes.txt": { backupFileName: "abc@v1", version: 1, backupTime } },
+        messageId: "m1", timestamp: backupTime, trackedFileBackups,
     } };
+}
+
+// Writes the session file and only the named blobs; with no blobs the session folder is never created.
+function writeSessionTreeWithBlobs(records: object[], blobs: Record<string, string>): Path {
+    const tree = createSourceTree("-beacon-candidates");
+    writeTranscriptFixture(tree.projectDir, "a.jsonl", records);
+    for (const [blobName, bytes] of Object.entries(blobs)) {
+        mkdirSync(join(tree.treeRoot, "file-history", SESSION_A), { recursive: true });
+        writeFileSync(join(tree.treeRoot, "file-history", SESSION_A, blobName), bytes);
+    }
+    return new Path(join(tree.projectDir, "a.jsonl"));
 }
 
 // A folder that is not a git repo: the commit source finds nothing.
@@ -115,6 +129,37 @@ test("test_declared_sources_choose_the_file_history_folder", () => {
     const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), sources);
     assert.deepEqual(listSources(candidates), [BeaconSource.fileHistory]);
     assert.equal(candidates[0]!.content, "declared bytes\n");
+});
+
+test("test_listBeaconCandidates_skips_a_lost_backup_of_the_target_and_keeps_the_others", () => {
+    // The target has two backups; the first blob is lost, the second is on disk.
+    const cwdRecords = buildCatRecords("/work", "toolu_x", 0, "");
+    const session = writeSessionTreeWithBlobs(
+        [cwdRecords[0]!, buildSnapshotRecord("2026-07-24T10:03:00.000Z", { "notes.txt": "abc@v1" }), buildSnapshotRecord("2026-07-24T10:04:00.000Z", { "notes.txt": "abc@v2" })],
+        { "abc@v2": "second bytes\n" },
+    );
+    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), undefined);
+    assert.deepEqual(listSources(candidates), [BeaconSource.fileHistory]);
+    assert.equal(candidates[0]!.content, "second bytes\n");
+});
+
+test("test_listBeaconCandidates_ignores_a_lost_backup_of_another_file", () => {
+    // Another file's blob is lost; the target's blob is on disk and still gives a candidate.
+    const cwdRecords = buildCatRecords("/work", "toolu_x", 0, "");
+    const session = writeSessionTreeWithBlobs(
+        [cwdRecords[0]!, buildSnapshotRecord("2026-07-24T10:03:00.000Z", { "notes.txt": "abc@v1", "other.txt": "def@v1" })],
+        { "abc@v1": "history bytes\n" },
+    );
+    const candidates = listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), undefined);
+    assert.deepEqual(listSources(candidates), [BeaconSource.fileHistory]);
+    assert.equal(candidates[0]!.content, "history bytes\n");
+});
+
+test("test_listBeaconCandidates_with_a_lost_backup_folder_gives_no_file_history_candidates", () => {
+    // The file-history folder exists, but the session's own folder inside it is gone.
+    const cwdRecords = buildCatRecords("/work", "toolu_x", 0, "");
+    const session = writeSessionTreeWithBlobs([cwdRecords[0]!, buildSnapshotRecord("2026-07-24T10:03:00.000Z")], {});
+    assert.deepEqual(listBeaconCandidates(new Path("/work/notes.txt"), [session], new Path(makeEmptyFolder()), undefined), []);
 });
 
 test("test_commit_alone_gives_one_commit_candidate", () => {
