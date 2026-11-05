@@ -90,35 +90,50 @@ export function resetSessionSelection(): void {
   getRequiredElementById("sessions").replaceChildren();
 }
 
-// Fetch sessions under the picked JSONL folders; no folders means no fetch.
-export async function loadLayer1Sessions(): Promise<void> {
+function createSessionsQuery(folderPaths: readonly string[]): URLSearchParams {
   const query = new URLSearchParams();
-  const folderPaths = readSourcePaths(SourceKind.jsonl);
   for (const path of folderPaths) {
     query.append("jsonl", path);
   }
-  sessions = [];
-  if (folderPaths.length === 0) {
-    return;
-  }
-  // The scan bar replaces the pane content, so the empty row never shows mid-scan.
+  query.append("progress", "1");
+  return query;
+}
+
+// The scan bar replaces the pane content, so the empty row never shows mid-scan.
+function renderScanLoadbar(): (text: string, current?: number, total?: number) => void {
   const fill = createElement("div", { class: "loadbar-fill" });
   const label = createElement("span", { class: "loadbar-label", text: "scanning JSONL files" });
   getRequiredElementById("sessions").replaceChildren(createElement("div", { class: "loadbar pane-loadbar" }, [
     createElement("div", { class: "loadbar-track" }, [fill]),
     label,
   ]));
-  query.append("progress", "1");
-  function renderScanProgress(text: string, current?: number, total?: number): void {
-    renderLoadbar(fill, label, text, current, total);
+  return (text, current, total) => renderLoadbar(fill, label, text, current, total);
+}
+
+async function fetchSessionsWithProgress(folderPaths: readonly string[]): Promise<WireSession[]> {
+  const renderScanProgress = renderScanLoadbar();
+  const query = createSessionsQuery(folderPaths);
+  const payload = await readLayer1ViewStream<{ sessions: WireSession[] }>(`/api/layer1-sessions?${query}`, renderScanProgress);
+  return payload?.sessions ?? [];
+}
+
+function renderSessionsError(error: unknown): void {
+  getRequiredElementById("sessions").replaceChildren(
+    createElement("div", { class: "navempty", text: String(error) }),
+  );
+}
+
+// Fetch sessions under the picked JSONL folders; no folders means no fetch.
+export async function loadLayer1Sessions(): Promise<void> {
+  const folderPaths = readSourcePaths(SourceKind.jsonl);
+  sessions = [];
+  if (folderPaths.length === 0) {
+    return;
   }
   try {
-    const payload = await readLayer1ViewStream<{ sessions: WireSession[] }>(`/api/layer1-sessions?${query}`, renderScanProgress);
-    sessions = payload?.sessions ?? [];
+    sessions = await fetchSessionsWithProgress(folderPaths);
   }
   catch (error) {
-    getRequiredElementById("sessions").replaceChildren(
-      createElement("div", { class: "navempty", text: String(error) }),
-    );
+    renderSessionsError(error);
   }
 }

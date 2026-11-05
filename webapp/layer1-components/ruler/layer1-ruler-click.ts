@@ -71,18 +71,23 @@ export function collectStageBubbles(): BubbleSnapshot[] {
   return snapshot;
 }
 
+function listRowsDrawnAtAxisPx(bubblePx: number, rows: BubbleSnapshot["rows"], axisPx: number): HTMLElement[] {
+  const matching: HTMLElement[] = [];
+  for (const { row, rowPx } of rows) {
+    const isDrawnAtAxisPx = isAxisMatch(bubblePx + rowPx, axisPx);
+    if (isDrawnAtAxisPx) {
+      matching.push(row);
+    }
+  }
+  return matching;
+}
+
 // Rows of a bubble that BEGINS at the instant sort before rows of bubbles merely holding it.
 export function listElementsDrawnAtAxisPx(axisPx: number, snapshot: BubbleSnapshot[] = collectStageBubbles()): HTMLElement[] {
   const beginningHere: HTMLElement[] = [];
   const merelyHolding: HTMLElement[] = [];
   for (const { bubble, bubblePx, rows } of snapshot) {
-    const matching: HTMLElement[] = [];
-    for (const { row, rowPx } of rows) {
-      const isDrawnAtAxisPx = isAxisMatch(bubblePx + rowPx, axisPx);
-      if (isDrawnAtAxisPx) {
-        matching.push(row);
-      }
-    }
+    const matching = listRowsDrawnAtAxisPx(bubblePx, rows, axisPx);
     const bubbleBeginsHere = isAxisMatch(bubblePx, axisPx);
     if (!bubbleBeginsHere) {
       merelyHolding.push(...matching);
@@ -100,24 +105,26 @@ export function findScrollTargetForAxisPx(axisPx: number): HTMLElement | undefin
   return listEventsAtRow([axisPx])[0]?.element;
 }
 
+function triggerTickAction(tick: HTMLElement, row: RulerRow): void {
+  // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.
+  const events = listEventsAtRow(row.axisPxList);
+  if (events.length > 1) {
+    toggleExpandedRow(tick, events);
+    return;
+  }
+  // Centred in the part of #timelines the Details drawer leaves uncovered.
+  const landed = findScrollTargetForAxisPx(readAxisPx(tick));
+  if (landed === undefined) {
+    return;
+  }
+  moveToUncoveredCentre(landed);
+  markLandedElement(landed);
+}
+
 // `row` carries every entry the tick absorbed, because a merged row stands for several instants.
 export function attachRulerTickClick(tick: HTMLElement, row: RulerRow): HTMLElement {
   storeRow(tick, row);
-  function triggerTickAction(): void {
-    // Task 284: several things are drawn here, so expand into their names rather than jumping blindly.
-    const events = listEventsAtRow(row.axisPxList);
-    if (events.length > 1) {
-      toggleExpandedRow(tick, events);
-      return;
-    }
-    // Centred in the part of #timelines the Details drawer leaves uncovered.
-    const landed = findScrollTargetForAxisPx(readAxisPx(tick));
-    if (landed === undefined) {
-      return;
-    }
-    moveToUncoveredCentre(landed);
-    markLandedElement(landed);
-  }
-  tick.addEventListener("click", triggerTickAction);
+  const triggerThisTickAction = (): void => triggerTickAction(tick, row);
+  tick.addEventListener("click", triggerThisTickAction);
   return tick;
 }

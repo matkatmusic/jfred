@@ -72,8 +72,7 @@ function saveFolderToggle(folderPath: string, isOpen: boolean): void {
   saveFolderCollapseState([...collapsedFolderPaths]);
 }
 
-// `container` is also the selection root; `onFolderSelect` reports folder selections; `query` filters entries pre-tree.
-export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void, query: string = ""): void {
+function filterFileNavEntriesByQuery(view: FileNavView, query: string): ReturnType<typeof listFileNavEntries> {
   const needle = query.trim().toLowerCase();
   const matched: ReturnType<typeof listFileNavEntries> = [];
   for (const entry of listFileNavEntries(view)) {
@@ -82,6 +81,12 @@ export function renderFileNavInto(container: HTMLElement, view: FileNavView, onF
       matched.push(entry);
     }
   }
+  return matched;
+}
+
+// `container` is also the selection root; `onFolderSelect` reports folder selections; `query` filters entries pre-tree.
+export function renderFileNavInto(container: HTMLElement, view: FileNavView, onFolderSelect: (targets: string[]) => void, query: string = ""): void {
+  const matched = filterFileNavEntriesByQuery(view, query);
   const collapse: FolderCollapseState = { collapsedPaths: collapsedFolderPaths, onToggle: saveFolderToggle };
   const callbacks = { onFileClick: openDiskNodeForPath, onFolderClick: onFolderSelect };
   const rows: HTMLElement[] = [];

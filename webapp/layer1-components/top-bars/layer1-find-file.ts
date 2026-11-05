@@ -29,30 +29,24 @@ export function markLandedElement(landed: HTMLElement): void {
   document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
-// Centres the element in the part of #timelines the Details drawer leaves uncovered.
-export function moveToUncoveredCentre(element: HTMLElement): void {
-  const pane = getRequiredElementById("timelines");
-  const view = pane.getBoundingClientRect();
-  const drawer = getRequiredElementById("drawer").getBoundingClientRect();
+function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; right: number; top: number; bottom: number } {
   const area = { left: view.left, right: view.right, top: view.top, bottom: view.bottom };
   const isCovered = Math.min(view.right, drawer.right) > Math.max(view.left, drawer.left)
         && Math.min(view.bottom, drawer.bottom) > Math.max(view.top, drawer.top);
+  if (!isCovered) {
+    return area;
+  }
   const coversFullHeight = drawer.top <= view.top && drawer.bottom >= view.bottom;
-  const isDrawerOnRight = isCovered && coversFullHeight && drawer.left > view.left;
-  const isDrawerOnLeft = isCovered && coversFullHeight;
-  const isDrawerOnBottom = isCovered && drawer.top > view.top;
-  if (isDrawerOnRight) {
-    area.right = drawer.left;
+  if (coversFullHeight) {
+    return drawer.left > view.left ? { ...area, right: drawer.left } : { ...area, left: drawer.right };
   }
-  else if (isDrawerOnLeft) {
-    area.left = drawer.right;
-  }
-  else if (isDrawerOnBottom) {
-    area.bottom = drawer.top;
-  }
-  else if (isCovered) {
-    area.top = drawer.bottom;
-  }
+  return drawer.top > view.top ? { ...area, bottom: drawer.top } : { ...area, top: drawer.bottom };
+}
+
+// Centres the element in the part of #timelines the Details drawer leaves uncovered.
+export function moveToUncoveredCentre(element: HTMLElement): void {
+  const pane = getRequiredElementById("timelines");
+  const area = computeUncoveredArea(pane.getBoundingClientRect(), getRequiredElementById("drawer").getBoundingClientRect());
   let box = element.getBoundingClientRect();
   const hasAddedSlack = addSlackForEdgeNode(pane, box, area);
   if (hasAddedSlack) {
@@ -81,16 +75,19 @@ export function moveToNamedBubble(term: string, step: number = 1): HTMLElement |
   return landed;
 }
 
-// The File Nav's caller: a leaf knows its exact path, so it needs no substring match or cycle.
-export function moveToBubbleAtPath(path: string): HTMLElement | undefined {
-  let owner: HTMLElement | undefined;
+function findNameElementAtPath(path: string): HTMLElement | undefined {
   for (const nameElement of listNameElements()) {
     const isOwner = nameElement.dataset.path === path;
     if (isOwner) {
-      owner = nameElement;
-      break;
+      return nameElement;
     }
   }
+  return undefined;
+}
+
+// The File Nav's caller: a leaf knows its exact path, so it needs no substring match or cycle.
+export function moveToBubbleAtPath(path: string): HTMLElement | undefined {
+  const owner = findNameElementAtPath(path);
   if (owner === undefined) {
     // An orphan path has no bubble, so the click must say so, not look broken.
     reportFindStatus(`${path}: no bubble on the timeline (listed in an orphan bucket)`);
@@ -111,9 +108,7 @@ function clearFindState(): void {
   reportFindStatus("");
 }
 
-// The two buttons step the same cycle from whatever the box holds, so they read `box.value`.
-export function initFindFileBox(): void {
-  const box = getRequiredElementById("find-file") as HTMLInputElement;
+function attachFindBoxInputListeners(box: HTMLInputElement): void {
   function moveOnEnter(event: Event): void {
     if ((event as KeyboardEvent).key === "Enter") {
       moveToNamedBubble(box.value);
@@ -125,15 +120,25 @@ export function initFindFileBox(): void {
       clearFindState();
     }
   }
+  box.addEventListener("keydown", moveOnEnter);
+  // `input`, not `keyup`: it fires for paste, cut, and the clear button, which a key listener misses.
+  box.addEventListener("input", clearOnEmptyInput);
+}
+
+function attachFindStepButtonListeners(box: HTMLInputElement): void {
   function moveToPreviousMatch(): void {
     moveToNamedBubble(box.value, -1);
   }
   function moveToNextMatch(): void {
     moveToNamedBubble(box.value, 1);
   }
-  box.addEventListener("keydown", moveOnEnter);
-  // `input`, not `keyup`: it fires for paste, cut, and the clear button, which a key listener misses.
-  box.addEventListener("input", clearOnEmptyInput);
   getRequiredElementById("find-prev").addEventListener("click", moveToPreviousMatch);
   getRequiredElementById("find-next").addEventListener("click", moveToNextMatch);
+}
+
+// The two buttons step the same cycle from whatever the box holds, so they read `box.value`.
+export function initFindFileBox(): void {
+  const box = getRequiredElementById("find-file") as HTMLInputElement;
+  attachFindBoxInputListeners(box);
+  attachFindStepButtonListeners(box);
 }

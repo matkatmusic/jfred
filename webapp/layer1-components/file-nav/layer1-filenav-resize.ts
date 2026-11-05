@@ -38,6 +38,18 @@ function saveFileNavWidth(stagewrap: HTMLElement, clientX: number): void {
 }
 
 // Move/release listen on the WINDOW since a fast drag outruns the 7px handle; happy-dom (the test runner) lacks `setPointerCapture`.
+function attachWindowDragListeners(grip: HTMLElement, onMove: (event: MouseEvent) => void, onRelease: (event: MouseEvent) => void): void {
+  const moveDragToPointer = (move: Event): void => onMove(move as MouseEvent);
+  const stopDrag = (release: Event): void => {
+    onRelease(release as MouseEvent);
+    grip.classList.remove("dragging");
+    window.removeEventListener("pointermove", moveDragToPointer);
+    window.removeEventListener("pointerup", stopDrag);
+  };
+  window.addEventListener("pointermove", moveDragToPointer);
+  window.addEventListener("pointerup", stopDrag);
+}
+
 function attachGripDrag(
   grip: HTMLElement,
   onMove: (event: MouseEvent) => void,
@@ -50,15 +62,7 @@ function attachGripDrag(
     grip.classList.add("dragging");
     onStart();
     onMove(event as MouseEvent);
-    const moveDragToPointer = (move: Event): void => onMove(move as MouseEvent);
-    const stopDrag = (release: Event): void => {
-      onRelease(release as MouseEvent);
-      grip.classList.remove("dragging");
-      window.removeEventListener("pointermove", moveDragToPointer);
-      window.removeEventListener("pointerup", stopDrag);
-    };
-    window.addEventListener("pointermove", moveDragToPointer);
-    window.addEventListener("pointerup", stopDrag);
+    attachWindowDragListeners(grip, onMove, onRelease);
   };
   grip.addEventListener("pointerdown", launchDrag);
 }
