@@ -54,7 +54,7 @@ function assertNeedsReply(value: unknown): asserts value is WireScriptNeedsReply
   }
 }
 
-export async function requestScriptNeeds(request: WireScriptNeedsRequest, signal: AbortSignal): Promise<WireScriptNeedsReply> {
+export async function fetchScriptNeeds(request: WireScriptNeedsRequest, signal: AbortSignal): Promise<WireScriptNeedsReply> {
   const response = await fetch(buildRouteUrl("/api/layer1-script-needs"), buildPostInit(request, signal));
   if (!response.ok) {
     throw new Error(await response.text());
@@ -69,14 +69,10 @@ async function* readStreamLines(body: ReadableStream<Uint8Array>): AsyncGenerato
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let remainder = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-    let lines: string[];
-    ({ remainder, lines } = splitNdjsonChunk(remainder, decoder.decode(value, { stream: true })));
-    yield* lines;
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    const split = splitNdjsonChunk(remainder, decoder.decode(chunk.value, { stream: true }));
+    remainder = split.remainder;
+    yield* split.lines;
   }
   if (remainder.length > 0) {
     yield remainder;
@@ -92,17 +88,21 @@ function reportRunLine(line: RunStreamLine, onProgress: ProgressPainter, onOutpu
   }
 }
 
+// Progress and output lines carry no reply; any kind not listed here is a wire break and throws.
 function readRunReply(line: RunStreamLine): RunReply | undefined {
-  if (line.kind === WireRunStreamKind.result) {
-    return { kind: "result", result: line };
+  switch (line.kind) {
+    case WireRunStreamKind.result:
+      return { kind: "result", result: line };
+    case "consent-required":
+      return { kind: "consent-required" };
+    case "error":
+      throw new Error(line.label);
+    case "progress":
+    case WireRunStreamKind.output:
+      return undefined;
+    default:
+      throw new Error(`unknown script run stream line: ${JSON.stringify(line)}`);
   }
-  if (line.kind === "consent-required") {
-    return { kind: "consent-required" };
-  }
-  if (line.kind === "error") {
-    throw new Error(line.label);
-  }
-  return undefined;
 }
 
 async function readRunStream(body: ReadableStream<Uint8Array>, onProgress: ProgressPainter, onOutput: RunOutputHandler): Promise<RunReply> {
@@ -118,7 +118,7 @@ async function readRunStream(body: ReadableStream<Uint8Array>, onProgress: Progr
 }
 
 // An abort is a clean stop the user asked for: it returns cancelled and never throws.
-export async function requestScriptRun(request: WireScriptRunRequest, onProgress: ProgressPainter, onOutput: RunOutputHandler, signal: AbortSignal): Promise<RunReply> {
+export async function fetchScriptRun(request: WireScriptRunRequest, onProgress: ProgressPainter, onOutput: RunOutputHandler, signal: AbortSignal): Promise<RunReply> {
   try {
     const response = await fetch(buildRouteUrl("/api/layer1-script-run"), buildPostInit(request, signal));
     if (!response.ok) {

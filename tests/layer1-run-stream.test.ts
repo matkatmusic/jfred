@@ -2,14 +2,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requestScriptNeeds, requestScriptRun, type RunReply } from "../webapp/layer1-run-stream.ts";
+import { fetchScriptNeeds, fetchScriptRun, type RunReply } from "../webapp/layer1-run-stream.ts";
 import { WireRunOutcome, type WireScriptOutputLine, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const RUN_REQUEST = { sessionFile: "/logs/s1.jsonl", toolUseId: "toolu_1", allowScripts: true };
 const RESULT: WireScriptResult = {
-  kind: "script-result", toolUseId: "toolu_1", outcome: WireRunOutcome.replayed, files: [],
-  stdout: "hi\n", stderr: "", timedOut: false, isOutputSaved: true,
+  kind: "script-result", toolUseId: "toolu_1", outcome: WireRunOutcome.replayed, files: [], stdout: "hi\n", stderr: "", timedOut: false, isOutputSaved: true,
 };
 const NEED = { toolUseId: "toolu_0", sessionFile: "/logs/s1.jsonl", line: 4, instant: "2026-07-01T10:00:00.000Z", state: "unreplayed" };
 
@@ -48,13 +47,9 @@ async function runWith(chunks: string[]): Promise<{ reply: RunReply; progress: s
   const calls = installFetch(() => buildStreamReply(chunks));
   const progress: string[] = [];
   const output: string[] = [];
-  const onProgress = (label: string, current?: number): void => {
-    progress.push(`${label}:${current}`);
-  };
-  const onOutput = (line: WireScriptOutputLine): void => {
-    output.push(`${line.stream}:${line.text}`);
-  };
-  const reply = await requestScriptRun(RUN_REQUEST, onProgress, onOutput, new AbortController().signal);
+  const onProgress = (label: string, current?: number): void => { progress.push(`${label}:${current}`); };
+  const onOutput = (line: WireScriptOutputLine): void => { output.push(`${line.stream}:${line.text}`); };
+  const reply = await fetchScriptRun(RUN_REQUEST, onProgress, onOutput, new AbortController().signal);
   return { reply, progress, output, calls };
 }
 
@@ -62,14 +57,14 @@ test("test_requestScriptNeeds_posts_json_with_the_page_query_and_reads_an_empty_
   // Verify: the url and headers are right; an empty list and a two-entry list come back whole.
   initLayer1Dom("?dir=%2Fw");
   const calls = installFetch(() => buildJsonReply({ toolUseId: "toolu_1", needs: [] }));
-  const reply = await requestScriptNeeds({ sessionFile: "/logs/s1.jsonl", toolUseId: "toolu_1" }, new AbortController().signal);
+  const reply = await fetchScriptNeeds({ sessionFile: "/logs/s1.jsonl", toolUseId: "toolu_1" }, new AbortController().signal);
   assert.deepEqual(reply, { toolUseId: "toolu_1", needs: [] });
   assert.equal(calls[0]!.url, "/api/layer1-script-needs?dir=%2Fw");
   assert.equal(calls[0]!.init.method, "POST");
   assert.deepEqual(calls[0]!.init.headers, { "Content-Type": "application/json" });
   const needs = [NEED, { ...NEED, toolUseId: "toolu_00", state: "replay-failed" }];
   installFetch(() => buildJsonReply({ toolUseId: "toolu_1", needs }));
-  const twoEntryReply = await requestScriptNeeds({ sessionFile: "f", toolUseId: "t" }, new AbortController().signal);
+  const twoEntryReply = await fetchScriptNeeds({ sessionFile: "f", toolUseId: "t" }, new AbortController().signal);
   assert.deepEqual(twoEntryReply.needs, needs);
 });
 
@@ -78,11 +73,11 @@ test("test_requestScriptNeeds_throws_on_a_400_and_on_a_wrong_shape", async () =>
   initLayer1Dom();
   const signal = new AbortController().signal;
   installFetch(() => buildJsonReply("bad host", 400));
-  await assert.rejects(requestScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /bad host/);
+  await assert.rejects(fetchScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /bad host/);
   installFetch(() => buildJsonReply({ toolUseId: "toolu_1", needs: [{ ...NEED, state: "weird" }] }));
-  await assert.rejects(requestScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /not a needed run/);
+  await assert.rejects(fetchScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /not a needed run/);
   installFetch(() => buildJsonReply({ nope: true }));
-  await assert.rejects(requestScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /not a script-needs reply/);
+  await assert.rejects(fetchScriptNeeds({ sessionFile: "f", toolUseId: "t" }, signal), /not a script-needs reply/);
 });
 
 test("test_requestScriptNeeds_rejects_with_the_abort_reason", async () => {
@@ -93,7 +88,7 @@ test("test_requestScriptNeeds_rejects_with_the_abort_reason", async () => {
     init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
   });
   Object.assign(globalThis, { fetch: stubbedFetch });
-  const pending = requestScriptNeeds({ sessionFile: "f", toolUseId: "t" }, controller.signal);
+  const pending = fetchScriptNeeds({ sessionFile: "f", toolUseId: "t" }, controller.signal);
   controller.abort(new Error("stop now"));
   await assert.rejects(pending, /stop now/);
 });
@@ -123,6 +118,11 @@ test("test_requestScriptRun_throws_on_an_error_line", async () => {
   await assert.rejects(runWith([JSON.stringify({ kind: "progress", label: "x" }) + "\n"]), /ended before the result/);
 });
 
+test("test_requestScriptRun_throws_on_an_unknown_line_kind", async () => {
+  // Verify: a line with an unknown kind throws an error naming the line.
+  await assert.rejects(runWith([JSON.stringify({ kind: "mystery", note: "x" }) + "\n"]), /unknown script run stream line.*mystery/);
+});
+
 test("test_requestScriptRun_returns_consent_required_for_the_single_json_reply", async () => {
   // Verify: the consent reply has no trailing newline and still reads as one line.
   const { reply } = await runWith([JSON.stringify({ kind: "consent-required", scripts: [] })]);
@@ -142,7 +142,7 @@ test("test_requestScriptRun_returns_cancelled_when_the_signal_aborts_mid_stream"
     return { ok: true, status: 200, body, text: async () => "" } as unknown as Response;
   };
   Object.assign(globalThis, { fetch: stubbedFetch });
-  const pending = requestScriptRun(RUN_REQUEST, () => undefined, () => undefined, controller.signal);
+  const pending = fetchScriptRun(RUN_REQUEST, () => undefined, () => undefined, controller.signal);
   controller.abort();
   assert.deepEqual(await pending, { kind: "cancelled" });
 });

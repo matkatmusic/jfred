@@ -9,11 +9,13 @@ import { computeRunBracket,listDiffableSteps } from "./layer1-drawer-steps.ts";
 import { readDrawnView } from "./layer1-diff-wash.ts";
 import { renderCellCode } from "./diff-render.ts";
 import { computeScriptHighlightLanguage, formatScriptRunLabel } from "./layer1-script-language.ts";
-import { buildRunConsoleTrigger } from "./layer1-run-console.ts";
+import { buildRunConsoleTrigger, type CancelRun } from "./layer1-run-console.ts";
+import { isRunStarted } from "./layer1-run-results.ts";
 import { buildScriptRunFileFold, buildScriptRunFold } from "./layer1-script-run-folds.ts";
+import { buildScriptRunStatusBadges } from "./layer1-script-run-status.ts";
 import { storeOpenedNode } from "./layer1-node-link.ts";
 import { flashSession } from "./layer1-session-flash.ts";
-import type { WireScriptRun } from "./layer1-wire-script-runs.ts";
+import { WireScriptExecutorKind, type WireScriptRun } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 // Task 356: every pair path carrying a scriptRuns entry for `toolUseId` — the shared-drawer lookup.
@@ -66,26 +68,10 @@ export function buildScriptRunDiffPanes(
 
 // const SCRIPT_RUN_STATUSES: [string, string][] = [["🚫", "not verified"], ["📍", "located"], ["⏸️", "not replayed"]];
 
-// No wire field carries a run's status yet, so every run reads the same.
-const SCRIPT_RUN_STATUS = { verified: false, located: true, replayed: false };
-
-// Task 356: the #dpath status groups; a verified run needs no other check.
-// export function buildScriptRunStatusBadges(): HTMLElement[] {
-//     return SCRIPT_RUN_STATUSES.map(([text, title]) => createElement("span", { class: "run-status", text, title }));
-// }
-export function buildScriptRunStatusBadges(): (string | HTMLElement)[] {
-  const checks: (keyof typeof SCRIPT_RUN_STATUS)[] = SCRIPT_RUN_STATUS.verified ? ["verified"] : ["verified", "located", "replayed"];
-  const badges: (string | HTMLElement)[] = [];
-  for (const check of checks) {
-    const passed = SCRIPT_RUN_STATUS[check];
-    // dpath collapses normal spaces, so each | is padded with two non-breaking spaces.
-    // badges.push(`  ${check[0]!.toUpperCase()}${check.slice(1)}: `,
-    //   createElement("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
-    badges.push("  |  ", createElement("span", { class: "run-check", text: `${check[0]!.toUpperCase()}${check.slice(1)}: ` }),
-      createElement("span", { class: "run-status", text: passed ? "✅" : "❌", title: passed ? check : `not ${check}` }));
-  }
-  return badges;
-}
+// The status marks now read the stored result: layer1-script-run-status.ts.
+// const SCRIPT_RUN_STATUS = { verified: false, located: true, replayed: false };
+// The old badge loop moved to buildScriptRunStatusBadges; its first line was:
+// badges.push("  |  ", createElement("span", { class: "run-check", text: `${check[0]!.toUpperCase()}${check.slice(1)}: ` }),
 
 // A script run's title: its script file's label, else its language's.
 export function getScriptRunTitle(run: WireScriptRun): string {
@@ -108,7 +94,7 @@ function collectScriptRunMeta(run: WireScriptRun): { metaRows: [string, string][
   return { metaRows, provenanceParts };
 }
 
-export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
+export function buildScriptRunDetail(run: WireScriptRun, cancelRun: CancelRun): HTMLElement[] {
   const { metaRows, provenanceParts } = collectScriptRunMeta(run);
   const scriptMeta = createElement("dl", { class: "script-meta" });
   for (const [term, value] of metaRows) {
@@ -119,8 +105,9 @@ export function buildScriptRunDetail(run: WireScriptRun): HTMLElement[] {
   const head = createElement("summary", { class: "sbhead" }, [createElement("b", { text: getScriptRunTitle(run) }), createElement("span", { class: "prov", text: provenanceParts.join(" · ") })]);
   const metaSummary = createElement("summary", { text: "kind, executor, instant, session, line, tool use id" });
   const folds = [buildScriptRunFold("script-meta-fold", metaSummary, [scriptMeta], false), buildScriptRunFold("scriptbody", head, [pre], true)];
-  const hasRunState = run.confidence !== undefined;
-  return hasRunState ? [buildRunConsoleTrigger(), ...folds] : folds;
+  // const hasRunState = run.confidence !== undefined;
+  const isConsoleShown = isRunStarted(run.toolUseId) && run.executorKind === WireScriptExecutorKind.python;
+  return isConsoleShown ? [buildRunConsoleTrigger(run.toolUseId, cancelRun), ...folds] : folds;
 }
 
 // Task 356: identity is toolUseId, not (node, path) — one shared drawer for every bubble the run touches.
@@ -147,12 +134,12 @@ function hideDrawerStepButtons(): void {
 
 function renderScriptRunHeader(run: WireScriptRun, paths: string[]): void {
   const header = getRequiredElementById("dpath");
-  header.replaceChildren(getScriptRunTitle(run), ...buildScriptRunStatusBadges());
+  header.replaceChildren(getScriptRunTitle(run), ...buildScriptRunStatusBadges(run));
   header.title = paths.join("\n");
   getRequiredElementById("dmeta").replaceChildren(buildScriptRunFileFold(getScriptRunTitle(run), paths));
 }
 
-export async function openScriptRunDrawer(toolUseId: string | undefined): Promise<void> {
+export async function openScriptRunDrawer(toolUseId: string | undefined, cancelRun: CancelRun): Promise<void> {
   const view = readDrawnView();
   const isViewMissing = view === undefined;
   const isToolUseIdMissing = toolUseId === undefined;
@@ -164,10 +151,10 @@ export async function openScriptRunDrawer(toolUseId: string | undefined): Promis
   if (run === undefined) {
     return;
   }
-  renderScriptRunDrawer(view, run);
+  renderScriptRunDrawer(view, run, cancelRun);
 }
 
-function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun): void {
+function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun, cancelRun: CancelRun): void {
   const paths = listScriptRunPaths(view, run.toolUseId);
   clearDiffPair();
   storeOpenedNode({ instant: run.instant, sessionFile: run.sessionFile, line: run.line });
@@ -175,7 +162,7 @@ function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun): void {
   renderScriptRunHeader(run, paths);
   getRequiredElementById("drawer").classList.add("open");
   setDrawerTools("none");
-  renderDetailView([...buildScriptRunDetail(run), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
+  renderDetailView([...buildScriptRunDetail(run, cancelRun),...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {
     appendRawJsonRevealForLine(run.sessionFile, run.line);
   }
