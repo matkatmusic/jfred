@@ -3,9 +3,10 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import {
-  COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, NEVER_PROVABLE_ID, NEVER_PROVABLE_RULE_COUNT, README_BUBBLE, README_NODE_FACTS,
-  SHOW_BOX_KINDS, type NodeFacts,
+  COUNT_CONSENT_DIALOGS, COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, HIDE_CONSENT, NEVER_PROVABLE_ID, NEVER_PROVABLE_RULE_COUNT, README_BUBBLE,
+  README_NODE_FACTS, SHOW_BOX_KINDS, SHOW_CONSENT, type NodeFacts,
 } from "./layer6-probes.ts";
+import { WAIT_MS } from "./layer6-steps.ts";
 import {
   findNodeFacts, isExpectedNodeSet, isMismatchAlone, isStateFilterAbsent, listNodeClasses, listNodeSignatures, listNodeSizes,
   listUniqueValues,
@@ -23,7 +24,11 @@ async function validateBeforeOpen(page: HeadlessPage): Promise<void> {
 async function saveNodeScreenshot(page: HeadlessPage): Promise<void> {
   // inline start puts the node under the sticky ruler, so the script scrolls back left past it.
   await page.evaluate(SCROLL_TO_FIRST_NODE);
+  // The pending dot on screen opens the consent dialog; hide it only for the screenshot.
+  await page.waitFor(`${COUNT_CONSENT_DIALOGS} === 1`, WAIT_MS);
+  await page.evaluate(HIDE_CONSENT);
   await saveScreenshot(page, "12-layer6-node-states");
+  await page.evaluate(SHOW_CONSENT);
   console.log("L6 screenshot: scripts/visual/out/mockup-12-layer6-node-states.png");
 }
 

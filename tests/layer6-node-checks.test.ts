@@ -9,7 +9,7 @@ import { type HeadlessPage } from "../scripts/visual/cdp.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
 import { validateNodeStates } from "../scripts/visual/layer6-node-checks.ts";
 import {
-    DERIVED_ID, INJECTED_ID, MISMATCH_ID, NEVER_PROVABLE_ID, ORIGINAL_FAILED_ID, PENDING_ID, VERIFIED_ID, type NodeFacts,
+    DERIVED_ID, HIDE_CONSENT, INJECTED_ID, MISMATCH_ID, NEVER_PROVABLE_ID, ORIGINAL_FAILED_ID, PENDING_ID, SHOW_CONSENT, VERIFIED_ID, type NodeFacts,
 } from "../scripts/visual/layer6-probes.ts";
 
 const SCREENSHOT_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-12-layer6-node-states.png");
@@ -38,6 +38,8 @@ const makeGoodNodes = (changes: NodeChanges): NodeFacts[] => {
     return nodes.map((node) => ({ ...node, ...GOOD_CHANGES[node.id], ...changes[node.id] }));
 };
 
+const consentExpressions: string[] = [];
+
 interface PageAnswers { consoleTotal: number; stateTotal: number; nodes: NodeFacts[]; ruleCount: number; kinds: string[] }
 const makeAnswers = (changes: NodeChanges, rest: Partial<PageAnswers> = {}): PageAnswers => ({
     consoleTotal: 0, stateTotal: 5, nodes: makeGoodNodes(changes), ruleCount: 1, kinds: ["edit", "script", "read"], ...rest,
@@ -57,6 +59,8 @@ const makeFakePage = (answers: PageAnswers, scrolls: string[]): HeadlessPage => 
             return answers.ruleCount;
         if (expression.includes("#show-row"))
             return answers.kinds;
+        if (expression.includes("run-consent"))
+            return consentExpressions.push(expression);
         throw new Error(`unexpected expression: ${expression}`);
     };
     return {
@@ -99,6 +103,12 @@ test("validateNodeStates passes every check for the README fixture and returns t
     assert.equal(lines.filter((line) => line.startsWith("PASS  L6")).length, 8);
     assert.equal(scrolls.length, 1);
     assert.ok(lines.some((line) => line.includes("mockup-12-layer6-node-states.png")));
+});
+
+test("validateNodeStates hides the consent dialog only around the screenshot", async () => {
+    consentExpressions.length = 0;
+    await runChecks(makeAnswers({}));
+    assert.deepEqual(consentExpressions, [HIDE_CONSENT, SHOW_CONSENT]);
 });
 
 test("validateNodeStates fails the before-open check when a run console is already on the page", async () => {

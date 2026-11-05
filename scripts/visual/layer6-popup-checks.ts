@@ -1,19 +1,19 @@
-// Layer 6 popup checks: open the run console from the drawer, then judge its content, colours, placement and silence.
+// Layer 6 popup checks: judge the run console of the pending run.
 
 import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import {
-  CLICK_CANCEL, CLICK_OPEN_BUTTON, MISMATCH_ID, POPUP_FACTS, POPUP_TEXT, RESOURCE_NAMES, buildTitleColour, type NodeFacts, type PopupFacts,
+  CLICK_CANCEL, CLICK_OPEN_BUTTON, MISMATCH_ID, POPUP_FACTS, POPUP_TEXT, RESOURCE_NAMES, type NodeFacts, type PopupFacts,
 } from "./layer6-probes.ts";
 import { findNodeFacts } from "./layer6-node-facts.ts";
 import {
-  isCancelButtonsRight, isEventColoursSame, isTerminalBlocksRight, isPopupClearOfDrawer, isPopupContentRight, isPopupShown,
-  listNewResources,
+  CancelKind, isCancelButtonRight, isPopupClearOfDrawer, isPopupContentRight, isPopupShown, isTerminalBlockRight, listNewResources,
 } from "./layer6-popup-facts.ts";
 
 const SETTLE_MS = 1_000;
 const QUIET_MS = 700;
 const CONSENT_WORDS = /consent|allow|permit|proceed/i;
+const PENDING_OUTPUT = "reading README.md\nwriting README.md\ndone";
 
 interface OpenedPopup { popup: PopupFacts; text: string; resources: string[] }
 
@@ -52,20 +52,10 @@ async function validateStillness(page: HeadlessPage, opened: OpenedPopup): Promi
 
 function validateContent(popup: PopupFacts, nodes: NodeFacts[]): void {
   const mismatchNode = findNodeFacts(nodes, MISMATCH_ID);
-  reportCheck("L6 the popup holds one pre with pre white-space, one console caption in italic and one state caption", isPopupContentRight(popup), popup);
-  reportCheck("L6 the popup has 3 cancel buttons: idle disabled, live enabled in the mismatch colour, cancelled disabled and struck through",
-    isCancelButtonsRight(popup,mismatchNode?.borderColor), popup);
-  reportCheck("L6 the popup has 4 terminal blocks with 4 different title colours", isTerminalBlocksRight(popup), popup);
-}
-
-async function validateSameEvent(page: HeadlessPage, nodes: NodeFacts[]): Promise<void> {
-  const titles = {
-    mismatch: await page.evaluate<string>(buildTitleColour("term-mismatch")),
-    verified: await page.evaluate<string>(buildTitleColour("term-verified")),
-    originalFailed: await page.evaluate<string>(buildTitleColour("term-original-failed")),
-  };
-  reportCheck("L6 node and console read as one event: mismatch, verified and original-failed colours match their terminal titles",
-    isEventColoursSame(nodes, titles), titles);
+  reportCheck("L6 the popup holds one pre with pre white-space and the 3 output lines of the pending run", isPopupContentRight(popup, PENDING_OUTPUT), popup);
+  reportCheck("L6 a finished run shows 1 Cancel button: idle and disabled",
+    isCancelButtonRight(popup, CancelKind.idle, mismatchNode?.borderColor), popup);
+  reportCheck("L6 a verified run shows 1 terminal block, in the verified class", isTerminalBlockRight(popup, "term-verified"), popup);
 }
 
 async function validatePlacement(page: HeadlessPage, popup: PopupFacts): Promise<void> {
@@ -80,14 +70,15 @@ async function validateCancel(page: HeadlessPage, opened: OpenedPopup): Promise<
   const resources = await readResourceNames(page);
   const textNow = await page.evaluate<string>(POPUP_TEXT);
   const isQuiet = resources.length === opened.resources.length && textNow === opened.text;
-  reportCheck("L6 cancel does nothing: no request and the same popup text", isQuiet, listNewResources(opened.resources, resources));
+  reportCheck("L6 the disabled Cancel of a finished run does nothing: no request and the same popup text", isQuiet, listNewResources(opened.resources, resources));
 }
 
-export async function validatePopup(page: HeadlessPage, nodes: NodeFacts[]): Promise<void> {
+// Returns the verified title colour, which the outcome checks compare with the node.
+export async function validatePopup(page: HeadlessPage, nodes: NodeFacts[]): Promise<string> {
   const opened = await validateOpening(page);
   await validateStillness(page, opened);
   validateContent(opened.popup, nodes);
-  await validateSameEvent(page, nodes);
   await validatePlacement(page, opened.popup);
   await validateCancel(page, opened);
+  return opened.popup.terminalColours[0] ?? "";
 }
