@@ -163,6 +163,12 @@
   .show-row .sw-created { border: 3px dotted var(--muted); background: transparent; }
   .show-row .sw-script-run { background: var(--c-script); }
   .show-row .sw-branch { background: var(--c-user); opacity: .38; }
+  .show-row .show-kind:has(.sw-commit) { color: var(--c-commit); }
+  .show-row .show-kind:has(.sw-snapshot) { color: var(--c-snap); }
+  .show-row .show-kind:has(.sw-edit) { color: var(--c-edit); }
+  .show-row .show-kind:has(.sw-script-run) { color: var(--c-script); }
+  .show-row .show-kind:has(.sw-branch) { color: color-mix(in srgb, var(--c-user) 38%, transparent); }
+  .show-row .show-kind:has(.sw-tool) { color: var(--ink); }
 
   /*
     Build progress strip sits in the page flow, not an overlay: main.timelines scrolls, so absolute positioning would drift.
