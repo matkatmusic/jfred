@@ -1,0 +1,84 @@
+// Task 358 part B: every proof file content for one target, from the same collectors layer 3 uses.
+
+import { WireEditKind } from "../webapp/layer1-wire-edits.ts";
+import { collectCommitBeaconNodes } from "./layered_git_beacons.ts";
+import type { BeaconNode } from "./layered_types.ts";
+import { collectSnapshotBeaconNodes } from "./layered_snapshot_beacons.ts";
+import { collectBashCatBeacons } from "./layer1_cat_beacons.ts";
+import { readSessionEditEvents } from "./layer1_edit_events.ts";
+import { loadTranscript } from "./parse/loadTranscript.ts";
+import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
+import type { Path } from "./structures/domain.ts";
+import type { TranscriptRecord } from "./structures/envelope.ts";
+
+// The tie order lives in SOURCE_TIE_RANK in layer1_run_verdict.ts.
+export const BeaconSource = {
+  fileHistory: "fileHistory",
+  readEcho: "readEcho",
+  bashCat: "bashCat",
+  commit: "commit",
+} as const;
+export type BeaconSource = (typeof BeaconSource)[keyof typeof BeaconSource];
+
+export type BeaconCandidate = { source: BeaconSource; instant: Date; content: string };
+
+function buildCandidatesFromBeacons(source: BeaconSource, beacons: BeaconNode[]): BeaconCandidate[] {
+  const candidates: BeaconCandidate[] = [];
+  for (const beacon of beacons) {
+    candidates.push({ source, instant: beacon.instant, content: beacon.content });
+  }
+  return candidates;
+}
+
+function collectBashCatIds(records: TranscriptRecord[], sessionFile: Path): Set<string> {
+  const ids = new Set<string>();
+  for (const beacon of collectBashCatBeacons(records, sessionFile)) {
+    ids.add(beacon.changeId.toString());
+  }
+  return ids;
+}
+
+function compareCandidateInstants(left: BeaconCandidate, right: BeaconCandidate): number {
+  return left.instant.getTime() - right.instant.getTime();
+}
+
+// readSessionEditEvents holds complete Read echoes only: a partial window becomes a stub, never an event.
+function listReadCandidates(target: Path, sessionFile: Path, records: TranscriptRecord[]): BeaconCandidate[] {
+  const bashCatIds = collectBashCatIds(records, sessionFile);
+  const candidates: BeaconCandidate[] = [];
+  for (const event of readSessionEditEvents(sessionFile)) {
+    const isReadOfTarget = event.kind === WireEditKind.read && event.target.equals(target);
+    if (!isReadOfTarget) {
+      continue;
+    }
+    if (event.content === undefined) {
+      continue;
+    }
+    const source = bashCatIds.has(event.changeId.toString()) ? BeaconSource.bashCat : BeaconSource.readEcho;
+    candidates.push({ source, instant: event.instant, content: event.content });
+  }
+  return candidates;
+}
+
+function listFileHistoryCandidates(target: Path, records: TranscriptRecord[]): BeaconCandidate[] {
+  const reader = buildSidecarReader(records);
+  if (reader === undefined) {
+    return [];
+  }
+  const beacons = collectSnapshotBeaconNodes(records, reader).get(target.toString()) ?? [];
+  return buildCandidatesFromBeacons(BeaconSource.fileHistory, beacons);
+}
+
+function listSessionCandidates(target: Path, sessionFile: Path): BeaconCandidate[] {
+  const { records } = loadTranscript(sessionFile.toString(), undefined, true);
+  return [...listReadCandidates(target, sessionFile, records), ...listFileHistoryCandidates(target, records)];
+}
+
+export function listBeaconCandidates(target: Path, sessionFiles: Path[], repoPath: Path): BeaconCandidate[] {
+  const candidates: BeaconCandidate[] = [];
+  for (const sessionFile of sessionFiles) {
+    candidates.push(...listSessionCandidates(target, sessionFile));
+  }
+  candidates.push(...buildCandidatesFromBeacons(BeaconSource.commit, collectCommitBeaconNodes(repoPath, target)));
+  return candidates.sort(compareCandidateInstants);
+}
