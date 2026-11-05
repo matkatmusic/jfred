@@ -62,6 +62,13 @@ test("test_findRealScript_returns_only_the_changed_paths_that_are_pairs", async 
     assert.deepEqual(picked.changedPaths, ["src/a.py", "src/b.py"]);
 });
 
+test("test_findRealScript_returns_the_replay_result_of_the_picked_run", async () => {
+    const picked = await pickWith({ toolu_early: [verified("src/a.py")] }, ["src/a.py"]);
+    assert.equal(picked.replayResult.toolUseId, "toolu_early");
+    assert.equal(picked.replayResult.outcome, WireRunOutcome.replayed);
+    assert.deepEqual(picked.replayResult.files, [verified("src/a.py")]);
+});
+
 test("test_findRealScript_throws_the_named_reason_with_the_count_when_no_run_qualifies", async () => {
     const outsideOnly = { toolu_early: [verified("docs/orphan.md")], toolu_late: [verified("docs/other.md")] };
     await assert.rejects(pickWith(outsideOnly, ["src/a.py"]), (error: Error) => {
