@@ -20,7 +20,7 @@ test("test_buildDockerRunArgs_returns_the_closed_box_command", () => {
         "run", "--rm", "--pull", "never", "--network", "none",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "1g",
         "--name", "run-1", "-v", "/tmp/seed:/Users/me/proj", "-w", "/Users/me/proj",
-        "python:3.14-slim", "python3", "__script__.py",
+        "reveng-sandbox:1", "python3", "__script__.py",
     ]);
 });
 
@@ -39,9 +39,16 @@ test("test_buildDockerRunArgs_passes_the_hardening_flags", () => {
     }
 });
 
-test("test_SANDBOX_IMAGE_is_the_python_3_14_slim_tag", () => {
-    assert.equal(SANDBOX_IMAGE, "python:3.14-slim");
+test("test_SANDBOX_IMAGE_is_the_reveng_sandbox_tag", () => {
+    assert.equal(SANDBOX_IMAGE, "reveng-sandbox:1");
     assert.equal(DEFAULT_SANDBOX_MOUNT.toString(), "/work");
+});
+
+test("test_sandbox_image_has_git_and_a_wildcard_safe_directory", () => {
+    const gitVersion = spawnSync("docker", ["run", "--rm", "--pull", "never", "--network", "none", SANDBOX_IMAGE, "git", "--version"], { encoding: "utf8" });
+    assert.equal(gitVersion.status, 0, gitVersion.stderr);
+    const safeDirectory = spawnSync("docker", ["run", "--rm", "--pull", "never", "--network", "none", SANDBOX_IMAGE, "git", "config", "--system", "--get", "safe.directory"], { encoding: "utf8" });
+    assert.equal(safeDirectory.stdout.trim(), "*");
 });
 
 test("test_chooseSandboxMount_returns_recorded_cwd_or_work", () => {
@@ -67,7 +74,7 @@ test("test_assertSandboxImagePresent_throws_the_plain_text_when_docker_is_missin
             () => assertSandboxImagePresent(),
             (error: Error) =>
                 error instanceof DockerUnavailableError &&
-                error.message === "Docker is off or the image python:3.14-slim is missing",
+                error.message === "Docker is off, or the image reveng-sandbox:1 is missing. Build it once (needs the network) with: npm run sandbox:build, run in the jfred folder.",
         );
     }
     finally {

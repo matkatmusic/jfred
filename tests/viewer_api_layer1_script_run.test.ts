@@ -128,7 +128,7 @@ test("test_receiveScriptRun_streams_the_docker_off_error_and_starts_no_host_proc
     const gateBefore = isImpureExecutionAllowed();
     const last = await readLastLine(input);
     process.env.PATH = originalPath;
-    assert.match(String(last.label), /Docker is off or the image python:3\.14-slim is missing/);
+    assert.match(String(last.label), /Docker is off, or the image reveng-sandbox:1 is missing/);
     assert.equal(isImpureExecutionAllowed(), gateBefore);
 });
 

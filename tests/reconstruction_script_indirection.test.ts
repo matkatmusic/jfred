@@ -68,6 +68,31 @@ test("test_applyScriptIndirection_replaces_the_code_with_the_written_script_body
     assert.equal(resolved.invokedScriptFile, "apply.py");
 });
 
+test("test_applyScriptIndirection_keeps_the_typed_path_and_command_on_the_run", () => {
+    const written = collectWrittenContentByBasename([
+        buildWriteRecord("toolu_1", "/proj/audit/x.py", "print('body')", "2026-01-01T00:00:01Z"),
+    ]);
+    const run = buildRun("python3 audit/x.py > out.md", "2026-01-01T00:00:02Z", ScriptExecutorKind.python);
+    const resolved = applyScriptIndirection(run, written);
+    assert.equal(resolved.invokedScriptPath, "audit/x.py");
+    assert.equal(resolved.invokedCommand, "python3 audit/x.py > out.md");
+});
+
+test("test_applyScriptIndirection_adds_no_path_or_command_key_without_indirection", () => {
+    const run = buildRun("python3 missing.py", "2026-01-01T00:00:02Z", ScriptExecutorKind.python);
+    const resolved = applyScriptIndirection(run, new Map());
+    assert.equal("invokedScriptPath" in resolved, false);
+    assert.equal("invokedCommand" in resolved, false);
+});
+
+test("test_applyScriptIndirection_keeps_the_git_branch_on_the_returned_run", () => {
+    const written = collectWrittenContentByBasename([
+        buildWriteRecord("toolu_1", "/proj/apply.py", "print(1)", "2026-01-01T00:00:01Z"),
+    ]);
+    const run = { ...buildRun("python3 apply.py", "2026-01-01T00:00:02Z", ScriptExecutorKind.python), gitBranch: "main" };
+    assert.equal(applyScriptIndirection(run, written).gitBranch, "main");
+});
+
 test("test_applyScriptIndirection_uses_the_latest_body_written_before_the_run", () => {
     const written = collectWrittenContentByBasename([
         buildWriteRecord("toolu_1", "/proj/apply.py", "old", "2026-01-01T00:00:01Z"),

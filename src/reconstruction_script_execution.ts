@@ -35,6 +35,11 @@ export type ScriptRun = {
   // The ctx_execute / ctx_execute_file input's `language`; absent for Bash and for tools without one.
   language?: string;
   invokedScriptFile?: string;
+  // The script path as typed in the command, and the full typed command; set only by script indirection.
+  invokedScriptPath?: string;
+  invokedCommand?: string;
+  // The record's gitBranch; absent when the record has none.
+  gitBranch?: string;
 };
 
 // A ctx_execute run in one of these languages is a shell run; every other language keeps the python kind.
@@ -85,6 +90,7 @@ function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
     return [];
   }
   const recordCwd = (record as { cwd?: Path }).cwd;
+  const gitBranch = record.gitBranch;
   const source = getRecordSource(record);
   const runs: ScriptRun[] = [];
   for (const block of getContentBlocks(record)) {
@@ -100,7 +106,7 @@ function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
       const isShell = block.name === ToolName.Bash || (language !== undefined && SHELL_LANGUAGES.has(language));
       const executorKind = isShell ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
       // An absent language must stay absent: a `language: undefined` KEY differs under deep equality.
-      runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }) });
+      runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }), ...(gitBranch === undefined ? {} : { gitBranch }) });
     }
   }
   return runs;

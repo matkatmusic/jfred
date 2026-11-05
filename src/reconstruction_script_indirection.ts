@@ -145,5 +145,5 @@ export function applyScriptIndirection(run: ScriptRun, writtenBodiesByBasename: 
   const executorKind = resolvesToPython ? ScriptExecutorKind.python : run.executorKind;
   // A flip to python must also rewrite the language, or a shell-language run would keep reading as shell.
   const language = resolvesToPython ? "python" : run.language;
-  return { ...run, code: body, executorKind, ...(language === undefined ? {} : { language }), invokedScriptFile: extractPathBasename(filename) };
+  return { ...run, code: body, executorKind, ...(language === undefined ? {} : { language }), invokedScriptFile: extractPathBasename(filename), invokedScriptPath: filename, invokedCommand: run.code };
 }

@@ -92,6 +92,26 @@ test("test_findScriptExecutionRuns_resolves_indirection_to_a_write_with_path_and
     assert.equal(runs[0]!.code, "print('new')\n");
 });
 
+test("test_findScriptExecutionRuns_carries_the_records_git_branch_on_the_run", () => {
+    const record = { ...buildToolRecord(ToolName.Bash, { command: "python3 -c 'print(1)'" }, "2026-01-01T00:00:01Z", "/tmp/proj"), gitBranch: "main" };
+    const runs = findScriptExecutionRuns([record]);
+    assert.equal(runs[0]!.gitBranch, "main");
+});
+
+test("test_findScriptExecutionRuns_adds_no_git_branch_key_when_the_record_has_none", () => {
+    const records = [buildToolRecord(ToolName.Bash, { command: "python3 -c 'print(1)'" }, "2026-01-01T00:00:01Z", "/tmp/proj")];
+    const runs = findScriptExecutionRuns(records);
+    assert.equal("gitBranch" in runs[0]!, false);
+});
+
+test("test_findScriptExecutionRuns_keeps_the_git_branch_after_script_indirection", () => {
+    const write = buildToolRecord(ToolName.Write, { file_path: "/w/apply.py", content: "print('v1')\n" }, "2026-01-01T00:00:01Z", "/w");
+    const bash = { ...buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:02Z", "/w"), gitBranch: "feature" };
+    const runs = findScriptExecutionRuns([write, bash]);
+    assert.equal(runs[0]!.code, "print('v1')\n");
+    assert.equal(runs[0]!.gitBranch, "feature");
+});
+
 test("test_findScriptExecutionRuns_carries_the_tool_use_id", () => {
     // A run remembers its tool_use block so the changeId can embed a session-attributable id.
     const records = [buildToolRecord(ToolName.Bash, { command: "python3 apply_renames.py" }, "2026-07-01T20:53:49.772Z")];

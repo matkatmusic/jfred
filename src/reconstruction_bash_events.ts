@@ -15,6 +15,7 @@ import {
   bashMoveCommand,
   bashOverwriteRedirect,
   bashRemoveCommand,
+  bashStderrRedirect,
   whitespaceRun,
 } from "./regex_expressions.ts";
 
@@ -56,7 +57,7 @@ export function parseCpPaths(command: string): CopyInfo | undefined {
 const NULL_DEVICE = "/dev/null";
 
 // A parsed bash output redirection: the target file and whether it appends (`>>`) rather than overwrites (`>`).
-type ParsedRedirect = {
+export type ParsedRedirect = {
   target: Path;
   appends: boolean;
 };
@@ -92,6 +93,11 @@ export function parseRedirect(command: string): ParsedRedirect | undefined {
   }
   // /dev/null is not a real file; suppress it (task 76).
   return undefined;
+}
+
+// Parse the stdout redirect target after removing stderr redirects.
+export function parseStdoutRedirect(command: string): ParsedRedirect | undefined {
+  return parseRedirect(command.replace(bashStderrRedirect, ""));
 }
 
 // Convert a Bash tool_use into file events; resolves relative paths against cwd.

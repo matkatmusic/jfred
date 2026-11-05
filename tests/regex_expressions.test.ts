@@ -12,6 +12,13 @@ test("test_bash_commands_capture_their_paths", () => {
   assert.equal(patterns.bashOverwriteRedirect.exec("echo hi >&2"), null);
 });
 
+test("test_bashStderrRedirect_strips_every_stderr_redirect_form", () => {
+  assert.equal("run.py > out.md 2> /tmp/cg.err".replace(patterns.bashStderrRedirect, ""), "run.py > out.md");
+  assert.equal("run.py > out.md 2>/tmp/cg.err".replace(patterns.bashStderrRedirect, ""), "run.py > out.md");
+  assert.equal("run.py 2>> err.log > out.md".replace(patterns.bashStderrRedirect, ""), "run.py > out.md");
+  assert.equal("run.py > out.md 2>&1".replace(patterns.bashStderrRedirect, ""), "run.py > out.md");
+});
+
 test("test_simple_patterns_match_expected_text", () => {
   assert.ok(patterns.numbersOnly.test("12"));
   assert.ok(!patterns.numbersOnly.test("12a"));

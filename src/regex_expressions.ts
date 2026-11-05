@@ -1,7 +1,7 @@
 // Every engine regular expression, named once. Use `g` constants only with `.match()` or `.replace()`.
 import {
   anyChar, capturedWord, digit, endAnchor, globalFlag, lazy, literalDot, literalPipe, lowercaseLetter,
-  matchAnyOf, matchNoneOf, matchOneOf, matchRepeatBetween, oneOrMore, oneOrMoreWhitespace, startAnchor, tab,
+  matchAnyOf, matchNoneOf, matchOneOf, matchRepeatBetween, nonWhitespace, oneOrMore, oneOrMoreWhitespace, startAnchor, tab,
   whitespace, wordChar, wrapCapture, wrapLookahead, wrapNegativeLookahead, wrapNegativeLookbehind,
   wrapOptionalGroup, zeroOrMore, zeroOrMoreWhitespace,
 } from "./regex_tokens.ts";
@@ -37,6 +37,13 @@ export const bashAppendRedirect = new RegExp(
 export const bashOverwriteRedirect = new RegExp(
   wrapNegativeLookbehind(">") + ">" + zeroOrMoreWhitespace + wrapNegativeLookahead("&") +
         capturedWord + zeroOrMoreWhitespace + endAnchor,
+);
+
+// A stderr redirect such as ` 2> file`, ` 2>> file` or ` 2>&1`. Same as /\s+2>{1,2}(?:&1|\s*\S+)/g.
+export const bashStderrRedirect = new RegExp(
+  oneOrMoreWhitespace + "2" + ">" + matchRepeatBetween(1, 2) +
+        matchAnyOf("&1", zeroOrMoreWhitespace + nonWhitespace + oneOrMore),
+  globalFlag,
 );
 
 // The `toolu_` prefix at the start of an id. Same as /^toolu_/.

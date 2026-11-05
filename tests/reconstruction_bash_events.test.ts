@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
-import { parseRedirect } from "../src/reconstruction_bash_events.ts";
+import { parseRedirect, parseStdoutRedirect } from "../src/reconstruction_bash_events.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { AppendEvent, OverwriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -27,7 +27,7 @@ function buildBashRecord(id: string, command: string, timestamp: string): Transc
     } as unknown as TranscriptRecord;
 }
 
-// One assistant record running `git mv a.py b.py` with the transcript cwd set to /work — the shape `collectEventsFromRecord` reads cwd from to resolve the rename's relative paths.
+// One assistant record running `git mv a.py b.py` with record cwd /work.
 function buildGitMvRecords(): TranscriptRecord[] {
     return [
         {
@@ -39,7 +39,7 @@ function buildGitMvRecords(): TranscriptRecord[] {
     ];
 }
 
-// `git mv a.py b.py` issued with cwd /work extracts to one rename whose from/to are resolved absolute against that cwd — so the rename can later link to the absolute Write/Edit targets.
+// `git mv a.py b.py` with cwd /work gives one rename with absolute from/to paths.
 test("test_extract_maps_git_mv_to_a_rename_with_cwd_resolved_paths", () => {
     // Build one assistant record: a Bash tool_use `git mv a.py b.py`, on a record whose cwd is /work.
     const records = buildGitMvRecords();
@@ -81,9 +81,9 @@ test("test_parseRedirect_ignores_the_null_device", () => {
     assert.equal(parseRedirect("echo hi > /a/f.txt")!.target.toString(), "/a/f.txt");
 });
 
-// task 150 — the redirect regex matches the `>` inside a JS arrow (`=>`), so a `node -e` one-liner from a real session minted the token `x.taskNumber).join(','))"` as a redirect target. Command-text shrapnel must never become a reconstruction target.
+// task 150: the `>` inside a JS arrow must not become a redirect target.
 test("test_parseRedirect_rejects_a_js_arrow_inside_a_node_one_liner", () => {
-    // The exact command shape that produced the task-150 bogus target: an arrow function whose `=>` is the last `>` in the command, followed by one non-space token to the end.
+    // The `=>` is the last `>`, followed by one token to the end.
     assert.equal(parseRedirect("node -e \"console.log(tasks.map(x => x.taskNumber).join(','))\""), undefined);
 });
 
@@ -105,4 +105,17 @@ test("test_parseRedirect_still_accepts_plain_and_absolute_targets", () => {
     const appended = parseRedirect("echo hi >> /a/log.txt")!;
     assert.equal(appended.target.toString(), "/a/log.txt");
     assert.equal(appended.appends, true);
+});
+
+// parseStdoutRedirect ignores a trailing stderr redirect and finds the stdout file.
+test("test_parseStdoutRedirect_finds_stdout_file_past_stderr_redirects", () => {
+    const overwritten = parseStdoutRedirect("python3 audit/x.py > docs/design/call_graph.md 2> /tmp/cg.err")!;
+    assert.equal(overwritten.target.toString(), "docs/design/call_graph.md");
+    assert.equal(overwritten.appends, false);
+    const appended = parseStdoutRedirect("python3 x.py >> log.txt")!;
+    assert.equal(appended.target.toString(), "log.txt");
+    assert.equal(appended.appends, true);
+    assert.equal(parseStdoutRedirect("python3 x.py | tail -40"), undefined);
+    assert.equal(parseStdoutRedirect("python3 x.py 2>&1 | tail -10"), undefined);
+    assert.equal(parseStdoutRedirect("python3 x.py > /dev/null"), undefined);
 });

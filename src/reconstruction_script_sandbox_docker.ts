@@ -3,12 +3,13 @@
 import { spawnSync } from "node:child_process";
 import { Path, Uuid } from "./structures/domain.ts";
 
-export const SANDBOX_IMAGE = "python:3.14-slim";
+export const SANDBOX_IMAGE = "reveng-sandbox:1";
+export const SANDBOX_BUILD_COMMAND = "npm run sandbox:build";
 export const DEFAULT_SANDBOX_MOUNT = new Path("/work");
 
 export class DockerUnavailableError extends Error {
   constructor() {
-    super(`Docker is off or the image ${SANDBOX_IMAGE} is missing`);
+    super(`Docker is off, or the image ${SANDBOX_IMAGE} is missing. Build it once (needs the network) with: ${SANDBOX_BUILD_COMMAND}, run in the jfred folder.`);
   }
 }
 
