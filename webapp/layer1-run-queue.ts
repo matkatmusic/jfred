@@ -4,7 +4,7 @@ import { openBusyShield, renderBusyShieldError } from "./layer1-busy-shield.ts";
 import { hideLayer1Progress, renderLayer1Progress } from "./layer1-progress.ts";
 import { refreshRunConsole } from "./layer1-run-console.ts";
 import { openRunConsent } from "./layer1-run-consent.ts";
-import { appendRunOutput, markRunCancelled, markRunStarted, storeRunResult } from "./layer1-run-results.ts";
+import { appendRunOutput, markRunCancelled, markRunStarted, paintRunDotsOfRun, storeRunResult } from "./layer1-run-results.ts";
 import { clearNeedsCache, computeRunRoutes, runQueueState } from "./layer1-run-route.ts";
 import { fetchScriptRun, type RunReply } from "./layer1-run-stream.ts";
 import type { WireScriptOutputLine } from "./layer1-wire-script-results.ts";
@@ -38,6 +38,7 @@ function markRunRunning(run: WireScriptRun): AbortController {
   controllers.set(run.toolUseId, controller);
   runQueueState.runningId = run.toolUseId;
   markRunStarted(run.toolUseId);
+  paintRunDotsOfRun(run.toolUseId);
   return controller;
 }
 
@@ -116,6 +117,7 @@ export function stopRun(toolUseId: string): void {
     throw new Error(`script ${toolUseId} is not running`);
   }
   markRunCancelled(toolUseId);
+  paintRunDotsOfRun(toolUseId);
   controller.abort();
   refreshRunConsole(toolUseId);
 }

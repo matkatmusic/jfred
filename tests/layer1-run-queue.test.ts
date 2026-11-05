@@ -2,6 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { addRunsToQueue, resetRunQueue, stopRun } from "../webapp/layer1-run-queue.ts";
 import { runQueueState } from "../webapp/layer1-run-route.ts";
 import { getCancelledRunIds, getRunOutcome, getRunOutput, isRunStarted, storeRunResult } from "../webapp/layer1-run-results.ts";
@@ -105,6 +106,38 @@ test("test_stopRun_cancels_the_running_script_and_it_is_not_retried", async () =
   assert.equal(getCancelledRunIds().has("slow"), true);
   assert.equal(log.runCalls.length, 1);
   assert.throws(() => stopRun("slow"), /not running/);
+});
+
+function drawRunDotOnPage(id: string): HTMLElement {
+  const dot = createElement("i", { class: "node n-script", "data-tool-use-id": id });
+  getRequiredElementById("stage").replaceChildren(dot);
+  return dot;
+}
+
+test("test_addRunsToQueue_shows_the_running_mark_on_the_dots_while_the_script_runs", async () => {
+  // Verify: a dot already on the page turns to the running arc when its run starts.
+  initPage();
+  const log = installServer({ holdRuns: true });
+  const dot = drawRunDotOnPage("slow");
+  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await waitAndAcceptConsent();
+  await waitUntil(() => log.runCalls.length === 1);
+  assert.ok(dot.classList.contains("run-end-running"));
+  assert.equal(dot.querySelectorAll(".run-mark.mark-running").length, 1);
+  resetRunQueue();
+});
+
+test("test_stopRun_shows_the_cancelled_mark_on_the_dots", async () => {
+  // Verify: a dot already on the page turns to the strike when its run is cancelled.
+  initPage();
+  const log = installServer({ holdRuns: true });
+  const dot = drawRunDotOnPage("slow");
+  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await waitAndAcceptConsent();
+  await waitUntil(() => log.runCalls.length === 1);
+  stopRun("slow");
+  assert.ok(dot.classList.contains("run-end-cancelled"));
+  assert.equal(dot.querySelectorAll(".run-mark.mark-cancelled").length, 1);
 });
 
 test("test_resetRunQueue_aborts_the_running_script_and_does_not_throw_when_none_runs", async () => {

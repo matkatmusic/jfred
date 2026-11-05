@@ -757,12 +757,38 @@
   */
   .node.n-script { background: var(--surface); border: 3.5px solid var(--c-script); width: 13px; height: 13px; }
   .node.n-script.never-provable { border: 2px dashed var(--c-script); }
-  .node.n-script.run-state-verified { outline: 2px solid var(--c-edit); outline-offset: 1px; }
-  .node.n-script.run-state-derived { outline: 2px dashed var(--c-edit); outline-offset: 1px; }
-  .node.n-script.run-state-mismatch { border-color: var(--c-mismatch); background: radial-gradient(var(--c-mismatch) 0 2px, var(--surface) 2px);
-    outline: 3px double var(--c-mismatch); outline-offset: 1px; }
-  .node.n-script.run-state-original-failed { outline: 2px solid var(--c-echo); outline-offset: 1px; }
-  .node.n-script.run-state-injected-unverified { outline: 2px dotted var(--muted); outline-offset: 1px; }
+  /*
+    Old per-confidence outlines, replaced by the run marks below:
+    .node.n-script.run-state-verified { outline: 2px solid var(--c-edit); outline-offset: 1px; }
+    .node.n-script.run-state-derived { outline: 2px dashed var(--c-edit); outline-offset: 1px; }
+    .node.n-script.run-state-mismatch { border-color: var(--c-mismatch); background: radial-gradient(var(--c-mismatch) 0 2px, var(--surface) 2px);
+      outline: 3px double var(--c-mismatch); outline-offset: 1px; }
+    .node.n-script.run-state-original-failed { outline: 2px solid var(--c-echo); outline-offset: 1px; }
+    .node.n-script.run-state-injected-unverified { outline: 2px dotted var(--muted); outline-offset: 1px; }
+  */
+  /*
+    Script dot states: light mode gives each python dot a thin black outline. No state has its own.
+  */
+  .node.n-script:not(.never-provable) { outline: 1px solid #000; outline-offset: 0; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .node.n-script { outline: none; } }
+  :root[data-theme="dark"] .node.n-script { outline: none; }
+  /*
+    The mark is a child svg: .node.aimed and .node.found already use the pseudo-elements.
+  */
+  .node.n-script .run-mark { position: absolute; left: -3.5px; top: -3.5px; width: 13px; height: 13px; overflow: visible; pointer-events: none; color: var(--ink);
+    filter: drop-shadow(.6px 0 0 var(--surface)) drop-shadow(-.6px 0 0 var(--surface)) drop-shadow(0 .6px 0 var(--surface)) drop-shadow(0 -.6px 0 var(--surface)); }
+  .node.n-script .run-mark.mark-replay-failed, .node.n-script .run-mark.mark-original-failed { color: var(--c-mismatch); }
+  .node.n-script .run-mark.mark-verified { color: var(--c-edit); }
+  .node.n-script .run-mark.mark-mismatch, .node.n-script .run-mark.mark-injected-unverified { color: var(--c-echo); }
+  .node.n-script .run-mark.mark-not-replayed { color: var(--ink2); }
+  .node.n-script.run-end-not-replayed { border-color: var(--muted); }
+  /*
+    running: a bright arc turns around the ring; cancelled: a diagonal strike across the whole dot.
+  */
+  .node.n-script .run-mark.mark-running { filter: none; transform-origin: 50% 50%; animation: run-mark-turn 1s linear infinite; }
+  @keyframes run-mark-turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .node.n-script .run-mark.mark-running { animation: none; } }
+  .node.n-script .run-mark.mark-cancelled { left: -5px; top: -5px; width: 16px; height: 16px; color: var(--ink2); filter: none; }
   /*
     Task l6-mockup: run console sits over the timeline inside .stagewrap, above the minimap (20), below .modal-wrap (50).
   */

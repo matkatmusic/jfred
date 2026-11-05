@@ -5,10 +5,12 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { WireRewindKind, type WireBranch } from "../webapp/layer1-wire-branches.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
+import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { WireScriptExecutorKind, type WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 
 initLayer1Dom();
 const { appendAxisNode, appendBranchLane, appendScriptRunNode, setAxisPx } = await import("../webapp/layer1-lane-nodes.ts");
+const { resetRunResults, storeRunResult } = await import("../webapp/layer1-run-results.ts");
 
 const INSTANT = "2026-06-02T09:00:00.000Z";
 
@@ -63,6 +65,40 @@ test("test_appendScriptRunNode_marks_a_bash_run_never_provable_with_no_state_cla
   const dot = lane.querySelector("i.node.n-script") as HTMLElement;
   assert.ok(dot.classList.contains("never-provable"));
   assert.ok(!dot.className.includes("run-state-"));
+  assert.ok(!dot.className.includes("run-end-"));
+  assert.equal(dot.querySelectorAll(".run-mark").length, 0);
+});
+
+test("test_appendScriptRunNode_draws_the_not_run_default_for_a_python_run_with_no_result", () => {
+  // Scenario: a python run with no stored result gets the ? mark.
+  resetRunResults();
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, SCRIPT_RUN);
+  const dot = lane.querySelector("i.node.n-script") as HTMLElement;
+  assert.ok(dot.classList.contains("run-end-not-run"));
+  assert.equal(dot.querySelectorAll(".run-mark.mark-not-run").length, 1);
+});
+
+test("test_appendScriptRunNode_draws_the_stored_run_state_when_a_lane_is_redrawn", () => {
+  // Scenario: the result arrived while the dot was off screen; the redraw shows the same state.
+  resetRunResults();
+  storeRunResult({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] }, { kind: "script-result", toolUseId: "toolu_1", outcome: WireRunOutcome.replayFailed, files: [], stdout: "", stderr: "", timedOut: false, isOutputSaved: true });
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, SCRIPT_RUN);
+  const dot = lane.querySelector("i.node.n-script") as HTMLElement;
+  assert.ok(dot.classList.contains("run-end-replay-failed"));
+  assert.equal(dot.querySelectorAll(".run-mark.mark-replay-failed").length, 1);
+  resetRunResults();
+});
+
+test("test_appendScriptRunNode_draws_the_rating_mark_for_a_run_with_a_confidence", () => {
+  // Scenario: a changed file's run carries its rating, so the redraw shows the rating mark.
+  resetRunResults();
+  const lane = document.createElement("div");
+  appendScriptRunNode(lane, 10, { ...SCRIPT_RUN, confidence: WireConfidence.mismatch });
+  const dot = lane.querySelector("i.node.n-script") as HTMLElement;
+  assert.equal(dot.querySelectorAll(".run-mark.mark-mismatch").length, 1);
+  assert.equal(dot.querySelectorAll(".run-mark").length, 1);
 });
 
 test("test_appendBranchLane_makes_a_lane_with_elbows_rail_and_branch_dots", () => {

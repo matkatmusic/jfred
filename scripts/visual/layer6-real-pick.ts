@@ -5,11 +5,12 @@ import { type WireScriptRunsView } from "../../webapp/layer1-wire-script-runs.ts
 import { findRunById, getFirstCodeLine } from "./layer4-real-helpers.ts";
 import {
   MAX_CANDIDATES, formatNeedsLine, formatOutcomeCounts, formatRunLine, isAttempted, isReplayWithoutFile,
-  findReplayedAttemptWithFile, listCandidateRuns, parseStreamResult, type ReplayAttempt,
+  listCandidateRuns, parseStreamResult, type ReplayAttempt,
 } from "./layer6-real-helpers.ts";
 
 export interface WireTarget { origin: string; query: string }
 export interface RunRef { sessionFile: string; toolUseId: string }
+export interface RealScript extends RunRef { changedPaths: string[] }
 
 async function sendJson(target: WireTarget, path: string, body: object): Promise<Response> {
   const headers = { "Content-Type": "application/json" };
@@ -66,7 +67,7 @@ export async function executeNeededRuns(target: WireTarget, run: RunRef, attempt
   throw new Error(`needs route still lists runs for ${run.toolUseId} after ${MAX_CANDIDATES} replays`);
 }
 
-function printPicked(view: WireScriptRunsView, attempt: ReplayAttempt, attempts: ReplayAttempt[]): RunRef {
+function printPicked(view: WireScriptRunsView, attempt: ReplayAttempt, attempts: ReplayAttempt[], pairPaths: Set<string>): RealScript {
   const run = findRunById(view, attempt.toolUseId);
   if (run === undefined) {
     throw new Error(`picked run ${attempt.toolUseId} is not in the payload`);
@@ -76,7 +77,10 @@ function printPicked(view: WireScriptRunsView, attempt: ReplayAttempt, attempts:
     console.log(`  file ${file.path}: ${file.confidence}`);
   }
   console.log(`python runs tried: ${attempts.length} (${formatOutcomeCounts(attempts)})`);
-  return { sessionFile: run.sessionFile, toolUseId: run.toolUseId };
+  console.log(`replayed runs whose changed files are all outside the pairs: ${countReplaysOutsidePairs(attempts, pairPaths)}`);
+  // const changedPaths = attempt.result.files.map((file) => file.path);
+  const changedPaths = listPairChangedPaths(attempt, pairPaths);
+  return { sessionFile: run.sessionFile, toolUseId: run.toolUseId, changedPaths };
 }
 
 async function executeCandidate(target: WireTarget, run: RunRef, attempts: ReplayAttempt[]): Promise<void> {
@@ -88,14 +92,57 @@ async function executeCandidate(target: WireTarget, run: RunRef, attempts: Repla
   }
 }
 
-export async function findRealScript(target: WireTarget, view: WireScriptRunsView): Promise<RunRef> {
+// The page draws dots only on pair bubbles; orphan-bucket files get none.
+async function fetchPairPaths(target: WireTarget): Promise<Set<string>> {
+  const response = await fetch(`${target.origin}/api/layer1-view?${target.query}`);
+  if (!response.ok) {
+    throw new Error(`/api/layer1-view answered ${response.status}: ${await response.text()}`);
+  }
+  const body = await response.json() as { pairs: { path: string }[] };
+  return new Set(body.pairs.map((pair) => pair.path));
+}
+
+function listPairChangedPaths(attempt: ReplayAttempt, pairPaths: Set<string>): string[] {
+  return attempt.result.files.map((file) => file.path).filter((path) => pairPaths.has(path));
+}
+
+function findReplayedAttemptWithPairFile(attempts: ReplayAttempt[], pairPaths: Set<string>): ReplayAttempt | undefined {
+  for (const attempt of attempts) {
+    const isReplayed = attempt.outcome === WireRunOutcome.replayed;
+    if (isReplayed) {
+      const hasPairFile = listPairChangedPaths(attempt, pairPaths).length > 0;
+      if (hasPairFile) {
+        return attempt;
+      }
+    }
+  }
+  return undefined;
+}
+
+function countReplaysOutsidePairs(attempts: ReplayAttempt[], pairPaths: Set<string>): number {
+  let count = 0;
+  for (const attempt of attempts) {
+    const isReplayed = attempt.outcome === WireRunOutcome.replayed;
+    const hasFile = attempt.result.files.length > 0;
+    const hasPairFile = listPairChangedPaths(attempt, pairPaths).length > 0;
+    const isOutsideOnly = isReplayed && hasFile && !hasPairFile;
+    if (isOutsideOnly) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export async function findRealScript(target: WireTarget, view: WireScriptRunsView): Promise<RealScript> {
+  const pairPaths = await fetchPairPaths(target);
   const attempts: ReplayAttempt[] = [];
   for (const run of listCandidateRuns(view).slice(0, MAX_CANDIDATES)) {
     await executeCandidate(target, run, attempts);
-    const picked = findReplayedAttemptWithFile(attempts);
+    const picked = findReplayedAttemptWithPairFile(attempts, pairPaths);
     if (picked !== undefined) {
-      return printPicked(view, picked, attempts);
+      return printPicked(view, picked, attempts, pairPaths);
     }
   }
-  throw new Error(`none of the first ${MAX_CANDIDATES} python runs replayed with a changed file:${formatOutcomeCounts(attempts)}`);
+  const outsideCount = countReplaysOutsidePairs(attempts, pairPaths);
+  throw new Error(`none of the first ${MAX_CANDIDATES} python runs replayed with a changed file that is a pair in /api/layer1-view (a bubble with dots): ${outsideCount} replayed runs changed files only outside the pairs;${formatOutcomeCounts(attempts)}`);
 }
