@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
-import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "../webapp/layer1-drawer-open-node.ts";
+import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "../webapp/layer1-components/details-drawer/layer1-drawer-open-node.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, DISK_FILE_PATH, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 

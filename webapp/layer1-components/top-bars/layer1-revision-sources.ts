@@ -1,0 +1,73 @@
+// Task 329: revision sources; a new node kind needs only a new DiffStep-returning function here.
+
+import { getInputById } from "../../app-dom.ts";
+import { type DiffStep } from "../details-drawer/layer1-diff-pane.ts";
+import { readSourceParams } from "./layer1-sources.ts";
+
+const SHORT_HASH_LENGTH = 8;
+
+async function readFileRouteContent(response: Response): Promise<string> {
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json() as { content: string }).content;
+}
+
+// One fetch per step, memoized: toggling context width or stepping back never re-reads a side.
+function loadViaFileRoute(buildParams: () => URLSearchParams): () => Promise<string> {
+  let cached: Promise<string> | undefined;
+  return () => {
+    cached ??= fetch(`/api/layer1-file?${buildParams()}`).then(readFileRouteContent);
+    return cached;
+  };
+}
+
+export function createCommitStep(path: string, hash: string): DiffStep {
+  const buildParams = (): URLSearchParams =>
+    new URLSearchParams({ repo: getInputById("repo").value.trim(), path, hash });
+  return { marker: hash.slice(0, SHORT_HASH_LENGTH), buildParams, loadContent: loadViaFileRoute(buildParams) };
+}
+
+export function createDiskStep(path: string): DiffStep {
+  const buildParams = (): URLSearchParams =>
+    new URLSearchParams({ dir: getInputById("dir").value.trim(), path });
+  return { marker: "on disk", buildParams, loadContent: loadViaFileRoute(buildParams) };
+}
+
+// Task 343: one side of an Edit/Write/Read node, replayed by the server; the changeId is the node's identity.
+export function createEditSide(path: string, changeId: string, side: "base" | "target", marker: string, isBranch = false): DiffStep {
+  const buildParams = (): URLSearchParams => {
+    const params = new URLSearchParams({
+      editChangeId: changeId,
+      side,
+      path,
+      dir: getInputById("dir").value.trim(),
+    });
+    // Task 357: a branch lane node reads the disk timeline revision, not the trunk replay.
+    if (isBranch) {
+      params.set("branch", "1");
+    }
+    for (const folder of readSourceParams().getAll("jsonl")) {
+      params.append("jsonl", folder);
+    }
+    return params;
+  };
+  return { marker, buildParams, loadContent: loadViaFileRoute(buildParams) };
+}
+
+export function createEditSteps(path: string, changeId: string, isBranch = false): DiffStep[] {
+  return [createEditSide(path, changeId, "base", "before", isBranch), createEditSide(path, changeId, "target", "after", isBranch)];
+}
+
+export type SnapshotIdentity = { sessionFile: string; sessionId: string; version: number };
+
+export function createSnapshotStep(path: string, snapshot: SnapshotIdentity): DiffStep {
+  const buildParams = (): URLSearchParams => new URLSearchParams({
+    snapshotSession: snapshot.sessionFile,
+    sessionId: snapshot.sessionId,
+    version: String(snapshot.version),
+    path,
+    dir: getInputById("dir").value.trim(),
+  });
+  return { marker: `@v${snapshot.version} 📸`, buildParams, loadContent: loadViaFileRoute(buildParams) };
+}

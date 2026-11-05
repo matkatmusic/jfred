@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initWebappDom } from "./webapp-dom-test-helpers.ts";
 
-async function importKindButtonsWithBoxes(editChecked: boolean, scriptRunChecked: boolean): Promise<typeof import("../webapp/layer1-kind-buttons.ts")> {
+async function importKindButtonsWithBoxes(editChecked: boolean, scriptRunChecked: boolean): Promise<typeof import("../webapp/layer1-components/show-row/layer1-kind-buttons.ts")> {
     initWebappDom();
     const editState = editChecked ? "checked" : "";
     const scriptRunState = scriptRunChecked ? "checked" : "";
@@ -15,7 +15,7 @@ async function importKindButtonsWithBoxes(editChecked: boolean, scriptRunChecked
             <input type="checkbox" data-kind="edit" ${editState}>
             <input type="checkbox" data-kind="script-run" ${scriptRunState}>
         </div>`;
-    return import("../webapp/layer1-kind-buttons.ts");
+    return import("../webapp/layer1-components/show-row/layer1-kind-buttons.ts");
 }
 
 function findBox(kind: string): HTMLInputElement {

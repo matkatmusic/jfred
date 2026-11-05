@@ -1,33 +1,33 @@
 // Own page (not a hash route) so its query-string inputs make a shareable link; no time arithmetic, offsets relative.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { installAnnotationClick } from "./layer1-annotation-click.ts";
-import { installNodeDrawer } from "./layer1-drawer.ts";
-import { installMultiFileDrawer } from "./layer1-drawer-multi.ts";
-import { initFileNavResize, initSessionPaneResize } from "./layer1-filenav-resize.ts";
-import { initFindFileBox } from "./layer1-find-file.ts";
-import { attachBucketJumpButtons } from "./layer1-jump-buckets.ts";
-import { moveFirstVisibleNodeIntoView } from "./layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-layer-toggle.ts";
-import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
-import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
-import { attachLeaderVisibility } from "./layer1-leader-visibility.ts";
-import { attachBusyShield } from "./layer1-busy-shield.ts";
-import { attachClearResultsButton } from "./layer1-clear-results.ts";
-import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
+import { installAnnotationClick } from "./layer1-components/session-column/layer1-annotation-click.ts";
+import { installNodeDrawer } from "./layer1-components/details-drawer/layer1-drawer.ts";
+import { installMultiFileDrawer } from "./layer1-components/details-drawer/layer1-drawer-multi.ts";
+import { initFileNavResize, initSessionPaneResize } from "./layer1-components/file-nav/layer1-filenav-resize.ts";
+import { initFindFileBox } from "./layer1-components/top-bars/layer1-find-file.ts";
+import { attachBucketJumpButtons } from "./layer1-components/top-bars/layer1-jump-buckets.ts";
+import { moveFirstVisibleNodeIntoView } from "./layer1-components/bubbles/layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-components/top-bars/layer1-layer-toggle.ts";
+import { openLinkedNodeAfterLoad } from "./layer1-components/bubbles/layer1-linked-node.ts";
+import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-components/bubbles/layer1-node-link.ts";
+import { attachLeaderVisibility } from "./layer1-components/bubbles/layer1-leader-visibility.ts";
+import { attachBusyShield } from "./layer1-components/popups/layer1-busy-shield.ts";
+import { attachClearResultsButton } from "./layer1-components/top-bars/layer1-clear-results.ts";
+import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
-import { registerPathPickers } from "./layer1-path-picker.ts";
-import { wireBubbleFlash } from "./layer1-session-flash.ts";
-import { resetSessionSelection } from "./layer1-sessions.ts";
+import { registerPathPickers } from "./layer1-components/popups/layer1-path-picker.ts";
+import { wireBubbleFlash } from "./layer1-components/jsonls-nav/layer1-session-flash.ts";
+import { resetSessionSelection } from "./layer1-components/jsonls-nav/layer1-sessions.ts";
 import { attachSettingsSave, markSettingsDirty } from "./layer1-settings.ts";
 import { applySavedSettingsForCurrentDir, loadSavedSettings } from "./layer1-settings-restore.ts";
-import { loadSourceDefaults, resetSourcePathsOnProjectChange, syncSourceButtons } from "./layer1-source-paths.ts";
-import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "./layer1-sources.ts";
-import { closeRulerExpansion, registerTickExpansion } from "./layer1-tick-files.ts";
-import { registerTimeSourceToggle } from "./layer1-time-toggle.ts";
-import { installProjectSettingsToggle } from "./layer1-project-settings-toggle.ts";
+import { loadSourceDefaults, resetSourcePathsOnProjectChange, syncSourceButtons } from "./layer1-components/top-bars/layer1-source-paths.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "./layer1-components/top-bars/layer1-sources.ts";
+import { closeRulerExpansion, registerTickExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
+import { registerTimeSourceToggle } from "./layer1-components/top-bars/layer1-time-toggle.ts";
+import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer1-project-settings-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
-import { attachZoomControls } from "./layer1-zoom.ts";
+import { attachZoomControls } from "./layer1-components/top-bars/layer1-zoom.ts";
 
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;

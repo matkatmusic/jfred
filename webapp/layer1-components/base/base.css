@@ -1,0 +1,49 @@
+  /*
+    Lifted verbatim from plans/layer1-mockup.html (user-signed-off 2026-07-25), so this reads as the same app.
+  */
+  .viz-root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb;
+    --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --branch-line: #c3c2b7; --border: rgba(11,11,11,.10);
+    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834; --c-branch-node: #eb6834;
+    --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
+    --c-edit: #4d8c1f; --c-read: #1b8f8f; --c-mismatch: #d03b3b;
+    --seg-a: rgba(27,175,122,.12);
+    --sel-edge: #1baf7a; --box: #d98a2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19;
+      --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
+      --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
+      --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+      --c-edit: #62a331; --c-read: #2fa5a5; --c-mismatch: #e46a6a;
+      --seg-a: rgba(25,158,112,.15);
+      --sel-edge: #199e70; --box: #b57427;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --branch-line: #898781; --border: rgba(255,255,255,.10);
+    --c-commit: #3987e5; --c-snap: #199e70; --c-user: #d95926; --c-branch-node: #ff8a57;
+    --c-echo: #c98500; --c-script: #9085e9; --c-anchor: #d55181; --c-disk: #ffffff;
+    --c-edit: #62a331; --c-read: #2fa5a5; --c-mismatch: #e46a6a;
+    --seg-a: rgba(25,158,112,.15);
+    --sel-edge: #199e70; --box: #b57427;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--page); }
+  .viz-root { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink); background: var(--page); height: 100vh; display: flex; flex-direction: column; }
+
+  button { font: 600 12px system-ui; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; color: var(--ink); cursor: pointer; }
+  button:hover { border-color: var(--ink2); }
+  button:disabled { color: var(--muted); cursor: not-allowed; }
+  button:disabled:hover { border-color: var(--border); }

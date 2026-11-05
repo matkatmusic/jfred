@@ -1,7 +1,7 @@
 // Task 297: saved Layer 1 project settings, written on demand, read once at boot.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { readSourcePaths } from "./layer1-source-paths.ts";
+import { readSourcePaths } from "./layer1-components/top-bars/layer1-source-paths.ts";
 import { SourceKind } from "./layer1-wire.ts";
 
 // One saved project; `dir` is its storage key, so projects never collide.

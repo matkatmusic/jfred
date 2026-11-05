@@ -4,8 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
 import { buildLayer1View } from "../src/viewer_api_layer1.ts";
-import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
-import { computeRelaidLayer1View } from "../webapp/layer1-filter.ts";
+import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
+import { computeRelaidLayer1View } from "../webapp/layer1-components/show-row/layer1-filter.ts";
 import {
     SHARED_FILE_MTIME,
     createFixtureDiskFolder,

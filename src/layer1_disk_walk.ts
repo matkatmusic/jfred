@@ -4,7 +4,7 @@ import { readdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 import { isPathIgnored, readIgnoreRules, type IgnoreRule } from "./layer1_ignore_rules.ts";
 
 // One file on disk: its path relative to the project folder, and its timestamps.

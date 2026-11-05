@@ -1,0 +1,28 @@
+    <aside class="filenav">
+      <section class="navpane" id="pane-files">
+        <div class="filenav-title">File Nav
+          <!--
+            task 326: filters the timeline to the selected folders' files while toggled on
+          -->
+          <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
+        </div>
+        <!--
+          Task 281: the nav's own search box. It narrows this tree only; the find-bubble box scrolls the timeline.
+        -->
+        <div class="filenav-search">
+          <input id="filenav-search" type="text" placeholder="search files...">
+          <button id="filenav-search-clear" title="Clear the file search">×</button>
+        </div>
+        <div id="filenav-tree"></div>
+      </section>
+      <!--
+        Task 292: the horizontal split between the two panes; dragging it re-shares the aside's height.
+      -->
+      <div class="pane-grip" id="navpane-grip" title="Drag to resize"></div>
+      <!--
+        Task 292: the project's JSONLs. A click filters the timeline to the files that session touched.
+      -->
+      <!--
+        include layer1-components/jsonls-nav/jsonls-nav.html
+      -->
+    </aside>

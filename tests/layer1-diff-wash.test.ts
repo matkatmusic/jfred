@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { axisPixelsForInstant, clearDiffWash, paintDiffWash, repaintDiffWash } from "../webapp/layer1-diff-wash.ts";
+import { axisPixelsForInstant, clearDiffWash, paintDiffWash, repaintDiffWash } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 

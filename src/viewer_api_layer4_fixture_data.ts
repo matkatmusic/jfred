@@ -2,7 +2,7 @@
 
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
-import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { L6_FIXTURE_RUNS } from "./viewer_api_layer6_fixture_blocked_runs.ts";
 // import { SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 

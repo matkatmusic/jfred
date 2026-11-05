@@ -1,6 +1,6 @@
 // Task 358 steps 2 to 7: drives the real page and checks dialog, dot, console and drawer.
 
-import { RUN_CONSOLE_NO_PROOF_NOTE, RUN_CONSOLE_OUTPUT_NOT_SAVED } from "../../webapp/layer1-run-console-data.ts";
+import { RUN_CONSOLE_NO_PROOF_NOTE, RUN_CONSOLE_OUTPUT_NOT_SAVED } from "../../webapp/layer1-components/details-drawer/layer1-run-console-data.ts";
 import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { buildBubblePathExpression, buildDotsOfRun } from "./layer4-real-helpers.ts";
 import { COUNT_SCRIPT_DOTS, STRIP_IDLE } from "./layer4-probes.ts";

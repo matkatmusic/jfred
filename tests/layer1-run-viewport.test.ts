@@ -3,11 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { rememberDrawnView } from "../webapp/layer1-diff-wash.ts";
-import { resetRunConsent } from "../webapp/layer1-run-consent.ts";
+import { rememberDrawnView } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
 import { resetRunQueue } from "../webapp/layer1-run-queue.ts";
 import { resetRunResults } from "../webapp/layer1-run-results.ts";
-import type { PaneBounds } from "../webapp/layer1-dot-on-screen.ts";
+import type { PaneBounds } from "../webapp/layer1-components/bubbles/layer1-dot-on-screen.ts";
 import { installRunViewportWatcher, listOnScreenRunIds } from "../webapp/layer1-run-viewport.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";

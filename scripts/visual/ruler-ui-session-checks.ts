@@ -1,7 +1,7 @@
 // Ruler UI judges for the session column; the page steps live in ruler-ui-session-run.ts.
 
 import { FIXTURE_LOG_SESSIONS } from "../../src/viewer_api_layer7_fixture_sessions.ts";
-import { computeBarReservePx, computeTrackWidthPx } from "../../webapp/layer1-session-lanes.ts";
+import { computeBarReservePx, computeTrackWidthPx } from "../../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { isNear } from "./layer7-facts.ts";
 import { findSessionEndIds } from "./layer7-session-ends.ts";

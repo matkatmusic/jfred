@@ -1,0 +1,28 @@
+  /*
+    left: 0 pins the gutter under horizontal scroll; its width is --rail-x plus the rail border.
+  */
+  .ruler { position: sticky; left: 0; z-index: 8; flex: none; width: calc(var(--rail-x) + 2px); background: var(--page); }
+  /*
+    Left slack follows the ruler; dividing by --zoom cancels the canvas zoom.
+  */
+  .ruler + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
+  .atrack + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
+  .jfred-strip + .stage { margin-left: calc(var(--slack-left, 0px) / var(--zoom, 1)); }
+  .ruler .rail { position: absolute; left: var(--rail-x); top: 0; bottom: 0; border-left: 2px dotted var(--baseline); }
+  /*
+    Task 290: `+ var(--lane-y)` drops the label onto the node's own row, matching `.leader`.
+  */
+  .ruler .tick { position: absolute; left: 0; width: 140px; text-align: right; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+    transform: translateY(-50%); }
+
+  /*
+    The gutter is always on screen, so it carries the range too.
+  */
+  .ruler .tick.inrange { color: var(--c-script); }
+  /*
+    Task 329 feedback: the wash's edges named in the always-visible gutter, base/target colors.
+  */
+  .ruler .tick .wash-edge { font-size: 9px; line-height: 1.2; }
+  .ruler .tick .wash-edge.base { color: var(--c-user); }
+  .ruler .tick .wash-edge.target { color: var(--sel-edge); }

@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildLayer1View } from "../src/viewer_api_layer1.ts";
 import { Path } from "../src/structures/domain.ts";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 
 const FIRST_COMMIT_DATE = "2020-01-01T10:00:00Z";
 const LATER_MTIME = new Date("2030-01-01T10:00:00Z");

@@ -3,12 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
-import type { WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
-import type { Placement } from "../webapp/layer1-annotation-window.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { Placement } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
 
 initLayer1Dom();
-const { buildNode, buildSessionLine, readDotPopup, STAMPLESS_NOTE } = await import("../webapp/layer1-annotation-dots.ts");
+const { buildNode, buildSessionLine, readDotPopup, STAMPLESS_NOTE } = await import("../webapp/layer1-components/session-column/layer1-annotation-dots.ts");
 
 const LOOK = { laneX: 46, color: "hsl(10 65% 60%)" };
 

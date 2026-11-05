@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 
 test("test_created_not_trusted_reason_values_are_the_member_names", () => {
   assert.deepEqual(Object.values(CreatedNotTrustedReason), ["noBirthTime", "birthNotBeforeMtime", "birthAfterFirstCommit"]);

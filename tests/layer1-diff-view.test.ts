@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { DiffPaneMode } from "../webapp/layer1-diff-pane.ts";
-import { buildDiffView, renderDetailView } from "../webapp/layer1-diff-view.ts";
+import { DiffPaneMode } from "../webapp/layer1-components/details-drawer/layer1-diff-pane.ts";
+import { buildDiffView, renderDetailView } from "../webapp/layer1-components/details-drawer/layer1-diff-view.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const BASE_CONFIG = { revisionControlsShown: false, mode: DiffPaneMode.side, fullContents: false, baseIndex: 0, targetIndex: 0 };

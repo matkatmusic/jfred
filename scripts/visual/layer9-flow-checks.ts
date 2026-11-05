@@ -7,8 +7,8 @@ import {
   COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES,
   buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
 } from "./layer9-probes.ts";
-import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-cut-rules.ts";
-import { JfredEntryKind } from "../../webapp/layer1-jfred-entries.ts";
+import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
+import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
 const REFUSAL_CASES: [string, CutRefusal][] = [
   [TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode], [TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode],

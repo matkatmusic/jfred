@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS, buildScriptRunsView } from "../src/layer1_script_runs_wire.ts";
 import { Path } from "../src/structures/domain.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
-import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { SESSION_A, SESSION_B, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
 import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";

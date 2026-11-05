@@ -49,7 +49,7 @@ function findDetailsNamed(container: HTMLElement, name: string): HTMLDetailsElem
 }
 
 test("test_a_projects_saved_collapsed_folders_render_closed_on_load", async () => {
-    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    const { renderLayer1FileNav } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     const dir = "/tmp/nav-project-a";
     stubSettingsRoute({
         lastDir: dir,
@@ -65,7 +65,7 @@ test("test_a_projects_saved_collapsed_folders_render_closed_on_load", async () =
 });
 
 test("test_collapsing_a_folder_persists_it_for_the_current_project", async () => {
-    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    const { renderLayer1FileNav } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     const dir = "/tmp/nav-project-b";
     getInputById("dir").value = dir;
     const route = stubSettingsRoute(null);
@@ -81,7 +81,7 @@ test("test_collapsing_a_folder_persists_it_for_the_current_project", async () =>
 
 // A real browser fires `toggle` on each <details> created open, so load must not look like a click.
 test("test_rendering_folders_writes_nothing_until_the_user_toggles_one", async () => {
-    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    const { renderLayer1FileNav } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     getInputById("dir").value = "/tmp/nav-project-d";
     const route = stubSettingsRoute(null);
 
@@ -99,7 +99,7 @@ test("test_rendering_folders_writes_nothing_until_the_user_toggles_one", async (
 });
 
 test("test_a_collapsed_folder_survives_a_search_box_rerender", async () => {
-    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    const { renderLayer1FileNav } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     getInputById("dir").value = "/tmp/nav-project-c";
     stubSettingsRoute(null);
 

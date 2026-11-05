@@ -1,0 +1,37 @@
+  /*
+    Task 252: the shared file tree's rules (webapp/styles.css:199-280), retargeted at this page's tokens.
+  */
+  .file-item { padding: 3px 10px; font: 11px ui-monospace, Menlo, monospace; white-space: nowrap;
+    display: flex; align-items: baseline; cursor: pointer; color: var(--ink); user-select: none; }
+  /*
+    Only the label shrinks, with an ellipsis; the (n) revcount keeps its room.
+  */
+  .file-item .file-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .file-item::before { content: "📄"; display: inline-block; flex: none; width: 21px; margin-left: 13px; }
+  .file-item:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .file-item.selected { background: var(--sel-edge); color: #fff; }
+  .file-item .revcount { color: var(--muted); margin-left: 6px; flex: none; }
+  .file-item.selected .revcount { color: #e8f6f0; }
+  /*
+    A repo file with no on-disk presence: still listed, shown as gone.
+  */
+  .file-item.deleted { text-decoration: line-through; opacity: 0.55; }
+  /*
+    display: flex so the triangle sits ahead of the ::before folder icon; `order` keeps the glyph order.
+  */
+  .file-folder > summary { padding: 3px 10px; font: 600 11px ui-monospace, Menlo, monospace;
+    color: var(--ink); cursor: pointer; white-space: nowrap; list-style: none; display: flex;
+    user-select: none; }
+  .file-folder > summary::-webkit-details-marker { display: none; }
+  .file-folder > summary::before { content: "📁"; display: inline-block; width: 21px;
+    color: var(--muted); }
+  .file-folder > summary > .file-folder-toggle { order: -1; display: inline-block; width: 13px;
+    color: var(--muted); }
+  .file-folder > summary > .file-folder-toggle::before { content: "▸"; }
+  .file-folder[open] > summary > .file-folder-toggle::before { content: "▾"; }
+  .file-folder > summary:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  /*
+    Task 253: the folder driving the timeline filter looks like .file-item.selected; re-clicking clears it.
+  */
+  .file-folder > summary.selected { background: var(--sel-edge); color: #fff; }
+  .file-folder > .file-folder-kids { margin-left: 16px; border-left: 1px solid var(--grid); }

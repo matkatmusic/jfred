@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { DiffPaneMode, createDiffPane, type DiffStep } from "../webapp/layer1-diff-pane.ts";
-import type { DiffPaneMounts } from "../webapp/layer1-diff-pane-support.ts";
+import { DiffPaneMode, createDiffPane, type DiffStep } from "../webapp/layer1-components/details-drawer/layer1-diff-pane.ts";
+import type { DiffPaneMounts } from "../webapp/layer1-components/details-drawer/layer1-diff-pane-support.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 

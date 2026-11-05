@@ -1,6 +1,6 @@
 // Layer 5 checks on the facts of one file bubble: trunk, rails, elbows, widening, and dot rows.
 
-import { RULER_NODE_ROW_PIXELS } from "../../webapp/layer1-ruler-axis.ts";
+import { RULER_NODE_ROW_PIXELS } from "../../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { formatTickStamp, isNear, TOLERANCE_PX, type BubbleFacts, type LaneFacts, type Rect } from "./layer5-bubble-facts.ts";
 

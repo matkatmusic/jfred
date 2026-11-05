@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { renderLayer1Minimap } from "../webapp/layer1-minimap.ts";
+import { renderLayer1Minimap } from "../webapp/layer1-components/minimap/layer1-minimap.ts";
 
 // Keep axis ratios UNEQUAL (x 0.1, y 0.2): equal axes can't distinguish a per-axis scale from a uniform one.
 const CONTENT_WIDTH_PX = 1000;

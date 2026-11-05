@@ -11,7 +11,7 @@ import {
   setArmed,
   setBase,
   setPending,
-} from "../webapp/layer1-jfred-state.ts";
+} from "../webapp/layer1-components/commits-column/layer1-jfred-state.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
 const BASE = { instant: "2026-06-01T09:00:00Z", shortHash: "a1b2c3d4" };

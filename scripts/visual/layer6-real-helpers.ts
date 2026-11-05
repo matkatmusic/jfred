@@ -1,6 +1,6 @@
 // Pure helpers of the Layer 6 real-data check: candidate order, outcome tallies, class maps and rect tests.
 
-import { WireScriptLanguage } from "../../webapp/layer1-script-language.ts";
+import { WireScriptLanguage } from "../../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { WireRunOutcome, WireRunStreamKind, type WireScriptResult } from "../../webapp/layer1-wire-script-results.ts";
 import { type WireScriptRunsView } from "../../webapp/layer1-wire-script-runs.ts";
 

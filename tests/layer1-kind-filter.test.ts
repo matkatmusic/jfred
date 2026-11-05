@@ -8,9 +8,9 @@ import { VIEW, readHiddenKinds, toggleBox } from "./layer1-kind-filter-helpers.t
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { renderLayer1Stage } = await import("../webapp/layer1-stage-render.ts");
+const { renderLayer1Stage } = await import("../webapp/layer1-components/bubbles/layer1-stage-render.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { readNodeKind } = await import("../webapp/layer1-node-kind.ts");
+const { readNodeKind } = await import("../webapp/layer1-components/bubbles/layer1-node-kind.ts");
 
 async function renderFreshView(dir: string = ""): Promise<void> {
     initLayer1Dom();

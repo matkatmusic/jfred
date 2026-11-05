@@ -1,0 +1,13 @@
+  /*
+    Opaque sticky heads: ticks scroll under them, and z-index 3 clears the dots.
+  */
+  /* .ruler-head, .atrack .ahead, .jfred-strip .jhead { position: sticky; top: 0; z-index: 3; height: var(--head-h); box-sizing: border-box;
+    background: var(--page); border-bottom: 1px dotted var(--muted); } */
+  /*
+    Sticky rests below the pane's top padding, which grows with jump space.
+  */
+  .ruler-head, .atrack .ahead, .jfred-strip .jhead { position: sticky; top: 0; z-index: 3; height: var(--head-h); box-sizing: border-box;
+    border-bottom: 1px dotted var(--muted); transform: translateY(calc((-18px - var(--slack-top, 0px)) / var(--zoom, 1))); }
+  .ruler-head { background: var(--page); }
+  .atrack .ahead, .jfred-strip .jhead { background: var(--surface); }
+  .ruler-head { display: flex; align-items: center; justify-content: flex-end; padding: 0 12px 0 8px; }

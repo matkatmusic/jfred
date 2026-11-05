@@ -4,6 +4,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { extname, resolve, sep } from "node:path";
 import { computeStaticFileRelative, findStaticFilePath } from "./viewer_api_static_files.ts";
 import { sendText } from "./viewer_server_routes.ts";
+import { joinLayer1Page } from "./viewer_layer1_page_join.ts";
 import type { ServerResponse } from "node:http";
 
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
@@ -31,5 +32,6 @@ export function sendStaticFile(response: ServerResponse, urlPath: string): void 
     return;
   }
   const contentType = CONTENT_TYPES[extname(resolved)] ?? "application/octet-stream";
-  sendText(response, 200, readFileSync(resolved, "utf8"), contentType);
+  const body = relative === "layer1.html" ? joinLayer1Page(resolved) : readFileSync(resolved, "utf8");
+  sendText(response, 200, body, contentType);
 }

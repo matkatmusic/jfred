@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { renderLayer1Stage } = await import("../webapp/layer1-stage-render.ts");
+const { renderLayer1Stage } = await import("../webapp/layer1-components/bubbles/layer1-stage-render.ts");
 
 const T0 = "2026-07-01T10:00:00.000Z";
 

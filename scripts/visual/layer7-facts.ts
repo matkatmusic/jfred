@@ -4,7 +4,7 @@ import { type Uuid } from "../../src/structures/domain.ts";
 import { buildFixtureLayer1View } from "../../src/viewer_api_layer1_fixture_view.ts";
 import { ANNOTATION_BLOCK_IDS, TOOL_NODE_IDS } from "../../src/viewer_api_layer7_fixture_data.ts";
 // import { ANNOTATION_MID_IDS, ANNOTATION_SAME_ID } from "../../src/viewer_api_layer7_fixture_sessions.ts";
-import { ANNOTATION_LOOKS } from "../../webapp/layer1-annotation-looks.ts";
+import { ANNOTATION_LOOKS } from "../../webapp/layer1-components/session-column/layer1-annotation-looks.ts";
 
 // export interface ColumnNodeFacts {
 //   id: string; classes: string; instant: string; pairId: string | undefined; cx: number; cy: number;

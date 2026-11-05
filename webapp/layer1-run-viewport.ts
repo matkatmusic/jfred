@@ -1,8 +1,8 @@
 // Layer 1 run viewport: finds the script dots on screen and hands their run ids to the queue.
 
 import { getRequiredElementById } from "./app-dom.ts";
-import { readDrawnView } from "./layer1-diff-wash.ts";
-import { isDotOnScreen, type PaneBounds } from "./layer1-dot-on-screen.ts";
+import { readDrawnView } from "./layer1-components/bubbles/layer1-diff-wash.ts";
+import { isDotOnScreen, type PaneBounds } from "./layer1-components/bubbles/layer1-dot-on-screen.ts";
 import { addRunsToQueue } from "./layer1-run-queue.ts";
 
 const DOT_SELECTOR = "i.node.n-script[data-tool-use-id]";

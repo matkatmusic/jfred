@@ -9,7 +9,7 @@ import {
     ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
-import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-cut-rules.ts";
+import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
 const makeEntry = (kind: string, shortHash: string | null, parentHash: string | null): EntryFacts => ({ kind, shortHash, parentHash, instant: "2026-06-01T09:00:00.000Z", cx: 0, cy: 0, tickCy: 0 });

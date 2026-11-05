@@ -3,7 +3,7 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { buildRulerMatchProbe } from "./layer4-probes.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
-import { LANE_STEP_PX } from "../../webapp/layer1-session-lanes.ts";
+import { LANE_STEP_PX } from "../../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 import {
   BLOCK_IDS, TOOL_IDS, countNodesWithClass, findColumnNode, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane, isBracketSpanning,
   isEveryIdUnique, isLetterSetExpected, isStampedWithPredecessor, isTrackBetween, isWindowed, listBlockNodes, listColumnIds, listMissingIds,

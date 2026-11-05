@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "../webapp/layer1-session-lanes.ts";
+import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 
 test("test_spans_that_do_not_overlap_share_lane_zero", () => {
     const lanes = computeSessionLanes([

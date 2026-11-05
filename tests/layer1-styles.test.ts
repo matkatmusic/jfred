@@ -4,7 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const css = [
+  readFileSync(new URL("../webapp/layer1-components/base/base.css", import.meta.url), "utf8"),
+  readFileSync(new URL("../webapp/layer1-components/bubbles/nodes.css", import.meta.url), "utf8"),
+  readFileSync(new URL("../webapp/layer1-components/bubbles/found-highlight.css", import.meta.url), "utf8"),
+].join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
 const LIGHT_BLOCK = ".viz-root {";
 const DARK_BLOCK = ':root[data-theme="dark"] .viz-root {';
 const LIGHT_THEME_MIN_DIFFERENCE = 28;

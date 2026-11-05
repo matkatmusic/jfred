@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ANNOTATION_LOOKS } from "../webapp/layer1-annotation-looks.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
+import { ANNOTATION_LOOKS } from "../webapp/layer1-components/session-column/layer1-annotation-looks.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 const KINDS = Object.values(WireRecordKind);
 

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeRunBracket, listDiffableSteps } from "../webapp/layer1-drawer-steps.ts";
+import { computeRunBracket, listDiffableSteps } from "../webapp/layer1-components/details-drawer/layer1-drawer-steps.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";

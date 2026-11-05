@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openRunConsent, buildRunConsentScripts, buildRunConsentText, resetRunConsent } from "../webapp/layer1-run-consent.ts";
+import { openRunConsent, buildRunConsentScripts, buildRunConsentText, resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";

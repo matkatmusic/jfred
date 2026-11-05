@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeLanguageForPath } from "../webapp/highlight.ts";
-import { isBinaryContent } from "../webapp/layer1-file-view.ts";
-import { renderFileContentInto } from "../webapp/layer1-file-view.ts";
+import { isBinaryContent } from "../webapp/layer1-components/details-drawer/layer1-file-view.ts";
+import { renderFileContentInto } from "../webapp/layer1-components/details-drawer/layer1-file-view.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 function renderIntoHost(content: string, path: string): HTMLElement {

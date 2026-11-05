@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { getFirstPane, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -61,7 +61,7 @@ test("clicking a lane label opens the same drawer, named for the file and the re
 test("clicking a lane dot lights it and the stylesheet paints the [ ] marker on a lit lane dot", async () => {
   await openLaneNode((nodes) => nodes.dot);
   assert.ok(document.querySelector(".bnode")!.classList.contains("found"));
-  const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../webapp/layer1-components/bubbles/found-highlight.css", import.meta.url), "utf8");
   assert.match(css, /\.bnode\.found::before/);
   assert.match(css, /\.bnode\.found::after/);
 });

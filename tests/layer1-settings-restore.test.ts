@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { getInputById } from "../webapp/app-dom.ts";
 import { getCollapsedFoldersForProject } from "../webapp/layer1-settings.ts";
 import { loadSavedSettings } from "../webapp/layer1-settings-restore.ts";
-import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-components/top-bars/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { SAVED_PROJECT, createSettingsRouteStub } from "./layer1-settings-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";

@@ -1,7 +1,9 @@
 // Plain Node under node --test: install happy-dom window and vendor globals before webapp imports.
 
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Window } from "happy-dom";
+import { joinLayer1Page } from "../src/viewer_layer1_page_join.ts";
 
 // writeln must invoke its completion callback so app-console's scroll-in-callback pattern still runs.
 class FakeXtermTerminal {
@@ -102,7 +104,7 @@ export function initLayeredDom(): void {
 
 // The Layer 1 View page's body markup (task 237, spec S18).
 function readLayer1HtmlBodyMarkup(): string {
-  const html = readFileSync(new URL("../webapp/layer1.html", import.meta.url), "utf8");
+  const html = joinLayer1Page(fileURLToPath(new URL("../webapp/layer1.html", import.meta.url)));
   return html.split("<body>")[1]!.split("</body>")[0]!;
 }
 

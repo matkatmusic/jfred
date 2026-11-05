@@ -4,7 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+const css = [
+  readFileSync(new URL("../webapp/layer1-components/bubbles/canvas.css", import.meta.url), "utf8"),
+  readFileSync(new URL("../webapp/layer1-components/ruler/ruler.css", import.meta.url), "utf8"),
+].join("\n");
 
 function readRuleBody(selector: string): string {
   const start = css.indexOf(`${selector} {`);

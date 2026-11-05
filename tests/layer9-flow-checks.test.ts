@@ -11,7 +11,7 @@ import {
     COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildFindTick, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
-import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-cut-rules.ts";
+import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
 // The visible text is the short ruler time; only fullTime starts with the label.

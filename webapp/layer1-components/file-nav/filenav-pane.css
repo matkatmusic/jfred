@@ -1,0 +1,59 @@
+  /*
+    Task 246: .stagewrap is the minimap's parent and holds the File Nav width (task 279).
+  */
+  .stagewrap { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
+    display: flex; overflow: hidden; }
+
+  /*
+    Task 288: mid-drag the nav follows the pointer; the timeline keeps its width.
+  */
+  .stagewrap.resizing .filenav { width: var(--filenav-drag-w); }
+  .stagewrap.resizing .timelines { flex: none; width: var(--timeline-w); }
+
+  /*
+    Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
+  */
+  .filenav { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0; --files-share: 50;
+    border-right: 1px solid var(--border); background: var(--surface); }
+  .navpane { overflow: auto; min-height: 0; }
+  #pane-files { flex: var(--files-share) 1 0; }
+  #pane-sessions { flex: calc(100 - var(--files-share)) 1 0; }
+  /*
+    Negative margins so the 7 px target straddles the boundary rather than pushing the panes apart.
+  */
+  .pane-grip { flex: none; height: 7px; margin: -3px 0; cursor: row-resize; z-index: 3;
+    background: transparent; }
+  .pane-grip:hover, .pane-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }
+  /*
+    Sticky against .navpane's scroll (user, 2026-07-29): the title row must not scroll with the list.
+  */
+  .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+    position: sticky; top: 0; z-index: 4; background: var(--surface); }
+  .filenav-title button { margin-left: auto; padding: 1px 7px; font-size: 10px;
+    letter-spacing: normal; text-transform: none; }
+  /*
+    Task 326: the toggle paints like every other .current button on the page.
+  */
+  .filenav-title button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+
+  /*
+    Task 281: the nav's search box copies `.sources input`'s values and sticks to the pane top.
+  */
+  .filenav-search { display: flex; gap: 4px; padding: 0 10px 6px;
+    position: sticky; top: 0; z-index: 1; background: var(--surface); }
+  .filenav-search input { flex: 1; min-width: 0; box-sizing: border-box;
+    font: 11.5px ui-monospace, Menlo, monospace; padding: 4px 8px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
+  .filenav-search input:focus { outline: none; border-color: var(--sel-edge); }
+  .filenav-search button { flex: none; padding: 3px 8px; }
+
+  /*
+    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimap's 20.
+  */
+  .filenav-grip { position: absolute; top: 0; bottom: 0;
+    left: calc(var(--filenav-drag-w, var(--filenav-w)) - 3px);
+    width: 6px; z-index: 21; cursor: col-resize; }
+  .filenav-grip:hover, .filenav-grip.dragging { background: color-mix(in srgb, var(--sel-edge) 45%, transparent); }

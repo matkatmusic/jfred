@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getInputById } from "../webapp/app-dom.ts";
-import { createCommitStep, createDiskStep, createSnapshotStep } from "../webapp/layer1-revision-sources.ts";
+import { createCommitStep, createDiskStep, createSnapshotStep } from "../webapp/layer1-components/top-bars/layer1-revision-sources.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 test("commit and disk steps read their repo and dir inputs", () => {

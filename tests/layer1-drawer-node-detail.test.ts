@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { appendRawJsonReveal, getNodeDrawerDetail } from "../webapp/layer1-drawer-node-detail.ts";
+import { appendRawJsonReveal, getNodeDrawerDetail } from "../webapp/layer1-components/details-drawer/layer1-drawer-node-detail.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 test("a node with no commit hash reads the working tree", () => {

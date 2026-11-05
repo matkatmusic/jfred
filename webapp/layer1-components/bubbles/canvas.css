@@ -1,0 +1,10 @@
+  .timelines { flex: 1; min-width: 0; overflow: auto; position: relative;
+    padding: calc(18px + var(--slack-top, 0px)) calc(12px + var(--slack-right, 0px)) calc(40px + var(--slack-bottom, 0px)) 0; }
+  /*
+    Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
+  */
+  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
+    isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; --head-h: 44px; }
+  /* .canvas { ... --track-w: 0px; --jfred-w: 104px; } */
+
+  .stage { position: relative; display: flex; align-items: flex-start; gap: 26px; flex: none; }

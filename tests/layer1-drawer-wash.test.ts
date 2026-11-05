@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {

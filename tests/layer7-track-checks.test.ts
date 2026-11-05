@@ -17,8 +17,8 @@ import {
     WINDOW_FACTS, buildBracketProbe, buildHideSettled, buildRecordDot, buildSetHideIgnored,
 } from "../scripts/visual/layer7-probes.ts";
 import { validateColumnNodes, validateTrack } from "../scripts/visual/layer7-track-checks.ts";
-import { ANNOTATION_LOOKS } from "../webapp/layer1-annotation-looks.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
+import { ANNOTATION_LOOKS } from "../webapp/layer1-components/session-column/layer1-annotation-looks.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 const SHOT = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-15-layer7-column.png");
 const LOOKS_TITLE = "L7 the 8 block dots show the letters u a t r h m n ?, share one session colour, and no other session uses it";

@@ -1,0 +1,59 @@
+  /*
+    Retired by task 352; task 360 replaces it. Was:
+    .viz-root:not([data-layer="2"]) .n-snap { display: none; }
+  */
+  /*
+    Task 360: unchecked show-row kinds hide here; a label follows its dot.
+  */
+  .viz-root[data-hidden-kinds~="created"] .n-created,
+  .viz-root[data-hidden-kinds~="created"] .n-created + .nlabel,
+  .viz-root[data-hidden-kinds~="commit"] .n-commit,
+  .viz-root[data-hidden-kinds~="commit"] .n-commit + .nlabel,
+  .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created),
+  .viz-root[data-hidden-kinds~="disk"] .n-disk:not(.n-created) + .nlabel,
+  .viz-root[data-hidden-kinds~="snapshot"] .n-snap,
+  .viz-root[data-hidden-kinds~="edit"] .n-edit,
+  .viz-root[data-hidden-kinds~="edit"] .n-read,
+  /*
+    .viz-root[data-hidden-kinds~="script-run"] .n-script, .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+  */
+  .viz-root #ruler .tick.kind-hidden { display: none; }
+  /*
+    Task 356: script runs hide by visibility, not display, so the connector measure still sees their layout.
+  */
+  .viz-root[data-hidden-kinds~="script-run"] .n-script,
+  .viz-root[data-hidden-kinds~="script-run"] .n-script + .nlabel,
+  .viz-root[data-hidden-kinds~="script-run"] .script-connector { visibility: hidden; }
+  /*
+    Task 357: hiding branches frees lane width; when shown, a trunk edit inside a lane draws once.
+  */
+  .viz-root[data-hidden-kinds~="branch"] .blane { display: none; }
+  .viz-root[data-hidden-kinds~="branch"] .nodes-with-same-timestamp.branch-tie { display: none; }
+  .viz-root[data-hidden-kinds~="branch"] .filebox { min-width: 168px; }
+  .viz-root:not([data-hidden-kinds~="branch"]) .n-moved { display: none; }
+
+  /*
+    Task 385: the show row mockup; swatches copy the node styles they stand for.
+  */
+  .show-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 7px 16px;
+    font-size: 11px; color: var(--ink2); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .show-row .show-kind { display: inline-flex; align-items: center; gap: 5px; }
+  .show-row { align-items: flex-start; }
+  .show-row .show-kind-col { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .show-row .kind-jumps { display: flex; gap: 3px; }
+  .show-row .kind-jump { font-size: 11px; line-height: 1; padding: 1px 7px; cursor: pointer; }
+  .show-row .kind-jump:disabled { cursor: default; opacity: .35; }
+  .show-row .swatch { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .show-row .sw-commit { background: var(--c-commit); border-radius: 4px; }
+  .show-row .sw-disk { border: 3px double var(--c-disk); background: transparent; }
+  .show-row .sw-snapshot { background: var(--c-snap); }
+  .show-row .sw-edit { background: var(--c-edit); border-radius: 3px; }
+  .show-row .sw-created { border: 3px dotted var(--muted); background: transparent; }
+  .show-row .sw-script-run { background: var(--c-script); }
+  .show-row .sw-branch { background: var(--c-user); opacity: .38; }
+  .show-row .show-kind:has(.sw-commit) { color: var(--c-commit); }
+  .show-row .show-kind:has(.sw-snapshot) { color: var(--c-snap); }
+  .show-row .show-kind:has(.sw-edit) { color: var(--c-edit); }
+  .show-row .show-kind:has(.sw-script-run) { color: var(--c-script); }
+  .show-row .show-kind:has(.sw-branch) { color: color-mix(in srgb, var(--c-user) 38%, transparent); }
+  .show-row .show-kind:has(.sw-tool) { color: var(--ink); }

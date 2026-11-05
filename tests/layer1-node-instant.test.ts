@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readNodeInstant } from "../webapp/layer1-node-instant.ts";
+import { readNodeInstant } from "../webapp/layer1-components/bubbles/layer1-node-instant.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 

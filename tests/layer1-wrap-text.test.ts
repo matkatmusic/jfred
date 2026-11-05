@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { wrapTextAtColumns } from "../webapp/layer1-wrap-text.ts";
+import { wrapTextAtColumns } from "../webapp/layer1-components/ruler/layer1-wrap-text.ts";
 
 test("test_no_line_is_over_50_characters", () => {
     const text = "word ".repeat(40).trim();

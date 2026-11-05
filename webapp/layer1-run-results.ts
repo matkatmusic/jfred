@@ -1,8 +1,8 @@
 // Layer 1 run results: one stored result per run, painted on every dot of that run.
 
 import { WireScriptExecutorKind, type WireScriptRun } from "./layer1-wire-script-runs.ts";
-import { WireScriptLanguage } from "./layer1-script-language.ts";
-import { buildRunMarkMarkup, RunMarkKey } from "./layer1-run-dot-marks.ts";
+import { WireScriptLanguage } from "./layer1-components/details-drawer/layer1-script-language.ts";
+import { buildRunMarkMarkup, RunMarkKey } from "./layer1-components/bubbles/layer1-run-dot-marks.ts";
 import { WireConfidence } from "./layer1-wire-edits.ts";
 import { WireRunOutcome, type WireScriptResult } from "./layer1-wire-script-results.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";

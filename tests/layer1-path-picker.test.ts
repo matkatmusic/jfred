@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { openPicker, registerPathPickers } from "../webapp/layer1-path-picker.ts";
-import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { openPicker, registerPathPickers } from "../webapp/layer1-components/popups/layer1-path-picker.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-components/top-bars/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 

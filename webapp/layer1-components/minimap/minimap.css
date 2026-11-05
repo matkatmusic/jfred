@@ -1,0 +1,23 @@
+  /*
+    Task 269: `left` clears the File Nav and the ruler gutter (152px).
+  */
+  .minimap { position: absolute; left: calc(var(--filenav-w) + 152px + 12px); bottom: 12px; z-index: 20;
+    width: 176px; height: 124px; padding: 6px; cursor: crosshair;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(3px); }
+  /*
+    The minimap sits flush against the ruler's right edge and follows the open columns.
+  */
+  .stagewrap:has(.ruler-sessions) .minimap { left: calc(var(--filenav-w) + (152px + var(--track-w)) * var(--zoom, 1)); }
+  .stagewrap:has(#jfred-strip) .minimap { left: calc(var(--filenav-w) + (152px + var(--track-w) + var(--jfred-w)) * var(--zoom, 1)); }
+  .minimap .mm-title { position: absolute; top: -8px; left: 8px; padding: 0 4px; font-size: 9px;
+    color: var(--muted); background: var(--page); }
+  /*
+    Marks are abspos by layer1-minimap.ts; `overflow: hidden` stops rounding overshoot painting outside the frame.
+  */
+  .mm-plot { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .mm-box { position: absolute; background: var(--box); opacity: .55; border-radius: 1px; }
+  .mm-box.bucket { background: var(--muted); }
+  .mm-wash { position: absolute; background: var(--wash-color); opacity: .45; border-radius: 1px; }
+  .mm-view { position: absolute; border: 1.5px solid var(--sel-edge);
+    background: color-mix(in srgb, var(--sel-edge) 14%, transparent); border-radius: 2px; }

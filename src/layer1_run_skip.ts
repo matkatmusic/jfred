@@ -1,6 +1,6 @@
 // Task 358 part R: why a run is not replayed, and why a replay failed, in plain words.
 
-import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
 import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";

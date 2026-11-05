@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { openJfredMessage } = await import("../webapp/layer1-jfred-drawer.ts");
+const { openJfredMessage } = await import("../webapp/layer1-components/commits-column/layer1-jfred-drawer.ts");
 
 const COMMITTED = {
   shortHash: "c0ffee01",

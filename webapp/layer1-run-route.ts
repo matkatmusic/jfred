@@ -1,7 +1,7 @@
 // Layer 1 run route: queues a dot, or shows why it waits.
 
-import { getBasename } from "./layer1-diff-view.ts";
-import { renderBlockedPopup } from "./layer1-run-blocked-popup.ts";
+import { getBasename } from "./layer1-components/details-drawer/layer1-diff-view.ts";
+import { renderBlockedPopup } from "./layer1-components/popups/layer1-run-blocked-popup.ts";
 import {
   compareRunOrder, findBlockerDot, findFirstBlocker, isBlockerPending, isRunEligible, listOwnBubbleBlockers, listRunBubbles, mergeBlockers, type Blocker,
 } from "./layer1-run-order.ts";

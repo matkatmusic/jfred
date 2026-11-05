@@ -7,9 +7,9 @@ import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { buildJfredEntries, listJfredEntries, JfredEntryKind } = await import("../webapp/layer1-jfred-entries.ts");
-const { computeAxisPixelsAt } = await import("../webapp/layer1-ranges.ts");
-const { loadJfredBranch, readJfredBranch, setPending } = await import("../webapp/layer1-jfred-state.ts");
+const { buildJfredEntries, listJfredEntries, JfredEntryKind } = await import("../webapp/layer1-components/commits-column/layer1-jfred-entries.ts");
+const { computeAxisPixelsAt } = await import("../webapp/layer1-components/bubbles/layer1-ranges.ts");
+const { loadJfredBranch, readJfredBranch, setPending } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
 
 const TICKS: WireRulerTick[] = [
   { instant: "2026-06-01T09:00:00.000Z", axisPx: 100, eventCount: 1 },

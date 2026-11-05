@@ -8,8 +8,8 @@ import {
   COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED,
   buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
 } from "./layer9-probes.ts";
-import { CutRefusal } from "../../webapp/layer1-cut-rules.ts";
-import { JfredEntryKind } from "../../webapp/layer1-jfred-entries.ts";
+import { CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
+import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
 const WAIT_MS = 30_000;
 const MARK_CLASSES: string[] = [CutClass.base, CutClass.set, CutClass.pending];

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { moveFirstVisibleNodeIntoView } from "../webapp/layer1-first-node-scroll.ts";
+import { moveFirstVisibleNodeIntoView } from "../webapp/layer1-components/bubbles/layer1-first-node-scroll.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const PANE_RECT = { top: 0, bottom: 1000, left: 0, right: 1600 };

@@ -1,7 +1,7 @@
 // Canned L7 fixture: session of each log record, between-row records, same-instant pair.
 
 import { Uuid } from "./structures/domain.ts";
-import { WireRecordKind, type WireAnnotationOf } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind, type WireAnnotationOf } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { Layer1WireView } from "./viewer_api_layer1.ts";
 import { FIXTURE_JSONL_DIR, buildSessionId } from "./viewer_api_layer1_fixture_data.ts";
 

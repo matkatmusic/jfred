@@ -20,7 +20,7 @@ import {
   BUTTON_FACTS, CHAIN_COUNT, COMMIT_MODE_CLICK, COMMIT_MODE_LABEL, DRAWER_FACTS, ENTRY_FACTS, FIXTURE_BASE_HASH, FOOTNOTE_PREFIX, STRIP_COUNT,
   buildBeaconInstantCount, buildClickById, buildClickEntry, buildSnapLines, type DrawerFacts, type EntryFacts,
 } from "./layer9-probes.ts";
-import { JfredEntryKind } from "../../webapp/layer1-jfred-entries.ts";
+import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
 export interface ButtonFacts { text: string; previousId: string; isHidden: boolean; display: string; isSettingsOpen: boolean; isInShowRow: boolean }
 

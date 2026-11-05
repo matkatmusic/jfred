@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import {
   buildNodeLinkUrl, findNodeByIdentity, installCopyLinkButton, openLinkedNode, readNodeLinkIdentity,
-} from "../webapp/layer1-node-link.ts";
+} from "../webapp/layer1-components/bubbles/layer1-node-link.ts";
 import { SCRIPT_RUN, openSingleRunDrawer } from "./layer1-drawer-script-helpers.ts";
 import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";

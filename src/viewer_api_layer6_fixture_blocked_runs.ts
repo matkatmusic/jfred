@@ -1,7 +1,7 @@
 // Layer 6 fixture runs: python runs in far-apart bulk bubbles for the blocked, crashed, skipped, slow and outcome cases.
 
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
-import { WireScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import type { FixtureScriptRun } from "./viewer_api_layer4_fixture_data.ts";
 
 export const FIXTURE_RUN_ID = {

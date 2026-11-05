@@ -6,7 +6,7 @@ import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { moveToUncoveredCentre } = await import("../webapp/layer1-find-file.ts");
+const { moveToUncoveredCentre } = await import("../webapp/layer1-components/top-bars/layer1-find-file.ts");
 
 const PANE_WIDTH_PX = 500;
 const PANE_HEIGHT_PX = 800;

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hasInstantInRange, resolveRangeStepIndexes } from "../webapp/layer1-range-steps.ts";
+import { hasInstantInRange, resolveRangeStepIndexes } from "../webapp/layer1-components/bubbles/layer1-range-steps.ts";
 
 const T0 = "2026-07-01T10:00:00.000Z";
 const T1 = "2026-07-01T11:00:00.000Z";

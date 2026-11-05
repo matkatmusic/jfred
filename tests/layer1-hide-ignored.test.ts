@@ -6,7 +6,7 @@ import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { buildHideIgnoredControl } = await import("../webapp/layer1-hide-ignored.ts");
+const { buildHideIgnoredControl } = await import("../webapp/layer1-components/show-row/layer1-hide-ignored.ts");
 
 function buildControlInShowRow(): HTMLInputElement {
     initLayer1Dom();

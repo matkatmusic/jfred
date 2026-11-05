@@ -1,0 +1,25 @@
+  /*
+    Dashes sit under the time, count to its right; scoped so the real page stays put.
+  */
+  /*
+    One fixed line height, so no child can grow the tick and lift the time off its axis.
+  */
+  .ruler-sessions .tick { height: 15px; }
+  .ruler-sessions .tick .tcount { display: inline-block; vertical-align: top; width: 5ch; margin-left: 4px; text-align: left; }
+  .ruler-sessions .tick .kind-dashes { position: absolute; top: calc(100% - 1px); right: calc(5ch + 4px); height: 4px; margin: 0; }
+  .ruler-sessions .tick .kdash::after { inset: -3px -1px; }
+  .ruler-sessions .tick.expanded .tcount { display: none; }
+  .ruler-sessions .tick.expanded .kind-dashes { position: static; height: 14px; margin-left: 6px; }
+  .ruler-sessions .tick.s-coloured { color: var(--session-color); }
+
+  /*
+    File lines match their dash color; the tool kind has no dash color, so it uses ink.
+  */
+  .ruler-sessions .tf-created { color: var(--muted); }
+  .ruler-sessions .tf-commit { color: var(--c-commit); }
+  .ruler-sessions .tf-disk { color: var(--c-disk); }
+  .ruler-sessions .tf-snapshot { color: var(--c-snap); }
+  .ruler-sessions .tf-edit { color: var(--c-edit); }
+  .ruler-sessions .tf-script-run { color: var(--c-script); }
+  .ruler-sessions .tf-branch { color: var(--c-user); }
+  .ruler-sessions .tf-tool { color: var(--ink); }

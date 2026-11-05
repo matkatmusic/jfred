@@ -1,7 +1,7 @@
 // Layer 7 browser-side expressions: ids, scroll helpers and page probes shared by the Layer 7 checks.
 
 import { TOOL_NODE_PATH } from "../../src/viewer_api_layer7_fixture_data.ts";
-import { ANNOTATION_MARGIN_PX } from "../../webapp/layer1-annotation-window.ts";
+import { ANNOTATION_MARGIN_PX } from "../../webapp/layer1-components/session-column/layer1-annotation-window.ts";
 import { type HeadlessPage } from "./cdp.ts";
 import { buildBubbleSelector } from "./mockup-checks.ts";
 

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnWash } from "../webapp/layer1-wash.ts";
+import { spawnWash } from "../webapp/layer1-components/bubbles/layer1-wash.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 test("spawnWash sets the start, span and color custom properties", () => {

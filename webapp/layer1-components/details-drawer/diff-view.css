@@ -1,0 +1,29 @@
+  /*
+    Task 305: the classic Revision Viewer's renderers (webapp/diff-render.ts), on this page's tokens.
+  */
+  .drawer { --mono: ui-monospace, Menlo, monospace;
+    --add-bg: color-mix(in srgb, var(--c-snap) 14%, transparent);
+    --del-bg: color-mix(in srgb, var(--c-user) 14%, transparent);
+    --hunk-bg: color-mix(in srgb, var(--ink) 8%, transparent);
+    --green: var(--c-snap); --red: var(--c-user); --accent: var(--c-commit); }
+  .dbody .diff { flex: 1; font-family: var(--mono); font-size: 11px; min-width: max-content; }
+  .dbody .diff-line { display: flex; white-space: pre; }
+  .dbody .diff-ln { flex: 0 0 36px; text-align: right; padding-right: 6px; color: var(--muted);
+    user-select: none; }
+  .dbody .diff-body { padding-left: 8px; }
+  .dbody .diff-line.add { background: var(--add-bg); }
+  .dbody .diff-line.add .diff-body { color: var(--green); }
+  .dbody .diff-line.del { background: var(--del-bg); }
+  .dbody .diff-line.del .diff-body { color: var(--red); }
+  .dbody .diff-line.hunk { background: var(--hunk-bg); color: var(--accent); }
+  .dbody .diff-cols { flex: 1; display: grid; font-family: var(--mono); font-size: 11px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr); }
+  .dbody .dc-ln { text-align: right; padding-right: 6px; color: var(--muted); user-select: none; }
+  .dbody .dc-body { padding-left: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dbody .dc-ln.dc-right { border-left: 1px solid var(--border); }
+  .dbody .dc-del { background: var(--del-bg); }
+  .dbody .dc-body.dc-del { color: var(--red); }
+  .dbody .dc-add { background: var(--add-bg); }
+  .dbody .dc-body.dc-add { color: var(--green); }
+  .dbody .dc-hunk { grid-column: 1 / -1; background: var(--hunk-bg); color: var(--accent);
+    padding-left: 8px; white-space: pre-wrap; }

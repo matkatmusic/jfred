@@ -16,7 +16,7 @@ const NAV_VIEW = {
 
 // Boot the pane against the page's own host elements. Folder clicks belong to tests/layer1-folder-filter.test.ts, so the selection callback is a no-op here.
 async function bootFileNav(): Promise<void> {
-    const { renderLayer1FileNav } = await import("../webapp/layer1-filenav.ts");
+    const { renderLayer1FileNav } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     renderLayer1FileNav(NAV_VIEW, () => {});
 }
 

@@ -1,10 +1,10 @@
 // Single source of Layer 1 wire vocabulary (const objects, not `enum`); edits, scripts, branches, ladder live in layer1-wire-*.ts.
 
-import type { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
-import type { WireAnnotationOf, WireToolNodeOf } from "./layer1-wire-annotations.ts";
+import type { CreatedNotTrustedReason } from "./layer1-components/bubbles/layer1-created-reason.ts";
+import type { WireAnnotationOf, WireToolNodeOf } from "./layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireBranchOf } from "./layer1-wire-branches.ts";
 import type { WireEditOf } from "./layer1-wire-edits.ts";
-import type { WireJfredCommitsOf } from "./layer1-wire-jfred.ts";
+import type { WireJfredCommitsOf } from "./layer1-components/commits-column/layer1-wire-jfred.ts";
 import type { WireScriptRunOf } from "./layer1-wire-script-runs.ts";
 
 export interface WireInstantOf<I> {

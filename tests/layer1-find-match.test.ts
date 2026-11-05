@@ -6,7 +6,7 @@ import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } = await import("../webapp/layer1-find-match.ts");
+const { listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } = await import("../webapp/layer1-components/top-bars/layer1-find-match.ts");
 
 function fillStageWithBubbles(paths: string[]): void {
   getRequiredElementById("stage").innerHTML = paths

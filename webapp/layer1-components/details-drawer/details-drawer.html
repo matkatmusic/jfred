@@ -1,0 +1,27 @@
+    <aside class="drawer" id="drawer">
+      <div class="dhead"><div class="dpath" id="dpath"></div>
+        <!--
+          tasks 299/305: ONE header control strip — zoom for an image, diff for a pair
+        -->
+        <!--
+          task 323: cycle the selection through the file's timeline; disabled at the ends
+        -->
+        <span class="dtools"><button id="dprev" title="previous revision">↑</button><button id="dnext" title="next revision">↓</button></span>
+        <!--
+          task 329: pair rows retired — each DiffView pane carries its own arrows and diff tools
+        -->
+        <span class="dtools" id="imgtools" hidden>
+          <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
+        </span>
+        <!--
+          task 329: multi-file mode — drives every per-file section at once
+        -->
+        <span class="dtools" id="dmulti" hidden>
+          <!-- <button id="dcollapse-all">collapse all</button><button id="dshow-all">show all</button> -->
+          <button id="dfold-all">Collapse all</button>
+        </span>
+        <button id="dcopylink" title="copy a link that opens this page and this node" hidden>Copy link</button>
+        <button id="dclose">Close</button></div>
+      <div class="dmeta" id="dmeta"></div>
+      <div class="dbody" id="dbody"></div>
+    </aside>

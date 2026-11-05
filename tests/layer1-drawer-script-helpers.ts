@@ -1,8 +1,8 @@
 // Shared fixtures for the script-run drawer tests: one run touching two files, and a one-run drawer opener.
 
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
-import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildRunMarkMarkup, RunMarkKey } from "../webapp/layer1-run-dot-marks.ts";
+import { buildRunMarkMarkup, RunMarkKey } from "../webapp/layer1-components/bubbles/layer1-run-dot-marks.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();

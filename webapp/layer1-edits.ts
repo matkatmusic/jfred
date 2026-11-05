@@ -1,7 +1,7 @@
 // Task 343: the Edit box's first tick fetches /api/layer1-edits once per loaded view and merges it in place.
 
-import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
+import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-components/popups/layer1-busy-shield.ts";
+import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import type { WireEdit, WireEditsView } from "./layer1-wire-edits.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 

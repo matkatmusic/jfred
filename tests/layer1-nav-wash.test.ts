@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearNavWash, renderNavWash, computeNavWashInstants } from "../webapp/layer1-nav-wash.ts";
+import { clearNavWash, renderNavWash, computeNavWashInstants } from "../webapp/layer1-components/file-nav/layer1-nav-wash.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireLayer1View, WireRulerTick } from "../webapp/layer1-wire.ts";
 

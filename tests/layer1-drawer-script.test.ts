@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { SCRIPT_RUN, SCRIPT_TOOL_USE_ID, buildScriptRunStage, storeScriptRunView, openScriptRunDrawerByClick, openSingleRunDrawer } from "./layer1-drawer-script-helpers.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 

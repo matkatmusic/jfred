@@ -2,7 +2,7 @@
 
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
-import { computeInstantOffsets } from "../webapp/layer1-ruler-axis.ts";
+import { computeInstantOffsets } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { loadLayeredProject } from "./layered_load.ts";
 import { mergeSessionTimelines } from "./layered_merge.ts";
 import type { Instant, ReconstructionEntity, ReconstructionGraph } from "./layered_types.ts";

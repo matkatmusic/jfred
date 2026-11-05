@@ -8,7 +8,7 @@ import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { readRulerExpansion } = await import("../webapp/layer1-tick-files.ts");
+const { readRulerExpansion } = await import("../webapp/layer1-components/ruler/layer1-tick-files.ts");
 
 const FILLER = { instant: "2026-06-01T09:00:00.000Z", axisPx: 10 };
 const ROW = { instant: "2026-06-02T09:00:00.000Z", axisPx: 100 };

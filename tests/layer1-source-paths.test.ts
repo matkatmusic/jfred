@@ -17,7 +17,7 @@ const DERIVED_JSONL_DIR = `${PROJECTS_DIR}/-Users-you-claude-code-src-demo-app`;
 async function openPageWithSeededDefaults() {
     initLayer1Dom();
     installFetchRoutes({ "/api/config": { projectsDir: PROJECTS_DIR, fileHistoryDir: FILE_HISTORY_DIR } });
-    const sourcePaths = await import(`../webapp/layer1-source-paths.ts?case=${Math.random()}`);
+    const sourcePaths = await import(`../webapp/layer1-components/top-bars/layer1-source-paths.ts?case=${Math.random()}`);
     await sourcePaths.loadSourceDefaults();
     getInputById("dir").value = PROJECT_FOLDER;
     return sourcePaths;

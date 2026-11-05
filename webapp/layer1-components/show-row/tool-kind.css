@@ -1,0 +1,4 @@
+  .viz-root[data-hidden-kinds~="tool"] .tnode,
+  .viz-root[data-hidden-kinds~="tool"] .tlabel,
+  .viz-root[data-hidden-kinds~="tool"] .tbracket { display: none; }
+  .show-row .sw-tool { background: var(--ink); border-radius: 3px; }

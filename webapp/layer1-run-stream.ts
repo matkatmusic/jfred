@@ -1,7 +1,7 @@
 // Layer 1 run stream client: sends one run request and reads its NDJSON lines; asks which runs it needs.
 
 import { splitNdjsonChunk } from "./app-ndjson.ts";
-import type { ProgressPainter } from "./layer1-progress.ts";
+import type { ProgressPainter } from "./layer1-components/loading-bar/layer1-progress.ts";
 import {
   WireNeedState,
   WireRunStreamKind,

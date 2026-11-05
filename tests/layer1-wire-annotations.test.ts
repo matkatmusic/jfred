@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { WireRecordKind, type WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind, type WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 test("test_wire_annotation_requires_session_id_and_title", () => {
   // Verify: a record with both session fields type-checks; one without them does not.

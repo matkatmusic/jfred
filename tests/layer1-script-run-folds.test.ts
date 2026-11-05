@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
-import { buildScriptRunFileFold, buildScriptRunFold } from "../webapp/layer1-script-run-folds.ts";
+import { buildScriptRunFileFold, buildScriptRunFold } from "../webapp/layer1-components/details-drawer/layer1-script-run-folds.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { openScriptRunDrawerByClick } from "./layer1-drawer-script-helpers.ts";
 

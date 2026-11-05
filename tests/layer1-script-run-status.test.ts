@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
-import { buildScriptRunStatusBadges, computeRunStatus } from "../webapp/layer1-script-run-status.ts";
+import { buildScriptRunStatusBadges, computeRunStatus } from "../webapp/layer1-components/details-drawer/layer1-script-run-status.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";

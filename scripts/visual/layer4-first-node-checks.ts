@@ -7,7 +7,7 @@ const SCROLL_TIMEOUT_MS = 10_000;
 
 // Keeps one visible node, pushes it off screen, calls the real module, reports where it ended.
 const RUN_FIRST_NODE_SCROLL = `(async () => {
-    const { moveFirstVisibleNodeIntoView } = await import('/app/layer1-first-node-scroll.js');
+    const { moveFirstVisibleNodeIntoView } = await import('/app/layer1-components/bubbles/layer1-first-node-scroll.js');
     const pane = document.getElementById('timelines');
     const visible = [...document.querySelectorAll('#stage .node')].filter(n => n.checkVisibility());
     if (visible.length === 0) return { visibleCount: 0 };

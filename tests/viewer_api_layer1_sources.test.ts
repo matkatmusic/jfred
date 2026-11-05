@@ -37,6 +37,18 @@ test("test_list_source_files_leaves_out_zero_byte_jsonl", () => {
     assert.deepEqual(names, ["agent-full.jsonl"]);
 });
 
+test("test_listSourceFilesUnder_skips_the_claude_hooks_folder", () => {
+    // A root holds a real transcript a.jsonl and a hook debug log at .claude_hooks/debug/b.jsonl.
+    const folder = createTempDir();
+    const hookLogFolder = join(folder, ".claude_hooks", "debug");
+    mkdirSync(hookLogFolder, { recursive: true });
+    writeFileSync(join(folder, "a.jsonl"), "{}\n");
+    writeFileSync(join(hookLogFolder, "b.jsonl"), "{}\n");
+    // Listing with SourceKind.jsonl finds only a.jsonl.
+    const names = listSourceFilesUnder(new Path(folder), SourceKind.jsonl).map((path) => basename(path.toString()));
+    assert.deepEqual(names, ["a.jsonl"]);
+});
+
 test("test_list_source_files_keeps_zero_byte_file_history_file", () => {
     // File-history snapshots may legitimately be empty files.
     const folder = createTempDir();

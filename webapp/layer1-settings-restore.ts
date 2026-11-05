@@ -2,7 +2,7 @@
 
 import { getInputById } from "./app-dom.ts";
 import { type Layer1ProjectSettings, setCachedProjectSettings } from "./layer1-settings.ts";
-import { writeSourcePaths } from "./layer1-source-paths.ts";
+import { writeSourcePaths } from "./layer1-components/top-bars/layer1-source-paths.ts";
 import { SourceKind } from "./layer1-wire.ts";
 
 // The URL wins for the fields it names; an absent value leaves the box alone.

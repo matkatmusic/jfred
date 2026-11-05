@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderSessionRanges, computeAxisPixelsAt } from "../webapp/layer1-ranges.ts";
+import { renderSessionRanges, computeAxisPixelsAt } from "../webapp/layer1-components/bubbles/layer1-ranges.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick, WireSession } from "../webapp/layer1-wire.ts";
 

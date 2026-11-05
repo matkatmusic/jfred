@@ -1,0 +1,44 @@
+  /*
+    task 329: one collapsible section per selected file; native <details> is the collapse.
+  */
+  .dbody details.dfile { border-bottom: 1px solid var(--border); white-space: normal; }
+  /*
+    The section header IS the single-pair .dhead; only the summary affordance is added here.
+  */
+  .dbody .dfile-head { cursor: pointer; list-style: none; }
+  .dbody .dfile-head::-webkit-details-marker { display: none; }
+  /*
+    Multi-file sections advertise their fold with a triangle; a lone section never folds.
+  */
+  .dbody > details.dfile:not(:only-child) > .dfile-head::before { content: "▸"; display: inline-block;
+    width: 14px; color: var(--muted); }
+  .dbody > details.dfile[open]:not(:only-child) > .dfile-head::before { content: "▾"; }
+  .dbody > details.dfile:only-child > .dfile-head { cursor: default; }
+  /*
+    Equal sides leave the section meta empty; an empty row must not keep its padding.
+  */
+  .dbody .dmeta:empty { display: none; }
+  /*
+    Capped pane: a long file scrolls inside its own section instead of burying the ones below.
+  */
+  .dbody .dfile-body { max-height: 40vh; overflow-y: auto; }
+  /*
+    A lone section has nothing below to bury, so it gets the whole Detail area.
+  */
+  .dbody > details.dfile:only-child .dfile-body { max-height: none; }
+
+  /*
+    The drawer's body (webapp/layer1-file-view.ts): a line-number column beside one highlighted block (task 294).
+  */
+
+  .dbody { display: flex; align-items: flex-start; gap: 12px; }
+  /*
+    task 329: the row flex above is for gutter + code; multi-file sections stack vertically.
+  */
+  .dbody:has(> details.dfile) { display: block; }
+  .dbody .dgutter { flex: none; text-align: right; color: var(--muted); user-select: none; }
+  .dbody .dcode { flex: 1; min-width: 0; }
+  /*
+    A binary file has no text to number, so it gets a sentence instead of a body (task 294).
+  */
+  .dbody .dbinary { color: var(--muted); font-style: italic; }

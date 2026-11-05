@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setBranchesAxisPx, setDiskOrphanAxisPx, setNodeAxisPx, setNodesAxisPx, setPairAxisPx } from "../webapp/layer1-axis-placement.ts";
+import { setBranchesAxisPx, setDiskOrphanAxisPx, setNodeAxisPx, setNodesAxisPx, setPairAxisPx } from "../webapp/layer1-components/ruler/layer1-axis-placement.ts";
 import { T0, T1, T2, T3 } from "./layer1-filter-test-helpers.ts";
 
 test("test_set_node_axis_px_keeps_the_other_fields", () => {

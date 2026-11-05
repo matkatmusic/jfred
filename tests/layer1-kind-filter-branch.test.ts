@@ -8,7 +8,7 @@ import { buildFreshView, readHiddenKinds, toggleBox } from "./layer1-kind-filter
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { renderShowRowWithKindFilter } = await import("../webapp/layer1-kind-filter.ts");
+const { renderShowRowWithKindFilter } = await import("../webapp/layer1-components/show-row/layer1-kind-filter.ts");
 
 test("test_ticking_the_branch_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
     initLayer1Dom();

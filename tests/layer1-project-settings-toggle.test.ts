@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { installProjectSettingsToggle } from "../webapp/layer1-project-settings-toggle.ts";
+import { installProjectSettingsToggle } from "../webapp/layer1-components/top-bars/layer1-project-settings-toggle.ts";
 
 function readRowsOpen(): boolean {
     return document.querySelector(".viz-root")!.classList.contains("project-settings-open");

@@ -14,6 +14,9 @@ const WORKFLOW_JOURNAL_NAME = "journal.jsonl";
 // Claude Code's prompt history is not a chat transcript.
 const PROMPT_HISTORY_NAME = "history.jsonl";
 
+// Claude hook debug logs are not chat transcripts.
+const HOOK_LOGS_FOLDER_NAME = ".claude_hooks";
+
 // File-history snapshots are named by hash, so every regular file matches; only JSONL narrows by name.
 function isMatchingSourceKind(name: string, kind: SourceKind): boolean {
   if (kind === SourceKind.jsonl) {
@@ -42,7 +45,10 @@ export function listSourceFilesUnder(root: Path, kind: SourceKind, limit = Numbe
     for (const entry of readdirSync(folder, { withFileTypes: true })) {
       const isDirectory = entry.isDirectory();
       if (isDirectory) {
-        pending.push(join(folder, entry.name));
+        const isHookLogsFolder = entry.name === HOOK_LOGS_FOLDER_NAME;
+        if (!isHookLogsFolder) {
+          pending.push(join(folder, entry.name));
+        }
         continue;
       }
       const isFile = entry.isFile();

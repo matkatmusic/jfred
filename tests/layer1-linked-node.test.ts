@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { openLinkedNodeAfterLoad } from "../webapp/layer1-linked-node.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
+import { openLinkedNodeAfterLoad } from "../webapp/layer1-components/bubbles/layer1-linked-node.ts";
 import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 

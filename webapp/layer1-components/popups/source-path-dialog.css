@@ -1,0 +1,31 @@
+  /*
+    Tasks 295/296/297: the source-path dialog and the Save note. `position: fixed` keeps the dialog above the timeline.
+  */
+  .savednote { font-size: 10.5px; color: var(--sel-edge); }
+  .modal-wrap { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+    background: color-mix(in srgb, #000 45%, transparent); }
+  .modal-wrap[hidden] { display: none; }
+  .modal { width: min(560px, 88vw); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); padding: 12px; position: relative; }
+  .mtitle { font: 600 12px system-ui; color: var(--ink); padding-bottom: 8px; }
+  .mlist { height: 190px; overflow: auto; background: var(--page); border: 1px solid var(--border);
+    border-radius: 7px; padding: 4px; }
+  /*
+    A row is as wide as its path; `.mlist` scrolls sideways. `min-width: 100%` keeps backgrounds full width.
+  */
+  .mlist div { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2);
+    padding: 3px 6px; border-radius: 4px; cursor: pointer; white-space: nowrap;
+    width: max-content; min-width: 100%; }
+  .mlist div:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .mlist div.picked { background: var(--sel-edge); color: #fff; }
+  .mlist .mempty { color: var(--muted); cursor: default; }
+  .mhint { font: 11px system-ui; color: var(--muted); padding-top: 6px; }
+  .mbuttons { display: flex; gap: 6px; align-items: center; padding-top: 9px; }
+  .mspacer { flex: 1; }
+  /*
+    The folder held no matching files. Shown in front of the list, then gone after a few seconds.
+  */
+  .malert { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+    background: var(--c-anchor); color: #fff; font: 600 11px system-ui;
+    padding: 6px 12px; border-radius: 16px; }
+  .malert[hidden] { display: none; }

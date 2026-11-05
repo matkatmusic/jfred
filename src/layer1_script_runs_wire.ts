@@ -1,7 +1,7 @@
 // Task l4-wire-real: the static path scan joins located script runs to pairs for the /api/layer1-script-runs view.
 
 import { WireScriptExecutorKind, type WireScriptRunOf, type WireScriptRunsViewOf } from "../webapp/layer1-wire-script-runs.ts";
-import { WireScriptLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { FileStampCache, saveFileStampCachesIfChanged } from "./file_stamp_cache.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { loadTranscript, type ProgressSink } from "./parse/loadTranscript.ts";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { buildPairBracket } = await import("../webapp/layer1-annotation-bracket.ts");
+const { buildPairBracket } = await import("../webapp/layer1-components/session-column/layer1-annotation-bracket.ts");
 
 function buildNodeAt(axisPx: number): HTMLElement {
     const node = document.createElement("i");

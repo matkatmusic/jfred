@@ -1,17 +1,17 @@
 // Draws a whole Layer 1 view and keeps the folder-selection filter state.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { storeAnnotations } from "./layer1-annotation-track.ts";
-import { rememberNavTargets } from "./layer1-diff-wash.ts";
-import { openDetailViewForFiles } from "./layer1-drawer-multi.ts";
-import { renderLayer1FileNav } from "./layer1-filenav.ts";
-import { filterLayer1ViewByTargets } from "./layer1-filter.ts";
-import { rememberJfredCommits } from "./layer1-jfred-mode.ts";
-import { renderShowRowWithKindFilter } from "./layer1-kind-filter.ts";
-import { renderSessionPane } from "./layer1-session-pane.ts";
-import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-sessions.ts";
-import { renderLayer1Stage } from "./layer1-stage-render.ts";
-import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-tick-files.ts";
+import { storeAnnotations } from "./layer1-components/session-column/layer1-annotation-track.ts";
+import { rememberNavTargets } from "./layer1-components/bubbles/layer1-diff-wash.ts";
+import { openDetailViewForFiles } from "./layer1-components/details-drawer/layer1-drawer-multi.ts";
+import { renderLayer1FileNav } from "./layer1-components/file-nav/layer1-filenav.ts";
+import { filterLayer1ViewByTargets } from "./layer1-components/show-row/layer1-filter.ts";
+import { rememberJfredCommits } from "./layer1-components/commits-column/layer1-jfred-mode.ts";
+import { renderShowRowWithKindFilter } from "./layer1-components/show-row/layer1-kind-filter.ts";
+import { renderSessionPane } from "./layer1-components/jsonls-nav/layer1-session-pane.ts";
+import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-components/jsonls-nav/layer1-sessions.ts";
+import { renderLayer1Stage } from "./layer1-components/bubbles/layer1-stage-render.ts";
+import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 function listSharedPaths(folders: readonly string[], sessions: readonly string[]): string[] {

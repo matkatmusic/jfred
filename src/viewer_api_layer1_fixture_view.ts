@@ -1,7 +1,7 @@
 // Builds the fixture Layer 1 wire view, mirroring buildLayer1View so offsets go through computeNodeLadderLayout.
 
 import { Path } from "./structures/domain.ts";
-import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { listSnapshotInstants, createAxisWireSnapshots } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Layer1WireOrphan, Layer1WirePair, Layer1WireView } from "./viewer_api_layer1.ts";

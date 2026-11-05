@@ -1,11 +1,11 @@
 // Layer 1 view: node ladders and axis placement for one disk and repository pair.
 
 import type { DiskFileState } from "./layer1_disk_walk.ts";
-import type { NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import type { NodeLadder } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { listSnapshotInstants, createAxisWireSnapshots } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 import type { Layer1WirePair } from "./viewer_api_layer1.ts";
 
 export interface PairHistory {

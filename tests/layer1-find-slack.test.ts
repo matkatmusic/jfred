@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { addSlackForEdgeNode } from "../webapp/layer1-find-slack.ts";
+import { addSlackForEdgeNode } from "../webapp/layer1-components/top-bars/layer1-find-slack.ts";
 
 initLayer1Dom();
 

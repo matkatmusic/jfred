@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-script-run-drawer.ts";
+import { buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-components/details-drawer/layer1-script-run-drawer.ts";
 import { markRunStarted, resetRunResults } from "../webapp/layer1-run-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";

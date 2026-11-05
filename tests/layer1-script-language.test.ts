@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { WireScriptLanguage, computeScriptHighlightLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-script-language.ts";
+import { WireScriptLanguage, computeScriptHighlightLanguage, formatScriptRunLabel, parseScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 
 test("every language, the Bash tool included, reads '<language> run'", () => {
     for (const language of Object.values(WireScriptLanguage)) {

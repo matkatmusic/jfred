@@ -1,7 +1,7 @@
 // Task 356: the script-run box's first tick fetches /api/layer1-script-runs once per loaded view and merges it in place.
 
-import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
+import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-components/popups/layer1-busy-shield.ts";
+import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import type { WireScriptRun, WireScriptRunsView } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 

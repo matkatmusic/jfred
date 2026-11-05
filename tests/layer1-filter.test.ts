@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterLayer1ViewByTargets } from "../webapp/layer1-filter.ts";
-import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
+import { filterLayer1ViewByTargets } from "../webapp/layer1-components/show-row/layer1-filter.ts";
+import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { FULL_VIEW, KEEP_TARGETS, T0, T1, T2, T3, T5, T6, findPair } from "./layer1-filter-test-helpers.ts";

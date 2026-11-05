@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "../webapp/layer1-annotation-window.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
-import type { WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
+import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const TICKS: WireRulerTick[] = [

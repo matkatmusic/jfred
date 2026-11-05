@@ -1,7 +1,7 @@
 // Test support for layer1-run-queue.test.ts: run and view builders, a stubbed server, and the consent clicks.
 
 import assert from "node:assert/strict";
-import { resetRunConsent } from "../webapp/layer1-run-consent.ts";
+import { resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
 import { resetRunQueue } from "../webapp/layer1-run-queue.ts";
 import { resetRunResults } from "../webapp/layer1-run-results.ts";
 import { WireNeedState, WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { FOOTNOTE_PREFIX, buildCommitMessage, listSnapLines } = await import("../webapp/layer1-jfred-message.ts");
+const { FOOTNOTE_PREFIX, buildCommitMessage, listSnapLines } = await import("../webapp/layer1-components/commits-column/layer1-jfred-message.ts");
 
 const MARK = "2026-06-03T10:30:00Z";
 const WALL_CLOCK = "2026-11-03T12:00:00Z";

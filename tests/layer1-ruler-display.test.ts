@@ -3,14 +3,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
-import type { WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { renderRulerDisplay, removeRulerDisplay, TICK_FULL_TIME_ATTRIBUTE } = await import("../webapp/layer1-ruler-display.ts");
-const { storeRow } = await import("../webapp/layer1-tick-events.ts");
-const { listSessionColors } = await import("../webapp/layer1-session-colors.ts");
+const { renderRulerDisplay, removeRulerDisplay, TICK_FULL_TIME_ATTRIBUTE } = await import("../webapp/layer1-components/ruler/layer1-ruler-display.ts");
+const { storeRow } = await import("../webapp/layer1-components/ruler/layer1-tick-events.ts");
+const { listSessionColors } = await import("../webapp/layer1-components/session-column/layer1-session-colors.ts");
 const { createElement } = await import("../webapp/app-dom.ts");
 
 const FIRST_INSTANT = "2026-06-01T09:05:07.123Z";

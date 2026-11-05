@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CUT_REFUSAL_TEXT, CutRefusal, findCutRefusal } from "../webapp/layer1-cut-rules.ts";
+import { CUT_REFUSAL_TEXT, CutRefusal, findCutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 
 const TIP_MS = Date.parse("2026-06-03T10:30:00Z");
 const LATER_MS = Date.parse("2026-06-03T18:20:00Z");

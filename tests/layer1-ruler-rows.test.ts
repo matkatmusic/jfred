@@ -7,7 +7,7 @@ import {
     formatInstantDisplay,
     formatInstantLabel,
     listRulerRows,
-} from "../webapp/layer1-ruler-rows.ts";
+} from "../webapp/layer1-components/ruler/layer1-ruler-rows.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // Offsets are STATED, never derived — the axis resolver has its own tests.

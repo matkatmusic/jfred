@@ -4,9 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement } from "../webapp/app-dom.ts";
-import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
-import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
-import { markMultiEventTicks, registerExpansionRelayout, registerTickExpansion } from "../webapp/layer1-tick-files.ts";
+import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
+import { attachRulerTickClick } from "../webapp/layer1-components/ruler/layer1-ruler-click.ts";
+import { markMultiEventTicks, registerExpansionRelayout, registerTickExpansion } from "../webapp/layer1-components/ruler/layer1-tick-files.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;
@@ -82,7 +82,7 @@ test("test_kinds_hidden_on_load_get_no_dash", () => {
 });
 
 test("test_dash_slot_is_28px_wide_with_a_4px_gap", () => {
-    const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../webapp/layer1-components/ruler/ruler-ticks.css", import.meta.url), "utf8");
     assert.match(css, /\.kind-dashes \{[^}]*gap: 4px;[^}]*width: 28px;/);
 });
 

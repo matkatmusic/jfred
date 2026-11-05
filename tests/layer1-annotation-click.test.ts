@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
-import { installAnnotationClick } from "../webapp/layer1-annotation-click.ts";
+import { installAnnotationClick } from "../webapp/layer1-components/session-column/layer1-annotation-click.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 

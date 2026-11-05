@@ -1,7 +1,7 @@
 // Fixture file pairs (commit instants plus disk plus snapshots), split from viewer_api_layer1_fixture_view.ts.
 
 import { Path } from "./structures/domain.ts";
-import type { NodeLadder } from "../webapp/layer1-ruler-axis.ts";
+import type { NodeLadder } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { listSnapshotInstants } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import { COMMITS, DISK, parseMs } from "./viewer_api_layer1_fixture_data.ts";

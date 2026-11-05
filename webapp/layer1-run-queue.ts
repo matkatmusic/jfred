@@ -1,9 +1,9 @@
 // Layer 1 run queue: replays the queued script runs one at a time.
 
-import { openBusyShield, renderBusyShieldError } from "./layer1-busy-shield.ts";
-import { hideLayer1Progress, renderLayer1Progress } from "./layer1-progress.ts";
-import { refreshRunConsole } from "./layer1-run-console.ts";
-import { openRunConsent } from "./layer1-run-consent.ts";
+import { openBusyShield, renderBusyShieldError } from "./layer1-components/popups/layer1-busy-shield.ts";
+import { hideLayer1Progress, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
+import { refreshRunConsole } from "./layer1-components/details-drawer/layer1-run-console.ts";
+import { openRunConsent } from "./layer1-components/popups/layer1-run-consent.ts";
 import { appendRunOutput, markRunCancelled, markRunStarted, paintRunDotsOfRun, storeRunResult } from "./layer1-run-results.ts";
 import { clearNeedsCache, computeRunRoutes, runQueueState } from "./layer1-run-route.ts";
 import { fetchScriptRun, type RunReply } from "./layer1-run-stream.ts";

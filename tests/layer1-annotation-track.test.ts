@@ -3,15 +3,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
-import type { WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
 const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionColumn } = await import("../webapp/layer1-annotation-track.ts");
+const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionColumn } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
 const RECORD_COUNT = 70;
 const TICK_SPACING_PX = 50;

@@ -1,7 +1,7 @@
 // Canned L7 fixture: session-column records and one bubble's tool nodes (task 382, fixture mode only).
 
 import { Uuid } from "./structures/domain.ts";
-import { WireRecordKind, type WireAnnotationOf, type WireToolNodeOf } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind, type WireAnnotationOf, type WireToolNodeOf } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { Layer1WireView } from "./viewer_api_layer1.ts";
 import { parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import {

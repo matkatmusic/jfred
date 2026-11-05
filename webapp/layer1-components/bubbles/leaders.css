@@ -1,0 +1,19 @@
+  /*
+    Task 250: the leader line traces a bubble to its gutter timestamp.
+  */
+  /*
+    Task 264: one leader line per ruler entry; `top` adds `--lane-y` to land on the nodes.
+  */
+  /*
+    `.leaders` keeps `pointer-events: none` so clicks reach bubbles; only `.leader` is hoverable (task 290).
+  */
+  /*
+    On demand: the resting state is opacity 0; layer1-leader-visibility.ts shows the one line asked for. Opacity avoids a re-layout.
+  */
+  .leaders { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+  .leader { position: absolute; left: 0; right: 0; top: calc(var(--axis-px) * 1px + var(--lane-y));
+    height: 8px; pointer-events: auto; border-top: 1px dashed var(--baseline); opacity: 0; }
+  /*
+    A drawn line is a `--sel-edge` line, matching plans/layer1-mockup.html's `.leader.on` rule.
+  */
+  .leader.shown, .leader.aimed { opacity: 1; border-top-color: var(--sel-edge); }

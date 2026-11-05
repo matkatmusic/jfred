@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadEditsOnce } from "../webapp/layer1-edits.ts";
-import { stopLayer1Load } from "../webapp/layer1-progress.ts";
+import { stopLayer1Load } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";

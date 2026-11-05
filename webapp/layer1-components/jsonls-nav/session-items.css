@@ -1,0 +1,23 @@
+  /*
+    Task 292: one JSONL. Selected uses `--c-script`, like the range bar and the wash.
+  */
+  .session-item { font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); margin: 0 8px 3px;
+    padding: 3px 5px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
+  .session-item:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .session-item.selected { color: var(--ink); border-color: var(--c-script);
+    background: color-mix(in srgb, var(--c-script) 20%, transparent); }
+  .session-item .sname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-item .smeta { display: block; font-size: 9.5px; color: var(--muted); padding-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-item.selected .smeta { color: var(--ink2); }
+  .session-item .stitle { display: block; font-size: 10px; color: var(--ink); padding-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /*
+    Task 316: the fade highlight; --c-echo, deliberately NOT the --c-script a SELECTED session wears.
+  */
+  .session-item.flash { animation: session-flash var(--flash-ms, 2600ms) ease-out forwards; }
+  @keyframes session-flash {
+    from { background: color-mix(in srgb, var(--c-echo) 60%, transparent); border-color: var(--c-echo); }
+    to   { background: transparent; border-color: transparent; }
+  }
+  .navempty { font-size: 11px; color: var(--muted); padding: 6px 12px; }

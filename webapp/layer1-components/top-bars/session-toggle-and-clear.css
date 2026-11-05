@@ -1,0 +1,10 @@
+  .session-toggle { height: 24px; }
+  .session-toggle.current { background: var(--c-snap); border-color: var(--c-snap); color: var(--page); }
+
+  /*
+    Task 358 part D: header Clear button and its inline yes/no, same look as .loadbar-confirm.
+  */
+  .clear-results { font-size: 11px; padding: 1px 8px; }
+  .clear-results-confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink2); white-space: nowrap; }
+  .clear-results-confirm button { font-size: 11px; padding: 1px 8px; }
+  .clear-results-confirm[hidden] { display: none; }

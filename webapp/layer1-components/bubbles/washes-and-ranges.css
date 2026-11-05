@@ -1,0 +1,23 @@
+  /*
+    Task 292: washes sit BEHIND bubbles, the 7px per-session bar in FRONT of the gutter lane.
+  */
+  .washes { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+  /*
+    One generic wash: spawnWash sets --wash-color; marker classes carry identity only.
+  */
+  .wash { position: absolute; left: 0; right: 0;
+    top: calc(var(--axis-px) * 1px + var(--lane-y)); height: calc(var(--span-px) * 1px);
+    background: color-mix(in srgb, var(--wash-color) 14%, transparent);
+    border-top: 1px dashed var(--wash-color); border-bottom: 1px dashed var(--wash-color); }
+  .ranges { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+  .range { position: absolute; width: 7px; border-radius: 4px; pointer-events: auto; cursor: default;
+    left: calc(var(--rail-x, 150px) + 5px + var(--slot) * 9px);
+    top: calc(var(--axis-px) * 1px + var(--lane-y)); height: calc(var(--span-px) * 1px);
+    background: color-mix(in srgb, var(--c-script) 70%, transparent); }
+  /*
+    The two ends read as ends rather than as a bar the scrollport clipped.
+  */
+  .range::before, .range::after { content: ""; position: absolute; left: -3px; right: -3px;
+    height: 2px; background: var(--c-script); border-radius: 2px; }
+  .range::before { top: -1px; }
+  .range::after { bottom: -1px; }

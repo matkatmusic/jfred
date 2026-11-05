@@ -6,9 +6,9 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { countSkippedBeaconTicks, isBeaconNode, readTickBeaconFacts } = await import("../webapp/layer1-cut-beacons.ts");
-const { storeRow } = await import("../webapp/layer1-tick-events.ts");
-const { collectStageBubbles } = await import("../webapp/layer1-ruler-click.ts");
+const { countSkippedBeaconTicks, isBeaconNode, readTickBeaconFacts } = await import("../webapp/layer1-components/commits-column/layer1-cut-beacons.ts");
+const { storeRow } = await import("../webapp/layer1-components/ruler/layer1-tick-events.ts");
+const { collectStageBubbles } = await import("../webapp/layer1-components/ruler/layer1-ruler-click.ts");
 
 const BASE_MS = Date.parse("2026-06-01T00:00:00Z");
 const HOUR_MS = 3600_000;

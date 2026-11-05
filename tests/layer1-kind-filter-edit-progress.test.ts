@@ -9,7 +9,7 @@ import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { LAYER1_PROGRESS_LABEL_DRAWING_EDITS, LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE } =
-  await import("../webapp/layer1-progress.ts");
+  await import("../webapp/layer1-components/loading-bar/layer1-progress.ts");
 
 const T0 = "2026-06-01T09:00:00.000Z";
 const PAIR_COUNT = 150;

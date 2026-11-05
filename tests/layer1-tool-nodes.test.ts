@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installAnimationFrameStub, installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
-import { WireRecordKind, type WireToolNode } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind, type WireToolNode } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 initLayer1Dom();
-const { installNodeDrawer } = await import("../webapp/layer1-drawer.ts");
-const { appendToolNodes } = await import("../webapp/layer1-tool-nodes.ts");
+const { installNodeDrawer } = await import("../webapp/layer1-components/details-drawer/layer1-drawer.ts");
+const { appendToolNodes } = await import("../webapp/layer1-components/bubbles/layer1-tool-nodes.ts");
 
 const TOOL_USE: WireToolNode = {
     id: "l7-tool-0", kind: WireRecordKind.toolUse, pairId: "toolu_fixture_l7_grep", label: 'Grep "dispatch"',

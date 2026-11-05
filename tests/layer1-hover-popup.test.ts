@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { attachHoverPopup } = await import("../webapp/layer1-hover-popup.ts");
-import type { HoverPopupContent } from "../webapp/layer1-hover-popup.ts";
+const { attachHoverPopup } = await import("../webapp/layer1-components/popups/layer1-hover-popup.ts");
+import type { HoverPopupContent } from "../webapp/layer1-components/popups/layer1-hover-popup.ts";
 
 function buildContainer(): { container: HTMLElement; accepted: HTMLElement; rejected: HTMLElement } {
   initLayer1Dom();

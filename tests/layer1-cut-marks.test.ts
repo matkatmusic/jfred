@@ -6,10 +6,10 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { installCutMarkClick } = await import("../webapp/layer1-cut-marks.ts");
-const { CUT_REFUSAL_TEXT, CutRefusal } = await import("../webapp/layer1-cut-rules.ts");
-const { loadJfredBranch, readJfredBranch, setArmed, setBase } = await import("../webapp/layer1-jfred-state.ts");
-const { storeRow } = await import("../webapp/layer1-tick-events.ts");
+const { installCutMarkClick } = await import("../webapp/layer1-components/commits-column/layer1-cut-marks.ts");
+const { CUT_REFUSAL_TEXT, CutRefusal } = await import("../webapp/layer1-components/commits-column/layer1-cut-rules.ts");
+const { loadJfredBranch, readJfredBranch, setArmed, setBase } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+const { storeRow } = await import("../webapp/layer1-components/ruler/layer1-tick-events.ts");
 
 const BASE_MS = Date.parse("2026-06-01T00:00:00Z");
 const HOUR_MS = 3600_000;

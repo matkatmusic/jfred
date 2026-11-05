@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterLayer1ViewByTargets, computeRelaidLayer1View } from "../webapp/layer1-filter.ts";
+import { filterLayer1ViewByTargets, computeRelaidLayer1View } from "../webapp/layer1-components/show-row/layer1-filter.ts";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { EARLY, FULL_VIEW, KEEP_TARGETS, T0, T1, T2, T3, T4, T5, T6, T7, findPair } from "./layer1-filter-test-helpers.ts";

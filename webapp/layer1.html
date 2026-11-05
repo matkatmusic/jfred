@@ -14,90 +14,9 @@
 </head>
 <body>
 <div class="viz-root">
-  <header>
-    <h1>Layer 1 View — Current File State vs Git State</h1>
-    <span class="crumb" id="crumb"></span>
-    <!--
-      Task 282: committer vs author placement; flipping re-loads the view, each button's id suffix is the ?time= value.
-    -->
-    <div class="timebar">
-      <span class="lbl">Time:</span>
-      <button id="time-committer" class="current">committer</button>
-      <button id="time-author">author</button>
-    </div>
-    <button id="project-settings">project settings</button>
-    <!--
-      Task 383: fixture-mode only; layer1-jfred-mode.ts shows it.
-    -->
-    <button id="commit-mode" hidden>Commit mode</button>
-    <button id="clear-results" class="clear-results">Clear saved results</button>
-    <span class="clear-results-confirm" id="clear-results-confirm" hidden>Clear all saved results and compute everything again?
-      <button id="clear-results-yes">Yes, clear</button><button id="clear-results-no">No</button>
-    </span>
-    <div class="zoombar">
-      <span class="lbl">Zoom:</span>
-      <button id="zoom-out" title="Zoom out">−</button>
-      <span class="zoom-level" id="zoom-level">100%</span>
-      <button id="zoom-in" title="Zoom in">+</button>
-      <button id="zoom-reset">Reset</button>
-    </div>
-    <!--
-      Layer switcher retired by task 352 pending the task 360 show row (was task 314).
-    <div class="layerbar">
-      <span class="lbl">Layer:</span>
-      <button class="current" data-layer="1">1</button>
-      <button data-layer="2" title="Layer 2 adds file-history snapshots">2</button>
-    </div>
-    -->
-    <div class="layerbar">
-      <button id="layer-3" title="Layer 3 adds Read beacons and Edit/Write nodes">3</button>
-      <button id="layer-4" title="Layer 4 adds script-run nodes">4</button>
-    </div>
-    <div class="sources">
-      <label>Project folder
-        <input id="dir" type="text" size="34" value="">
-        <button class="pick" data-for="dir">Open…</button></label>
-      <!--
-        Tasks 295/296: two lists, one dialog; each button shows its folder count. Task 297 flags unsaved changes.
-      -->
-      <button id="pick-jsonl">JSONL sources</button>
-      <button id="pick-fh">File History Snapshots</button>
-      <button id="save-settings" disabled>Save project settings</button>
-      <span class="savednote" id="saved-note"></span>
-    </div>
-    <!--
-      Task 286: the Git repo row is separate from the folder row; its pickers show only after `.repo-ok`.
-    -->
-    <div class="sources repo">
-      <label>Git repo
-        <input id="repo" type="text" size="34" value="">
-        <button class="pick" data-for="repo">Open…</button></label>
-      <span class="repo-flag">✓ git repo</span>
-      <label class="repo-only">Branch <select id="branch"></select></label>
-      <label class="repo-only">Commit <select id="commit"></select></label>
-      <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
-      <button id="load">Load</button>
-    </div>
-    <!--
-      Task 256: bucket jumps. `data-bucket` MUST match renderLayer1View's bucket heading exactly. Task 285: row also holds the find-bubble widget.
-    -->
-    <div class="jumpbar">
-      <span class="lbl">Jump to:</span>
-      <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
-      <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
-      <label>Find bubble
-        <input id="find-file" type="text" size="22"></label>
-      <!--
-        Task 271: explicit cycle controls; Enter still advances, these add a reverse direction.
-      -->
-      <button id="find-prev" title="Previous match">‹</button>
-      <button id="find-next" title="Next match">›</button>
-      <!--
-        Task 273: the find box's own readout, kept apart from #crumb so a search never erases the counts.
-      -->
-      <span class="find-status" id="find-status"></span>
-    </div>
-  </header>
+  <!--
+    include layer1-components/top-bars/top-bars.html
+  -->
   <!--
     Task 385: the Layer 8 show row mockup replaces the static legend; webapp/layer1-show-row.ts fills it per load.
   <div class="legend">
@@ -109,21 +28,16 @@
     <span><i style="border:1px dashed var(--c-script);background:color-mix(in srgb, var(--c-script) 11%, transparent)"></i> JSONL range</span>
   </div>
   -->
-  <div class="show-row" id="show-row"></div>
   <!--
-    Task 302: sits directly above the timeline and carries the Cancel that aborts the in-flight build.
+    include layer1-components/show-row/show-row.html
   -->
-  <div class="loadbar" id="loadbar" hidden>
-    <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
-    <span class="loadbar-label" id="loadbar-label"></span>
-    <button id="loadbar-cancel">Cancel</button>
-    <span class="loadbar-confirm" id="loadbar-confirm" hidden>Cancel this build?
-      <button id="loadbar-confirm-yes">Yes, cancel</button>
-      <button id="loadbar-confirm-no">No</button>
-    </span>
-  </div>
+  <!--
+    include layer1-components/loading-bar/loading-bar.html
+  -->
 
-  <div class="busy-shield" id="busy-shield" hidden><div class="busy-card" role="alertdialog" aria-live="polite"><div class="loadbar-track"><div class="loadbar-fill" id="busy-fill"></div></div><span class="loadbar-label" id="busy-label"></span><button id="busy-cancel">Cancel</button><p id="busy-error" hidden></p><button id="busy-close" hidden>Close</button></div></div>
+  <!--
+    include layer1-components/popups/busy-shield.html
+  -->
 
   <!--
     Task 246: .stagewrap doesn't scroll, so the minimap stays pinned; inside main.timelines it would scroll away.
@@ -132,115 +46,42 @@
     <!--
       Task 252: the File Nav lists every identified file, left of the ruler gutter; layer1-filenav.ts rebuilds it per load.
     -->
-    <aside class="filenav">
-      <section class="navpane" id="pane-files">
-        <div class="filenav-title">File Nav
-          <!--
-            task 326: filters the timeline to the selected folders' files while toggled on
-          -->
-          <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
-        </div>
-        <!--
-          Task 281: the nav's own search box. It narrows this tree only; the find-bubble box scrolls the timeline.
-        -->
-        <div class="filenav-search">
-          <input id="filenav-search" type="text" placeholder="search files...">
-          <button id="filenav-search-clear" title="Clear the file search">×</button>
-        </div>
-        <div id="filenav-tree"></div>
-      </section>
-      <!--
-        Task 292: the horizontal split between the two panes; dragging it re-shares the aside's height.
-      -->
-      <div class="pane-grip" id="navpane-grip" title="Drag to resize"></div>
-      <!--
-        Task 292: the project's JSONLs. A click filters the timeline to the files that session touched.
-      -->
-      <section class="navpane" id="pane-sessions">
-        <div class="filenav-title">JSONLs
-          <button id="clear-sessions" disabled>All sessions</button>
-        </div>
-        <div class="filenav-search">
-          <input id="session-search" type="text" placeholder="search titles...">
-          <button id="session-search-clear" title="Clear the title search">×</button>
-        </div>
-        <div id="sessions"></div>
-      </section>
-    </aside>
+    <!--
+      include layer1-components/file-nav/file-nav.html
+    -->
     <!--
       Task 279: drag handle is a sibling, not a child, so .filenav's overflow:auto can't scroll it away.
     -->
-    <div class="filenav-grip" id="filenav-grip"></div>
-    <main class="timelines" id="timelines"><div class="canvas">
-      <div class="leaders" id="leaders"></div>
-      <!--
-        Task 292: the wash sits behind the bubbles; the bars sit in the empty lane left of the stage.
-      -->
-      <div class="washes" id="washes"></div>
-      <div class="ranges" id="ranges"></div>
-    <div class="ruler" id="ruler"><div class="rail"></div></div>
-      <div class="stage" id="stage"></div>
-    </div></main>
-    <div class="minimap"><span class="mm-title">minimap</span>
-      <div class="mm-plot" id="mm-plot"><div class="mm-view" id="mm-view"></div></div>
-    </div>
+    <!--
+      include layer1-components/file-nav/filenav-grip.html
+    -->
+    <!--
+      include layer1-components/bubbles/bubbles.html
+    -->
+    <!--
+      include layer1-components/minimap/minimap.html
+    -->
     <!--
       Task 257: drawer shows the clicked node's file bytes and shrinks the timeline; no width transition.
     -->
-    <aside class="drawer" id="drawer">
-      <div class="dhead"><div class="dpath" id="dpath"></div>
-        <!--
-          tasks 299/305: ONE header control strip — zoom for an image, diff for a pair
-        -->
-        <!--
-          task 323: cycle the selection through the file's timeline; disabled at the ends
-        -->
-        <span class="dtools"><button id="dprev" title="previous revision">↑</button><button id="dnext" title="next revision">↓</button></span>
-        <!--
-          task 329: pair rows retired — each DiffView pane carries its own arrows and diff tools
-        -->
-        <span class="dtools" id="imgtools" hidden>
-          <button id="img-zoom-out">−</button><button id="img-zoom-fit">fit</button><button id="img-zoom-in">+</button>
-        </span>
-        <!--
-          task 329: multi-file mode — drives every per-file section at once
-        -->
-        <span class="dtools" id="dmulti" hidden>
-          <!-- <button id="dcollapse-all">collapse all</button><button id="dshow-all">show all</button> -->
-          <button id="dfold-all">Collapse all</button>
-        </span>
-        <button id="dcopylink" title="copy a link that opens this page and this node" hidden>Copy link</button>
-        <button id="dclose">Close</button></div>
-      <div class="dmeta" id="dmeta"></div>
-      <div class="dbody" id="dbody"></div>
-    </aside>
+    <!--
+      include layer1-components/details-drawer/details-drawer.html
+    -->
   </div>
 
   <!--
     task 305: the cross-bubble refusal toast
   -->
-  <div class="dtoast" id="dtoast" hidden></div>
+  <!--
+    include layer1-components/popups/toast.html
+  -->
 
   <!--
     Tasks 295/296: one fixed, centred dialog serves both source lists; it edits a copy that [set and close] commits.
   -->
-  <div class="modal-wrap" id="pathpicker" hidden>
-    <div class="modal">
-      <div class="mtitle" id="pp-title"></div>
-      <div class="mlist" id="pp-list"></div>
-      <div class="mhint">earlier folders win on conflict</div>
-      <div class="malert" id="pp-alert" hidden></div>
-      <div class="mbuttons">
-        <button id="pp-add" title="Add a folder">+</button>
-        <button id="pp-remove" title="Remove the selected folder" disabled>−</button>
-        <button id="pp-up" title="Move the selected folder up" disabled>↑</button>
-        <button id="pp-down" title="Move the selected folder down" disabled>↓</button>
-        <span class="mspacer"></span>
-        <button id="pp-cancel">cancel</button>
-        <button id="pp-ok">set and close</button>
-      </div>
-    </div>
-  </div>
+  <!--
+    include layer1-components/popups/popups.html
+  -->
 </div>
 <script type="module" src="/app/layer1-page.js"></script>
 </body>

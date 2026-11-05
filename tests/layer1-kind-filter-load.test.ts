@@ -2,14 +2,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { stopLayer1Load } from "../webapp/layer1-progress.ts";
+import { stopLayer1Load } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { buildFreshView, readHiddenKinds, toggleBox } from "./layer1-kind-filter-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { renderShowRowWithKindFilter } = await import("../webapp/layer1-kind-filter.ts");
+const { renderShowRowWithKindFilter } = await import("../webapp/layer1-components/show-row/layer1-kind-filter.ts");
 
 test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
     initLayer1Dom();

@@ -9,7 +9,7 @@ import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { WireScriptExecutorKind, type WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 
 initLayer1Dom();
-const { appendAxisNode, appendBranchLane, appendScriptRunNode, setAxisPx } = await import("../webapp/layer1-lane-nodes.ts");
+const { appendAxisNode, appendBranchLane, appendScriptRunNode, setAxisPx } = await import("../webapp/layer1-components/bubbles/layer1-lane-nodes.ts");
 const { resetRunResults, storeRunResult } = await import("../webapp/layer1-run-results.ts");
 
 const INSTANT = "2026-06-02T09:00:00.000Z";

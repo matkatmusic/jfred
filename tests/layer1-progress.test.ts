@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
-import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-progress.ts";
+import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
 const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };

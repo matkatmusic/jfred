@@ -6,7 +6,7 @@ import { createElement } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { readNodeKind } = await import("../webapp/layer1-node-kind.ts");
+const { readNodeKind } = await import("../webapp/layer1-components/bubbles/layer1-node-kind.ts");
 
 test("test_readNodeKind_maps_node_classes_to_show_row_kinds", () => {
     const readKindOf = (className: string) => readNodeKind(createElement("i", { class: className }));

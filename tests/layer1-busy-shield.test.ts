@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { attachBusyShield, closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "../webapp/layer1-busy-shield.ts";
+import { attachBusyShield, closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "../webapp/layer1-components/popups/layer1-busy-shield.ts";
 import { loadEditsOnce } from "../webapp/layer1-edits.ts";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
@@ -36,7 +36,7 @@ test("test_paint_counts_up_label_and_fill_width", () => {
 
 test("test_shield_covers_viewport_and_hides_with_hidden_attribute", () => {
   initLayer1Dom();
-  const css = readFileSync(new URL("../webapp/layer1-styles.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../webapp/layer1-components/popups/busy-shield.css", import.meta.url), "utf8");
   assert.match(css, /\.busy-shield \{[^}]*position: fixed;[^}]*inset: 0;/);
   assert.match(css, /\.busy-shield\[hidden\] \{ display: none; \}/);
   assert.equal(checkHidden("busy-shield"), true);

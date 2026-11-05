@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { TIME_SOURCE_VALUES, readTimeSource } from "../webapp/layer1-sources.ts";
-import { registerTimeSourceToggle } from "../webapp/layer1-time-toggle.ts";
+import { TIME_SOURCE_VALUES, readTimeSource } from "../webapp/layer1-components/top-bars/layer1-sources.ts";
+import { registerTimeSourceToggle } from "../webapp/layer1-components/top-bars/layer1-time-toggle.ts";
 
 function readCurrentButtonIds(): string[] {
     return Array.from(document.querySelectorAll("button.current[id^='time-']"), (button) => button.id);

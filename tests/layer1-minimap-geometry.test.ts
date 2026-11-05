@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { applyBoxToPlot, computeMinimapScale } from "../webapp/layer1-minimap-geometry.ts";
+import { applyBoxToPlot, computeMinimapScale } from "../webapp/layer1-components/minimap/layer1-minimap-geometry.ts";
 
 test("test_minimap_scale_fits_each_axis_to_its_own_extent", () => {
     // Each axis scales to its own extent; a uniform scale crammed marks into the canvas's top fifth.

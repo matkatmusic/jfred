@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { attachClearResultsButton } from "../webapp/layer1-clear-results.ts";
+import { attachClearResultsButton } from "../webapp/layer1-components/top-bars/layer1-clear-results.ts";
 import { isRunStarted, markRunStarted } from "../webapp/layer1-run-results.ts";
 import { runQueueState } from "../webapp/layer1-run-route.ts";
 import { addRunsToQueue } from "../webapp/layer1-run-queue.ts";

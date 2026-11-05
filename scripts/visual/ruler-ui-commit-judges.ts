@@ -1,6 +1,6 @@
 // Pure judges and fact types for the ruler UI Commit mode and hide-ignored checks.
 
-import { JfredEntryKind } from "../../webapp/layer1-jfred-entries.ts";
+import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 import { isNear } from "./layer7-facts.ts";
 import { FIXTURE_BASE_HASH, type DrawerFacts } from "./layer9-probes.ts";
 import { EDGE_PX, LEVEL_PX } from "./ruler-ui-checks.ts";

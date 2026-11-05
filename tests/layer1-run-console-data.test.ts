@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   RUN_CONSOLE_CANCEL_STATES, RUN_CONSOLE_OUTPUT_NOT_SAVED, RUN_CONSOLE_TERMINAL_STATES, findRunConsoleCancelState,
   findRunConsoleTerminalState, listRunConsoleNotes, selectRunConsoleCancelKey, selectRunConsoleTerminalKey,
-} from "../webapp/layer1-run-console-data.ts";
+} from "../webapp/layer1-components/details-drawer/layer1-run-console-data.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 

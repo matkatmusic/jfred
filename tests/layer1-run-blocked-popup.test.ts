@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closeBlockedPopup, renderBlockedPopup } from "../webapp/layer1-run-blocked-popup.ts";
+import { closeBlockedPopup, renderBlockedPopup } from "../webapp/layer1-components/popups/layer1-run-blocked-popup.ts";
 import { BlockerState, type Blocker } from "../webapp/layer1-run-order.ts";
-import { applyZoom } from "../webapp/layer1-zoom.ts";
+import { applyZoom } from "../webapp/layer1-components/top-bars/layer1-zoom.ts";
 import { appendBlockedDot, buildRect } from "./layer1-blocked-dot-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 

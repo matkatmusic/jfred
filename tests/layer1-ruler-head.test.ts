@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { removeRulerHead, renderRulerHead } from "../webapp/layer1-ruler-head.ts";
+import { removeRulerHead, renderRulerHead } from "../webapp/layer1-components/ruler/layer1-ruler-head.ts";
 
 function readRuler(): HTMLElement {
     return document.getElementById("ruler")!;

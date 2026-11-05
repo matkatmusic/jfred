@@ -1,11 +1,11 @@
 // Layer 1's two widget shapes (pair bubble, orphan bucket), split out of layer1-page.ts once it hit the 250-line cap.
 
 import { createElement } from "./app-dom.ts";
-import { CreatedNotTrustedReason } from "./layer1-created-reason.ts";
-import { appendAxisNode, appendBranchLane, appendEditNode, appendScriptRunNode, appendSnapshotNode, setAxisPx } from "./layer1-lane-nodes.ts";
-import { formatInstantLabel } from "./layer1-ruler-rows.ts";
-import { appendToolNodes } from "./layer1-tool-nodes.ts";
-import { buildNodesWithSameTimestampMarkers, type NodeWithSameTimestamp } from "./layer1-nodes-with-same-timestamp.ts";
+import { CreatedNotTrustedReason } from "./layer1-components/bubbles/layer1-created-reason.ts";
+import { appendAxisNode, appendBranchLane, appendEditNode, appendScriptRunNode, appendSnapshotNode, setAxisPx } from "./layer1-components/bubbles/layer1-lane-nodes.ts";
+import { formatInstantLabel } from "./layer1-components/ruler/layer1-ruler-rows.ts";
+import { appendToolNodes } from "./layer1-components/bubbles/layer1-tool-nodes.ts";
+import { buildNodesWithSameTimestampMarkers, type NodeWithSameTimestamp } from "./layer1-components/bubbles/layer1-nodes-with-same-timestamp.ts";
 import type { WireBranch } from "./layer1-wire-branches.ts";
 import { findRejoinWithOwnSlot, listTrunkLadderInstants } from "./layer1-wire-ladder.ts";
 import type { WireOrphan, WirePair } from "./layer1-wire.ts";

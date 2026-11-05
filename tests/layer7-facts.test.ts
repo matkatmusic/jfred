@@ -9,7 +9,7 @@ import {
     type ColumnBracketFacts, type ColumnNodeFacts,
 } from "../scripts/visual/layer7-facts.ts";
 import { ANNOTATION_MID_IDS, ANNOTATION_SAME_ID } from "../src/viewer_api_layer7_fixture_sessions.ts";
-import { ANNOTATION_LOOKS } from "../webapp/layer1-annotation-looks.ts";
+import { ANNOTATION_LOOKS } from "../webapp/layer1-components/session-column/layer1-annotation-looks.ts";
 
 const LETTERS = ["u", "a", "t", "h", "m", "r", "?", "n"];
 const BLOCK_COLOUR = "rgb(10, 20, 30)";

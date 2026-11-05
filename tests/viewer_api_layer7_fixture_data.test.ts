@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import {
   ANNOTATION_BLOCK_IDS, TOOL_NODE_IDS, TOOL_NODE_PATH, buildFixtureAnnotations, listFillerIds, listToolNodeInstants,
 } from "../src/viewer_api_layer7_fixture_data.ts";

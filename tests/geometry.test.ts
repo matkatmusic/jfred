@@ -25,7 +25,7 @@ test("the probe emits every field the dump declares", () => {
 });
 
 test("the bucket headings match the ones layer1-page.ts renders", () => {
-    const page = readFileSync(join(JFRED_ROOT, "webapp", "layer1-stage-render.ts"), "utf8");
+    const page = readFileSync(join(JFRED_ROOT, "webapp", "layer1-components/bubbles/layer1-stage-render.ts"), "utf8");
     for (const title of BUCKET_TITLES) {
         assert.ok(page.includes(`buildOrphanBucket("${title}"`), `layer1-stage-render.ts no longer renders ${title}`);
     }

@@ -94,7 +94,7 @@ export const buildRefusalClick = (label: string) => `(() => {
 })()`;
 
 export const buildSnapLines = (instant: string) =>
-  `import('/app/layer1-jfred-message.js').then(module => module.listSnapLines(Date.parse(${JSON.stringify(instant)})))`;
+  `import('/app/layer1-components/commits-column/layer1-jfred-message.js').then(module => module.listSnapLines(Date.parse(${JSON.stringify(instant)})))`;
 // Independent count: distinct beacon-node instants between two marks, read from the stage.
 export const buildBeaconInstantCount = (fromInstant: string, toInstant: string) => `(() => {
     const isBeacon = ${BEACON};

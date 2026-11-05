@@ -1,0 +1,27 @@
+  /*
+    Task 260: a tick is a navigation control. Hover changes colour only, so the label stays put.
+  */
+  .ruler .tick { cursor: pointer; }
+  .ruler .tick:hover { color: var(--ink); text-decoration: underline; }
+
+  /*
+    Task 284: a shared tick expands into the files touched at that instant.
+  */
+  .ruler .tick.multi { text-decoration: underline dotted; }
+  .ruler .tick.expanded { color: var(--ink); }
+  .ruler .tick .kind-dashes { display: inline-flex; gap: 4px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
+  .ruler .tick .kdash { position: relative; flex: 0 1 12px; min-width: 3px; height: 4px; border-radius: 2px; }
+  .ruler .tick .kdash::after { content: ""; position: absolute; inset: -5px -1px; }
+  .kdash-created { background: var(--muted); }
+  .kdash-commit { background: var(--c-commit); }
+  .kdash-disk { background: var(--c-disk); }
+  .kdash-snapshot { background: var(--c-snap); }
+  .kdash-edit { background: var(--c-edit); }
+  .kdash-script-run { background: var(--c-script); }
+  .kdash-branch { background: var(--c-user); }
+  .tickfiles { position: absolute; left: 12px; top: 100%; width: max-content; max-width: 300px;
+    padding: 2px 0 0; z-index: 9; }
+  .tickfiles button { display: block; width: 100%; text-align: left; border: none; border-radius: 3px;
+    padding: 0 4px; font: 10px ui-monospace, Menlo, monospace; color: var(--ink2);
+    background: var(--page); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tickfiles button:hover { background: color-mix(in srgb, var(--sel-edge) 20%, transparent); color: var(--ink); }

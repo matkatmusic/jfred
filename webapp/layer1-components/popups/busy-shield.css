@@ -1,0 +1,8 @@
+  /*
+    Task 355: full-viewport overlay while the Edit payload loads; z-index sits above .ruler (8).
+  */
+  .busy-shield { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center;
+    justify-content: center; background: color-mix(in srgb, var(--page) 70%, transparent); }
+  .busy-shield[hidden] { display: none; }
+  .busy-card { min-width: 320px; padding: 16px; background: var(--surface); border: 1px solid var(--border); }
+  #busy-error { font-weight: 600; margin: 8px 0; white-space: pre-wrap; }

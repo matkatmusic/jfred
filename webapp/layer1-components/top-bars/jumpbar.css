@@ -1,0 +1,6 @@
+  /*
+    Task 256: orphan-bucket jump shortcuts. `flex-basis: 100%` gives the bar its own header row.
+  */
+  .jumpbar { display: flex; align-items: center; gap: 6px; flex-basis: 100%; }
+  .jumpbar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .jumpbar button { padding: 3px 8px; }

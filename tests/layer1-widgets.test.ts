@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
-import { WireRecordKind } from "../webapp/layer1-wire-annotations.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
+import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WirePair } from "../webapp/layer1-wire.ts";
 
 initLayer1Dom();

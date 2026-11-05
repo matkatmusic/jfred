@@ -3,12 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
-import { renderShowRowWithKindFilter } from "../webapp/layer1-kind-filter.ts";
-import { attachRulerTickClick } from "../webapp/layer1-ruler-click.ts";
-import { listEventsAtRow } from "../webapp/layer1-tick-events.ts";
+import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
+import { attachRulerTickClick } from "../webapp/layer1-components/ruler/layer1-ruler-click.ts";
+import { listEventsAtRow } from "../webapp/layer1-components/ruler/layer1-tick-events.ts";
 import {
     markMultiEventTicks, registerExpansionRelayout, readRulerExpansion, toggleExpandedRow, registerTickExpansion,
-} from "../webapp/layer1-tick-files.ts";
+} from "../webapp/layer1-components/ruler/layer1-tick-files.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;

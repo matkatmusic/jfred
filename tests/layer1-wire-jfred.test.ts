@@ -2,12 +2,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { WireJfredCommitsOf } from "../webapp/layer1-wire-jfred.ts";
+import type { WireJfredCommitsOf } from "../webapp/layer1-components/commits-column/layer1-wire-jfred.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
 test("test_wire_jfred_module_loads", async () => {
   // Verify: the module exists and holds only types, so nothing is exported at run time.
-  const loaded = await import("../webapp/layer1-wire-jfred.ts");
+  const loaded = await import("../webapp/layer1-components/commits-column/layer1-wire-jfred.ts");
   assert.deepEqual(Object.keys(loaded), []);
 });
 

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { ZOOM_MINIMUM } from "../webapp/layer1-zoom.ts";
+import { ZOOM_MINIMUM } from "../webapp/layer1-components/top-bars/layer1-zoom.ts";
 
 // layer1-page.ts boots at module scope, so re-importing it would wire zoom buttons twice; absorb that boot here first.
 initLayer1Dom();

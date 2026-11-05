@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { readCreatedState, listCurrentFileState } from "../src/layer1_disk_walk.ts";
-import { CreatedNotTrustedReason } from "../webapp/layer1-created-reason.ts";
+import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 
 // Write `content` at `relativePath` under `root`, creating parent folders as needed.
 function writeFixtureFile(root: string, relativePath: string, content: string): void {

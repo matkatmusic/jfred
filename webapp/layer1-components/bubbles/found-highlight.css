@@ -1,0 +1,23 @@
+  /*
+    Task 261: the bubble the "Find bubble" box scrolled to. `outline` takes no layout space.
+  */
+  .filebox.found { outline: 3px solid var(--sel-edge); outline-offset: 3px;
+    background: color-mix(in srgb, var(--sel-edge) 12%, var(--surface)); }
+  /*
+    Tasks 283/267: a tick click on a node paints `[ ]` brackets in `var(--sel-edge)`. `.aimed` paints the same marks.
+  */
+  .node.found::before, .node.found::after, .bnode.found::before, .bnode.found::after,
+  /*
+    Bug 495: brackets are only as tall as their dot, so they miss neighbour nodes.
+  */
+  /* .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: -6px; bottom: -6px; */
+  .node.aimed::before, .node.aimed::after { content: ""; position: absolute; top: 0; bottom: 0;
+    /*
+      Task 327: hug the dot — the right bracket must end before .nlabel's 14px start.
+    */
+    width: 3px; border: 2px solid var(--sel-edge); }
+  .node.found::before, .bnode.found::before, .node.aimed::before { right: 100%; margin-right: 0; border-right: none; }
+  .node.found::after, .bnode.found::after, .node.aimed::after { left: 100%; margin-left: 0; border-left: none; }
+  /* .bnode.found::before, .bnode.found::after { top: 0; bottom: 0; } */
+  .bucket li.found, .bucket li.aimed { outline: 2px solid var(--sel-edge); outline-offset: 1px;
+    border-radius: 3px; }

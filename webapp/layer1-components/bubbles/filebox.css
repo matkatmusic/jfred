@@ -1,0 +1,44 @@
+  /*
+    padding-top is derived: header ends at y 39, first node reaches 10 px above lane, so 50 px clears.
+  */
+  /*
+    Task 277: `scroll-margin-top` keeps a jumped-to bubble's name off the pane's top edge.
+  */
+  .filebox { position: relative; flex: none; --lane-w: 90px; min-width: calc(168px + var(--lane-count, 0) * var(--lane-w));
+    scroll-margin-top: 14px;
+    margin-top: calc(var(--axis-px) * 1px);
+    border: 2px solid var(--box); border-radius: 14px;
+    /*
+      Task 292: half-transparent so the JSONL wash behind it shows through the bubble.
+    */
+    background: color-mix(in srgb, var(--surface) 52%, transparent); padding: 50px 12px 14px; }
+
+  /*
+    max-width bounds the label to the bubble (task 245). One ellipsised line at rest; hover shows all.
+  */
+  .filebox .fname { position: absolute; top: 7px; left: 12px;
+    max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
+    font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap;
+    user-select: none; }
+  /*
+    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.ruler` (8).
+  */
+  .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
+    background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
+  .filebox .sub { position: absolute; top: 24px; left: 12px; font-size: 10px; color: var(--muted); user-select: none; }
+  /*
+    The surface-colour box leaves a gap in the .found outline where the text sits.
+  */
+  .filebox .created-untrusted { position: absolute; top: -18px; left: 12px; font-size: 10px; color: var(--muted); user-select: none;
+    z-index: 1; background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
+
+  /*
+    Orphan buckets: one per direction, a plain file list, placed at the earliest member instant.
+  */
+  .filebox.bucket { border-style: dashed; border-color: var(--muted); }
+  .filebox.bucket .fname { color: var(--ink2); font-family: inherit; font-size: 12px; }
+  .bucket ul { list-style: none; }
+  .bucket li { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0;
+    font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); }
+  .bucket li em { font-style: normal; color: var(--muted); font-size: 10px; }
+  .nopairs { color: var(--muted); font-size: 11.5px; padding: 34px 8px 0; }

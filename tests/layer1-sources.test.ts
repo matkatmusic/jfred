@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "../webapp/layer1-sources.ts";
+import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from "../webapp/layer1-components/top-bars/layer1-sources.ts";
 
 function readBoxValue(id: string): string {
     return (document.getElementById(id) as HTMLInputElement).value;

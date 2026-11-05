@@ -3,9 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
-import { buildTickFileList, listEventsAtRow } from "../webapp/layer1-tick-events.ts";
-import { ShowRowKind } from "../webapp/layer1-show-row.ts";
-import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-ruler-axis.ts";
+import { buildTickFileList, listEventsAtRow } from "../webapp/layer1-components/ruler/layer1-tick-events.ts";
+import { ShowRowKind } from "../webapp/layer1-components/show-row/layer1-show-row.ts";
+import { RULER_NODE_ROW_PIXELS } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // Absolute ruler offsets, exactly as the endpoint ships them.

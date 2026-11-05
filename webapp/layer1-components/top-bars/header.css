@@ -1,0 +1,21 @@
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+  header h1 { font-size: 14px; }
+  header .crumb { font-size: 11.5px; color: var(--muted); }
+
+  /*
+    Zoom sits LEFT of the layer buttons: two auto margins split the free space between the groups.
+  */
+  .zoombar { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .zoombar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .zoombar .zoom-level { font-size: 11.5px; color: var(--ink2);
+    font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
+
+  /*
+    Task 282: time toggle reuses .layerbar rules; own margin-left:auto would re-split header spacing.
+  */
+  .layerbar, .timebar { display: flex; align-items: center; gap: 4px; }
+  .layerbar { margin-left: auto; }
+  .layerbar .lbl, .timebar .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+  .layerbar button, .timebar button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
+  .layerbar button.current, .timebar button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }

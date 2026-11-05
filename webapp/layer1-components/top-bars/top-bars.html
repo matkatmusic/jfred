@@ -1,0 +1,86 @@
+  <header>
+    <h1>Layer 1 View — Current File State vs Git State</h1>
+    <span class="crumb" id="crumb"></span>
+    <!--
+      Task 282: committer vs author placement; flipping re-loads the view, each button's id suffix is the ?time= value.
+    -->
+    <div class="timebar">
+      <span class="lbl">Time:</span>
+      <button id="time-committer" class="current">committer</button>
+      <button id="time-author">author</button>
+    </div>
+    <button id="project-settings">project settings</button>
+    <!--
+      Task 383: fixture-mode only; layer1-jfred-mode.ts shows it.
+    -->
+    <!--
+      include layer1-components/commits-column/commits-column.html
+    -->
+    <button id="clear-results" class="clear-results">Clear saved results</button>
+    <span class="clear-results-confirm" id="clear-results-confirm" hidden>Clear all saved results and compute everything again?
+      <button id="clear-results-yes">Yes, clear</button><button id="clear-results-no">No</button>
+    </span>
+    <div class="zoombar">
+      <span class="lbl">Zoom:</span>
+      <button id="zoom-out" title="Zoom out">−</button>
+      <span class="zoom-level" id="zoom-level">100%</span>
+      <button id="zoom-in" title="Zoom in">+</button>
+      <button id="zoom-reset">Reset</button>
+    </div>
+    <!--
+      Layer switcher retired by task 352 pending the task 360 show row (was task 314).
+    <div class="layerbar">
+      <span class="lbl">Layer:</span>
+      <button class="current" data-layer="1">1</button>
+      <button data-layer="2" title="Layer 2 adds file-history snapshots">2</button>
+    </div>
+    -->
+    <div class="layerbar">
+      <button id="layer-3" title="Layer 3 adds Read beacons and Edit/Write nodes">3</button>
+      <button id="layer-4" title="Layer 4 adds script-run nodes">4</button>
+    </div>
+    <div class="sources">
+      <label>Project folder
+        <input id="dir" type="text" size="34" value="">
+        <button class="pick" data-for="dir">Open…</button></label>
+      <!--
+        Tasks 295/296: two lists, one dialog; each button shows its folder count. Task 297 flags unsaved changes.
+      -->
+      <button id="pick-jsonl">JSONL sources</button>
+      <button id="pick-fh">File History Snapshots</button>
+      <button id="save-settings" disabled>Save project settings</button>
+      <span class="savednote" id="saved-note"></span>
+    </div>
+    <!--
+      Task 286: the Git repo row is separate from the folder row; its pickers show only after `.repo-ok`.
+    -->
+    <div class="sources repo">
+      <label>Git repo
+        <input id="repo" type="text" size="34" value="">
+        <button class="pick" data-for="repo">Open…</button></label>
+      <span class="repo-flag">✓ git repo</span>
+      <label class="repo-only">Branch <select id="branch"></select></label>
+      <label class="repo-only">Commit <select id="commit"></select></label>
+      <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
+      <button id="load">Load</button>
+    </div>
+    <!--
+      Task 256: bucket jumps. `data-bucket` MUST match renderLayer1View's bucket heading exactly. Task 285: row also holds the find-bubble widget.
+    -->
+    <div class="jumpbar">
+      <span class="lbl">Jump to:</span>
+      <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
+      <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
+      <label>Find bubble
+        <input id="find-file" type="text" size="22"></label>
+      <!--
+        Task 271: explicit cycle controls; Enter still advances, these add a reverse direction.
+      -->
+      <button id="find-prev" title="Previous match">‹</button>
+      <button id="find-next" title="Next match">›</button>
+      <!--
+        Task 273: the find box's own readout, kept apart from #crumb so a search never erases the counts.
+      -->
+      <span class="find-status" id="find-status"></span>
+    </div>
+  </header>

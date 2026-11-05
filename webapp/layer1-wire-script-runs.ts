@@ -1,6 +1,6 @@
 // Layer 1's script-run node vocabulary on the wire (task 356).
 
-import type { WireScriptLanguage } from "./layer1-script-language.ts";
+import type { WireScriptLanguage } from "./layer1-components/details-drawer/layer1-script-language.ts";
 import type { WireConfidence } from "./layer1-wire-edits.ts";
 import type { WireInstantOf } from "./layer1-wire.ts";
 

@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildRunConsoleTrigger, openRunConsole, refreshRunConsole } from "../webapp/layer1-run-console.ts";
+import { buildRunConsoleTrigger, openRunConsole, refreshRunConsole } from "../webapp/layer1-components/details-drawer/layer1-run-console.ts";
 import { appendRunOutput, markRunCancelled, markRunStarted, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";

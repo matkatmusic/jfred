@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
-import { installNodeDrawer } from "../webapp/layer1-drawer.ts";
-import { openDiskNodeForPath } from "../webapp/layer1-filenav.ts";
+import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
+import { openDiskNodeForPath } from "../webapp/layer1-components/file-nav/layer1-filenav.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 import {

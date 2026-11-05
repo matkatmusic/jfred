@@ -7,7 +7,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { commitPending, deleteJfredBranch, readJfredBranch, setArmed, setPending } = await import("../webapp/layer1-jfred-state.ts");
+const { commitPending, deleteJfredBranch, readJfredBranch, setArmed, setPending } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
 
 const REAL_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
 const CANNED_VIEW = {

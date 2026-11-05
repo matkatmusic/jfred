@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
-import { KIND_HIDDEN_CLASS } from "../webapp/layer1-kind-filter.ts";
-import { markTickKindState } from "../webapp/layer1-tick-kinds.ts";
+import { KIND_HIDDEN_CLASS } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
+import { markTickKindState } from "../webapp/layer1-components/ruler/layer1-tick-kinds.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 test("markTickKindState leaves an event-less tick unmarked with an empty dash holder", () => {

@@ -1,7 +1,7 @@
 // Shared setup for the layer1-drawer-*.test.ts files: fetch and animation stubs, pane readers, and stage builders.
 
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
-import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-diff-wash.ts";
+import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
 export const DISK_FILE_PATH = "src/demo.ts";

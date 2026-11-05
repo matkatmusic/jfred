@@ -2,8 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { listSessionColors } from "../webapp/layer1-session-colors.ts";
-import { WireRecordKind, type WireAnnotation } from "../webapp/layer1-wire-annotations.ts";
+import { listSessionColors } from "../webapp/layer1-components/session-column/layer1-session-colors.ts";
+import { WireRecordKind, type WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 function buildAnnotation(id: string, sessionId: string): WireAnnotation {
   return {

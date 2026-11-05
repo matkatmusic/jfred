@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-export const { refreshKindJumpArrows } = await import("../webapp/layer1-kind-jump.ts");
+export const { refreshKindJumpArrows } = await import("../webapp/layer1-components/show-row/layer1-kind-jump.ts");
 
 const INSTANT = { instant: "2026-06-02T09:00:00.000Z", axisPx: 30 };
 const COMMIT = { ...INSTANT, hash: "b7c8d9e0f1a23445566778899aabbccddeeff001" };

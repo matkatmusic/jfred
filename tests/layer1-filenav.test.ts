@@ -15,7 +15,7 @@ const NAV_VIEW = {
 };
 
 async function renderNavIntoNewContainer(): Promise<HTMLElement> {
-    const { renderFileNavInto, resetFileNavCollapseState } = await import("../webapp/layer1-filenav.ts");
+    const { renderFileNavInto, resetFileNavCollapseState } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
     resetFileNavCollapseState();
     const container = document.createElement("div");
     // Folder clicks are layer1-folder-filter.test.ts's subject; this file only cares what the pane lists.

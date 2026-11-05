@@ -7,11 +7,11 @@ import {
     listSessionFilterTargets,
     resetSessionSelection,
     setKnownProjectPaths,
-} from "../webapp/layer1-sessions.ts";
-import { renderSessionPane } from "../webapp/layer1-session-pane.ts";
-import { wireBubbleFlash } from "../webapp/layer1-session-flash.ts";
+} from "../webapp/layer1-components/jsonls-nav/layer1-sessions.ts";
+import { renderSessionPane } from "../webapp/layer1-components/jsonls-nav/layer1-session-pane.ts";
+import { wireBubbleFlash } from "../webapp/layer1-components/jsonls-nav/layer1-session-flash.ts";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-source-paths.ts";
+import { readSourcePaths, writeSourcePaths } from "../webapp/layer1-components/top-bars/layer1-source-paths.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
@@ -44,7 +44,7 @@ async function openSessionPane(sessions: object[] = SESSIONS): Promise<void> {
         { sessions },
     ]);
     resetSessionSelection();
-    const { loadLayer1Sessions } = await import("../webapp/layer1-sessions.ts");
+    const { loadLayer1Sessions } = await import("../webapp/layer1-components/jsonls-nav/layer1-sessions.ts");
     await loadLayer1Sessions();
     // What the page does once a view is drawn: hand the pane the files this project knows about.
     setKnownProjectPaths(PROJECT_FOLDER, KNOWN_PATHS);
@@ -103,7 +103,7 @@ test("no picked JSONL source folders means no sessions and no fetch", async () =
     writeSourcePaths(SourceKind.jsonl, []);
     Object.assign(globalThis, { fetch: () => { throw new Error("must not fetch"); } });
     resetSessionSelection();
-    const { loadLayer1Sessions } = await import("../webapp/layer1-sessions.ts");
+    const { loadLayer1Sessions } = await import("../webapp/layer1-components/jsonls-nav/layer1-sessions.ts");
 
     await loadLayer1Sessions();
 
