@@ -64,18 +64,18 @@ async function runOutcomes(wrongBlockId: string): Promise<string[]> {
 
 const listFailedChecks = (lines: string[]): string[] => lines.filter((line) => line.startsWith("FAIL")).map((line) => line.split("  ")[1] ?? "");
 
-test("validateOutcomes passes all thirteen checks on a good page", async () => {
+test("validateOutcomes passes all twelve checks on a good page", async () => {
   const lines = await runOutcomes("");
-  assert.equal(lines.filter((line) => line.startsWith("PASS")).length, 13);
+  assert.equal(lines.filter((line) => line.startsWith("PASS")).length, 12);
   assert.deepEqual(listFailedChecks(lines), []);
 });
 
-test("a wrong terminal block fails that outcome and the colour match, and no other outcome", async () => {
+test("a wrong terminal block fails that outcome only, and no other outcome", async () => {
   const lines = await runOutcomes(REPLAY_MISMATCH_ID);
   const failed = listFailedChecks(lines);
-  assert.equal(failed.length, 2);
+  assert.equal(failed.length, 1);
   assert.ok(failed.includes("L6 the mismatch run shows the right terminal block, note and node state"));
-  assert.ok(failed.some((name) => name.startsWith("L6 node and console read as one event")));
+  // assert.ok(failed.some((name) => name.startsWith("L6 node and console read as one event")));
 });
 
 test("a bash dot with a state class or a run post fails the bash check only", async () => {

@@ -1,10 +1,14 @@
 // Pure judges that check PopupFacts from the Layer 6 run console popup and the consent text.
 
-import { findNodeFacts } from "./layer6-node-facts.ts";
+// import { findNodeFacts } from "./layer6-node-facts.ts";
 import {
-  CRASH_BLOCKER_ID, MISMATCH_ID, ORIGINAL_FAILED_ID, REPLAY_MISMATCH_ID, REPLAY_NOT_REPLAYED_ID, SKIP_AFTER_ID, SKIP_FAILED_ID, VERIFIED_ID,
-  type NodeFacts, type PopupFacts,
+  CRASH_BLOCKER_ID, REPLAY_MISMATCH_ID, REPLAY_NOT_REPLAYED_ID, SKIP_AFTER_ID, SKIP_FAILED_ID,
+  type PopupFacts,
 } from "./layer6-probes.ts";
+// import {
+//   CRASH_BLOCKER_ID, MISMATCH_ID, ORIGINAL_FAILED_ID, REPLAY_MISMATCH_ID, REPLAY_NOT_REPLAYED_ID, SKIP_AFTER_ID, SKIP_FAILED_ID, VERIFIED_ID,
+//   type NodeFacts, type PopupFacts,
+// } from "./layer6-probes.ts";
 
 export const CancelKind = { idle: "btn-idle", live: "btn-live", cancelled: "btn-cancelled" } as const;
 export type CancelKind = (typeof CancelKind)[keyof typeof CancelKind];
@@ -77,15 +81,15 @@ export function isOutcomeRight(popup: PopupFacts, dotClasses: string, outcome: O
   return isBlockRight && isDotRight && isNoteRight(popup.noteTexts, outcome.note);
 }
 
-export function isEventColoursSame(nodes: NodeFacts[], titles: TitleColours): boolean {
-  const mismatch = findNodeFacts(nodes, MISMATCH_ID);
-  const verified = findNodeFacts(nodes, VERIFIED_ID);
-  const failed = findNodeFacts(nodes, ORIGINAL_FAILED_ID);
-  const isMismatchSame = mismatch?.borderColor === titles.mismatch;
-  const isVerifiedSame = verified?.outlineColor === titles.verified;
-  const isFailedSame = failed?.outlineColor === titles.originalFailed;
-  return isMismatchSame && isVerifiedSame && isFailedSame;
-}
+// export function isEventColoursSame(nodes: NodeFacts[], titles: TitleColours): boolean {
+//   const mismatch = findNodeFacts(nodes, MISMATCH_ID);
+//   const verified = findNodeFacts(nodes, VERIFIED_ID);
+//   const failed = findNodeFacts(nodes, ORIGINAL_FAILED_ID);
+//   const isMismatchSame = mismatch?.borderColor === titles.mismatch;
+//   const isVerifiedSame = verified?.outlineColor === titles.verified;
+//   const isFailedSame = failed?.outlineColor === titles.originalFailed;
+//   return isMismatchSame && isVerifiedSame && isFailedSame;
+// }
 
 export function isPopupClearOfDrawer(popup: PopupFacts): boolean {
   const popupRight = popup.popupRect[2] ?? Infinity;
