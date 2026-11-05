@@ -78,6 +78,18 @@ test("executeLayer6RealChecks passes on good answers", async () => {
     assert.deepEqual(lines.filter((line) => line.startsWith("FAILED")), []);
 });
 
+test("executeLayer6RealChecks turns on the script layer before any scroll or consent read", async () => {
+    const page = buildPage(DIALOG_TEXT, ["terminal-block term-verified"]);
+    const expressions: string[] = [];
+    const answer = page.evaluate;
+    page.evaluate = async <T>(expression: string) => { expressions.push(expression); return answer<T>(expression); };
+    await runChecks(page);
+    const layerClick = expressions.findIndex((expression) => expression.includes("getElementById('layer-4').click()"));
+    const firstUse = expressions.findIndex((expression) => expression.includes("scrollIntoView") || expression.includes("consent-note"));
+    assert.ok(layerClick >= 0);
+    assert.ok(layerClick < firstUse);
+});
+
 test("executeLayer6RealChecks accepts the no-proof note and no block for injected-unverified", async () => {
     const note = "Replayed. No proof file was found to compare with.";
     const lines = await runChecks(buildPage(DIALOG_TEXT, [], "injected-unverified", [note]));

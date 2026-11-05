@@ -6,7 +6,7 @@ import { type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import { type WireScriptRunsView } from "../webapp/layer1-wire-script-runs.ts";
 import {
     findMissingPhrases, formatOutcomeCounts, isAttempted, isRectLeftOf, isReplayWithoutFile, listCandidateRuns,
-    convertStateClassToTerminalClass, parseStreamResult, findReplayedAttempt, REQUIRED_DIALOG_PHRASES, type ReplayAttempt,
+    convertStateClassToTerminalClass, parseStreamResult, findReplayedAttemptWithFile, REQUIRED_DIALOG_PHRASES, type ReplayAttempt,
 } from "../scripts/visual/layer6-real-helpers.ts";
 
 const buildRun = (toolUseId: string, instant: string, language: string) => ({
@@ -27,10 +27,11 @@ test("listCandidateRuns keeps python runs once each, in time order", () => {
     assert.deepEqual(listCandidateRuns(view).map((run) => run.toolUseId), ["early", "late"]);
 });
 
-test("findReplayedAttempt returns the first replayed attempt", () => {
-    const attempts = [buildAttempt("a", "replay-failed"), buildAttempt("b", "replayed"), buildAttempt("c", "replayed")];
-    assert.equal(findReplayedAttempt(attempts)?.toolUseId, "b");
-    assert.equal(findReplayedAttempt([buildAttempt("a", "original-failed")]), undefined);
+test("findReplayedAttemptWithFile returns the first replayed attempt that has a file", () => {
+    const attempts = [buildAttempt("a", "replay-failed"), buildAttempt("e", "replayed", 0), buildAttempt("b", "replayed"), buildAttempt("c", "replayed")];
+    assert.equal(findReplayedAttemptWithFile(attempts)?.toolUseId, "b");
+    assert.equal(findReplayedAttemptWithFile([buildAttempt("a", "original-failed")]), undefined);
+    assert.equal(findReplayedAttemptWithFile([buildAttempt("e", "replayed", 0)]), undefined);
 });
 
 test("isAttempted and formatOutcomeCounts read the attempts", () => {

@@ -46,9 +46,10 @@ export function isAttempted(attempts: ReplayAttempt[], toolUseId: string): boole
   return false;
 }
 
-export function findReplayedAttempt(attempts: ReplayAttempt[]): ReplayAttempt | undefined {
+export function findReplayedAttemptWithFile(attempts: ReplayAttempt[]): ReplayAttempt | undefined {
   for (const attempt of attempts) {
-    if (attempt.outcome === WireRunOutcome.replayed) {
+    const hasFile = attempt.result.files.length > 0;
+    if (attempt.outcome === WireRunOutcome.replayed && hasFile) {
       return attempt;
     }
   }
@@ -117,5 +118,6 @@ export function formatNeedsLine(toolUseId: string, needsSize: number, ms: number
 }
 
 export function formatRunLine(attempt: ReplayAttempt): string {
-  return `run ${attempt.toolUseId}: ${attempt.outcome}, ${attempt.result.files.length} files, ${attempt.ms} ms`;
+  const reasonSuffix = attempt.result.reason === undefined ? "" : `, ${attempt.result.reason}`;
+  return `run ${attempt.toolUseId}: ${attempt.outcome}, ${attempt.result.files.length} files, ${attempt.ms} ms${reasonSuffix}`;
 }

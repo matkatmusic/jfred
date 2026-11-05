@@ -5,7 +5,7 @@ import { type WireScriptRunsView } from "../../webapp/layer1-wire-script-runs.ts
 import { findRunById, getFirstCodeLine } from "./layer4-real-helpers.ts";
 import {
   MAX_CANDIDATES, formatNeedsLine, formatOutcomeCounts, formatRunLine, isAttempted, isReplayWithoutFile,
-  findReplayedAttempt, listCandidateRuns, parseStreamResult, type ReplayAttempt,
+  findReplayedAttemptWithFile, listCandidateRuns, parseStreamResult, type ReplayAttempt,
 } from "./layer6-real-helpers.ts";
 
 export interface WireTarget { origin: string; query: string }
@@ -92,10 +92,10 @@ export async function findRealScript(target: WireTarget, view: WireScriptRunsVie
   const attempts: ReplayAttempt[] = [];
   for (const run of listCandidateRuns(view).slice(0, MAX_CANDIDATES)) {
     await executeCandidate(target, run, attempts);
-    const picked = findReplayedAttempt(attempts);
+    const picked = findReplayedAttemptWithFile(attempts);
     if (picked !== undefined) {
       return printPicked(view, picked, attempts);
     }
   }
-  throw new Error(`none of the first ${MAX_CANDIDATES} python runs replayed: ${formatOutcomeCounts(attempts)}`);
+  throw new Error(`none of the first ${MAX_CANDIDATES} python runs replayed with a changed file:${formatOutcomeCounts(attempts)}`);
 }

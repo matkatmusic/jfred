@@ -3,6 +3,7 @@
 import { RUN_CONSOLE_NO_PROOF_NOTE, RUN_CONSOLE_OUTPUT_NOT_SAVED } from "../../webapp/layer1-run-console-data.ts";
 import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
 import { buildDotsOfRun } from "./layer4-real-helpers.ts";
+import { COUNT_SCRIPT_DOTS, STRIP_IDLE } from "./layer4-probes.ts";
 import {
   FORBIDDEN_DIALOG_PHRASE, REQUIRED_DIALOG_PHRASES, convertStateClassToTerminalClass, findMissingPhrases, isRectLeftOf,
 } from "./layer6-real-helpers.ts";
@@ -77,6 +78,8 @@ async function waitUntilReached(page: HeadlessPage, goal: string, toolUseId: str
 
 async function validateDialog(page: HeadlessPage, toolUseId: string, timeoutMs: number): Promise<void> {
   await page.evaluate(WATCH_RUN_POSTS);
+  await page.evaluate(`document.getElementById('layer-4').click()`);
+  await page.waitFor(`${COUNT_SCRIPT_DOTS} > 0 && ${STRIP_IDLE}`, timeoutMs);
   const isOpen = await waitUntilReached(page, IS_CONSENT_OPEN, toolUseId, timeoutMs);
   if (!isOpen) {
     throw new Error("the permission dialog never opened");
