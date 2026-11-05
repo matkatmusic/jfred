@@ -5,16 +5,18 @@ import assert from "node:assert/strict";
 import { WireNeedState } from "../webapp/layer1-wire-script-results.ts";
 import { computeRunNeeds } from "../src/layer1_run_needs.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
-import { computeSandboxInputKey } from "../src/reconstruction_script_sandbox.ts";
+import type { RunInput } from "../src/layer1_run_start_files.ts";
 import { getMemoizedSandboxOutcome, storeSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
-import { Path, Uuid } from "../src/structures/domain.ts";
+import { Uuid } from "../src/structures/domain.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import {
     APPEND_Y_SCRIPT,
     APPEND_Z_SCRIPT,
     addScriptRun,
     addWrite,
+    computeBoxedRunKey,
     countSpawns,
+    createCraftedGitRepo,
     createCraftedProject,
     resetRunState,
     writeCraftedSession,
@@ -33,8 +35,8 @@ function craftOneEarlierRun() {
     return { project, input: writeCraftedSession(project, "toolu_T") };
 }
 
-function storeEarlierRunOutcome(dir: Path, post: Map<string, string> | undefined): void {
-    const key = computeSandboxInputKey(APPEND_Z_SCRIPT, new Map([["a.txt", "a\n"]]), new Path(dir.toString()));
+function storeEarlierRunOutcome(input: RunInput, post: Map<string, string> | undefined): void {
+    const key = computeBoxedRunKey(input, "toolu_A", new Map([["a.txt", "a\n"]]));
     storeSandboxOutcome(key, post);
 }
 
@@ -53,14 +55,22 @@ test("test_computeRunNeeds_lists_the_earlier_run_that_has_no_saved_result", () =
 test("test_computeRunNeeds_is_empty_once_the_earlier_run_outcome_is_saved", () => {
     resetRunState();
     const { input } = craftOneEarlierRun();
-    storeEarlierRunOutcome(input.dir, new Map([["a.txt", "a\nz\n"]]));
+    storeEarlierRunOutcome(input, new Map([["a.txt", "a\nz\n"]]));
+    assert.deepEqual(computeRunNeeds(input), []);
+});
+
+test("test_computeRunNeeds_in_a_git_repo_is_empty_once_the_result_is_saved_under_the_live_run_key", () => {
+    resetRunState();
+    const { input: noGitInput } = craftOneEarlierRun();
+    const input = { ...noGitInput, repoPath: createCraftedGitRepo() };
+    storeEarlierRunOutcome(input, new Map([["a.txt", "a\nz\n"]]));
     assert.deepEqual(computeRunNeeds(input), []);
 });
 
 test("test_computeRunNeeds_marks_a_saved_run_without_result_files_as_replay_failed", () => {
     resetRunState();
     const { input } = craftOneEarlierRun();
-    storeEarlierRunOutcome(input.dir, undefined);
+    storeEarlierRunOutcome(input, undefined);
     const needs = computeRunNeeds(input);
     assert.equal(needs.length, 1);
     assert.equal(needs[0]!.toolUseId, "toolu_A");
@@ -114,7 +124,7 @@ test("test_computeRunNeeds_sorts_two_missing_earlier_runs_by_instant", () => {
 test("test_computeRunNeeds_spawns_nothing_stores_nothing_and_keeps_the_gate", () => {
     resetRunState();
     const { input } = craftOneEarlierRun();
-    const earlierKey = computeSandboxInputKey(APPEND_Z_SCRIPT, new Map([["a.txt", "a\n"]]), new Path(input.dir.toString()));
+    const earlierKey = computeBoxedRunKey(input, "toolu_A", new Map([["a.txt", "a\n"]]));
     setImpureExecutionAllowed(false);
     try {
         computeRunNeeds(input);

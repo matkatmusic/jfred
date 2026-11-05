@@ -10,6 +10,8 @@ import { executeSandboxStreaming, type OutputSink } from "./reconstruction_scrip
 import { computeSandboxInputKey } from "./reconstruction_script_sandbox.ts";
 import { getMemoizedSandboxOutcome, storeSandboxOutcome, writePendingSandboxMemoToDisk, type SandboxOutcome } from "./reconstruction_script_sandbox_memo.ts";
 import { executeWithoutSpawning } from "./reconstruction_script_sandbox_spawn_guard.ts";
+import { buildSandboxBox, type SandboxBox } from "./reconstruction_script_sandbox_box.ts";
+import { SANDBOX_TIMEOUT_MS } from "./reconstruction_script_sandbox_dir.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { collectErroredToolUseIds } from "./structures/tool-results.ts";
@@ -31,13 +33,13 @@ function createSkippedResult(input: ReplayInput, loaded: LoadedRun): WireScriptR
 }
 
 // A memo hit is final, also a saved crash. A cancelled run saves nothing and returns undefined.
-async function executeOrRecallRun(run: ScriptRun, pre: Map<string, string>, onOutput: OutputSink, signal: AbortSignal): Promise<SandboxOutcome | undefined> {
-  const inputKey = computeSandboxInputKey(run.code, pre, run.cwd);
+async function executeOrRecallRun(run: ScriptRun, pre: Map<string, string>, box: SandboxBox, onOutput: OutputSink, signal: AbortSignal): Promise<SandboxOutcome | undefined> {
+  const inputKey = computeSandboxInputKey(run.code, pre, run.cwd, box);
   const saved = getMemoizedSandboxOutcome(inputKey);
   if (saved !== undefined) {
     return saved;
   }
-  const streamed = await executeSandboxStreaming(run.code, pre, run.cwd, onOutput, signal);
+  const streamed = await executeSandboxStreaming(run.code, pre, run.cwd, onOutput, signal, SANDBOX_TIMEOUT_MS, box);
   if (streamed.isCancelled) {
     return undefined;
   }
@@ -54,9 +56,9 @@ function createFinishedResult(input: ReplayInput, loaded: LoadedRun, pre: Map<st
   return createReplayedResult(input.toolUseId, saved, files);
 }
 
-async function executeReplayWithStartFiles(input: ReplayInput, loaded: LoadedRun, pre: Map<string, string>, onProgress: ProgressSink, onOutput: OutputSink, signal: AbortSignal): Promise<WireScriptResult | undefined> {
+async function executeReplayWithStartFiles(input: ReplayInput, loaded: LoadedRun, pre: Map<string, string>, box: SandboxBox, onProgress: ProgressSink, onOutput: OutputSink, signal: AbortSignal): Promise<WireScriptResult | undefined> {
   reportStep(onProgress, 3);
-  const saved = await executeOrRecallRun(loaded.run, pre, onOutput, signal);
+  const saved = await executeOrRecallRun(loaded.run, pre, box, onOutput, signal);
   if (saved === undefined) {
     return undefined;
   }
@@ -76,9 +78,12 @@ export async function executeRunReplay(input: ReplayInput, onProgress: ProgressS
     return skipped;
   }
   reportStep(onProgress, 2);
-  const { pre } = computeRunStartFiles(loaded, input.sources, executeWithoutSpawning);
+  const { pre } = computeRunStartFiles(loaded, input.sources, executeWithoutSpawning, input.repoPath);
+  const box = buildSandboxBox(loaded.run, input.repoPath);
   if (pre.size === 0) {
-    return createResult(input.toolUseId, WireRunOutcome.notReplayed, { reason: NO_START_FILES_REASON });
+    if (box.project === undefined) {
+      return createResult(input.toolUseId, WireRunOutcome.notReplayed, { reason: NO_START_FILES_REASON });
+    }
   }
-  return executeReplayWithStartFiles(input, loaded, pre, onProgress, onOutput, signal);
+  return executeReplayWithStartFiles(input, loaded, pre, box, onProgress, onOutput, signal);
 }

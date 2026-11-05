@@ -13,6 +13,7 @@ import {
 import { isScriptCodeWriteCapable, type LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
+import { resolveRunBox } from "./reconstruction_script_sandbox_box.ts";
 import { findRefForTarget, isRunTouchingTarget } from "./reconstruction_script_probe.ts";
 
 // The target's state on its chained lineage: its sandbox key and its content after the last injected run.
@@ -56,7 +57,7 @@ function getRunOutcomeForTarget(
   const { pre: preState } = executeRunOnce(run, records, reader, seedContent);
   const augmentedPre = new Map(preState);
   augmentedPre.set(rolling.key, rolling.content);
-  const postState = executeScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd);
+  const postState = executeScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd, resolveRunBox(run));
   if (postState === undefined)
     return undefined;
   const content = postState.get(rolling.key);

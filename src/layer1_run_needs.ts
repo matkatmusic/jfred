@@ -71,6 +71,6 @@ export function computeRunNeeds(input: RunInput): WireNeededRun[] {
   if (isNeverReplayed) {
     return [];
   }
-  const startFiles = computeRunStartFiles(loaded, input.sources, collectEarlierRuns);
+  const startFiles = computeRunStartFiles(loaded, input.sources, collectEarlierRuns, input.repoPath);
   return listNeededRuns(input, loaded, startFiles.lineageResult);
 }

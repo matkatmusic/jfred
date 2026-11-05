@@ -8,7 +8,7 @@ import type { BuiltReconstruction } from "./reconstruction_json.ts";
 import { removeOldestBeyondCapacity } from "./reconstruction_document_cache_disk.ts";
 
 // Bump on persisted-shape changes; mismatched versions are treated as cache misses.
-const SCHEMA_VERSION = 3;   // 3: lineVerdicts gained source (task 160); 2: scriptRuns (task 67)
+const SCHEMA_VERSION = 4;   // 4: replayed scripts run in the real project box (task 358); 3: lineVerdicts gained source (task 160); 2: scriptRuns (task 67)
 
 // Marker key for serialized domain objects; no real field shares this name.
 const DOMAIN_TAG = "__domain";

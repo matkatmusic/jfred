@@ -13,24 +13,42 @@ export class DockerUnavailableError extends Error {
   }
 }
 
-export function buildDockerRunArgs(runId: Uuid, tempDir: Path, mount: Path): string[] {
+export interface DockerLaunch {
+  workdir: Path;
+  scriptArgument: string;
+  readOnlyScript?: { hostFile: Path; boxFile: Path };
+}
+
+export function buildDockerRunArgs(runId: Uuid, tempDir: Path, mount: Path, launch?: DockerLaunch): string[] {
+  const workdir = launch === undefined ? mount : launch.workdir;
+  const scriptArgument = launch === undefined ? "__script__.py" : launch.scriptArgument;
+  const scriptMountArgs: string[] = [];
+  if (launch !== undefined) {
+    if (launch.readOnlyScript !== undefined) {
+      scriptMountArgs.push("-v", `${launch.readOnlyScript.hostFile}:${launch.readOnlyScript.boxFile}:ro`);
+    }
+  }
   return [
     "run", "--rm", "--pull", "never", "--network", "none",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "1g",
     "--name", runId.toString(),
-    "-v", `${tempDir}:${mount}`, "-w", mount.toString(),
-    SANDBOX_IMAGE, "python3", "__script__.py",
+    "-v", `${tempDir}:${mount}`, ...scriptMountArgs, "-w", workdir.toString(),
+    SANDBOX_IMAGE, "python3", scriptArgument,
   ];
 }
 
-// A colon would make `-v` read the rest of the cwd as a mode or a second path.
+// A colon would make `-v` read the rest of the path as a mode or a second path.
+export function assertMountPathSafe(path: Path, what: string): void {
+  if (path.toString().includes(":")) {
+    throw new Error(`${what} holds a colon, so docker -v would misread it: ${path}`);
+  }
+}
+
 export function chooseSandboxMount(recordedCwd: Path | undefined): Path {
   if (recordedCwd === undefined) {
     return DEFAULT_SANDBOX_MOUNT;
   }
-  if (recordedCwd.toString().includes(":")) {
-    throw new Error(`The recorded cwd holds a colon, so docker -v would misread it: ${recordedCwd}`);
-  }
+  assertMountPathSafe(recordedCwd, "The recorded cwd");
   return recordedCwd;
 }
 

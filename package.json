@@ -10,7 +10,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:ci": "node --import tsx --test $(node --import tsx scripts/list_capture_free_tests.ts)",
     "typecheck": "tsc --noEmit",
-    "sandbox:build": "docker build -t reveng-sandbox:1 docker/sandbox",
+    "sandbox:build": "docker build -t reveng-sandbox:1 sandbox-image",
     "build:webapp": "tsc -p tsconfig.webapp.json",
     "visual": "node --import tsx scripts/visual/run.ts",
     "visual:mockup": "node --import tsx scripts/visual/mockup.ts",

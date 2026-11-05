@@ -20,6 +20,7 @@ import {
   type LineageContentBefore,
 } from "./reconstruction_script_prestate.ts";
 import { isJunkStateKey, executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { resolveRunBox } from "./reconstruction_script_sandbox_box.ts";
 import {
   ReconstructionCounter,
   addToReconstructionCounter,
@@ -109,7 +110,12 @@ export function executeRunOnce(
   }
   reportReconstructionProgress(`executing script run @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
   const pre = getPreExecutionState(run, records, reader, seedContent);
-  const post = pre.size === 0 ? undefined : executeScriptAgainstState(run.code, pre, formatRunSource(run), run.cwd);
+  // const post = pre.size === 0 ? undefined : executeScriptAgainstState(run.code, pre, formatRunSource(run), run.cwd);
+  const box = resolveRunBox(run);
+  const hasStartFiles = pre.size > 0;
+  const hasProjectCommit = box?.project !== undefined;
+  const isReplayable = hasStartFiles || hasProjectCommit;
+  const post = isReplayable ? executeScriptAgainstState(run.code, pre, formatRunSource(run), run.cwd, box) : undefined;
   const execution: RunExecution = { pre, post };
   byRun.set(key, execution);
   return execution;

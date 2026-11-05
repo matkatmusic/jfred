@@ -3,7 +3,6 @@
 import { Path, Uuid } from "./structures/domain.ts";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { rmSync } from "node:fs";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import {
   getMemoizedSandboxOutcome,
@@ -12,9 +11,12 @@ import {
   type SandboxOutput,
 } from "./reconstruction_script_sandbox_memo.ts";
 import { ReconstructionCounter, addToReconstructionCounter } from "./reconstruction_counters.ts";
-import { SANDBOX_TIMEOUT_MS, prepareSandboxDirectory, readAllFiles } from "./reconstruction_script_sandbox_dir.ts";
+import { SANDBOX_TIMEOUT_MS, locateReadOnlyScript, prepareSandboxDirectory, readAllFiles, removeSandboxDirectory } from "./reconstruction_script_sandbox_dir.ts";
+import { describeSandboxBoxKey, type SandboxBox } from "./reconstruction_script_sandbox_box.ts";
+import { applyStdoutRedirect, collectBoxPostState, snapshotSandboxFiles } from "./reconstruction_script_sandbox_snapshot.ts";
 import {
   DockerUnavailableError,
+  type DockerLaunch,
   SANDBOX_IMAGE,
   buildDockerRunArgs,
   chooseSandboxMount,
@@ -46,7 +48,7 @@ export function isJunkStateKey(key: string): boolean {
 }
 
 // Hashes the script, the Docker image tag, the cwd (it is the mount), and sorted seeded (path, content) pairs.
-export function computeSandboxInputKey(script: string, preState: Map<string, string>, recordedCwd?: Path): string {
+export function computeSandboxInputKey(script: string, preState: Map<string, string>, recordedCwd?: Path, box?: SandboxBox): string {
   const hash = createHash("sha256");
   hash.update(script);
   hash.update("\0runtime\0" + SANDBOX_IMAGE);
@@ -58,6 +60,9 @@ export function computeSandboxInputKey(script: string, preState: Map<string, str
     hash.update("\0");
     hash.update(preState.get(path)!);
   }
+  if (box !== undefined) {
+    hash.update("\0box\0" + describeSandboxBoxKey(box));
+  }
   return hash.digest("hex");
 }
 
@@ -68,8 +73,8 @@ function reportMemoizedOutcome(outcome: SandboxOutcome, script: string, sourceLa
   return outcome.post;
 }
 
-export function executeScriptAgainstState(script: string, preState: Map<string, string>, sourceLabel = "", recordedCwd?: Path): Map<string, string> | undefined {
-  const inputKey = computeSandboxInputKey(script, preState, recordedCwd);
+export function executeScriptAgainstState(script: string, preState: Map<string, string>, sourceLabel = "", recordedCwd?: Path, box?: SandboxBox): Map<string, string> | undefined {
+  const inputKey = computeSandboxInputKey(script, preState, recordedCwd, box);
   const memoizedOutcome = getMemoizedSandboxOutcome(inputKey);
   if (memoizedOutcome !== undefined) {
     return reportMemoizedOutcome(memoizedOutcome, script, sourceLabel);
@@ -78,34 +83,56 @@ export function executeScriptAgainstState(script: string, preState: Map<string, 
   if (!isSpawnAllowed) {
     return undefined;
   }
-  return spawnAndStoreOutcome(inputKey, script, preState, sourceLabel, recordedCwd);
+  return spawnAndStoreOutcome(inputKey, script, preState, sourceLabel, recordedCwd, box);
 }
 
-function spawnAndStoreOutcome(inputKey: string, script: string, preState: Map<string, string>, sourceLabel: string, recordedCwd?: Path): Map<string, string> | undefined {
+function spawnAndStoreOutcome(inputKey: string, script: string, preState: Map<string, string>, sourceLabel: string, recordedCwd?: Path, box?: SandboxBox): Map<string, string> | undefined {
   reportReconstructionProgress(
     `${PROGRESS_LABEL_SANDBOX_SPAWN_PREFIX} (${preState.size} seeded files)${sourceLabel}: ${formatScriptForProgress(script)}`,
   );
   addToReconstructionCounter(ReconstructionCounter.sandboxSpawns);
-  const outcome = spawnSandboxRun(script, preState, recordedCwd);
+  const outcome = spawnSandboxRun(script, preState, recordedCwd, box);
   storeSandboxOutcome(inputKey, outcome.post, outcome.output);
   return outcome.post;
 }
 
 // Seeds a temp dir, runs python3 in a closed Docker container, reads back the tree.
-function spawnSandboxRun(script: string, preState: Map<string, string>, recordedCwd?: Path): SandboxOutcome {
-  const tempDir = prepareSandboxDirectory(script, preState);
+function spawnSandboxRun(script: string, preState: Map<string, string>, recordedCwd?: Path, box?: SandboxBox): SandboxOutcome {
+  const tempDir = prepareSandboxDirectory(script, preState, box);
   try {
     const runId = new Uuid(randomUUID());
-    const dockerArgs = buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd));
+    const dockerArgs = buildSandboxDockerArgs(runId, tempDir, recordedCwd, box);
+    const collectPostState = createPostStateCollector(tempDir, preState, box);
     // SIGKILL: python as PID 1 ignores the SIGTERM docker forwards, so the timeout would never end the wait.
     const result = spawnSync("docker", dockerArgs, { timeout: SANDBOX_TIMEOUT_MS, killSignal: "SIGKILL", stdio: "pipe", encoding: "utf8" });
-    return parseSandboxResult(result, runId, tempDir);
+    return parseSandboxResult(result, runId, collectPostState);
   }
   finally {
-    rmSync(tempDir, { recursive: true, force: true });
+    removeSandboxDirectory(tempDir);
   }
 }
 
+function buildSandboxDockerArgs(runId: Uuid, tempDir: string, recordedCwd?: Path, box?: SandboxBox): string[] {
+  if (box === undefined) {
+    return buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd));
+  }
+  const launch: DockerLaunch = { workdir: box.workdir, scriptArgument: box.scriptPath.toString(), readOnlyScript: locateReadOnlyScript(tempDir, box) };
+  return buildDockerRunArgs(runId, new Path(tempDir), box.root, launch);
+}
+
+// With a box, the baseline hash is taken now, before the container starts.
+function createPostStateCollector(tempDir: string, preState: Map<string, string>, box?: SandboxBox): (stdout: string) => Map<string, string> {
+  if (box === undefined) {
+    return () => collectSandboxPostState(tempDir);
+  }
+  const baseline = snapshotSandboxFiles(tempDir);
+  return (stdout) => {
+    applyStdoutRedirect(tempDir, box, stdout);
+    return collectBoxPostState(tempDir, box, preState, baseline);
+  };
+}
+
+// The no-box path keeps this reader; a box uses collectBoxPostState.
 function collectSandboxPostState(tempDir: string): Map<string, string> {
   const post = new Map<string, string>();
   for (const [relativePath, content] of readAllFiles(tempDir)) {
@@ -117,7 +144,7 @@ function collectSandboxPostState(tempDir: string): Map<string, string> {
   return post;
 }
 
-function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, tempDir: string): SandboxOutcome {
+function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, collectPostState: (stdout: string) => Map<string, string>): SandboxOutcome {
   const output: SandboxOutput = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status ?? undefined, timedOut: false };
   if (result.error !== undefined) {
     return parseSpawnError(result.error, output, runId);
@@ -129,7 +156,7 @@ function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, tempD
   if (result.status !== 0) {
     return { post: undefined, output };
   }
-  return { post: collectSandboxPostState(tempDir), output };
+  return { post: collectPostState(result.stdout), output };
 }
 
 function parseSpawnError(error: Error, output: SandboxOutput, runId: Uuid): SandboxOutcome {

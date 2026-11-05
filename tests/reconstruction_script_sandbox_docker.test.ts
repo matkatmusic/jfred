@@ -10,7 +10,7 @@ import { computeSandboxInputKey, executeScriptAgainstState } from "../src/recons
 import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
 import {
   DEFAULT_SANDBOX_MOUNT, SANDBOX_IMAGE, DockerStuckError, DockerUnavailableError,
-  assertSandboxImagePresent, buildDockerRunArgs, chooseSandboxMount, killSandboxContainer, stopTimedOutContainer,
+  assertMountPathSafe, assertSandboxImagePresent, buildDockerRunArgs, chooseSandboxMount, killSandboxContainer, stopTimedOutContainer,
 } from "../src/reconstruction_script_sandbox_docker.ts";
 
 test("test_buildDockerRunArgs_returns_the_closed_box_command", () => {
@@ -21,6 +21,32 @@ test("test_buildDockerRunArgs_returns_the_closed_box_command", () => {
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "1g",
         "--name", "run-1", "-v", "/tmp/seed:/Users/me/proj", "-w", "/Users/me/proj",
         "reveng-sandbox:1", "python3", "__script__.py",
+    ]);
+});
+
+test("test_buildDockerRunArgs_with_an_inline_launch_uses_the_workdir_and_the_script_argument", () => {
+    const launch = { workdir: new Path("/Users/me/proj"), scriptArgument: "/Users/me/proj/__script__.py" };
+    const args = buildDockerRunArgs(new Uuid("run-1"), new Path("/tmp/seed"), new Path("/Users/me/proj"), launch);
+    assert.deepEqual(args, [
+        "run", "--rm", "--pull", "never", "--network", "none",
+        "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "1g",
+        "--name", "run-1", "-v", "/tmp/seed:/Users/me/proj", "-w", "/Users/me/proj",
+        "reveng-sandbox:1", "python3", "/Users/me/proj/__script__.py",
+    ]);
+});
+
+test("test_buildDockerRunArgs_with_an_outside_script_launch_adds_the_read_only_mount", () => {
+    const launch = {
+        workdir: new Path("/Users/me/proj"),
+        scriptArgument: "/tmp/repro2.py",
+        readOnlyScript: { hostFile: new Path("/tmp/seed-script/repro2.py"), boxFile: new Path("/tmp/repro2.py") },
+    };
+    const args = buildDockerRunArgs(new Uuid("run-1"), new Path("/tmp/seed"), new Path("/Users/me/proj"), launch);
+    assert.deepEqual(args, [
+        "run", "--rm", "--pull", "never", "--network", "none",
+        "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "1g",
+        "--name", "run-1", "-v", "/tmp/seed:/Users/me/proj", "-v", "/tmp/seed-script/repro2.py:/tmp/repro2.py:ro", "-w", "/Users/me/proj",
+        "reveng-sandbox:1", "python3", "/tmp/repro2.py",
     ]);
 });
 
@@ -60,6 +86,11 @@ test("test_chooseSandboxMount_throws_on_a_colon_in_the_recorded_cwd", () => {
     for (const cwd of ["/work:ro", "/a:b", "/work:/etc", "/a:b:c"]) {
         assert.throws(() => chooseSandboxMount(new Path(cwd)), /colon/, cwd);
     }
+});
+
+test("test_assertMountPathSafe_throws_on_a_colon_and_names_what_it_checked", () => {
+    assert.throws(() => assertMountPathSafe(new Path("/a:b"), "The script path"), /The script path.*colon.*\/a:b/);
+    assert.doesNotThrow(() => assertMountPathSafe(new Path("/a/b"), "The script path"));
 });
 
 test("test_assertSandboxImagePresent_passes_when_docker_has_the_image", () => {

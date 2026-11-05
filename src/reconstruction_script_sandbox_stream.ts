@@ -3,13 +3,15 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { rmSync } from "node:fs";
 import { Path, Uuid } from "./structures/domain.ts";
 import { ReconstructionCounter, addToReconstructionCounter } from "./reconstruction_counters.ts";
 import type { SandboxOutput } from "./reconstruction_script_sandbox_memo.ts";
-import { SANDBOX_TIMEOUT_MS, prepareSandboxDirectory, readAllFiles } from "./reconstruction_script_sandbox_dir.ts";
+import type { SandboxBox } from "./reconstruction_script_sandbox_box.ts";
+import { SANDBOX_TIMEOUT_MS, locateReadOnlyScript, prepareSandboxDirectory, readAllFiles, removeSandboxDirectory } from "./reconstruction_script_sandbox_dir.ts";
+import { applyStdoutRedirect, collectBoxPostState, snapshotSandboxFiles } from "./reconstruction_script_sandbox_snapshot.ts";
 import {
   DockerUnavailableError,
+  type DockerLaunch,
   buildDockerRunArgs,
   chooseSandboxMount,
   killSandboxContainer,
@@ -24,6 +26,7 @@ export type OutputStream = "stdout" | "stderr";
 export type OutputSink = (stream: OutputStream, text: string) => void;
 export type StreamedRun = { post: Map<string, string> | undefined; output: SandboxOutput; isCancelled: boolean };
 type RunState = { output: SandboxOutput; isCancelled: boolean };
+type BoxRun = { box: SandboxBox; preState: Map<string, string>; baseline: Map<string, string> };
 type StopAction = (runId: Uuid, state: RunState) => void;
 
 function collectOutput(child: ChildProcessWithoutNullStreams, output: SandboxOutput, onOutput: OutputSink): void {
@@ -106,26 +109,42 @@ function collectSandboxFiles(tempDir: string): Map<string, string> {
 }
 
 // Only a clean exit that was neither timed out nor cancelled yields the files.
-function readStreamedPost(status: number | null, state: RunState, tempDir: string): Map<string, string> | undefined {
+function readStreamedPost(status: number | null, state: RunState, tempDir: string, boxRun: BoxRun | undefined): Map<string, string> | undefined {
   if (status === DOCKER_FAILURE_STATUS) {
     throw new DockerUnavailableError();
   }
   const isCleanExit = status === 0 && !state.output.timedOut && !state.isCancelled;
-  return isCleanExit ? collectSandboxFiles(tempDir) : undefined;
+  if (!isCleanExit) {
+    return undefined;
+  }
+  if (boxRun === undefined) {
+    return collectSandboxFiles(tempDir);
+  }
+  applyStdoutRedirect(tempDir, boxRun.box, state.output.stdout);
+  return collectBoxPostState(tempDir, boxRun.box, boxRun.preState, boxRun.baseline);
 }
 
-export async function executeSandboxStreaming(script: string, preState: Map<string, string>, recordedCwd: Path | undefined, onOutput: OutputSink, signal: AbortSignal, timeoutMs: number = SANDBOX_TIMEOUT_MS): Promise<StreamedRun> {
-  const tempDir = prepareSandboxDirectory(script, preState);
+function createDockerArgs(runId: Uuid, tempDir: string, recordedCwd: Path | undefined, box: SandboxBox | undefined): string[] {
+  if (box === undefined) {
+    return buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd));
+  }
+  const launch: DockerLaunch = { workdir: box.workdir, scriptArgument: box.scriptPath.toString(), readOnlyScript: locateReadOnlyScript(tempDir, box) };
+  return buildDockerRunArgs(runId, new Path(tempDir), box.root, launch);
+}
+
+export async function executeSandboxStreaming(script: string, preState: Map<string, string>, recordedCwd: Path | undefined, onOutput: OutputSink, signal: AbortSignal, timeoutMs: number = SANDBOX_TIMEOUT_MS, box?: SandboxBox): Promise<StreamedRun> {
+  const tempDir = prepareSandboxDirectory(script, preState, box);
   try {
+    const boxRun: BoxRun | undefined = box === undefined ? undefined : { box, preState, baseline: snapshotSandboxFiles(tempDir) };
     const runId = new Uuid(randomUUID());
     addToReconstructionCounter(ReconstructionCounter.sandboxSpawns);
-    const child = spawn("docker", buildDockerRunArgs(runId, new Path(tempDir), chooseSandboxMount(recordedCwd)), { stdio: "pipe" });
+    const child = spawn("docker", createDockerArgs(runId, tempDir, recordedCwd, box), { stdio: "pipe" });
     const state: RunState = { output: { stdout: "", stderr: "", timedOut: false }, isCancelled: false };
     collectOutput(child, state.output, onOutput);
     const status = await waitForExit(child, runId, signal, timeoutMs, state);
-    return { post: readStreamedPost(status, state, tempDir), output: { ...state.output, exitCode: status ?? undefined }, isCancelled: state.isCancelled };
+    return { post: readStreamedPost(status, state, tempDir, boxRun), output: { ...state.output, exitCode: status ?? undefined }, isCancelled: state.isCancelled };
   }
   finally {
-    rmSync(tempDir, { recursive: true, force: true });
+    removeSandboxDirectory(tempDir);
   }
 }

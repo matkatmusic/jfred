@@ -8,6 +8,7 @@ import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
 import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
+import { resolveRunBox } from "./reconstruction_script_sandbox_box.ts";
 import { executeSkippingMisses } from "./reconstruction_script_sandbox_spawn_guard.ts";
 import type { FileEvent, OverwriteEvent, UserEditEvent, WriteEvent } from "./reconstruction_events.ts";
 
@@ -73,7 +74,7 @@ function computeScriptEventPost(
   const key = computeScriptStateKey(target, run.cwd);
   const preState = new Map(executeRunOnce(run, records, reader).pre);
   preState.set(key, rolling);
-  const executeRun = () => executeScriptAgainstState(run.code, preState, "", run.cwd);
+  const executeRun = () => executeScriptAgainstState(run.code, preState, "", run.cwd, resolveRunBox(run));
   return executeSkippingMisses(executeRun)?.get(key);
 }
 

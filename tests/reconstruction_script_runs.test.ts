@@ -1,5 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { executeInRealBox } from "../src/reconstruction_script_sandbox_box.ts";
 import {
     PROGRESS_LABEL_NON_PYTHON_SKIP_PREFIX,
     computeRunExecutionKey,
@@ -75,6 +80,37 @@ test("test_python_run_still_executes", () => {
     assert.equal(execution.post.get("data.txt"), "after\n");
     const snapshot = getReconstructionCounterSnapshot();
     assert.equal(snapshot[ReconstructionCounter.preStateBuilds], 1);
+});
+
+test("test_run_with_no_start_files_replays_only_inside_real_box_with_commit", () => {
+    // Scenario: with a commit and no start files, a run replays only inside executeInRealBox.
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), "reveng-runs-box-")));
+    try {
+        // a temp repo has one commit dated before the run.
+        const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_COMMITTER_DATE: "2025-12-31T00:00:00Z", GIT_AUTHOR_DATE: "2025-12-31T00:00:00Z" };
+        const runGit = (args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t.invalid", "-c", "commit.gpgsign=false", ...args], { cwd: repo, env: gitEnv });
+        runGit(["init", "-q", "-b", "main"]);
+        writeFileSync(join(repo, "seed.txt"), "seed\n");
+        runGit(["add", "seed.txt"]);
+        runGit(["commit", "-q", "-m", "seed"]);
+        // the run writes a file and no Write record gives it start files.
+        const buildRecords = () => [
+            buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("out.txt", "w").write("after\\n")\n' }, "2026-01-01T00:00:02Z"),
+        ];
+        // outside the real box the run has no start files, so it is not replayed.
+        const outsideRecords = buildRecords();
+        const outsideRun = findScriptExecutionRuns(outsideRecords)[0]!;
+        const outside = executeRunOnce(outsideRun, outsideRecords, emptyReader);
+        assert.equal(outside.post, undefined);
+        // inside the real box the commit counts as a start, so the run replays and writes its file.
+        const insideRecords = buildRecords();
+        const insideRun = findScriptExecutionRuns(insideRecords)[0]!;
+        const inside = executeInRealBox(new Path(repo), () => executeRunOnce(insideRun, insideRecords, emptyReader));
+        assert.ok(inside.post !== undefined);
+        assert.equal(inside.post.get("out.txt"), "after\n");
+    } finally {
+        rmSync(repo, { recursive: true, force: true });
+    }
 });
 
 test("test_bash_indirection_to_python_file_executes", () => {

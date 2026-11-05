@@ -33,9 +33,9 @@ function findListedSessionFile(sessionFile: string, listedFiles: Path[]): Path {
   throw new Error(`sessionFile is not one of the listed transcripts: ${sessionFile}`);
 }
 
-function buildRunInput(request: WireScriptNeedsRequest, dir: Path, listedFiles: Path[]): RunInput {
+function buildRunInput(request: WireScriptNeedsRequest, dir: Path, repoPath: Path, listedFiles: Path[]): RunInput {
   const sessionFile = findListedSessionFile(request.sessionFile, listedFiles);
-  return { sessionFile, toolUseId: new Uuid(request.toolUseId), dir, sources: getPathOverrides().sources };
+  return { sessionFile, toolUseId: new Uuid(request.toolUseId), dir, repoPath, sources: getPathOverrides().sources };
 }
 
 function sendNeedsReply(response: ServerResponse, input: RunInput): void {
@@ -50,10 +50,10 @@ function sendNeedsReply(response: ServerResponse, input: RunInput): void {
   sendJson(response, 200, reply);
 }
 
-function receiveNeedsBody(response: ServerResponse, dir: Path, listedFiles: Path[], body: string): void {
+function receiveNeedsBody(response: ServerResponse, dir: Path, repoPath: Path, listedFiles: Path[], body: string): void {
   let input: RunInput;
   try {
-    input = buildRunInput(parseNeedsRequest(body), dir, listedFiles);
+    input = buildRunInput(parseNeedsRequest(body), dir, repoPath, listedFiles);
   }
   catch (error) {
     sendJson(response, 400, { error: String(error) });
@@ -66,13 +66,14 @@ function receiveNeedsBody(response: ServerResponse, dir: Path, listedFiles: Path
 export function receiveScriptNeeds(request: IncomingMessage, response: ServerResponse, url: URL): void {
   assertLocalJsonPost(request);
   const dir = validateExistingFolderParam(url.searchParams, "dir");
+  const repoPath = validateExistingFolderParam(url.searchParams, "repo");
   const listedFiles = listTranscriptFiles(url.searchParams.getAll("jsonl"));
   let body = "";
   function appendChunk(chunk: Buffer): void {
     body += chunk.toString();
   }
   function receiveBody(): void {
-    receiveNeedsBody(response, dir, listedFiles, body);
+    receiveNeedsBody(response, dir, repoPath, listedFiles, body);
   }
   request.on("data", appendChunk);
   request.on("end", receiveBody);

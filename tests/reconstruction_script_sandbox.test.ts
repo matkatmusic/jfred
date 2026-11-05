@@ -141,3 +141,15 @@ test("test_computeSandboxInputKey_adds_the_runtime_line_after_the_script", () =>
     assert.equal(computeSandboxInputKey(script, preState, cwd), expectedKey);
     assert.notEqual(computeSandboxInputKey(script, preState, cwd), oldKey);
 });
+
+test("test_computeSandboxInputKey_adds_the_box_text_only_when_a_box_exists", () => {
+    // Scenario: no box keeps the old key; a box changes it; two different boxes give two keys.
+    const script = "pass\n";
+    const preState = new Map([["a.txt", "1"]]);
+    const cwd = new Path("/Users/me/proj");
+    const box = { root: cwd, workdir: cwd, scriptPath: new Path("/Users/me/proj/__script__.py"), stdoutRedirect: undefined, project: undefined };
+    const otherBox = { ...box, scriptPath: new Path("/Users/me/proj/other.py") };
+    assert.equal(computeSandboxInputKey(script, preState, cwd, undefined), computeSandboxInputKey(script, preState, cwd));
+    assert.notEqual(computeSandboxInputKey(script, preState, cwd, box), computeSandboxInputKey(script, preState, cwd));
+    assert.notEqual(computeSandboxInputKey(script, preState, cwd, box), computeSandboxInputKey(script, preState, cwd, otherBox));
+});

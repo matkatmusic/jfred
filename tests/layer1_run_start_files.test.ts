@@ -5,15 +5,16 @@ import assert from "node:assert/strict";
 import { computeRunStartFiles, loadReplayRun } from "../src/layer1_run_start_files.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { getReconstructionCounterSnapshot, resetReconstructionCounters } from "../src/reconstruction_counters.ts";
-import { computeSandboxInputKey } from "../src/reconstruction_script_sandbox.ts";
 import { setSandboxMemoPersistence, storeSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
 import { EarlierRunNotSavedError, assertSpawnAllowed, collectEarlierRuns, executeWithoutSpawning } from "../src/reconstruction_script_sandbox_spawn_guard.ts";
-import { Path, Uuid } from "../src/structures/domain.ts";
+import { Uuid } from "../src/structures/domain.ts";
 import {
     APPEND_Y_SCRIPT,
     APPEND_Z_SCRIPT,
     addScriptRun,
     addWrite,
+    computeBoxedRunKey,
+    createCraftedGitRepo,
     createCraftedProject,
     writeCraftedSession,
 } from "./layer1_run_test_helpers.ts";
@@ -45,7 +46,7 @@ test("test_loadReplayRun_throws_for_an_unknown_id", () => {
 test("test_computeRunStartFiles_throws_EarlierRunNotSavedError_when_the_earlier_run_has_no_saved_result", () => {
     resetRunState();
     const { input } = craftTwoRunSession();
-    assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning), EarlierRunNotSavedError);
+    assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath), EarlierRunNotSavedError);
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
 });
 
@@ -53,8 +54,8 @@ test("test_computeRunStartFiles_reads_the_saved_output_of_the_earlier_run", () =
     resetRunState();
     const { input } = craftTwoRunSession();
     const earlierPre = new Map([["a.txt", "a\n"]]);
-    storeSandboxOutcome(computeSandboxInputKey(APPEND_Z_SCRIPT, earlierPre, new Path(input.dir.toString())), new Map([["a.txt", "a\nz\n"]]));
-    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning);
+    storeSandboxOutcome(computeBoxedRunKey(input, "toolu_A", earlierPre), new Map([["a.txt", "a\nz\n"]]));
+    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath);
     assert.equal(startFiles.pre.get("a.txt"), "a\nz\n");
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
 });
@@ -62,7 +63,7 @@ test("test_computeRunStartFiles_reads_the_saved_output_of_the_earlier_run", () =
 test("test_computeRunStartFiles_collect_mode_lists_the_earlier_run_and_spawns_nothing", () => {
     resetRunState();
     const { input } = craftTwoRunSession();
-    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, collectEarlierRuns);
+    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, collectEarlierRuns, input.repoPath);
     assert.equal(startFiles.lineageResult.length, 1);
     assert.equal(startFiles.lineageResult[0]!.script, APPEND_Z_SCRIPT);
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
@@ -76,7 +77,7 @@ test("test_computeRunStartFiles_does_not_throw_or_spawn_for_an_errored_or_javasc
     addScriptRun(project, "toolu_J", 5, { code: 'require("fs").writeFileSync("a.txt", "js")\n', language: "javascript" });
     addScriptRun(project, "toolu_T", 8, { code: APPEND_Y_SCRIPT });
     const input = writeCraftedSession(project, "toolu_T");
-    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning);
+    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath);
     assert.equal(startFiles.pre.get("a.txt"), "a\n");
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
 });
@@ -86,9 +87,9 @@ test("test_computeRunStartFiles_restores_the_gate_after_a_return_and_after_a_thr
     const { input } = craftTwoRunSession();
     setImpureExecutionAllowed(false);
     try {
-        assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning));
+        assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath));
         assert.equal(isImpureExecutionAllowed(), false);
-        computeRunStartFiles(loadReplayRun(input), undefined, collectEarlierRuns);
+        computeRunStartFiles(loadReplayRun(input), undefined, collectEarlierRuns, input.repoPath);
         assert.equal(isImpureExecutionAllowed(), false);
     }
     finally {
@@ -99,6 +100,20 @@ test("test_computeRunStartFiles_restores_the_gate_after_a_return_and_after_a_thr
 test("test_computeRunStartFiles_leaves_spawning_allowed_again_after_a_throw", () => {
     resetRunState();
     const { input } = craftTwoRunSession();
-    assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning), EarlierRunNotSavedError);
+    assert.throws(() => computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath), EarlierRunNotSavedError);
     assert.equal(assertSpawnAllowed("print(1)\n", ""), true);
+});
+
+test("test_computeRunStartFiles_in_a_git_repo_finds_the_result_saved_under_the_live_run_key", () => {
+    // Scenario: the lineage builds the same box as the live run, so one memo key serves both.
+    resetRunState();
+    const { input: noGitInput } = craftTwoRunSession();
+    const input = { ...noGitInput, repoPath: createCraftedGitRepo() };
+    // The earlier run is saved under the key the live run would build for it.
+    const earlierPre = new Map([["a.txt", "a\n"]]);
+    storeSandboxOutcome(computeBoxedRunKey(input, "toolu_A", earlierPre), new Map([["a.txt", "a\nz\n"]]));
+    // The lineage must find that result and spawn nothing.
+    const startFiles = computeRunStartFiles(loadReplayRun(input), undefined, executeWithoutSpawning, input.repoPath);
+    assert.equal(startFiles.pre.get("a.txt"), "a\nz\n");
+    assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
 });

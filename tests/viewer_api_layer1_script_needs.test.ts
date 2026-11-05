@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { createServer, request as sendHttpRequest, type Server } from "node:http";
 import { type AddressInfo } from "node:net";
 import { dirname } from "node:path";
-import { computeSandboxInputKey } from "../src/reconstruction_script_sandbox.ts";
 import { setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setSandboxMemoPersistence, storeSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -16,6 +15,7 @@ import {
     APPEND_Z_SCRIPT,
     addScriptRun,
     addWrite,
+    computeBoxedRunKey,
     createCraftedProject,
     resetRunState,
     writeCraftedSession,
@@ -65,8 +65,8 @@ function postNeeds(query: string, headers: Record<string, string>, body: object)
     });
 }
 
-function buildQuery(input: { dir: Path; sessionFile: Path }): string {
-    return new URLSearchParams({ dir: input.dir.toString(), jsonl: dirname(input.sessionFile.toString()) }).toString();
+function buildQuery(input: { dir: Path; repoPath: Path; sessionFile: Path }): string {
+    return new URLSearchParams({ dir: input.dir.toString(), repo: input.repoPath.toString(), jsonl: dirname(input.sessionFile.toString()) }).toString();
 }
 
 const JSON_HEADERS = { "content-type": "application/json" };
@@ -104,7 +104,7 @@ test("test_receiveScriptNeeds_answers_the_needs_reply_shape", async () => {
 test("test_receiveScriptNeeds_answers_no_needs_when_the_earlier_result_is_saved", async () => {
     resetRunState();
     const input = craftSession();
-    const earlierKey = computeSandboxInputKey(APPEND_Z_SCRIPT, new Map([["a.txt", "a\n"]]), new Path(input.dir.toString()));
+    const earlierKey = computeBoxedRunKey(input, "toolu_A", new Map([["a.txt", "a\n"]]));
     storeSandboxOutcome(earlierKey, new Map([["a.txt", "a\nz\n"]]));
     const body = { sessionFile: input.sessionFile.toString(), toolUseId: "toolu_T" };
     const reply = await postNeeds(buildQuery(input), JSON_HEADERS, body);

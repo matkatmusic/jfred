@@ -1,14 +1,17 @@
 // Crafted one-session transcripts on disk for the task 358 run tests.
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { executeRunReplay } from "../src/layer1_run_replay.ts";
-import type { ReplayInput } from "../src/layer1_run_start_files.ts";
+import { loadReplayRun, type ReplayInput, type RunInput } from "../src/layer1_run_start_files.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import { getReconstructionCounterSnapshot, resetReconstructionCounters } from "../src/reconstruction_counters.ts";
+import { computeSandboxInputKey } from "../src/reconstruction_script_sandbox.ts";
+import { buildSandboxBox } from "../src/reconstruction_script_sandbox_box.ts";
 import { setSandboxMemoPersistence } from "../src/reconstruction_script_sandbox_memo.ts";
 import { buildReadRecordPair, buildWriteRecordPair, type RecordEnvelope } from "./tool-call-record-pair-builders.ts";
 
@@ -87,6 +90,23 @@ export function createCraftedSession(code: string, extend: (project: CraftedProj
   addScriptRun(project, "toolu_T", 5, { code });
   extend(project);
   return { project, input: writeCraftedSession(project, "toolu_T") };
+}
+
+// A git repo with one commit made before every crafted run (those start at 2026-07-24T10:00).
+export function createCraftedGitRepo(): Path {
+  const repo = mkdtempSync(join(tmpdir(), "run-git-repo-"));
+  const commitEnvironment = { ...process.env, GIT_AUTHOR_DATE: "2026-07-24T09:00:00Z", GIT_COMMITTER_DATE: "2026-07-24T09:00:00Z" };
+  writeFileSync(join(repo, "tracked.txt"), "tracked\n");
+  execFileSync("git", ["init", "--quiet", repo]);
+  execFileSync("git", ["-C", repo, "add", "tracked.txt"]);
+  execFileSync("git", ["-C", repo, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "first"], { env: commitEnvironment });
+  return new Path(repo);
+}
+
+// The memo key the lineage and the live run both use for one run of the session.
+export function computeBoxedRunKey(input: RunInput, toolUseId: string, preState: Map<string, string>): string {
+  const { run } = loadReplayRun({ ...input, toolUseId: new Uuid(toolUseId) });
+  return computeSandboxInputKey(run.code, preState, run.cwd, buildSandboxBox(run, input.repoPath));
 }
 
 // Writes the transcript under a projects folder (so the file-history sibling resolves) and returns a run input.

@@ -7,6 +7,7 @@ import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { getPreExecutionState } from "./reconstruction_script_prestate.ts";
+import { executeInRealBox } from "./reconstruction_script_sandbox_box.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { Path, Uuid } from "./structures/domain.ts";
@@ -17,10 +18,10 @@ export interface RunInput {
   sessionFile: Path;
   toolUseId: Uuid;
   dir: Path;
+  repoPath: Path;
   sources: SourceEntry[] | undefined;
 }
 export interface ReplayInput extends RunInput {
-  repoPath: Path;
   sessionFiles: Path[];
 }
 export interface LoadedRun {
@@ -74,7 +75,7 @@ function computePreState(run: ScriptRun, records: TranscriptRecord[], reader: Ba
   return getPreExecutionState(run, records, reader, seedContent);
 }
 
-export function computeRunStartFiles<Result>(loaded: LoadedRun, sources: SourceEntry[] | undefined, runLineage: LineageRunner<Result>): RunStartFiles<Result> {
+export function computeRunStartFiles<Result>(loaded: LoadedRun, sources: SourceEntry[] | undefined, runLineage: LineageRunner<Result>, repo: Path): RunStartFiles<Result> {
   const { run, records } = loaded;
   const reader = createRunReader(records, sources);
   const holder = { pre: new Map<string, string>() };
@@ -82,6 +83,7 @@ export function computeRunStartFiles<Result>(loaded: LoadedRun, sources: SourceE
     holder.pre = computePreState(run, records, reader);
   };
   const executeLineage = () => runLineage(listNeverRunScripts(records), computeHolderPre);
-  const lineageResult = executeWithImpureExecution(executeLineage);
+  const executeLineageInBox = () => executeInRealBox(repo, executeLineage);
+  const lineageResult = executeWithImpureExecution(executeLineageInBox);
   return { ...loaded, pre: holder.pre, lineageResult };
 }

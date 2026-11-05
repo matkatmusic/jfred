@@ -6,12 +6,11 @@ import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
 import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { executeRunReplay } from "../src/layer1_run_replay.ts";
 import { resetReconstructionCounters } from "../src/reconstruction_counters.ts";
-import { computeSandboxInputKey } from "../src/reconstruction_script_sandbox.ts";
 import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import {
-    APPEND_Z_SCRIPT, OPTIONS, addFullRead, addScriptRun, addWrite, countSpawns, createCraftedSession,
+    APPEND_Z_SCRIPT, OPTIONS, addFullRead, addScriptRun, addWrite, computeBoxedRunKey, countSpawns, createCraftedGitRepo, createCraftedSession,
     createCraftedProject, collectReplay, resetRunState, writeCraftedSession, writeProjectFile,
 } from "./layer1_run_test_helpers.ts";
 
@@ -53,6 +52,17 @@ test("test_executeRunReplay_with_no_start_files_is_not_replayed", OPTIONS, async
     assert.equal(result!.outcome, WireRunOutcome.notReplayed);
     assert.equal(result!.reason, "no known start files");
     assert.equal(countSpawns(), 0);
+});
+
+test("test_executeRunReplay_with_no_start_files_but_a_commit_before_the_run_is_replayed", OPTIONS, async () => {
+    // Scenario: no start files, but the repo has a commit before the run, so the box has a project.
+    resetRunState();
+    const project = createCraftedProject();
+    addScriptRun(project, "toolu_T", 5, { code: 'open("out.txt", "w").write("x")\n' });
+    const input = { ...writeCraftedSession(project, "toolu_T"), repoPath: createCraftedGitRepo() };
+    const { result } = await collectReplay(input);
+    assert.notEqual(result!.outcome, WireRunOutcome.notReplayed);
+    assert.equal(countSpawns(), 1);
 });
 
 test("test_executeRunReplay_is_verified_when_the_beacon_equals_and_reports_progress_and_output", OPTIONS, async () => {
@@ -135,7 +145,7 @@ test("test_executeRunReplay_a_cancel_returns_undefined_and_saves_nothing", OPTIO
     assert.equal(result, undefined);
     assert.equal(outputs.join(""), "ready\n");
     const pre = new Map([["a.txt", "a\n"]]);
-    assert.equal(getMemoizedSandboxOutcome(computeSandboxInputKey(code, pre, new Path(input.dir.toString()))), undefined);
+    assert.equal(getMemoizedSandboxOutcome(computeBoxedRunKey(input, "toolu_T", pre)), undefined);
 });
 
 test("test_executeRunReplay_throws_for_an_unknown_tool_use_id", OPTIONS, async () => {
