@@ -78,6 +78,14 @@ test("test_openRunConsent_shows_one_row_per_distinct_run_and_remembers_allow", a
   assert.equal(readOverlayCount(), 0);
 });
 
+test("test_openRunConsent_puts_the_overlay_inside_viz_root", () => {
+  // Verify: the overlay sits inside .viz-root so it uses the page colours.
+  openFreshPage();
+  void openRunConsent(VIEW);
+  assert.equal(document.querySelectorAll(".viz-root > .modal-wrap.run-consent").length, 1);
+  clickOverlayButton("Run scripts");
+});
+
 test("test_openRunConsent_remembers_a_decline", async () => {
   // Verify: Continue without running resolves false and the second ask returns false with no overlay.
   openFreshPage();

@@ -100,7 +100,11 @@ export function openRunConsent(view: WireLayer1View): Promise<boolean> {
       resolve(isAllowed);
     };
     const overlay = buildRunConsentOverlay(buildRunConsentScripts(view), storeConsentAnswer);
-    document.body.append(overlay);
+    const page = document.querySelector(".viz-root");
+    if (page === null) {
+      throw new Error("run consent needs the .viz-root page element");
+    }
+    page.append(overlay);
   };
   return new Promise(openConsentOverlay);
 }
