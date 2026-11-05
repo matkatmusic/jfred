@@ -10,7 +10,7 @@ import { Path } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--fixture] [--resetSandboxMemo] [--resetDocumentCache]";
+const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--sandbox-memo-file <path>] [--fixture] [--resetSandboxMemo] [--resetDocumentCache]";
 
 function readFlagValue(argv: string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
@@ -19,7 +19,7 @@ function readFlagValue(argv: string[], flag: string): string | undefined {
 }
 
 // `--projects-dir` is MANDATORY: there is no default scan root.
-export function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean } {
+function applyDirectoryFlags(argv: string[]): void {
   const projectsDir = readFlagValue(argv, "--projects-dir");
   if (projectsDir === undefined) {
     throw new Error(USAGE);
@@ -30,6 +30,9 @@ export function parseServerArgs(argv: string[]): { port: number; resetSandboxMem
   if (fileHistoryDir !== undefined) {
     setFileHistoryDir(fileHistoryDir);
   }
+}
+
+function applyFileFlags(argv: string[]): void {
   const settingsFile = readFlagValue(argv, "--settings-file");
   if (settingsFile !== undefined) {
     setLayer1SettingsPath(new Path(settingsFile));
@@ -40,15 +43,26 @@ export function parseServerArgs(argv: string[]): { port: number; resetSandboxMem
   if (isFixtureRequested) {
     enableFixtureMode();
   }
+}
+
+function readServerPort(argv: string[]): number {
   const portIndex = argv.indexOf("--port");
   const port = portIndex >= 0 ? Number(argv[portIndex + 1]) : DEFAULT_PORT;
   const isPortValid = Number.isInteger(port);
   if (!isPortValid) {
     throw new Error(USAGE);
   }
+  return port;
+}
+
+export function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean; sandboxMemoFile: string | undefined } {
+  applyDirectoryFlags(argv);
+  applyFileFlags(argv);
+  const port = readServerPort(argv);
   return {
     port,
     resetSandboxMemo: argv.includes("--resetSandboxMemo"),
     resetDocumentCache: argv.includes("--resetDocumentCache"),
+    sandboxMemoFile: readFlagValue(argv, "--sandbox-memo-file"),
   };
 }

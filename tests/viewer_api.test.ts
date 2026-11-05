@@ -6,6 +6,7 @@ import {
     buildDocumentWithConsent,
     buildProjectDocument,
     buildReconstructionWithConsent,
+    clearBuiltDocumentCache,
     formatSendingDocumentLabel,
 } from "../src/viewer_api.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -18,6 +19,13 @@ test("test_formatSendingDocumentLabel_shows_megabytes_with_one_decimal", () => {
 test("test_buildProjectDocument_returns_a_document_with_files_touched", () => {
     const document = buildProjectDocument([new Path(S1_JSONL)], undefined);
     assert.ok(Array.isArray(document.filesTouched));
+});
+
+test("test_clearBuiltDocumentCache_forces_a_fresh_build", () => {
+    const paths = [new Path(S1_JSONL)];
+    const built = buildReconstructionWithConsent(paths, undefined, false);
+    clearBuiltDocumentCache();
+    assert.notEqual(buildReconstructionWithConsent(paths, undefined, false), built);
 });
 
 test("test_buildDocumentWithConsent_returns_the_cached_build_document", () => {
