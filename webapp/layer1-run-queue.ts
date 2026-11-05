@@ -122,5 +122,9 @@ export function stopRun(toolUseId: string): void {
 
 export function resetRunQueue(): void {
   queue.length = 0;
+  const runningId = runQueueState.runningId;
+  if (runningId !== undefined) {
+    controllers.get(runningId)?.abort();
+  }
   clearNeedsCache();
 }

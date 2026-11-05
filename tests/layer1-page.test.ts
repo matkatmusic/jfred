@@ -128,3 +128,22 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     // A bucket heading has no data-path, proving the attribute landed only on the pair widget's name element.
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
+
+test("test_the_header_clear_button_posts_to_clear_results_and_reloads_the_view", async () => {
+    // Part Z: Yes on the inline confirm sends one clear POST, then the page fetches the view again.
+    await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
+    const viewFetch = globalThis.fetch;
+    const requestedPaths: string[] = [];
+    const recordAndForward = async (url: unknown, init?: RequestInit): Promise<Response> => {
+        const pathname = new URL(String(url), "http://localhost:7343").pathname;
+        requestedPaths.push(pathname);
+        const isClear = pathname === "/api/layer1-clear-results";
+        return isClear ? { ok: true, status: 200 } as Response : viewFetch(url as string, init);
+    };
+    Object.assign(globalThis, { fetch: recordAndForward });
+    document.getElementById("clear-results")!.click();
+    document.getElementById("clear-results-yes")!.click();
+    await waitForAsyncWork();
+    assert.deepEqual(requestedPaths.slice(0, 1), ["/api/layer1-clear-results"]);
+    assert.ok(requestedPaths.includes("/api/layer1-view"));
+});

@@ -11,6 +11,7 @@ import { openLinkedNodeAfterLoad } from "./layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-node-link.ts";
 import { attachLeaderVisibility } from "./layer1-leader-visibility.ts";
 import { attachBusyShield } from "./layer1-busy-shield.ts";
+import { attachClearResultsButton } from "./layer1-clear-results.ts";
 import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-progress.ts";
 import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
 import { registerPathPickers } from "./layer1-path-picker.ts";
@@ -119,6 +120,7 @@ export async function initLayer1Page(): Promise<void> {
   registerRefPickers(loadViewInBackground);
   void fillRefsFromRepo();
   attachLayer1CancelButton();
+  attachClearResultsButton(loadViewInBackground);
   attachBusyShield();
   attachZoomControls();
   // wireLayerToggle();

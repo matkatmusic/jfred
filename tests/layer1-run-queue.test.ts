@@ -2,7 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addRunsToQueue, stopRun } from "../webapp/layer1-run-queue.ts";
+import { addRunsToQueue, resetRunQueue, stopRun } from "../webapp/layer1-run-queue.ts";
+import { runQueueState } from "../webapp/layer1-run-route.ts";
 import { getCancelledRunIds, getRunOutcome, getRunOutput, isRunStarted, storeRunResult } from "../webapp/layer1-run-results.ts";
 import { buildResult, buildRun, buildView, initPage, installServer, triggerConsent, waitAndAcceptConsent, waitFor, waitUntil } from "./layer1-run-queue-helpers.ts";
 
@@ -104,4 +105,18 @@ test("test_stopRun_cancels_the_running_script_and_it_is_not_retried", async () =
   assert.equal(getCancelledRunIds().has("slow"), true);
   assert.equal(log.runCalls.length, 1);
   assert.throws(() => stopRun("slow"), /not running/);
+});
+
+test("test_resetRunQueue_aborts_the_running_script_and_does_not_throw_when_none_runs", async () => {
+  // Verify: the held run ends as cancelled with no second run request, and an idle reset is quiet.
+  initPage();
+  const log = installServer({ holdRuns: true });
+  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await waitAndAcceptConsent();
+  await waitUntil(() => log.runCalls.length === 1);
+  assert.equal(runQueueState.runningId, "slow");
+  resetRunQueue();
+  await waitUntil(() => runQueueState.runningId === undefined);
+  assert.equal(log.runCalls.length, 1);
+  assert.doesNotThrow(resetRunQueue);
 });
