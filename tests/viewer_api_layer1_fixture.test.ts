@@ -7,6 +7,12 @@ import { COMMITS } from "../src/viewer_api_layer1_fixture_data.ts";
 import { buildFixtureLayer1View } from "../src/viewer_api_layer1_fixture_view.ts";
 import { listContentLines } from "../src/viewer_api_layer1_fixture_content.ts";
 import { buildLayer1DiffPayload } from "../src/viewer_api_layer1_diff.ts";
+import { EventEmitter } from "node:events";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { dispatchLayer1FixtureRoute } from "../src/viewer_api_layer1_fixture.ts";
+import { buildFixtureScriptRunsPayload } from "../src/viewer_api_layer4_fixture_payload.ts";
+import { FIXTURE_RUN_ID } from "../src/viewer_api_layer6_fixture_blocked_runs.ts";
+import { savedFixtureRuns } from "../src/viewer_api_layer6_fixture_needs.ts";
 
 test("test_fixture_data_module_imports_without_throwing", () => {
     // The self-check throws at import time; reaching here proves it passed on the full fixture.
@@ -81,5 +87,64 @@ test("test_identical_sides_with_full_context_answer_the_synthesized_hunk", () =>
     assert.ok(diff.includes(" one") && diff.includes(" three"), diff);
     // With the toggle OFF, identical sides stay empty.
     assert.equal(buildLayer1DiffPayload(lines, lines, false), "");
+});
+
+function postFixtureRoute(pathname: string, payload: object): Promise<string> {
+    const request = new EventEmitter() as unknown as IncomingMessage;
+    (request as { method: string }).method = "POST";
+    return new Promise((resolve) => {
+        let text = "";
+        const response = {
+            writeHead: () => undefined,
+            write: (chunk: string) => {
+                text += chunk;
+            },
+            end: (chunk?: string) => {
+                text += chunk ?? "";
+                resolve(text);
+            },
+            on: () => undefined,
+        } as unknown as ServerResponse;
+        const isHandled = dispatchLayer1FixtureRoute(request, response, new URL(`http://localhost${pathname}`));
+        assert.equal(isHandled, true);
+        request.emit("data", Buffer.from(JSON.stringify(payload)));
+        request.emit("end");
+    });
+}
+
+test("test_the_script_run_route_answers_consent_required_without_allow_scripts", async () => {
+    const text = await postFixtureRoute("/api/layer1-script-run", { sessionFile: "x.jsonl", toolUseId: FIXTURE_RUN_ID.pre, allowScripts: false });
+    assert.deepEqual(JSON.parse(text.trim()), { kind: "consent-required" });
+});
+
+test("test_the_script_needs_route_lists_the_blocker_of_the_blocked_run", async () => {
+    savedFixtureRuns.clear();
+    const text = await postFixtureRoute("/api/layer1-script-needs", { sessionFile: "x.jsonl", toolUseId: FIXTURE_RUN_ID.blocked });
+    const reply = JSON.parse(text) as { toolUseId: string; needs: { toolUseId: string }[] };
+    assert.deepEqual(reply.needs.map((need) => need.toolUseId), [FIXTURE_RUN_ID.blocker]);
+});
+
+test("test_the_clear_results_route_empties_the_saved_runs", async () => {
+    savedFixtureRuns.add(FIXTURE_RUN_ID.blocker);
+    const text = await postFixtureRoute("/api/layer1-clear-results", {});
+    assert.deepEqual(JSON.parse(text), { cleared: true });
+    assert.equal(savedFixtureRuns.size, 0);
+});
+
+test("test_the_blocker_precedes_the_blocked_run_in_a_bubble_the_blocked_run_does_not_touch", () => {
+    const view = buildFixtureLayer1View();
+    const pairPaths = view.pairs.map((pair) => pair.path.toString());
+    const payload = buildFixtureScriptRunsPayload(() => undefined);
+    const pairsOf = (id: string) => payload.pairs.filter((pair) => pair.scriptRuns.some((run) => run.toolUseId.toString() === id));
+    const instantOf = (id: string) => payload.pairs.flatMap((pair) => pair.scriptRuns).find((run) => run.toolUseId.toString() === id)!.instant.getTime();
+    const couples = [[FIXTURE_RUN_ID.blocker, FIXTURE_RUN_ID.blocked], [FIXTURE_RUN_ID.crashBlocker, FIXTURE_RUN_ID.crashBlocked]];
+    for (const [blockerId, blockedId] of couples) {
+        const blockerPaths = pairsOf(blockerId!).map((pair) => pair.path.toString());
+        const blockedPaths = pairsOf(blockedId!).map((pair) => pair.path.toString());
+        assert.ok(blockerPaths.length > 0 && blockedPaths.length > 0, "both runs sit on a pair path of the view");
+        assert.ok(blockerPaths.every((path) => pairPaths.includes(path)) && blockedPaths.every((path) => pairPaths.includes(path)));
+        assert.ok(blockerPaths.every((path) => !blockedPaths.includes(path)), "the blocker bubble is not touched by the blocked run");
+        assert.ok(instantOf(blockerId!) < instantOf(blockedId!), "the blocker comes first in time");
+    }
 });
 
