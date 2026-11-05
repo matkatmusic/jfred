@@ -13,11 +13,12 @@ import { type FetchEntry } from "../scripts/visual/layer6-steps.ts";
 import { collectLines, createFakePage, findLine } from "./layer6-fake-page.ts";
 
 const GOOD_FACTS: BlockedFacts = {
-  count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "toolu_x: not run yet",
-  insideStagewrap: true, popupRect: [10, 10, 100, 60], dotRect: [0, 20, 2, 28], drawerRect: [120, 0, 400, 500], drawerOpen: true,
+  count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "module_20.tsx: not run yet",
+  insideStagewrap: true, insideTimelines: true, popupRect: [10, 10, 100, 60], dotRect: [0, 20, 2, 28], drawerRect: [120, 0, 400, 500],
+  paneRect: [0, 0, 120, 500], drawerOpen: true,
 };
 
-interface Knobs { leaksBlockedPost: boolean; dialogCount: number; isDotFar?: boolean }
+interface Knobs { leaksBlockedPost: boolean; dialogCount: number; isDotFar?: boolean; isPaneWide?: boolean; isPopupOutsidePane?: boolean }
 
 function buildAnswers(knobs: Knobs): (expression: string) => unknown {
   let log: FetchEntry[] = [];
@@ -35,7 +36,10 @@ function buildAnswers(knobs: Knobs): (expression: string) => unknown {
     }
     if (expression === READ_FETCH_LOG) return [...log];
     if (expression === READ_DIALOG_COUNT) return knobs.dialogCount;
-    if (expression.includes("run-blocked-popup") && expression.includes("buttons")) return { ...GOOD_FACTS, count: isClosed ? 0 : 1, dotRect: knobs.isDotFar ? [500, 20, 510, 28] : GOOD_FACTS.dotRect };
+    if (expression.includes("run-blocked-popup") && expression.includes("buttons")) {
+      const paneRect = knobs.isPaneWide ? [0, 0, 200, 500] : GOOD_FACTS.paneRect;
+      return { ...GOOD_FACTS, count: isClosed ? 0 : 1, dotRect: knobs.isDotFar ? [500, 20, 510, 28] : GOOD_FACTS.dotRect, paneRect, insideTimelines: !knobs.isPopupOutsidePane };
+    }
     if (expression.endsWith(".className")) return "node n-script";
     if (expression.includes("closest('.filebox')")) return ["a.ts", "b.ts"];
     return undefined;
@@ -68,6 +72,18 @@ test("a run request for the blocked dot fails the popup check and the alone chec
 test("a popup far from the blocked dot fails only the beside-the-dot check", async () => {
   const { lines } = await runBlocked({ leaksBlockedPost: false, dialogCount: 0, isDotFar: true });
   assert.deepEqual(listFailedChecks(lines), ["L6 the blocked popup sits beside the blocked dot"]);
+});
+
+const PLACEMENT_CHECK = "L6 with the panel open, the popup stays in the timeline pane, so it never covers the panel";
+
+test("a popup outside #timelines fails only the placement check", async () => {
+  const { lines } = await runBlocked({ leaksBlockedPost: false, dialogCount: 0, isPopupOutsidePane: true });
+  assert.deepEqual(listFailedChecks(lines), [PLACEMENT_CHECK]);
+});
+
+test("a pane that runs past the open drawer fails only the placement check", async () => {
+  const { lines } = await runBlocked({ leaksBlockedPost: false, dialogCount: 0, isPaneWide: true });
+  assert.deepEqual(listFailedChecks(lines), [PLACEMENT_CHECK]);
 });
 
 test("a native dialog fails the no-dialog check on both pages", async () => {

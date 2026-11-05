@@ -4,8 +4,9 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { STRIP_IDLE } from "./layer4-probes.ts";
 import { COUNT_BLOCKED_POPUPS, isBlockerNamed, readBlockedFacts } from "./layer6-blocked-facts.ts";
-import { CRASH_BLOCKED_ID, CRASH_BLOCKER_ID, PENDING_ID } from "./layer6-probes.ts";
+import { CRASH_BLOCKED_ID, PENDING_ID } from "./layer6-probes.ts";
 import { WAIT_MS, moveToDot, openScriptLayer, readClearPostCount, readRunPostIds } from "./layer6-steps.ts";
+const CRASH_BLOCKER_FILE = "module_38.tsx";
 const CRASHED_TEXT = "crashed or timed out";
 const UNREPLAYED_TEXT = "not run yet";
 const CLICK_CLEAR = `document.getElementById('clear-results').click()`;
@@ -33,14 +34,14 @@ const HOLLOW_WATCH_INSTALL = `(() => {
 const PENDING_POST_COUNT = `window.__fetchLog.filter(e => e.path === '/api/layer1-script-run'
     && JSON.parse(e.body).toolUseId === '${PENDING_ID}').length`;
 const buildBlockerTextProbe =(state: string) =>
-  `document.getElementById('run-blocked-popup')?.textContent.includes('${CRASH_BLOCKER_ID}: ${state}') === true`;
+  `document.getElementById('run-blocked-popup')?.textContent.includes('${CRASH_BLOCKER_FILE}: ${state}') === true`;
 
 async function validateCrashPair(page: HeadlessPage): Promise<void> {
   await moveToDot(page, CRASH_BLOCKED_ID);
   await page.waitFor(`${COUNT_BLOCKED_POPUPS} === 1`, WAIT_MS);
   const facts = await readBlockedFacts(page);
   const posts = await readRunPostIds(page);
-  const isPopupRight = isBlockerNamed(facts, CRASH_BLOCKER_ID, CRASHED_TEXT) && !posts.includes(CRASH_BLOCKED_ID);
+  const isPopupRight = isBlockerNamed(facts, CRASH_BLOCKER_FILE, CRASHED_TEXT) && !posts.includes(CRASH_BLOCKED_ID);
   reportCheck("L6 after the crash pair the later dot shows the popup naming the crashed blocker and sends no run request", isPopupRight, { facts, posts });
 }
 
@@ -74,7 +75,7 @@ async function validateCrashReset(page: HeadlessPage): Promise<void> {
   await moveToDot(page, CRASH_BLOCKED_ID);
   await page.waitFor(buildBlockerTextProbe(UNREPLAYED_TEXT), WAIT_MS);
   const facts = await readBlockedFacts(page);
-  reportCheck("L6 after the clear the later dot names its blocker as not run yet, no longer crashed", !isBlockerNamed(facts, CRASH_BLOCKER_ID, CRASHED_TEXT), facts);
+  reportCheck("L6 after the clear the later dot names its blocker as not run yet, no longer crashed", !isBlockerNamed(facts, CRASH_BLOCKER_FILE, CRASHED_TEXT), facts);
 }
 
 export async function validateClear(page: HeadlessPage): Promise<void> {

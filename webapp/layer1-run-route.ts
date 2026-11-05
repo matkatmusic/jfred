@@ -1,5 +1,6 @@
 // Layer 1 run route: queues a dot, or shows why it waits.
 
+import { getBasename } from "./layer1-diff-view.ts";
 import { renderBlockedPopup } from "./layer1-run-blocked-popup.ts";
 import {
   compareRunOrder, findBlockerDot, findFirstBlocker, isBlockerPending, isRunEligible, listOwnBubbleBlockers, listRunBubbles, mergeBlockers, type Blocker,
@@ -98,7 +99,11 @@ function renderFirstBlocker(view: WireLayer1View, run: WireScriptRun, first: Blo
   const dotKey = `${run.toolUseId}|${listRunBubbles(view, run.toolUseId)[0]}`;
   const moveToFirst = (): void => moveToBlocker(first);
   if (!isPending) {
-    renderBlockedPopup(dotKey, run.toolUseId, first, moveToFirst);
+    const blockerBubble = listRunBubbles(view, first.toolUseId)[0];
+    if (blockerBubble === undefined) {
+      throw new Error(`no bubble for script ${first.toolUseId}`);
+    }
+    renderBlockedPopup(dotKey, run.toolUseId, first, getBasename(blockerBubble), moveToFirst);
   }
 }
 

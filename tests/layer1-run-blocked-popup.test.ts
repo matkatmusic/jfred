@@ -18,7 +18,7 @@ function resetPage(): void {
 }
 
 function showPopup(dotKey: string, state: BlockerState, onGoToFirst: () => void = () => undefined): void {
-  renderBlockedPopup(dotKey, "toolu_run", buildBlocker(state), onGoToFirst);
+  renderBlockedPopup(dotKey, "toolu_run", buildBlocker(state), "module_20.tsx", onGoToFirst);
 }
 
 function listPopups(): Element[] {
@@ -35,13 +35,13 @@ function readPopupPlace(): { left: string; top: string } {
 }
 
 test("test_renderBlockedPopup_names_the_first_needed_run_and_its_state", () => {
-  // Verify: the second line reads the state text for each of the three states; the first line is fixed.
+  // Verify: line two shows the file name and state text for each state; line one is fixed.
   const expected = { unreplayed: "not run yet", crashed: "crashed or timed out", cancelled: "cancelled" };
   for (const state of Object.values(BlockerState)) {
     resetPage();
     showPopup(`state-${state}`, state);
     const lines = [...document.querySelectorAll("#run-blocked-popup .blocked-text")].map((line) => line.textContent);
-    assert.deepEqual(lines, ["The earlier script dots must run first.", `toolu_e: ${expected[state]}`]);
+    assert.deepEqual(lines, ["The earlier script dots must run first.", `module_20.tsx: ${expected[state]}`]);
     assert.equal(document.getElementById("run-blocked-popup")!.parentElement!.className, "canvas");
   }
 });

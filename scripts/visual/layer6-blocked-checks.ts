@@ -4,7 +4,7 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { buildBubblePathExpression } from "./layer4-probes.ts";
 import {
-  CLICK_BLOCKED_CLOSE, CLICK_BLOCKED_GO, COUNT_BLOCKED_POPUPS, isBlockedBesideDot, isBlockedClearOfDrawer, isBlockedPopupRight, readBlockedFacts,
+  CLICK_BLOCKED_CLOSE, CLICK_BLOCKED_GO, COUNT_BLOCKED_POPUPS, isBlockedBesideDot, isBlockedClippedByPane, isBlockedPopupRight, readBlockedFacts,
 } from "./layer6-blocked-facts.ts";
 import {
   BLOCKED_ID, BLOCKER_ID, CLEAR_RESULTS_PROBE, CLICK_RUN_SCRIPTS, COUNT_CONSENT_DIALOGS, NEVER_PROVABLE_ID, READ_DIALOG_COUNT, buildDotClasses,
@@ -77,7 +77,7 @@ async function validatePlacement(page: HeadlessPage): Promise<void> {
   await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, WAIT_MS);
   await waitForDebounce();
   const facts = await readBlockedFacts(page);
-  reportCheck("L6 the popup is inside #stagewrap and ends at or left of the open drawer", isBlockedClearOfDrawer(facts), facts);
+  reportCheck("L6 with the panel open, the popup stays in the timeline pane, so it never covers the panel", isBlockedClippedByPane(facts), facts);
 }
 
 async function validateBlockedRuns(page: HeadlessPage): Promise<void> {

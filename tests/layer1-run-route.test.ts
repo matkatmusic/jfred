@@ -68,10 +68,26 @@ test("test_computeRunRoutes_a_blocked_id_sends_no_run_request_and_shows_the_popu
   // Verify: a listed need blocks the id; only the needs route is asked.
   resetRouteState();
   const urls = installNeedsFetch([buildNeed("far", 0)]);
-  await computeRunRoutes(buildView({ "a.ts": [buildRun("blocked-id", 5)] }), ["blocked-id"]);
+  await computeRunRoutes(buildView({ "far.ts": [buildRun("far", 0)], "a.ts": [buildRun("blocked-id", 5)] }), ["blocked-id"]);
   assert.deepEqual(runQueueState.queue, []);
   assert.deepEqual(urls, ["/api/layer1-script-needs?dir=%2Fw"]);
   assert.notEqual(readPopup(), null);
+});
+
+test("test_computeRunRoutes_the_popup_line_names_the_file_of_the_blocker", async () => {
+  // Verify: the second popup line shows the last path segment of the blocker's bubble, not its tool use id.
+  resetRouteState();
+  installNeedsFetch([buildNeed("far", 0)]);
+  await computeRunRoutes(buildView({ "scripts/ci/module_20.tsx": [buildRun("far", 0)], "a.ts": [buildRun("blocked-id", 5)] }), ["blocked-id"]);
+  assert.equal(readPopup()!.querySelector(".blocked-first")!.textContent, "module_20.tsx: not run yet");
+});
+
+test("test_computeRunRoutes_a_blocker_with_no_bubble_throws", async () => {
+  // Verify: a needed run that no pair carries throws and names its id; no popup is drawn.
+  resetRouteState();
+  installNeedsFetch([buildNeed("far", 0)]);
+  await assert.rejects(computeRunRoutes(buildView({ "a.ts": [buildRun("blocked-id", 5)] }), ["blocked-id"]), /no bubble for script far/);
+  assert.equal(readPopup(), null);
 });
 
 test("test_computeRunRoutes_an_empty_needs_list_and_a_clear_own_bubble_queue_the_id", async () => {

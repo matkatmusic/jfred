@@ -40,10 +40,10 @@ function buildBlockedButtons(dotKey: string, onGoToFirst: () => void): HTMLEleme
   ]);
 }
 
-function buildBlockedPopup(dotKey: string, blocker: Blocker, onGoToFirst: () => void): HTMLElement {
+function buildBlockedPopup(dotKey: string, blocker: Blocker, blockerFileName: string, onGoToFirst: () => void): HTMLElement {
   return createElement("div", { id: POPUP_ID, class: "run-blocked-popup" }, [
     createElement("p", { class: "blocked-text", text: BLOCKED_TEXT }),
-    createElement("p", { class: "blocked-text blocked-first", text: `${blocker.toolUseId}: ${STATE_TEXT[blocker.state]}` }),
+    createElement("p", { class: "blocked-text blocked-first", text: `${blockerFileName}: ${STATE_TEXT[blocker.state]}` }),
     buildBlockedButtons(dotKey, onGoToFirst),
   ]);
 }
@@ -70,7 +70,7 @@ function setPopupBesideDot(popup: HTMLElement, dot: DOMRect, canvas: DOMRect, pa
 }
 
 // One popup at a time; a closed dot stays quiet.
-export function renderBlockedPopup(dotKey: string, toolUseId: string, blocker: Blocker, onGoToFirst: () => void): void {
+export function renderBlockedPopup(dotKey: string, toolUseId: string, blocker: Blocker, blockerFileName: string, onGoToFirst: () => void): void {
   const isDismissed = dismissedDotKeys.has(dotKey);
   if (isDismissed) {
     return;
@@ -82,7 +82,7 @@ export function renderBlockedPopup(dotKey: string, toolUseId: string, blocker: B
   }
   closeBlockedPopup();
   const canvas = getRequiredElementById("timelines").querySelector<HTMLElement>(".canvas")!;
-  const popup = buildBlockedPopup(dotKey, blocker, onGoToFirst);
+  const popup = buildBlockedPopup(dotKey, blocker, blockerFileName, onGoToFirst);
   canvas.append(popup);
   setPopupBesideDot(popup, dot.getBoundingClientRect(), canvas.getBoundingClientRect(), pane);
 }

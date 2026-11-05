@@ -4,13 +4,13 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { type BlockedFacts } from "../scripts/visual/layer6-blocked-facts.ts";
 import { validateClear } from "../scripts/visual/layer6-clear-checks.ts";
-import { CRASH_BLOCKER_ID, READ_FETCH_LOG } from "../scripts/visual/layer6-probes.ts";
+import { READ_FETCH_LOG } from "../scripts/visual/layer6-probes.ts";
 import { type FetchEntry } from "../scripts/visual/layer6-steps.ts";
 import { collectLines, createFakePage } from "./layer6-fake-page.ts";
 
 const FACTS: BlockedFacts = {
   count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "",
-  insideStagewrap: true, popupRect: [0, 0, 1, 1], dotRect: [],drawerRect: [5, 0, 9, 9], drawerOpen: false,
+  insideStagewrap: true, insideTimelines: true, popupRect: [0, 0, 1, 1], dotRect: [], drawerRect: [5, 0, 9, 9], paneRect: [0, 0, 5, 9], drawerOpen: false,
 };
 
 interface Knobs { isHollow: boolean; pendingPosts: number; isStillCrashed: boolean; isAskingNothing: boolean }
@@ -29,7 +29,7 @@ function buildAnswers(knobs: Knobs): (expression: string) => unknown {
     if (expression.includes("layer1-script-run") && expression.includes("length")) return knobs.pendingPosts;
     if (expression.includes("run-blocked-popup") && expression.includes("buttons")) {
       const state = isCleared && !knobs.isStillCrashed ? "not run yet" : "crashed or timed out";
-      return { ...FACTS, text: `${CRASH_BLOCKER_ID}: ${state}` };
+      return { ...FACTS, text: `module_38.tsx: ${state}` };
     }
     return undefined;
   };

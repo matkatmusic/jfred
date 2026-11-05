@@ -16,7 +16,7 @@ export type DiffViewConfig = {
   emptyText?: string;
 };
 
-function getBasename(path: string): string {
+export function getBasename(path: string): string {
   return path.split("/").pop() ?? path;
 }
 
