@@ -79,7 +79,7 @@ function findUnrebuiltReply(input: CommitInput, built: BuiltReconstruction, sess
 
 export function buildCommitReply(input: CommitInput, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
   const sessionFiles = listTranscriptFiles(input.query.getAll("jsonl"));
-  const overrides = buildCommitPathOverrides(input.dir, input.repoDir);
+  const overrides = buildCommitPathOverrides(input.dir, input.repoDir, sessionFiles);
   const built = buildJfredReconstruction(sessionFiles, overrides, input.request.allowScripts, onProgress);
   reportStage(onProgress, "reading the files at the mark");
   const engineTexts = listEngineFilesAt(input.dir, built.stepFileHistories, input.markInstant);

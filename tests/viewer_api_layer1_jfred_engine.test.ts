@@ -6,7 +6,7 @@ import { BeaconSource, type BeaconCandidate } from "../src/layer1_beacon_candida
 import type { FileHistory, FileRevision } from "../src/reconstruction_events.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
-import { listUnrebuiltFilesAt } from "../src/viewer_api_layer1_jfred_engine.ts";
+import { buildCommitPathOverrides, listUnrebuiltFilesAt } from "../src/viewer_api_layer1_jfred_engine.ts";
 
 const PROJECT_DIR = new Path("/proj");
 const REASON = "Error: hunk does not fit";
@@ -78,4 +78,12 @@ test("test_file_outside_the_folder_never_blocks_the_commit", () => {
     // A failed file outside the page folder is not part of the repo.
     const history = buildHistory("/elsewhere/a.txt", [buildRevision(EventKind.write, T2), buildRevision(EventKind.edit, T3, true)]);
     assert.deepEqual(listFor([history], listBeaconsAt()), []);
+});
+
+test("test_buildCommitPathOverrides_gives_one_source_per_projects_folder", () => {
+    // Chats from two log folders give two sources and no shared history root.
+    const sessionFiles = [new Path("/a/projects/p1/x.jsonl"), new Path("/a/projects/p1/y.jsonl"), new Path("/b/projects/p2/z.jsonl")];
+    const overrides = buildCommitPathOverrides(PROJECT_DIR, new Path("/repo"), sessionFiles);
+    assert.deepEqual(overrides.sources!.map((source) => source.projectsDir.toString()), ["/a/projects", "/b/projects"]);
+    assert.equal(overrides.fileHistoryRoot, undefined);
 });

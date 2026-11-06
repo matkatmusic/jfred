@@ -8,13 +8,23 @@ import { EventKind } from "./structures/vocabulary.ts";
 import type { BuiltReconstruction } from "./reconstruction_json.ts";
 import { computeRepoStateAtTime } from "./reconstruction_steps.ts";
 import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
-import type { Path } from "./structures/domain.ts";
-import type { PathOverrides } from "./reconstruction_overrides.ts";
-import { getEffectiveFileHistoryDir } from "./viewer_api_projects.ts";
+import { dirname } from "node:path";
+import { Path } from "./structures/domain.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
+// import { getEffectiveFileHistoryDir } from "./viewer_api_projects.ts";
 
-// The page's own folders; the shared setting from other pages is never read here.
-export function buildCommitPathOverrides(dir: Path, repoDir: Path): PathOverrides {
-  return { projectCwd: dir, repoDir, fileHistoryRoot: getEffectiveFileHistoryDir() };
+// The page's own folders; each chat's backups come from the file-history next to its projects folder.
+export function buildCommitPathOverrides(dir: Path, repoDir: Path, sessionFiles: Path[]): PathOverrides {
+  const projectsDirs = new Set<string>();
+  for (const sessionFile of sessionFiles) {
+    // ponytail: subagent transcripts nested deeper get the wrong projects folder.
+    projectsDirs.add(dirname(dirname(sessionFile.toString())));
+  }
+  const sources: SourceEntry[] = [];
+  for (const projectsDir of projectsDirs) {
+    sources.push({ projectsDir: new Path(projectsDir) });
+  }
+  return { projectCwd: dir, repoDir, sources };
 }
 
 // onProgress is the route's writeNdjsonLine: the engine's stage events reach the page's loading bar.
