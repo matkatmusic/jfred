@@ -3,11 +3,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
+import { type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { Path } from "../src/structures/domain.ts";
 import {
     readLayer1Settings,
+    receiveLayer1SettingsUpdate,
     saveLayer1Project,
     setLayer1SettingsPath,
     type Layer1ProjectSettings,
@@ -94,6 +97,39 @@ test("test_saving_header_settings_preserves_previously_saved_collapsed_folders",
     saveLayer1Project({ dir, collapsedFolders: ["src/nested"] });
     saveLayer1Project(makeProjectSettings(dir));
     assert.deepEqual(readLayer1Settings().projects[dir]!.collapsedFolders, ["src/nested"]);
+});
+
+// Sends one project record through the real POST handler and waits for its reply.
+function postSettingsRecord(record: Record<string, unknown>): Promise<number> {
+    return new Promise((resolve) => {
+        const response = {
+            writeHead(code: number) { resolve(code); return response; },
+            end() {},
+        } as unknown as ServerResponse;
+        receiveLayer1SettingsUpdate(Readable.from([JSON.stringify(record)]) as unknown as IncomingMessage, response);
+    });
+}
+
+test("test_layer1_settings_route_keeps_jfredBaseHash_when_other_fields_are_saved_later", async () => {
+    // Scenario: the base hash saved first survives a later save of other fields.
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    const baseHash = "a".repeat(40);
+    assert.equal(await postSettingsRecord({ dir, jfredBaseHash: baseHash }), 200);
+    assert.equal(await postSettingsRecord({ dir, hiddenKinds: ["snapshot"] }), 200);
+    // the saved record holds both the later field and the earlier hash.
+    const saved = readLayer1Settings().projects[dir]!;
+    assert.equal(saved.jfredBaseHash, baseHash);
+    assert.deepEqual(saved.hiddenKinds, ["snapshot"]);
+});
+
+test("test_layer1_settings_route_replaces_jfredBaseHash_with_the_empty_clear_value", async () => {
+    // Scenario: saving the empty string clears the hash; undefined would be dropped by JSON and keep the old one.
+    redirectSettingsToFreshFile();
+    const dir = "/tmp/demo-app";
+    assert.equal(await postSettingsRecord({ dir, jfredBaseHash: "b".repeat(40) }), 200);
+    assert.equal(await postSettingsRecord({ dir, jfredBaseHash: "" }), 200);
+    assert.equal(readLayer1Settings().projects[dir]!.jfredBaseHash, "");
 });
 
 test("test_saving_hidden_kinds_alone_preserves_the_saved_header_fields", () => {

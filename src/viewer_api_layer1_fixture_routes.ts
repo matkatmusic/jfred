@@ -14,6 +14,7 @@ import { buildFixtureScriptRunsPayload } from "./viewer_api_layer4_fixture_paylo
 import { buildFixtureBranchesPayload } from "./viewer_api_layer5_mockup_branches.ts";
 import { receiveFixtureScriptRun } from "./viewer_api_layer6_fixture_run.ts";
 import { receiveFixtureScriptNeeds, sendFixtureClearResults } from "./viewer_api_layer6_fixture_needs.ts";
+import { receiveFixtureJfredCommit } from "./viewer_api_layer9_fixture_commit.ts";
 import { sendNdjsonBuild } from "./viewer_api_layer1_route.ts";
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
@@ -100,5 +101,6 @@ export const FIXTURE_ROUTES = new Map<string, FixtureRouteHandler>([
   ["/api/layer1-script-run", (request, response) => receiveFixtureScriptRun(request, response)],
   ["/api/layer1-script-needs", (request, response) => receiveFixtureScriptNeeds(request, response)],
   ["/api/layer1-clear-results", (_request, response) => sendFixtureClearResults(response)],
+  ["/api/layer1-jfred-commit", (request, response) => receiveFixtureJfredCommit(request, response)],
   ["/api/scan-source", (_request, response, query) => sendFixtureScanSource(response, query)],
 ]);

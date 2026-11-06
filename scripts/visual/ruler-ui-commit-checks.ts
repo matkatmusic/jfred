@@ -37,6 +37,18 @@ async function validateIgnored(page: HeadlessPage): Promise<void> {
 
 const toggleCommitMode = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, COMMIT_MODE_CLICK, "jfred-strip", isOn);
 
+// Arming Commit mode opens the replay question over the page; this answers No.
+export const DISMISS_RUN_CONSENT = `(async () => {
+    const declineSelector = '.run-consent .toolbar-btn:not(.consent-run)';
+    const deadline = Date.now() + ${WAIT_MS};
+    while (document.querySelector(declineSelector) === null) {
+        if (Date.now() > deadline) throw new Error('the replay question did not appear');
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    document.querySelector(declineSelector).click();
+    await new Promise(resolve => setTimeout(resolve, 200));
+})()`;
+
 async function validateStrip(page: HeadlessPage, offStageLeft: number): Promise<void> {
   await reportFacts(page, COLOUR_FACTS, "RULER commits: with the session button off every row stays plain", isRowsPlain);
   const strip = await page.evaluate<StripFacts>(STRIP_FACTS);
@@ -70,6 +82,7 @@ async function validateCommitState(page: HeadlessPage, offStageLeft: number): Pr
   await page.evaluate(SCROLL_HOME);
   await reportFacts(page, CUT_FACTS, "RULER commits: Commit mode off, no strip and no cut mark on any row", isCommitOff);
   await toggleCommitMode(page, true);
+  await page.evaluate(DISMISS_RUN_CONSENT);
   await validateStrip(page, offStageLeft);
   await validatePopups(page);
   await validateBoth(page, offStageLeft);

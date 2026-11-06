@@ -1,6 +1,7 @@
 // Task 383: module state for the jfred branch; a filter redraw drops the view field.
 
-import type { WireJfredBaseOf, WireJfredCommitOf } from "./layer1-wire-jfred.ts";
+import { JFRED_SHORT_HASH_LENGTH } from "./layer1-wire-jfred.ts";
+import type { WireJfredBaseOf, WireJfredCommitOf, WireJfredCommitRequest } from "./layer1-wire-jfred.ts";
 import type { WireLayer1View } from "../../layer1-wire.ts";
 
 export type JfredBase = WireJfredBaseOf<string>;
@@ -14,10 +15,11 @@ export interface JfredBranch {
   commits: JfredCommit[];
   pending?: JfredDraft;
   isArmed: boolean;
+  isCanned: boolean;
 }
 
-const COMMIT_HASH_PREFIX = "c0ffee";
-const branch: JfredBranch = { commits: [], isArmed: false };
+// const COMMIT_HASH_PREFIX = "c0ffee";
+const branch: JfredBranch = { commits: [], isArmed: false, isCanned: false };
 
 export function readJfredBranch(): JfredBranch {
   return branch;
@@ -27,6 +29,7 @@ export function loadJfredBranch(view: WireLayer1View): void {
   branch.base = view.jfredCommits?.base;
   branch.commits = [...(view.jfredCommits?.commits ?? [])];
   branch.pending = undefined;
+  branch.isCanned = view.jfredCommits?.isCanned === true;
 }
 
 export function setArmed(isOn: boolean): void {
@@ -47,21 +50,52 @@ export function deleteJfredBranch(): void {
   branch.pending = undefined;
 }
 
-function readTipHash(): string {
-  const tip = branch.commits.at(-1) ?? branch.base;
-  if (tip === undefined)
-    throw new Error("jfred branch has no base");
-  return tip.shortHash;
+// function readTipHash(): string {
+//   const tip = branch.commits.at(-1) ?? branch.base;
+//   if (tip === undefined)
+//     throw new Error("jfred branch has no base");
+//   return tip.shortHash;
+// }
+
+// export function commitPending(): JfredCommit {
+//   if (branch.pending === undefined)
+//     throw new Error("no pending jfred mark to commit");
+//   const counter = String(branch.commits.length + 1).padStart(2, "0");
+//   const made = { ...branch.pending, shortHash: `${COMMIT_HASH_PREFIX}${counter}`, parentShortHash: readTipHash() };
+//   branch.commits.push(made);
+//   branch.pending = undefined;
+//   return made;
+// }
+
+export function appendCommit(commit: JfredCommit): void {
+  branch.commits.push(commit);
+  branch.pending = undefined;
 }
 
-export function commitPending(): JfredCommit {
+export function buildCommitRequest(): WireJfredCommitRequest {
   if (branch.pending === undefined)
     throw new Error("no pending jfred mark to commit");
-  const counter = String(branch.commits.length + 1).padStart(2, "0");
-  const made = { ...branch.pending, shortHash: `${COMMIT_HASH_PREFIX}${counter}`, parentShortHash: readTipHash() };
-  branch.commits.push(made);
-  branch.pending = undefined;
-  return made;
+  if (branch.base === undefined)
+    throw new Error("jfred branch has no base");
+  const tip = branch.commits.at(-1);
+  const parentShortHash = tip === undefined ? undefined : tip.shortHash;
+  return {
+    baseShortHash: branch.base.shortHash,
+    parentShortHash,
+    markInstant: branch.pending.instant,
+    message: branch.pending.message,
+  };
+}
+
+export function applyBaseFromHash(view: WireLayer1View, savedHash: string): void {
+  for (const pair of view.pairs) {
+    for (const commit of pair.commits) {
+      if (commit.hash === savedHash) {
+        branch.base = { instant: commit.instant, shortHash: savedHash.slice(0, JFRED_SHORT_HASH_LENGTH) };
+        return;
+      }
+    }
+  }
 }
 
 export function readTipMs(): number | undefined {

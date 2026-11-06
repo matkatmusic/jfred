@@ -3,12 +3,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-    isBaseKept, isBaseOnly, isBranchGone, isBranchKept, isModeOffClean, isStripHeadKept, validateCommitSurvivesRerender, validateDeleteAndRebase,
+    isBaseKept, isBaseOnly, isBranchGone, isBranchKept, isDeleteQuestionClosed, isDeleteQuestionOpen, isModeOffClean, isStripHeadKept, validateCommitSurvivesRerender, validateDeleteAndRebase,
 } from "../scripts/visual/layer9-branch-checks.ts";
 import {
-    ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, buildRefusalClick,
+    DELETE_OPEN, ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, YESNO_NO, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
+import { REQUEST_COUNT } from "../scripts/visual/layer7-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
@@ -38,22 +39,36 @@ test("validateCommitSurvivesRerender needs the commit added by the user to be in
 interface Setup {
     afterDelete: EntryFacts[]; afterRerender: EntryFacts[]; head: StripHeadFacts; states: TickState[]; refused: RefusalFacts; accepted: RefusalFacts;
     afterBase: EntryFacts[]; marked: MarkFacts; isCurrent: boolean;
+    openRowCount: number; closedRowCount: number; requestsAfterOpen: number; entriesWhileAsking: EntryFacts[];
 }
 const GOOD: Setup = {
     afterDelete: [], afterRerender: [], head: KEPT_HEAD, states: CLEAN, refused: shown(CutRefusal.baseNeedsCommit), accepted: NO_TOAST, afterBase: [BASE], marked: PENDING, isCurrent: false,
+    openRowCount: 1, closedRowCount: 0, requestsAfterOpen: 5, entriesWhileAsking: KEPT,
 };
+const YESNO_ROW_COUNT = `document.querySelectorAll('#yesno-row').length`;
 const runDelete = (change: Partial<Setup> = {}) => {
     const setup = { ...GOOD, ...change };
     const answers: Answers = new Map<string, unknown[]>([
-        [ENTRY_FACTS, [setup.afterDelete, setup.afterRerender, setup.afterBase]], [TICK_STATES, [setup.states]],
+        [ENTRY_FACTS, [KEPT, setup.entriesWhileAsking, KEPT, setup.afterDelete, setup.afterRerender, setup.afterBase]], [TICK_STATES, [setup.states]],
+        [YESNO_ROW_COUNT, [setup.openRowCount, setup.closedRowCount]], [REQUEST_COUNT, [5, setup.requestsAfterOpen]],
+        [DELETE_OPEN, []], [YESNO_NO, []],
         [buildRefusalClick(TICK_LABELS.baseNeedsCommit), [setup.refused]], [buildRefusalClick(TICK_LABELS.base), [setup.accepted]],
         [MARK_FACTS, [setup.marked]], [MODE_STATE, [{ isCurrent: setup.isCurrent }]], [STRIP_HEAD_FACTS, [setup.head]],
     ]);
     return failuresOf(() => validateDeleteAndRebase(makeScriptedPage(answers)));
 };
 
-test("validateDeleteAndRebase passes the good flow: 7 checks and no failure", async () => {
+test("validateDeleteAndRebase passes the good flow: 9 checks and no failure", async () => {
     assert.deepEqual(await runDelete(), []);
+});
+
+test("test_delete_that_sends_a_request_or_keeps_the_row_open_fails_one_check_each", async () => {
+    // A request sent while the question is open fails the asks-first check.
+    assert.equal((await runDelete({ requestsAfterOpen: 6 })).length, 1);
+    // No row after Delete fails the asks-first check.
+    assert.equal((await runDelete({ openRowCount: 0 })).length, 1);
+    // A row that stays after No fails the closes-on-No check.
+    assert.equal((await runDelete({ closedRowCount: 1 })).length, 1);
 });
 
 test("test_strip_head_and_delete_button_stay_after_delete_and_a_stage_redraw", async () => {
@@ -86,6 +101,26 @@ test("a wrong refusal, a toast on the base click or a moved base fails one check
 test("a mode button that stays current fails the mode-off check", async () => {
     assert.equal((await runDelete({ isCurrent: true })).length, 1);
     assert.equal(isModeOffClean(false, [makeState("tick cut-ok")]), false);
+});
+
+test("test_delete_question_open_needs_one_row_unchanged_entries_and_no_request", () => {
+    // The good case passes: one row, same entries, same request count.
+    assert.equal(isDeleteQuestionOpen(1, KEPT, KEPT, 5, 5), true);
+    // No row fails.
+    assert.equal(isDeleteQuestionOpen(0, KEPT, KEPT, 5, 5), false);
+    // A changed entry list fails.
+    assert.equal(isDeleteQuestionOpen(1, KEPT, KEPT.slice(0, 3), 5, 5), false);
+    // A new request fails.
+    assert.equal(isDeleteQuestionOpen(1, KEPT, KEPT, 5, 6), false);
+});
+
+test("test_delete_question_closed_needs_no_row_and_unchanged_entries", () => {
+    // The good case passes: no row, same entries.
+    assert.equal(isDeleteQuestionClosed(0, KEPT, KEPT), true);
+    // A row that stays fails.
+    assert.equal(isDeleteQuestionClosed(1, KEPT, KEPT), false);
+    // A changed entry list fails.
+    assert.equal(isDeleteQuestionClosed(0, KEPT, KEPT.slice(0, 3)), false);
 });
 
 test("the pure judges agree with the checks", () => {

@@ -1,10 +1,14 @@
   /*
     Task 305: a cross-bubble shift-click is refused OUT LOUD.
   */
-  .dtoast { position: fixed; right: 18px; bottom: 18px; z-index: 60; background: var(--c-anchor);
-    color: #fff; font: 600 11px system-ui; padding: 6px 12px; border-radius: 16px; }
+  .dtoast { position: fixed; inset-inline-end: 18px; inset-block-end: 18px; z-index: 60; background: var(--c-anchor, #e87ba4);
+    color: #fff; font: 600 0.6875rem system-ui; padding: 6px 12px; border-radius: 16px; }
   .dtoast[hidden] { display: none; }
 
-  .hover-popup { position: fixed; z-index: 40; max-width: 50ch; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--ink); font: 11px ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
+  .yesno-row { position: fixed; inset-inline-end: 18px; inset-block-end: 18px; z-index: 70; display: flex; align-items: center; gap: 8px;
+    background: var(--surface, Canvas); color: var(--ink, CanvasText); border: 1px solid var(--border, GrayText); font: 0.6875rem system-ui; padding: 6px 12px; border-radius: 6px; }
+  .yesno-row button { font-size: 0.6875rem; padding: 1px 8px; }
+
+  .hover-popup { position: fixed; z-index: 40; max-inline-size: 50ch; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border, GrayText);
+    background: var(--surface, Canvas); color: var(--ink, CanvasText); font: 0.6875rem ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
   .hover-popup[style*="background-color"] { color: black; }

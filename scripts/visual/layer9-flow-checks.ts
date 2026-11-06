@@ -4,8 +4,8 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { REQUEST_COUNT } from "./layer7-probes.ts";
 import {
-  COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES,
-  buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
+  COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, YESNO_NO, YESNO_YES,
+  buildBeaconInstantCount, buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
 } from "./layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
@@ -14,6 +14,11 @@ const REFUSAL_CASES: [string, CutRefusal][] = [
   [TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode], [TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode],
   [TICK_LABELS.behindTip, CutRefusal.notForward], [TICK_LABELS.atTip, CutRefusal.notForward],
 ];
+
+const UNCHANGED_NEXT_INSTANT_PREFIX = "2026-06-03T18:20:00";
+const YESNO_ROW_FACTS = `({ rows: document.querySelectorAll('#yesno-row').length, text: document.getElementById('yesno-row')?.textContent ?? '' })`;
+
+interface YesNoRowFacts { rows: number; text: string }
 
 const hasClass = (state: TickState, name: string) => state.classes.split(" ").includes(name);
 
@@ -101,15 +106,15 @@ export function isFirstMarkRight(facts: MarkFacts): boolean {
   return isPending && facts.drawer.isOpen && facts.drawer.hasButton && !facts.drawer.text.includes("unmarked");
 }
 
-export function isMovedMarkRight(facts: MarkFacts): boolean {
+export function isMovedMarkRight(facts: MarkFacts, independentCount: number): boolean {
   const isOnePending = facts.pending.entries === 1 && facts.pending.ticks === 1 && facts.entries.length === 4;
-  return isOnePending && facts.drawer.hasButton && facts.drawer.text.includes("includes 1 unmarked changes");
+  return isOnePending && facts.drawer.hasButton && facts.drawer.text.includes(`includes ${independentCount} unmarked changes`);
 }
 
 export function isCommitRight(before: MarkFacts, after: MarkFacts): boolean {
   const added = after.entries.at(-1);
   const isAdded = after.entries.length === 4 && added?.kind === JfredEntryKind.commit && added.parentHash === after.entries[2]?.shortHash;
-  return isAdded && after.chains === 3 && after.requests === before.requests;
+  return isAdded && after.chains === 3 && after.requests === before.requests + 1;
 }
 
 export function isMessageKept(before: MarkFacts, after: MarkFacts): boolean {
@@ -148,6 +153,45 @@ export async function validateRefusals(page: HeadlessPage): Promise<void> {
   }
 }
 
+export function isUnchangedQuestionRight(before: MarkFacts, after: MarkFacts, row: YesNoRowFacts): boolean {
+  const isAsked = row.rows === 1 && row.text.includes(UNCHANGED_NEXT_INSTANT_PREFIX);
+  const isKept = after.pending.entries === 1 && after.entries.length === before.entries.length;
+  return isAsked && isKept && after.requests === before.requests + 1;
+}
+
+// The early tick is the canned unchanged range: Commit asks, No keeps the mark, Yes moves it.
+export async function validateUnchangedRange(page: HeadlessPage): Promise<void> {
+  await validateUnchangedQuestion(page);
+  await validateUnchangedNo(page);
+  await validateUnchangedYes(page);
+}
+
+async function validateUnchangedQuestion(page: HeadlessPage): Promise<void> {
+  await page.evaluate(buildClickTick(TICK_LABELS.early));
+  const before = await page.evaluate<MarkFacts>(MARK_FACTS);
+  await page.evaluate(COMMIT_CLICK);
+  const after = await page.evaluate<MarkFacts>(MARK_FACTS);
+  const row = await page.evaluate<YesNoRowFacts>(YESNO_ROW_FACTS);
+  reportCheck("L9 Commit on an unchanged range asks to move the mark to 06-03 18:20 and keeps the pending entry", isUnchangedQuestionRight(before, after, row), [before.requests, after.requests, row]);
+}
+
+async function validateUnchangedNo(page: HeadlessPage): Promise<void> {
+  await page.evaluate(YESNO_NO);
+  const kept = await page.evaluate<TickState[]>(TICK_STATES);
+  const rowAfterNo = await page.evaluate<YesNoRowFacts>(YESNO_ROW_FACTS);
+  const isKeptOnEarly = rowAfterNo.rows === 0 && hasClass(findTickState(kept, TICK_LABELS.early), CutClass.pending);
+  reportCheck("L9 No on the unchanged-range question closes the row and the mark stays on 06-03 11:00", isKeptOnEarly, rowAfterNo);
+}
+
+async function validateUnchangedYes(page: HeadlessPage): Promise<void> {
+  await page.evaluate(COMMIT_CLICK);
+  await page.evaluate(YESNO_YES);
+  const moved = await page.evaluate<MarkFacts>(MARK_FACTS);
+  const movedStates = await page.evaluate<TickState[]>(TICK_STATES);
+  const isOnLate = hasClass(findTickState(movedStates, TICK_LABELS.late), CutClass.pending) && !hasClass(findTickState(movedStates, TICK_LABELS.early), CutClass.pending);
+  reportCheck("L9 Yes on the unchanged-range question moves the mark to 06-03 18:20 and the Commit button shows again", isOnLate && moved.pending.entries === 1 && moved.drawer.hasButton, moved);
+}
+
 export async function validatePendingMark(page: HeadlessPage): Promise<void> {
   const requestsBefore = await page.evaluate<number>(REQUEST_COUNT);
   await page.evaluate(buildClickTick(TICK_LABELS.early));
@@ -155,7 +199,8 @@ export async function validatePendingMark(page: HeadlessPage): Promise<void> {
   reportCheck("L9 a mark on 06-03 11:00 gives one pending entry, a Commit button and a message without an unmarked line", isFirstMarkRight(first), first);
   await page.evaluate(buildClickTick(TICK_LABELS.late));
   const moved = await page.evaluate<MarkFacts>(MARK_FACTS);
-  reportCheck("L9 moving the mark to 06-03 18:20 keeps one pending entry and the message says includes 1 unmarked changes", isMovedMarkRight(moved), moved);
+  const independent = await page.evaluate<number>(buildBeaconInstantCount(moved.entries[2]!.instant, moved.entries[3]!.instant));
+  reportCheck("L9 moving the mark to 06-03 18:20 keeps one pending entry and the message says includes N unmarked changes, N equal to the beacon instants between the tip and the mark", isMovedMarkRight(moved, independent), [independent, moved]);
   reportCheck("L9 placing and moving a mark sends no request", first.requests === requestsBefore && moved.requests === requestsBefore, [requestsBefore, first.requests, moved.requests]);
 }
 
@@ -163,6 +208,6 @@ export async function validateCommit(page: HeadlessPage): Promise<void> {
   const before = await page.evaluate<MarkFacts>(MARK_FACTS);
   await page.evaluate(COMMIT_CLICK);
   const after = await page.evaluate<MarkFacts>(MARK_FACTS);
-  reportCheck("L9 Commit adds one entry whose parent is the last commit, joined by a chain, with no request", isCommitRight(before, after), after);
+  reportCheck("L9 Commit adds one entry whose parent is the last commit, joined by a chain, with one commit request", isCommitRight(before, after), after);
   reportCheck("L9 after Commit no mark is pending, the button is gone, and the message is unchanged and ends with the footnote", isMessageKept(before, after), after.drawer);
 }

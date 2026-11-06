@@ -44,7 +44,8 @@ function listExpectedSnapLines(markMs: number): string[] {
 function readCanned() {
   const canned = buildFixtureJfredCommits();
   assert.ok(canned !== undefined);
-  return canned;
+  assert.ok(canned.base !== undefined);
+  return { base: canned.base, commits: canned.commits };
 }
 
 test("test_base_is_the_real_commit_a1b2c3d4_on_a_ruler_tick", () => {
@@ -88,7 +89,8 @@ test("test_commit_2_counts_the_beacon_ticks_between_its_parent_and_itself", () =
     if (instantMs > first!.instant.getTime() && instantMs < second!.instant.getTime()) between++;
   }
   assert.equal(between, 2);
-  assert.ok(second!.message.includes("includes 2 unmarked changes"));
+  // Two more come from the edit dots at 06-01 14:15 and 06-03 09:10, which this view has none of.
+  assert.ok(second!.message.includes("includes 4 unmarked changes"));
   assert.equal(first!.message.includes("unmarked"), false);
 });
 

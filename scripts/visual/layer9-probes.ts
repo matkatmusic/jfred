@@ -36,17 +36,62 @@ export const CUT_RULE_PATTERN = "jfred-strip|jnode|jlabel|jchain|jline|jhead|cut
 
 const SETTLE = `new Promise(resolve => setTimeout(resolve, 200))`;
 const TICKS = `document.querySelectorAll('#ruler .tick')`;
-const BEACON = `n => !n.classList.contains('n-created') && ['n-commit', 'n-disk', 'n-snap'].some(c => n.classList.contains(c))`;
+// const BEACON = `n => !n.classList.contains('n-created') && ['n-commit', 'n-disk', 'n-snap'].some(c => n.classList.contains(c))`;
+const BEACON = `n => !n.classList.contains('n-created') && ['n-commit', 'n-disk', 'n-snap', 'n-edit'].some(c => n.classList.contains(c))`;
 
 // export const buildFindTick = (label: string) => `[...${TICKS}].find(t => t.textContent.startsWith(${JSON.stringify(label)}))`;
-export const buildFindTick = (label: string) => `[...${TICKS}].find(t => t.dataset.fullTime.startsWith(${JSON.stringify(label)}))`;
+// The mockup page sets data-full-time; the real page has none, so its tick text names the instant.
+const TICK_LABEL_TEXT = `(t => t.dataset.fullTime ?? t.textContent)`;
+export const buildFindTick = (label: string) => `(() => {
+    const tick = [...${TICKS}].find(t => ${TICK_LABEL_TEXT}(t).startsWith(${JSON.stringify(label)}));
+    if (tick === undefined) throw new Error('no ruler tick starts with ' + ${JSON.stringify(label)});
+    return tick;
+})()`;
 export const buildClickTick = (label: string) => `(async () => { ${buildFindTick(label)}.click(); await ${SETTLE}; })()`;
 export const buildClickEntry = (shortHash: string) =>
   `(async () => { document.querySelector('#jfred-strip .jnode[data-short-hash=${JSON.stringify(shortHash)}]').click(); await ${SETTLE}; })()`;
 export const buildClickById = (id: string) => `(async () => { document.getElementById('${id}').click(); await ${SETTLE}; })()`;
-export const DELETE_CLICK = `(async () => { document.querySelector('#jfred-strip .jdelete').click(); await ${SETTLE}; })()`;
-export const COMMIT_CLICK = buildClickById("jfred-commit-button");
-export const COMMIT_MODE_CLICK = buildClickById("commit-mode");
+const WAIT_TIMEOUT_MS = 10000;
+// export const DELETE_CLICK = `(async () => { document.querySelector('#jfred-strip .jdelete').click(); await ${SETTLE}; })()`;
+export const DELETE_OPEN = `(async () => {
+    document.querySelector('#jfred-strip .jdelete').click();
+    const deadline = Date.now() + ${WAIT_TIMEOUT_MS};
+    while (document.getElementById('yesno-row') === null) {
+        if (Date.now() > deadline) throw new Error('yesno-row did not appear');
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+})()`;
+export const DELETE_CLICK = `(async () => {
+    await ${DELETE_OPEN};
+    document.querySelector('#yesno-row .yesno-yes').click();
+    await ${SETTLE};
+})()`;
+export const YESNO_NO = `(async () => { document.querySelector('#yesno-row .yesno-no').click(); await ${SETTLE}; })()`;
+export const YESNO_YES = `(async () => { document.querySelector('#yesno-row .yesno-yes').click(); await ${SETTLE}; })()`;
+// export const COMMIT_CLICK = buildClickById("jfred-commit-button");
+export const COMMIT_CLICK = `(async () => {
+    document.getElementById('jfred-commit-button').click();
+    const deadline = Date.now() + ${WAIT_TIMEOUT_MS};
+    while (document.getElementById('jfred-commit-button') !== null && document.getElementById('yesno-row') === null) {
+        if (Date.now() > deadline) throw new Error('commit did not finish');
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+})()`;
+// export const COMMIT_MODE_CLICK = buildClickById("commit-mode");
+export const COMMIT_MODE_CLICK = `(async () => {
+    const wasModeOn = document.getElementById('commit-mode').classList.contains('current');
+    document.getElementById('commit-mode').click();
+    const deadline = Date.now() + ${WAIT_TIMEOUT_MS};
+    while (true) {
+        const isModeOn = document.getElementById('commit-mode').classList.contains('current');
+        const isToastShown = !document.getElementById('dtoast').hidden;
+        const isLoadbarHidden = document.getElementById('loadbar').hasAttribute('hidden');
+        if ((isModeOn !== wasModeOn || isToastShown) && isLoadbarHidden) break;
+        if (Date.now() > deadline) throw new Error('commit mode did not settle');
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    await ${SETTLE};
+})()`;
 export const STRIP_COUNT = `document.querySelectorAll('#jfred-strip').length`;
 export const STAGE_FACTS = `({ stageLeft: document.getElementById('stage').getBoundingClientRect().left, stripCount: ${STRIP_COUNT} })`;
 export const STRIP_HEAD_FACTS = `({ stripCount: ${STRIP_COUNT}, headText: document.querySelector('#jfred-strip .jhead span')?.textContent ?? '',
@@ -65,7 +110,7 @@ export const ENTRY_FACTS = `(() => {
     return [...document.querySelectorAll('#jfred-strip .jnode[data-entry-kind]')].map(n => {
         const box = n.getBoundingClientRect();
         const at = n.dataset.instant;
-        const tick = ticks.find(t => t.dataset.fullTime.startsWith(at.slice(5, 10) + ' ' + at.slice(11, 23)));
+        const tick = ticks.find(t => ${TICK_LABEL_TEXT}(t).startsWith(at.slice(5, 10) + ' ' + at.slice(11, 23)));
         const tickBox = tick ? tick.getBoundingClientRect() : null;
         return { kind: n.dataset.entryKind, shortHash: n.dataset.shortHash ?? null, parentHash: n.dataset.parentHash ?? null, instant: at,
             cx: box.left + box.width / 2, cy: box.top + box.height / 2, tickCy: tickBox ? tickBox.top + tickBox.height / 2 : -1 };

@@ -3,15 +3,17 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { STRIP_IDLE } from "./layer4-probes.ts";
 import { reportCheck } from "./mockup-checks.ts";
+import { REQUEST_COUNT } from "./layer7-probes.ts";
 import { isRefusalShown } from "./layer9-flow-checks.ts";
 import {
-  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED,
+  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, DELETE_OPEN, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED, YESNO_NO,
   buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
 } from "./layer9-probes.ts";
 import { CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
 const WAIT_MS = 30_000;
+const YESNO_ROW_COUNT = `document.querySelectorAll('#yesno-row').length`;
 const MARK_CLASSES: string[] = [CutClass.base, CutClass.set, CutClass.pending];
 
 export function isBranchKept(entries: EntryFacts[]): boolean {
@@ -70,6 +72,28 @@ export async function validateCommitSurvivesRerender(page: HeadlessPage): Promis
   reportCheck("L9 after a re-render through the time toggle the fake commit is still in the strip", isBranchKept(entries), entries);
 }
 
+export function isDeleteQuestionOpen(rowCount: number, before: EntryFacts[], after: EntryFacts[], requestsBefore: number, requestsAfter: number): boolean {
+  return rowCount === 1 && JSON.stringify(after) === JSON.stringify(before) && requestsAfter === requestsBefore;
+}
+
+export function isDeleteQuestionClosed(rowCount: number, before: EntryFacts[], after: EntryFacts[]): boolean {
+  return rowCount === 0 && JSON.stringify(after) === JSON.stringify(before);
+}
+
+async function validateDeleteAsksFirst(page: HeadlessPage): Promise<void> {
+  const entriesBefore = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  const requestsBefore = await page.evaluate<number>(REQUEST_COUNT);
+  await page.evaluate(DELETE_OPEN);
+  const openRowCount = await page.evaluate<number>(YESNO_ROW_COUNT);
+  const openEntries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  const requestsAfter = await page.evaluate<number>(REQUEST_COUNT);
+  reportCheck("L9 Delete asks first: one Yes/No row, no entry changed and no request sent", isDeleteQuestionOpen(openRowCount, entriesBefore, openEntries, requestsBefore, requestsAfter), [openRowCount, openEntries]);
+  await page.evaluate(YESNO_NO);
+  const closedRowCount = await page.evaluate<number>(YESNO_ROW_COUNT);
+  const closedEntries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  reportCheck("L9 answering No closes the row and leaves every entry as it was", isDeleteQuestionClosed(closedRowCount, entriesBefore, closedEntries), [closedRowCount, closedEntries]);
+}
+
 async function validateDelete(page: HeadlessPage): Promise<void> {
   await page.evaluate(DELETE_CLICK);
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
@@ -94,6 +118,7 @@ async function validateNewBase(page: HeadlessPage): Promise<void> {
 }
 
 export async function validateDeleteAndRebase(page: HeadlessPage): Promise<void> {
+  await validateDeleteAsksFirst(page);
   await validateDelete(page);
   await validateNewBase(page);
   await page.evaluate(COMMIT_MODE_CLICK);

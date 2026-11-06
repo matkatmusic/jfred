@@ -30,7 +30,7 @@ test("test_view_carries_annotations_and_one_pair_with_two_tool_nodes", () => {
 test("test_view_carries_jfred_commits_with_two_commits", () => {
   const view = buildFixtureLayer1View();
   assert.equal(view.jfredCommits?.commits.length, 2);
-  assert.equal(view.jfredCommits?.base.shortHash, "a1b2c3d4");
+  assert.equal(view.jfredCommits?.base?.shortHash, "a1b2c3d4");
 });
 
 test("test_annotation_instants_land_on_ruler_ticks", () => {

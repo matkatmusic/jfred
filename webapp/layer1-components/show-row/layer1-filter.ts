@@ -107,7 +107,11 @@ export function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerE
   for (const [index, orphan] of view.diskOrphans.entries()) {
     diskOrphans.push(setDiskOrphanAxisPx(orphan, layout.ladderOffsetsPx[diskOrphanLadderBase + index]!));
   }
-  return { pairs, gitOrphans, diskOrphans, ruler: listRulerWire(layout) };
+  const relaidView: WireLayer1View = { pairs, gitOrphans, diskOrphans, ruler: listRulerWire(layout) };
+  if (view.jfredCommits !== undefined) {
+    relaidView.jfredCommits = view.jfredCommits;
+  }
+  return relaidView;
 }
 
 // export { computeRelaidLayer1View as relayOutLayer1View };

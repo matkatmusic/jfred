@@ -51,20 +51,21 @@ test("test_a_created_node_is_not_a_beacon", () => {
   assert.equal(facts.isBeacon, false);
 });
 
-test("test_commit_disk_and_snapshot_nodes_are_beacons", () => {
-  // Verify: each of the three kinds makes its tick a beacon, and only commit sets isCommit.
+test("test_commit_disk_snapshot_and_edit_nodes_are_beacons", () => {
+  // Verify: each of the four kinds makes its tick a beacon, and only commit sets isCommit.
   initLayer1Dom();
   const commit = readFacts(addTick(1, ["node n-commit"]));
   const disk = readFacts(addTick(2, ["node n-disk"]));
   const snap = readFacts(addTick(3, ["node n-snap"]));
-  assert.deepEqual([commit.isBeacon, disk.isBeacon, snap.isBeacon], [true, true, true]);
-  assert.deepEqual([commit.isCommit, disk.isCommit, snap.isCommit], [true, false, false]);
+  const edit = readFacts(addTick(4, ["node n-edit"]));
+  assert.deepEqual([commit.isBeacon, disk.isBeacon, snap.isBeacon, edit.isBeacon], [true, true, true, true]);
+  assert.deepEqual([commit.isCommit, disk.isCommit, snap.isCommit, edit.isCommit], [true, false, false, false]);
 });
 
 test("test_derived_nodes_are_not_beacons", () => {
-  // Verify: edit, read, script and tool nodes never count.
+  // Verify: read, script and tool nodes never count.
   initLayer1Dom();
-  const derived = ["node n-edit", "node n-read", "node n-script", "tnode"];
+  const derived = ["node n-read", "node n-script", "tnode"];
   for (const [index, nodeClass] of derived.entries()) {
     assert.equal(readFacts(addTick(index + 1, [nodeClass])).isBeacon, false, nodeClass);
   }

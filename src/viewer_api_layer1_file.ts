@@ -10,7 +10,7 @@ import { isSnapshotFileRequest, readSnapshotFileContent } from "./viewer_api_lay
 import { getRequiredParam, sendJson } from "./viewer_server_routes.ts";
 
 // Checked before the hash reaches git; delete if viewer_api_repo.ts ever exports its identical pattern.
-const COMMIT_HASH_PATTERN = /^[0-9a-fA-F]{4,40}$/;
+export const COMMIT_HASH_PATTERN = /^[0-9a-fA-F]{4,40}$/;
 
 // The image content-types the drawer renders as pictures (task 299); anything else served raw is octet-stream.
 const IMAGE_CONTENT_TYPES: Record<string, string> = {

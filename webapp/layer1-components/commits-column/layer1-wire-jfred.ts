@@ -1,4 +1,8 @@
-// Task 383: wire types for the jfred commit column; fixture mode only.
+// Task 383: wire types for the jfred commit column; Task 361 adds the commit request and reply.
+
+export const JFRED_BRANCH_NAME = "jfred";
+export const JFRED_SUBJECT_PREFIX = "jfred: reconstruct to ";
+export const JFRED_SHORT_HASH_LENGTH = 8;
 
 export interface WireJfredCommitOf<I> {
   instant: I;
@@ -13,6 +17,27 @@ export interface WireJfredBaseOf<I> {
 }
 
 export interface WireJfredCommitsOf<I> {
-  base: WireJfredBaseOf<I>;
+  // Undefined while no base is chosen and no jfred branch exists.
+  base?: WireJfredBaseOf<I>;
   commits: WireJfredCommitOf<I>[];
+  // Only the fixture sets it: the canned view loads once and stays DOM-only.
+  isCanned?: true;
 }
+
+// POST body of /api/layer1-jfred-commit; parentShortHash is undefined only for the first commit.
+export interface WireJfredCommitRequestOf<I> {
+  baseShortHash: string;
+  parentShortHash?: string;
+  markInstant: I;
+  message: string;
+}
+
+export const JfredCommitOutcome = { committed: "committed", unchanged: "unchanged" } as const;
+
+// Reply of /api/layer1-jfred-commit; `unchanged` means nothing was written, and nextInstant is the next change.
+export type WireJfredCommitReplyOf<I> =
+  | { outcome: typeof JfredCommitOutcome.committed; commit: WireJfredCommitOf<I> }
+  | { outcome: typeof JfredCommitOutcome.unchanged; nextInstant?: I };
+
+export type WireJfredCommitRequest = WireJfredCommitRequestOf<string>;
+export type WireJfredCommitReply = WireJfredCommitReplyOf<string>;

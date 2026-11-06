@@ -4,15 +4,37 @@ import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { openJfredMessage } from "./layer1-jfred-drawer.ts";
 import { buildJfredEntries, JfredEntryKind, listJfredEntries } from "./layer1-jfred-entries.ts";
-import { commitPending, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
+import { sendJfredCommit, sendJfredDelete } from "./layer1-jfred-api.ts";
+// import { commitPending, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
+import { appendCommit, buildCommitRequest, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
+import type { JfredCommit } from "./layer1-jfred-state.ts";
+import { JfredCommitOutcome } from "./layer1-wire-jfred.ts";
+import type { WireJfredCommitReply } from "./layer1-wire-jfred.ts";
+import { saveJfredBaseHash } from "../../layer1-settings.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
 
+import { openToast } from "../details-drawer/layer1-diff-pane-support.ts";
+import { hideLayer1Progress } from "../loading-bar/layer1-progress.ts";
+import { closeBusyShield } from "../popups/layer1-busy-shield.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
 import type { HoverPopupContent } from "../popups/layer1-hover-popup.ts";
+import { openYesNoQuestion } from "../popups/layer1-yes-no-row.ts";
 import { wrapTextAtColumns } from "../ruler/layer1-wrap-text.ts";
 
 const STRIP_ID = "jfred-strip";
 const POPUP_COLUMNS = 50;
+export const DELETE_QUESTION = "Delete the jfred branch? This removes every jfred commit from the list.";
+const MOVE_QUESTION_START = "This range changes no file, so no commit is made. Move the end mark to ";
+const NO_LATER_CHANGE_TEXT = "No commit: this range changes no file, and no later time changes a file.";
+const NO_LATER_TICK_TEXT = "No commit: a later time changes a file, but no ruler item can hold a mark there.";
+
+let movePendingMark: (instant: string) => boolean = () => {
+  throw new Error("no pending-mark mover is registered");
+};
+
+export function registerPendingMarkMover(mover: (instant: string) => boolean): void {
+  movePendingMark = mover;
+}
 
 let lastTicks: readonly WireRulerTick[] = [];
 
@@ -31,11 +53,60 @@ function openCommitMessage(shortHash: string): void {
   throw new Error(`no jfred commit ${shortHash}`);
 }
 
+// function applyPendingCommit(): void {
+//   const made = commitPending();
+//   renderJfredEntries();
+//   repaintCutMarks();
+//   openJfredMessage(made);
+// }
+
 function applyPendingCommit(): void {
-  const made = commitPending();
+  void sendJfredCommit(buildCommitRequest()).then(applyCommitReply, reportJfredFailure);
+}
+
+function applyCommitReply(reply: WireJfredCommitReply | undefined): void {
+  if (reply === undefined)
+    return;
+  if (reply.outcome === JfredCommitOutcome.committed) {
+    applyServerCommit(reply.commit);
+    return;
+  }
+  openMoveQuestionForUnchangedRange(reply.nextInstant);
+}
+
+function applyServerCommit(commit: JfredCommit): void {
+  appendCommit(commit);
   renderJfredEntries();
   repaintCutMarks();
-  openJfredMessage(made);
+  openJfredMessage(commit);
+}
+
+function reportJfredFailure(error: unknown): never {
+  hideLayer1Progress();
+  closeBusyShield();
+  openToast(String(error));
+  throw error;
+}
+
+function openMoveQuestionForUnchangedRange(nextInstant: string | undefined): void {
+  if (nextInstant === undefined) {
+    openToast(NO_LATER_CHANGE_TEXT);
+    return;
+  }
+  const question = `${MOVE_QUESTION_START}${nextInstant}, the first later time that changes a file?`;
+  const movedInstant: string = nextInstant;
+  function applyThisMoveAnswer(isYes: boolean): void {
+    applyMoveAnswer(isYes, movedInstant);
+  }
+  void openYesNoQuestion(question, "Yes, move it", "No").then(applyThisMoveAnswer);
+}
+
+function applyMoveAnswer(isYes: boolean, nextInstant: string): void {
+  if (!isYes)
+    return;
+  const isMoved = movePendingMark(nextInstant);
+  if (!isMoved)
+    openToast(NO_LATER_TICK_TEXT);
 }
 
 export function openPendingMessage(): void {
@@ -46,10 +117,32 @@ export function openPendingMessage(): void {
   openJfredMessage({ shortHash: undefined, parentShortHash, instant: branch.pending.instant, message: branch.pending.message }, applyPendingCommit);
 }
 
-function executeDeleteClick(): void {
+function applyCannedDelete(): void {
   deleteJfredBranch();
   renderJfredEntries();
   repaintCutMarks();
+}
+
+function applyServerDelete(): void {
+  deleteJfredBranch();
+  saveJfredBaseHash("");
+  renderJfredEntries();
+  repaintCutMarks();
+}
+
+function applyDeleteAnswer(isYes: boolean): void {
+  if (!isYes)
+    return;
+  const isCanned = readJfredBranch().isCanned;
+  if (isCanned) {
+    applyCannedDelete();
+    return;
+  }
+  void sendJfredDelete().then(applyServerDelete, reportJfredFailure);
+}
+
+function executeDeleteClick(): void {
+  void openYesNoQuestion(DELETE_QUESTION, "Yes, delete", "No").then(applyDeleteAnswer);
 }
 
 // The base entry has no message, so its click does nothing.

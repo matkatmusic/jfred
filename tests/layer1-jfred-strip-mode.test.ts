@@ -2,7 +2,7 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -21,6 +21,7 @@ const CANNED_VIEW = {
   diskOrphans: [],
   ruler: [],
   jfredCommits: {
+    isCanned: true as const,
     base: { instant: TICKS[0]!.instant, shortHash: "a1b2c3d4" },
     commits: [{ instant: TICKS[1]!.instant, shortHash: "c0ffee01", parentShortHash: "a1b2c3d4", message: LONG_MESSAGE }],
   },
@@ -60,11 +61,13 @@ test("test_refresh_removes_the_strip_when_commit_mode_turns_off", () => {
   assert.equal(document.getElementById("jfred-strip"), null);
 });
 
-test("test_armed_with_no_base_keeps_the_head_and_the_delete_button", () => {
+test("test_armed_with_no_base_keeps_the_head_and_the_delete_button", async () => {
   // Verify: Delete clears the base, yet the head stays across the next stage render.
   setArmed(true);
   renderJfredStrip(TICKS);
   document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
+  await waitForAsyncWork();
   renderJfredStrip(TICKS);
   assert.equal(document.querySelectorAll("#jfred-strip .jhead").length, 1);
   assert.equal(document.querySelectorAll("#jfred-strip .jdelete").length, 1);
