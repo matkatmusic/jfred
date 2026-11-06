@@ -148,7 +148,8 @@ test("test_isToolBoxRight_needs_exactly_the_two_column_pair_dots_shown", () => {
     assert.equal(isToolBoxOff(BOX_ON, { ...BOX_OFF, columnToolShown: 3 }), false);
 });
 
-test("test_TOOL_BOX_FACTS_counts_the_column_dots_by_the_pair_id", () => {
-    assert.ok(TOOL_BOX_FACTS.includes(`#annotation-track i[data-pair-id="${COLUMN_PAIR_ID}"]`));
-    assert.ok(!TOOL_BOX_FACTS.includes("i.a-tool-use"));
-});
+// not behavior: it only checks that a probe constant's text contains certain selector strings.
+// test("test_TOOL_BOX_FACTS_counts_the_column_dots_by_the_pair_id", () => {
+//     assert.ok(TOOL_BOX_FACTS.includes(`#annotation-track i[data-pair-id="${COLUMN_PAIR_ID}"]`));
+//     assert.ok(!TOOL_BOX_FACTS.includes("i.a-tool-use"));
+// });

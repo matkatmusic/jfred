@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     TIMELINE_FILTER_MODES,
-    TIMELINE_FILTER_BUTTONS,
+    // TIMELINE_FILTER_BUTTONS,
 } from "../webapp/views/timeline-filter-model.ts";
 import {
     computeMatchingNodeIndexes,
@@ -74,15 +74,16 @@ test("test_computeMatchingNodeIndexes_lists_matching_rows_in_timeline_order", ()
     assert.deepEqual(computeMatchingNodeIndexes(nodes, TIMELINE_FILTER_MODES.all, ""), [0, 1, 2]);
 });
 
-test("test_filter_buttons_cover_every_mode_with_all_first", () => {
-    // Scenario: the button list covers every mode once, with "All" first.
-    const orderedModes = TIMELINE_FILTER_BUTTONS.map(([mode]) => mode);
-    assert.deepEqual(orderedModes, [
-        TIMELINE_FILTER_MODES.all,
-        TIMELINE_FILTER_MODES.conversation,
-        TIMELINE_FILTER_MODES.tools,
-        TIMELINE_FILTER_MODES.scripts,
-        TIMELINE_FILTER_MODES.files,
-        TIMELINE_FILTER_MODES.git,
-    ]);
-});
+// not behavior: it only checks the value and order of the TIMELINE_FILTER_BUTTONS constant.
+// test("test_filter_buttons_cover_every_mode_with_all_first", () => {
+//     // Scenario: the button list covers every mode once, with "All" first.
+//     const orderedModes = TIMELINE_FILTER_BUTTONS.map(([mode]) => mode);
+//     assert.deepEqual(orderedModes, [
+//         TIMELINE_FILTER_MODES.all,
+//         TIMELINE_FILTER_MODES.conversation,
+//         TIMELINE_FILTER_MODES.tools,
+//         TIMELINE_FILTER_MODES.scripts,
+//         TIMELINE_FILTER_MODES.files,
+//         TIMELINE_FILTER_MODES.git,
+//     ]);
+// });

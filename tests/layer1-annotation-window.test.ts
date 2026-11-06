@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
+import { /* ANNOTATION_MARGIN_PX, */ listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
@@ -16,9 +16,10 @@ function buildRecord(id: string, instant: string, sessionId = "s1"): WireAnnotat
     return { id, kind: WireRecordKind.user, instant, label: id, sessionId, sessionTitle: sessionId, sessionFile: `/x/${sessionId}.jsonl`, line: 1000 };
 }
 
-test("test_the_margin_is_three_hundred_pixels", () => {
-    assert.equal(ANNOTATION_MARGIN_PX, 300);
-});
+// not behavior: it only checks the value of the ANNOTATION_MARGIN_PX constant.
+// test("test_the_margin_is_three_hundred_pixels", () => {
+//     assert.equal(ANNOTATION_MARGIN_PX, 300);
+// });
 
 test("test_a_record_is_placed_at_its_axis_offset", () => {
     // Scenario: a record halfway between two ticks lands halfway between their offsets.

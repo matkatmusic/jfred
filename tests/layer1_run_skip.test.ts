@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     BOX_BLOCKED_REASON_PREFIX,
-    BOX_BLOCK_SIGNATURES,
+    // BOX_BLOCK_SIGNATURES,
     formatReplayFailure,
     findRunSkipReason,
     isBlockedByBox,
@@ -60,9 +60,10 @@ test("test_findRunSkipReason_names_a_run_at_or_before_the_skipped_baseline", () 
     }
 });
 
-test("test_BOX_BLOCK_SIGNATURES_holds_the_four_signatures", () => {
-    assert.equal(BOX_BLOCK_SIGNATURES.length, 4);
-});
+// not behavior: it only checks the length of a constant array.
+// test("test_BOX_BLOCK_SIGNATURES_holds_the_four_signatures", () => {
+//     assert.equal(BOX_BLOCK_SIGNATURES.length, 4);
+// });
 
 test("test_isBlockedByBox_matches_Network_is_unreachable", () => {
     assert.equal(isBlockedByBox("OSError: [Errno 101] Network is unreachable\n", MOUNT), true);

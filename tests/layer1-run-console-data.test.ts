@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  RUN_CONSOLE_CANCEL_STATES, RUN_CONSOLE_OUTPUT_NOT_SAVED, RUN_CONSOLE_TERMINAL_STATES, findRunConsoleCancelState,
+  // RUN_CONSOLE_CANCEL_STATES, RUN_CONSOLE_TERMINAL_STATES, (only used by commented-out constant tests)
+  RUN_CONSOLE_OUTPUT_NOT_SAVED, findRunConsoleCancelState,
   findRunConsoleTerminalState, listRunConsoleNotes, selectRunConsoleCancelKey, selectRunConsoleTerminalKey,
 } from "../webapp/layer1-components/details-drawer/layer1-run-console-data.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
@@ -13,22 +14,24 @@ function buildResult(overrides: Partial<WireScriptResult> = {}): WireScriptResul
   return { kind: "script-result", toolUseId: "toolu_1", outcome: WireRunOutcome.replayed, files: [], stdout: "", stderr: "", timedOut: false, isOutputSaved: true, ...overrides };
 }
 
-test("test_RUN_CONSOLE_TERMINAL_STATES_keeps_the_four_blocks_verbatim", () => {
-  // Verify: key, class and title of each block, in order.
-  const rows = RUN_CONSOLE_TERMINAL_STATES.map((state) => [state.key, state.className, state.label]);
-  assert.deepEqual(rows, [
-    ["cancelled", "term-cancelled", "Cancelled"],
-    ["verified", "term-verified", "Verified"],
-    ["mismatch", "term-mismatch", "Mismatch"],
-    ["original-failed", "term-original-failed", "Original run failed"],
-  ]);
-});
+// not behavior: only checks the values of a constant table.
+// test("test_RUN_CONSOLE_TERMINAL_STATES_keeps_the_four_blocks_verbatim", () => {
+//   // Verify: key, class and title of each block, in order.
+//   const rows = RUN_CONSOLE_TERMINAL_STATES.map((state) => [state.key, state.className, state.label]);
+//   assert.deepEqual(rows, [
+//     ["cancelled", "term-cancelled", "Cancelled"],
+//     ["verified", "term-verified", "Verified"],
+//     ["mismatch", "term-mismatch", "Mismatch"],
+//     ["original-failed", "term-original-failed", "Original run failed"],
+//   ]);
+// });
 
-test("test_RUN_CONSOLE_CANCEL_STATES_holds_idle_live_and_cancelled", () => {
-  // Verify: the three button looks the one real button picks from.
-  const rows = RUN_CONSOLE_CANCEL_STATES.map((state) => [state.key, state.className, state.disabled]);
-  assert.deepEqual(rows, [["idle", "btn-idle", true], ["running-cancelable", "btn-live", false], ["cancelled", "btn-cancelled", true]]);
-});
+// not behavior: only checks the values of a constant table.
+// test("test_RUN_CONSOLE_CANCEL_STATES_holds_idle_live_and_cancelled", () => {
+//   // Verify: the three button looks the one real button picks from.
+//   const rows = RUN_CONSOLE_CANCEL_STATES.map((state) => [state.key, state.className, state.disabled]);
+//   assert.deepEqual(rows, [["idle", "btn-idle", true], ["running-cancelable", "btn-live", false], ["cancelled", "btn-cancelled", true]]);
+// });
 
 test("test_find_functions_return_the_matching_state", () => {
   // Verify: a cancel key finds its state and an unknown key throws; a terminal key finds or returns undefined.

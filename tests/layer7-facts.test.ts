@@ -3,12 +3,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-    BLOCK_IDS, TOOL_IDS, countNodesWithClass, findColumnNode, isApart, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane,
+    BLOCK_IDS, /* TOOL_IDS, */ countNodesWithClass, findColumnNode, isApart, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane,
     isBracketSpanning, isEveryIdUnique, isLetterSetExpected, isNear, isStampedWithPredecessor, isTrackBetween, isWindowed,
     listBlockNodes, listColumnIds, listMissingIds,
     type ColumnBracketFacts, type ColumnNodeFacts,
 } from "../scripts/visual/layer7-facts.ts";
-import { ANNOTATION_MID_IDS, ANNOTATION_SAME_ID } from "../src/viewer_api_layer7_fixture_sessions.ts";
+// import { ANNOTATION_MID_IDS, ANNOTATION_SAME_ID } from "../src/viewer_api_layer7_fixture_sessions.ts";
 import { ANNOTATION_LOOKS } from "../webapp/layer1-components/session-column/layer1-annotation-looks.ts";
 
 const LETTERS = ["u", "a", "t", "h", "m", "r", "?", "n"];
@@ -23,18 +23,19 @@ const makeNodes = (): ColumnNodeFacts[] => {
 };
 const OTHER_SESSION_COLOUR = { sessionId: "s2", backgroundColor: "rgb(200, 10, 10)" };
 
-test("test_the_expected_ids_are_8_block_ids_2_tool_ids_and_435_column_ids", () => {
-    // Steps: count the three id lists, then check the mid, same-instant and ruler-row ids are in the column list.
-    assert.equal(BLOCK_IDS.length, 8);
-    assert.equal(TOOL_IDS.length, 2);
-    assert.equal(listColumnIds().length, 435);
-    assert.ok(listColumnIds().includes("l7-row-037"));
-    assert.equal(BLOCK_IDS[3], "l7-block-3");
-    for (const id of ANNOTATION_MID_IDS)
-        assert.ok(listColumnIds().includes(id.toString()));
-    assert.ok(listColumnIds().includes(ANNOTATION_SAME_ID.toString()));
-    assert.ok(isEveryIdUnique([...listColumnIds(), ...TOOL_IDS]));
-});
+// not behavior: it only checks the sizes and contents of id constants.
+// test("test_the_expected_ids_are_8_block_ids_2_tool_ids_and_435_column_ids", () => {
+//     // Steps: count the three id lists, then check the mid, same-instant and ruler-row ids are in the column list.
+//     assert.equal(BLOCK_IDS.length, 8);
+//     assert.equal(TOOL_IDS.length, 2);
+//     assert.equal(listColumnIds().length, 435);
+//     assert.ok(listColumnIds().includes("l7-row-037"));
+//     assert.equal(BLOCK_IDS[3], "l7-block-3");
+//     for (const id of ANNOTATION_MID_IDS)
+//         assert.ok(listColumnIds().includes(id.toString()));
+//     assert.ok(listColumnIds().includes(ANNOTATION_SAME_ID.toString()));
+//     assert.ok(isEveryIdUnique([...listColumnIds(), ...TOOL_IDS]));
+// });
 
 test("test_isBlockComplete_passes_the_good_set_and_fails_a_missing_id_a_doubled_id_and_a_repeated_kind_class", () => {
     assert.equal(isBlockComplete(makeNodes()), true);

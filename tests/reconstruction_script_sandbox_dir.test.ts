@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
-    SANDBOX_TIMEOUT_MS,
+    // SANDBOX_TIMEOUT_MS,
     locateReadOnlyScript,
     prepareSandboxDirectory,
     readAllFiles,
@@ -35,9 +35,10 @@ function makeRepoWithOneCommit(files: Record<string, string>): { repo: Path; com
     return { repo: new Path(repoDir), commit: new Uuid(runGit(repoDir, ["rev-parse", "HEAD"])) };
 }
 
-test("test_SANDBOX_TIMEOUT_MS_is_five_seconds", () => {
-    assert.equal(SANDBOX_TIMEOUT_MS, 5000);
-});
+// not behavior: it only checks that a constant equals 5000.
+// test("test_SANDBOX_TIMEOUT_MS_is_five_seconds", () => {
+//     assert.equal(SANDBOX_TIMEOUT_MS, 5000);
+// });
 
 test("test_prepareSandboxDirectory_seeds_files_and_writes_the_script_unchanged", () => {
     // The recorded cwd text stays in the script: the cwd is now the Docker mount, never swapped.

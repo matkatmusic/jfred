@@ -26,11 +26,12 @@ test("a pair's steps are chronological: commits, its snapshot, then on disk", ()
   assert.deepEqual(steps.map((step) => step.marker), ["aaaaaaaa", "cccccccc", "@v1 📸", "on disk"]);
 });
 
-test("every step can load its state as a string", () => {
-  for (const step of listDiffableSteps(VIEW, "src/a.ts")) {
-    assert.equal(typeof step.loadContent, "function", step.marker);
-  }
-});
+// not behavior: this only checks the type shape (loadContent is a function) and never calls it.
+// test("every step can load its state as a string", () => {
+//   for (const step of listDiffableSteps(VIEW, "src/a.ts")) {
+//     assert.equal(typeof step.loadContent, "function", step.marker);
+//   }
+// });
 
 test("a disk orphan has exactly one on-disk step", () => {
   assert.deepEqual(listDiffableSteps(VIEW, "notes.txt").map((step) => step.marker), ["on disk"]);

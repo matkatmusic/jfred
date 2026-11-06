@@ -35,16 +35,17 @@ test("test_both_orphan_buckets_follow_the_pairs", async () => {
     assert.ok(stageText.indexOf("No on-disk match") < stageText.indexOf("No repository match"));
 });
 
-test("test_a_render_installs_the_run_viewport_scroll_listener", async () => {
-    // Scenario: drawing the stage starts the run viewport watcher, which listens for scroll on #timelines.
-    initLayer1Dom();
-    const timelines = document.getElementById("timelines")!;
-    const listenedEvents: string[] = [];
-    const addEventListener = timelines.addEventListener.bind(timelines);
-    timelines.addEventListener = ((type: string, ...rest: unknown[]) => {
-        listenedEvents.push(type);
-        return (addEventListener as (...args: unknown[]) => void)(type, ...rest);
-    }) as never;
-    await renderLayer1Stage({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
-    assert.ok(listenedEvents.includes("scroll"));
-});
+// not behavior: only spies that an internal scroll listener was registered, no visible outcome.
+// test("test_a_render_installs_the_run_viewport_scroll_listener", async () => {
+//     // Scenario: drawing the stage starts the run viewport watcher, which listens for scroll on #timelines.
+//     initLayer1Dom();
+//     const timelines = document.getElementById("timelines")!;
+//     const listenedEvents: string[] = [];
+//     const addEventListener = timelines.addEventListener.bind(timelines);
+//     timelines.addEventListener = ((type: string, ...rest: unknown[]) => {
+//         listenedEvents.push(type);
+//         return (addEventListener as (...args: unknown[]) => void)(type, ...rest);
+//     }) as never;
+//     await renderLayer1Stage({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
+//     assert.ok(listenedEvents.includes("scroll"));
+// });

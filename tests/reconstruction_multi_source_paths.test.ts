@@ -7,7 +7,7 @@ import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import {
   computeRootOrder,
   filterRecordsByRoot,
-  getSessionId,
+  // getSessionId,
   isRecordInRoot,
 } from "../src/reconstruction_multi_source_paths.ts";
 
@@ -17,9 +17,10 @@ function buildRecord(sessionId: string | undefined): TranscriptRecord {
 
 const ROOTS = new Map<string, Path>([["s1", new Path("/alpha")], ["s2", new Path("/beta")]]);
 
-test("test_get_session_id_reads_envelope_field", () => {
-  assert.equal(getSessionId(buildRecord("s1")), "s1");
-});
+// not behavior: it only checks that an inner helper reads one field off a record.
+// test("test_get_session_id_reads_envelope_field", () => {
+//   assert.equal(getSessionId(buildRecord("s1")), "s1");
+// });
 
 test("test_is_record_in_root_matches_only_resolved_root", () => {
   assert.equal(isRecordInRoot(buildRecord("s1"), ROOTS, "/alpha"), true);

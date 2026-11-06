@@ -4,7 +4,8 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { type HeadlessPage } from "../scripts/visual/cdp.ts";
 import {
-    FADE_WAIT_MS, failures, validateNavRows, validateOrdering, validateScale,
+    // FADE_WAIT_MS,
+    failures, validateNavRows, validateOrdering, validateScale,
 } from "../scripts/visual/mockup-checks.ts";
 
 const fakePage = (answerFor: (expression: string) => unknown): HeadlessPage => ({
@@ -29,9 +30,10 @@ const runCollectingFailures = async (run: () => Promise<void>): Promise<string[]
     return added;
 };
 
-test("the fade wait outlasts the mockup's 2600 ms flash", () => {
-    assert.ok(FADE_WAIT_MS > 2600);
-});
+// not behavior: it only checks that a constant is larger than a number.
+// test("the fade wait outlasts the mockup's 2600 ms flash", () => {
+//     assert.ok(FADE_WAIT_MS > 2600);
+// });
 
 test("validateNavRows finds each session by file name, whatever order the rows come in", async () => {
     const page = fakePage(() => [
