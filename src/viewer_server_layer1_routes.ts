@@ -7,6 +7,7 @@ import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
 import { sendLayer1FileResponse } from "./viewer_api_layer1_file.ts";
 import { sendLayer1Record } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
+import { receiveJfredCommit, receiveJfredDelete } from "./viewer_api_layer1_jfred_route.ts";
 import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendClearResultsResponse } from "./viewer_api_clear_results.ts";
 import { receiveScriptNeeds } from "./viewer_api_layer1_script_needs.ts";
@@ -34,6 +35,8 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-script-run", (request, response, url) => receiveScriptRun(request, response, url)],
   ["/api/layer1-script-needs", (request, response, url) => receiveScriptNeeds(request, response, url)],
   ["/api/layer1-clear-results", (request, response) => sendClearResultsResponse(request, response)],
+  ["/api/layer1-jfred-commit", (request, response, url) => receiveJfredCommit(request, response, url)],
+  ["/api/layer1-jfred-delete", (request, response, url) => receiveJfredDelete(request, response, url)],
   ["/api/layer1-view", (_request, response, url) => sendLayer1ViewResponse(response, url.searchParams)],
   ["/api/layer1-refs", (_request, response, url) => sendLayer1RefsResponse(response, url.searchParams)],
   ["/api/layer1-sessions", (_request, response, url) => sendLayer1SessionsResponse(response, url.searchParams)],

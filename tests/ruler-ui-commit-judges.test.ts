@@ -19,7 +19,7 @@ const dot = (display: string, opacity: number, cy: number) => ({ display, opacit
 const LINE = { laneX: "18px", top: 100, bottom: 900, dotCy: 100 };
 const POPUP = {
     isVisible: true, box: null, background: "", target: { left: 0, right: 1, top: 0, bottom: 1 }, targetBackground: "", hasTitle: false, isHiddenAfter: true,
-    lines: ["jfred: reconstruct to c0ffee02", "", "includes 2 unmarked changes"],
+    lines: ["jfred: reconstruct to c0ffee02", "", "includes 4 unmarked changes"],
 };
 
 test("test_commit_mode_off_has_no_strip_and_no_cut_mark", () => {

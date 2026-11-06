@@ -1,39 +1,42 @@
 // Tests for hydrating wire project entries into path overrides and source entries.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Path, Uuid } from "../src/structures/domain.ts";
+// import { Path, Uuid } from "../src/structures/domain.ts";
+import { Path } from "../src/structures/domain.ts";
 import {
     buildProjectPaths,
     buildProjectSources,
 } from "../src/reconstruction_overrides.ts";
 
-test("test_hydrate_project_paths_builds_domain_types", () => {
-    // Scenario: parsing hydrates wire strings into domain objects (coding-req §1).  Step: hydrate a full wire entry.
-    const overrides = buildProjectPaths({
-        cwd: "/Users/me/Programming/jot",
-        repo: "/Users/me/Programming/jot",
-        baseCommit: "deadbeef",
-    });
-    // Step: each field is a real domain instance carrying the wire value.
-    assert.ok(overrides.projectCwd instanceof Path);
-    assert.ok(overrides.repoDir instanceof Path);
-    assert.ok(overrides.baseCommit instanceof Uuid);
-    assert.equal(overrides.projectCwd.toString(), "/Users/me/Programming/jot");
-    assert.equal(overrides.baseCommit.toString(), "deadbeef");
-    // Step: absent wire fields stay absent after hydration.
-    const partialOverrides = buildProjectPaths({ repo: "/tmp/repo" });
-    assert.equal(partialOverrides.projectCwd, undefined);
-    assert.equal(partialOverrides.baseCommit, undefined);
-    assert.equal(partialOverrides.fileHistoryRoot, undefined);
-});
+// not behavior: it checks instanceof domain types on the data shape an inner hydration helper returns.
+// test("test_hydrate_project_paths_builds_domain_types", () => {
+//     // Scenario: parsing hydrates wire strings into domain objects (coding-req §1).  Step: hydrate a full wire entry.
+//     const overrides = buildProjectPaths({
+//         cwd: "/Users/me/Programming/jot",
+//         repo: "/Users/me/Programming/jot",
+//         baseCommit: "deadbeef",
+//     });
+//     // Step: each field is a real domain instance carrying the wire value.
+//     assert.ok(overrides.projectCwd instanceof Path);
+//     assert.ok(overrides.repoDir instanceof Path);
+//     assert.ok(overrides.baseCommit instanceof Uuid);
+//     assert.equal(overrides.projectCwd.toString(), "/Users/me/Programming/jot");
+//     assert.equal(overrides.baseCommit.toString(), "deadbeef");
+//     // Step: absent wire fields stay absent after hydration.
+//     const partialOverrides = buildProjectPaths({ repo: "/tmp/repo" });
+//     assert.equal(partialOverrides.projectCwd, undefined);
+//     assert.equal(partialOverrides.baseCommit, undefined);
+//     assert.equal(partialOverrides.fileHistoryRoot, undefined);
+// });
 
-test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
-    // Scenario: a per-project fileHistory entry becomes the fileHistoryRoot override.
-    const overrides = buildProjectPaths({ fileHistory: "/tmp/custom-history" });
-    // Step: the field is a real Path carrying the wire value.
-    assert.ok(overrides.fileHistoryRoot instanceof Path);
-    assert.equal(overrides.fileHistoryRoot.toString(), "/tmp/custom-history");
-});
+// not behavior: it checks instanceof Path on the data shape an inner hydration helper returns.
+// test("test_hydrate_project_paths_maps_fileHistory_to_fileHistoryRoot", () => {
+//     // Scenario: a per-project fileHistory entry becomes the fileHistoryRoot override.
+//     const overrides = buildProjectPaths({ fileHistory: "/tmp/custom-history" });
+//     // Step: the field is a real Path carrying the wire value.
+//     assert.ok(overrides.fileHistoryRoot instanceof Path);
+//     assert.equal(overrides.fileHistoryRoot.toString(), "/tmp/custom-history");
+// });
 
 test("test_hydrate_project_sources_builds_domain_entries_from_sources_list", () => {
     // Scenario: a `sources` list becomes domain Paths, keeping order and optional fields.

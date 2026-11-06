@@ -30,3 +30,5 @@ gives the owning module, its DOM id / CSS class, and one line on what it is. Lay
 | time toggle, committer/author | Time toggle | layer1-time-toggle.ts | `.timebar` | Toggles committer vs author time |
 | jump buttons | Jump-to-bucket | layer1-jump-buckets.ts | `.jumpbar button[data-bucket]` | Scrolls timeline to a named bucket |
 | load bar, progress bar | Load progress bar | layer1-progress.ts | `#loadbar` | Load progress indicator |
+| branch picker, commit picker, branch dropdown | Branch picker | layer1-refs.ts (markup in top-bars.html) | branch `#branch`, commit `#commit` (in `label.repo-only`); hidden until `.repo-ok` is set on `.sources.repo` | Dropdowns that write into `#ref`; the jfred branch is hidden by `buildLayer1RefsView` |
+| commits column, jfred strip, commit mode | Commits column / Commit mode | layer1-jfred-strip.ts, layer1-cut-marks.ts | strip `#jfred-strip` (`.jfred-strip`); button `#commit-mode`; nodes `.jnode`; chains `.jchain`; Yes/No row `#yesno-row` (layer1-yes-no-row.ts) | Strip of jfred commit nodes beside the timeline, plus the button that arms commit mode |

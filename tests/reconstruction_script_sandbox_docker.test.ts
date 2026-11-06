@@ -9,7 +9,8 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { computeSandboxInputKey, executeScriptAgainstState } from "../src/reconstruction_script_sandbox.ts";
 import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
 import {
-  DEFAULT_SANDBOX_MOUNT, SANDBOX_IMAGE, DockerStuckError, DockerUnavailableError,
+  // DEFAULT_SANDBOX_MOUNT,
+  SANDBOX_IMAGE, DockerStuckError, DockerUnavailableError,
   assertMountPathSafe, assertSandboxImagePresent, buildDockerRunArgs, chooseSandboxMount, killSandboxContainer, stopTimedOutContainer,
 } from "../src/reconstruction_script_sandbox_docker.ts";
 
@@ -65,10 +66,11 @@ test("test_buildDockerRunArgs_passes_the_hardening_flags", () => {
     }
 });
 
-test("test_SANDBOX_IMAGE_is_the_reveng_sandbox_tag", () => {
-    assert.equal(SANDBOX_IMAGE, "reveng-sandbox:1");
-    assert.equal(DEFAULT_SANDBOX_MOUNT.toString(), "/work");
-});
+// not behavior: it only checks that two constants equal fixed values.
+// test("test_SANDBOX_IMAGE_is_the_reveng_sandbox_tag", () => {
+//     assert.equal(SANDBOX_IMAGE, "reveng-sandbox:1");
+//     assert.equal(DEFAULT_SANDBOX_MOUNT.toString(), "/work");
+// });
 
 test("test_sandbox_image_has_git_and_a_wildcard_safe_directory", () => {
     const gitVersion = spawnSync("docker", ["run", "--rm", "--pull", "never", "--network", "none", SANDBOX_IMAGE, "git", "--version"], { encoding: "utf8" });

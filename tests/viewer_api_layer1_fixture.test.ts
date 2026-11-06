@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { basename } from "node:path";
-import { COMMITS } from "../src/viewer_api_layer1_fixture_data.ts";
+// import { COMMITS } from "../src/viewer_api_layer1_fixture_data.ts";
 import { buildFixtureLayer1View } from "../src/viewer_api_layer1_fixture_view.ts";
 import { listContentLines } from "../src/viewer_api_layer1_fixture_content.ts";
 import { buildLayer1DiffPayload } from "../src/viewer_api_layer1_diff.ts";
@@ -14,10 +14,11 @@ import { buildFixtureScriptRunsPayload } from "../src/viewer_api_layer4_fixture_
 import { FIXTURE_RUN_ID } from "../src/viewer_api_layer6_fixture_blocked_runs.ts";
 import { savedFixtureRuns } from "../src/viewer_api_layer6_fixture_needs.ts";
 
-test("test_fixture_data_module_imports_without_throwing", () => {
-    // The self-check throws at import time; reaching here proves it passed on the full fixture.
-    assert.ok(COMMITS.length > 0, "the ported COMMITS array is populated");
-});
+// not behavior: it only checks that a fixture constant array is non-empty.
+// test("test_fixture_data_module_imports_without_throwing", () => {
+//     // The self-check throws at import time; reaching here proves it passed on the full fixture.
+//     assert.ok(COMMITS.length > 0, "the ported COMMITS array is populated");
+// });
 
 test("test_fixture_view_axis_offsets_accumulate", () => {
     // Scenario: every axisPx comes from ONE computeNodeLadderLayout call, so offsets must only ever rise.

@@ -4,9 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { WireScriptRunsView } from "../webapp/layer1-wire-script-runs.ts";
 import {
-  buildBubblePathExpression,
-  buildConnectorOfRun,
-  buildDotsOfRun,
+  // buildBubblePathExpression, buildConnectorOfRun, buildDotsOfRun,
   containsAll,
   containsCountLabel,
   findRunById,
@@ -48,8 +46,9 @@ test("returns the first line that has text", () => {
   assert.equal(getFirstCodeLine(" \n"), "");
 });
 
-test("builds browser expressions with the id quoted", () => {
-  assert.ok(buildDotsOfRun("t1").includes(`data-tool-use-id="t1"`));
-  assert.ok(buildConnectorOfRun("t1").includes(`.script-connector[data-tool-use-id="t1"]`));
-  assert.ok(buildBubblePathExpression("d").startsWith("d.closest('.filebox')"));
-});
+// not behavior: only checks substrings of generated browser-expression strings.
+// test("builds browser expressions with the id quoted", () => {
+//   assert.ok(buildDotsOfRun("t1").includes(`data-tool-use-id="t1"`));
+//   assert.ok(buildConnectorOfRun("t1").includes(`.script-connector[data-tool-use-id="t1"]`));
+//   assert.ok(buildBubblePathExpression("d").startsWith("d.closest('.filebox')"));
+// });

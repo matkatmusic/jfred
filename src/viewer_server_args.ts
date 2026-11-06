@@ -5,12 +5,13 @@ import { join } from "node:path";
 import { setFileStampCachePath } from "./file_stamp_cache.ts";
 import { setProjectsDir, setFileHistoryDir } from "./viewer_api_projects.ts";
 import { enableFixtureMode } from "./viewer_api_layer1_fixture.ts";
+import { enableJfredWrites } from "./viewer_api_layer1_jfred_route.ts";
 import { setLayer1SettingsPath } from "./viewer_api_layer1_settings.ts";
 import { Path } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--sandbox-memo-file <path>] [--fixture] [--resetSandboxMemo] [--resetDocumentCache]";
+const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--sandbox-memo-file <path>] [--fixture] [--allow-jfred-writes] [--resetSandboxMemo] [--resetDocumentCache]";
 
 function readFlagValue(argv: string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
@@ -42,6 +43,10 @@ function applyFileFlags(argv: string[]): void {
   const isFixtureRequested = argv.includes("--fixture");
   if (isFixtureRequested) {
     enableFixtureMode();
+  }
+  const isJfredWritesRequested = argv.includes("--allow-jfred-writes");
+  if (isJfredWritesRequested) {
+    enableJfredWrites();
   }
 }
 

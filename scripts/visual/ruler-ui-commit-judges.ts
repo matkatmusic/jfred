@@ -63,7 +63,7 @@ export function isEveryLineRight(f: StripFacts): boolean {
 export const isEveryMarkRight = (f: StripFacts) =>
   f.marks["cut-base"] === 1 && f.marks["cut-set"] === 2 && f.marks["cut-ok"]! > 0 && f.marks["cut-no"]! > 0 && f.untitledNo === 0;
 export function isCommitPopupRight(h: HoverFacts): boolean {
-  const isMessage = h.lines[0]?.startsWith("jfred: reconstruct to") === true && h.lines.includes("includes 2 unmarked changes");
+  const isMessage = h.lines[0]?.startsWith("jfred: reconstruct to") === true && h.lines.includes("includes 4 unmarked changes");
   let isEveryLineShort = true;
   for (const line of h.lines)
     isEveryLineShort &&= isShortLine(line);

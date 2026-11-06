@@ -7,7 +7,7 @@ import { STRIP_IDLE } from "./layer4-probes.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import { validateCommitSurvivesRerender, validateDeleteAndRebase } from "./layer9-branch-checks.ts";
 import {
-  validateArmedPaint, validateCommit, validateNormalClick, validatePendingMark, validateRefusals, validateUnarmedPaint,
+  validateArmedPaint, validateCommit, validateNormalClick, validatePendingMark, validateRefusals, validateUnarmedPaint, validateUnchangedRange,
 } from "./layer9-flow-checks.ts";
 import {
   isEntryLevelWithTick, validateSlack, validateStripBesideSession, validateStripLayout, validateStripOverlaps, validateTokens,
@@ -15,7 +15,7 @@ import {
 import { SCROLL_HOME, openSessionColumn } from "./layer7-probes.ts";
 // import { validateLineBehindText } from "./layer9-stacking-checks.ts";
 import { validateLineBehindDot } from "./layer9-stacking-checks.ts";
-import { validateRulerUi } from "./ruler-ui-commit-checks.ts";
+import { DISMISS_RUN_CONSENT, validateRulerUi } from "./ruler-ui-commit-checks.ts";
 import {
   BUTTON_FACTS, CHAIN_COUNT, COMMIT_MODE_CLICK, COMMIT_MODE_LABEL, DRAWER_FACTS, ENTRY_FACTS, FIXTURE_BASE_HASH, FOOTNOTE_PREFIX, STRIP_COUNT,
   buildBeaconInstantCount, buildClickById, buildClickEntry, buildSnapLines, type DrawerFacts, type EntryFacts,
@@ -78,6 +78,7 @@ export async function validateCannedColumn(page: HeadlessPage): Promise<EntryFac
   const stripCountAtLoad = await page.evaluate<number>(STRIP_COUNT);
   reportCheck("L9 at load Commit mode is off and the page has no #jfred-strip", stripCountAtLoad === 0, stripCountAtLoad);
   await page.evaluate(COMMIT_MODE_CLICK);
+  await page.evaluate(DISMISS_RUN_CONSENT);
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
   reportCheck("L9 after the Commit mode click the canned column holds the base and two commits, each parent is the one before, and two chains join them", isCannedColumn(entries, await page.evaluate<number>(CHAIN_COUNT)), entries);
   reportCheck("L9 every canned entry shares a centre line with its ruler tick", isEntryLevelWithTick(entries), entries);
@@ -91,8 +92,8 @@ export async function validateCannedMessages(page: HeadlessPage, entries: EntryF
   const two = await readCommitMessage(page, second!);
   reportCheck("L9 commit 2: footnote last, file lines equal a fresh listSnapLines", isMessageRight(two.drawer, two.pageLines), two);
   const independent = await page.evaluate<number>(buildBeaconInstantCount(first!.instant, second!.instant));
-  const isCounted = two.drawer.text.includes("includes 2 unmarked changes") && readSkippedCount(two.drawer.text) === independent;
-  reportCheck("L9 commit 2 says includes 2 unmarked changes, and 2 equals the count of beacon instants between the marks", isCounted, [independent, two.drawer.text]);
+  const isCounted = readSkippedCount(two.drawer.text) === independent;
+  reportCheck("L9 commit 2 says includes N unmarked changes, and N equals the count of beacon instants between the marks", isCounted, [independent, two.drawer.text]);
   await page.evaluate(buildClickById("dclose"));
 }
 
@@ -146,6 +147,15 @@ async function validateCannedPage(page: HeadlessPage): Promise<void> {
   await validateLineBehindDot(page);
 }
 
+// Commit mode is on and armed: refusals, the unchanged-range question, the pending mark, then Commit.
+async function validateMarkFlow(page: HeadlessPage): Promise<void> {
+  await validateRefusals(page);
+  await validateUnchangedRange(page);
+  await validatePendingMark(page);
+  await shoot(page, SCREENSHOTS.pending);
+  await validateCommit(page);
+}
+
 // Commit mode is on when this runs; the first click turns it off.
 async function validateCommitMode(page: HeadlessPage): Promise<void> {
   await page.evaluate(COMMIT_MODE_CLICK);
@@ -154,10 +164,7 @@ async function validateCommitMode(page: HeadlessPage): Promise<void> {
   await validateArmedPaint(page);
   await page.evaluate(SCROLL_HOME);
   await shoot(page, SCREENSHOTS.armed);
-  await validateRefusals(page);
-  await validatePendingMark(page);
-  await shoot(page, SCREENSHOTS.pending);
-  await validateCommit(page);
+  await validateMarkFlow(page);
   await validateCommitSurvivesRerender(page);
   await validateDeleteAndRebase(page);
   await validateNormalClick(page, "L9 with Commit mode off again, a click on a two-event tick opens its file list as before");

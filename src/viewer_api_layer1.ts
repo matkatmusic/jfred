@@ -14,6 +14,7 @@ import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { CommitTimeSource, type WireInstantOf, type WireCommitOf, type WireRulerTickOf, type WirePairOf, type WireOrphanOf, type WireLayer1ViewOf } from "../webapp/layer1-wire.ts";
 import { buildDiskOrphanRow, buildInstantOnAxis, sortRowsByInstant } from "./viewer_api_layer1_orphan_rows.ts";
 import { buildPairOnAxis, listPairNodeLadder, type PairHistory } from "./viewer_api_layer1_pair_place.ts";
+import { buildJfredBranchView } from "./viewer_api_layer1_jfred_read.ts";
 
 // Named so tests assert the same strings the route emits.
 export const LAYER1_PROGRESS_LABEL_WALKING_FOLDER = "walking project folder";
@@ -116,5 +117,5 @@ export function buildLayer1View(
     const file = pairing.diskOrphans[index]!;
     diskOrphans.push(buildDiskOrphanRow(file, layout.ladderOffsetsPx[diskOrphanLadderBase + index]!, listSnapshotsFor(file.relativePath)));
   }
-  return { pairs, gitOrphans: sortRowsByInstant(gitOrphans), diskOrphans: sortRowsByInstant(diskOrphans), ruler };
+  return { pairs, gitOrphans: sortRowsByInstant(gitOrphans), diskOrphans: sortRowsByInstant(diskOrphans), ruler, jfredCommits: buildJfredBranchView(repoDir, timeSource) };
 }

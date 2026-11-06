@@ -101,15 +101,16 @@ test("a missing rule or a margin that moves with the column fails only the rule 
     assert.deepEqual((await runChecks(makeSetup({ rules: { ...GOOD_RULES, marginWithout: "194px" } }))).newFailures, [RULE_TITLE]);
 });
 
-test("the probes read the column, the stage and the two slack rules", () => {
-    assert.ok(LAYOUT_FACTS.includes("annotation-track"));
-    assert.ok(LAYOUT_FACTS.includes("elementFromPoint"));
-    assert.ok(LAYOUT_FACTS.includes("previousElementSibling"));
-    assert.ok(RULE_FACTS.includes(".ruler + .stage"));
-    assert.ok(RULE_FACTS.includes(".atrack + .stage"));
-    assert.doesNotThrow(() => new Function(`return (${LAYOUT_FACTS});`));
-    assert.doesNotThrow(() => new Function(`return (${RULE_FACTS});`));
-});
+// not behavior: it only checks that probe constants contain certain strings and parse as JavaScript.
+// test("the probes read the column, the stage and the two slack rules", () => {
+//     assert.ok(LAYOUT_FACTS.includes("annotation-track"));
+//     assert.ok(LAYOUT_FACTS.includes("elementFromPoint"));
+//     assert.ok(LAYOUT_FACTS.includes("previousElementSibling"));
+//     assert.ok(RULE_FACTS.includes(".ruler + .stage"));
+//     assert.ok(RULE_FACTS.includes(".atrack + .stage"));
+//     assert.doesNotThrow(() => new Function(`return (${LAYOUT_FACTS});`));
+//     assert.doesNotThrow(() => new Function(`return (${RULE_FACTS});`));
+// });
 
 test("the judges allow one pixel of slack and no more", () => {
     assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 152.4 }), true);

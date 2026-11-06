@@ -68,6 +68,17 @@ test("test_layer1_refs_endpoint_lists_every_branch_with_the_checked_out_one_firs
     assert.equal(view.branches[0], TRUNK_BRANCH);
 });
 
+test("test_layer1_refs_endpoint_hides_the_jfred_branch_from_the_branch_list", () => {
+    // Scenario: the hidden jfred branch must never show in the branch dropdown.
+    const jfredRepoDir = makeRefsFixtureRepo();
+    runGit(jfredRepoDir, "branch jfred");
+    const { view } = captureRefsResponse({ repo: jfredRepoDir });
+    // the other two branches are still offered...
+    assert.deepEqual([...view.branches].sort(), [SIDE_BRANCH, TRUNK_BRANCH]);
+    // ...and the checked-out branch is still `head`.
+    assert.equal(view.head, TRUNK_BRANCH);
+});
+
 test("test_layer1_refs_endpoint_returns_capped_newest_first_commits", () => {
     // Scenario: the commit dropdown is a capped head window, newest at the top.
     const { view } = captureRefsResponse({ repo: repoDir });

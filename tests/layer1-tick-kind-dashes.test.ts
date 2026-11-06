@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+// import { readFileSync } from "node:fs";
 import { createElement } from "../webapp/app-dom.ts";
 import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
 import { attachRulerTickClick } from "../webapp/layer1-components/ruler/layer1-ruler-click.ts";
@@ -81,10 +81,11 @@ test("test_kinds_hidden_on_load_get_no_dash", () => {
     assert.deepEqual(readDashes(tick).map((dash) => dash.title), ["commit"]);
 });
 
-test("test_dash_slot_is_28px_wide_with_a_4px_gap", () => {
-    const css = readFileSync(new URL("../webapp/layer1-components/ruler/ruler-ticks.css", import.meta.url), "utf8");
-    assert.match(css, /\.kind-dashes \{[^}]*gap: 4px;[^}]*width: 28px;/);
-});
+// not behavior: it only regex-matches the CSS source text for constant values instead of checking any rendered result.
+// test("test_dash_slot_is_28px_wide_with_a_4px_gap", () => {
+//     const css = readFileSync(new URL("../webapp/layer1-components/ruler/ruler-ticks.css", import.meta.url), "utf8");
+//     assert.match(css, /\.kind-dashes \{[^}]*gap: 4px;[^}]*width: 28px;/);
+// });
 
 test("test_dashes_add_no_text_to_the_tick", () => {
     const tick = drawRowOf(["n-snap", "n-commit"]);

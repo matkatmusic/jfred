@@ -38,7 +38,7 @@ export function getRequestedRef(query: URLSearchParams): string {
 }
 
 // An unknown time value falls back to committer rather than 400, so a typo doesn't refuse an otherwise-valid view.
-function getRequestedTimeSource(query: URLSearchParams): CommitTimeSource {
+export function getRequestedTimeSource(query: URLSearchParams): CommitTimeSource {
   return query.get("time") === CommitTimeSource.author ? CommitTimeSource.author : CommitTimeSource.committer;
 }
 

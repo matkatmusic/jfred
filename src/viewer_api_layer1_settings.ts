@@ -18,6 +18,7 @@ export interface Layer1ProjectSettings {
   fileHistory: string[];
   collapsedFolders?: string[];
   hiddenKinds?: string[];
+  jfredBaseHash?: string;
 }
 
 export interface Layer1Settings {

@@ -111,11 +111,11 @@ function applyStreamLines<ViewType>(lines: string[], onProgress: ProgressPainter
 }
 
 // Read the NDJSON stream, painting progress; throws on error line or non-2xx, returns undefined when cancelled.
-export async function readLayer1ViewStream<ViewType>(url: string, onProgress: ProgressPainter = renderLayer1Progress): Promise<ViewType | undefined> {
+export async function readLayer1ViewStream<ViewType>(url: string, onProgress: ProgressPainter = renderLayer1Progress, init?: RequestInit): Promise<ViewType | undefined> {
   const controller = new AbortController();
   activeLoadController = controller;
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { ...init, signal: controller.signal });
     if (!response.ok) {
       throw new Error(await response.text());
     }

@@ -1,4 +1,4 @@
-// Task 383: reads the stage to learn which ruler ticks hold a verified node (commit, on-disk or snapshot).
+// Task 383: reads the stage to learn which ruler ticks hold a verified node (commit, on-disk, snapshot or edit).
 
 import { getRequiredElementById } from "../../app-dom.ts";
 import { collectStageBubbles, type BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
@@ -10,9 +10,17 @@ export type TickBeaconFacts = Pick<CutFacts, "isBeacon" | "isCommit" | "instantM
 // Test n-created first: a created node carries n-disk too.
 export function isBeaconNode(element: HTMLElement): boolean {
   const classes = element.classList;
-  if (!classes.contains("node") || classes.contains("n-created"))
+  const isNode = classes.contains("node");
+  const isCreated = classes.contains("n-created");
+  if (!isNode)
     return false;
-  return classes.contains("n-commit") || classes.contains("n-disk") || classes.contains("n-snap");
+  if (isCreated)
+    return false;
+  const isCommit = classes.contains("n-commit");
+  const isDisk = classes.contains("n-disk");
+  const isSnap = classes.contains("n-snap");
+  const isEdit = classes.contains("n-edit");
+  return isCommit || isDisk || isSnap || isEdit;
 }
 
 export function readTickBeaconFacts(tick: HTMLElement, snapshot: BubbleSnapshot[]): TickBeaconFacts {
@@ -21,7 +29,8 @@ export function readTickBeaconFacts(tick: HTMLElement, snapshot: BubbleSnapshot[
     throw new Error("ruler tick has no stored row");
   const facts = { isBeacon: false, isCommit: false, instantMs: Date.parse(row.instants[0]!) };
   for (const event of listAllEventsAtRow(row.axisPxList, snapshot)) {
-    if (!isBeaconNode(event.element))
+    const isBeacon = isBeaconNode(event.element);
+    if (!isBeacon)
       continue;
     facts.isBeacon = true;
     facts.isCommit ||= event.element.classList.contains("n-commit");
@@ -35,8 +44,10 @@ export function countSkippedBeaconTicks(fromMs: number, toMs: number): number {
   for (const tick of getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick")) {
     const facts = readTickBeaconFacts(tick, snapshot);
     const isBetween = facts.instantMs > fromMs && facts.instantMs < toMs;
-    if (isBetween && facts.isBeacon)
-      count++;
+    if (isBetween) {
+      if (facts.isBeacon)
+        count++;
+    }
   }
   return count;
 }

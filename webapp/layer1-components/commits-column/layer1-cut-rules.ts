@@ -8,7 +8,7 @@ export const CutRefusal = {
 export type CutRefusal = (typeof CutRefusal)[keyof typeof CutRefusal];
 
 export const CUT_REFUSAL_TEXT: Record<CutRefusal, string> = {
-  [CutRefusal.noVerifiedNode]: "No mark here: this time has no verified node (commit, on-disk or snapshot).",
+  [CutRefusal.noVerifiedNode]: "No mark here: this time has no node that holds file contents (commit, on-disk, snapshot or edit).",
   [CutRefusal.notForward]: "No mark here: marks only extend forward from the last jfred commit.",
   [CutRefusal.baseNeedsCommit]: "No base here: the base must be a commit.",
 };

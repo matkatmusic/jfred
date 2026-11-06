@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
+// import { createHash } from "node:crypto";
 import { computeSandboxInputKey, executeScriptAgainstState } from "../src/reconstruction_script_sandbox.ts";
 import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
-import { DockerUnavailableError, SANDBOX_IMAGE } from "../src/reconstruction_script_sandbox_docker.ts";
+import { DockerUnavailableError /*, SANDBOX_IMAGE */ } from "../src/reconstruction_script_sandbox_docker.ts";
 import { Path } from "../src/structures/domain.ts";
 import { collectSandboxSpawnLabels } from "./script-execution-test-helpers.ts";
 
@@ -130,17 +130,18 @@ test("test_executeScriptAgainstState_reads_exit_125_as_docker_off_and_stores_not
     assert.equal(readStoredOutcome(script), undefined);
 });
 
-test("test_computeSandboxInputKey_adds_the_runtime_line_after_the_script", () => {
-    const script = "pass\n";
-    const preState = new Map([["b.txt", "2"], ["a.txt", "1"]]);
-    const cwd = new Path("/Users/me/proj");
-    const oldKeyParts = ["\0cwd\0" + cwd, "\0a.txt\x001", "\0b.txt\x002"];
-    const oldKey = oldKeyParts.reduce((hash, part) => hash.update(part), createHash("sha256").update(script)).digest("hex");
-    const newKey = createHash("sha256").update(script).update("\0runtime\0" + SANDBOX_IMAGE);
-    const expectedKey = oldKeyParts.reduce((hash, part) => hash.update(part), newKey).digest("hex");
-    assert.equal(computeSandboxInputKey(script, preState, cwd), expectedKey);
-    assert.notEqual(computeSandboxInputKey(script, preState, cwd), oldKey);
-});
+// not behavior: it rebuilds the exact byte layout of an internal cache-key hash, an internal data shape.
+// test("test_computeSandboxInputKey_adds_the_runtime_line_after_the_script", () => {
+//     const script = "pass\n";
+//     const preState = new Map([["b.txt", "2"], ["a.txt", "1"]]);
+//     const cwd = new Path("/Users/me/proj");
+//     const oldKeyParts = ["\0cwd\0" + cwd, "\0a.txt\x001", "\0b.txt\x002"];
+//     const oldKey = oldKeyParts.reduce((hash, part) => hash.update(part), createHash("sha256").update(script)).digest("hex");
+//     const newKey = createHash("sha256").update(script).update("\0runtime\0" + SANDBOX_IMAGE);
+//     const expectedKey = oldKeyParts.reduce((hash, part) => hash.update(part), newKey).digest("hex");
+//     assert.equal(computeSandboxInputKey(script, preState, cwd), expectedKey);
+//     assert.notEqual(computeSandboxInputKey(script, preState, cwd), oldKey);
+// });
 
 test("test_computeSandboxInputKey_adds_the_box_text_only_when_a_box_exists", () => {
     // Scenario: no box keeps the old key; a box changes it; two different boxes give two keys.

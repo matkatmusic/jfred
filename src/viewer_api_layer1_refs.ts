@@ -7,6 +7,7 @@ import { validateExistingFolderParam, getRequestedRef } from "./viewer_api_layer
 import { parseGitLogOutput } from "./viewer_api_repo_commits.ts";
 import type { Layer1RefsView } from "../webapp/layer1-wire.ts";
 import { sendJson } from "./viewer_server_routes.ts";
+import { JFRED_BRANCH_NAME } from "../webapp/layer1-components/commits-column/layer1-wire-jfred.ts";
 
 // User-locked at 200 (2026-07-27): the dropdown is a head window, not a history browser.
 export const LAYER1_REF_COMMIT_LIMIT = 200;
@@ -53,11 +54,23 @@ function sortBranchesHeadFirst(branches: string[], head: string): string[] {
   return [head, ...others];
 }
 
+// The hidden jfred branch never shows in the branch picker (spec S24).
+function filterOutJfredBranch(branches: string[]): string[] {
+  const visibleBranches: string[] = [];
+  for (const branch of branches) {
+    if (branch !== JFRED_BRANCH_NAME) {
+      visibleBranches.push(branch);
+    }
+  }
+  return visibleBranches;
+}
+
 export function buildLayer1RefsView(repoDir: Path, ref: string): Layer1RefsView {
   // A non-zero status here is the repo confirmation; the page hides the pickers when this fails.
-  const branches = splitNonEmptyLines(
+  const allBranches = splitNonEmptyLines(
     readGitOutput(repoDir, ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
       `not a git repository: ${repoDir.toString()}`));
+  const branches = filterOutJfredBranch(allBranches);
   const head = splitNonEmptyLines(
     readGitOutput(repoDir, ["rev-parse", "--abbrev-ref", "HEAD"],
       `not a git repository: ${repoDir.toString()}`))[0] ?? "";

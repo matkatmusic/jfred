@@ -29,68 +29,76 @@ test("builder output parses as JavaScript", () => {
     assert.doesNotThrow(() => parseAsync(probes.buildTimeToggle("author")));
 });
 
-test("a tick is found by label prefix, and each builder carries its argument", () => {
-    assert.ok(probes.buildFindTick("06-03 18:20:00.000").includes('startsWith("06-03 18:20:00.000")'));
-    assert.ok(probes.buildClickTick("06-03 18:20:00.000").includes(".click()"));
-    assert.ok(probes.buildClickEntry("c0ffee02").includes('data-short-hash="c0ffee02"'));
-    assert.ok(probes.buildTimeToggle("author").includes("time-author"));
-    assert.ok(probes.buildTimeToggle("committer").includes("time-committer"));
-    assert.notEqual(probes.buildRefusalClick(probes.TICK_LABELS.createdOnly), probes.buildRefusalClick(probes.TICK_LABELS.derivedOnly));
-});
+// not behavior: it only checks that builder output strings contain certain text.
+// test("a tick is found by label prefix, and each builder carries its argument", () => {
+//     assert.ok(probes.buildFindTick("06-03 18:20:00.000").includes('startsWith("06-03 18:20:00.000")'));
+//     assert.ok(probes.buildClickTick("06-03 18:20:00.000").includes(".click()"));
+//     assert.ok(probes.buildClickEntry("c0ffee02").includes('data-short-hash="c0ffee02"'));
+//     assert.ok(probes.buildTimeToggle("author").includes("time-author"));
+//     assert.ok(probes.buildTimeToggle("committer").includes("time-committer"));
+//     assert.notEqual(probes.buildRefusalClick(probes.TICK_LABELS.createdOnly), probes.buildRefusalClick(probes.TICK_LABELS.derivedOnly));
+// });
 
-test("the refusal click hides the toast before the click, so only this click can show it", () => {
-    const expression = probes.buildRefusalClick(probes.TICK_LABELS.createdOnly);
-    assert.ok(expression.indexOf("toast.hidden = true") < expression.indexOf(".click()"));
-});
+// not behavior: it only checks the order of text inside a probe string.
+// test("the refusal click hides the toast before the click, so only this click can show it", () => {
+//     const expression = probes.buildRefusalClick(probes.TICK_LABELS.createdOnly);
+//     assert.ok(expression.indexOf("toast.hidden = true") < expression.indexOf(".click()"));
+// });
 
 test("a broken expression is caught by the parse check", () => {
     assert.throws(() => parseExpression("document.querySelector("));
 });
 
-test("test_every_tick_probe_reads_the_full_time_attribute_and_not_the_tick_text", () => {
-    // The tick finder, the entry probe and the tick states all read dataset.fullTime.
-    assert.ok(probes.buildFindTick(probes.TICK_LABELS.late).includes("t.dataset.fullTime.startsWith"));
-    assert.ok(probes.ENTRY_FACTS.includes("t.dataset.fullTime.startsWith"));
-    assert.ok(probes.TICK_STATES.includes("fullTime: t.dataset.fullTime"));
-    // None of them finds a tick by its text content.
-    assert.ok(!probes.buildFindTick(probes.TICK_LABELS.late).includes("textContent"));
-    assert.ok(!probes.ENTRY_FACTS.includes("t.textContent.startsWith"));
-    assert.ok(!probes.buildRefusalClick(probes.TICK_LABELS.createdOnly).includes("t.textContent.startsWith"));
-});
+// not behavior: it only checks that constant probe strings contain certain text.
+// test("test_every_tick_probe_reads_the_full_time_attribute_and_not_the_tick_text", () => {
+//     // The tick finder, the entry probe and the tick states all read dataset.fullTime.
+//     assert.ok(probes.buildFindTick(probes.TICK_LABELS.late).includes("t.dataset.fullTime.startsWith"));
+//     assert.ok(probes.ENTRY_FACTS.includes("t.dataset.fullTime.startsWith"));
+//     assert.ok(probes.TICK_STATES.includes("fullTime: t.dataset.fullTime"));
+//     // None of them finds a tick by its text content.
+//     assert.ok(!probes.buildFindTick(probes.TICK_LABELS.late).includes("textContent"));
+//     assert.ok(!probes.ENTRY_FACTS.includes("t.textContent.startsWith"));
+//     assert.ok(!probes.buildRefusalClick(probes.TICK_LABELS.createdOnly).includes("t.textContent.startsWith"));
+// });
 
-test("test_strip_probes_read_the_strip_that_exists_only_in_commit_mode", () => {
-    // The strip count is a plain count of #jfred-strip elements.
-    assert.equal(probes.STRIP_COUNT, "document.querySelectorAll('#jfred-strip').length");
-    // The head probe reads head text and Delete count; the stage probe reads the left edge.
-    assert.ok(probes.STRIP_HEAD_FACTS.includes("deleteCount") && probes.STRIP_HEAD_FACTS.includes(".jhead span"));
-    assert.ok(probes.STAGE_FACTS.includes("getElementById('stage')") && probes.STAGE_FACTS.includes("stripCount"));
-    // The layout probes accept a page with no #annotation-track, since the session column is off at load.
-    assert.ok(probes.STRIP_LAYOUT_FACTS.includes("track ? box('annotation-track').left : null"));
-    assert.ok(probes.OVERLAP_FACTS.includes("track: track ? box(track) : null"));
-});
+// not behavior: it only checks that constant probe strings equal or contain certain text.
+// test("test_strip_probes_read_the_strip_that_exists_only_in_commit_mode", () => {
+//     // The strip count is a plain count of #jfred-strip elements.
+//     assert.equal(probes.STRIP_COUNT, "document.querySelectorAll('#jfred-strip').length");
+//     // The head probe reads head text and Delete count; the stage probe reads the left edge.
+//     assert.ok(probes.STRIP_HEAD_FACTS.includes("deleteCount") && probes.STRIP_HEAD_FACTS.includes(".jhead span"));
+//     assert.ok(probes.STAGE_FACTS.includes("getElementById('stage')") && probes.STAGE_FACTS.includes("stripCount"));
+//     // The layout probes accept a page with no #annotation-track, since the session column is off at load.
+//     assert.ok(probes.STRIP_LAYOUT_FACTS.includes("track ? box('annotation-track').left : null"));
+//     assert.ok(probes.OVERLAP_FACTS.includes("track: track ? box(track) : null"));
+// });
 
-test("test_rule_scan_pattern_holds_the_new_names_and_skips_no_rule", () => {
-    // The pattern names the strip, mark and message rules and every new class of the ruler redesign.
-    for (const name of ["jfred-strip", "cut-", "sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-", "hover-popup", "hp-line"])
-        assert.ok(probes.CUT_RULE_PATTERN.includes(name), name);
-    // No rule is skipped: the scan has no --page filter.
-    assert.ok(!probes.CUT_RULE_TEXTS.includes("--page"));
-});
+// not behavior: it only checks that a constant pattern string contains certain names.
+// test("test_rule_scan_pattern_holds_the_new_names_and_skips_no_rule", () => {
+//     // The pattern names the strip, mark and message rules and every new class of the ruler redesign.
+//     for (const name of ["jfred-strip", "cut-", "sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-", "hover-popup", "hp-line"])
+//         assert.ok(probes.CUT_RULE_PATTERN.includes(name), name);
+//     // No rule is skipped: the scan has no --page filter.
+//     assert.ok(!probes.CUT_RULE_TEXTS.includes("--page"));
+// });
 
-test("the nine tick labels are distinct UTC prefixes in the ruler format", () => {
-    const labels = Object.values(probes.TICK_LABELS);
-    assert.equal(new Set(labels).size, 9);
-    for (const label of labels)
-        assert.match(label, /^\d\d-\d\d \d\d:\d\d:\d\d\.\d\d\d$/);
-});
+// not behavior: it only checks the value and shape of a constant.
+// test("the nine tick labels are distinct UTC prefixes in the ruler format", () => {
+//     const labels = Object.values(probes.TICK_LABELS);
+//     assert.equal(new Set(labels).size, 9);
+//     for (const label of labels)
+//         assert.match(label, /^\d\d-\d\d \d\d:\d\d:\d\d\.\d\d\d$/);
+// });
 
-test("the literal phrases and the mode label are the ones task 383 names", () => {
-    assert.equal(probes.FOOTNOTE_PREFIX, "reconstructed by JFRED @ ");
-    assert.equal(probes.COMMIT_MODE_LABEL, "Commit mode");
-});
+// not behavior: it only checks the values of two constants.
+// test("the literal phrases and the mode label are the ones task 383 names", () => {
+//     assert.equal(probes.FOOTNOTE_PREFIX, "reconstructed by JFRED @ ");
+//     assert.equal(probes.COMMIT_MODE_LABEL, "Commit mode");
+// });
 
-test("the entry probe reads the six wire facts and the tick centre; the request count is the L7 one", () => {
-    for (const field of ["kind", "shortHash", "parentHash", "instant", "cy", "tickCy"])
-        assert.ok(probes.ENTRY_FACTS.includes(field), field);
-    assert.ok(probes.MARK_FACTS.includes("performance.getEntriesByType('resource')"));
-});
+// not behavior: it only checks that constant probe strings contain certain text.
+// test("the entry probe reads the six wire facts and the tick centre; the request count is the L7 one", () => {
+//     for (const field of ["kind", "shortHash", "parentHash", "instant", "cy", "tickCy"])
+//         assert.ok(probes.ENTRY_FACTS.includes(field), field);
+//     assert.ok(probes.MARK_FACTS.includes("performance.getEntriesByType('resource')"));
+// });

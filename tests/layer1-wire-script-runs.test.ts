@@ -10,7 +10,8 @@ test("test_WireScriptExecutorKind_spells_every_engine_executor_kind_the_same", (
     assert.deepEqual(Object.values(WireScriptExecutorKind).sort(), Object.values(ScriptExecutorKind).sort());
 });
 
-test("test_WireScriptExecutorKind_names_python_and_bash", () => {
-    assert.equal(WireScriptExecutorKind.python, "python");
-    assert.equal(WireScriptExecutorKind.bash, "bash");
-});
+// not behavior: only checks the value of a constant.
+// test("test_WireScriptExecutorKind_names_python_and_bash", () => {
+//     assert.equal(WireScriptExecutorKind.python, "python");
+//     assert.equal(WireScriptExecutorKind.bash, "bash");
+// });

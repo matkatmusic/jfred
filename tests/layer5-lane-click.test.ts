@@ -4,7 +4,8 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { HeadlessPage } from "../scripts/visual/cdp.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
-import { buildDotProbe, validateLaneNodeClicks } from "../scripts/visual/layer5-lane-click.ts";
+// import { buildDotProbe } from "../scripts/visual/layer5-lane-click.ts";
+import { validateLaneNodeClicks } from "../scripts/visual/layer5-lane-click.ts";
 
 function fakePage(answers: unknown[]): HeadlessPage {
     const queue = [...answers];
@@ -30,15 +31,17 @@ const GOOD_FACTS = {
     instant: "2026-01-01T00:00:00.000Z", isShown: true, isInsidePane: true, touchesDrawer: false, drawerOpen: true,
 };
 
-test("buildDotProbe filters to the bubble of the given path and picks the dot at the index", () => {
-    const probe = buildDotProbe({ path: "src/a.ts", max: 1 }, 3);
-    assert.ok(probe.includes(JSON.stringify("src/a.ts")));
-    assert.ok(probe.includes("dots[3]"));
-});
+// not behavior: it only checks that the generated script text contains certain substrings.
+// test("buildDotProbe filters to the bubble of the given path and picks the dot at the index", () => {
+//     const probe = buildDotProbe({ path: "src/a.ts", max: 1 }, 3);
+//     assert.ok(probe.includes(JSON.stringify("src/a.ts")));
+//     assert.ok(probe.includes("dots[3]"));
+// });
 
-test("buildDotProbe accepts every bubble when no path is given", () => {
-    assert.ok(buildDotProbe({ max: 1 }, 0).includes(".filter((box) => true)"));
-});
+// not behavior: it only checks that the generated script text contains a substring.
+// test("buildDotProbe accepts every bubble when no path is given", () => {
+//     assert.ok(buildDotProbe({ max: 1 }, 0).includes(".filter((box) => true)"));
+// });
 
 test("validateLaneNodeClicks passes when each clicked lane node opens a branch revision drawer", async () => {
     const page = fakePage([1, undefined, GOOD_FACTS, -1, undefined]);

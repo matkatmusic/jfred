@@ -66,9 +66,10 @@ function measureBranchNodeDifference(block: string, colourName: string): number 
   return readThemeRgb(block, colourName).reduce((sum, channel, index) => sum + Math.abs(channel - surface[index]!) * opacity, 0);
 }
 
-test("the main line uses the branch line colour", () => {
-  assert.equal(readDeclarationsOf(".lane .lrail").get("border-left"), "1.5px solid var(--branch-line)");
-});
+// not behavior: only checks one CSS declaration string equals a constant.
+// test("the main line uses the branch line colour", () => {
+//   assert.equal(readDeclarationsOf(".lane .lrail").get("border-left"), "1.5px solid var(--branch-line)");
+// });
 
 test("branch lane dots are brighter than the old user colour against the dark surface", () => {
   const colourName = readDeclarationsOf(".bnode").get("background")!.match(/var\(--([\w-]+)\)/)![1]!;

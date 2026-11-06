@@ -8,15 +8,17 @@ import type { CopyEvent, FileEvent } from "../src/reconstruction_events.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 
-// splitLines drops a single trailing newline, so "a\nb\n" is two lines, not three.
-test("test_split_lines_module_is_importable_and_drops_trailing_newline", () => {
-    assert.deepEqual(splitLines("a\nb\n"), ["a", "b"]);
-});
+// not behavior: only checks that a helper module is importable; the same splitLines result is covered by the trailing-newline test below.
+// // splitLines drops a single trailing newline, so "a\nb\n" is two lines, not three.
+// test("test_split_lines_module_is_importable_and_drops_trailing_newline", () => {
+//     assert.deepEqual(splitLines("a\nb\n"), ["a", "b"]);
+// });
 
-// The genesis sentinel is a named constant standing in for the old bare -1.
-test("test_genesis_sentinel_constant_is_defined", () => {
-    assert.equal(DOES_NOT_EXIST_YET, -1);
-});
+// not behavior: only checks a constant's value.
+// // The genesis sentinel is a named constant standing in for the old bare -1.
+// test("test_genesis_sentinel_constant_is_defined", () => {
+//     assert.equal(DOES_NOT_EXIST_YET, -1);
+// });
 
 // A trailing newline does not add a phantom empty line (was engine spec 7).
 test("test_trailing_newline_does_not_add_phantom_line", () => {

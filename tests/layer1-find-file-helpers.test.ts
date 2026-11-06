@@ -5,31 +5,33 @@ import assert from "node:assert/strict";
 import {
     COLLIDING_PATHS,
     dispatchCycleButtonClick,
-    moveToBubbleAtPath,
+    // moveToBubbleAtPath,
     openFoundPage,
-    readCrumbText,
+    // readCrumbText,
     readFindStatusText,
-    scrolledOptions,
+    // scrolledOptions,
     scrolledPaths,
     sendTermWithEnter,
 } from "./layer1-find-file-helpers.ts";
 
-test("test_open_found_page_builds_one_bubble_per_path_with_the_full_path_in_data_path", () => {
-    openFoundPage(["src/a.ts", "tasks.json"]);
-    const fnames = [...document.querySelectorAll(".filebox .fname")];
-    assert.deepEqual(fnames.map((fname) => fname.textContent), ["a.ts", "tasks.json"]);
-    assert.deepEqual(fnames.map((fname) => fname.getAttribute("data-path")), ["src/a.ts", "tasks.json"]);
-});
+// not behavior: it only checks the test harness helper openFoundPage, not the product.
+// test("test_open_found_page_builds_one_bubble_per_path_with_the_full_path_in_data_path", () => {
+//     openFoundPage(["src/a.ts", "tasks.json"]);
+//     const fnames = [...document.querySelectorAll(".filebox .fname")];
+//     assert.deepEqual(fnames.map((fname) => fname.textContent), ["a.ts", "tasks.json"]);
+//     assert.deepEqual(fnames.map((fname) => fname.getAttribute("data-path")), ["src/a.ts", "tasks.json"]);
+// });
 
-test("test_open_found_page_empties_the_scroll_records_left_by_an_earlier_page", () => {
-    openFoundPage(COLLIDING_PATHS);
-    moveToBubbleAtPath("tasks.json");
-    assert.equal(scrolledPaths.length, 1);
-    assert.equal(scrolledOptions.length, 1);
-    openFoundPage(COLLIDING_PATHS);
-    assert.equal(scrolledPaths.length, 0);
-    assert.equal(scrolledOptions.length, 0);
-});
+// not behavior: it only checks that the test harness resets its own scroll records.
+// test("test_open_found_page_empties_the_scroll_records_left_by_an_earlier_page", () => {
+//     openFoundPage(COLLIDING_PATHS);
+//     moveToBubbleAtPath("tasks.json");
+//     assert.equal(scrolledPaths.length, 1);
+//     assert.equal(scrolledOptions.length, 1);
+//     openFoundPage(COLLIDING_PATHS);
+//     assert.equal(scrolledPaths.length, 0);
+//     assert.equal(scrolledOptions.length, 0);
+// });
 
 test("test_send_term_with_enter_scrolls_to_the_first_match_and_reports_in_the_find_status", () => {
     openFoundPage(COLLIDING_PATHS);
@@ -45,8 +47,9 @@ test("test_dispatch_cycle_button_click_steps_to_the_next_match", () => {
     assert.deepEqual(scrolledPaths, [".claude/launch.json", ".vscode/launch.json"]);
 });
 
-test("test_read_crumb_text_returns_the_crumb_text_and_is_empty_on_a_fresh_page", () => {
-    openFoundPage(COLLIDING_PATHS);
-    assert.equal(typeof readCrumbText(), "string");
-    assert.doesNotMatch(readCrumbText(), /of \d/);
-});
+// not behavior: it only checks the test harness helper readCrumbText returns a string.
+// test("test_read_crumb_text_returns_the_crumb_text_and_is_empty_on_a_fresh_page", () => {
+//     openFoundPage(COLLIDING_PATHS);
+//     assert.equal(typeof readCrumbText(), "string");
+//     assert.doesNotMatch(readCrumbText(), /of \d/);
+// });

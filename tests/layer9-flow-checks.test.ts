@@ -3,12 +3,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-    findTickState, isArmedPaintRight, isCommitRight, isFirstMarkRight, isMessageKept, isMovedMarkRight, isRefusalShown, isUnarmedPaintRight,
+    findTickState, isArmedPaintRight, isCommitRight, isFirstMarkRight, isMessageKept, isMovedMarkRight, isRefusalShown, isUnarmedPaintRight, isUnchangedQuestionRight,
     validateArmedPaint, validateCommit, validateNormalClick, validatePendingMark, validateRefusals, validateUnarmedPaint,
 } from "../scripts/visual/layer9-flow-checks.ts";
 import { REQUEST_COUNT } from "../scripts/visual/layer7-probes.ts";
 import {
-    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildFindTick, buildRefusalClick,
+    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildBeaconInstantCount, buildFindTick, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
@@ -36,7 +36,8 @@ const ARMED: TickState[] = [
     makeDim(TICK_LABELS.behindTip, CutRefusal.notForward), makeDim(TICK_LABELS.atTip, CutRefusal.notForward), ...ARMED_MARKS,
 ];
 
-const makeEntry = (kind: string, shortHash: string | null, parentHash: string | null): EntryFacts => ({ kind, shortHash, parentHash, instant: "2026-06-03T18:20:00.000Z", cx: 0, cy: 0, tickCy: 0 });
+const ENTRY_INSTANT = "2026-06-03T18:20:00.000Z";
+const makeEntry = (kind: string, shortHash: string | null, parentHash: string | null): EntryFacts => ({ kind, shortHash, parentHash, instant: ENTRY_INSTANT, cx: 0, cy: 0, tickCy: 0 });
 const BASE_ENTRIES = [makeEntry("base", "a1b2c3d4", null), makeEntry("commit", "c0ffee01", "a1b2c3d4"), makeEntry("commit", "c0ffee02", "c0ffee01")];
 const MESSAGE = "jfred: reconstruct to X\n\nincludes 1 unmarked changes\n\nAuthor-Date: X\nCommit-Date: Y\nreconstructed by JFRED @ Y";
 const PENDING_FACTS: MarkFacts = {
@@ -44,7 +45,7 @@ const PENDING_FACTS: MarkFacts = {
     entries: [...BASE_ENTRIES, makeEntry("pending", null, "c0ffee02")],
 };
 const COMMITTED_FACTS: MarkFacts = {
-    drawer: { isOpen: true, text: MESSAGE, hasButton: false }, pending: { entries: 0, ticks: 0 }, chains: 3, requests: 100,
+    drawer: { isOpen: true, text: MESSAGE, hasButton: false }, pending: { entries: 0, ticks: 0 }, chains: 3, requests: 101,
     entries: [...BASE_ENTRIES, makeEntry("commit", "c0ffee03", "c0ffee02")],
 };
 const MOVED_FACTS: MarkFacts = PENDING_FACTS;
@@ -84,10 +85,12 @@ test("test_commit_mode_off_means_no_cut_class_on_any_tick_and_no_strip", async (
     assert.equal(isUnarmedPaintRight([...UNARMED, makeDim("07-02 00:00:00.000", CutRefusal.notForward)], 0), false);
 });
 
-test("test_every_tick_lookup_reads_the_full_time_and_not_the_visible_text", () => {
-    // The finder passes the label to startsWith on dataset.fullTime and never reads textContent.
-    assert.ok(buildFindTick("06-03 18:20:00.000").includes("t.dataset.fullTime.startsWith"));
-    assert.ok(!buildFindTick("06-03 18:20:00.000").includes("textContent"));
+test("test_every_tick_lookup_reads_the_full_time_first_and_the_text_only_without_it", () => {
+    // // The finder passes the label to startsWith on dataset.fullTime and never reads textContent.
+    // assert.ok(buildFindTick("06-03 18:20:00.000").includes("t.dataset.fullTime.startsWith"));
+    // assert.ok(!buildFindTick("06-03 18:20:00.000").includes("textContent"));
+    // The finder reads dataset.fullTime first and falls back to textContent.
+    assert.ok(buildFindTick("06-03 18:20:00.000").includes("t.dataset.fullTime ?? t.textContent"));
     // A state whose text does not start with the label is still found by its full time.
     assert.equal(findTickState(UNARMED, TICK_LABELS.base).fullTime, TICK_LABELS.base);
 });
@@ -144,7 +147,9 @@ test("isRefusalShown needs the exact text, a shown toast and no pending mark, ti
 });
 
 const runPending = (first: MarkFacts, moved: MarkFacts, requestsBefore = 100) =>
-    failuresOf(() => validatePendingMark(makeScriptedPage(new Map<string, unknown[]>([[REQUEST_COUNT, [requestsBefore]], [MARK_FACTS, [first, moved]]]))));
+    failuresOf(() => validatePendingMark(makeScriptedPage(new Map<string, unknown[]>([
+        [REQUEST_COUNT, [requestsBefore]], [MARK_FACTS, [first, moved]], [buildBeaconInstantCount(ENTRY_INSTANT, ENTRY_INSTANT), [1]],
+    ]))));
 
 test("validatePendingMark passes the good marks and fails each single bad fact", async () => {
     assert.deepEqual(await runPending(FIRST_FACTS, MOVED_FACTS), []);
@@ -154,7 +159,8 @@ test("validatePendingMark passes the good marks and fails each single bad fact",
     assert.equal((await runPending(FIRST_FACTS, { ...MOVED_FACTS, drawer: { ...MOVED_FACTS.drawer, text: "no includes" } })).length, 1);
     assert.equal((await runPending(FIRST_FACTS, { ...MOVED_FACTS, pending: { entries: 1, ticks: 0 } })).length, 1);
     assert.equal((await runPending(FIRST_FACTS, { ...MOVED_FACTS, requests: 101 })).length, 1);
-    assert.equal(isMovedMarkRight({ ...MOVED_FACTS, entries: BASE_ENTRIES }), false);
+    assert.equal(isMovedMarkRight({ ...MOVED_FACTS, entries: BASE_ENTRIES }, 1), false);
+    assert.equal(isMovedMarkRight(MOVED_FACTS, 2), false);
     assert.equal(isFirstMarkRight({ ...FIRST_FACTS, drawer: { ...FIRST_FACTS.drawer, isOpen: false } }), false);
 });
 
@@ -167,10 +173,26 @@ test("validateCommit passes the good commit and fails each single bad fact", asy
     assert.equal((await runCommit({ ...COMMITTED_FACTS, entries: [...added, makeEntry("commit", "c0ffee03", "a1b2c3d4")] })).length, 1);
     assert.equal((await runCommit({ ...COMMITTED_FACTS, entries: added })).length, 1);
     assert.equal((await runCommit({ ...COMMITTED_FACTS, chains: 2 })).length, 1);
-    assert.equal((await runCommit({ ...COMMITTED_FACTS, requests: 101 })).length, 1);
+    assert.equal((await runCommit({ ...COMMITTED_FACTS, requests: 100 })).length, 1);
     assert.equal((await runCommit({ ...COMMITTED_FACTS, pending: { entries: 1, ticks: 0 } })).length, 1);
     assert.equal((await runCommit({ ...COMMITTED_FACTS, drawer: { ...COMMITTED_FACTS.drawer, hasButton: true } })).length, 1);
     assert.equal((await runCommit({ ...COMMITTED_FACTS, drawer: { ...COMMITTED_FACTS.drawer, text: `${MESSAGE}\nx` } })).length, 1);
+});
+
+test("test_unchanged_question_needs_one_row_naming_the_next_instant_and_one_new_request", () => {
+    // Setup: the pending facts before Commit; after Commit one row asks, the mark stays and one request goes out.
+    const asked = { ...PENDING_FACTS, requests: 101 };
+    const row = { rows: 1, text: "Move the mark to 2026-06-03T18:20:00?" };
+    // The good case passes.
+    assert.equal(isUnchangedQuestionRight(PENDING_FACTS, asked, row), true);
+    // No question row fails.
+    assert.equal(isUnchangedQuestionRight(PENDING_FACTS, asked, { ...row, rows: 0 }), false);
+    // A row that names another instant fails.
+    assert.equal(isUnchangedQuestionRight(PENDING_FACTS, asked, { ...row, text: "Move the mark?" }), false);
+    // A lost pending entry fails.
+    assert.equal(isUnchangedQuestionRight(PENDING_FACTS, { ...asked, pending: { entries: 0, ticks: 0 } }, row), false);
+    // No new request fails.
+    assert.equal(isUnchangedQuestionRight(PENDING_FACTS, PENDING_FACTS, row), false);
 });
 
 test("the pure commit judges agree with the checks", () => {

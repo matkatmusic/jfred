@@ -2,7 +2,8 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
+import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -20,6 +21,7 @@ const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
 const CANNED_VIEW = {
   ...EMPTY_VIEW,
   jfredCommits: {
+    isCanned: true as const,
     base: { instant: TICKS[0]!.instant, shortHash: "a1b2c3d4" },
     commits: [
       { instant: TICKS[1]!.instant, shortHash: "c0ffee01", parentShortHash: "a1b2c3d4", message: "message one" },
@@ -82,10 +84,12 @@ test("test_commit_mode_off_removes_the_strip", () => {
   assert.equal(document.getElementById("jfred-strip"), null);
 });
 
-test("test_the_delete_button_clears_the_state_and_keeps_the_head", () => {
-  // Verify: base, commits and pending are gone, no entry is drawn, the head stays.
+test("test_the_delete_button_clears_the_state_and_keeps_the_head", async () => {
+  // Verify: after the Yes answer, base, commits and pending are gone, no entry is drawn, the head stays.
   renderJfredStrip(TICKS);
   document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
+  await waitForAsyncWork();
   const branch = readJfredBranch();
   assert.equal(branch.base, undefined);
   assert.equal(branch.commits.length, 0);
@@ -121,12 +125,16 @@ test("test_a_click_on_the_pending_entry_opens_its_message_with_a_commit_button",
   assert.notEqual(document.getElementById("jfred-commit-button"), null);
 });
 
-test("test_the_commit_button_adds_the_entry_and_the_drawer_shows_it_without_a_button", () => {
-  // Verify: Commit makes c0ffee03 with parent c0ffee02, redraws the column and drops the button.
+test("test_the_commit_button_adds_the_entry_and_the_drawer_shows_it_without_a_button", async () => {
+  // Verify: Commit posts, the streamed reply adds c0ffee03 with parent c0ffee02, redraws the column and drops the button.
+  installStreamRoute("/api/layer1-jfred-commit", [
+    { outcome: "committed", commit: { instant: TICKS[3]!.instant, shortHash: "c0ffee03", parentShortHash: "c0ffee02", message: "draft message" } },
+  ]);
   setPending({ instant: TICKS[3]!.instant, message: "draft message" });
   renderJfredStrip(TICKS);
   openPendingMessage();
   document.getElementById("jfred-commit-button")!.click();
+  await waitForAsyncWork();
   assert.equal(readJfredBranch().commits.at(-1)!.shortHash, "c0ffee03");
   assert.equal(findEntry("c0ffee03").dataset["parentHash"], "c0ffee02");
   assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 4);
@@ -141,10 +149,12 @@ test("test_a_click_on_the_base_opens_nothing", () => {
   assert.equal(document.getElementById("drawer")!.classList.contains("open"), false);
 });
 
-test("test_redraw_builds_the_strip_from_the_stored_ticks", () => {
+test("test_redraw_builds_the_strip_from_the_stored_ticks", async () => {
   // Verify: after a delete, a new base plus a redraw brings the entry back without new ticks.
   renderJfredStrip(TICKS);
   document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
+  await waitForAsyncWork();
   loadJfredBranch(CANNED_VIEW);
   renderJfredEntries();
   assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);

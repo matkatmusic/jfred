@@ -33,36 +33,41 @@ function fakeNodes(kind: string): Record<string, FakeNode> {
     return { ruler, "annotation-track": track, stage };
 }
 
-test("buildRecordDot puts the record id inside the node selector", () => {
-    const expression = probes.buildRecordDot("l7-block-3");
-    assert.ok(expression.includes('i[data-record-id="l7-block-3"]'));
-    assert.notEqual(expression, probes.buildRecordDot("l7-block-4"));
-});
+// not behavior: it only checks that the builder's output text contains certain strings.
+// test("buildRecordDot puts the record id inside the node selector", () => {
+//     const expression = probes.buildRecordDot("l7-block-3");
+//     assert.ok(expression.includes('i[data-record-id="l7-block-3"]'));
+//     assert.notEqual(expression, probes.buildRecordDot("l7-block-4"));
+// });
 
-test("buildScrollTo puts both offsets in the scroll statements", () => {
-    const expression = probes.buildScrollTo(120, 400);
-    assert.ok(expression.includes("pane.scrollTop = 120"));
-    assert.ok(expression.includes("pane.scrollLeft = 400"));
-    assert.equal(probes.SCROLL_HOME, probes.buildScrollTo(0, 0));
-});
+// not behavior: it only checks that the builder's output text contains certain strings.
+// test("buildScrollTo puts both offsets in the scroll statements", () => {
+//     const expression = probes.buildScrollTo(120, 400);
+//     assert.ok(expression.includes("pane.scrollTop = 120"));
+//     assert.ok(expression.includes("pane.scrollLeft = 400"));
+//     assert.equal(probes.SCROLL_HOME, probes.buildScrollTo(0, 0));
+// });
 
-test("buildSetHideIgnored and buildHideSettled carry the wanted state", () => {
-    assert.ok(probes.buildSetHideIgnored(false).includes("box.checked !== false"));
-    assert.ok(probes.buildSetHideIgnored(true).includes("box.checked !== true"));
-    assert.ok(probes.buildHideSettled(true).endsWith("=== true"));
-    assert.ok(probes.buildHideSettled(false).endsWith("=== false"));
-});
+// not behavior: it only checks that the builders' output text contains or ends with certain strings.
+// test("buildSetHideIgnored and buildHideSettled carry the wanted state", () => {
+//     assert.ok(probes.buildSetHideIgnored(false).includes("box.checked !== false"));
+//     assert.ok(probes.buildSetHideIgnored(true).includes("box.checked !== true"));
+//     assert.ok(probes.buildHideSettled(true).endsWith("=== true"));
+//     assert.ok(probes.buildHideSettled(false).endsWith("=== false"));
+// });
 
-test("buildBracketProbe puts the root and the selector in the query", () => {
-    const expression = probes.buildBracketProbe("document", ".abracket[data-pair-id=\"x\"]");
-    assert.ok(expression.includes("document.querySelectorAll("));
-    assert.ok(expression.includes("data-pair-id"));
-});
+// not behavior: it only checks that the builder's output text contains certain strings.
+// test("buildBracketProbe puts the root and the selector in the query", () => {
+//     const expression = probes.buildBracketProbe("document", ".abracket[data-pair-id=\"x\"]");
+//     assert.ok(expression.includes("document.querySelectorAll("));
+//     assert.ok(expression.includes("data-pair-id"));
+// });
 
-test("buildKindBoxStates skips the named kind", () => {
-    assert.ok(probes.buildKindBoxStates("tool").includes("!== 'tool'"));
-    assert.notEqual(probes.buildKindBoxStates("tool"), probes.buildKindBoxStates(""));
-});
+// not behavior: it only checks that the builder's output text contains a certain string.
+// test("buildKindBoxStates skips the named kind", () => {
+//     assert.ok(probes.buildKindBoxStates("tool").includes("!== 'tool'"));
+//     assert.notEqual(probes.buildKindBoxStates("tool"), probes.buildKindBoxStates(""));
+// });
 
 test("every expression string parses as JavaScript", () => {
     const expressionNames: string[] = [];
@@ -102,11 +107,12 @@ test("TRACK_FACTS accepts the jfred strip between the column and the stage, and 
     assert.equal(run("stripWrongSide").isBeforeStage, false);
 });
 
-test("the two pair ids are distinct toolu_fixture_l7 strings", () => {
-    assert.match(probes.COLUMN_PAIR_ID, /^toolu_fixture_l7_/);
-    assert.match(probes.BUBBLE_PAIR_ID, /^toolu_fixture_l7_/);
-    assert.notEqual(probes.COLUMN_PAIR_ID, probes.BUBBLE_PAIR_ID);
-});
+// not behavior: it only checks the values of two constants.
+// test("the two pair ids are distinct toolu_fixture_l7 strings", () => {
+//     assert.match(probes.COLUMN_PAIR_ID, /^toolu_fixture_l7_/);
+//     assert.match(probes.BUBBLE_PAIR_ID, /^toolu_fixture_l7_/);
+//     assert.notEqual(probes.COLUMN_PAIR_ID, probes.BUBBLE_PAIR_ID);
+// });
 
 test("test_openSessionColumn_clicks_the_session_toggle_then_waits_for_the_track", async () => {
     // Steps: run the helper on a recording page; the click comes first, then the track wait.

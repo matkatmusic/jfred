@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getRunScanForTarget } from "../src/reconstruction_lineage_run_scan.ts";
+// import { getRunScanForTarget } from "../src/reconstruction_lineage_run_scan.ts";
 import { computeLineageSeedHorizonKey } from "../src/reconstruction_lineage_horizon.ts";
 import { computeRunExecutionKey } from "../src/reconstruction_script_runs.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";
 import { getDerivedCaches } from "../src/reconstruction_corpus.ts";
-import { getStaticInputsForTarget } from "../src/reconstruction_lineage_inputs.ts";
+// import { getStaticInputsForTarget } from "../src/reconstruction_lineage_inputs.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
@@ -14,18 +14,19 @@ import { buildToolRecord } from "./script-execution-test-helpers.ts";
 const emptyReader: BackupReader = () => "";
 const TARGET = new Path("/proj/plate.py");
 
-// With no script runs, the scan finds no relevant instants and is cached per target.
-test("test_run_scan_with_no_script_runs_is_empty_and_cached", () => {
-    const records = [
-        buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
-    ];
-    const derived = getDerivedCaches(records, emptyReader);
-    const inputs = getStaticInputsForTarget(records, TARGET);
-    const scan = getRunScanForTarget(records, derived, TARGET, inputs);
-    assert.deepEqual(scan.relevantInstantsMs, []);
-    assert.equal(scan.firstDiffRelevantMs, undefined);
-    assert.equal(getRunScanForTarget(records, derived, TARGET, inputs), scan);
-});
+// not behavior: checks the internal scan data shape (relevantInstantsMs) and cache identity of an inner helper.
+// // With no script runs, the scan finds no relevant instants and is cached per target.
+// test("test_run_scan_with_no_script_runs_is_empty_and_cached", () => {
+//     const records = [
+//         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
+//     ];
+//     const derived = getDerivedCaches(records, emptyReader);
+//     const inputs = getStaticInputsForTarget(records, TARGET);
+//     const scan = getRunScanForTarget(records, derived, TARGET, inputs);
+//     assert.deepEqual(scan.relevantInstantsMs, []);
+//     assert.equal(scan.firstDiffRelevantMs, undefined);
+//     assert.equal(getRunScanForTarget(records, derived, TARGET, inputs), scan);
+// });
 
 test("test_run_memoized_as_skip_never_bumps_the_horizon", () => {
     // Scenario: the in-between run is memoized as a skip (post: undefined), so it injects nothing and the keys match.

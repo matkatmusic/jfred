@@ -12,6 +12,7 @@ import {
     fetchFixtureView,
     launchFixtureViewer,
 } from "./layer1-view-test-helpers.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 
 // Ports 17400, 17900, 18400 and 19400 belong to other test files.
 const SCRATCH_PORT = 18900 + (process.pid % 500);
@@ -43,10 +44,19 @@ test("test_layer1_view_endpoint_never_emits_annotations_or_tool_nodes", async ()
     // The real builder leaves both fixture-only fields out, so nothing renders outside fixture mode.
     const view = await fetchFixtureView(SCRATCH_PORT, diskDir, repoDir);
     assert.equal(Object.hasOwn(view, "annotations"), false);
-    assert.equal(Object.hasOwn(view, "jfredCommits"), false);
     for (const pair of view.pairs) {
         assert.equal(Object.hasOwn(pair, "toolNodes"), false);
     }
+});
+
+test("test_layer1_view_endpoint_emits_empty_jfredCommits_when_the_repo_has_no_jfred_branch", async () => {
+    // No jfred branch exists, so the builder emits an empty list; the webapp wire type has the field.
+    const response = await fetch(buildViewUrl(SCRATCH_PORT, { dir: diskDir, repo: repoDir }));
+    assert.equal(response.status, 200);
+    const view = await response.json() as WireLayer1View;
+    // no base and no commits, and no canned marker.
+    assert.deepEqual(view.jfredCommits, { commits: [] });
+    assert.equal(Object.hasOwn(view.jfredCommits ?? {}, "isCanned"), false);
 });
 
 test("test_layer1_view_endpoint_rejects_a_ref_that_does_not_resolve", async () => {

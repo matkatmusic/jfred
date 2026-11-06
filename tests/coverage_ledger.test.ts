@@ -1,4 +1,4 @@
-// One check for the only non-trivial bit of the ledger: parsing prior pass-timestamps back out of a rendered markdown row, so a re-sweep preserves a failing scenario's history instead of clobbering it.
+// One check for parsing prior pass-timestamps from a rendered markdown row, so re-sweeps keep failing scenarios' history.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ledgerRow } from "../src/regex_expressions.ts";

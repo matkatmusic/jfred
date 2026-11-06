@@ -14,6 +14,7 @@ export interface Layer1ProjectSettings {
   fileHistory: string[];
   collapsedFolders?: string[];
   hiddenKinds?: string[];
+  jfredBaseHash?: string;
 }
 
 let settingsDirty = false;
@@ -60,6 +61,24 @@ export function saveHiddenKinds(hiddenKinds: string[]): void {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ dir, hiddenKinds }),
+  });
+}
+
+export function getJfredBaseHashForProject(dir: string): string {
+  return cachedProjectSettings[dir]?.jfredBaseHash ?? "";
+}
+
+// The base chosen before the first Commit auto-saves like view state; "" clears it.
+export function saveJfredBaseHash(jfredBaseHash: string): void {
+  const dir = getInputById("dir").value.trim();
+  if (dir === "") {
+    return;
+  }
+  cachedProjectSettings[dir] = { ...cachedProjectSettings[dir], dir, jfredBaseHash } as Layer1ProjectSettings;
+  void fetch("/api/layer1-settings", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ dir, jfredBaseHash }),
   });
 }
 

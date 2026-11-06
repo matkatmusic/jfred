@@ -3,21 +3,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { WireRewindKind } from "../webapp/layer1-wire-branches.ts";
-import { WireConfidence, WireEditKind, WireEditSide } from "../webapp/layer1-wire-edits.ts";
+import { WireConfidence, WireEditKind /* , WireEditSide */ } from "../webapp/layer1-wire-edits.ts";
 import { listPairLadderInstants } from "../webapp/layer1-wire-ladder.ts";
-import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
-import { CommitTimeSource, SourceKind, type WirePairOf } from "../webapp/layer1-wire.ts";
+// import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
+// import { CommitTimeSource, SourceKind, type WirePairOf } from "../webapp/layer1-wire.ts";
+import type { WirePairOf } from "../webapp/layer1-wire.ts";
 
-test("test_committer_leads_the_time_source_values", () => {
-    // committer is the toggle's default; Object.values order feeds that toggle.
-    assert.equal(Object.values(CommitTimeSource)[0], "committer");
-});
+// not behavior: only checks the value of a constant.
+// test("test_committer_leads_the_time_source_values", () => {
+//     // committer is the toggle's default; Object.values order feeds that toggle.
+//     assert.equal(Object.values(CommitTimeSource)[0], "committer");
+// });
 
-test("test_source_kind_values_are_the_wire_spellings", () => {
-    // The values ARE the `kind=` query-param spelling — no translation table.
-    assert.equal(SourceKind.jsonl, "jsonl");
-    assert.equal(SourceKind.fileHistory, "filehistory");
-});
+// not behavior: only checks the value of a constant.
+// test("test_source_kind_values_are_the_wire_spellings", () => {
+//     // The values ARE the `kind=` query-param spelling — no translation table.
+//     assert.equal(SourceKind.jsonl, "jsonl");
+//     assert.equal(SourceKind.fileHistory, "filehistory");
+// });
 
 test("test_pair_ladder_orders_created_commits_disk_then_snapshots", () => {
     // A pair carrying all four node kinds, commits oldest-first.
@@ -52,19 +55,22 @@ test("test_pair_ladder_places_edits_after_snapshots_and_before_script_runs", () 
     assert.deepEqual(listPairLadderInstants(pair), ["onDisk", "snap-1", "edit-1", "run-1"]);
 });
 
-test("test_edit_kind_and_confidence_values_are_the_wire_spellings", () => {
-    assert.deepEqual(Object.values(WireEditKind), ["edit", "write", "read"]);
-    assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded", "mismatch", "original-failed", "injected-unverified"]);
-});
+// not behavior: only checks the values of constants.
+// test("test_edit_kind_and_confidence_values_are_the_wire_spellings", () => {
+//     assert.deepEqual(Object.values(WireEditKind), ["edit", "write", "read"]);
+//     assert.deepEqual(Object.values(WireConfidence), ["verified", "derived", "reseeded", "mismatch", "original-failed", "injected-unverified"]);
+// });
 
-test("test_edit_side_values_are_the_wire_spellings", () => {
-    assert.deepEqual(Object.values(WireEditSide), ["base", "target"]);
-});
+// not behavior: only checks the values of a constant.
+// test("test_edit_side_values_are_the_wire_spellings", () => {
+//     assert.deepEqual(Object.values(WireEditSide), ["base", "target"]);
+// });
 
-test("test_wire_script_executor_kind_values_are_the_wire_spellings", () => {
-    assert.equal(WireScriptExecutorKind.python, "python");
-    assert.equal(WireScriptExecutorKind.bash, "bash");
-});
+// not behavior: only checks the value of a constant.
+// test("test_wire_script_executor_kind_values_are_the_wire_spellings", () => {
+//     assert.equal(WireScriptExecutorKind.python, "python");
+//     assert.equal(WireScriptExecutorKind.bash, "bash");
+// });
 
 test("test_pair_ladder_appends_script_runs_after_snapshots", () => {
     const pair: WirePairOf<string, string, string> = {

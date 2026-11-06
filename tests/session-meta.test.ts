@@ -4,14 +4,15 @@ import {
     getModeEntry,
     getLastPromptEntry,
     getAttachmentEntry,
-    getBridgeSessionEntry,
+    // getBridgeSessionEntry,
     getForkContextRefEntry,
 } from "../src/structures/session-meta.ts";
 import { ATTACHMENT_PAYLOAD_TYPES, RecordType } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { AgentId, Path, Uuid } from "../src/structures/domain.ts";
 import { loadRecords } from "./utilities.ts";
-import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
+// import { S1_JSONL, S2_JSONL } from "./fixtures.ts";
+import { S1_JSONL } from "./fixtures.ts";
 
 test("test_mode_record_exposes_mode_value", () => {
     // Scenario: the `mode` record exposes its mode value ("normal" in s1).  Steps: find the first mode record in s1.
@@ -25,16 +26,17 @@ test("test_mode_record_exposes_mode_value", () => {
     assert.ok(mode.sessionId instanceof Uuid);
 });
 
-test("test_bridge_session_record_exposes_uuid_ids", () => {
-    // A bridge-session record exposes sessionId and bridgeSessionId as Uuid objects: find the first one in s1.
-    const bridge = loadRecords(S1_JSONL).map(getBridgeSessionEntry).find(Boolean);
-    if (!bridge) {
-        assert.fail("expected a bridge-session record in s1");
-    }
-    // both ids are Uuid objects.
-    assert.ok(bridge.sessionId instanceof Uuid);
-    assert.ok(bridge.bridgeSessionId instanceof Uuid);
-});
+// not behavior: it only checks that two ids are instances of the Uuid class (type shape).
+// test("test_bridge_session_record_exposes_uuid_ids", () => {
+//     // A bridge-session record exposes sessionId and bridgeSessionId as Uuid objects: find the first one in s1.
+//     const bridge = loadRecords(S1_JSONL).map(getBridgeSessionEntry).find(Boolean);
+//     if (!bridge) {
+//         assert.fail("expected a bridge-session record in s1");
+//     }
+//     // both ids are Uuid objects.
+//     assert.ok(bridge.sessionId instanceof Uuid);
+//     assert.ok(bridge.bridgeSessionId instanceof Uuid);
+// });
 
 test("test_last_prompt_record_exposes_lastPrompt", () => {
     // A last-prompt record with text exposes a non-empty lastPrompt string: find one with populated text in s1.
@@ -51,7 +53,7 @@ test("test_last_prompt_record_exposes_lastPrompt", () => {
 });
 
 test("test_attachment_payload_type_is_within_s1_vocabulary", () => {
-    // Scenario: every attachment record's payload `type` is one of the 6 attachment payload kinds observed in s1.  Steps: collect the attachment payload types present in s1.
+    // Scenario: every s1 attachment payload `type` is one of the 6 known kinds. Steps: collect s1 payload types.
     const allowed = new Set<string>(ATTACHMENT_PAYLOAD_TYPES);
     const s1Records = loadRecords(S1_JSONL);
     const attachmentEntries = s1Records.map(getAttachmentEntry);
@@ -69,20 +71,21 @@ test("test_attachment_payload_type_is_within_s1_vocabulary", () => {
     assert.ok(first.timestamp instanceof Date);
 });
 
-test("test_attachment_payload_type_covers_s2_kinds", () => {
-    // Scenario: every s2 attachment payload `type` is recognized vocabulary — no kind in the transcript falls outside AttachmentPayloadType. (Which specific kinds occur is run-specific, so we assert coverage, not presence of any particular kind.)  Steps: collect the attachment payload types present in s2.
-    const allowed = new Set<string>(ATTACHMENT_PAYLOAD_TYPES);
-    const s2Records = loadRecords(S2_JSONL);
-    const attachmentEntries = s2Records.map(getAttachmentEntry);
-    const attachments = attachmentEntries.filter(Boolean);
-    const attachmentTypes = attachments.map((attachment) => attachment!.attachment.type);
-    const present = new Set(attachmentTypes);
-    // there are attachments in s2, and every payload type is recognized vocabulary.
-    assert.ok(present.size > 0);
-    for (const type of present) {
-        assert.ok(allowed.has(type), `unmodeled attachment kind: ${type}`);
-    }
-});
+// not behavior: it only checks that transcript attachment types are members of a vocabulary constant.
+// test("test_attachment_payload_type_covers_s2_kinds", () => {
+//     // Scenario: every s2 attachment payload `type` is recognized vocabulary — no kind in the transcript falls outside AttachmentPayloadType. (Which specific kinds occur is run-specific, so we assert coverage, not presence of any particular kind.)  Steps: collect the attachment payload types present in s2.
+//     const allowed = new Set<string>(ATTACHMENT_PAYLOAD_TYPES);
+//     const s2Records = loadRecords(S2_JSONL);
+//     const attachmentEntries = s2Records.map(getAttachmentEntry);
+//     const attachments = attachmentEntries.filter(Boolean);
+//     const attachmentTypes = attachments.map((attachment) => attachment!.attachment.type);
+//     const present = new Set(attachmentTypes);
+//     // there are attachments in s2, and every payload type is recognized vocabulary.
+//     assert.ok(present.size > 0);
+//     for (const type of present) {
+//         assert.ok(allowed.has(type), `unmodeled attachment kind: ${type}`);
+//     }
+// });
 
 test("test_fork_context_ref_record_hydrates_agent_and_parent_ids", () => {
     // Scenario: a fork-context-ref hydrates agentId to AgentId and the parent pointers to Uuid.
