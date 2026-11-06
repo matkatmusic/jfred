@@ -115,11 +115,11 @@ test("test_a_second_column_element_a_node_outside_the_margin_or_every_record_dra
     assert.deepEqual(await failuresFor({ window: { topIds: ["a"], bottomIds: ["c"], outsideCount: 3 } }),
         ["L7 every drawn column node lies inside the pane plus the margin"]);
     assert.deepEqual(await failuresFor({ window: { topIds: listColumnIds(), bottomIds: ["c"], outsideCount: 0 } }),
-        ["L7 the column draws fewer than 433 nodes at the top and at the bottom, and the two sets differ"]);
+        ["L7 the column draws fewer than 435 nodes at the top and at the bottom, and the two sets differ"]);
 });
 
 test("test_a_full_scroll_that_misses_a_record_fails_only_the_full_scroll_check", async () => {
-    assert.deepEqual(await failuresFor({ seen: listColumnIds().slice(1) }), ["L7 a full scroll draws all 433 column records"]);
+    assert.deepEqual(await failuresFor({ seen: listColumnIds().slice(1) }), ["L7 a full scroll draws all 435 column records"]);
 });
 
 test("test_a_stage_copy_fails_the_duplicate_check_and_a_column_id_also_in_the_tool_ids_fails_the_distinct_check", async () => {
@@ -127,7 +127,7 @@ test("test_a_stage_copy_fails_the_duplicate_check_and_a_column_id_also_in_the_to
     assert.deepEqual(await failuresFor({ duplicates: stage }),
         ["L7 no record is drawn twice: none in the stage, no tool node in the column, unique ids"]);
     const overlap = await failuresFor({ seen: [...listColumnIds(), TOOL_IDS[0]!] });
-    assert.deepEqual(overlap, ["L7 the column ids and the tool ids make 436 different records"]);
+    assert.deepEqual(overlap, ["L7 the column ids and the tool ids make 438 different records"]);
 });
 
 test("test_a_node_off_its_ruler_tick_fails_only_the_ruler_check", async () => {

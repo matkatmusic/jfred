@@ -23,11 +23,11 @@ const makeNodes = (): ColumnNodeFacts[] => {
 };
 const OTHER_SESSION_COLOUR = { sessionId: "s2", backgroundColor: "rgb(200, 10, 10)" };
 
-test("test_the_expected_ids_are_8_block_ids_2_tool_ids_and_433_column_ids", () => {
+test("test_the_expected_ids_are_8_block_ids_2_tool_ids_and_435_column_ids", () => {
     // Steps: count the three id lists, then check the mid, same-instant and ruler-row ids are in the column list.
     assert.equal(BLOCK_IDS.length, 8);
     assert.equal(TOOL_IDS.length, 2);
-    assert.equal(listColumnIds().length, 433);
+    assert.equal(listColumnIds().length, 435);
     assert.ok(listColumnIds().includes("l7-row-037"));
     assert.equal(BLOCK_IDS[3], "l7-block-3");
     for (const id of ANNOTATION_MID_IDS)

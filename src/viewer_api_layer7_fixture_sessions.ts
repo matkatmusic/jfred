@@ -92,10 +92,13 @@ export function listMidAnnotations(fillers: AnnotationDraft[], ruler: Ruler): An
   return mids;
 }
 
+// Ignored records do not count: the hide-ignored box hides them, which would leave their row without a dot.
 function listAnnotatedInstants(annotations: AnnotationDraft[]): Set<number> {
   const instants = new Set<number>();
   for (const annotation of annotations) {
-    instants.add(annotation.instant.getTime());
+    if (annotation.isIgnored !== true) {
+      instants.add(annotation.instant.getTime());
+    }
   }
   return instants;
 }

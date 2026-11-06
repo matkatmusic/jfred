@@ -13,9 +13,9 @@ test("the fixture view carries every bulk file as a bubble", () => {
 
 test("test_view_carries_annotations_and_one_pair_with_two_tool_nodes", () => {
   const view = buildFixtureLayer1View();
-  // 8 block, 60 filler, 12 between rows, 1 same instant, 352 made-up row lines.
+  // 8 block, 60 filler, 12 between rows, 1 same instant, 354 made-up row lines.
   // assert.equal(view.annotations?.length, 81);
-  assert.equal(view.annotations?.length, 81 + 352);
+  assert.equal(view.annotations?.length, 81 + 354);
   const withToolNodes = view.pairs.filter((pair) => pair.toolNodes !== undefined);
   assert.equal(withToolNodes.length, 1);
   const pair = withToolNodes[0]!;

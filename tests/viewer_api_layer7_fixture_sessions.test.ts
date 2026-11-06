@@ -57,8 +57,8 @@ test("test_counts_per_session", () => {
     total += count;
   }
   // assert.equal(total, 81);
-  // 81 canned records, plus one row record for each of the 233 ticks that had none.
-  assert.equal(total, 81 + 233);
+  // 81 canned records, plus one row record for each of the 235 ticks that had no visible record.
+  assert.equal(total, 81 + 235);
   const fourthId = FIXTURE_LOG_SESSIONS[3]!.id.toString();
   // assert.equal(counts.get(fourthId), 30 + 6);
   assert.equal(counts.get(fourthId), FOURTH_SESSION_COUNT);
@@ -77,6 +77,15 @@ test("test_every_ruler_row_has_at_least_one_annotation", () => {
   }
 });
 
+test("test_every_ruler_row_has_a_record_that_hide_ignored_keeps_visible", () => {
+  // Build annotations for the 300-tick ruler, then drop the records the hide-ignored box hides.
+  const visibleMs = new Set(listRecords().filter((record) => record.isIgnored !== true).map((record) => record.instant.getTime()));
+  // Every tick instant is the instant of some visible record, so every ruler row keeps a dot.
+  for (const tickMs of listTickMs()) {
+    assert.ok(visibleMs.has(tickMs), `no visible record at ${new Date(tickMs).toISOString()}`);
+  }
+});
+
 test("test_building_annotations_keeps_the_ruler_row_count", () => {
   // Build annotations for the real fixture view, then check its ruler still has 419 rows with a dot each.
   const view = buildFixtureLayer1View();
@@ -92,7 +101,7 @@ test("test_each_row_annotation_takes_the_session_of_the_nearest_earlier_annotati
   const records = listRecords();
   const rows = records.filter((record) => record.id.toString().startsWith("l7-row-"));
   const canned = records.filter((record) => !record.id.toString().startsWith("l7-row-"));
-  assert.equal(rows.length, 233);
+  assert.equal(rows.length, 235);
   for (const row of rows) {
     // The nearest earlier canned record is the last one before the row's instant.
     const earlier = canned.filter((record) => record.instant.getTime() < row.instant.getTime());

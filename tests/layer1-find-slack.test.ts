@@ -28,9 +28,22 @@ test("test_a_node_near_the_top_left_adds_left_and_top_slack", () => {
   const box = { left: 10, right: 30, top: 20, bottom: 40 } as DOMRect;
   assert.equal(addSlackForEdgeNode(pane, box, AREA), true);
   assert.equal(readSlack(pane, "left"), "230px");
-  assert.equal(readSlack(pane, "top"), "370px");
+  // Top slack is turned off: it pushes the ruler away from the Session header.
+  // assert.equal(readSlack(pane, "top"), "370px");
   assert.equal(readSlack(pane, "right"), "");
   assert.equal(readSlack(pane, "bottom"), "");
+});
+
+test("test_edge_node_near_top_adds_no_top_slack", () => {
+  // A pane is scrolled to its top.
+  initLayer1Dom();
+  const pane = buildPane();
+  pane.scrollTop = 0;
+  // A box sits near the top, so centring it would need top slack.
+  const box = { left: 250, right: 250, top: 20, bottom: 40 } as DOMRect;
+  addSlackForEdgeNode(pane, box, AREA);
+  // The top slack stays unset, so the ruler stays under the Session header.
+  assert.equal(readSlack(pane, "top"), "");
 });
 
 test("test_a_node_with_room_on_every_side_adds_no_slack", () => {

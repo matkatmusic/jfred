@@ -60,8 +60,8 @@ test("test_ids_are_unique_filler_is_sixty_and_exactly_two_are_ignored", () => {
   assert.equal(listFillerIds().length, 60);
   // assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60 + ANNOTATION_MID_IDS.length + 1);
   // assert.equal(records.length, 81);
-  assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60 + ANNOTATION_MID_IDS.length + 1 + 233);
-  assert.equal(records.length, 81 + 233);
+  assert.equal(records.length, ANNOTATION_BLOCK_IDS.length + 60 + ANNOTATION_MID_IDS.length + 1 + 235);
+  assert.equal(records.length, 81 + 235);
   assert.equal(records.filter((record) => record.isIgnored === true).length, 2);
 });
 

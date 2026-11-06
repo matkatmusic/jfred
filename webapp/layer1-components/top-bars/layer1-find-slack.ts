@@ -15,7 +15,8 @@ export function addSlackForEdgeNode(pane: HTMLElement, box: DOMRect, area: { lef
   const targetTop = pane.scrollTop + (box.top + box.bottom) / 2 - (area.top + area.bottom) / 2;
   const hasAddedLeft = addSlackToSide(pane, "left", -targetLeft);
   const hasAddedRight = addSlackToSide(pane, "right", targetLeft - (pane.scrollWidth - pane.clientWidth));
-  const hasAddedTop = addSlackToSide(pane, "top", -targetTop);
+  // Top slack pushes the ruler and bubbles away from the Session header, which does not move.
+  // const hasAddedTop = addSlackToSide(pane, "top", -targetTop);
   const hasAddedBottom = addSlackToSide(pane, "bottom", targetTop - (pane.scrollHeight - pane.clientHeight));
-  return hasAddedLeft || hasAddedRight || hasAddedTop || hasAddedBottom;
+  return hasAddedLeft || hasAddedRight || hasAddedBottom;
 }
