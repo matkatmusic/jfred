@@ -9,6 +9,7 @@ import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script
 import { isJunkStateKey } from "./reconstruction_script_sandbox.ts";
 import { matchRenamePairs } from "./reconstruction_script_renames.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // A move the sandbox diff proves, resolved to absolute paths (task 143; matcher in reconstruction_script_renames.ts).
 export type ScriptRenamePair = { from: Path; to: Path };
@@ -25,6 +26,7 @@ export type ScriptRunFileChanges = {
 export function collectScriptRunFileChanges(
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
+  overrides: PathOverrides,
 ): ScriptRunFileChanges[] {
   const results: ScriptRunFileChanges[] = [];
   for (const run of findScriptExecutionRuns(records)) {
@@ -32,7 +34,7 @@ export function collectScriptRunFileChanges(
       toolUseId: run.toolUseId,
       timestamp: run.timestamp,
       code: run.code,
-      ...computeRunFileOutcome(run, records, reader),
+      ...computeRunFileOutcome(run, records, reader, overrides),
     });
   }
   return results;
@@ -43,13 +45,14 @@ function computeRunFileOutcome(
   run: ScriptRun,
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
+  overrides: PathOverrides,
 ): { changedPaths: Path[]; renamedPaths: ScriptRenamePair[] } {
   if (reader === undefined)
     return { changedPaths: [], renamedPaths: [] };
   const isExecutionAllowed = isImpureExecutionAllowed();
   if (!isExecutionAllowed)
     return { changedPaths: [], renamedPaths: [] };
-  const execution = executeRunOnce(run, records, reader);
+  const execution = executeRunOnce(run, records, reader, overrides);
   if (execution.post === undefined)
     return { changedPaths: [], renamedPaths: [] };
   const pairs = matchRenamePairs(execution.pre, execution.post);

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getFileHistoriesOver } from "../src/reconstruction_renderable.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -72,7 +73,7 @@ function buildTwiceWrittenFileRecords(): TranscriptRecord[] {
 test("test_lineage_of_a_twice_written_file_replays_once_per_prestate", () => {
     // Scenario: alpha.py's lineage replay is deterministic per (records, target, before), so it must be cached.
     const labels = collectProgressLabels(() => {
-        getFileHistoriesOver(buildTwiceWrittenFileRecords(), emptyReader);
+        getFileHistoriesOver(buildTwiceWrittenFileRecords(), getPathOverrides(), emptyReader);
     });
     // assert alpha.py's lineage was replayed exactly once.
     const alphaReplays = labels.filter((label) => label === "replaying lineage of /proj/alpha.py");
@@ -82,7 +83,7 @@ test("test_lineage_of_a_twice_written_file_replays_once_per_prestate", () => {
 test("test_getFileHistoriesOver_executes_each_script_run_exactly_once", () => {
     // Scenario: one script run seeding 3 files executes once, not once per nested lineage replay.
     const labels = collectProgressLabels(() => {
-        getFileHistoriesOver(buildThreeFileOneRunRecords(), emptyReader);
+        getFileHistoriesOver(buildThreeFileOneRunRecords(), getPathOverrides(), emptyReader);
     });
     // assert the run was executed exactly once.
     const executions = labels.filter((label) => label.startsWith("executing script run @"));
@@ -110,7 +111,7 @@ function buildFiveFileTwoRunRecords(): TranscriptRecord[] {
 test("test_five_files_two_runs_execute_twice_and_replay_each_lineage_once_per_run", () => {
     // Scenario: 5 files and 2 runs execute each run once and replay each lineage once per run.
     const labels = collectProgressLabels(() => {
-        getFileHistoriesOver(buildFiveFileTwoRunRecords(), emptyReader);
+        getFileHistoriesOver(buildFiveFileTwoRunRecords(), getPathOverrides(), emptyReader);
     });
     // assert each run executed exactly once.
     const executions = labels.filter((label) => label.startsWith("executing script run @"));

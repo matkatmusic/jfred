@@ -9,7 +9,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import type { WriteEvent } from "../src/reconstruction_events.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     BASE_COMMIT_CHANGE_ID_PREFIX,
     computeBaseCommitChangeId,
@@ -71,7 +71,7 @@ test("test_seed_base_commit_beacon_no_ops_without_overrides", () => {
     const target = new Path("/tmp/project/orders.py");
     const events = [buildWriteEvent(target, "print('hi')\n", "2026-01-01T00:01:00Z", "toolu_w1")];
     const records = [buildRecordWithCwd("/tmp/project", "2026-01-01T00:01:00Z")];
-    const seeded = insertBaseCommitBeacon(records, events, target);
+    const seeded = insertBaseCommitBeacon(records, events, target, getPathOverrides());
     assert.deepEqual(seeded, events);
 });
 
@@ -85,7 +85,7 @@ test("test_seed_base_commit_beacon_splices_committed_content_at_commit_timestamp
         const target = new Path(join(repoDir, "orders.py"));
         const laterWrite = buildWriteEvent(target, "def order():\n    return 2\n", "2026-01-01T00:01:00Z", "toolu_w1");
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
-        const seeded = insertBaseCommitBeacon(records, [laterWrite], target);
+        const seeded = insertBaseCommitBeacon(records, [laterWrite], target, getPathOverrides());
         assert.equal(seeded.length, 2);
         const beacon = seeded[0]!;
         assert.ok(beacon.kind === EventKind.write);
@@ -108,7 +108,7 @@ test("test_seed_base_commit_beacon_inserts_mid_stream_by_timestamp", () => {
         const earlier = buildWriteEvent(target, "before\n", "2026-01-01T00:00:05Z", "toolu_w1");
         const later = buildWriteEvent(target, "after\n", "2026-01-01T00:00:20Z", "toolu_w2");
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
-        const seeded = insertBaseCommitBeacon(records, [earlier, later], target);
+        const seeded = insertBaseCommitBeacon(records, [earlier, later], target, getPathOverrides());
         assert.equal(seeded.length, 3);
         assert.equal(seeded[0], earlier);
         assert.ok(seeded[1]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
@@ -127,7 +127,7 @@ test("test_seed_base_commit_beacon_no_ops_for_file_absent_from_commit", () => {
         const target = new Path(join(repoDir, "missing.py"));
         const events = [buildWriteEvent(target, "print('hi')\n", "2026-01-01T00:01:00Z", "toolu_w1")];
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
-        const seeded = insertBaseCommitBeacon(records, events, target);
+        const seeded = insertBaseCommitBeacon(records, events, target, getPathOverrides());
         assert.deepEqual(seeded, events);
     } finally {
         rmSync(repoDir, { recursive: true, force: true });

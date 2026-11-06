@@ -8,6 +8,7 @@ import { loadProjectRecords } from "./viewer_api_records.ts";
 import { renderRevisionDiff, renderDiffVsBase } from "./viewer_api_diffs.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { Path } from "./structures/domain.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 export function sendJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -47,7 +48,7 @@ export function sendDocumentResponse(response: ServerResponse, query: URLSearchP
   // item 46: project overrides apply to all code below, before any header.
   applyProjectOverrides(projectName);
   // task 56: a configured base commit needs the user's answer before any scan.
-  const baselineQuestion = computeBaselineQuestion(preBaselineChoice !== null);
+  const baselineQuestion = computeBaselineQuestion(preBaselineChoice !== null, getPathOverrides());
 
   // Non-progress path: refusals return 400; consent-required is HTTP 200 with a kind field.
   const isProgressRequest = query.get("progress") === "1";

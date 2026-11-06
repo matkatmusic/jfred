@@ -4,7 +4,7 @@ import { executeWithImpureExecution } from "./reconstruction_exec_gate.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
 import { isReplayedLanguage } from "./layer1_run_skip.ts";
 import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { getPreExecutionState } from "./reconstruction_script_prestate.ts";
 import { executeInRealBox } from "./reconstruction_script_sandbox_box.ts";
@@ -63,7 +63,7 @@ function listNeverRunScripts(records: TranscriptRecord[]): Set<string> {
 
 // A new reader per request: a shared one keeps stale per-run results in the derived caches.
 function createRunReader(records: TranscriptRecord[], sources: SourceEntry[] | undefined): BackupReader {
-  const reader = buildSidecarReader(records, sources);
+  const reader = buildSidecarReader(records, getPathOverrides(), sources);
   if (reader === undefined) {
     throw new Error("the session has no session id, so its file history cannot be read");
   }
@@ -71,7 +71,7 @@ function createRunReader(records: TranscriptRecord[], sources: SourceEntry[] | u
 }
 
 function computePreState(run: ScriptRun, records: TranscriptRecord[], reader: BackupReader): Map<string, string> {
-  const seedContent = getLineageContentBefore(records, reader);
+  const seedContent = getLineageContentBefore(records, reader, getPathOverrides());
   return getPreExecutionState(run, records, reader, seedContent);
 }
 

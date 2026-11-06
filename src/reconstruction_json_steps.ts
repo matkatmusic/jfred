@@ -8,6 +8,7 @@ import { buildStepTimeline } from "./reconstruction_steps.ts";
 import { buildAllFileHistories } from "./reconstruction_engine.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { ORIGINAL_FILE_SEED_CHANGE_ID_PREFIX } from "./reconstruction_reseed_seeds.ts";
 import { getScriptRunSourceIdFromChangeId } from "./reconstruction_script_execution.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
@@ -92,11 +93,12 @@ function listChangedPaths(changeIds: Uuid[], pathOf: Map<string, string>): strin
 export function buildStepSnapshots(
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
+  overrides: PathOverrides,
   surviving?: FileHistory[],
 ): { steps: StepSnapshot[]; stepFileHistories: FileHistory[] } {
-  const { histories, changes } = buildStepTimeline(records, reader);
+  const { histories, changes } = buildStepTimeline(records, overrides, reader);
   reportReconstructionProgress("indexing change ids across surviving files");
-  const pathOf = buildChangeIdsToPaths(surviving ?? buildAllFileHistories(records, reader));
+  const pathOf = buildChangeIdsToPaths(surviving ?? buildAllFileHistories(records, overrides, reader));
   const sessionOf = buildChangeIdsToSessionIds(records);
   const steps: StepSnapshot[] = [];
   for (const [index, change] of changes.entries()) {

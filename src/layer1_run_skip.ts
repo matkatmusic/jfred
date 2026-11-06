@@ -7,6 +7,7 @@ import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
 import { SANDBOX_TIMEOUT_MS } from "./reconstruction_script_sandbox_dir.ts";
 import type { SandboxOutput } from "./reconstruction_script_sandbox_memo.ts";
 import type { Path } from "./structures/domain.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 const REPLAYED_LANGUAGES: readonly string[] = [WireScriptLanguage.python, WireScriptLanguage.python3];
 const STDERR_TAIL_LINES = 3;
@@ -42,7 +43,7 @@ function findCodeSkipReason(run: ScriptRun): string | undefined {
   if (!isWriteCapable) {
     return "This script only reads files, so it is not replayed.";
   }
-  const isBeforeBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
+  const isBeforeBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp, getPathOverrides());
   if (isBeforeBaseline) {
     return "This script ran at or before the base commit, so it is not replayed.";
   }

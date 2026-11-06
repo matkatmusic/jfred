@@ -113,6 +113,21 @@ test("test_an_unchanged_reply_without_a_next_instant_shows_the_no_later_change_t
   assert.match(document.getElementById("dtoast")!.textContent!, /no later time changes a file/);
 });
 
+test("test_unrebuilt_reply_asks_to_move_and_yes_moves_the_pending_mark", async () => {
+  // Verify: the row names paths and time; Yes moves the mark to hour 6.
+  prepareUnchangedReply(5);
+  const reply = { outcome: "unrebuilt", paths: ["a.txt", "b.txt"], nextInstant: buildInstant(5) };
+  Object.assign(globalThis, { fetch: async (): Promise<Response> => { sent++; return new Response(`${JSON.stringify(reply)}\n`); } });
+  addTick(6, ["node n-snap"]);
+  await clickCommit();
+  const questionText = document.querySelector("#yesno-row span")!.textContent!;
+  assert.equal(questionText, `a.txt, b.txt could not be rebuilt here. Move the Commit point to ${buildInstant(5)}?`);
+  document.querySelector<HTMLElement>(".yesno-yes")!.click();
+  await settle();
+  assert.equal(readJfredBranch().pending!.instant, buildInstant(6));
+  assert.equal(readJfredBranch().commits.length, 0);
+});
+
 test("test_answering_yes_with_no_markable_tick_after_the_next_instant_shows_the_no_tick_toast", async () => {
   // Verify: only a tick before the next instant exists, so the mark stays and the toast explains.
   prepareUnchangedReply(5);

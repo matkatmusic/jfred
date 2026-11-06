@@ -8,6 +8,7 @@ import { normalizeAgainstCwd } from "./structures/path-resolve.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { type BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import {
   ScriptExecutorKind,
   findScriptExecutionRuns,
@@ -76,17 +77,18 @@ export function executeRunOnce(
   run: ScriptRun,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): RunExecution {
   addToReconstructionCounter(ReconstructionCounter.executionRequests);
-  const byRun = getDerivedCaches(records, reader).executionsByRun;
+  const byRun = getDerivedCaches(records, reader, overrides).executionsByRun;
   const key = computeRunExecutionKey(run);
   const cached = byRun.get(key);
   if (cached !== undefined) {
     addToReconstructionCounter(ReconstructionCounter.executionCacheHits);
     return cached;
   }
-  const isPreBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
+  const isPreBaseline = isTimestampAtOrBeforeSkippedBaseline(run.timestamp, overrides);
   if (isPreBaseline) {
     reportReconstructionProgress(`${PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX} @ ${run.timestamp.toISOString()}${formatRunSource(run)}`);
     const skipped: RunExecution = { pre: new Map(), post: undefined };
@@ -125,6 +127,7 @@ export function executeRunOnce(
 export function findScriptCreatedPaths(
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): Path[] {
   // Consent gate: discovery executes every recorded run, so a declined build skips it entirely, same as applyScriptExecutions.
@@ -137,7 +140,7 @@ export function findScriptCreatedPaths(
     reportReconstructionProgress(`discovering script-created files (${runs.length} runs)`);
   }
   for (const run of runs) {
-    const execution = executeRunOnce(run, records, reader, seedContent);
+    const execution = executeRunOnce(run, records, reader, overrides, seedContent);
     if (execution.post === undefined)
       continue;
     for (const key of execution.post.keys()) {

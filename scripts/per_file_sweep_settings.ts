@@ -102,5 +102,5 @@ export function loadSweepInputs(settings: SweepSettings): { records: TranscriptR
     }
   }
   console.error(`loaded ${records.length} records; building sidecar reader`);
-  return { records, reader: buildSidecarReader(records, getPathOverrides().sources) };
+  return { records, reader: buildSidecarReader(records, getPathOverrides(), getPathOverrides().sources) };
 }

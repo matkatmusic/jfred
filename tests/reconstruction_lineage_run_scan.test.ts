@@ -8,6 +8,7 @@ import { getDerivedCaches } from "../src/reconstruction_corpus.ts";
 // import { getStaticInputsForTarget } from "../src/reconstruction_lineage_inputs.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { buildToolRecord } from "./script-execution-test-helpers.ts";
 
@@ -35,9 +36,9 @@ test("test_run_memoized_as_skip_never_bumps_the_horizon", () => {
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("other.txt", "w").write("x")\n' }, "2026-01-01T00:00:15Z"),
     ];
     const run = findScriptExecutionRuns(records)[0]!;
-    getDerivedCaches(records, emptyReader).executionsByRun.set(computeRunExecutionKey(run), { pre: new Map(), post: undefined });
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    getDerivedCaches(records, emptyReader, getPathOverrides()).executionsByRun.set(computeRunExecutionKey(run), { pre: new Map(), post: undefined });
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.equal(earlyKey, lateKey);
 });
 
@@ -48,12 +49,12 @@ test("test_memoized_run_whose_diff_touches_the_target_changes_the_key", () => {
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("other.txt", "w").write("x")\n' }, "2026-01-01T00:00:15Z"),
     ];
     const run = findScriptExecutionRuns(records)[0]!;
-    getDerivedCaches(records, emptyReader).executionsByRun.set(computeRunExecutionKey(run), {
+    getDerivedCaches(records, emptyReader, getPathOverrides()).executionsByRun.set(computeRunExecutionKey(run), {
         pre: new Map([["plate.py", "v1\n"]]),
         post: new Map([["plate.py", "scripted\n"]]),
     });
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.notEqual(earlyKey, lateKey);
 });
 
@@ -64,12 +65,12 @@ test("test_memoized_run_whose_diff_touches_only_unrelated_keys_never_bumps", () 
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("other.txt", "w").write("x")\n' }, "2026-01-01T00:00:15Z"),
     ];
     const run = findScriptExecutionRuns(records)[0]!;
-    getDerivedCaches(records, emptyReader).executionsByRun.set(computeRunExecutionKey(run), {
+    getDerivedCaches(records, emptyReader, getPathOverrides()).executionsByRun.set(computeRunExecutionKey(run), {
         pre: new Map([["other.txt", "a\n"]]),
         post: new Map([["other.txt", "b\n"]]),
     });
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.equal(earlyKey, lateKey);
 });
 
@@ -80,15 +81,15 @@ test("test_run_scan_refreshes_when_a_new_execution_is_memoized", () => {
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("other.txt", "w").write("x")\n' }, "2026-01-01T00:00:15Z"),
     ];
     const lateInstant = new Date("2026-01-01T00:00:20Z");
-    const unexecutedKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant);
+    const unexecutedKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant, getPathOverrides());
     // the same query twice is idempotent (the scan is reused, not recomputed).
-    assert.equal(computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant), unexecutedKey);
+    assert.equal(computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant, getPathOverrides()), unexecutedKey);
     // memoizing the run as an irrelevant execution grows the map — the scan refreshes and the conservative bump disappears.
     const run = findScriptExecutionRuns(records)[0]!;
-    getDerivedCaches(records, emptyReader).executionsByRun.set(computeRunExecutionKey(run), {
+    getDerivedCaches(records, emptyReader, getPathOverrides()).executionsByRun.set(computeRunExecutionKey(run), {
         pre: new Map([["other.txt", "a\n"]]),
         post: new Map([["other.txt", "b\n"]]),
     });
-    const executedKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant);
+    const executedKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, lateInstant, getPathOverrides());
     assert.notEqual(executedKey, unexecutedKey);
 });

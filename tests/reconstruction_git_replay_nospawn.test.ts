@@ -7,6 +7,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { getFileRevisionsOver } from "../src/reconstruction_branches.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { isImpureExecutionAllowed, setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { setRecordSource } from "../src/parse/loadTranscript.ts";
 import { getReconstructionCounterSnapshot, resetReconstructionCounters } from "../src/reconstruction_counters.ts";
@@ -68,7 +69,7 @@ function collectReports(repo: string, shape: Shape, target: Path): { label: stri
     let reports: { label: string }[] = [];
     runWithImpureOn(() => {
         const records = buildRecords(repo, shape.hasCommitRecord);
-        reports = collectEarlierRuns(new Set(), () => getFileRevisionsOver(records, target, new Set(), emptyReader));
+        reports = collectEarlierRuns(new Set(), () => getFileRevisionsOver(records, target, new Set(), getPathOverrides(), emptyReader));
     });
     return reports;
 }
@@ -79,7 +80,7 @@ function measureShape(repo: string, memoFile: string, shape: Shape): Row {
     const target = new Path(join(repo, "a.txt"));
     setSandboxMemoPersistence(new Path(memoFile));
     if (shape.isMemoWarm)
-        runWithImpureOn(() => getFileRevisionsOver(buildRecords(repo, false), target, new Set(), emptyReader));
+        runWithImpureOn(() => getFileRevisionsOver(buildRecords(repo, false), target, new Set(), getPathOverrides(), emptyReader));
     writePendingSandboxMemoToDisk();
     const memoBefore = readFileSync(memoFile, "utf8");
     resetReconstructionCounters();

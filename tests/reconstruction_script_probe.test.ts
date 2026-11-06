@@ -5,6 +5,7 @@ import { findScriptExecutionRuns, type ScriptRun } from "../src/reconstruction_s
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { buildToolRecord } from "./script-execution-test-helpers.ts";
 
 // A reader with no backups to offer — every pre-state seed comes from the authored Writes.
@@ -21,7 +22,7 @@ test("test_findRunForTarget_matches_a_run_that_touches_the_target_without_naming
     ];
     // resolve the run for target /proj/core_one.py.
     const runs = findScriptExecutionRuns(records);
-    const run = findRunForTarget(runs, new Path("/proj/core_one.py"), new Date("2026-01-01T00:00:10Z"), records, emptyReader);
+    const run = findRunForTarget(runs, new Path("/proj/core_one.py"), new Date("2026-01-01T00:00:10Z"), records, emptyReader, getPathOverrides());
     // assert the run is found.
     assert.ok(run !== undefined);
 });

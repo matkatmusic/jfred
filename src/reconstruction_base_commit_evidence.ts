@@ -3,8 +3,7 @@
 import { execSync } from "node:child_process";
 import type { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import { getPathOverrides } from "./reconstruction_overrides.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 
 // Returns the committer timestamp, or undefined if unreadable.
 export function readCommitTimestamp(repoDir: Path, baseCommit: Uuid): Date | undefined {
@@ -80,8 +79,8 @@ function findLongestEnclosingSource(sources: SourceEntry[], target: Path): { sou
 export function findBaseCommitEvidenceForTarget(
   records: TranscriptRecord[],
   target: Path,
+  overrides: PathOverrides,
 ): { repoDir: Path; baseCommit: Uuid; relativeRoot: Path } | undefined {
-  const overrides = getPathOverrides();
   const sources = overrides.sources;
   const hasNoSources = sources === undefined;
   const hasEmptySources = sources?.length === 0;

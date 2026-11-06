@@ -14,6 +14,7 @@ import { selectBranchRecords } from "./reconstruction_branch_records.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import { getFileHistoriesOver } from "./reconstruction_renderable.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // --- Reconstruction: the public API ------------------------------------------
@@ -22,18 +23,20 @@ import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 export function buildFileRevisions(
   records: TranscriptRecord[],
   target: Path,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileRevision[] {
-  return getFileRevisionsOver(selectLiveBranch(records), target, new Set<string>(), reader);
+  return getFileRevisionsOver(selectLiveBranch(records), target, new Set<string>(), overrides, reader);
 }
 
 // Pre-selects the surviving branch, then reconstructs all files.
 export function buildAllFileHistories(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileHistory[] {
   reportReconstructionProgress(`reconstructing surviving files across ${records.length} records`);
-  return getFileHistoriesOver(selectLiveBranch(records), reader);
+  return getFileHistoriesOver(selectLiveBranch(records), overrides, reader);
 }
 
 // --- Branch-aware reconstruction: surviving + retrievable rewound branches -----
@@ -55,6 +58,7 @@ export type BranchedReconstruction = {
 // Surviving files plus every unmerged rewound branch's file changes.
 export function buildBranchedReconstruction(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): BranchedReconstruction {
   // task 191: emit progress here so --progress doesn't go silent between sidecar and tip-scan.
@@ -71,12 +75,12 @@ export function buildBranchedReconstruction(
       rewoundBranches.push(branch);
     }
   }
-  const surviving = buildAllFileHistories(records, reader);
+  const surviving = buildAllFileHistories(records, overrides, reader);
   const rewound: RewoundBranchHistory[] = [];
   for (const [branchIndex, branch] of rewoundBranches.entries()) {
     // task 163: report branch-level progress; prefix must be "reconstructing " for webapp phase 4.
     reportReconstructionProgress("reconstructing rewound branch", branchIndex + 1, rewoundBranches.length);
-    const history = buildRewoundBranchHistory(records, branch, reader);
+    const history = buildRewoundBranchHistory(records, branch, overrides, reader);
     if (history !== undefined) {
       rewound.push(history);
     }
@@ -88,6 +92,7 @@ export function buildBranchedReconstruction(
 function buildRewoundBranchHistory(
   records: TranscriptRecord[],
   branch: ConversationBranch,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): RewoundBranchHistory | undefined {
   const branchRecords = selectBranchRecords(records, branch.tip);
@@ -108,7 +113,7 @@ function buildRewoundBranchHistory(
     return undefined;
   }
   const histories: FileHistory[] = [];
-  for (const history of getFileHistoriesOver(branchRecords, reader)) {
+  for (const history of getFileHistoriesOver(branchRecords, overrides, reader)) {
     let touchesDiverging = false;
     for (const revision of history.revisions) {
       const isDivergingRevision = divergingIds.has(revision.changeId.toString());

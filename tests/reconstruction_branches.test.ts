@@ -14,26 +14,27 @@ import {
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { FailureScope } from "../src/structures/vocabulary_views.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { loadRecords } from "./utilities.ts";
 import { S13_JSONL, S15_JSONL, S19_JSONL } from "./fixtures.ts";
 
 // An `edited_text_file` snapshot counts as a change only when its content differs from the file's current content.
 test("test_collectAcceptedUserEditIds_includes_the_genuine_S15_user_edit", () => {
-    const accepted = collectAcceptedUserEditIds(loadRecords(S15_JSONL));
+    const accepted = collectAcceptedUserEditIds(loadRecords(S15_JSONL), getPathOverrides());
     // The specific changeId rotates on re-run, so only the count is pinned.
     assert.equal(accepted.size, 1);
 });
 
 // S13's `edited_text_file` echoes the restored `greet` content, so it is a disk echo, not an edit.
 test("test_collectAcceptedUserEditIds_excludes_the_S13_disk_echo", () => {
-    const accepted = collectAcceptedUserEditIds(loadRecords(S13_JSONL));
+    const accepted = collectAcceptedUserEditIds(loadRecords(S13_JSONL), getPathOverrides());
     assert.equal(accepted.size, 0);
 });
 
 // The disk-echo edit must be dropped so views never show a phantom turn.
 test("test_extractRenderableEvents_drops_the_S13_disk_echo_turn", () => {
     const records = loadRecords(S13_JSONL);
-    const accepted = collectAcceptedUserEditIds(records);
+    const accepted = collectAcceptedUserEditIds(records, getPathOverrides());
     const renderable = extractRenderableEvents(records, accepted);
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 0);
 });
@@ -42,13 +43,13 @@ test("test_extractRenderableEvents_drops_the_S13_disk_echo_turn", () => {
 test("test_reconstructFile_survives_a_throwing_reader_stage", () => {
     clearReconstructionFailures();
     const records = loadRecords(S19_JSONL);
-    const expected = buildAllFileHistories(records);
+    const expected = buildAllFileHistories(records, getPathOverrides());
     assert.ok(expected.length > 0);
     const throwingReader: BackupReader = () => {
         throw new Error("ENOENT: blob gone");
     };
     for (const history of expected) {
-        const revisions = buildFileRevisions(records, history.target, throwingReader);
+        const revisions = buildFileRevisions(records, history.target, getPathOverrides(), throwingReader);
         assert.deepStrictEqual(revisions, history.revisions);
     }
     const failures = popReconstructionFailures();
@@ -60,7 +61,7 @@ test("test_run_stage_tolerantly_announces_each_stage_through_the_progress_sink",
     const capturedLabels: string[] = [];
     setReconstructionProgressSink((event) => capturedLabels.push(event.label));
     try {
-        buildAllFileHistories(loadRecords(S15_JSONL));
+        buildAllFileHistories(loadRecords(S15_JSONL), getPathOverrides());
     } finally {
         setReconstructionProgressSink(undefined);
     }
@@ -73,7 +74,7 @@ test("test_collect_accepted_user_edit_ids_announces_each_branch_pass", () => {
     const capturedLabels: string[] = [];
     setReconstructionProgressSink((event) => capturedLabels.push(event.label));
     try {
-        collectAcceptedUserEditIds(loadRecords(S15_JSONL));
+        collectAcceptedUserEditIds(loadRecords(S15_JSONL), getPathOverrides());
     } finally {
         setReconstructionProgressSink(undefined);
     }
@@ -83,7 +84,7 @@ test("test_collect_accepted_user_edit_ids_announces_each_branch_pass", () => {
 
 test("test_extractRenderableEvents_keeps_the_genuine_S15_user_edit_turn", () => {
     const records = loadRecords(S15_JSONL);
-    const accepted = collectAcceptedUserEditIds(records);
+    const accepted = collectAcceptedUserEditIds(records, getPathOverrides());
     const renderable = extractRenderableEvents(records, accepted);
     assert.equal(renderable.filter((event) => event.kind === EventKind.userEdit).length, 1);
 });
@@ -93,7 +94,7 @@ test("test_find_conversation_branches_announces_each_abandoned_tip_scan", () => 
     const capturedEvents: ProgressEvent[] = [];
     setReconstructionProgressSink((event) => capturedEvents.push(event));
     try {
-        buildBranchedReconstruction(loadRecords(S19_JSONL));
+        buildBranchedReconstruction(loadRecords(S19_JSONL), getPathOverrides());
     } finally {
         setReconstructionProgressSink(undefined);
     }
@@ -109,7 +110,7 @@ test("test_reconstruct_branches_announces_each_rewound_branch", () => {
     const capturedEvents: ProgressEvent[] = [];
     setReconstructionProgressSink((event) => capturedEvents.push(event));
     try {
-        buildBranchedReconstruction(loadRecords(S19_JSONL));
+        buildBranchedReconstruction(loadRecords(S19_JSONL), getPathOverrides());
     } finally {
         setReconstructionProgressSink(undefined);
     }

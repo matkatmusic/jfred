@@ -12,6 +12,7 @@ import {
     reportReconstructionFailure,
 } from "../src/reconstruction_health.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { createSidecarReader } from "../src/reconstruction_sidecar_backup_path.ts";
 import {
     getDefaultFileHistoryRoot,
@@ -30,11 +31,11 @@ const reader = realReader(records);
 
 test("test_buildReconstructionDocument_carries_skipped_lines_through", () => {
     // Behavior: the tolerant parse's skipped lines ride the wire document unchanged (the webapp's timeline gap rows come from them).
-    const branched = buildBranchedReconstruction(records, reader);
+    const branched = buildBranchedReconstruction(records, getPathOverrides(), reader);
     const skipped: SkippedLine[] = [
         { filePath: new Path(S19_JSONL), lineNumber: 7, reason: 'unknown record type "future-nonsense"' },
     ];
-    const { document } = buildReconstructionDocument(records, branched, reader, undefined, skipped);
+    const { document } = buildReconstructionDocument(records, branched, reader, undefined, getPathOverrides(), skipped);
     // Verify: the fabricated skip is carried through.
     assert.equal(document.skippedLines.length, 1);
     assert.equal(document.skippedLines[0]!.lineNumber, 7);
@@ -42,12 +43,12 @@ test("test_buildReconstructionDocument_carries_skipped_lines_through", () => {
 
 test("test_buildReconstructionDocument_drains_failures_into_document", () => {
     // Behavior: earlier failures land in document.failures once; a second build has none.
-    const branched = buildBranchedReconstruction(records, reader);
+    const branched = buildBranchedReconstruction(records, getPathOverrides(), reader);
     clearReconstructionFailures();
     reportReconstructionFailure({ scope: FailureScope.fileStage, stage: "testStage", reason: "fabricated" });
-    const first = buildReconstructionDocument(records, branched, reader, undefined);
+    const first = buildReconstructionDocument(records, branched, reader, undefined, getPathOverrides());
     // Verify: the noted failure appears on the document, then a second build reports none.
     assert.ok(first.document.failures.some((failure) => failure.stage === "testStage"));
-    const second = buildReconstructionDocument(records, branched, reader, undefined);
+    const second = buildReconstructionDocument(records, branched, reader, undefined, getPathOverrides());
     assert.equal(second.document.failures.length, 0);
 });

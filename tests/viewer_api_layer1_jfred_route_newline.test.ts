@@ -42,7 +42,7 @@ async function commitFirstWrite(prepare: (repoDir: string, projectDir: string) =
     const write = buildWriteRecordPair(envelope, join(tree.treeRoot, "a.txt"), "first text\n");
     writeTranscriptFixture(tree.projectDir, "a.jsonl", [...write.records, ...extraRecords]);
     clearBuiltDocumentCache();
-    const body = { baseShortHash: commitHashes[1]!.slice(0, 8), markInstant: MARK_AT, message: `${JFRED_SUBJECT_PREFIX}${MARK_AT}` };
+    const body = { baseShortHash: commitHashes[1]!.slice(0, 8), markInstant: MARK_AT, message: `${JFRED_SUBJECT_PREFIX}${MARK_AT}`, allowScripts: false };
     await postCommit({ dir: tree.treeRoot, repo: repoDir, jsonl: tree.projectDir }, body);
     return execFileSync("git", ["show", "jfred:a.txt"], { cwd: repoDir, encoding: "utf8" });
 }

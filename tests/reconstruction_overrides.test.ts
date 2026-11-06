@@ -44,15 +44,15 @@ test("test_set_and_get_path_overrides_round_trip", () => {
 test("test_serialize_path_overrides_is_stable_and_distinguishes_values", () => {
     // Scenario: identical overrides format identically; any field change changes the stamp.
     setPathOverrides({});
-    const emptySerialization = formatPathOverrides();
+    const emptySerialization = formatPathOverrides(getPathOverrides());
     // Step: the same override set serializes identically across two set calls.
     setPathOverrides({ repoDir: new Path("/tmp/repo") });
-    const firstSerialization = formatPathOverrides();
+    const firstSerialization = formatPathOverrides(getPathOverrides());
     setPathOverrides({ repoDir: new Path("/tmp/repo") });
-    assert.equal(formatPathOverrides(), firstSerialization);
+    assert.equal(formatPathOverrides(getPathOverrides()), firstSerialization);
     // Step: changing one field changes the string.
     setPathOverrides({ repoDir: new Path("/tmp/other-repo") });
-    assert.notEqual(formatPathOverrides(), firstSerialization);
+    assert.notEqual(formatPathOverrides(getPathOverrides()), firstSerialization);
     // Step: a defined field never serializes like the empty state.
     assert.notEqual(firstSerialization, emptySerialization);
 });
@@ -111,15 +111,15 @@ test("test_write_project_paths_entry_merges_into_existing_config", () => {
 test("test_serialize_path_overrides_includes_sources", () => {
     // Scenario: a source-list change must change the cache stamp.
     setPathOverrides({});
-    const emptyStamp = formatPathOverrides();
+    const emptyStamp = formatPathOverrides(getPathOverrides());
     // Test action: set overrides carrying one declared source (with root, no fileHistoryDir).
     setPathOverrides({
         sources: [{ projectsDir: new Path("/tmp/live/projects"), root: new Path("/tmp/ws") }],
     });
-    const sourcedStamp = formatPathOverrides();
+    const sourcedStamp = formatPathOverrides(getPathOverrides());
     // Test verification: the stamp changed, and it is deterministic across calls.
     assert.notEqual(sourcedStamp, emptyStamp);
-    assert.equal(sourcedStamp, formatPathOverrides());
+    assert.equal(sourcedStamp, formatPathOverrides(getPathOverrides()));
     // the source's fields are all present in the stamp (fixed key order via JSON round-trip).
     assert.ok(sourcedStamp.includes("/tmp/live/projects"));
     assert.ok(sourcedStamp.includes("/tmp/ws"));

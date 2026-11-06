@@ -15,6 +15,10 @@ export function resetRunConsent(): void {
   consentAnswer = undefined;
 }
 
+export function isRunConsentAllowed(): boolean {
+  return consentAnswer === "allowed";
+}
+
 function isPythonRun(run: WireScriptRun): boolean {
   return run.language === WireScriptLanguage.python || run.language === WireScriptLanguage.python3;
 }

@@ -7,6 +7,7 @@ import { executeWithImpureExecution } from "../src/reconstruction_exec_gate.ts";
 import { getReconstructionCounterSnapshot, resetReconstructionCounters } from "../src/reconstruction_counters.ts";
 import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
 import { getFileHistoriesOver } from "../src/reconstruction_renderable.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setSandboxMemoPersistence } from "../src/reconstruction_script_sandbox_memo.ts";
 import { EarlierRunNotSavedError, executeWithoutSpawning } from "../src/reconstruction_script_sandbox_spawn_guard.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
@@ -39,7 +40,7 @@ function resetBuildState(): void {
 
 test("test_getFileRevisionsOver_lets_EarlierRunNotSavedError_reach_the_caller", () => {
     resetBuildState();
-    const build = () => getFileRevisionsOver(buildRecords(), new Path("/proj/a.txt"), new Set(), emptyReader);
+    const build = () => getFileRevisionsOver(buildRecords(), new Path("/proj/a.txt"), new Set(), getPathOverrides(), emptyReader);
     assert.throws(() => executeWithImpureExecution(() => executeWithoutSpawning(new Set(), build)), EarlierRunNotSavedError);
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
     assert.equal(popReconstructionFailures().length, 0);
@@ -47,7 +48,7 @@ test("test_getFileRevisionsOver_lets_EarlierRunNotSavedError_reach_the_caller", 
 
 test("test_getFileHistoriesOver_lets_EarlierRunNotSavedError_reach_the_caller_and_notes_no_failure", () => {
     resetBuildState();
-    const build = () => getFileHistoriesOver(buildRecords(), emptyReader);
+    const build = () => getFileHistoriesOver(buildRecords(), getPathOverrides(), emptyReader);
     assert.throws(() => executeWithImpureExecution(() => executeWithoutSpawning(new Set(), build)), EarlierRunNotSavedError);
     assert.equal(getReconstructionCounterSnapshot().sandboxSpawns, 0);
     assert.equal(popReconstructionFailures().length, 0);

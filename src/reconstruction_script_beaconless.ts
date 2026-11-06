@@ -15,6 +15,7 @@ import { executeScriptAgainstState } from "./reconstruction_script_sandbox.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import { resolveRunBox } from "./reconstruction_script_sandbox_box.ts";
 import { findRefForTarget, isRunTouchingTarget } from "./reconstruction_script_probe.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // The target's state on its chained lineage: its sandbox key and its content after the last injected run.
 type RollingTargetState = { key: string; content: string };
@@ -25,6 +26,7 @@ function getRunOutcomeForTarget(
   target: Path,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent: LineageContentBefore | undefined,
   rolling: RollingTargetState | undefined,
 ): RollingTargetState | undefined {
@@ -35,11 +37,11 @@ function getRunOutcomeForTarget(
   if (rolling === undefined) {
     const segments = target.toString().split("/");
     const basename = segments.pop() ?? "";
-    const isNamedOrTouching = run.code.includes(basename) || isRunTouchingTarget(run, target, records, reader, seedContent);
+    const isNamedOrTouching = run.code.includes(basename) || isRunTouchingTarget(run, target, records, reader, overrides, seedContent);
     if (!isNamedOrTouching) {
       return undefined;
     }
-    const { pre: preState, post: postState } = executeRunOnce(run, records, reader, seedContent);
+    const { pre: preState, post: postState } = executeRunOnce(run, records, reader, overrides, seedContent);
     if (postState === undefined)
       return undefined;
     // post keys included so a file the script CREATES resolves to its ref.
@@ -54,7 +56,7 @@ function getRunOutcomeForTarget(
       return undefined;
     return { key: ref, content: post };
   }
-  const { pre: preState } = executeRunOnce(run, records, reader, seedContent);
+  const { pre: preState } = executeRunOnce(run, records, reader, overrides, seedContent);
   const augmentedPre = new Map(preState);
   augmentedPre.set(rolling.key, rolling.content);
   const postState = executeScriptAgainstState(run.code, augmentedPre, formatRunSource(run), run.cwd, resolveRunBox(run));
@@ -73,12 +75,13 @@ export function findBeaconlessScriptExecutions(
   runs: ScriptRun[],
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): ScriptExecutionEvent[] {
   const events: ScriptExecutionEvent[] = [];
   let rolling: RollingTargetState | undefined;
   for (const run of runs) {
-    const outcome = getRunOutcomeForTarget(run, target, records, reader, seedContent, rolling);
+    const outcome = getRunOutcomeForTarget(run, target, records, reader, overrides, seedContent, rolling);
     if (outcome === undefined)
       continue;
     events.push({

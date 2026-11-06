@@ -1,6 +1,6 @@
 // Consent and baseline-question gates that decide whether a document build may start.
 
-import { getPathOverrides } from "./reconstruction_overrides.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -35,11 +35,11 @@ export type BaselineQuestion = {
   repo: string;
 };
 
-export function computeBaselineQuestion(choiceMade: boolean): BaselineQuestion | undefined {
+export function computeBaselineQuestion(choiceMade: boolean, overrides: PathOverrides): BaselineQuestion | undefined {
   if (choiceMade) {
     return undefined;
   }
-  const { repoDir, baseCommit } = getPathOverrides();
+  const { repoDir, baseCommit } = overrides;
   if (repoDir === undefined) {
     return undefined;
   }

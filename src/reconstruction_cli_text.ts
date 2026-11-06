@@ -8,6 +8,7 @@ import { renderChosen } from "./reconstruction_render_chosen.ts";
 import { buildStepStates } from "./reconstruction_steps.ts";
 import { renderRepoSnapshot } from "./reconstruction_step_snapshot.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 // The selectable branch ids for the `--branch` error message.
 export function listAvailableBranchIds(branched: BranchedReconstruction): string {
@@ -49,7 +50,7 @@ export function renderStep(
   reader: BackupReader | undefined,
   stepNumber: number,
 ): string {
-  const steps = buildStepStates(records, reader);
+  const steps = buildStepStates(records, getPathOverrides(), reader);
   assertStepInRange(stepNumber, steps.length);
   return renderRepoSnapshot(steps[stepNumber - 1]!);
 }

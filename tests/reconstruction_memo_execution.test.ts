@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { executeRunOnce } from "../src/reconstruction_script_runs.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -40,10 +41,10 @@ test("test_execution_memo_is_invalidated_when_the_exec_gate_flips", () => {
     assert.equal(isImpureExecutionAllowed(), true);
     const records = buildScriptRunRecords();
     const run = findScriptExecutionRuns(records)[0]!;
-    const gateOn = executeRunOnce(run, records, emptyReader);
+    const gateOn = executeRunOnce(run, records, emptyReader, getPathOverrides());
     try {
         setImpureExecutionAllowed(false);
-        const gateOff = executeRunOnce(run, records, emptyReader);
+        const gateOff = executeRunOnce(run, records, emptyReader, getPathOverrides());
         assert.notEqual(gateOff, gateOn);
     } finally {
         setImpureExecutionAllowed(true);
@@ -54,10 +55,10 @@ test("test_derived_caches_rebuild_when_the_pre_baseline_flag_flips", () => {
     // Scenario (task 151): a "No" build's executions are never served into a "Yes" rebuild.
     const records = buildScriptRunRecords();
     const run = findScriptExecutionRuns(records)[0]!;
-    const allowed = executeRunOnce(run, records, emptyReader);
+    const allowed = executeRunOnce(run, records, emptyReader, getPathOverrides());
     try {
         setPreBaselineReconstructionAllowed(false);
-        const declined = executeRunOnce(run, records, emptyReader);
+        const declined = executeRunOnce(run, records, emptyReader, getPathOverrides());
         assert.notEqual(declined, allowed);
     } finally {
         setPreBaselineReconstructionAllowed(true);

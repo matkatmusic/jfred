@@ -5,6 +5,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { addStageEntry } from "./reconstruction_provenance.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { findLastRevisionAtOrBefore, getLinesText } from "./reconstruction_revisions.ts";
 import type { CopyEvent, FileEvent } from "./reconstruction_events.ts";
 
@@ -13,12 +14,13 @@ export function fillCopySeeds(
   records: TranscriptRecord[],
   lineage: FileEvent[],
   resolving: Set<string>,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileEvent[] {
   const seeded: FileEvent[] = [];
   for (const event of lineage) {
     if (event.kind === EventKind.copy) {
-      seeded.push(fillOneCopySeed(records, event, resolving, reader));
+      seeded.push(fillOneCopySeed(records, event, resolving, overrides, reader));
       continue;
     }
     seeded.push(event);
@@ -31,6 +33,7 @@ function fillOneCopySeed(
   records: TranscriptRecord[],
   event: CopyEvent,
   resolving: Set<string>,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): CopyEvent {
   const destination = event.to.toString();
@@ -40,7 +43,7 @@ function fillOneCopySeed(
   }
   const next = new Set(resolving);
   next.add(destination);
-  const sourceRevisions = getFileRevisionsOver(records, event.from, next, reader);
+  const sourceRevisions = getFileRevisionsOver(records, event.from, next, overrides, reader);
   const atCopy = findLastRevisionAtOrBefore(sourceRevisions, event.timestamp);
   if (!atCopy) {
     return { ...event, seedLines: [] };

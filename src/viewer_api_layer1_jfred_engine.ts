@@ -2,15 +2,24 @@
 
 import { buildReconstructionWithConsent } from "./viewer_api.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
-import type { FileHistory } from "./reconstruction_events.ts";
+import type { BeaconCandidate } from "./layer1_beacon_candidates.ts";
+import type { FileHistory, FileRevision } from "./reconstruction_events.ts";
+import { EventKind } from "./structures/vocabulary.ts";
 import type { BuiltReconstruction } from "./reconstruction_json.ts";
 import { computeRepoStateAtTime } from "./reconstruction_steps.ts";
 import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import type { Path } from "./structures/domain.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
+import { getEffectiveFileHistoryDir } from "./viewer_api_projects.ts";
+
+// The page's own folders; the shared setting from other pages is never read here.
+export function buildCommitPathOverrides(dir: Path, repoDir: Path): PathOverrides {
+  return { projectCwd: dir, repoDir, fileHistoryRoot: getEffectiveFileHistoryDir() };
+}
 
 // onProgress is the route's writeNdjsonLine: the engine's stage events reach the page's loading bar.
-export function buildJfredReconstruction(jsonlPaths: Path[], onProgress: ProgressSink): BuiltReconstruction {
-  return buildReconstructionWithConsent(jsonlPaths, undefined, false, onProgress, true);
+export function buildJfredReconstruction(jsonlPaths: Path[], overrides: PathOverrides, allowScripts: boolean, onProgress: ProgressSink): BuiltReconstruction {
+  return buildReconstructionWithConsent(jsonlPaths, undefined, allowScripts, onProgress, true, undefined, overrides);
 }
 
 // Engine text per project-relative path at `when`; a file outside the project folder is not part of the repo.
@@ -20,6 +29,122 @@ export function listEngineFilesAt(dir: Path, histories: FileHistory[], when: Dat
     const relativePath = convertToProjectRelativePath(dir, absolutePath.toString());
     if (relativePath !== undefined) {
       files.set(relativePath, text);
+    }
+  }
+  return files;
+}
+
+export type UnrebuiltFile = { relativePath: string; reason: string; nextInstant: Date | undefined };
+
+// edit, rename and delete never give the whole text back.
+const WHOLE_FILE_KINDS = [EventKind.write, EventKind.overwrite, EventKind.append, EventKind.scriptExecution, EventKind.copy, EventKind.userEdit];
+
+function findLastFailedRevisionIndexAtOrBefore(revisions: FileRevision[], when: Date): number {
+  let failedIndex = -1;
+  for (const [index, revision] of revisions.entries()) {
+    const isAtOrBefore = revision.timestamp.getTime() <= when.getTime();
+    if (isAtOrBefore) {
+      if (revision.unrecoverable !== undefined) {
+        failedIndex = index;
+      }
+    }
+  }
+  return failedIndex;
+}
+
+function listWholeFileInstantsAfterIndex(revisions: FileRevision[], failedIndex: number): Date[] {
+  const instants: Date[] = [];
+  for (const revision of revisions.slice(failedIndex + 1)) {
+    const isWholeFileKind = WHOLE_FILE_KINDS.includes(revision.kind);
+    if (isWholeFileKind) {
+      if (revision.unrecoverable === undefined) {
+        instants.push(revision.timestamp);
+      }
+    }
+  }
+  return instants;
+}
+
+function listBeaconInstantsAfter(candidates: BeaconCandidate[], failedInstant: Date): Date[] {
+  const instants: Date[] = [];
+  for (const candidate of candidates) {
+    const isAfterFailure = candidate.instant.getTime() > failedInstant.getTime();
+    if (isAfterFailure) {
+      instants.push(candidate.instant);
+    }
+  }
+  return instants;
+}
+
+function isAnyInstantAtOrBefore(instants: Date[], when: Date): boolean {
+  for (const instant of instants) {
+    const isAtOrBefore = instant.getTime() <= when.getTime();
+    if (isAtOrBefore) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function selectEarlierInstant(current: Date | undefined, candidate: Date): Date {
+  if (current === undefined) {
+    return candidate;
+  }
+  const isEarlier = candidate.getTime() < current.getTime();
+  if (isEarlier) {
+    return candidate;
+  }
+  return current;
+}
+
+function findEarliestInstantAfter(instants: Date[], when: Date): Date | undefined {
+  let earliest: Date | undefined;
+  for (const instant of instants) {
+    const isAfter = instant.getTime() > when.getTime();
+    if (isAfter) {
+      earliest = selectEarlierInstant(earliest, instant);
+    }
+  }
+  return earliest;
+}
+
+// The name the file held at `when`: the one key of its own one-file state.
+function findPathAtMark(history: FileHistory, when: Date): Path {
+  const [pathAtMark] = computeRepoStateAtTime([history], when).keys();
+  return pathAtMark!;
+}
+
+function findUnrebuiltFileFromFailure(relativePath: string, target: Path, history: FileHistory, failedIndex: number, markInstant: Date, listBeacons: (target: Path) => BeaconCandidate[]): UnrebuiltFile | undefined {
+  const failedRevision = history.revisions[failedIndex]!;
+  const evidenceInstants = [...listWholeFileInstantsAfterIndex(history.revisions, failedIndex), ...listBeaconInstantsAfter(listBeacons(target), failedRevision.timestamp)];
+  const isKnownAgain = isAnyInstantAtOrBefore(evidenceInstants, markInstant);
+  if (isKnownAgain) {
+    return undefined;
+  }
+  return { relativePath, reason: failedRevision.unrecoverable!.reason, nextInstant: findEarliestInstantAfter(evidenceInstants, markInstant) };
+}
+
+function findUnrebuiltFile(dir: Path, history: FileHistory, markInstant: Date, listBeacons: (target: Path) => BeaconCandidate[]): UnrebuiltFile | undefined {
+  const failedIndex = findLastFailedRevisionIndexAtOrBefore(history.revisions, markInstant);
+  const hasFailure = failedIndex !== -1;
+  if (!hasFailure) {
+    return undefined;
+  }
+  const target = findPathAtMark(history, markInstant);
+  const relativePath = convertToProjectRelativePath(dir, target.toString());
+  if (relativePath === undefined) {
+    return undefined;
+  }
+  return findUnrebuiltFileFromFailure(relativePath, target, history, failedIndex, markInstant, listBeacons);
+}
+
+// Files in the folder whose failed revision has no whole-file evidence before the mark.
+export function listUnrebuiltFilesAt(dir: Path, histories: FileHistory[], markInstant: Date, listBeacons: (target: Path) => BeaconCandidate[]): UnrebuiltFile[] {
+  const files: UnrebuiltFile[] = [];
+  for (const history of histories) {
+    const file = findUnrebuiltFile(dir, history, markInstant, listBeacons);
+    if (file !== undefined) {
+      files.push(file);
     }
   }
   return files;

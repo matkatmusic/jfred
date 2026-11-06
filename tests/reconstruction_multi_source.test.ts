@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { setPathOverrides, type SourceEntry } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides, type SourceEntry } from "../src/reconstruction_overrides.ts";
 import {
     removeDuplicateRecordsBySessionAndUuid,
     mergeRecordsByTimestamp,
@@ -88,7 +88,7 @@ test("test_single_source_records_pass_through_unchanged", () => {
     );
     const records = writeTranscriptFixture(tree.projectDir, "a.jsonl", pair.records);
     const sources: SourceEntry[] = [{ projectsDir: new Path(join(tree.treeRoot, "projects")) }];
-    const merged = mergeMultiSourceRecords([records], sources);
+    const merged = mergeMultiSourceRecords([records], sources, getPathOverrides());
     assert.deepEqual(merged, records);
 });
 
@@ -124,8 +124,8 @@ test("test_nested_root_sessions_keep_one_ladder_for_one_absolute_path", () => {
         { projectsDir: new Path(join(treeA.treeRoot, "projects")), root: new Path(rootA) },
         { projectsDir: new Path(join(treeB.treeRoot, "projects")), root: new Path(rootB) },
     ];
-    const merged = mergeMultiSourceRecords([listA, listB], sources);
-    const steps = buildStepStates(merged, buildSidecarReader(merged, sources));
+    const merged = mergeMultiSourceRecords([listA, listB], sources, getPathOverrides());
+    const steps = buildStepStates(merged, getPathOverrides(), buildSidecarReader(merged, getPathOverrides(), sources));
     // Test verification: three engine steps carry the ONE interleaved ladder (engine text drops the trailing newline).
     const ladder = steps.map((step) => getSnapshotFileText(step, filePath));
     assert.deepEqual(ladder, versions.map((text) => text.slice(0, -1)));

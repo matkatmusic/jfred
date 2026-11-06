@@ -19,6 +19,7 @@ import type { ScriptRunFileChanges } from "./reconstruction_script_run_changes.t
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 import type { FileHistory } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import type { StepSnapshot } from "./reconstruction_json_steps.ts";
 import { buildDocumentSections, buildPhaseTolerantly } from "./reconstruction_json_sections.ts";
 import { findSessionId } from "./reconstruction_sidecar_reader.ts";
@@ -116,6 +117,7 @@ export function buildReconstructionDocument(
   branched: BranchedReconstruction,
   reader: BackupReader | undefined,
   target: Path | undefined,
+  overrides: PathOverrides,
   skippedLines: SkippedLine[] = [],
 ): BuiltReconstruction {
   // task 119: each sub-phase uses buildPhaseTolerantly to degrade gracefully.
@@ -125,7 +127,7 @@ export function buildReconstructionDocument(
   reportReconstructionProgress("summarizing branches");
   // task 119: const branches = collectBranchSummaries(records);
   const branches = buildPhaseTolerantly("summarizeBranches", [], collectBranchSummaries.bind(undefined, records));
-  const sections = buildDocumentSections(records, branched, reader, target);
+  const sections = buildDocumentSections(records, branched, reader, target, overrides);
   const document: ReconstructionDocument = {
     sessionId: findSessionId(records),
     sessionTitles: findSessionTitles(records),

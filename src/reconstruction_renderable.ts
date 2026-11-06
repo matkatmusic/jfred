@@ -21,19 +21,21 @@ import {
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import type { FileEvent, FileHistory } from "./reconstruction_events.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // Script-born files leave no Write/Edit event, so the runs that created them add their targets.
 function addScriptCreatedTargets(
   targets: Path[],
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   renameChain: Map<string, Path>,
 ): void {
   const known = new Set<string>();
   for (const target of targets) {
     known.add(target.toString());
   }
-  for (const path of findScriptCreatedPaths(records, reader, getLineageContentBefore(records, reader))) {
+  for (const path of findScriptCreatedPaths(records, reader, overrides, getLineageContentBefore(records, reader, overrides))) {
     const finalPath = getFinalPath(path, renameChain);
     const isKnown = known.has(finalPath.toString());
     if (isKnown)
@@ -44,9 +46,9 @@ function addScriptCreatedTargets(
 }
 
 // Per-file backstop: a failure degrades to an empty history for this file only (task 119).
-function getFileHistoryOrEmpty(records: TranscriptRecord[], target: Path, reader?: BackupReader): FileHistory {
+function getFileHistoryOrEmpty(records: TranscriptRecord[], target: Path, overrides: PathOverrides, reader?: BackupReader): FileHistory {
   try {
-    const revisions = getFileRevisionsOver(records, target, new Set<string>(), reader);
+    const revisions = getFileRevisionsOver(records, target, new Set<string>(), overrides, reader);
     return { target, revisions };
   }
   catch (error) {
@@ -59,20 +61,21 @@ function getFileHistoryOrEmpty(records: TranscriptRecord[], target: Path, reader
 // Reconstruct every file touched by exactly these records, keyed by the path it ends life at.
 export function getFileHistoriesOver(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileHistory[] {
   reportReconstructionProgress(`extracting file events from ${records.length} records`);
   const extracted = extractFileEvents(records);
-  const events = appendScriptMoveRenames(extracted, records, reader, reader ? getLineageContentBefore(records, reader) : undefined);
+  const events = appendScriptMoveRenames(extracted, records, reader, overrides, reader ? getLineageContentBefore(records, reader, overrides) : undefined);
   const renameChain = buildRenameChain(events);
   const targets = collectDistinctFinalPaths(events, renameChain);
   if (reader) {
-    addScriptCreatedTargets(targets, records, reader, renameChain);
+    addScriptCreatedTargets(targets, records, reader, overrides, renameChain);
   }
   const histories: FileHistory[] = [];
   for (const [index, target] of targets.entries()) {
     reportReconstructionProgress(`reconstructing ${target}`, index + 1, targets.length);
-    histories.push(getFileHistoryOrEmpty(records, target, reader));
+    histories.push(getFileHistoryOrEmpty(records, target, overrides, reader));
   }
   return histories;
 }
@@ -100,6 +103,7 @@ function addBranchUserEditIds(histories: FileHistory[], accepted: Set<string>): 
 // The changeIds of every user edit that actually changed a file, judged per conversation branch.
 export function collectAcceptedUserEditIds(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): Set<string> {
   const accepted = new Set<string>();
@@ -107,7 +111,7 @@ export function collectAcceptedUserEditIds(
   for (const [branchIndex, branch] of branches.entries()) {
     reportReconstructionProgress(`reconstructing accepted user edits — branch ${branchIndex + 1}/${branches.length}`);
     const branchRecords = selectBranchRecords(records, branch.tip);
-    addBranchUserEditIds(getFileHistoriesOver(branchRecords, reader), accepted);
+    addBranchUserEditIds(getFileHistoriesOver(branchRecords, overrides, reader), accepted);
   }
   return accepted;
 }

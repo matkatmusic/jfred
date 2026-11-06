@@ -20,6 +20,7 @@ import {
     getReconstructionCounterSnapshot,
 } from "../src/reconstruction_counters.ts";
 import { getSurvivingFileHistory } from "../src/reconstruction_target.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { EventKind, ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -54,7 +55,7 @@ test("test_bash_run_skips_prestate_and_sandbox", () => {
     const bashRun = runs.find((run) => run.executorKind === ScriptExecutorKind.bash);
     assert.ok(bashRun !== undefined);
     const labels = collectProgressLabels(() => {
-        const execution = executeRunOnce(bashRun, records, emptyReader);
+        const execution = executeRunOnce(bashRun, records, emptyReader, getPathOverrides());
         assert.equal(execution.post, undefined);
     });
     // the skip is announced with its distinct reason, and no expensive work ran.
@@ -74,7 +75,7 @@ test("test_python_run_still_executes", () => {
     const runs = findScriptExecutionRuns(records);
     const pythonRun = runs.find((run) => run.executorKind === ScriptExecutorKind.python);
     assert.ok(pythonRun !== undefined);
-    const execution = executeRunOnce(pythonRun, records, emptyReader);
+    const execution = executeRunOnce(pythonRun, records, emptyReader, getPathOverrides());
     // the sandbox produced a post-state with the transformed file.
     assert.ok(execution.post !== undefined);
     assert.equal(execution.post.get("data.txt"), "after\n");
@@ -100,12 +101,12 @@ test("test_run_with_no_start_files_replays_only_inside_real_box_with_commit", ()
         // outside the real box the run has no start files, so it is not replayed.
         const outsideRecords = buildRecords();
         const outsideRun = findScriptExecutionRuns(outsideRecords)[0]!;
-        const outside = executeRunOnce(outsideRun, outsideRecords, emptyReader);
+        const outside = executeRunOnce(outsideRun, outsideRecords, emptyReader, getPathOverrides());
         assert.equal(outside.post, undefined);
         // inside the real box the commit counts as a start, so the run replays and writes its file.
         const insideRecords = buildRecords();
         const insideRun = findScriptExecutionRuns(insideRecords)[0]!;
-        const inside = executeInRealBox(new Path(repo), () => executeRunOnce(insideRun, insideRecords, emptyReader));
+        const inside = executeInRealBox(new Path(repo), () => executeRunOnce(insideRun, insideRecords, emptyReader, getPathOverrides()));
         assert.ok(inside.post !== undefined);
         assert.equal(inside.post.get("out.txt"), "after\n");
     } finally {
@@ -150,7 +151,7 @@ test("test_bash_static_rename_evidence_survives_gate", () => {
         buildToolRecord(ToolName.Write, { file_path: "/proj/a.py", content: "a = 1\n" }, "2026-01-01T00:00:01Z"),
         buildToolRecord(ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z"),
     ];
-    const history = getSurvivingFileHistory(records, new Path("/proj/b.py"));
+    const history = getSurvivingFileHistory(records, new Path("/proj/b.py"), getPathOverrides());
     assert.ok(history !== undefined);
     assert.ok(history.revisions.some((revision) => revision.kind === EventKind.rename));
 });

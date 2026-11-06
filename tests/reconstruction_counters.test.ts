@@ -8,6 +8,7 @@ import {
     getReconstructionCounterSnapshot,
 } from "../src/reconstruction_counters.ts";
 import { executeRunOnce } from "../src/reconstruction_script_runs.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -54,8 +55,8 @@ test("test_execute_run_once_counts_request_and_cache_hit", () => {
     const records: TranscriptRecord[] = [];
     const run: ScriptRun = { code: 'print("hi")', timestamp: new Date("2026-01-01T00:00:01Z") };
     // drive it through executeRunOnce twice against the SAME records identity.
-    executeRunOnce(run, records, emptyReader);
-    executeRunOnce(run, records, emptyReader);
+    executeRunOnce(run, records, emptyReader, getPathOverrides());
+    executeRunOnce(run, records, emptyReader, getPathOverrides());
     // two requests, one cache hit, zero pre-state builds and sandbox spawns.
     const snapshot = getReconstructionCounterSnapshot();
     assert.equal(snapshot[ReconstructionCounter.executionRequests], 2);

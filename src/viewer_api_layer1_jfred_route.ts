@@ -24,6 +24,9 @@ export function parseCommitInput(query: URLSearchParams, body: string): CommitIn
   const dir = validateExistingFolderParam(query, "dir");
   const repoDir = validateExistingFolderParam(query, "repo");
   const request = JSON.parse(body) as WireJfredCommitRequest;
+  if (typeof request.allowScripts !== "boolean") {
+    throw new Error(`allowScripts must be true or false: ${request.allowScripts}`);
+  }
   const markInstant = new Date(request.markInstant);
   const isMarkInstantValid = !Number.isNaN(markInstant.getTime());
   if (!isMarkInstantValid) {

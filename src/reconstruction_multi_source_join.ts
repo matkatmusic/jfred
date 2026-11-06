@@ -2,7 +2,7 @@
 
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { validateJoinContentAgreement, reportJoinedPathConflicts } from "./reconstruction_multi_source_gate.ts";
 import { copyRecordReplacingPath } from "./reconstruction_multi_source_clone.ts";
 import {
@@ -39,6 +39,7 @@ function joinRelativePath(
   laterRoot: string,
   laterAbsolute: string,
   primary: PrimaryPath,
+  overrides: PathOverrides,
 ): TranscriptRecord[] {
   const laterRecords = filterRecordsByRoot(workingRecords, sessionRoots, laterRoot);
   const evidence = findFirstEventForPath(laterRecords, laterAbsolute);
@@ -46,7 +47,7 @@ function joinRelativePath(
     return workingRecords;
   }
   const earlierRecords = filterRecordsByRoot(workingRecords, sessionRoots, primary.root);
-  const isAgreeing = validateJoinContentAgreement(earlierRecords, new Path(primary.absolute), evidence, sources);
+  const isAgreeing = validateJoinContentAgreement(earlierRecords, new Path(primary.absolute), evidence, sources, overrides);
   if (!isAgreeing) {
     return workingRecords;
   }
@@ -62,6 +63,7 @@ function joinPathsOfLaterRoot(
   rootOrder: string[],
   laterIndex: number,
   joinedPrimaries: Set<string>,
+  overrides: PathOverrides,
 ): TranscriptRecord[] {
   const laterRoot = rootOrder[laterIndex]!;
   const laterPathMap = collectRelativePathMap(
@@ -77,7 +79,7 @@ function joinPathsOfLaterRoot(
       continue;
     }
     const joinedRecords = joinRelativePath(
-      workingRecords, sources, sessionRoots, laterRoot, laterAbsolute, primary);
+      workingRecords, sources, sessionRoots, laterRoot, laterAbsolute, primary, overrides);
     // remap always builds a new array, so a changed reference marks a completed join.
     if (joinedRecords !== workingRecords) {
       joinedPrimaries.add(primary.absolute);
@@ -92,6 +94,7 @@ export function joinCrossSourceFileIdentities(
   records: TranscriptRecord[],
   sources: SourceEntry[],
   sessionRoots: Map<string, Path>,
+  overrides: PathOverrides,
 ): TranscriptRecord[] {
   const rootOrder = computeRootOrder(records, sessionRoots);
   if (rootOrder.length <= 1) {
@@ -101,10 +104,10 @@ export function joinCrossSourceFileIdentities(
   const joinedPrimaries = new Set<string>();
   for (let laterIndex = 1; laterIndex < rootOrder.length; laterIndex++) {
     workingRecords = joinPathsOfLaterRoot(
-      workingRecords, sources, sessionRoots, rootOrder, laterIndex, joinedPrimaries);
+      workingRecords, sources, sessionRoots, rootOrder, laterIndex, joinedPrimaries, overrides);
   }
   for (const primaryAbsolute of joinedPrimaries) {
-    reportJoinedPathConflicts(workingRecords, new Path(primaryAbsolute), sources);
+    reportJoinedPathConflicts(workingRecords, new Path(primaryAbsolute), sources, overrides);
   }
   return workingRecords;
 }

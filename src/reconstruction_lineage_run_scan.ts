@@ -4,6 +4,7 @@ import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { DerivedCaches } from "./reconstruction_corpus.ts";
 import { isTimestampAtOrBeforeSkippedBaseline } from "./reconstruction_base_commit.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import {
   ScriptExecutorKind,
   findScriptExecutionRuns,
@@ -32,8 +33,8 @@ function isRunRollCapable(run: ScriptRun): boolean {
 }
 
 // Roll-capable and not behind a declined baseline.
-function isRunDirectlyExecutable(run: ScriptRun): boolean {
-  return isRunRollCapable(run) && !isTimestampAtOrBeforeSkippedBaseline(run.timestamp);
+function isRunDirectlyExecutable(run: ScriptRun, overrides: PathOverrides): boolean {
+  return isRunRollCapable(run) && !isTimestampAtOrBeforeSkippedBaseline(run.timestamp, overrides);
 }
 
 function compareRunsByTimestamp(a: ScriptRun, b: ScriptRun): number {
@@ -49,8 +50,8 @@ export type RunScanState = {
 const runScansByDerived = new WeakMap<DerivedCaches, Map<string, RunScanState>>();
 
 // Relevant if executable and unmemoized, or memoized with a diff touching this lineage.
-function isRunRelevantByMemo(run: ScriptRun, derived: DerivedCaches, inputs: LineageStaticInputs): boolean {
-  const isExecutable = isRunDirectlyExecutable(run);
+function isRunRelevantByMemo(run: ScriptRun, derived: DerivedCaches, inputs: LineageStaticInputs, overrides: PathOverrides): boolean {
+  const isExecutable = isRunDirectlyExecutable(run, overrides);
   if (!isExecutable) {
     return false;
   }
@@ -70,6 +71,7 @@ function computeRunScan(
   records: TranscriptRecord[],
   derived: DerivedCaches,
   inputs: LineageStaticInputs,
+  overrides: PathOverrides,
 ): RunScanState {
   const sortedRuns = [...findScriptExecutionRuns(records)].sort(compareRunsByTimestamp);
   const relevantInstantsMs: number[] = [];
@@ -79,7 +81,7 @@ function computeRunScan(
     const rollingModePossible = firstDiffRelevantMs !== undefined && runMs > firstDiffRelevantMs;
     const relevant = rollingModePossible
       ? isRunRollCapable(run)
-      : isRunRelevantByMemo(run, derived, inputs);
+      : isRunRelevantByMemo(run, derived, inputs, overrides);
     if (!relevant) {
       continue;
     }
@@ -97,6 +99,7 @@ export function getRunScanForTarget(
   derived: DerivedCaches,
   target: Path,
   inputs: LineageStaticInputs,
+  overrides: PathOverrides,
 ): RunScanState {
   let scansByTarget = runScansByDerived.get(derived);
   if (scansByTarget === undefined) {
@@ -110,7 +113,7 @@ export function getRunScanForTarget(
       return cached;
     }
   }
-  const scan = computeRunScan(records, derived, inputs);
+  const scan = computeRunScan(records, derived, inputs, overrides);
   scansByTarget.set(target.toString(), scan);
   return scan;
 }

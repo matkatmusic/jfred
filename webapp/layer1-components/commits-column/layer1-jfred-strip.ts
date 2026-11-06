@@ -71,7 +71,19 @@ function applyCommitReply(reply: WireJfredCommitReply | undefined): void {
     applyServerCommit(reply.commit);
     return;
   }
+  if (reply.outcome === JfredCommitOutcome.unrebuilt) {
+    openMoveQuestionForUnrebuiltPaths(reply.paths, reply.nextInstant);
+    return;
+  }
   openMoveQuestionForUnchangedRange(reply.nextInstant);
+}
+
+function openMoveQuestionForUnrebuiltPaths(paths: string[], nextInstant: string): void {
+  const question = `${paths.join(", ")} could not be rebuilt here. Move the Commit point to ${nextInstant}?`;
+  function applyThisMoveAnswer(isYes: boolean): void {
+    applyMoveAnswer(isYes, nextInstant);
+  }
+  void openYesNoQuestion(question, "Yes, move it", "No").then(applyThisMoveAnswer);
 }
 
 function applyServerCommit(commit: JfredCommit): void {

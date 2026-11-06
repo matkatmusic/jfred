@@ -8,6 +8,7 @@ import { buildStepStates, buildStepChanges, type RepoSnapshot } from "../src/rec
 import { isReproducedBySomeStep } from "../src/reconstruction_step_snapshot.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { mergeMultiSourceRecords, splitRecordsBySession } from "../src/reconstruction_multi_source.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { enableProvenance, disableProvenance, getAndClearProvenance } from "../src/reconstruction_provenance.ts";
 import { listCoveredScenarios, findUncovered, type CoveredScenario } from "./coverage_scenarios.ts";
 import { buildUuidLineIndex } from "./jsonl_uuid_line_index.ts";
@@ -39,15 +40,15 @@ export function validateScenario(scenario: CoveredScenario): ScenarioResult {
   // Spec S7c: a multi-source capture routes through the viewer's merge stages + per-source reader.
   const records = scenario.sources === undefined
     ? loaded
-    : mergeMultiSourceRecords(splitRecordsBySession(loaded), scenario.sources);
+    : mergeMultiSourceRecords(splitRecordsBySession(loaded), scenario.sources, getPathOverrides());
   console.log(`   Loaded ${records.length} transcript records from ${scenario.jsonlPaths.length} JSONL files`);
-  const reader = buildSidecarReader(records, scenario.sources);
+  const reader = buildSidecarReader(records, getPathOverrides(), scenario.sources);
   const uuidLineIndex = buildUuidLineIndex(scenario.jsonlPaths);
   enableProvenance();
-  const steps = buildStepStates(records, reader);
+  const steps = buildStepStates(records, getPathOverrides(), reader);
   const provenance = getAndClearProvenance();
   disableProvenance();
-  const stepChanges = buildStepChanges(records, reader);
+  const stepChanges = buildStepChanges(records, getPathOverrides(), reader);
   const mismatches: StepMismatch[] = [];
   let passed = 0;
   let userEdits = 0;

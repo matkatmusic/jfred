@@ -3,6 +3,7 @@
 import { JFRED_SHORT_HASH_LENGTH } from "./layer1-wire-jfred.ts";
 import type { WireJfredBaseOf, WireJfredCommitOf, WireJfredCommitRequest } from "./layer1-wire-jfred.ts";
 import type { WireLayer1View } from "../../layer1-wire.ts";
+import { isRunConsentAllowed } from "../popups/layer1-run-consent.ts";
 
 export type JfredBase = WireJfredBaseOf<string>;
 export type JfredCommit = WireJfredCommitOf<string>;
@@ -84,6 +85,7 @@ export function buildCommitRequest(): WireJfredCommitRequest {
     parentShortHash,
     markInstant: branch.pending.instant,
     message: branch.pending.message,
+    allowScripts: isRunConsentAllowed(),
   };
 }
 

@@ -10,12 +10,14 @@ import type { LineageSeedEntry } from "./reconstruction_lineage_memo.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { isImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { isPreBaselineReconstructionAllowed } from "./reconstruction_base_commit.ts";
+import { formatPathOverrides, type PathOverrides } from "./reconstruction_overrides.ts";
 
 // The reader/exec-gate-validated cache group: per-file histories (reconstructFileOver), lineage-seed texts (getLineageContentBefore), and sandbox executions (executeRunOnce).
 export type DerivedCaches = {
   reader: BackupReader | undefined;
   impureAllowed: boolean;
   preBaselineAllowed: boolean;
+  overridesStamp: string;
   historiesByTarget: Map<string, FileRevision[]>;
   lineageSeedsByKey: Map<string, LineageSeedEntry>;
   executionsByRun: Map<string, RunExecution>;
@@ -39,11 +41,12 @@ export type CorpusState = {
 const corpusStates = new WeakMap<TranscriptRecord[], CorpusState>();
 
 // An empty derived-cache group stamped with the reader and the CURRENT exec-gate and pre-baseline flag values.
-function buildDerivedCaches(reader: BackupReader | undefined): DerivedCaches {
+function buildDerivedCaches(reader: BackupReader | undefined, overrides: PathOverrides): DerivedCaches {
   return {
     reader,
     impureAllowed: isImpureExecutionAllowed(),
     preBaselineAllowed: isPreBaselineReconstructionAllowed(),
+    overridesStamp: formatPathOverrides(overrides),
     historiesByTarget: new Map<string, FileRevision[]>(),
     lineageSeedsByKey: new Map<string, LineageSeedEntry>(),
     executionsByRun: new Map<string, RunExecution>(),
@@ -62,31 +65,37 @@ export function getCorpusState(records: TranscriptRecord[]): CorpusState {
       backupTimelinesByCwd: new Map<string, Map<string, BackupPoint[]>>(),
       gitCommitEvents: undefined,
       gitAddEvents: undefined,
-      derived: buildDerivedCaches(undefined),
+      derived: buildDerivedCaches(undefined, {}),
     };
     corpusStates.set(records, state);
   }
   return state;
 }
 
-// Rebuilds derived caches when reader, exec-gate, or pre-baseline flag changed.
+// Rebuilds derived caches when reader, exec-gate, pre-baseline flag, or the folders changed.
 export function getDerivedCaches(
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
+  overrides: PathOverrides,
 ): DerivedCaches {
   const state = getCorpusState(records);
   if (state.derived.reader !== reader) {
-    state.derived = buildDerivedCaches(reader);
+    state.derived = buildDerivedCaches(reader, overrides);
     return state.derived;
   }
   const impureAllowedNow = isImpureExecutionAllowed();
   if (state.derived.impureAllowed !== impureAllowedNow) {
-    state.derived = buildDerivedCaches(reader);
+    state.derived = buildDerivedCaches(reader, overrides);
     return state.derived;
   }
   const preBaselineAllowedNow = isPreBaselineReconstructionAllowed();
   if (state.derived.preBaselineAllowed !== preBaselineAllowedNow) {
-    state.derived = buildDerivedCaches(reader);
+    state.derived = buildDerivedCaches(reader, overrides);
+    return state.derived;
+  }
+  const overridesStampNow = formatPathOverrides(overrides);
+  if (state.derived.overridesStamp !== overridesStampNow) {
+    state.derived = buildDerivedCaches(reader, overrides);
   }
   return state.derived;
 }

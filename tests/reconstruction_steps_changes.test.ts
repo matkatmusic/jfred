@@ -16,6 +16,7 @@ import {
     getDefaultFileHistoryRoot,
     findSessionId,
 } from "../src/reconstruction_sidecar_reader.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { loadRecords } from "./utilities.ts";
 import { S19_JSONL } from "./fixtures.ts";
 
@@ -31,7 +32,7 @@ function realReader(records: ReturnType<typeof loadRecords>): BackupReader | und
 test("test_snapshotFileText_returns_engine_text_for_a_file_present_at_a_step", () => {
     // Behavior: at the first step scenario19.py holds the bare add definition.
     const records = loadRecords(S19_JSONL);
-    const steps = buildStepStates(records, realReader(records));
+    const steps = buildStepStates(records, getPathOverrides(), realReader(records));
     // Verify: the first step's scenario19.py text is the bare add definition.
     assert.equal(getSnapshotFileText(steps[0]!, "scenario19.py"), ADD_ONLY);
 });
@@ -39,7 +40,7 @@ test("test_snapshotFileText_returns_engine_text_for_a_file_present_at_a_step", (
 test("test_snapshotFileText_returns_undefined_for_a_file_absent_at_a_step", () => {
     // Behavior: the test file is written second, so it does not exist at the first step.
     const records = loadRecords(S19_JSONL);
-    const steps = buildStepStates(records, realReader(records));
+    const steps = buildStepStates(records, getPathOverrides(), realReader(records));
     // Verify: the test file is absent at the first step.
     assert.equal(getSnapshotFileText(steps[0]!, "tests/test_scenario19.py"), undefined);
 });
@@ -47,7 +48,7 @@ test("test_snapshotFileText_returns_undefined_for_a_file_absent_at_a_step", () =
 test("test_someStepReproduces_is_true_when_an_engine_step_matches_ground_truth", () => {
     // Behavior: the first engine step reproduces a ground truth holding the bare add definition.
     const records = loadRecords(S19_JSONL);
-    const steps = buildStepStates(records, realReader(records));
+    const steps = buildStepStates(records, getPathOverrides(), realReader(records));
     const groundTruth = new Map([["scenario19.py", ADD_ONLY]]);
     // Verify: some engine step reproduces it.
     assert.ok(isReproducedBySomeStep(steps, groundTruth));
@@ -56,7 +57,7 @@ test("test_someStepReproduces_is_true_when_an_engine_step_matches_ground_truth",
 test("test_someStepReproduces_is_false_when_no_engine_step_matches_ground_truth", () => {
     // Behavior: no engine step reproduces content that the engine never produced.
     const records = loadRecords(S19_JSONL);
-    const steps = buildStepStates(records, realReader(records));
+    const steps = buildStepStates(records, getPathOverrides(), realReader(records));
     const groundTruth = new Map([["scenario19.py", "def never_written(): pass"]]);
     // Verify: no engine step reproduces it.
     assert.equal(isReproducedBySomeStep(steps, groundTruth), false);
@@ -66,8 +67,8 @@ test("test_buildStepChanges_has_one_entry_per_buildStepStates_step", () => {
     // Behavior: buildStepChanges matches buildStepStates one to one, in ascending time, with changeIds.
     const records = loadRecords(S19_JSONL);
     const reader = realReader(records);
-    const steps = buildStepStates(records, reader);
-    const changes = buildStepChanges(records, reader);
+    const steps = buildStepStates(records, getPathOverrides(), reader);
+    const changes = buildStepChanges(records, getPathOverrides(), reader);
     // Verify: equal length...
     assert.equal(changes.length, steps.length);
     // ...ascending change-times, each with at least one triggering changeId.
@@ -82,7 +83,7 @@ test("test_buildStepChanges_has_one_entry_per_buildStepStates_step", () => {
 test("test_buildStepChanges_changeId_resolves_to_a_real_record_uuid_in_s19", () => {
     // Behavior: a step's changeId is the producing record's uuid.
     const records = loadRecords(S19_JSONL);
-    const changes = buildStepChanges(records, realReader(records));
+    const changes = buildStepChanges(records, getPathOverrides(), realReader(records));
     const recordUuids = new Set(
         records.map((record) => record.uuid?.toString()).filter((uuid): uuid is string => uuid !== undefined),
     );
@@ -96,7 +97,7 @@ test("test_buildStepChanges_changeId_resolves_to_a_real_record_uuid_in_s19", () 
 test("test_buildStepTimeline_returns_histories_and_change_metadata_without_per_step_states", () => {
     // Behavior: buildStepTimeline returns file histories and one change per instant, with no per-step snapshots.
     const records = loadRecords(S19_JSONL);
-    const timeline = buildStepTimeline(records, realReader(records));
+    const timeline = buildStepTimeline(records, getPathOverrides(), realReader(records));
     // Verify: histories are the compact FileHistory form...
     assert.ok(timeline.histories.length >= 2);
     assert.ok(timeline.histories.every((history) => Array.isArray(history.revisions)));

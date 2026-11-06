@@ -6,7 +6,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import { FailureScope } from "./structures/vocabulary_views.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { FileEvent, WriteEvent } from "./reconstruction_events.ts";
-import { getPathOverrides } from "./reconstruction_overrides.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { findBaseCommitEvidenceForTarget, readCommitFileContent, readCommitTimestamp } from "./reconstruction_base_commit_evidence.ts";
 import { reportReconstructionFailure } from "./reconstruction_health.ts";
 import { addStageEntry } from "./reconstruction_provenance.ts";
@@ -28,11 +28,11 @@ export function isPreBaselineReconstructionAllowed(): boolean {
 // Task 151: memoized cutoff instant; runs at-or-before it are skipped.
 let skippedBaselineCutoffCache: { cachedFor: string; cutoff: Date | undefined } | undefined;
 
-export function computeSkippedBaselineCutoff(): Date | undefined {
+export function computeSkippedBaselineCutoff(overrides: PathOverrides): Date | undefined {
   if (preBaselineReconstructionAllowed) {
     return undefined;
   }
-  const { repoDir, baseCommit } = getPathOverrides();
+  const { repoDir, baseCommit } = overrides;
   if (repoDir === undefined) {
     return undefined;
   }
@@ -47,8 +47,8 @@ export function computeSkippedBaselineCutoff(): Date | undefined {
 }
 
 // Task 151: true when this run is superseded by a declined baseline.
-export function isTimestampAtOrBeforeSkippedBaseline(timestamp: Date): boolean {
-  const cutoff = computeSkippedBaselineCutoff();
+export function isTimestampAtOrBeforeSkippedBaseline(timestamp: Date, overrides: PathOverrides): boolean {
+  const cutoff = computeSkippedBaselineCutoff(overrides);
   if (cutoff === undefined) {
     return false;
   }
@@ -61,8 +61,8 @@ export function computeBaseCommitChangeId(baseCommit: Uuid, target: Path): Uuid 
 }
 
 // Splices a tier-1 beacon WriteEvent if the base commit contains this target.
-export function insertBaseCommitBeacon(records: TranscriptRecord[], events: FileEvent[], target: Path): FileEvent[] {
-  const evidence = findBaseCommitEvidenceForTarget(records, target);
+export function insertBaseCommitBeacon(records: TranscriptRecord[], events: FileEvent[], target: Path, overrides: PathOverrides): FileEvent[] {
+  const evidence = findBaseCommitEvidenceForTarget(records, target, overrides);
   if (evidence === undefined) {
     return events;
   }

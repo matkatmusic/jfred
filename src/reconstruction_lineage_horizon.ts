@@ -10,6 +10,7 @@ import {
   getStaticInputsForTarget,
 } from "./reconstruction_lineage_inputs.ts";
 import { getRunScanForTarget } from "./reconstruction_lineage_run_scan.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // Memo key: target plus latest relevant input before the query instant.
 export function computeLineageSeedHorizonKey(
@@ -17,10 +18,11 @@ export function computeLineageSeedHorizonKey(
   reader: BackupReader,
   target: Path,
   before: Date,
+  overrides: PathOverrides,
 ): string {
   const inputs = getStaticInputsForTarget(records, target);
-  const derived = getDerivedCaches(records, reader);
-  const scan = getRunScanForTarget(records, derived, target, inputs);
+  const derived = getDerivedCaches(records, reader, overrides);
+  const scan = getRunScanForTarget(records, derived, target, inputs, overrides);
   const beforeMs = before.getTime();
   let horizonMs = Math.max(
     findLatestInstantBefore(inputs.ownInstantsMs, beforeMs),

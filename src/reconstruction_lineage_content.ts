@@ -24,6 +24,7 @@ import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { getFileRevisionsOver } from "./reconstruction_branches.ts";
 import { findLastRevisionStrictlyBefore, getLinesText } from "./reconstruction_revisions.ts";
 import type { FileRevision } from "./reconstruction_events.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // The seed text of a replayed revision, or undefined when the lineage has no revision to offer.
 function computeSeededText(revisionBefore: FileRevision | undefined): string | undefined {
@@ -39,8 +40,9 @@ function computeReplayedSeedText(
   reader: BackupReader,
   target: Path,
   before: Date,
+  overrides: PathOverrides,
 ): string | undefined {
-  const revisions = getFileRevisionsOver(records, target, new Set(), reader);
+  const revisions = getFileRevisionsOver(records, target, new Set(), overrides, reader);
   return computeSeededText(findLastRevisionStrictlyBefore(revisions, before));
 }
 
@@ -50,6 +52,7 @@ function computeLineageContentBefore(
   reader: BackupReader,
   target: Path,
   before: Date,
+  overrides: PathOverrides,
 ): string | undefined {
   const cycleKey = `${target.toString()}|${before.getTime()}`;
   markLineageKeyQueried(cycleKey);
@@ -58,8 +61,8 @@ function computeLineageContentBefore(
     markLineageGuardHit(cycleKey);
     return undefined;
   }
-  const seedsByKey = getDerivedCaches(records, reader).lineageSeedsByKey;
-  const seedKey = computeLineageSeedHorizonKey(records, reader, target, before);
+  const seedsByKey = getDerivedCaches(records, reader, overrides).lineageSeedsByKey;
+  const seedKey = computeLineageSeedHorizonKey(records, reader, target, before, overrides);
   const previousCutoff = applyLineageReplayWindow(before);
   try {
     // Cache valid only when memo module proves replay identical to fresh compute (task 162).
@@ -70,7 +73,7 @@ function computeLineageContentBefore(
       return servableEntry.text;
     }
     reportReconstructionProgress(`replaying lineage of ${target}`);
-    const computeFrameText = () => computeReplayedSeedText(records, reader, target, before);
+    const computeFrameText = () => computeReplayedSeedText(records, reader, target, before, overrides);
     const replayed = executeLineageReplayFrame(cycleKey, computeFrameText);
     storeLineageSeedWhenCacheable(seedsByKey, seedKey, replayed.cacheable, windowKeptInstant);
     return replayed.text;
@@ -81,6 +84,6 @@ function computeLineageContentBefore(
 }
 
 // A LineageContentBefore that replays the target's own reconstruction up to `before`.
-export function getLineageContentBefore(records: TranscriptRecord[], reader: BackupReader): LineageContentBefore {
-  return (target, before) => computeLineageContentBefore(records, reader, target, before);
+export function getLineageContentBefore(records: TranscriptRecord[], reader: BackupReader, overrides: PathOverrides): LineageContentBefore {
+  return (target, before) => computeLineageContentBefore(records, reader, target, before, overrides);
 }

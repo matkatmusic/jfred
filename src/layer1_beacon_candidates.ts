@@ -7,7 +7,7 @@ import { collectTargetSnapshotBeaconNodes } from "./layered_snapshot_beacons.ts"
 import { collectBashCatBeacons } from "./layer1_cat_beacons.ts";
 import { readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { buildBackupPathResolver, buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
@@ -68,9 +68,9 @@ function listReadCandidates(target: Path, sessionFile: Path, records: Transcript
   return candidates;
 }
 
-function listFileHistoryCandidates(target: Path, records: TranscriptRecord[], sources: SourceEntry[] | undefined): BeaconCandidate[] {
-  const reader = buildSidecarReader(records, sources);
-  const resolveBackupPath = buildBackupPathResolver(records, sources);
+function listFileHistoryCandidates(target: Path, records: TranscriptRecord[], sources: SourceEntry[] | undefined, overrides: PathOverrides): BeaconCandidate[] {
+  const reader = buildSidecarReader(records, overrides, sources);
+  const resolveBackupPath = buildBackupPathResolver(records, overrides, sources);
   if (reader === undefined) {
     return [];
   }
@@ -81,15 +81,15 @@ function listFileHistoryCandidates(target: Path, records: TranscriptRecord[], so
   return buildCandidatesFromBeacons(BeaconSource.fileHistory, beacons);
 }
 
-function listSessionCandidates(target: Path, sessionFile: Path, sources: SourceEntry[] | undefined): BeaconCandidate[] {
+function listSessionCandidates(target: Path, sessionFile: Path, sources: SourceEntry[] | undefined, overrides: PathOverrides): BeaconCandidate[] {
   const { records } = loadTranscript(sessionFile.toString(), undefined, true);
-  return [...listReadCandidates(target, sessionFile, records), ...listFileHistoryCandidates(target, records, sources)];
+  return [...listReadCandidates(target, sessionFile, records), ...listFileHistoryCandidates(target, records, sources, overrides)];
 }
 
-export function listBeaconCandidates(target: Path, sessionFiles: Path[], repoPath: Path, sources: SourceEntry[] | undefined): BeaconCandidate[] {
+export function listBeaconCandidates(target: Path, sessionFiles: Path[], repoPath: Path, sources: SourceEntry[] | undefined, overrides: PathOverrides): BeaconCandidate[] {
   const candidates: BeaconCandidate[] = [];
   for (const sessionFile of sessionFiles) {
-    candidates.push(...listSessionCandidates(target, sessionFile, sources));
+    candidates.push(...listSessionCandidates(target, sessionFile, sources, overrides));
   }
   candidates.push(...buildCandidatesFromBeacons(BeaconSource.commit, collectCommitBeaconNodes(repoPath, target)));
   return candidates.sort(compareCandidateInstants);

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applyGitCommitEvidence, findLastAddOfTarget } from "../src/reconstruction_git_placement.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { FileEvent } from "../src/reconstruction_events.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -34,5 +35,5 @@ test("test_findLastAddOfTarget_returns_the_latest_add_of_that_target_only", () =
 test("test_applyGitCommitEvidence_returns_events_when_no_git_evidence_exists", () => {
     const target = new Path("/tmp/repo/a.txt");
     const events: FileEvent[] = [{ kind: EventKind.write, changeId: new Uuid("w"), target, content: "a\n", timestamp: new Date("2026-01-01T00:00:00Z") }];
-    assert.equal(applyGitCommitEvidence([], events, emptyReader, target), events);
+    assert.equal(applyGitCommitEvidence([], events, emptyReader, target, getPathOverrides()), events);
 });

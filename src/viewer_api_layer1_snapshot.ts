@@ -7,6 +7,7 @@ import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import { getRecordSource, loadTranscript } from "./parse/loadTranscript.ts";
 import { createSidecarReader } from "./reconstruction_sidecar_backup_path.ts";
 import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getRequiredParam } from "./viewer_server_routes.ts";
@@ -73,7 +74,7 @@ export function readSnapshotFileContent(query: URLSearchParams): { content: stri
     throw new Error(`no snapshot ${relativePath}@v${version} in session ${sessionId}`);
   }
   const records = loadTranscript(sessionFile.toString(), undefined, true).records;
-  const root = getFileHistoryRoot(records);
+  const root = getFileHistoryRoot(records, getPathOverrides());
   // Defense in depth: the name is re-derived, but confirm the read never escapes this session's dir.
   const sessionDir = resolve(root.toString(), owner.toString());
   const backupPath = resolve(sessionDir, placement.backupFileName.toString());

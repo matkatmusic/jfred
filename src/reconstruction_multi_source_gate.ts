@@ -2,7 +2,7 @@
 
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { buildFileRevisions } from "./reconstruction_engine.ts";
 import type { EditEvent, FileEvent } from "./reconstruction_events.ts";
 import type { StructuredPatchHunk } from "./structures/tool-result-shapes.ts";
@@ -42,13 +42,14 @@ export function validateJoinContentAgreement(
   primaryPath: Path,
   evidence: FileEvent,
   sources: SourceEntry[],
+  overrides: PathOverrides,
 ): boolean {
   if (evidence.kind !== EventKind.edit) {
     return false;
   }
   const editEvidence: EditEvent = evidence;
-  const reader = buildSidecarReader(earlierRecords, sources);
-  const revisions = buildFileRevisions(earlierRecords, primaryPath, reader);
+  const reader = buildSidecarReader(earlierRecords, overrides, sources);
+  const revisions = buildFileRevisions(earlierRecords, primaryPath, overrides, reader);
   const base = findLastRevisionAtOrBefore(revisions, editEvidence.timestamp);
   if (base === undefined) {
     return false;
@@ -76,9 +77,10 @@ export function reportJoinedPathConflicts(
   mergedRecords: TranscriptRecord[],
   primaryPath: Path,
   sources: SourceEntry[],
+  overrides: PathOverrides,
 ): void {
-  const reader = buildSidecarReader(mergedRecords, sources);
-  const revisions = buildFileRevisions(mergedRecords, primaryPath, reader);
+  const reader = buildSidecarReader(mergedRecords, overrides, sources);
+  const revisions = buildFileRevisions(mergedRecords, primaryPath, overrides, reader);
   for (const event of extractFileEvents(mergedRecords)) {
     const isNotEdit = event.kind !== EventKind.edit;
     if (isNotEdit) {

@@ -4,7 +4,7 @@ import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { getRecordSource } from "./parse/loadTranscript.ts";
-import { getPathOverrides } from "./reconstruction_overrides.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 
@@ -133,8 +133,8 @@ function findPreservedRepoDir(records: TranscriptRecord[]): Path | undefined {
 }
 
 // Fallback repo dirs: configured overrides then transcript-sibling clone.
-export function findFallbackRepoDirs(records: TranscriptRecord[]): Path[] {
-  const candidates = [getPathOverrides().repoDir, getPathOverrides().projectCwd, findPreservedRepoDir(records)];
+export function findFallbackRepoDirs(records: TranscriptRecord[], overrides: PathOverrides): Path[] {
+  const candidates = [overrides.repoDir, overrides.projectCwd, findPreservedRepoDir(records)];
   const repoDirs: Path[] = [];
   for (const dir of candidates) {
     if (dir !== undefined)

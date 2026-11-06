@@ -64,21 +64,22 @@ function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefine
   for (const jsonlPath of options.jsonlPaths) {
     recordLists.push(loadTranscript(jsonlPath, sink).records);
   }
-  const sources = getPathOverrides().sources;
+  const overrides = getPathOverrides();
+  const sources = overrides.sources;
   if (sources !== undefined) {
     reportReconstructionProgress(`merging ${recordLists.length} transcripts across ${sources.length} sources`);
   }
   // Declared sources go through multi-source stages; otherwise the legacy single-transcript path.
-  const merged = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources);
+  const merged = sources === undefined ? recordLists.flat() : mergeMultiSourceRecords(recordLists, sources, overrides);
   // task 193: --until-revision truncates the stream before the sidecar reader and engine.
   const records = applyRevisionBound(merged, options);
   reportReconstructionProgress("building sidecar backup reader");
-  const reader = buildSidecarReader(records, sources);
+  const reader = buildSidecarReader(records, overrides, sources);
   if (options.json) {
     return renderJson(records, reader, options);
   }
   if (options.countSteps) {
-    return String(countStepsInTranscript(records, reader));
+    return String(countStepsInTranscript(records, overrides, reader));
   }
   if (options.stepNumber !== undefined) {
     return renderStep(records, reader, options.stepNumber);
@@ -90,9 +91,9 @@ function renderTranscriptView(options: CliOptions, sink: ProgressSink | undefine
   // task 192: same fast path as renderJson.
   const isTargetedSurviving = isTargetedSurvivingRequest(options);
   if (isTargetedSurviving) {
-    return renderChosen(listTargetedSurvivingHistories(records, reader, options.target!), options);
+    return renderChosen(listTargetedSurvivingHistories(records, reader, options.target!, overrides), options);
   }
-  const branched = buildBranchedReconstruction(records, reader);
+  const branched = buildBranchedReconstruction(records, overrides, reader);
   if (options.listBranches) {
     return renderBranchSummary(branched);
   }

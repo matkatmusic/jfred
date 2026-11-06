@@ -2,8 +2,11 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { openRunConsent, resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
+import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
   // commitPending,
+  buildCommitRequest,
   deleteJfredBranch,
   loadJfredBranch,
   readJfredBranch,
@@ -94,6 +97,24 @@ test("test_delete_clears_everything_and_keeps_armed", () => {
   assert.deepEqual(branch.commits, []);
   assert.equal(branch.pending, undefined);
   assert.equal(branch.isArmed, true);
+});
+
+test("test_commit_request_carries_the_run_consent_answer", async () => {
+  // Verify: allowScripts is false before consent and true after "allowed".
+  initLayer1Dom();
+  resetRunConsent();
+  loadJfredBranch(CANNED_VIEW);
+  setPending({ instant: "2026-06-03T18:20:00Z", message: "draft" });
+  assert.equal(buildCommitRequest().allowScripts, false);
+  const asked = openRunConsent(EMPTY_VIEW);
+  for (const button of document.querySelectorAll<HTMLButtonElement>(".run-consent button")) {
+    if (button.textContent === "Run scripts") {
+      button.click();
+    }
+  }
+  await asked;
+  assert.equal(buildCommitRequest().allowScripts, true);
+  resetRunConsent();
 });
 
 test("test_tip_is_the_last_commit_else_the_base_else_undefined", () => {

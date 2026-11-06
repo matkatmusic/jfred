@@ -7,6 +7,7 @@ import {
     isRenderableEvent,
 } from "../src/reconstruction_renderable.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -29,7 +30,7 @@ test("test_getFileHistoriesOver_returns_one_history_per_written_file", () => {
         buildWriteRecord("/proj/a.py", "a = 1\n", "2026-01-01T00:00:01Z"),
         buildWriteRecord("/proj/b.py", "b = 1\n", "2026-01-01T00:00:02Z"),
     ];
-    const histories = getFileHistoriesOver(records, emptyReader);
+    const histories = getFileHistoriesOver(records, getPathOverrides(), emptyReader);
     // assert one history per file, each with one revision.
     assert.equal(histories.length, 2);
     assert.equal(histories[0]!.revisions.length, 1);
@@ -38,7 +39,7 @@ test("test_getFileHistoriesOver_returns_one_history_per_written_file", () => {
 test("test_collectAcceptedUserEditIds_is_empty_when_no_user_edits_exist", () => {
     // Scenario: a transcript with only a Write has no accepted user edits.  Steps: collect over one Write record.
     const records = [buildWriteRecord("/proj/a.py", "a = 1\n", "2026-01-01T00:00:01Z")];
-    assert.equal(collectAcceptedUserEditIds(records, emptyReader).size, 0);
+    assert.equal(collectAcceptedUserEditIds(records, getPathOverrides(), emptyReader).size, 0);
 });
 
 test("test_isRenderableEvent_keeps_non_user_edit_events", () => {

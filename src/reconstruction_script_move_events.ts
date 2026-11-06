@@ -15,6 +15,7 @@ import {
 import { matchRenamePairs } from "./reconstruction_script_renames.ts";
 import { executeRunOnce, selectRunsWithinReplayWindow } from "./reconstruction_script_runs.ts";
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // The `${from}|${to}` key of a rename pair, used to dedupe across channels and runs.
 function renamePairKeyOf(from: Path, to: Path): string {
@@ -53,6 +54,7 @@ export function appendScriptMoveRenames(
   events: FileEvent[],
   records: TranscriptRecord[],
   reader: BackupReader | undefined,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): FileEvent[] {
   const isReaderless = reader === undefined;
@@ -69,7 +71,7 @@ export function appendScriptMoveRenames(
   }
   const appended: FileEvent[] = [...events];
   for (const run of selectRunsWithinReplayWindow(findScriptExecutionRuns(records))) {
-    const execution = executeRunOnce(run, records, reader, seedContent);
+    const execution = executeRunOnce(run, records, reader, overrides, seedContent);
     if (execution.post === undefined) {
       continue;
     }

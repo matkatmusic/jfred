@@ -9,6 +9,7 @@ import type { FileEvent } from "./reconstruction_events.ts";
 import { findGitAddEvents, findGitCommitEvents, type GitAddEvent, type GitCommitEvent } from "./reconstruction_git_commit_events.ts";
 import { findFallbackRepoDirs, readCommittedFileContent, readStagedFileContent } from "./reconstruction_git_evidence.ts";
 import { findBlobDiffPlacement } from "./reconstruction_git_splice.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // One commit's blob for `target`, resolved from the recorded repo (with decay fallbacks).
 function findCommitDiffPlacement(
@@ -18,14 +19,15 @@ function findCommitDiffPlacement(
   target: Path,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
 ): FileEvent[] | undefined {
   if (commit.cwd === undefined)
     return undefined;
   // item 46: const blob = readCommittedFileContent(commit.cwd, commit.timestamp, target, findPreservedRepoDir(records));
-  const blob = readCommittedFileContent(commit.cwd, commit.timestamp, target, findFallbackRepoDirs(records));
+  const blob = readCommittedFileContent(commit.cwd, commit.timestamp, target, findFallbackRepoDirs(records, overrides));
   if (blob === undefined)
     return undefined;
-  return findBlobDiffPlacement(blob, commit.timestamp, events, runs, target, records, reader);
+  return findBlobDiffPlacement(blob, commit.timestamp, events, runs, target, records, reader, overrides);
 }
 
 // The latest recorded `git add` of `target`; later records win ties.
@@ -51,16 +53,17 @@ function findStagedBlobPlacement(
   runs: ScriptRun[],
   target: Path,
   reader: BackupReader,
+  overrides: PathOverrides,
 ): FileEvent[] | undefined {
   const lastAdd = findLastAddOfTarget(records, target);
   if (lastAdd === undefined)
     return undefined;
   if (lastAdd.cwd === undefined)
     return undefined;
-  const blob = readStagedFileContent(lastAdd.cwd, target, findFallbackRepoDirs(records));
+  const blob = readStagedFileContent(lastAdd.cwd, target, findFallbackRepoDirs(records, overrides));
   if (blob === undefined)
     return undefined;
-  return findBlobDiffPlacement(blob, lastAdd.timestamp, events, runs, target, records, reader);
+  return findBlobDiffPlacement(blob, lastAdd.timestamp, events, runs, target, records, reader, overrides);
 }
 
 // Splice unexplained pure-addition diffs from git commits/adds as synthetic edits (s85, s87).
@@ -69,17 +72,18 @@ export function applyGitCommitEvidence(
   events: FileEvent[],
   reader: BackupReader,
   target: Path,
+  overrides: PathOverrides,
 ): FileEvent[] {
   const isAllowed = isImpureExecutionAllowed();
   if (!isAllowed)
     return events;
   const runs = findScriptExecutionRuns(records);
   for (const commit of findGitCommitEvents(records)) {
-    const placed = findCommitDiffPlacement(commit, events, runs, target, records, reader);
+    const placed = findCommitDiffPlacement(commit, events, runs, target, records, reader, overrides);
     if (placed !== undefined)
       return placed;
   }
-  const placedFromStage = findStagedBlobPlacement(records, events, runs, target, reader);
+  const placedFromStage = findStagedBlobPlacement(records, events, runs, target, reader, overrides);
   if (placedFromStage !== undefined)
     return placedFromStage;
   return events;

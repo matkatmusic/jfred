@@ -1,7 +1,7 @@
 // Multi-source merging: dedupe, wall-clock interleave, per-session root resolution.
 
 import type { TranscriptRecord } from "./structures/envelope.ts";
-import type { SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { joinCrossSourceFileIdentities } from "./reconstruction_multi_source_join.ts";
 import { getSessionId } from "./reconstruction_multi_source_paths.ts";
 import { computeSessionRoots } from "./reconstruction_multi_source_roots.ts";
@@ -134,12 +134,12 @@ export function splitRecordsBySession(records: TranscriptRecord[]): TranscriptRe
 }
 
 // §c composition: dedupe, interleave by wall clock, graft fork roots, join cross-source identities.
-export function mergeMultiSourceRecords(recordLists: TranscriptRecord[][], sources: SourceEntry[]): TranscriptRecord[] {
+export function mergeMultiSourceRecords(recordLists: TranscriptRecord[][], sources: SourceEntry[], overrides: PathOverrides): TranscriptRecord[] {
   const seen = new Set<string>();
   const dedupedLists: TranscriptRecord[][] = [];
   for (const list of recordLists) {
     dedupedLists.push(removeDuplicateRecordsBySessionAndUuid(list, seen));
   }
   const interleaved = attachForkedSubagentRoots(mergeRecordsByTimestamp(dedupedLists));
-  return joinCrossSourceFileIdentities(interleaved, sources, computeSessionRoots(interleaved, sources));
+  return joinCrossSourceFileIdentities(interleaved, sources, computeSessionRoots(interleaved, sources), overrides);
 }

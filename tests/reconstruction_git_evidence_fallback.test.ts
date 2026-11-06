@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { findFallbackRepoDirs, readCommittedFileContent } from "../src/reconstruction_git_evidence.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -81,7 +81,7 @@ test("test_find_fallback_repo_dirs_orders_override_before_preserved", () => {
         // set both path overrides.
         setPathOverrides({ repoDir: new Path("/override/repo"), projectCwd: new Path("/override/cwd") });
         // the fallback list is most-explicit first: repoDir, projectCwd, preserved clone.
-        const dirs = findFallbackRepoDirs(records).map((dir) => dir.toString());
+        const dirs = findFallbackRepoDirs(records, getPathOverrides()).map((dir) => dir.toString());
         assert.deepEqual(dirs, ["/override/repo", "/override/cwd", transcriptDir]);
     } finally {
         rmSync(transcriptDir, { recursive: true, force: true });

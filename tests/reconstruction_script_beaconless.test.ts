@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findBeaconlessScriptExecutions } from "../src/reconstruction_script_beaconless.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -29,7 +30,7 @@ test("test_findBeaconlessScriptExecutions_injects_a_birth_for_a_script_written_t
     ];
     const runs = findScriptExecutionRuns(records);
     // run the beaconless gate directly for the script-born target.
-    const events = findBeaconlessScriptExecutions(new Path("/proj/out.txt"), runs, records, emptyReader);
+    const events = findBeaconlessScriptExecutions(new Path("/proj/out.txt"), runs, records, emptyReader, getPathOverrides());
     // assert one scriptExecution event carrying the created content at the run's timestamp.
     assert.equal(events.length, 1);
     assert.equal(events[0]!.kind, EventKind.scriptExecution);
@@ -45,7 +46,7 @@ test("test_findBeaconlessScriptExecutions_returns_no_event_for_a_read_only_run",
     ];
     const runs = findScriptExecutionRuns(records);
     // the item-68 gate bails before any sandbox work: no event for the read-only run.
-    const events = findBeaconlessScriptExecutions(new Path("/proj/ledger.py"), runs, records, emptyReader);
+    const events = findBeaconlessScriptExecutions(new Path("/proj/ledger.py"), runs, records, emptyReader, getPathOverrides());
     assert.equal(events.length, 0);
 });
 
@@ -61,7 +62,7 @@ test("test_findBeaconlessScriptExecutions_chains_a_later_run_over_the_rolling_co
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: renameScript }, "2026-01-01T00:00:03Z"),
     ];
     const runs = findScriptExecutionRuns(records);
-    const events = findBeaconlessScriptExecutions(new Path("/proj/core_one.py"), runs, records, emptyReader);
+    const events = findBeaconlessScriptExecutions(new Path("/proj/core_one.py"), runs, records, emptyReader, getPathOverrides());
     // assert the birth then the rename applied over the birth content.
     assert.equal(events.length, 2);
     assert.ok(events[0]!.content.includes("def f_one(x):"));

@@ -16,6 +16,7 @@ import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import { findRefForTarget, findRunForTarget } from "./reconstruction_script_probe.ts";
 import type { UserEditEvent } from "./reconstruction_events.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // Validates a user-edit beacon by running its script; on match, returns a ScriptExecutionEvent.
 export function findScriptExecutionForBeacon(
@@ -23,13 +24,14 @@ export function findScriptExecutionForBeacon(
   runs: ScriptRun[],
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): ScriptExecutionEvent | undefined {
-  const run = findRunForTarget(runs, beacon.target, beacon.timestamp, records, reader, seedContent);
+  const run = findRunForTarget(runs, beacon.target, beacon.timestamp, records, reader, overrides, seedContent);
   if (run === undefined)
     return undefined;
 
-  const execution = executeRunOnce(run, records, reader, seedContent);
+  const execution = executeRunOnce(run, records, reader, overrides, seedContent);
   const preExecutionState = execution.pre;
   const resultingState = execution.post;
   if (resultingState === undefined)

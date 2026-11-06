@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { applyGitCommitEvidence } from "../src/reconstruction_git_placement.ts";
 import { applyScriptExecutions } from "../src/reconstruction_script_stage.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -45,9 +46,9 @@ test("test_gitCommitEvidence_places_an_unexplained_diff_between_the_move_and_the
             buildToolRecord(ToolName.Bash, { command: `git -C ${repo} commit -m post-rename` }, "2026-01-01T00:00:19Z", repo),
         ];
         const target = new Path(join(repo, "core_two.py"));
-        const events = applyScriptExecutions(records, [], emptyReader, target);
+        const events = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), target);
         assert.equal(events.length, 2);
-        const placed = applyGitCommitEvidence(records, events, emptyReader, target);
+        const placed = applyGitCommitEvidence(records, events, emptyReader, target, getPathOverrides());
         assert.equal(placed.length, 3);
         // The spliced user-edit carries the comment on the PRE-rename content...
         assert.equal(placed[1]!.kind, EventKind.userEdit);

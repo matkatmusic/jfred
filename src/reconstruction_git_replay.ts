@@ -4,6 +4,7 @@ import { EventKind } from "./structures/vocabulary.ts";
 import type { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
 import type { ScriptExecutionEvent, ScriptRun } from "./reconstruction_script_execution.ts";
 import { computeScriptStateKey } from "./reconstruction_script_prestate.ts";
@@ -49,12 +50,12 @@ export function findRunAtInstant(runs: ScriptRun[], event: FileEvent): ScriptRun
 
 // Replay content through successive script runs, returning final and per-event results.
 export function applyScriptRunsOver(
-  content: string, eventIndices: number[], events: FileEvent[], runs: ScriptRun[], target: Path, records: TranscriptRecord[], reader: BackupReader,
+  content: string, eventIndices: number[], events: FileEvent[], runs: ScriptRun[], target: Path, records: TranscriptRecord[], reader: BackupReader, overrides: PathOverrides,
 ): { final: string; rewrites: Map<number, string> } | undefined {
   let rolling = content;
   const rewrites = new Map<number, string>();
   for (const index of eventIndices) {
-    const post = computeScriptEventPost(events[index]!, runs, rolling, target, records, reader);
+    const post = computeScriptEventPost(events[index]!, runs, rolling, target, records, reader, overrides);
     if (post === undefined)
       return undefined;
     rewrites.set(index, post);
@@ -64,7 +65,7 @@ export function applyScriptRunsOver(
 }
 
 function computeScriptEventPost(
-  event: FileEvent, runs: ScriptRun[], rolling: string, target: Path, records: TranscriptRecord[], reader: BackupReader,
+  event: FileEvent, runs: ScriptRun[], rolling: string, target: Path, records: TranscriptRecord[], reader: BackupReader, overrides: PathOverrides,
 ): string | undefined {
   if (event.kind !== EventKind.scriptExecution)
     return undefined;
@@ -72,7 +73,7 @@ function computeScriptEventPost(
   if (run === undefined)
     return undefined;
   const key = computeScriptStateKey(target, run.cwd);
-  const preState = new Map(executeRunOnce(run, records, reader).pre);
+  const preState = new Map(executeRunOnce(run, records, reader, overrides).pre);
   preState.set(key, rolling);
   const executeRun = () => executeScriptAgainstState(run.code, preState, "", run.cwd, resolveRunBox(run));
   return executeSkippingMisses(executeRun)?.get(key);

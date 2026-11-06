@@ -10,6 +10,7 @@ import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { collectSnapshotPlacements } from "../src/layer1_snapshots.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 
 const SESSION_ONE = "b21d84c5-0000-0000-0000-000000000001";
 const SESSION_TWO = "d4a06b8f-0000-0000-0000-000000000002";
@@ -85,8 +86,8 @@ test("test_collectSnapshotPlacements_keeps_each_session_as_the_owner_of_its_own_
     assert.equal(placements[0]!.line, 2);
     assert.equal(placements[1]!.line, 2);
     // Reading each placement through its OWN session's reader yields that session's bytes.
-    const readerOne = buildSidecarReader(loadTranscript(sessionOneFile.toString()).records);
-    const readerTwo = buildSidecarReader(loadTranscript(sessionTwoFile.toString()).records);
+    const readerOne = buildSidecarReader(loadTranscript(sessionOneFile.toString()).records, getPathOverrides());
+    const readerTwo = buildSidecarReader(loadTranscript(sessionTwoFile.toString()).records, getPathOverrides());
     assert.equal(readerOne!(placements[0]!.backupFileName, placements[0]!.sessionId), "bytes A\n");
     assert.equal(readerTwo!(placements[1]!.backupFileName, placements[1]!.sessionId), "bytes B\n");
 });

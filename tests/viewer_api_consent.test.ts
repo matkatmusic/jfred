@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeBaselineQuestion, computeDocumentDecision } from "../src/viewer_api_consent.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 
 test("test_computeDocumentDecision_builds_for_no_records", () => {
@@ -12,5 +12,5 @@ test("test_computeDocumentDecision_builds_for_no_records", () => {
 
 test("test_computeBaselineQuestion_is_undefined_without_overrides", () => {
     setPathOverrides({});
-    assert.equal(computeBaselineQuestion(false), undefined);
+    assert.equal(computeBaselineQuestion(false, getPathOverrides()), undefined);
 });

@@ -17,6 +17,7 @@ import { selectRunsWithinReplayWindow } from "./reconstruction_script_runs.ts";
 import { findScriptExecutionForBeacon } from "./reconstruction_script_stage_validate.ts";
 import { findBeaconlessScriptExecutions } from "./reconstruction_script_beaconless.ts";
 import type { FileEvent } from "./reconstruction_events.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 function logInjection(event: ScriptExecutionEvent, detail: string): void {
   addStageEntry({
@@ -33,11 +34,12 @@ function buildReplacementEvent(
   runs: ScriptRun[],
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): FileEvent {
   if (event.kind !== EventKind.userEdit)
     return event;
-  const replacement = findScriptExecutionForBeacon(event, runs, records, reader, seedContent);
+  const replacement = findScriptExecutionForBeacon(event, runs, records, reader, overrides, seedContent);
   if (replacement === undefined)
     return event;
   logInjection(replacement, "replaced a script-echo user-edit beacon with the validated forward transform");
@@ -64,6 +66,7 @@ export function applyScriptExecutions(
   records: TranscriptRecord[],
   events: FileEvent[],
   reader: BackupReader,
+  overrides: PathOverrides,
   target?: Path,
   seedContent?: LineageContentBefore,
 ): FileEvent[] {
@@ -78,7 +81,7 @@ export function applyScriptExecutions(
   let anyReplaced = false;
   const result: FileEvent[] = [];
   for (const event of events) {
-    const rebuilt = buildReplacementEvent(event, runs, records, reader, seedContent);
+    const rebuilt = buildReplacementEvent(event, runs, records, reader, overrides, seedContent);
     if (rebuilt !== event)
       anyReplaced = true;
     result.push(rebuilt);
@@ -86,7 +89,7 @@ export function applyScriptExecutions(
   const hasNoInjectionTarget = anyReplaced || target === undefined;
   if (hasNoInjectionTarget)
     return result;
-  for (const injection of findBeaconlessScriptExecutions(target, runs, records, reader, seedContent)) {
+  for (const injection of findBeaconlessScriptExecutions(target, runs, records, reader, overrides, seedContent)) {
     logInjection(injection, "injected script-execution effect for a file with no user-edit beacon");
     const insertAt = findInsertionIndex(result, injection.timestamp);
     if (insertAt < 0)

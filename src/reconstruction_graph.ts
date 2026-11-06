@@ -17,6 +17,7 @@ import {
   splitSurvivingBranch,
 } from "./reconstruction_graph_branches.ts";
 import { buildDagFromBranches, findConversationRootUuid } from "./reconstruction_graph_dag.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 // Topology only: file content stays in the content views.
 export type GraphTurn = {
@@ -63,7 +64,7 @@ export function getTurnLetters(records: TranscriptRecord[], accepted?: Set<strin
 
 // True cross-branch disk lineage (decision 9); events are already timestamp-sorted.
 export function buildFileDag(records: TranscriptRecord[], reader?: BackupReader): FileDag {
-  const accepted = collectAcceptedUserEditIds(records, reader);
+  const accepted = collectAcceptedUserEditIds(records, getPathOverrides(), reader);
   const letters = getTurnLetters(records, accepted);
   const groups = new Map<string, GraphTurn[]>();
   for (const event of extractRenderableEvents(records, accepted)) {
@@ -82,7 +83,7 @@ export function buildFileDag(records: TranscriptRecord[], reader?: BackupReader)
 
 // Only branches that changed files are kept.
 export function buildConversationDag(records: TranscriptRecord[], reader?: BackupReader): ConversationDag {
-  const accepted = collectAcceptedUserEditIds(records, reader);
+  const accepted = collectAcceptedUserEditIds(records, getPathOverrides(), reader);
   const letters = getTurnLetters(records, accepted);
   const branches = findConversationBranches(records);
   const survivingUuids = collectSurvivingUuids(records);

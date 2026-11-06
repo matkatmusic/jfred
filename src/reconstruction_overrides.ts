@@ -25,8 +25,8 @@ export function getPathOverrides(): PathOverrides {
 }
 
 // Stable cache-stamp string: defined fields in fixed key order, including `sources`; empty state is "{}".
-export function formatPathOverrides(): string {
-  const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = activePathOverrides;
+export function formatPathOverrides(overrides: PathOverrides): string {
+  const { fileHistoryRoot, projectCwd, repoDir, baseCommit, sources } = overrides;
   const stampedSources = [];
   for (const source of sources ?? []) {
     stampedSources.push({

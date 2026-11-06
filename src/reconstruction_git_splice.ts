@@ -7,6 +7,7 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 import { splitLines } from "./reconstruction_replay_edit.ts";
 import { addStageEntry } from "./reconstruction_provenance.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import type { FileEvent, UserEditEvent } from "./reconstruction_events.ts";
 import { applyAdditions, extractPureAdditions, type LineAddition } from "./reconstruction_git_additions.ts";
@@ -29,13 +30,14 @@ export function insertAdditionsAfter(
   records: TranscriptRecord[],
   reader: BackupReader,
   commitTimestamp: Date,
+  overrides: PathOverrides,
 ): FileEvent[] | undefined {
   const base = events[baseIndex] as FullContentEvent;
   const editedLines = applyAdditions(splitLines(base.content), additions);
   if (editedLines === undefined)
     return undefined;
   const edited = editedLines.join("\n") + "\n";
-  const replayed = applyScriptRunsOver(edited, laterIndices, events, runs, target, records, reader);
+  const replayed = applyScriptRunsOver(edited, laterIndices, events, runs, target, records, reader, overrides);
   if (replayed === undefined)
     return undefined;
   if (replayed.final !== blob)
@@ -72,6 +74,7 @@ export function findBlobDiffPlacement(
   target: Path,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
 ): FileEvent[] | undefined {
   const beforeEvidence = findFullContentIndices(events, evidenceInstant);
   if (beforeEvidence.length === 0)
@@ -94,6 +97,7 @@ export function findBlobDiffPlacement(
       records,
       reader,
       evidenceInstant,
+      overrides,
     );
     if (placed !== undefined)
       return placed;

@@ -30,14 +30,17 @@ export interface WireJfredCommitRequestOf<I> {
   parentShortHash?: string;
   markInstant: I;
   message: string;
+  // The page's run-consent answer: scripts count in the Commit only when true.
+  allowScripts: boolean;
 }
 
-export const JfredCommitOutcome = { committed: "committed", unchanged: "unchanged" } as const;
+export const JfredCommitOutcome = { committed: "committed", unchanged: "unchanged", unrebuilt: "unrebuilt" } as const;
 
-// Reply of /api/layer1-jfred-commit; `unchanged` means nothing was written, and nextInstant is the next change.
+// Reply of /api/layer1-jfred-commit; `unchanged` and `unrebuilt` write nothing; unrebuilt paths are project-relative and sorted.
 export type WireJfredCommitReplyOf<I> =
   | { outcome: typeof JfredCommitOutcome.committed; commit: WireJfredCommitOf<I> }
-  | { outcome: typeof JfredCommitOutcome.unchanged; nextInstant?: I };
+  | { outcome: typeof JfredCommitOutcome.unchanged; nextInstant?: I }
+  | { outcome: typeof JfredCommitOutcome.unrebuilt; paths: string[]; nextInstant: I };
 
 export type WireJfredCommitRequest = WireJfredCommitRequestOf<string>;
 export type WireJfredCommitReply = WireJfredCommitReplyOf<string>;

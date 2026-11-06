@@ -3,7 +3,7 @@ import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { findBaseCommitEvidenceForTarget, findFirstRecordCwd, readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
 
 afterEach(() => {
@@ -28,14 +28,14 @@ test("test_find_first_record_cwd_skips_records_without_cwd", () => {
 
 test("test_find_evidence_without_sources_uses_global_overrides_and_first_cwd", () => {
     setPathOverrides({ repoDir: new Path("/repo"), baseCommit: new Uuid("abc") });
-    const evidence = findBaseCommitEvidenceForTarget([buildRecordWithCwd("/work")], new Path("/work/x.ts"));
+    const evidence = findBaseCommitEvidenceForTarget([buildRecordWithCwd("/work")], new Path("/work/x.ts"), getPathOverrides());
     assert.equal(evidence?.repoDir.toString(), "/repo");
     assert.equal(evidence?.baseCommit.toString(), "abc");
     assert.equal(evidence?.relativeRoot.toString(), "/work");
 });
 
 test("test_find_evidence_without_global_repo_is_undefined", () => {
-    assert.equal(findBaseCommitEvidenceForTarget([buildRecordWithCwd("/work")], new Path("/work/x.ts")), undefined);
+    assert.equal(findBaseCommitEvidenceForTarget([buildRecordWithCwd("/work")], new Path("/work/x.ts"), getPathOverrides()), undefined);
 });
 
 test("test_find_evidence_with_sources_picks_longest_enclosing_root", () => {
@@ -48,9 +48,9 @@ test("test_find_evidence_with_sources_picks_longest_enclosing_root", () => {
             { projectsDir: new Path("/p3") },
         ],
     });
-    const evidence = findBaseCommitEvidenceForTarget([], new Path("/work/nested/x.ts"));
+    const evidence = findBaseCommitEvidenceForTarget([], new Path("/work/nested/x.ts"), getPathOverrides());
     assert.equal(evidence?.repoDir.toString(), "/inner-repo");
     assert.equal(evidence?.baseCommit.toString(), "global");
     assert.equal(evidence?.relativeRoot.toString(), "/work/nested");
-    assert.equal(findBaseCommitEvidenceForTarget([], new Path("/elsewhere/x.ts")), undefined);
+    assert.equal(findBaseCommitEvidenceForTarget([], new Path("/elsewhere/x.ts"), getPathOverrides()), undefined);
 });

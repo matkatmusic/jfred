@@ -13,6 +13,7 @@ import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string): TranscriptRecord {
     return {
@@ -37,7 +38,7 @@ test("test_findScriptCreatedPaths_returns_files_that_exist_only_after_a_run", ()
             "2026-01-01T00:00:02Z",
         ),
     ];
-    const created = findScriptCreatedPaths(records, emptyReader);
+    const created = findScriptCreatedPaths(records, emptyReader, getPathOverrides());
     assert.deepEqual(created.map((path) => path.toString()), ["/proj/out.txt"]);
 });
 
@@ -51,7 +52,7 @@ test("test_beaconlessScriptExecution_injects_a_birth_for_a_script_created_file",
             "2026-01-01T00:00:02Z",
         ),
     ];
-    const events = applyScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
+    const events = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), new Path("/proj/out.txt"));
     assert.equal(events.length, 1);
     assert.equal(events[0]!.kind, EventKind.scriptExecution);
     assert.equal((events[0] as { content: string }).content, "created\n");
@@ -68,7 +69,7 @@ test("test_beaconlessScriptExecution_chains_a_later_run_over_a_script_created_fi
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: moveScript }, "2026-01-01T00:00:02Z"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: renameScript }, "2026-01-01T00:00:03Z"),
     ];
-    const events = applyScriptExecutions(records, [], emptyReader, new Path("/proj/core_one.py"));
+    const events = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), new Path("/proj/core_one.py"));
     assert.equal(events.length, 2);
     assert.ok((events[0] as { content: string }).content.includes("def f_one(x):"));
     assert.ok((events[1] as { content: string }).content.includes("def alpha(x):"));
@@ -84,8 +85,8 @@ test("test_applyScriptExecutions_stamps_the_same_changeId_across_replays", () =>
             "2026-01-01T00:00:02Z",
         ),
     ];
-    const firstReplayEvents = applyScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
-    const secondReplayEvents = applyScriptExecutions(records, [], emptyReader, new Path("/proj/out.txt"));
+    const firstReplayEvents = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), new Path("/proj/out.txt"));
+    const secondReplayEvents = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), new Path("/proj/out.txt"));
     assert.equal(firstReplayEvents.length, 1);
     assert.equal(secondReplayEvents.length, 1);
     assert.equal(firstReplayEvents[0]!.kind, EventKind.scriptExecution);
@@ -106,7 +107,7 @@ test("test_executeRunOnce_skips_the_sandbox_for_a_read_only_script", () => {
         if (event.label.startsWith(PROGRESS_LABEL_READ_ONLY_SKIP_PREFIX)) skipLabels.push(event.label);
     });
     try {
-        const execution = executeRunOnce(run, records, emptyReader);
+        const execution = executeRunOnce(run, records, emptyReader, getPathOverrides());
         assert.equal(execution.post, undefined);
         assert.equal(spawnLabels.length, 0);
         assert.equal(skipLabels.length, 1);

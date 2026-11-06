@@ -6,6 +6,7 @@ import { type BackupReader } from "./reconstruction_sidecar.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import type { LineageContentBefore } from "./reconstruction_script_prestate.ts";
 import { executeRunOnce } from "./reconstruction_script_runs.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // The pre/post-state key that denotes `target`, or undefined when the run's sandbox never saw it.
 export function findRefForTarget(target: Path, stateKeys: string[]): string | undefined {
@@ -26,9 +27,10 @@ export function isRunTouchingTarget(
   target: Path,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): boolean {
-  const execution = executeRunOnce(run, records, reader, seedContent);
+  const execution = executeRunOnce(run, records, reader, overrides, seedContent);
   if (execution.post === undefined)
     return false;
   const ref = findRefForTarget(target, [...execution.pre.keys(), ...execution.post.keys()]);
@@ -54,6 +56,7 @@ export function findRunForTarget(
   when: Date,
   records: TranscriptRecord[],
   reader: BackupReader,
+  overrides: PathOverrides,
   seedContent?: LineageContentBefore,
 ): ScriptRun | undefined {
   let chosen: ScriptRun | undefined;
@@ -71,7 +74,7 @@ export function findRunForTarget(
     const isAfterWhen = run.timestamp.getTime() > when.getTime();
     if (isAfterWhen)
       continue;
-    const isTouching = isRunTouchingTarget(run, target, records, reader, seedContent);
+    const isTouching = isRunTouchingTarget(run, target, records, reader, overrides, seedContent);
     if (isTouching)
       chosen = run;
   }

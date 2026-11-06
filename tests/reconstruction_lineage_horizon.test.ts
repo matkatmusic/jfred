@@ -15,6 +15,7 @@ import { computeRunExecutionKey } from "../src/reconstruction_script_runs.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { buildToolRecord } from "./script-execution-test-helpers.ts";
 
@@ -28,8 +29,8 @@ test("test_horizon_key_is_stable_across_instants_with_no_inputs_between", () => 
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
     ];
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.equal(earlyKey, lateKey);
 });
 
@@ -39,8 +40,8 @@ test("test_static_lineage_event_between_instants_changes_the_key", () => {
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v2\n" }, "2026-01-01T00:00:15Z", "/proj"),
     ];
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.notEqual(earlyKey, lateKey);
 });
 
@@ -50,8 +51,8 @@ test("test_unexecuted_eligible_run_between_instants_changes_the_key", () => {
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'open("other.txt", "w").write("x")\n' }, "2026-01-01T00:00:15Z"),
     ];
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.notEqual(earlyKey, lateKey);
 });
 
@@ -62,8 +63,8 @@ test("test_read_only_and_bash_runs_never_bump_even_unexecuted", () => {
         buildToolRecord(ToolName.CtxExecute, { cwd: "/proj", code: 'print("hello")\n' }, "2026-01-01T00:00:14Z"),
         buildToolRecord(ToolName.Bash, { command: "rm -f /tmp/x && touch /tmp/y" }, "2026-01-01T00:00:15Z"),
     ];
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.equal(earlyKey, lateKey);
 });
 
@@ -75,12 +76,12 @@ test("test_static_event_of_unrelated_file_floods_after_first_script_touch", () =
         buildToolRecord(ToolName.Write, { file_path: "/proj/unrelated.txt", content: "g\n" }, "2026-01-01T00:00:15Z", "/proj"),
     ];
     const run = findScriptExecutionRuns(records)[0]!;
-    getDerivedCaches(records, emptyReader).executionsByRun.set(computeRunExecutionKey(run), {
+    getDerivedCaches(records, emptyReader, getPathOverrides()).executionsByRun.set(computeRunExecutionKey(run), {
         pre: new Map([["plate.py", "v1\n"]]),
         post: new Map([["plate.py", "scripted\n"]]),
     });
-    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"));
-    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"));
+    const earlyKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:10Z"), getPathOverrides());
+    const lateKey = computeLineageSeedHorizonKey(records, emptyReader, TARGET, new Date("2026-01-01T00:00:20Z"), getPathOverrides());
     assert.notEqual(earlyKey, lateKey);
 });
 
@@ -90,7 +91,7 @@ test("test_second_query_between_inputs_serves_the_cached_seed", () => {
     const records = [
         buildToolRecord(ToolName.Write, { file_path: "/proj/plate.py", content: "v1\n" }, "2026-01-01T00:00:01Z", "/proj"),
     ];
-    const seedContent = getLineageContentBefore(records, emptyReader);
+    const seedContent = getLineageContentBefore(records, emptyReader, getPathOverrides());
     const firstText = seedContent(TARGET, new Date("2026-01-01T00:00:10Z"));
     const secondText = seedContent(TARGET, new Date("2026-01-01T00:00:20Z"));
     assert.equal(firstText, "v1\n");

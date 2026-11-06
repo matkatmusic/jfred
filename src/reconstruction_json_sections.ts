@@ -12,6 +12,7 @@ import { findToolCalls } from "./reconstruction_tool_calls.ts";
 import { collectScriptRunFileChanges } from "./reconstruction_script_run_changes.ts";
 import type { BranchedReconstruction } from "./reconstruction_engine.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { buildStepSnapshots } from "./reconstruction_json_steps.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
@@ -47,6 +48,7 @@ export function buildDocumentSections(
   branched: BranchedReconstruction,
   reader: BackupReader | undefined,
   target: Path | undefined,
+  overrides: PathOverrides,
 ) {
   const filesTouched = filterHistoriesByTarget(branched.surviving, target);
   // Abandoned-branch histories, unwrapped from branch tags; filtered like filesTouched.
@@ -56,7 +58,7 @@ export function buildDocumentSections(
   }
   const rewoundFilesTouched = filterHistoriesByTarget(rewoundHistories, target);
 
-  const buildSteps = () => buildStepSnapshots(records, reader, branched.surviving);
+  const buildSteps = () => buildStepSnapshots(records, reader, overrides, branched.surviving);
   const buildVerdicts = () => buildLineVerdicts(records);
   const buildCommitMarkers = () => {
     const markers = [];
@@ -67,7 +69,7 @@ export function buildDocumentSections(
   };
   const buildGitOperations = () => findGitOperations(records);
   const buildToolCalls = () => findToolCalls(records);
-  const buildScriptRuns = () => collectScriptRunFileChanges(records, reader);
+  const buildScriptRuns = () => collectScriptRunFileChanges(records, reader, overrides);
 
   reportReconstructionProgress("building step snapshots");
   // task 119: const { steps, stepFileHistories } = buildStepSnapshots(records, reader, branched.surviving);

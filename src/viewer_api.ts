@@ -9,7 +9,7 @@ import {
 import { buildBranchedReconstruction } from "./reconstruction_engine.ts";
 import { clearReconstructionFailures } from "./reconstruction_health.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
-import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import { getPathOverrides, type PathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
 import type { RevisionBoundRequest } from "./reconstruction_bound.ts";
 import { writePendingSandboxMemoToDisk } from "./reconstruction_script_sandbox_memo.ts";
 import {
@@ -42,18 +42,18 @@ export function formatSendingDocumentLabel(byteLength: number): string {
 }
 
 // Spec S4a: `sources`, when given, makes the sidecar reader resolve each session's blobs from its OWN source's file-history dir.
-export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest): BuiltReconstruction {
+export function buildProjectReconstruction(jsonlPaths: Path[], target: Path | undefined, onProgress?: ProgressSink, sources?: SourceEntry[], bound?: RevisionBoundRequest, overrides: PathOverrides = getPathOverrides()): BuiltReconstruction {
   const loaded = loadProjectRecords(jsonlPaths);
   const { skippedLines } = loaded;
-  const records = selectBuildRecords(loaded.records, sources, bound);
+  const records = selectBuildRecords(loaded.records, overrides, sources, bound);
   // task 119: a previous build's aborted leftovers must not leak into this document's failures.
   clearReconstructionFailures();
   reportStage(onProgress, PROGRESS_LABEL_READING_SIDECAR);
-  const reader = buildSidecarReader(records, sources);
+  const reader = buildSidecarReader(records, overrides, sources);
   reportStage(onProgress, PROGRESS_LABEL_CONSTRUCTING_BRANCHES);
-  const branched = buildBranchedReconstruction(records, reader);
+  const branched = buildBranchedReconstruction(records, overrides, reader);
   reportStage(onProgress, PROGRESS_LABEL_BUILDING_DOCUMENT);
-  return buildReconstructionDocument(records, branched, reader, target, skippedLines);
+  return buildReconstructionDocument(records, branched, reader, target, overrides, skippedLines);
 }
 
 // The wire document alone — the back-compat surface every non-range-patch caller uses.
@@ -80,13 +80,14 @@ export function buildReconstructionWithConsent(
   reconstructPreBaseline: boolean = true,
   // task 194: bounded mode — absent means a full build, today's behavior.
   bound?: RevisionBoundRequest,
+  overrides: PathOverrides = getPathOverrides(),
 ): BuiltReconstruction {
-  const cacheKey = computeBuildCacheKey(jsonlPaths, target, allowScripts, reconstructPreBaseline, bound);
+  const cacheKey = computeBuildCacheKey(jsonlPaths, target, allowScripts, reconstructPreBaseline, overrides, bound);
   const cachedBuild = readCachedBuild(cacheKey, onProgress);
   if (cachedBuild !== undefined) {
     return cachedBuild;
   }
-  return executeConsentedBuild(cacheKey, jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, bound);
+  return executeConsentedBuild(cacheKey, jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, overrides, bound);
 }
 
 // Memory first, then the disk cache (item 79: after a server respawn it saves a multi-minute rebuild).
@@ -113,12 +114,12 @@ function storeBuiltDocument(cacheKey: string, built: BuiltReconstruction): void 
   writeDocumentToDiskCache(cacheKey, built);
 }
 
-function executeConsentedBuild(cacheKey: string, jsonlPaths: Path[], target: Path | undefined, allowScripts: boolean, onProgress: ProgressSink | undefined, reconstructPreBaseline: boolean, bound?: RevisionBoundRequest): BuiltReconstruction {
+function executeConsentedBuild(cacheKey: string, jsonlPaths: Path[], target: Path | undefined, allowScripts: boolean, onProgress: ProgressSink | undefined, reconstructPreBaseline: boolean, overrides: PathOverrides, bound?: RevisionBoundRequest): BuiltReconstruction {
   applyBuildGates(allowScripts, reconstructPreBaseline, onProgress);
   try {
-    // Spec S6: sources ride the process-wide overrides, set by the caller before any build.
-    const built = buildProjectReconstruction(jsonlPaths, target, onProgress, getPathOverrides().sources, bound);
-    markPreBaselineSkipped(built, reconstructPreBaseline);
+    // Spec S6: sources ride the passed overrides, never the shared setting.
+    const built = buildProjectReconstruction(jsonlPaths, target, onProgress, overrides.sources, bound, overrides);
+    markPreBaselineSkipped(built, reconstructPreBaseline, overrides);
     storeBuiltDocument(cacheKey, built);
     return built;
   }
@@ -135,6 +136,7 @@ export function buildDocumentWithConsent(
   onProgress?: ProgressSink,
   reconstructPreBaseline: boolean = true,
   bound?: RevisionBoundRequest,
+  overrides: PathOverrides = getPathOverrides(),
 ): ReconstructionDocument {
-  return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, bound).document;
+  return buildReconstructionWithConsent(jsonlPaths, target, allowScripts, onProgress, reconstructPreBaseline, bound, overrides).document;
 }

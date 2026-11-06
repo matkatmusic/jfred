@@ -9,6 +9,7 @@ import {
 import { getFileHistoriesOver } from "./reconstruction_renderable.ts";
 import type { FileHistory, RenameInfo } from "./reconstruction_events.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 
 // A file absent at the step is simply not a key.
@@ -108,10 +109,11 @@ export type StepTimeline = { histories: FileHistory[]; changes: StepChange[] };
 
 export function buildStepTimeline(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): StepTimeline {
   reportReconstructionProgress(`reconstructing step states from ${records.length} transcript records`);
-  const histories = getFileHistoriesOver(records, reader);
+  const histories = getFileHistoriesOver(records, overrides, reader);
   const changes: StepChange[] = [];
   for (const when of collectChangeTimes(histories)) {
     changes.push({ when, changeIds: collectChangeIdsAt(histories, when) });
@@ -122,9 +124,10 @@ export function buildStepTimeline(
 // Reconstructs over EXACTLY the given records, with no surviving-branch filter, so the timeline is literal disk.
 export function buildStepStates(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): RepoSnapshot[] {
-  const { histories, changes } = buildStepTimeline(records, reader);
+  const { histories, changes } = buildStepTimeline(records, overrides, reader);
   const states: RepoSnapshot[] = [];
   for (const change of changes) {
     states.push(computeRepoStateAtTime(histories, change.when));
@@ -135,15 +138,17 @@ export function buildStepStates(
 // Counted from the change instants without materializing any repo state.
 export function countStepsInTranscript(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): number {
-  return buildStepTimeline(records, reader).changes.length;
+  return buildStepTimeline(records, overrides, reader).changes.length;
 }
 
 // Same order and count as buildStepStates, so stepChanges[i] explains steps[i].
 export function buildStepChanges(
   records: TranscriptRecord[],
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): StepChange[] {
-  return buildStepTimeline(records, reader).changes;
+  return buildStepTimeline(records, overrides, reader).changes;
 }

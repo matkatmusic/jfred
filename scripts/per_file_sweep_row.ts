@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
 import { getSurvivingFileHistory } from "../src/reconstruction_target.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { getLinesText } from "../src/reconstruction_revisions.ts";
 import type { SweepRow } from "../src/per_file_sweep_report.ts";
 import { Path } from "../src/structures/domain.ts";
@@ -76,7 +77,7 @@ export function buildSweepRow(
   const startedAt = Date.now();
   let revisions: FileRevision[];
   try {
-    revisions = getSurvivingFileHistory(records, target, reader)?.revisions ?? [];
+    revisions = getSurvivingFileHistory(records, target, getPathOverrides(), reader)?.revisions ?? [];
   }
   catch (error) {
     return {

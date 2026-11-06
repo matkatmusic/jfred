@@ -6,6 +6,7 @@ import { loadTranscript } from "./parse/loadTranscript.ts";
 import { listSubagentTranscripts } from "./viewer_api_project_scan.ts";
 import { findFirstRecordCwd } from "./reconstruction_base_commit_evidence.ts";
 import { getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { Path } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { sortNodesOntoAxis } from "./layered_instants.ts";
@@ -48,7 +49,7 @@ export function findEvidenceRoots(
   overrides: LayeredSourceOverrides,
 ): { repoPath: Path | undefined; snapshotPaths: Path[] } {
   const repoPath = overrides.repoPath ?? findFirstRecordCwd(records);
-  const snapshotPaths = overrides.snapshotPaths ?? [getFileHistoryRoot(records)];
+  const snapshotPaths = overrides.snapshotPaths ?? [getFileHistoryRoot(records, getPathOverrides())];
   return { repoPath, snapshotPaths };
 }
 

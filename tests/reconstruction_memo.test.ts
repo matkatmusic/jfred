@@ -6,6 +6,7 @@ import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { selectLiveBranch } from "../src/reconstruction_branch.ts";
 // import { selectBranchRecords } from "../src/reconstruction_branch_records.ts";
 import { buildAllFileHistories } from "../src/reconstruction_engine.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 // import { RecordType } from "../src/structures/vocabulary.ts";
 // import { Uuid } from "../src/structures/domain.ts";
@@ -75,10 +76,10 @@ test("test_reconstruction_memo_is_invalidated_when_the_exec_gate_flips", () => {
     // Scenario: histories built with the gate on are never served after it turns off.
     assert.equal(isImpureExecutionAllowed(), true);
     const { records } = loadTranscript(S19_JSONL);
-    const gateOn = buildAllFileHistories(records);
+    const gateOn = buildAllFileHistories(records, getPathOverrides());
     try {
         setImpureExecutionAllowed(false);
-        const gateOff = buildAllFileHistories(records);
+        const gateOff = buildAllFileHistories(records, getPathOverrides());
         assert.notEqual(gateOff[0]!.revisions, gateOn[0]!.revisions);
     } finally {
         setImpureExecutionAllowed(true);
@@ -102,8 +103,8 @@ test("test_derived_caches_are_invalidated_when_the_reader_identity_changes", () 
     const { records } = loadTranscript(S19_JSONL);
     const readerA: BackupReader = () => "";
     const readerB: BackupReader = () => "";
-    const withReaderA = buildAllFileHistories(records, readerA);
-    const withReaderB = buildAllFileHistories(records, readerB);
+    const withReaderA = buildAllFileHistories(records, getPathOverrides(), readerA);
+    const withReaderB = buildAllFileHistories(records, getPathOverrides(), readerB);
     assert.ok(withReaderA.length > 0);
     assert.notEqual(withReaderB[0]!.revisions, withReaderA[0]!.revisions);
 });

@@ -5,6 +5,7 @@ import {
     getSurvivingFileHistory,
 } from "../src/reconstruction_target.ts";
 import { buildBranchedReconstruction } from "../src/reconstruction_engine.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import type { FileHistory } from "../src/reconstruction_events.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
@@ -31,7 +32,7 @@ function buildTreeToolRecord(
 
 // The all-files path's answer for one target, which the targeted fast path must reproduce exactly.
 function selectSurvivingHistoryViaAllFiles(records: TranscriptRecord[], target: Path): FileHistory | undefined {
-    const surviving = buildBranchedReconstruction(records).surviving;
+    const surviving = buildBranchedReconstruction(records, getPathOverrides()).surviving;
     return surviving.find((history) => history.target.toString() === target.toString());
 }
 
@@ -61,7 +62,7 @@ test("test_targeted_history_matches_allfiles_for_simple_write", () => {
     const target = new Path("/proj/alpha.py");
     // reconstruct via both paths and deep-compare the parsed structures.
     const viaAllFiles = selectSurvivingHistoryViaAllFiles(records, target);
-    const viaFastPath = getSurvivingFileHistory(records, target);
+    const viaFastPath = getSurvivingFileHistory(records, target, getPathOverrides());
     assert.ok(viaAllFiles !== undefined);
     assert.deepStrictEqual(viaFastPath, viaAllFiles);
 });
@@ -71,7 +72,7 @@ test("test_targeted_history_matches_allfiles_with_rewound_branch", () => {
     const records = buildRewoundRecords();
     const target = new Path("/proj/alpha.py");
     const viaAllFiles = selectSurvivingHistoryViaAllFiles(records, target);
-    const viaFastPath = getSurvivingFileHistory(records, target);
+    const viaFastPath = getSurvivingFileHistory(records, target, getPathOverrides());
     assert.ok(viaAllFiles !== undefined);
     assert.deepStrictEqual(viaFastPath, viaAllFiles);
 });
@@ -81,7 +82,7 @@ test("test_targeted_history_for_absent_target_is_undefined", () => {
     const records = buildTwoFileRecords();
     const target = new Path("/proj/missing.py");
     assert.equal(selectSurvivingHistoryViaAllFiles(records, target), undefined);
-    assert.equal(getSurvivingFileHistory(records, target), undefined);
+    assert.equal(getSurvivingFileHistory(records, target, getPathOverrides()), undefined);
 });
 
 test("test_targeted_history_for_old_rename_source_is_undefined", () => {
@@ -91,9 +92,9 @@ test("test_targeted_history_for_old_rename_source_is_undefined", () => {
         buildTreeToolRecord("B", "A", ToolName.Bash, { command: "mv /proj/a.py /proj/b.py" }, "2026-01-01T00:00:02Z"),
         createLastPromptRecord("B"),
     ];
-    assert.equal(getSurvivingFileHistory(records, new Path("/proj/a.py")), undefined);
+    assert.equal(getSurvivingFileHistory(records, new Path("/proj/a.py"), getPathOverrides()), undefined);
     const viaAllFiles = selectSurvivingHistoryViaAllFiles(records, new Path("/proj/b.py"));
-    const viaFastPath = getSurvivingFileHistory(records, new Path("/proj/b.py"));
+    const viaFastPath = getSurvivingFileHistory(records, new Path("/proj/b.py"), getPathOverrides());
     assert.ok(viaAllFiles !== undefined);
     assert.deepStrictEqual(viaFastPath, viaAllFiles);
 });
@@ -105,7 +106,7 @@ test("test_targeted_path_never_reconstructs_unrelated_files_or_rewound_branches"
         labels.push(event.label);
     });
     try {
-        const histories = listTargetedSurvivingHistories(buildRewoundRecords(), undefined, new Path("/proj/alpha.py"));
+        const histories = listTargetedSurvivingHistories(buildRewoundRecords(), undefined, new Path("/proj/alpha.py"), getPathOverrides());
         assert.equal(histories.length, 1);
     } finally {
         setReconstructionProgressSink(undefined);

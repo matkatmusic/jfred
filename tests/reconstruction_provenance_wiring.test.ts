@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildStepStates } from "../src/reconstruction_steps.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     enableProvenance,
     disableProvenance,
@@ -31,7 +32,7 @@ test("test_buildStepStates_with_provenance_enabled_records_instrumented_stage_en
     const sessionId = findSessionId(records);
     const reader = sessionId ? createSidecarReader(sessionId, getDefaultFileHistoryRoot()) : undefined;
     enableProvenance();
-    buildStepStates(records, reader);
+    buildStepStates(records, getPathOverrides(), reader);
     const entries = getAndClearProvenance();
     disableProvenance();
     // Verify: at least one stage fired...

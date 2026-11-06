@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
-import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
 import { reportReconstructionProgress } from "./reconstruction_progress.ts";
 import { collectSessionIds, findMatchingSourceEntry } from "./reconstruction_sidecar_lookups.ts";
@@ -49,8 +49,8 @@ export function findFileHistoryRootFromRecords(records: TranscriptRecord[]): Pat
 }
 
 // The file-history root resolution chain (item 46): explicit override → transcript-derived sibling → ~/.claude/file-history default.
-export function getFileHistoryRoot(records: TranscriptRecord[]): Path {
-  const override = getPathOverrides().fileHistoryRoot;
+export function getFileHistoryRoot(records: TranscriptRecord[], overrides: PathOverrides): Path {
+  const override = overrides.fileHistoryRoot;
   if (override) {
     return override;
   }
@@ -117,13 +117,13 @@ function findBackupOwner(sessionIds: Uuid[], root: string, name: string): Uuid |
 export type BackupPathResolver = (backupFileName: Path, sessionId?: Uuid) => Path;
 
 // Where the reader opens a backup blob; undefined when no session id exists.
-export function buildBackupPathResolver(records: TranscriptRecord[], sources?: SourceEntry[]): BackupPathResolver | undefined {
+export function buildBackupPathResolver(records: TranscriptRecord[], overrides: PathOverrides, sources?: SourceEntry[]): BackupPathResolver | undefined {
   const sessionIds = collectSessionIds(records);
   if (sessionIds.length === 0) {
     return undefined;
   }
   // item 46: const root = getDefaultFileHistoryRoot().toString();
-  const root = getFileHistoryRoot(records).toString();
+  const root = getFileHistoryRoot(records, overrides).toString();
   // With declared sources, each session reads from its own source root.
   const sessionRoots = sources === undefined ? undefined : computeSessionFileHistoryRoots(records, sources);
   return (backupFileName, sessionId) => {
@@ -136,13 +136,13 @@ export function buildBackupPathResolver(records: TranscriptRecord[], sources?: S
 }
 
 // The file-history reader across every session dir the records reference; undefined when no session id exists.
-export function buildSidecarReader(records: TranscriptRecord[], sources?: SourceEntry[]): BackupReader | undefined {
-  const resolveBackupPath = buildBackupPathResolver(records, sources);
+export function buildSidecarReader(records: TranscriptRecord[], overrides: PathOverrides, sources?: SourceEntry[]): BackupReader | undefined {
+  const resolveBackupPath = buildBackupPathResolver(records, overrides, sources);
   if (resolveBackupPath === undefined) {
     return undefined;
   }
   // Blob reads are lazy, so a hang after this line belongs to the next stage.
-  reportReconstructionProgress(`sidecar reader ready: ${collectSessionIds(records).length} session(s), root ${getFileHistoryRoot(records)}`);
+  reportReconstructionProgress(`sidecar reader ready: ${collectSessionIds(records).length} session(s), root ${getFileHistoryRoot(records, overrides)}`);
   return (backupFileName, sessionId) => readFileSync(resolveBackupPath(backupFileName, sessionId).toString(), "utf8");
 }
 

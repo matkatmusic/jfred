@@ -25,27 +25,29 @@ import { executeStageTolerantly } from "./reconstruction_stage_runner.ts";
 import { fillCopySeeds } from "./reconstruction_copy_seeds.ts";
 import { getLineageContentBefore } from "./reconstruction_lineage_content.ts";
 import type { FileEvent, FileRevision } from "./reconstruction_events.ts";
+import type { PathOverrides } from "./reconstruction_overrides.ts";
 
 // Per-file revisions over the given records; only pure top-level calls are cached.
 export function getFileRevisionsOver(
   records: TranscriptRecord[],
   target: Path,
   resolving: Set<string>,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileRevision[] {
   const isNestedCall = resolving.size > 0;
   const hasActiveReplayFrames = countActiveLineageReplayFrames() > 0;
   const isStackDependent = isNestedCall || hasActiveReplayFrames;
   if (isStackDependent) {
-    return computeFileRevisionsOver(records, target, resolving, reader);
+    return computeFileRevisionsOver(records, target, resolving, overrides, reader);
   }
-  const byTarget = getDerivedCaches(records, reader).historiesByTarget;
+  const byTarget = getDerivedCaches(records, reader, overrides).historiesByTarget;
   const targetKey = target.toString();
   const cached = byTarget.get(targetKey);
   if (cached !== undefined) {
     return cached;
   }
-  const revisions = computeFileRevisionsOver(records, target, resolving, reader);
+  const revisions = computeFileRevisionsOver(records, target, resolving, overrides, reader);
   byTarget.set(targetKey, revisions);
   return revisions;
 }
@@ -54,12 +56,13 @@ function computeFileRevisionsOver(
   records: TranscriptRecord[],
   target: Path,
   resolving: Set<string>,
+  overrides: PathOverrides,
   reader?: BackupReader,
 ): FileRevision[] {
   const extracted = extractFileEvents(records);
   // task 155: sandbox-proven script moves join the chain for lineage resolution.
   const events = reader
-    ? executeStageTolerantly("appendScriptMoveRenames", target, extracted, appendScriptMoveRenames, extracted, records, reader, getLineageContentBefore(records, reader))
+    ? executeStageTolerantly("appendScriptMoveRenames", target, extracted, appendScriptMoveRenames, extracted, records, reader, overrides, getLineageContentBefore(records, reader, overrides))
     : extracted;
   const renameChain = buildRenameChain(events);
   const finalTarget = getFinalPath(target, renameChain);
@@ -71,14 +74,14 @@ function computeFileRevisionsOver(
     }
   }
   // task 119: each stage degrades to its input on throw instead of killing the file.
-  const baselined = executeStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, insertBaseCommitBeacon, records, lineage, finalTarget);
-  const seeded = executeStageTolerantly("seedCopyEvents", finalTarget, baselined, fillCopySeeds, records, baselined, resolving, reader);
+  const baselined = executeStageTolerantly("seedBaseCommitBeacon", finalTarget, lineage, insertBaseCommitBeacon, records, lineage, finalTarget, overrides);
+  const seeded = executeStageTolerantly("seedCopyEvents", finalTarget, baselined, fillCopySeeds, records, baselined, resolving, overrides, reader);
   const filled = reader ? executeStageTolerantly("fillRedirectContent", finalTarget, seeded, fillRedirectContent, records, seeded, reader) : seeded;
   const based = reader ? executeStageTolerantly("seedEditBaseFromBackup", finalTarget, filled, addEditBaseFromBackup, records, filled, reader) : filled;
   const scripted = reader
-    ? executeStageTolerantly("injectScriptExecutions", finalTarget, based, applyScriptExecutions, records, based, reader, finalTarget, getLineageContentBefore(records, reader))
+    ? executeStageTolerantly("injectScriptExecutions", finalTarget, based, applyScriptExecutions, records, based, reader, overrides, finalTarget, getLineageContentBefore(records, reader, overrides))
     : based;
-  const evidenced = reader ? executeStageTolerantly("placeGitCommitEvidence", finalTarget, scripted, applyGitCommitEvidence, records, scripted, reader, finalTarget) : scripted;
+  const evidenced = reader ? executeStageTolerantly("placeGitCommitEvidence", finalTarget, scripted, applyGitCommitEvidence, records, scripted, reader, finalTarget, overrides) : scripted;
   const unelided = reader ? executeStageTolerantly("completeElidedBeacons", finalTarget, evidenced, insertElidedBeaconSeeds, records, evidenced, reader) : evidenced;
   const restaged = reader ? executeStageTolerantly("seedStaleEditBases", finalTarget, unelided, insertStaleEditBaseSeeds, records, unelided, reader) : unelided;
   const completed = reader ? executeStageTolerantly("completeTruncatedBeacon", finalTarget, restaged, appendTruncatedBeaconCompletion, records, restaged, reader) : restaged;

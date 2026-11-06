@@ -15,7 +15,7 @@ import {
     executeRunOnce,
 } from "../src/reconstruction_script_runs.ts";
 import { setPreBaselineReconstructionAllowed } from "../src/reconstruction_base_commit.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { setReconstructionProgressSink } from "../src/reconstruction_progress.ts";
 import { findScriptExecutionRuns } from "../src/reconstruction_script_execution.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
@@ -55,7 +55,7 @@ test("test_exec_gate_disable_blocks_script_injection", () => {
         // disable the gate.
         setImpureExecutionAllowed(false);
         // run the stage that would otherwise inject one scriptExecution event.
-        const result = applyScriptExecutions(records, events, emptyReader, new Path("/proj/out.txt"));
+        const result = applyScriptExecutions(records, events, emptyReader, getPathOverrides(), new Path("/proj/out.txt"));
         // assert the stage passed its events argument through untouched.
         assert.equal(result, events);
     } finally {
@@ -77,7 +77,7 @@ test("test_exec_gate_disable_blocks_script_created_path_discovery", () => {
         // disable the gate.
         setImpureExecutionAllowed(false);
         // run the discovery that would otherwise execute the run and report out.txt as born.
-        assert.deepEqual(findScriptCreatedPaths(records, emptyReader), []);
+        assert.deepEqual(findScriptCreatedPaths(records, emptyReader, getPathOverrides()), []);
     } finally {
         setImpureExecutionAllowed(true);
     }
@@ -105,12 +105,12 @@ test("test_execute_run_once_skips_a_run_at_or_before_a_declined_baseline", () =>
         ];
         const [earlyRun, lateRun] = findScriptExecutionRuns(records);
         // the pre-baseline run is skipped: no post state, and the skip label was announced.
-        const skipped = executeRunOnce(earlyRun!, records, emptyReader);
+        const skipped = executeRunOnce(earlyRun!, records, emptyReader, getPathOverrides());
         assert.equal(skipped.post, undefined);
         assert.ok(capturedLabels.some((label) => label.startsWith(PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX)));
         // the post-baseline run is NOT skipped under that label.
         capturedLabels.length = 0;
-        executeRunOnce(lateRun!, records, emptyReader);
+        executeRunOnce(lateRun!, records, emptyReader, getPathOverrides());
         assert.ok(!capturedLabels.some((label) => label.startsWith(PROGRESS_LABEL_PRE_BASELINE_SKIP_PREFIX)));
     } finally {
         setReconstructionProgressSink(undefined);

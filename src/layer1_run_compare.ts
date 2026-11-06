@@ -9,6 +9,7 @@ import type { LoadedRun, ReplayInput } from "./layer1_run_start_files.ts";
 import { computeFileVerdict, findNearestBeaconAfter, findWorstConfidence, isChangeBetween, type ChangeEvent } from "./layer1_run_verdict.ts";
 import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "./reconstruction_script_execution.ts";
 import { findAffectedPathsForRun } from "./reconstruction_script_probe.ts";
 import { isScriptCodeWriteCapable } from "./reconstruction_script_prestate.ts";
@@ -74,7 +75,7 @@ export function listChangedFiles(post: Map<string, string>, pre: Map<string, str
 
 function computeChangedFileConfidence(context: CompareContext, target: Path, relativePath: string, content: string): WireConfidence {
   const { input, run } = context;
-  const candidates = listBeaconCandidates(target, input.sessionFiles, input.repoPath, input.sources);
+  const candidates = listBeaconCandidates(target, input.sessionFiles, input.repoPath, input.sources, getPathOverrides());
   const beacon = findNearestBeaconAfter(candidates, run.timestamp);
   const changeEvents = [...context.editEvents, ...listOtherRunWrites(context.otherRuns, target)];
   const isChanged = beacon !== undefined && isChangeBetween(target, run.timestamp, beacon.instant, changeEvents);

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     findFileHistoryRootFromRecords,
     findSiblingFileHistoryRoot,
@@ -38,11 +38,22 @@ test("test_resolve_file_history_root_prefers_override_over_derivation", () => {
     const records = loadMinimalTranscript(projectDir, "session.jsonl");
     assert.equal(findFileHistoryRootFromRecords(records)?.toString(), join(treeRoot, "file-history"));
     setPathOverrides({ fileHistoryRoot: new Path("/tmp/override-file-history") });
-    assert.equal(getFileHistoryRoot(records).toString(), "/tmp/override-file-history");
+    assert.equal(getFileHistoryRoot(records, getPathOverrides()).toString(), "/tmp/override-file-history");
+});
+
+test("test_getFileHistoryRoot_returns_the_passed_root", () => {
+    // Scenario: the shared setting names another folder; the root passed in is the one returned.
+    const { projectDir } = createCopiedTree(true);
+    const records = loadMinimalTranscript(projectDir, "session.jsonl");
+    setPathOverrides({ fileHistoryRoot: new Path("/tmp/shared-setting-file-history") });
+    // Test action: ask with a different folder than the shared setting holds.
+    const passedOverrides = { fileHistoryRoot: new Path("/tmp/passed-file-history") };
+    // Test verification: the passed folder wins.
+    assert.equal(getFileHistoryRoot(records, passedOverrides).toString(), "/tmp/passed-file-history");
 });
 
 test("test_resolve_file_history_root_falls_back_to_default_without_source_or_override", () => {
     // Records that never went through loadTranscript carry no source to derive from.
     const records = [{ type: RecordType.aiTitle } as unknown as TranscriptRecord];
-    assert.equal(getFileHistoryRoot(records).toString(), getDefaultFileHistoryRoot().toString());
+    assert.equal(getFileHistoryRoot(records, getPathOverrides()).toString(), getDefaultFileHistoryRoot().toString());
 });

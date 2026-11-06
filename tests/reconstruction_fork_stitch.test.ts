@@ -9,6 +9,7 @@ import { Path } from "../src/structures/domain.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
 import { buildBranchedReconstruction } from "../src/reconstruction_engine.ts";
 import { buildSidecarReader } from "../src/reconstruction_sidecar_reader.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { findScenarioDir } from "./scenario-locator.ts";
 
 const SCENARIO_ROOT = fileURLToPath(new URL("../scenarios/executed", import.meta.url));
@@ -22,9 +23,9 @@ test("test_forked_subagent_adds_one_rewound_branch_and_leaves_the_surviving_side
     const parent = loadTranscript(PARENT_JSONL, undefined, true);
     const subagent = loadTranscript(SUBAGENT_JSONL, undefined, true);
     const sources = [{ projectsDir: new Path(FORK_DIR) }];
-    const merged = mergeMultiSourceRecords([parent.records, subagent.records], sources);
-    const parentOnly = buildBranchedReconstruction(parent.records, buildSidecarReader(parent.records));
-    const stitched = buildBranchedReconstruction(merged, buildSidecarReader(merged, sources));
+    const merged = mergeMultiSourceRecords([parent.records, subagent.records], sources, getPathOverrides());
+    const parentOnly = buildBranchedReconstruction(parent.records, getPathOverrides(), buildSidecarReader(parent.records, getPathOverrides()));
+    const stitched = buildBranchedReconstruction(merged, getPathOverrides(), buildSidecarReader(merged, getPathOverrides(), sources));
     // One extra non-surviving branch, forked at the parent's last record before the fork.
     assert.equal(stitched.rewound.length, parentOnly.rewound.length + 1);
     const forkBranch = stitched.rewound[stitched.rewound.length - 1]!;

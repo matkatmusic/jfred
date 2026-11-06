@@ -14,6 +14,7 @@ import type { FileEvent } from "../src/reconstruction_events.ts";
 import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 
 const target = new Path("/tmp/repo/a.txt");
 const emptyReader: BackupReader = () => "";
@@ -54,7 +55,7 @@ test("test_computeMidpointAfter_uses_successor_or_fallback", () => {
 
 test("test_applyScriptRunsOver_returns_content_unchanged_for_no_indices_and_undefined_for_non_script", () => {
     const events = [buildWrite("a\n", "2026-01-01T00:00:00Z")];
-    const unchanged = applyScriptRunsOver("a\n", [], events, [], target, [], emptyReader);
+    const unchanged = applyScriptRunsOver("a\n", [], events, [], target, [], emptyReader, getPathOverrides());
     assert.equal(unchanged!.final, "a\n");
-    assert.equal(applyScriptRunsOver("a\n", [0], events, [], target, [], emptyReader), undefined);
+    assert.equal(applyScriptRunsOver("a\n", [0], events, [], target, [], emptyReader, getPathOverrides()), undefined);
 });

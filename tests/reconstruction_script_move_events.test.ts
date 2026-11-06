@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { appendScriptMoveRenames } from "../src/reconstruction_script_move_events.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { getFileHistoriesOver } from "../src/reconstruction_renderable.ts";
 import { setImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { SCRIPT_RUN_CHANGE_ID_PREFIX } from "../src/reconstruction_script_execution.ts";
@@ -54,7 +55,7 @@ test("test_sandbox_proven_move_becomes_rename_event", () => {
     const records = buildGlobMoveRecords();
     const extracted = extractFileEvents(records);
     // append the sandbox-proven moves.
-    const events = appendScriptMoveRenames(extracted, records, emptyReader);
+    const events = appendScriptMoveRenames(extracted, records, emptyReader, getPathOverrides());
     // assert exactly one rename event was appended, from one.py to core_one.py.
     const renames = renameEventsOf(events);
     assert.equal(renames.length, 1);
@@ -74,7 +75,7 @@ test("test_declined_consent_appends_nothing", () => {
     setImpureExecutionAllowed(false);
     try {
         // append with the gate off.
-        const events = appendScriptMoveRenames(extracted, records, emptyReader);
+        const events = appendScriptMoveRenames(extracted, records, emptyReader, getPathOverrides());
         // assert nothing was appended.
         assert.deepEqual(events, extracted);
     } finally {
@@ -86,7 +87,7 @@ test("test_missing_reader_appends_nothing", () => {
     // Scenario: without a sidecar reader the channel cannot execute runs, so input is unchanged.
     const records = buildGlobMoveRecords();
     const extracted = extractFileEvents(records);
-    const events = appendScriptMoveRenames(extracted, records, undefined);
+    const events = appendScriptMoveRenames(extracted, records, undefined, getPathOverrides());
     assert.deepEqual(events, extracted);
 });
 
@@ -102,7 +103,7 @@ test("test_pair_already_evidenced_is_not_duplicated", () => {
     };
     const extracted = [...extractFileEvents(records), priorRename];
     // append the sandbox-proven moves.
-    const events = appendScriptMoveRenames(extracted, records, emptyReader);
+    const events = appendScriptMoveRenames(extracted, records, emptyReader, getPathOverrides());
     // assert the pair still appears exactly once.
     assert.equal(renameEventsOf(events).length, 1);
 });
@@ -110,7 +111,7 @@ test("test_pair_already_evidenced_is_not_duplicated", () => {
 test("test_move_source_history_merges_into_destination", () => {
     // Scenario: after a rename, the moved-away source merges into the destination's ladder (task-155 fix).
     const records = buildGlobMoveRecords();
-    const histories = getFileHistoriesOver(records, emptyReader);
+    const histories = getFileHistoriesOver(records, getPathOverrides(), emptyReader);
     // assert no history is keyed by the moved-away source path.
     assert.ok(!histories.some((history) => history.target.toString() === "/proj/one.py"));
     // assert the destination history exists.

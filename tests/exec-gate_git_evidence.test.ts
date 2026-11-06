@@ -11,6 +11,7 @@ import type { BackupReader } from "../src/reconstruction_sidecar.ts";
 import { BlockType, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { Path } from "../src/structures/domain.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 
 // An assistant record with one `name` tool_use carrying `input`, plus the record-level cwd.
 function buildToolRecord(name: ToolName, input: Record<string, unknown>, timestamp: string, cwd?: string): TranscriptRecord {
@@ -48,12 +49,12 @@ test("test_exec_gate_disable_blocks_git_evidence", () => {
         ];
         const target = new Path(join(repo, "core_two.py"));
         // build the injected events while the gate is still ON (the enabled stage splices here).
-        const events = applyScriptExecutions(records, [], emptyReader, target);
+        const events = applyScriptExecutions(records, [], emptyReader, getPathOverrides(), target);
         assert.equal(events.length, 2);
         // disable the gate.
         setImpureExecutionAllowed(false);
         // run the git-evidence stage that would otherwise splice a third event.
-        const placed = applyGitCommitEvidence(records, events, emptyReader, target);
+        const placed = applyGitCommitEvidence(records, events, emptyReader, target, getPathOverrides());
         // assert the stage passed its events argument through untouched.
         assert.equal(placed, events);
     } finally {

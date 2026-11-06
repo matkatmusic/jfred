@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openRunConsent, buildRunConsentScripts, buildRunConsentText, resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
+import { isRunConsentAllowed, openRunConsent, buildRunConsentScripts, buildRunConsentText, resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -94,6 +94,23 @@ test("test_openRunConsent_remembers_a_decline", async () => {
   assert.equal(await pending, false);
   assert.equal(await openRunConsent(VIEW), false);
   assert.equal(readOverlayCount(), 0);
+});
+
+test("test_isRunConsentAllowed_is_false_until_the_user_says_yes", async () => {
+  // Verify: only an "allowed" answer gives true; start, decline and reset give false.
+  openFreshPage();
+  assert.equal(isRunConsentAllowed(), false);
+  const declined = openRunConsent(VIEW);
+  clickOverlayButton("Continue without running");
+  await declined;
+  assert.equal(isRunConsentAllowed(), false);
+  resetRunConsent();
+  const allowed = openRunConsent(VIEW);
+  clickOverlayButton("Run scripts");
+  await allowed;
+  assert.equal(isRunConsentAllowed(), true);
+  resetRunConsent();
+  assert.equal(isRunConsentAllowed(), false);
 });
 
 test("test_resetRunConsent_makes_the_next_ask_open_the_dialog_again", async () => {

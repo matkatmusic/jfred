@@ -6,7 +6,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { EditEvent } from "../src/reconstruction_events.ts";
 import { isEditEvidenceMatchingState } from "../src/reconstruction_multi_source_gate.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { buildFileRevisions } from "../src/reconstruction_engine.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
 import { clearReconstructionFailures, popReconstructionFailures } from "../src/reconstruction_health.ts";
@@ -45,14 +45,14 @@ test("test_cross_source_contradiction_emits_conflict_note_and_completes_timeline
             oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" line one", "+line three"],
         }));
     clearReconstructionFailures();
-    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
+    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources, getPathOverrides());
     // Test verification 1: exactly one conflict note, targeting the joined primary path.
     const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 1);
     assert.equal(conflicts[0]!.target?.toString(), fixture.alphaPath);
     assert.match(conflicts[0]!.reason, /cross-source conflict/);
     // Test verification 2: the timeline is still COMPLETE — all three revisions present.
-    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
+    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath), getPathOverrides());
     assert.equal(revisions.length, 3);
 });
 
@@ -64,7 +64,7 @@ test("test_agreeing_cross_source_stream_emits_no_conflict_note", () => {
             oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [" line one", " line two", "+line three"],
         }));
     clearReconstructionFailures();
-    mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
+    mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources, getPathOverrides());
     const conflicts = popReconstructionFailures().filter((failure) => failure.stage === "noteJoinedPathConflicts");
     assert.equal(conflicts.length, 0);
 });

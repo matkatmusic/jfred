@@ -9,7 +9,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import type { WriteEvent } from "../src/reconstruction_events.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import {
     computeBaseCommitChangeId,
     computeSkippedBaselineCutoff,
@@ -67,7 +67,7 @@ test("test_seed_base_commit_beacon_drops_superseded_events_when_pre_baseline_rec
         const later = buildWriteEvent(target, "after\n", "2026-01-01T00:00:20Z", "toolu_w2");
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
         setPreBaselineReconstructionAllowed(false);
-        const seeded = insertBaseCommitBeacon(records, [earlier, later], target);
+        const seeded = insertBaseCommitBeacon(records, [earlier, later], target, getPathOverrides());
         assert.equal(seeded.length, 2);
         assert.ok(seeded[0]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
         assert.equal(seeded[1], later);
@@ -86,7 +86,7 @@ test("test_seed_base_commit_beacon_keeps_pre_baseline_events_by_default", () => 
         const earlier = buildWriteEvent(target, "before\n", "2026-01-01T00:00:05Z", "toolu_w1");
         const later = buildWriteEvent(target, "after\n", "2026-01-01T00:00:20Z", "toolu_w2");
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
-        const seeded = insertBaseCommitBeacon(records, [earlier, later], target);
+        const seeded = insertBaseCommitBeacon(records, [earlier, later], target, getPathOverrides());
         assert.equal(seeded.length, 3);
         assert.equal(seeded[0], earlier);
         assert.ok(seeded[1]!.changeId.equals(computeBaseCommitChangeId(new Uuid(commitHash), target)));
@@ -99,7 +99,7 @@ test("test_seed_base_commit_beacon_keeps_pre_baseline_events_by_default", () => 
 test("test_compute_skipped_baseline_cutoff_is_undefined_while_pre_baseline_reconstruction_is_allowed", () => {
     // Task 151: the flag short-circuits before the repo is consulted, so a fake path suffices.
     setPathOverrides({ repoDir: new Path("/tmp/some-repo"), baseCommit: new Uuid("abc123") });
-    assert.equal(computeSkippedBaselineCutoff(), undefined);
+    assert.equal(computeSkippedBaselineCutoff(getPathOverrides()), undefined);
 });
 
 test("test_compute_skipped_baseline_cutoff_returns_the_commit_timestamp_when_pre_baseline_is_declined", () => {
@@ -109,7 +109,7 @@ test("test_compute_skipped_baseline_cutoff_returns_the_commit_timestamp_when_pre
     try {
         setPathOverrides({ repoDir: new Path(repoDir), baseCommit: new Uuid(commitHash) });
         setPreBaselineReconstructionAllowed(false);
-        const cutoff = computeSkippedBaselineCutoff();
+        const cutoff = computeSkippedBaselineCutoff(getPathOverrides());
         const expected = readCommitTimestamp(new Path(repoDir), new Uuid(commitHash));
         assert.ok(cutoff !== undefined);
         assert.equal(cutoff.getTime(), expected!.getTime());

@@ -7,6 +7,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import { buildSidecarReader, findFileHistoryRootFromRecords, findSessionId, getDefaultFileHistoryRoot } from "../src/reconstruction_sidecar_reader.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
+import { getPathOverrides } from "../src/reconstruction_overrides.ts";
 import { S43_JSONL_PATHS } from "./fixtures.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 import { createCopiedTree, loadMinimalTranscript, writeBlobForSession } from "./sidecar-reader-test-helpers.ts";
@@ -34,7 +35,7 @@ function makeTwoSourceFixture(): {
 test("test_build_sidecar_reader_reads_each_sessions_blob_from_its_own_source", () => {
     // Spec S4a: each session's blob comes from the root of the source that OWNS it, not the first.
     const fixture = makeTwoSourceFixture();
-    const reader = buildSidecarReader(fixture.records, [
+    const reader = buildSidecarReader(fixture.records, getPathOverrides(), [
         { projectsDir: new Path(join(fixture.treeA.treeRoot, "projects")) },
         { projectsDir: new Path(join(fixture.treeB.treeRoot, "projects")) },
     ]);
@@ -50,7 +51,7 @@ test("test_build_sidecar_reader_source_fileHistoryDir_wins_over_sibling_derivati
     // writeBlobForSession appends file-history/<session>, so write the custom dir's blob directly.
     mkdirSync(join(customHistoryDir, fixture.sessionB), { recursive: true });
     writeFileSync(join(customHistoryDir, fixture.sessionB, SHARED_BLOB_NAME), "content from custom dir");
-    const reader = buildSidecarReader(fixture.records, [
+    const reader = buildSidecarReader(fixture.records, getPathOverrides(), [
         { projectsDir: new Path(join(fixture.treeA.treeRoot, "projects")) },
         { projectsDir: new Path(join(fixture.treeB.treeRoot, "projects")), fileHistoryDir: new Path(customHistoryDir) },
     ]);
@@ -65,8 +66,8 @@ test("test_build_sidecar_reader_single_source_matches_no_sources_behavior", () =
     const sessionId = "cccccccc-1111-2222-3333-444444444444";
     const records = loadMinimalTranscript(tree.projectDir, "c.jsonl", sessionId);
     writeBlobForSession(tree.treeRoot, sessionId, SHARED_BLOB_NAME, "single source content");
-    const readerWithoutSources = buildSidecarReader(records);
-    const readerWithOneSource = buildSidecarReader(records, [{ projectsDir: new Path(join(tree.treeRoot, "projects")) }]);
+    const readerWithoutSources = buildSidecarReader(records, getPathOverrides());
+    const readerWithOneSource = buildSidecarReader(records, getPathOverrides(), [{ projectsDir: new Path(join(tree.treeRoot, "projects")) }]);
     assert.ok(readerWithoutSources);
     assert.ok(readerWithOneSource);
     const blobPath = new Path(SHARED_BLOB_NAME);
@@ -114,7 +115,7 @@ test("test_build_sidecar_reader_reads_blob_from_derived_sibling_root", (t) => {
     // Loading from the COPY is what points each record's source into the temp tree.
     const { records } = loadTranscript(copiedJsonlPath);
     assert.equal(findFileHistoryRootFromRecords(records)?.toString(), join(treeRoot, "file-history"));
-    const reader = buildSidecarReader(records);
+    const reader = buildSidecarReader(records, getPathOverrides());
     assert.ok(reader, "expected the copied transcript to yield a sidecar reader");
     const content = reader(new Path(fixture.blobName), fixture.sessionId);
     assert.equal(content, readFileSync(originalBlobPath, "utf8"));

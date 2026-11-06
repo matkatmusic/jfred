@@ -4,7 +4,7 @@ import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Path } from "../src/structures/domain.ts";
 import { EventKind } from "../src/structures/vocabulary.ts";
-import { setPathOverrides } from "../src/reconstruction_overrides.ts";
+import { getPathOverrides, setPathOverrides } from "../src/reconstruction_overrides.ts";
 import { buildFileRevisions, buildAllFileHistories } from "../src/reconstruction_engine.ts";
 import type { FileRevision } from "../src/reconstruction_events.ts";
 import { mergeMultiSourceRecords } from "../src/reconstruction_multi_source.ts";
@@ -24,9 +24,9 @@ function readRevisionLines(revision: FileRevision): string[] {
 test("test_same_relative_path_with_content_agreement_joins_into_one_history", () => {
     // Scenario (§a): A writes <alpha>/app.py at t1; B edits <beta>/app.py at t2 with matching evidence; one ladder.
     const fixture = createTwoSourceEditFixture("line one\n");
-    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
+    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources, getPathOverrides());
     // Test action: reconstruct under the PRIMARY (earlier) root's absolute path.
-    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
+    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath), getPathOverrides());
     // Test verification — the ground-truth ladder: write then edit, exactly two revisions.
     assert.equal(revisions.length, 2);
     assert.equal(revisions[0]!.kind, EventKind.write);
@@ -38,8 +38,8 @@ test("test_same_relative_path_with_content_agreement_joins_into_one_history", ()
 test("test_same_relative_path_with_content_disagreement_keeps_two_histories", () => {
     // Scenario (§a): B's pre-state evidence does not match A's state, so the join is refused.
     const fixture = createTwoSourceEditFixture("divergent\n");
-    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
-    const targets = buildAllFileHistories(merged).map((history) => history.target.toString());
+    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources, getPathOverrides());
+    const targets = buildAllFileHistories(merged, getPathOverrides()).map((history) => history.target.toString());
     // Test verification: both absolute paths survive as separate histories.
     assert.ok(targets.includes(fixture.alphaPath));
     assert.ok(targets.includes(fixture.betaPath));
@@ -62,8 +62,8 @@ test("test_cross_source_interleave_orders_revisions_by_wall_clock", () => {
             { oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [" line one", " line two", "+line three"] },
         ).records,
     );
-    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources);
-    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath));
+    const merged = mergeMultiSourceRecords([fixture.listA, fixture.listB], fixture.sources, getPathOverrides());
+    const revisions = buildFileRevisions(merged, new Path(fixture.alphaPath), getPathOverrides());
     // Test verification — the ground-truth ladder: three revisions, strictly time-ordered.
     assert.equal(revisions.length, 3);
     assert.ok(revisions[0]!.timestamp.getTime() < revisions[1]!.timestamp.getTime());

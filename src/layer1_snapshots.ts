@@ -7,6 +7,7 @@ import { buildBackupTimeline, findCwd, type BackupPoint } from "./reconstruction
 import { existsSync } from "node:fs";
 import { buildSidecarBackupPath } from "./reconstruction_sidecar_backup_path.ts";
 import { findSessionId, getFileHistoryRoot } from "./reconstruction_sidecar_reader.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 // `version` is the @vN the OWNING session assigned, so it identifies nothing on its own.
 export type SnapshotPlacement = {
@@ -98,7 +99,7 @@ function derivePlacementsForSession(sessionFile: Path): Map<string, SnapshotPlac
   const records = loadTranscript(sessionFile.toString(), undefined, true).records;
   const timeline = buildBackupTimeline(records, findCwd(records));
   const fallbackSessionId = findSessionId(records);
-  const fileHistoryRoot = getFileHistoryRoot(records);
+  const fileHistoryRoot = getFileHistoryRoot(records, getPathOverrides());
   const placementsByPath = new Map<string, SnapshotPlacement[]>();
   for (const [fileKey, points] of timeline) {
     const placements = buildPlacementsFromBackupPoints(fileKey, points, sessionFile, fallbackSessionId, fileHistoryRoot);

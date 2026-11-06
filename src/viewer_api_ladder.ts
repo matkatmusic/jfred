@@ -20,11 +20,12 @@ import type { TranscriptRecord } from "./structures/envelope.ts";
 function loadMergedProjectRecords(projectName: string): { records: TranscriptRecord[]; reader: BackupReader | undefined } {
   applyProjectOverrides(projectName);
   const { records } = loadProjectRecords(findJsonlPaths(projectName, null));
-  const sources = getPathOverrides().sources;
+  const overrides = getPathOverrides();
+  const sources = overrides.sources;
   const merged = sources === undefined || sources.length === 0
     ? records
-    : mergeMultiSourceRecords(splitRecordsBySession(records), sources);
-  return { records: merged, reader: buildSidecarReader(merged, sources) };
+    : mergeMultiSourceRecords(splitRecordsBySession(records), sources, overrides);
+  return { records: merged, reader: buildSidecarReader(merged, overrides, sources) };
 }
 
 // ponytail: script-born paths are absent from this list; a deep-linked ladder request still finds them.
@@ -47,7 +48,7 @@ export function sendFileLadder(response: ServerResponse, query: URLSearchParams)
     sendJson(response, 200, { files: listFinalPaths(records) });
     return;
   }
-  const history = getSurvivingFileHistory(records, new Path(fileValue), reader);
+  const history = getSurvivingFileHistory(records, new Path(fileValue), getPathOverrides(), reader);
   if (history === undefined) {
     throw new Error(`no revision ladder for ${fileValue} — not a reconstructable final path`);
   }

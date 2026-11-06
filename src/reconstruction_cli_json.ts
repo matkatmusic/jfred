@@ -19,6 +19,7 @@ import {
   listTargetedSurvivingHistories,
 } from "./reconstruction_target.ts";
 import { assertStepInRange, listAvailableBranchIds } from "./reconstruction_cli_text.ts";
+import { getPathOverrides } from "./reconstruction_overrides.ts";
 
 // Render the reconstruction as JSON: --allRecords, --step, --branch, --list-branches, or the full document.
 export function renderJson(
@@ -40,16 +41,16 @@ export function renderJson(
   }
   if (options.stepNumber !== undefined) {
     // Step files resolve on demand from the compact histories.
-    const { steps, stepFileHistories } = buildStepSnapshots(records, reader);
+    const { steps, stepFileHistories } = buildStepSnapshots(records, reader, getPathOverrides());
     assertStepInRange(options.stepNumber, steps.length);
     return JSON.stringify(computeFilesAtStep(stepFileHistories, steps[options.stepNumber - 1]!.when), null, 2);
   }
   // task 192: (surviving, one target) uses the target-scoped engine path.
   const isTargetedSurviving = isTargetedSurvivingRequest(options);
   if (isTargetedSurviving) {
-    return JSON.stringify(listTargetedSurvivingHistories(records, reader, options.target!), null, 2);
+    return JSON.stringify(listTargetedSurvivingHistories(records, reader, options.target!, getPathOverrides()), null, 2);
   }
-  const branched = buildBranchedReconstruction(records, reader);
+  const branched = buildBranchedReconstruction(records, getPathOverrides(), reader);
   if (options.branch !== undefined) {
     const histories = findBranchById(branched, options.branch);
     if (histories === undefined) {
@@ -60,5 +61,5 @@ export function renderJson(
   if (options.listBranches) {
     return JSON.stringify(collectBranchSummaries(records), null, 2);
   }
-  return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target).document, null, 2);
+  return JSON.stringify(buildReconstructionDocument(records, branched, reader, options.target, getPathOverrides()).document, null, 2);
 }
