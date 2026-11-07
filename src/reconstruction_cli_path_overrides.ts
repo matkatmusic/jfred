@@ -1,5 +1,6 @@
 import { basename, dirname } from "node:path";
 import { Path } from "./structures/domain.ts";
+import { getProjectsDirOfLog } from "./reconstruction_sidecar_reader.ts";
 import {
   buildProjectPaths,
   buildProjectSources,
@@ -49,7 +50,7 @@ function buildCliSources(
   }
   const distinctRoots: string[] = [];
   for (const jsonlPath of options.jsonlPaths) {
-    const projectsRoot = dirname(dirname(jsonlPath));
+    const projectsRoot = getProjectsDirOfLog(new Path(jsonlPath)).toString();
     const isKnownRoot = distinctRoots.includes(projectsRoot);
     if (!isKnownRoot) {
       distinctRoots.push(projectsRoot);

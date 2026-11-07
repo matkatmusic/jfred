@@ -1,7 +1,7 @@
 // The on-disk side of the file-history sidecar: history roots, root resolution, and the blob reader.
 
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { Path, Uuid } from "./structures/domain.ts";
@@ -26,6 +26,15 @@ export function findSiblingFileHistoryRoot(projectsDir: Path): Path | undefined 
   return new Path(sibling);
 }
 
+// Projects folder of a chat log; a subagents log sits two folders deeper.
+export function getProjectsDirOfLog(logPath: Path): Path {
+  const logFolder = dirname(logPath.toString());
+  if (basename(logFolder) === "subagents") {
+    return new Path(dirname(dirname(dirname(logFolder))));
+  }
+  return new Path(dirname(logFolder));
+}
+
 // The first record that loadTranscript stamped with a source (fabricated records carry none).
 function findFirstRecordSource(records: TranscriptRecord[]): RecordSource | undefined {
   for (const record of records) {
@@ -43,9 +52,8 @@ export function findFileHistoryRootFromRecords(records: TranscriptRecord[]): Pat
   if (source === undefined) {
     return undefined;
   }
-  const transcriptDir = dirname(source.filePath);
-  const projectsRoot = dirname(transcriptDir);
-  return findSiblingFileHistoryRoot(new Path(projectsRoot));
+  const projectsRoot = getProjectsDirOfLog(new Path(source.filePath));
+  return findSiblingFileHistoryRoot(projectsRoot);
 }
 
 // The file-history root resolution chain (item 46): explicit override → transcript-derived sibling → ~/.claude/file-history default.
@@ -74,10 +82,10 @@ export function findSessionId(records: TranscriptRecord[]): Uuid | undefined {
 
 // The history root for one record: declared source dir, else transcript sibling, else default.
 function getSourceFileHistoryRoot(recordSource: RecordSource, sources: SourceEntry[]): string {
-  const projectsRoot = dirname(dirname(recordSource.filePath));
-  const matchedSource = findMatchingSourceEntry(sources, projectsRoot);
+  const projectsRoot = getProjectsDirOfLog(new Path(recordSource.filePath));
+  const matchedSource = findMatchingSourceEntry(sources, projectsRoot.toString());
   const explicitDir = matchedSource?.fileHistoryDir?.toString();
-  const siblingDir = findSiblingFileHistoryRoot(new Path(projectsRoot))?.toString();
+  const siblingDir = findSiblingFileHistoryRoot(projectsRoot)?.toString();
   return explicitDir ?? siblingDir ?? getDefaultFileHistoryRoot().toString();
 }
 

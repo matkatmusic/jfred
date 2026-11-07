@@ -1,6 +1,11 @@
 // Task 358 part R: turns one run id into one wire result and decides every outcome in one place.
 
+import { existsSync } from "node:fs";
+import { dirname } from "node:path";
 import { WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { buildBackupTimeline, findCwd } from "./reconstruction_backup_timeline.ts";
+import { getPathOverrides, type SourceEntry } from "./reconstruction_overrides.ts";
+import { buildBackupPathResolver } from "./reconstruction_sidecar_reader.ts";
 import { compareChangedFiles, createCompareContext, listChangedFiles } from "./layer1_run_compare.ts";
 import { createFailedResult, createOriginalFailedResult, createReplayedResult, createResult } from "./layer1_run_result.ts";
 import { findRunSkipReason } from "./layer1_run_skip.ts";
@@ -18,6 +23,7 @@ import { collectErroredToolUseIds } from "./structures/tool-results.ts";
 
 const STEP_LABELS = ["loading the session", "building the start files", "running the script", "comparing the files", "done"];
 const NO_START_FILES_REASON = "no known start files";
+const BACKUP_FOLDER_LOST_REASON = "backup folder lost";
 
 function reportStep(onProgress: ProgressSink, step: number): void {
   onProgress({ kind: DocumentResponseKind.progress, label: STEP_LABELS[step - 1]!, current: step, total: STEP_LABELS.length });
@@ -30,6 +36,28 @@ function createSkippedResult(input: ReplayInput, loaded: LoadedRun): WireScriptR
   }
   const reason = findRunSkipReason(loaded.run);
   return reason === undefined ? undefined : createResult(input.toolUseId, WireRunOutcome.notReplayed, { reason });
+}
+
+// True when a recorded backup blob has no file-history folder for its session.
+export function isBackupFolderLost(loaded: LoadedRun, sources: SourceEntry[] | undefined): boolean {
+  const { records } = loaded;
+  const resolveBackupPath = buildBackupPathResolver(records, getPathOverrides(), sources);
+  if (resolveBackupPath === undefined) {
+    return false;
+  }
+  const timeline = buildBackupTimeline(records, findCwd(records));
+  for (const points of timeline.values()) {
+    for (const point of points) {
+      if (point.backupFileName !== null) {
+        const sessionFolder = dirname(resolveBackupPath(point.backupFileName, point.sessionId).toString());
+        const isFolderPresent = existsSync(sessionFolder);
+        if (!isFolderPresent) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // A memo hit is final, also a saved crash. A cancelled run saves nothing and returns undefined.
@@ -78,6 +106,10 @@ export async function executeRunReplay(input: ReplayInput, onProgress: ProgressS
     return skipped;
   }
   reportStep(onProgress, 2);
+  const isFolderLost = isBackupFolderLost(loaded, input.sources);
+  if (isFolderLost) {
+    return createResult(input.toolUseId, WireRunOutcome.notReplayed, { reason: BACKUP_FOLDER_LOST_REASON });
+  }
   const { pre } = computeRunStartFiles(loaded, input.sources, executeWithoutSpawning, input.repoPath);
   const box = buildSandboxBox(loaded.run, input.repoPath);
   if (pre.size === 0) {

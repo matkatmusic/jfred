@@ -1,6 +1,7 @@
 // Task 358 part NS: lists the earlier runs a run still needs, from saved results only; spawns nothing.
 
 import type { WireNeededRun } from "../webapp/layer1-wire-script-results.ts";
+import { isBackupFolderLost } from "./layer1_run_replay.ts";
 import { findRunSkipReason } from "./layer1_run_skip.ts";
 import { computeRunStartFiles, loadReplayRun, type LoadedRun, type RunInput } from "./layer1_run_start_files.ts";
 import { findScriptExecutionRuns, formatRunSource, type ScriptRun } from "./reconstruction_script_execution.ts";
@@ -69,6 +70,10 @@ export function computeRunNeeds(input: RunInput): WireNeededRun[] {
   const loaded = loadReplayRun(input);
   const isNeverReplayed = isRunNeverReplayed(loaded);
   if (isNeverReplayed) {
+    return [];
+  }
+  const isFolderLost = isBackupFolderLost(loaded, input.sources);
+  if (isFolderLost) {
     return [];
   }
   const startFiles = computeRunStartFiles(loaded, input.sources, collectEarlierRuns, input.repoPath);

@@ -1,21 +1,22 @@
 // Multi-source per-session workspace-root resolution (§b).
 
-import { dirname } from "node:path";
+// import { dirname } from "node:path";
 import { Path } from "./structures/domain.ts";
+import { getProjectsDirOfLog } from "./reconstruction_sidecar_reader.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { SourceEntry } from "./reconstruction_overrides.ts";
 import { getRecordSource } from "./parse/loadTranscript.ts";
 import { findMatchingSourceEntry } from "./reconstruction_sidecar_lookups.ts";
 import { getSessionId } from "./reconstruction_multi_source_paths.ts";
 
-// §b1: source's projects root is dirname(dirname(jsonl path)).
+// §b1: source's projects root comes from getProjectsDirOfLog.
 export function findDeclaredRootForRecord(record: TranscriptRecord, sources: SourceEntry[]): Path | undefined {
   const recordSource = getRecordSource(record);
   if (recordSource === undefined) {
     return undefined;
   }
-  const projectsRoot = dirname(dirname(recordSource.filePath));
-  return findMatchingSourceEntry(sources, projectsRoot)?.root;
+  const projectsRoot = getProjectsDirOfLog(new Path(recordSource.filePath));
+  return findMatchingSourceEntry(sources, projectsRoot.toString())?.root;
 }
 
 // §b: session workspace root: declared source root (config wins, §b3), else first recorded cwd (§b2), keyed by sessionId.

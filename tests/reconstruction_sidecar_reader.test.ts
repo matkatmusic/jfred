@@ -1,6 +1,7 @@
 // Item 46: file-history-root resolution — sibling derivation, override precedence, default fallback.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -11,6 +12,7 @@ import {
     findSiblingFileHistoryRoot,
     getDefaultFileHistoryRoot,
     getFileHistoryRoot,
+    getProjectsDirOfLog,
 } from "../src/reconstruction_sidecar_reader.ts";
 import { createCopiedTree, loadMinimalTranscript } from "./sidecar-reader-test-helpers.ts";
 
@@ -39,6 +41,25 @@ test("test_resolve_file_history_root_prefers_override_over_derivation", () => {
     assert.equal(findFileHistoryRootFromRecords(records)?.toString(), join(treeRoot, "file-history"));
     setPathOverrides({ fileHistoryRoot: new Path("/tmp/override-file-history") });
     assert.equal(getFileHistoryRoot(records, getPathOverrides()).toString(), "/tmp/override-file-history");
+});
+
+test("test_getProjectsDirOfLog_gives_projects_folder_for_a_subagent_log", () => {
+    const logPath = new Path("/cd/projects/proj/sid/subagents/agent-x.jsonl");
+    assert.equal(getProjectsDirOfLog(logPath).toString(), "/cd/projects");
+});
+
+test("test_getProjectsDirOfLog_gives_projects_folder_for_a_flat_log", () => {
+    const logPath = new Path("/cd/projects/proj/sid.jsonl");
+    assert.equal(getProjectsDirOfLog(logPath).toString(), "/cd/projects");
+});
+
+test("test_subagent_log_finds_file_history_beside_the_projects_folder", () => {
+    // A subagent log sits at <proj>/<sessionId>/subagents; its history root is still <X>/file-history.
+    const { treeRoot, projectDir } = createCopiedTree(true);
+    const subagentsDir = join(projectDir, "11111111-2222-3333-4444-555555555555", "subagents");
+    mkdirSync(subagentsDir, { recursive: true });
+    const records = loadMinimalTranscript(subagentsDir, "agent-x.jsonl");
+    assert.equal(findFileHistoryRootFromRecords(records)?.toString(), join(treeRoot, "file-history"));
 });
 
 test("test_getFileHistoryRoot_returns_the_passed_root", () => {

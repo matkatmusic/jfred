@@ -153,3 +153,22 @@ test("test_executeRunReplay_throws_for_an_unknown_tool_use_id", OPTIONS, async (
     const { input } = createCraftedSession(APPEND_Z_SCRIPT);
     await assert.rejects(() => collectReplay({ ...input, toolUseId: new Uuid("toolu_missing") }), /no script run/);
 });
+
+test("test_executeRunReplay_marks_run_not_replayed_when_backup_folder_lost", OPTIONS, async () => {
+    // Scenario: the session records a backup file, but its file-history/<sessionId> folder is gone.
+    resetRunState();
+    const project = createCraftedProject();
+    // a snapshot record names backup abc@v1 for a.txt; the crafted tree has no folder for the session.
+    const backupTime = "2026-07-24T10:00:01.000Z";
+    project.records.push({ type: "file-history-snapshot", messageId: "m1", isSnapshotUpdate: false, snapshot: {
+        messageId: "m1", timestamp: backupTime,
+        trackedFileBackups: { "a.txt": { backupFileName: "abc@v1", version: 1, backupTime } },
+    } });
+    addScriptRun(project, "toolu_T", 5, { code: APPEND_Z_SCRIPT });
+    // replaying that run must not throw: the run is reported as not replayed, with the reason text.
+    const { result } = await collectReplay(writeCraftedSession(project, "toolu_T"));
+    assert.equal(result!.outcome, WireRunOutcome.notReplayed);
+    assert.equal(result!.reason, "backup folder lost");
+    // no box starts for a lost-folder run.
+    assert.equal(countSpawns(), 0);
+});

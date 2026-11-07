@@ -138,3 +138,21 @@ test("test_computeRunNeeds_spawns_nothing_stores_nothing_and_keeps_the_gate", ()
     assert.equal(countSpawns(), 0);
     assert.equal(getMemoizedSandboxOutcome(earlierKey), undefined);
 });
+
+test("test_computeRunNeeds_is_empty_when_backup_folder_lost", () => {
+    // Scenario: the session records a backup file, but its file-history/<sessionId> folder is gone.
+    resetRunState();
+    const project = createCraftedProject();
+    const backupTime = "2026-07-24T10:00:01.000Z";
+    // a snapshot record names backup abc@v1 for a.txt; the crafted tree has no folder for the session.
+    project.records.push({ type: "file-history-snapshot", messageId: "m1", isSnapshotUpdate: false, snapshot: {
+        messageId: "m1", timestamp: backupTime,
+        trackedFileBackups: { "a.txt": { backupFileName: "abc@v1", version: 1, backupTime } },
+    } });
+    addWrite(project, "toolu_w", 2, "a.txt", "a\n");
+    addScriptRun(project, "toolu_A", 5, { code: APPEND_Z_SCRIPT });
+    addScriptRun(project, "toolu_T", 8, { code: APPEND_Y_SCRIPT });
+    // the earlier run A would be listed as a need, but a lost-folder run lists nothing.
+    assert.deepEqual(computeRunNeeds(writeCraftedSession(project, "toolu_T")), []);
+    assert.equal(countSpawns(), 0);
+});

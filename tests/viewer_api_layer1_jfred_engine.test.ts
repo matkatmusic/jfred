@@ -87,3 +87,10 @@ test("test_buildCommitPathOverrides_gives_one_source_per_projects_folder", () =>
     assert.deepEqual(overrides.sources!.map((source) => source.projectsDir.toString()), ["/a/projects", "/b/projects"]);
     assert.equal(overrides.fileHistoryRoot, undefined);
 });
+
+test("test_buildCommitPathOverrides_gives_one_source_for_flat_and_subagent_logs_of_one_claude_data", () => {
+    // A flat log and a subagent log of the same claude-data share one projects folder.
+    const sessionFiles = [new Path("/a/projects/p1/sid.jsonl"), new Path("/a/projects/p1/sid/subagents/agent-x.jsonl")];
+    const overrides = buildCommitPathOverrides(PROJECT_DIR, new Path("/repo"), sessionFiles);
+    assert.deepEqual(overrides.sources!.map((source) => source.projectsDir.toString()), ["/a/projects"]);
+});

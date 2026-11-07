@@ -8,8 +8,9 @@ import { EventKind } from "./structures/vocabulary.ts";
 import type { BuiltReconstruction } from "./reconstruction_json.ts";
 import { computeRepoStateAtTime } from "./reconstruction_steps.ts";
 import { convertToProjectRelativePath } from "./layer1_snapshot_wire.ts";
-import { dirname } from "node:path";
+// import { dirname } from "node:path";
 import { Path } from "./structures/domain.ts";
+import { getProjectsDirOfLog } from "./reconstruction_sidecar_reader.ts";
 import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 // import { getEffectiveFileHistoryDir } from "./viewer_api_projects.ts";
 
@@ -17,8 +18,8 @@ import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 export function buildCommitPathOverrides(dir: Path, repoDir: Path, sessionFiles: Path[]): PathOverrides {
   const projectsDirs = new Set<string>();
   for (const sessionFile of sessionFiles) {
-    // ponytail: subagent transcripts nested deeper get the wrong projects folder.
-    projectsDirs.add(dirname(dirname(sessionFile.toString())));
+    // // ponytail: subagent transcripts nested deeper get the wrong projects folder.
+    projectsDirs.add(getProjectsDirOfLog(sessionFile).toString());
   }
   const sources: SourceEntry[] = [];
   for (const projectsDir of projectsDirs) {
