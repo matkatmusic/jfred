@@ -1,0 +1,81 @@
+import { test, type TestContext } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { Path } from "../src/structures/domain.ts";
+import { getJSONLLineKind, JSONLLineKind, type JSONLLine } from "./engineV3.ts";
+import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+
+function makeTempFolder(t: TestContext): string {
+    const folder = mkdtempSync(join(tmpdir(), "engine-v3-jsonl-lines-"));
+    t.after(() => rmSync(folder, { recursive: true, force: true }));
+    return folder;
+}
+
+function makeUserLine(uuid: string, secondsPastMidnight: number, extraFields: object): string {
+    const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, secondsPastMidnight)).toISOString();
+    return JSON.stringify({ type: "user", uuid, timestamp, ...extraFields });
+}
+
+function writeJSONLFile(folder: string, fileName: string, lines: string[]): void {
+    writeFileSync(join(folder, fileName), lines.join("\n") + "\n");
+}
+
+function listUuids(folder: string): string[] {
+    const uuids: string[] = [];
+    for (const line of loadMergedJSONLLines([folder]).jsonlLines) {
+        uuids.push(String(line.uuid));
+    }
+    return uuids;
+}
+
+test("test_loadMergedJSONLLines_orders_lines_of_two_files_by_time", (t) => {
+    // Scenario: lines from two files sort by time.
+    const folder = makeTempFolder(t);
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {}), makeUserLine("c", 40, {})]);
+    writeJSONLFile(folder, "two.jsonl", [makeUserLine("b", 30, {})]);
+    assert.deepEqual(listUuids(folder), ["a", "b", "c"]);
+});
+
+test("test_loadMergedJSONLLines_keeps_a_line_without_timestamp_after_the_line_before_it", (t) => {
+    // Scenario: a last-prompt line without timestamp stays right after the 20s line.
+    const folder = makeTempFolder(t);
+    const lastPromptLine = JSON.stringify({ type: "last-prompt", leafUuid: "l1", sessionId: "s1" });
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {}), lastPromptLine, makeUserLine("c", 40, {})]);
+    writeJSONLFile(folder, "two.jsonl", [makeUserLine("b", 30, {})]);
+    const merged = loadMergedJSONLLines([folder]).jsonlLines;
+    assert.deepEqual([merged[0]?.type, merged[1]?.type, merged[2]?.type], ["user", "last-prompt", "user"]);
+});
+
+test("test_loadMergedJSONLLines_keeps_unknown_type_lines_in_place_and_lists_the_type_once", (t) => {
+    // Scenario: bogus-type lines stay in place, are listed once, and get the Skip kind.
+    const folder = makeTempFolder(t);
+    const bogusLine = JSON.stringify({ type: "bogus-type", timestamp: "2026-01-01T00:00:25.000Z" });
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {}), bogusLine, bogusLine, makeUserLine("c", 40, {})]);
+    const result = loadMergedJSONLLines([folder]);
+    const types = [result.jsonlLines[0]?.type, result.jsonlLines[1]?.type, result.jsonlLines[2]?.type, result.jsonlLines[3]?.type];
+    assert.deepEqual(types, ["user", "bogus-type", "bogus-type", "user"]);
+    assert.deepEqual(result.unknownRecordTypes, ["bogus-type"]);
+    assert.equal(getJSONLLineKind(result.jsonlLines[1] as JSONLLine, new Path(folder)), JSONLLineKind.Skip);
+});
+
+test("test_loadMergedJSONLLines_throws_naming_the_file_and_line_of_bad_json", (t) => {
+    // Scenario: a line of bad JSON on line 2 still throws with file, line number and text.
+    const folder = makeTempFolder(t);
+    const badJsonLine = "{not json";
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {}), badJsonLine]);
+    const expectedPart = `${join(folder, "one.jsonl")}:2`;
+    const hasFileLineAndText = (error: Error): boolean => error.message.includes(expectedPart) && error.message.includes(badJsonLine);
+    assert.throws(() => loadMergedJSONLLines([folder]), hasFileLineAndText);
+});
+
+test("test_loadMergedJSONLLines_lists_an_unknown_field_once_and_still_loads", (t) => {
+    // Scenario: two lines share one unknown field; it is listed once.
+    const folder = makeTempFolder(t);
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, { bogusField: 1 }), makeUserLine("b", 30, { bogusField: 2 })]);
+    const result = loadMergedJSONLLines([folder]);
+    assert.equal(result.jsonlLines.length, 2);
+    assert.deepEqual(result.unknownFields, [{ recordType: "user", fieldName: "bogusField" }]);
+});

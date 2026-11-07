@@ -1,0 +1,129 @@
+// Loads every transcript line under the JSONL folders as one time-ordered list.
+
+import { readFileSync } from "node:fs";
+import { Path } from "../src/structures/domain.ts";
+import { getRecordSource, loadTranscript, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
+import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
+import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
+import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
+import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
+import type { CommitHash, JSONLLine } from "./engineV3.ts";
+
+export type UnknownField = { recordType: string; fieldName: string };
+export type MergedJSONLLines = { jsonlLines: JSONLLine[]; unknownFields: UnknownField[]; unknownRecordTypes: string[] };
+
+// Each (record type, field) pair is added once.
+function collectUnknownFields(records: JSONLLine[], seenFieldIds: Set<string>, unknownFields: UnknownField[]): void {
+  for (const record of records) {
+    for (const fieldName of findUnmodeledTopLevelKeys(record)) {
+      const fieldId = `${record.type}.${fieldName}`;
+      const isNewField = !seenFieldIds.has(fieldId);
+      if (isNewField) {
+        seenFieldIds.add(fieldId);
+        unknownFields.push({ recordType: record.type, fieldName });
+      }
+    }
+  }
+}
+
+function printUnknownFields(unknownFields: UnknownField[]): void {
+  for (const unknownField of unknownFields) {
+    console.log(`unknown field: ${unknownField.recordType}.${unknownField.fieldName}`);
+  }
+}
+
+function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
+  for (const recordType of unknownRecordTypes) {
+    console.log(`unknown record type: ${recordType}`);
+  }
+}
+
+const UNKNOWN_TYPE_REASON_PREFIX = "Unknown transcript record type";
+
+// Any skipped line except an unknown record type stops the run.
+function assertOnlyUnknownTypesSkipped(transcriptFile: Path, skippedLines: SkippedLine[], fileLines: string[]): void {
+  for (const skippedLine of skippedLines) {
+    const isUnknownType = skippedLine.reason.startsWith(UNKNOWN_TYPE_REASON_PREFIX);
+    if (!isUnknownType) {
+      const skippedText = (fileLines[skippedLine.lineNumber - 1] as string).slice(0, 200);
+      throw new Error(`${transcriptFile.toString()}:${skippedLine.lineNumber} skipped (${skippedLine.reason}): ${skippedText}`);
+    }
+  }
+}
+
+// The loader rejects the line's type, so this parses the raw text without that check.
+function parseUnknownTypeLine(text: string): JSONLLine {
+  const parsed = JSON.parse(text) as Record<string, unknown>;
+  if (typeof parsed.timestamp === "string") {
+    parsed.timestamp = new Date(parsed.timestamp);
+  }
+  return parsed as JSONLLine;
+}
+
+function mapRecordsByLineNumber(records: JSONLLine[], skippedLines: SkippedLine[], fileLines: string[], unknownRecordTypes: Set<string>): Map<number, JSONLLine> {
+  const byLineNumber = new Map<number, JSONLLine>();
+  for (const record of records) {
+    byLineNumber.set((getRecordSource(record) as RecordSource).lineNumber, record);
+  }
+  for (const skippedLine of skippedLines) {
+    const record = parseUnknownTypeLine(fileLines[skippedLine.lineNumber - 1] as string);
+    unknownRecordTypes.add(String(record.type));
+    byLineNumber.set(skippedLine.lineNumber, record);
+  }
+  return byLineNumber;
+}
+
+function listRecordsInFileOrder(byLineNumber: Map<number, JSONLLine>, lineCount: number): JSONLLine[] {
+  const ordered: JSONLLine[] = [];
+  for (let lineNumber = 1; lineNumber <= lineCount; lineNumber++) {
+    const record = byLineNumber.get(lineNumber);
+    if (record !== undefined) {
+      ordered.push(record);
+    }
+  }
+  return ordered;
+}
+
+function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknownFields: UnknownField[], unknownRecordTypes: Set<string>): JSONLLine[] {
+  const { records, skippedLines } = loadTranscript(transcriptFile.toString(), undefined, true);
+  const fileLines = readFileSync(transcriptFile.toString(), "utf8").split("\n");
+  assertOnlyUnknownTypesSkipped(transcriptFile, skippedLines, fileLines);
+  collectUnknownFields(records, seenFieldIds, unknownFields);
+  const byLineNumber = mapRecordsByLineNumber(records, skippedLines, fileLines, unknownRecordTypes);
+  return listRecordsInFileOrder(byLineNumber, fileLines.length);
+}
+
+// Subagent transcripts are included; the engine's timestamp rule orders the lines.
+export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
+  const recordLists: JSONLLine[][] = [];
+  const unknownFields: UnknownField[] = [];
+  const seenFieldIds = new Set<string>();
+  const unknownRecordTypes = new Set<string>();
+  for (const transcriptFile of listTranscriptFiles(jsonlFolders)) {
+    recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
+  }
+  printUnknownFields(unknownFields);
+  printUnknownRecordTypes(unknownRecordTypes);
+  return { jsonlLines: mergeRecordsByTimestamp(recordLists), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
+}
+
+// function getCommitTimeInMilliseconds(repo: Path, commit: CommitHash): number {
+//   const output = executeGit(repo, ["show", "-s", "--format=%ct", commit.toString()]);
+//   return Number(output.toString("utf8").trim()) * 1000;
+// }
+
+// The index of the first line stamped later than the commit time.
+export function getLineNumForCommit(repo: Path, commit: CommitHash, jsonlLines: JSONLLine[]): number {
+  const commitDate = readCommitTimestamp(repo, commit);
+  if (commitDate === undefined) {
+    throw new Error(`no commit time for ${commit.toString()} in ${repo.toString()}`);
+  }
+  const commitTime = commitDate.getTime();
+  for (const [lineNum, line] of jsonlLines.entries()) {
+    const lineTime = line.timestamp?.getTime() ?? Number.NEGATIVE_INFINITY;
+    if (lineTime > commitTime) {
+      return lineNum;
+    }
+  }
+  return jsonlLines.length;
+}
