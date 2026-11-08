@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
-import { getRecordSource, loadTranscript, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
+import { getRecordSource, loadTranscript, setRecordSource, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
 import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
@@ -60,13 +60,14 @@ function parseUnknownTypeLine(text: string): JSONLLine {
   return parsed as JSONLLine;
 }
 
-function mapRecordsByLineNumber(records: JSONLLine[], skippedLines: SkippedLine[], fileLines: string[], unknownRecordTypes: Set<string>): Map<number, JSONLLine> {
+function mapRecordsByLineNumber(transcriptFile: Path, records: JSONLLine[], skippedLines: SkippedLine[], fileLines: string[], unknownRecordTypes: Set<string>): Map<number, JSONLLine> {
   const byLineNumber = new Map<number, JSONLLine>();
   for (const record of records) {
     byLineNumber.set((getRecordSource(record) as RecordSource).lineNumber, record);
   }
   for (const skippedLine of skippedLines) {
     const record = parseUnknownTypeLine(fileLines[skippedLine.lineNumber - 1] as string);
+    setRecordSource(record, { filePath: transcriptFile.toString(), lineNumber: skippedLine.lineNumber });
     unknownRecordTypes.add(String(record.type));
     byLineNumber.set(skippedLine.lineNumber, record);
   }
@@ -89,7 +90,7 @@ function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknow
   const fileLines = readFileSync(transcriptFile.toString(), "utf8").split("\n");
   assertOnlyUnknownTypesSkipped(transcriptFile, skippedLines, fileLines);
   collectUnknownFields(records, seenFieldIds, unknownFields);
-  const byLineNumber = mapRecordsByLineNumber(records, skippedLines, fileLines, unknownRecordTypes);
+  const byLineNumber = mapRecordsByLineNumber(transcriptFile, records, skippedLines, fileLines, unknownRecordTypes);
   return listRecordsInFileOrder(byLineNumber, fileLines.length);
 }
 

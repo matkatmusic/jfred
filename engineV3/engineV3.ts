@@ -13,6 +13,8 @@ import { convertEditResult, convertWriteResult } from "../src/structures/tool-re
 import { convertToProjectRelativePath } from "../src/layer1_snapshot_wire.ts";
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { isHunkMatchingBase, applyHunksToLines } from "../src/layer1_edit_hunks.ts";
+import { findWorktreeAgentId } from "./engineV3_replay_worktree.ts";
+import { findScriptRun } from "./engineV3_replay_script.ts";
 
 //fill these in or import them from the other engine versions
 // type RepoState = {
@@ -152,6 +154,8 @@ export enum JSONLLineKind {
   EditPartial = "EditPartial",
   // OriginalFile = "OriginalFile",
   Snapshot = "Snapshot",
+  WorktreeAdd = "WorktreeAdd",
+  Script = "Script",
   Skip = "Skip",
 }
 
@@ -273,15 +277,27 @@ function getToolResultKind(raw: Record<string, unknown>, repo: Path): JSONLLineK
   return JSONLLineKind.Skip;
 }
 
-export function getJSONLLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
-  if (line.type === RecordType.fileHistorySnapshot) {
-    return getSnapshotKind(line);
-  }
+function getToolResultLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
   const raw = getToolResultObject(line);
   if (raw === undefined) {
     return JSONLLineKind.Skip;
   }
   return getToolResultKind(raw, repo);
+}
+
+export function getJSONLLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
+  if (line.type === RecordType.fileHistorySnapshot) {
+    return getSnapshotKind(line);
+  }
+  const worktreeAgentId = findWorktreeAgentId(line);
+  if (worktreeAgentId !== undefined) {
+    return JSONLLineKind.WorktreeAdd;
+  }
+  const scriptRun = findScriptRun(line);
+  if (scriptRun !== undefined) {
+    return JSONLLineKind.Script;
+  }
+  return getToolResultLineKind(line, repo);
 }
 
 function applyWriteCreateToState(state: RepoState, line: JSONLLine, repo: Path): RepoState {

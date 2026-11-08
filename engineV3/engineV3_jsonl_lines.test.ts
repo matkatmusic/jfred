@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
+import { getRecordSource } from "../src/parse/loadTranscript.ts";
 import { getJSONLLineKind, JSONLLineKind, type JSONLLine } from "./engineV3.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 
@@ -59,6 +60,15 @@ test("test_loadMergedJSONLLines_keeps_unknown_type_lines_in_place_and_lists_the_
     assert.deepEqual(types, ["user", "bogus-type", "bogus-type", "user"]);
     assert.deepEqual(result.unknownRecordTypes, ["bogus-type"]);
     assert.equal(getJSONLLineKind(result.jsonlLines[1] as JSONLLine, new Path(folder)), JSONLLineKind.Skip);
+});
+
+test("test_loadMergedJSONLLines_gives_an_unknown_type_line_its_file_and_line_number", (t) => {
+    // Scenario: an atis-latch line on line 2 has a record source naming its file and line.
+    const folder = makeTempFolder(t);
+    const atisLatchLine = JSON.stringify({ type: "atis-latch", timestamp: "2026-01-01T00:00:25.000Z" });
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {}), atisLatchLine]);
+    const atisLatchRecord = loadMergedJSONLLines([folder]).jsonlLines.find((line) => String(line.type) === "atis-latch") as JSONLLine;
+    assert.deepEqual(getRecordSource(atisLatchRecord), { filePath: join(folder, "one.jsonl"), lineNumber: 2 });
 });
 
 test("test_loadMergedJSONLLines_throws_naming_the_file_and_line_of_bad_json", (t) => {
