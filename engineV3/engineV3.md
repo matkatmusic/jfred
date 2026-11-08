@@ -11,6 +11,7 @@ The first commit is `6510b84` "Initial commit" (2026-10-26 14:54:57 -0700).
   The engine reads and writes the files in that folder to track the repo's contents.
 - The engine runs inside the docker container. Its reads and writes are plain file calls, not docker commands.
 - During the replay, the docker container has no network and sees no folders on the Mac.
+- Inside the container, the `state` folder is at `/Users/matkatmusicllc/Programming/typesafe-playground`, the same path as on the Mac. So a JSONL `cwd` is a container path with no change.
 
 ## Setup (before the main loop)
 
@@ -18,9 +19,10 @@ The first commit is `6510b84` "Initial commit" (2026-10-26 14:54:57 -0700).
    Code today: none. `jfred/src/reconstruction_script_sandbox_docker.ts` uses the image `reveng-sandbox:1`, but that image only runs one script and has no engine code.
 2. Start a docker container from that image. It has no network and no Mac folders. It stays alive for the whole replay.
    Code today: none. The docker code we have starts a new container for each script, then removes it.
-3. Copy the typesafe-playground git history and the chat logs into the container one time, with `docker cp`, before the replay starts.
+3. Copy the typesafe-playground git history and the chat logs into the container one time, with `docker cp`, before the replay starts. Put them outside the `state` folder.
    Code today: none.
-4. Inside the container, make an empty folder. That folder is `state`.
+4. Inside the container, make the empty folder `/Users/matkatmusicllc/Programming/typesafe-playground`. That folder is `state`.
+   The typesafe-playground git history copy from part 3 must be outside this folder, so `state` starts empty.
    Code today: none.
 
 ## Main loop
@@ -86,3 +88,21 @@ Code today: the loop body of `createGitCommitForRange` (`jfred/engineV3/engineV3
 2. It calls `applyCommitToState(cb136ca199e7b68336c80ae929ecbc2d9dd6e6f4, state, <path to the typesafe-playground copy>)`.
    This writes `.gitignore` into the `state` folder. `.gitignore` is the only file in `cb136ca` ("added git ignore").
 3. Now the `state` folder has `LICENSE` and `.gitignore`.
+
+### Step 4: apply commit `2716f82`
+
+1. `getNextEvent(repoPath, jsonlsPaths, cb136ca)` returns "apply commit `2716f82` to state".
+   Real data: `2716f82` is at 2026-10-26 16:57:17 -0700. That is earlier than the oldest JSONL line (16:57:39 -0700).
+2. `doSomethingWithEvent` calls `applyCommitToState(2716f820d4178b02e8143b35041240e76f8466d6, state, <path to the typesafe-playground copy>)`.
+   This writes `.claude/settings.json` into the `state` folder. `.claude/settings.json` is the only file in `2716f82` ("added .claude/settings.json with session taskList ID").
+3. Now the `state` folder has `LICENSE`, `.gitignore`, and `.claude/settings.json`.
+4. The oldest JSONL line is line 7 of `/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl`, at `2026-10-26T23:57:39.077Z`.
+
+### Step 5: apply JSONL line 7
+
+1. `getNextEvent(repoPath, jsonlsPaths, 2716f82)` returns "apply JSONL line 7 to state".
+2. Line 7 is an `attachment` line: a system-reminder. It changes no file. `doSomethingWithEvent` leaves the `state` folder as it is.
+3. Line 7 has `cwd` `/Users/matkatmusicllc/Programming/typesafe-playground`. This is the first step with a `cwd`.
+   The engine converts a `cwd` to a container path with no change, because the `state` folder is at the same path inside the container. Nothing uses the converted path yet.
+   Real data: every `cwd` in the typesafe-playground chat logs is inside `/Users/matkatmusicllc/Programming/typesafe-playground`. Examples: `playground/`, `playground/client`, `playground/typesafe-checks`, `.idleState`, and 5 folders in `.claude/worktrees/agent-*`.
+   Code today: `chooseSandboxMount` (`jfred/src/reconstruction_script_sandbox_docker.ts:47`) uses the recorded `cwd` with no change as the container path.
