@@ -1,10 +1,10 @@
-  <header>
+  <header data-component="TopBars">
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
     <!--
       Task 282: committer vs author placement; flipping re-loads the view, each button's id suffix is the ?time= value.
     -->
-    <div class="timebar">
+    <div class="timebar" data-component="TimeToggle">
       <span class="lbl">Time:</span>
       <button id="time-committer" class="current">committer</button>
       <button id="time-author">author</button>
@@ -17,10 +17,11 @@
       include layer1-components/commits-column/commits-column.html
     -->
     <button id="clear-results" class="clear-results">Clear saved results</button>
+    <button class="clear-results" data-component-inspector-toggle>names</button>
     <span class="clear-results-confirm" id="clear-results-confirm" hidden>Clear all saved results and compute everything again?
       <button id="clear-results-yes">Yes, clear</button><button id="clear-results-no">No</button>
     </span>
-    <div class="zoombar">
+    <div class="zoombar" data-component="ZoomBar">
       <span class="lbl">Zoom:</span>
       <button id="zoom-out" title="Zoom out">−</button>
       <span class="zoom-level" id="zoom-level">100%</span>
@@ -59,8 +60,8 @@
         <input id="repo" type="text" size="34" value="">
         <button class="pick" data-for="repo">Open…</button></label>
       <span class="repo-flag">✓ git repo</span>
-      <label class="repo-only">Branch <select id="branch"></select></label>
-      <label class="repo-only">Commit <select id="commit"></select></label>
+      <label class="repo-only" data-component="BranchPicker">Branch <select id="branch"></select></label>
+      <label class="repo-only" data-component="CommitPicker">Commit <select id="commit"></select></label>
       <label>Ref <input id="ref" type="text" size="10" value="" placeholder="default branch"></label>
       <button id="load">Load</button>
     </div>
@@ -71,7 +72,7 @@
       <span class="lbl">Jump to:</span>
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
-      <label>Find bubble
+      <label data-component="FindBox">Find bubble
         <input id="find-file" type="text" size="22"></label>
       <!--
         Task 271: explicit cycle controls; Enter still advances, these add a reverse direction.

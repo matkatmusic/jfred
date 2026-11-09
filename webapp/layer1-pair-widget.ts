@@ -74,7 +74,7 @@ function appendScriptRunAndToolNodes(lane: HTMLElement, pair: WirePair, startPx:
 
 function buildPairLane(pair: WirePair, ladder: NodeWithSameTimestamp[], startPx: number, railEndPx: number): HTMLElement {
   const branches = pair.branches ?? [];
-  const lane = setAxisPx(createElement("div", { class: "lane" }), 0);
+  const lane = setAxisPx(createElement("div", { class: "lane", "data-component": "Lanes" }), 0);
   lane.style.setProperty("--span-px", String(railEndPx - startPx));
   // Task 259's markers go in before the nodes; with no z-index, DOM order keeps the rectangle behind the dots.
   lane.append(createElement("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
@@ -91,7 +91,7 @@ function createPairFilebox(pair: WirePair, lane: HTMLElement, startPx: number): 
   const untrustedNotes = pair.createdNotTrusted === undefined ? [] : [
     createElement("div", { class: "created-untrusted", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
   ];
-  const filebox = setAxisPx(createElement("div", { class: "filebox" }, [
+  const filebox = setAxisPx(createElement("div", { class: "filebox", "data-component": "Bubbles" }, [
     ...untrustedNotes,
     // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
     createElement("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),

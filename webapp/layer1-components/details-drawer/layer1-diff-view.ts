@@ -27,7 +27,7 @@ function buildArrowButton(glyph: "↑" | "↓", side: string): HTMLButtonElement
 
 // The single-pair drawer's three header rows (dhead/dpair/dfull-toggle/dmeta classes) plus the body.
 export function buildDiffView(path: string, steps: DiffStep[], config: DiffViewConfig): HTMLElement {
-  const details = createElement("details", { class: "dfile", open: "" });
+  const details = createElement("details", { class: "dfile", open: "", "data-component": "DiffViewSections" });
   const namePlate = createElement("div", { class: "dpath dfile-path", text: getBasename(path), title: path, "data-target": path });
   if (steps.length === 0) {
     details.append(createElement("summary", { class: "dhead dfile-head" }, [namePlate]),

@@ -200,7 +200,7 @@ function buildStripOnce(): HTMLElement {
   const existing = document.getElementById(STRIP_ID);
   if (existing !== null)
     return existing;
-  const strip = createElement("div", { id: STRIP_ID, class: "jfred-strip" });
+  const strip = createElement("div", { id: STRIP_ID, class: "jfred-strip", "data-component": "CommitsColumn" });
   (document.getElementById("annotation-track") ?? getRequiredElementById("ruler")).after(strip);
   strip.addEventListener("click", dispatchStripClick);
   attachHoverPopup(strip, readEntryPopup);
