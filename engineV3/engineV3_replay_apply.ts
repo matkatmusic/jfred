@@ -105,6 +105,16 @@ function listOldLinesAfterWindow(oldLines: string[], snippet: BeaconSnippet): st
 // Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.
 function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   const fileLines = splitLines(oldText);
+  // A last window that shows only unchanged lines is the context before deleted end lines, so the file ends at its last line.
+  let lastWindowStart = snippet.lines.length - 1;
+  while (lastWindowStart > 0 && snippet.lines[lastWindowStart]!.lineNo === snippet.lines[lastWindowStart - 1]!.lineNo + 1) {
+    lastWindowStart -= 1;
+  }
+  const lastWindow = snippet.lines.slice(lastWindowStart);
+  const isLastWindowUnchanged = lastWindow.every(({ lineNo, text }) => fileLines[lineNo - 1] === text);
+  if (isLastWindowUnchanged) {
+    fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  }
   for (const { lineNo, text } of snippet.lines) {
     if (lineNo - 1 > fileLines.length) {
       throw new Error(`patchWindowIntoText: snippet line ${lineNo} is past the end of a ${fileLines.length}-line file`);
