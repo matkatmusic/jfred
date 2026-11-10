@@ -270,8 +270,8 @@ test("test_executeScriptInState_runs_a_ctx_execute_python_run", (t) => {
   // the state folder holds one.py
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   writeFileSync(join(state.toString(), "one.py"), "x");
-  // the line holds a ctx_execute python call that renames one.py to core_one.py
-  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxPy", "python", "import shutil\nshutil.move('one.py', 'core_one.py')")], state.toString());
+  // the line holds a ctx_execute python call that renames one.py to core_one.py by absolute path (a python run starts in its own temp folder)
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxPy", "python", `import shutil\nshutil.move('${state.toString()}/one.py', '${state.toString()}/core_one.py')`)], state.toString());
   // run the line
   executeScriptInState(state, line, makeContext("toolu_01CtxPy"));
   // core_one.py exists and one.py does not
