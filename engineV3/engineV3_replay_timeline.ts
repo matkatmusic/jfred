@@ -3,15 +3,12 @@
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { TimelineEventKind, executeGit, type CommitHash, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { listCommitsFromStartToEnd } from "./engineV3test.ts"; import { createCommitEventsInTimeOrder, listReflogOnlyCommits } from "./engineV3_replay_commit_events.ts";
-import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { listOutsideGitRows } from "./engineV3_replay_outside_git.ts";
 import { mergePlateEventsIntoActions } from "./engineV3_replay_plate.ts";
 
 export const TERMINAL_EVENT = Symbol("TERMINAL_EVENT");
-
-// 2026-10-26T23:57:39Z, the first chat line: reflog rows at or before it are not replayed.
-export const START_SECONDS = 1793059059;
 
 type Timeline = { key: string; events: TimelineEvent[]; indexByEvent: Map<TimelineEvent, number> };
 
@@ -54,7 +51,8 @@ export function readHeadCommit(repoPath: Path): CommitHash {
 // }
 
 function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
-  const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), START_SECONDS);
+  const startSeconds = Math.floor(getFirstLineTime(lines).getTime() / 1000);
+  const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), startSeconds);
   const events: TimelineEvent[] = [];
   for (const row of rows) {
     events.push({ type: TimelineEventKind.OutsideGitAction, row, timestamp: row.seconds * 1000 });

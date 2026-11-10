@@ -30,7 +30,7 @@ function makeTempFolder(t: TestContext, prefix: string): string {
     return folder;
 }
 
-// A at 10s, B at 20s adds added.txt, C at 30s changes change.txt (all after START_SECONDS, on 2026-10-27).
+// A at 10s, B at 20s adds added.txt, C at 30s changes change.txt (on 2026-10-27).
 function makeTimedRepo(t: TestContext): TimedRepo {
     const repoFolder = makeTempFolder(t, "engine-v3-replay-repo-");
     runGitWithDate(repoFolder, "2026-10-27T00:00:10Z", ["init", "-q"]);
@@ -93,15 +93,26 @@ test("test_getNextEvent_places_an_outside_git_row_by_time_between_line_events", 
     assert.deepEqual(readEventKinds(timedRepo.gitFolder, jsonlFolder), [TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
+test("test_getNextEvent_leaves_out_the_rows_at_or_before_the_first_line_second", (t) => {
+    // Scenario: the only line is at 15s, so row A (10s) is in the start state and is not replayed.
+    const timedRepo = makeTimedRepo(t);
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
+    // list the kinds of all events in order
+    const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
+    // the line, then rows B and C
+    assert.deepEqual(kinds, [TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
+});
+
 test("test_getNextEvent_puts_a_line_in_the_same_second_before_the_commit", (t) => {
     // Scenario: a line at 20s and commit B at 20s share a second, so the line comes first.
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 20)]);
+    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "w.txt", "w", 1), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 20)]);
     // list the kinds of all events in order
     const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
-    // the line sits between commit A and commit B
-    assert.deepEqual(kinds, [TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
+    // the 20s line sits between commit A and commit B
+    assert.deepEqual(kinds, [TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
 test("test_getNextEvent_keeps_a_line_with_no_time_next_to_the_timed_line_after_it", (t) => {
@@ -109,18 +120,18 @@ test("test_getNextEvent_keeps_a_line_with_no_time_next_to_the_timed_line_after_i
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     const timelessLine = JSON.stringify({ type: "user", uuid: "u-timeless", toolUseResult: { note: "no time" } });
-    writeJSONLFile(jsonlFolder, "s1.jsonl", [timelessLine, makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
+    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "w.txt", "w", 1), timelessLine, makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
     // list the kinds of all events in order
     const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
-    // commit A, then line 1 and line 2 together, then commits B and C
-    assert.deepEqual(kinds, [TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
+    // the 1s line, commit A, the timeless line and the 15s line together, then commits B and C
+    assert.deepEqual(kinds, [TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
 test("test_getNextEvent_returns_TERMINAL_EVENT_after_the_last_event", (t) => {
     // Scenario: after commit C, the last event, the next event is TERMINAL_EVENT.
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
+    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "w.txt", "w", 1), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
     const repoPath = new Path(timedRepo.gitFolder);
     const jsonlsPaths = [new Path(jsonlFolder)];
     // walk to the last event
