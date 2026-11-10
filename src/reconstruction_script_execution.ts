@@ -42,6 +42,8 @@ export type ScriptRun = {
   gitBranch?: string;
   // True only when the tool input itself carried a `cwd`.
   hasInputCwd?: boolean;
+  // True only when the tool input carried `run_in_background: true`.
+  runInBackground?: boolean;
 };
 
 // A ctx_execute run in one of these languages is a shell run; every other language keeps the python kind.
@@ -109,7 +111,8 @@ export function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
       const executorKind = isShell ? ScriptExecutorKind.bash : ScriptExecutorKind.python;
       // An absent language must stay absent: a `language: undefined` KEY differs under deep equality.
       // runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }), ...(gitBranch === undefined ? {} : { gitBranch }) });
-      runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }), ...(gitBranch === undefined ? {} : { gitBranch }), ...(blockCwd === undefined ? {} : { hasInputCwd: true }) });
+      const isBackground = (block.input as { run_in_background?: boolean }).run_in_background === true;
+      runs.push({ code, timestamp, cwd, source, toolUseId: block.id, executorKind, ...(language === undefined ? {} : { language }), ...(gitBranch === undefined ? {} : { gitBranch }), ...(blockCwd === undefined ? {} : { hasInputCwd: true }), ...(isBackground ? { runInBackground: true } : {}) });
     }
   }
   return runs;

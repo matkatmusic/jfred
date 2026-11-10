@@ -1,7 +1,7 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
 
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { mkdirSync, mkdtempSync, openSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -16,6 +16,7 @@ import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
 export const SCRIPT_TIMEOUT_MILLISECONDS = 300000;
+const BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS = 30000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
 const PYTHON_LANGUAGE = "python";
@@ -106,10 +107,33 @@ function getScriptCwd(run: ScriptRun): string {
   return cwd;
 }
 
+function sleepMilliseconds(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+// A run_in_background command (a dev server) never exits, so it starts detached and the replay waits only for its first output line.
+function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv): void {
+  const outputFile = join(mkdtempSync(join(tmpdir(), "engine-v3-background-")), "output.txt");
+  const outputDescriptor = openSync(outputFile, "w");
+  const child = spawn(getInterpreter(run), ["-c", run.code], { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
+  child.unref();
+  const deadlineMs = Date.now() + BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS;
+  while (statSync(outputFile).size === 0) {
+    if (Date.now() > deadlineMs) {
+      throw new Error(`startBackgroundCommand: no output within ${BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS} ms\ncommand: ${run.code}`);
+    }
+    sleepMilliseconds(100);
+  }
+}
+
 function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
+  if (run.runInBackground === true) {
+    startBackgroundCommand(run, cwd, env);
+    return;
+  }
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   const spawned = spawnSync(getInterpreter(run),["-c", replaceDebtReportCall(run.code)], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
