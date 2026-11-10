@@ -114,8 +114,16 @@ function assertBackupMatchesDisk(replayedFile: string, line: JSONLLine, context:
   assertFileEqualsBackup(replayedFile, backupFile, line);
 }
 
+// With realParentDir the file is in that folder, whatever folder the session started in.
+function getReplayedFile(state: Path, filePath: Path, backup: FileHistoryBackup): string {
+  if (backup.realParentDir === undefined) {
+    return resolve(state.toString(), filePath.toString());
+  }
+  return join(backup.realParentDir.toString(), basename(filePath.toString()));
+}
+
 function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptReplayContext, filePath: Path, backup: FileHistoryBackup): void {
-  const replayedFile = resolve(state.toString(), filePath.toString());
+  const replayedFile = getReplayedFile(state, filePath, backup);
   const isChecked = isNewOrChangedBackup(line, replayedFile, backup);
   if (!isChecked) {
     return;

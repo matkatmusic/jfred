@@ -51,6 +51,19 @@ test("test_assertSnapshotBackupsMatchState_passes_when_the_file_equals_the_named
   assert.equal(assertSnapshotBackupsMatchState(state, line, createContext(folders)), state);
 });
 
+test("test_assertSnapshotBackupsMatchState_resolves_the_key_against_realParentDir", (t) => {
+  // Step 1: the file lives in state/sub, and the backup key "f.txt" names state/sub as its real parent folder.
+  const folders = makeTestFolders(t);
+  mkdirSync(join(folders.state, "sub"));
+  writeFileSync(join(folders.state, "sub", "f.txt"), "line one\n");
+  writeFileSync(join(folders.history, SESSION_ID, "abc@v2"), "line one\n");
+  const realParentBackup = { "f.txt": { ...NAMED_BACKUP["f.txt"], realParentDir: join(folders.state, "sub") } };
+  // Step 2: the check finds state/sub/f.txt, equals its backup, and does not throw.
+  const line = loadSnapshotLine(folders, realParentBackup);
+  const state = new Path(folders.state);
+  assert.equal(assertSnapshotBackupsMatchState(state, line, createContext(folders)), state);
+});
+
 test("test_assertSnapshotBackupsMatchState_throws_with_path_line_and_both_texts_when_bytes_differ", (t) => {
   // Step 1: the state file and the backup file hold different bytes.
   const folders = makeTestFolders(t);
