@@ -182,9 +182,17 @@ function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   }
   const lastWindow = snippet.lines.slice(lastWindowStart);
   const isLastWindowUnchanged = lastWindow.every(({ lineNo, text }) => fileLines[lineNo - 1] === text);
-  if (isLastWindowUnchanged) {
-    fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  // A snippet that is one single window (s38) may end on trailing context with the file going on, so only a window after a gap can mark the file end.
+  const hasWindowBeforeLastWindow = lastWindowStart > 0;
+  if (hasWindowBeforeLastWindow) {
+    if (isLastWindowUnchanged) {
+      fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+    }
   }
+  // replaced by hasWindowBeforeLastWindow: a single window ending on trailing context cut s38's file tail
+  // if (isLastWindowUnchanged) {
+  //   fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  // }
   // When the numbers restart (a line number at or below the line before it), the later chunk is the file tail numbered by the harness's older copy: it ends on the file's last line.
   const lastSnippetLineNo = snippet.lines[snippet.lines.length - 1]!.lineNo;
   let chunkShift = 0;
