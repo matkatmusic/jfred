@@ -58,6 +58,14 @@ test("test_collectBashCallResults_leaves_out_a_tool_that_is_not_Bash", () => {
     assert.equal(collectBashCallResults(lines).size, 0);
 });
 
+test("test_collectBashCallResults_records_a_ctx_execute_call", () => {
+    // Scenario: a ctx_execute call and its result are paired like a Bash call.
+    const lines = [makeToolUseLine("t1", "mcp__plugin_context-mode_context-mode__ctx_execute", 10), makeToolResultLine("t1", 12, "ok", false)];
+    const result = collectBashCallResults(lines).get("t1") as BashCallResult;
+    assert.equal(result.resultText, "ok");
+    assert.equal(result.isError, false);
+});
+
 test("test_collectBashCallResults_skips_a_call_record_with_no_timestamp", () => {
     const lines = [makeToolUseLine("t1", "Bash", undefined), makeToolResultLine("t1", 12, "ok", false)];
     assert.equal(collectBashCallResults(lines).size, 0);
@@ -66,6 +74,12 @@ test("test_collectBashCallResults_skips_a_call_record_with_no_timestamp", () => 
 test("test_isNeverRanResult_is_true_for_an_error_that_starts_with_a_listed_prefix", () => {
     assert.equal(isNeverRanResult(makeResult(true, "PreToolUse:Bash hook error: nope")), true);
     assert.equal(isNeverRanResult(makeResult(true, "<tool_use_error>Blocked: x")), true);
+});
+
+test("test_isNeverRanResult_is_true_for_a_ctx_execute_pyenv_python_command_not_found_error", () => {
+    // Scenario: the ctx_execute result opens with an upgrade notice and uses "Exit code: 127".
+    const resultText = "⚠️ context-mode v1.0.126 outdated → v1.0.168 available. Upgrade: /ctx-upgrade\n\nExit code: 127\n\nstdout:\n\n\nstderr:\npyenv: python: command not found\n\nThe `python' command exists in these Python versions:\n  3.14.3";
+    assert.equal(isNeverRanResult(makeResult(true, resultText)), true);
 });
 
 test("test_isNeverRanResult_is_true_for_a_pyenv_python_command_not_found_error", () => {

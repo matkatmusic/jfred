@@ -68,9 +68,10 @@ test("test_applyJSONLLineToState_adds_the_final_newline_when_a_marker_follows_a_
     assert.equal(text, "A\nX\nZ\n");
 });
 
-function makeUserEditLine(t: TestContext, stateFolder: string, fileName: string): JSONLLine {
+const WHOLE_FILE_SNIPPET = "1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
+
+function makeUserEditLine(t: TestContext, stateFolder: string, fileName: string, snippet: string = WHOLE_FILE_SNIPPET): JSONLLine {
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    const snippet = "1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
     const attachment = { type: "edited_text_file", filename: join(stateFolder, fileName), snippet };
     const record = { type: "attachment", uuid: "741f9817-9a3d-4275-936a-3d6b5a9d409e", timestamp: "2026-06-27T16:10:24.962Z", attachment };
     writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify(record) + "\n");
@@ -93,6 +94,46 @@ test("test_applyJSONLLineToState_user_edit_keeps_a_missing_final_newline", (t) =
     writeFileSync(join(stateFolder, "s.py"), "old text");
     applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py"), [], NO_SCRIPT_CONTEXT);
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT);
+});
+
+test("test_applyJSONLLineToState_user_edit_snippet_from_line_1_keeps_the_old_lines_after_its_8_context_lines", (t) => {
+    // Scenario: the user adds 2 lines at line 3; the snippet shows lines 1 to 12 and stops before the old last line.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nTAIL\n");
+    const snippet = "1\ta\n2\tb\n3\tX\n4\tY\n5\tc\n6\td\n7\te\n8\tf\n9\tg\n10\th\n11\ti\n12\tj";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", snippet), [], NO_SCRIPT_CONTEXT);
+    // the snippet lines come first and the old last line stays after them
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nX\nY\nc\nd\ne\nf\ng\nh\ni\nj\nTAIL\n");
+});
+
+test("test_applyJSONLLineToState_user_edit_window_starting_mid_file_leaves_the_lines_around_it", (t) => {
+    // Scenario: the snippet shows only file lines 3 and 4, so lines 1, 2 and 5 stay as they were.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne\n");
+    const windowSnippet = "3\tC\n4\tD";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", windowSnippet), [], NO_SCRIPT_CONTEXT);
+    // only lines 3 and 4 changed, the final newline stays
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nC\nD\ne\n");
+});
+
+test("test_applyJSONLLineToState_user_edit_window_with_a_gap_line_leaves_the_gap_lines", (t) => {
+    // Scenario: the snippet shows lines 1 and 4 with "..." between, so lines 2, 3 and 5 stay as they were.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne");
+    const gapSnippet = "1\tA\n...\n4\tD";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", gapSnippet), [], NO_SCRIPT_CONTEXT);
+    // lines 1 and 4 changed, no final newline is added
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "A\nb\nc\nD\ne");
+});
+
+test("test_applyJSONLLineToState_user_edit_window_whose_numbers_restart_after_the_gap_patches_the_file_tail", (t) => {
+    // Scenario: the file has 7 lines; the snippet shows lines 1-2, then "..." and the file tail numbered 2-3 (the harness numbers the tail by its own older copy).
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne\nf\ng\n");
+    const restartSnippet = "1\ta\n2\tb\n...\n2\tF\n3\tG";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", restartSnippet), [], NO_SCRIPT_CONTEXT);
+    // the tail lines F and G land on file lines 6 and 7, the lines around them stay
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nc\nd\ne\nF\nG\n");
 });
 
 test("test_applyJSONLLineToState_user_edit_throws_when_the_file_is_missing_in_the_state", (t) => {

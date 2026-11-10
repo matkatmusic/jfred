@@ -1,12 +1,16 @@
 // Loads every transcript line under the JSONL folders as one time-ordered list.
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, loadTranscript, setRecordSource, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
 import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
+import { getContentBlocks } from "../src/structures/content-blocks.ts";
+import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
 
 export type UnknownField = { recordType: string; fieldName: string };
@@ -94,18 +98,68 @@ function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknow
   return listRecordsInFileOrder(byLineNumber, fileLines.length);
 }
 
+// A multi-source scenario folder holds each transcript twice: at the top and in source-*/projects. The first copy wins.
+function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
+  const seenFileIds = new Set<string>();
+  const uniqueFiles: Path[] = [];
+  for (const transcriptFile of transcriptFiles) {
+    const contentHash = createHash("sha256").update(readFileSync(transcriptFile.toString())).digest("hex");
+    const fileId = `${basename(transcriptFile.toString())}:${contentHash}`;
+    const isNewFile = !seenFileIds.has(fileId);
+    if (isNewFile) {
+      seenFileIds.add(fileId);
+      uniqueFiles.push(transcriptFile);
+    }
+  }
+  return uniqueFiles;
+}
+
+// A Bash or ctx_execute call whose result comes much later waited for the user's permission, so the script ran just before its result.
+const PERMISSION_WAIT_MILLISECONDS = 60000;
+function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+  const resultTimeByCallId = new Map<string, number>();
+  for (const record of records) {
+    if (record.timestamp instanceof Date) {
+      for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_result) {
+          resultTimeByCallId.set(block.tool_use_id.toString(), record.timestamp.getTime());
+        }
+      }
+    }
+  }
+  for (const record of records) {
+    if (record.timestamp instanceof Date) {
+      for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_use) {
+          const isScriptTool = block.name === ToolName.Bash || block.name === ToolName.CtxExecute;
+          const resultTime = resultTimeByCallId.get(block.id.toString());
+          if (isScriptTool && resultTime !== undefined) {
+            if (resultTime - record.timestamp.getTime() > PERMISSION_WAIT_MILLISECONDS) {
+              sortTimeOverrides.set(record, resultTime);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
 export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   const recordLists: JSONLLine[][] = [];
   const unknownFields: UnknownField[] = [];
   const seenFieldIds = new Set<string>();
   const unknownRecordTypes = new Set<string>();
-  for (const transcriptFile of listTranscriptFiles(jsonlFolders)) {
+  for (const transcriptFile of dropCopiedTranscripts(listTranscriptFiles(jsonlFolders))) {
     recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
+  }
+  const sortTimeOverrides = new Map<JSONLLine, number>();
+  for (const recordList of recordLists) {
+    collectDelayedScriptCallTimes(recordList, sortTimeOverrides);
   }
   printUnknownFields(unknownFields);
   printUnknownRecordTypes(unknownRecordTypes);
-  return { jsonlLines: mergeRecordsByTimestamp(recordLists), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
+  return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
 }
 
 // function getCommitTimeInMilliseconds(repo: Path, commit: CommitHash): number {

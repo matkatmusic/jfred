@@ -1,5 +1,6 @@
 #!/bin/sh
 # Usage: sh engineV3/run_replay_in_docker.sh --project <folder> --jsonl <folder> [--jsonl <folder> ...] [--file-history <folder>] [--git-repo <folder>] [--stop-before <jsonl file>:<line>]
+# Set ENGINEV3_SNAPSHOT_VOLUME_PREFIX to give this worktree its own snapshot volumes.
 set -eu
 
 PROJECT_FOLDER=""
@@ -66,8 +67,8 @@ else
     fi
 fi
 
-NAME="engine-v3-$(date +%s)"
-SNAPSHOT_VOLUME="engineV3-snapshots-$(basename "$PROJECT_FOLDER")"
+NAME="engine-v3-$(date +%s)-$$"
+SNAPSHOT_VOLUME="${ENGINEV3_SNAPSHOT_VOLUME_PREFIX:-engineV3-snapshots}-$(basename "$PROJECT_FOLDER")"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
 docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
@@ -99,6 +100,15 @@ if [ -n "$GIT_REPO_FOLDER" ]; then
 fi
 if [ -n "$FILE_HISTORY_FOLDER" ]; then
     docker cp "$FILE_HISTORY_FOLDER" "$NAME:/input/file-history"
+    # Multi-source scenarios keep each source's backups in <project>/source-*/file-history
+    SOURCE_FILE_HISTORY_FOLDERS="$(find "$PROJECT_FOLDER" -mindepth 2 -maxdepth 2 -type d -name file-history -path '*/source-*/file-history')"
+    while IFS= read -r SOURCE_FILE_HISTORY_FOLDER; do
+        if [ -n "$SOURCE_FILE_HISTORY_FOLDER" ]; then
+            docker cp "$SOURCE_FILE_HISTORY_FOLDER/." "$NAME:/input/file-history"
+        fi
+    done <<EOF
+$SOURCE_FILE_HISTORY_FOLDERS
+EOF
 fi
 for JSONL_FOLDER in "$@"; do
     docker cp "$JSONL_FOLDER" "$NAME:$(dirname "$JSONL_FOLDER")/"
