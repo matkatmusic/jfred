@@ -11,6 +11,7 @@ import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_re
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
@@ -110,7 +111,7 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  const spawned = spawnSync(getInterpreter(run),["-c", replaceDebtReportCall(run.code)], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }

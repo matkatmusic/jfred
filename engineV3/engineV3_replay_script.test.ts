@@ -1,5 +1,6 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -277,6 +278,21 @@ test("test_executeScriptInState_runs_a_ctx_execute_python_run", (t) => {
   // core_one.py exists and one.py does not
   assert.equal(existsSync(join(state.toString(), "core_one.py")), true);
   assert.equal(existsSync(join(state.toString(), "one.py")), false);
+});
+
+test("test_executeScriptInState_runs_the_debt_report_call_as_the_fix_script", (t) => {
+  // Scenario: a recorded call of debt-ratchet-report.ts reformats the tracked files, and the replay does it with the fix script.
+  // the state is a git repo with one tracked file in 4-space layout
+  const state = new Path(makeTempFolder(t, "engine-v3-script-debt-"));
+  execFileSync("git", ["init", "-q"], { cwd: state.toString() });
+  writeFileSync(join(state.toString(), "one.ts"), "export function getOne(): number {\n    return 1;\n}\n");
+  execFileSync("git", ["add", "."], { cwd: state.toString() });
+  // the line holds a Bash call of a report script that does not exist, so only the fix script can reformat the file
+  const line = loadBashLines(t, ALLOWED_TOOL_USE_ID, "node /nonexistent/debt-ratchet/debt-ratchet-report.ts", state.toString())[0] as JSONLLine;
+  // run the line
+  executeScriptInState(state, line, makeContext(ALLOWED_TOOL_USE_ID));
+  // the file is in the 2-space layout
+  assert.equal(readFileSync(join(state.toString(), "one.ts"), "utf8"), "export function getOne(): number {\n  return 1;\n}\n");
 });
 
 test("test_script_timeout_allows_the_debt_report_to_finish_in_the_container", () => {
