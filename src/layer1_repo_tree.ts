@@ -15,7 +15,7 @@ export interface Layer1RepoTree {
 const GITLINK_MODE = "160000";
 
 // Split on tab, not space — paths may contain spaces.
-function pushTreeRecord(record: string, tree: Layer1RepoTree): void {
+export function pushTreeRecord(record: string, tree: Layer1RepoTree): void {
   const tabIndex = record.indexOf("\t");
   if (tabIndex === -1) {
     return;
