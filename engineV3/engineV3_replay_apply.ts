@@ -16,7 +16,7 @@ import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_ne
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
-import { assertSnapshotBackupsMatchState, recordFileChange } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
@@ -353,6 +353,13 @@ export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPath
   return applyLineByKind(state, line, context);
 }
 
+function executeScriptAndRecordIt(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
+  const chainBytesBeforeScript = copyChainBytesBeforeScript();
+  executeScriptInState(state, line, context);
+  recordScriptFileChanges(chainBytesBeforeScript);
+  return state;
+}
+
 function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const kind = getJSONLLineKind(line, state);
   switch (kind) {
@@ -366,7 +373,7 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
       return assertSnapshotBackupsMatchState(state, line, context);
     }
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
-    case JSONLLineKind.Script: return executeScriptInState(state, line, context);
+    case JSONLLineKind.Script: return executeScriptAndRecordIt(state, line, context);
     case JSONLLineKind.UserEdit: return applyUserEditAndRecordIt(state, line);
     case JSONLLineKind.Skip: return state;
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
