@@ -9,6 +9,8 @@ import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
+import { getContentBlocks } from "../src/structures/content-blocks.ts";
+import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
 
 export type UnknownField = { recordType: string; fieldName: string };
@@ -112,6 +114,36 @@ function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
   return uniqueFiles;
 }
 
+// A Bash or ctx_execute call whose result comes much later waited for the user's permission, so the script ran just before its result.
+const PERMISSION_WAIT_MILLISECONDS = 60000;
+function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+  const resultTimeByCallId = new Map<string, number>();
+  for (const record of records) {
+    if (record.timestamp instanceof Date) {
+      for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_result) {
+          resultTimeByCallId.set(block.tool_use_id.toString(), record.timestamp.getTime());
+        }
+      }
+    }
+  }
+  for (const record of records) {
+    if (record.timestamp instanceof Date) {
+      for (const block of getContentBlocks(record)) {
+        if (block.type === BlockType.tool_use) {
+          const isScriptTool = block.name === ToolName.Bash || block.name === ToolName.CtxExecute;
+          const resultTime = resultTimeByCallId.get(block.id.toString());
+          if (isScriptTool && resultTime !== undefined) {
+            if (resultTime - record.timestamp.getTime() > PERMISSION_WAIT_MILLISECONDS) {
+              sortTimeOverrides.set(record, resultTime);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
 export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   const recordLists: JSONLLine[][] = [];
@@ -121,9 +153,13 @@ export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   for (const transcriptFile of dropCopiedTranscripts(listTranscriptFiles(jsonlFolders))) {
     recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
   }
+  const sortTimeOverrides = new Map<JSONLLine, number>();
+  for (const recordList of recordLists) {
+    collectDelayedScriptCallTimes(recordList, sortTimeOverrides);
+  }
   printUnknownFields(unknownFields);
   printUnknownRecordTypes(unknownRecordTypes);
-  return { jsonlLines: mergeRecordsByTimestamp(recordLists), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
+  return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
 }
 
 // function getCommitTimeInMilliseconds(repo: Path, commit: CommitHash): number {

@@ -3,6 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { joinCrossSourceFileIdentities } from "./reconstruction_multi_source_join.ts";
+import { getFileHistorySnapshot } from "./structures/file-history.ts";
 import { getSessionId } from "./reconstruction_multi_source_paths.ts";
 import { computeSessionRoots } from "./reconstruction_multi_source_roots.ts";
 import { attachForkedSubagentRoots } from "./reconstruction_fork_graft.ts";
@@ -40,8 +41,8 @@ export function removeDuplicateRecordsBySessionAndUuid(
   return kept;
 }
 
-// Sort key: own timestamp, else carried-forward, else first stamped.
-function computeListSortKeys(records: TranscriptRecord[]): number[] {
+// Sort key: own timestamp, else the later of carried-forward and own snapshot.timestamp, else first stamped.
+function computeListSortKeys(records: TranscriptRecord[], sortTimeOverrides?: Map<TranscriptRecord, number>): number[] {
   let carriedKey = Number.POSITIVE_INFINITY;
   for (const record of records) {
     if (record.timestamp !== undefined) {
@@ -51,8 +52,18 @@ function computeListSortKeys(records: TranscriptRecord[]): number[] {
   }
   const sortKeys: number[] = [];
   for (const record of records) {
-    if (record.timestamp !== undefined) {
+    const overrideKey = sortTimeOverrides?.get(record);
+    if (overrideKey !== undefined) {
+      carriedKey = overrideKey;
+    }
+    else if (record.timestamp !== undefined) {
       carriedKey = record.timestamp.getTime();
+    }
+    else {
+      const snapshotMessage = getFileHistorySnapshot(record);
+      if (snapshotMessage !== undefined) {
+        carriedKey = Math.max(carriedKey, snapshotMessage.snapshot.timestamp.getTime());
+      }
     }
     sortKeys.push(carriedKey);
   }
@@ -77,12 +88,12 @@ function selectEarliestList(recordLists: TranscriptRecord[][], sortKeys: number[
 }
 
 // §c3 — strict wall-clock interleave of per-session record lists, each list's internal order preserved.
-export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][]): TranscriptRecord[] {
+export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][], sortTimeOverrides?: Map<TranscriptRecord, number>): TranscriptRecord[] {
   const sortKeys: number[][] = [];
   const positions: number[] = [];
   let totalCount = 0;
   for (const list of recordLists) {
-    sortKeys.push(computeListSortKeys(list));
+    sortKeys.push(computeListSortKeys(list, sortTimeOverrides));
     positions.push(0);
     totalCount += list.length;
   }
