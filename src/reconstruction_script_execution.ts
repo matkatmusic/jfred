@@ -84,7 +84,7 @@ export function isScriptExecutionRun(block: ToolUseBlock): boolean {
   return getScriptCode(block) !== undefined;
 }
 
-function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
+export function listRunsInRecord(record: TranscriptRecord): ScriptRun[] {
   const timestamp = record.timestamp;
   if (!(timestamp instanceof Date)) {
     return [];
