@@ -2,6 +2,7 @@
 
 import { getContentBlocks, type ContentBlock } from "../src/structures/content-blocks.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
+import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import type { JSONLLine } from "./engineV3.ts";
 
 function isWriteOrEditName(name: string): boolean {
@@ -50,6 +51,37 @@ export function isAppliedWriteEditResult(line: JSONLLine, resultLines: Map<strin
     }
   }
   return false;
+}
+
+// Keyed by tool_use id text: the messageId of the turn-start snapshot (not an update) that the result's parent chain reaches first.
+export function collectResultTurnSnapshotIds(lines: JSONLLine[], resultLines: Map<string, JSONLLine>): Map<string, string> {
+  const turnStartIds = new Set<string>();
+  const parentIdByLineId = new Map<string, string>();
+  for (const line of lines) {
+    const snapshotMessage = getFileHistorySnapshot(line);
+    if (snapshotMessage !== undefined) {
+      if (snapshotMessage.isSnapshotUpdate === false) {
+        turnStartIds.add(snapshotMessage.messageId.toString());
+      }
+    }
+    if (line.uuid !== undefined) {
+      if (line.parentUuid !== undefined && line.parentUuid !== null) {
+        parentIdByLineId.set(line.uuid.toString(), line.parentUuid.toString());
+      }
+    }
+  }
+  const turnSnapshotIdByCallId = new Map<string, string>();
+  for (const [callId, resultLine] of resultLines) {
+    let ancestorId = resultLine.parentUuid?.toString();
+    while (ancestorId !== undefined) {
+      if (turnStartIds.has(ancestorId)) {
+        turnSnapshotIdByCallId.set(callId, ancestorId);
+        break;
+      }
+      ancestorId = parentIdByLineId.get(ancestorId);
+    }
+  }
+  return turnSnapshotIdByCallId;
 }
 
 // Keyed by tool_use id text; a call with no result line, or a result with no call line, is left out.

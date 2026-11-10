@@ -212,9 +212,14 @@ function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: Script
     throw new Error("learnHandEditsForSnapshot: the line is not a file-history snapshot");
   }
   const learnedFiles = new Set<string>();
-  for (const resultLine of context.writeEditResultLines.values()) {
-    if (resultLine.parentUuid?.toString() !== snapshotMessage.messageId.toString()) {
-      continue;
+  for (const [callId, resultLine] of context.writeEditResultLines) {
+    // A turn-start snapshot also covers the results later in its turn: a hand edit made before the prompt shows in their originalFile.
+    const isResultOfSnapshotTurn = context.resultTurnSnapshotIds?.get(callId) === snapshotMessage.messageId.toString();
+    const isResultOfSnapshotMessage = resultLine.parentUuid?.toString() === snapshotMessage.messageId.toString();
+    if (isResultOfSnapshotMessage === false) {
+      if (isResultOfSnapshotTurn === false) {
+        continue;
+      }
     }
     const file = findWrittenFile(state, resultLine);
     if (file === undefined) {
