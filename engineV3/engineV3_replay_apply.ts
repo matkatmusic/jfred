@@ -1,7 +1,7 @@
 // Copies of the engineV3.ts apply functions that write the state folder on disk.
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getBeaconSnippet, getUserEditEvent, type BeaconSnippet } from "../src/reconstruction_user_edit.ts";
 import { isBeaconElided } from "../src/reconstruction_beacons_elided_match.ts";
@@ -16,7 +16,7 @@ import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_ne
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
-import { assertSnapshotBackupsMatchState } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, recordHandEditSnippetApplied } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
@@ -113,6 +113,18 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
   const oldLinesAfterWindow = listOldLinesAfterWindow(splitLines(oldText), snippet);
   const newText = [event.content, ...oldLinesAfterWindow].join("\n");
   writeFileIntoState(root, relativePath, Buffer.from(newText + trailingNewline, "utf8"));
+  return state;
+}
+
+// Tells the backup check that a hand-edit snippet changed this file, so a later mismatch with only snippets in between can take the backup.
+function applyUserEditAndRecordIt(state: Path, line: JSONLLine): Path {
+  const event = getUserEditEvent(line)!;
+  const root = getReplayRoot(state, event.target);
+  const relativePath = getRepoRelativePath(root, event.target);
+  const file = join(root.toString(), relativePath.toString());
+  const bytesBefore = readFileSync(file);
+  applyUserEditToState(state, line);
+  recordHandEditSnippetApplied(resolve(file), bytesBefore, readFileSync(file));
   return state;
 }
 
@@ -322,7 +334,7 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
     }
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
     case JSONLLineKind.Script: return executeScriptInState(state, line, context);
-    case JSONLLineKind.UserEdit: return applyUserEditToState(state, line);
+    case JSONLLineKind.UserEdit: return applyUserEditAndRecordIt(state, line);
     case JSONLLineKind.Skip: return state;
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
   }

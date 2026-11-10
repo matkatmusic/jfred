@@ -14,6 +14,19 @@ const JSONL_EXTENSION = ".jsonl";
 const lastSeenBackupTexts = new Map<string, string>();
 // The replayed bytes of each file at the latest snapshot check that found it equal to its backup.
 const lastMatchedBytes = new Map<string, Buffer>();
+// The bytes each file had after the latest hand-edit snippet, kept only while every change since the file's last match was a hand-edit snippet.
+const bytesAfterOnlyHandEditSnippets = new Map<string, Buffer>();
+
+export function recordHandEditSnippetApplied(replayedFile: string, bytesBefore: Buffer, bytesAfter: Buffer): void {
+  const basisBytes = bytesAfterOnlyHandEditSnippets.get(replayedFile) ?? lastMatchedBytes.get(replayedFile);
+  if (basisBytes !== undefined) {
+    if (basisBytes.equals(bytesBefore)) {
+      bytesAfterOnlyHandEditSnippets.set(replayedFile, bytesAfter);
+      return;
+    }
+  }
+  bytesAfterOnlyHandEditSnippets.delete(replayedFile);
+}
 
 function getSourceOfLine(line: JSONLLine): RecordSource {
   const source = getRecordSource(line);
@@ -159,7 +172,19 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const isSame = actualBytes.equals(expectedBytes);
   if (isSame) {
     lastMatchedBytes.set(replayedFile, actualBytes);
+    bytesAfterOnlyHandEditSnippets.delete(replayedFile);
     return;
+  }
+  const bytesAfterSnippets = bytesAfterOnlyHandEditSnippets.get(replayedFile);
+  if (bytesAfterSnippets !== undefined) {
+    if (actualBytes.equals(bytesAfterSnippets)) {
+      const source = getSourceOfLine(line);
+      console.log(`hand edit snippet incomplete: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
+      writeFileSync(replayedFile, expectedBytes);
+      lastMatchedBytes.set(replayedFile, expectedBytes);
+      bytesAfterOnlyHandEditSnippets.delete(replayedFile);
+      return;
+    }
   }
   // No replayed line changed the file since a snapshot last matched it, so the difference is a hand edit the transcript never recorded.
   const matchedBytes = lastMatchedBytes.get(replayedFile);
@@ -177,6 +202,7 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
 
 export function clearSeenBackups(): void {
   lastMatchedBytes.clear();
+  bytesAfterOnlyHandEditSnippets.clear();
   lastSeenBackupTexts.clear();
   snapshotFileBytes.clear();
 }
