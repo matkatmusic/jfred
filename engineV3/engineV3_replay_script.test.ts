@@ -8,7 +8,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { getJSONLLineKind, JSONLLineKind, type JSONLLine } from "./engineV3.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
-import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
+import { executeScriptInState, SCRIPT_TIMEOUT_MILLISECONDS, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 
 function makeContext(toolUseId: string): ScriptReplayContext {
   const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "" };
@@ -277,6 +277,12 @@ test("test_executeScriptInState_runs_a_ctx_execute_python_run", (t) => {
   // core_one.py exists and one.py does not
   assert.equal(existsSync(join(state.toString(), "core_one.py")), true);
   assert.equal(existsSync(join(state.toString(), "one.py")), false);
+});
+
+test("test_script_timeout_allows_the_debt_report_to_finish_in_the_container", () => {
+  // Scenario: the style debt report (eslint --fix on every tracked file) takes 60 seconds alone in the container and more than 120 seconds under load.
+  // the script timeout is at least 5 minutes
+  assert.equal(SCRIPT_TIMEOUT_MILLISECONDS >= 300000, true);
 });
 
 test("test_applyJSONLLineToState_runs_the_script_for_a_Script_line", (t) => {

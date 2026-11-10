@@ -14,7 +14,7 @@ import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_ski
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
-const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
+export const SCRIPT_TIMEOUT_MILLISECONDS = 300000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
 const PYTHON_LANGUAGE = "python";
