@@ -47,19 +47,19 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
 
 export function formatEventText(event: TimelineEvent, repoPath: Path): string {
   if (event.type === TimelineEventKind.GitCommit) {
-    return `next event: source:${repoPath.toString()} commit:${event.commit.toString()}`;
+    return `${new Date().toISOString()} next event: source:${repoPath.toString()} commit:${event.commit.toString()}`;
   }
   if (event.type === TimelineEventKind.OutsideGitAction) {
-    return `next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
+    return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
   }
   if (event.type === TimelineEventKind.PlateCapture) {
-    return `next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
+    return `${new Date().toISOString()} next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
   }
   const source = getRecordSource(event.line);
   if (source === undefined) {
     throw new Error("formatEventText: the JSONL line has no source file");
   }
-  return `next event: source:${source.filePath} line:${source.lineNumber}`;
+  return `${new Date().toISOString()} next event: source:${source.filePath} line:${source.lineNumber}`;
 }
 
 export function executeReplay(state: Path, repoPath: Path, jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext): Path {

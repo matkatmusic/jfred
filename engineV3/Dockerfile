@@ -4,6 +4,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system safe.directory '*' \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd
+# 85 files on the Mac are mode 600, so --chmod makes everything readable by all and not writable by group or others
+COPY --chmod=a+rX,go-w --from=playwrightcache / /Users/matkatmusicllc/Library/Caches/ms-playwright/
 COPY --from=oven/bun:1.4.3 /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
 RUN npm install -g tsx@4.23.1

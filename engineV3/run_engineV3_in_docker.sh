@@ -17,7 +17,8 @@ for LOCK_COMMIT in $(git -C "$REPO_FOLDER" log --all --format=%H -- playground/b
 done
 
 # docker build -t engine-v3:1 "$ENGINE_FOLDER"
-docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" "$ENGINE_FOLDER"
+# docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" "$ENGINE_FOLDER"
+docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
 # bun build "$ENGINE_FOLDER/engineV3_replay.ts" --target=node --outfile="$BUNDLE_FOLDER/engineV3_replay.mjs"
 
 NAME="engine-v3-$(date +%s)"
@@ -30,7 +31,8 @@ CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
 docker exec "$NAME" mkdir -p "$CHECK_FOLDER"
 docker exec "$NAME" chown replay "$CHECK_FOLDER"
 
-TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmusicllc/Programming/career-ops/node_modules/playwright /Users/matkatmusicllc/Library/Caches/ms-playwright /Users/matkatmusicllc/.claude/claude_hooks"
+# TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmusicllc/Programming/career-ops/node_modules/playwright /Users/matkatmusicllc/Library/Caches/ms-playwright /Users/matkatmusicllc/.claude/claude_hooks"
+TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmusicllc/Programming/career-ops/node_modules/playwright /Users/matkatmusicllc/.claude/claude_hooks"
 for TOOL_FOLDER in $TOOL_PARENT_FOLDERS; do
     docker exec "$NAME" mkdir -p "$(dirname "$TOOL_FOLDER")"
     # --no-xattrs: macOS tar adds com.apple.provenance headers that docker cp rejects

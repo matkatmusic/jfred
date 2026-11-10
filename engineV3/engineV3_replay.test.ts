@@ -52,6 +52,9 @@ function makeWriteCreateLine(repoFolder: string, fileName: string, content: stri
 //     assert.equal(formatEventText(event, repoPath), `next event: source:${join(timedRepo.repoFolder, ".git")} commit:${timedRepo.commitA}`);
 // });
 
+const FIXED_NOW_MS = 1794267667512;
+const FIXED_NOW_ISO = "2026-11-09T23:41:07.512Z";
+
 test("test_formatEventText_names_the_kind_new_commit_and_message_for_an_outside_git_row", (t) => {
     // Scenario: the first event is the outside row of commit A, so the text names its kind, new commit and message.
     const timedRepo = makeTimedRepo(t);
@@ -59,8 +62,9 @@ test("test_formatEventText_names_the_kind_new_commit_and_message_for_an_outside_
     writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
     const repoPath = new Path(join(timedRepo.repoFolder, ".git"));
     const event = getNextEvent(repoPath, [new Path(jsonlFolder)], null) as TimelineEvent;
-    // format the outside git event
-    assert.equal(formatEventText(event, repoPath), `next event: outside git: Commit ${timedRepo.commitA} commit (initial): change.txt`);
+    // format the outside git event with the clock fixed
+    t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
+    assert.equal(formatEventText(event, repoPath), `${FIXED_NOW_ISO} next event: outside git: Commit ${timedRepo.commitA} commit (initial): change.txt`);
 });
 
 test("test_formatEventText_names_the_jsonl_file_and_line_number_for_a_line", (t) => {
@@ -73,12 +77,14 @@ test("test_formatEventText_names_the_jsonl_file_and_line_number_for_a_line", (t)
     // step past the row of commit A to the line
     const commitEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;
     const lineEvent = getNextEvent(repoPath, jsonlsPaths, commitEvent) as TimelineEvent;
-    // format the line event
-    assert.equal(formatEventText(lineEvent, repoPath), `next event: source:${join(jsonlFolder, "s1.jsonl")} line:1`);
+    // format the line event with the clock fixed
+    t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
+    assert.equal(formatEventText(lineEvent, repoPath), `${FIXED_NOW_ISO} next event: source:${join(jsonlFolder, "s1.jsonl")} line:1`);
 });
 
-test("test_formatEventText_prints_the_capture_file_name_event_name_and_cwd_of_a_plate_capture", () => {
+test("test_formatEventText_prints_the_capture_file_name_event_name_and_cwd_of_a_plate_capture", (t) => {
     const capture = { captureFile: new Path("/m/.plate/captures/1_2.json"), eventName: PlateEventName.SubagentStop, cwd: new Path("/m/proj"), sessionId: new Uuid("s"), transcriptPath: new Path("/t.jsonl"), toolCalls: [], agentTranscriptPath: undefined, timeMs: 0 };
     const event: TimelineEvent = { type: TimelineEventKind.PlateCapture, capture, timestamp: 0 };
-    assert.equal(formatEventText(event, new Path("/r")), "next event: plate capture: 1_2.json SubagentStop /m/proj");
+    t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
+    assert.equal(formatEventText(event, new Path("/r")), `${FIXED_NOW_ISO} next event: plate capture: 1_2.json SubagentStop /m/proj`);
 });
