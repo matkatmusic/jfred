@@ -3,7 +3,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { getUserEditEvent } from "../src/reconstruction_user_edit.ts";
+import { getBeaconSnippet, getUserEditEvent, type BeaconSnippet } from "../src/reconstruction_user_edit.ts";
+import { isBeaconElided } from "../src/reconstruction_beacons_elided_match.ts";
 import { convertToProjectRelativePath } from "../src/layer1_snapshot_wire.ts";
 import { convertEditResult, convertWriteResult } from "../src/structures/tool-result-shapes.ts";
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
@@ -61,9 +62,28 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
   const root = getReplayRoot(state, event.target);
   const relativePath = getRepoRelativePath(root, event.target);
   const oldBytes = readFileSync(join(root.toString(), relativePath.toString()));
-  const trailingNewline = oldBytes.toString("utf8").endsWith("\n") ? "\n" : "";
+  const oldText = oldBytes.toString("utf8");
+  const trailingNewline = oldText.endsWith("\n") ? "\n" : "";
+  const snippet = getBeaconSnippet([line], event.changeId)!;
+  if (isBeaconElided(snippet)) {
+    const newText = patchWindowIntoText(oldText, snippet) + trailingNewline;
+    writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
+    return state;
+  }
   writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
   return state;
+}
+
+// Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.
+function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
+  const fileLines = splitLines(oldText);
+  for (const { lineNo, text } of snippet.lines) {
+    if (lineNo - 1 > fileLines.length) {
+      throw new Error(`patchWindowIntoText: snippet line ${lineNo} is past the end of a ${fileLines.length}-line file`);
+    }
+    fileLines[lineNo - 1] = text;
+  }
+  return fileLines.join("\n");
 }
 
 // function containsNoNewlineMarker(hunkLines: string[]): boolean {
