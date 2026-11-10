@@ -1,6 +1,8 @@
 // Loads every transcript line under the JSONL folders as one time-ordered list.
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, loadTranscript, setRecordSource, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
 import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
@@ -94,13 +96,29 @@ function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknow
   return listRecordsInFileOrder(byLineNumber, fileLines.length);
 }
 
+// A multi-source scenario folder holds each transcript twice: at the top and in source-*/projects. The first copy wins.
+function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
+  const seenFileIds = new Set<string>();
+  const uniqueFiles: Path[] = [];
+  for (const transcriptFile of transcriptFiles) {
+    const contentHash = createHash("sha256").update(readFileSync(transcriptFile.toString())).digest("hex");
+    const fileId = `${basename(transcriptFile.toString())}:${contentHash}`;
+    const isNewFile = !seenFileIds.has(fileId);
+    if (isNewFile) {
+      seenFileIds.add(fileId);
+      uniqueFiles.push(transcriptFile);
+    }
+  }
+  return uniqueFiles;
+}
+
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
 export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   const recordLists: JSONLLine[][] = [];
   const unknownFields: UnknownField[] = [];
   const seenFieldIds = new Set<string>();
   const unknownRecordTypes = new Set<string>();
-  for (const transcriptFile of listTranscriptFiles(jsonlFolders)) {
+  for (const transcriptFile of dropCopiedTranscripts(listTranscriptFiles(jsonlFolders))) {
     recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
   }
   printUnknownFields(unknownFields);
