@@ -42,7 +42,7 @@ export function removeDuplicateRecordsBySessionAndUuid(
 }
 
 // Sort key: own timestamp, else the later of carried-forward and own snapshot.timestamp, else first stamped.
-function computeListSortKeys(records: TranscriptRecord[]): number[] {
+function computeListSortKeys(records: TranscriptRecord[], sortTimeOverrides?: Map<TranscriptRecord, number>): number[] {
   let carriedKey = Number.POSITIVE_INFINITY;
   for (const record of records) {
     if (record.timestamp !== undefined) {
@@ -52,7 +52,11 @@ function computeListSortKeys(records: TranscriptRecord[]): number[] {
   }
   const sortKeys: number[] = [];
   for (const record of records) {
-    if (record.timestamp !== undefined) {
+    const overrideKey = sortTimeOverrides?.get(record);
+    if (overrideKey !== undefined) {
+      carriedKey = overrideKey;
+    }
+    else if (record.timestamp !== undefined) {
       carriedKey = record.timestamp.getTime();
     }
     else {
@@ -84,12 +88,12 @@ function selectEarliestList(recordLists: TranscriptRecord[][], sortKeys: number[
 }
 
 // §c3 — strict wall-clock interleave of per-session record lists, each list's internal order preserved.
-export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][]): TranscriptRecord[] {
+export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][], sortTimeOverrides?: Map<TranscriptRecord, number>): TranscriptRecord[] {
   const sortKeys: number[][] = [];
   const positions: number[] = [];
   let totalCount = 0;
   for (const list of recordLists) {
-    sortKeys.push(computeListSortKeys(list));
+    sortKeys.push(computeListSortKeys(list, sortTimeOverrides));
     positions.push(0);
     totalCount += list.length;
   }
