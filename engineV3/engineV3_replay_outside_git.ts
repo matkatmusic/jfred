@@ -11,10 +11,12 @@ export enum OutsideGitKind {
   Commit = "Commit",
   Checkout = "Checkout",
   Reset = "Reset",
+  HeadMove = "HeadMove",
 }
 
 export type OutsideGitRow = { seconds: number; oldCommit: string; newCommit: string; message: string; kind: OutsideGitKind };
 
+const EMPTY_MESSAGE = "";
 const COMMIT_MESSAGE_PREFIX = "commit";
 const CHECKOUT_MESSAGE_PREFIX = "checkout: moving from ";
 const RESET_MESSAGE_PREFIX = "reset: moving to ";
@@ -22,6 +24,9 @@ const CHECKOUT_TARGET_SEPARATOR = " to ";
 const WINDOW_MARGIN_SECONDS = 1;
 
 function parseOutsideGitKind(message: string): OutsideGitKind {
+  if (message === EMPTY_MESSAGE) {
+    return OutsideGitKind.HeadMove;
+  }
   if (message.startsWith(COMMIT_MESSAGE_PREFIX)) {
     return OutsideGitKind.Commit;
   }
@@ -83,6 +88,11 @@ function applyOutsideResetToState(state: Path, sourceRepo: Path, row: OutsideGit
   executeGit(state, ["reset", "-q", "--hard", row.newCommit]);
 }
 
+function applyOutsideHeadMoveToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
+  fetchCommitIntoState(state, sourceRepo, row.newCommit);
+  executeGit(state, ["update-ref", "HEAD", row.newCommit]);
+}
+
 function assertStateHeadMatchesRow(state: Path, row: OutsideGitRow): void {
   const headCommit = executeGit(state, ["rev-parse", "HEAD"]).toString("utf8").trim();
   if (headCommit !== row.newCommit) {
@@ -95,6 +105,7 @@ export function applyOutsideGitRow(state: Path, sourceRepo: Path, row: OutsideGi
     case OutsideGitKind.Commit: applyOutsideCommitToState(state, sourceRepo, row); break;
     case OutsideGitKind.Checkout: applyOutsideCheckoutToState(state, row); break;
     case OutsideGitKind.Reset: applyOutsideResetToState(state, sourceRepo, row); break;
+    case OutsideGitKind.HeadMove: applyOutsideHeadMoveToState(state, sourceRepo, row); break;
   }
   assertStateHeadMatchesRow(state, row);
 }

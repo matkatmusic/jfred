@@ -102,6 +102,29 @@ test("test_listOutsideGitRows_throws_on_an_unknown_reflog_message", (t) => {
     assert.throws(() => listRowsOf(source, new Map(), 5), /no replay for reflog message "merge side/);
 });
 
+test("test_listOutsideGitRows_names_a_row_with_no_message_a_head_move", (t) => {
+    // Scenario: git update-ref HEAD writes a reflog row with an empty message.
+    const source = makeSourceRepo(t);
+    runGitAt(join(source.gitFolder, ".."), 70, ["update-ref", "HEAD", source.commit2]);
+    const rows = listRowsOf(source, new Map(), 65);
+    // the +70 row is the only row after +65
+    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.HeadMove]);
+    assert.equal(rows[0]?.newCommit, source.commit2);
+});
+
+test("test_applyOutsideGitRow_head_move_moves_the_branch_and_leaves_the_files", (t) => {
+    // Scenario: state is at commit 1; the head move row puts main on commit 2 without writing b.txt.
+    const source = makeSourceRepo(t);
+    runGitAt(join(source.gitFolder, ".."), 70, ["update-ref", "HEAD", source.commit2]);
+    const stateFolder = makeStateAt(t, source, source.commit1);
+    const rows = listRowsOf(source, new Map(), 65);
+    // apply the head move row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // main is at commit 2 and the files are still those of commit 1
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), source.commit2);
+    assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+});
+
 test("test_applyOutsideGitRow_commit_moves_the_branch_and_writes_the_file", (t) => {
     // Scenario: state is at commit 1; the commit 2 row moves main to commit 2 and writes b.txt.
     const source = makeSourceRepo(t);
