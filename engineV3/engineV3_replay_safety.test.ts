@@ -11,7 +11,8 @@ const BUILD_TIMEOUT_MS = 600000;
 const IMAGE_TAG = "engine-v3:1";
 const CONTAINER = `engine-v3-safety-${randomUUID()}`;
 const STATE_FOLDER = "/Users/replaytest/state";
-const CHECK_FOLDER = "/Users/matkatmusicllc/Programming/typesafe-playground-check";
+const PLAYWRIGHT_CACHE_FOLDER = "/Users/matkatmusicllc/Library/Caches/ms-playwright";
+const CHECK_FOLDER ="/Users/matkatmusicllc/Programming/typesafe-playground-check";
 const SEED_PACKAGE_JSON = '{\n  "name": "seed",\n  "private": true,\n  "dependencies": { "undici-types": "8.12.3" }\n}\n';
 const SEED_BUN_LOCK = `{
   "lockfileVersion": 2,
@@ -77,7 +78,7 @@ function isAllowedWritablePath(path: string): boolean {
 
 before(() => {
     // runDocker(["build", "-t", IMAGE_TAG, import.meta.dirname]);
-    runDocker(["build", "-t", IMAGE_TAG, "--build-context", `bunseed=${writeFakeBunSeedFolder()}`, import.meta.dirname]);
+    runDocker(["build", "-t", IMAGE_TAG, "--build-context", `bunseed=${writeFakeBunSeedFolder()}`, "--build-context", `playwrightcache=${PLAYWRIGHT_CACHE_FOLDER}`, import.meta.dirname]);
     runDocker(["run", "-d", "--network", "none", "--name", CONTAINER, IMAGE_TAG, "sleep", "infinity"]);
     runDocker(["exec", CONTAINER, "mkdir", "-p", STATE_FOLDER]);
     runDocker(["exec", CONTAINER, "chown", "replay", STATE_FOLDER]);
