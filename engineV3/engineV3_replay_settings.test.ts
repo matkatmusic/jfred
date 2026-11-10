@@ -20,6 +20,16 @@ test("test_readReplaySettingsFromArguments_reads_git_repo_when_the_flag_is_given
   assert.equal(settings.repoPath?.toString(), "/repo");
 });
 
+test("test_readReplaySettingsFromArguments_reads_the_playground_start_files_flag", () => {
+  // Step 1: read settings with and without --playground-start-files.
+  const withFlag = readReplaySettingsFromArguments(["--playground-start-files", ...REQUIRED_ARGUMENTS]);
+  const withoutFlag = readReplaySettingsFromArguments(REQUIRED_ARGUMENTS);
+  // Step 2: the setting is true only when the flag is given, and the jsonl path still reads.
+  assert.equal(withFlag.writePlaygroundStartFiles, true);
+  assert.equal(withoutFlag.writePlaygroundStartFiles, false);
+  assert.equal(withFlag.jsonlsPaths[0]?.toString(), "/jsonl");
+});
+
 test("test_readReplaySettingsFromArguments_reads_file_history_and_start_files", () => {
   // Step 1: read settings from arguments that have --file-history and --start-files.
   const settings = readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--file-history", "/history", "--start-files", "/start"]);

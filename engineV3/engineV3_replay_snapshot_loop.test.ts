@@ -39,7 +39,7 @@ function replayS5WithSnapshots(t: TestContext): ReplayedS5 {
   const startFolder = makeTempFolder(t, "snap-loop-start-");
   mkdirSync(join(startFolder, "tests"));
   cpSync(join(SCENARIO_FOLDER, "tests", "conftest.py"), join(startFolder, "tests", "conftest.py"));
-  createStartState(undefined, new Path(startFolder), new Path(stateFolder));
+  createStartState(undefined, new Path(startFolder), new Path(stateFolder), new Date(0), false);
   const snapshotLoop = createSnapshotLoop(new Path(store), [new Path(stateFolder)]);
   const lines = loadMergedJSONLLines([jsonlFolder]).jsonlLines;
   const context = { bashCallResults: collectBashCallResults(lines), writeEditResultLines: collectWriteEditResultLines(lines), sourceRepo: undefined, fileHistoryPath: new Path(FILE_HISTORY_FOLDER) };

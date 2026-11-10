@@ -6,11 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
-import { createStartRepo, type StartRef } from "./engineV3_replay_git_start.ts";
+import { createStartRepo, readStartPoint, type StartPoint } from "./engineV3_replay_git_start.ts";
 
 const ORIGIN_URL = "https://example.com/origin.git";
 
-type SourceRepo = { gitFolder: string; startRefs: StartRef[]; hashes: string[]; laterCommit: string };
+type SourceRepo = { gitFolder: string; startPoint: StartPoint; hashes: string[]; laterCommit: string };
 
 function readGit(folder: string, args: string[]): string {
     const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args];
@@ -40,16 +40,16 @@ function makeSourceRepo(t: TestContext): SourceRepo {
         hashes.push(commitFile(workFolder, fileName));
     }
     const refNames = ["refs/heads/master", "refs/remotes/origin/master", "refs/heads/WIP", "refs/heads/develop"];
-    const startRefs: StartRef[] = [];
+    const startPoint: StartPoint = { refs: [], headBranch: "refs/heads/develop", originHeadTarget: "refs/remotes/origin/master" };
     for (const [index, refName] of refNames.entries()) {
-        startRefs.push({ refName, shortHash: (hashes[index] as string).slice(0, 7) });
+        startPoint.refs.push({ refName, fullHash: hashes[index] as string });
     }
-    return { gitFolder: join(workFolder, ".git"), startRefs, hashes, laterCommit: hashes[4] as string };
+    return { gitFolder: join(workFolder, ".git"), startPoint, hashes, laterCommit: hashes[4] as string };
 }
 
 function makeStartState(t: TestContext, source: SourceRepo): string {
     const stateFolder = makeTempFolder(t, "engine-v3-start-state-");
-    createStartRepo(new Path(source.gitFolder), new Path(stateFolder), source.startRefs);
+    createStartRepo(new Path(source.gitFolder), new Path(stateFolder), source.startPoint);
     return stateFolder;
 }
 
@@ -58,7 +58,7 @@ test("test_createStartRepo_sets_each_ref_to_its_given_commit", (t) => {
     const source = makeSourceRepo(t);
     const stateFolder = makeStartState(t, source);
     // each ref resolves to the matching full hash from the source repo
-    for (const [index, startRef] of source.startRefs.entries()) {
+    for (const [index, startRef] of source.startPoint.refs.entries()) {
         assert.equal(readGit(stateFolder, ["rev-parse", startRef.refName]), source.hashes[index]);
     }
 });
@@ -107,4 +107,20 @@ test("test_createStartRepo_makes_no_other_refs", (t) => {
     const stateFolder = makeStartState(t, source);
     const refNames = readGit(stateFolder, ["for-each-ref", "--format=%(refname)"]).split("\n").sort();
     assert.deepEqual(refNames, ["refs/heads/WIP", "refs/heads/develop", "refs/heads/master", "refs/remotes/origin/HEAD", "refs/remotes/origin/master"]);
+});
+
+test("test_readStartPoint_for_typesafe_playground_equals_the_four_hard_coded_start_refs", () => {
+    // Scenario: the reflog rule gives the same 4 refs and HEAD that were hard-coded for typesafe-playground.
+    const playground = new Path("/Users/matkatmusicllc/Programming/typesafe-playground");
+    // the first chat line is stamped 2026-10-26T23:57:39.077Z
+    const startPoint = readStartPoint(playground, new Date("2026-10-26T23:57:39.077Z"));
+    const expectedRefs = [
+        { refName: "refs/heads/WIP", fullHash: readGit(playground.toString(), ["rev-parse", "63e8fdb"]) },
+        { refName: "refs/heads/develop", fullHash: readGit(playground.toString(), ["rev-parse", "2716f82"]) },
+        { refName: "refs/heads/master", fullHash: readGit(playground.toString(), ["rev-parse", "cb136ca"]) },
+        { refName: "refs/remotes/origin/master", fullHash: readGit(playground.toString(), ["rev-parse", "6510b84"]) },
+    ];
+    assert.deepEqual(startPoint.refs, expectedRefs);
+    assert.equal(startPoint.headBranch, "refs/heads/develop");
+    assert.equal(startPoint.originHeadTarget, "refs/remotes/origin/master");
 });
