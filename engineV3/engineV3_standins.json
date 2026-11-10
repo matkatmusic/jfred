@@ -1,0 +1,44 @@
+[
+  {
+    "realProgram": "bun listening on *:3000 (unknown program)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl",
+    "lineNumber": 109,
+    "standIn": "bun -e listener on port 3000 (all addresses) started by run_engineV3_in_docker.sh"
+  },
+  {
+    "realProgram": "bun listening on 127.0.0.1:37777 (claude-mem worker)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl",
+    "lineNumber": 109,
+    "standIn": "bun -e listener on 127.0.0.1:37777 started by run_engineV3_in_docker.sh"
+  },
+  {
+    "realProgram": "node listening on 127.0.0.1:7420 (probably the jfred viewer)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl",
+    "lineNumber": 109,
+    "standIn": "node -e listener on 127.0.0.1:7420 started by run_engineV3_in_docker.sh"
+  },
+  {
+    "realProgram": "node listening on 127.0.0.1:59824 (unknown program)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl",
+    "lineNumber": 109,
+    "standIn": "node -e listener on 127.0.0.1:59824 started by run_engineV3_in_docker.sh"
+  },
+  {
+    "realProgram": "node listening on 127.0.0.1:56656 (unknown program)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355.jsonl",
+    "lineNumber": 109,
+    "standIn": "node -e listener on 127.0.0.1:56656 started by run_engineV3_in_docker.sh"
+  },
+  {
+    "realProgram": "macOS md5",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-ab63149127a6e1da1.jsonl",
+    "lineNumber": 228,
+    "standIn": "/usr/local/bin/md5 sh script in engineV3/Dockerfile printing MD5 (<file>) = <md5sum hash>"
+  },
+  {
+    "realProgram": "bun install picking package versions from the npm registry (network)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-a37b95e0795a8e948.jsonl",
+    "lineNumber": 80,
+    "standIn": "bun.lock written from the next real commit that has it (8408ce1 here) before the line runs; engineV3_replay_script_lockfile.ts"
+  }
+]

@@ -10,8 +10,9 @@ import { JSONLLineKind, getJSONLLineKind, type CommitHash, type JSONLLine } from
 import { applyChangesToState, listChangesInCommit, writeFileIntoState } from "./engineV3_replay_submodule.ts";
 import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_newline.ts";
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
-import { executeScriptInState } from "./engineV3_replay_script.ts";
+import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
+import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -86,7 +87,21 @@ function applyPartialEditToState(state: Path, line: JSONLLine): Path {
 }
 
 // The state folder has the Mac repo path, so it is the path base for lines.
-export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[]): Path {
+export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[], context: ScriptReplayContext): Path {
+  for (const callId of listWriteEditCallIds(line)) {
+    const resultLine = context.writeEditResultLines.get(callId);
+    if (resultLine !== undefined) {
+      applyLineByKind(state, resultLine, context);
+    }
+  }
+  const isAppliedResult = isAppliedWriteEditResult(line, context.writeEditResultLines);
+  if (isAppliedResult) {
+    return state;
+  }
+  return applyLineByKind(state, line, context);
+}
+
+function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const kind = getJSONLLineKind(line, state);
   switch (kind) {
     case JSONLLineKind.WriteCreate: return applyWriteCreateToState(state, line);
@@ -95,7 +110,7 @@ export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPath
     case JSONLLineKind.EditPartial: return applyPartialEditToState(state, line);
     case JSONLLineKind.Snapshot: throw new Error("snapshot lines with backups are not supported yet");
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
-    case JSONLLineKind.Script: return executeScriptInState(state, line);
+    case JSONLLineKind.Script: return executeScriptInState(state, line, context);
     case JSONLLineKind.Skip: return state;
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
   }

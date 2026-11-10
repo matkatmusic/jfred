@@ -2,7 +2,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PROOF_TIMEOUT_MS } from "../tests/reconstruction_script_sandbox_proof_helpers.ts";
@@ -11,6 +11,24 @@ const BUILD_TIMEOUT_MS = 600000;
 const IMAGE_TAG = "engine-v3:1";
 const CONTAINER = `engine-v3-safety-${randomUUID()}`;
 const STATE_FOLDER = "/Users/replaytest/state";
+const CHECK_FOLDER = "/Users/matkatmusicllc/Programming/typesafe-playground-check";
+const SEED_PACKAGE_JSON = '{\n  "name": "seed",\n  "private": true,\n  "dependencies": { "undici-types": "8.12.3" }\n}\n';
+const SEED_BUN_LOCK = `{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "seed",
+      "dependencies": {
+        "undici-types": "8.12.3",
+      },
+    },
+  },
+  "packages": {
+    "undici-types": ["undici-types@8.12.3", "", {}, "sha512-EXE4ydL3S76dFb27UFjNVZHTyv/TLdATj/KUe29ptdcg6qXL48J2tZ3126E5kICj5jn781OR+XlVH1N6Mz8jbA=="],
+  }
+}
+`;
 const INPUT_FILE = "/input/note.txt";
 const PERMISSION_DENIED = /Permission denied/;
 const LIST_INPUT_TREE = "find /input -exec stat -c '%n %a %U %s' {} + | sort; find /input -type f -exec sha256sum {} + | sort";
@@ -36,8 +54,17 @@ function copyFakeInputFolder(): void {
     runDocker(["cp", join(hostFolder, "note.txt"), `${CONTAINER}:${INPUT_FILE}`]);
 }
 
+function writeFakeBunSeedFolder(): string {
+    const seedFolder = mkdtempSync(join(tmpdir(), "engine-v3-bunseed-"));
+    const lockFolder = join(seedFolder, "seedcommit");
+    mkdirSync(lockFolder);
+    writeFileSync(join(lockFolder, "package.json"), SEED_PACKAGE_JSON);
+    writeFileSync(join(lockFolder, "bun.lock"), SEED_BUN_LOCK);
+    return seedFolder;
+}
+
 function isAllowedWritablePath(path: string): boolean {
-    for (const root of [STATE_FOLDER, "/tmp", "/private/tmp"]) {
+    for (const root of [STATE_FOLDER, CHECK_FOLDER, "/tmp", "/private/tmp"]) {
         if (path === root) {
             return true;
         }
@@ -49,10 +76,13 @@ function isAllowedWritablePath(path: string): boolean {
 }
 
 before(() => {
-    runDocker(["build", "-t", IMAGE_TAG, import.meta.dirname]);
+    // runDocker(["build", "-t", IMAGE_TAG, import.meta.dirname]);
+    runDocker(["build", "-t", IMAGE_TAG, "--build-context", `bunseed=${writeFakeBunSeedFolder()}`, import.meta.dirname]);
     runDocker(["run", "-d", "--network", "none", "--name", CONTAINER, IMAGE_TAG, "sleep", "infinity"]);
     runDocker(["exec", CONTAINER, "mkdir", "-p", STATE_FOLDER]);
     runDocker(["exec", CONTAINER, "chown", "replay", STATE_FOLDER]);
+    runDocker(["exec", CONTAINER, "mkdir", "-p", CHECK_FOLDER]);
+    runDocker(["exec", CONTAINER, "chown", "replay", CHECK_FOLDER]);
     copyFakeInputFolder();
 }, { timeout: BUILD_TIMEOUT_MS });
 
@@ -66,7 +96,13 @@ test("test_replay_user_can_write_in_the_state_folder", { timeout: PROOF_TIMEOUT_
     assert.equal(runAsReplay(`cat ${STATE_FOLDER}/new.txt`).stdout, "x\n");
 });
 
-test("test_replay_user_can_write_in_tmp", { timeout: PROOF_TIMEOUT_MS }, () => {
+test("test_replay_user_can_write_in_the_check_folder", { timeout: PROOF_TIMEOUT_MS }, () => {
+    const run = runAsReplay(`echo x > ${CHECK_FOLDER}/new.txt`);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(runAsReplay(`cat ${CHECK_FOLDER}/new.txt`).stdout, "x\n");
+});
+
+test("test_replay_user_can_write_in_tmp",{ timeout: PROOF_TIMEOUT_MS }, () => {
     const run = runAsReplay("echo x > /tmp/new.txt");
     assert.equal(run.status, 0, run.stderr);
     assert.equal(runAsReplay("cat /tmp/new.txt").stdout, "x\n");

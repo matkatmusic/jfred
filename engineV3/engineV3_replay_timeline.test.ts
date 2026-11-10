@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { Path, Uuid } from "../src/structures/domain.ts";
+import { Path } from "../src/structures/domain.ts";
 import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
 
@@ -30,17 +30,17 @@ function makeTempFolder(t: TestContext, prefix: string): string {
     return folder;
 }
 
-// A at 10s, B at 20s adds added.txt, C at 30s changes change.txt.
+// A at 10s, B at 20s adds added.txt, C at 30s changes change.txt (all after START_SECONDS, on 2026-10-27).
 function makeTimedRepo(t: TestContext): TimedRepo {
     const repoFolder = makeTempFolder(t, "engine-v3-replay-repo-");
-    runGitWithDate(repoFolder, "2026-01-01T00:00:10Z", ["init", "-q"]);
-    const commitA = commitFileWithDate(repoFolder, "2026-01-01T00:00:10Z", "change.txt", "old");
-    const commitB = commitFileWithDate(repoFolder, "2026-01-01T00:00:20Z", "added.txt", "added");
-    const commitC = commitFileWithDate(repoFolder, "2026-01-01T00:00:30Z", "change.txt", "new");
+    runGitWithDate(repoFolder, "2026-10-27T00:00:10Z", ["init", "-q"]);
+    const commitA = commitFileWithDate(repoFolder, "2026-10-27T00:00:10Z", "change.txt", "old");
+    const commitB = commitFileWithDate(repoFolder, "2026-10-27T00:00:20Z", "added.txt", "added");
+    const commitC = commitFileWithDate(repoFolder, "2026-10-27T00:00:30Z", "change.txt", "new");
     return { repoFolder, gitFolder: join(repoFolder, ".git"), commitA, commitB, commitC };
 }
 function makeWriteCreateLine(repoFolder: string, fileName: string, content: string, secondsPastMidnight: number): string {
-    const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, secondsPastMidnight)).toISOString();
+    const timestamp = new Date(Date.UTC(2026, 9, 27, 0, 0, secondsPastMidnight)).toISOString();
     const toolUseResult = { type: "create", filePath: join(repoFolder, fileName), content, structuredPatch: [], originalFile: null, userModified: false };
     return JSON.stringify({ type: "user", uuid: `u-${fileName}-${secondsPastMidnight}`, timestamp, toolUseResult });
 }
@@ -62,17 +62,35 @@ function readEventKinds(repoFolder: string, jsonlFolder: string): TimelineEventK
     }
 }
 
-test("test_getNextEvent_returns_the_first_commit_when_it_is_older_than_every_line", (t) => {
-    // Scenario: commit A (10s) is older than the only line (15s), so it comes first.
+// Commit events are turned off: the old commit-event test is kept here, commented out.
+// test("test_getNextEvent_returns_the_first_commit_when_it_is_older_than_every_line", (t) => {
+//     const timedRepo = makeTimedRepo(t);
+//     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+//     writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
+//     const event = getNextEvent(new Path(timedRepo.gitFolder), [new Path(jsonlFolder)], null);
+//     assert.notEqual(event, TERMINAL_EVENT);
+//     assert.equal((event as TimelineEvent).type, TimelineEventKind.GitCommit);
+//     assert.equal((event as { commit: Uuid }).commit.toString(), timedRepo.commitA);
+// });
+
+test("test_getNextEvent_places_an_outside_git_row_by_time_between_line_events", (t) => {
+    // Scenario: lines at 5s and 15s, outside rows at 10s, 20s, 30s: the 10s row sits between the two lines.
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
-    // ask for the first event
-    const event = getNextEvent(new Path(timedRepo.gitFolder), [new Path(jsonlFolder)], null);
-    // it is commit A
-    assert.notEqual(event, TERMINAL_EVENT);
-    assert.equal((event as TimelineEvent).type, TimelineEventKind.GitCommit);
-    assert.equal((event as { commit: Uuid }).commit.toString(), timedRepo.commitA);
+    writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 5), makeWriteCreateLine(timedRepo.repoFolder, "y.txt", "y", 15)]);
+    const repoPath = new Path(timedRepo.gitFolder);
+    const jsonlsPaths = [new Path(jsonlFolder)];
+    // step past the 5s line to the next event
+    const firstEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;
+    const secondEvent = getNextEvent(repoPath, jsonlsPaths, firstEvent) as TimelineEvent;
+    assert.equal(firstEvent.type, TimelineEventKind.JSONLLine);
+    // it is the 10s row, as an OutsideGitAction event stamped in milliseconds
+    assert.equal(secondEvent.type, TimelineEventKind.OutsideGitAction);
+    const outsideEvent = secondEvent as Extract<TimelineEvent, { type: TimelineEventKind.OutsideGitAction }>;
+    assert.equal(outsideEvent.row.newCommit, timedRepo.commitA);
+    assert.equal(outsideEvent.timestamp, outsideEvent.row.seconds * 1000);
+    // all events in order: line, row, line, row, row
+    assert.deepEqual(readEventKinds(timedRepo.gitFolder, jsonlFolder), [TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
 test("test_getNextEvent_puts_a_line_in_the_same_second_before_the_commit", (t) => {
@@ -83,7 +101,7 @@ test("test_getNextEvent_puts_a_line_in_the_same_second_before_the_commit", (t) =
     // list the kinds of all events in order
     const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
     // the line sits between commit A and commit B
-    assert.deepEqual(kinds, [TimelineEventKind.GitCommit, TimelineEventKind.JSONLLine, TimelineEventKind.GitCommit, TimelineEventKind.GitCommit]);
+    assert.deepEqual(kinds, [TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
 test("test_getNextEvent_keeps_a_line_with_no_time_next_to_the_timed_line_after_it", (t) => {
@@ -95,7 +113,7 @@ test("test_getNextEvent_keeps_a_line_with_no_time_next_to_the_timed_line_after_i
     // list the kinds of all events in order
     const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
     // commit A, then line 1 and line 2 together, then commits B and C
-    assert.deepEqual(kinds, [TimelineEventKind.GitCommit, TimelineEventKind.JSONLLine, TimelineEventKind.JSONLLine, TimelineEventKind.GitCommit, TimelineEventKind.GitCommit]);
+    assert.deepEqual(kinds, [TimelineEventKind.OutsideGitAction, TimelineEventKind.JSONLLine, TimelineEventKind.JSONLLine, TimelineEventKind.OutsideGitAction, TimelineEventKind.OutsideGitAction]);
 });
 
 test("test_getNextEvent_returns_TERMINAL_EVENT_after_the_last_event", (t) => {
@@ -114,8 +132,8 @@ test("test_getNextEvent_returns_TERMINAL_EVENT_after_the_last_event", (t) => {
         }
         lastEvent = event;
     }
-    // the last event is commit C
-    assert.equal((lastEvent as { commit: Uuid }).commit.toString(), timedRepo.commitC);
+    // the last event is the row of commit C
+    assert.equal((lastEvent as { row: { newCommit: string } }).row.newCommit, timedRepo.commitC);
     // asking again after it gives TERMINAL_EVENT
     assert.equal(getNextEvent(repoPath, jsonlsPaths, lastEvent), TERMINAL_EVENT);
 });

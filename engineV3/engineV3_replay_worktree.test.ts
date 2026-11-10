@@ -127,7 +127,7 @@ test("test_applyJSONLLineToState_adds_a_worktree_for_a_worktree_agent_result", (
     // the file has the worktree Agent call and its launched result
     const lines = loadFixtureLines(t, [makeAgentCallLine("worktree"), makeAgentResultLine(LAUNCHED_TEXT)]);
     // replay the result line
-    applyJSONLLineToState(state, lines[1] as JSONLLine, []);
+    applyJSONLLineToState(state, lines[1] as JSONLLine, [], { bashCallResults: new Map(), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") });
     // the worktree folder exists
     assert.equal(existsSync(join(state.toString(), ".claude", "worktrees", `agent-${AGENT_ID}`)), true);
 });

@@ -8,6 +8,9 @@ import { dirname, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
+import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
+
+const NO_SCRIPT_CONTEXT: ScriptReplayContext = { bashCallResults: new Map(), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 
 function runGitWithDate(repoFolder: string, isoDate: string, args: string[]): string {
     const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args];
@@ -46,7 +49,7 @@ function readAppliedEditText(t: TestContext, originalFile: string, hunkLines: st
     const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, 15)).toISOString();
     writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-edit", timestamp, toolUseResult }) + "\n");
     const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
-    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
     return readFileSync(filePath, "utf8");
 }
 
@@ -110,7 +113,7 @@ test("test_applyJSONLLineToState_writes_a_tmp_Write_create_to_the_absolute_tmp_p
     // load the line the way the engine does
     const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
     // apply the line to the state folder
-    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
     // the /tmp file exists with the written content
     assert.equal(readFileSync(join(tmpRootFolder, "scratch/probe.ts"), "utf8"), "from tmp");
     // the state folder stays empty
@@ -128,7 +131,7 @@ test("test_applyJSONLLineToState_writes_a_tmp_whole_file_Edit_to_the_absolute_tm
     writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-tmp-edit", timestamp, toolUseResult }) + "\n");
     const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
     // apply the line to the state folder
-    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
     // the /tmp file has the new text and the state folder stays empty
     assert.equal(readFileSync(filePath, "utf8"), "new text");
     assert.equal(readdirSync(stateFolder).length, 0);
@@ -142,7 +145,7 @@ test("test_applyJSONLLineToState_writes_a_Write_create_into_the_state_folder", (
     // load the line the way the engine does
     const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
     // apply the line to the state folder
-    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
     // the file exists with the written content
     assert.equal(readFileSync(join(stateFolder, "dir/new.txt"), "utf8"), "created");
 });

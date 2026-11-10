@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit, type CommitHash } from "./engineV3.ts";
 
-export type LogLine = { newCommit: string; seconds: number };
+export type LogLine = { oldCommit: string; newCommit: string; seconds: number; message: string };
 
 // A log row is "<old> <new> <name> <email> <unix seconds> <timezone>\t<message>"; the name may hold spaces.
 export function parseLogFile(logFile: string): LogLine[] {
@@ -13,8 +13,9 @@ export function parseLogFile(logFile: string): LogLine[] {
   const logLines: LogLine[] = [];
   for (const row of rows) {
     if (row !== "") {
-      const fields = (row.split("\t")[0] as string).split(" ");
-      logLines.push({ newCommit: fields[1] as string, seconds: Number(fields[fields.length - 2]) });
+      const [head, message] = row.split("\t") as [string, string];
+      const fields = head.split(" ");
+      logLines.push({ oldCommit: fields[0] as string, newCommit: fields[1] as string, seconds: Number(fields[fields.length - 2]), message });
     }
   }
   return logLines;

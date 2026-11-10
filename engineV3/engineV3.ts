@@ -16,6 +16,8 @@ import { isHunkMatchingBase, applyHunksToLines } from "../src/layer1_edit_hunks.
 import { findWorktreeAgentId } from "./engineV3_replay_worktree.ts";
 import { findScriptRun } from "./engineV3_replay_script.ts";
 import { findReplayRoot } from "./engineV3_replay_root.ts";
+import type { OutsideGitRow } from "./engineV3_replay_outside_git.ts";
+import type { PlateRun } from "./engineV3_replay_plate.ts";
 
 //fill these in or import them from the other engine versions
 // type RepoState = {
@@ -369,11 +371,15 @@ export function applyJSONLLineToState(state: RepoState, line: JSONLLine, snapsho
 export enum TimelineEventKind {
   GitCommit = "GitCommit",
   JSONLLine = "JSONLLine",
+  OutsideGitAction = "OutsideGitAction",
+  PlateCapture = "PlateCapture",
 }
 
 export type TimelineEvent =
   | { type: TimelineEventKind.GitCommit; commit: CommitHash; timestamp: number }
-  | { type: TimelineEventKind.JSONLLine; line: JSONLLine; timestamp: number };
+  | { type: TimelineEventKind.JSONLLine; line: JSONLLine; timestamp: number }
+  | { type: TimelineEventKind.OutsideGitAction; row: OutsideGitRow; timestamp: number }
+  | { type: TimelineEventKind.PlateCapture; capture: PlateRun; timestamp: number };
 
 export type JSONLAndGitEvents = TimelineEvent[];
 
@@ -394,6 +400,12 @@ export function createGitCommitForRange(allTimelineEvents: JSONLAndGitEvents, st
     if (event.type === TimelineEventKind.GitCommit) {
       console.log(`commit ${event.commit.toString()} replayed`);
       state = applyCommitToState(event.commit, state, repoPath);
+    }
+    else if (event.type === TimelineEventKind.OutsideGitAction) {
+      throw new Error("createGitCommitForRange: outside git events are not supported");
+    }
+    else if (event.type === TimelineEventKind.PlateCapture) {
+      throw new Error("createGitCommitForRange: plate capture events are not supported");
     }
     else {
       logJSONLLineEvent(event.line, repoPath);
