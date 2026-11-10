@@ -102,6 +102,12 @@ function parseSnapshot(raw: unknown): FileHistorySnapshot {
   };
 }
 
+type RawFileHistorySnapshotRecord = {
+  messageId: string;
+  snapshot: unknown;
+  isSnapshotUpdate: boolean;
+};
+
 // Return the typed, hydrated file-history-snapshot view of a record, or undefined when the record is not a file-history-snapshot.
 export function getFileHistorySnapshot(
   record: TranscriptRecord,
@@ -109,11 +115,7 @@ export function getFileHistorySnapshot(
   if (record.type !== RecordType.fileHistorySnapshot) {
     return undefined;
   }
-  const raw = record as unknown as {
-    messageId: string;
-    snapshot: unknown;
-    isSnapshotUpdate: boolean;
-  };
+  const raw = record as unknown as RawFileHistorySnapshotRecord;
   return {
     type: RecordType.fileHistorySnapshot,
     messageId: new Uuid(raw.messageId),

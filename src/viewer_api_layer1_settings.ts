@@ -63,6 +63,16 @@ export function sendLayer1Settings(response: ServerResponse): void {
   sendJson(response, 200, { ...readLayer1Settings(), defaults: computeLayer1Defaults() });
 }
 
+function saveLayer1BodyAndRespond(body: string, response: ServerResponse): void {
+  try {
+    saveLayer1Project(JSON.parse(body) as Partial<Layer1ProjectSettings> & { dir: string });
+    sendJson(response, 200, { saved: true });
+  }
+  catch (error) {
+    sendJson(response, 400, { error: String(error) });
+  }
+}
+
 // POST body = one project entry; accumulation follows receiveConfigUpdate in viewer_server_config.ts.
 export function receiveLayer1SettingsUpdate(request: IncomingMessage, response: ServerResponse): void {
   let body = "";
@@ -70,13 +80,7 @@ export function receiveLayer1SettingsUpdate(request: IncomingMessage, response: 
     body += chunk.toString();
   }
   function saveBodyAndRespond(): void {
-    try {
-      saveLayer1Project(JSON.parse(body) as Partial<Layer1ProjectSettings> & { dir: string });
-      sendJson(response, 200, { saved: true });
-    }
-    catch (error) {
-      sendJson(response, 400, { error: String(error) });
-    }
+    saveLayer1BodyAndRespond(body, response);
   }
   request.on("data", appendChunk);
   request.on("end", saveBodyAndRespond);
