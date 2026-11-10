@@ -3,6 +3,7 @@
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import type { PathOverrides, SourceEntry } from "./reconstruction_overrides.ts";
 import { joinCrossSourceFileIdentities } from "./reconstruction_multi_source_join.ts";
+import { getFileHistorySnapshot } from "./structures/file-history.ts";
 import { getSessionId } from "./reconstruction_multi_source_paths.ts";
 import { computeSessionRoots } from "./reconstruction_multi_source_roots.ts";
 import { attachForkedSubagentRoots } from "./reconstruction_fork_graft.ts";
@@ -40,7 +41,7 @@ export function removeDuplicateRecordsBySessionAndUuid(
   return kept;
 }
 
-// Sort key: own timestamp, else carried-forward, else first stamped.
+// Sort key: own timestamp, else the later of carried-forward and own snapshot.timestamp, else first stamped.
 function computeListSortKeys(records: TranscriptRecord[]): number[] {
   let carriedKey = Number.POSITIVE_INFINITY;
   for (const record of records) {
@@ -53,6 +54,12 @@ function computeListSortKeys(records: TranscriptRecord[]): number[] {
   for (const record of records) {
     if (record.timestamp !== undefined) {
       carriedKey = record.timestamp.getTime();
+    }
+    else {
+      const snapshotMessage = getFileHistorySnapshot(record);
+      if (snapshotMessage !== undefined) {
+        carriedKey = Math.max(carriedKey, snapshotMessage.snapshot.timestamp.getTime());
+      }
     }
     sortKeys.push(carriedKey);
   }
