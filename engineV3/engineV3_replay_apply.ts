@@ -185,11 +185,20 @@ function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   if (isLastWindowUnchanged) {
     fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
   }
+  // When the numbers restart (a line number at or below the line before it), the later chunk is the file tail numbered by the harness's older copy: it ends on the file's last line.
+  const lastSnippetLineNo = snippet.lines[snippet.lines.length - 1]!.lineNo;
+  let chunkShift = 0;
+  let previousLineNo = 0;
   for (const { lineNo, text } of snippet.lines) {
-    if (lineNo - 1 > fileLines.length) {
+    if (lineNo <= previousLineNo) {
+      chunkShift = fileLines.length - lastSnippetLineNo;
+    }
+    previousLineNo = lineNo;
+    const targetLineNo = lineNo + chunkShift;
+    if (targetLineNo - 1 > fileLines.length) {
       throw new Error(`patchWindowIntoText: snippet line ${lineNo} is past the end of a ${fileLines.length}-line file`);
     }
-    fileLines[lineNo - 1] = text;
+    fileLines[targetLineNo - 1] = text;
   }
   return fileLines.join("\n");
 }
