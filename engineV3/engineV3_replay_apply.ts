@@ -16,7 +16,7 @@ import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_ne
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
-import { assertSnapshotBackupsMatchState, recordHandEditSnippetApplied } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, recordFileChange } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
@@ -124,7 +124,17 @@ function applyUserEditAndRecordIt(state: Path, line: JSONLLine): Path {
   const file = join(root.toString(), relativePath.toString());
   const bytesBefore = readFileSync(file);
   applyUserEditToState(state, line);
-  recordHandEditSnippetApplied(resolve(file), bytesBefore, readFileSync(file));
+  // recordHandEditSnippetApplied(resolve(file), bytesBefore, readFileSync(file));
+  recordFileChange(resolve(file), bytesBefore, readFileSync(file), true);
+  return state;
+}
+
+// An Edit or Write result is exact, so it keeps the hand-edit-snippet chain of its file.
+function applyWriteEditAndRecordIt(state: Path, line: JSONLLine, applyLine: (state: Path, line: JSONLLine) => Path): Path {
+  const file = findWrittenFile(state, line)!;
+  const bytesBefore = existsSync(file) ? readFileSync(file) : undefined;
+  applyLine(state, line);
+  recordFileChange(file, bytesBefore, readFileSync(file), false);
   return state;
 }
 
@@ -323,10 +333,10 @@ export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPath
 function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const kind = getJSONLLineKind(line, state);
   switch (kind) {
-    case JSONLLineKind.WriteCreate: return applyWriteCreateToState(state, line);
-    case JSONLLineKind.EditWholeFile: return applyEditToState(state, line);
-    case JSONLLineKind.WriteUpdate: return applyWriteCreateToState(state, line);
-    case JSONLLineKind.EditPartial: return applyPartialEditToState(state, line);
+    case JSONLLineKind.WriteCreate: return applyWriteEditAndRecordIt(state, line, applyWriteCreateToState);
+    case JSONLLineKind.EditWholeFile: return applyWriteEditAndRecordIt(state, line, applyEditToState);
+    case JSONLLineKind.WriteUpdate: return applyWriteEditAndRecordIt(state, line, applyWriteCreateToState);
+    case JSONLLineKind.EditPartial: return applyWriteEditAndRecordIt(state, line, applyPartialEditToState);
     // case JSONLLineKind.Snapshot: throw new Error("snapshot lines with backups are not supported yet");
     case JSONLLineKind.Snapshot: {
       learnHandEditsForSnapshot(state, line, context);

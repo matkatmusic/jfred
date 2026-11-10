@@ -17,15 +17,35 @@ const lastMatchedBytes = new Map<string, Buffer>();
 // The bytes each file had after the latest hand-edit snippet, kept only while every change since the file's last match was a hand-edit snippet.
 const bytesAfterOnlyHandEditSnippets = new Map<string, Buffer>();
 
-export function recordHandEditSnippetApplied(replayedFile: string, bytesBefore: Buffer, bytesAfter: Buffer): void {
-  const basisBytes = bytesAfterOnlyHandEditSnippets.get(replayedFile) ?? lastMatchedBytes.get(replayedFile);
-  if (basisBytes !== undefined) {
-    if (basisBytes.equals(bytesBefore)) {
+// replaced: Edit and Write results keep the chain too (user 2026-11-10)
+// export function recordHandEditSnippetApplied(replayedFile: string, bytesBefore: Buffer, bytesAfter: Buffer): void {
+//   const basisBytes = bytesAfterOnlyHandEditSnippets.get(replayedFile) ?? lastMatchedBytes.get(replayedFile);
+//   if (basisBytes !== undefined) {
+//     if (basisBytes.equals(bytesBefore)) {
+//       bytesAfterOnlyHandEditSnippets.set(replayedFile, bytesAfter);
+//       return;
+//     }
+//   }
+//   bytesAfterOnlyHandEditSnippets.delete(replayedFile);
+// }
+
+// The files that a hand-edit snippet changed while the chain held: the chain bytes of such a file may lack hidden snippet lines.
+const filesWithHandEditSnippet = new Set<string>();
+
+// Call for each hand-edit snippet, Edit result and Write result. Any other change leaves the bytes different from the chain, so the next call or the check sees it.
+export function recordFileChange(replayedFile: string, bytesBefore: Buffer | undefined, bytesAfter: Buffer, isHandEditSnippet: boolean): void {
+  const chainBytes = bytesAfterOnlyHandEditSnippets.get(replayedFile);
+  if (chainBytes !== undefined && bytesBefore !== undefined) {
+    if (chainBytes.equals(bytesBefore)) {
       bytesAfterOnlyHandEditSnippets.set(replayedFile, bytesAfter);
+      if (isHandEditSnippet) {
+        filesWithHandEditSnippet.add(replayedFile);
+      }
       return;
     }
   }
   bytesAfterOnlyHandEditSnippets.delete(replayedFile);
+  filesWithHandEditSnippet.delete(replayedFile);
 }
 
 function getSourceOfLine(line: JSONLLine): RecordSource {
@@ -172,18 +192,22 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const isSame = actualBytes.equals(expectedBytes);
   if (isSame) {
     lastMatchedBytes.set(replayedFile, actualBytes);
-    bytesAfterOnlyHandEditSnippets.delete(replayedFile);
+    bytesAfterOnlyHandEditSnippets.set(replayedFile, actualBytes);
+    filesWithHandEditSnippet.delete(replayedFile);
     return;
   }
   const bytesAfterSnippets = bytesAfterOnlyHandEditSnippets.get(replayedFile);
   if (bytesAfterSnippets !== undefined) {
     if (actualBytes.equals(bytesAfterSnippets)) {
-      const source = getSourceOfLine(line);
-      console.log(`hand edit snippet incomplete: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
-      writeFileSync(replayedFile, expectedBytes);
-      lastMatchedBytes.set(replayedFile, expectedBytes);
-      bytesAfterOnlyHandEditSnippets.delete(replayedFile);
-      return;
+      if (filesWithHandEditSnippet.has(replayedFile)) {
+        const source = getSourceOfLine(line);
+        console.log(`hand edit snippet incomplete: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
+        writeFileSync(replayedFile, expectedBytes);
+        lastMatchedBytes.set(replayedFile, expectedBytes);
+        bytesAfterOnlyHandEditSnippets.set(replayedFile, expectedBytes);
+        filesWithHandEditSnippet.delete(replayedFile);
+        return;
+      }
     }
   }
   // No replayed line changed the file since a snapshot last matched it, so the difference is a hand edit the transcript never recorded.
@@ -203,6 +227,7 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
 export function clearSeenBackups(): void {
   lastMatchedBytes.clear();
   bytesAfterOnlyHandEditSnippets.clear();
+  filesWithHandEditSnippet.clear();
   lastSeenBackupTexts.clear();
   snapshotFileBytes.clear();
 }
