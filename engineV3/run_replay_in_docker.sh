@@ -1,5 +1,6 @@
 #!/bin/sh
 # Usage: sh engineV3/run_replay_in_docker.sh --project <folder> --jsonl <folder> [--jsonl <folder> ...] [--file-history <folder>] [--git-repo <folder>] [--stop-before <jsonl file>:<line>]
+# Set ENGINEV3_SNAPSHOT_VOLUME_PREFIX to give this worktree its own snapshot volumes.
 set -eu
 
 PROJECT_FOLDER=""
@@ -66,8 +67,8 @@ else
     fi
 fi
 
-NAME="engine-v3-$(date +%s)"
-SNAPSHOT_VOLUME="engineV3-snapshots-$(basename "$PROJECT_FOLDER")"
+NAME="engine-v3-$(date +%s)-$$"
+SNAPSHOT_VOLUME="${ENGINEV3_SNAPSHOT_VOLUME_PREFIX:-engineV3-snapshots}-$(basename "$PROJECT_FOLDER")"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
 docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
