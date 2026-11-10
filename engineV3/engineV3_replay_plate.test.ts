@@ -37,6 +37,10 @@ function makeWriteCall(toolUseId: string, withResponse: boolean): ToolCall {
     return call;
 }
 
+function writeSessionFile(jsonlFolder: string, sessionId: string): void {
+    writeFileSync(join(jsonlFolder, `${sessionId}.jsonl`), JSON.stringify({ type: "user", uuid: "u-1" }) + "\n");
+}
+
 function writeSubagentFile(jsonlFolder: string, toolUseId: string): string {
     const subagentFolder = join(jsonlFolder, SESSION_ID, "subagents");
     mkdirSync(subagentFolder, { recursive: true });
@@ -51,8 +55,10 @@ test("test_listPlateRuns_lists_one_run_for_an_agent_capture_and_skips_the_user_c
     const macFolder = makeTempFolder(t);
     writeCapture(macFolder, USER_CAPTURE_NAME, "user", []);
     writeCapture(macFolder, CAPTURE_NAME, SESSION_ID, [makeWriteCall("toolu_1", true)]);
+    const jsonlFolder = makeTempFolder(t);
+    writeSessionFile(jsonlFolder, SESSION_ID);
     // list the runs
-    const runs = listPlateRuns(new Path(macFolder), []);
+    const runs = listPlateRuns(new Path(macFolder), [new Path(jsonlFolder)]);
     // one run, with the folder that holds .plate as cwd and the file name time in milliseconds
     assert.equal(runs.length, 1);
     assert.equal(runs[0]?.cwd.toString(), PROJECT_FOLDER);
@@ -78,6 +84,7 @@ test("test_listPlateRuns_sets_the_agent_transcript_path_for_a_SubagentStop_run",
     const macFolder = makeTempFolder(t);
     const jsonlFolder = makeTempFolder(t);
     writeCapture(macFolder, CAPTURE_NAME, SESSION_ID, [makeWriteCall("toolu_9", false)]);
+    writeSessionFile(jsonlFolder, SESSION_ID);
     const subagentFile = writeSubagentFile(jsonlFolder, "toolu_9");
     // list the runs
     const runs = listPlateRuns(new Path(macFolder), [new Path(jsonlFolder)]);
@@ -107,7 +114,7 @@ test("test_getNextEvent_places_a_plate_capture_by_time_after_the_line_and_the_ou
     // Scenario: lines at 5s and 15s, a git row at 10s, a plate capture at 15.5s: the order is line, row, line, capture.
     const gitFolder = makeRepoWithCommitAtTenSeconds(t);
     const jsonlFolder = makeTempFolder(t);
-    writeFileSync(join(jsonlFolder, "s1.jsonl"), [makeLineAt(5), makeLineAt(15)].join("\n") + "\n");
+    writeFileSync(join(jsonlFolder, `${SESSION_ID}.jsonl`), [makeLineAt(5), makeLineAt(15)].join("\n") + "\n");
     const macFolder = makeTempFolder(t);
     const captureName = `${BigInt(Date.UTC(2026, 9, 27, 0, 0, 15, 500)) * 1000000n}_1.json`;
     writeCapture(macFolder, captureName, SESSION_ID, [makeWriteCall("toolu_1", true)]);
@@ -129,6 +136,28 @@ test("test_listPlateRuns_throws_when_no_subagent_file_holds_the_tool_use_id", (t
     const macFolder = makeTempFolder(t);
     const jsonlFolder = makeTempFolder(t);
     writeCapture(macFolder, CAPTURE_NAME, SESSION_ID, [makeWriteCall("toolu_9", false)]);
+    writeSessionFile(jsonlFolder, SESSION_ID);
     writeSubagentFile(jsonlFolder, "toolu_other");
     assert.throws(() => listPlateRuns(new Path(macFolder), [new Path(jsonlFolder)]), /toolu_9/);
+});
+
+test("test_listPlateRuns_ignores_and_prints_a_capture_whose_session_is_not_replayed", (t) => {
+    // Scenario: one capture is from the replayed session, one is from a session with no JSONL file.
+    const macFolder = makeTempFolder(t);
+    const jsonlFolder = makeTempFolder(t);
+    writeSessionFile(jsonlFolder, SESSION_ID);
+    writeCapture(macFolder, CAPTURE_NAME, SESSION_ID, [makeWriteCall("toolu_1", true)]);
+    const strayCaptureName = "1793071425958999000_222.json";
+    writeCapture(macFolder, strayCaptureName, "stray-session", [makeWriteCall("toolu_2", true)]);
+    const logMock = t.mock.method(console, "log", () => {});
+    // list the runs
+    const runs = listPlateRuns(new Path(macFolder), [new Path(jsonlFolder)]);
+    // only the replayed session has a run
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0]?.sessionId.toString(), SESSION_ID);
+    // one line names the ignored session and file
+    assert.equal(logMock.mock.callCount(), 1);
+    const printedLine = String(logMock.mock.calls[0]?.arguments[0]);
+    assert.match(printedLine, /stray-session/);
+    assert.match(printedLine, new RegExp(strayCaptureName));
 });
