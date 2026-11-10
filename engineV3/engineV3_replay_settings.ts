@@ -4,13 +4,14 @@ import { Path } from "../src/structures/domain.ts";
 import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import type { RecordSource } from "../src/parse/loadTranscript.ts";
 
-export type ReplaySettings = { repoPath: Path | undefined; state: Path; jsonlsPaths: Path[]; touchedOutput: Path; macPlatePath: Path; jotPath: Path; fileHistoryPath: Path | undefined; startFilesPath: Path | undefined; snapshotsPath: Path | undefined; watchPaths: Path[]; stopBefore: RecordSource | undefined };
+export type ReplaySettings = { repoPath: Path | undefined; state: Path; jsonlsPaths: Path[]; touchedOutput: Path; macPlatePath: Path; jotPath: Path; fileHistoryPath: Path | undefined; startFilesPath: Path | undefined; snapshotsPath: Path | undefined; watchPaths: Path[]; stopBefore: RecordSource | undefined; writePlaygroundStartFiles: boolean };
 
 const JSONL_FLAG = "--jsonl";
+const PLAYGROUND_START_FILES_FLAG = "--playground-start-files";
 const WATCH_FLAG = "--watch";
 // The greedy path part splits at the LAST colon
 const STOP_BEFORE_PATTERN = /^(.*):(\d+)$/;
-const USAGE = "usage: node engineV3_replay.mjs [--git-repo <path>] --state <folder> --touched-out <file> --mac-plate <folder> --jot <folder> [--file-history <folder>] [--start-files <folder>] [--snapshots <folder>] [--watch <folder> ...] [--stop-before <jsonl file>:<line>] --jsonl <folder> [--jsonl <folder> ...]";
+const USAGE = "usage: node engineV3_replay.mjs [--git-repo <path>] --state <folder> --touched-out <file> --mac-plate <folder> --jot <folder> [--file-history <folder>] [--start-files <folder>] [--snapshots <folder>] [--watch <folder> ...] [--playground-start-files] [--stop-before <jsonl file>:<line>] --jsonl <folder> [--jsonl <folder> ...]";
 
 function readRequiredFlag(argumentList: string[], flag: string): { value: string; rest: string[] } {
   const { value, rest } = extractValueFlag(argumentList, flag);
@@ -79,7 +80,8 @@ export function readReplaySettingsFromArguments(argumentList: string[]): ReplayS
   const startFiles = readOptionalPathFlag(fileHistory.rest, "--start-files");
   const snapshots = readOptionalPathFlag(startFiles.rest, "--snapshots");
   const stopBefore = readOptionalStopBeforeFlag(snapshots.rest);
-  const watch = readWatchPaths(stopBefore.rest);
+  const writePlaygroundStartFiles = stopBefore.rest.includes(PLAYGROUND_START_FILES_FLAG);
+  const watch = readWatchPaths(stopBefore.rest.filter((argument) => argument !== PLAYGROUND_START_FILES_FLAG));
   const jsonlsPaths = readJsonlPaths(watch.rest);
-  return { repoPath: gitRepo.path, state: new Path(stateFlag.value), jsonlsPaths, touchedOutput: new Path(touchedFlag.value), macPlatePath: new Path(macPlateFlag.value), jotPath: new Path(jotFlag.value), fileHistoryPath: fileHistory.path, startFilesPath: startFiles.path, snapshotsPath: snapshots.path, watchPaths: watch.paths, stopBefore: stopBefore.stopBefore };
+  return { repoPath: gitRepo.path, state: new Path(stateFlag.value), jsonlsPaths, touchedOutput: new Path(touchedFlag.value), macPlatePath: new Path(macPlateFlag.value), jotPath: new Path(jotFlag.value), fileHistoryPath: fileHistory.path, startFilesPath: startFiles.path, snapshotsPath: snapshots.path, watchPaths: watch.paths, stopBefore: stopBefore.stopBefore, writePlaygroundStartFiles };
 }

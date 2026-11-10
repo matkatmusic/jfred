@@ -9,7 +9,7 @@ import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
-import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
@@ -123,12 +123,15 @@ function assertSafeToReplay(state: Path): void {
   }
 }
 
-function createScriptReplayContext(settings: ReplaySettings): ScriptReplayContext {
+function loadReplayJSONLLines(settings: ReplaySettings): JSONLLine[] {
   const jsonlPathTexts: string[] = [];
   for (const jsonlPath of settings.jsonlsPaths) {
     jsonlPathTexts.push(jsonlPath.toString());
   }
-  const jsonlLines = loadMergedJSONLLines(jsonlPathTexts).jsonlLines;
+  return loadMergedJSONLLines(jsonlPathTexts).jsonlLines;
+}
+
+function createScriptReplayContext(settings: ReplaySettings, jsonlLines: JSONLLine[]): ScriptReplayContext {
   const bashCallResults = collectBashCallResults(jsonlLines);
   const writeEditResultLines = collectWriteEditResultLines(jsonlLines);
   const forkedMessageIds = collectForkedMessageIds(jsonlLines);
@@ -144,9 +147,10 @@ if (isCliRun) {
   // copyRepoIntoState(settings.repoPath, settings.state);
   // createStartRepo(settings.repoPath, settings.state);
   // writeUntrackedStartFiles(settings.state);
-  createStartState(settings.repoPath, settings.startFilesPath, settings.state);
+  const jsonlLines = loadReplayJSONLLines(settings);
+  createStartState(settings.repoPath, settings.startFilesPath, settings.state, getFirstLineTime(jsonlLines), settings.writePlaygroundStartFiles);
   const snapshotLoop = createSnapshotLoopIfRequested(settings.snapshotsPath, settings.state, settings.watchPaths);
-  const context = createScriptReplayContext(settings);
+  const context = createScriptReplayContext(settings, jsonlLines);
   const stopBefore = settings.stopBefore === undefined ? undefined : { line: settings.stopBefore, nextLineFile: new Path("/tmp/next-line.json") };
   executeReplay(settings.state, settings.repoPath, settings.jsonlsPaths, [], context, snapshotLoop, stopBefore);
   if (settings.repoPath !== undefined) {

@@ -4,7 +4,7 @@ import { cpSync } from "node:fs";
 import { Path } from "../src/structures/domain.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
-import { createStartRepo } from "./engineV3_replay_git_start.ts";
+import { createStartRepo, readStartPoint } from "./engineV3_replay_git_start.ts";
 import { assertHeadMatchesLog, getGitEnvForCall } from "./engineV3_replay_script_git_env.ts";
 import { fillMissingBunLockfile } from "./engineV3_replay_script_lockfile.ts";
 import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
@@ -17,13 +17,15 @@ export function copyStartFilesIntoState(startFilesPath: Path | undefined, state:
   cpSync(startFilesPath.toString(), state.toString(), { recursive: true });
 }
 
-export function createStartState(repoPath: Path | undefined, startFilesPath: Path | undefined, state: Path): void {
+export function createStartState(repoPath: Path | undefined, startFilesPath: Path | undefined, state: Path, startTime: Date, writePlaygroundStartFiles: boolean): void {
   if (repoPath === undefined) {
     copyStartFilesIntoState(startFilesPath, state);
     return;
   }
-  createStartRepo(repoPath, state);
-  writeUntrackedStartFiles(state);
+  createStartRepo(repoPath, state, readStartPoint(repoPath, startTime));
+  if (writePlaygroundStartFiles) {
+    writeUntrackedStartFiles(state);
+  }
 }
 
 export function getRequiredSourceRepo(sourceRepo: Path | undefined): Path {

@@ -162,6 +162,22 @@ export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
 }
 
+// The earliest timestamp of any line; the replay start point is read at this time.
+export function getFirstLineTime(jsonlLines: JSONLLine[]): Date {
+  let firstTime: Date | undefined;
+  for (const line of jsonlLines) {
+    if (line.timestamp instanceof Date) {
+      if (firstTime === undefined || line.timestamp.getTime() < firstTime.getTime()) {
+        firstTime = line.timestamp;
+      }
+    }
+  }
+  if (firstTime === undefined) {
+    throw new Error("getFirstLineTime: no JSONL line has a timestamp");
+  }
+  return firstTime;
+}
+
 // function getCommitTimeInMilliseconds(repo: Path, commit: CommitHash): number {
 //   const output = executeGit(repo, ["show", "-s", "--format=%ct", commit.toString()]);
 //   return Number(output.toString("utf8").trim()) * 1000;

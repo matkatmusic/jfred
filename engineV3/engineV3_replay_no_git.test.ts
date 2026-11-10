@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -58,10 +59,41 @@ test("test_createStartState_without_a_repo_copies_the_start_files_and_makes_no_g
   const stateFolder = makeTempFolder(t, "no-git-state-");
   writeFileSync(join(startFolder, "a.txt"), "a\n");
   // Step 2: create the start state with no repo.
-  createStartState(undefined, new Path(startFolder), new Path(stateFolder));
+  createStartState(undefined, new Path(startFolder), new Path(stateFolder), new Date(0), false);
   // Step 3: the state holds a.txt and no .git folder.
   assert.deepEqual(readdirSync(stateFolder), ["a.txt"]);
   assert.equal(existsSync(join(stateFolder, ".git")), false);
+});
+
+function makeOneCommitRepo(t: TestContext): string {
+  const workFolder = makeTempFolder(t, "no-git-source-");
+  const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+  execFileSync("git", [...gitArgs, "init", "-q", "-b", "main"], { cwd: workFolder });
+  execFileSync("git", [...gitArgs, "remote", "add", "origin", "https://example.com/origin.git"], { cwd: workFolder });
+  writeFileSync(join(workFolder, "a.txt"), "a\n");
+  execFileSync("git", [...gitArgs, "add", "-A"], { cwd: workFolder });
+  execFileSync("git", [...gitArgs, "commit", "-q", "-m", "a"], { cwd: workFolder });
+  return workFolder;
+}
+
+test("test_createStartState_with_a_repo_writes_no_playground_history_when_the_flag_is_false", (t) => {
+  // Step 1: make a source repo with one commit and an empty state folder.
+  const sourceFolder = makeOneCommitRepo(t);
+  const stateFolder = makeTempFolder(t, "no-git-state-");
+  // Step 2: create the start state one hour after the commit, with the playground flag false.
+  createStartState(new Path(sourceFolder), undefined, new Path(stateFolder), new Date(Date.now() + 3600000), false);
+  // Step 3: the state holds a.txt and no playground folder.
+  assert.deepEqual(readdirSync(stateFolder).sort(), [".git", "a.txt"]);
+});
+
+test("test_createStartState_with_a_repo_writes_the_playground_history_when_the_flag_is_true", (t) => {
+  // Step 1: make a source repo with one commit and an empty state folder.
+  const sourceFolder = makeOneCommitRepo(t);
+  const stateFolder = makeTempFolder(t, "no-git-state-");
+  // Step 2: create the start state one hour after the commit, with the playground flag true.
+  createStartState(new Path(sourceFolder), undefined, new Path(stateFolder), new Date(Date.now() + 3600000), true);
+  // Step 3: the playground history file exists.
+  assert.equal(existsSync(join(stateFolder, "playground", "results", "playground-history.json")), true);
 });
 
 test("test_getRequiredSourceRepo_throws_when_there_is_no_repo", () => {
@@ -115,7 +147,7 @@ test("test_executeReplay_replays_s5_with_no_git_repo_to_its_last_line", (t) => {
   const startFolder = makeTempFolder(t, "no-git-start-");
   mkdirSync(join(startFolder, "tests"));
   cpSync(join(SCENARIO_FOLDER, "tests", "conftest.py"), join(startFolder, "tests", "conftest.py"));
-  createStartState(undefined, new Path(startFolder), new Path(stateFolder));
+  createStartState(undefined, new Path(startFolder), new Path(stateFolder), new Date(0), false);
   // Step 2: replay every line with no repo and the file-history folder given.
   const lines = loadMergedJSONLLines([jsonlFolder]).jsonlLines;
   const context = { bashCallResults: collectBashCallResults(lines), writeEditResultLines: collectWriteEditResultLines(lines), sourceRepo: undefined, fileHistoryPath: new Path(FILE_HISTORY_FOLDER) };

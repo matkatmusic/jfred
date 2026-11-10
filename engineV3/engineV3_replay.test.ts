@@ -118,7 +118,7 @@ test("test_executeReplay_stops_before_the_given_line_and_writes_that_line_to_the
     const startFolder = makeRealTempFolder(t, "stop-before-start-");
     mkdirSync(join(startFolder, "tests"));
     cpSync(join(S5_SCENARIO_FOLDER, "tests", "conftest.py"), join(startFolder, "tests", "conftest.py"));
-    createStartState(undefined, new Path(startFolder), new Path(stateFolder));
+    createStartState(undefined, new Path(startFolder), new Path(stateFolder), new Date(0), false);
     const nextLineFile = join(makeRealTempFolder(t, "stop-before-out-"), "next-line.json");
     // replay with a stop before line 33, the Write that creates s5_redirect.txt (the "b" file)
     const lines = loadMergedJSONLLines([jsonlFolder]).jsonlLines;
