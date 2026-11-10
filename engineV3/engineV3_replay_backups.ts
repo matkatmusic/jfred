@@ -1,6 +1,6 @@
 // Checks the replayed files against the file-history backups that a snapshot line names.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
@@ -42,9 +42,39 @@ function createMismatchMessage(replayedFile: string, line: JSONLLine, expectedTe
   return rows.join("\n");
 }
 
-function assertFileIsAbsent(replayedFile: string, line: JSONLLine): void {
+// A line whose parent already has an earlier child starts a new branch: the user rewound to the parent.
+export function collectForkedMessageIds(lines: JSONLLine[]): Set<string> {
+  const forkedMessageIds = new Set<string>();
+  const parentsWithChild = new Set<string>();
+  for (const line of lines) {
+    if (line.uuid === undefined) {
+      continue;
+    }
+    if (line.parentUuid === undefined || line.parentUuid === null) {
+      continue;
+    }
+    const parentText = line.parentUuid.toString();
+    if (parentsWithChild.has(parentText)) {
+      forkedMessageIds.add(line.uuid.toString());
+    }
+    parentsWithChild.add(parentText);
+  }
+  return forkedMessageIds;
+}
+
+// A code rewind to a point before the file existed deletes the file; the transcript has no line for that deletion.
+function removeFileRewoundAway(replayedFile: string): void {
+  console.log(`assertSnapshotBackupsMatchState: rewind fork with a null backup, deleting ${replayedFile}`);
+  rmSync(replayedFile);
+}
+
+function assertFileIsAbsent(replayedFile: string, line: JSONLLine, isRewindFork: boolean): void {
   const fileExists = existsSync(replayedFile);
   if (fileExists) {
+    if (isRewindFork) {
+      removeFileRewoundAway(replayedFile);
+      return;
+    }
     const actualText = readFileSync(replayedFile, "utf8");
     throw new Error(`assertSnapshotBackupsMatchState: ${replayedFile} exists but its backup is null, so it must not exist\n${createLineText(line)}\nreplayed text: ${JSON.stringify(actualText)}`);
   }
@@ -105,9 +135,9 @@ function assertBackupMatchesBeforeContent(replayedFile: string, line: JSONLLine,
   assertBeforeContentEqualsBackup(replayedFile, backupFile, line, beforeContent);
 }
 
-function assertBackupMatchesDisk(replayedFile: string, line: JSONLLine, context: ScriptReplayContext, backup: FileHistoryBackup): void {
+function assertBackupMatchesDisk(replayedFile: string, line: JSONLLine, context: ScriptReplayContext, backup: FileHistoryBackup, isRewindFork: boolean): void {
   if (backup.backupFileName === null) {
-    assertFileIsAbsent(replayedFile, line);
+    assertFileIsAbsent(replayedFile, line, isRewindFork);
     return;
   }
   const backupFile = getBackupFilePath(context.fileHistoryPath, line, backup.backupFileName);
@@ -122,7 +152,7 @@ function getReplayedFile(state: Path, filePath: Path, backup: FileHistoryBackup)
   return join(backup.realParentDir.toString(), basename(filePath.toString()));
 }
 
-function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptReplayContext, filePath: Path, backup: FileHistoryBackup): void {
+function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptReplayContext, filePath: Path, backup: FileHistoryBackup, isRewindFork: boolean): void {
   const replayedFile = getReplayedFile(state, filePath, backup);
   const isChecked = isNewOrChangedBackup(line, replayedFile, backup);
   if (!isChecked) {
@@ -133,7 +163,7 @@ function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptRe
     assertBackupMatchesBeforeContent(replayedFile, line, context, backup, beforeContent);
     return;
   }
-  assertBackupMatchesDisk(replayedFile, line, context, backup);
+  assertBackupMatchesDisk(replayedFile, line, context, backup, isRewindFork);
 }
 
 // Backup keys are relative to the session folder, which is the state folder; an absolute key stays as it is.
@@ -142,8 +172,10 @@ export function assertSnapshotBackupsMatchState(state: Path, line: JSONLLine, co
   if (snapshotMessage === undefined) {
     throw new Error("assertSnapshotBackupsMatchState: the line is not a file-history snapshot");
   }
+  const forkedMessageIds = context.forkedMessageIds ?? new Set<string>();
+  const isRewindFork = forkedMessageIds.has(snapshotMessage.messageId.toString());
   for (const [filePath, backup] of snapshotMessage.snapshot.trackedFileBackups.listEntries()) {
-    assertBackupMatchesFile(state, line, context, filePath, backup);
+    assertBackupMatchesFile(state, line, context, filePath, backup, isRewindFork);
   }
   return state;
 }
