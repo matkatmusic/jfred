@@ -1,6 +1,6 @@
 // Checks the replayed files against the file-history backups that a snapshot line names.
 
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
@@ -12,6 +12,8 @@ import { ABSENT_BEFORE_CONTENT, findPendingBeforeContent, type BeforeContent } f
 
 const JSONL_EXTENSION = ".jsonl";
 const lastSeenBackupTexts = new Map<string, string>();
+// The replayed bytes of each file at the latest snapshot check that found it equal to its backup.
+const lastMatchedBytes = new Map<string, Buffer>();
 
 function getSourceOfLine(line: JSONLLine): RecordSource {
   const source = getRecordSource(line);
@@ -62,6 +64,73 @@ export function collectForkedMessageIds(lines: JSONLLine[]): Set<string> {
   return forkedMessageIds;
 }
 
+// For each forked line, the uuids of the lines that were children of the same parent before it, earliest first.
+export function collectEarlierSiblingMessageIds(lines: JSONLLine[]): Map<string, string[]> {
+  const earlierSiblingMessageIds = new Map<string, string[]>();
+  const childrenByParent = new Map<string, string[]>();
+  for (const line of lines) {
+    if (line.uuid === undefined) {
+      continue;
+    }
+    if (line.parentUuid === undefined || line.parentUuid === null) {
+      continue;
+    }
+    const parentText = line.parentUuid.toString();
+    const earlierChildren = childrenByParent.get(parentText) ?? [];
+    if (earlierChildren.length > 0) {
+      earlierSiblingMessageIds.set(line.uuid.toString(), [...earlierChildren]);
+    }
+    earlierChildren.push(line.uuid.toString());
+    childrenByParent.set(parentText, earlierChildren);
+  }
+  return earlierSiblingMessageIds;
+}
+
+// The bytes each replayed file had when a snapshot line first named it; a code rewind restores them.
+const snapshotFileBytes = new Map<string, Buffer>();
+
+function createSnapshotFileKey(messageId: string, replayedFile: string): string {
+  return `${messageId}\n${replayedFile}`;
+}
+
+function recordSnapshotFileBytes(messageId: string, replayedFile: string, beforeContent: BeforeContent | undefined): void {
+  const key = createSnapshotFileKey(messageId, replayedFile);
+  if (snapshotFileBytes.has(key)) {
+    return;
+  }
+  if (beforeContent === ABSENT_BEFORE_CONTENT) {
+    return;
+  }
+  if (beforeContent !== undefined) {
+    snapshotFileBytes.set(key, beforeContent);
+    return;
+  }
+  if (existsSync(replayedFile)) {
+    snapshotFileBytes.set(key, readFileSync(replayedFile));
+  }
+}
+
+// A rewind fork restores the file to what it had at the snapshot of the earliest sibling prompt that recorded it.
+function restoreFileFromEarlierSibling(replayedFile: string, backupFile: string, messageId: string, context: ScriptReplayContext): void {
+  const backupBytes = readFileSync(backupFile);
+  const hasFile = existsSync(replayedFile);
+  if (hasFile) {
+    const isSame = readFileSync(replayedFile).equals(backupBytes);
+    if (isSame) {
+      return;
+    }
+  }
+  const earlierSiblingMessageIds = context.earlierSiblingMessageIds?.get(messageId) ?? [];
+  for (const siblingMessageId of earlierSiblingMessageIds) {
+    const siblingBytes = snapshotFileBytes.get(createSnapshotFileKey(siblingMessageId, replayedFile));
+    if (siblingBytes !== undefined) {
+      console.log(`assertSnapshotBackupsMatchState: rewind fork, restoring ${replayedFile} to its content at the snapshot of sibling ${siblingMessageId}`);
+      writeFileSync(replayedFile, siblingBytes);
+      return;
+    }
+  }
+}
+
 // A code rewind to a point before the file existed deletes the file; the transcript has no line for that deletion.
 function removeFileRewoundAway(replayedFile: string): void {
   console.log(`assertSnapshotBackupsMatchState: rewind fork with a null backup, deleting ${replayedFile}`);
@@ -88,13 +157,28 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const actualBytes = readFileSync(replayedFile);
   const expectedBytes = readFileSync(backupFile);
   const isSame = actualBytes.equals(expectedBytes);
-  if (!isSame) {
-    throw new Error(createMismatchMessage(replayedFile, line, expectedBytes.toString("utf8"), actualBytes.toString("utf8")));
+  if (isSame) {
+    lastMatchedBytes.set(replayedFile, actualBytes);
+    return;
   }
+  // No replayed line changed the file since a snapshot last matched it, so the difference is a hand edit the transcript never recorded.
+  const matchedBytes = lastMatchedBytes.get(replayedFile);
+  if (matchedBytes !== undefined) {
+    if (actualBytes.equals(matchedBytes)) {
+      const source = getSourceOfLine(line);
+      console.log(`hand edit with no transcript record: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
+      writeFileSync(replayedFile, expectedBytes);
+      lastMatchedBytes.set(replayedFile, expectedBytes);
+      return;
+    }
+  }
+  throw new Error(createMismatchMessage(replayedFile, line, expectedBytes.toString("utf8"), actualBytes.toString("utf8")));
 }
 
 export function clearSeenBackups(): void {
+  lastMatchedBytes.clear();
   lastSeenBackupTexts.clear();
+  snapshotFileBytes.clear();
 }
 
 // A snapshot line repeats the entries of earlier lines, so only a new or changed entry is checked.
@@ -135,12 +219,15 @@ function assertBackupMatchesBeforeContent(replayedFile: string, line: JSONLLine,
   assertBeforeContentEqualsBackup(replayedFile, backupFile, line, beforeContent);
 }
 
-function assertBackupMatchesDisk(replayedFile: string, line: JSONLLine, context: ScriptReplayContext, backup: FileHistoryBackup, isRewindFork: boolean): void {
+function assertBackupMatchesDisk(replayedFile: string, line: JSONLLine, context: ScriptReplayContext, backup: FileHistoryBackup, isRewindFork: boolean, messageId: string): void {
   if (backup.backupFileName === null) {
     assertFileIsAbsent(replayedFile, line, isRewindFork);
     return;
   }
   const backupFile = getBackupFilePath(context.fileHistoryPath, line, backup.backupFileName);
+  if (isRewindFork) {
+    restoreFileFromEarlierSibling(replayedFile, backupFile, messageId, context);
+  }
   assertFileEqualsBackup(replayedFile, backupFile, line);
 }
 
@@ -152,7 +239,7 @@ function getReplayedFile(state: Path, filePath: Path, backup: FileHistoryBackup)
   return join(backup.realParentDir.toString(), basename(filePath.toString()));
 }
 
-function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptReplayContext, filePath: Path, backup: FileHistoryBackup, isRewindFork: boolean): void {
+function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptReplayContext, filePath: Path, backup: FileHistoryBackup, isRewindFork: boolean, messageId: string): void {
   const replayedFile = getReplayedFile(state, filePath, backup);
   const isChecked = isNewOrChangedBackup(line, replayedFile, backup);
   if (!isChecked) {
@@ -161,9 +248,11 @@ function assertBackupMatchesFile(state: Path, line: JSONLLine, context: ScriptRe
   const beforeContent = findPendingBeforeContent(replayedFile);
   if (beforeContent !== undefined) {
     assertBackupMatchesBeforeContent(replayedFile, line, context, backup, beforeContent);
+    recordSnapshotFileBytes(messageId, replayedFile, beforeContent);
     return;
   }
-  assertBackupMatchesDisk(replayedFile, line, context, backup, isRewindFork);
+  assertBackupMatchesDisk(replayedFile, line, context, backup, isRewindFork, messageId);
+  recordSnapshotFileBytes(messageId, replayedFile, undefined);
 }
 
 // Backup keys are relative to the session folder, which is the state folder; an absolute key stays as it is.
@@ -175,7 +264,7 @@ export function assertSnapshotBackupsMatchState(state: Path, line: JSONLLine, co
   const forkedMessageIds = context.forkedMessageIds ?? new Set<string>();
   const isRewindFork = forkedMessageIds.has(snapshotMessage.messageId.toString());
   for (const [filePath, backup] of snapshotMessage.snapshot.trackedFileBackups.listEntries()) {
-    assertBackupMatchesFile(state, line, context, filePath, backup, isRewindFork);
+    assertBackupMatchesFile(state, line, context, filePath, backup, isRewindFork, snapshotMessage.messageId.toString());
   }
   return state;
 }

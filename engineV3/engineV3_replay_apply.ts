@@ -81,6 +81,35 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
     writeFileIntoState(root, relativePath, Buffer.from(truncatedText + trailingNewline, "utf8"));
     return state;
   }
+  // replaced by listOldLinesAfterWindow from engineV3-fix-s35 (user 2026-11-10)
+  // const snippetTexts = snippet.lines.map((snippetLine) => snippetLine.text);
+  // const keptTail = findOldTailBelowTopWindow(splitLines(oldText), snippetTexts);
+  // if (keptTail !== undefined) {
+  //   const newText = [...snippetTexts, ...keptTail].join("\n") + trailingNewline;
+  //   writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
+  //   return state;
+  // }
+  // writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
+  // return state;
+  // }
+  //
+  // function findOldTailBelowTopWindow(oldLines: string[], snippetTexts: string[]): string[] | undefined {
+  //   let bestMatchedCount = 0;
+  //   let bestEnd = oldLines.length;
+  //   for (let end = oldLines.length; end >= 1; end -= 1) {
+  //     let matchedCount = 0;
+  //     while (matchedCount < snippetTexts.length && matchedCount < end && snippetTexts[snippetTexts.length - 1 - matchedCount] === oldLines[end - 1 - matchedCount]) {
+  //       matchedCount += 1;
+  //     }
+  //     if (matchedCount > bestMatchedCount) {
+  //       bestMatchedCount = matchedCount;
+  //       bestEnd = end;
+  //     }
+  //   }
+  //   if (bestMatchedCount * 2 < snippetTexts.length) {
+  //     return undefined;
+  //   }
+  //   return oldLines.slice(bestEnd);
   const oldLinesAfterWindow = listOldLinesAfterWindow(splitLines(oldText), snippet);
   const newText = [event.content, ...oldLinesAfterWindow].join("\n");
   writeFileIntoState(root, relativePath, Buffer.from(newText + trailingNewline, "utf8"));
@@ -205,28 +234,28 @@ function learnHandEditFromResult(state: Path, resultLine: JSONLLine): void {
   writeFileIntoState(root, relativePath, originalBytes);
 }
 
-// A prompt's snapshot message can reach the first call message of its turn only through attachment lines.
-function isResultInSnapshotTurn(resultLine: JSONLLine, snapshotMessageId: string, context: ScriptReplayContext): boolean {
-  if (resultLine.parentUuid?.toString() === snapshotMessageId) {
-    return true;
-  }
-  if (resultLine.parentUuid == null || context.linesByUuid === undefined) {
-    return false;
-  }
-  const callLine = context.linesByUuid.get(resultLine.parentUuid.toString());
-  let ancestorUuid = callLine?.parentUuid?.toString();
-  while (ancestorUuid !== undefined) {
-    if (ancestorUuid === snapshotMessageId) {
-      return true;
-    }
-    const ancestorLine = context.linesByUuid.get(ancestorUuid);
-    if (ancestorLine?.type !== RecordType.attachment) {
-      return false;
-    }
-    ancestorUuid = ancestorLine.parentUuid?.toString();
-  }
-  return false;
-}
+// replaced by resultTurnSnapshotIds from engineV3-fix-s23 (user 2026-11-10)
+// function isResultInSnapshotTurn(resultLine: JSONLLine, snapshotMessageId: string, context: ScriptReplayContext): boolean {
+//   if (resultLine.parentUuid?.toString() === snapshotMessageId) {
+//     return true;
+//   }
+//   if (resultLine.parentUuid == null || context.linesByUuid === undefined) {
+//     return false;
+//   }
+//   const callLine = context.linesByUuid.get(resultLine.parentUuid.toString());
+//   let ancestorUuid = callLine?.parentUuid?.toString();
+//   while (ancestorUuid !== undefined) {
+//     if (ancestorUuid === snapshotMessageId) {
+//       return true;
+//     }
+//     const ancestorLine = context.linesByUuid.get(ancestorUuid);
+//     if (ancestorLine?.type !== RecordType.attachment) {
+//       return false;
+//     }
+//     ancestorUuid = ancestorLine.parentUuid?.toString();
+//   }
+//   return false;
+// }
 
 // A snapshot can sit before the call line; its messageId is the call's message, and the results of that message have that message as parent.
 function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: ScriptReplayContext): void {
@@ -235,9 +264,14 @@ function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: Script
     throw new Error("learnHandEditsForSnapshot: the line is not a file-history snapshot");
   }
   const learnedFiles = new Set<string>();
-  for (const resultLine of context.writeEditResultLines.values()) {
-    if (!isResultInSnapshotTurn(resultLine, snapshotMessage.messageId.toString(), context)) {
-      continue;
+  for (const [callId, resultLine] of context.writeEditResultLines) {
+    // A turn-start snapshot also covers the results later in its turn: a hand edit made before the prompt shows in their originalFile.
+    const isResultOfSnapshotTurn = context.resultTurnSnapshotIds?.get(callId) === snapshotMessage.messageId.toString();
+    const isResultOfSnapshotMessage = resultLine.parentUuid?.toString() === snapshotMessage.messageId.toString();
+    if (isResultOfSnapshotMessage === false) {
+      if (isResultOfSnapshotTurn === false) {
+        continue;
+      }
     }
     const file = findWrittenFile(state, resultLine);
     if (file === undefined) {
