@@ -48,6 +48,22 @@ export function recordFileChange(replayedFile: string, bytesBefore: Buffer | und
   filesWithHandEditSnippet.delete(replayedFile);
 }
 
+// A script run (Bash call) is a transcript record, so a change it makes to a file in the chain keeps the chain.
+export function copyChainBytesBeforeScript(): Map<string, Buffer> {
+  return new Map(bytesAfterOnlyHandEditSnippets);
+}
+
+export function recordScriptFileChanges(chainBytesBeforeScript: Map<string, Buffer>): void {
+  for (const [replayedFile, bytesBefore] of chainBytesBeforeScript) {
+    if (existsSync(replayedFile)) {
+      const bytesAfter = readFileSync(replayedFile);
+      if (!bytesAfter.equals(bytesBefore)) {
+        recordFileChange(replayedFile, bytesBefore, bytesAfter, false);
+      }
+    }
+  }
+}
+
 function getSourceOfLine(line: JSONLLine): RecordSource {
   const source = getRecordSource(line);
   if (source === undefined) {
