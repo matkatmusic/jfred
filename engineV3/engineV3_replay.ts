@@ -11,7 +11,7 @@ import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
-import { collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
+import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { collectForkedMessageIds } from "./engineV3_replay_backups.ts";
 import { compareStateToHead } from "./engineV3_replay_check.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
@@ -132,7 +132,8 @@ function createScriptReplayContext(settings: ReplaySettings): ScriptReplayContex
   const bashCallResults = collectBashCallResults(jsonlLines);
   const writeEditResultLines = collectWriteEditResultLines(jsonlLines);
   const forkedMessageIds = collectForkedMessageIds(jsonlLines);
-  return { bashCallResults, writeEditResultLines, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds };
+  const resultTurnSnapshotIds = collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines);
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
