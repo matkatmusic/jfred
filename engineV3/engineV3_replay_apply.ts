@@ -72,8 +72,34 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
     writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
     return state;
   }
-  writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
+  const oldLinesAfterWindow = listOldLinesAfterWindow(splitLines(oldText), snippet);
+  const newText = [event.content, ...oldLinesAfterWindow].join("\n");
+  writeFileIntoState(root, relativePath, Buffer.from(newText + trailingNewline, "utf8"));
   return state;
+}
+
+// The harness shows a changed hunk plus 8 lines of context after it, so a snippet from line 1 may stop before the file ends.
+// When the snippet's last 8 lines match the old file at some end line, the old lines after that line stay.
+const TRAILING_CONTEXT_LINE_COUNT = 8;
+function listOldLinesAfterWindow(oldLines: string[], snippet: BeaconSnippet): string[] {
+  const snippetLines = snippet.lines.map((snippetLine) => snippetLine.text);
+  if (snippetLines.length < TRAILING_CONTEXT_LINE_COUNT) {
+    return [];
+  }
+  const snippetContext = snippetLines.slice(-TRAILING_CONTEXT_LINE_COUNT);
+  let bestEndLine = -1;
+  for (let endLine = TRAILING_CONTEXT_LINE_COUNT; endLine <= oldLines.length; endLine += 1) {
+    const oldContext = oldLines.slice(endLine - TRAILING_CONTEXT_LINE_COUNT, endLine);
+    const isContextMatching = oldContext.every((oldLine, index) => oldLine === snippetContext[index]);
+    const isCloserThanBest = bestEndLine === -1 || Math.abs(endLine - snippetLines.length) < Math.abs(bestEndLine - snippetLines.length);
+    if (isContextMatching && isCloserThanBest) {
+      bestEndLine = endLine;
+    }
+  }
+  if (bestEndLine === -1) {
+    return [];
+  }
+  return oldLines.slice(bestEndLine);
 }
 
 // Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.

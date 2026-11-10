@@ -96,6 +96,16 @@ test("test_applyJSONLLineToState_user_edit_keeps_a_missing_final_newline", (t) =
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT);
 });
 
+test("test_applyJSONLLineToState_user_edit_snippet_from_line_1_keeps_the_old_lines_after_its_8_context_lines", (t) => {
+    // Scenario: the user adds 2 lines at line 3; the snippet shows lines 1 to 12 and stops before the old last line.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nTAIL\n");
+    const snippet = "1\ta\n2\tb\n3\tX\n4\tY\n5\tc\n6\td\n7\te\n8\tf\n9\tg\n10\th\n11\ti\n12\tj";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", snippet), [], NO_SCRIPT_CONTEXT);
+    // the snippet lines come first and the old last line stays after them
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nX\nY\nc\nd\ne\nf\ng\nh\ni\nj\nTAIL\n");
+});
+
 test("test_applyJSONLLineToState_user_edit_window_starting_mid_file_leaves_the_lines_around_it", (t) => {
     // Scenario: the snippet shows only file lines 3 and 4, so lines 1, 2 and 5 stay as they were.
     const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
