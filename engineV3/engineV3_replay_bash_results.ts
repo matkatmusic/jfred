@@ -26,7 +26,9 @@ function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string,
     if (block.type === BlockType.tool_use) {
       const isBash = block.name === ToolName.Bash;
       const isCtxExecute = block.name === ToolName.CtxExecute;
-      if (isBash || isCtxExecute) {
+      const isCtxExecuteFile = block.name === ToolName.CtxExecuteFile;
+      // if (isBash || isCtxExecute) {
+      if (isBash || isCtxExecute || isCtxExecuteFile) {
         starts.set(block.id.toString(), { toolUseId: block.id, startMs });
       }
     }
