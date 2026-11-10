@@ -72,35 +72,63 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
     writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
     return state;
   }
-  const snippetTexts = snippet.lines.map((snippetLine) => snippetLine.text);
-  const keptTail = findOldTailBelowTopWindow(splitLines(oldText), snippetTexts);
-  if (keptTail !== undefined) {
-    const newText = [...snippetTexts, ...keptTail].join("\n") + trailingNewline;
-    writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
-    return state;
-  }
-  writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
+  // replaced by listOldLinesAfterWindow from engineV3-fix-s35 (user 2026-11-10)
+  // const snippetTexts = snippet.lines.map((snippetLine) => snippetLine.text);
+  // const keptTail = findOldTailBelowTopWindow(splitLines(oldText), snippetTexts);
+  // if (keptTail !== undefined) {
+  //   const newText = [...snippetTexts, ...keptTail].join("\n") + trailingNewline;
+  //   writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
+  //   return state;
+  // }
+  // writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
+  // return state;
+  // }
+  //
+  // function findOldTailBelowTopWindow(oldLines: string[], snippetTexts: string[]): string[] | undefined {
+  //   let bestMatchedCount = 0;
+  //   let bestEnd = oldLines.length;
+  //   for (let end = oldLines.length; end >= 1; end -= 1) {
+  //     let matchedCount = 0;
+  //     while (matchedCount < snippetTexts.length && matchedCount < end && snippetTexts[snippetTexts.length - 1 - matchedCount] === oldLines[end - 1 - matchedCount]) {
+  //       matchedCount += 1;
+  //     }
+  //     if (matchedCount > bestMatchedCount) {
+  //       bestMatchedCount = matchedCount;
+  //       bestEnd = end;
+  //     }
+  //   }
+  //   if (bestMatchedCount * 2 < snippetTexts.length) {
+  //     return undefined;
+  //   }
+  //   return oldLines.slice(bestEnd);
+  const oldLinesAfterWindow = listOldLinesAfterWindow(splitLines(oldText), snippet);
+  const newText = [event.content, ...oldLinesAfterWindow].join("\n");
+  writeFileIntoState(root, relativePath, Buffer.from(newText + trailingNewline, "utf8"));
   return state;
 }
 
-// A snippet that starts at line 1 and stops early is a top window: its last lines are old lines (the edit may have shifted them), and the old lines after them stay.
-function findOldTailBelowTopWindow(oldLines: string[], snippetTexts: string[]): string[] | undefined {
-  let bestMatchedCount = 0;
-  let bestEnd = oldLines.length;
-  for (let end = oldLines.length; end >= 1; end -= 1) {
-    let matchedCount = 0;
-    while (matchedCount < snippetTexts.length && matchedCount < end && snippetTexts[snippetTexts.length - 1 - matchedCount] === oldLines[end - 1 - matchedCount]) {
-      matchedCount += 1;
-    }
-    if (matchedCount > bestMatchedCount) {
-      bestMatchedCount = matchedCount;
-      bestEnd = end;
+// The harness shows a changed hunk plus 8 lines of context after it, so a snippet from line 1 may stop before the file ends.
+// When the snippet's last 8 lines match the old file at some end line, the old lines after that line stay.
+const TRAILING_CONTEXT_LINE_COUNT = 8;
+function listOldLinesAfterWindow(oldLines: string[], snippet: BeaconSnippet): string[] {
+  const snippetLines = snippet.lines.map((snippetLine) => snippetLine.text);
+  if (snippetLines.length < TRAILING_CONTEXT_LINE_COUNT) {
+    return [];
+  }
+  const snippetContext = snippetLines.slice(-TRAILING_CONTEXT_LINE_COUNT);
+  let bestEndLine = -1;
+  for (let endLine = TRAILING_CONTEXT_LINE_COUNT; endLine <= oldLines.length; endLine += 1) {
+    const oldContext = oldLines.slice(endLine - TRAILING_CONTEXT_LINE_COUNT, endLine);
+    const isContextMatching = oldContext.every((oldLine, index) => oldLine === snippetContext[index]);
+    const isCloserThanBest = bestEndLine === -1 || Math.abs(endLine - snippetLines.length) < Math.abs(bestEndLine - snippetLines.length);
+    if (isContextMatching && isCloserThanBest) {
+      bestEndLine = endLine;
     }
   }
-  if (bestMatchedCount * 2 < snippetTexts.length) {
-    return undefined;
+  if (bestEndLine === -1) {
+    return [];
   }
-  return oldLines.slice(bestEnd);
+  return oldLines.slice(bestEndLine);
 }
 
 // Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.
