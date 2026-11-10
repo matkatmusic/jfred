@@ -3,6 +3,7 @@
 import { createElement } from "./app-dom.ts";
 import { CreatedNotTrustedReason } from "./layer1-components/bubbles/layer1-created-reason.ts";
 import { appendAxisNode, appendBranchLane, appendEditNode, appendScriptRunNode, appendSnapshotNode, setAxisPx } from "./layer1-components/bubbles/layer1-lane-nodes.ts";
+import { CURRENT_NODE_CLASS, isCurrentEngineV3Node } from "./layer1-components/engine-v3/layer1-engine-v3-state.ts";
 import { appendToolNodes } from "./layer1-components/bubbles/layer1-tool-nodes.ts";
 import { buildNodesWithSameTimestampMarkers, type NodeWithSameTimestamp } from "./layer1-components/bubbles/layer1-nodes-with-same-timestamp.ts";
 import type { WireBranch } from "./layer1-wire-branches.ts";
@@ -45,7 +46,9 @@ function appendTrunkNodes(lane: HTMLElement, pair: WirePair, startPx: number): v
     appendAxisNode(lane, pair.created.axisPx - startPx, pair.created.instant, "n-disk n-created", "created at", CREATED_NODE_TITLE);
   }
   for (const commit of pair.commits) {
-    appendAxisNode(lane, commit.axisPx - startPx, commit.instant, "n-commit", commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
+    const isCurrentCommit = isCurrentEngineV3Node(commit.hash);
+    const nodeClass = isCurrentCommit ? `n-commit ${CURRENT_NODE_CLASS}` : "n-commit";
+    appendAxisNode(lane, commit.axisPx - startPx, commit.instant, nodeClass, commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
   }
   appendAxisNode(lane, pair.onDisk.axisPx - startPx, pair.onDisk.instant, "n-disk", "on disk");
   for (const snapshot of pair.snapshots ?? []) {

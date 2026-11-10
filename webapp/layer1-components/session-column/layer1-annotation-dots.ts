@@ -3,6 +3,7 @@
 import { createElement } from "../../app-dom.ts";
 import { buildPairBracket } from "./layer1-annotation-bracket.ts";
 import { ANNOTATION_LOOKS } from "./layer1-annotation-looks.ts";
+import { CURRENT_NODE_CLASS, isCurrentEngineV3Node } from "../engine-v3/layer1-engine-v3-state.ts";
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
 import type { HoverPopupContent } from "../popups/layer1-hover-popup.ts";
 import type { WireAnnotation } from "./layer1-wire-annotations.ts";
@@ -22,6 +23,10 @@ function listFlagClasses(placement: Placement): string[] {
   }
   if (placement.annotation.isStampless) {
     flags.push("is-stampless");
+  }
+  const isCurrentNode = isCurrentEngineV3Node(placement.annotation.id);
+  if (isCurrentNode) {
+    flags.push(CURRENT_NODE_CLASS);
   }
   return flags;
 }

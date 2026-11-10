@@ -1,0 +1,20 @@
+  /*
+    The engineV3 mockup bar sits in the page flow under the show row; the readout takes the leftover width.
+  */
+  .engine-v3-bar { display: flex; align-items: center; gap: 10px; padding: 6px 16px;
+    border-block-end: 1px solid var(--border, rgba(11,11,11,.10)); background: var(--surface, #fff); }
+  .engine-v3-bar[hidden] { display: none; }
+  .engine-v3-bar .lbl { font-size: 0.6875rem; color: var(--muted, #6b6a63); white-space: nowrap; }
+  .engine-v3-bar button { font-size: 0.6875rem; padding: 1px 8px; }
+  .engine-v3-readout { flex: 1; font-size: 0.75rem; color: var(--ink, #0b0b0b); }
+  #engine-v3-files { color: var(--ink2, #3d3d3a); }
+  /*
+    The line spans the whole canvas. Pink, since a ruler click draws green.
+  */
+  .engine-v3-line { position: absolute; inset-inline: 0; inset-block-start: calc(var(--axis-px, 0) * 1px + var(--lane-y, 52px));
+    block-size: 0; border-block-start: 2px dashed var(--c-anchor, #e87ba4); pointer-events: none; z-index: 10; }
+  /*
+    The marked node gets an outside ring, so its own color stays visible.
+  */
+  .node.n-commit.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }
+  .atrack .anode.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }

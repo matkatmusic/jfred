@@ -7,6 +7,7 @@ import { openDetailViewForFiles } from "./layer1-components/details-drawer/layer
 import { renderLayer1FileNav } from "./layer1-components/file-nav/layer1-filenav.ts";
 import { filterLayer1ViewByTargets } from "./layer1-components/show-row/layer1-filter.ts";
 import { rememberJfredCommits } from "./layer1-components/commits-column/layer1-jfred-mode.ts";
+import { loadEngineV3Steps, renderMarker as renderEngineV3Marker } from "./layer1-components/engine-v3/layer1-engine-v3-panel.ts";
 import { renderShowRowWithKindFilter } from "./layer1-components/show-row/layer1-kind-filter.ts";
 import { renderSessionPane } from "./layer1-components/jsonls-nav/layer1-session-pane.ts";
 import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-components/jsonls-nav/layer1-sessions.ts";
@@ -119,8 +120,11 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
   renderLayer1FileNav(view, createFolderTargetSelector(view, closeRowAndRenderStage));
   storeAnnotations(view);
   rememberJfredCommits(view);
+  void loadEngineV3Steps(view);
   renderShowRowWithKindFilter(view, renderFilteredStage);
   const stageDrawn = renderLayer1Stage(view);
+  // The steps may load before the stage nodes exist: mark again once the stage is drawn.
+  void stageDrawn.then(renderEngineV3Marker);
   setKnownProjectPaths(getInputById("dir").value.trim(), listKnownPaths(view));
   const renderPaneAfterSessionsLoad = (): void => renderSessionPane(closeRowAndRenderStage);
   // Fetched after the stage is up rather than delaying it: the timeline is the page.

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
@@ -161,6 +162,8 @@ test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_but
     }
     initLayer1Dom();
     initLayer1Page();
+    // A view with annotations makes the engineV3 bar fetch its steps.
+    installRecordingFetch(() => ({ steps: [] }));
     renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: ticks, annotations: buildRecords(ticks) } as never);
     assert.equal(document.querySelectorAll("#annotation-track").length, 0);
     document.getElementById("session-toggle")!.click();

@@ -1,5 +1,7 @@
 # JFRED — JSONL File Reverse Engineer Debugger
 
+jfred is like a git app. The chat log lines are extra small steps between real git commits. You can go to any step, the same as you go to any commit in git.
+
 **Claude Checkpoints don't track external changes. JFRED fills that gap.**
 
 Claude Code's [`/rewind`](https://code.claude.com/docs/en/checkpointing) only restores

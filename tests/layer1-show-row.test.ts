@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
@@ -54,6 +55,8 @@ function renderViewWithExtras(extras: object, pairExtras: object): void {
     initLayer1Dom();
     initLayer1Page();
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT, ...pairExtras };
+    // A view with annotations makes the engineV3 bar fetch its steps.
+    installRecordingFetch(() => ({ steps: [] }));
     renderLayer1View({ pairs: [pair], gitOrphans: [], diskOrphans: [], ruler: [], ...extras } as never);
 }
 

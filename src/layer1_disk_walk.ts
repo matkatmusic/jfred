@@ -1,6 +1,6 @@
 // Layer 1 on-disk file walk: git paths when available, manual walk otherwise.
 
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, type Dirent } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Path } from "./structures/domain.ts";
@@ -36,31 +36,42 @@ const ALWAYS_EXCLUDED_NAMES = [".git", "node_modules"];
 function collectFolderFiles(projectFolder: Path, relativeFolder: string, rules: IgnoreRule[], found: DiskFileState[]): void {
   const absoluteFolder = join(projectFolder.toString(), relativeFolder);
   for (const entry of readdirSync(absoluteFolder, { withFileTypes: true })) {
-    const isExcludedName = ALWAYS_EXCLUDED_NAMES.includes(entry.name);
-    if (isExcludedName) {
-      continue;
-    }
-    const relativePath = relativeFolder === "" ? entry.name : `${relativeFolder}/${entry.name}`;
-    const isDirectory = entry.isDirectory();
-    const isIgnored = isPathIgnored(relativePath, isDirectory, rules);
-    if (isIgnored) {
-      continue;
-    }
-    if (isDirectory) {
-      collectFolderFiles(projectFolder, relativePath, rules, found);
-      continue;
-    }
-    const isFile = entry.isFile();
-    if (!isFile) {
-      continue;
-    }
-    const stats = statSync(join(absoluteFolder, entry.name));
+    collectFolderEntry(projectFolder, relativeFolder, entry, rules, found);
+  }
+}
+
+function collectFolderEntry(projectFolder: Path, relativeFolder: string, entry: Dirent, rules: IgnoreRule[], found: DiskFileState[]): void {
+  const relativePath = relativeFolder === "" ? entry.name : `${relativeFolder}/${entry.name}`;
+  const isDirectory = entry.isDirectory();
+  const isSkipped = isEntrySkipped(entry.name, relativePath, isDirectory, rules);
+  if (isSkipped) {
+    return;
+  }
+  if (isDirectory) {
+    collectFolderFiles(projectFolder, relativePath, rules, found);
+    return;
+  }
+  collectFileEntry(projectFolder, relativePath, entry, found);
+}
+
+function isEntrySkipped(name: string, relativePath: string, isDirectory: boolean, rules: IgnoreRule[]): boolean {
+  const isExcludedName = ALWAYS_EXCLUDED_NAMES.includes(name);
+  if (isExcludedName) {
+    return true;
+  }
+  return isPathIgnored(relativePath, isDirectory, rules);
+}
+
+function collectFileEntry(projectFolder: Path, relativePath: string, entry: Dirent, found: DiskFileState[]): void {
+  const isFile = entry.isFile();
+  if (isFile) {
+    const stats = statSync(join(projectFolder.toString(), relativePath));
     found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, ...readCreatedState(stats) });
   }
 }
 
 // Git-tracked and untracked paths, or undefined when not in a repo.
-function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
+export function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
   const result = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
     cwd: projectFolder.toString(),
     encoding: "utf8",
@@ -69,8 +80,12 @@ function listGitWorkingTreeFiles(projectFolder: Path): string[] | undefined {
   if (result.status !== 0) {
     return undefined;
   }
+  return splitNullSeparatedPaths(result.stdout);
+}
+
+function splitNullSeparatedPaths(output: string): string[] {
   const paths: string[] = [];
-  for (const path of result.stdout.split("\0")) {
+  for (const path of output.split("\0")) {
     if (path !== "") {
       paths.push(path);
     }
@@ -97,16 +112,20 @@ function collectWorkingTreeFiles(projectFolder: Path, relativePaths: string[]): 
     if (isExcluded) {
       continue;
     }
-    const stats = statSync(join(projectFolder.toString(), relativePath), { throwIfNoEntry: false });
-    if (stats === undefined) {
-      continue;
-    }
-    const isFile = stats.isFile();
-    if (isFile) {
-      found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, ...readCreatedState(stats) });
-    }
+    collectWorkingTreeFile(projectFolder, relativePath, found);
   }
   return found;
+}
+
+function collectWorkingTreeFile(projectFolder: Path, relativePath: string, found: DiskFileState[]): void {
+  const stats = statSync(join(projectFolder.toString(), relativePath), { throwIfNoEntry: false });
+  if (stats === undefined) {
+    return;
+  }
+  const isFile = stats.isFile();
+  if (isFile) {
+    found.push({ relativePath: new Path(relativePath), mtime: stats.mtime, ...readCreatedState(stats) });
+  }
 }
 
 function compareByRelativePath(left: DiskFileState, right: DiskFileState): number {

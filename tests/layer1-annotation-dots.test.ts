@@ -6,6 +6,8 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { Placement } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
+import { resetMarkerToStart, moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
+import { EngineV3StepKind } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 
 initLayer1Dom();
 const { buildNode, buildSessionLine, readDotPopup, STAMPLESS_NOTE } = await import("../webapp/layer1-components/session-column/layer1-annotation-dots.ts");
@@ -51,6 +53,15 @@ test("test_the_popup_reader_returns_title_and_label_and_adds_the_stampless_note"
     assert.equal(plain.backgroundColor, LOOK.color);
     const stampless = readDotPopup(buildNode(buildPlacement("b", 30, { isStampless: true }), LOOK))!;
     assert.deepEqual(stampless.lines, ["session one", "label b", STAMPLESS_NOTE]);
+});
+
+test("test_the_dot_at_the_engine_v3_marker_gets_the_current_node_class", () => {
+    // Steps: mark node a, build dots for a and b, expect only a marked.
+    storeEngineV3Steps([{ nodeId: "a", nodeTime: "2026-06-01T10:00:00Z", kind: EngineV3StepKind.edit, filesChanged: [], sentence: "x" }]);
+    moveMarkerForward();
+    assert.ok(buildNode(buildPlacement("a", 30), LOOK).classList.contains("current-node"));
+    assert.equal(buildNode(buildPlacement("b", 30), LOOK).classList.contains("current-node"), false);
+    resetMarkerToStart();
 });
 
 test("test_the_popup_reader_ignores_a_target_that_is_not_a_dot", () => {

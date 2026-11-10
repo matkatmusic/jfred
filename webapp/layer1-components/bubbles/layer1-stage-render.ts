@@ -2,6 +2,7 @@
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { renderAnnotationTrack } from "../session-column/layer1-annotation-track.ts";
+import { renderEngineV3LineAtTicks } from "../engine-v3/layer1-engine-v3-line.ts";
 import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-diff-wash.ts";
 import { repaintCutMarks } from "../commits-column/layer1-cut-paint.ts";
 import { renderJfredStrip } from "../commits-column/layer1-jfred-strip.ts";
@@ -93,6 +94,7 @@ function renderStageOverlays(view: WireLayer1View, stage: HTMLElement): void {
   renderNavWash(view, readNavTargets());
   repaintDiffWash(view.ruler);
   renderAnnotationTrack(view.ruler);
+  renderEngineV3LineAtTicks(view.ruler);
   renderJfredStrip(view.ruler);
   repaintCutMarks();
   renderLayer1Minimap();
