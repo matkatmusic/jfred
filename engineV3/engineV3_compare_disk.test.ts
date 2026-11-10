@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
-import { compareStateToDisk } from "./engineV3_compare_disk.ts";
+import { chooseDiskFolder, compareStateToDisk } from "./engineV3_compare_disk.ts";
 
 type Folders = { stateFolder: string; diskFolder: string; touchedFile: string };
 
@@ -90,4 +90,21 @@ test("test_compareStateToDisk_counts_a_file_in_neither_folder_as_same", (t) => {
     const folders = makeFolders(t, ["a.txt"]);
     const lines = compareFolders(folders);
     assert.deepEqual(lines, [`check vs disk ${folders.diskFolder}: 0 missing, 0 extra, 0 different, 1 same`]);
+});
+
+test("test_chooseDiskFolder_picks_the_highest_step_folder", (t) => {
+    // Scenario: the scenario folder holds step-002, step-010 and step-009, so step-010 is the last step.
+    const scenarioFolder = makeTempFolder(t, "engine-v3-disk-scenario-");
+    for (const stepName of ["step-002", "step-010", "step-009"]) {
+        writeFileIn(scenarioFolder, `.step_states/${stepName}/manifest.json`, "{}");
+    }
+    const chosen = chooseDiskFolder(new Path(scenarioFolder));
+    assert.equal(chosen.toString(), join(scenarioFolder, ".step_states", "step-010"));
+});
+
+test("test_chooseDiskFolder_keeps_the_scenario_folder_without_step_states", (t) => {
+    // Scenario: the scenario folder has no .step_states folder, so the scenario folder is the disk.
+    const scenarioFolder = makeTempFolder(t, "engine-v3-disk-scenario-");
+    const chosen = chooseDiskFolder(new Path(scenarioFolder));
+    assert.equal(chosen.toString(), scenarioFolder);
 });

@@ -1,6 +1,6 @@
 // Mac side: compares the replayed state folder with the disk for touched paths. Only reads.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Path } from "../src/structures/domain.ts";
@@ -24,6 +24,20 @@ function readTouchedPaths(touchedFile: Path): string[] {
     }
   }
   return paths;
+}
+
+export function chooseDiskFolder(scenarioFolder: Path): Path {
+  const stepStatesFolder = join(scenarioFolder.toString(), ".step_states");
+  if (existsSync(stepStatesFolder) === false) {
+    return scenarioFolder;
+  }
+  const stepNames = readdirSync(stepStatesFolder).filter((name) => /^step-\d+$/.test(name));
+  stepNames.sort((first, second) => Number(first.slice("step-".length)) - Number(second.slice("step-".length)));
+  const lastStepName = stepNames[stepNames.length - 1];
+  if (lastStepName === undefined) {
+    throw new Error(`no step-NNN folder in ${stepStatesFolder}`);
+  }
+  return new Path(join(stepStatesFolder, lastStepName));
 }
 
 export function compareStateToDisk(state: Path, disk: Path, touchedFile: Path): string[] {
@@ -79,7 +93,7 @@ const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
   const argumentList = process.argv.slice(2);
   const state = new Path(readRequiredFlag(argumentList, "--state"));
-  const disk = new Path(readRequiredFlag(argumentList, "--disk"));
+  const disk = chooseDiskFolder(new Path(readRequiredFlag(argumentList, "--disk")));
   const touchedFile = new Path(readRequiredFlag(argumentList, "--touched"));
   for (const line of compareStateToDisk(state, disk, touchedFile)) {
     console.log(line);
