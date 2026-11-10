@@ -1,6 +1,6 @@
 // Copies of the engineV3.ts apply functions that write the state folder on disk.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getBeaconSnippet, getUserEditEvent, type BeaconSnippet } from "../src/reconstruction_user_edit.ts";
@@ -18,7 +18,9 @@ import { executeScriptInState, type ScriptReplayContext } from "./engineV3_repla
 import { getReplayRoot } from "./engineV3_replay_root.ts";
 import { assertSnapshotBackupsMatchState } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
-import { removePendingWrite, addPendingWrite } from "./engineV3_replay_pending_writes.ts";
+import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
+import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
+import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -125,11 +127,63 @@ function applyPartialEditToState(state: Path, line: JSONLLine): Path {
   return state;
 }
 
+// The result's originalFile is the real file text just before the call, so a difference from the replayed file is a user hand edit.
+function learnHandEditFromResult(state: Path, resultLine: JSONLLine): void {
+  const file = findWrittenFile(state, resultLine);
+  if (file === undefined) {
+    return;
+  }
+  const originalFile = findResultOriginalFile(state, resultLine);
+  if (originalFile === null) {
+    return;
+  }
+  const originalBytes = Buffer.from(originalFile, "utf8");
+  if (existsSync(file)) {
+    if (readFileSync(file).equals(originalBytes)) {
+      return;
+    }
+  }
+  const source = getRecordSource(resultLine) as RecordSource;
+  console.log(`learned hand edit: ${file} from originalFile at JSONL line: ${source.filePath}:${source.lineNumber}`);
+  const root = getReplayRoot(state, new Path(file));
+  const relativePath = getRepoRelativePath(root, new Path(file));
+  writeFileIntoState(root, relativePath, originalBytes);
+}
+
+// A snapshot can sit before the call line; its messageId is the call's message, and the results of that message have that message as parent.
+function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: ScriptReplayContext): void {
+  const snapshotMessage = getFileHistorySnapshot(line);
+  if (snapshotMessage === undefined) {
+    throw new Error("learnHandEditsForSnapshot: the line is not a file-history snapshot");
+  }
+  const learnedFiles = new Set<string>();
+  for (const resultLine of context.writeEditResultLines.values()) {
+    if (resultLine.parentUuid?.toString() !== snapshotMessage.messageId.toString()) {
+      continue;
+    }
+    const file = findWrittenFile(state, resultLine);
+    if (file === undefined) {
+      continue;
+    }
+    // Only the first result per file: a later result's originalFile includes the earlier write.
+    if (learnedFiles.has(file)) {
+      continue;
+    }
+    learnedFiles.add(file);
+    // A pending write was applied early, so the file already holds the write.
+    if (findPendingBeforeContent(file) !== undefined) {
+      continue;
+    }
+    learnHandEditFromResult(state, resultLine);
+  }
+}
+
 // The state folder has the Mac repo path, so it is the path base for lines.
 export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[], context: ScriptReplayContext): Path {
   for (const callId of listWriteEditCallIds(line)) {
     const resultLine = context.writeEditResultLines.get(callId);
     if (resultLine !== undefined) {
+      learnHandEditFromResult(state, resultLine);
       addPendingWrite(state, resultLine);
       applyLineByKind(state, resultLine, context);
     }
@@ -150,7 +204,10 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
     case JSONLLineKind.WriteUpdate: return applyWriteCreateToState(state, line);
     case JSONLLineKind.EditPartial: return applyPartialEditToState(state, line);
     // case JSONLLineKind.Snapshot: throw new Error("snapshot lines with backups are not supported yet");
-    case JSONLLineKind.Snapshot: return assertSnapshotBackupsMatchState(state, line, context);
+    case JSONLLineKind.Snapshot: {
+      learnHandEditsForSnapshot(state, line, context);
+      return assertSnapshotBackupsMatchState(state, line, context);
+    }
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
     case JSONLLineKind.Script: return executeScriptInState(state, line, context);
     case JSONLLineKind.UserEdit: return applyUserEditToState(state, line);
