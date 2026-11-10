@@ -96,7 +96,8 @@ function getRunCwd(run: ScriptRun): Path {
 
 // A python ctx_execute run starts in its own empty temp folder (the traceback shows .ctx-mode-XXXX/script.py), not in the project folder.
 function getScriptCwd(run: ScriptRun): string {
-  if (isPythonCtxExecuteRun(run)) {
+  // if (isPythonCtxExecuteRun(run)) {
+  if (isPythonCtxExecuteRun(run) && run.hasInputCwd !== true) {
     return mkdtempSync(join(tmpdir(), ".ctx-mode-"));
   }
   const cwd = getRunCwd(run).toString();
