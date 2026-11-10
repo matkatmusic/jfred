@@ -145,7 +145,7 @@ function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: 
 }
 
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
-export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
+function readMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   const recordLists: JSONLLine[][] = [];
   const unknownFields: UnknownField[] = [];
   const seenFieldIds = new Set<string>();
@@ -160,6 +160,19 @@ export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
   printUnknownFields(unknownFields);
   printUnknownRecordTypes(unknownRecordTypes);
   return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
+}
+
+// A big project takes minutes to read, and the replay asks for the same folders twice.
+const mergedLinesByFolders = new Map<string, MergedJSONLLines>();
+export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
+  const foldersKey = JSON.stringify(jsonlFolders);
+  const memoizedLines = mergedLinesByFolders.get(foldersKey);
+  if (memoizedLines !== undefined) {
+    return memoizedLines;
+  }
+  const mergedLines = readMergedJSONLLines(jsonlFolders);
+  mergedLinesByFolders.set(foldersKey, mergedLines);
+  return mergedLines;
 }
 
 // The earliest timestamp of any line; the replay start point is read at this time.
