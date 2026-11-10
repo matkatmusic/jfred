@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3_replay_settings.ts";
-import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
+import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
@@ -132,7 +132,13 @@ function createScriptReplayContext(settings: ReplaySettings): ScriptReplayContex
   const bashCallResults = collectBashCallResults(jsonlLines);
   const writeEditResultLines = collectWriteEditResultLines(jsonlLines);
   const forkedMessageIds = collectForkedMessageIds(jsonlLines);
-  return { bashCallResults, writeEditResultLines, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds };
+  const linesByUuid = new Map<string, JSONLLine>();
+  for (const jsonlLine of jsonlLines) {
+    if (jsonlLine.uuid !== undefined) {
+      linesByUuid.set(jsonlLine.uuid.toString(), jsonlLine);
+    }
+  }
+  return { bashCallResults, writeEditResultLines, linesByUuid, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);

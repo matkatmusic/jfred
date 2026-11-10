@@ -21,6 +21,7 @@ import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_repla
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
+import { RecordType } from "../src/structures/vocabulary.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -72,10 +73,28 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
     writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
     return state;
   }
+  const truncatedLineCount = getTruncatedLineCount(event.content);
+  if (truncatedLineCount !== undefined) {
+    const shownLines = snippet.lines.map((snippetLine) => snippetLine.text);
+    const oldLinesInTruncatedTail = splitLines(oldText).slice(-truncatedLineCount);
+    const truncatedText = [...shownLines, ...oldLinesInTruncatedTail].join("\n");
+    writeFileIntoState(root, relativePath, Buffer.from(truncatedText + trailingNewline, "utf8"));
+    return state;
+  }
   const oldLinesAfterWindow = listOldLinesAfterWindow(splitLines(oldText), snippet);
   const newText = [event.content, ...oldLinesAfterWindow].join("\n");
   writeFileIntoState(root, relativePath, Buffer.from(newText + trailingNewline, "utf8"));
   return state;
+}
+
+// The harness cuts a long snippet after its first lines and ends it with "... [N lines truncated] ...": the last N file lines are not shown.
+const TRUNCATED_MARKER = /\n\.\.\. \[(\d+) lines? truncated\] \.\.\.$/;
+function getTruncatedLineCount(snippetContent: string): number | undefined {
+  const match = snippetContent.match(TRUNCATED_MARKER);
+  if (match === null) {
+    return undefined;
+  }
+  return Number(match[1]);
 }
 
 // The harness shows a changed hunk plus 8 lines of context after it, so a snippet from line 1 may stop before the file ends.
@@ -186,6 +205,29 @@ function learnHandEditFromResult(state: Path, resultLine: JSONLLine): void {
   writeFileIntoState(root, relativePath, originalBytes);
 }
 
+// A prompt's snapshot message can reach the first call message of its turn only through attachment lines.
+function isResultInSnapshotTurn(resultLine: JSONLLine, snapshotMessageId: string, context: ScriptReplayContext): boolean {
+  if (resultLine.parentUuid?.toString() === snapshotMessageId) {
+    return true;
+  }
+  if (resultLine.parentUuid == null || context.linesByUuid === undefined) {
+    return false;
+  }
+  const callLine = context.linesByUuid.get(resultLine.parentUuid.toString());
+  let ancestorUuid = callLine?.parentUuid?.toString();
+  while (ancestorUuid !== undefined) {
+    if (ancestorUuid === snapshotMessageId) {
+      return true;
+    }
+    const ancestorLine = context.linesByUuid.get(ancestorUuid);
+    if (ancestorLine?.type !== RecordType.attachment) {
+      return false;
+    }
+    ancestorUuid = ancestorLine.parentUuid?.toString();
+  }
+  return false;
+}
+
 // A snapshot can sit before the call line; its messageId is the call's message, and the results of that message have that message as parent.
 function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: ScriptReplayContext): void {
   const snapshotMessage = getFileHistorySnapshot(line);
@@ -194,7 +236,7 @@ function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: Script
   }
   const learnedFiles = new Set<string>();
   for (const resultLine of context.writeEditResultLines.values()) {
-    if (resultLine.parentUuid?.toString() !== snapshotMessage.messageId.toString()) {
+    if (!isResultInSnapshotTurn(resultLine, snapshotMessage.messageId.toString(), context)) {
       continue;
     }
     const file = findWrittenFile(state, resultLine);
