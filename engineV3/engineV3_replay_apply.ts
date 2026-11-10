@@ -182,14 +182,20 @@ function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   }
   const lastWindow = snippet.lines.slice(lastWindowStart);
   const isLastWindowUnchanged = lastWindow.every(({ lineNo, text }) => fileLines[lineNo - 1] === text);
-  // A snippet that is one single window (s38) may end on trailing context with the file going on, so only a window after a gap can mark the file end.
-  const hasWindowBeforeLastWindow = lastWindowStart > 0;
-  if (hasWindowBeforeLastWindow) {
+  // A window with a changed line is longer than the 8 context lines; only a window of exactly 8 lines is pure context before deleted end lines.
+  const isLastWindowContextOnly = lastWindow.length === TRAILING_CONTEXT_LINE_COUNT;
+  if (isLastWindowContextOnly) {
     if (isLastWindowUnchanged) {
       fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
     }
   }
-  // replaced by hasWindowBeforeLastWindow: a single window ending on trailing context cut s38's file tail
+  // replaced by isLastWindowContextOnly: windows with a changed line (s38, s32, s35) end on trailing context and the file goes on
+  // const hasWindowBeforeLastWindow = lastWindowStart > 0;
+  // if (hasWindowBeforeLastWindow) {
+  //   if (isLastWindowUnchanged) {
+  //     fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  //   }
+  // }
   // if (isLastWindowUnchanged) {
   //   fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
   // }
