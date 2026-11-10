@@ -275,6 +275,25 @@ test("test_getJSONLLineKind_is_Skip_for_a_read_result", (t) => {
     assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
 });
 
+function makeUserEditRecord(absolutePath: string): JSONLLine {
+    const attachment = { type: "edited_text_file", filename: absolutePath, snippet: "1\t# user was here" };
+    return { type: RecordType.attachment, uuid: new Uuid("741f9817-9a3d-4275-936a-3d6b5a9d409e"), timestamp: new Date("2026-06-27T16:10:24.962Z"), attachment };
+}
+
+test("test_getJSONLLineKind_returns_UserEdit_for_an_edited_text_file_inside_the_repo", (t) => {
+    // Scenario: an edited_text_file attachment whose file is in the repo has the UserEdit kind.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeUserEditRecord(join(repo.toString(), "a.txt"));
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.UserEdit);
+});
+
+test("test_getJSONLLineKind_returns_Skip_for_an_edited_text_file_outside_the_repo", (t) => {
+    // Scenario: an edited_text_file attachment whose file is outside the repo has the Skip kind.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeUserEditRecord(join(repo.toString(), "..", "elsewhere.txt"));
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+});
+
 test("test_getJSONLLineKind_is_Skip_for_a_path_outside_the_repo", (t) => {
     // Scenario: a Write create whose file is outside the repo has the Skip kind.
     const { repo } = makeThreeCommitRepo(t);

@@ -1,13 +1,18 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
-import { formatEventText } from "./engineV3_replay.ts";
+import { executeReplay, formatEventText } from "./engineV3_replay.ts";
+import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
+import { collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
+import { createStartState } from "./engineV3_replay_no_git.ts";
 import { PlateEventName } from "./engineV3_replay_plate.ts";
 import { getNextEvent } from "./engineV3_replay_timeline.ts";
 
@@ -87,4 +92,44 @@ test("test_formatEventText_prints_the_capture_file_name_event_name_and_cwd_of_a_
     const event: TimelineEvent = { type: TimelineEventKind.PlateCapture, capture, timestamp: 0 };
     t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
     assert.equal(formatEventText(event, new Path("/r")), `${FIXED_NOW_ISO} next event: plate capture: 1_2.json SubagentStop /m/proj`);
+});
+
+const S5_SCENARIO_FOLDER = join(dirname(fileURLToPath(import.meta.url)), "..", "scenarios", "executed", "s5-bash-redirect");
+const S5_FILE_HISTORY_FOLDER = join(dirname(fileURLToPath(import.meta.url)), "..", "scenarios", "file-history");
+const S5_SESSION_ID = "1efc63be-c793-4f89-8401-e1c717f3d6e9";
+const S5_RECORDED_CWD = "/private/var/folders/fy/wg2tzrv957sg2vqjcvdkdzvm0000gn/T/run-scenario.xbhhfeky";
+// Line 33 is the Write call that creates s5_redirect.txt
+const S5_WRITE_LINE_NUMBER = 33;
+
+function makeRealTempFolder(t: TestContext, prefix: string): string {
+    const folder = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+    t.after(() => rmSync(folder, { recursive: true, force: true }));
+    return folder;
+}
+
+test("test_executeReplay_stops_before_the_given_line_and_writes_that_line_to_the_next_line_file", (t) => {
+    // Scenario: replaying s5 with a stop before line 33 leaves the earlier file in place, never runs line 33, and saves line 33.
+    // write the s5 JSONL into a temp folder, and make the state with the conftest.py start file (the "a" file)
+    const stateFolder = makeRealTempFolder(t, "stop-before-state-");
+    const jsonlFolder = makeRealTempFolder(t, "stop-before-jsonl-");
+    const jsonlFile = join(jsonlFolder, `${S5_SESSION_ID}.jsonl`);
+    const jsonlText = readFileSync(join(S5_SCENARIO_FOLDER, `${S5_SESSION_ID}.jsonl`), "utf8").split(S5_RECORDED_CWD).join(stateFolder);
+    writeFileSync(jsonlFile, jsonlText);
+    const startFolder = makeRealTempFolder(t, "stop-before-start-");
+    mkdirSync(join(startFolder, "tests"));
+    cpSync(join(S5_SCENARIO_FOLDER, "tests", "conftest.py"), join(startFolder, "tests", "conftest.py"));
+    createStartState(undefined, new Path(startFolder), new Path(stateFolder));
+    const nextLineFile = join(makeRealTempFolder(t, "stop-before-out-"), "next-line.json");
+    // replay with a stop before line 33, the Write that creates s5_redirect.txt (the "b" file)
+    const lines = loadMergedJSONLLines([jsonlFolder]).jsonlLines;
+    const context = { bashCallResults: collectBashCallResults(lines), writeEditResultLines: collectWriteEditResultLines(lines), sourceRepo: undefined, fileHistoryPath: new Path(S5_FILE_HISTORY_FOLDER) };
+    const stopBefore = { line: { filePath: jsonlFile, lineNumber: S5_WRITE_LINE_NUMBER }, nextLineFile: new Path(nextLineFile) };
+    // the replay throws, the "a" file exists, and the "b" file does not
+    assert.throws(() => executeReplay(new Path(stateFolder), undefined, [new Path(jsonlFolder)], [], context, undefined, stopBefore), /stopped before/);
+    assert.equal(existsSync(join(stateFolder, "tests", "conftest.py")), true);
+    assert.equal(existsSync(join(stateFolder, "s5_redirect.txt")), false);
+    // the next line file holds line 33 (1-based) of the JSONL, which is the Write of s5_redirect.txt
+    const rawLine = jsonlText.split("\n")[S5_WRITE_LINE_NUMBER - 1]!;
+    assert.match(rawLine, /s5_redirect\.txt/);
+    assert.deepEqual(JSON.parse(readFileSync(nextLineFile, "utf8")), JSON.parse(rawLine));
 });

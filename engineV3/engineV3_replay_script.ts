@@ -6,11 +6,11 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
-import { assertHeadMatchesLog, getGitEnvForCall, getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
-import { fillMissingBunLockfile } from "./engineV3_replay_script_lockfile.ts";
+import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
+import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path; macPlatePath?: Path; jotPath?: Path };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path };
 
 const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
@@ -67,12 +67,12 @@ function getRunCwd(run: ScriptRun): Path {
 function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
   const cwd = getRunCwd(run).toString();
   mkdirSync(cwd, { recursive: true });
-  const gitEnv = getGitEnvForCall(run.code, result, context.sourceRepo);
+  const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   const spawned = spawnSync("zsh", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
-  assertHeadMatchesLog(run.code, result, context.sourceRepo, state, spawned);
+  assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
 
 function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayContext): void {
@@ -85,10 +85,10 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     return;
   }
   if (isMacOnlyCommand(run.code)) {
-    fillMacOnlyFiles(state, toolUseId, context.sourceRepo);
+    fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
     return;
   }
-  fillMissingBunLockfile(state, run, context.sourceRepo);
+  fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
   executeScriptCommand(state, run, result, context);
 }
 

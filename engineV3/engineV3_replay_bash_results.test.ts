@@ -68,6 +68,11 @@ test("test_isNeverRanResult_is_true_for_an_error_that_starts_with_a_listed_prefi
     assert.equal(isNeverRanResult(makeResult(true, "<tool_use_error>Blocked: x")), true);
 });
 
+test("test_isNeverRanResult_is_true_for_a_pyenv_python_command_not_found_error", () => {
+    const resultText = "Exit code 127\npyenv: python: command not found\n\nThe `python' command exists in these Python versions:\n  3.14.3";
+    assert.equal(isNeverRanResult(makeResult(true, resultText)), true);
+});
+
 test("test_isNeverRanResult_is_false_when_the_result_is_not_an_error", () => {
     assert.equal(isNeverRanResult(makeResult(false, "PreToolUse:Bash hook error: nope")), false);
 });

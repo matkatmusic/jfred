@@ -53,8 +53,8 @@ export function readHeadCommit(repoPath: Path): CommitHash {
 //   return createCommitEventsInTimeOrder(repoPath, [...commits, ...reflogOnlyCommits]);
 // }
 
-function createOutsideGitEvents(repoPath: Path, lines: JSONLLine[]): TimelineEvent[] {
-  const rows = listOutsideGitRows(repoPath, collectBashCallResults(lines), START_SECONDS);
+function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
+  const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), START_SECONDS);
   const events: TimelineEvent[] = [];
   for (const row of rows) {
     events.push({ type: TimelineEventKind.OutsideGitAction, row, timestamp: row.seconds * 1000 });
@@ -108,7 +108,7 @@ function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEv
   }
 }
 
-function createTimeline(key: string, repoPath: Path, jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
+function createTimeline(key: string, repoPath: Path | undefined,jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
   const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
   // const commitEvents = createCommitEvents(repoPath);
   const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
@@ -121,8 +121,8 @@ function createTimeline(key: string, repoPath: Path, jsonlsPaths: Path[], macPla
   return { key, events, indexByEvent };
 }
 
-function getTimeline(repoPath: Path, jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
-  const key = JSON.stringify([repoPath.toString(), convertToPathTexts(jsonlsPaths), macPlatePath?.toString()]);
+function getTimeline(repoPath: Path | undefined, jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
+  const key = JSON.stringify([repoPath?.toString(),convertToPathTexts(jsonlsPaths), macPlatePath?.toString()]);
   if (timelineMemo !== undefined) {
     if (timelineMemo.key === key) {
       return timelineMemo;
@@ -132,7 +132,7 @@ function getTimeline(repoPath: Path, jsonlsPaths: Path[], macPlatePath: Path | u
   return timelineMemo;
 }
 
-export function getNextEvent(repoPath: Path, jsonlsPaths: Path[], lastEvent: TimelineEvent | null, macPlatePath?: Path): TimelineEvent | typeof TERMINAL_EVENT {
+export function getNextEvent(repoPath: Path | undefined,jsonlsPaths: Path[], lastEvent: TimelineEvent | null, macPlatePath?: Path): TimelineEvent | typeof TERMINAL_EVENT {
   const timeline = getTimeline(repoPath, jsonlsPaths, macPlatePath);
   let nextIndex = 0;
   if (lastEvent !== null) {

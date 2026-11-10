@@ -15,6 +15,7 @@ const NEVER_RAN_PREFIXES = [
   "Permission for this action was denied by the Claude Code auto mode classifier",
   "This agent is isolated in the worktree",
   "<tool_use_error>Blocked",
+  "Exit code 127\npyenv: python: command not found",
 ];
 
 function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string, BashCallStart>): void {

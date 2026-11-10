@@ -16,6 +16,8 @@ import { isHunkMatchingBase, applyHunksToLines } from "../src/layer1_edit_hunks.
 import { findWorktreeAgentId } from "./engineV3_replay_worktree.ts";
 import { findScriptRun } from "./engineV3_replay_script.ts";
 import { findReplayRoot } from "./engineV3_replay_root.ts";
+import { getUserEditEvent } from "../src/reconstruction_user_edit.ts";
+import type { UserEditEvent } from "../src/reconstruction_events.ts";
 import type { OutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import type { PlateRun } from "./engineV3_replay_plate.ts";
 
@@ -159,6 +161,7 @@ export enum JSONLLineKind {
   Snapshot = "Snapshot",
   WorktreeAdd = "WorktreeAdd",
   Script = "Script",
+  UserEdit = "UserEdit",
   Skip = "Skip",
 }
 
@@ -290,9 +293,21 @@ function getToolResultLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
   return getToolResultKind(raw, repo);
 }
 
+function getUserEditKind(event: UserEditEvent, repo: Path): JSONLLineKind {
+  const isInRepo = findReplayRoot(repo, event.target) !== undefined;
+  if (!isInRepo) {
+    return JSONLLineKind.Skip;
+  }
+  return JSONLLineKind.UserEdit;
+}
+
 export function getJSONLLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
   if (line.type === RecordType.fileHistorySnapshot) {
     return getSnapshotKind(line);
+  }
+  const userEditEvent = getUserEditEvent(line);
+  if (userEditEvent !== undefined) {
+    return getUserEditKind(userEditEvent, repo);
   }
   const worktreeAgentId = findWorktreeAgentId(line);
   if (worktreeAgentId !== undefined) {

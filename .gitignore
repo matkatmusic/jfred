@@ -163,3 +163,5 @@ scripts/visual/out/
 **/.DS_Store
 plans/tackle-metrics.jsonl
 .claude_hooks/
+engineV3/engineV3_run.txt
+engineV3/stopped/

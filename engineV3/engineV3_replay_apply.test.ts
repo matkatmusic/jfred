@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import type { JSONLLine } from "./engineV3.ts";
 import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 
@@ -65,6 +66,40 @@ test("test_applyJSONLLineToState_adds_the_final_newline_when_a_marker_follows_a_
     const text = readAppliedEditText(t, "A\nX", ["-X", "\\ No newline at end of file", "+X", "+Z"], 2);
     // the new file ends with Z and a newline
     assert.equal(text, "A\nX\nZ\n");
+});
+
+function makeUserEditLine(t: TestContext, stateFolder: string, fileName: string): JSONLLine {
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const snippet = "1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
+    const attachment = { type: "edited_text_file", filename: join(stateFolder, fileName), snippet };
+    const record = { type: "attachment", uuid: "741f9817-9a3d-4275-936a-3d6b5a9d409e", timestamp: "2026-06-27T16:10:24.962Z", attachment };
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify(record) + "\n");
+    return loadMergedJSONLLines([jsonlFolder]).jsonlLines[0]!;
+}
+
+const USER_EDIT_CONTENT = "# user was here\ndef greet(name):\n    return \"Hello, \" + name";
+
+test("test_applyJSONLLineToState_user_edit_keeps_the_final_newline_the_old_file_had", (t) => {
+    // Scenario: the old file ends with a newline, so the hand-edited file ends with a newline.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "old text\n");
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py"), [], NO_SCRIPT_CONTEXT);
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT + "\n");
+});
+
+test("test_applyJSONLLineToState_user_edit_keeps_a_missing_final_newline", (t) => {
+    // Scenario: the old file has no final newline, so the hand-edited file has none either.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "old text");
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py"), [], NO_SCRIPT_CONTEXT);
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT);
+});
+
+test("test_applyJSONLLineToState_user_edit_throws_when_the_file_is_missing_in_the_state", (t) => {
+    // Scenario: the state folder has no such file, so the hand edit throws and names the path.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const line = makeUserEditLine(t, stateFolder, "missing.py");
+    assert.throws(() => applyJSONLLineToState(new Path(stateFolder), line, [], NO_SCRIPT_CONTEXT), /missing\.py/);
 });
 
 test("test_applyCommitToState_writes_a_nested_file_into_the_state_folder", (t) => {

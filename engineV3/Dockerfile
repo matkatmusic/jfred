@@ -1,8 +1,10 @@
 FROM node:26-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 procps lsof parallel zsh \
+    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system safe.directory '*' \
+    && git config --system user.name "Matkat Music LLC" \
+    && git config --system user.email "matkatmusic@gmail.com" \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd
 # 85 files on the Mac are mode 600, so --chmod makes everything readable by all and not writable by group or others
 COPY --chmod=a+rX,go-w --from=playwrightcache / /Users/matkatmusicllc/Library/Caches/ms-playwright/

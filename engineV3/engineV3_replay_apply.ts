@@ -1,6 +1,9 @@
 // Copies of the engineV3.ts apply functions that write the state folder on disk.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
+import { getUserEditEvent } from "../src/reconstruction_user_edit.ts";
 import { convertToProjectRelativePath } from "../src/layer1_snapshot_wire.ts";
 import { convertEditResult, convertWriteResult } from "../src/structures/tool-result-shapes.ts";
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
@@ -12,7 +15,9 @@ import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_ne
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
+import { assertSnapshotBackupsMatchState } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
+import { removePendingWrite, addPendingWrite } from "./engineV3_replay_pending_writes.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -44,6 +49,20 @@ function applyEditToState(state: Path, line: JSONLLine): Path {
   const root = getReplayRoot(state, result.filePath);
   const relativePath = getRepoRelativePath(root, result.filePath);
   writeFileIntoState(root, relativePath, Buffer.from(result.newString, "utf8"));
+  return state;
+}
+
+// Keeps the file's old ending: the snippet has no final newline.
+function applyUserEditToState(state: Path, line: JSONLLine): Path {
+  const event = getUserEditEvent(line);
+  if (event === undefined) {
+    throw new Error("applyUserEditToState: line is not an edited_text_file attachment");
+  }
+  const root = getReplayRoot(state, event.target);
+  const relativePath = getRepoRelativePath(root, event.target);
+  const oldBytes = readFileSync(join(root.toString(), relativePath.toString()));
+  const trailingNewline = oldBytes.toString("utf8").endsWith("\n") ? "\n" : "";
+  writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
   return state;
 }
 
@@ -91,11 +110,13 @@ export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPath
   for (const callId of listWriteEditCallIds(line)) {
     const resultLine = context.writeEditResultLines.get(callId);
     if (resultLine !== undefined) {
+      addPendingWrite(state, resultLine);
       applyLineByKind(state, resultLine, context);
     }
   }
   const isAppliedResult = isAppliedWriteEditResult(line, context.writeEditResultLines);
   if (isAppliedResult) {
+    removePendingWrite(state, line);
     return state;
   }
   return applyLineByKind(state, line, context);
@@ -108,9 +129,11 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
     case JSONLLineKind.EditWholeFile: return applyEditToState(state, line);
     case JSONLLineKind.WriteUpdate: return applyWriteCreateToState(state, line);
     case JSONLLineKind.EditPartial: return applyPartialEditToState(state, line);
-    case JSONLLineKind.Snapshot: throw new Error("snapshot lines with backups are not supported yet");
+    // case JSONLLineKind.Snapshot: throw new Error("snapshot lines with backups are not supported yet");
+    case JSONLLineKind.Snapshot: return assertSnapshotBackupsMatchState(state, line, context);
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
     case JSONLLineKind.Script: return executeScriptInState(state, line, context);
+    case JSONLLineKind.UserEdit: return applyUserEditToState(state, line);
     case JSONLLineKind.Skip: return state;
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
   }

@@ -1,10 +1,10 @@
 // CLI (docker container only): node engineV3_replay.mjs --git-repo <path> --state <folder> --jsonl <folder> [--jsonl <folder> ...]
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Path } from "../src/structures/domain.ts";
-import { getRecordSource } from "../src/parse/loadTranscript.ts";
+import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3_replay_settings.ts";
 import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
@@ -15,16 +15,18 @@ import { collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { compareStateToHead } from "./engineV3_replay_check.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 // import { copyRepoIntoState,moveBranchesToCommitTime } from "./engineV3_replay_git.ts";
-import { createStartRepo } from "./engineV3_replay_git_start.ts";
-import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
+// import { createStartRepo } from "./engineV3_replay_git_start.ts";
+// import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
+import { createStartState, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { applyOutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import { executePlateRun } from "./engineV3_replay_plate_run.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
 import { writeTouchedPathsFile } from "./engineV3_replay_touched.ts";
+import { createSnapshotLoopIfRequested, writeSnapshotAfterEvent, type SnapshotLoop } from "./engineV3_replay_snapshot_loop.ts";
 
 const DOCKER_MARKER_FILE = "/.dockerenv";
 
-export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath: Path, jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext): Path {
+export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext): Path {
   if (event.type === TimelineEventKind.GitCommit) {
     // applyCommitToState(event.commit, state, repoPath);
     // moveBranchesToCommitTime(state, repoPath, event.commit);
@@ -32,7 +34,7 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
     throw new Error("doSomethingWithEvent: commit events are turned off");
   }
   if (event.type === TimelineEventKind.OutsideGitAction) {
-    applyOutsideGitRow(state, repoPath, event.row);
+    applyOutsideGitRow(state, getRequiredSourceRepo(repoPath), event.row);
     return state;
   }
   if (event.type === TimelineEventKind.PlateCapture) {
@@ -45,9 +47,9 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
   return applyJSONLLineToState(state, event.line, fileSnapshots, context);
 }
 
-export function formatEventText(event: TimelineEvent, repoPath: Path): string {
+export function formatEventText(event: TimelineEvent, repoPath: Path | undefined): string {
   if (event.type === TimelineEventKind.GitCommit) {
-    return `${new Date().toISOString()} next event: source:${repoPath.toString()} commit:${event.commit.toString()}`;
+    return `${new Date().toISOString()} next event: source:${repoPath?.toString()} commit:${event.commit.toString()}`;
   }
   if (event.type === TimelineEventKind.OutsideGitAction) {
     return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
@@ -62,15 +64,41 @@ export function formatEventText(event: TimelineEvent, repoPath: Path): string {
   return `${new Date().toISOString()} next event: source:${source.filePath} line:${source.lineNumber}`;
 }
 
-export function executeReplay(state: Path, repoPath: Path, jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext): Path {
+function writeNextLineFileAndStop(source: RecordSource, nextLineFile: Path): never {
+  const rawLine = readFileSync(source.filePath, "utf8").split("\n")[source.lineNumber - 1]!;
+  writeFileSync(nextLineFile.toString(), JSON.stringify(JSON.parse(rawLine), null, 2));
+  const stoppedText = `stopped before ${source.filePath}:${source.lineNumber}`;
+  console.log(stoppedText);
+  throw new Error(`executeReplay: ${stoppedText}`);
+}
+
+function logEventThenStopIfBeforeLine(event: TimelineEvent, eventText: string, stopBefore: { line: RecordSource; nextLineFile: Path } | undefined): void {
+  console.log(eventText);
+  if (stopBefore !== undefined) {
+    if (event.type === TimelineEventKind.JSONLLine) {
+      const source = getRecordSource(event.line);
+      if (source !== undefined) {
+        if (source.filePath === stopBefore.line.filePath) {
+          if (source.lineNumber === stopBefore.line.lineNumber) {
+            writeNextLineFileAndStop(source, stopBefore.nextLineFile);
+          }
+        }
+      }
+    }
+  }
+}
+
+export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }): Path {
   let lastEvent: TimelineEvent | null = null;
   while (true) {
     const event = getNextEvent(repoPath, jsonlsPaths, lastEvent, context.macPlatePath);
     if (event === TERMINAL_EVENT) {
       break;
     }
-    console.log(formatEventText(event, repoPath));
+    const eventText = formatEventText(event, repoPath);
+    logEventThenStopIfBeforeLine(event, eventText, stopBefore);
     state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
+    writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
     lastEvent = event;
   }
   return state;
@@ -102,7 +130,7 @@ function createScriptReplayContext(settings: ReplaySettings): ScriptReplayContex
   const jsonlLines = loadMergedJSONLLines(jsonlPathTexts).jsonlLines;
   const bashCallResults = collectBashCallResults(jsonlLines);
   const writeEditResultLines = collectWriteEditResultLines(jsonlLines);
-  return { bashCallResults, writeEditResultLines, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath };
+  return { bashCallResults, writeEditResultLines, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
@@ -110,12 +138,17 @@ if (isCliRun) {
   const settings = readReplaySettingsFromArguments(process.argv.slice(2));
   assertSafeToReplay(settings.state);
   // copyRepoIntoState(settings.repoPath, settings.state);
-  createStartRepo(settings.repoPath, settings.state);
-  writeUntrackedStartFiles(settings.state);
+  // createStartRepo(settings.repoPath, settings.state);
+  // writeUntrackedStartFiles(settings.state);
+  createStartState(settings.repoPath, settings.startFilesPath, settings.state);
+  const snapshotLoop = createSnapshotLoopIfRequested(settings.snapshotsPath, settings.state, settings.watchPaths);
   const context = createScriptReplayContext(settings);
-  executeReplay(settings.state, settings.repoPath, settings.jsonlsPaths, [], context);
-  for (const line of compareStateToHead(settings.state, settings.repoPath)) {
-    console.log(line);
+  const stopBefore = settings.stopBefore === undefined ? undefined : { line: settings.stopBefore, nextLineFile: new Path("/tmp/next-line.json") };
+  executeReplay(settings.state, settings.repoPath, settings.jsonlsPaths, [], context, snapshotLoop, stopBefore);
+  if (settings.repoPath !== undefined) {
+    for (const line of compareStateToHead(settings.state, settings.repoPath)) {
+      console.log(line);
+    }
   }
   writeTouchedPathsFile(settings.state, settings.touchedOutput);
 }
