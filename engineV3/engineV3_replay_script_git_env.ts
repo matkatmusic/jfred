@@ -19,6 +19,18 @@ function isGitCommand(command: string): boolean {
   return command.includes("git");
 }
 
+const READ_ONLY_GIT_VERBS = new Set(["status", "log", "diff", "show", "rev-parse", "ls-files", "reflog"]);
+const GIT_VERB_PATTERN = /\bgit\s+(?:-\S+\s+)*([a-z][a-z-]*)/g;
+
+// True when the command names git calls and every one of them only reads, so the HEAD log rows in its window came from someone else.
+function isOnlyReadOnlyGitCommand(command: string): boolean {
+  const verbs = [...command.matchAll(GIT_VERB_PATTERN)].map((match) => match[1] as string);
+  if (verbs.length === 0) {
+    return false;
+  }
+  return verbs.every((verb) => READ_ONLY_GIT_VERBS.has(verb));
+}
+
 function getWindowOfCall(result: BashCallResult): SecondsWindow {
   return { from: result.startMs / 1000 - WINDOW_PADDING_SECONDS, to: result.endMs / 1000 + WINDOW_PADDING_SECONDS };
 }
@@ -101,6 +113,9 @@ function createHeadMismatchMessage(command: string, expectedHash: string, actual
 
 export function assertHeadMatchesLog(command: string, result: BashCallResult, sourceRepo: Path, state: Path, output: SpawnOutput): void {
   if (!isGitCommand(command)) {
+    return;
+  }
+  if (isOnlyReadOnlyGitCommand(command)) {
     return;
   }
   const rows = listLogRowsInWindow(sourceRepo, getWindowOfCall(result));
