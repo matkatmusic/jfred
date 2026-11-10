@@ -53,16 +53,40 @@ echo "state folder: $STATE_FOLDER"
 
 if [ -n "$GIT_REPO_FOLDER" ]; then
     SEED_FOLDER="$(mktemp -d)"
-    # playground/package.json has no "workspaces" key in any commit, so no member package.json files are written
-    for LOCK_COMMIT in $(git -C "$GIT_REPO_FOLDER" log --all --format=%H -- playground/bun.lock); do
-        mkdir -p "$SEED_FOLDER/$LOCK_COMMIT"
-        git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:playground/package.json" > "$SEED_FOLDER/$LOCK_COMMIT/package.json"
-        git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:playground/bun.lock" > "$SEED_FOLDER/$LOCK_COMMIT/bun.lock"
-    done
-    docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
+    # Every bun.lock and package-lock.json in any commit goes into the image with its package.json, once per distinct content. No "workspaces" member package.json files are written.
+    SEEN_SEEDS=" "
+    LOCK_COMMIT=""
+    LOCK_LOG="$(git -C "$GIT_REPO_FOLDER" -c core.quotepath=false log --all --format='commit %H' --name-only --diff-filter=ACMR -- '*bun.lock' '*package-lock.json')"
+    while IFS= read -r LOG_LINE; do
+        case "$LOG_LINE" in
+            "commit "*) LOCK_COMMIT="${LOG_LINE#commit }" ;;
+            *node_modules*) ;;
+            bun.lock | */bun.lock | package-lock.json | */package-lock.json)
+                LOCK_FOLDER="$(dirname "$LOG_LINE")"
+                if [ "$LOCK_FOLDER" = "." ]; then
+                    PACKAGE_JSON_PATH="package.json"
+                else
+                    PACKAGE_JSON_PATH="$LOCK_FOLDER/package.json"
+                fi
+                SEED_ID="$(git -C "$GIT_REPO_FOLDER" rev-parse "$LOCK_COMMIT:$LOG_LINE")-$(git -C "$GIT_REPO_FOLDER" rev-parse "$LOCK_COMMIT:$PACKAGE_JSON_PATH")"
+                case "$SEEN_SEEDS" in
+                    *" $SEED_ID "*) ;;
+                    *)
+                        SEEN_SEEDS="$SEEN_SEEDS$SEED_ID "
+                        mkdir -p "$SEED_FOLDER/$SEED_ID"
+                        git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:$PACKAGE_JSON_PATH" > "$SEED_FOLDER/$SEED_ID/package.json"
+                        git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:$LOG_LINE" > "$SEED_FOLDER/$SEED_ID/$(basename "$LOG_LINE")"
+                        ;;
+                esac
+                ;;
+        esac
+    done <<EOF
+$LOCK_LOG
+EOF
+    docker build -t ${ENGINEV3_IMAGE_TAG:-engine-v3:1} --build-context packageseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
 else
-    if ! docker image inspect engine-v3:1 >/dev/null 2>&1; then
-        echo "image engine-v3:1 does not exist: run this script once with --git-repo to build it" >&2
+    if ! docker image inspect ${ENGINEV3_IMAGE_TAG:-engine-v3:1} >/dev/null 2>&1; then
+        echo "image ${ENGINEV3_IMAGE_TAG:-engine-v3:1} does not exist: run this script once with --git-repo to build it" >&2
         exit 1
     fi
 fi
@@ -70,12 +94,13 @@ fi
 NAME="engine-v3-$(date +%s)-$$"
 SNAPSHOT_VOLUME="${ENGINEV3_SNAPSHOT_VOLUME_PREFIX:-engineV3-snapshots}-$(basename "$PROJECT_FOLDER")"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
-docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sleep infinity
+docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
 
 docker exec "$NAME" mkdir -p /input/jfred "$STATE_FOLDER"
 docker exec "$NAME" chown replay "$STATE_FOLDER" /snapshots
-if [ -n "$GIT_REPO_FOLDER" ]; then
+CHECK_FOLDER=""
+if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
     CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
     docker exec "$NAME" mkdir -p "$CHECK_FOLDER"
     docker exec "$NAME" chown replay "$CHECK_FOLDER"
@@ -125,7 +150,7 @@ for JOT_FILE in common/scripts/plate/plate_capture_hook.py common/scripts/git_li
 done
 # The Mac plate captures, under /input/plate with the same absolute path as on the Mac. The engine reads /input/plate, so it always exists.
 docker exec "$NAME" mkdir -p /input/plate
-MAC_PLATE_CAPTURE_FOLDERS="$(fd -HI -t d --full-path '/\.plate/captures$' "$PROJECT_FOLDER")"
+MAC_PLATE_CAPTURE_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/\.plate/captures$' "$PROJECT_FOLDER")"
 while IFS= read -r CAPTURE_FOLDER; do
     if [ -n "$CAPTURE_FOLDER" ]; then
         CAPTURE_FOLDER="${CAPTURE_FOLDER%/}"
@@ -152,7 +177,10 @@ done
 
 ENGINE_FLAGS="--snapshots /snapshots"
 if [ -n "$GIT_REPO_FOLDER" ]; then
-    ENGINE_FLAGS="$ENGINE_FLAGS --git-repo /input/repo.git --watch $CHECK_FOLDER"
+    ENGINE_FLAGS="$ENGINE_FLAGS --git-repo /input/repo.git"
+    if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+        ENGINE_FLAGS="$ENGINE_FLAGS --watch $CHECK_FOLDER --playground-start-files"
+    fi
 else
     ENGINE_FLAGS="$ENGINE_FLAGS --start-files /input/start-files"
 fi
@@ -197,7 +225,7 @@ fi
 docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot $ENGINE_FLAGS "$@"
 
 echo "snapshot events / store size / blobs:"
-docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sh -c 'ls /snapshots/events | wc -l; du -sh /snapshots; ls /snapshots/blobs | wc -l'
+docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sh -c 'ls /snapshots/events | wc -l; du -sh /snapshots; ls /snapshots/blobs | wc -l'
 
 COMPARE_FOLDER="$(mktemp -d)"
 echo "compare folder: $COMPARE_FOLDER"

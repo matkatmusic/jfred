@@ -11,14 +11,23 @@ COPY --chmod=a+rX,go-w --from=playwrightcache / /Users/matkatmusicllc/Library/Ca
 COPY --from=oven/bun:1.4.3 /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
 RUN npm install -g tsx@4.23.1
+ENV NODE_OPTIONS=--max-old-space-size=10000
 ENV BUN_INSTALL_CACHE_DIR=/Users/matkatmusicllc/.bun/install/cache
-COPY --from=bunseed / /bunseed/
+ENV NPM_CONFIG_CACHE=/npm-cache
+COPY --from=packageseed / /packageseed/
 RUN set -e; \
-    for seedFolder in /bunseed/*/; do \
-        (cd "$seedFolder" && bun install --frozen-lockfile); \
+    for seedFolder in /packageseed/*/; do \
+        [ -d "$seedFolder" ] || continue; \
+        if [ -f "$seedFolder/bun.lock" ]; then \
+            (cd "$seedFolder" && bun install --frozen-lockfile); \
+        fi; \
+        if [ -f "$seedFolder/package-lock.json" ]; then \
+            (cd "$seedFolder" && npm ci); \
+        fi; \
     done; \
-    rm -rf /bunseed; \
-    chmod -R a+rX /Users/matkatmusicllc/.bun
+    rm -rf /packageseed; \
+    mkdir -p /Users/matkatmusicllc/.bun /npm-cache; \
+    chmod -R a+rX /Users/matkatmusicllc/.bun /npm-cache
 COPY --chmod=755 <<'MD5_SCRIPT' /usr/local/bin/md5
 #!/bin/sh
 exitStatus=0
