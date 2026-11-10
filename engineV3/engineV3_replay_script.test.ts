@@ -216,15 +216,67 @@ test("test_executeScriptInState_runs_the_call_with_zsh_so_echo_triple_equals_fai
   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));
 });
 
-test("test_getJSONLLineKind_is_Skip_for_a_ctx_execute_shell_run", (t) => {
-  // Scenario: a ctx_execute shell run has a language, so it is not the Bash tool and does not run.
+test("test_getJSONLLineKind_is_Script_for_a_ctx_execute_shell_run", (t) => {
+  // Scenario: a ctx_execute shell run moves files for real, so the replay runs it.
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the line holds one ctx_execute call with language shell
   const block = { type: "tool_use", id: "toolu_01Ctx", name: "mcp__plugin_context-mode_context-mode__ctx_execute", input: { language: "shell", code: "true" } };
   const line = loadLineWithBlocks(t, [block], state.toString());
+  // the line is a Script
+  assert.equal(getJSONLLineKind(line, state), JSONLLineKind.Script);
+});
+
+test("test_getJSONLLineKind_is_Skip_for_a_ctx_execute_javascript_run", (t) => {
+  // Scenario: only python and shell ctx_execute runs are replayed.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the line holds one ctx_execute call with language javascript
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxJs", "javascript", "1")], state.toString());
   // the line is Skip
   assert.equal(getJSONLLineKind(line, state), JSONLLineKind.Skip);
+});
+
+test("test_executeScriptInState_runs_a_ctx_execute_shell_run", (t) => {
+  // Scenario: the shell code renames a file inside the state folder.
+  // the state folder holds one.py
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  writeFileSync(join(state.toString(), "one.py"), "x");
+  // the line holds a ctx_execute shell call that renames one.py to core_one.py
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxSh", "shell", "mv one.py core_one.py")], state.toString());
+  // run the line
+  executeScriptInState(state, line, makeContext("toolu_01CtxSh"));
+  // core_one.py exists and one.py does not
+  assert.equal(existsSync(join(state.toString(), "core_one.py")), true);
+  assert.equal(existsSync(join(state.toString(), "one.py")), false);
+});
+
+function makeCtxExecuteBlock(id: string, language: string, code: string): object {
+  return { type: "tool_use", id, name: "mcp__plugin_context-mode_context-mode__ctx_execute", input: { language, code }, caller: { type: "direct" } };
+}
+
+test("test_getJSONLLineKind_is_Script_for_a_ctx_execute_python_run", (t) => {
+  // Scenario: a ctx_execute python run moves files for real, so the replay runs it.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the line holds one ctx_execute call with language python
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxPy", "python", "pass")], state.toString());
+  // the line is a Script
+  assert.equal(getJSONLLineKind(line, state), JSONLLineKind.Script);
+});
+
+test("test_executeScriptInState_runs_a_ctx_execute_python_run", (t) => {
+  // Scenario: the python code renames a file inside the state folder.
+  // the state folder holds one.py
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  writeFileSync(join(state.toString(), "one.py"), "x");
+  // the line holds a ctx_execute python call that renames one.py to core_one.py
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxPy", "python", "import shutil\nshutil.move('one.py', 'core_one.py')")], state.toString());
+  // run the line
+  executeScriptInState(state, line, makeContext("toolu_01CtxPy"));
+  // core_one.py exists and one.py does not
+  assert.equal(existsSync(join(state.toString(), "core_one.py")), true);
+  assert.equal(existsSync(join(state.toString(), "one.py")), false);
 });
 
 test("test_applyJSONLLineToState_runs_the_script_for_a_Script_line", (t) => {

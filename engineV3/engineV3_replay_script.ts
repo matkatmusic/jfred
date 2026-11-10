@@ -15,8 +15,9 @@ export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>
 const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
+const PYTHON_LANGUAGE = "python";
 
-// Only the Bash tool counts: a ctx_execute shell run has a language.
+// The Bash tool has no language; a ctx_execute shell run has one.
 function isBashToolRun(run: ScriptRun): boolean {
   if (run.executorKind !== ScriptExecutorKind.bash) {
     return false;
@@ -24,18 +25,45 @@ function isBashToolRun(run: ScriptRun): boolean {
   return run.language === undefined;
 }
 
-// Only an assistant line with Bash calls yields runs, so result and blob lines give none.
+function isShellCtxExecuteRun(run: ScriptRun): boolean {
+  if (run.executorKind !== ScriptExecutorKind.bash) {
+    return false;
+  }
+  return run.language !== undefined;
+}
+
+function isPythonCtxExecuteRun(run: ScriptRun): boolean {
+  return run.language === PYTHON_LANGUAGE;
+}
+
+function getInterpreter(run: ScriptRun): string {
+  if (isPythonCtxExecuteRun(run)) {
+    return "python";
+  }
+  if (isShellCtxExecuteRun(run)) {
+    return "bash";
+  }
+  return "zsh";
+}
+
+// Only an assistant line with Bash or python or shell ctx_execute calls yields runs, so result and blob lines give none.
 export function findScriptRun(line: JSONLLine): ScriptRun[] | undefined {
-  const bashRuns: ScriptRun[] = [];
+  const scriptRuns: ScriptRun[] = [];
   for (const run of listRunsInRecord(line)) {
     if (isBashToolRun(run)) {
-      bashRuns.push(run);
+      scriptRuns.push(run);
+    }
+    if (isShellCtxExecuteRun(run)) {
+      scriptRuns.push(run);
+    }
+    if (isPythonCtxExecuteRun(run)) {
+      scriptRuns.push(run);
     }
   }
-  if (bashRuns.length === 0) {
+  if (scriptRuns.length === 0) {
     return undefined;
   }
-  return bashRuns;
+  return scriptRuns;
 }
 
 function createFailureError(result: SpawnSyncReturns<string>, command: string): Error {
@@ -70,7 +98,7 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync("zsh", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
