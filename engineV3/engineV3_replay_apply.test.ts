@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -92,6 +92,46 @@ test("test_applyCommitToState_removes_a_deleted_file_from_the_state_folder", (t)
     applyCommitToState(new Uuid(deleteCommit), new Path(stateFolder), new Path(repoFolder));
     // the file is gone
     assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
+});
+
+// os.tmpdir() is under /var/folders on macOS, so the /tmp cases need a real folder under /tmp.
+function makeTmpRootFolder(t: TestContext): string {
+    const folder = mkdtempSync(join("/tmp", "engine-v3-replay-tmproot-"));
+    t.after(() => rmSync(folder, { recursive: true, force: true }));
+    return folder;
+}
+
+test("test_applyJSONLLineToState_writes_a_tmp_Write_create_to_the_absolute_tmp_path", (t) => {
+    // Scenario: a Write-create line for a file under /tmp writes that /tmp file, not a file in the state folder.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const tmpRootFolder = makeTmpRootFolder(t);
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(tmpRootFolder, "scratch/probe.ts", "from tmp", 15) + "\n");
+    // load the line the way the engine does
+    const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
+    // apply the line to the state folder
+    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    // the /tmp file exists with the written content
+    assert.equal(readFileSync(join(tmpRootFolder, "scratch/probe.ts"), "utf8"), "from tmp");
+    // the state folder stays empty
+    assert.equal(readdirSync(stateFolder).length, 0);
+});
+
+test("test_applyJSONLLineToState_writes_a_tmp_whole_file_Edit_to_the_absolute_tmp_path", (t) => {
+    // Scenario: a whole-file Edit line for a file under /tmp writes the new text to that /tmp file.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const tmpRootFolder = makeTmpRootFolder(t);
+    const filePath = join(tmpRootFolder, "edited.txt");
+    const toolUseResult = { filePath, oldString: "old", newString: "new text", originalFile: "old", structuredPatch: [], userModified: false, replaceAll: false };
+    const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, 15)).toISOString();
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-tmp-edit", timestamp, toolUseResult }) + "\n");
+    const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
+    // apply the line to the state folder
+    applyJSONLLineToState(new Path(stateFolder), line!, []);
+    // the /tmp file has the new text and the state folder stays empty
+    assert.equal(readFileSync(filePath, "utf8"), "new text");
+    assert.equal(readdirSync(stateFolder).length, 0);
 });
 
 test("test_applyJSONLLineToState_writes_a_Write_create_into_the_state_folder", (t) => {

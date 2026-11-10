@@ -46,10 +46,10 @@ test("test_formatEventText_names_the_repo_and_full_hash_for_a_commit", (t) => {
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
-    const repoPath = new Path(timedRepo.repoFolder);
+    const repoPath = new Path(join(timedRepo.repoFolder, ".git"));
     const event = getNextEvent(repoPath, [new Path(jsonlFolder)], null) as TimelineEvent;
     // format the commit event
-    assert.equal(formatEventText(event, repoPath), `next event: source:${timedRepo.repoFolder} commit:${timedRepo.commitA}`);
+    assert.equal(formatEventText(event, repoPath), `next event: source:${join(timedRepo.repoFolder, ".git")} commit:${timedRepo.commitA}`);
 });
 
 test("test_formatEventText_names_the_jsonl_file_and_line_number_for_a_line", (t) => {
@@ -57,7 +57,7 @@ test("test_formatEventText_names_the_jsonl_file_and_line_number_for_a_line", (t)
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
-    const repoPath = new Path(timedRepo.repoFolder);
+    const repoPath = new Path(join(timedRepo.repoFolder, ".git"));
     const jsonlsPaths = [new Path(jsonlFolder)];
     // step past commit A to the line
     const commitEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;

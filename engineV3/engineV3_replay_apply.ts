@@ -11,6 +11,7 @@ import { applyChangesToState, listChangesInCommit, writeFileIntoState } from "./
 import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_newline.ts";
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState } from "./engineV3_replay_script.ts";
+import { getReplayRoot } from "./engineV3_replay_root.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -31,15 +32,17 @@ function getRepoRelativePath(repo: Path, absolutePath: Path): Path {
 
 function applyWriteCreateToState(state: Path, line: JSONLLine): Path {
   const result = convertWriteResult(line.toolUseResult);
-  const relativePath = getRepoRelativePath(state, result.filePath);
-  writeFileIntoState(state, relativePath, Buffer.from(result.content, "utf8"));
+  const root = getReplayRoot(state, result.filePath);
+  const relativePath = getRepoRelativePath(root, result.filePath);
+  writeFileIntoState(root, relativePath, Buffer.from(result.content, "utf8"));
   return state;
 }
 
 function applyEditToState(state: Path, line: JSONLLine): Path {
   const result = convertEditResult(line.toolUseResult);
-  const relativePath = getRepoRelativePath(state, result.filePath);
-  writeFileIntoState(state, relativePath, Buffer.from(result.newString, "utf8"));
+  const root = getReplayRoot(state, result.filePath);
+  const relativePath = getRepoRelativePath(root, result.filePath);
+  writeFileIntoState(root, relativePath, Buffer.from(result.newString, "utf8"));
   return state;
 }
 
@@ -76,8 +79,9 @@ function applyPartialEditToState(state: Path, line: JSONLLine): Path {
   const hasFinalNewline = decideFinalNewline(result.structuredPatch, originalHasFinalNewline);
   const trailingNewline = hasFinalNewline ? "\n" : "";
   const text = newLines.join("\n") + trailingNewline;
-  const relativePath = getRepoRelativePath(state, result.filePath);
-  writeFileIntoState(state, relativePath, Buffer.from(text, "utf8"));
+  const root = getReplayRoot(state, result.filePath);
+  const relativePath = getRepoRelativePath(root, result.filePath);
+  writeFileIntoState(root, relativePath, Buffer.from(text, "utf8"));
   return state;
 }
 

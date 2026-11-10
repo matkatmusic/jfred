@@ -1,9 +1,9 @@
 // The one merged timeline of git commits and JSONL lines, built once and memoized.
 
 import { Path, Uuid } from "../src/structures/domain.ts";
-import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
 import { TimelineEventKind, executeGit, type CommitHash, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 import { listCommitsFromStartToEnd } from "./engineV3test.ts";
+import { createCommitEventsInTimeOrder, listReflogOnlyCommits } from "./engineV3_replay_commit_events.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 
 export const TERMINAL_EVENT = Symbol("TERMINAL_EVENT");
@@ -42,24 +42,12 @@ export function readHeadCommit(repoPath: Path): CommitHash {
   return new Uuid(hash);
 }
 
-function readCommitTimeMs(repoPath: Path, commit: CommitHash): number {
-  const commitTime = readCommitTimestamp(repoPath, commit);
-  if (commitTime === undefined) {
-    throw new Error(`cannot read the commit time of ${commit.toString()}`);
-  }
-  return commitTime.getTime();
-}
-
 function createCommitEvents(repoPath: Path): TimelineEvent[] {
   const rootCommit = readRootCommit(repoPath);
   const headCommit = readHeadCommit(repoPath);
   const commits = listCommitsFromStartToEnd(repoPath, rootCommit, headCommit);
-  const events: TimelineEvent[] = [];
-  for (const commit of commits) {
-    const timestamp = readCommitTimeMs(repoPath, commit);
-    events.push({ type: TimelineEventKind.GitCommit, commit, timestamp });
-  }
-  return events;
+  const reflogOnlyCommits = listReflogOnlyCommits(repoPath, commits);
+  return createCommitEventsInTimeOrder(repoPath, [...commits, ...reflogOnlyCommits]);
 }
 
 function createLineEvents(jsonlsPaths: Path[]): TimelineEvent[] {

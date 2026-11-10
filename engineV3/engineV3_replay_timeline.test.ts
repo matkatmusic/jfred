@@ -9,7 +9,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { TimelineEventKind, type TimelineEvent } from "./engineV3.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
 
-type TimedRepo = { repoFolder: string; commitA: string; commitB: string; commitC: string };
+type TimedRepo = { repoFolder: string; gitFolder: string; commitA: string; commitB: string; commitC: string };
 
 function runGitWithDate(repoFolder: string, isoDate: string, args: string[]): string {
     const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args];
@@ -37,9 +37,8 @@ function makeTimedRepo(t: TestContext): TimedRepo {
     const commitA = commitFileWithDate(repoFolder, "2026-01-01T00:00:10Z", "change.txt", "old");
     const commitB = commitFileWithDate(repoFolder, "2026-01-01T00:00:20Z", "added.txt", "added");
     const commitC = commitFileWithDate(repoFolder, "2026-01-01T00:00:30Z", "change.txt", "new");
-    return { repoFolder, commitA, commitB, commitC };
+    return { repoFolder, gitFolder: join(repoFolder, ".git"), commitA, commitB, commitC };
 }
-
 function makeWriteCreateLine(repoFolder: string, fileName: string, content: string, secondsPastMidnight: number): string {
     const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, secondsPastMidnight)).toISOString();
     const toolUseResult = { type: "create", filePath: join(repoFolder, fileName), content, structuredPatch: [], originalFile: null, userModified: false };
@@ -69,7 +68,7 @@ test("test_getNextEvent_returns_the_first_commit_when_it_is_older_than_every_lin
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
     // ask for the first event
-    const event = getNextEvent(new Path(timedRepo.repoFolder), [new Path(jsonlFolder)], null);
+    const event = getNextEvent(new Path(timedRepo.gitFolder), [new Path(jsonlFolder)], null);
     // it is commit A
     assert.notEqual(event, TERMINAL_EVENT);
     assert.equal((event as TimelineEvent).type, TimelineEventKind.GitCommit);
@@ -82,7 +81,7 @@ test("test_getNextEvent_puts_a_line_in_the_same_second_before_the_commit", (t) =
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 20)]);
     // list the kinds of all events in order
-    const kinds = readEventKinds(timedRepo.repoFolder, jsonlFolder);
+    const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
     // the line sits between commit A and commit B
     assert.deepEqual(kinds, [TimelineEventKind.GitCommit, TimelineEventKind.JSONLLine, TimelineEventKind.GitCommit, TimelineEventKind.GitCommit]);
 });
@@ -94,7 +93,7 @@ test("test_getNextEvent_keeps_a_line_with_no_time_next_to_the_timed_line_after_i
     const timelessLine = JSON.stringify({ type: "user", uuid: "u-timeless", toolUseResult: { note: "no time" } });
     writeJSONLFile(jsonlFolder, "s1.jsonl", [timelessLine, makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
     // list the kinds of all events in order
-    const kinds = readEventKinds(timedRepo.repoFolder, jsonlFolder);
+    const kinds = readEventKinds(timedRepo.gitFolder, jsonlFolder);
     // commit A, then line 1 and line 2 together, then commits B and C
     assert.deepEqual(kinds, [TimelineEventKind.GitCommit, TimelineEventKind.JSONLLine, TimelineEventKind.JSONLLine, TimelineEventKind.GitCommit, TimelineEventKind.GitCommit]);
 });
@@ -104,7 +103,7 @@ test("test_getNextEvent_returns_TERMINAL_EVENT_after_the_last_event", (t) => {
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
     writeJSONLFile(jsonlFolder, "s1.jsonl", [makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15)]);
-    const repoPath = new Path(timedRepo.repoFolder);
+    const repoPath = new Path(timedRepo.gitFolder);
     const jsonlsPaths = [new Path(jsonlFolder)];
     // walk to the last event
     let lastEvent: TimelineEvent | null = null;

@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit, type CommitHash } from "./engineV3.ts";
 
-type LogLine = { newCommit: string; seconds: number };
+export type LogLine = { newCommit: string; seconds: number };
 
 // A log row is "<old> <new> <name> <email> <unix seconds> <timezone>\t<message>"; the name may hold spaces.
-function parseLogFile(logFile: string): LogLine[] {
+export function parseLogFile(logFile: string): LogLine[] {
   const rows = readFileSync(logFile, "utf8").split("\n");
   const logLines: LogLine[] = [];
   for (const row of rows) {

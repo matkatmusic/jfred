@@ -15,6 +15,7 @@ import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { isHunkMatchingBase, applyHunksToLines } from "../src/layer1_edit_hunks.ts";
 import { findWorktreeAgentId } from "./engineV3_replay_worktree.ts";
 import { findScriptRun } from "./engineV3_replay_script.ts";
+import { findReplayRoot } from "./engineV3_replay_root.ts";
 
 //fill these in or import them from the other engine versions
 // type RepoState = {
@@ -218,7 +219,8 @@ function getRepoRelativePath(repo: Path, absolutePath: Path): Path {
 
 function getWriteResultKind(raw: Record<string, unknown>, repo: Path): JSONLLineKind {
   const result = convertWriteResult(raw);
-  const isInRepo = convertToProjectRelativePath(repo, result.filePath.toString()) !== undefined;
+  // const isInRepo = convertToProjectRelativePath(repo, result.filePath.toString()) !== undefined;
+  const isInRepo = findReplayRoot(repo, result.filePath) !== undefined;
   if (!isInRepo) {
     return JSONLLineKind.Skip;
   }
@@ -240,7 +242,8 @@ function getWriteResultKind(raw: Record<string, unknown>, repo: Path): JSONLLine
 
 function getEditResultKind(raw: Record<string, unknown>, repo: Path): JSONLLineKind {
   const result = convertEditResult(raw);
-  const isInRepo = convertToProjectRelativePath(repo, result.filePath.toString()) !== undefined;
+  // const isInRepo = convertToProjectRelativePath(repo, result.filePath.toString()) !== undefined;
+  const isInRepo = findReplayRoot(repo, result.filePath) !== undefined;
   if (!isInRepo) {
     return JSONLLineKind.Skip;
   }

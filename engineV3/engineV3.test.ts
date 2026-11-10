@@ -152,6 +152,48 @@ test("test_getJSONLLineKind_is_WriteCreate_for_a_write_that_created_a_file", (t)
     assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.WriteCreate);
 });
 
+test("test_getJSONLLineKind_returns_WriteCreate_for_a_Write_create_under_private_tmp", (t) => {
+    // Scenario: a Write create result under /private/tmp is replayed, not skipped.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeWriteRecord("/private/tmp/claude-501/scratchpad/tabprobe.test.ts", "hello", "create", null);
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.WriteCreate);
+});
+
+test("test_getJSONLLineKind_returns_WriteCreate_for_a_Write_create_under_tmp", (t) => {
+    // Scenario: a Write create result under /tmp is replayed, not skipped.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeWriteRecord("/tmp/scratch/probe.ts", "hello", "create", null);
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.WriteCreate);
+});
+
+test("test_getJSONLLineKind_returns_Skip_for_a_Write_create_in_an_outside_folder_that_is_not_tmp", (t) => {
+    // Scenario: a Write create result in another outside folder stays Skip.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeWriteRecord("/Users/someone/else/file.ts", "hello", "create", null);
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+});
+
+test("test_getJSONLLineKind_returns_Skip_for_a_Write_create_in_a_folder_that_only_starts_with_tmp", (t) => {
+    // Scenario: /tmpfoo is not inside /tmp, so the Write stays Skip.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeWriteRecord("/tmpfoo/file.ts", "hello", "create", null);
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+});
+
+test("test_getJSONLLineKind_returns_EditWholeFile_for_an_Edit_under_private_tmp", (t) => {
+    // Scenario: an Edit result under /private/tmp whose oldString is the whole file is replayed.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeEditRecord("/private/tmp/scratch/probe.ts", "old", "brand new", "old");
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.EditWholeFile);
+});
+
+test("test_getJSONLLineKind_returns_Skip_for_an_Edit_in_an_outside_folder_that_is_not_tmp", (t) => {
+    // Scenario: an Edit result in another outside folder stays Skip.
+    const { repo } = makeThreeCommitRepo(t);
+    const line = makeEditRecord("/Users/someone/else/file.ts", "old", "brand new", "old");
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+});
+
 test("test_getJSONLLineKind_is_EditWholeFile_when_oldString_is_the_whole_original_file", (t) => {
     // Scenario: an Edit result whose oldString equals originalFile has the EditWholeFile kind.
     const { repo } = makeThreeCommitRepo(t);

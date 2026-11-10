@@ -48,6 +48,19 @@ test("test_getJSONLLineKind_is_Script_for_the_assistant_Bash_call_with_an_allowe
   assert.equal(getJSONLLineKind(lines[0] as JSONLLine, state), JSONLLineKind.Script);
 });
 
+const NEW_ALLOWED_TOOL_USE_IDS = ["toolu_01VBAyMPNnP1Mk4huzvaggVT", "toolu_019suXsjCfrijR4SbdPQCYJQ", "toolu_01KZsQLCubvTSwvFRypZFTgN"];
+
+for (const newToolUseId of NEW_ALLOWED_TOOL_USE_IDS) {
+  test(`test_getJSONLLineKind_is_Script_for_the_assistant_Bash_call_with_allowed_id_${newToolUseId}`, (t) => {
+    // Scenario: each added allowed Bash call gets its assistant line marked as a script.
+    const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+    // the file has the Bash call, then its result
+    const lines = loadBashLines(t, newToolUseId, "true", state.toString());
+    // the call line is a Script
+    assert.equal(getJSONLLineKind(lines[0] as JSONLLine, state), JSONLLineKind.Script);
+  });
+}
+
 test("test_getJSONLLineKind_is_Skip_for_the_result_line_of_the_allowed_Bash_call", (t) => {
   // Scenario: the result line repeats the allowed id but does not run.
   // the state folder is the record's cwd

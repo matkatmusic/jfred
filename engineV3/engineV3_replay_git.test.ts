@@ -119,3 +119,19 @@ test("test_moveBranchesToCommitTime_throws_for_a_commit_not_in_the_HEAD_log", (t
     // the move throws and names the commit
     assert.throws(() => moveBranchesToCommitTime(new Path(stateFolder), new Path(repos.gitFolder), new Uuid(unknownCommit)), new RegExp(unknownCommit));
 });
+
+test("test_copyRepoIntoState_reads_a_commit_that_only_the_HEAD_log_names", (t) => {
+    // Scenario: commit B was reset away, so only logs/HEAD names it; the state must still hold its object.
+    const workFolder = makeTempFolder(t, "engine-v3-git-lost-");
+    runGitWithDate(workFolder, "2026-01-01T00:00:10Z", ["init", "-q", "-b", "main"]);
+    const commitA = commitFile(workFolder, "2026-01-01T00:00:10Z", "a.txt");
+    const commitB = commitFile(workFolder, "2026-01-01T00:00:20Z", "b.txt");
+    // reset to A, then make commit C, so B is no longer reachable
+    runGitWithDate(workFolder, "2026-01-01T00:00:25Z", ["reset", "-q", "--hard", commitA]);
+    commitFile(workFolder, "2026-01-01T00:00:30Z", "c.txt");
+    // copy the .git folder into the state folder
+    const stateFolder = makeTempFolder(t, "engine-v3-git-state-");
+    copyRepoIntoState(new Path(join(workFolder, ".git")), new Path(stateFolder));
+    // the state folder can read commit B (cat-file exits 0)
+    readGit(stateFolder, ["cat-file", "-e", commitB]);
+});
