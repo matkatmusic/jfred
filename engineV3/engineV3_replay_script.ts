@@ -1,7 +1,9 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
 
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { JSONLLine } from "./engineV3.ts";
@@ -92,9 +94,19 @@ function getRunCwd(run: ScriptRun): Path {
   return run.cwd;
 }
 
-function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
+// A python ctx_execute run starts in its own empty temp folder (the traceback shows .ctx-mode-XXXX/script.py), not in the project folder.
+function getScriptCwd(run: ScriptRun): string {
+  // if (isPythonCtxExecuteRun(run)) {
+  if (isPythonCtxExecuteRun(run) && run.hasInputCwd !== true) {
+    return mkdtempSync(join(tmpdir(), ".ctx-mode-"));
+  }
   const cwd = getRunCwd(run).toString();
   mkdirSync(cwd, { recursive: true });
+  return cwd;
+}
+
+function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
+  const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
