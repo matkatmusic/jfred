@@ -71,8 +71,8 @@ async function executeOrRecallRun(run: ScriptRun, pre: Map<string, string>, box:
   if (streamed.isCancelled) {
     return undefined;
   }
-  storeSandboxOutcome(inputKey, streamed.post, streamed.output);
-  return { post: streamed.post, output: streamed.output };
+  storeSandboxOutcome(inputKey, streamed.post, streamed.output, streamed.deletedKeys, streamed.notTextKeys);
+  return { post: streamed.post, output: streamed.output, deletedKeys: streamed.deletedKeys, notTextKeys: streamed.notTextKeys };
 }
 
 function createFinishedResult(input: ReplayInput, loaded: LoadedRun, pre: Map<string, string>, saved: SandboxOutcome, box: SandboxBox): WireScriptResult {
@@ -80,7 +80,7 @@ function createFinishedResult(input: ReplayInput, loaded: LoadedRun, pre: Map<st
     return createFailedResult(input.toolUseId, saved, box.root);
   }
   const context = createCompareContext(input, loaded);
-  const files = compareChangedFiles(context, listChangedFiles(saved.post, pre));
+  const files = compareChangedFiles(context, listChangedFiles(saved.post, pre), saved.deletedKeys, saved.notTextKeys);
   return createReplayedResult(input.toolUseId, saved, files);
 }
 

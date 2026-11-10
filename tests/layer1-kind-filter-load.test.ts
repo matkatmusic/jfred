@@ -31,7 +31,7 @@ test("test_ticking_the_edit_box_loads_and_redraws_once_then_later_ticks_only_fli
 
 test("test_ticking_the_script_run_box_loads_and_redraws_once_then_later_ticks_only_flip_the_attribute", async () => {
     initLayer1Dom();
-    installStreamRoute("/api/layer1-script-runs", [{ pairs: [] }]);
+    installStreamRoute("/api/layer1-script-runs", [{ pairs: [], results: [] }]);
     let redraws = 0;
     renderShowRowWithKindFilter(buildFreshView(), () => {
         redraws += 1;
@@ -65,7 +65,7 @@ test("test_the_layer_4_button_ticks_the_edit_box_then_the_script_run_box_and_ski
     initLayer1Dom();
     installStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
     const editFetch = globalThis.fetch;
-    installStreamRoute("/api/layer1-script-runs", [{ pairs: [] }]);
+    installStreamRoute("/api/layer1-script-runs", [{ pairs: [], results: [] }]);
     const scriptRunFetch = globalThis.fetch;
     const requested: string[] = [];
     Object.assign(globalThis, { fetch: (url: unknown, init?: RequestInit) => {

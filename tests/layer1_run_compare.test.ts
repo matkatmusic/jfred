@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
+import { WireFileChange } from "../webapp/layer1-wire-script-results.ts";
 import { compareChangedFiles, createCompareContext, findRunConfidence, listChangedFiles } from "../src/layer1_run_compare.ts";
 import { loadReplayRun } from "../src/layer1_run_start_files.ts";
 import {
@@ -29,17 +30,17 @@ function compareReplayedFile(extend: (project: CraftedProject) => void) {
     extend(project);
     const input = writeCraftedSession(project, "toolu_T");
     const context = createCompareContext(input, loadReplayRun(input));
-    return { project, files: compareChangedFiles(context, REPLAYED) };
+    return { project, files: compareChangedFiles(context, REPLAYED, [], []) };
 }
 
 test("test_compareChangedFiles_is_verified_when_the_nearest_beacon_is_equal", () => {
     const { files } = compareReplayedFile((project) => addFullRead(project, "toolu_r", 10, "a.txt", "a\nz\n"));
-    assert.deepEqual(files, [{ path: "a.txt", confidence: WireConfidence.verified }]);
+    assert.deepEqual(files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.verified }]);
 });
 
 test("test_compareChangedFiles_is_mismatch_when_the_nearest_beacon_differs", () => {
     const { files } = compareReplayedFile((project) => addFullRead(project, "toolu_r", 10, "a.txt", "a\nQ\n"));
-    assert.deepEqual(files, [{ path: "a.txt", confidence: WireConfidence.mismatch }]);
+    assert.deepEqual(files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.mismatch }]);
 });
 
 test("test_compareChangedFiles_without_a_beacon_is_verified_when_the_working_tree_matches", () => {
@@ -48,8 +49,8 @@ test("test_compareChangedFiles_without_a_beacon_is_verified_when_the_working_tre
     addWrite(project, "toolu_w", 1, "a.txt", "a\n");
     addScriptRun(project, "toolu_T", 5, { code: APPEND_Z_SCRIPT });
     const input = writeCraftedSession(project, "toolu_T");
-    const files = compareChangedFiles(createCompareContext(input, loadReplayRun(input)), REPLAYED);
-    assert.deepEqual(files, [{ path: "a.txt", confidence: WireConfidence.verified }]);
+    const files = compareChangedFiles(createCompareContext(input, loadReplayRun(input)), REPLAYED, [], []);
+    assert.deepEqual(files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.verified }]);
 });
 
 test("test_compareChangedFiles_without_a_beacon_ignores_a_different_or_missing_working_tree", () => {
@@ -59,9 +60,9 @@ test("test_compareChangedFiles_without_a_beacon_ignores_a_different_or_missing_w
     addScriptRun(project, "toolu_T", 5, { code: APPEND_Z_SCRIPT });
     const input = writeCraftedSession(project, "toolu_T");
     const context = createCompareContext(input, loadReplayRun(input));
-    assert.equal(compareChangedFiles(context, REPLAYED)[0]!.confidence, WireConfidence.injectedUnverified);
+    assert.equal(compareChangedFiles(context, REPLAYED, [], [])[0]!.confidence, WireConfidence.injectedUnverified);
     rmSync(join(project.dir, "a.txt"));
-    assert.equal(compareChangedFiles(context, REPLAYED)[0]!.confidence, WireConfidence.injectedUnverified);
+    assert.equal(compareChangedFiles(context, REPLAYED, [], [])[0]!.confidence, WireConfidence.injectedUnverified);
 });
 
 test("test_compareChangedFiles_a_write_between_the_run_and_the_beacon_gives_injected_unverified_not_mismatch", () => {
@@ -85,7 +86,17 @@ test("test_compareChangedFiles_leaves_out_a_file_outside_the_project_folder", ()
     addScriptRun(project, "toolu_T", 5, { code: APPEND_Z_SCRIPT });
     const input = writeCraftedSession(project, "toolu_T");
     const context = createCompareContext(input, loadReplayRun(input));
-    assert.deepEqual(compareChangedFiles(context, [["../elsewhere.txt", "x"]]), []);
+    assert.deepEqual(compareChangedFiles(context, [["../elsewhere.txt", "x"]], ["../gone.txt"], ["../data.bin"]), []);
+});
+
+test("test_compareChangedFiles_reports_deleted_and_not_text_files_without_a_rating", () => {
+    // Scenario: the run deleted gone.txt and changed data.bin; junk keys in both lists are dropped.
+    const project = createCraftedProject();
+    addScriptRun(project, "toolu_T", 5, { code: APPEND_Z_SCRIPT });
+    const input = writeCraftedSession(project, "toolu_T");
+    const context = createCompareContext(input, loadReplayRun(input));
+    const files = compareChangedFiles(context, [], ["gone.txt", "__pycache__/x.pyc"], ["data.bin", "mod.pyc"]);
+    assert.deepEqual(files, [{ path: "gone.txt", change: WireFileChange.deleted }, { path: "data.bin", change: WireFileChange.changedNotText }]);
 });
 
 test("test_listChangedFiles_keeps_changed_and_new_files_and_drops_unchanged_and_junk", () => {
@@ -95,7 +106,7 @@ test("test_listChangedFiles_keeps_changed_and_new_files_and_drops_unchanged_and_
 });
 
 test("test_findRunConfidence_is_the_worst_of_the_files_and_undefined_for_none", () => {
-    const files = (...confidences: WireConfidence[]) => confidences.map((confidence) => ({ path: "x", confidence }));
+    const files = (...confidences: WireConfidence[]) => confidences.map((confidence) => ({ path: "x", change: WireFileChange.changed, confidence }));
     assert.equal(findRunConfidence(files(WireConfidence.verified, WireConfidence.injectedUnverified)), WireConfidence.injectedUnverified);
     assert.equal(findRunConfidence(files(WireConfidence.verified, WireConfidence.mismatch, WireConfidence.injectedUnverified)), WireConfidence.mismatch);
     assert.equal(findRunConfidence([]), undefined);

@@ -7,7 +7,10 @@ import { createServer, request as sendHttpRequest, type Server } from "node:http
 import { type AddressInfo } from "node:net";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Path } from "../src/structures/domain.ts";
+import { Path, Uuid } from "../src/structures/domain.ts";
+import { createResult } from "../src/layer1_run_result.ts";
+import { listSavedRunResults, setRunResultStorePersistence, storeRunResultForSession } from "../src/layer1_run_result_store.ts";
+import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { sendClearResultsResponse } from "../src/viewer_api_clear_results.ts";
 import { sendText } from "../src/viewer_server_routes.ts";
 import {
@@ -59,6 +62,20 @@ test("test_clear_results_empties_the_memo_and_deletes_its_file", async () => {
     assert.equal(status, 200);
     assert.equal(getMemoizedSandboxOutcome("key-1"), undefined);
     assert.equal(existsSync(memoFile), false);
+});
+
+test("test_clear_results_empties_the_saved_run_results_and_deletes_their_file", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "clear-results-"));
+    const sessionFile = new Path(join(folder, "session.jsonl"));
+    writeFileSync(sessionFile.toString(), "{}\n");
+    const storeFile = join(folder, "results.json");
+    setRunResultStorePersistence(new Path(storeFile));
+    storeRunResultForSession(sessionFile, createResult(new Uuid("toolu_a"), WireRunOutcome.replayed));
+    assert.ok(existsSync(storeFile));
+    const status = await postClear({ "Content-Type": "application/json" });
+    assert.equal(status, 200);
+    assert.deepEqual(listSavedRunResults(sessionFile), []);
+    assert.equal(existsSync(storeFile), false);
 });
 
 test("test_clear_results_with_a_wrong_content_type_is_a_400", async () => {

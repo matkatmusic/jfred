@@ -4,10 +4,10 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { findRealScript } from "../scripts/visual/layer6-real-pick.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRunsView } from "../webapp/layer1-wire-script-runs.ts";
 
-type ChangedFile = { path: string; confidence: WireConfidence };
+type ChangedFile = { path: string; change: WireFileChange; confidence: WireConfidence };
 
 const target = { origin: "http://127.0.0.1:1", query: "dir=x" };
 const buildRun = (toolUseId: string, hour: number) => ({
@@ -15,7 +15,7 @@ const buildRun = (toolUseId: string, hour: number) => ({
     code: "print(1)", sessionId: "s1", sessionFile: "s1.jsonl", line: hour,
 });
 const view = { pairs: [{ path: "src/a.py", scriptRuns: [buildRun("toolu_early", 10), buildRun("toolu_late", 11)] }] } as WireScriptRunsView;
-const verified = (path: string): ChangedFile => ({ path, confidence: WireConfidence.verified });
+const verified = (path: string): ChangedFile => ({ path, change: WireFileChange.changed, confidence: WireConfidence.verified });
 
 function buildResultLine(toolUseId: string, files: ChangedFile[]): string {
     return JSON.stringify({ kind: "script-result", toolUseId, outcome: WireRunOutcome.replayed, files, stdout: "", stderr: "", timedOut: false, isOutputSaved: true });

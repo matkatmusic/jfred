@@ -3,6 +3,7 @@
 import type { WireScriptLanguage } from "./layer1-components/details-drawer/layer1-script-language.ts";
 import type { WireConfidence } from "./layer1-wire-edits.ts";
 import type { WireInstantOf } from "./layer1-wire.ts";
+import type { WireScriptResultOf } from "./layer1-wire-script-results.ts";
 
 // Wire spelling of ScriptExecutorKind (src/reconstruction_script_execution.ts) — drives the never-provable idiom.
 export const WireScriptExecutorKind = {
@@ -32,6 +33,8 @@ export interface WireScriptRunOf<I, P, U> extends WireInstantOf<I> {
 // Task 356: /api/layer1-script-runs answers without axisPx, as /api/layer1-edits does.
 export interface WireScriptRunsViewOf<I, P, U> {
   pairs: { path: P; scriptRuns: Omit<WireScriptRunOf<I, P, U>, "axisPx">[] }[];
+  // replay results saved on the server; empty until a run replays
+  results: WireScriptResultOf<P, U>[];
 }
 
 export type WireScriptRun = WireScriptRunOf<string, string, string>;

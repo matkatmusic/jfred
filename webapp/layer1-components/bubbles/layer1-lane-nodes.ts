@@ -1,7 +1,7 @@
 // The per-node and per-branch-lane DOM pieces of a Layer 1 pair bubble, split out of layer1-widgets.ts.
 
 import { createElement } from "../../app-dom.ts";
-import { paintRunDot } from "../../layer1-run-results.ts";
+import { renderRunDot } from "../../layer1-run-results.ts";
 import { formatScriptRunLabel } from "../details-drawer/layer1-script-language.ts";
 import { WireRewindKind, type WireBranch } from "../../layer1-wire-branches.ts";
 import { WireEditKind, type WireEdit } from "../../layer1-wire-edits.ts";
@@ -93,7 +93,7 @@ export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: Wire
   const isStateKnown = run.confidence !== undefined;
   const dot = setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}${isStateKnown ? ` run-state-${run.confidence}` : ""}`, ...identity }), axisPx);
   // A redrawn dot reads the stored run state, so it matches the dots drawn before it.
-  paintRunDot(dot, run.confidence);
+  renderRunDot(dot, run.confidence);
   lane.append(
     dot,
     // setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),

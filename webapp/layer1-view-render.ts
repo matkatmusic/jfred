@@ -11,6 +11,7 @@ import { renderShowRowWithKindFilter } from "./layer1-components/show-row/layer1
 import { renderSessionPane } from "./layer1-components/jsonls-nav/layer1-session-pane.ts";
 import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-components/jsonls-nav/layer1-sessions.ts";
 import { renderLayer1Stage } from "./layer1-components/bubbles/layer1-stage-render.ts";
+import { applyReplayResultsToView } from "./layer1-run-placement.ts";
 import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
@@ -64,7 +65,7 @@ interface StageRenderers {
 // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
 function createStageRenderers(view: WireLayer1View): StageRenderers {
   const renderFilteredStage = (): Promise<void> => renderLayer1Stage(filterLayer1ViewByTargets(
-    view, getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
+    applyReplayResultsToView(view), getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
   ));
   const closeRowAndRenderStage = (): void => {
     closeRulerExpansion();

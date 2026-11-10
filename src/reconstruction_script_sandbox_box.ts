@@ -6,7 +6,7 @@ import { Path, Uuid } from "./structures/domain.ts";
 import type { ScriptRun } from "./reconstruction_script_execution.ts";
 import { parseStdoutRedirect, type ParsedRedirect } from "./reconstruction_bash_events.ts";
 import { DEFAULT_SANDBOX_MOUNT, assertMountPathSafe } from "./reconstruction_script_sandbox_docker.ts";
-import { findCommitBeforeRun, findRepoRoot, isGitRepository } from "./reconstruction_script_sandbox_project.ts";
+import { findCommitBeforeRun, findRepoRoot, isInsideGitWorkTree } from "./reconstruction_script_sandbox_project.ts";
 
 const INLINE_SCRIPT_FILE_NAME = "__script__.py";
 
@@ -26,53 +26,72 @@ function isInsideFolder(folder: Path, candidate: Path): boolean {
   if (relativePath === "..") {
     return false;
   }
-  if (relativePath.startsWith("../")) {
+  const isParentRelative = relativePath.startsWith("../");
+  if (isParentRelative) {
     return false;
   }
   return !isAbsolute(relativePath);
 }
 
-function expandHomeFolder(typedPath: string): string {
+function normalizeHomeFolder(typedPath: string): string {
   if (typedPath === "~") {
     return homedir();
   }
-  if (typedPath.startsWith("~/")) {
+  const isHomeRelative = typedPath.startsWith("~/");
+  if (isHomeRelative) {
     return resolve(homedir(), typedPath.slice(2));
   }
   return typedPath;
 }
 
-export function buildSandboxBox(run: ScriptRun, repo: Path | undefined): SandboxBox {
-  const hasGitRepo = repo !== undefined && isGitRepository(repo);
-  const repoRoot = hasGitRepo ? findRepoRoot(repo) : undefined;
-  const commit = hasGitRepo ? findCommitBeforeRun(repo, run.timestamp, run.gitBranch) : undefined;
-  const project = repoRoot !== undefined && commit !== undefined ? { repo: repoRoot, commit } : undefined;
-
-  let root = DEFAULT_SANDBOX_MOUNT;
-  if (repoRoot !== undefined) {
-    root = repoRoot;
-  }
-  if (run.cwd !== undefined) {
-    root = run.cwd;
-    if (repoRoot !== undefined) {
-      if (isInsideFolder(repoRoot, run.cwd)) {
-        root = repoRoot;
-      }
+function assertRepoFolderInsideGitRepository(repo: Path | undefined): void {
+  if (repo !== undefined) {
+    const isRepoInsideWorkTree = isInsideGitWorkTree(repo);
+    if (!isRepoInsideWorkTree) {
+      throw new Error(`repo folder ${repo.toString()} is not inside a git repository`);
     }
   }
-  const workdir = run.cwd ?? root;
+}
 
+function findBoxRoot(run: ScriptRun, repoRoot: Path | undefined): Path {
+  if (run.cwd === undefined) {
+    return repoRoot ?? DEFAULT_SANDBOX_MOUNT;
+  }
+  if (repoRoot !== undefined) {
+    const isCwdInsideRepo = isInsideFolder(repoRoot, run.cwd);
+    if (isCwdInsideRepo) {
+      return repoRoot;
+    }
+  }
+  return run.cwd;
+}
+
+function findScriptPath(run: ScriptRun, workdir: Path): Path {
   const typedScriptPath = run.invokedScriptPath;
-  const scriptPath = typedScriptPath === undefined
-    ? new Path(resolve(workdir.toString(), INLINE_SCRIPT_FILE_NAME))
-    : new Path(resolve(workdir.toString(), expandHomeFolder(typedScriptPath)));
+  if (typedScriptPath === undefined) {
+    return new Path(resolve(workdir.toString(), INLINE_SCRIPT_FILE_NAME));
+  }
+  return new Path(resolve(workdir.toString(), normalizeHomeFolder(typedScriptPath)));
+}
 
+function assertBoxPathsSafe(root: Path, workdir: Path, scriptPath: Path): void {
   assertMountPathSafe(root, "The box root");
   assertMountPathSafe(workdir, "The box workdir");
-  if (!isInsideFolder(root, scriptPath)) {
+  const isScriptInsideRoot = isInsideFolder(root, scriptPath);
+  if (!isScriptInsideRoot) {
     assertMountPathSafe(scriptPath, "The script path");
   }
+}
 
+export function buildSandboxBox(run: ScriptRun, repo: Path | undefined): SandboxBox {
+  assertRepoFolderInsideGitRepository(repo);
+  const repoRoot = repo === undefined ? undefined : findRepoRoot(repo);
+  const commit = repo === undefined ? undefined : findCommitBeforeRun(repo, run.timestamp, run.gitBranch);
+  const project = repoRoot !== undefined && commit !== undefined ? { repo: repoRoot, commit } : undefined;
+  const root = findBoxRoot(run, repoRoot);
+  const workdir = run.cwd ?? root;
+  const scriptPath = findScriptPath(run, workdir);
+  assertBoxPathsSafe(root, workdir, scriptPath);
   const stdoutRedirect = run.invokedCommand === undefined ? undefined : parseStdoutRedirect(run.invokedCommand);
   return { root, workdir, scriptPath, stdoutRedirect, project };
 }
@@ -99,7 +118,7 @@ export function resolveRunBox(run: ScriptRun): SandboxBox | undefined {
   return buildSandboxBox(run, activeRepo);
 }
 
-export function describeSandboxBoxKey(box: SandboxBox): string {
+export function computeSandboxBoxKey(box: SandboxBox): string {
   return JSON.stringify({
     root: box.root,
     workdir: box.workdir,

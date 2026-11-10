@@ -2,6 +2,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { rememberDrawnView } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
 import { clearNeedsCache, computeRunRoutes, runQueueState } from "../webapp/layer1-run-route.ts";
 import { getRunOutcome, isRunStarted, markRunStarted, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
@@ -64,6 +66,13 @@ function readPopup(): Element | null {
   return document.getElementById("run-blocked-popup");
 }
 
+// A reset redraws through the Show row, so each test draws its view first.
+function drawView(view: WireLayer1View, redraw: () => void = () => {}): WireLayer1View {
+  rememberDrawnView(view);
+  renderShowRowWithKindFilter(view, redraw);
+  return view;
+}
+
 test("test_computeRunRoutes_a_blocked_id_sends_no_run_request_and_shows_the_popup", async () => {
   // Verify: a listed need blocks the id; only the needs route is asked.
   resetRouteState();
@@ -112,7 +121,7 @@ test("test_computeRunRoutes_a_listed_run_the_page_holds_as_replayed_is_marked_un
   // Verify: run held-a loses its started mark, result, and confidence; the id stays blocked.
   resetRouteState();
   const held = buildRun("held-a", 1, { confidence: WireConfidence.verified });
-  const view = buildView({ "x.ts": [held], "b.ts": [buildRun("waiting-b", 5)] });
+  const view = drawView(buildView({ "x.ts": [held], "b.ts": [buildRun("waiting-b", 5)] }));
   markRunStarted("held-a");
   storeRunResult(view, { kind: "script-result", toolUseId: "held-a", outcome: WireRunOutcome.replayed, files: [], stdout: "", stderr: "", timedOut: false, isOutputSaved: true });
   installNeedsFetch([buildNeed("held-a", 1)]);
@@ -123,6 +132,26 @@ test("test_computeRunRoutes_a_listed_run_the_page_holds_as_replayed_is_marked_un
   assert.deepEqual(runQueueState.queue, []);
 });
 
+test("test_computeRunRoutes_redraws_after_a_reset_need_before_routing_again", async () => {
+  // Verify: no throw; one redraw restores the dot and the second pass reads the drawn view.
+  resetRouteState();
+  const held = buildRun("held-a", 1);
+  const redrawnView = buildView({ "x.ts": [held], "b.ts": [buildRun("waiting-b", 5)] });
+  let redrawCount = 0;
+  const redrawIntoNewView = (): void => {
+    redrawCount += 1;
+    rememberDrawnView(redrawnView);
+  };
+  const dotlessView = drawView(buildView({ "b.ts": [buildRun("waiting-b", 5)] }), redrawIntoNewView);
+  markRunStarted("held-a");
+  storeRunResult(dotlessView, { kind: "script-result", toolUseId: "held-a", outcome: WireRunOutcome.replayed, files: [], stdout: "", stderr: "", timedOut: false, isOutputSaved: true });
+  installNeedsFetch([buildNeed("held-a", 1)]);
+  await computeRunRoutes(dotlessView, ["waiting-b"]);
+  assert.equal(redrawCount, 1);
+  assert.equal(isRunStarted("held-a"), false);
+  assert.deepEqual(runQueueState.queue, []);
+  assert.notEqual(readPopup(), null);
+});
 test("test_clearNeedsCache_forces_a_new_needs_request", async () => {
   // Verify: a second walk reads the cache; after the clear it asks the server again.
   resetRouteState();

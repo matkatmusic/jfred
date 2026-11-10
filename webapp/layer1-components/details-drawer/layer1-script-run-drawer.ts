@@ -10,7 +10,8 @@ import { readDrawnView } from "../bubbles/layer1-diff-wash.ts";
 import { renderCellCode } from "../../diff-render.ts";
 import { computeScriptHighlightLanguage, formatScriptRunLabel } from "./layer1-script-language.ts";
 import { buildRunConsoleTrigger, type CancelRun } from "./layer1-run-console.ts";
-import { isRunStarted } from "../../layer1-run-results.ts";
+import { getRunResult, isRunStarted } from "../../layer1-run-results.ts";
+import { WireFileChange, type WireScriptResult } from "../../layer1-wire-script-results.ts";
 import { buildScriptRunFileFold, buildScriptRunFold } from "./layer1-script-run-folds.ts";
 import { buildScriptRunStatusBadges } from "./layer1-script-run-status.ts";
 import { storeOpenedNode } from "../bubbles/layer1-node-link.ts";
@@ -39,6 +40,46 @@ export function listScriptRunPaths(view: WireLayer1View, toolUseId: string): str
     }
   }
   return paths;
+}
+
+const CHANGE_KIND_LABELS: Record<WireFileChange, string> = {
+  [WireFileChange.changed]: "changed",
+  [WireFileChange.deleted]: "deleted",
+  [WireFileChange.changedNotText]: "changed, not text",
+};
+
+function listPairPaths(view: WireLayer1View): Set<string> {
+  const pairPaths = new Set<string>();
+  for (const pair of view.pairs) {
+    pairPaths.add(pair.path);
+  }
+  return pairPaths;
+}
+
+function listChangedNoBubbleRows(view: WireLayer1View, result: WireScriptResult): HTMLElement[] {
+  const pairPaths = listPairPaths(view);
+  const rows: HTMLElement[] = [];
+  for (const file of result.files) {
+    const hasBubble = pairPaths.has(file.path);
+    if (!hasBubble) {
+      rows.push(createElement("div", { text: `${file.path} · ${CHANGE_KIND_LABELS[file.change]}` }));
+    }
+  }
+  return rows;
+}
+
+// Lists replay-changed files with no pair in the view; empty when none.
+export function buildChangedNoBubbleSection(view: WireLayer1View, toolUseId: string): HTMLElement[] {
+  const result = getRunResult(toolUseId);
+  if (result === undefined) {
+    return [];
+  }
+  const rows = listChangedNoBubbleRows(view, result);
+  if (rows.length === 0) {
+    return [];
+  }
+  const summary = createElement("summary", { text: "Changed, no bubble" });
+  return [buildScriptRunFold("script-no-bubble-fold", summary, rows, true)];
 }
 
 // Task 356: one before/after DiffView pane per affected path, bracketed on the run's own instant.
@@ -106,7 +147,9 @@ export function buildScriptRunDetail(run: WireScriptRun, cancelRun: CancelRun): 
   const metaSummary = createElement("summary", { text: "kind, executor, instant, session, line, tool use id" });
   const folds = [buildScriptRunFold("script-meta-fold", metaSummary, [scriptMeta], false), buildScriptRunFold("scriptbody", head, [pre], true)];
   // const hasRunState = run.confidence !== undefined;
-  const isConsoleShown = isRunStarted(run.toolUseId) && run.executorKind === WireScriptExecutorKind.python;
+  // const isConsoleShown = isRunStarted(run.toolUseId) && run.executorKind === WireScriptExecutorKind.python;
+  const hasRunHappened = isRunStarted(run.toolUseId) || getRunResult(run.toolUseId) !== undefined;
+  const isConsoleShown = hasRunHappened && run.executorKind === WireScriptExecutorKind.python;
   return isConsoleShown ? [buildRunConsoleTrigger(run.toolUseId, cancelRun), ...folds] : folds;
 }
 
@@ -162,7 +205,7 @@ function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun, cancelR
   renderScriptRunHeader(run, paths);
   getRequiredElementById("drawer").classList.add("open");
   setDrawerTools("none");
-  renderDetailView([...buildScriptRunDetail(run, cancelRun),...buildScriptRunDiffPanes(view, run.instant, paths)]);
+  renderDetailView([...buildScriptRunDetail(run, cancelRun), ...buildChangedNoBubbleSection(view, run.toolUseId), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {
     appendRawJsonRevealForLine(run.sessionFile, run.line);
   }

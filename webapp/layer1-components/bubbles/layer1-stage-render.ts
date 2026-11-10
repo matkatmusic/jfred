@@ -7,6 +7,7 @@ import { repaintCutMarks } from "../commits-column/layer1-cut-paint.ts";
 import { renderJfredStrip } from "../commits-column/layer1-jfred-strip.ts";
 import { attachLeaderHover } from "./layer1-leader-hover.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
+import { refreshAllStoredRunDots } from "../../layer1-run-results.ts";
 import { installRunViewportWatcher } from "../../layer1-run-viewport.ts";
 import { renderNavWash } from "../file-nav/layer1-nav-wash.ts";
 import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE, hideLayer1Progress, renderLayer1Progress, waitForPaintedFrame } from "../loading-bar/layer1-progress.ts";
@@ -46,46 +47,44 @@ const STAGE_CHUNK_WIDGETS = 100;
 // Bumped by every render so a superseded chunked pass stops instead of interleaving DOM writes.
 let stageRenderPass = 0;
 
-// Exported for filter redraws; a single-chunk (test-sized) view completes synchronously, no await runs.
-export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
+function renderStageHeader(view: WireLayer1View): void {
   // The wash and range steps read the DRAWN view, so every filter/expansion redraw re-arms it.
   rememberDrawnView(view);
-  const pass = ++stageRenderPass;
   getRequiredElementById("crumb").textContent =
     `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
   const openList = document.querySelector("#ruler .tickfiles");
   renderRulerTicks(view.ruler);
   moveOpenRowToNewTicks(openList);
   renderLeaderLines(view.ruler);
+}
+
+function listStageWidgets(view: WireLayer1View): HTMLElement[] {
   const widgets = buildStagePairs(view.pairs);
   for (const bucket of [buildOrphanBucket("No on-disk match", view.gitOrphans), buildOrphanBucket("No repository match", view.diskOrphans)]) {
     if (bucket !== undefined) {
       widgets.push(bucket);
     }
   }
-  const stage = getRequiredElementById("stage");
-  stage.replaceChildren();
-  // Only a multi-chunk render paints between chunks; a small one must never flash the loadbar.
-  const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
+  return widgets;
+}
+
+// False when a newer render superseded this pass.
+async function appendStageWidgetsInChunks(stage: HTMLElement, widgets: HTMLElement[], pass: number): Promise<boolean> {
   for (let done = 0; done < widgets.length; done += STAGE_CHUNK_WIDGETS) {
     stage.append(...widgets.slice(done, done + STAGE_CHUNK_WIDGETS));
-    if (!isChunked) {
-      continue;
-    }
     renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE,
       Math.min(done + STAGE_CHUNK_WIDGETS, widgets.length), widgets.length);
     await waitForPaintedFrame();
     if (pass !== stageRenderPass) {
-      return;
+      return false;
     }
   }
-  if (isChunked) {
-    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
-    await waitForPaintedFrame();
-    if (pass !== stageRenderPass) {
-      return;
-    }
-  }
+  renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_RULER);
+  await waitForPaintedFrame();
+  return pass === stageRenderPass;
+}
+
+function renderStageOverlays(view: WireLayer1View, stage: HTMLElement): void {
   // These three MEASURE the drawn stage, so they must run after the bubbles are in the DOM.
   markMultiEventTicks();
   refreshKindJumpArrows();
@@ -99,7 +98,27 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   renderLayer1Minimap();
   installRunViewportWatcher();
   renderScriptConnectors(stage);
+  refreshAllStoredRunDots();
+}
+
+function closeStageRender(view: WireLayer1View, stage: HTMLElement, isChunked: boolean): void {
+  renderStageOverlays(view, stage);
   if (isChunked) {
     hideLayer1Progress();
   }
+}
+
+// Exported for filter redraws; a single-chunk view completes synchronously, with no loadbar flash.
+export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
+  const pass = ++stageRenderPass;
+  renderStageHeader(view);
+  const widgets = listStageWidgets(view);
+  const stage = getRequiredElementById("stage");
+  const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
+  stage.replaceChildren(...(isChunked ? [] : widgets));
+  const isCurrentPass = !isChunked || await appendStageWidgetsInChunks(stage, widgets, pass);
+  if (!isCurrentPass) {
+    return;
+  }
+  closeStageRender(view, stage, isChunked);
 }

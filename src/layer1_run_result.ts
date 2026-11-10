@@ -1,7 +1,7 @@
 // Task 358 part R: builds the wire result for each way a replay request can end.
 
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome, WireRunStreamKind, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome, WireRunStreamKind, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { findRunConfidence, type RunFile } from "./layer1_run_compare.ts";
 import { formatReplayFailure } from "./layer1_run_skip.ts";
@@ -34,7 +34,7 @@ export function createOriginalFailedResult(toolUseId: Uuid, run: ScriptRun, dir:
   }
   const files: RunFile[] = [];
   for (const path of findAffectedPathsForRun(run, candidatePaths)) {
-    files.push({ path: path.toString(), confidence: WireConfidence.originalFailed });
+    files.push({ path: path.toString(), change: WireFileChange.changed, confidence: WireConfidence.originalFailed });
   }
   return createResult(toolUseId, WireRunOutcome.originalFailed, { confidence: WireConfidence.originalFailed, files });
 }

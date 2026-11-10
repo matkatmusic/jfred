@@ -1,6 +1,7 @@
 // POST /api/layer1-clear-results: wipes every saved result and cache so all layers compute again.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
+import { clearRunResultStore } from "./layer1_run_result_store.ts";
 import { clearSandboxMemo } from "./reconstruction_script_sandbox_memo.ts";
 import { clearDocumentCache } from "./reconstruction_document_cache.ts";
 import { clearFileStampCaches } from "./file_stamp_cache.ts";
@@ -26,6 +27,7 @@ export function assertLocalJsonPost(request: IncomingMessage): void {
 export function sendClearResultsResponse(request: IncomingMessage, response: ServerResponse): void {
   assertLocalJsonPost(request);
   clearSandboxMemo();
+  clearRunResultStore();
   clearBuiltDocumentCache();
   clearDocumentCache();
   clearFileStampCaches();

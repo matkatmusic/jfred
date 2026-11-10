@@ -11,7 +11,7 @@ import { Path } from "./structures/domain.ts";
 
 const DEFAULT_PORT = 7343;
 
-const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--sandbox-memo-file <path>] [--fixture] [--allow-jfred-writes] [--resetSandboxMemo] [--resetDocumentCache]";
+const USAGE = "usage: tsx src/viewer_server.ts --projects-dir <path> [--port <n>] [--file-history-dir <path>] [--settings-file <path>] [--cache-file <path>] [--sandbox-memo-file <path>] [--run-results-file <path>] [--fixture] [--allow-jfred-writes] [--resetSandboxMemo] [--resetDocumentCache]";
 
 function readFlagValue(argv: string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
@@ -60,7 +60,7 @@ function readServerPort(argv: string[]): number {
   return port;
 }
 
-export function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean; sandboxMemoFile: string | undefined } {
+export function parseServerArgs(argv: string[]): { port: number; resetSandboxMemo: boolean; resetDocumentCache: boolean; sandboxMemoFile: string | undefined; runResultsFile: string | undefined } {
   applyDirectoryFlags(argv);
   applyFileFlags(argv);
   const port = readServerPort(argv);
@@ -69,5 +69,6 @@ export function parseServerArgs(argv: string[]): { port: number; resetSandboxMem
     resetSandboxMemo: argv.includes("--resetSandboxMemo"),
     resetDocumentCache: argv.includes("--resetDocumentCache"),
     sandboxMemoFile: readFlagValue(argv, "--sandbox-memo-file"),
+    runResultsFile: readFlagValue(argv, "--run-results-file"),
   };
 }

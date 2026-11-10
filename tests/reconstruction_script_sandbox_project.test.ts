@@ -7,10 +7,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import {
-    cloneProjectAtCommit,
+    copyProjectAtCommit,
     findCommitBeforeRun,
     findRepoRoot,
-    isGitRepository,
+    isInsideGitWorkTree,
 } from "../src/reconstruction_script_sandbox_project.ts";
 
 const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
@@ -116,16 +116,43 @@ test("test_findCommitBeforeRun_before_the_first_commit_is_undefined", () => {
     });
 });
 
-test("test_isGitRepository_is_false_for_a_folder_without_dot_git", () => {
+// isGitRepository is commented out in the source: buildSandboxBox uses isInsideGitWorkTree now.
+// test("test_isGitRepository_is_false_for_a_folder_without_dot_git", () => {
+//     withTestRepo((repo) => {
+//         assert.equal(isGitRepository(new Path(repo.root)), true);
+//         const plain = mkdtempSync(join(tmpdir(), "reveng-project-plain-"));
+//         try {
+//             assert.equal(isGitRepository(new Path(plain)), false);
+//         } finally {
+//             rmSync(plain, { recursive: true, force: true });
+//         }
+//     });
+// });
+
+test("test_isInsideGitWorkTree_is_true_for_the_repo_top_folder", () => {
+    // Scenario: the top folder of a repo is inside a git work tree.
     withTestRepo((repo) => {
-        assert.equal(isGitRepository(new Path(repo.root)), true);
-        const plain = mkdtempSync(join(tmpdir(), "reveng-project-plain-"));
-        try {
-            assert.equal(isGitRepository(new Path(plain)), false);
-        } finally {
-            rmSync(plain, { recursive: true, force: true });
-        }
+        assert.equal(isInsideGitWorkTree(new Path(repo.root)), true);
     });
+});
+
+test("test_isInsideGitWorkTree_is_true_for_a_subfolder_of_a_repo", () => {
+    // Scenario: a subfolder of a repo is inside a git work tree.
+    withTestRepo((repo) => {
+        const sub = join(repo.root, "deep");
+        mkdirSync(sub);
+        assert.equal(isInsideGitWorkTree(new Path(sub)), true);
+    });
+});
+
+test("test_isInsideGitWorkTree_is_false_for_a_folder_in_no_repo", () => {
+    // Scenario: a plain temp folder with no repo above it is not inside a git work tree.
+    const plain = mkdtempSync(join(tmpdir(), "reveng-project-plain-"));
+    try {
+        assert.equal(isInsideGitWorkTree(new Path(plain)), false);
+    } finally {
+        rmSync(plain, { recursive: true, force: true });
+    }
 });
 
 test("test_findRepoRoot_returns_the_top_folder_from_a_subfolder", () => {
@@ -136,13 +163,13 @@ test("test_findRepoRoot_returns_the_top_folder_from_a_subfolder", () => {
     });
 });
 
-test("test_cloneProjectAtCommit_makes_a_detached_isolated_copy_and_leaves_the_source_alone", () => {
+test("test_copyProjectAtCommit_makes_a_detached_isolated_copy_and_leaves_the_source_alone", () => {
     withTestRepo((repo) => {
         runTestGit(repo.root, ["gc", "-q"]);
         const sourceBefore = hashTree(join(repo.root, ".git"));
         const destination = mkdtempSync(join(tmpdir(), "reveng-project-clone-"));
         try {
-            cloneProjectAtCommit(new Path(repo.root), new Uuid(repo.mainFirst), new Path(destination));
+            copyProjectAtCommit(new Path(repo.root), new Uuid(repo.mainFirst), new Path(destination));
             assert.equal(runTestGit(destination, ["rev-parse", "HEAD"]), repo.mainFirst);
             assert.equal(runTestGit(destination, ["rev-parse", "--abbrev-ref", "HEAD"]), "HEAD");
             assert.equal(existsSync(join(destination, "a.txt")), true);
@@ -161,13 +188,13 @@ test("test_cloneProjectAtCommit_makes_a_detached_isolated_copy_and_leaves_the_so
     });
 });
 
-test("test_cloneProjectAtCommit_checks_out_a_commit_only_an_origin_ref_holds", () => {
+test("test_copyProjectAtCommit_checks_out_a_commit_only_an_origin_ref_holds", () => {
     withTestRepo((repo) => {
         const commit = findCommitBeforeRun(new Path(repo.root), WHEN, "x");
         assert.ok(commit !== undefined);
         const destination = mkdtempSync(join(tmpdir(), "reveng-project-clone-"));
         try {
-            cloneProjectAtCommit(new Path(repo.root), commit, new Path(destination));
+            copyProjectAtCommit(new Path(repo.root), commit, new Path(destination));
             assert.equal(runTestGit(destination, ["rev-parse", "HEAD"]), repo.originOnly);
         } finally {
             rmSync(destination, { recursive: true, force: true });

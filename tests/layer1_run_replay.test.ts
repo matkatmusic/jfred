@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { executeRunReplay } from "../src/layer1_run_replay.ts";
 import { resetReconstructionCounters } from "../src/reconstruction_counters.ts";
 import { getMemoizedSandboxOutcome } from "../src/reconstruction_script_sandbox_memo.ts";
@@ -25,7 +25,7 @@ test("test_executeRunReplay_original_failed_does_not_spawn", OPTIONS, async () =
     const { result } = await collectReplay(writeCraftedSession(project, "toolu_T"));
     assert.equal(result!.outcome, WireRunOutcome.originalFailed);
     assert.equal(result!.confidence, WireConfidence.originalFailed);
-    assert.deepEqual(result!.files, [{ path: "a.txt", confidence: WireConfidence.originalFailed }]);
+    assert.deepEqual(result!.files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.originalFailed }]);
     assert.equal(countSpawns(), 0);
 });
 
@@ -71,7 +71,7 @@ test("test_executeRunReplay_is_verified_when_the_beacon_equals_and_reports_progr
     const { result, progress, outputs } = await collectReplay(input);
     assert.equal(result!.outcome, WireRunOutcome.replayed);
     assert.equal(result!.confidence, WireConfidence.verified);
-    assert.deepEqual(result!.files, [{ path: "a.txt", confidence: WireConfidence.verified }]);
+    assert.deepEqual(result!.files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.verified }]);
     assert.equal(result!.stdout, "hello\n");
     assert.equal(outputs.join(""), "hello\n");
     assert.deepEqual(progress.map((event) => event.current), [1, 2, 3, 4, 5]);

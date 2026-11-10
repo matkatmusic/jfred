@@ -2,6 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { getRunResult, resetRunResults } from "../webapp/layer1-run-results.ts";
 import { loadScriptRunsOnce } from "../webapp/layer1-script-runs.ts";
 import { stopLayer1Load } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
@@ -10,7 +11,9 @@ import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 
 const RUN = { instant: "2026-06-01T09:03:00.000Z", toolUseId: "toolu_fixture_py_rewrite", executorKind: "python", language: "python",
   code: "import pathlib", label: "python run rewrite.py", sessionId: "fixture-0f3c9a7e", sessionFile: "/fixture/demo/projects/0f3c9a7e.jsonl" };
-const PAYLOAD = { pairs: [{ path: "src/run.ts", scriptRuns: [RUN] }, { path: "not/in/the/view.ts", scriptRuns: [RUN] }] };
+const PAYLOAD = { pairs: [{ path: "src/run.ts", scriptRuns: [RUN] }, { path: "not/in/the/view.ts", scriptRuns: [RUN] }], results: [] };
+const SAVED_RESULT = { kind: "script-result", toolUseId: RUN.toolUseId, outcome: "replayed", files: [{ path: "src/run.ts", change: "deleted" }],
+  stdout: "", stderr: "", timedOut: false, isOutputSaved: true };
 const PROGRESS = { kind: "progress", label: "reading script runs", current: 1, total: 1 };
 
 function buildView(): WireLayer1View {
@@ -58,6 +61,16 @@ test("test_loadScriptRunsOnce_asks_with_the_page_query_and_progress", async () =
   } });
   await loadScriptRunsOnce(buildView());
   assert.equal(urls[0], "/api/layer1-script-runs?dir=%2Fw&repo=%2Fw&progress=1");
+});
+
+test("test_loadScriptRunsOnce_restores_saved_results", async () => {
+  // Verify: a saved result in the reply is readable with getRunResult after the load.
+  initLayer1Dom();
+  resetRunResults();
+  installStreamRoute("/api/layer1-script-runs", [{ ...PAYLOAD, results: [SAVED_RESULT] }]);
+  assert.equal(getRunResult(RUN.toolUseId), undefined);
+  assert.equal(await loadScriptRunsOnce(buildView()), true);
+  assert.deepEqual(getRunResult(RUN.toolUseId), SAVED_RESULT);
 });
 
 test("test_a_second_call_for_the_same_view_never_fetches_again", async () => {

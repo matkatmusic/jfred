@@ -5,7 +5,10 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { LAYER1_PROGRESS_LABEL_READING_SCRIPT_RUNS, buildScriptRunsView } from "../src/layer1_script_runs_wire.ts";
-import { Path } from "../src/structures/domain.ts";
+import { createResult } from "../src/layer1_run_result.ts";
+import { clearRunResultStore, storeRunResultForSession } from "../src/layer1_run_result_store.ts";
+import { Path, Uuid } from "../src/structures/domain.ts";
+import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { WireScriptExecutorKind } from "../webapp/layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 import { SESSION_A, SESSION_B, createSourceTree, writeTranscriptFixture } from "./multi-source-test-helpers.ts";
@@ -69,7 +72,7 @@ test("test_python_indirection_run_lands_on_named_pair", () => {
 test("test_read_only_run_is_dropped", () => {
     const fixture = makeProject();
     const sessionFile = writeBashSession(fixture, "a.jsonl", SESSION_A, [{ toolId: "toolu_b1", timestamp: "2026-07-24T10:01:00.000Z", command: "cat billing.py" }]);
-    assert.deepEqual(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), { pairs: [] });
+    assert.deepEqual(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), { pairs: [], results: [] });
 });
 
 test("test_bash_run_keeps_bash_kind_and_sends_no_label", () => {
@@ -99,7 +102,7 @@ test("test_ctx_shell_run_is_bash_kind_with_shell_language_and_its_line", () => {
 test("test_run_naming_no_file_is_absent", () => {
     const fixture = makeProject();
     const sessionFile = writeBashSession(fixture, "a.jsonl", SESSION_A, [{ toolId: "toolu_b1", timestamp: "2026-07-24T10:01:00.000Z", command: "rm -f nothing.txt" }]);
-    assert.deepEqual(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), { pairs: [] });
+    assert.deepEqual(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), { pairs: [], results: [] });
 });
 
 test("test_run_naming_two_files_joins_both_pairs", () => {
@@ -129,6 +132,20 @@ test("test_runs_per_pair_ascend_by_instant", () => {
     ]);
     const runs = readRunsOf(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]), "billing.py");
     assert.deepEqual(runs.map((run) => run.toolUseId.toString()), ["toolu_early", "toolu_late"]);
+});
+
+test("test_buildScriptRunsView_lists_the_saved_results_of_the_session_files", () => {
+    // Scenario: results saved for a session file come back in the view's results.
+    const fixture = makeProject();
+    const run = { toolId: "toolu_b1", timestamp: "2026-07-24T10:01:00.000Z", command: "cat billing.py" };
+    const sessionFile = writeBashSession(fixture, "a.jsonl", SESSION_A, [run]);
+    // With no saved result, results is empty.
+    assert.deepEqual(buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]).results, []);
+    // After a result is stored for the session file, the view lists it.
+    storeRunResultForSession(sessionFile, createResult(new Uuid("toolu_b1"), WireRunOutcome.replayed));
+    const results = buildScriptRunsView(new Path(fixture.projectFolder), [sessionFile]).results;
+    assert.deepEqual(results.map((result) => result.toolUseId.toString()), ["toolu_b1"]);
+    clearRunResultStore();
 });
 
 test("test_progress_counts_sessions", () => {

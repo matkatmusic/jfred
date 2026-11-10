@@ -9,6 +9,7 @@ import { assertSandboxImagePresent } from "../../src/reconstruction_script_sandb
 import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds } from "./cdp.ts";
 import { executeLayer6RealChecks } from "./layer6-real-checks.ts";
 import { fetchRunsView, findRealScript, type WireTarget } from "./layer6-real-pick.ts";
+import { buildViewerArguments } from "./layer6-real-viewer-args.ts";
 import { failures, reportCheck } from "./mockup-checks.ts";
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -57,11 +58,9 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   writeFileSync(settingsFile, "{}");
   const cacheFile = join(mkdtempSync(join(tmpdir(), "jfred-cache-")), "cache.json");
   const memoFile = join(mkdtempSync(join(tmpdir(), "jfred-memo-")), "sandbox-memo.json");
-  const server = spawn("node", [
-    "--import", "tsx", "src/viewer_server.ts", "--projects-dir", join(JOT_RECOVERY_DIR, "projects"),
-    "--file-history-dir", join(JOT_RECOVERY_DIR, "file-history"), "--port", String(port),
-    "--settings-file", settingsFile, "--cache-file", cacheFile, "--sandbox-memo-file", memoFile,
-  ], { cwd: JFRED_ROOT, stdio: ["ignore", "ignore", "inherit"] });
+  const runResultsFile = join(mkdtempSync(join(tmpdir(), "jfred-run-results-")), "run-results.json");
+  const viewerArguments = buildViewerArguments(JOT_RECOVERY_DIR, port, { settingsFile, cacheFile, memoFile, runResultsFile });
+  const server = spawn("node", viewerArguments, { cwd: JFRED_ROOT, stdio: ["ignore", "ignore", "inherit"] });
   await waitForHttp(`http://127.0.0.1:${port}/app/layer1.html`, 30_000);
   return server;
 }

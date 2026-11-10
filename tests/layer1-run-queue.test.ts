@@ -3,16 +3,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
+import { rememberDrawnView } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-row/layer1-kind-filter.ts";
 import { addRunsToQueue, resetRunQueue, stopRun } from "../webapp/layer1-run-queue.ts";
 import { runQueueState } from "../webapp/layer1-run-route.ts";
 import { getCancelledRunIds, getRunOutcome, getRunOutput, isRunStarted, storeRunResult } from "../webapp/layer1-run-results.ts";
+import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { buildResult, buildRun, buildView, initPage, installServer, triggerConsent, waitAndAcceptConsent, waitFor, waitUntil } from "./layer1-run-queue-helpers.ts";
+
+// The queue reads the drawn view and redraws through the Show row.
+function drawView(view: WireLayer1View, redraw: () => void = () => {}): WireLayer1View {
+  rememberDrawnView(view);
+  renderShowRowWithKindFilter(view, redraw);
+  return view;
+}
 
 test("test_addRunsToQueue_walks_out_of_order_ids_in_time_order_one_at_a_time_and_only_once", async () => {
   // Verify: runs go earliest-first, never overlap, and a second add of started ids sends nothing.
   initPage();
   const log = installServer();
-  const view = buildView({ "a.ts": [buildRun("late", 5)], "b.ts": [buildRun("early", 1)], "c.ts": [buildRun("middle", 3)] });
+  const view = drawView(buildView({ "a.ts": [buildRun("late", 5)], "b.ts": [buildRun("early", 1)], "c.ts": [buildRun("middle", 3)] }));
   await addRunsToQueue(view, ["late", "early", "middle"]);
   await waitAndAcceptConsent();
   await waitUntil(() => getRunOutcome("late") !== undefined);
@@ -28,7 +38,7 @@ test("test_addRunsToQueue_stores_output_and_result_and_paints_the_script_runs_la
   initPage();
   const log = installServer();
   const run = buildRun("solo", 1);
-  await addRunsToQueue(buildView({ "a.ts": [run] }), ["solo"]);
+  await addRunsToQueue(drawView(buildView({ "a.ts": [run] })), ["solo"]);
   await waitAndAcceptConsent();
   await waitUntil(() => getRunOutcome("solo") !== undefined);
   assert.equal(getRunOutput("solo"), "hi\n");
@@ -52,7 +62,7 @@ test("test_addRunsToQueue_a_later_dot_waits_for_the_run_it_needs_without_a_popup
   // Verify: earlier runs first, later runs after its result, and no popup shows.
   initPage();
   const log = installServer({ dependsOn: { later: ["earlier"] } });
-  const view = buildView({ "a.ts": [buildRun("later", 5)], "b.ts": [buildRun("earlier", 1)] });
+  const view = drawView(buildView({ "a.ts": [buildRun("later", 5)], "b.ts": [buildRun("earlier", 1)] }));
   await addRunsToQueue(view, ["later", "earlier"]);
   await waitAndAcceptConsent();
   await waitUntil(() => getRunOutcome("later") !== undefined);
@@ -64,7 +74,7 @@ test("test_addRunsToQueue_the_server_corrects_a_run_the_page_holds_as_replayed",
   // Verify: a held run the server lists as unreplayed loses its result and runs again, first.
   initPage();
   const log = installServer({ dependsOn: { later: ["held"] } });
-  const view = buildView({ "a.ts": [buildRun("later", 5)], "b.ts": [buildRun("held", 1)] });
+  const view = drawView(buildView({ "a.ts": [buildRun("later", 5)], "b.ts": [buildRun("held", 1)] }));
   storeRunResult(view, buildResult("held"));
   await addRunsToQueue(view, ["later", "held"]);
   await waitAndAcceptConsent();
@@ -76,7 +86,7 @@ test("test_addRunsToQueue_at_most_one_needs_request_is_in_flight", async () => {
   // Verify: two adds without waiting still ask the server one after the other.
   initPage();
   const log = installServer();
-  const view = buildView({ "a.ts": [buildRun("one", 1)], "b.ts": [buildRun("two", 2)] });
+  const view = drawView(buildView({ "a.ts": [buildRun("one", 1)], "b.ts": [buildRun("two", 2)] }));
   void addRunsToQueue(view, ["one"]);
   await addRunsToQueue(view, ["two"]);
   await waitAndAcceptConsent();
@@ -98,7 +108,7 @@ test("test_stopRun_cancels_the_running_script_and_it_is_not_retried", async () =
   // Verify: the cancel marks the run, and the recheck sends no second run request.
   initPage();
   const log = installServer({ holdRuns: true });
-  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await addRunsToQueue(drawView(buildView({ "a.ts": [buildRun("slow", 1)] })), ["slow"]);
   await waitAndAcceptConsent();
   await waitUntil(() => log.runCalls.length === 1);
   stopRun("slow");
@@ -119,7 +129,7 @@ test("test_addRunsToQueue_shows_the_running_mark_on_the_dots_while_the_script_ru
   initPage();
   const log = installServer({ holdRuns: true });
   const dot = drawRunDotOnPage("slow");
-  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await addRunsToQueue(drawView(buildView({ "a.ts": [buildRun("slow", 1)] })), ["slow"]);
   await waitAndAcceptConsent();
   await waitUntil(() => log.runCalls.length === 1);
   assert.ok(dot.classList.contains("run-end-running"));
@@ -132,7 +142,7 @@ test("test_stopRun_shows_the_cancelled_mark_on_the_dots", async () => {
   initPage();
   const log = installServer({ holdRuns: true });
   const dot = drawRunDotOnPage("slow");
-  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await addRunsToQueue(drawView(buildView({ "a.ts": [buildRun("slow", 1)] })), ["slow"]);
   await waitAndAcceptConsent();
   await waitUntil(() => log.runCalls.length === 1);
   stopRun("slow");
@@ -144,7 +154,7 @@ test("test_resetRunQueue_aborts_the_running_script_and_does_not_throw_when_none_
   // Verify: the held run ends as cancelled with no second run request, and an idle reset is quiet.
   initPage();
   const log = installServer({ holdRuns: true });
-  await addRunsToQueue(buildView({ "a.ts": [buildRun("slow", 1)] }), ["slow"]);
+  await addRunsToQueue(drawView(buildView({ "a.ts": [buildRun("slow", 1)] })), ["slow"]);
   await waitAndAcceptConsent();
   await waitUntil(() => log.runCalls.length === 1);
   assert.equal(runQueueState.runningId, "slow");
@@ -152,4 +162,31 @@ test("test_resetRunQueue_aborts_the_running_script_and_does_not_throw_when_none_
   await waitUntil(() => runQueueState.runningId === undefined);
   assert.equal(log.runCalls.length, 1);
   assert.doesNotThrow(resetRunQueue);
+});
+
+test("test_refreshViewport_redraws_after_a_replayed_result_before_the_next_run", async () => {
+  // Verify: a redraw comes before the next run, and the re-ask reads the redrawn view.
+  initPage();
+  const log = installServer();
+  const events: string[] = [];
+  const serverFetch = globalThis.fetch;
+  const recordRunRequest = async (url: unknown, init: RequestInit): Promise<Response> => {
+    const isRunRoute = !String(url).includes("layer1-script-needs");
+    if (isRunRoute) {
+      events.push(`run:${(JSON.parse(String(init.body)) as { toolUseId: string }).toolUseId}`);
+    }
+    return serverFetch(url as RequestInfo, init);
+  };
+  Object.assign(globalThis, { fetch: recordRunRequest });
+  const redrawnView = buildView({ "a.ts": [buildRun("first", 1)], "b.ts": [buildRun("second", 2)], "c.ts": [buildRun("third", 3)] });
+  const redrawIntoNewView = (): void => {
+    events.push("redraw");
+    rememberDrawnView(redrawnView);
+  };
+  const firstView = drawView(buildView({ "a.ts": [buildRun("first", 1)], "b.ts": [buildRun("second", 2)] }), redrawIntoNewView);
+  await addRunsToQueue(firstView, ["first", "second", "third"]);
+  await waitAndAcceptConsent();
+  await waitUntil(() => getRunOutcome("third") !== undefined);
+  assert.deepEqual(events.slice(0, 3), ["run:first", "redraw", "run:second"]);
+  assert.equal(log.runCalls.includes("third"), true);
 });

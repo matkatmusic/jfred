@@ -2,7 +2,7 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import { type WireScriptRunsView } from "../webapp/layer1-wire-script-runs.ts";
 import {
     findMissingPhrases, formatOutcomeCounts, isAttempted, isRectLeftOf, isReplayWithoutFile, listCandidateRuns,
@@ -13,7 +13,7 @@ const buildRun = (toolUseId: string, instant: string, language: string) => ({
     toolUseId, instant, language, executorKind: "python", code: "", sessionId: "s", sessionFile: "f.jsonl", line: 1,
 });
 const buildResult = (outcome: string, files: number): WireScriptResult => ({
-    kind: "script-result", toolUseId: "t", outcome, files: Array(files).fill({ path: "a", confidence: "verified" }),
+    kind: "script-result", toolUseId: "t", outcome, files: Array(files).fill({ path: "a", change: WireFileChange.changed, confidence: "verified" }),
     stdout: "", stderr: "", timedOut: false, isOutputSaved: true,
 } as WireScriptResult);
 const buildAttempt = (toolUseId: string, outcome: string, files = 1): ReplayAttempt =>

@@ -1,17 +1,18 @@
 // POST /api/layer1-script-run (task 358 part P): one guarded replay with a live NDJSON stream and a cancel.
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
-import { WireRunStreamKind, type WireScriptRunRequest } from "../webapp/layer1-wire-script-results.ts";
+import { WireRunStreamKind, type WireScriptResult, type WireScriptRunRequest } from "../webapp/layer1-wire-script-results.ts";
 import { executeRunReplay } from "./layer1_run_replay.ts";
+import { storeRunResultForSession } from "./layer1_run_result_store.ts";
 import type { ReplayInput } from "./layer1_run_start_files.ts";
 import { loadTranscript } from "./parse/loadTranscript.ts";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
-import type { OutputStream } from "./reconstruction_script_sandbox_stream.ts";
+import type { OutputSink, OutputStream } from "./reconstruction_script_sandbox_stream.ts";
 import { Uuid, type Path } from "./structures/domain.ts";
 import { computeDocumentDecision, type DocumentDecision } from "./viewer_api_consent.ts";
 import { assertLocalJsonPost } from "./viewer_api_clear_results.ts";
 import { validateExistingFolderParam } from "./viewer_api_layer1_route.ts";
-import { sendNdjsonAsync, type NdjsonStep } from "./viewer_api_layer1_route_async.ts";
+import { sendNdjsonAsync, type NdjsonStep, type WriteNdjsonLine } from "./viewer_api_layer1_route_async.ts";
 import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { sendJson } from "./viewer_server_routes.ts";
 
@@ -51,12 +52,21 @@ function buildReplayInput(request: WireScriptRunRequest, context: RouteContext):
   return { sessionFile, toolUseId: new Uuid(request.toolUseId), dir, sources: getPathOverrides().sources, repoPath, sessionFiles: listedFiles };
 }
 
+// Undefined means the request was cancelled: nothing is saved.
+async function executeAndStoreReplay(input: ReplayInput, writeLine: WriteNdjsonLine, writeOutputLine: OutputSink, signal: AbortSignal): Promise<WireScriptResult | undefined> {
+  const result = await executeRunReplay(input, writeLine, writeOutputLine, signal);
+  if (result !== undefined) {
+    storeRunResultForSession(input.sessionFile, result);
+  }
+  return result;
+}
+
 function createReplayStep(input: ReplayInput): NdjsonStep {
   return (writeLine, signal) => {
     function writeOutputLine(stream: OutputStream, text: string): void {
       writeLine({ kind: WireRunStreamKind.output, stream, text });
     }
-    return executeRunReplay(input, writeLine, writeOutputLine, signal);
+    return executeAndStoreReplay(input, writeLine, writeOutputLine, signal);
   };
 }
 

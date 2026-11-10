@@ -20,8 +20,9 @@ function getButton(): HTMLButtonElement {
   return document.getElementById("commit-mode") as HTMLButtonElement;
 }
 
-function buildEmptyStreamResponse(): Response {
-  const encoded = new TextEncoder().encode(JSON.stringify({ pairs: [] }) + "\n");
+function buildEmptyStreamResponse(pathname: string): Response {
+  const reply = pathname === "/api/layer1-script-runs" ? { pairs: [], results: [] } : { pairs: [] };
+  const encoded = new TextEncoder().encode(JSON.stringify(reply) + "\n");
   const body = new ReadableStream({
     start(controller) {
       controller.enqueue(encoded);
@@ -41,7 +42,7 @@ function installLoaderRoutes(failingPathname: string | undefined): string[] {
     requested.push(pathname);
     if (pathname === failingPathname)
       return { ok: false, status: 500, text: async () => "loader failed" } as unknown as Response;
-    return buildEmptyStreamResponse();
+    return buildEmptyStreamResponse(pathname);
   };
   Object.assign(globalThis, { fetch: answer });
   return requested;

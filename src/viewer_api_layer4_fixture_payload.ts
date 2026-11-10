@@ -78,5 +78,5 @@ export function buildFixtureScriptRunsPayload(writeNdjsonLine: (value: unknown) 
       current: index + 1, total: SCRIPT_RUNS.length });
     appendRunToPairPaths(runsByPath, pairPaths, run);
   }
-  return { pairs: buildPairs(runsByPath) };
+  return { pairs: buildPairs(runsByPath), results: [] };
 }

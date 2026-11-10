@@ -18,12 +18,18 @@ test("test_parse_server_args_defaults_port_and_reset_flags", () => {
         resetSandboxMemo: false,
         resetDocumentCache: false,
         sandboxMemoFile: undefined,
+        runResultsFile: undefined,
     });
 });
 
 test("test_parse_server_args_reads_port_and_reset_flags", () => {
     const parsed = parseServerArgs(["--projects-dir", createTempDir(), "--port", "18123", "--resetSandboxMemo", "--resetDocumentCache"]);
-    assert.deepEqual(parsed, { port: 18123, resetSandboxMemo: true, resetDocumentCache: true, sandboxMemoFile: undefined });
+    assert.deepEqual(parsed, { port: 18123, resetSandboxMemo: true, resetDocumentCache: true, sandboxMemoFile: undefined, runResultsFile: undefined });
+});
+
+test("test_parse_server_args_reads_the_run_results_file_flag", () => {
+    const parsed = parseServerArgs(["--projects-dir", createTempDir(), "--run-results-file", "/tmp/run-results.json"]);
+    assert.equal(parsed.runResultsFile, "/tmp/run-results.json");
 });
 
 test("test_parse_server_args_reads_the_sandbox_memo_file_flag", () => {

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { chooseSandboxMount, type DockerLaunch } from "../src/reconstruction_script_sandbox_docker.ts";
-import { cloneProjectAtCommit } from "../src/reconstruction_script_sandbox_project.ts";
+import { copyProjectAtCommit } from "../src/reconstruction_script_sandbox_project.ts";
 import { NO_SUCH_FILE, PROOF_TIMEOUT_MS, runProofScript } from "./reconstruction_script_sandbox_proof_helpers.ts";
 
 const BOX_SCRIPT_FILE = new Path("/reveng-script/script.py");
@@ -90,7 +90,7 @@ test("test_proof_10_the_clone_cannot_reach_the_host_repo", { timeout: PROOF_TIME
     ].join("\n");
     const { hostFile } = createHostScript(script);
     const mount = chooseSandboxMount(new Path("/proof/clone"));
-    const prepare = (mountDir: Path): void => cloneProjectAtCommit(new Path(repo), new Uuid(commit), mountDir);
+    const prepare = (mountDir: Path): void => copyProjectAtCommit(new Path(repo), new Uuid(commit), mountDir);
     const run = await runProofScript(script, mount, [], buildReadOnlyScriptLaunch(hostFile, mount), prepare);
     assert.match(run.stdout, /PACKS=[1-9]/, `the clone had no pack to attack: ${run.stderr}`);
     assert.ok(run.stdout.includes("GIT-FILES-LEFT=0"), run.stdout);
@@ -117,7 +117,7 @@ test("test_proof_11_git_works_in_the_mounted_clone", { timeout: PROOF_TIMEOUT_MS
     ].join("\n");
     const { hostFile } = createHostScript(script);
     const mount = chooseSandboxMount(new Path("/proof/clone"));
-    const prepare = (mountDir: Path): void => cloneProjectAtCommit(new Path(repo), new Uuid(commit), mountDir);
+    const prepare = (mountDir: Path): void => copyProjectAtCommit(new Path(repo), new Uuid(commit), mountDir);
     const run = await runProofScript(script, mount, [], buildReadOnlyScriptLaunch(hostFile, mount), prepare);
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout.split("\n").filter((line) => line.startsWith("EXIT=0 ")).length, 3, run.stdout);

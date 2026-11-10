@@ -4,10 +4,12 @@ import { openBusyShield, renderBusyShieldError } from "./layer1-components/popup
 import { hideLayer1Progress, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import { refreshRunConsole } from "./layer1-components/details-drawer/layer1-run-console.ts";
 import { openRunConsent } from "./layer1-components/popups/layer1-run-consent.ts";
-import { appendRunOutput, markRunCancelled, markRunStarted, paintRunDotsOfRun, storeRunResult } from "./layer1-run-results.ts";
+import { readDrawnView } from "./layer1-components/bubbles/layer1-diff-wash.ts";
+import { refreshDrawnStage } from "./layer1-components/show-row/layer1-kind-filter.ts";
+import { appendRunOutput, getRunOutcome, markRunCancelled, markRunStarted, renderRunDotsOfRun, storeRunResult } from "./layer1-run-results.ts";
 import { clearNeedsCache, computeRunRoutes, runQueueState } from "./layer1-run-route.ts";
 import { fetchScriptRun, type RunReply } from "./layer1-run-stream.ts";
-import type { WireScriptOutputLine } from "./layer1-wire-script-results.ts";
+import { WireRunOutcome, type WireScriptOutputLine } from "./layer1-wire-script-results.ts";
 import type { WireScriptRun } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
@@ -38,7 +40,7 @@ function markRunRunning(run: WireScriptRun): AbortController {
   controllers.set(run.toolUseId, controller);
   runQueueState.runningId = run.toolUseId;
   markRunStarted(run.toolUseId);
-  paintRunDotsOfRun(run.toolUseId);
+  renderRunDotsOfRun(run.toolUseId);
   return controller;
 }
 
@@ -55,10 +57,14 @@ function storeRunReply(view: WireLayer1View, run: WireScriptRun, reply: RunReply
 }
 
 // After a result or cancel the saved answers are stale: ask again for the dots still on screen.
-function refreshViewport(toolUseId: string): void {
+async function refreshViewport(toolUseId: string): Promise<void> {
   clearNeedsCache();
   refreshRunConsole(toolUseId);
-  void addRunsToQueue(latestScroll!.view, latestScroll!.ids);
+  const isReplayed = getRunOutcome(toolUseId) === WireRunOutcome.replayed;
+  if (isReplayed) {
+    await refreshDrawnStage();
+  }
+  void addRunsToQueue(readDrawnView()!, latestScroll!.ids);
 }
 
 function appendOutputLine(toolUseId: string, line: WireScriptOutputLine): void {
@@ -76,7 +82,7 @@ async function executeNextRun(view: WireLayer1View): Promise<void> {
   const writeLine = (line: WireScriptOutputLine): void => appendOutputLine(run.toolUseId, line);
   const reply = await fetchScriptRun(request, renderStep, writeLine, controller.signal);
   storeRunReply(view, run, reply);
-  refreshViewport(run.toolUseId);
+  await refreshViewport(run.toolUseId);
 }
 
 // A declined consent drops the queue before the loop starts.
@@ -90,7 +96,7 @@ async function executeQueue(view: WireLayer1View): Promise<void> {
     queue.length = 0;
   }
   while (queue.length > 0) {
-    await executeNextRun(view);
+    await executeNextRun(readDrawnView()!);
   }
   stopWalking();
 }
@@ -117,7 +123,7 @@ export function stopRun(toolUseId: string): void {
     throw new Error(`script ${toolUseId} is not running`);
   }
   markRunCancelled(toolUseId);
-  paintRunDotsOfRun(toolUseId);
+  renderRunDotsOfRun(toolUseId);
   controller.abort();
   refreshRunConsole(toolUseId);
 }

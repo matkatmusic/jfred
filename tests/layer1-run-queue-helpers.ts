@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { resetRunConsent } from "../webapp/layer1-components/popups/layer1-run-consent.ts";
 import { resetRunQueue } from "../webapp/layer1-run-queue.ts";
 import { resetRunResults } from "../webapp/layer1-run-results.ts";
-import { WireNeedState, WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireNeedState, WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -57,7 +57,7 @@ function buildStream(lines: object[]): Response {
 }
 
 export function buildResult(id: string): WireScriptResult {
-  return { kind: "script-result", toolUseId: id, outcome: WireRunOutcome.replayed, files: [{ path: "a.ts", confidence: "verified" }], stdout: "hi\n", stderr: "", timedOut: false, isOutputSaved: true };
+  return { kind: "script-result", toolUseId: id, outcome: WireRunOutcome.replayed, files: [{ path: "a.ts", change: WireFileChange.changed, confidence: "verified" }], stdout: "hi\n", stderr: "", timedOut: false, isOutputSaved: true };
 }
 
 function buildNeed(id: string): object {

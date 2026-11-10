@@ -11,6 +11,8 @@ export const RunMarkKey = {
   verified: "verified",
   mismatch: "mismatch",
   injectedUnverified: "injected-unverified",
+  deleted: "deleted",
+  changedNotText: "changed-not-text",
 } as const;
 export type RunMarkKey = (typeof RunMarkKey)[keyof typeof RunMarkKey];
 
@@ -29,6 +31,8 @@ const MARK_SHAPES: Record<RunMarkKey, string> = {
   [RunMarkKey.verified]: `<path d="M1.2 7.4L4.6 12L11.4 1" ${MARK_STROKE} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
   [RunMarkKey.mismatch]: `<rect x="0.5" y="3.4" width="12" height="2.2" fill="currentColor"/><rect x="0.5" y="7.4" width="12" height="2.2" fill="currentColor"/><path d="M8.8 0.4L4.2 12.6" ${MARK_STROKE} stroke-width="1.8"/>`,
   [RunMarkKey.injectedUnverified]: `<path d="M6.5 0L13 13H0Z" fill="currentColor"/><rect x="5.7" y="4.6" width="1.6" height="4.2" fill="#0b0b0b"/><circle cx="6.5" cy="10.8" r="0.9" fill="#0b0b0b"/>`,
+  [RunMarkKey.deleted]: `<path d="M0.8 2.9H12.2M4.5 2.9V0.9H8.5V2.9M2.3 2.9L3.1 12.1H9.9L10.7 2.9" ${MARK_STROKE} stroke-width="1.5" stroke-linejoin="round"/>`,
+  [RunMarkKey.changedNotText]: `<rect x="1.3" y="1.3" width="10.4" height="10.4" ${MARK_STROKE} stroke-width="1.6"/><path d="M1.3 11.7L11.7 1.3" ${MARK_STROKE} stroke-width="1.6"/>`,
 };
 
 export function buildRunMarkMarkup(key: RunMarkKey): string {

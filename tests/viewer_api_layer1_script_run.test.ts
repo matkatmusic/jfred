@@ -2,12 +2,14 @@
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer, request as sendHttpRequest, type ClientRequest, type Server } from "node:http";
 import { type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { ReplayInput } from "../src/layer1_run_start_files.ts";
+import { listSavedRunResults } from "../src/layer1_run_result_store.ts";
 import { isImpureExecutionAllowed } from "../src/reconstruction_exec_gate.ts";
 import { setSandboxMemoPersistence } from "../src/reconstruction_script_sandbox_memo.ts";
 import { receiveScriptRun } from "../src/viewer_api_layer1_script_run.ts";
@@ -123,8 +125,12 @@ test("test_receiveScriptRun_streams_error_lines_for_an_unknown_run_and_an_unsave
 
 test("test_receiveScriptRun_streams_the_docker_off_error_and_starts_no_host_process", async () => {
     resetRunState();
-    process.env.PATH = mkdtempSync(join(tmpdir(), "no-docker-"));
     const { input } = createCraftedSession(APPEND_Z_SCRIPT);
+    // The new PATH holds git (the repo check needs it) and no docker.
+    const gitBinary = execFileSync("which", ["git"]).toString().trim();
+    const noDockerDir = mkdtempSync(join(tmpdir(), "no-docker-"));
+    symlinkSync(gitBinary, join(noDockerDir, "git"));
+    process.env.PATH = noDockerDir;
     const gateBefore = isImpureExecutionAllowed();
     const last = await readLastLine(input);
     process.env.PATH = originalPath;
@@ -146,5 +152,7 @@ test("test_receiveScriptRun_answers_409_for_a_second_live_run_then_a_close_kills
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const last = await readLastLine(input);
     assert.deepEqual([last.kind, last.outcome], ["script-result", "replayed"]);
+    // The replay result is saved for the session file.
+    assert.deepEqual(listSavedRunResults(input.sessionFile).map((result) => result.toolUseId.toString()), ["toolu_T"]);
     assert.equal(isImpureExecutionAllowed(), gateBefore);
 });

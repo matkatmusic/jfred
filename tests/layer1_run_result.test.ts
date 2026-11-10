@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import {
     OUTPUT_NOT_SAVED_REASON,
     createFailedResult,
@@ -35,16 +35,16 @@ test("test_createOriginalFailedResult_sets_the_run_confidence_directly_and_lists
     const result = createOriginalFailedResult(TOOL_USE_ID, RUN, new Path(dir));
     assert.equal(result.outcome, WireRunOutcome.originalFailed);
     assert.equal(result.confidence, WireConfidence.originalFailed);
-    assert.deepEqual(result.files, [{ path: "a.txt", confidence: WireConfidence.originalFailed }]);
+    assert.deepEqual(result.files, [{ path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.originalFailed }]);
 });
 
 test("test_createReplayedResult_takes_the_worst_file_confidence_and_the_saved_output", () => {
     const files = [
-        { path: "a.txt", confidence: WireConfidence.verified },
-        { path: "b.txt", confidence: WireConfidence.mismatch },
+        { path: "a.txt", change: WireFileChange.changed, confidence: WireConfidence.verified },
+        { path: "b.txt", change: WireFileChange.changed, confidence: WireConfidence.mismatch },
     ];
     const output = { stdout: "out\n", stderr: "err\n", exitCode: 0, timedOut: false };
-    const result = createReplayedResult(TOOL_USE_ID, { post: new Map(), output }, files);
+    const result = createReplayedResult(TOOL_USE_ID, { post: new Map(), output, deletedKeys: [], notTextKeys: [] }, files);
     assert.equal(result.outcome, WireRunOutcome.replayed);
     assert.equal(result.confidence, WireConfidence.mismatch);
     assert.equal(result.stdout, "out\n");
@@ -54,21 +54,21 @@ test("test_createReplayedResult_takes_the_worst_file_confidence_and_the_saved_ou
 });
 
 test("test_createReplayedResult_has_no_confidence_key_for_no_files_and_marks_missing_output", () => {
-    const result = createReplayedResult(TOOL_USE_ID, { post: new Map() }, []);
+    const result = createReplayedResult(TOOL_USE_ID, { post: new Map(), deletedKeys: [], notTextKeys: [] }, []);
     assert.equal("confidence" in result, false);
     assert.equal(result.isOutputSaved, false);
 });
 
 test("test_createFailedResult_reports_a_timeout_a_crash_a_box_block_and_missing_output", () => {
     const failed = (stderr: string, timedOut: boolean, exitCode?: number) =>
-        createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut, ...(exitCode === undefined ? {} : { exitCode }) } }, MOUNT);
+        createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut, ...(exitCode === undefined ? {} : { exitCode }) }, deletedKeys: [], notTextKeys: [] }, MOUNT);
     assert.equal(failed("", true).timedOut, true);
     assert.match(failed("", true).reason!, /5 seconds/);
     assert.match(failed("ValueError: bad\n", false, 1).reason!, /exit code 1/);
     assert.ok(failed("OSError: Network is unreachable\n", false, 1).reason!.startsWith(BOX_BLOCKED_REASON_PREFIX));
     assert.equal(failed("x", false, 1).outcome, WireRunOutcome.replayFailed);
     assert.equal("confidence" in failed("x", false, 1), false);
-    const unsaved = createFailedResult(TOOL_USE_ID, { post: undefined }, MOUNT);
+    const unsaved = createFailedResult(TOOL_USE_ID, { post: undefined, deletedKeys: [], notTextKeys: [] }, MOUNT);
     assert.equal(unsaved.reason, OUTPUT_NOT_SAVED_REASON);
     assert.equal(unsaved.isOutputSaved, false);
 });
@@ -76,6 +76,6 @@ test("test_createFailedResult_reports_a_timeout_a_crash_a_box_block_and_missing_
 test("test_createFailedResult_does_not_report_a_box_block_for_a_repo_file_outside_the_cwd", () => {
     // The box mount is the repo root, so a repo file outside the cwd is inside the box.
     const stderr = "FileNotFoundError: [Errno 2] No such file or directory: '/repo/other.py'\n";
-    const result = createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut: false, exitCode: 1 } }, MOUNT);
+    const result = createFailedResult(TOOL_USE_ID, { post: undefined, output: { stdout: "", stderr, timedOut: false, exitCode: 1 }, deletedKeys: [], notTextKeys: [] }, MOUNT);
     assert.equal(result.reason!.startsWith(BOX_BLOCKED_REASON_PREFIX), false);
 });

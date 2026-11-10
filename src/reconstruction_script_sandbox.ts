@@ -12,8 +12,8 @@ import {
 } from "./reconstruction_script_sandbox_memo.ts";
 import { ReconstructionCounter, addToReconstructionCounter } from "./reconstruction_counters.ts";
 import { SANDBOX_TIMEOUT_MS, locateReadOnlyScript, prepareSandboxDirectory, readAllFiles, removeSandboxDirectory } from "./reconstruction_script_sandbox_dir.ts";
-import { describeSandboxBoxKey, type SandboxBox } from "./reconstruction_script_sandbox_box.ts";
-import { applyStdoutRedirect, collectBoxPostState, snapshotSandboxFiles } from "./reconstruction_script_sandbox_snapshot.ts";
+import { computeSandboxBoxKey, type SandboxBox } from "./reconstruction_script_sandbox_box.ts";
+import { applyStdoutRedirect, collectBoxPostState, collectSandboxFileHashes, type BoxPostState } from "./reconstruction_script_sandbox_snapshot.ts";
 import {
   DockerUnavailableError,
   type DockerLaunch,
@@ -61,7 +61,7 @@ export function computeSandboxInputKey(script: string, preState: Map<string, str
     hash.update(preState.get(path)!);
   }
   if (box !== undefined) {
-    hash.update("\0box\0" + describeSandboxBoxKey(box));
+    hash.update("\0box\0" + computeSandboxBoxKey(box));
   }
   return hash.digest("hex");
 }
@@ -92,7 +92,7 @@ function spawnAndStoreOutcome(inputKey: string, script: string, preState: Map<st
   );
   addToReconstructionCounter(ReconstructionCounter.sandboxSpawns);
   const outcome = spawnSandboxRun(script, preState, recordedCwd, box);
-  storeSandboxOutcome(inputKey, outcome.post, outcome.output);
+  storeSandboxOutcome(inputKey, outcome.post, outcome.output, outcome.deletedKeys, outcome.notTextKeys);
   return outcome.post;
 }
 
@@ -121,11 +121,11 @@ function buildSandboxDockerArgs(runId: Uuid, tempDir: string, recordedCwd?: Path
 }
 
 // With a box, the baseline hash is taken now, before the container starts.
-function createPostStateCollector(tempDir: string, preState: Map<string, string>, box?: SandboxBox): (stdout: string) => Map<string, string> {
+function createPostStateCollector(tempDir: string, preState: Map<string, string>, box?: SandboxBox): (stdout: string) => BoxPostState {
   if (box === undefined) {
-    return () => collectSandboxPostState(tempDir);
+    return () => ({ post: collectSandboxPostState(tempDir), deletedKeys: [], notTextKeys: [] });
   }
-  const baseline = snapshotSandboxFiles(tempDir);
+  const baseline = collectSandboxFileHashes(tempDir);
   return (stdout) => {
     applyStdoutRedirect(tempDir, box, stdout);
     return collectBoxPostState(tempDir, box, preState, baseline);
@@ -144,7 +144,7 @@ function collectSandboxPostState(tempDir: string): Map<string, string> {
   return post;
 }
 
-function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, collectPostState: (stdout: string) => Map<string, string>): SandboxOutcome {
+function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, collectPostState: (stdout: string) => BoxPostState): SandboxOutcome {
   const output: SandboxOutput = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status ?? undefined, timedOut: false };
   if (result.error !== undefined) {
     return parseSpawnError(result.error, output, runId);
@@ -154,9 +154,9 @@ function parseSandboxResult(result: SpawnSyncReturns<string>, runId: Uuid, colle
     throw new DockerUnavailableError();
   }
   if (result.status !== 0) {
-    return { post: undefined, output };
+    return { post: undefined, output, deletedKeys: [], notTextKeys: [] };
   }
-  return { post: collectPostState(result.stdout), output };
+  return { ...collectPostState(result.stdout), output };
 }
 
 function parseSpawnError(error: Error, output: SandboxOutput, runId: Uuid): SandboxOutcome {
@@ -166,11 +166,11 @@ function parseSpawnError(error: Error, output: SandboxOutput, runId: Uuid): Sand
   }
   if (errorCode === SPAWN_ERROR_TIMED_OUT) {
     stopTimedOutContainer(runId);
-    return { post: undefined, output: { ...output, timedOut: true } };
+    return { post: undefined, output: { ...output, timedOut: true }, deletedKeys: [], notTextKeys: [] };
   }
   if (errorCode === SPAWN_ERROR_OUTPUT_TOO_LARGE) {
     killSandboxContainer(runId);
-    return { post: undefined, output };
+    return { post: undefined, output, deletedKeys: [], notTextKeys: [] };
   }
   throw error;
 }

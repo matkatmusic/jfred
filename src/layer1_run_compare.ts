@@ -1,7 +1,7 @@
 // Task 358 part R: gives each file a replayed run changed a verdict against the nearest proof.
 
 import { WireConfidence, WireEditKind } from "../webapp/layer1-wire-edits.ts";
-import type { WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import { listBeaconCandidates } from "./layer1_beacon_candidates.ts";
 import { readSessionEditEvents, type LayerEditEvent } from "./layer1_edit_events.ts";
 import { isMatchingWorkingTree } from "./layer1_run_tree_confirm.ts";
@@ -87,23 +87,40 @@ function computeChangedFileConfidence(context: CompareContext, target: Path, rel
   return isOnDisk ? WireConfidence.verified : WireConfidence.injectedUnverified;
 }
 
+// Deleted and not-text files get no rating; junk keys and files outside the project are left out.
+function listUnratedFiles(context: CompareContext, keys: string[], change: WireFileChange): RunFile[] {
+  const files: RunFile[] = [];
+  for (const key of keys) {
+    const absolute = normalizeAgainstCwd(context.run.cwd, new Path(key));
+    const relativePath = convertToProjectRelativePath(context.input.dir, absolute);
+    const isReported = relativePath !== undefined && !isJunkStateKey(key);
+    if (isReported) {
+      files.push({ path: relativePath, change });
+    }
+  }
+  return files;
+}
+
 // A file outside the project folder has no project-relative path, so it is not on the wire.
-export function compareChangedFiles(context: CompareContext, changed: [string, string][]): RunFile[] {
+export function compareChangedFiles(context: CompareContext, changed: [string, string][], deletedKeys: string[], notTextKeys: string[]): RunFile[] {
   const files: RunFile[] = [];
   for (const [key, content] of changed) {
     const absolute = normalizeAgainstCwd(context.run.cwd, new Path(key));
     const relativePath = convertToProjectRelativePath(context.input.dir, absolute);
     if (relativePath !== undefined) {
-      files.push({ path: relativePath, confidence: computeChangedFileConfidence(context, new Path(absolute), relativePath, content) });
+      files.push({ path: relativePath, change: WireFileChange.changed, confidence: computeChangedFileConfidence(context, new Path(absolute), relativePath, content) });
     }
   }
+  files.push(...listUnratedFiles(context, deletedKeys, WireFileChange.deleted), ...listUnratedFiles(context, notTextKeys, WireFileChange.changedNotText));
   return files;
 }
 
 export function findRunConfidence(files: RunFile[]): WireConfidence | undefined {
   const confidences: WireConfidence[] = [];
   for (const file of files) {
-    confidences.push(file.confidence);
+    if (file.confidence !== undefined) {
+      confidences.push(file.confidence);
+    }
   }
   return findWorstConfidence(confidences);
 }

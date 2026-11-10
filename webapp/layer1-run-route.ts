@@ -1,6 +1,8 @@
 // Layer 1 run route: queues a dot, or shows why it waits.
 
+import { readDrawnView } from "./layer1-components/bubbles/layer1-diff-wash.ts";
 import { getBasename } from "./layer1-components/details-drawer/layer1-diff-view.ts";
+import { refreshDrawnStage } from "./layer1-components/show-row/layer1-kind-filter.ts";
 import { renderBlockedPopup } from "./layer1-components/popups/layer1-run-blocked-popup.ts";
 import {
   compareRunOrder, findBlockerDot, findFirstBlocker, isBlockerPending, isRunEligible, listOwnBubbleBlockers, listRunBubbles, mergeBlockers, type Blocker,
@@ -118,16 +120,27 @@ function applyRunRoute(view: WireLayer1View, run: WireScriptRun, needs: WireNeed
   renderFirstBlocker(view, run, findFirstBlocker(blockers)!);
 }
 
-// Eligible dots join the queue in time order; blocked dots show a popup. One needs request at a time.
-export async function computeRunRoutes(view: WireLayer1View, ids: string[]): Promise<void> {
+// True when a stale need was reset, so the caller must redraw and route again.
+async function applyRoutesToQueueableRuns(view: WireLayer1View, ids: string[]): Promise<boolean> {
   let didReset = false;
   for (const run of listQueueableRuns(view, ids)) {
     const needs = await readNeeds(run);
     const didResetNeed = resetStaleNeeds(view, needs);
-    didReset = didReset || didResetNeed;
-    applyRunRoute(view, run, needs);
+    if (didResetNeed) {
+      didReset = true;
+    }
+    else {
+      applyRunRoute(view, run, needs);
+    }
   }
+  return didReset;
+}
+
+// Eligible dots join the queue in time order; blocked dots show a popup. One needs request at a time.
+export async function computeRunRoutes(view: WireLayer1View, ids: string[]): Promise<void> {
+  const didReset = await applyRoutesToQueueableRuns(view, ids);
   if (didReset) {
-    await computeRunRoutes(view, ids);
+    await refreshDrawnStage();
+    await computeRunRoutes(readDrawnView()!, ids);
   }
 }

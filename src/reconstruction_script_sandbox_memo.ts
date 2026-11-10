@@ -7,7 +7,7 @@ import { getCachedValueRefreshingRecency, removeLeastRecentlyUsedEntries } from 
 
 // One spawn per input suffices; ponytail: outcomes returned by reference, treat post-states read-only.
 export type SandboxOutput = { stdout: string; stderr: string; exitCode?: number; timedOut: boolean };
-export type SandboxOutcome = { post: Map<string, string> | undefined; output?: SandboxOutput };
+export type SandboxOutcome = { post: Map<string, string> | undefined; output?: SandboxOutput; deletedKeys: string[]; notTextKeys: string[] };
 const sandboxOutcomesByInput = new Map<string, SandboxOutcome>();
 // Must exceed a project's distinct run count; ponytail: flat constant, revisit if exceeded.
 const SANDBOX_MEMO_CAPACITY = 4096;
@@ -18,23 +18,23 @@ const SANDBOX_MEMO_PERSIST_BATCH_SIZE = 64;
 let sandboxSpawnsSinceLastPersist = 0;
 
 // Wire shape of one memo entry on disk: `post: null` records a memoized failure.
-type PersistedSandboxOutcome = { post: Record<string, string> | null; output?: SandboxOutput };
+type PersistedSandboxOutcome = { post: Record<string, string> | null; output?: SandboxOutput; deletedKeys?: string[]; notTextKeys?: string[] };
 
 export function getMemoizedSandboxOutcome(inputKey: string): SandboxOutcome | undefined {
   return getCachedValueRefreshingRecency(sandboxOutcomesByInput, inputKey);
 }
 
 // An entry without output has no `output` key at all.
-function createSandboxOutcome(post: Map<string, string> | undefined, output: SandboxOutput | undefined): SandboxOutcome {
-  const outcome: SandboxOutcome = { post };
+function createSandboxOutcome(post: Map<string, string> | undefined, output: SandboxOutput | undefined, deletedKeys: string[], notTextKeys: string[]): SandboxOutcome {
+  const outcome: SandboxOutcome = { post, deletedKeys, notTextKeys };
   if (output !== undefined) {
     outcome.output = output;
   }
   return outcome;
 }
 
-export function storeSandboxOutcome(inputKey: string, post: Map<string, string> | undefined, output?: SandboxOutput): void {
-  sandboxOutcomesByInput.set(inputKey, createSandboxOutcome(post, output));
+export function storeSandboxOutcome(inputKey: string, post: Map<string, string> | undefined, output?: SandboxOutput, deletedKeys: string[] = [], notTextKeys: string[] = []): void {
+  sandboxOutcomesByInput.set(inputKey, createSandboxOutcome(post, output, deletedKeys, notTextKeys));
   removeLeastRecentlyUsedEntries(sandboxOutcomesByInput, SANDBOX_MEMO_CAPACITY);
   // Persist per batch, not per spawn; writePendingSandboxMemoToDisk() catches the final tail.
   sandboxSpawnsSinceLastPersist += 1;
@@ -77,7 +77,7 @@ export function clearSandboxMemo(): void {
 // Rehydrate one persisted entry into the in-memory memo (`post: null` = memoized failure).
 function loadPersistedOutcomeIntoMemo(inputKey: string, outcome: PersistedSandboxOutcome): void {
   const post = outcome.post === null ? undefined : new Map(Object.entries(outcome.post));
-  sandboxOutcomesByInput.set(inputKey, createSandboxOutcome(post, outcome.output));
+  sandboxOutcomesByInput.set(inputKey, createSandboxOutcome(post, outcome.output, outcome.deletedKeys ?? [], outcome.notTextKeys ?? []));
 }
 
 // Seed the (just-cleared) memo from a previously persisted file; absent file = start empty.
@@ -112,6 +112,8 @@ function saveSandboxMemoToDisk(): void {
       persisted[inputKey] = {
         post: outcome.post === undefined ? null : Object.fromEntries(outcome.post),
         output: outcome.output,
+        deletedKeys: outcome.deletedKeys,
+        notTextKeys: outcome.notTextKeys,
       };
     }
     mkdirSync(dirname(sandboxMemoFilePath.toString()), { recursive: true });

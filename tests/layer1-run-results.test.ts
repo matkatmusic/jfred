@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import {
   appendRunOutput, getCancelledRunIds, getRunOutcome, getRunOutput, getRunResult, isRunStarted, isRunnableRun,
-  markRunCancelled, markRunStarted, markRunUnreplayed, paintRunDot, paintRunDotsOfRun, resetRunResults, storeRunResult,
+  markRunCancelled, markRunStarted, markRunUnreplayed, renderRunDot, renderRunDotsOfRun, resetRunResults, storeRunResult,
 } from "../webapp/layer1-run-results.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -54,12 +54,12 @@ test("test_storeRunResult_paints_each_dot_with_its_own_files_class", () => {
   const dots = drawDots();
   const view = buildView();
   storeRunResult(view, buildResult([
-    { path: "src/a.ts", confidence: WireConfidence.verified },
-    { path: "src/b.ts", confidence: WireConfidence.injectedUnverified },
+    { path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified },
+    { path: "src/b.ts", change: WireFileChange.changed, confidence: WireConfidence.injectedUnverified },
   ]));
   storeRunResult(view, buildResult([
-    { path: "src/a.ts", confidence: WireConfidence.verified },
-    { path: "src/b.ts", confidence: WireConfidence.injectedUnverified },
+    { path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified },
+    { path: "src/b.ts", change: WireFileChange.changed, confidence: WireConfidence.injectedUnverified },
   ]));
   assert.ok(dots[0]!.classList.contains("run-state-verified"));
   assert.ok(!dots[0]!.classList.contains("run-state-mismatch"));
@@ -73,7 +73,7 @@ test("test_storeRunResult_adds_no_class_for_a_non_state_confidence", () => {
   resetRunResults();
   const dots = drawDots();
   const view = buildView();
-  storeRunResult(view, buildResult([{ path: "src/a.ts", confidence: WireConfidence.derived }]));
+  storeRunResult(view, buildResult([{ path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.derived }]));
   assert.ok(!dots[0]!.className.includes("run-state-"));
   assert.equal(view.pairs[0]!.scriptRuns![0]!.confidence, WireConfidence.derived);
 });
@@ -97,7 +97,7 @@ test("test_markRunUnreplayed_removes_result_mark_confidence_and_classes_but_keep
   markRunStarted("toolu_1");
   appendRunOutput("toolu_1", "hi");
   markRunCancelled("toolu_1");
-  storeRunResult(view, buildResult([{ path: "src/a.ts", confidence: WireConfidence.verified }]));
+  storeRunResult(view, buildResult([{ path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified }]));
   markRunUnreplayed(view, "toolu_1");
   assert.equal(getRunResult("toolu_1"), undefined);
   assert.equal(isRunStarted("toolu_1"), false);
@@ -154,7 +154,7 @@ test("test_storeRunResult_shows_the_rating_on_the_changed_files_dot_and_the_run_
   for (const rating of [WireConfidence.verified, WireConfidence.mismatch, WireConfidence.injectedUnverified, WireConfidence.originalFailed]) {
     resetRunResults();
     const dots = drawDots();
-    storeRunResult(buildView(), buildResult([{ path: "src/a.ts", confidence: rating }]));
+    storeRunResult(buildView(), buildResult([{ path: "src/a.ts", change: WireFileChange.changed, confidence: rating }]));
     assertDotShows(dots[0]!, "run-end-replayed", `mark-${rating}`);
     assert.ok(dots[0]!.classList.contains(`run-state-${rating}`));
     assertDotShows(dots[1]!, "run-end-replayed", "mark-replayed");
@@ -162,22 +162,22 @@ test("test_storeRunResult_shows_the_rating_on_the_changed_files_dot_and_the_run_
   }
 });
 
-test("test_paintRunDot_shows_the_stored_state_on_a_dot_drawn_after_the_result", () => {
+test("test_renderRunDot_shows_the_stored_state_on_a_dot_drawn_after_the_result", () => {
   // Verify: the result arrives with no dot on the page; a dot drawn later still shows the state.
   resetRunResults();
   storeRunResult(buildView(), buildResult([]));
   const lateDot = createElement("i", { class: "node n-script", "data-tool-use-id": "toolu_1" });
-  paintRunDot(lateDot, undefined);
+  renderRunDot(lateDot, undefined);
   assertDotShows(lateDot, "run-end-replayed", "mark-replayed");
 });
 
-test("test_paintRunDot_replaces_the_old_mark_when_a_dot_is_redrawn", () => {
+test("test_renderRunDot_replaces_the_old_mark_when_a_dot_is_redrawn", () => {
   // Verify: painting twice leaves one mark and one end class.
   resetRunResults();
   const dot = createElement("i", { class: "node n-script", "data-tool-use-id": "toolu_1" });
-  paintRunDot(dot, undefined);
+  renderRunDot(dot, undefined);
   markRunStarted("toolu_1");
-  paintRunDot(dot, undefined);
+  renderRunDot(dot, undefined);
   assertDotShows(dot, "run-end-running", "mark-running");
   assert.ok(!dot.classList.contains("run-end-not-run"));
 });
@@ -186,27 +186,27 @@ test("test_a_run_with_no_result_shows_the_not_run_default", () => {
   // Verify: no result and no start gives the ? mark.
   resetRunResults();
   const dots = drawDots();
-  paintRunDot(dots[0]!, undefined);
+  renderRunDot(dots[0]!, undefined);
   assertDotShows(dots[0]!, "run-end-not-run", "mark-not-run");
 });
 
-test("test_paintRunDotsOfRun_turns_every_dot_of_a_started_run_to_running", () => {
+test("test_renderRunDotsOfRun_turns_every_dot_of_a_started_run_to_running", () => {
   // Verify: a started run with no result shows the running arc on each dot already on the page.
   resetRunResults();
   const dots = drawDots();
   markRunStarted("toolu_1");
-  paintRunDotsOfRun("toolu_1");
+  renderRunDotsOfRun("toolu_1");
   assertDotShows(dots[0]!, "run-end-running", "mark-running");
   assertDotShows(dots[1]!, "run-end-running", "mark-running");
 });
 
-test("test_paintRunDotsOfRun_turns_every_dot_of_a_cancelled_run_to_cancelled", () => {
+test("test_renderRunDotsOfRun_turns_every_dot_of_a_cancelled_run_to_cancelled", () => {
   // Verify: cancelling a running run shows the strike on each dot.
   resetRunResults();
   const dots = drawDots();
   markRunStarted("toolu_1");
   markRunCancelled("toolu_1");
-  paintRunDotsOfRun("toolu_1");
+  renderRunDotsOfRun("toolu_1");
   assertDotShows(dots[0]!, "run-end-cancelled", "mark-cancelled");
   assertDotShows(dots[1]!, "run-end-cancelled", "mark-cancelled");
 });
@@ -215,7 +215,7 @@ test("test_markRunUnreplayed_returns_every_dot_of_the_run_to_not_run", () => {
   // Verify: a stored result is dropped, so both dots go back to the ? mark.
   resetRunResults();
   const dots = drawDots();
-  storeRunResult(buildView(), buildResult([{ path: "src/a.ts", confidence: WireConfidence.verified }]));
+  storeRunResult(buildView(), buildResult([{ path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified }]));
   markRunUnreplayed(buildView(), "toolu_1");
   assertDotShows(dots[0]!, "run-end-not-run", "mark-not-run");
   assertDotShows(dots[1]!, "run-end-not-run", "mark-not-run");
@@ -227,7 +227,7 @@ test("test_resetRunResults_makes_a_redrawn_dot_show_not_run", () => {
   const dots = drawDots();
   storeRunResult(buildView(), buildResult([]));
   resetRunResults();
-  paintRunDot(dots[0]!, undefined);
+  renderRunDot(dots[0]!, undefined);
   assertDotShows(dots[0]!, "run-end-not-run", "mark-not-run");
 });
 
@@ -238,9 +238,9 @@ test("test_a_bash_dot_shows_no_run_state_and_no_mark", () => {
   const dot = createElement("i", { class: "node n-script never-provable", "data-tool-use-id": "toolu_1" });
   getRequiredElementById("stage").replaceChildren(dot);
   markRunStarted("toolu_1");
-  paintRunDotsOfRun("toolu_1");
+  renderRunDotsOfRun("toolu_1");
   storeRunResult(buildView(), buildResult([]));
-  paintRunDot(dot, undefined);
+  renderRunDot(dot, undefined);
   assert.equal(dot.className, "node n-script never-provable");
   assert.equal(dot.querySelectorAll(".run-mark").length, 0);
 });

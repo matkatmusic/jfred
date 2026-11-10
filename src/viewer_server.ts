@@ -30,6 +30,7 @@ import { sendStaticFile } from "./viewer_server_static.ts";
 import { sendComponentSourceResponse } from "./viewer_server_component_source.ts";
 import { setImpureExecutionAllowed } from "./reconstruction_exec_gate.ts";
 import { setSandboxMemoPersistence, resetSandboxMemoOnDisk } from "./reconstruction_script_sandbox_memo.ts";
+import { setRunResultStorePersistence } from "./layer1_run_result_store.ts";
 import { setDocumentCachePersistence, resetDocumentCacheOnDisk } from "./reconstruction_document_cache.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 
@@ -118,7 +119,7 @@ function logListening(): void {
   console.log(`viewer listening on http://127.0.0.1:${port} (projects: ${getProjectsDir()})`);
 }
 
-const { port, resetSandboxMemo, resetDocumentCache, sandboxMemoFile } = parseServerArgs(process.argv.slice(2));
+const { port, resetSandboxMemo, resetDocumentCache, sandboxMemoFile, runResultsFile } =parseServerArgs(process.argv.slice(2));
 // App posture: impure stages OFF until a consented build turns them on for its own duration.
 setImpureExecutionAllowed(false);
 // Item 11: only the viewer opts into the disk memo, so restarts stop re-spawning python. CLI stays memory-only.
@@ -128,6 +129,8 @@ if (resetSandboxMemo) {
   resetSandboxMemoOnDisk(sandboxMemoPath);
 }
 setSandboxMemoPersistence(sandboxMemoPath);
+// Saved replay results survive a restart; the Clear button wipes this file.
+setRunResultStorePersistence(new Path(runResultsFile ?? join(import.meta.dirname, "..", ".cache", "layer1-run-results.json")));
 // Item 79: a respawn reads back the ~87 MB / 7.8 min reconstruction instead of rebuilding it.
 const documentCacheDir = new Path(join(import.meta.dirname, "..", ".cache", "built-documents"));
 // Delete the cache dir BEFORE configuring, for a forced cold rebuild.

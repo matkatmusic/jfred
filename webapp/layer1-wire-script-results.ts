@@ -10,6 +10,14 @@ export const WireRunOutcome = {
 } as const;
 export type WireRunOutcome = (typeof WireRunOutcome)[keyof typeof WireRunOutcome];
 
+// What a replay did to one file; only a changed text file has a rating.
+export const WireFileChange = {
+  changed: "changed",
+  deleted: "deleted",
+  changedNotText: "changed-not-text",
+} as const;
+export type WireFileChange = (typeof WireFileChange)[keyof typeof WireFileChange];
+
 // Progress and error lines keep their existing spellings.
 export const WireRunStreamKind = {
   output: "script-output",
@@ -36,8 +44,8 @@ export interface WireScriptResultOf<P, U> {
   reason?: string;
   // Worst of the files; absent for replayFailed and notReplayed.
   confidence?: WireConfidence;
-  // Project-relative; one entry per file the run changed.
-  files: { path: P; confidence: WireConfidence }[];
+  // Project-relative; one entry per file the run changed. confidence is present only when change is "changed".
+  files: { path: P; change: WireFileChange; confidence?: WireConfidence }[];
   stdout: string;
   stderr: string;
   exitCode?: number;

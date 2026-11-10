@@ -3,8 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-components/details-drawer/layer1-script-run-drawer.ts";
-import { markRunStarted, resetRunResults } from "../webapp/layer1-run-results.ts";
+import { buildChangedNoBubbleSection, buildScriptRunDetail, buildScriptRunDiffPanes, listScriptRunPaths } from "../webapp/layer1-components/details-drawer/layer1-script-run-drawer.ts";
+import { isRunStarted, loadSavedRunResult, markRunStarted, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
+import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
+import { WireFileChange, WireRunOutcome, WireRunStreamKind, type WireScriptResult } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -35,6 +37,50 @@ test("listScriptRunPaths finds every pair carrying this run's toolUseId, in path
   assert.deepEqual(listScriptRunPaths(view, "toolu_1"), ["src/a.ts", "src/b.ts"]);
 });
 
+function buildReplayedResult(files: WireScriptResult["files"]): WireScriptResult {
+  return {
+    kind: WireRunStreamKind.result, toolUseId: "toolu_nb", outcome: WireRunOutcome.replayed, files,
+    stdout: "", stderr: "", timedOut: false, isOutputSaved: true,
+  };
+}
+
+test("test_script_run_drawer_lists_changed_files_with_no_bubble", () => {
+  // Scenario: a replayed result lists A (a pair in the view) and X (no pair).
+  initLayer1Dom();
+  resetRunResults();
+  const view: WireLayer1View = {
+    pairs: [{ path: "src/a.ts", commits: [], onDisk: { instant: T0, axisPx: 0 }, scriptRuns: [{ ...SCRIPT_RUN, toolUseId: "toolu_nb" }] }],
+    gitOrphans: [], diskOrphans: [], ruler: [],
+  };
+  storeRunResult(view, buildReplayedResult([
+    { path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified },
+    { path: "src/x.ts", change: WireFileChange.deleted },
+  ]));
+  // The drawer shows one section "Changed, no bubble" with X and its change kind.
+  const sections = buildChangedNoBubbleSection(view, "toolu_nb");
+  assert.equal(sections.length, 1);
+  const text = sections[0]!.textContent ?? "";
+  assert.ok(text.includes("Changed, no bubble"));
+  assert.ok(text.includes("src/x.ts"));
+  assert.ok(text.includes("deleted"));
+  // The drawer does not list A there.
+  assert.ok(!text.includes("src/a.ts"));
+});
+
+test("test_script_run_drawer_shows_no_changed_no_bubble_section_when_every_file_has_a_bubble", () => {
+  // Scenario: the only changed file is a pair in the view, and a second run has no stored result.
+  initLayer1Dom();
+  resetRunResults();
+  const view: WireLayer1View = {
+    pairs: [{ path: "src/a.ts", commits: [], onDisk: { instant: T0, axisPx: 0 }, scriptRuns: [{ ...SCRIPT_RUN, toolUseId: "toolu_nb" }] }],
+    gitOrphans: [], diskOrphans: [], ruler: [],
+  };
+  storeRunResult(view, buildReplayedResult([{ path: "src/a.ts", change: WireFileChange.changed, confidence: WireConfidence.verified }]));
+  // The drawer shows no section for either run.
+  assert.equal(buildChangedNoBubbleSection(view, "toolu_nb").length, 0);
+  assert.equal(buildChangedNoBubbleSection(view, "toolu_none").length, 0);
+});
+
 function countConsoleButtons(run: WireScriptRun): number {
   initLayer1Dom();
   return buildScriptRunDetail(run, () => undefined).filter((element) => element.querySelector(".run-console-open") !== null).length;
@@ -47,6 +93,16 @@ test("buildScriptRunDetail shows the run console button only after a python run 
   markRunStarted(SCRIPT_RUN.toolUseId);
   assert.equal(countConsoleButtons(SCRIPT_RUN), 1);
   assert.equal(countConsoleButtons({ ...SCRIPT_RUN, confidence: "mismatch" }), 1);
+});
+
+test("test_script_run_drawer_shows_the_console_button_for_a_saved_result_this_page_never_started", () => {
+  // Scenario: a page reload restores a replayed result from the server, so no run was started on this page.
+  resetRunResults();
+  assert.equal(countConsoleButtons(SCRIPT_RUN), 0);
+  loadSavedRunResult({ ...buildReplayedResult([]), toolUseId: SCRIPT_RUN.toolUseId });
+  assert.equal(isRunStarted(SCRIPT_RUN.toolUseId), false);
+  // The drawer still shows the button, so the saved output note can be read.
+  assert.equal(countConsoleButtons(SCRIPT_RUN), 1);
 });
 
 test("buildScriptRunDetail never shows the run console button for a bash run or a javascript run", () => {

@@ -3,8 +3,9 @@
 import { WireScriptExecutorKind, type WireScriptRun } from "./layer1-wire-script-runs.ts";
 import { WireScriptLanguage } from "./layer1-components/details-drawer/layer1-script-language.ts";
 import { buildRunMarkMarkup, RunMarkKey } from "./layer1-components/bubbles/layer1-run-dot-marks.ts";
-import { WireConfidence } from "./layer1-wire-edits.ts";
-import { WireRunOutcome, type WireScriptResult } from "./layer1-wire-script-results.ts";
+import { clearRunDotPaint, findDotFile, listRunDots, readDotMarkKey, readFileRating, RUN_END_PREFIX, RUN_STATE_PREFIX } from "./layer1-run-dot-paint.ts";
+import type { WireConfidence } from "./layer1-wire-edits.ts";
+import { WireRunOutcome, type WireFileChange, type WireScriptResult } from "./layer1-wire-script-results.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 const startedRuns = new Set<string>();
@@ -12,21 +13,13 @@ const cancelledRuns = new Set<string>();
 const resultsByRun = new Map<string, WireScriptResult>();
 const outputByRun = new Map<string, string>();
 
-const RUN_DOT_SELECTOR = "i.node.n-script[data-tool-use-id]";
-const RUN_STATE_PREFIX = "run-state-";
-const RUN_END_PREFIX = "run-end-";
+// Moved to layer1-run-dot-paint.ts: RUN_DOT_SELECTOR, RUN_STATE_PREFIX, RUN_END_PREFIX, RATING_MARK_KEYS.
 // const RUN_STATE_CONFIDENCES: ReadonlySet<WireConfidence> = new Set([
 //   WireConfidence.verified,
 //   WireConfidence.mismatch,
 //   WireConfidence.originalFailed,
 //   WireConfidence.injectedUnverified,
 // ]);
-const RATING_MARK_KEYS: ReadonlyMap<WireConfidence, RunMarkKey> = new Map([
-  [WireConfidence.verified, RunMarkKey.verified],
-  [WireConfidence.mismatch, RunMarkKey.mismatch],
-  [WireConfidence.originalFailed, RunMarkKey.originalFailed],
-  [WireConfidence.injectedUnverified, RunMarkKey.injectedUnverified],
-]);
 const RUN_END_KEYS_BY_OUTCOME: Record<WireRunOutcome, RunMarkKey> = {
   [WireRunOutcome.replayed]: RunMarkKey.replayed,
   [WireRunOutcome.replayFailed]: RunMarkKey.replayFailed,
@@ -69,7 +62,8 @@ export function getRunOutcome(id: string): WireRunOutcome | undefined {
 export function isRunnableRun(run: WireScriptRun): boolean {
   const isPythonKind = run.executorKind === WireScriptExecutorKind.python;
   const isPythonLanguage = run.language === WireScriptLanguage.python || run.language === WireScriptLanguage.python3;
-  return isPythonKind && isPythonLanguage && run.confidence === undefined;
+  const isReplayed = getRunOutcome(run.toolUseId) === WireRunOutcome.replayed;
+  return isPythonKind && isPythonLanguage && run.confidence === undefined && !isReplayed;
 }
 
 function listViewRuns(view: WireLayer1View, id: string): { path: string; run: WireScriptRun }[] {
@@ -84,87 +78,58 @@ function listViewRuns(view: WireLayer1View, id: string): { path: string; run: Wi
   return entries;
 }
 
-function listRunDots(id: string): HTMLElement[] {
-  const dots: HTMLElement[] = [];
-  for (const dot of document.querySelectorAll<HTMLElement>(RUN_DOT_SELECTOR)) {
-    const isRunDot = dot.getAttribute("data-tool-use-id") === id;
-    if (isRunDot) {
-      dots.push(dot);
-    }
-  }
-  return dots;
-}
-
-function readBubblePath(dot: HTMLElement): string | undefined {
-  const name = dot.closest(".filebox")?.querySelector(".fname");
-  return name?.getAttribute("data-path") ?? undefined;
-}
-
-function clearRunDotPaint(dot: HTMLElement): void {
-  for (const className of [...dot.classList]) {
-    const isRunPaintClass = className.startsWith(RUN_STATE_PREFIX) || className.startsWith(RUN_END_PREFIX);
-    if (isRunPaintClass) {
-      dot.classList.remove(className);
-    }
-  }
-  for (const mark of dot.querySelectorAll(".run-mark")) {
-    mark.remove();
-  }
-}
+// Moved to layer1-run-dot-paint.ts: listRunDots, readBubblePath, clearRunDotPaint, readDotRating.
 
 function readRunEndKey(id: string): RunMarkKey {
   const outcome = getRunOutcome(id);
   if (outcome !== undefined) {
     return RUN_END_KEYS_BY_OUTCOME[outcome];
   }
-  if (cancelledRuns.has(id)) {
+  const isCancelled = cancelledRuns.has(id);
+  if (isCancelled) {
     return RunMarkKey.cancelled;
   }
-  if (startedRuns.has(id)) {
+  const isStarted = startedRuns.has(id);
+  if (isStarted) {
     return RunMarkKey.running;
   }
   return RunMarkKey.notRun;
 }
 
 // Every script dot calls this when drawn or redrawn; a bash dot keeps its own look.
-export function paintRunDot(dot: HTMLElement, rating: WireConfidence | undefined): void {
-  if (dot.classList.contains("never-provable")) {
+export function renderRunDot(dot: HTMLElement, rating: WireConfidence | undefined, change?: WireFileChange): void {
+  const isBashDot = dot.classList.contains("never-provable");
+  if (isBashDot) {
     return;
   }
   clearRunDotPaint(dot);
   const endKey = readRunEndKey(dot.getAttribute("data-tool-use-id")!);
   dot.classList.add(`${RUN_END_PREFIX}${endKey}`);
-  let markKey = endKey;
   if (rating !== undefined) {
     dot.classList.add(`${RUN_STATE_PREFIX}${rating}`);
-    const ratingMarkKey = RATING_MARK_KEYS.get(rating);
-    if (ratingMarkKey !== undefined) {
-      markKey = ratingMarkKey;
-    }
   }
-  dot.insertAdjacentHTML("beforeend", buildRunMarkMarkup(markKey));
-}
-
-function readDotRating(result: WireScriptResult | undefined, dot: HTMLElement): WireConfidence | undefined {
-  const path = readBubblePath(dot);
-  for (const file of result?.files ?? []) {
-    const isDotFile = file.path === path;
-    if (isDotFile) {
-      const isRating = RATING_MARK_KEYS.has(file.confidence);
-      if (isRating) {
-        return file.confidence;
-      }
-    }
-  }
-  return undefined;
+  dot.insertAdjacentHTML("beforeend", buildRunMarkMarkup(readDotMarkKey(endKey, rating, change)));
 }
 
 // The queue calls this after a start or a cancel; storeRunResult and markRunUnreplayed call it themselves.
-export function paintRunDotsOfRun(id: string): void {
+export function renderRunDotsOfRun(id: string): void {
   const result = resultsByRun.get(id);
   for (const dot of listRunDots(id)) {
-    paintRunDot(dot, readDotRating(result, dot));
+    const file = findDotFile(result, dot);
+    renderRunDot(dot, readFileRating(file), file?.change);
   }
+}
+
+// A redraw builds dots with no mark; the stage render calls this to repaint them.
+export function refreshAllStoredRunDots(): void {
+  for (const id of resultsByRun.keys()) {
+    renderRunDotsOfRun(id);
+  }
+}
+
+// A saved result from the server; the dots are painted later, by the redraw.
+export function loadSavedRunResult(result: WireScriptResult): void {
+  resultsByRun.set(result.toolUseId, result);
 }
 
 // function clearRunStateClass(dot: HTMLElement): void {
@@ -184,10 +149,12 @@ export function paintRunDotsOfRun(id: string): void {
 //   }
 // }
 
-function writeRunConfidence(entries: { path: string; run: WireScriptRun }[], path: string, confidence: WireConfidence): void {
-  for (const entry of entries) {
-    if (entry.path === path) {
-      entry.run.confidence = confidence;
+function writeRunConfidence(entries: { path: string; run: WireScriptRun }[], path: string, confidence: WireConfidence | undefined): void {
+  if (confidence !== undefined) {
+    for (const entry of entries) {
+      if (entry.path === path) {
+        entry.run.confidence = confidence;
+      }
     }
   }
 }
@@ -207,7 +174,7 @@ export function storeRunResult(view: WireLayer1View, result: WireScriptResult): 
   for (const file of result.files) {
     writeRunConfidence(entries, file.path, file.confidence);
   }
-  paintRunDotsOfRun(result.toolUseId);
+  renderRunDotsOfRun(result.toolUseId);
 }
 
 export function markRunUnreplayed(view: WireLayer1View, id: string): void {
@@ -217,7 +184,7 @@ export function markRunUnreplayed(view: WireLayer1View, id: string): void {
   for (const entry of listViewRuns(view, id)) {
     delete entry.run.confidence;
   }
-  paintRunDotsOfRun(id);
+  renderRunDotsOfRun(id);
 }
 
 export function resetRunResults(): void {

@@ -8,7 +8,7 @@ import { Path } from "../src/structures/domain.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import {
     buildSandboxBox,
-    describeSandboxBoxKey,
+    computeSandboxBoxKey,
     executeInRealBox,
     resolveRunBox,
 } from "../src/reconstruction_script_sandbox_box.ts";
@@ -110,12 +110,28 @@ test("test_buildSandboxBox_cwd_outside_the_repo_makes_the_cwd_the_box_root", () 
     assert.equal(box.project?.commit.toString(), repo.commit);
 });
 
-test("test_buildSandboxBox_folder_without_git_has_no_project", () => {
-    // Scenario: a repo path with no `.git` gives no project.
-    const folder = realpathSync(mkdtempSync(join(tmpdir(), "reveng-box-nogit-")));
-    const box = buildSandboxBox(makeRun({ cwd: new Path(folder) }), new Path(folder));
-    assert.equal(box.project, undefined);
-    assert.equal(box.root.toString(), folder);
+// Replaced by test_buildSandboxBox_throws_for_a_repo_path_in_no_repo.
+// test("test_buildSandboxBox_folder_without_git_has_no_project", () => {
+//     // Scenario: a repo path with no `.git` gives no project.
+//     const folder = realpathSync(mkdtempSync(join(tmpdir(), "reveng-box-nogit-")));
+//     const box = buildSandboxBox(makeRun({ cwd: new Path(folder) }), new Path(folder));
+//     assert.equal(box.project, undefined);
+//     assert.equal(box.root.toString(), folder);
+// });
+
+test("test_buildSandboxBox_uses_the_repo_top_folder_for_a_subfolder_path", () => {
+    // Scenario: a subfolder repo path gives the repo top folder as box root and project repo.
+    const repo = createTestRepo();
+    const box = buildSandboxBox(makeRun({}), new Path(join(repo.root, "sub")));
+    assert.equal(box.root.toString(), repo.root);
+    assert.equal(box.project?.repo.toString(), repo.root);
+    assert.equal(box.project?.commit.toString(), repo.commit);
+});
+
+test("test_buildSandboxBox_throws_for_a_repo_path_in_no_repo", () => {
+    // Scenario: a repo path with no git repository above it throws and names the folder.
+    const folder = realpathSync(mkdtempSync(join(tmpdir(), "reveng-box-norepo-")));
+    assert.throws(() => buildSandboxBox(makeRun({}), new Path(folder)), new RegExp(`repo folder ${folder} is not inside a git repository`));
 });
 
 test("test_buildSandboxBox_run_before_the_first_commit_has_no_project", () => {
@@ -144,16 +160,16 @@ test("test_buildSandboxBox_throws_on_a_colon_in_an_outside_script_path", () => {
     assert.throws(() => buildSandboxBox(run, undefined), /colon/);
 });
 
-test("test_describeSandboxBoxKey_is_stable_and_holds_the_commit", () => {
+test("test_computeSandboxBoxKey_is_stable_and_holds_the_commit", () => {
     // Scenario: equal boxes give equal text; a different commit changes the text.
     const repo = createTestRepo();
     const run = makeRun({ cwd: new Path(repo.root) });
     const first = buildSandboxBox(run, new Path(repo.root));
     const second = buildSandboxBox(run, new Path(repo.root));
-    assert.equal(describeSandboxBoxKey(first), describeSandboxBoxKey(second));
-    assert.ok(describeSandboxBoxKey(first).includes(repo.commit));
+    assert.equal(computeSandboxBoxKey(first), computeSandboxBoxKey(second));
+    assert.ok(computeSandboxBoxKey(first).includes(repo.commit));
     const noProject = buildSandboxBox(run, undefined);
-    assert.notEqual(describeSandboxBoxKey(first), describeSandboxBoxKey(noProject));
+    assert.notEqual(computeSandboxBoxKey(first), computeSandboxBoxKey(noProject));
 });
 
 test("test_resolveRunBox_is_undefined_outside_executeInRealBox", () => {

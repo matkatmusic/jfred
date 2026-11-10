@@ -23,7 +23,7 @@ test("test_getMemoizedSandboxOutcome_is_undefined_for_unknown_key_and_after_clea
   setSandboxMemoPersistence(undefined);
   assert.equal(getMemoizedSandboxOutcome("missing"), undefined);
   storeSandboxOutcome("key-2", undefined);
-  assert.deepEqual(getMemoizedSandboxOutcome("key-2"), { post: undefined });
+  assert.deepEqual(getMemoizedSandboxOutcome("key-2"), { post: undefined, deletedKeys: [], notTextKeys: [] });
   setSandboxMemoPersistence(undefined);
   assert.equal(getMemoizedSandboxOutcome("key-2"), undefined);
 });
@@ -48,7 +48,27 @@ test("test_persisted_round_trip_keeps_output", () => {
   storeSandboxOutcome("round", undefined, output);
   writePendingSandboxMemoToDisk();
   setSandboxMemoPersistence(filePath);
-  assert.deepEqual(getMemoizedSandboxOutcome("round"), { post: undefined, output });
+  assert.deepEqual(getMemoizedSandboxOutcome("round"), { post: undefined, output, deletedKeys: [], notTextKeys: [] });
+  setSandboxMemoPersistence(undefined);
+});
+
+test("test_persisted_round_trip_keeps_deleted_and_not_text_keys", () => {
+  const filePath = new Path(join(mkdtempSync(join(tmpdir(), "reveng-memo-")), "lists.json"));
+  setSandboxMemoPersistence(filePath);
+  storeSandboxOutcome("lists", new Map(), undefined, ["gone.txt"], ["data.bin"]);
+  writePendingSandboxMemoToDisk();
+  setSandboxMemoPersistence(filePath);
+  assert.deepEqual(getMemoizedSandboxOutcome("lists")?.deletedKeys, ["gone.txt"]);
+  assert.deepEqual(getMemoizedSandboxOutcome("lists")?.notTextKeys, ["data.bin"]);
+  setSandboxMemoPersistence(undefined);
+});
+
+test("test_sandbox_memo_reads_an_old_entry_without_the_new_lists_as_empty", () => {
+  const filePath = new Path(join(mkdtempSync(join(tmpdir(), "reveng-memo-")), "nolists.json"));
+  writeFileSync(filePath.toString(), JSON.stringify({ old: { post: { "a.txt": "x" } } }));
+  setSandboxMemoPersistence(filePath);
+  assert.deepEqual(getMemoizedSandboxOutcome("old")?.deletedKeys, []);
+  assert.deepEqual(getMemoizedSandboxOutcome("old")?.notTextKeys, []);
   setSandboxMemoPersistence(undefined);
 });
 
@@ -56,7 +76,7 @@ test("test_an_old_format_file_loads_with_output_absent", () => {
   const filePath = new Path(join(mkdtempSync(join(tmpdir(), "reveng-memo-")), "old.json"));
   writeFileSync(filePath.toString(), JSON.stringify({ old: { post: { "a.txt": "x" } }, bad: { post: null } }));
   setSandboxMemoPersistence(filePath);
-  assert.deepEqual(getMemoizedSandboxOutcome("old"), { post: new Map([["a.txt", "x"]]) });
+  assert.deepEqual(getMemoizedSandboxOutcome("old"), { post: new Map([["a.txt", "x"]]), deletedKeys: [], notTextKeys: [] });
   assert.equal(getMemoizedSandboxOutcome("old")?.output, undefined);
   assert.equal(getMemoizedSandboxOutcome("bad")?.post, undefined);
   setSandboxMemoPersistence(undefined);

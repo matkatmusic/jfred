@@ -35,7 +35,7 @@ async function loadPage(): Promise<void> {
   installStreamRoute("/api/layer1-script-runs", [{ pairs: [
     { path: "src/run.ts", scriptRuns: [PYTHON_RUN] },
     { path: "src/plain.ts", scriptRuns: [BASH_RUN] },
-  ] }]);
+  ], results: [] }]);
   const scriptRunFetch = globalThis.fetch;
   Object.assign(globalThis, { fetch: (url: unknown, init?: RequestInit) => {
     const isScriptRunRequest = String(url).includes("/api/layer1-script-runs");

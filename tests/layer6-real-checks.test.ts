@@ -9,9 +9,9 @@ import { type HeadlessPage } from "../scripts/visual/cdp.ts";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { buildMoveTowardDotExpression, buildStateExpression, executeLayer6RealChecks } from "../scripts/visual/layer6-real-checks.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
-import { paintRunDot, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
+import { renderRunDot, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SCREENSHOT_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-14-layer6-real.png");
@@ -20,13 +20,13 @@ const target = { origin: "http://127.0.0.1:1", query: "dir=x" };
 const picked = { sessionFile: "f.jsonl", toolUseId: "toolu_real", changedPaths: ["src/changed.py"] };
 
 const buildFacts = (blocks: string[], state: string, noteTexts: string[]) => ({
-    dotClasses: `node n-script run-state-${state}`, isShown: true, blocks, noteTexts, popupText: "Run output", preText: "hello",
+    runStateClass: `run-state-${state}`, isShown: true, blocks, noteTexts, popupText: "Run output", preText: "hello",
     popupRight: 500, drawerLeft: 600,
 });
 
 function buildPage(dialogText: string, blocks: string[], state = "verified", noteTexts: string[] = []): HeadlessPage {
     const answerFor = (expression: string): unknown => {
-        if (expression.includes("dotClasses"))
+        if (expression.includes("runStateClass"))
             return buildFacts(blocks, state, noteTexts);
         if (expression.includes("count:"))
             return { count: 1, classes: "node n-script never-provable" };
@@ -117,30 +117,55 @@ function drawRunDots(paths: string[] = ["src/changed.py", "src/other.py"]): HTML
     return dots;
 }
 
-function storeRealResult(confidence: WireConfidence): void {
-    const files = [{ path: "src/changed.py", confidence }];
+function storeRealResult(confidence: WireConfidence | undefined, change: WireFileChange = WireFileChange.changed): void {
+    const files = [confidence === undefined ? { path: "src/changed.py", change } : { path: "src/changed.py", change, confidence }];
     storeRunResult({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] },
         { kind: "script-result", toolUseId: "toolu_real", outcome: WireRunOutcome.replayed, files, stdout: "", stderr: "", timedOut: false, isOutputSaved: true });
 }
 
-test("test_buildStateExpression_is_true_when_every_dot_shows_the_run_state_and_the_changed_dot_its_rating", () => {
+test("test_buildStateExpression_is_true_when_the_dots_sit_only_on_the_changed_files_and_show_their_rating", () => {
     resetRunResults();
-    drawRunDots();
+    drawRunDots(["src/changed.py"]);
     storeRealResult(WireConfidence.mismatch);
     assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), true);
 });
 
+test("test_buildStateExpression_is_false_when_the_run_has_a_dot_on_an_unchanged_file", () => {
+    resetRunResults();
+    drawRunDots(["src/changed.py", "src/other.py"]);
+    storeRealResult(WireConfidence.verified);
+    assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), false);
+});
+
+test("test_buildStateExpression_with_no_changed_paths_is_true_only_when_the_run_has_no_dot", () => {
+    resetRunResults();
+    drawRunDots([]);
+    assert.equal((0, eval)(buildStateExpression("toolu_real", [])), true);
+});
+
+test("test_buildStateExpression_is_true_for_a_deleted_or_not_text_file_dot_with_its_mark_and_no_rating_class", () => {
+    // Scenario: a deleted file shows mark-deleted, a changed non-text file mark-changed-not-text, both without run-state.
+    for (const [change, markName] of [[WireFileChange.deleted, "mark-deleted"], [WireFileChange.changedNotText, "mark-changed-not-text"]] as const) {
+        resetRunResults();
+        const [dot] = drawRunDots(["src/changed.py"]);
+        storeRealResult(undefined, change);
+        assert.ok(dot!.querySelector(".run-mark")!.classList.contains(markName));
+        assert.equal(dot!.className.includes("run-state-"), false);
+        assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), true);
+    }
+});
+
 test("test_buildStateExpression_is_false_while_the_run_has_no_result", () => {
     resetRunResults();
-    drawRunDots();
+    drawRunDots(["src/changed.py"]);
     assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), false);
 });
 
 test("test_buildStateExpression_is_false_when_the_changed_dot_shows_the_play_triangle", () => {
     resetRunResults();
-    const dots = drawRunDots();
+    const dots = drawRunDots(["src/changed.py"]);
     storeRealResult(WireConfidence.verified);
-    paintRunDot(dots[0]!, undefined);
+    renderRunDot(dots[0]!, undefined);
     assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), false);
 });
 
@@ -148,7 +173,7 @@ test("test_buildStateExpression_is_false_when_an_unchanged_dot_shows_a_rating", 
     resetRunResults();
     const dots = drawRunDots();
     storeRealResult(WireConfidence.verified);
-    paintRunDot(dots[1]!, WireConfidence.verified);
+    renderRunDot(dots[1]!, WireConfidence.verified);
     assert.equal((0, eval)(buildStateExpression("toolu_real", ["src/changed.py"])), false);
 });
 

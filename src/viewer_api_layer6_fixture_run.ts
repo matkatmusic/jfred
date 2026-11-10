@@ -2,7 +2,7 @@
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { setTimeout as waitMs } from "node:timers/promises";
-import { WireRunStreamKind, type WireScriptResult, type WireScriptRunRequest } from "../webapp/layer1-wire-script-results.ts";
+import { WireFileChange, WireRunStreamKind, type WireScriptResult, type WireScriptRunRequest } from "../webapp/layer1-wire-script-results.ts";
 import { EarlierRunNotSavedError } from "./reconstruction_script_sandbox_spawn_guard.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { findFixtureScriptRun } from "./viewer_api_layer4_fixture_data.ts";
@@ -27,7 +27,7 @@ function listResultFiles(toolUseId: string, canned: CannedFixtureRun): WireScrip
   const files: WireScriptResult["files"] = [];
   if (canned.confidence !== undefined) {
     for (const path of findFixtureScriptRun(toolUseId).paths) {
-      files.push({ path, confidence: canned.confidence });
+      files.push({ path, change: WireFileChange.changed, confidence: canned.confidence });
     }
   }
   return files;

@@ -44,28 +44,43 @@ export const buildMoveTowardDotExpression = (picked: RealScript) =>
       target.scrollIntoView({ block: 'center', inline: 'center' });
       return true; })(${buildDotsOfRun(picked.toolUseId)})`;
 const buildClickDotExpression = (picked: RealScript) => `${buildChangedDotExpression(picked)}.click()`;
-// Every run dot shows replayed; a changed file's dot shows its rating instead.
+// Dots sit only on changed files: a rating mark, or a deleted or not-text mark.
 export const buildStateExpression = (id: string, changedPaths: string[]) =>
-  `((dots, changedPaths) => dots.length > 0 && changedPaths.every(p => dots.some(d => ${buildBubblePathExpression("d")} === p)) && dots.every(d => {
+  `((dots, changedPaths) => changedPaths.every(p => dots.some(d => ${buildBubblePathExpression("d")} === p)) && dots.every(d => {
       const mark = d.querySelector('.run-mark');
       const rating = [...d.classList].find(c => c.startsWith('run-state-'));
       const isChanged = changedPaths.includes(${buildBubblePathExpression("d")});
-      const markName = isChanged ? 'mark-' + (rating ?? '').slice('run-state-'.length) : 'mark-replayed';
-      return d.classList.contains('run-end-replayed') && mark !== null && mark.classList.contains(markName) && isChanged === (rating !== undefined);
+      const isChangeMark = mark !== null && (mark.classList.contains('mark-deleted') || mark.classList.contains('mark-changed-not-text'));
+      const isMarkRight = rating !== undefined ? mark !== null && mark.classList.contains('mark-' + rating.slice('run-state-'.length)) : isChangeMark;
+      return isChanged && d.classList.contains('run-end-replayed') && isMarkRight;
     }))(${buildDotsOfRun(id)}, ${JSON.stringify(changedPaths)})`;
+// const buildStateExpression = (id: string, changedPaths: string[]) =>
+//   `((dots, changedPaths) => dots.length > 0 && changedPaths.every(p => dots.some(d => ${buildBubblePathExpression("d")} === p)) && dots.every(d => {
+//       const mark = d.querySelector('.run-mark');
+//       const rating = [...d.classList].find(c => c.startsWith('run-state-'));
+//       const isChanged = changedPaths.includes(${buildBubblePathExpression("d")});
+//       const markName = isChanged ? 'mark-' + (rating ?? '').slice('run-state-'.length) : 'mark-replayed';
+//       return d.classList.contains('run-end-replayed') && mark !== null && mark.classList.contains(markName) && isChanged === (rating !== undefined);
+//     }))(${buildDotsOfRun(id)}, ${JSON.stringify(changedPaths)})`;
 // const buildStateExpression = (id: string) =>
 //   `(dots => dots.length > 0 && dots.every(d => [...d.classList].some(c => c.startsWith('run-state-'))))(${buildDotsOfRun(id)})`;
-const buildConsoleFacts = (picked: RealScript) => `({ dotClasses: ${buildChangedDotExpression(picked)}.className,
+// The terminal block shows the run's verdict (worst rating of all files), not the first changed file's dot.
+const buildConsoleFacts = (picked: RealScript) => `import('/app/layer1-run-results.js').then(results => ({
+    runStateClass: 'run-state-' + results.getRunResult(${JSON.stringify(picked.toolUseId)}).confidence,
     isShown: !document.getElementById('run-console').hidden,
     blocks: [...document.querySelectorAll('#run-console .terminal-block')].map(b => b.className),
     noteTexts: [...document.querySelectorAll('#run-console .run-console-note')].map(n => n.textContent),
     popupText: document.getElementById('run-console').textContent,
     preText: document.querySelector('#run-console .console-pre')?.textContent ?? '',
     popupRight: document.getElementById('run-console').getBoundingClientRect().right,
-    drawerLeft: document.getElementById('drawer').getBoundingClientRect().left })`;
+    drawerLeft: document.getElementById('drawer').getBoundingClientRect().left }))`;
+
+const buildConsoleButtonFacts = (picked: RealScript) => `({ buttonCount: ${COUNT_CONSOLE_BUTTONS}, drawerButtonCount: ${COUNT_DRAWER_BUTTONS},
+    dotClasses: ${buildChangedDotExpression(picked)}?.className, drawerTitle: document.getElementById('dpath').textContent,
+    drawerBodyStart: document.getElementById('dbody').textContent.slice(0, 200) })`;
 
 interface ConsoleFacts {
-  dotClasses: string; isShown: boolean; blocks: string[]; noteTexts: string[]; popupText: string; preText: string;
+  runStateClass: string; isShown: boolean; blocks: string[]; noteTexts: string[]; popupText: string; preText: string;
   popupRight: number; drawerLeft: number;
 }
 
@@ -115,7 +130,7 @@ async function openDrawerOf(page: HeadlessPage, click: string): Promise<void> {
 }
 
 function validateTerminalBlock(facts: ConsoleFacts): void {
-  const expected = convertStateClassToTerminalClass(facts.dotClasses);
+  const expected = convertStateClassToTerminalClass(facts.runStateClass);
   const isUnproven = expected === UNPROVEN_TERMINAL_CLASS;
   const blockClasses = facts.blocks[0]?.split(" ") ?? [];
   const isBlockRight = facts.blocks.length === 1 && expected !== undefined && blockClasses.includes(expected);
@@ -134,7 +149,13 @@ function validateConsoleFacts(facts: ConsoleFacts): void {
 
 async function validateConsole(page: HeadlessPage, picked: RealScript): Promise<void> {
   await openDrawerOf(page, buildClickDotExpression(picked));
-  reportCheck("l6-real the console button exists only for the started run", await page.evaluate<number>(COUNT_CONSOLE_BUTTONS) === 1);
+  const buttonFacts = await page.evaluate<unknown>(buildConsoleButtonFacts(picked));
+  const buttonCount = await page.evaluate<number>(COUNT_CONSOLE_BUTTONS);
+  reportCheck("l6-real the console button exists only for the started run", buttonCount === 1, buttonFacts);
+  if (buttonCount === 0) {
+    await saveScreenshot(page, "14-layer6-real");
+    return;
+  }
   await page.evaluate(CLICK_CONSOLE_BUTTON);
   validateConsoleFacts(await page.evaluate<ConsoleFacts>(buildConsoleFacts(picked)));
 }

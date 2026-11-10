@@ -5,7 +5,7 @@ import { join, dirname, relative, basename, isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import { Path } from "./structures/domain.ts";
 import type { SandboxBox } from "./reconstruction_script_sandbox_box.ts";
-import { cloneProjectAtCommit } from "./reconstruction_script_sandbox_project.ts";
+import { copyProjectAtCommit } from "./reconstruction_script_sandbox_project.ts";
 
 export const SANDBOX_TIMEOUT_MS = 5000;
 
@@ -62,7 +62,7 @@ export function removeSandboxDirectory(tempDir: string): void {
 // The temp folder is empty when the clone starts; start files and the script go on top.
 function fillBoxDirectory(tempDir: string, script: string, preState: Map<string, string>, box: SandboxBox): void {
   if (box.project !== undefined) {
-    cloneProjectAtCommit(box.project.repo, box.project.commit, new Path(tempDir));
+    copyProjectAtCommit(box.project.repo, box.project.commit, new Path(tempDir));
   }
   const workdirRelativePath = relative(box.root.toString(), box.workdir.toString());
   for (const [relativePath, content] of preState) {

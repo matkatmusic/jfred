@@ -2,7 +2,7 @@
     Only a pair's own nodes open the drawer, so the affordance is scoped to `.lane`.
   */
   .lane .node, .lane .nlabel, .lane .bnode, .lane .blabel { cursor: pointer; }
-  .lane .nlabel:hover { color: var(--ink); text-decoration: underline dotted; }
+  .lane .nlabel:hover { color: var(--ink, #0b0b0b); text-decoration: underline dotted; }
   /*
     A `created at` node is inert (task 298), so it offers no affordance.
   */
@@ -12,31 +12,31 @@
   /*
     Task 305: the pair reads as a direction: base ringed in user colour, target in selection colour.
   */
-  .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--c-user); }
+  .node.diff-base { box-shadow: 0 0 0 2.5px var(--surface, #fcfcfb), 0 0 0 5px var(--c-user, #eb6834); }
   /*
     Task 315: solid --c-snap dot; `.node.` scopes the fill to the dot, sparing the label.
   */
-  .node.n-snap { background: var(--c-snap); }
+  .node.n-snap { background: var(--c-snap, #1baf7a); }
   /*
     Task 343: Edit/Write and Read dots. Confidence is a ring: verified solid, derived hollow dashed.
   */
-  .node.n-edit, .node.n-read { background: var(--node-colour); }
+  .node.n-edit, .node.n-read { background: var(--node-colour, transparent); }
   .node.n-edit { --node-colour: var(--c-edit); border-radius: 3px; }
   .node.n-read { --node-colour: var(--c-read); }
-  .node.conf-verified { outline: 2px solid var(--node-colour); outline-offset: 3.5px; }
+  .node.conf-verified { outline: 2px solid var(--node-colour, currentcolor); outline-offset: 3.5px; }
   /*
     .node.conf-derived background was: transparent.
   */
-  .node.conf-derived { background: var(--surface); border: 2px dashed var(--node-colour); }
-  .node.conf-reseeded { outline: 2px dotted var(--c-edit); outline-offset: 3.5px; }
+  .node.conf-derived { background: var(--surface, #fcfcfb); border: 2px dashed var(--node-colour, currentcolor); }
+  .node.conf-reseeded { outline: 2px dotted var(--c-edit, #4d8c1f); outline-offset: 3.5px; }
   /*
     Task 356: a script run is a hollow ring; a bash run is unprovable, so its ring is dashed.
   */
   /*
     Script ring was: transparent background, 15px default size, outline-offset 3.5px, mismatch radial-gradient 3px dot, 4px double mismatch outline.
   */
-  .node.n-script { background: var(--surface); border: 3.5px solid var(--c-script); width: 13px; height: 13px; }
-  .node.n-script.never-provable { border: 2px dashed var(--c-script); }
+  .node.n-script { background: var(--surface, #fcfcfb); border: 3.5px solid var(--c-script, #4a3aa7); inline-size: 13px; block-size: 13px; }
+  .node.n-script.never-provable { border: 2px dashed var(--c-script, #4a3aa7); }
   /*
     Old per-confidence outlines, replaced by the run marks below:
     .node.n-script.run-state-verified { outline: 2px solid var(--c-edit); outline-offset: 1px; }
@@ -55,31 +55,33 @@
   /*
     The mark is a child svg: .node.aimed and .node.found already use the pseudo-elements.
   */
-  .node.n-script .run-mark { position: absolute; left: -3.5px; top: -3.5px; width: 13px; height: 13px; overflow: visible; pointer-events: none; color: var(--ink);
-    filter: drop-shadow(.6px 0 0 var(--surface)) drop-shadow(-.6px 0 0 var(--surface)) drop-shadow(0 .6px 0 var(--surface)) drop-shadow(0 -.6px 0 var(--surface)); }
-  .node.n-script .run-mark.mark-replay-failed, .node.n-script .run-mark.mark-original-failed { color: var(--c-mismatch); }
-  .node.n-script .run-mark.mark-verified { color: var(--c-edit); }
-  .node.n-script .run-mark.mark-mismatch, .node.n-script .run-mark.mark-injected-unverified { color: var(--c-echo); }
-  .node.n-script .run-mark.mark-not-replayed { color: var(--ink2); }
-  .node.n-script.run-end-not-replayed { border-color: var(--muted); }
+  .n-script .run-mark { position: absolute; inset-inline-start: -3.5px; inset-block-start: -3.5px; inline-size: 13px; block-size: 13px; overflow: visible; pointer-events: none; color: var(--ink, #0b0b0b);
+    filter: drop-shadow(.6px 0 0 var(--surface, #fcfcfb)) drop-shadow(-.6px 0 0 var(--surface, #fcfcfb)) drop-shadow(0 .6px 0 var(--surface, #fcfcfb)) drop-shadow(0 -.6px 0 var(--surface, #fcfcfb)); }
+  .n-script .run-mark.mark-replay-failed, .n-script .run-mark.mark-original-failed { color: var(--c-mismatch, #d03b3b); }
+  .n-script .run-mark.mark-verified { color: var(--c-edit, #4d8c1f); }
+  .n-script .run-mark.mark-mismatch, .n-script .run-mark.mark-injected-unverified { color: var(--c-echo, #eda100); }
+  .n-script .run-mark.mark-not-replayed { color: var(--ink2, #52514e); }
+  .n-script .run-mark.mark-deleted { color: var(--c-mismatch, #d03b3b); }
+  .n-script .run-mark.mark-changed-not-text { color: var(--ink2, #52514e); }
+  .node.n-script.run-end-not-replayed { border-color: var(--muted, #898781); }
   /*
     running: a bright arc turns around the ring; cancelled: a diagonal strike across the whole dot.
   */
-  .node.n-script .run-mark.mark-running { filter: none; transform-origin: 50% 50%; animation: run-mark-turn 1s linear infinite; }
+  .n-script .run-mark.mark-running { filter: none; transform-origin: 50% 50%; animation: run-mark-turn 1s linear infinite; }
   @keyframes run-mark-turn { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .node.n-script .run-mark.mark-running { animation: none; } }
-  .node.n-script .run-mark.mark-cancelled { left: -5px; top: -5px; width: 16px; height: 16px; color: var(--ink2); filter: none; }
+  @media (prefers-reduced-motion: reduce) { .n-script .run-mark.mark-running { animation: none; } }
+  .n-script .run-mark.mark-cancelled { inset-inline-start: -5px; inset-block-start: -5px; inline-size: 16px; block-size: 16px; color: var(--ink2, #52514e); filter: none; }
 
   /*
     Task 356: the connector joins one run's dots across bubbles; ::before widens the click target.
   */
-  .script-connector { position: absolute; z-index: -1; height: 0; border-top: 2px dashed var(--c-script);
+  .script-connector { position: absolute; z-index: -1; block-size: 0; border-block-start: 2px dashed var(--c-script, #4a3aa7);
     transform: translateY(-50%); cursor: pointer; }
-  .script-connector::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 12px; }
+  .script-connector::before { content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: 0; inset-block-start: -6px; block-size: 12px; }
 
-  .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--sel-edge); }
-  .node.diff-base::before, .node.diff-target::before { position: absolute; right: 100%; left: auto;
-    top: 50%; bottom: auto; width: auto; border: none; margin-right: 8px; transform: translateY(-50%);
-    font: 700 8px system-ui; color: #fff; padding: 1px 4px; border-radius: 3px; }
-  .node.diff-base::before { content: "base"; background: var(--c-user); }
-  .node.diff-target::before { content: "target"; background: var(--sel-edge); }
+  .node.diff-target { box-shadow: 0 0 0 2.5px var(--surface, #fcfcfb), 0 0 0 5px var(--sel-edge, #1baf7a); }
+  .node.diff-base::before, .node.diff-target::before { position: absolute; inset-inline-end: 100%; inset-inline-start: auto;
+    inset-block-start: 50%; inset-block-end: auto; inline-size: auto; border: none; margin-inline-end: 8px; transform: translateY(-50%);
+    font: 700 0.5rem system-ui; color: #fff; padding: 1px 4px; border-radius: 3px; }
+  .node.diff-base::before { content: "base"; background: var(--c-user, #eb6834); }
+  .node.diff-target::before { content: "target"; background: var(--sel-edge, #1baf7a); }

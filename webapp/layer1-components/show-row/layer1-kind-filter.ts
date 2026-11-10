@@ -41,7 +41,12 @@ function applyHiddenKindsAttribute(): void {
 let drawnView: WireLayer1View | undefined;
 let redrawStage: (() => void | Promise<void>) | undefined;
 
-export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
+// The run queue and the run route redraw through the same function the Show row uses.
+export async function refreshDrawnStage(): Promise<void> {
+  await redrawStage!();
+}
+
+function findBoxKind(box: HTMLInputElement): ShowRowKind {
   let kind!: ShowRowKind;
   for (const candidate of Object.values(ShowRowKind)) {
     const isBoxKind = candidate === box.dataset["kind"];
@@ -50,52 +55,76 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
       break;
     }
   }
-  const isEditBoxTurningOn = kind === ShowRowKind.edit && box.checked;
-  const needsEditLoad = isEditBoxTurningOn && !isEditsLoaded(drawnView!);
-  if (needsEditLoad) {
-    const isLoaded = await loadEditsOnce(drawnView!);
-    if (!isLoaded) {
-      box.checked = false;
-      return;
-    }
-    // The kind shows before the redraw so edit nodes appear as drawn; the bar stays up.
-    renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_EDITS);
-    await waitForPaintedFrame();
-    hiddenKinds.delete(kind);
-    applyHiddenKindsAttribute();
-    await redrawStage!();
-    hideLayer1Progress();
+  return kind;
+}
+
+function isKindLoadNeeded(box: HTMLInputElement, kind: ShowRowKind, loadingKind: ShowRowKind, isLoaded: boolean): boolean {
+  const isBoxTurningOn = kind === loadingKind && box.checked;
+  return isBoxTurningOn && !isLoaded;
+}
+
+// The kind shows before the redraw so edit nodes appear as drawn; the bar stays up.
+async function renderEditsAfterLoad(box: HTMLInputElement, kind: ShowRowKind): Promise<void> {
+  const isLoaded = await loadEditsOnce(drawnView!);
+  if (!isLoaded) {
+    box.checked = false;
     return;
   }
-  const isScriptRunBoxTurningOn = kind === ShowRowKind.scriptRun && box.checked;
-  const needsScriptRunLoad = isScriptRunBoxTurningOn && !isScriptRunsLoaded(drawnView!);
-  if (needsScriptRunLoad) {
-    const isLoaded = await loadScriptRunsOnce(drawnView!);
-    if (!isLoaded) {
-      box.checked = false;
-      return;
-    }
-    await redrawStage!();
-  }
-  const isBranchBoxTurningOn = kind === ShowRowKind.branch && box.checked;
-  const needsBranchLoad = isBranchBoxTurningOn && !isBranchesLoaded(drawnView!);
-  if (needsBranchLoad) {
-    const isLoaded = await loadBranchesOnce(drawnView!);
-    if (!isLoaded) {
-      box.checked = false;
-      return;
-    }
-    await redrawStage!();
-  }
-  if (box.checked) {
-    hiddenKinds.delete(kind);
-  }
-  else {
-    hiddenKinds.add(kind);
-  }
+  renderLayer1Progress(LAYER1_PROGRESS_LABEL_DRAWING_EDITS);
+  await waitForPaintedFrame();
+  hiddenKinds.delete(kind);
   applyHiddenKindsAttribute();
-  notifyKindBoxToggle();
-  // Edit, script run and branch start hidden on every load, so they are never saved.
+  await redrawStage!();
+  hideLayer1Progress();
+}
+
+// False when the load failed and the box was unchecked.
+async function loadViewThenRedraw(box: HTMLInputElement, loadOnce: (view: WireLayer1View) => Promise<boolean>): Promise<boolean> {
+  const isLoaded = await loadOnce(drawnView!);
+  if (!isLoaded) {
+    box.checked = false;
+    return false;
+  }
+  await redrawStage!();
+  return true;
+}
+
+async function loadScriptRunsIfNeeded(box: HTMLInputElement, kind: ShowRowKind): Promise<boolean> {
+  const needsLoad = isKindLoadNeeded(box, kind, ShowRowKind.scriptRun, isScriptRunsLoaded(drawnView!));
+  if (!needsLoad) {
+    return true;
+  }
+  return loadViewThenRedraw(box, loadScriptRunsOnce);
+}
+
+async function loadBranchesIfNeeded(box: HTMLInputElement, kind: ShowRowKind): Promise<boolean> {
+  const needsLoad = isKindLoadNeeded(box, kind, ShowRowKind.branch, isBranchesLoaded(drawnView!));
+  if (!needsLoad) {
+    return true;
+  }
+  return loadViewThenRedraw(box, loadBranchesOnce);
+}
+
+// A box that needs no load toggles in the same tick, with no await.
+function isViewLoadNeeded(box: HTMLInputElement, kind: ShowRowKind): boolean {
+  const needsScriptRunLoad = isKindLoadNeeded(box, kind, ShowRowKind.scriptRun, isScriptRunsLoaded(drawnView!));
+  if (needsScriptRunLoad) {
+    return true;
+  }
+  return isKindLoadNeeded(box, kind, ShowRowKind.branch, isBranchesLoaded(drawnView!));
+}
+
+// False when a load failed and the box was unchecked.
+async function loadScriptRunsAndBranchesIfNeeded(box: HTMLInputElement, kind: ShowRowKind): Promise<boolean> {
+  const isScriptRunsReady = await loadScriptRunsIfNeeded(box, kind);
+  if (!isScriptRunsReady) {
+    return false;
+  }
+  return loadBranchesIfNeeded(box, kind);
+}
+
+// Edit, script run and branch start hidden on every load, so they are never saved.
+function saveShownKindSettings(): void {
   const savedKinds: ShowRowKind[] = [];
   for (const hidden of hiddenKinds) {
     const isStartHiddenKind = hidden === ShowRowKind.edit || hidden === ShowRowKind.scriptRun || hidden === ShowRowKind.branch;
@@ -104,17 +133,54 @@ export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
     }
   }
   saveHiddenKinds(savedKinds);
+}
+
+function applyKindToggle(box: HTMLInputElement, kind: ShowRowKind): void {
+  if (box.checked) {
+    hiddenKinds.delete(kind);
+  }
+  else {
+    hiddenKinds.add(kind);
+  }
+  applyHiddenKindsAttribute();
+  notifyKindBoxToggle();
+  saveShownKindSettings();
   notifyKindFilterChange();
+}
+
+async function applyKindToggleAfterLoad(box: HTMLInputElement, kind: ShowRowKind): Promise<void> {
+  const isViewsReady = await loadScriptRunsAndBranchesIfNeeded(box, kind);
+  if (isViewsReady) {
+    applyKindToggle(box, kind);
+  }
+}
+
+export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
+  const kind = findBoxKind(box);
+  const needsEditLoad = isKindLoadNeeded(box, kind, ShowRowKind.edit, isEditsLoaded(drawnView!));
+  if (needsEditLoad) {
+    await renderEditsAfterLoad(box, kind);
+    return;
+  }
+  const needsViewLoad = isViewLoadNeeded(box, kind);
+  if (needsViewLoad) {
+    await applyKindToggleAfterLoad(box, kind);
+    return;
+  }
+  applyKindToggle(box, kind);
 }
 
 function toggleKindBoxFromEvent(event: Event): Promise<void> {
   return toggleKindBox(event.target as HTMLInputElement);
 }
 
-export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: () => void | Promise<void>): void {
-  drawnView = view;
-  redrawStage = redrawView;
-  renderShowRow(view);
+function updateKindBoxChecks(): void {
+  for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
+    box.checked = !hiddenKinds.has(box.dataset["kind"] as ShowRowKind);
+  }
+}
+
+function resetHiddenKindsFromSettings(): void {
   const saved = getHiddenKindsForProject(getInputById("dir").value.trim());
   hiddenKinds = new Set<ShowRowKind>();
   for (const kind of Object.values(ShowRowKind)) {
@@ -126,10 +192,15 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
   hiddenKinds.add(ShowRowKind.edit);
   hiddenKinds.add(ShowRowKind.scriptRun);
   hiddenKinds.add(ShowRowKind.branch);
-  for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
-    box.checked = !hiddenKinds.has(box.dataset["kind"] as ShowRowKind);
-  }
+  updateKindBoxChecks();
   applyHiddenKindsAttribute();
+}
+
+export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: () => void | Promise<void>): void {
+  drawnView = view;
+  redrawStage = redrawView;
+  renderShowRow(view);
+  resetHiddenKindsFromSettings();
   // Assigned, not added, so a re-render never stacks listeners.
   getRequiredElementById("show-row").onchange = toggleKindBoxFromEvent;
   attachKindButtons();

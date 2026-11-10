@@ -109,6 +109,13 @@ export function computeBoxedRunKey(input: RunInput, toolUseId: string, preState:
   return computeSandboxInputKey(run.code, preState, run.cwd, buildSandboxBox(run, input.repoPath));
 }
 
+// A real git repo with no commit, so the box finds no project copy.
+function createEmptyCraftedGitRepo(): Path {
+  const repo = mkdtempSync(join(tmpdir(), "run-empty-repo-"));
+  execFileSync("git", ["init", "--quiet", repo]);
+  return new Path(repo);
+}
+
 // Writes the transcript under a projects folder (so the file-history sibling resolves) and returns a run input.
 export function writeCraftedSession(project: CraftedProject, toolUseId: string): ReplayInput {
   const treeRoot = mkdtempSync(join(tmpdir(), "run-session-tree-"));
@@ -121,6 +128,6 @@ export function writeCraftedSession(project: CraftedProject, toolUseId: string):
     recordLines.push(JSON.stringify(record));
   }
   writeFileSync(sessionFile.toString(), recordLines.join("\n") + "\n");
-  const repoPath = new Path(mkdtempSync(join(tmpdir(), "run-empty-repo-")));
+  const repoPath = createEmptyCraftedGitRepo();
   return { sessionFile, toolUseId: new Uuid(toolUseId), dir: new Path(project.dir), sources: undefined, sessionFiles: [sessionFile], repoPath };
 }

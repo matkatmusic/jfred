@@ -70,7 +70,7 @@ for (const outcomeCase of OUTCOME_CASES) {
 
 test("a result with a confidence lists that confidence for each file the run changed", async () => {
     const { lines } = await streamRun(FIXTURE_RUN_ID.pre);
-    assert.deepEqual(lines.at(-1)!["files"], [{ path: "README.md", confidence: "verified" }]);
+    assert.deepEqual(lines.at(-1)!["files"], [{ path: "README.md", change: "changed", confidence: "verified" }]);
 });
 
 test("the pre run streams three stdout lines and joins them into the result", async () => {
