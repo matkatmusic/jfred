@@ -182,9 +182,23 @@ function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   }
   const lastWindow = snippet.lines.slice(lastWindowStart);
   const isLastWindowUnchanged = lastWindow.every(({ lineNo, text }) => fileLines[lineNo - 1] === text);
-  if (isLastWindowUnchanged) {
-    fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  // A window with a changed line is longer than the 8 context lines; only a window of exactly 8 lines is pure context before deleted end lines.
+  const isLastWindowContextOnly = lastWindow.length === TRAILING_CONTEXT_LINE_COUNT;
+  if (isLastWindowContextOnly) {
+    if (isLastWindowUnchanged) {
+      fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+    }
   }
+  // replaced by isLastWindowContextOnly: windows with a changed line (s38, s32, s35) end on trailing context and the file goes on
+  // const hasWindowBeforeLastWindow = lastWindowStart > 0;
+  // if (hasWindowBeforeLastWindow) {
+  //   if (isLastWindowUnchanged) {
+  //     fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  //   }
+  // }
+  // if (isLastWindowUnchanged) {
+  //   fileLines.length = lastWindow[lastWindow.length - 1]!.lineNo;
+  // }
   // When the numbers restart (a line number at or below the line before it), the later chunk is the file tail numbered by the harness's older copy: it ends on the file's last line.
   const lastSnippetLineNo = snippet.lines[snippet.lines.length - 1]!.lineNo;
   let chunkShift = 0;
