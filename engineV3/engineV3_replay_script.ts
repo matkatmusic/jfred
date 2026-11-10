@@ -1,7 +1,7 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
 
 import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, openSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -107,6 +107,16 @@ function getScriptCwd(run: ScriptRun): string {
   return cwd;
 }
 
+// The Mac Bash tool shell has the command text in no process argument, so `pkill -f <text>` must not find the replay's own shell: a shell reads the text from a file and evals it.
+function getInterpreterArguments(run: ScriptRun, code: string): string[] {
+  if (isPythonCtxExecuteRun(run)) {
+    return ["-c", code];
+  }
+  const scriptFile = join(mkdtempSync(join(tmpdir(), "engine-v3-script-")), "script.txt");
+  writeFileSync(scriptFile, code);
+  return ["-c", `eval "$(cat ${scriptFile})"`];
+}
+
 function sleepMilliseconds(milliseconds: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
@@ -115,7 +125,7 @@ function sleepMilliseconds(milliseconds: number): void {
 function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv): void {
   const outputFile = join(mkdtempSync(join(tmpdir(), "engine-v3-background-")), "output.txt");
   const outputDescriptor = openSync(outputFile, "w");
-  const child = spawn(getInterpreter(run), ["-c", run.code], { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
+  const child = spawn(getInterpreter(run), getInterpreterArguments(run, run.code), { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
   child.unref();
   const deadlineMs = Date.now() + BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS;
   while (statSync(outputFile).size === 0) {
@@ -135,7 +145,7 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
     return;
   }
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync(getInterpreter(run),["-c", replaceDebtReportCall(run.code)], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
