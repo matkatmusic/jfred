@@ -116,6 +116,16 @@ test("test_applyJSONLLineToState_user_edit_window_with_a_gap_line_leaves_the_gap
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "A\nb\nc\nD\ne");
 });
 
+test("test_applyJSONLLineToState_user_edit_window_whose_numbers_restart_after_the_gap_patches_the_file_tail", (t) => {
+    // Scenario: the file has 7 lines; the snippet shows lines 1-2, then "..." and the file tail numbered 2-3 (the harness numbers the tail by its own older copy).
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\nd\ne\nf\ng\n");
+    const restartSnippet = "1\ta\n2\tb\n...\n2\tF\n3\tG";
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", restartSnippet), [], NO_SCRIPT_CONTEXT);
+    // the tail lines F and G land on file lines 6 and 7, the lines around them stay
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nc\nd\ne\nF\nG\n");
+});
+
 test("test_applyJSONLLineToState_user_edit_throws_when_the_file_is_missing_in_the_state", (t) => {
     // Scenario: the state folder has no such file, so the hand edit throws and names the path.
     const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
