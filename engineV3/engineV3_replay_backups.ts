@@ -12,6 +12,8 @@ import { ABSENT_BEFORE_CONTENT, findPendingBeforeContent, type BeforeContent } f
 
 const JSONL_EXTENSION = ".jsonl";
 const lastSeenBackupTexts = new Map<string, string>();
+// The replayed bytes of each file at the latest snapshot check that found it equal to its backup.
+const lastMatchedBytes = new Map<string, Buffer>();
 
 function getSourceOfLine(line: JSONLLine): RecordSource {
   const source = getRecordSource(line);
@@ -155,12 +157,26 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const actualBytes = readFileSync(replayedFile);
   const expectedBytes = readFileSync(backupFile);
   const isSame = actualBytes.equals(expectedBytes);
-  if (!isSame) {
-    throw new Error(createMismatchMessage(replayedFile, line, expectedBytes.toString("utf8"), actualBytes.toString("utf8")));
+  if (isSame) {
+    lastMatchedBytes.set(replayedFile, actualBytes);
+    return;
   }
+  // No replayed line changed the file since a snapshot last matched it, so the difference is a hand edit the transcript never recorded.
+  const matchedBytes = lastMatchedBytes.get(replayedFile);
+  if (matchedBytes !== undefined) {
+    if (actualBytes.equals(matchedBytes)) {
+      const source = getSourceOfLine(line);
+      console.log(`hand edit with no transcript record: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
+      writeFileSync(replayedFile, expectedBytes);
+      lastMatchedBytes.set(replayedFile, expectedBytes);
+      return;
+    }
+  }
+  throw new Error(createMismatchMessage(replayedFile, line, expectedBytes.toString("utf8"), actualBytes.toString("utf8")));
 }
 
 export function clearSeenBackups(): void {
+  lastMatchedBytes.clear();
   lastSeenBackupTexts.clear();
   snapshotFileBytes.clear();
 }
