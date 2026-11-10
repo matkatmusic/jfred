@@ -67,6 +67,20 @@ test("test_listPlateRuns_lists_one_run_for_an_agent_capture_and_skips_the_user_c
     assert.equal(runs[0]?.eventName, PlateEventName.PostToolBatch);
 });
 
+test("test_listPlateRuns_skips_a_user_capture_without_parsing_its_body", (t) => {
+    // Scenario: a user capture can be over 500 MB, so its body is never parsed: a body that is not JSON causes no error.
+    const macFolder = makeTempFolder(t);
+    const capturesFolder = join(macFolder, PROJECT_FOLDER, ".plate", "captures");
+    mkdirSync(capturesFolder, { recursive: true });
+    writeFileSync(join(capturesFolder, USER_CAPTURE_NAME), '{"session_id":"user","file_changes":{ this body is not json');
+    writeCapture(macFolder, CAPTURE_NAME, SESSION_ID, [makeWriteCall("toolu_1", true)]);
+    const jsonlFolder = makeTempFolder(t);
+    writeSessionFile(jsonlFolder, SESSION_ID);
+    // only the agent capture is a run
+    const runs = listPlateRuns(new Path(macFolder), [new Path(jsonlFolder)]);
+    assert.equal(runs.length, 1);
+});
+
 test("test_getPlateEventName_returns_PostToolBatch_when_every_tool_call_has_a_response", () => {
     assert.equal(getPlateEventName([makeWriteCall("toolu_1", true), makeWriteCall("toolu_2", true)]), PlateEventName.PostToolBatch);
 });

@@ -1,6 +1,6 @@
 // Lists the plate hook runs that the Mac capture files record, as timeline events.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { closeSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
@@ -22,6 +22,21 @@ const TOOL_USE_ID_PATTERN = /"id":"(toolu_[A-Za-z0-9_]+)"/g;
 
 export function readPlateCaptureFile(captureFile: Path): PlateCaptureFile {
   return JSON.parse(readFileSync(captureFile.toString(), "utf8")) as PlateCaptureFile;
+}
+
+// The hook writes session_id as the first key. A user capture can be over 500 MB, so only the head of the file is read.
+const SESSION_ID_HEAD_PATTERN = /^\{"session_id":"([^"]*)"/;
+const SESSION_ID_HEAD_BYTES = 200;
+export function readPlateCaptureSessionId(captureFile: Path): string {
+  const fileHandle = openSync(captureFile.toString(), "r");
+  const headBuffer = Buffer.alloc(SESSION_ID_HEAD_BYTES);
+  const byteCount = readSync(fileHandle, headBuffer, 0, SESSION_ID_HEAD_BYTES, 0);
+  closeSync(fileHandle);
+  const match = SESSION_ID_HEAD_PATTERN.exec(headBuffer.toString("utf8", 0, byteCount));
+  if (match === null) {
+    throw new Error(`readPlateCaptureSessionId: ${captureFile.toString()} does not start with {"session_id":"..."`);
+  }
+  return match[1] as string;
 }
 
 export function getPlateCaptureTimeMs(captureFile: Path): number {
@@ -132,13 +147,13 @@ export function listPlateRuns(macPlatePath: Path, jsonlsPaths: Path[]): PlateRun
   const replayedSessionIds = createReplayedSessionIds(jsonlsPaths);
   const runs: PlateRun[] = [];
   for (const captureFile of captureFiles) {
-    const capture = readPlateCaptureFile(captureFile);
-    if (capture.session_id !== USER_SESSION_ID) {
-      if (replayedSessionIds.has(capture.session_id)) {
-        runs.push(createPlateRun(macPlatePath, captureFile, capture, subagentIndex));
+    const sessionId = readPlateCaptureSessionId(captureFile);
+    if (sessionId !== USER_SESSION_ID) {
+      if (replayedSessionIds.has(sessionId)) {
+        runs.push(createPlateRun(macPlatePath, captureFile, readPlateCaptureFile(captureFile), subagentIndex));
       }
       else {
-        console.log(`ignored plate capture: session ${capture.session_id} is not a replayed session, file ${captureFile.toString()}`);
+        console.log(`ignored plate capture: session ${sessionId} is not a replayed session, file ${captureFile.toString()}`);
       }
     }
   }

@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { PlateEventName, getPlateCaptureTimeMs, readPlateCaptureFile, type PlateRun } from "./engineV3_replay_plate.ts";
+import { PlateEventName, getPlateCaptureTimeMs, readPlateCaptureFile, readPlateCaptureSessionId, type PlateRun } from "./engineV3_replay_plate.ts";
 import { writeCutTranscript } from "./engineV3_replay_plate_transcript.ts";
 
 const HOOK_FILE = "common/scripts/plate/plate_capture_hook.py";
@@ -38,7 +38,7 @@ function findNewAgentCapture(run: PlateRun, namesBefore: string[]): Path {
     const captureFile = new Path(join(run.cwd.toString(), ".plate", "captures", name));
     const isNew = !namesBefore.includes(name);
     if (isNew) {
-      const isAgent = readPlateCaptureFile(captureFile).session_id !== USER_SESSION_ID;
+      const isAgent = readPlateCaptureSessionId(captureFile) !== USER_SESSION_ID;
       if (isAgent) {
         newestCapture = captureFile;
       }
