@@ -59,10 +59,10 @@ if [ -n "$GIT_REPO_FOLDER" ]; then
         git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:playground/package.json" > "$SEED_FOLDER/$LOCK_COMMIT/package.json"
         git -C "$GIT_REPO_FOLDER" show "$LOCK_COMMIT:playground/bun.lock" > "$SEED_FOLDER/$LOCK_COMMIT/bun.lock"
     done
-    docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
+    docker build -t ${ENGINEV3_IMAGE_TAG:-engine-v3:1} --build-context bunseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
 else
-    if ! docker image inspect engine-v3:1 >/dev/null 2>&1; then
-        echo "image engine-v3:1 does not exist: run this script once with --git-repo to build it" >&2
+    if ! docker image inspect ${ENGINEV3_IMAGE_TAG:-engine-v3:1} >/dev/null 2>&1; then
+        echo "image ${ENGINEV3_IMAGE_TAG:-engine-v3:1} does not exist: run this script once with --git-repo to build it" >&2
         exit 1
     fi
 fi
@@ -70,7 +70,7 @@ fi
 NAME="engine-v3-$(date +%s)-$$"
 SNAPSHOT_VOLUME="${ENGINEV3_SNAPSHOT_VOLUME_PREFIX:-engineV3-snapshots}-$(basename "$PROJECT_FOLDER")"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
-docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sleep infinity
+docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
 
 docker exec "$NAME" mkdir -p /input/jfred "$STATE_FOLDER"
@@ -197,7 +197,7 @@ fi
 docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot $ENGINE_FLAGS "$@"
 
 echo "snapshot events / store size / blobs:"
-docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" engine-v3:1 sh -c 'ls /snapshots/events | wc -l; du -sh /snapshots; ls /snapshots/blobs | wc -l'
+docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sh -c 'ls /snapshots/events | wc -l; du -sh /snapshots; ls /snapshots/blobs | wc -l'
 
 COMPARE_FOLDER="$(mktemp -d)"
 echo "compare folder: $COMPARE_FOLDER"
