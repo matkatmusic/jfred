@@ -72,8 +72,35 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
     writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
     return state;
   }
+  const snippetTexts = snippet.lines.map((snippetLine) => snippetLine.text);
+  const keptTail = findOldTailBelowTopWindow(splitLines(oldText), snippetTexts);
+  if (keptTail !== undefined) {
+    const newText = [...snippetTexts, ...keptTail].join("\n") + trailingNewline;
+    writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
+    return state;
+  }
   writeFileIntoState(root, relativePath, Buffer.from(event.content + trailingNewline, "utf8"));
   return state;
+}
+
+// A snippet that starts at line 1 and stops early is a top window: its last lines are old lines (the edit may have shifted them), and the old lines after them stay.
+function findOldTailBelowTopWindow(oldLines: string[], snippetTexts: string[]): string[] | undefined {
+  let bestMatchedCount = 0;
+  let bestEnd = oldLines.length;
+  for (let end = oldLines.length; end >= 1; end -= 1) {
+    let matchedCount = 0;
+    while (matchedCount < snippetTexts.length && matchedCount < end && snippetTexts[snippetTexts.length - 1 - matchedCount] === oldLines[end - 1 - matchedCount]) {
+      matchedCount += 1;
+    }
+    if (matchedCount > bestMatchedCount) {
+      bestMatchedCount = matchedCount;
+      bestEnd = end;
+    }
+  }
+  if (bestMatchedCount * 2 < snippetTexts.length) {
+    return undefined;
+  }
+  return oldLines.slice(bestEnd);
 }
 
 // Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.
