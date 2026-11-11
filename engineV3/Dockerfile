@@ -1,6 +1,6 @@
 FROM node:26-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh \
+    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh rsync \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system safe.directory '*' \
     && git config --system user.name "Matkat Music LLC" \
@@ -63,6 +63,16 @@ COPY --chmod=755 <<'IFCONFIG_SCRIPT' /usr/local/bin/ifconfig
 #!/bin/sh
 printf '\tinet 192.168.1.144 netmask 0xffffff00 broadcast 192.168.1.255\n'
 IFCONFIG_SCRIPT
+# The replay compares exit codes only, so this stand-in keeps the exit code of the wrapped program but not rtk's shortened output.
+# Recorded rtk calls: ~/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl lines 269 and 322.
+COPY --chmod=755 <<'RTK_SCRIPT' /usr/local/bin/rtk
+#!/bin/sh
+if [ "${1:-}" = "read" ]; then
+    shift
+    exec cat "$@"
+fi
+exec "$@"
+RTK_SCRIPT
 # A recorded `ls /Applications | rg -i chrome` found Google Chrome on the Mac; the folder stands in for it (the Chrome program itself is not here).
 RUN mkdir -p "/Applications/Google Chrome.app"
 RUN useradd --no-create-home --home-dir /tmp/replay-home replay \
