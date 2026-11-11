@@ -9,7 +9,9 @@ import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
-import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+// import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime } from "./engineV3_jsonl_lines.ts";
+import { loadJSONLLineIndex, readFullJSONLLine, readFullResultLines } from "./engineV3_jsonl_line_index.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
@@ -90,6 +92,14 @@ function logEventThenStopIfBeforeLine(event: TimelineEvent, eventText: string, s
   }
 }
 
+// The timeline holds index lines; the full line is read from disk only for the event being replayed.
+function readFullLineOfEvent(event: TimelineEvent): TimelineEvent {
+  if (event.type === TimelineEventKind.JSONLLine) {
+    return { ...event, line: readFullJSONLLine(event.line) };
+  }
+  return event;
+}
+
 export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }): Path {
   let lastEvent: TimelineEvent | null = null;
   while (true) {
@@ -97,10 +107,12 @@ export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPath
     if (event === TERMINAL_EVENT) {
       break;
     }
-    const eventText = formatEventText(event, repoPath);
-    logEventThenStopIfBeforeLine(event, eventText, stopBefore);
-    state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
-    writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+    const replayedEvent = readFullLineOfEvent(event);
+    const eventText = formatEventText(replayedEvent, repoPath);
+    logEventThenStopIfBeforeLine(replayedEvent, eventText, stopBefore);
+    state = doSomethingWithEvent(state, replayedEvent, repoPath, jsonlsPaths, fileSnapshots, context);
+    writeSnapshotAfterEvent(snapshotLoop, replayedEvent, eventText, state, context.writeEditResultLines);
+    // getNextEvent finds its place by the timeline's own event object.
     lastEvent = event;
   }
   return state;
@@ -129,8 +141,10 @@ export function loadReplayJSONLLines(settings: ReplaySettings): JSONLLine[] {
   for (const jsonlPath of settings.jsonlsPaths) {
     jsonlPathTexts.push(jsonlPath.toString());
   }
-  const mergedLines = runStartupPhase("JSONL load", (reportProgress) => loadMergedJSONLLines(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.jsonlLines.length} lines`);
-  return mergedLines.jsonlLines;
+  // const mergedLines = runStartupPhase("JSONL load", (reportProgress) => loadMergedJSONLLines(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.jsonlLines.length} lines`);
+  // return mergedLines.jsonlLines;
+  const lineIndex = runStartupPhase("JSONL load", (reportProgress) => loadJSONLLineIndex(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.indexLines.length} lines`);
+  return lineIndex.indexLines;
 }
 
 function describeCollectStep(stepName: string): (entries: Map<string, unknown> | Set<string>) => string {
@@ -139,7 +153,8 @@ function describeCollectStep(stepName: string): (entries: Map<string, unknown> |
 
 export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: JSONLLine[]): ScriptReplayContext {
   const bashCallResults = runStartupPhase("collectBashCallResults", () => collectBashCallResults(jsonlLines), describeCollectStep("collectBashCallResults"));
-  const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => collectWriteEditResultLines(jsonlLines), describeCollectStep("collectWriteEditResultLines"));
+  // const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => collectWriteEditResultLines(jsonlLines), describeCollectStep("collectWriteEditResultLines"));
+  const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => readFullResultLines(collectWriteEditResultLines(jsonlLines)), describeCollectStep("collectWriteEditResultLines"));
   const forkedMessageIds = runStartupPhase("collectForkedMessageIds", () => collectForkedMessageIds(jsonlLines), describeCollectStep("collectForkedMessageIds"));
   const earlierSiblingMessageIds = runStartupPhase("collectEarlierSiblingMessageIds", () => collectEarlierSiblingMessageIds(jsonlLines), describeCollectStep("collectEarlierSiblingMessageIds"));
   const resultTurnSnapshotIds = runStartupPhase("collectResultTurnSnapshotIds", () => collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines), describeCollectStep("collectResultTurnSnapshotIds"));

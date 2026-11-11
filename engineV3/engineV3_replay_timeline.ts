@@ -3,7 +3,9 @@
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { TimelineEventKind, executeGit, type CommitHash, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { listCommitsFromStartToEnd } from "./engineV3test.ts"; import { createCommitEventsInTimeOrder, listReflogOnlyCommits } from "./engineV3_replay_commit_events.ts";
-import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+// import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime } from "./engineV3_jsonl_lines.ts";
+import { loadJSONLLineIndex } from "./engineV3_jsonl_line_index.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { listOutsideGitRows } from "./engineV3_replay_outside_git.ts";
 import { mergePlateEventsIntoActions } from "./engineV3_replay_plate.ts";
@@ -51,7 +53,7 @@ export function readHeadCommit(repoPath: Path): CommitHash {
 //   return createCommitEventsInTimeOrder(repoPath, [...commits, ...reflogOnlyCommits]);
 // }
 
-function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
+export function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
   const startSeconds = Math.floor(getFirstLineTime(lines).getTime() / 1000);
   const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), startSeconds);
   const events: TimelineEvent[] = [];
@@ -61,7 +63,7 @@ function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]):
   return events;
 }
 
-function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
+export function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
   const events: TimelineEvent[] = new Array(lines.length);
   // A line with no time takes the time of the next timed line, or infinity after the last.
   let timeOfNextTimedLine = Number.POSITIVE_INFINITY;
@@ -77,7 +79,7 @@ function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
 }
 
 // A line in the same second as a commit goes before that commit (user ruling).
-function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEvent[]): TimelineEvent[] {
+export function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEvent[]): TimelineEvent[] {
   const merged: TimelineEvent[] = [];
   let commitIndex = 0;
   let lineIndex = 0;
@@ -108,7 +110,8 @@ function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEv
 }
 
 function createTimeline(key: string, repoPath: Path | undefined,jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
-  const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
+  // const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
+  const lines = loadJSONLLineIndex(convertToPathTexts(jsonlsPaths)).indexLines;
   // const commitEvents = createCommitEvents(repoPath);
   // const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
   const outsideGitEvents = runStartupPhase("outside-git events", () => createOutsideGitEvents(repoPath, lines), (built) => `built ${built.length} outside-git events`);

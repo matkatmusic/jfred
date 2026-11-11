@@ -31,13 +31,13 @@ function collectUnknownFields(records: JSONLLine[], seenFieldIds: Set<string>, u
   }
 }
 
-function printUnknownFields(unknownFields: UnknownField[]): void {
+export function printUnknownFields(unknownFields: UnknownField[]): void {
   for (const unknownField of unknownFields) {
     console.log(`unknown field: ${unknownField.recordType}.${unknownField.fieldName}`);
   }
 }
 
-function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
+export function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
   for (const recordType of unknownRecordTypes) {
     console.log(`unknown record type: ${recordType}`);
   }
@@ -57,7 +57,7 @@ function assertOnlyUnknownTypesSkipped(transcriptFile: Path, skippedLines: Skipp
 }
 
 // The loader rejects the line's type, so this parses the raw text without that check.
-function parseUnknownTypeLine(text: string): JSONLLine {
+export function parseUnknownTypeLine(text: string): JSONLLine {
   const parsed = JSON.parse(text) as Record<string, unknown>;
   if (typeof parsed.timestamp === "string") {
     parsed.timestamp = new Date(parsed.timestamp);
@@ -90,7 +90,7 @@ function listRecordsInFileOrder(byLineNumber: Map<number, JSONLLine>, lineCount:
   return ordered;
 }
 
-function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknownFields: UnknownField[], unknownRecordTypes: Set<string>): JSONLLine[] {
+export function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknownFields: UnknownField[], unknownRecordTypes: Set<string>): JSONLLine[] {
   const { records, skippedLines } = loadTranscript(transcriptFile.toString(), undefined, true);
   const fileLines = readFileSync(transcriptFile.toString(), "utf8").split("\n");
   assertOnlyUnknownTypesSkipped(transcriptFile, skippedLines, fileLines);
@@ -100,7 +100,7 @@ function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknow
 }
 
 // A multi-source scenario folder holds each transcript twice: at the top and in source-*/projects. The first copy wins.
-function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
+export function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
   const seenFileIds = new Set<string>();
   const uniqueFiles: Path[] = [];
   for (const transcriptFile of transcriptFiles) {
@@ -117,7 +117,7 @@ function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
 
 // A Bash or ctx_execute call whose result comes much later waited for the user's permission, so the script ran just before its result.
 const PERMISSION_WAIT_MILLISECONDS = 60000;
-function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+export function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
   const resultTimeByCallId = new Map<string, number>();
   for (const record of records) {
     if (record.timestamp instanceof Date) {
