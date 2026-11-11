@@ -11,7 +11,8 @@ import { writeFileIntoState } from "./engineV3_replay_submodule.ts";
 const BUN_INSTALL_TEXT = "bun install";
 const BUN_LOCKFILE_NAME = "bun.lock";
 // const CD_THEN_BUN_INSTALL = /cd\s+(\S+)\s*&&\s*bun install/;
-const CD_THEN_BUN_INSTALL = /cd\s+([^\s;&]+)\s*(?:&&|;)\s*bun install/;
+// const CD_THEN_BUN_INSTALL = /cd\s+([^\s;&]+)\s*(?:&&|;)\s*bun install/;
+const CD_THEN_BUN_INSTALL = /cd\s+([^\s;&]+)\s*(?:&&|;)\s*\(?\s*bun install/;
 const QUOTE_CHARACTERS = /^["']|["']$/g;
 
 function findInstallFolder(run: ScriptRun): string {
