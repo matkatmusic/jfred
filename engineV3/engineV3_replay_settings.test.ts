@@ -83,6 +83,39 @@ test("test_readReplaySettingsFromArguments_throws_when_the_stop_before_line_is_n
   assert.throws(() => readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--stop-before", "/a/x.jsonl:abc"]), /\/a\/x\.jsonl:abc/);
 });
 
+test("test_readReplaySettingsFromArguments_reads_the_start_at_event_number", () => {
+  // Step 1: read settings from arguments that have --start-at and --snapshots.
+  const settings = readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--snapshots", "/snapshots", "--start-at", "12"]);
+  // Step 2: the start-at setting holds the event number, and the jsonl path is still read.
+  assert.equal(settings.startAt, 12);
+  assert.equal(settings.jsonlsPaths[0]?.toString(), "/jsonl");
+});
+
+test("test_readReplaySettingsFromArguments_leaves_start_at_undefined_without_the_flag", () => {
+  // Step 1: read settings from arguments that have no --start-at.
+  const settings = readReplaySettingsFromArguments(REQUIRED_ARGUMENTS);
+  // Step 2: start-at is undefined.
+  assert.equal(settings.startAt, undefined);
+});
+
+test("test_readReplaySettingsFromArguments_throws_when_start_at_is_not_a_whole_number", () => {
+  // Step 1: give --start-at a value that is not a whole number.
+  // Step 2: reading the settings throws and names the bad value.
+  assert.throws(() => readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--snapshots", "/snapshots", "--start-at", "1.5"]), /--start-at needs a whole event number of 1 or more, got 1\.5/);
+});
+
+test("test_readReplaySettingsFromArguments_throws_when_start_at_is_lower_than_1", () => {
+  // Step 1: give --start-at the value 0.
+  // Step 2: reading the settings throws and names the bad value.
+  assert.throws(() => readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--snapshots", "/snapshots", "--start-at", "0"]), /--start-at needs a whole event number of 1 or more, got 0/);
+});
+
+test("test_readReplaySettingsFromArguments_throws_when_start_at_has_no_snapshots_folder", () => {
+  // Step 1: give --start-at without --snapshots.
+  // Step 2: reading the settings throws and says --snapshots is needed.
+  assert.throws(() => readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--start-at", "5"]), /--start-at needs --snapshots <folder>/);
+});
+
 test("test_readReplaySettingsFromArguments_still_throws_when_state_is_missing", () => {
   // Step 1: drop --state from the arguments.
   const argumentsWithoutState = REQUIRED_ARGUMENTS.slice(2);

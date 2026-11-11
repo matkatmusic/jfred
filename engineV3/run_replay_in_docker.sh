@@ -1,5 +1,5 @@
 #!/bin/sh
-# Usage: sh engineV3/run_replay_in_docker.sh --project <folder> --jsonl <folder> [--jsonl <folder> ...] [--file-history <folder>] [--git-repo <folder>] [--stop-before <jsonl file>:<line>]
+# Usage: sh engineV3/run_replay_in_docker.sh --project <folder> --jsonl <folder> [--jsonl <folder> ...] [--file-history <folder>] [--git-repo <folder>] [--stop-before <jsonl file>:<line>] [--start-at <event number>]
 # Set ENGINEV3_SNAPSHOT_VOLUME_PREFIX to give this worktree its own snapshot volumes.
 set -eu
 
@@ -17,6 +17,7 @@ FILE_HISTORY_FOLDER=""
 GIT_REPO_FOLDER=""
 JSONL_LIST=""
 STOP_BEFORE=""
+START_AT=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --project) PROJECT_FOLDER="$(cd "${2:?--project needs a folder}" && pwd)" ;;
@@ -25,6 +26,7 @@ while [ $# -gt 0 ]; do
         --file-history) FILE_HISTORY_FOLDER="$(cd "${2:?--file-history needs a folder}" && pwd)" ;;
         --git-repo) GIT_REPO_FOLDER="$(cd "${2:?--git-repo needs a folder}" && pwd)" ;;
         --stop-before) STOP_BEFORE="${2:?--stop-before needs <jsonl file>:<line>}" ;;
+        --start-at) START_AT="${2:?--start-at needs <event number>}" ;;
         *) echo "unknown flag: $1" >&2; exit 1 ;;
     esac
     shift 2
@@ -293,6 +295,9 @@ else
 fi
 if [ -n "$FILE_HISTORY_FOLDER" ]; then
     ENGINE_FLAGS="$ENGINE_FLAGS --file-history /input/file-history"
+fi
+if [ -n "$START_AT" ]; then
+    ENGINE_FLAGS="$ENGINE_FLAGS --start-at $START_AT"
 fi
 for JSONL_FOLDER in "$@"; do
     set -- "$@" --jsonl "$JSONL_FOLDER"

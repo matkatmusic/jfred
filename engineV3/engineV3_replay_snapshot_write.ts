@@ -9,6 +9,7 @@ export type EventSnapshot = {
   event: number;
   eventText: string;
   previousEvent: string | null;
+  touched: string[];
   changes: FileChange[];
 };
 
@@ -43,7 +44,7 @@ export function writeEventSnapshot(store: Path, eventFileName: string, snapshot:
   writeMissingBlobs(join(store.toString(), BLOBS_FOLDER_NAME), snapshot.changes);
   const eventsFolder = join(store.toString(), EVENTS_FOLDER_NAME);
   mkdirSync(eventsFolder, { recursive: true });
-  const { event, eventText, previousEvent, changes } = snapshot;
-  const eventFile = { event, eventText, replayedAt: new Date().toISOString(), previousEvent, changes };
+  const { event, eventText, previousEvent, touched, changes } = snapshot;
+  const eventFile = { event, eventText, replayedAt: new Date().toISOString(), previousEvent, touched, changes };
   writeFileSync(join(eventsFolder, eventFileName), JSON.stringify(eventFile, null, 4) + "\n");
 }

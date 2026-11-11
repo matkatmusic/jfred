@@ -9,14 +9,15 @@ import { listChangesSinceLastScan, type FileChange } from "./engineV3_replay_sna
 import { listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 import { scanWatchedFolders, type FileStamp } from "./engineV3_replay_snapshot_scan.ts";
 import { formatEventNumber, formatJsonlEventFileName, writeEventSnapshot } from "./engineV3_replay_snapshot_write.ts";
+import { listTouchedAbsolutePaths } from "./engineV3_replay_touched.ts";
 
-export type SnapshotLoop = { store: Path; watchedFolders: Path[]; previousScan: Map<string, FileStamp>; eventNumber: number; previousEventFileName: string };
+export type SnapshotLoop = { store: Path; watchedFolders: Path[]; previousScan: Map<string, FileStamp>; eventNumber: number; previousEventFileName: string; touchedCount: number };
 
 const START_EVENT_FILE_NAME = "000000_start.json";
-const TEMP_FOLDER = "/tmp";
+export const TEMP_FOLDER = "/tmp";
 const NODE_COMPILE_CACHE_FOLDER = "/tmp/node-compile-cache";
 
-function listSkipFolders(store: Path): Path[] {
+export function listSkipFolders(store: Path): Path[] {
   return [store, new Path(NODE_COMPILE_CACHE_FOLDER)];
 }
 
@@ -35,12 +36,20 @@ export function moveExistingEventsToOld(store: Path): void {
   renameSync(eventsFolder, join(oldRunFolder, "events"));
 }
 
+function listNewTouchedPaths(snapshotLoop: SnapshotLoop): string[] {
+  const touchedPaths = listTouchedAbsolutePaths();
+  const newTouchedPaths = touchedPaths.slice(snapshotLoop.touchedCount);
+  snapshotLoop.touchedCount = touchedPaths.length;
+  return newTouchedPaths;
+}
+
 export function createSnapshotLoop(store: Path, watchedFolders: Path[]): SnapshotLoop {
   moveExistingEventsToOld(store);
   const startScan = scanWatchedFolders(watchedFolders, listSkipFolders(store), new Map());
   const changes = listChangesSinceLastScan(new Map(), startScan);
-  writeEventSnapshot(store, START_EVENT_FILE_NAME, { event: 0, eventText: "start", previousEvent: null, changes });
-  return { store, watchedFolders, previousScan: startScan, eventNumber: 0, previousEventFileName: START_EVENT_FILE_NAME };
+  const touched = listTouchedAbsolutePaths();
+  writeEventSnapshot(store, START_EVENT_FILE_NAME, { event: 0, eventText: "start", previousEvent: null, touched, changes });
+  return { store, watchedFolders, previousScan: startScan, eventNumber: 0, previousEventFileName: START_EVENT_FILE_NAME, touchedCount: touched.length };
 }
 
 export function createSnapshotLoopIfRequested(snapshotsPath: Path | undefined, state: Path, watchPaths: Path[]): SnapshotLoop | undefined {
@@ -97,7 +106,7 @@ function isSkipLine(event: TimelineEvent, state: Path, writeEditResultLines: Map
   return false;
 }
 
-function removeTimeStampPrefix(eventText: string): string {
+export function removeTimeStampPrefix(eventText: string): string {
   return eventText.slice(eventText.indexOf(" ") + 1);
 }
 
@@ -120,6 +129,7 @@ export function writeSnapshotAfterEvent(snapshotLoop: SnapshotLoop | undefined, 
   const isSkipped = isSkipLine(event, state, writeEditResultLines);
   const changes = listChangesAfterEvent(snapshotLoop, isSkipped);
   const previousEvent = snapshotLoop.previousEventFileName;
-  writeEventSnapshot(snapshotLoop.store, eventFileName, { event: snapshotLoop.eventNumber, eventText: removeTimeStampPrefix(eventText), previousEvent, changes });
+  const touched = listNewTouchedPaths(snapshotLoop);
+  writeEventSnapshot(snapshotLoop.store, eventFileName, { event: snapshotLoop.eventNumber, eventText: removeTimeStampPrefix(eventText), previousEvent, touched, changes });
   snapshotLoop.previousEventFileName = eventFileName;
 }

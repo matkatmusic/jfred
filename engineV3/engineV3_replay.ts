@@ -24,7 +24,8 @@ import { applyOutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import { executePlateRun } from "./engineV3_replay_plate_run.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
 import { writeTouchedPathsFile } from "./engineV3_replay_touched.ts";
-import { createSnapshotLoopIfRequested, writeSnapshotAfterEvent, type SnapshotLoop } from "./engineV3_replay_snapshot_loop.ts";
+import { TEMP_FOLDER, createSnapshotLoopIfRequested, writeSnapshotAfterEvent, type SnapshotLoop } from "./engineV3_replay_snapshot_loop.ts";
+import { createSnapshotLoopAtEvent, recordPendingWritesOfSkippedEvent, skipEventBeforeStartAt } from "./engineV3_replay_snapshot_start_at.ts";
 import { runStartupPhase } from "./engineV3_startup_progress.ts";
 
 const DOCKER_MARKER_FILE = "/.dockerenv";
@@ -98,17 +99,30 @@ function logEventThenStopIfBeforeLine(event: TimelineEvent, eventText: string, s
   }
 }
 
-export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }): Path {
+function replayEvent(state: Path, event: TimelineEvent, eventNumber: number, repoPath: Path | undefined, jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }, startAtEvent?: number): Path {
+  const eventText = formatEventText(event, repoPath);
+  const isSkipped = skipEventBeforeStartAt(snapshotLoop, eventText, eventNumber, startAtEvent);
+  if (isSkipped) {
+    recordPendingWritesOfSkippedEvent(state, event, context);
+    return state;
+  }
+  logEventThenStopIfBeforeLine(event, eventText, stopBefore);
+  state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
+  writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+  return state;
+}
+
+// export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }): Path {
+export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }, startAtEvent?: number): Path {
   let lastEvent: TimelineEvent | null = null;
+  let eventNumber = 0;
   while (true) {
     const event = getNextEvent(repoPath, jsonlsPaths, lastEvent, context.macPlatePath);
     if (event === TERMINAL_EVENT) {
       break;
     }
-    const eventText = formatEventText(event, repoPath);
-    logEventThenStopIfBeforeLine(event, eventText, stopBefore);
-    state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
-    writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+    eventNumber++;
+    state = replayEvent(state, event, eventNumber, repoPath, jsonlsPaths, fileSnapshots, context, snapshotLoop, stopBefore, startAtEvent);
     lastEvent = event;
   }
   return state;
@@ -162,11 +176,18 @@ if (isCliRun) {
   // createStartRepo(settings.repoPath, settings.state);
   // writeUntrackedStartFiles(settings.state);
   const jsonlLines = loadReplayJSONLLines(settings);
-  runStartupPhase("createStartState", () => createStartState(settings.repoPath, settings.startFilesPath, settings.state, getFirstLineTime(jsonlLines), settings.writePlaygroundStartFiles), () => "created the start state");
-  const snapshotLoop = runStartupPhase("snapshot loop start", () => createSnapshotLoopIfRequested(settings.snapshotsPath, settings.state, settings.watchPaths), (loop) => (loop === undefined ? "no snapshot loop" : "started the snapshot loop"));
+  let snapshotLoop: SnapshotLoop | undefined;
+  const startAtEvent = settings.startAt;
+  if (startAtEvent === undefined) {
+    runStartupPhase("createStartState", () => createStartState(settings.repoPath, settings.startFilesPath, settings.state, getFirstLineTime(jsonlLines), settings.writePlaygroundStartFiles), () => "created the start state");
+    snapshotLoop = runStartupPhase("snapshot loop start", () => createSnapshotLoopIfRequested(settings.snapshotsPath, settings.state, settings.watchPaths), (loop) => (loop === undefined ? "no snapshot loop" : "started the snapshot loop"));
+  } else {
+    // settings guarantees --snapshots when --start-at is set
+    snapshotLoop = runStartupPhase("snapshot loop start at event", () => createSnapshotLoopAtEvent(settings.snapshotsPath!, settings.state, [new Path(TEMP_FOLDER), ...settings.watchPaths], startAtEvent), () => `restored the files of events 0 to ${startAtEvent - 1}`);
+  }
   const context = createScriptReplayContext(settings, jsonlLines);
   const stopBefore = settings.stopBefore === undefined ? undefined : { line: settings.stopBefore, nextLineFile: new Path("/tmp/next-line.json") };
-  executeReplay(settings.state, settings.repoPath, settings.jsonlsPaths, [], context, snapshotLoop, stopBefore);
+  executeReplay(settings.state, settings.repoPath, settings.jsonlsPaths, [], context, snapshotLoop, stopBefore, settings.startAt);
   if (settings.repoPath !== undefined) {
     for (const line of compareStateToHead(settings.state, settings.repoPath)) {
       console.log(line);
