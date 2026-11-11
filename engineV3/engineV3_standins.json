@@ -82,5 +82,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl",
     "lineNumber": 924,
     "standIn": "git worktree add --detach at 85c2c39 plus an empty playground/results folder, made before the first recorded command that names the folder; engineV3_replay_test_worktree.ts"
+  },
+  {
+    "realProgram": "idle-state Claude Code hook writing /Users/matkatmusicllc/Programming/typesafe-playground/.idleState/*.json",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c5a578ce-9057-4d32-89d5-a25125e332b3/subagents/agent-a28ebb946f8a15af3.jsonl",
+    "lineNumber": 20,
+    "standIn": "each .idleState file that no recorded Write/Edit creates is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
   }
 ]

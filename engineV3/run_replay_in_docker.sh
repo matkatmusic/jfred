@@ -165,6 +165,16 @@ while IFS= read -r CAPTURE_FOLDER; do
 done <<EOF
 $MAC_PLATE_CAPTURE_FOLDERS
 EOF
+# The Mac idle-state hook files are mounted under /input/plate too; the engine copies them at their Mac mtime
+MAC_IDLE_STATE_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/\.idleState$' "$PROJECT_FOLDER")"
+while IFS= read -r IDLE_STATE_FOLDER; do
+    if [ -n "$IDLE_STATE_FOLDER" ]; then
+        IDLE_STATE_FOLDER="${IDLE_STATE_FOLDER%/}"
+        set -- "$@" -v "$IDLE_STATE_FOLDER:/input/plate$IDLE_STATE_FOLDER:ro"
+    fi
+done <<EOF
+$MAC_IDLE_STATE_FOLDERS
+EOF
 # Without a git repo the engine writes these start files into the state folder
 if [ -z "$GIT_REPO_FOLDER" ]; then
     for START_FILE in conftest.py tests/conftest.py .gitignore settings.json hooks.json block-compound.sh; do

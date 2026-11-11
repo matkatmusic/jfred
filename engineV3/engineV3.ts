@@ -20,6 +20,7 @@ import { getUserEditEvent } from "../src/reconstruction_user_edit.ts";
 import type { UserEditEvent } from "../src/reconstruction_events.ts";
 import type { OutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import type { PlateRun } from "./engineV3_replay_plate.ts";
+import type { IdleStateCopy } from "./engineV3_replay_idle_state.ts";
 
 //fill these in or import them from the other engine versions
 // type RepoState = {
@@ -389,13 +390,15 @@ export enum TimelineEventKind {
   JSONLLine = "JSONLLine",
   OutsideGitAction = "OutsideGitAction",
   PlateCapture = "PlateCapture",
+  IdleStateCopy = "IdleStateCopy",
 }
 
 export type TimelineEvent =
   | { type: TimelineEventKind.GitCommit; commit: CommitHash; timestamp: number }
   | { type: TimelineEventKind.JSONLLine; line: JSONLLine; timestamp: number }
   | { type: TimelineEventKind.OutsideGitAction; row: OutsideGitRow; timestamp: number }
-  | { type: TimelineEventKind.PlateCapture; capture: PlateRun; timestamp: number };
+  | { type: TimelineEventKind.PlateCapture; capture: PlateRun; timestamp: number }
+  | { type: TimelineEventKind.IdleStateCopy; copy: IdleStateCopy; timestamp: number };
 
 export type JSONLAndGitEvents = TimelineEvent[];
 
@@ -422,6 +425,9 @@ export function createGitCommitForRange(allTimelineEvents: JSONLAndGitEvents, st
     }
     else if (event.type === TimelineEventKind.PlateCapture) {
       throw new Error("createGitCommitForRange: plate capture events are not supported");
+    }
+    else if (event.type === TimelineEventKind.IdleStateCopy) {
+      throw new Error("createGitCommitForRange: idle-state copy events are not supported");
     }
     else {
       logJSONLLineEvent(event.line, repoPath);

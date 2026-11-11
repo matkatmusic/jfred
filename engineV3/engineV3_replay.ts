@@ -19,6 +19,7 @@ import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 // import { createStartRepo } from "./engineV3_replay_git_start.ts";
 // import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
 import { createStartState, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
+import { applyIdleStateCopyToState, formatIdleStateCopyText } from "./engineV3_replay_idle_state.ts";
 import { applyOutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import { executePlateRun } from "./engineV3_replay_plate_run.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
@@ -46,6 +47,10 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
     executePlateRun(event.capture, context.jotPath);
     return state;
   }
+  if (event.type === TimelineEventKind.IdleStateCopy) {
+    applyIdleStateCopyToState(state, event.copy);
+    return state;
+  }
   return applyJSONLLineToState(state, event.line, fileSnapshots, context);
 }
 
@@ -58,6 +63,9 @@ export function formatEventText(event: TimelineEvent, repoPath: Path | undefined
   }
   if (event.type === TimelineEventKind.PlateCapture) {
     return `${new Date().toISOString()} next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
+  }
+  if (event.type === TimelineEventKind.IdleStateCopy) {
+    return `${new Date().toISOString()} next event: ${formatIdleStateCopyText(event.copy)}`;
   }
   const source = getRecordSource(event.line);
   if (source === undefined) {

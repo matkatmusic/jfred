@@ -5,7 +5,7 @@ import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import type { JSONLLine } from "./engineV3.ts";
 
-function isWriteOrEditName(name: string): boolean {
+export function isWriteOrEditName(name: string): boolean {
   if (name === ToolName.Write) {
     return true;
   }
@@ -13,7 +13,7 @@ function isWriteOrEditName(name: string): boolean {
 }
 
 // A line with no timestamp (an api-request-blob) has blocks that getContentBlocks cannot read, and holds no tool call.
-function getBlocksOfTimedLine(line: JSONLLine): ContentBlock[] {
+export function getBlocksOfTimedLine(line: JSONLLine): ContentBlock[] {
   if (line.timestamp instanceof Date) {
     return getContentBlocks(line);
   }
