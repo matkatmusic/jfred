@@ -189,8 +189,10 @@ docker exec "$NAME" chown replay "$STATE_FOLDER" /snapshots
 CHECK_FOLDER=""
 if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
     CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
-    docker exec "$NAME" mkdir -p "$CHECK_FOLDER"
-    docker exec "$NAME" chown replay "$CHECK_FOLDER"
+    # The recorded command `ls -d typesafe-playground-check || git worktree add ...` must find no folder, so only its parent is made writable for the replay user.
+    # docker exec "$NAME" mkdir -p "$CHECK_FOLDER"
+    # docker exec "$NAME" chown replay "$CHECK_FOLDER"
+    docker exec "$NAME" chown replay "$(dirname "$CHECK_FOLDER")"
 fi
 
 # The sources are mounted read-only above, so the old docker cp and chmod lines are commented out (chmod fails on a read-only mount).

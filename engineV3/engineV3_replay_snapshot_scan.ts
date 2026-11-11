@@ -1,7 +1,7 @@
 // Walks the watched folders and stamps every file, folder and symlink with its lstat data and content hash.
 
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync, readFileSync, readlinkSync, type BigIntStats } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, type BigIntStats } from "node:fs";
 import { join } from "node:path";
 import type { Path } from "../src/structures/domain.ts";
 
@@ -113,7 +113,11 @@ export function scanWatchedFolders(folders: Path[], skipFolders: Path[], previou
   }
   const stamps = new Map<string, FileStamp>();
   for (const folder of folders) {
-    scanFolder(folder.toString(), skipFolderTexts, previous, stamps);
+    // A watched folder that a recorded command makes later has no files yet.
+    const folderExists = existsSync(folder.toString());
+    if (folderExists) {
+      scanFolder(folder.toString(), skipFolderTexts, previous, stamps);
+    }
   }
   return stamps;
 }
