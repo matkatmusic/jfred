@@ -13,6 +13,7 @@ import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalR
 import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
 import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
 import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
+import { createLinkedWorktreeWhenCommandNamesIt, PLAYGROUND_TEST_WORKTREE } from "./engineV3_replay_test_worktree.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
@@ -171,6 +172,7 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     return;
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
+  createLinkedWorktreeWhenCommandNamesIt(state, run.code, PLAYGROUND_TEST_WORKTREE);
   executeScriptCommand(state, run, result, context);
 }
 

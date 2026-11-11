@@ -64,5 +64,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2/subagents/agent-a7f987b7735bcfc62.jsonl",
     "lineNumber": 475,
     "standIn": "none: the call is skipped like the sips and Chrome calls; isMacOnlyScriptRun in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "linked git worktree /Users/matkatmusicllc/Programming/typesafe-playground-test at 85c2c39 (detached), made by no recorded command, with a playground/results folder filled by the user's own playground run",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl",
+    "lineNumber": 924,
+    "standIn": "git worktree add --detach at 85c2c39 plus an empty playground/results folder, made before the first recorded command that names the folder; engineV3_replay_test_worktree.ts"
   }
 ]
