@@ -38,7 +38,7 @@ const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "
 const CURL_FILE_FLAGS = new Set(["-o", "--output", "-D", "--dump-header", "-c", "--cookie-jar"]);
 const CURL_FILE_FLAG_LETTERS = new Set(["o", "D", "c"]);
 const CURL_ALWAYS_WRITING_FLAGS = new Set(["-O", "--remote-name", "--remote-name-all", "--output-dir", "--create-dirs", "--trace", "--trace-ascii", "--stderr", "--libcurl", "--etag-save"]);
-const CURL_SHORT_FLAG_GROUP = /^-[A-Za-z]+$/;
+const LONG_FLAG_START = "--";
 const CURL_REMOTE_NAME_LETTER = "O";
 
 function isHiddenCommandStart(command: string, index: number): boolean {
@@ -181,12 +181,15 @@ export function parseShellCommand(command: string): ParsedShellCommand {
         return { segments, hasUncheckedText: true };
       }
       // >&2 and 2>&1 copy a stream and write no file.
+      // In zsh >& file writes both streams into the file.
       if (command[index] === "&") {
         index += 1;
-        while (STREAM_NUMBER_CHARACTERS.test(command[index] ?? "")) {
-          index += 1;
+        if (STREAM_NUMBER_CHARACTERS.test(command[index] ?? "")) {
+          while (STREAM_NUMBER_CHARACTERS.test(command[index] ?? "")) {
+            index += 1;
+          }
+          continue;
         }
-        continue;
       }
       isReadingRedirectTarget = true;
       continue;
@@ -278,18 +281,19 @@ function isCurlFileFlagReadOnly(flagWord: string, nextWord: string | undefined):
   if (CURL_FILE_FLAGS.has(flagWord)) {
     return nextWord === DISCARD_FILE;
   }
-  if (CURL_SHORT_FLAG_GROUP.test(flagWord)) {
-    if (flagWord.includes(CURL_REMOTE_NAME_LETTER)) {
-      return false;
-    }
+  // A short flag group such as -sSLo: the file of o, D or c is the rest of the word, or the next word.
+  if (!flagWord.startsWith(LONG_FLAG_START)) {
     for (let letterIndex = 1; letterIndex < flagWord.length; letterIndex += 1) {
       const letter = flagWord[letterIndex]!;
+      if (letter === CURL_REMOTE_NAME_LETTER) {
+        return false;
+      }
       if (CURL_FILE_FLAG_LETTERS.has(letter)) {
-        const isLastLetter = letterIndex === flagWord.length - 1;
-        if (!isLastLetter) {
-          return false;
+        const joinedFile = flagWord.slice(letterIndex + 1);
+        if (joinedFile === "") {
+          return nextWord === DISCARD_FILE;
         }
-        return nextWord === DISCARD_FILE;
+        return joinedFile === DISCARD_FILE;
       }
     }
     return true;

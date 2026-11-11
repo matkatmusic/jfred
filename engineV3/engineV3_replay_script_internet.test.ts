@@ -57,6 +57,28 @@ test("test_isReadOnlyInternetCommand_is_false_for_a_curl_with_remote_name_in_a_f
   assert.equal(isReadOnlyInternetCommand("curl -fsSLO https://example.com/x.tar.gz"), false);
 });
 
+for (const command of ["curl -sLoout.html https://example.com/x", "curl -o\"$S/a.html\" https://example.com/x", "curl -o/tmp/x https://example.com/x"]) {
+  test(`test_isReadOnlyInternetCommand_is_false_for_a_curl_o_with_the_file_joined_to_the_flag: ${command}`, () => {
+    // Scenario: curl -o with its file in the same word still writes the file.
+    // the command changes a file, so it is not skipped
+    assert.equal(isReadOnlyInternetCommand(command), false);
+  });
+}
+
+test("test_isReadOnlyInternetCommand_is_true_for_a_curl_o_dev_null_joined_to_the_flag", () => {
+  // Scenario: -o/dev/null writes no file.
+  // the command is skipped
+  assert.equal(isReadOnlyInternetCommand("curl -s -o/dev/null https://example.com/x"), true);
+});
+
+for (const command of ["curl -s https://example.com >& out.txt", "curl -s https://example.com >&out.txt"]) {
+  test(`test_isReadOnlyInternetCommand_is_false_for_a_zsh_redirect_of_both_streams_into_a_file: ${command}`, () => {
+    // Scenario: in zsh >& file writes both streams into the file.
+    // the command changes a file, so it is not skipped
+    assert.equal(isReadOnlyInternetCommand(command), false);
+  });
+}
+
 test("test_isReadOnlyInternetCommand_is_false_for_a_curl_o_after_a_line_continuation", () => {
   // Scenario: a backslash at the end of a line joins the next line, so -o is still a flag.
   // the command changes a file, so it is not skipped
