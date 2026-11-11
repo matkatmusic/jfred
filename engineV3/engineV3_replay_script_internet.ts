@@ -1,7 +1,7 @@
 // Rules for the recorded Bash calls that need the internet and change no file in the container: the replay skips them (user decision 8).
 
 // One simple command between ; && || | & ( ) or a new line, with its quotes taken off.
-type ShellSegment = { words: string[]; redirectTargets: string[] };
+export type ShellSegment = { words: string[]; redirectTargets: string[] };
 
 // hasUncheckedText: a backtick, a heredoc, a $( ) too deep to read, or a quote or $( ) that is never closed (zsh rejects it) holds text that these rules cannot check.
 type ParsedShellCommand = { segments: ShellSegment[]; hasUncheckedText: boolean };
@@ -315,7 +315,7 @@ function parseShellText(command: string, start: number, substitutionDepth: numbe
 }
 
 // The program word and the words after it, past leading VAR=value words and loop or test keywords.
-function getProgramWords(segment: ShellSegment): string[] {
+export function getProgramWords(segment: ShellSegment): string[] {
   let start = 0;
   while (start < segment.words.length) {
     const word = segment.words[start]!;
@@ -331,7 +331,7 @@ function getProgramWords(segment: ShellSegment): string[] {
   return segment.words.slice(start);
 }
 
-function getProgramName(programWords: string[]): string | undefined {
+export function getProgramName(programWords: string[]): string | undefined {
   const programWord = programWords[0];
   if (programWord === undefined) {
     return undefined;
@@ -582,11 +582,18 @@ function isDateReadOnly(programWords: string[]): boolean {
   return true;
 }
 
-function isSegmentReadOnly(segment: ShellSegment): boolean {
+export function isEveryRedirectDiscarded(segment: ShellSegment): boolean {
   for (const target of segment.redirectTargets) {
     if (target !== DISCARD_FILE) {
       return false;
     }
+  }
+  return true;
+}
+
+export function isSegmentReadOnly(segment: ShellSegment): boolean {
+  if (!isEveryRedirectDiscarded(segment)) {
+    return false;
   }
   const programWords = getProgramWords(segment);
   const programName = getProgramName(programWords);

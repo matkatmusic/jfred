@@ -9,9 +9,11 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
-import { MAC_ONLY_FILLS, fillMacOnlyFile, fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { MAC_ONLY_FILLS, fillMacOnlyFile, fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
 
 const CHROME_PROGRAM = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// The first line of the scratchpad shot.ts that 3a0c5929-962b-4bc3-af1f-673d1d5da0b8.jsonl line 417 runs.
+const CHROME_SCRIPT_TEXT = `const chrome = "${CHROME_PROGRAM}"\nconst proc = Bun.spawn([chrome, "--headless=new", "--remote-debugging-port=9333", "about:blank"], { stdout: "ignore", stderr: "ignore" })\n`;
 
 test("test_isMacOnlyCommand_is_true_when_the_command_runs_sips", () => {
   // Scenario: sips exists only on the Mac.
@@ -58,6 +60,93 @@ function makeTempFolder(t: TestContext, prefix: string): string {
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   return folder;
 }
+
+// A temp scratchpad folder that holds shot.ts with the given text.
+function makeScratchpadWithShotScript(t: TestContext, scriptText: string): string {
+  const scratchpad = makeTempFolder(t, "engine-v3-skip-scratchpad-");
+  writeFileSync(join(scratchpad, "shot.ts"), scriptText);
+  return scratchpad;
+}
+
+test("test_isMacOnlyScriptCommand_is_true_when_bun_runs_a_script_that_starts_chrome", (t) => {
+  // Scenario: the Chrome program path is in the script file, not in the command text.
+  // a scratchpad shot.ts that starts Chrome
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the command runs it with bun
+  const command = `bun ${scratchpad}/shot.ts out.png`;
+  // the command is Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path(scratchpad)), true);
+});
+
+test("test_isMacOnlyScriptCommand_is_false_when_bun_runs_a_harmless_script", (t) => {
+  // Scenario: a script without a Mac program path runs for real.
+  // a scratchpad shot.ts that only prints
+  const scratchpad = makeScratchpadWithShotScript(t, 'console.log("hi")\n');
+  // the same command runs it with bun
+  const command = `bun ${scratchpad}/shot.ts out.png`;
+  // the command is not Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path(scratchpad)), false);
+});
+
+test("test_isMacOnlyScriptCommand_is_false_when_another_part_of_the_command_changes_a_file", (t) => {
+  // Scenario: a skip drops the whole call, so a call that also edits a project file must run.
+  // a scratchpad shot.ts that starts Chrome
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the command edits demo/server.ts before it runs the script
+  const command = `sd a b demo/server.ts && bun ${scratchpad}/shot.ts out.png`;
+  // the command is not Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path(scratchpad)), false);
+});
+
+test("test_isMacOnlyScriptCommand_is_false_when_the_script_file_does_not_exist", (t) => {
+  // Scenario: only a script file that exists in the container can prove a Mac-only run.
+  // an empty scratchpad
+  const scratchpad = makeTempFolder(t, "engine-v3-skip-scratchpad-");
+  // the command runs a missing shot.ts
+  const command = `bun ${scratchpad}/shot.ts out.png`;
+  // the command is not Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path(scratchpad)), false);
+});
+
+test("test_isMacOnlyScriptCommand_reads_a_relative_script_path_from_the_cwd", (t) => {
+  // Scenario: a script named without a folder is found in the call's cwd.
+  // a scratchpad shot.ts that starts Chrome
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the command names shot.ts without a folder, and the cwd is the scratchpad
+  const command = "bun shot.ts out.png";
+  // the command is Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path(scratchpad)), true);
+});
+
+test("test_isMacOnlyScriptCommand_is_true_for_the_line_417_call_with_the_S_variable", (t) => {
+  // Scenario: 3a0c5929-962b-4bc3-af1f-673d1d5da0b8.jsonl line 417 sets S and runs $S/shot.ts.
+  // a scratchpad shot.ts with the first lines of the recorded script
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the recorded command, with the scratchpad folder in S
+  const command = `S=${scratchpad}; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 "http://localhost:3000/?sessionId=a8da816e-4851-4ad7-bf1d-6e99d7555fdf" userA@dummy.email $S/chat.png`;
+  // the command is Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path("/Users/matkatmusicllc/Programming/Attune")), true);
+});
+
+test("test_isMacOnlyScriptCommand_is_true_for_the_line_447_call_that_also_reads_files", (t) => {
+  // Scenario: 3a0c5929-962b-4bc3-af1f-673d1d5da0b8.jsonl line 447 reads demo/index.html with git diff and sed -n, then runs $S/shot.ts.
+  // a scratchpad shot.ts with the first lines of the recorded script
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the recorded command, with the scratchpad folder in S
+  const command = `S=${scratchpad}; git diff demo/index.html | head -5; sed -n 10,16p demo/index.html; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 "http://localhost:3000/?sessionId=a8da816e-4851-4ad7-bf1d-6e99d7555fdf" userA@dummy.email $S/chat.png`;
+  // the command is Mac only
+  assert.equal(isMacOnlyScriptCommand(command, new Path("/Users/matkatmusicllc/Programming/Attune")), true);
+});
+
+test("test_isMacOnlyScriptCommand_is_false_for_the_line_454_call_that_edits_project_files_first", (t) => {
+  // Scenario: 3a0c5929-962b-4bc3-af1f-673d1d5da0b8.jsonl line 454 edits demo/index.html and demo/server.ts with a python heredoc, then runs $S/shot.ts.
+  // a scratchpad shot.ts with the first lines of the recorded script
+  const scratchpad = makeScratchpadWithShotScript(t, CHROME_SCRIPT_TEXT);
+  // the recorded command shape, with the scratchpad folder in S
+  const command = `S=${scratchpad}; python3 - <<'EOF'\np="demo/index.html"; s=open(p).read(); open(p,"w").write(s)\nEOF\nrg -n 'templates-here' demo; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 "http://localhost:3000/" userA@dummy.email $S/chat.png`;
+  // the command is not Mac only: skipping it would drop the project edits
+  assert.equal(isMacOnlyScriptCommand(command, new Path("/Users/matkatmusicllc/Programming/Attune")), false);
+});
 
 // A repo whose one commit holds docs/report.png with the given bytes; returns the git folder and the commit.
 function makeRepoWithReport(t: TestContext, bytes: Buffer): { gitFolder: Path; commit: string } {
@@ -127,6 +216,20 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
   executeScriptInState(state, line, context);
   // ran.txt is not in the state folder
   assert.equal(existsSync(join(state.toString(), "ran.txt")), false);
+});
+
+test("test_executeScriptInState_skips_a_call_that_runs_a_Mac_only_script_and_leaves_the_state_unchanged", (t) => {
+  // Scenario: a call that runs a Chrome script file does not run in the container.
+  // the state folder is the record's cwd and is empty
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the script fails if it runs, but the recorded result is not an error
+  const scratchpad = makeScratchpadWithShotScript(t, `${CHROME_SCRIPT_TEXT}process.exit(3)\n`);
+  const command = `S=${scratchpad}; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 $S/chat.png`;
+  const { line, context } = loadCallAndContext(t, command, "", false, state.toString());
+  // run the line: it does not throw
+  executeScriptInState(state, line, context);
+  // the state folder is still empty
+  assert.deepEqual(readdirSync(state.toString()), []);
 });
 
 test("test_executeScriptInState_skips_a_read_only_internet_call_and_leaves_the_state_unchanged", (t) => {
