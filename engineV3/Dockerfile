@@ -1,8 +1,10 @@
 FROM node:26-slim
 # Old install line, before tmux was added for the recorded tmux calls:
 #     && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh \
+# Old install line, before chromium was added for the recorded bun scripts that drive headless Chrome:
+#     && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh tmux \
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh tmux \
+    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh tmux chromium \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system safe.directory '*' \
     && git config --system user.name "Matkat Music LLC" \
@@ -52,6 +54,10 @@ COPY --chmod=755 <<'PGREP_SCRIPT' /usr/local/bin/pgrep
 #!/bin/sh
 exec /usr/bin/pgrep --ignore-ancestors "$@"
 PGREP_SCRIPT
+# Recorded bun scripts start Chrome at its Mac path; COPY cannot write a path with spaces, so printf writes the file.
+RUN mkdir -p "/Applications/Google Chrome.app/Contents/MacOS" \
+    && printf '#!/bin/sh\nexec chromium --no-sandbox --disable-dev-shm-usage "$@"\n' > "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    && chmod 755 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 RUN useradd --no-create-home --home-dir /tmp/replay-home replay \
     && chmod 755 /var/tmp /run/lock \
     && mkdir -p /private \

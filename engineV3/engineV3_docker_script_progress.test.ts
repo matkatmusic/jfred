@@ -207,6 +207,18 @@ test("test_dockerfile_installs_tmux", () => {
     assert.match(installLines[0]!, / tmux( |$)/);
 });
 
+test("test_dockerfile_installs_chromium_at_the_mac_chrome_path", () => {
+    // Scenario: recorded bun scripts start "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" headless, so the image needs a real Chromium at that path.
+    const dockerfileText = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8");
+    // the one apt-get install line that runs names chromium
+    const installLines = dockerfileText.split("\n").filter((dockerfileLine) => dockerfileLine.trimStart().startsWith("&& apt-get install "));
+    assert.equal(installLines.length, 1);
+    assert.match(installLines[0]!, / chromium( |$)/);
+    // a file at the Mac Chrome path runs chromium without the sandbox and without /dev/shm
+    assert.ok(dockerfileText.includes('"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"'));
+    assert.ok(dockerfileText.includes('exec chromium --no-sandbox --disable-dev-shm-usage "$@"'));
+});
+
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
     // Scenario: the two print functions run in sh and print "<ISO time> setup: <stage>" and "<ISO time> setup: <stage> done in <N>s".
     const output = execFileSync("sh", ["-eu", "-c", `${readSetupStageFunctionsText()}\nprintSetupStageStart "example stage"\nprintSetupStageDone "example stage"\n`], { encoding: "utf8" });
