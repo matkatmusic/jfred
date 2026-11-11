@@ -3,6 +3,15 @@
 # Set ENGINEV3_SNAPSHOT_VOLUME_PREFIX to give this worktree its own snapshot volumes.
 set -eu
 
+# Each setup stage prints one line before it runs and one line after it, so a slow stage shows on the console.
+printSetupStageStart() {
+    SETUP_STAGE_STARTED_AT="$(date +%s)"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) setup: $1"
+}
+printSetupStageDone() {
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) setup: $1 done in $(( $(date +%s) - SETUP_STAGE_STARTED_AT ))s"
+}
+
 PROJECT_FOLDER=""
 FILE_HISTORY_FOLDER=""
 GIT_REPO_FOLDER=""
@@ -42,6 +51,7 @@ ENGINE_FOLDER="$(cd "$(dirname "$0")" && pwd)"
 JFRED_FOLDER="$(dirname "$ENGINE_FOLDER")"
 
 # The state path inside the container is the shortest cwd found in the JSONL folders
+printSetupStageStart "state-folder cwd scan"
 STATE_FOLDER="$(for JSONL_FOLDER in "$@"; do
     find "$JSONL_FOLDER" -name '*.jsonl' -exec jq -r '.cwd | strings | select(length > 0)' {} +
 done | awk '{ print length($0) "\t" $0 }' | sort -n | head -n 1 | cut -f2-)"
@@ -49,9 +59,11 @@ if [ -z "$STATE_FOLDER" ]; then
     echo "no cwd found in the JSONL folders" >&2
     exit 1
 fi
+printSetupStageDone "state-folder cwd scan"
 echo "state folder: $STATE_FOLDER"
 
 if [ -n "$GIT_REPO_FOLDER" ]; then
+    printSetupStageStart "lockfile collection"
     SEED_FOLDER="$(mktemp -d)"
     # Every bun.lock and package-lock.json in any commit goes into the image with its package.json, once per distinct content. No "workspaces" member package.json files are written.
     SEEN_SEEDS=" "
@@ -83,7 +95,10 @@ if [ -n "$GIT_REPO_FOLDER" ]; then
     done <<EOF
 $LOCK_LOG
 EOF
+    printSetupStageDone "lockfile collection"
+    printSetupStageStart "docker build"
     docker build -t ${ENGINEV3_IMAGE_TAG:-engine-v3:1} --build-context packageseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
+    printSetupStageDone "docker build"
 else
     if ! docker image inspect ${ENGINEV3_IMAGE_TAG:-engine-v3:1} >/dev/null 2>&1; then
         echo "image ${ENGINEV3_IMAGE_TAG:-engine-v3:1} does not exist: run this script once with --git-repo to build it" >&2
@@ -93,7 +108,9 @@ fi
 
 NAME="engine-v3-$(date +%s)-$$"
 SNAPSHOT_VOLUME="${ENGINEV3_SNAPSHOT_VOLUME_PREFIX:-engineV3-snapshots}-$(basename "$PROJECT_FOLDER")"
-docker volume create "$SNAPSHOT_VOLUME" >/dev/null
+# The volume is created in the container start stage, after the mount list is built.
+# docker volume create "$SNAPSHOT_VOLUME" >/dev/null
+printSetupStageStart "mounts"
 # Every source is mounted read-only at the path the engine reads. The replay writes only to the state folder and /snapshots.
 # "$@" holds the JSONL folders (also kept in JSONL_LIST); it is rebuilt after the mounts are listed.
 set --
@@ -152,6 +169,9 @@ if [ -z "$GIT_REPO_FOLDER" ]; then
         fi
     done
 fi
+printSetupStageDone "mounts"
+printSetupStageStart "container start"
+docker volume create "$SNAPSHOT_VOLUME" >/dev/null
 docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
 # From here on "$@" is the JSONL folders again
@@ -218,6 +238,7 @@ docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/gu
 # done
 # The engine reads /input/plate, so it always exists, even when no capture folder is mounted.
 docker exec "$NAME" mkdir -p /input/plate
+printSetupStageDone "container start"
 # MAC_PLATE_CAPTURE_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/\.plate/captures$' "$PROJECT_FOLDER")"
 # while IFS= read -r CAPTURE_FOLDER; do
 #     if [ -n "$CAPTURE_FOLDER" ]; then
@@ -259,6 +280,7 @@ for JSONL_FOLDER in "$@"; do
     shift
 done
 # Stand-ins for programs that were listening on the recorded Mac (see engineV3_standins.json). They write no files.
+printSetupStageStart "stand-ins"
 docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
 docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
 for STANDIN_PORT in 3000 37777 7420 59824 56656; do
@@ -272,8 +294,14 @@ for STANDIN_PORT in 3000 37777 7420 59824 56656; do
         sleep 0.5
     done
 done
+printSetupStageDone "stand-ins"
 if [ -n "$STOP_BEFORE" ]; then
-    if docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot --stop-before "$STOP_BEFORE" $ENGINE_FLAGS "$@"; then
+    printSetupStageStart "engine start"
+    # The engine stops with an error when it reaches the line, so a zero exit code means it never reached it.
+    STOP_BEFORE_ENGINE_EXIT_CODE=0
+    docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot --stop-before "$STOP_BEFORE" $ENGINE_FLAGS "$@" || STOP_BEFORE_ENGINE_EXIT_CODE=$?
+    printSetupStageDone "engine start"
+    if [ "$STOP_BEFORE_ENGINE_EXIT_CODE" -eq 0 ]; then
         echo "the replay never reached $STOP_BEFORE" >&2
         exit 1
     fi
@@ -288,9 +316,16 @@ if [ -n "$STOP_BEFORE" ]; then
     exit 0
 fi
 # ENGINE_FLAGS holds only container paths without spaces, so it is left unquoted
+printSetupStageStart "engine start"
+ENGINE_EXIT_CODE=0
 # shellcheck disable=SC2086
-docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot $ENGINE_FLAGS "$@"
+docker exec -u replay "$NAME" tsx /input/jfred/engineV3/engineV3_replay.ts --state "$STATE_FOLDER" --touched-out /tmp/touched-paths.txt --mac-plate /input/plate --jot /input/jot $ENGINE_FLAGS "$@" || ENGINE_EXIT_CODE=$?
+printSetupStageDone "engine start"
+if [ "$ENGINE_EXIT_CODE" -ne 0 ]; then
+    exit "$ENGINE_EXIT_CODE"
+fi
 
+printSetupStageStart "copy-out"
 echo "snapshot events / store size / blobs:"
 docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sh -c 'ls /snapshots/events | wc -l; du -sh /snapshots; ls /snapshots/blobs | wc -l'
 
@@ -298,4 +333,9 @@ COMPARE_FOLDER="$(mktemp -d)"
 echo "compare folder: $COMPARE_FOLDER"
 docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER/state"
 docker cp "$NAME:/tmp/touched-paths.txt" "$COMPARE_FOLDER/touched-paths.txt"
-"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER/state" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt"
+printSetupStageDone "copy-out"
+printSetupStageStart "disk check"
+DISK_CHECK_EXIT_CODE=0
+"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER/state" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" || DISK_CHECK_EXIT_CODE=$?
+printSetupStageDone "disk check"
+exit "$DISK_CHECK_EXIT_CODE"
