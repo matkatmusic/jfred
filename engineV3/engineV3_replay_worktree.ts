@@ -1,6 +1,7 @@
 // Makes the helper worktree that Claude Code made when an Agent call with isolation "worktree" returns.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { AgentId, Path, Uuid } from "../src/structures/domain.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { parseRecord } from "../src/parse/parseRecord.ts";
@@ -113,6 +114,10 @@ export function addWorktreeToState(state: Path, line: JSONLLine): Path {
   if (agentId === undefined) {
     throw new Error("addWorktreeToState: the line is not a worktree agent result");
   }
-  executeGit(state, ["worktree", "add", "-b", `worktree-agent-${agentId.toString()}`, `.claude/worktrees/agent-${agentId.toString()}`, "HEAD"]);
+  // Claude Code makes the worktree from the remote default branch when the repo has one, not from the current commit.
+  const hasOriginHead = existsSync(join(state.toString(), ".git", "refs", "remotes", "origin", "HEAD"));
+  const worktreeBase = hasOriginHead ? "refs/remotes/origin/HEAD" : "HEAD";
+  // executeGit(state, ["worktree", "add", "-b", `worktree-agent-${agentId.toString()}`, `.claude/worktrees/agent-${agentId.toString()}`, "HEAD"]);
+  executeGit(state, ["worktree", "add", "-b", `worktree-agent-${agentId.toString()}`, `.claude/worktrees/agent-${agentId.toString()}`, worktreeBase]);
   return state;
 }

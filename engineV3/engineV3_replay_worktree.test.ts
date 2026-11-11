@@ -120,6 +120,21 @@ test("test_addWorktreeToState_makes_the_worktree_folder_and_branch_at_HEAD", (t)
     assert.equal(runGit(state.toString(), ["rev-parse", `refs/heads/worktree-agent-${AGENT_ID}`]), commit);
 });
 
+test("test_addWorktreeToState_starts_the_worktree_branch_at_the_origin_default_branch_when_origin_HEAD_is_set", (t) => {
+    // Scenario: Claude Code makes an agent worktree from the remote default branch, not from the current commit.
+    // the state folder has a real .git moved to the commit, and refs/remotes/origin/HEAD points at that commit
+    const { state, commit } = makeStateAtCommit(t);
+    runGit(state.toString(), ["update-ref", "refs/remotes/origin/main", commit]);
+    runGit(state.toString(), ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    // HEAD moves one commit past origin
+    runGit(state.toString(), ["commit", "-q", "--allow-empty", "-m", "second"]);
+    // the file has the worktree Agent call and its launched result
+    const lines = loadFixtureLines(t, [makeAgentCallLine("worktree"), makeAgentResultLine(LAUNCHED_TEXT)]);
+    // add the worktree
+    addWorktreeToState(state, lines[1] as JSONLLine);
+    // the branch points at the origin commit, not at HEAD
+    assert.equal(runGit(state.toString(), ["rev-parse", `refs/heads/worktree-agent-${AGENT_ID}`]), commit);
+});
 test("test_applyJSONLLineToState_adds_a_worktree_for_a_worktree_agent_result", (t) => {
     // Scenario: replaying the launched result line makes the worktree.
     // the state folder has a real .git moved to the commit
