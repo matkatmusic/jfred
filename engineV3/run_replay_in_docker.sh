@@ -311,19 +311,35 @@ for JSONL_FOLDER in "$@"; do
 done
 # Stand-ins for programs that were listening on the recorded Mac (see engineV3_standins.json). They write no files.
 printSetupStageStart "stand-ins"
-docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
-docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
-for STANDIN_PORT in 3000 37777 7420 59824 56656; do
-    STANDIN_ATTEMPTS=0
-    until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
-        STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
-        if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
-            echo "stand-in port $STANDIN_PORT is not listening" >&2
-            exit 1
-        fi
-        sleep 0.5
+# The stand-ins stand for programs on the typesafe-playground Mac only. Other projects, such as Attune, start their own server on port 3000.
+# docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
+# docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
+# for STANDIN_PORT in 3000 37777 7420 59824 56656; do
+#     STANDIN_ATTEMPTS=0
+#     until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
+#         STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
+#         if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
+#             echo "stand-in port $STANDIN_PORT is not listening" >&2
+#             exit 1
+#         fi
+#         sleep 0.5
+#     done
+# done
+if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
+    docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
+    for STANDIN_PORT in 3000 37777 7420 59824 56656; do
+        STANDIN_ATTEMPTS=0
+        until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
+            STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
+            if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
+                echo "stand-in port $STANDIN_PORT is not listening" >&2
+                exit 1
+            fi
+            sleep 0.5
+        done
     done
-done
+fi
 printSetupStageDone "stand-ins"
 if [ -n "$STOP_BEFORE" ]; then
     printSetupStageStart "engine start"

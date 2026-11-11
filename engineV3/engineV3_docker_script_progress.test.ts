@@ -174,6 +174,21 @@ test("test_replay_container_starts_with_the_network_on", () => {
     assert.ok(readDockerScriptLines().some((scriptLine) => scriptLine.startsWith("# docker run -d --network none ")));
 });
 
+test("test_stand_in_listeners_start_only_for_the_typesafe_playground_project", () => {
+    // Scenario: the stand-ins in engineV3_standins.json stand for programs on the typesafe-playground Mac; Attune starts its own server on port 3000, so the port must be free there.
+    const scriptLines = readDockerScriptLines();
+    const stageLines = scriptLines.slice(findStageStartLineIndex(scriptLines, "stand-ins") + 1, findStageDoneLineIndex(scriptLines, "stand-ins")).filter((scriptLine) => scriptLine.trim() !== "" && !scriptLine.trim().startsWith("#"));
+    // the stage is one if block for typesafe-playground
+    assert.equal(stageLines[0]!.trim(), 'if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then');
+    assert.equal(stageLines[stageLines.length - 1]!.trim(), "fi");
+    // both listener start lines sit inside the block
+    const listenerLines = stageLines.filter((scriptLine) => scriptLine.includes("docker exec -d -u replay"));
+    assert.equal(listenerLines.length, 2);
+    for (const listenerLine of listenerLines) {
+        assert.ok(listenerLine.startsWith("    "), "the listener start line is indented inside the block");
+    }
+});
+
 test("test_dockerfile_installs_tmux", () => {
     // Scenario: recorded Bash calls run tmux new-session and send-keys for real, so the image needs tmux.
     // the one apt-get install line that runs names tmux
