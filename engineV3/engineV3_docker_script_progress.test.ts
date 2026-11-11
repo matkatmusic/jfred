@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const DOCKER_SCRIPT_PATH = join(import.meta.dirname, "run_replay_in_docker.sh");
@@ -84,6 +85,83 @@ test("test_hook_files_stage_mounts_the_db4822d_parent_hook_files_at_the_claude_f
     assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/ask-dont-dump-issues:\/Users\/matkatmusicllc\/\.claude\/hooks:ro"/);
     assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/shared:\/Users\/matkatmusicllc\/\.claude\/shared:ro"/);
     assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/\.env:\/Users\/matkatmusicllc\/\.claude\/\.env:ro"/);
+});
+
+// The paths outside the Attune project that recorded Attune Bash calls read; each one exists on the Mac.
+const ATTUNE_OUTSIDE_PATHS = [
+    "/Users/matkatmusicllc/Programming/harms",
+    "/Users/matkatmusicllc/Programming/taskTools",
+    "/Users/matkatmusicllc/Programming/sms_extractor",
+    "/Users/matkatmusicllc/Programming/relationship-mermaid",
+    "/Users/matkatmusicllc/Programming/wheels",
+    "/Users/matkatmusicllc/Programming/nrc-eil",
+    "/Users/matkatmusicllc/Programming/taskTools-worktrees",
+    "/Users/matkatmusicllc/Programming/matkat_claude_libs",
+    "/Users/matkatmusicllc/Programming/taskTools-86",
+    "/Users/matkatmusicllc/Programming/message-panel",
+    "/Users/matkatmusicllc/Programming/taskTools-frozen",
+    "/Users/matkatmusicllc/Downloads/dictionary-pages",
+    "/Users/matkatmusicllc/Desktop/AffectVec-v1.0",
+    "/Users/matkatmusicllc/Desktop/Feelings+Wheel+Download-ables.pdf",
+    "/Users/matkatmusicllc/.claude/plugins",
+    "/Users/matkatmusicllc/.claude/tasks",
+    "/Users/matkatmusicllc/.claude/skills",
+    "/Users/matkatmusicllc/.claude/sessions",
+    "/Users/matkatmusicllc/.claude/array-debt",
+    "/Users/matkatmusicllc/.claude/usage-data",
+    "/Users/matkatmusicllc/.claude/debug",
+    "/Users/matkatmusicllc/.claude/commands",
+];
+
+function readAttuneOutsidePathsFromScript(): string[] {
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    const listMatch = /^\s*ATTUNE_OUTSIDE_PATHS="([^"]*)"$/m.exec(scriptText);
+    assert.ok(listMatch !== null, "the script sets ATTUNE_OUTSIDE_PATHS");
+    return (listMatch[1] as string).split(/\s+/).filter((outsidePath) => outsidePath.length > 0);
+}
+
+// The loop over ATTUNE_OUTSIDE_PATHS, cut out of the script so it can run on its own.
+function readAttuneOutsidePathsLoopText(): string {
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    const loopStart = scriptText.indexOf("for OUTSIDE_PATH in $ATTUNE_OUTSIDE_PATHS; do");
+    assert.notEqual(loopStart, -1, "the script loops over ATTUNE_OUTSIDE_PATHS");
+    const loopEnd = scriptText.indexOf("\n    done\n", loopStart) + "\n    done\n".length;
+    return scriptText.slice(loopStart, loopEnd);
+}
+
+test("test_attune_replay_mounts_every_outside_path_read_only_at_the_same_path", () => {
+    // Scenario: recorded Attune Bash calls read folders outside the project, such as `cd ~/Programming/harms/fight-review`.
+    // The script lists exactly those paths, only for the Attune state folder.
+    assert.deepEqual(readAttuneOutsidePathsFromScript(), ATTUNE_OUTSIDE_PATHS);
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    assert.match(scriptText, /if \[ "\$STATE_FOLDER" = "\/Users\/matkatmusicllc\/Programming\/Attune" \]; then\n\s*ATTUNE_OUTSIDE_PATHS=/);
+    // Each path is mounted read-only at its own Mac path.
+    assert.match(readAttuneOutsidePathsLoopText(), /set -- "\$@" -v "\$OUTSIDE_PATH:\$OUTSIDE_PATH:ro"/);
+});
+
+test("test_attune_outside_paths_loop_mounts_an_existing_path_read_only", () => {
+    // Scenario: the loop runs in sh with one path that exists and puts one read-only mount pair in "$@".
+    const loopText = readAttuneOutsidePathsLoopText();
+    // The list is split on spaces, so the test uses the temp folder: the worktree path has spaces.
+    const existingPath = tmpdir();
+    const output = execFileSync("sh", ["-eu", "-c", `ATTUNE_OUTSIDE_PATHS="${existingPath}"\nset --\n${loopText}printf '%s\\n' "$@"\n`], { encoding: "utf8" });
+    assert.deepEqual(output.trim().split("\n"), ["-v", `${existingPath}:${existingPath}:ro`]);
+});
+
+test("test_attune_outside_paths_loop_stops_on_a_missing_path", () => {
+    // Scenario: docker would make a missing mount source as an empty root-owned folder on the Mac, so the loop stops with a message instead.
+    const loopText = readAttuneOutsidePathsLoopText();
+    const missingPath = join(tmpdir(), "no-such-outside-path");
+    assert.throws(
+        () => execFileSync("sh", ["-eu", "-c", `ATTUNE_OUTSIDE_PATHS="${missingPath}"\nset --\n${loopText}`], { encoding: "utf8", stdio: "pipe" }),
+        (error: { status: number; stderr: string }) => error.status !== 0 && error.stderr.includes(`${missingPath} does not exist on the Mac`),
+    );
+});
+
+test("test_claude_settings_file_is_linked_into_the_mounted_dotfiles", () => {
+    // Scenario: on the Mac ~/.claude/settings.json is a link into the dotfiles folder, which is mounted already.
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    assert.match(scriptText, /docker exec "\$NAME" ln -sfn \/Users\/matkatmusicllc\/Programming\/dotfiles\/claude\/settings\.json \/Users\/matkatmusicllc\/\.claude\/settings\.json/);
 });
 
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {

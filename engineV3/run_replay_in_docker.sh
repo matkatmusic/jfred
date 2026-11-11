@@ -125,6 +125,19 @@ TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmus
 for TOOL_FOLDER in $TOOL_PARENT_FOLDERS; do
     set -- "$@" -v "$TOOL_FOLDER:$TOOL_FOLDER:ro"
 done
+# Recorded Attune Bash calls read these paths outside the project, so each one is mounted read-only at its Mac path.
+# Only for Attune: in another project one of these paths can be the state folder.
+if [ "$STATE_FOLDER" = "/Users/matkatmusicllc/Programming/Attune" ]; then
+    ATTUNE_OUTSIDE_PATHS="/Users/matkatmusicllc/Programming/harms /Users/matkatmusicllc/Programming/taskTools /Users/matkatmusicllc/Programming/sms_extractor /Users/matkatmusicllc/Programming/relationship-mermaid /Users/matkatmusicllc/Programming/wheels /Users/matkatmusicllc/Programming/nrc-eil /Users/matkatmusicllc/Programming/taskTools-worktrees /Users/matkatmusicllc/Programming/matkat_claude_libs /Users/matkatmusicllc/Programming/taskTools-86 /Users/matkatmusicllc/Programming/message-panel /Users/matkatmusicllc/Programming/taskTools-frozen /Users/matkatmusicllc/Downloads/dictionary-pages /Users/matkatmusicllc/Desktop/AffectVec-v1.0 /Users/matkatmusicllc/Desktop/Feelings+Wheel+Download-ables.pdf /Users/matkatmusicllc/.claude/plugins /Users/matkatmusicllc/.claude/tasks /Users/matkatmusicllc/.claude/skills /Users/matkatmusicllc/.claude/sessions /Users/matkatmusicllc/.claude/array-debt /Users/matkatmusicllc/.claude/usage-data /Users/matkatmusicllc/.claude/debug /Users/matkatmusicllc/.claude/commands"
+    for OUTSIDE_PATH in $ATTUNE_OUTSIDE_PATHS; do
+        # docker -v makes a missing source as an empty root-owned folder on the Mac
+        if [ ! -e "$OUTSIDE_PATH" ]; then
+            echo "outside path $OUTSIDE_PATH does not exist on the Mac" >&2
+            exit 1
+        fi
+        set -- "$@" -v "$OUTSIDE_PATH:$OUTSIDE_PATH:ro"
+    done
+fi
 if [ -n "$GIT_REPO_FOLDER" ]; then
     set -- "$@" -v "$GIT_REPO_FOLDER/.git:/input/repo.git:ro"
 fi
@@ -218,6 +231,7 @@ fi
 # done
 # On the Mac, ~/.claude/guides is a link into the dotfiles folder
 docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/guides /Users/matkatmusicllc/.claude/guides
+docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/settings.json /Users/matkatmusicllc/.claude/settings.json
 # for JSONL_FOLDER in "$@"; do
 #     docker exec "$NAME" mkdir -p "$(dirname "$JSONL_FOLDER")"
 # done
