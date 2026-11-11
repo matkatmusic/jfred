@@ -20,6 +20,7 @@ RUN set -e; \
         [ -d "$seedFolder" ] || continue; \
         if [ -f "$seedFolder/bun.lock" ]; then \
             (cd "$seedFolder" && bun install --frozen-lockfile); \
+            (cd "$seedFolder" && rm -rf node_modules bun.lock && bun install); \
         fi; \
         if [ -f "$seedFolder/package-lock.json" ]; then \
             (cd "$seedFolder" && npm ci); \
@@ -27,7 +28,21 @@ RUN set -e; \
     done; \
     rm -rf /packageseed; \
     mkdir -p /Users/matkatmusicllc/.bun /npm-cache; \
-    chmod -R a+rX /Users/matkatmusicllc/.bun /npm-cache
+    chmod -R a+rwX /Users/matkatmusicllc/.bun /npm-cache
+# Replaced: chmod -R a+rX /Users/matkatmusicllc/.bun /npm-cache (the bun cache must be writable for the replay user)
+# The container has no network, so a recorded bun add or bun install resolves from the package lists saved above, however old they are.
+RUN mv /usr/local/bin/bun /usr/local/bin/bun-real && ln -sf /usr/local/bin/bun-real /usr/local/bin/bunx
+COPY --chmod=755 <<'BUN_WRAPPER' /usr/local/bin/bun
+#!/bin/sh
+case "${1:-}" in
+    add | install | i)
+        subcommand="$1"
+        shift
+        exec /usr/local/bin/bun-real "$subcommand" --prefer-offline "$@"
+        ;;
+esac
+exec /usr/local/bin/bun-real "$@"
+BUN_WRAPPER
 COPY --chmod=755 <<'MD5_SCRIPT' /usr/local/bin/md5
 #!/bin/sh
 exitStatus=0
