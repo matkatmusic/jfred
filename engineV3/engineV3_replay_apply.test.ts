@@ -68,7 +68,34 @@ test("test_applyJSONLLineToState_adds_the_final_newline_when_a_marker_follows_a_
     assert.equal(text, "A\nX\nZ\n");
 });
 
-const WHOLE_FILE_SNIPPET = "1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
+function applyEditWithNoOriginalFile(t: TestContext, replayedText: string, hunkLines: string[]): string {
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const filePath = join(stateFolder, "f.txt");
+    writeFileSync(filePath, replayedText);
+    const structuredPatch = [{ oldStart: 2, oldLines: 1, newStart: 2, newLines: 1, lines: hunkLines }];
+    const toolUseResult = { filePath, oldString: "<person>", newString: "<username>", originalFile: null, structuredPatch, userModified: false, replaceAll: false };
+    const timestamp = new Date(Date.UTC(2026, 0, 1, 0, 0, 15)).toISOString();
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-edit", timestamp, toolUseResult }) + "\n");
+    const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
+    return readFileSync(filePath, "utf8");
+}
+
+test("test_applyJSONLLineToState_applies_an_Edit_with_no_originalFile_to_the_replayed_file", (t) => {
+    // Scenario: the replayed file holds "<person>"; the Edit result has no originalFile and a hunk that writes "<username>".
+    const text = applyEditWithNoOriginalFile(t, "A\n<person> rated\nB\n", ["-<person> rated", "+<username> rated"]);
+    // the replayed file now holds "<username>"
+    assert.equal(text, "A\n<username> rated\nB\n");
+});
+
+test("test_applyJSONLLineToState_throws_when_an_Edit_with_no_originalFile_does_not_match_the_replayed_file", (t) => {
+    // Scenario: the replayed file does not hold the hunk's old line, so the Edit cannot apply.
+    // the replay stops with an error
+    assert.throws(() => applyEditWithNoOriginalFile(t, "A\nsomeone rated\nB\n", ["-<person> rated", "+<username> rated"]), /hunk does not match/);
+});
+
+const WHOLE_FILE_SNIPPET ="1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
 
 function makeUserEditLine(t: TestContext, stateFolder: string, fileName: string, snippet: string = WHOLE_FILE_SNIPPET): JSONLLine {
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
