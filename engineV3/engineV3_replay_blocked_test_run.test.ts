@@ -36,3 +36,20 @@ test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running
   // the log under the recorded name holds the passing test summary
   assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
 });
+test("test_replayBlockedTestRun_runs_the_hook_with_CLAUDECODE_so_the_log_lists_no_passing_test_names", (t) => {
+  // Scenario: on the Mac the hook ran with CLAUDECODE=1, and bun test then prints no passing test names, so a later rg on the log finds nothing.
+  // the project has a package.json and one passing test file
+  const project = makeTempFolder(t, "engine-v3-blocked-project-");
+  writeFileSync(join(project, "package.json"), "{}");
+  writeFileSync(join(project, "sample.test.ts"), 'import { test } from "bun:test";\ntest("passing_name_probe", () => {});\n');
+  // the recorded result names a log in a log folder
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(project, recordedLog, "sample.test.ts");
+  const run: ScriptRun = { code: "bun test sample.test.ts", cwd: new Path(project), timestamp: new Date("2026-10-27T17:35:49.168Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
+  // the log shows the summary but not the passing test name
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
+  assert.doesNotMatch(readFileSync(recordedLog, "utf8"), /passing_name_probe/);
+});

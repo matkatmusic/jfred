@@ -4,7 +4,9 @@ import { copyFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
-const HOOK_FOLDER = "/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/block-npm-test";
+// Claude Code sets CLAUDECODE=1 for every Bash call and hook; bun test then hides passing test names.
+export const CLAUDE_CODE_ENV = { CLAUDECODE: "1" };
+const HOOK_FOLDER ="/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/block-npm-test";
 const BLOCKED_TEXT = "Test runners are blocked.";
 const LOG_PATH_LINE = /^Then read the log: (\S+)$/gm;
 const WAIT_FOR_DONE_SECONDS = "600";
@@ -26,7 +28,7 @@ function runHookAndFindLogPaths(run: ScriptRun, logFolder: string): string[] {
   }
   const settings = { ...HOOK_SETTINGS, CLAUDE_HOOKS_BLOCK_NPM_TEST_LOG_DIR: logFolder };
   const hookInput = { cwd: run.cwd.toString(), tool_input: { command: run.code }, settings };
-  const hook = spawnSync("node", [join(HOOK_FOLDER, "block-npm-test.ts")], { input: JSON.stringify(hookInput), encoding: "utf8" });
+  const hook = spawnSync("node", [join(HOOK_FOLDER, "block-npm-test.ts")], { input: JSON.stringify(hookInput), encoding: "utf8", env: { ...process.env, ...CLAUDE_CODE_ENV } });
   if (hook.status !== 0) {
     throw new Error(`runHookAndFindLogPaths: the hook failed with status ${hook.status}\nstderr: ${hook.stderr}\ncommand: ${run.code}`);
   }
