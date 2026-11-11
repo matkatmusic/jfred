@@ -25,6 +25,8 @@ export function isMacOnlyCommand(command: string): boolean {
   return command.includes(CHROME_PROGRAM_TEXT);
 }
 
+// A script file may quote the program path with single or double quotes, so no closing quote is part of the needle.
+const CHROME_PROGRAM_PATH = "MacOS/Google Chrome";
 // `cd <folder> && [timeout N] bun <script>`: the script file holds the Chrome program path, not the command.
 const CD_THEN_SCRIPT = /cd\s+(\S+)\s*&&\s*(?:timeout\s+\d+\s+)?(?:bun|node|tsx)\s+(?:run\s+)?(\S+\.(?:ts|js|mjs))/;
 export function isMacOnlyScriptRun(run: ScriptRun): boolean {
@@ -39,7 +41,7 @@ export function isMacOnlyScriptRun(run: ScriptRun): boolean {
   if (!existsSync(scriptFile)) {
     return false;
   }
-  return readFileSync(scriptFile, "utf8").includes(CHROME_PROGRAM_TEXT);
+  return readFileSync(scriptFile, "utf8").includes(CHROME_PROGRAM_PATH);
 }
 export function fillMacOnlyFile(state: Path, fill: MacOnlyFill, sourceRepo: Path): void {
   const bytes = executeGit(sourceRepo, ["show", `${fill.commit}:${fill.repoPath.toString()}`]);
