@@ -53,6 +53,8 @@ const SED_WRITING_TEXT = /[wW]\s|(^|[;{}\s])e(\s|$)|\/[gpiImM0-9]*e/;
 const AWK_WRITING_TEXT = /print[^;}]*[>|]|system\(|\|/;
 // Programs that only look at Mac programs or Mac machine state, or stop a program (user decision 9).
 const MAC_STATE_PROGRAMS = new Set(["ps", "pgrep", "pkill", "kill", "lsof", "tmux", "sysctl"]);
+// Folders that hold the state of live Mac programs: a file there exists only while its program runs. A word that starts with one names Mac state.
+const LIVE_MAC_STATE_PATH_STARTS = ["~/.claude/sessions", "$HOME/.claude/sessions", "${HOME}/.claude/sessions", "/Users/matkatmusicllc/.claude/sessions"];
 // tmux subcommands that start no program. Every list-, show- and kill- subcommand is also one.
 const TMUX_READ_ONLY_SUBCOMMANDS = new Set(["ls", "has-session", "has", "display-message", "display", "capture-pane", "capturep"]);
 const TMUX_READ_ONLY_SUBCOMMAND_STARTS = ["list-", "show-", "kill-"];
@@ -493,12 +495,25 @@ function isSegmentReadOnly(segment: ShellSegment): boolean {
   return READ_ONLY_PROGRAMS.has(programName);
 }
 
+function isLiveMacStatePath(word: string): boolean {
+  for (const pathStart of LIVE_MAC_STATE_PATH_STARTS) {
+    if (word.startsWith(pathStart)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isSegmentMacState(segment: ShellSegment): boolean {
-  const programName = getProgramName(getProgramWords(segment));
+  const programWords = getProgramWords(segment);
+  const programName = getProgramName(programWords);
   if (programName === undefined) {
     return false;
   }
-  return MAC_STATE_PROGRAMS.has(programName);
+  if (MAC_STATE_PROGRAMS.has(programName)) {
+    return true;
+  }
+  return programWords.some(isLiveMacStatePath);
 }
 
 export function isInternetCommand(command: string): boolean {

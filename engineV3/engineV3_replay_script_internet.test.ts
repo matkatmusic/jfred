@@ -232,6 +232,12 @@ const SKIPPED_MAC_STATE_COMMANDS = [
   "tmux capture-pane -p -t crashfix-2026-10-21T04-29-44-857Z-14a3c438 | grep -v '^$' | tail -30",
   "ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | wc -l; ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | awk '{print $2, $9, $10}'",
   "kill 77157 && (pgrep -fl \"ssh -N.*3100\" || echo \"tunnel is off\")",
+  // Commands that read the folder of live Claude sessions on the Mac.
+  "for p in 2301 6500 35346; do jq -r '\"\\(.pid) \\(.name // .title // \"-\")\"' ~/.claude/sessions/$p.json; done",
+  "for p in 2301 6500 35346; do echo \"== $p\"; cat ~/.claude/sessions/$p.json 2>/dev/null | head -c 400; echo; done",
+  "ls ~/.claude/sessions | head",
+  "cat \"$HOME/.claude/sessions/1.json\"",
+  "cat /Users/matkatmusicllc/.claude/sessions/1.json",
 ];
 
 // Commands that change a file, or run no Mac-state program: they run for real.
@@ -246,6 +252,8 @@ const NOT_SKIPPED_MAC_STATE_COMMANDS = [
   "ls | rg -v '\\.done$'; for f in *.claimed; do [ -e \"$f\" ] && mv \"$f\" \"${f%.claimed}.json\"; done; ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | wc -l",
   "tmux send-keys -t attune-server:0 C-c; tmux send-keys -t attune-server:tunnel C-c; pkill -f '3100:localhost:3000'; pgrep -fl 'tunnel.sh|3100:localhost|server/server.ts' ; echo \"left: $?\"",
   "bun demo/claimSynthesisRequests.ts; pgrep -fl \"definitionFilesLoop|wheelFitLoopD\"",
+  "cat ~/.claude/sessions/1.json > /tmp/x",
+  "cat ~/.claude/settings.json",
 ];
 
 for (const command of SKIPPED_MAC_STATE_COMMANDS) {
