@@ -60,6 +60,28 @@ const TMUX_READ_ONLY_SUBCOMMANDS = new Set(["ls", "has-session", "has", "display
 const TMUX_READ_ONLY_SUBCOMMAND_STARTS = ["list-", "show-", "kill-"];
 // tmux runs the words after a ; as one more subcommand.
 const TMUX_SUBCOMMAND_SEPARATOR = ";";
+// git subcommands that change no file. Every other subcommand counts as changing files.
+const GIT_READ_ONLY_SUBCOMMANDS = new Set(["status", "log", "diff", "show", "rev-parse", "ls-files", "ls-tree", "blame", "describe", "shortlog", "cat-file", "check-ignore", "grep"]);
+// git branch and git tag only list when they have no name word and none of these flags.
+const GIT_LIST_FORM_CHANGING_FLAGS = new Set(["-d", "-D", "-m", "-M", "-c", "-C", "-u", "-f", "--delete", "--move", "--copy", "--set-upstream-to", "--unset-upstream", "--edit-description", "--force"]);
+const GIT_LIST_ONLY_SUBCOMMANDS = new Set(["branch", "tag"]);
+// git remote, worktree and stash change no file only in these forms.
+const GIT_REMOTE_SHOW_WORD = "show";
+const GIT_REMOTE_VERBOSE_FLAGS = new Set(["-v", "--verbose"]);
+const GIT_LIST_SUBCOMMAND_WORD = "list";
+const GIT_LIST_WORD_SUBCOMMANDS = new Set(["worktree", "stash"]);
+const GIT_CONFIG_READ_FLAGS = new Set(["--get", "--get-all", "--get-regexp", "--list", "-l"]);
+// git -C names the folder in the next word. git --no-pager changes nothing.
+const GIT_FOLDER_OPTION = "-C";
+const GIT_NO_PAGER_OPTION = "--no-pager";
+// git diff, log and show --output write into a file.
+const GIT_OUTPUT_FLAG_START = "--output";
+// fd -x, -X, --exec and --exec-batch run a command for each file found.
+const FD_EXEC_LETTERS = ["x", "X"];
+const FD_EXEC_LONG_FLAG_START = "--exec";
+// date -s and --set set the clock.
+const DATE_SET_FLAG = "-s";
+const DATE_SET_LONG_FLAG_START = "--set";
 // curl flags that save into a file named by the next word.
 const CURL_FILE_FLAGS = new Set(["-o", "--output", "-D", "--dump-header", "-c", "--cookie-jar"]);
 const CURL_FILE_FLAG_LETTERS = new Set(["o", "D", "c"]);
@@ -463,6 +485,103 @@ function isAwkReadOnly(programWords: string[]): boolean {
   return true;
 }
 
+// A list form has no name word and no flag that changes a branch or a tag.
+function isGitListForm(argumentWords: string[]): boolean {
+  for (const word of argumentWords) {
+    if (!word.startsWith("-")) {
+      return false;
+    }
+    const flagName = word.split("=")[0]!;
+    if (GIT_LIST_FORM_CHANGING_FLAGS.has(flagName)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isGitRemoteListForm(argumentWords: string[]): boolean {
+  if (argumentWords[0] === GIT_REMOTE_SHOW_WORD) {
+    return true;
+  }
+  if (argumentWords.length === 0) {
+    return false;
+  }
+  return argumentWords.every((word) => GIT_REMOTE_VERBOSE_FLAGS.has(word));
+}
+
+function isGitReadOnly(programWords: string[]): boolean {
+  let subcommandIndex = 1;
+  while (subcommandIndex < programWords.length) {
+    const word = programWords[subcommandIndex]!;
+    if (word === GIT_FOLDER_OPTION) {
+      subcommandIndex += 2;
+      continue;
+    }
+    if (word === GIT_NO_PAGER_OPTION) {
+      subcommandIndex += 1;
+      continue;
+    }
+    break;
+  }
+  const subcommand = programWords[subcommandIndex];
+  if (subcommand === undefined) {
+    return false;
+  }
+  const argumentWords = programWords.slice(subcommandIndex + 1);
+  for (const word of argumentWords) {
+    if (word.startsWith(GIT_OUTPUT_FLAG_START)) {
+      return false;
+    }
+  }
+  if (GIT_READ_ONLY_SUBCOMMANDS.has(subcommand)) {
+    return true;
+  }
+  if (GIT_LIST_ONLY_SUBCOMMANDS.has(subcommand)) {
+    return isGitListForm(argumentWords);
+  }
+  if (subcommand === "remote") {
+    return isGitRemoteListForm(argumentWords);
+  }
+  if (subcommand === "config") {
+    return argumentWords.some((word) => GIT_CONFIG_READ_FLAGS.has(word));
+  }
+  if (GIT_LIST_WORD_SUBCOMMANDS.has(subcommand)) {
+    return argumentWords[0] === GIT_LIST_SUBCOMMAND_WORD;
+  }
+  return false;
+}
+
+function isFdReadOnly(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    if (word.startsWith(FD_EXEC_LONG_FLAG_START)) {
+      return false;
+    }
+    // A short flag group such as -HIx holds x in any place.
+    if (word.startsWith("-")) {
+      if (!word.startsWith(LONG_FLAG_START)) {
+        for (const flagLetter of FD_EXEC_LETTERS) {
+          if (word.includes(flagLetter)) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
+function isDateReadOnly(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    if (word.startsWith(DATE_SET_FLAG)) {
+      return false;
+    }
+    if (word.startsWith(DATE_SET_LONG_FLAG_START)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isSegmentReadOnly(segment: ShellSegment): boolean {
   for (const target of segment.redirectTargets) {
     if (target !== DISCARD_FILE) {
@@ -491,6 +610,15 @@ function isSegmentReadOnly(segment: ShellSegment): boolean {
   }
   if (programName === "awk") {
     return isAwkReadOnly(programWords);
+  }
+  if (programName === "git") {
+    return isGitReadOnly(programWords);
+  }
+  if (programName === "fd") {
+    return isFdReadOnly(programWords);
+  }
+  if (programName === "date") {
+    return isDateReadOnly(programWords);
   }
   return READ_ONLY_PROGRAMS.has(programName);
 }

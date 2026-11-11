@@ -88,7 +88,9 @@ test("test_isReadOnlyInternetCommand_is_false_for_a_curl_o_after_a_line_continua
 test("test_isReadOnlyInternetCommand_is_false_when_a_command_substitution_hides_a_command", () => {
   // Scenario: the command inside $( ) cannot be checked, so it counts as changing files.
   // the command is not skipped
-  assert.equal(isReadOnlyInternetCommand("curl -s https://example.com/$(date +%s)"), false);
+  // date is a read-only program now, so the hidden command is uuidgen, which is on no list.
+  // assert.equal(isReadOnlyInternetCommand("curl -s https://example.com/$(date +%s)"), false);
+  assert.equal(isReadOnlyInternetCommand("curl -s https://example.com/$(uuidgen)"), false);
 });
 
 test("test_isReadOnlyInternetCommand_is_false_for_a_heredoc", () => {
@@ -206,6 +208,76 @@ const WRITING_TEXT_COMMANDS = [
   "ps aux | sed --file=script.sed",
 ];
 
+// git, fd and date forms that change no file. Most are parts of real Attune Bash calls.
+const READ_ONLY_GIT_FD_DATE_COMMANDS = [
+  "git status --short",
+  "git -C wheels status --short",
+  "git -C ~/Programming/wheels log --oneline -1 main",
+  "git --no-pager log --oneline -1",
+  "git diff --stat -- demo/server.ts demo/index.html",
+  "git diff --name-only --diff-filter=A 5ea8c34a bf3b17f9",
+  "git show HEAD:demo/server.ts",
+  "git log --all --oneline -S claimSynthesisRequests",
+  "git rev-parse --abbrev-ref HEAD",
+  "git ls-files demo",
+  "git branch -a",
+  "git branch --show-current",
+  "git remote -v",
+  "git remote show origin",
+  "git config --get user.name",
+  "git config --list",
+  "git worktree list",
+  "git stash list",
+  "git tag",
+  "fd -d 1 -e json statement synthesized_definitions/requests",
+  "fd -a wf_edcf2633-c34.js ~/.claude",
+  "date",
+  "date -u +%FT%TZ",
+  "date -Iseconds",
+];
+
+const WRITING_GIT_FD_DATE_COMMANDS = [
+  "git add demo/index.html demo/chat.css",
+  "git commit -q -m done",
+  "git revert --no-commit f9fb5ae0",
+  "git reset -q",
+  "git checkout main",
+  "git stash",
+  "git stash pop",
+  "git branch new-feature",
+  "git branch -D old-feature",
+  "git branch --set-upstream-to=origin/main",
+  "git branch --unset-upstream",
+  "git remote add origin x",
+  "git tag v1",
+  "git config user.name x",
+  "git worktree add ../other",
+  "git -c user.name=x status",
+  "git diff --output=out.patch",
+  "git apply --check fix.patch",
+  "git",
+  "fd -e ts -x rm",
+  "fd -e ts -X rm",
+  "fd -e ts --exec rm",
+  "fd -e ts --exec-batch rm",
+  "date -s 2026-01-01",
+  "date --set=2026-01-01",
+];
+
+for (const command of READ_ONLY_GIT_FD_DATE_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_true_for_a_git_fd_or_date_form_that_writes_no_file: ${command}`, () => {
+    // Scenario: this git subcommand, fd or date form only prints, so the command writes no file.
+    assert.equal(isReadOnlyCommand(command), true);
+  });
+}
+
+for (const command of WRITING_GIT_FD_DATE_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_false_for_a_git_fd_or_date_form_that_can_change_a_file: ${command}`, () => {
+    // Scenario: the subcommand, the flag or the git option can change a file, run a command, or is not on the list.
+    assert.equal(isReadOnlyCommand(command), false);
+  });
+}
+
 for (const command of READ_ONLY_TEXT_COMMANDS) {
   test(`test_isReadOnlyCommand_is_true_for_a_text_program_that_writes_no_file: ${command}`, () => {
     // Scenario: sort, uniq, awk, sed, tr and [ only print, so the command writes no file.
@@ -238,6 +310,9 @@ const SKIPPED_MAC_STATE_COMMANDS = [
   "ls ~/.claude/sessions | head",
   "cat \"$HOME/.claude/sessions/1.json\"",
   "cat /Users/matkatmusicllc/.claude/sessions/1.json",
+  // Real Attune Bash calls with read-only git, fd and date forms.
+  "cd ~/Programming/Attune && git status --short | head -30; git -C wheels status --short | head -20; (lsof -iTCP:3000 -sTCP:LISTEN | tail -n +2) || true",
+  "ps -axo pid,lstart,command | rg \"[w]aitForDefinitionRequest\" | cut -c1-80; date; f=$(fd -a \"wf_edcf2633-c34.js\" ~/.claude 2>/dev/null | head -1); echo \"$f\"; [ -n \"$f\" ] && rg -c \"definitionsFrom\" \"$f\"",
 ];
 
 // Commands that change a file, or run no Mac-state program: they run for real.
@@ -254,6 +329,7 @@ const NOT_SKIPPED_MAC_STATE_COMMANDS = [
   "bun demo/claimSynthesisRequests.ts; pgrep -fl \"definitionFilesLoop|wheelFitLoopD\"",
   "cat ~/.claude/sessions/1.json > /tmp/x",
   "cat ~/.claude/settings.json",
+  "cd ~/Programming/Attune && git revert --no-commit f9fb5ae0 && git reset -q && git status --short demo/auth.ts demo/auth.test.ts && sleep 3 && tmux capture-pane -p -t crash-watcher | grep -v '^$' | tail -2",
 ];
 
 for (const command of SKIPPED_MAC_STATE_COMMANDS) {
