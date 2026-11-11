@@ -9,7 +9,7 @@ import { convertToProjectRelativePath } from "../src/layer1_snapshot_wire.ts";
 import { convertEditResult, convertWriteResult } from "../src/structures/tool-result-shapes.ts";
 import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { isHunkMatchingBase, applyHunksToLines } from "../src/layer1_edit_hunks.ts";
-import type { StructuredPatchHunk } from "../src/structures/tool-result-shapes.ts";
+import type { EditResult, StructuredPatchHunk } from "../src/structures/tool-result-shapes.ts";
 import { JSONLLineKind, getJSONLLineKind, type CommitHash, type JSONLLine } from "./engineV3.ts";
 import { applyChangesToState, listChangesInCommit, writeFileIntoState } from "./engineV3_replay_submodule.ts";
 import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_newline.ts";
@@ -236,22 +236,31 @@ function assertHunksMatchBase(base: string[], hunks: StructuredPatchHunk[], file
   }
 }
 
+// A result with no originalFile edited the file that the replay holds, so the hunks apply to the replayed text.
+function readPartialEditBaseText(root: Path, relativePath: Path, result: EditResult): string {
+  if (result.originalFile === null) {
+    return readFileSync(join(root.toString(), relativePath.toString()), "utf8");
+  }
+  return result.originalFile;
+}
+
 function applyPartialEditToState(state: Path, line: JSONLLine): Path {
   const result = convertEditResult(line.toolUseResult);
   const filePath = result.filePath.toString();
-  if (result.originalFile === null) {
-    throw new Error(`applyPartialEditToState: no originalFile for ${filePath}`);
-  }
-  const base = splitLines(result.originalFile);
+  // if (result.originalFile === null) {
+  //   throw new Error(`applyPartialEditToState: no originalFile for ${filePath}`);
+  // }
+  const root = getReplayRoot(state, result.filePath);
+  const relativePath = getRepoRelativePath(root, result.filePath);
+  const baseText = readPartialEditBaseText(root, relativePath, result);
+  const base = splitLines(baseText);
   const hunks = stripNewlineMarkerRows(result.structuredPatch);
   assertHunksMatchBase(base, hunks, filePath);
   const newLines = applyHunksToLines(base, hunks);
-  const originalHasFinalNewline = result.originalFile.endsWith("\n");
+  const originalHasFinalNewline = baseText.endsWith("\n");
   const hasFinalNewline = decideFinalNewline(result.structuredPatch, originalHasFinalNewline);
   const trailingNewline = hasFinalNewline ? "\n" : "";
   const text = newLines.join("\n") + trailingNewline;
-  const root = getReplayRoot(state, result.filePath);
-  const relativePath = getRepoRelativePath(root, result.filePath);
   writeFileIntoState(root, relativePath, Buffer.from(text, "utf8"));
   return state;
 }
