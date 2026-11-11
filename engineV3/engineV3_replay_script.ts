@@ -12,6 +12,7 @@ import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
+import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
@@ -158,6 +159,7 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     throw new Error(`executeScriptRun: no recorded result for Bash call ${toolUseId.toString()}\ncommand: ${run.code}`);
   }
   if (isNeverRanResult(result)) {
+    replayBlockedTestRun(run, result);
     return;
   }
   if (isMacOnlyCommand(run.code)) {
