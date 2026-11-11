@@ -68,7 +68,9 @@ export function listOutsideGitRows(sourceRepo: Path, bashCallResults: Map<string
 }
 
 function fetchCommitIntoState(state: Path, sourceRepo: Path, commitText: string): void {
-  executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), commitText]);
+  // The state holds submodule files without a submodule git folder, so a fetch must not try to fetch the submodules too.
+  // executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), commitText]);
+  executeGit(state, ["fetch", "-q", "--no-tags", "--no-recurse-submodules", sourceRepo.toString(), commitText]);
 }
 
 function applyOutsideCommitToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {

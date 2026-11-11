@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -159,6 +159,34 @@ test("test_applyOutsideGitRow_reset_moves_the_branch_and_removes_files", (t) => 
     // main is at commit 1 and b.txt is gone
     assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), source.commit1);
     assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+});
+
+test("test_applyOutsideGitRow_fetches_a_commit_that_moves_a_submodule_pointer_when_the_submodule_is_active", (t) => {
+    // Scenario: commit 2 moves the gitlink of submodule "mp"; the state marks "mp" active and holds the files of "mp" without a git folder, as the replay writes them.
+    const sourceFolder = makeTempFolder(t, "engine-v3-outside-submodule-source-");
+    runGitAt(sourceFolder, 0, ["init", "-q", "-b", "main"]);
+    runGitAt(sourceFolder, 0, ["config", "-f", ".gitmodules", "submodule.mp.path", "mp"]);
+    runGitAt(sourceFolder, 0, ["config", "-f", ".gitmodules", "submodule.mp.url", "https://example.invalid/mp.git"]);
+    runGitAt(sourceFolder, 0, ["add", ".gitmodules"]);
+    runGitAt(sourceFolder, 10, ["update-index", "--add", "--cacheinfo", "160000,1111111111111111111111111111111111111111,mp"]);
+    runGitAt(sourceFolder, 10, ["commit", "-q", "-m", "commit 1"]);
+    const commit1 = runGitAt(sourceFolder, 10, ["rev-parse", "HEAD"]);
+    runGitAt(sourceFolder, 20, ["update-index", "--cacheinfo", "160000,2222222222222222222222222222222222222222,mp"]);
+    runGitAt(sourceFolder, 20, ["commit", "-q", "-m", "commit 2"]);
+    const commit2 = runGitAt(sourceFolder, 20, ["rev-parse", "HEAD"]);
+    runGitAt(sourceFolder, 30, ["reset", "-q", "--hard", commit1]);
+    runGitAt(sourceFolder, 70, ["update-ref", "HEAD", commit2]);
+    const source: SourceRepo = { gitFolder: join(sourceFolder, ".git"), commit1, commit2, commit3: commit2 };
+    const stateFolder = makeStateAt(t, source, commit1);
+    runGitAt(stateFolder, 0, ["config", "submodule.mp.active", "true"]);
+    runGitAt(stateFolder, 0, ["config", "submodule.mp.url", "https://example.invalid/mp.git"]);
+    mkdirSync(join(stateFolder, "mp"), { recursive: true });
+    writeFileSync(join(stateFolder, "mp", "file.txt"), "file of the submodule");
+    const rows = listRowsOf(source, new Map(), 65);
+    // apply the head move row that fetches commit 2
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // main is at commit 2
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), commit2);
 });
 
 test("test_applyOutsideGitRow_throws_when_HEAD_is_not_the_row_new_commit", (t) => {
