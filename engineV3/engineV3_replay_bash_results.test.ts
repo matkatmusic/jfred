@@ -17,7 +17,7 @@ function makeToolResultLine(toolUseId: string, seconds: number, content: unknown
 }
 
 function makeResult(isError: boolean, resultText: string): BashCallResult {
-    return { toolUseId: "t1" as never, startMs: 0, endMs: 0, isError, resultText };
+    return { toolUseId: "t1" as never, startMs: 0, endMs: 0, isError, resultText, command: "" };
 }
 
 test("test_collectBashCallResults_records_the_time_window_of_a_Bash_call", () => {
@@ -26,6 +26,13 @@ test("test_collectBashCallResults_records_the_time_window_of_a_Bash_call", () =>
     const result = collectBashCallResults(lines).get("t1") as BashCallResult;
     assert.equal(result.startMs, Date.UTC(2026, 0, 1, 0, 0, 10));
     assert.equal(result.endMs, Date.UTC(2026, 0, 1, 0, 0, 12));
+});
+
+test("test_collectBashCallResults_records_the_command_of_a_Bash_call", () => {
+    const callLine = makeToolUseLine("t1", "Bash", 10);
+    ((callLine.message as { content: { input: object }[] }).content[0] as { input: object }).input = { command: "git status" };
+    const result = collectBashCallResults([callLine, makeToolResultLine("t1", 12, "ok", false)]).get("t1") as BashCallResult;
+    assert.equal(result.command, "git status");
 });
 
 test("test_collectBashCallResults_reads_string_result_text", () => {

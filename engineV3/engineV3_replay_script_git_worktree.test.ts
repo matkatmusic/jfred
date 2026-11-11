@@ -38,7 +38,7 @@ function makeCommitAt(folder: string, seconds: number): string {
 }
 
 function makeResultAround(seconds: number): BashCallResult {
-  return { toolUseId: new Uuid("toolu_x"), startMs: (seconds - 0.5) * 1000, endMs: (seconds + 0.5) * 1000, isError: false, resultText: "" };
+  return { toolUseId: new Uuid("toolu_x"), startMs: (seconds - 0.5) * 1000, endMs: (seconds + 0.5) * 1000, isError: false, resultText: "", command: "" };
 }
 
 // The source repo has a main commit at SECOND_SECONDS (another agent) and a linked worktree "check"; the state clone sits at the first commit and has its own "check" worktree.

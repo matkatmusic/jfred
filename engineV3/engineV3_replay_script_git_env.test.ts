@@ -35,7 +35,7 @@ function makeCommitAt(repo: string, seconds: number, authorName: string): void {
 }
 
 function makeResultAround(seconds: number): BashCallResult {
-  return { toolUseId: new Uuid("toolu_x"), startMs: (seconds - 0.5) * 1000, endMs: (seconds + 0.5) * 1000, isError: false, resultText: "" };
+  return { toolUseId: new Uuid("toolu_x"), startMs: (seconds - 0.5) * 1000, endMs: (seconds + 0.5) * 1000, isError: false, resultText: "", command: "" };
 }
 
 function readHead(repo: string): string {

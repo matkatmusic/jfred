@@ -19,7 +19,7 @@ function makeTempFolder(t: TestContext, prefix: string): string {
 
 // The recorded result of the call: isError says whether the recorded command failed.
 function makeContext(isError: boolean): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(ERROR_TOOL_USE_ID), startMs: 0, endMs: 1, isError, resultText: "" };
+  const result = { toolUseId: new Uuid(ERROR_TOOL_USE_ID), startMs: 0, endMs: 1, isError, resultText: "", command: "" };
   return { bashCallResults: new Map([[ERROR_TOOL_USE_ID, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 

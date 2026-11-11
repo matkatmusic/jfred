@@ -53,8 +53,8 @@ function makeStateAt(t: TestContext, source: SourceRepo, commit: string): string
     return stateFolder;
 }
 
-function makeBashCallResult(startSeconds: number, endSeconds: number): Map<string, BashCallResult> {
-    return new Map([["toolu_1", { toolUseId: new Uuid("toolu_1"), startMs: startSeconds * 1000, endMs: endSeconds * 1000, isError: false, resultText: "" }]]);
+function makeBashCallResult(startSeconds: number, endSeconds: number, command: string = "git checkout main"): Map<string, BashCallResult> {
+    return new Map([["toolu_1", { toolUseId: new Uuid("toolu_1"), startMs: startSeconds * 1000, endMs: endSeconds * 1000, isError: false, resultText: "", command }]]);
 }
 
 function listRowsOf(source: SourceRepo, bashCalls: Map<string, BashCallResult>, startOffset: number): OutsideGitRow[] {
@@ -92,6 +92,24 @@ test("test_listOutsideGitRows_window_reaches_one_second_before_the_call_start", 
     // Scenario: a call starting at +41 has a window from +40, so the +40 row is covered.
     const source = makeSourceRepo(t);
     const rows = listRowsOf(source, makeBashCallResult(BASE_SECONDS + 41, BASE_SECONDS + 41), 5);
+    assert.equal(rows.length, 5);
+});
+
+test("test_listOutsideGitRows_keeps_a_row_inside_the_window_of_a_call_that_names_no_git", (t) => {
+    // Scenario: a call from +39.5 to +40.2 runs `ls`, so the +40 commit 3 row is not its work.
+    const source = makeSourceRepo(t);
+    const bashCalls = makeBashCallResult(BASE_SECONDS + 39.5, BASE_SECONDS + 40.2, "ls -la");
+    const rows = listRowsOf(source, bashCalls, 5);
+    // commit 3 is listed
+    assert.equal(rows.length, 6);
+});
+
+test("test_listOutsideGitRows_skips_a_row_inside_the_window_of_a_call_that_runs_a_script_file", (t) => {
+    // Scenario: a call from +39.5 to +40.2 runs `bash rewrite.sh`, which can run git, so it covers the +40 row.
+    const source = makeSourceRepo(t);
+    const bashCalls = makeBashCallResult(BASE_SECONDS + 39.5, BASE_SECONDS + 40.2, "bash rewrite.sh | tail -40");
+    const rows = listRowsOf(source, bashCalls, 5);
+    // commit 3 is not listed
     assert.equal(rows.length, 5);
 });
 

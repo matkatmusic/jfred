@@ -25,7 +25,7 @@ function makeRepoWithCommit(t: TestContext, fileText: string, committerSeconds: 
 }
 
 function makeResultAroundCommit(): BashCallResult {
-  return { toolUseId: new Uuid("toolu_x"), startMs: (COMMIT_SECONDS - 0.5) * 1000, endMs: (COMMIT_SECONDS + 0.5) * 1000, isError: false, resultText: "" };
+  return { toolUseId: new Uuid("toolu_x"), startMs: (COMMIT_SECONDS - 0.5) * 1000, endMs: (COMMIT_SECONDS + 0.5) * 1000, isError: false, resultText: "", command: "" };
 }
 
 function readHead(repo: string): string {

@@ -92,7 +92,7 @@ test("test_executeScriptInState_makes_the_typesafe_playground_test_worktree_befo
   const jsonlFile = join(makeTempFolder(t, "engine-v3-test-worktree-jsonl-"), "session.jsonl");
   writeFileSync(jsonlFile, JSON.stringify(callLine) + "\n");
   const line = loadTranscript(jsonlFile).records[0] as JSONLLine;
-  const result = { toolUseId: new Uuid(TOOL_USE_ID), startMs: 0, endMs: 1, isError: false, resultText: "" };
+  const result = { toolUseId: new Uuid(TOOL_USE_ID), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
   const context = { bashCallResults: new Map([[TOOL_USE_ID, result]]), writeEditResultLines: new Map(), sourceRepo: undefined };
   // the run stops in the worktree maker, not in the command
   assert.throws(() => executeScriptInState(scenario.state, line, context), /git worktree add .*85c2c39/);

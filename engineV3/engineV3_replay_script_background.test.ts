@@ -9,7 +9,7 @@ import type { JSONLLine } from "./engineV3.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 const BACKGROUND_TOOL_USE_ID = "toolu_01BackgroundBashCall";
 function makeContext(toolUseId: string): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "Command running in background with ID: bg1." };
+  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "Command running in background with ID: bg1.", command: "" };
   return { bashCallResults: new Map([[toolUseId, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 function makeTempFolder(t: TestContext, prefix: string): string {

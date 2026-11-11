@@ -6,6 +6,7 @@ import { executeGit } from "./engineV3.ts";
 import { applyCommitToState } from "./engineV3_replay_apply.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { parseLogFile } from "./engineV3_replay_git.ts";
+import { isGitCommand } from "./engineV3_replay_script_git_env.ts";
 
 export enum OutsideGitKind {
   Commit = "Commit",
@@ -34,8 +35,21 @@ function parseOutsideGitKind(message: string): OutsideGitKind {
   throw new Error(`parseOutsideGitKind: no replay for reflog message "${message}"`);
 }
 
+const SCRIPT_FILE_PATTERN = /\.(sh|bash|py|mts|ts|js|mjs)\b/;
+
+// A command that names no git and runs no script file (for example `jq ...; ls ...`) made none of the rows in its window.
+function canCommandMakeReflogRow(command: string): boolean {
+  if (isGitCommand(command)) {
+    return true;
+  }
+  return SCRIPT_FILE_PATTERN.test(command);
+}
+
 function isSecondsInBashCallWindow(seconds: number, bashCallResults: Map<string, BashCallResult>): boolean {
   for (const result of bashCallResults.values()) {
+    if (!canCommandMakeReflogRow(result.command)) {
+      continue;
+    }
     const isAfterStart = seconds >= result.startMs / 1000 - WINDOW_MARGIN_SECONDS;
     if (isAfterStart) {
       const isBeforeEnd = seconds <= result.endMs / 1000 + WINDOW_MARGIN_SECONDS;

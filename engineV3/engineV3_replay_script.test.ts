@@ -12,7 +12,7 @@ import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { executeScriptInState, SCRIPT_TIMEOUT_MILLISECONDS, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 
 function makeContext(toolUseId: string): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "" };
+  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
   return { bashCallResults: new Map([[toolUseId, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 
@@ -211,7 +211,7 @@ test("test_executeScriptInState_runs_the_call_with_zsh_so_echo_triple_equals_fai
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has a Bash call whose recorded result is an error
   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
-  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "" };
+  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "", command: "" };
   const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
   // running the line does not throw, because the call exits non-zero as recorded
   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));

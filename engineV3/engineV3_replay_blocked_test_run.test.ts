@@ -15,7 +15,7 @@ function makeTempFolder(t: TestContext, prefix: string): string {
 }
 function makeBlockedResult(project: string, recordedLog: string, testFile: string): BashCallResult {
   const resultText = `PreToolUse:Bash hook error: Test runners are blocked. bun test ${testFile} runs in the background in ${project}.\nRun this command with a Bash timeout of 300000 to be notified when the test run is finished:\nnode /x/monitor-test-run.ts ${recordedLog}\nThen read the log: ${recordedLog}`;
-  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText };
+  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText, command: "" };
 }
 test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running_the_hook", (t) => {
   // Scenario: on the Mac the block-npm-test hook ran the tests in the background and wrote a log under the recorded name; a later command reads that log.

@@ -16,7 +16,7 @@ const OUTPUT_TAIL_CHARACTERS = 4000;
 const WINDOW_PADDING_SECONDS = 1;
 const COMMIT_FIELDS_FORMAT = "%an%n%ae%n%ad%n%cn%n%ce%n%cd";
 
-function isGitCommand(command: string): boolean {
+export function isGitCommand(command: string): boolean {
   return command.includes("git");
 }
 

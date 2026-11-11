@@ -5,9 +5,9 @@ import type { Uuid } from "../src/structures/domain.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { JSONLLine } from "./engineV3.ts";
 
-export type BashCallResult = { toolUseId: Uuid; startMs: number; endMs: number; isError: boolean; resultText: string };
+export type BashCallResult = { toolUseId: Uuid; startMs: number; endMs: number; isError: boolean; resultText: string; command: string };
 
-type BashCallStart = { toolUseId: Uuid; startMs: number };
+type BashCallStart = { toolUseId: Uuid; startMs: number; command: string };
 
 const NEVER_RAN_PREFIXES = [
   "PreToolUse:Bash hook error",
@@ -29,7 +29,8 @@ function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string,
       const isCtxExecuteFile = block.name === ToolName.CtxExecuteFile;
       // if (isBash || isCtxExecute) {
       if (isBash || isCtxExecute || isCtxExecuteFile) {
-        starts.set(block.id.toString(), { toolUseId: block.id, startMs });
+        const input = block.input as { code?: string; command?: string };
+        starts.set(block.id.toString(), { toolUseId: block.id, startMs, command: (input.code ?? input.command) as string });
       }
     }
   }

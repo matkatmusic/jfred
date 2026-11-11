@@ -101,7 +101,7 @@ function loadCallAndContext(t: TestContext, command: string, resultText: string,
   const callLine = { type: "assistant", uuid: "4b836cc7-2357-412e-9f53-b23191b3c68a", parentUuid: null, cwd, timestamp: "2026-10-27T17:24:20.837Z", sessionId: "7d31cfda-fb91-4f61-ba61-7031cb5484e2", message: { role: "assistant", content: [block] } };
   const jsonlFile = join(makeTempFolder(t, "engine-v3-skip-jsonl-"), "session.jsonl");
   writeFileSync(jsonlFile, JSON.stringify(callLine) + "\n");
-  const result = { toolUseId: new Uuid("toolu_01Skip"), startMs: 0, endMs: 1, isError, resultText };
+  const result = { toolUseId: new Uuid("toolu_01Skip"), startMs: 0, endMs: 1, isError, resultText, command };
   return { line: loadTranscript(jsonlFile).records[0] as JSONLLine, context: { bashCallResults: new Map([["toolu_01Skip", result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") } };
 }
 

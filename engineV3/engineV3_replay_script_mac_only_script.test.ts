@@ -10,7 +10,7 @@ import { executeScriptInState, type ScriptReplayContext } from "./engineV3_repla
 const SCRIPT_TOOL_USE_ID = "toolu_01MacOnlyScriptCall";
 const CHROME_LAUNCH_LINE = "const chromeProgram = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'\nconsole.log('no display here', chromeProgram.length > 0)\n";
 function makeContext(toolUseId: string): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "" };
+  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
   return { bashCallResults: new Map([[toolUseId, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 function makeTempFolder(t: TestContext, prefix: string): string {
