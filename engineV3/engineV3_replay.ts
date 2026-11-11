@@ -27,6 +27,7 @@ import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
 import { writeTouchedPathsFile } from "./engineV3_replay_touched.ts";
 import { createSnapshotLoopIfRequested, writeSnapshotAfterEvent, type SnapshotLoop } from "./engineV3_replay_snapshot_loop.ts";
 import { runStartupPhase } from "./engineV3_startup_progress.ts";
+import { createSessionScratchpadFolder, MAC_CLAUDE_TEMP_FOLDER } from "./engineV3_replay_scratchpad.ts";
 
 const DOCKER_MARKER_FILE = "/.dockerenv";
 
@@ -47,6 +48,9 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
     }
     executePlateRun(event.capture, context.jotPath);
     return state;
+  }
+  if (context.claudeTempFolder !== undefined) {
+    createSessionScratchpadFolder(context.claudeTempFolder, event.line);
   }
   return applyJSONLLineToState(state, event.line, fileSnapshots, context);
 }
@@ -158,7 +162,8 @@ export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: 
   const forkedMessageIds = runStartupPhase("collectForkedMessageIds", () => collectForkedMessageIds(jsonlLines), describeCollectStep("collectForkedMessageIds"));
   const earlierSiblingMessageIds = runStartupPhase("collectEarlierSiblingMessageIds", () => collectEarlierSiblingMessageIds(jsonlLines), describeCollectStep("collectEarlierSiblingMessageIds"));
   const resultTurnSnapshotIds = runStartupPhase("collectResultTurnSnapshotIds", () => collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines), describeCollectStep("collectResultTurnSnapshotIds"));
-  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
