@@ -300,6 +300,10 @@ if [ -n "$START_AT" ]; then
     ENGINE_FLAGS="$ENGINE_FLAGS --start-at $START_AT"
 fi
 for JSONL_FOLDER in "$@"; do
+    if [ -d "$JSONL_FOLDER/memory" ]; then
+        # The snapshot store must hold memory files so a --start-at run restores them.
+        ENGINE_FLAGS="$ENGINE_FLAGS --watch $JSONL_FOLDER/memory"
+    fi
     set -- "$@" --jsonl "$JSONL_FOLDER"
     shift
 done
@@ -339,7 +343,7 @@ if [ -n "$STOP_BEFORE" ]; then
     echo "folder: $STOPPED_FOLDER"
     exit 0
 fi
-# ENGINE_FLAGS holds only container paths without spaces, so it is left unquoted
+# ENGINE_FLAGS holds only paths without spaces (container paths and the JSONL memory folders), so it is left unquoted
 printSetupStageStart "engine start"
 ENGINE_EXIT_CODE=0
 # shellcheck disable=SC2086
