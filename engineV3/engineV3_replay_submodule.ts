@@ -86,7 +86,8 @@ function applyChangeToState(change: TreeChange, commit: string, state: Path, git
   }
   if (change.status === DELETED_STATUS) {
     recordTouchedPath(targetPath);
-    rmSync(targetPath);
+    // An outside commit may record a deletion that a replayed call already made, so an absent file is fine.
+    rmSync(targetPath, { force: true });
     return;
   }
   const isBlobStatus = BLOB_STATUSES.includes(change.status);

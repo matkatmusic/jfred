@@ -200,6 +200,23 @@ test("test_applyCommitToState_removes_a_deleted_file_from_the_state_folder", (t)
     assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
 });
 
+test("test_applyCommitToState_accepts_a_deleted_file_that_the_state_already_lacks", (t) => {
+    // Scenario: a replayed Bash rm already removed gone.txt, then the user's outside commit records that deletion.
+    const repoFolder = makeTempFolder(t, "engine-v3-replay-repo-");
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    runGitWithDate(repoFolder, "2026-01-01T00:00:10Z", ["init", "-q"]);
+    commitFileWithDate(repoFolder, "2026-01-01T00:00:10Z", "gone.txt", "soon gone");
+    runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["rm", "-q", "gone.txt"]);
+    runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["commit", "-q", "-m", "delete"]);
+    const deleteCommit = runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["rev-parse", "HEAD"]);
+    // the state folder does not hold gone.txt
+    assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
+    // apply the delete commit: it does not throw
+    applyCommitToState(new Uuid(deleteCommit), new Path(stateFolder), new Path(repoFolder));
+    // the file is still absent
+    assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
+});
+
 // os.tmpdir() is under /var/folders on macOS, so the /tmp cases need a real folder under /tmp.
 function makeTmpRootFolder(t: TestContext): string {
     const folder = mkdtempSync(join("/tmp", "engine-v3-replay-tmproot-"));
