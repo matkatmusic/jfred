@@ -20,7 +20,7 @@ RUN set -e; \
         [ -d "$seedFolder" ] || continue; \
         if [ -f "$seedFolder/bun.lock" ]; then \
             (cd "$seedFolder" && bun install --frozen-lockfile); \
-            (cd "$seedFolder" && rm -rf node_modules bun.lock && bun install); \
+            (cd "$seedFolder" && rm -rf node_modules bun.lock && bun install --minimum-release-age=1); \
         fi; \
         if [ -f "$seedFolder/package-lock.json" ]; then \
             (cd "$seedFolder" && npm ci); \
@@ -31,6 +31,7 @@ RUN set -e; \
     chmod -R a+rwX /Users/matkatmusicllc/.bun /npm-cache
 # Replaced: chmod -R a+rX /Users/matkatmusicllc/.bun /npm-cache (the bun cache must be writable for the replay user)
 # The container has no network, so a recorded bun add or bun install resolves from the package lists saved above, however old they are.
+# --minimum-release-age makes it pick the versions that existed at the recorded time (the engine sets REPLAY_RECORDED_AT_EPOCH_SECONDS).
 RUN mv /usr/local/bin/bun /usr/local/bin/bun-real && ln -sf /usr/local/bin/bun-real /usr/local/bin/bunx
 COPY --chmod=755 <<'BUN_WRAPPER' /usr/local/bin/bun
 #!/bin/sh
@@ -38,7 +39,8 @@ case "${1:-}" in
     add | install | i)
         subcommand="$1"
         shift
-        exec /usr/local/bin/bun-real "$subcommand" --prefer-offline "$@"
+        recordedAge=$(( $(date +%s) - REPLAY_RECORDED_AT_EPOCH_SECONDS ))
+        exec /usr/local/bin/bun-real "$subcommand" --prefer-offline --minimum-release-age="$recordedAge" "$@"
         ;;
 esac
 exec /usr/local/bin/bun-real "$@"

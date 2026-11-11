@@ -139,7 +139,8 @@ function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.Process
 function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
-  const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
+  const recordedAtEpochSeconds = Math.floor(run.timestamp.getTime() / 1000);
+  const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
   if (run.runInBackground === true) {
     startBackgroundCommand(run, cwd, env);
     return;
