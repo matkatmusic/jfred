@@ -11,7 +11,8 @@ import type { JSONLLine } from "./engineV3.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
-import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
+// import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
@@ -139,9 +140,10 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     if (isReadOnlyMacStateCommand(run.code)) {
       return;
     }
-    if (isMacOnlyScriptCommand(run.code, getRunCwd(run))) {
-      return;
-    }
+    // The image has Chromium at the Chrome program path, so a call that runs a Chrome script file runs for real.
+    // if (isMacOnlyScriptCommand(run.code, getRunCwd(run))) {
+    //   return;
+    // }
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
   executeScriptCommand(state, run, result, context, sessionId);

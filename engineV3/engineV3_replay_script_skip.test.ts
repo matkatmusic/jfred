@@ -31,18 +31,43 @@ test("test_isMacOnlyCommand_is_false_when_sips_is_inside_another_word", () => {
   assert.equal(isMacOnlyCommand(command), false);
 });
 
-test("test_isMacOnlyCommand_is_true_when_the_command_starts_the_chrome_program", () => {
-  // Scenario: the Chrome program path in quotes is a Chrome run.
+// The image now has Chromium at the Chrome path, so Chrome calls run for real.
+// test("test_isMacOnlyCommand_is_true_when_the_command_starts_the_chrome_program", () => {
+//   // Scenario: the Chrome program path in quotes is a Chrome run.
+//   // a command that starts headless Chrome
+//   const command = `"${CHROME_PROGRAM}" --headless=new --remote-debugging-port=47312`;
+//   // the command is Mac only
+//   assert.equal(isMacOnlyCommand(command), true);
+// });
+//
+// test("test_isMacOnlyCommand_is_true_when_a_variable_holds_the_chrome_program", () => {
+//   // Scenario: a C="..." variable still names the Chrome program.
+//   // a command that stores the program path in C and runs it
+//   const command = `C="${CHROME_PROGRAM}"; "$C" --headless=new`;
+//   // the command is Mac only
+//   assert.equal(isMacOnlyCommand(command), true);
+// });
+
+test("test_isMacOnlyCommand_is_false_when_the_command_starts_the_chrome_program", () => {
+  // Scenario: the image has Chromium at the Chrome program path, so a Chrome run is not Mac only.
   // a command that starts headless Chrome
   const command = `"${CHROME_PROGRAM}" --headless=new --remote-debugging-port=47312`;
-  // the command is Mac only
-  assert.equal(isMacOnlyCommand(command), true);
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
 });
 
-test("test_isMacOnlyCommand_is_true_when_a_variable_holds_the_chrome_program", () => {
-  // Scenario: a C="..." variable still names the Chrome program.
+test("test_isMacOnlyCommand_is_false_when_a_variable_holds_the_chrome_program", () => {
+  // Scenario: a C="..." variable that names the Chrome program does not make the call Mac only.
   // a command that stores the program path in C and runs it
   const command = `C="${CHROME_PROGRAM}"; "$C" --headless=new`;
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
+test("test_isMacOnlyCommand_is_true_for_the_recorded_report_png_fill_call", () => {
+  // Scenario: the call that MAC_ONLY_FILLS fills (toolu_01MCSxEwsbVK6FgSQZMCN8Jp) runs sips, so it is still skipped and filled.
+  // the recorded command of that call
+  const command = "S=/private/tmp/claude-501/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/scratchpad; cp $S/o_1.png /Users/matkatmusicllc/Programming/typesafe-playground/docs/report.png && sips -g pixelWidth -g pixelHeight /Users/matkatmusicllc/Programming/typesafe-playground/docs/report.png";
   // the command is Mac only
   assert.equal(isMacOnlyCommand(command), true);
 });
@@ -218,18 +243,33 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
   assert.equal(existsSync(join(state.toString(), "ran.txt")), false);
 });
 
-test("test_executeScriptInState_skips_a_call_that_runs_a_Mac_only_script_and_leaves_the_state_unchanged", (t) => {
-  // Scenario: a call that runs a Chrome script file does not run in the container.
+// The image now has Chromium at the Chrome path, so a call that runs a Chrome script file runs for real.
+// test("test_executeScriptInState_skips_a_call_that_runs_a_Mac_only_script_and_leaves_the_state_unchanged", (t) => {
+//   // Scenario: a call that runs a Chrome script file does not run in the container.
+//   // the state folder is the record's cwd and is empty
+//   const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+//   // the script fails if it runs, but the recorded result is not an error
+//   const scratchpad = makeScratchpadWithShotScript(t, `${CHROME_SCRIPT_TEXT}process.exit(3)\n`);
+//   const command = `S=${scratchpad}; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 $S/chat.png`;
+//   const { line, context } = loadCallAndContext(t, command, "", false, state.toString());
+//   // run the line: it does not throw
+//   executeScriptInState(state, line, context);
+//   // the state folder is still empty
+//   assert.deepEqual(readdirSync(state.toString()), []);
+// });
+
+test("test_executeScriptInState_runs_a_call_that_runs_a_Chrome_script", (t) => {
+  // Scenario: the image has Chromium at the Chrome path, so a call that runs a Chrome script file runs for real.
   // the state folder is the record's cwd and is empty
   const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
-  // the script fails if it runs, but the recorded result is not an error
-  const scratchpad = makeScratchpadWithShotScript(t, `${CHROME_SCRIPT_TEXT}process.exit(3)\n`);
-  const command = `S=${scratchpad}; pkill -f "remote-debugging-port=9333"; bun $S/shot.ts $S/c1 $S/chat.png`;
+  // the script names the Chrome program, writes ran.txt into the cwd and exits before it starts Chrome
+  const scratchpad = makeScratchpadWithShotScript(t, `const chrome = "${CHROME_PROGRAM}"\nawait Bun.write("ran.txt", chrome)\n`);
+  const command = `S=${scratchpad}; bun $S/shot.ts $S/c1 $S/chat.png`;
   const { line, context } = loadCallAndContext(t, command, "", false, state.toString());
-  // run the line: it does not throw
+  // run the line
   executeScriptInState(state, line, context);
-  // the state folder is still empty
-  assert.deepEqual(readdirSync(state.toString()), []);
+  // the script ran: ran.txt is in the state folder
+  assert.equal(readFileSync(join(state.toString(), "ran.txt"), "utf8"), CHROME_PROGRAM);
 });
 
 test("test_executeScriptInState_skips_a_read_only_internet_call_and_leaves_the_state_unchanged", (t) => {

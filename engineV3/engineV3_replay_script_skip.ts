@@ -10,8 +10,9 @@ import { getProgramName, getProgramWords, isEveryRedirectDiscarded, isSegmentRea
 export type MacOnlyFill = { toolUseId: Uuid; repoPath: Path; commit: string };
 
 const SIPS_WORD = /\bsips\b/;
-// The program path with its closing quote: a run or a C="..." variable holds it, a plain ls of the folder does not.
-const CHROME_PROGRAM_TEXT = 'MacOS/Google Chrome"';
+// The image has Chromium at the Chrome program path, so the Chrome text no longer makes a call Mac only.
+// // The program path with its closing quote: a run or a C="..." variable holds it, a plain ls of the folder does not.
+// const CHROME_PROGRAM_TEXT = 'MacOS/Google Chrome"';
 // Every recorded run of a Chrome script file is a bun run.
 const SCRIPT_RUNNER_PROGRAM = "bun";
 const CHROME_NAME_TEXT = "Google Chrome";
@@ -24,11 +25,14 @@ export const MAC_ONLY_FILLS: MacOnlyFill[] = [
   { toolUseId: new Uuid("toolu_01MCSxEwsbVK6FgSQZMCN8Jp"), repoPath: new Path("docs/report.png"), commit: "9becb03" },
 ];
 
+// export function isMacOnlyCommand(command: string): boolean {
+//   if (SIPS_WORD.test(command)) {
+//     return true;
+//   }
+//   return command.includes(CHROME_PROGRAM_TEXT);
+// }
 export function isMacOnlyCommand(command: string): boolean {
-  if (SIPS_WORD.test(command)) {
-    return true;
-  }
-  return command.includes(CHROME_PROGRAM_TEXT);
+  return SIPS_WORD.test(command);
 }
 
 function isMacOnlyScriptText(scriptText: string): boolean {
