@@ -44,8 +44,9 @@ const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "
 // sort -o and --output write the sorted text into a file.
 const SORT_OUTPUT_FLAG_LETTER = "o";
 const SORT_OUTPUT_LONG_FLAG = "--output";
-// sed -i and --in-place change the file they read.
-const SED_IN_PLACE_FLAG_STARTS = ["-i", "--in-place"];
+// sed -i and --in-place change the file they read. sed -f and --file read the sed text from a file that these rules cannot check.
+const SED_UNCHECKED_FLAG_LETTERS = ["i", "f"];
+const SED_UNCHECKED_LONG_FLAG_STARTS = ["--in-place", "--file"];
 // The sed w and W commands and the s///w flag write a file. GNU sed runs a command with e.
 const SED_WRITING_TEXT = /[wW]\s|(^|[;{}\s])e(\s|$)|\/[gpiImM0-9]*e/;
 // In awk text a > or | after print sends the output to a file or a command, and system( runs a command.
@@ -429,9 +430,19 @@ function isUniqReadOnly(programWords: string[]): boolean {
 
 function isSedReadOnly(programWords: string[]): boolean {
   for (const word of programWords.slice(1)) {
-    for (const flagStart of SED_IN_PLACE_FLAG_STARTS) {
+    for (const flagStart of SED_UNCHECKED_LONG_FLAG_STARTS) {
       if (word.startsWith(flagStart)) {
         return false;
+      }
+    }
+    // A short flag group such as -Ei holds i in any place.
+    if (word.startsWith("-")) {
+      if (!word.startsWith(LONG_FLAG_START)) {
+        for (const flagLetter of SED_UNCHECKED_FLAG_LETTERS) {
+          if (word.includes(flagLetter)) {
+            return false;
+          }
+        }
       }
     }
     if (SED_WRITING_TEXT.test(word)) {

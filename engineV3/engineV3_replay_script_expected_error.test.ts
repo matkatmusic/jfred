@@ -79,7 +79,8 @@ test("test_executeScriptInState_throws_when_a_recorded_error_is_killed_by_a_sign
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line has a command that kills itself and a recorded result with isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "kill -9 $$", state.toString());
+  // the touch makes the call change a file, so the user decision 9 skip of a kill does not apply
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "kill -9 $$; touch never-made.txt", state.toString());
   // the run throws and names the signal
   assert.throws(() => executeScriptInState(state, line, makeContext(true)), /signal SIGKILL/);
 });

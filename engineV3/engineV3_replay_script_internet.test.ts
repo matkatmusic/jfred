@@ -200,6 +200,10 @@ const WRITING_TEXT_COMMANDS = [
   "sed -i '' 's/a/b/' file.txt",
   "sed -i.bak 's/a/b/' file.txt",
   "ps aux | sed -n '1,5w out.txt'",
+  "sed -Ei 's/a/b/' file.txt",
+  "sed -ni 's/a/b/p' file.txt",
+  "ps aux | sed -f script.sed",
+  "ps aux | sed --file=script.sed",
 ];
 
 for (const command of READ_ONLY_TEXT_COMMANDS) {
