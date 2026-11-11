@@ -1,6 +1,8 @@
 FROM node:26-slim
+# Old install line, before tmux was added for the recorded tmux calls:
+#     && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh \
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh \
+    && apt-get install -y --no-install-recommends git ripgrep fd-find sd jq curl python3 python-is-python3 python3-pytest procps lsof parallel zsh tmux \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system safe.directory '*' \
     && git config --system user.name "Matkat Music LLC" \

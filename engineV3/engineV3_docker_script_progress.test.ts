@@ -174,6 +174,15 @@ test("test_replay_container_starts_with_the_network_on", () => {
     assert.ok(readDockerScriptLines().some((scriptLine) => scriptLine.startsWith("# docker run -d --network none ")));
 });
 
+test("test_dockerfile_installs_tmux", () => {
+    // Scenario: recorded Bash calls run tmux new-session and send-keys for real, so the image needs tmux.
+    // the one apt-get install line that runs names tmux
+    const dockerfileLines = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8").split("\n");
+    const installLines = dockerfileLines.filter((dockerfileLine) => dockerfileLine.trimStart().startsWith("&& apt-get install "));
+    assert.equal(installLines.length, 1);
+    assert.match(installLines[0]!, / tmux( |$)/);
+});
+
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
     // Scenario: the two print functions run in sh and print "<ISO time> setup: <stage>" and "<ISO time> setup: <stage> done in <N>s".
     const output = execFileSync("sh", ["-eu", "-c", `${readSetupStageFunctionsText()}\nprintSetupStageStart "example stage"\nprintSetupStageDone "example stage"\n`], { encoding: "utf8" });
