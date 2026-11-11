@@ -1,6 +1,7 @@
 // Git settings for a recorded git call: the names and times of the commit it made, and a check that HEAD lands on the recorded commit.
 
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
@@ -42,8 +43,12 @@ function isInWindow(seconds: number, window: SecondsWindow): boolean {
   return seconds <= window.to;
 }
 
-function listLogRowsInWindow(sourceRepo: Path, window: SecondsWindow): LogLine[] {
-  const rows = parseLogFile(join(sourceRepo.toString(), "logs", "HEAD"));
+function getMainHeadLogFile(sourceRepo: Path): string {
+  return join(sourceRepo.toString(), "logs", "HEAD");
+}
+
+function listLogRowsInWindow(logFile: string, window: SecondsWindow): LogLine[] {
+  const rows = parseLogFile(logFile);
   const rowsInWindow: LogLine[] = [];
   for (const row of rows) {
     if (isInWindow(row.seconds, window)) {
@@ -81,7 +86,7 @@ export function getGitEnvForCall(command: string, result: BashCallResult, source
     return {};
   }
   const window = getWindowOfCall(result);
-  const rows = listLogRowsInWindow(sourceRepo, window);
+  const rows = listLogRowsInWindow(getMainHeadLogFile(sourceRepo), window);
   const commit = findLastCommitMadeInWindow(sourceRepo, rows, window);
   if (commit === undefined) {
     return {};
@@ -111,6 +116,44 @@ function createHeadMismatchMessage(command: string, expectedHash: string, actual
   return lines.join("\n");
 }
 
+function isPathNamedInCommand(command: string, pathText: string): boolean {
+  let searchFrom = 0;
+  while (true) {
+    const index = command.indexOf(pathText, searchFrom);
+    if (index === -1) {
+      return false;
+    }
+    const nextCharacter = command[index + pathText.length];
+    if (nextCharacter === undefined) {
+      return true;
+    }
+    if (!/[\w.-]/.test(nextCharacter)) {
+      return true;
+    }
+    searchFrom = index + 1;
+  }
+}
+
+// A command that names a linked worktree's folder acts in that worktree; a command that names none acts in the main work tree.
+function findLinkedWorktreeNamedInCommand(command: string, state: Path): Path | undefined {
+  const listing = executeGit(state, ["worktree", "list", "--porcelain"]).toString();
+  const worktreeLines = listing.split("\n").filter((line) => line.startsWith("worktree "));
+  const linkedWorktreeLines = worktreeLines.slice(1);
+  for (const line of linkedWorktreeLines) {
+    const worktreePath = line.slice("worktree ".length);
+    if (isPathNamedInCommand(command, worktreePath)) {
+      return new Path(worktreePath);
+    }
+  }
+  return undefined;
+}
+
+// The Mac keeps a linked worktree's HEAD log at <git folder>/worktrees/<name>/logs/HEAD; the replay worktree has the same <name>.
+function getLinkedWorktreeHeadLogFile(sourceRepo: Path, linkedWorktree: Path): string {
+  const gitFolder = executeGit(linkedWorktree, ["rev-parse", "--absolute-git-dir"]).toString().trim();
+  return join(sourceRepo.toString(), "worktrees", basename(gitFolder), "logs", "HEAD");
+}
+
 export function assertHeadMatchesLog(command: string, result: BashCallResult, sourceRepo: Path, state: Path, output: SpawnOutput): void {
   if (!isGitCommand(command)) {
     return;
@@ -118,17 +161,26 @@ export function assertHeadMatchesLog(command: string, result: BashCallResult, so
   if (isOnlyReadOnlyGitCommand(command)) {
     return;
   }
-  const rows = listLogRowsInWindow(sourceRepo, getWindowOfCall(result));
+  const linkedWorktree = findLinkedWorktreeNamedInCommand(command, state);
+  const headFolder = linkedWorktree ?? state;
+  const logFile = linkedWorktree === undefined ? getMainHeadLogFile(sourceRepo) : getLinkedWorktreeHeadLogFile(sourceRepo, linkedWorktree);
+  if (linkedWorktree !== undefined) {
+    // The Mac deletes a worktree's log when the worktree is removed: a missing log leaves nothing to compare.
+    if (!existsSync(logFile)) {
+      return;
+    }
+  }
+  const rows = listLogRowsInWindow(logFile, getWindowOfCall(result));
   if (rows.length === 0) {
     return;
   }
   const expectedHash = (rows[rows.length - 1] as LogLine).newCommit;
-  const actualHash = executeGit(state, ["rev-parse", "HEAD"]).toString().trim();
+  const actualHash = executeGit(headFolder, ["rev-parse", "HEAD"]).toString().trim();
   if (actualHash !== expectedHash) {
-    executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), expectedHash]);
-    if (moveHeadToRealCommitWhenSameFiles(state, expectedHash, actualHash)) {
+    executeGit(headFolder, ["fetch", "-q", "--no-tags", sourceRepo.toString(), expectedHash]);
+    if (moveHeadToRealCommitWhenSameFiles(headFolder, expectedHash, actualHash)) {
       return;
     }
-    throw new Error(createHeadMismatchMessage(command, expectedHash, actualHash, state, output));
+    throw new Error(createHeadMismatchMessage(command, expectedHash, actualHash, headFolder, output));
   }
 }
