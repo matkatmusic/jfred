@@ -12,6 +12,7 @@ import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_re
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { isReadOnlyInternetCommand } from "./engineV3_replay_script_internet.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
 
@@ -130,6 +131,11 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
   if (isMacOnlyCommand(run.code)) {
     fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
     return;
+  }
+  if (!isPythonCtxExecuteRun(run)) {
+    if (isReadOnlyInternetCommand(run.code)) {
+      return;
+    }
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
   executeScriptCommand(state, run, result, context, sessionId);

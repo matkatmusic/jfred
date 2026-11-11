@@ -164,6 +164,16 @@ test("test_claude_settings_file_is_linked_into_the_mounted_dotfiles", () => {
     assert.match(scriptText, /docker exec "\$NAME" ln -sfn \/Users\/matkatmusicllc\/Programming\/dotfiles\/claude\/settings\.json \/Users\/matkatmusicllc\/\.claude\/settings\.json/);
 });
 
+test("test_replay_container_starts_with_the_network_on", () => {
+    // Scenario: user decision 8: recorded internet calls that change files need the network.
+    // the one container start line that runs is the one without --network none
+    const containerStartLines = readDockerScriptLines().filter((scriptLine) => scriptLine.startsWith("docker run -d "));
+    assert.equal(containerStartLines.length, 1);
+    assert.doesNotMatch(containerStartLines[0]!, /--network none/);
+    // the old line with --network none is kept as a comment
+    assert.ok(readDockerScriptLines().some((scriptLine) => scriptLine.startsWith("# docker run -d --network none ")));
+});
+
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
     // Scenario: the two print functions run in sh and print "<ISO time> setup: <stage>" and "<ISO time> setup: <stage> done in <N>s".
     const output = execFileSync("sh", ["-eu", "-c", `${readSetupStageFunctionsText()}\nprintSetupStageStart "example stage"\nprintSetupStageDone "example stage"\n`], { encoding: "utf8" });

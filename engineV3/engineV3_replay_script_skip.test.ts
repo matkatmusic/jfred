@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -127,6 +127,18 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
   executeScriptInState(state, line, context);
   // ran.txt is not in the state folder
   assert.equal(existsSync(join(state.toString(), "ran.txt")), false);
+});
+
+test("test_executeScriptInState_skips_a_read_only_internet_call_and_leaves_the_state_unchanged", (t) => {
+  // Scenario: a call that needs the internet and changes no file does not run in the container.
+  // the state folder is the record's cwd and is empty
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call fails if it runs, but its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "dig +short example.com; cat no-such-file-engine-v3", "", false, state.toString());
+  // run the line: it does not throw
+  executeScriptInState(state, line, context);
+  // the state folder is still empty
+  assert.deepEqual(readdirSync(state.toString()), []);
 });
 
 test("test_MAC_ONLY_FILLS_names_the_report_png_call_and_its_commit", () => {

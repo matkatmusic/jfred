@@ -199,7 +199,9 @@ set -- "$@" -v "$HOOK_FILES_FOLDER/ask-dont-dump-issues:/Users/matkatmusicllc/.c
 printSetupStageDone "hook files"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
-docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
+# User decision 8: recorded internet calls that change files run with the network; the read-only ones are skipped by the engine.
+# docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
+docker run -d --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
 # From here on "$@" is the JSONL folders again
 set --
