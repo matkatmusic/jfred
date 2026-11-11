@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -144,16 +144,30 @@ test("test_applyOutsideGitRow_checkout_moves_HEAD_to_the_target_branch", (t) => 
     assert.equal(runGitAt(stateFolder, 0, ["symbolic-ref", "--short", "HEAD"]), "side");
 });
 
-test("test_applyOutsideGitRow_reset_moves_the_branch_and_removes_files", (t) => {
-    // Scenario: state is at commit 2; the reset row moves main back to commit 1 and removes b.txt.
+test("test_applyOutsideGitRow_reset_moves_the_branch_and_untracks_files", (t) => {
+    // Scenario: state is at commit 2; the reset row moves main back to commit 1 and untracks b.txt (a mixed reset keeps the file on disk).
     const source = makeSourceRepo(t);
     const stateFolder = makeStateAt(t, source, source.commit2);
     const rows = listRowsOf(source, new Map(), 55);
     // apply the reset row
     applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
-    // main is at commit 1 and b.txt is gone
+    // main is at commit 1 and b.txt is no longer tracked
     assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), source.commit1);
-    assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+    // assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+    assert.equal(runGitAt(stateFolder, 0, ["ls-files", "b.txt"]), "");
+});
+
+test("test_applyOutsideGitRow_reset_keeps_an_uncommitted_change_in_the_work_tree", (t) => {
+    // Scenario: state is at commit 2 with an uncommitted edit to a.txt; the reset row moves main to commit 1.
+    const source = makeSourceRepo(t);
+    const stateFolder = makeStateAt(t, source, source.commit2);
+    writeFileSync(join(stateFolder, "a.txt"), "uncommitted edit");
+    const rows = listRowsOf(source, new Map(), 55);
+    // apply the reset row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // HEAD is commit 1 and a.txt still holds the uncommitted edit
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), source.commit1);
+    assert.equal(readFileSync(join(stateFolder, "a.txt"), "utf8"), "uncommitted edit");
 });
 
 test("test_applyOutsideGitRow_throws_when_HEAD_is_not_the_row_new_commit", (t) => {

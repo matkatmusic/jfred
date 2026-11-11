@@ -94,7 +94,9 @@ function applyOutsideCheckoutToState(state: Path, row: OutsideGitRow): void {
 
 function applyOutsideResetToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
   fetchCommitIntoState(state, sourceRepo, row.newCommit);
-  executeGit(state, ["reset", "-q", "--hard", row.newCommit]);
+  // The reflog does not record the reset mode; the 2026-10-28T16:06:48Z reset kept an uncommitted edit on the Mac.
+  // executeGit(state, ["reset", "-q", "--hard", row.newCommit]);
+  executeGit(state, ["reset", "-q", "--mixed", row.newCommit]);
 }
 
 function assertStateHeadMatchesRow(state: Path, row: OutsideGitRow): void {
