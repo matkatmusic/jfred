@@ -7,6 +7,7 @@ import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.t
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { listOutsideGitRows } from "./engineV3_replay_outside_git.ts";
 import { mergePlateEventsIntoActions } from "./engineV3_replay_plate.ts";
+import { runStartupPhase } from "./engineV3_startup_progress.ts";
 
 export const TERMINAL_EVENT = Symbol("TERMINAL_EVENT");
 
@@ -109,9 +110,11 @@ function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEv
 function createTimeline(key: string, repoPath: Path | undefined,jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
   const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
   // const commitEvents = createCommitEvents(repoPath);
-  const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
-  const lineEvents = createLineEvents(lines);
-  const events = mergeEventsByTime(actionEvents, lineEvents);
+  // const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
+  const outsideGitEvents = runStartupPhase("outside-git events", () => createOutsideGitEvents(repoPath, lines), (built) => `built ${built.length} outside-git events`);
+  const actionEvents = runStartupPhase("plate events", () => mergePlateEventsIntoActions(outsideGitEvents, macPlatePath, jsonlsPaths), (merged) => `merged ${merged.length - outsideGitEvents.length} plate events into ${outsideGitEvents.length} outside-git events`);
+  const lineEvents = runStartupPhase("line events", () => createLineEvents(lines), (built) => `built ${built.length} line events`);
+  const events = runStartupPhase("timeline merge", () => mergeEventsByTime(actionEvents, lineEvents), (merged) => `merged the timeline: ${merged.length} events`);
   const indexByEvent = new Map<TimelineEvent, number>();
   for (const [index, event] of events.entries()) {
     indexByEvent.set(event, index);
