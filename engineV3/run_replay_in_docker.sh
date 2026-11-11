@@ -117,6 +117,10 @@ set --
 while IFS= read -r JSONL_FOLDER; do
     if [ -n "$JSONL_FOLDER" ]; then
         set -- "$@" -v "$JSONL_FOLDER:$JSONL_FOLDER:ro"
+        # The Mac memory folder holds files that the recorded history wrote later, so the replay starts with an empty one and the recorded memory Writes fill it.
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            set -- "$@" --tmpfs "$JSONL_FOLDER/memory"
+        fi
     fi
 done <<EOF
 $JSONL_LIST
@@ -179,6 +183,9 @@ set --
 while IFS= read -r JSONL_FOLDER; do
     if [ -n "$JSONL_FOLDER" ]; then
         set -- "$@" "$JSONL_FOLDER"
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            docker exec "$NAME" chown replay "$JSONL_FOLDER/memory"
+        fi
     fi
 done <<EOF
 $JSONL_LIST

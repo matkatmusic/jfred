@@ -5,6 +5,9 @@ import { convertToProjectRelativePath } from "../src/layer1_snapshot_wire.ts";
 
 const TEMP_ROOT_FOLDERS: Path[] = [new Path("/private/tmp"), new Path("/tmp")];
 
+// The docker run mounts an empty folder here, so the recorded memory Writes fill it in recorded order.
+const CLAUDE_MEMORY_FOLDER_PATTERN = /^\/Users\/[^/]+\/\.claude\/projects\/[^/]+\/memory\//;
+
 export function findReplayRoot(state: Path, absolutePath: Path): Path | undefined {
   const candidateRoots = [state, ...TEMP_ROOT_FOLDERS];
   for (const candidateRoot of candidateRoots) {
@@ -12,6 +15,10 @@ export function findReplayRoot(state: Path, absolutePath: Path): Path | undefine
     if (relativePath !== undefined) {
       return candidateRoot;
     }
+  }
+  const memoryMatch = absolutePath.toString().match(CLAUDE_MEMORY_FOLDER_PATTERN);
+  if (memoryMatch !== null) {
+    return new Path(memoryMatch[0].slice(0, -1));
   }
   return undefined;
 }
