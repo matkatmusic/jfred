@@ -36,6 +36,12 @@
     "standIn": "/usr/local/bin/md5 sh script in engineV3/Dockerfile printing MD5 (<file>) = <md5sum hash>"
   },
   {
+    "realProgram": "macOS ifconfig",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c7e1c1e2-715b-490c-bb1d-9da5049c03cb/subagents/agent-adf1290ff251a21bf.jsonl",
+    "lineNumber": 963,
+    "standIn": "/usr/local/bin/ifconfig sh script in engineV3/Dockerfile printing the one recorded line: tab, inet 192.168.1.144 netmask 0xffffff00 broadcast 192.168.1.255"
+  },
+  {
     "realProgram": "bun install picking package versions from the npm registry (network)",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-a37b95e0795a8e948.jsonl",
     "lineNumber": 80,

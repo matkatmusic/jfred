@@ -58,6 +58,11 @@ for file in "$@"; do
 done
 exit $exitStatus
 MD5_SCRIPT
+# The only ifconfig output recorded: ~/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c7e1c1e2-715b-490c-bb1d-9da5049c03cb/subagents/agent-adf1290ff251a21bf.jsonl line 963.
+COPY --chmod=755 <<'IFCONFIG_SCRIPT' /usr/local/bin/ifconfig
+#!/bin/sh
+printf '\tinet 192.168.1.144 netmask 0xffffff00 broadcast 192.168.1.255\n'
+IFCONFIG_SCRIPT
 # A recorded `ls /Applications | rg -i chrome` found Google Chrome on the Mac; the folder stands in for it (the Chrome program itself is not here).
 RUN mkdir -p "/Applications/Google Chrome.app"
 RUN useradd --no-create-home --home-dir /tmp/replay-home replay \
