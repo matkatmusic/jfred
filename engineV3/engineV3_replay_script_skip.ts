@@ -1,6 +1,9 @@
 // Rules for the recorded Bash calls the replay skips because they run only on the Mac, and the files that stand in for them.
 
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
+import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import { executeGit } from "./engineV3.ts";
 import { writeFileIntoState } from "./engineV3_replay_submodule.ts";
 
@@ -22,6 +25,22 @@ export function isMacOnlyCommand(command: string): boolean {
   return command.includes(CHROME_PROGRAM_TEXT);
 }
 
+// `cd <folder> && [timeout N] bun <script>`: the script file holds the Chrome program path, not the command.
+const CD_THEN_SCRIPT = /cd\s+(\S+)\s*&&\s*(?:timeout\s+\d+\s+)?(?:bun|node|tsx)\s+(?:run\s+)?(\S+\.(?:ts|js|mjs))/;
+export function isMacOnlyScriptRun(run: ScriptRun): boolean {
+  const match = CD_THEN_SCRIPT.exec(run.code);
+  if (match === null) {
+    return false;
+  }
+  if (run.cwd === undefined) {
+    throw new Error(`isMacOnlyScriptRun: the Bash call has no cwd\ncommand: ${run.code}`);
+  }
+  const scriptFile = resolve(run.cwd.toString(), (match[1] as string).replace(/^["']|["']$/g, ""), match[2] as string);
+  if (!existsSync(scriptFile)) {
+    return false;
+  }
+  return readFileSync(scriptFile, "utf8").includes(CHROME_PROGRAM_TEXT);
+}
 export function fillMacOnlyFile(state: Path, fill: MacOnlyFill, sourceRepo: Path): void {
   const bytes = executeGit(sourceRepo, ["show", `${fill.commit}:${fill.repoPath.toString()}`]);
   writeFileIntoState(state, fill.repoPath, bytes);

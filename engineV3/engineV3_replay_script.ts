@@ -10,7 +10,7 @@ import type { JSONLLine } from "./engineV3.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
-import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
 import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
 import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
 
@@ -164,6 +164,10 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
   }
   if (isMacOnlyCommand(run.code)) {
     fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
+    return;
+  }
+  const isMacOnlyScript = isMacOnlyScriptRun(run);
+  if (isMacOnlyScript) {
     return;
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
