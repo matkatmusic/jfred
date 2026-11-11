@@ -344,6 +344,20 @@ function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: Script
   }
 }
 
+// A skipped line still feeds the pending writes that later lines read.
+export function recordPendingWritesOfSkippedLine(state: Path, line: JSONLLine, context: ScriptReplayContext): void {
+  for (const callId of listWriteEditCallIds(line)) {
+    const resultLine = context.writeEditResultLines.get(callId);
+    if (resultLine !== undefined) {
+      addPendingWrite(state, resultLine);
+    }
+  }
+  const isAppliedResult = isAppliedWriteEditResult(line, context.writeEditResultLines);
+  if (isAppliedResult) {
+    removePendingWrite(state, line);
+  }
+}
+
 // The state folder has the Mac repo path, so it is the path base for lines.
 export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[], context: ScriptReplayContext): Path {
   for (const callId of listWriteEditCallIds(line)) {
