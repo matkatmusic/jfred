@@ -26,8 +26,12 @@ function findInstallFolder(run: ScriptRun): string {
   return resolve(run.cwd.toString(), (match[1] as string).replace(QUOTE_CHARACTERS, ""));
 }
 
-function findNextCommitWithFile(sourceRepo: Path, repoPath: string, notBefore: Date): string {
+// Undefined when no commit ever holds the path: there is nothing to fill from.
+function findNextCommitWithFile(sourceRepo: Path, repoPath: string, notBefore: Date): string | undefined {
   const output = executeGit(sourceRepo, ["log", "--all", "--reverse", "--format=%H %ct", "--", repoPath]).toString("utf8");
+  if (output.trim() === "") {
+    return undefined;
+  }
   for (const row of output.split("\n")) {
     if (row === "") {
       continue;
@@ -54,5 +58,8 @@ export function fillMissingBunLockfile(state: Path, run: ScriptRun, sourceRepo: 
     return;
   }
   const commit = findNextCommitWithFile(sourceRepo, repoPath, run.timestamp);
+  if (commit === undefined) {
+    return;
+  }
   writeFileIntoState(state, new Path(repoPath), executeGit(sourceRepo, ["show", `${commit}:${repoPath}`]));
 }

@@ -115,6 +115,15 @@ test("test_fillMissingBunLockfile_uses_the_folder_of_a_cd_before_bun_install_ins
   // the file still holds the old text
   assert.equal(readFileSync(join(state.toString(), "playground", "bun.lock"), "utf8"), "mine");
 });
+test("test_fillMissingBunLockfile_writes_nothing_when_no_commit_ever_holds_that_lockfile_path", (t) => {
+  // Scenario: the install folder is a scratch folder ($S/shots/playground), so no commit in the repo holds a lockfile at that path and there is nothing to fill from.
+  const sourceRepo = makeRepoWithLockfiles(t, [SECOND_COMMIT_SECONDS]);
+  const state = new Path(makeTempFolder(t, "engine-v3-lockfile-state-"));
+  // the run installs in a folder that no commit has
+  fillMissingBunLockfile(state, makeRun("cd $S/shots/playground && bun install 2>&1 | tail -2", state.toString(), FIRST_COMMIT_SECONDS), sourceRepo);
+  // the state folder has no lockfile under that name
+  assert.equal(existsSync(join(state.toString(), "$S", "shots", "playground", "bun.lock")), false);
+});
 test("test_fillMissingBunLockfile_throws_when_no_commit_is_at_or_after_the_run_time", (t) => {
   // Scenario: the only commit is older than the run, so no lockfile fits.
   const sourceRepo = makeRepoWithLockfiles(t, [FIRST_COMMIT_SECONDS]);
