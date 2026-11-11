@@ -64,19 +64,46 @@ function readHashAtTime(reflogFile: string, startTime: Date): string | undefined
   return firstOldHash;
 }
 
-// The branch of the last "checkout: moving from X to Y" at or before startTime; the current HEAD branch when there is none.
+// // The branch of the last "checkout: moving from X to Y" at or before startTime; the current HEAD branch when there is none.
+// function readHeadBranchAtTime(sourceRepo: Path, logsFolder: string, startTime: Date): string {
+//   let headBranch = readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
+//   for (const line of readFileSync(join(logsFolder, "HEAD"), "utf8").split("\n")) {
+//     const [header, message] = line.split("\t");
+//     const headerWords = (header as string).split(" ");
+//     const entryTime = Number(headerWords[headerWords.length - 2]) * 1000;
+//     const checkout = /^checkout: moving from .+ to (.+)$/.exec(message ?? "");
+//     if (checkout !== null && entryTime <= startTime.getTime()) {
+//       headBranch = `refs/heads/${checkout[1]}`;
+//     }
+//   }
+//   return headBranch;
+// }
+
+// The branch Y of the last "checkout: moving from X to Y" at or before startTime.
+// With none, HEAD sat on the X of the first later checkout until that checkout; the current HEAD branch when there is no checkout at all.
 function readHeadBranchAtTime(sourceRepo: Path, logsFolder: string, startTime: Date): string {
-  let headBranch = readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
+  let branchOfLastCheckoutBeforeStart: string | undefined;
+  let branchLeftByFirstLaterCheckout: string | undefined;
   for (const line of readFileSync(join(logsFolder, "HEAD"), "utf8").split("\n")) {
     const [header, message] = line.split("\t");
     const headerWords = (header as string).split(" ");
     const entryTime = Number(headerWords[headerWords.length - 2]) * 1000;
-    const checkout = /^checkout: moving from .+ to (.+)$/.exec(message ?? "");
-    if (checkout !== null && entryTime <= startTime.getTime()) {
-      headBranch = `refs/heads/${checkout[1]}`;
+    const checkout = /^checkout: moving from (.+) to (.+)$/.exec(message ?? "");
+    if (checkout !== null) {
+      if (entryTime <= startTime.getTime()) {
+        branchOfLastCheckoutBeforeStart = `refs/heads/${checkout[2]}`;
+      } else {
+        branchLeftByFirstLaterCheckout ??= `refs/heads/${checkout[1]}`;
+      }
     }
   }
-  return headBranch;
+  if (branchOfLastCheckoutBeforeStart !== undefined) {
+    return branchOfLastCheckoutBeforeStart;
+  }
+  if (branchLeftByFirstLaterCheckout !== undefined) {
+    return branchLeftByFirstLaterCheckout;
+  }
+  return readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
 }
 
 export function readStartPoint(sourceRepo: Path, startTime: Date): StartPoint {
