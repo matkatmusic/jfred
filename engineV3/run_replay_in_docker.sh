@@ -170,6 +170,20 @@ if [ -z "$GIT_REPO_FOLDER" ]; then
     done
 fi
 printSetupStageDone "mounts"
+printSetupStageStart "hook files"
+# The recorded Bash calls run `node ~/.claude/hooks/turn-done.ts`. On the Mac that link points to a file that claude_hooks commit db4822d removed,
+# so the version just before that commit is used for every call (user decision). It reads ../shared/session-state.ts and ../.env.
+CLAUDE_HOOKS_REPO=/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks
+HOOK_FILES_FOLDER="$(mktemp -d)"
+git -C "$CLAUDE_HOOKS_REPO" archive db4822d~1 ask-dont-dump-issues shared | tar -x -C "$HOOK_FILES_FOLDER"
+# sh has no pipefail, so a failed git archive would otherwise go unnoticed.
+if [ ! -f "$HOOK_FILES_FOLDER/ask-dont-dump-issues/turn-done.ts" ]; then
+    echo "git archive of $CLAUDE_HOOKS_REPO at db4822d~1 gave no ask-dont-dump-issues/turn-done.ts" >&2
+    exit 1
+fi
+printf '%s\n' "CLAUDE_HOOKS_SESSION_STATE_DIR=/tmp/claude-hooks-session-state" > "$HOOK_FILES_FOLDER/.env"
+set -- "$@" -v "$HOOK_FILES_FOLDER/ask-dont-dump-issues:/Users/matkatmusicllc/.claude/hooks:ro" -v "$HOOK_FILES_FOLDER/shared:/Users/matkatmusicllc/.claude/shared:ro" -v "$HOOK_FILES_FOLDER/.env:/Users/matkatmusicllc/.claude/.env:ro"
+printSetupStageDone "hook files"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
 docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity

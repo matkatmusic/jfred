@@ -290,3 +290,15 @@ test("test_applyJSONLLineToState_runs_the_script_for_a_Script_line", (t) => {
   // ran.txt is in the state folder
   assert.equal(existsSync(join(state.toString(), "ran.txt")), true);
 });
+
+test("test_executeScriptInState_gives_the_script_the_session_id_of_its_line", (t) => {
+  // Scenario: a recorded hook command such as `node ~/.claude/hooks/turn-done.ts` reads CLAUDE_CODE_SESSION_ID, so the script sees the session id of the JSONL line that holds the call.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call line has sessionId 7d31cfda-..., and its command writes the variable into session-id.txt
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "sh -c 'printf %s \"$CLAUDE_CODE_SESSION_ID\" > session-id.txt'", state.toString());
+  // run the call line
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  // session-id.txt holds the line's session id
+  assert.equal(readFileSync(join(state.toString(), "session-id.txt"), "utf8"), "7d31cfda-fb91-4f61-ba61-7031cb5484e2");
+});

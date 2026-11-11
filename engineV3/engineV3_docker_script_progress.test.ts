@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 const DOCKER_SCRIPT_PATH = join(import.meta.dirname, "run_replay_in_docker.sh");
 // The order in which the script runs its setup stages.
-const SETUP_STAGE_NAMES = ["state-folder cwd scan", "lockfile collection", "docker build", "mounts", "container start", "stand-ins", "engine start", "copy-out", "disk check"];
+const SETUP_STAGE_NAMES = ["state-folder cwd scan", "lockfile collection", "docker build", "mounts", "hook files", "container start", "stand-ins", "engine start", "copy-out", "disk check"];
 
 function readDockerScriptLines(): string[] {
     return readFileSync(DOCKER_SCRIPT_PATH, "utf8").split("\n");
@@ -72,6 +72,18 @@ test("test_setup_stages_run_in_the_listed_order", () => {
         const laterStartLineIndex = findStageStartLineIndex(scriptLines, laterStageName);
         assert.ok(earlierDoneLineIndex < laterStartLineIndex, `${earlierStageName} is done before ${laterStageName} starts`);
     }
+});
+
+test("test_hook_files_stage_mounts_the_db4822d_parent_hook_files_at_the_claude_folder", () => {
+    // Scenario: the recorded `node ~/.claude/hooks/turn-done.ts` needs turn-done.ts, ../shared and ../.env, taken from claude_hooks at db4822d~1.
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    assert.match(scriptText, /archive db4822d~1 ask-dont-dump-issues shared \| tar -x -C "\$HOOK_FILES_FOLDER"/);
+    // sh has no pipefail, so the script stops by itself when the archive gave no turn-done.ts.
+    assert.match(scriptText, /if \[ ! -f "\$HOOK_FILES_FOLDER\/ask-dont-dump-issues\/turn-done\.ts" \]; then/);
+    assert.match(scriptText, /CLAUDE_HOOKS_SESSION_STATE_DIR=\/tmp\/claude-hooks-session-state/);
+    assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/ask-dont-dump-issues:\/Users\/matkatmusicllc\/\.claude\/hooks:ro"/);
+    assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/shared:\/Users\/matkatmusicllc\/\.claude\/shared:ro"/);
+    assert.match(scriptText, /"\$HOOK_FILES_FOLDER\/\.env:\/Users\/matkatmusicllc\/\.claude\/\.env:ro"/);
 });
 
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
