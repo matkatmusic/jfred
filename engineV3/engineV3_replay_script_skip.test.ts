@@ -141,6 +141,18 @@ test("test_executeScriptInState_skips_a_read_only_internet_call_and_leaves_the_s
   assert.deepEqual(readdirSync(state.toString()), []);
 });
 
+test("test_executeScriptInState_skips_a_read_only_Mac_state_call_and_leaves_the_state_unchanged", (t) => {
+  // Scenario: user decision 9: a call that only looks at Mac programs and changes no file does not run in the container.
+  // the state folder is the record's cwd and is empty
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call fails if it runs, because no claude program runs in the container, but its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "pgrep -x claude-engine-v3-none | rg harms", "", false, state.toString());
+  // run the line: it does not throw
+  executeScriptInState(state, line, context);
+  // the state folder is still empty
+  assert.deepEqual(readdirSync(state.toString()), []);
+});
+
 test("test_MAC_ONLY_FILLS_names_the_report_png_call_and_its_commit", () => {
   // Scenario: the one skipped call that copied docs/report.png gets that file back from commit 9becb03.
   // the fill list has one entry

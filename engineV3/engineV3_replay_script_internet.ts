@@ -3,8 +3,15 @@
 // One simple command between ; && || | & ( ) or a new line, with its quotes taken off.
 type ShellSegment = { words: string[]; redirectTargets: string[] };
 
-// hasUncheckedText: a $( ), a backtick, a heredoc or a quote that is never closed (zsh rejects it) holds text that these rules cannot check.
+// hasUncheckedText: a backtick, a heredoc, a $( ) too deep to read, or a quote or $( ) that is never closed (zsh rejects it) holds text that these rules cannot check.
 type ParsedShellCommand = { segments: ShellSegment[]; hasUncheckedText: boolean };
+// end: the index just past the ) that closes a $( ).
+type ParsedShellText = ParsedShellCommand & { end: number };
+
+// The commands inside a $( ) are read down to this depth of $( ) inside $( ).
+const MAXIMUM_SUBSTITUTION_DEPTH = 3;
+// Stands in a word for the output of a $( ), which is not known.
+const SUBSTITUTION_PLACEHOLDER = "$()";
 
 const SEGMENT_END_CHARACTERS = new Set([";", "|", "&", "(", ")", "\n"]);
 const WHITESPACE_CHARACTERS = new Set([" ", "\t"]);
@@ -33,7 +40,23 @@ const PROGRAMS_THAT_NAME_A_URL = new Set(["curl", "wget"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
 
 // Programs that change no file in the container. ssh is here because it changes files only on the other machine.
-const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "echo", "printf", "jq", "wc", "cut", "cd", "true", "sleep", "for", "done", "fi", "ps", "pgrep", "dig", "nslookup", "host", "ping", "ssh"]);
+const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "echo", "printf", "jq", "wc", "cut", "cd", "true", "sleep", "for", "done", "fi", "ps", "pgrep", "dig", "nslookup", "host", "ping", "ssh", "pkill", "kill", "lsof", "sysctl", "tr", "[", "break"]);
+// sort -o and --output write the sorted text into a file.
+const SORT_OUTPUT_FLAG_LETTER = "o";
+const SORT_OUTPUT_LONG_FLAG = "--output";
+// sed -i and --in-place change the file they read.
+const SED_IN_PLACE_FLAG_STARTS = ["-i", "--in-place"];
+// The sed w and W commands and the s///w flag write a file. GNU sed runs a command with e.
+const SED_WRITING_TEXT = /[wW]\s|(^|[;{}\s])e(\s|$)|\/[gpiImM0-9]*e/;
+// In awk text a > or | after print sends the output to a file or a command, and system( runs a command.
+const AWK_WRITING_TEXT = /print[^;}]*[>|]|system\(|\|/;
+// Programs that only look at Mac programs or Mac machine state, or stop a program (user decision 9).
+const MAC_STATE_PROGRAMS = new Set(["ps", "pgrep", "pkill", "kill", "lsof", "tmux", "sysctl"]);
+// tmux subcommands that start no program. Every list-, show- and kill- subcommand is also one.
+const TMUX_READ_ONLY_SUBCOMMANDS = new Set(["ls", "has-session", "has", "display-message", "display", "capture-pane", "capturep"]);
+const TMUX_READ_ONLY_SUBCOMMAND_STARTS = ["list-", "show-", "kill-"];
+// tmux runs the words after a ; as one more subcommand.
+const TMUX_SUBCOMMAND_SEPARATOR = ";";
 // curl flags that save into a file named by the next word.
 const CURL_FILE_FLAGS = new Set(["-o", "--output", "-D", "--dump-header", "-c", "--cookie-jar"]);
 const CURL_FILE_FLAG_LETTERS = new Set(["o", "D", "c"]);
@@ -50,6 +73,17 @@ function isHiddenCommandStart(command: string, index: number): boolean {
     return command[index + 1] === "(";
   }
   return false;
+}
+
+// $(( )) is arithmetic, not a command.
+function isCommandSubstitutionStart(command: string, index: number): boolean {
+  if (command[index] !== "$") {
+    return false;
+  }
+  if (command[index + 1] !== "(") {
+    return false;
+  }
+  return command[index + 2] !== "(";
 }
 
 // hasUncheckedText: the text holds a $( ) or a backtick, or the quote is never closed, so reading stops there.
@@ -77,9 +111,17 @@ function readQuotedText(command: string, start: number, quote: string): { text: 
   return { text, end: index, hasUncheckedText: true };
 }
 
-// Splits a shell command into simple commands and their redirect targets, with quotes respected. The parse stops at the first $( ), backtick or heredoc.
+// Splits a shell command into simple commands and their redirect targets, with quotes respected.
+// The simple commands inside a $( ) are added to the list. The parse stops at the first backtick or heredoc.
 export function parseShellCommand(command: string): ParsedShellCommand {
+  const parsed = parseShellText(command, 0, 0);
+  return { segments: parsed.segments, hasUncheckedText: parsed.hasUncheckedText };
+}
+
+// Inside a $( ) (substitutionDepth above 0) the parse ends at the ) that closes it.
+function parseShellText(command: string, start: number, substitutionDepth: number): ParsedShellText {
   const segments: ShellSegment[] = [];
+  let openParenthesisCount = 0;
   let words: string[] = [];
   let redirectTargets: string[] = [];
   let word = "";
@@ -111,7 +153,7 @@ export function parseShellCommand(command: string): ParsedShellCommand {
     words = [];
     redirectTargets = [];
   };
-  let index = 0;
+  let index = start;
   while (index < command.length) {
     const character = command[index]!;
     if (QUOTE_CHARACTERS.has(character)) {
@@ -120,7 +162,7 @@ export function parseShellCommand(command: string): ParsedShellCommand {
       hasWord = true;
       if (quoted.hasUncheckedText) {
         finishSegment();
-        return { segments, hasUncheckedText: true };
+        return { segments, hasUncheckedText: true, end: quoted.end };
       }
       index = quoted.end;
       continue;
@@ -136,9 +178,35 @@ export function parseShellCommand(command: string): ParsedShellCommand {
       index += 2;
       continue;
     }
+    if (isCommandSubstitutionStart(command, index)) {
+      if (substitutionDepth < MAXIMUM_SUBSTITUTION_DEPTH) {
+        const substitution = parseShellText(command, index + 2, substitutionDepth + 1);
+        segments.push(...substitution.segments);
+        if (substitution.hasUncheckedText) {
+          finishSegment();
+          return { segments, hasUncheckedText: true, end: substitution.end };
+        }
+        word += SUBSTITUTION_PLACEHOLDER;
+        hasWord = true;
+        index = substitution.end;
+        continue;
+      }
+    }
     if (isHiddenCommandStart(command, index)) {
       finishSegment();
-      return { segments, hasUncheckedText: true };
+      return { segments, hasUncheckedText: true, end: index };
+    }
+    if (character === ")") {
+      if (substitutionDepth > 0) {
+        if (openParenthesisCount === 0) {
+          finishSegment();
+          return { segments, hasUncheckedText: false, end: index + 1 };
+        }
+      }
+      openParenthesisCount -= 1;
+    }
+    if (character === "(") {
+      openParenthesisCount += 1;
     }
     if (character === "#") {
       if (!hasWord) {
@@ -155,11 +223,11 @@ export function parseShellCommand(command: string): ParsedShellCommand {
       // The heredoc body is code or text, not shell words, so the parse stops here.
       if (command[index + 1] === "<") {
         finishSegment();
-        return { segments, hasUncheckedText: true };
+        return { segments, hasUncheckedText: true, end: index };
       }
       if (command[index + 1] === "(") {
         finishSegment();
-        return { segments, hasUncheckedText: true };
+        return { segments, hasUncheckedText: true, end: index };
       }
     }
     if (character === ">") {
@@ -178,7 +246,7 @@ export function parseShellCommand(command: string): ParsedShellCommand {
       }
       if (command[index] === "(") {
         finishSegment();
-        return { segments, hasUncheckedText: true };
+        return { segments, hasUncheckedText: true, end: index };
       }
       // >&2 and 2>&1 copy a stream and write no file.
       // In zsh >& file writes both streams into the file.
@@ -216,7 +284,9 @@ export function parseShellCommand(command: string): ParsedShellCommand {
     index += 1;
   }
   finishSegment();
-  return { segments, hasUncheckedText: false };
+  // Inside a $( ) the text ends before the ) that closes it.
+  const isSubstitutionNeverClosed = substitutionDepth > 0;
+  return { segments, hasUncheckedText: isSubstitutionNeverClosed, end: index };
 }
 
 // The program word and the words after it, past leading VAR=value words and loop or test keywords.
@@ -319,6 +389,67 @@ function isCurlReadOnly(programWords: string[]): boolean {
   return true;
 }
 
+function isTmuxReadOnly(programWords: string[]): boolean {
+  if (programWords.includes(TMUX_SUBCOMMAND_SEPARATOR)) {
+    return false;
+  }
+  const subcommand = programWords[1] ?? "";
+  if (TMUX_READ_ONLY_SUBCOMMANDS.has(subcommand)) {
+    return true;
+  }
+  for (const subcommandStart of TMUX_READ_ONLY_SUBCOMMAND_STARTS) {
+    if (subcommand.startsWith(subcommandStart)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isSortReadOnly(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    if (word.startsWith(SORT_OUTPUT_LONG_FLAG)) {
+      return false;
+    }
+    if (word.startsWith("-")) {
+      if (!word.startsWith(LONG_FLAG_START)) {
+        if (word.includes(SORT_OUTPUT_FLAG_LETTER)) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// uniq writes into its second file word. A lone - stands for the input.
+function isUniqReadOnly(programWords: string[]): boolean {
+  const fileWords = programWords.slice(1).filter((word) => word === "-" || !word.startsWith("-"));
+  return fileWords.length <= 1;
+}
+
+function isSedReadOnly(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    for (const flagStart of SED_IN_PLACE_FLAG_STARTS) {
+      if (word.startsWith(flagStart)) {
+        return false;
+      }
+    }
+    if (SED_WRITING_TEXT.test(word)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isAwkReadOnly(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    if (AWK_WRITING_TEXT.test(word)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isSegmentReadOnly(segment: ShellSegment): boolean {
   for (const target of segment.redirectTargets) {
     if (target !== DISCARD_FILE) {
@@ -333,7 +464,30 @@ function isSegmentReadOnly(segment: ShellSegment): boolean {
   if (programName === "curl") {
     return isCurlReadOnly(programWords);
   }
+  if (programName === "tmux") {
+    return isTmuxReadOnly(programWords);
+  }
+  if (programName === "sort") {
+    return isSortReadOnly(programWords);
+  }
+  if (programName === "uniq") {
+    return isUniqReadOnly(programWords);
+  }
+  if (programName === "sed") {
+    return isSedReadOnly(programWords);
+  }
+  if (programName === "awk") {
+    return isAwkReadOnly(programWords);
+  }
   return READ_ONLY_PROGRAMS.has(programName);
+}
+
+function isSegmentMacState(segment: ShellSegment): boolean {
+  const programName = getProgramName(getProgramWords(segment));
+  if (programName === undefined) {
+    return false;
+  }
+  return MAC_STATE_PROGRAMS.has(programName);
 }
 
 export function isInternetCommand(command: string): boolean {
@@ -362,6 +516,23 @@ export function isReadOnlyCommand(command: string): boolean {
 
 export function isReadOnlyInternetCommand(command: string): boolean {
   if (!isInternetCommand(command)) {
+    return false;
+  }
+  return isReadOnlyCommand(command);
+}
+
+export function isMacStateCommand(command: string): boolean {
+  const parsed = parseShellCommand(command);
+  for (const segment of parsed.segments) {
+    if (isSegmentMacState(segment)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isReadOnlyMacStateCommand(command: string): boolean {
+  if (!isMacStateCommand(command)) {
     return false;
   }
   return isReadOnlyCommand(command);

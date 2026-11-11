@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { isInternetCommand, isReadOnlyCommand, isReadOnlyInternetCommand } from "./engineV3_replay_script_internet.ts";
+import { isInternetCommand, isReadOnlyCommand, isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 
 test("test_isReadOnlyInternetCommand_is_true_for_a_dig_lookup", () => {
   // Scenario: dig asks a name server on the internet and writes no file.
@@ -166,3 +166,96 @@ test("test_isInternetCommand_is_true_for_ssh_to_another_machine", () => {
   // the command needs the internet
   assert.equal(isInternetCommand("ssh new-bluehost-vps 'uptime'"), true);
 });
+
+test("test_isReadOnlyCommand_looks_at_the_commands_inside_a_command_substitution", () => {
+  // Scenario: the command inside $( ) only reads, so the whole command writes no file.
+  assert.equal(isReadOnlyCommand("d=$(rg -n x file.txt | head -1); echo \"$d\""), true);
+});
+
+test("test_isReadOnlyCommand_is_false_when_a_command_substitution_writes_a_file", () => {
+  // Scenario: the command inside $( ) writes a file.
+  assert.equal(isReadOnlyCommand("echo $(rg x file.txt > out.txt)"), false);
+});
+
+test("test_isReadOnlyCommand_is_false_for_a_command_substitution_that_is_never_closed", () => {
+  // Scenario: zsh rejects a $( ) that is never closed, so the command must run to give its recorded error.
+  assert.equal(isReadOnlyCommand("echo $(rg x file.txt"), false);
+});
+
+const READ_ONLY_TEXT_COMMANDS = [
+  "ps aux | sort -rn | uniq -c",
+  "ps aux | awk '{print $2, $9}'",
+  "ps aux | awk '$1>150'",
+  "ps aux | sed -n 1,5p",
+  "ps aux | sed 's/.*sessions\\///; s/\\.json//'",
+  "ps aux | tr '\\n' ','",
+  "for f in a b; do [ -n \"$f\" ] && break; done",
+];
+
+const WRITING_TEXT_COMMANDS = [
+  "ps aux | sort -o out.txt",
+  "ps aux | uniq - out.txt",
+  "ps aux | awk '{print $2 > \"out.txt\"}'",
+  "ps aux | awk '{system(\"touch x\")}'",
+  "sed -i '' 's/a/b/' file.txt",
+  "sed -i.bak 's/a/b/' file.txt",
+  "ps aux | sed -n '1,5w out.txt'",
+];
+
+for (const command of READ_ONLY_TEXT_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_true_for_a_text_program_that_writes_no_file: ${command}`, () => {
+    // Scenario: sort, uniq, awk, sed, tr and [ only print, so the command writes no file.
+    assert.equal(isReadOnlyCommand(command), true);
+  });
+}
+
+for (const command of WRITING_TEXT_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_false_for_a_text_program_that_writes_a_file: ${command}`, () => {
+    // Scenario: the flag or the program text makes the program write a file or run a command.
+    assert.equal(isReadOnlyCommand(command), false);
+  });
+}
+
+// Commands that only look at Mac programs or Mac machine state, and change no file: the replay skips them (user decision 9).
+const SKIPPED_MAC_STATE_COMMANDS = [
+  "for p in $(pgrep -x claude); do d=$(lsof -a -p $p -d cwd -Fn 2>/dev/null | rg '^n' | cut -c2-); echo \"$p $d\"; done | rg harms",
+  "pgrep -x claude | wc -l",
+  "pkill -f vite; sleep 1",
+  "tmux ls",
+  // Real Attune Bash calls.
+  "lsof -nP -iTCP:3000 -sTCP:LISTEN; for p in $(lsof -tiTCP:3000 -sTCP:LISTEN); do ps -o pid,lstart,command -p $p; done",
+  "pkill -f \"bun demo/parseLoopB.ts\"; sleep 1; pgrep -fl parseLoopB || echo stopped",
+  "tmux capture-pane -p -t crashfix-2026-10-21T04-29-44-857Z-14a3c438 | grep -v '^$' | tail -30",
+  "ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | wc -l; ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | awk '{print $2, $9, $10}'",
+  "kill 77157 && (pgrep -fl \"ssh -N.*3100\" || echo \"tunnel is off\")",
+];
+
+// Commands that change a file, or run no Mac-state program: they run for real.
+const NOT_SKIPPED_MAC_STATE_COMMANDS = [
+  "tmux send-keys -t x 'node a.js > out.txt' Enter",
+  "ps aux | rg node > /tmp/ps.txt",
+  "lsof -i :3000 | tee /tmp/x",
+  "echo hi",
+  // Real Attune Bash calls.
+  "cd ~/Programming/Attune && pkill -f \"bun serve.ts\"; git add demo/index.html demo/chat.css && git status --short",
+  "pkill -f \"cat > /tmp/dummy\"; rm -f /tmp/dummy; echo ok",
+  "ls | rg -v '\\.done$'; for f in *.claimed; do [ -e \"$f\" ] && mv \"$f\" \"${f%.claimed}.json\"; done; ps aux | rg 'waitForDefinitionRequest' | rg -v ' rg ' | wc -l",
+  "tmux send-keys -t attune-server:0 C-c; tmux send-keys -t attune-server:tunnel C-c; pkill -f '3100:localhost:3000'; pgrep -fl 'tunnel.sh|3100:localhost|server/server.ts' ; echo \"left: $?\"",
+  "bun demo/claimSynthesisRequests.ts; pgrep -fl \"definitionFilesLoop|wheelFitLoopD\"",
+];
+
+for (const command of SKIPPED_MAC_STATE_COMMANDS) {
+  test(`test_isReadOnlyMacStateCommand_is_true_for: ${command.slice(0, 60)}`, () => {
+    // Scenario: the command looks at Mac programs or machine state and changes no file.
+    // the command is skipped
+    assert.equal(isReadOnlyMacStateCommand(command), true);
+  });
+}
+
+for (const command of NOT_SKIPPED_MAC_STATE_COMMANDS) {
+  test(`test_isReadOnlyMacStateCommand_is_false_for: ${command.slice(0, 60)}`, () => {
+    // Scenario: the command changes a file, or looks at no Mac program or machine state.
+    // the command is not skipped
+    assert.equal(isReadOnlyMacStateCommand(command), false);
+  });
+}
