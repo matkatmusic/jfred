@@ -189,6 +189,15 @@ test("test_stand_in_listeners_start_only_for_the_typesafe_playground_project", (
     }
 });
 
+test("test_dockerfile_wraps_pkill_and_pgrep_so_they_skip_the_shell_that_runs_the_command", () => {
+    // Scenario: on the Mac a recorded `pkill -f "bun demo/server.ts"` does not kill the shell that holds that text; on Linux it does, unless the program is told to ignore its ancestors.
+    const dockerfileText = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8");
+    // each wrapper is a file in /usr/local/bin that runs the real program with --ignore-ancestors
+    for (const programName of ["pkill", "pgrep"]) {
+        assert.match(dockerfileText, new RegExp(`COPY --chmod=755 <<'[A-Z_]+' /usr/local/bin/${programName}\\n#!/bin/sh\\nexec /usr/bin/${programName} --ignore-ancestors "\\$@"\\n`));
+    }
+});
+
 test("test_dockerfile_installs_tmux", () => {
     // Scenario: recorded Bash calls run tmux new-session and send-keys for real, so the image needs tmux.
     // the one apt-get install line that runs names tmux

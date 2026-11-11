@@ -43,6 +43,15 @@ for file in "$@"; do
 done
 exit $exitStatus
 MD5_SCRIPT
+# On the Mac, pkill -f and pgrep -f do not select the shell that holds the pattern text; on Linux they do, unless told to ignore their ancestors.
+COPY --chmod=755 <<'PKILL_SCRIPT' /usr/local/bin/pkill
+#!/bin/sh
+exec /usr/bin/pkill --ignore-ancestors "$@"
+PKILL_SCRIPT
+COPY --chmod=755 <<'PGREP_SCRIPT' /usr/local/bin/pgrep
+#!/bin/sh
+exec /usr/bin/pgrep --ignore-ancestors "$@"
+PGREP_SCRIPT
 RUN useradd --no-create-home --home-dir /tmp/replay-home replay \
     && chmod 755 /var/tmp /run/lock \
     && mkdir -p /private \
