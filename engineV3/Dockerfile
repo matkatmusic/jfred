@@ -58,6 +58,8 @@ for file in "$@"; do
 done
 exit $exitStatus
 MD5_SCRIPT
+# A recorded `ls /Applications | rg -i chrome` found Google Chrome on the Mac; the folder stands in for it (the Chrome program itself is not here).
+RUN mkdir -p "/Applications/Google Chrome.app"
 RUN useradd --no-create-home --home-dir /tmp/replay-home replay \
     && chmod 755 /var/tmp /run/lock \
     && mkdir -p /private \

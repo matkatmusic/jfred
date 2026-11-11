@@ -40,5 +40,23 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-a37b95e0795a8e948.jsonl",
     "lineNumber": 80,
     "standIn": "bun.lock written from the next real commit that has it (8408ce1 here) before the line runs; engineV3_replay_script_lockfile.ts"
+  },
+  {
+    "realProgram": "bun add @typesafe-ai/sdk@^0.6.0 picking package versions from the npm registry (network)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-a817105b5e836d0a2.jsonl",
+    "lineNumber": 22,
+    "standIn": "/usr/local/bin/bun wrapper in engineV3/Dockerfile: bun add and bun install get --prefer-offline and --minimum-release-age from the recorded time; package lists saved at image build"
+  },
+  {
+    "realProgram": "block-npm-test hook running bun test in the background and writing /tmp/tasktools-npm-test/<ms>-0.log",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2/subagents/agent-a8d6f65547702e89c.jsonl",
+    "lineNumber": 137,
+    "standIn": "the same hook script run on the blocked call, its log and done file copied to the recorded names; engineV3_replay_blocked_test_run.ts"
+  },
+  {
+    "realProgram": "/Applications/Google Chrome.app on the Mac",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2/subagents/agent-a7f987b7735bcfc62.jsonl",
+    "lineNumber": 287,
+    "standIn": "empty folder /Applications/Google Chrome.app made in engineV3/Dockerfile"
   }
 ]
