@@ -68,7 +68,24 @@ test("test_applyJSONLLineToState_adds_the_final_newline_when_a_marker_follows_a_
     assert.equal(text, "A\nX\nZ\n");
 });
 
-const WHOLE_FILE_SNIPPET = "1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
+test("test_applyJSONLLineToState_applies_the_hunk_of_an_Edit_with_no_originalFile_to_the_replayed_file", (t) => {
+    // Scenario: a subagent Edit result has originalFile null, so the replayed file is the base for its hunk (typesafe-playground playground.css, 2026-10-27T18:57:14Z).
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const filePath = join(stateFolder, "playground.css");
+    // the replayed file has a light block and a dark block
+    writeFileSync(filePath, ":root {\n    --text: #0b0b0b;\n    --grid: #dddcd7;\n    --label-other: #8a6d00;\n}\n.dark {\n    --text: #f0efec;\n    --grid: #3a3a37;\n    --label-other: #e5c07b;\n}\n");
+    // the Edit adds one line after the dark block's --grid line
+    const hunk = { oldStart: 7, oldLines: 3, newStart: 7, newLines: 4, lines: ["     --text: #f0efec;", "     --grid: #3a3a37;", "+    --button-border: #a8a7a1;", "     --label-other: #e5c07b;"] };
+    const toolUseResult = { filePath, oldString: "    --grid: #3a3a37;\n    --label-other", newString: "    --grid: #3a3a37;\n    --button-border: #a8a7a1;\n    --label-other", originalFile: null, structuredPatch: [hunk], userModified: false, replaceAll: false };
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-edit", timestamp: "2026-10-27T18:57:14.675Z", toolUseResult }) + "\n");
+    const line = loadMergedJSONLLines([jsonlFolder]).jsonlLines[0]!;
+    applyJSONLLineToState(new Path(stateFolder), line, [], NO_SCRIPT_CONTEXT);
+    // the new line is in the dark block and the final newline stays
+    assert.equal(readFileSync(filePath, "utf8"), ":root {\n    --text: #0b0b0b;\n    --grid: #dddcd7;\n    --label-other: #8a6d00;\n}\n.dark {\n    --text: #f0efec;\n    --grid: #3a3a37;\n    --button-border: #a8a7a1;\n    --label-other: #e5c07b;\n}\n");
+});
+
+const WHOLE_FILE_SNIPPET ="1\t# user was here\n2\tdef greet(name):\n3\t    return \"Hello, \" + name";
 
 function makeUserEditLine(t: TestContext, stateFolder: string, fileName: string, snippet: string = WHOLE_FILE_SNIPPET): JSONLLine {
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");

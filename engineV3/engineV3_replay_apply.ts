@@ -239,14 +239,16 @@ function assertHunksMatchBase(base: string[], hunks: StructuredPatchHunk[], file
 function applyPartialEditToState(state: Path, line: JSONLLine): Path {
   const result = convertEditResult(line.toolUseResult);
   const filePath = result.filePath.toString();
-  if (result.originalFile === null) {
-    throw new Error(`applyPartialEditToState: no originalFile for ${filePath}`);
-  }
-  const base = splitLines(result.originalFile);
+  // if (result.originalFile === null) {
+  //   throw new Error(`applyPartialEditToState: no originalFile for ${filePath}`);
+  // }
+  // A null originalFile means the harness gave no file text, so the replayed file is the base.
+  const baseText = result.originalFile ?? readFileSync(filePath, "utf8");
+  const base = splitLines(baseText);
   const hunks = stripNewlineMarkerRows(result.structuredPatch);
   assertHunksMatchBase(base, hunks, filePath);
   const newLines = applyHunksToLines(base, hunks);
-  const originalHasFinalNewline = result.originalFile.endsWith("\n");
+  const originalHasFinalNewline = baseText.endsWith("\n");
   const hasFinalNewline = decideFinalNewline(result.structuredPatch, originalHasFinalNewline);
   const trailingNewline = hasFinalNewline ? "\n" : "";
   const text = newLines.join("\n") + trailingNewline;

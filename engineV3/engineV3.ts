@@ -255,9 +255,10 @@ function getEditResultKind(raw: Record<string, unknown>, repo: Path): JSONLLineK
   if (result.oldString === result.originalFile) {
     return JSONLLineKind.EditWholeFile;
   }
-  if (result.originalFile === null) {
-    return JSONLLineKind.Skip;
-  }
+  // A null originalFile Edit still changed the file (subagent Edits), so it is EditPartial and the replayed file is its base.
+  // if (result.originalFile === null) {
+  //   return JSONLLineKind.Skip;
+  // }
   return JSONLLineKind.EditPartial;
 }
 
