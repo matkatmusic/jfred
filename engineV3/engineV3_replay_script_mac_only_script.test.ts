@@ -36,6 +36,29 @@ test("test_executeScriptInState_skips_a_bun_script_that_launches_the_Mac_only_Ch
   // replaying the line does not throw
   assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(SCRIPT_TOOL_USE_ID)));
 });
+const HEADLESS_SHELL_SCRIPT = "const EXE = process.env.HOME + '/Library/Caches/ms-playwright/chromium_headless_shell-1217/chrome-headless-shell-mac-arm64/chrome-headless-shell';\nthrow new Error('the script ran: ' + EXE);\n";
+test("test_executeScriptInState_skips_a_bun_script_that_launches_the_Mac_headless_shell", (t) => {
+  // Scenario: a recorded `cd shotscript && bun probe.mjs` launched the Mac arm64 headless shell; the container has no such program.
+  // the state folder has shotscript/probe.mjs, which names the Mac headless shell and throws when it runs
+  const state = new Path(makeTempFolder(t, "engine-v3-mac-only-state-"));
+  mkdirSync(join(state.toString(), "shotscript"));
+  writeFileSync(join(state.toString(), "shotscript", "probe.mjs"), HEADLESS_SHELL_SCRIPT);
+  // the line runs that script
+  const line = loadBashLine(t, `cd ${state.toString()}/shotscript && bun probe.mjs`, state.toString());
+  // replaying the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(SCRIPT_TOOL_USE_ID)));
+});
+test("test_executeScriptInState_skips_a_headless_shell_script_run_through_a_variable_folder_and_a_semicolon", (t) => {
+  // Scenario: the recorded call was `SP=<folder>; cd $SP/shotscript; bun report3.mjs $SP/report3.png`.
+  // the state folder has shotscript/report3.mjs, which names the Mac headless shell and throws when it runs
+  const state = new Path(makeTempFolder(t, "engine-v3-mac-only-state-"));
+  mkdirSync(join(state.toString(), "shotscript"));
+  writeFileSync(join(state.toString(), "shotscript", "report3.mjs"), HEADLESS_SHELL_SCRIPT);
+  // the line sets SP to the state folder, then changes folder with a semicolon and runs the script
+  const line = loadBashLine(t, `SP=${state.toString()}; cd $SP/shotscript; bun report3.mjs $SP/report3.png`, state.toString());
+  // replaying the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(SCRIPT_TOOL_USE_ID)));
+});
 test("test_executeScriptInState_runs_a_bun_script_that_does_not_launch_Chrome", (t) => {
   // Scenario: the skip is only for scripts that name the Mac Chrome program.
   // the state folder has pup/plain.ts, which writes a file

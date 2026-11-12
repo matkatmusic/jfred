@@ -171,6 +171,7 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
   }
   const isMacOnlyScript = isMacOnlyScriptRun(run);
   if (isMacOnlyScript) {
+    fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
     return;
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);

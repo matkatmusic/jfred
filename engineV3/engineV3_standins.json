@@ -78,6 +78,12 @@
     "standIn": "none: the call is skipped like the sips and Chrome calls; isMacOnlyScriptRun in engineV3_replay_script_skip.ts"
   },
   {
+    "realProgram": "playwright-core driving the Mac arm64 chrome-headless-shell (scratchpad/shotscript/probe.mjs, shoot.mjs, report2.mjs, report3.mjs)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/subagents/agent-a692f025ba883a3cd.jsonl",
+    "lineNumber": 191,
+    "standIn": "none: the call is skipped like the puppeteer calls; each picture a later recorded cp copies into docs/ is written to its scratchpad path from the git commit that holds it; MAC_ONLY_FILLS in engineV3_replay_script_skip.ts"
+  },
+  {
     "realProgram": "linked git worktree /Users/matkatmusicllc/Programming/typesafe-playground-test at 85c2c39 (detached), made by no recorded command, with a playground/results folder filled by the user's own playground run",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl",
     "lineNumber": 924,

@@ -85,6 +85,23 @@ test("test_fillMacOnlyFile_writes_the_bytes_of_the_commit_file_into_the_state", 
   assert.deepEqual(readFileSync(join(state.toString(), "docs", "report.png")), bytes);
 });
 
+test("test_fillMacOnlyFile_writes_the_bytes_of_the_commit_file_to_the_destination_path", (t) => {
+  // Scenario: a skipped screenshot run left a picture in the scratchpad; the fill puts the commit's docs/report.png bytes there.
+  // the source repo has a commit with docs/report.png
+  const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x01, 0xfe]);
+  const source = makeRepoWithReport(t, bytes);
+  // the state folder and the scratchpad folder are both empty
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  const scratchpad = makeTempFolder(t, "engine-v3-skip-scratchpad-");
+  // fill the scratchpad path from that commit
+  const destinationPath = new Path(join(scratchpad, "out", "report.png"));
+  fillMacOnlyFile(state, { toolUseId: new Uuid("toolu_x"), repoPath: new Path("docs/report.png"), commit: source.commit, destinationPath }, source.gitFolder);
+  // the scratchpad path has the commit's bytes
+  assert.deepEqual(readFileSync(destinationPath.toString()), bytes);
+  // the state folder has no docs/report.png
+  assert.equal(existsSync(join(state.toString(), "docs", "report.png")), false);
+});
+
 test("test_fillMacOnlyFiles_writes_nothing_for_a_call_without_a_fill", (t) => {
   // Scenario: only the one named call gets a stand-in file.
   // the state folder is empty and the source repo does not exist
@@ -131,10 +148,11 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
 
 test("test_MAC_ONLY_FILLS_names_the_report_png_call_and_its_commit", () => {
   // Scenario: the one skipped call that copied docs/report.png gets that file back from commit 9becb03.
-  // the fill list has one entry
-  assert.equal(MAC_ONLY_FILLS.length, 1);
+  // the fill list has one entry for that call
+  const fills = MAC_ONLY_FILLS.filter((candidate) => candidate.toolUseId.toString() === "toolu_01MCSxEwsbVK6FgSQZMCN8Jp");
+  assert.equal(fills.length, 1);
   // the entry names the call, the repo path and the commit
-  const fill = MAC_ONLY_FILLS[0]!;
+  const fill = fills[0]!;
   assert.equal(fill.toolUseId.toString(), "toolu_01MCSxEwsbVK6FgSQZMCN8Jp");
   assert.equal(fill.repoPath.toString(), "docs/report.png");
   assert.equal(fill.commit, "9becb03");
