@@ -145,7 +145,7 @@ test("test_applyOutsideGitRow_checkout_moves_HEAD_to_the_target_branch", (t) => 
 });
 
 test("test_applyOutsideGitRow_reset_moves_the_branch_and_untracks_files", (t) => {
-    // Scenario: state is at commit 2; the reset row moves main back to commit 1 and untracks b.txt (a mixed reset keeps the file on disk).
+    // Scenario: state is at commit 2; the reset row moves main back to commit 1 and removes b.txt from the index and the disk (a --keep reset updates files that differ).
     const source = makeSourceRepo(t);
     const stateFolder = makeStateAt(t, source, source.commit2);
     const rows = listRowsOf(source, new Map(), 55);
@@ -153,8 +153,23 @@ test("test_applyOutsideGitRow_reset_moves_the_branch_and_untracks_files", (t) =>
     applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
     // main is at commit 1 and b.txt is no longer tracked
     assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), source.commit1);
-    // assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+    assert.equal(existsSync(join(stateFolder, "b.txt")), false);
     assert.equal(runGitAt(stateFolder, 0, ["ls-files", "b.txt"]), "");
+});
+
+test("test_applyOutsideGitRow_reset_brings_in_files_the_target_adds", (t) => {
+    // Scenario: state HEAD lacks a.txt, which the reset target (commit 1) has; the reset row puts a.txt on disk.
+    const source = makeSourceRepo(t);
+    const stateFolder = makeStateAt(t, source, source.commit2);
+    runGitAt(stateFolder, 0, ["rm", "-q", "a.txt"]);
+    runGitAt(stateFolder, 0, ["commit", "-q", "-m", "remove a.txt"]);
+    assert.equal(existsSync(join(stateFolder, "a.txt")), false);
+    const rows = listRowsOf(source, new Map(), 55);
+    // apply the reset row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // HEAD is commit 1 and a.txt is on disk
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), source.commit1);
+    assert.equal(existsSync(join(stateFolder, "a.txt")), true);
 });
 
 test("test_applyOutsideGitRow_reset_keeps_an_uncommitted_change_in_the_work_tree", (t) => {
