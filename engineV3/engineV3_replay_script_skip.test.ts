@@ -53,6 +53,38 @@ test("test_isMacOnlyCommand_is_false_when_the_command_only_lists_the_chrome_fold
   assert.equal(isMacOnlyCommand(command), false);
 });
 
+test("test_isMacOnlyCommand_is_true_when_curl_asks_the_skipped_chrome_debugging_port", () => {
+  // Scenario: the skipped Mac Chrome listens on port 47312, so a curl to that port finds nothing in the container.
+  // a command that asks the debugging port for the Chrome version
+  const command = "curl -s http://127.0.0.1:47312/json/version";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_shot_ts_drives_the_skipped_chrome_debugging_port", () => {
+  // Scenario: shot.ts takes the Chrome debugging port as its second argument and saves the picture in the scratchpad.
+  // a command that runs shot.ts with server port 47311 and debugging port 47312
+  const command = "cd /private/tmp/scratchpad && bun shot.ts 47311 47312 report-new.png";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_false_when_the_command_only_checks_for_the_chrome_process", () => {
+  // Scenario: a command that removes a worktree and names the debugging port in a pgrep pattern must still run.
+  // a command with a pgrep pattern that names the port
+  const command = 'git worktree remove --force /tmp/wt; pgrep -fl "playground.ts --port 47311|remote-debugging-port=47312"';
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
+test("test_isMacOnlyCommand_is_false_when_shot_ts_gets_other_ports", () => {
+  // Scenario: only the run that names the skipped Chrome's port is skipped.
+  // a command that runs shot.ts with other ports
+  const command = "cd /tmp/scratchpad && bun shot.ts 47311 40000 report-new.png";
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
 function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
@@ -144,6 +176,42 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
   executeScriptInState(state, line, context);
   // ran.txt is not in the state folder
   assert.equal(existsSync(join(state.toString(), "ran.txt")), false);
+});
+
+test("test_executeScriptInState_skips_a_curl_to_the_skipped_chrome_debugging_port", (t) => {
+  // Scenario: no Chrome listens in the container, so the recorded curl (exit 7 when run) is not run.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call asks port 47312 for the Chrome version and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "curl -s http://127.0.0.1:47312/json/version", "{}", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_shot_ts_run_that_drives_the_skipped_chrome", (t) => {
+  // Scenario: shot.ts would drive the skipped Chrome; here the scratchpad has no shot.ts, so a run would fail.
+  // the state folder is the record's cwd and holds no shot.ts
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call runs shot.ts against port 47312 and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, `cd ${state.toString()} && bun shot.ts 47311 47312 report-new.png`, "[]", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_MAC_ONLY_FILLS_puts_the_a458d15_report_png_into_report_new_png_for_the_last_two_shot_ts_runs", () => {
+  // Scenario: the cp at line 263 and the cp at line 303 of agent-ac894917bac015fa9.jsonl copy report-new.png into docs/report.png; commit a458d15 holds the final picture.
+  const scratchpadPicture = "/private/tmp/claude-501/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/scratchpad/report-new.png";
+  // the last shot.ts run before line 263 (line 242) and the last before line 303 (line 292)
+  for (const toolUseId of ["toolu_01Q4iavqiTRdi2JyrbBbDqAK", "toolu_01RdrCxapAehwcJuUvnpQhct"]) {
+    // the call has one fill
+    const fills = MAC_ONLY_FILLS.filter((candidate) => candidate.toolUseId.toString() === toolUseId);
+    assert.equal(fills.length, 1);
+    // the fill writes docs/report.png from commit a458d15 to report-new.png in the scratchpad
+    const fill = fills[0]!;
+    assert.equal(fill.repoPath.toString(), "docs/report.png");
+    assert.equal(fill.commit, "a458d15");
+    assert.equal(fill.destinationPath?.toString(), scratchpadPicture);
+  }
 });
 
 test("test_MAC_ONLY_FILLS_names_the_report_png_call_and_its_commit", () => {

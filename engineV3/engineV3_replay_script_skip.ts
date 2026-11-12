@@ -14,6 +14,7 @@ const SIPS_WORD = /\bsips\b/;
 // The program path with its closing quote: a run or a C="..." variable holds it, a plain ls of the folder does not.
 const CHROME_PROGRAM_TEXT = 'MacOS/Google Chrome"';
 
+const SCRATCHPAD_24366073 = "/private/tmp/claude-501/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/scratchpad";
 const SCRATCHPAD_2D04358E = "/private/tmp/claude-501/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/scratchpad";
 
 // The skipped call copied a cropped picture into docs/report.png; commit 9becb03 has that picture.
@@ -28,10 +29,19 @@ export const MAC_ONLY_FILLS: MacOnlyFill[] = [
   { toolUseId: new Uuid("toolu_0189ZDHPTy3nsjtT3dyZCgz8"), repoPath: new Path("docs/report.png"), commit: "7e3103b", destinationPath: new Path(`${SCRATCHPAD_2D04358E}/out/report.png`) },
   // agent-aa04106c8774e7d6e.jsonl line 275 (report3.mjs 1400 1130) made report3.png; line 287 copied it to docs/report.png; commit 6b740d8.
   { toolUseId: new Uuid("toolu_01HygvHAbJuLiLcEeWb1fA9p"), repoPath: new Path("docs/report.png"), commit: "6b740d8", destinationPath: new Path(`${SCRATCHPAD_2D04358E}/report3.png`) },
+  // agent-ac894917bac015fa9.jsonl (session 24366073): shot.ts runs at lines 135-292 made report-new.png; the cp at line 263 and the cp at line 303 copied it into docs/report.png; commit a458d15 holds the final picture.
+  { toolUseId: new Uuid("toolu_01Q4iavqiTRdi2JyrbBbDqAK"), repoPath: new Path("docs/report.png"), commit: "a458d15", destinationPath: new Path(`${SCRATCHPAD_24366073}/report-new.png`) },
+  { toolUseId: new Uuid("toolu_01RdrCxapAehwcJuUvnpQhct"), repoPath: new Path("docs/report.png"), commit: "a458d15", destinationPath: new Path(`${SCRATCHPAD_24366073}/report-new.png`) },
 ];
+
+// The Mac Chrome of agent-ac894917bac015fa9.jsonl (lines 114, 280) listened on port 47312; lines 126 (curl) and 135-292 (bun shot.ts <server port> 47312 report-new.png) talk to it. The pgrep at line 315 also names the port but runs with git worktree remove, so it is not matched.
+const CHROME_DEBUG_PORT_CALL = /(?:127\.0\.0\.1|localhost):47312\b|\bshot\.ts\s+\d+\s+47312\b/;
 
 export function isMacOnlyCommand(command: string): boolean {
   if (SIPS_WORD.test(command)) {
+    return true;
+  }
+  if (CHROME_DEBUG_PORT_CALL.test(command)) {
     return true;
   }
   return command.includes(CHROME_PROGRAM_TEXT);

@@ -106,5 +106,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
     "lineNumber": 250,
     "standIn": "STAT_SCRIPT in engineV3/Dockerfile (/usr/local/bin/stat): turns stat -f FORMAT [-t TIMEFORMAT] files into %Sm (modified time) and %N (file name) lines and exits 1 when a file is missing; every other call runs /usr/bin/stat"
+  },
+  {
+    "realProgram": "Mac Chrome remote debugging port 47312 driven by curl and scratchpad shot.ts",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/subagents/agent-ac894917bac015fa9.jsonl",
+    "lineNumber": 126,
+    "standIn": "none: the curl to 127.0.0.1:47312 and the 7 bun shot.ts runs that name port 47312 are skipped like the Chrome launch; the scratchpad report-new.png is written from commit a458d15 (docs/report.png) at the last shot.ts run before each cp into docs/report.png; MAC_ONLY_FILLS in engineV3_replay_script_skip.ts"
   }
 ]
