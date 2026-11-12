@@ -22,12 +22,17 @@ function findLogPaths(text: string): string[] {
   }
   return logPaths;
 }
-function runHookAndFindLogPaths(run: ScriptRun, logFolder: string): string[] {
-  if (run.cwd === undefined) {
-    throw new Error(`runHookAndFindLogPaths: the Bash call has no cwd\ncommand: ${run.code}`);
+// The hook ran in the shell folder, which an earlier parallel `cd` may have moved after the call line was written; the result line records it.
+function runHookAndFindLogPaths(run: ScriptRun, result: BashCallResult, logFolder: string): string[] {
+  // if (run.cwd === undefined) {
+  //   throw new Error(`runHookAndFindLogPaths: the Bash call has no cwd\ncommand: ${run.code}`);
+  // }
+  if (result.resultCwd === undefined) {
+    throw new Error(`runHookAndFindLogPaths: the result line has no cwd\ncommand: ${run.code}`);
   }
   const settings = { ...HOOK_SETTINGS, CLAUDE_HOOKS_BLOCK_NPM_TEST_LOG_DIR: logFolder };
-  const hookInput = { cwd: run.cwd.toString(), tool_input: { command: run.code }, settings };
+  // const hookInput = { cwd: run.cwd.toString(), tool_input: { command: run.code }, settings };
+  const hookInput = { cwd: result.resultCwd.toString(), tool_input: { command: run.code }, settings };
   const hook = spawnSync("node", [join(HOOK_FOLDER, "block-npm-test.ts")], { input: JSON.stringify(hookInput), encoding: "utf8", env: { ...process.env, ...CLAUDE_CODE_ENV } });
   if (hook.status !== 0) {
     throw new Error(`runHookAndFindLogPaths: the hook failed with status ${hook.status}\nstderr: ${hook.stderr}\ncommand: ${run.code}`);
@@ -49,7 +54,7 @@ export function replayBlockedTestRun(run: ScriptRun, result: BashCallResult): vo
   if (recordedLogs.length === 0) {
     throw new Error(`replayBlockedTestRun: the blocked result names no log\nresult: ${result.resultText}`);
   }
-  const actualLogs = runHookAndFindLogPaths(run, dirname(recordedLogs[0] as string));
+  const actualLogs = runHookAndFindLogPaths(run, result, dirname(recordedLogs[0] as string));
   if (actualLogs.length !== recordedLogs.length) {
     throw new Error(`replayBlockedTestRun: the hook made ${actualLogs.length} logs but the record names ${recordedLogs.length}\ncommand: ${run.code}`);
   }

@@ -15,7 +15,7 @@ function makeTempFolder(t: TestContext, prefix: string): string {
 }
 function makeBlockedResult(project: string, recordedLog: string, testFile: string): BashCallResult {
   const resultText = `PreToolUse:Bash hook error: Test runners are blocked. bun test ${testFile} runs in the background in ${project}.\nRun this command with a Bash timeout of 300000 to be notified when the test run is finished:\nnode /x/monitor-test-run.ts ${recordedLog}\nThen read the log: ${recordedLog}`;
-  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText, command: "" };
+  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText, command: "", resultCwd: new Path(project) };
 }
 test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running_the_hook", (t) => {
   // Scenario: on the Mac the block-npm-test hook ran the tests in the background and wrote a log under the recorded name; a later command reads that log.
@@ -33,6 +33,25 @@ test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running
   replayBlockedTestRun(run, result);
   // the done file exists under the recorded name
   assert.equal(existsSync(`${recordedLog}.done`), true);
+  // the log under the recorded name holds the passing test summary
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
+});
+test("test_replayBlockedTestRun_runs_the_hook_in_the_shell_folder_the_result_line_records", (t) => {
+  // Scenario: an earlier parallel call ran `cd playground`, so the Mac hook ran in playground (which has package.json); the call line still says the root (no package.json).
+  // the root has no package.json; playground has one and a passing test file
+  const root = makeTempFolder(t, "engine-v3-blocked-root-");
+  const playground = join(root, "playground");
+  mkdirSync(playground);
+  writeFileSync(join(playground, "package.json"), "{}");
+  writeFileSync(join(playground, "sample.test.ts"), 'import { test } from "bun:test";\ntest("ok", () => {});\n');
+  // the recorded result names a log in a log folder and says the shell was in playground
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(playground, recordedLog, "sample.test.ts");
+  // the call line says the root
+  const run: ScriptRun = { code: `cd ${playground} && bun test sample.test.ts`, cwd: new Path(root), timestamp: new Date("2026-11-03T06:10:00.904Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
   // the log under the recorded name holds the passing test summary
   assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
 });

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { Path } from "../src/structures/domain.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { collectBashCallResults, isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 
@@ -33,6 +34,16 @@ test("test_collectBashCallResults_records_the_command_of_a_Bash_call", () => {
     ((callLine.message as { content: { input: object }[] }).content[0] as { input: object }).input = { command: "git status" };
     const result = collectBashCallResults([callLine, makeToolResultLine("t1", 12, "ok", false)]).get("t1") as BashCallResult;
     assert.equal(result.command, "git status");
+});
+
+test("test_collectBashCallResults_records_the_cwd_of_the_result_line", () => {
+    // Scenario: the call line says the cwd is the root, but the result line says the shell was in playground.
+    const callLine = makeToolUseLine("t1", "Bash", 10);
+    (callLine as unknown as { cwd: Path }).cwd = new Path("/proj");
+    const resultLine = makeToolResultLine("t1", 12, "ok", false);
+    (resultLine as unknown as { cwd: Path }).cwd = new Path("/proj/playground");
+    const result = collectBashCallResults([callLine, resultLine]).get("t1") as BashCallResult;
+    assert.equal(result.resultCwd?.toString(), "/proj/playground");
 });
 
 test("test_collectBashCallResults_reads_string_result_text", () => {
