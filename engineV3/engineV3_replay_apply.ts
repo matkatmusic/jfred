@@ -68,6 +68,10 @@ function applyUserEditToState(state: Path, line: JSONLLine): Path {
   const oldText = oldBytes.toString("utf8");
   const trailingNewline = oldText.endsWith("\n") ? "\n" : "";
   const snippet = getBeaconSnippet([line], event.changeId)!;
+  // An empty snippet shows no changed line (newer harness: "The changes are not shown here"), so no line changes.
+  if (snippet.lines.length === 0) {
+    return state;
+  }
   if (isBeaconElided(snippet)) {
     const newText = patchWindowIntoText(oldText, snippet) + trailingNewline;
     writeFileIntoState(root, relativePath, Buffer.from(newText, "utf8"));
