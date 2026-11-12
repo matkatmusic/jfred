@@ -42,10 +42,10 @@ export const buildRecordDot = (id: string) => `document.querySelector('i[data-re
 export const TRACK_FACTS = `(() => {
     const track = document.getElementById('sessionDotLinesComponent');
     const before = document.getElementById('fileBubbleContainer').previousElementSibling;
-    const isStripAfterTrack = before.id === 'jfredCommitsDrawerComponent' && before.previousElementSibling === track;
+    // const isStripAfterTrack = before.id === 'jfredCommitsDrawerComponent' && before.previousElementSibling === track;
     return { count: document.querySelectorAll('#sessionDotLinesComponent').length,
         isAfterRuler: document.getElementById('timelineRulerComponent').nextElementSibling === track,
-        isBeforeStage: before === track || isStripAfterTrack,
+        isBeforeStage: track.parentElement === document.getElementById('fileBubbleContainer').previousElementSibling,
         position: getComputedStyle(track).position };
 })()`;
 

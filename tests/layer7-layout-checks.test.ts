@@ -14,7 +14,7 @@ const SCROLL_RIGHT = buildScrollTo(0, 400);
 // beforeStageRight: right edge of the track, or of the jfred strip when it sits between.
 const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, beforeStageRight: 346, stageLeft: 360, bubbleLeft: 360, isTrackOnTop: true };
 const GOOD_LAYOUT_WITH_STRIP: LayoutFacts = { ...GOOD_LAYOUT, beforeStageRight: 466, stageLeft: 480, bubbleLeft: 480 };
-const GOOD_RULES: RuleFacts = { rulerRules: 1, trackRules: 1, marginWith: "0px", marginWithout: "0px" };
+const GOOD_RULES: RuleFacts = { marginWith: "0px", marginWithout: "0px" };
 // Scrolled 400px right: the pane starts at 232, the ruler and column stay pinned, the stage slid left.
 const SCROLLED_LAYOUT: LayoutFacts = { rulerRight: 384, trackLeft: 384, trackRight: 578, beforeStageRight: 578, stageLeft: 192, bubbleLeft: 192, isTrackOnTop: true };
 
@@ -60,7 +60,7 @@ const runChecks = async (setup: Setup) => {
 
 const BETWEEN_TITLE = "L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it";
 const BESIDE_TITLE = "L7 scrolled right, the column still touches the ruler and covers the bubbles";
-const RULE_TITLE = "L7 one rule for .timelineRulerComponent + .fileBubbleContainer and one for .sessionDotLinesComponent + .fileBubbleContainer, and the stage margin is the same without the column";
+const RULE_TITLE = "L7 the stage margin is the same with and without the session column";
 
 test("the layout checks pass the good page: 3 checks", async () => {
     const { lines, newFailures } = await runChecks(makeSetup());
@@ -95,9 +95,7 @@ test("a pane that did not scroll, a moved column or a covered column fails only 
     assert.deepEqual((await runChecks(makeSetup({ scrolled: { ...SCROLLED_LAYOUT, stageLeft: 600 } }))).newFailures, [BESIDE_TITLE]);
 });
 
-test("a missing rule or a margin that moves with the column fails only the rule check", async () => {
-    assert.deepEqual((await runChecks(makeSetup({ rules: { ...GOOD_RULES, trackRules: 0 } }))).newFailures, [RULE_TITLE]);
-    assert.deepEqual((await runChecks(makeSetup({ rules: { ...GOOD_RULES, rulerRules: 2 } }))).newFailures, [RULE_TITLE]);
+test("a margin that moves with the column fails only the rule check", async () => {
     assert.deepEqual((await runChecks(makeSetup({ rules: { ...GOOD_RULES, marginWithout: "194px" } }))).newFailures, [RULE_TITLE]);
 });
 

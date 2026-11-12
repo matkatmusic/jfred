@@ -8,7 +8,7 @@
     Task 288: mid-drag the nav follows the pointer; the timeline keeps its width.
   */
   .sessionDataContainer.resizing .sourcesContainer { width: var(--filenav-drag-w); }
-  .sessionDataContainer.resizing .timelineContainer { flex: none; width: var(--timeline-w); }
+  .sessionDataContainer.resizing .timelineComponentsContainer { flex: none; width: var(--timeline-w); }
 
   /*
     Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
@@ -17,8 +17,8 @@
     overflow: hidden; min-height: 0; --files-share: 50;
     border-right: 1px solid var(--border); background: var(--surface); }
   .navpane { overflow: auto; min-height: 0; }
-  #fileNavComponent { flex: var(--files-share) 1 0; }
-  #jsonlsComponent { flex: calc(100 - var(--files-share)) 1 0; }
+  /* #fileNavComponent { flex: var(--files-share) 1 0; } retired: step 21 replaces it. */
+  /* #jsonlsComponent { flex: calc(100 - var(--files-share)) 1 0; } retired: step 21 replaces it. */
   /*
     Negative margins so the 7 px target straddles the boundary rather than pushing the panes apart.
   */

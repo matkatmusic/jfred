@@ -62,6 +62,26 @@ test("test_real_webapp_finds_timelineViewControls_in_show_row_html", () => {
     assert.equal(source.line, 1);
 });
 
+test("test_each_built_in_code_name_is_found_exactly_once_in_webapp", () => {
+    // Step: point the lookup at the real webapp folder.
+    const realWebappDir = new Path(join(import.meta.dirname, "..", "webapp"));
+    // Step: list the names that layer1-layout.ts builds in code.
+    const builtInCodeNames = [
+        "headerContainer",
+        "headerRowComponent",
+        "sessionDataContainer",
+        "sourcesContainer",
+        "timelineComponentsContainer",
+        "timelineContainer",
+        "timelineRulerContainer",
+        "fileBubbleContainer",
+    ];
+    // Step: look up each name. The lookup throws when a name is missing or appears twice.
+    for (const builtInCodeName of builtInCodeNames) {
+        assert.doesNotThrow(() => findComponentSource(realWebappDir, builtInCodeName));
+    }
+});
+
 test("test_throws_when_the_name_appears_twice_and_lists_both_locations", () => {
     const webappDir = makeWebappDir({
         "a.html": "<div data-component=\"FileNav\"></div>\n",

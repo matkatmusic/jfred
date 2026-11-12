@@ -3,7 +3,8 @@
   /*
     Flex row with native `zoom`; `isolation` keeps the leader line behind bubbles. `--lane-y` and `--rail-x` are shared here.
   */
-  .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
+  /* .canvas { position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1); */
+  .canvas { flex: none; position: relative; min-width: max-content; display: flex; zoom: var(--zoom, 1);
     isolation: isolate; gap: 14px; --lane-y: 52px; --rail-x: 150px; --head-h: 44px; }
   /* .canvas { ... --track-w: 0px; --jfred-w: 104px; } */
 

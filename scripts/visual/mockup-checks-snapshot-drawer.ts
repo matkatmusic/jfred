@@ -7,7 +7,7 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
   const open = async (sessionStem: string) => {
     const node = `${buildBubbleSelector("src/util.ts")} i.n-snap[data-session-file$="${sessionStem}.jsonl"][data-version="2"]`;
     await page.evaluate(`document.querySelector('${node}').click()`);
-    await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, 5_000);
+    await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open')`, 5_000);
     // The title, body and session flash all land after an async fetch.
     await page.waitFor(`document.getElementById('dpath').textContent.includes(' - ')
         && !document.getElementById('dbody').textContent.includes('loading…')`, 5_000);

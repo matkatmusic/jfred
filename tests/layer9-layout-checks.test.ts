@@ -170,12 +170,12 @@ test("test_dashed_line_starts_at_the_ruler_right_edge_and_ends_at_its_node_centr
     assert.deepEqual(await runOverlaps({ ...GOOD_OVERLAP, lines: [] }), [lineTitle("session off")]);
 });
 
-test("validateSlack needs one strip rule and an unchanged stage margin", async () => {
+test("validateSlack needs an unchanged stage margin", async () => {
     const run = (facts: SlackFacts) => runCheck(() => validateSlack(makeScriptedPage(new Map([[SLACK_FACTS, [facts]]])))).then((result) => result.newFailures);
-    const good = { stripRules: 1, marginWith: "0px", marginWithout: "0px" };
+    const good = { marginWith: "0px", marginWithout: "0px" };
     assert.deepEqual(await run(good), []);
-    assert.equal((await run({ ...good, stripRules: 0 })).length, 1);
-    assert.equal((await run({ ...good, marginWithout: "120px" })).length, 1);
+    // assert.equal((await run({ ...good, stripRules: 0 })).length, 1);
+    assert.deepEqual(await run({ ...good, marginWithout: "120px" }), ["L9 the stage margin is the same with and without the strip"]);
 });
 
 test("validateTokens fails on a colour literal or on no rules at all", async () => {

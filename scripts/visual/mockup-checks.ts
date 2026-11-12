@@ -103,7 +103,7 @@ export async function validateScale(page: HeadlessPage): Promise<void> {
   reportCheck("#300 the fixture is big enough to be worth scrolling", size.snaps >= 60 && size.files >= 80, size);
   const extent = await page.evaluate<{ w: number; h: number; vw: number; vh: number }>(
     `(p => ({ w: p.scrollWidth, h: p.scrollHeight, vw: p.clientWidth, vh: p.clientHeight }))
-         (document.getElementById('timelines'))`);
+         (document.getElementById('timelineContainer'))`);
   reportCheck("#300 the stage scrolls HORIZONTALLY (>3 viewports)", extent.w > extent.vw * 3, extent);
   reportCheck("#300 the stage scrolls VERTICALLY (>3 viewports)", extent.h > extent.vh * 3, extent);
 }
@@ -127,5 +127,5 @@ export async function validateOrdering(page: HeadlessPage): Promise<void> {
   reportCheck("#300 no snapshot post-dates its file's on-disk mtime", broken.mtime.length === 0, broken.mtime);
   reportCheck("#302 many snapshots share an instant with a commit or an mtime", broken.coTimed >= 20, broken.coTimed);
   reportCheck("#302 the ruler has many expandable multi-event rows",
-    await page.evaluate<number>(`document.querySelectorAll('.ruler .tick.multi').length`) >= 20);
+    await page.evaluate<number>(`document.querySelectorAll('.timelineRulerComponent .tick.multi').length`) >= 20);
 }

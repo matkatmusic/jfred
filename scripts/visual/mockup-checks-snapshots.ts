@@ -93,20 +93,20 @@ export async function validateSnapshotToggle(page: HeadlessPage): Promise<void> 
 
 export async function validateRulerRow(page: HeadlessPage): Promise<void> {
   const tickIndex = await page.evaluate<number>(`(() => {
-        const ticks = [...document.querySelectorAll('.ruler .tick.multi')];
+        const ticks = [...document.querySelectorAll('.timelineRulerComponent .tick.multi')];
         return ticks.findIndex(t => t.dataset.fullTime.startsWith('07-24 08:15:00'));
     })()`);
   reportCheck("#302 the snapshot's instant has its own expandable tick", tickIndex >= 0, tickIndex);
   if (tickIndex < 0) {
     return;
   }
-  await page.evaluate(`document.querySelectorAll('.ruler .tick.multi')[${tickIndex}].click()`);
+  await page.evaluate(`document.querySelectorAll('.timelineRulerComponent .tick.multi')[${tickIndex}].click()`);
   await page.waitFor(`document.querySelectorAll('.tickfiles button').length > 0`, 5_000);
   const rows = await page.evaluate<string[]>(
     `[...document.querySelectorAll('.tickfiles button')].map(b => b.textContent)`);
   reportCheck("#302 a snapshot row reads '<file> @vN 📸'", rows.includes("index.ts  @v3 📸"), rows);
   const count = await page.evaluate<string>(
-    `document.querySelector('.ruler .tick.expanded').textContent.match(/\\((\\d+)\\)/)[1]`);
+    `document.querySelector('.timelineRulerComponent .tick.expanded').textContent.match(/\\((\\d+)\\)/)[1]`);
   reportCheck("#302 the tick's (N) counts the snapshot too", Number(count) === rows.length, { count, rows });
 
   await page.evaluate(
@@ -141,6 +141,6 @@ export async function validateRulerRow(page: HeadlessPage): Promise<void> {
   await waitMilliseconds(FADE_WAIT_MS);
   reportCheck("#303 the highlight fades out on its own",
     await page.evaluate<number>(`document.querySelectorAll('.session-item.flash').length`) === 0);
-  await page.evaluate(`document.querySelector('.ruler .tick.expanded').click()`);
+  await page.evaluate(`document.querySelector('.timelineRulerComponent .tick.expanded').click()`);
   await waitMilliseconds(300);
 }

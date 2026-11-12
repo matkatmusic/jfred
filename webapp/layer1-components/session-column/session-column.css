@@ -12,7 +12,9 @@
     background: var(--page); } */
   .sessionDotLinesComponent { position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: var(--track-w); margin-left: -14px;
     background: var(--surface); border-right: 1px solid var(--muted); box-sizing: border-box; }
-  .canvas:has(> .sessionDotLinesComponent) .ranges { z-index: 8; }
+  /* .canvas:has(> .sessionDotLinesComponent) .ranges { z-index: 8; } */
+  /* .canvas:has(.sessionDotLinesComponent) .ranges { z-index: 8; } */
+  .canvas:has(.sessionDotLinesComponent) .ranges { z-index: 9; }
   /* .anode, .alabel { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); } */
   .anode { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }
   /* .anode { left: calc(22px + var(--stack, 0) * 16px); width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%;

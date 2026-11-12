@@ -28,6 +28,7 @@ import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 import { attachZoomControls } from "./layer1-components/top-bars/layer1-zoom.ts";
+import { buildLayer1Layout } from "./layer1-layout.ts";
 
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
@@ -168,6 +169,7 @@ async function openLinkedNodeIfPresent(linkedNode: ReturnType<typeof readNodeLin
 }
 
 export async function initLayer1Page(): Promise<void> {
+  buildLayer1Layout();
   // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
   const linkedNode = readNodeLinkIdentity(location.search);
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.

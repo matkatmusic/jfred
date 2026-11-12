@@ -7,29 +7,29 @@ import * as probes from "../scripts/visual/layer7-probes.ts";
 
 const parseExpression = (expression: string) => new Function(`return (${expression});`);
 
-interface FakeNode { id: string; previousElementSibling: FakeNode | null; nextElementSibling: FakeNode | null }
-const makeNode = (id: string): FakeNode => ({ id, previousElementSibling: null, nextElementSibling: null });
+interface FakeNode { id: string; previousElementSibling: FakeNode | null; nextElementSibling: FakeNode | null; parentElement: FakeNode | null }
+const makeNode = (id: string): FakeNode => ({ id, previousElementSibling: null, nextElementSibling: null, parentElement: null });
 
-// Builds the element order before #fileBubbleContainer for each layout the probe must judge.
+// Builds the nesting for each layout the probe must judge: ruler, track and strip live inside #timelineRulerContainer, which sits before #fileBubbleContainer.
 function fakeNodes(kind: string): Record<string, FakeNode> {
     const ruler = makeNode("timelineRulerComponent");
     const track = makeNode("sessionDotLinesComponent");
     const strip = makeNode("jfredCommitsDrawerComponent");
     const stage = makeNode("fileBubbleContainer");
+    const container = makeNode("timelineRulerContainer");
     const stranger = makeNode("stranger");
     ruler.nextElementSibling = track;
+    ruler.parentElement = container;
+    track.parentElement = container;
     if (kind === "track")
-        stage.previousElementSibling = track;
-    if (kind === "strip") {
-        strip.previousElementSibling = track;
-        stage.previousElementSibling = strip;
+        stage.previousElementSibling = container;
+    if (kind === "trackThenStrip") {
+        track.nextElementSibling = strip;
+        strip.parentElement = container;
+        stage.previousElementSibling = container;
     }
-    if (kind === "other")
+    if (kind === "trackOutsideContainerBeforeStage")
         stage.previousElementSibling = stranger;
-    if (kind === "stripWrongSide") {
-        strip.previousElementSibling = stranger;
-        stage.previousElementSibling = strip;
-    }
     return { timelineRulerComponent: ruler, sessionDotLinesComponent: track, fileBubbleContainer: stage };
 }
 
@@ -94,17 +94,15 @@ test("a broken expression is caught by the parse check", () => {
     assert.throws(() => parseExpression("document.querySelector("));
 });
 
-test("TRACK_FACTS accepts the jfred strip between the column and the stage, and nothing else", () => {
-    assert.ok(probes.TRACK_FACTS.includes("jfredCommitsDrawerComponent"));
+test("TRACK_FACTS accepts the track inside the container right before the stage, with or without the strip, and nothing else", () => {
     const run = (layout: string) => {
         const nodes = fakeNodes(layout);
         return new Function("document", "getComputedStyle", `return (${probes.TRACK_FACTS});`)(
             { getElementById: (id: string) => nodes[id], querySelectorAll: () => [1] }, () => ({ position: "sticky" })) as { isBeforeStage: boolean };
     };
     assert.equal(run("track").isBeforeStage, true);
-    assert.equal(run("strip").isBeforeStage, true);
-    assert.equal(run("other").isBeforeStage, false);
-    assert.equal(run("stripWrongSide").isBeforeStage, false);
+    assert.equal(run("trackThenStrip").isBeforeStage, true);
+    assert.equal(run("trackOutsideContainerBeforeStage").isBeforeStage, false);
 });
 
 // not behavior: it only checks the values of two constants.

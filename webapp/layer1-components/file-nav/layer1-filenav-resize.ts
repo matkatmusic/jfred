@@ -24,7 +24,7 @@ function setFileNavWidthPreview(stagewrap: HTMLElement, clientX: number): void {
 
 // Must be measured before the first preview, or the timeline's box is already the thing changing.
 function storeTimelineWidth(stagewrap: HTMLElement): void {
-  const timelineWidthPx = getRequiredElementById("timelineContainer").getBoundingClientRect().width;
+  const timelineWidthPx = getRequiredElementById("timelineComponentsContainer").getBoundingClientRect().width;
   stagewrap.style.setProperty("--timeline-w", `${timelineWidthPx}px`);
   stagewrap.classList.add("resizing");
 }

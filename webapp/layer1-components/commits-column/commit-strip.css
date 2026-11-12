@@ -35,8 +35,8 @@
   /*
     Task 558: the column paints above the strip, so the dashed line runs behind session text.
   */
-  .canvas:has(> .jfredCommitsDrawerComponent) .sessionDotLinesComponent { z-index: 8; background: transparent; }
+  .canvas:has(.jfredCommitsDrawerComponent) .sessionDotLinesComponent { z-index: 8; background: transparent; }
   .jfredCommitsDrawerComponent::before { content: ""; position: absolute; left: calc(var(--track-w) * -1); width: var(--track-w); top: 0; bottom: 0;
     background: var(--surface); pointer-events: none; }
   /* .canvas:has(> .jfred-strip) .alabel { background: var(--page); } */
-  .canvas:has(> .jfredCommitsDrawerComponent) .ranges { z-index: 9; }
+  .canvas:has(.jfredCommitsDrawerComponent) .ranges { z-index: 9; }

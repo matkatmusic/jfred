@@ -43,34 +43,35 @@
   -->
 
   <!--
-    Task 246: .sessionDataContainer doesn't scroll, so the minimap stays pinned; inside main.timelines it would scroll away.
+    Retired wrapper: buildLayer1Layout now creates sessionDataContainer.
   -->
-  <div class="sessionDataContainer" id="sessionDataContainer" data-component="sessionDataContainer">
-    <!--
-      Task 252: the File Nav lists every identified file, left of the ruler gutter; layer1-filenav.ts rebuilds it per load.
-    -->
-    <!--
-      include layer1-components/file-nav/file-nav.html
-    -->
-    <!--
-      Task 279: drag handle is a sibling, not a child, so .sourcesContainer's overflow:auto can't scroll it away.
-    -->
-    <!--
-      include layer1-components/file-nav/filenav-grip.html
-    -->
-    <!--
-      include layer1-components/bubbles/bubbles.html
-    -->
-    <!--
-      include layer1-components/minimap/minimap.html
-    -->
-    <!--
-      Task 257: drawer shows the clicked node's file bytes and shrinks the timeline; no width transition.
-    -->
-    <!--
-      include layer1-components/details-drawer/details-drawer.html
-    -->
-  </div>
+  <!--
+    Task 252: the File Nav lists every identified file, left of the ruler gutter; layer1-filenav.ts rebuilds it per load.
+  -->
+  <!--
+    include layer1-components/file-nav/file-nav.html
+  -->
+  <!--
+    Task 279: drag handle is a sibling, not a child, so .sourcesContainer's overflow:auto can't scroll it away.
+  -->
+  <!--
+    include layer1-components/file-nav/filenav-grip.html
+  -->
+  <!--
+    include layer1-components/bubbles/bubbles.html
+  -->
+  <!--
+    include layer1-components/ruler/ruler.html
+  -->
+  <!--
+    include layer1-components/minimap/minimap.html
+  -->
+  <!--
+    Task 257: drawer shows the clicked node's file bytes and shrinks the timeline; no width transition.
+  -->
+  <!--
+    include layer1-components/details-drawer/details-drawer.html
+  -->
 
   <!--
     task 305: the cross-bubble refusal toast

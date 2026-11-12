@@ -201,7 +201,8 @@ function buildStripOnce(): HTMLElement {
   if (existing !== null)
     return existing;
   const strip = createElement("div", { id: STRIP_ID, class: "jfredCommitsDrawerComponent", "data-component": "jfredCommitsDrawerComponent" });
-  (document.getElementById("sessionDotLinesComponent") ?? getRequiredElementById("timelineRulerComponent")).after(strip);
+  // (document.getElementById("sessionDotLinesComponent") ?? getRequiredElementById("timelineRulerComponent")).after(strip);
+  getRequiredElementById("timelineRulerContainer").append(strip);
   strip.addEventListener("click", dispatchStripClick);
   attachHoverPopup(strip, readEntryPopup);
   return strip;

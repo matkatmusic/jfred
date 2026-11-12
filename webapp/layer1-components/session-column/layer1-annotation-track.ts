@@ -125,7 +125,13 @@ function buildTrackOnce(): void {
     return;
   }
   const track = createElement("div", { id: TRACK_ID, class: "sessionDotLinesComponent", "data-component": "sessionDotLinesComponent" });
-  getRequiredElementById("timelineRulerComponent").after(track);
+  // getRequiredElementById("timelineRulerComponent").after(track);
+  const strip = document.getElementById("jfredCommitsDrawerComponent");
+  if (strip !== null) {
+    strip.before(track);
+  } else {
+    getRequiredElementById("timelineRulerContainer").append(track);
+  }
   attachHoverPopup(track, readDotPopup);
   getRequiredElementById("timelineContainer").addEventListener("scroll", renderAnnotationWindow);
 }

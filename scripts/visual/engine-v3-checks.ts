@@ -34,7 +34,7 @@ export const READ_LINE_FACTS = `(() => {
 })()`;
 export const READ_LINE_IN_VIEW = `(() => {
   const line = document.getElementById('engine-v3-line');
-  const pane = document.getElementById('timelines').getBoundingClientRect();
+  const pane = document.getElementById('timelineContainer').getBoundingClientRect();
   const box = line.getBoundingClientRect();
   return !line.hidden && box.top >= pane.top && box.bottom <= pane.bottom;
 })()`;

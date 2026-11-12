@@ -8,7 +8,7 @@ import { SCROLL_HOME, buildScrollTo } from "./layer7-probes.ts";
 export interface LayoutFacts {
   rulerRight: number; trackLeft: number; trackRight: number; beforeStageRight: number; stageLeft: number; bubbleLeft: number; isTrackOnTop: boolean;
 }
-export interface RuleFacts { rulerRules: number; trackRules: number; marginWith: string; marginWithout: string }
+export interface RuleFacts { /* rulerRules: number; trackRules: number; */ marginWith: string; marginWithout: string }
 
 // The column touches the ruler: no gap where a file box could show.
 const RULER_TO_TRACK_PX = 0;
@@ -63,8 +63,8 @@ export function isBubbleBesideColumn(facts: LayoutFacts): boolean {
 }
 
 export function isSlackRuleKept(facts: RuleFacts): boolean {
-  const isOneEach = facts.rulerRules === 1 && facts.trackRules === 1;
-  return isOneEach && facts.marginWith === facts.marginWithout;
+  // const isOneEach = facts.rulerRules === 1 && facts.trackRules === 1;
+  return facts.marginWith === facts.marginWithout;
 }
 
 async function validateBetween(page: HeadlessPage): Promise<void> {
@@ -84,7 +84,7 @@ async function validateBesideRuler(page: HeadlessPage): Promise<void> {
 
 async function validateSlackRule(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<RuleFacts>(RULE_FACTS);
-  reportCheck("L7 one rule for .timelineRulerComponent + .fileBubbleContainer and one for .sessionDotLinesComponent + .fileBubbleContainer, and the stage margin is the same without the column", isSlackRuleKept(facts), facts);
+  reportCheck("L7 the stage margin is the same with and without the session column", isSlackRuleKept(facts), facts);
 }
 
 export async function validateLayout(page: HeadlessPage): Promise<void> {

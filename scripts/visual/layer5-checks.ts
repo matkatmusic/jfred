@@ -46,13 +46,13 @@ export async function validateLayer5(page: HeadlessPage, pageUrl: string): Promi
 
   const ticks = await page.evaluate<{ text: string; cy: number }[]>(TICK_ROWS);
   validateDotRows([...util.lanes, ...index.lanes], ticks);
-  reportCheck("L5 exactly one ruler", await page.evaluate<number>(`document.querySelectorAll('.ruler').length`) === 1);
+  reportCheck("L5 exactly one ruler", await page.evaluate<number>(`document.querySelectorAll('.timelineRulerComponent').length`) === 1);
 
   // Bubbles are 10000px tall: pan to index.ts, then down to its first fork, clear of the ruler.
   const indexBubble = `document.querySelector(${JSON.stringify(buildBubbleSelector(INDEX_PATH))})`;
   await page.evaluate(`${indexBubble}.scrollIntoView({ block: 'nearest', inline: 'start' });
         ${indexBubble}.querySelector('.split-elbow').scrollIntoView({ block: 'start', inline: 'nearest' });
-        document.querySelector('.timelines').scrollBy(-190, -120)`);
+        document.querySelector('.timelineContainer').scrollBy(-190, -120)`);
   await saveScreenshot(page, "10-layer5-branches");
   console.log("L5 screenshot: scripts/visual/out/mockup-10-layer5-branches.png");
 

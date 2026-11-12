@@ -14,6 +14,9 @@ const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionColumn } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
+const { renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
+const { setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+
 const RECORD_COUNT = 70;
 const TICK_SPACING_PX = 50;
 
@@ -82,7 +85,8 @@ test("test_the_track_is_the_sibling_right_after_the_ruler", () => {
     renderRecords(buildRecords(ticks), ticks);
     const track = document.getElementById("sessionDotLinesComponent")!;
     assert.equal(document.getElementById("timelineRulerComponent")!.nextElementSibling, track);
-    assert.equal(track.nextElementSibling, document.getElementById("fileBubbleContainer"));
+    // assert.equal(track.nextElementSibling, document.getElementById("fileBubbleContainer"));
+    assert.equal(track.parentElement, document.getElementById("timelineRulerContainer"));
     assert.ok(track.classList.contains("sessionDotLinesComponent"));
 });
 
@@ -226,4 +230,22 @@ test("test_a_dot_popup_shows_the_session_title_then_the_log_line_in_the_session_
     const popup = document.getElementById("hover-popup")!;
     assert.deepEqual([...popup.querySelectorAll(".hp-line")].map((line) => line.textContent), ["title s1", "Bash: npm test"]);
     assert.equal(popup.style.backgroundColor, dot.style.getPropertyValue("--session-color"));
+});
+
+test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", () => {
+    // Scenario: the commits strip exists first, then the session button builds the track.
+    // Build the page with annotations but leave the session lines off, so no track exists yet.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    // Turn on Commit mode and draw the strip, so the strip exists before the track.
+    setArmed(true);
+    renderJfredStrip(ticks);
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
+    // Build the track by showing the session lines.
+    toggleSessionColumn();
+    // The ruler container holds exactly: ruler, track, strip, in that order.
+    const rulerContainer = document.getElementById("timelineRulerContainer")!;
+    assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
+    // Leave Commit mode off for the other tests in this file.
+    setArmed(false);
 });

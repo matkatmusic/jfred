@@ -13,7 +13,8 @@ import {
 export interface StripLayoutFacts {
   stripLeft: number; stripRight: number; trackLeft: number | null; trackRight: number | null; rulerRight: number; paneLeft: number; position: string; firstBoxLeft: number;
 }
-export interface SlackFacts { stripRules: number; marginWith: string; marginWithout: string }
+// export interface SlackFacts { stripRules: number; marginWith: string; marginWithout: string }
+export interface SlackFacts { marginWith: string; marginWithout: string }
 // export interface OverlapFacts {
 //   strip: PageBox; track: PageBox; labels: PageBox[]; button: PageBox & { isClipped: boolean }; lines: (PageBox & { nodeCx: number })[];
 // }
@@ -164,7 +165,7 @@ export async function validateTokens(page: HeadlessPage): Promise<void> {
 
 export async function validateSlack(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<SlackFacts>(SLACK_FACTS);
-  reportCheck("L9 one rule for .jfredCommitsDrawerComponent + .fileBubbleContainer, and the stage margin is the same without the strip", facts.stripRules === 1 && facts.marginWith === facts.marginWithout, facts);
+  reportCheck("L9 the stage margin is the same with and without the strip", facts.marginWith === facts.marginWithout, facts);
 }
 
 // export async function validateStripOverlaps(page: HeadlessPage): Promise<void> {

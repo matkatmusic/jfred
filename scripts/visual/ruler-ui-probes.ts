@@ -41,7 +41,7 @@ export const TICK_TEXT_FACTS = `({ leaders: document.querySelectorAll('#leaders 
 // The axis line of a tick is the 1px top border of the leader with the same index.
 export const DASH_FACTS = `(leaders => ${TICKS}.map((t, i) => [t, leaders[i].getBoundingClientRect()]).filter(([t]) => t.querySelectorAll('.kdash').length > 0)
     .map(([t, leader]) => ({ time: ${BOX}(t.querySelector('.ttime')), dashes: ${BOX}(t.querySelector('.kind-dashes')), axisY: leader.top + 0.5 })))([...document.querySelectorAll('#leaders .leader')])`;
-export const LAYOUT_FACTS = `((ruler, stage) => ({ rulerWidth: ruler.getBoundingClientRect().width, isBeforeStage: stage.previousElementSibling === ruler,
+export const LAYOUT_FACTS = `((ruler, stage) => ({ rulerWidth: ruler.getBoundingClientRect().width, isBeforeStage: stage.previousElementSibling === ruler.parentElement,
     gap: stage.getBoundingClientRect().left - ruler.getBoundingClientRect().right,
     expectedGap: parseFloat(getComputedStyle(document.querySelector('.canvas')).columnGap) + parseFloat(getComputedStyle(stage).marginLeft) }))(document.getElementById('timelineRulerComponent'), document.getElementById('fileBubbleContainer'))`;
 

@@ -57,7 +57,7 @@ function appendWash(rect: StubbedRect, color: string): void {
 // The pane's rect sits at the viewport origin, so a widget's client-space left/top IS its content-space left/top unscrolled.
 function openMappedPage(): HTMLElement {
     initLayer1Dom();
-    const pane = findRequiredElement("main.timelineContainer");
+    const pane = findRequiredElement("#timelineContainer");
     stubMeasurements(pane, {
         scrollWidth: CONTENT_WIDTH_PX, scrollHeight: CONTENT_HEIGHT_PX,
         clientWidth: PANE_WIDTH_PX, clientHeight: PANE_HEIGHT_PX,
