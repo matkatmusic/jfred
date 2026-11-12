@@ -52,6 +52,84 @@ function writeMacIdleFile(folders: Folders, name: string, content: string, secon
   utimesSync(file, time, time);
 }
 
+function makeBashCallRow(callId: string, command: string, second: number): object {
+  const block = { type: "tool_use", id: callId, name: "Bash", input: { command } };
+  return { type: "assistant", uuid: `call-${callId}`, timestamp: makeTimestamp(second), message: { role: "assistant", content: [block] } };
+}
+
+// The Mac results folder sits under the plate folder at <state>/playground/results, like the docker mount.
+function writeMacResultsFile(folders: Folders, name: string, second: number): void {
+  const resultsFolder = join(folders.macPlate, folders.state, "playground", "results");
+  mkdirSync(resultsFolder, { recursive: true });
+  const file = join(resultsFolder, name);
+  writeFileSync(file, "[]");
+  const time = new Date(Date.UTC(2026, 9, 27, 0, 0, second));
+  utimesSync(file, time, time);
+}
+
+function listResultsFileNames(folders: Folders, lines: JSONLLine[], printedLines: string[]): string[] {
+  const copies = listIdleStateCopies(new Path(folders.macPlate), lines, (line) => printedLines.push(line));
+  return copies.map((copy) => copy.targetPath.toString().replace(join(folders.state, "playground", "results") + "/", ""));
+}
+
+test("test_listIdleStateCopies_lists_a_results_file_that_no_recorded_call_names_at_its_mtime", (t) => {
+  // Scenario: results/a.json has no recorded maker and no recorded use: one copy at its mtime, logged as a results file.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "a.json", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeWriteCallRow("c1", join(folders.state, "other.txt"), 5)]);
+  const copies = listIdleStateCopies(new Path(folders.macPlate), lines, () => {});
+  assert.equal(copies.length, 1);
+  assert.equal(copies[0]!.timeMs, Date.UTC(2026, 9, 27, 0, 0, IDLE_FILE_SECONDS));
+  const text = formatEventText({ type: TimelineEventKind.IdleStateCopy, copy: copies[0]!, timestamp: copies[0]!.timeMs }, undefined);
+  assert.ok(text.endsWith(`results file ${join(folders.state, "playground", "results", "a.json")} copied from the Mac at 2026-10-27T00:00:10.000Z`));
+});
+
+test("test_listIdleStateCopies_skips_a_results_file_that_a_recorded_bash_writes", (t) => {
+  // Scenario: a recorded Bash redirects into a.json; b.json has no recorded call: only b.json is copied.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "a.json", IDLE_FILE_SECONDS);
+  writeMacResultsFile(folders, "b.json", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeBashCallRow("c1", "echo '[]' > results/a.json", 5)]);
+  assert.deepEqual(listResultsFileNames(folders, lines, []), ["b.json"]);
+});
+
+test("test_listIdleStateCopies_skips_a_results_file_that_a_recorded_write_creates", (t) => {
+  // Scenario: a recorded Write creates a.json; b.json has none: only b.json is copied.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "a.json", IDLE_FILE_SECONDS);
+  writeMacResultsFile(folders, "b.json", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeWriteCallRow("c1", join(folders.state, "playground", "results", "a.json"), 5)]);
+  assert.deepEqual(listResultsFileNames(folders, lines, []), ["b.json"]);
+});
+
+test("test_listIdleStateCopies_copies_a_results_file_that_a_recorded_bash_only_reads_after_its_mtime", (t) => {
+  // Scenario: a.json has mtime 10s; a recorded Bash only reads it at 15s: still copied.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "a.json", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeBashCallRow("c1", "jq length results/a.json", 15)]);
+  const printedLines: string[] = [];
+  assert.deepEqual(listResultsFileNames(folders, lines, printedLines), ["a.json"]);
+  assert.deepEqual(printedLines, []);
+});
+
+test("test_listIdleStateCopies_skips_and_prints_a_results_file_changed_after_its_first_recorded_use", (t) => {
+  // Scenario: a recorded Bash reads a.json at 15s but its Mac mtime is 20s: not copied, one line printed.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "a.json", 20);
+  const lines = loadRows(folders, [makeBashCallRow("c1", "jq length results/a.json", 15)]);
+  const printedLines: string[] = [];
+  assert.deepEqual(listResultsFileNames(folders, lines, printedLines), []);
+  assert.deepEqual(printedLines, [`results file ${join(folders.state, "playground", "results", "a.json")} changed after its first recorded use at 2026-10-27T00:00:15.000Z: not copied`]);
+});
+
+test("test_listIdleStateCopies_skips_playground_history_because_the_start_state_writes_it", (t) => {
+  // Scenario: playground-history.json is a start file: not copied.
+  const folders = makeFolders(t);
+  writeMacResultsFile(folders, "playground-history.json", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeWriteCallRow("c1", join(folders.state, "other.txt"), 5)]);
+  assert.deepEqual(listResultsFileNames(folders, lines, []), []);
+});
+
 test("test_listIdleStateCopies_lists_a_mac_file_with_its_mtime_and_state_path", (t) => {
   // Scenario: one idle-state file on the Mac, no recorded Write: one copy at the file's mtime.
   const folders = makeFolders(t);

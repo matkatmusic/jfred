@@ -88,5 +88,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c5a578ce-9057-4d32-89d5-a25125e332b3/subagents/agent-a28ebb946f8a15af3.jsonl",
     "lineNumber": 20,
     "standIn": "each .idleState file that no recorded Write/Edit creates is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
+    "realProgram": "files the user saved from the playground app in the browser into /Users/matkatmusicllc/Programming/typesafe-playground/playground/results/ (git-ignored), made by no recorded command",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/subagents/agent-acdc94b88e7a81baa.jsonl",
+    "lineNumber": 217,
+    "standIn": "each playground/results file that no recorded Write/Edit/command makes, that the start state does not write, and that did not change after its first recorded use is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
   }
 ]

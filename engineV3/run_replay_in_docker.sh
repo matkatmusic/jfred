@@ -177,6 +177,16 @@ while IFS= read -r IDLE_STATE_FOLDER; do
 done <<EOF
 $MAC_IDLE_STATE_FOLDERS
 EOF
+# The Mac playground results folders are mounted under /input/plate too; the engine copies the files no recorded command made at their Mac mtime
+MAC_RESULTS_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/playground/results$' "$PROJECT_FOLDER")"
+while IFS= read -r RESULTS_FOLDER; do
+    if [ -n "$RESULTS_FOLDER" ]; then
+        RESULTS_FOLDER="${RESULTS_FOLDER%/}"
+        set -- "$@" -v "$RESULTS_FOLDER:/input/plate$RESULTS_FOLDER:ro"
+    fi
+done <<EOF
+$MAC_RESULTS_FOLDERS
+EOF
 # Without a git repo the engine writes these start files into the state folder
 if [ -z "$GIT_REPO_FOLDER" ]; then
     for START_FILE in conftest.py tests/conftest.py .gitignore settings.json hooks.json block-compound.sh; do
