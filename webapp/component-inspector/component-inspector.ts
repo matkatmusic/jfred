@@ -16,6 +16,7 @@ const INSPECTOR_CSS = `
 `;
 
 const BLOCKED_EVENT_TYPES = ["pointerdown", "mousedown", "click"];
+const COPIED_TEXT_DURATION_MS = 5000;
 
 interface InspectorState {
   toggleButton: HTMLElement;
@@ -24,6 +25,7 @@ interface InspectorState {
   labelText: HTMLElement;
   infoRow: HTMLElement;
   copyButton: HTMLButtonElement;
+  copiedResetTimer: ReturnType<typeof setTimeout> | undefined;
   enteredParts: Element[];
   sourceByPart: Map<Element, Promise<ComponentSource>>;
   isOn: boolean;
@@ -142,6 +144,13 @@ async function copyStackTopText(): Promise<void> {
   const source = await inspector.sourceByPart.get(stackTop)!;
   const copyText = buildCopyText(readComponentName(stackTop), source, buildHierarchyText(stackTop));
   await navigator.clipboard.writeText(copyText);
+  inspector.copyButton.textContent = "Copied";
+  clearTimeout(inspector.copiedResetTimer);
+  inspector.copiedResetTimer = setTimeout(resetCopyButtonText, COPIED_TEXT_DURATION_MS);
+}
+
+function resetCopyButtonText(): void {
+  inspector.copyButton.textContent = "Copy";
 }
 
 function updateOverlayOnPointerMove(event: Event): void {
@@ -192,6 +201,7 @@ function createInspectorState(): InspectorState {
     labelText,
     infoRow: createElement("div", { class: "ci-row ci-info" }),
     copyButton,
+    copiedResetTimer: undefined,
     enteredParts: [],
     sourceByPart: new Map(),
     isOn: false,

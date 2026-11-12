@@ -77,6 +77,11 @@ export interface HeadlessPage {
   close: () => Promise<void>;
 }
 
+export interface MouseHeadlessPage extends HeadlessPage {
+  // Real mouse input at viewport coordinates; the only way to put a button into :active.
+  dispatchMouse: (type: "mouseMoved" | "mousePressed" | "mouseReleased", x: number, y: number) => Promise<void>;
+}
+
 // The websocket URL of a fresh about:blank target. PUT, not GET: /json/new refuses GET since M111.
 async function openTargetSocketUrl(debugPort: number): Promise<string> {
   const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: "PUT" });
@@ -100,7 +105,7 @@ function launchChrome(debugPort: number, profileDir: string, width: number, heig
 }
 
 // Launch Chrome, attach one page; caller must close before the process exits.
-export async function openHeadlessPage(width: number, height: number): Promise<HeadlessPage> {
+export async function openHeadlessPage(width: number, height: number): Promise<MouseHeadlessPage> {
   const debugPort = await findFreePort();
   const profileDir = mkdtempSync(join(tmpdir(), "layer1-visual-"));
   const chrome = launchChrome(debugPort, profileDir, width, height);
@@ -129,6 +134,10 @@ export async function openHeadlessPage(width: number, height: number): Promise<H
     async navigate(url: string): Promise<void> {
       await send("Page.navigate", { url });
       await waitFor("document.readyState === 'complete'", 30_000);
+    },
+    async dispatchMouse(type: "mouseMoved" | "mousePressed" | "mouseReleased", x: number, y: number): Promise<void> {
+      const button = type === "mouseMoved" ? "none" : "left";
+      await send("Input.dispatchMouseEvent", { type, x, y, button, clickCount: 1 });
     },
     async screenshot(): Promise<string> {
       const shot = await send("Page.captureScreenshot", { format: "png" });

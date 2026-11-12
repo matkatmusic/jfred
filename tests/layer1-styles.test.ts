@@ -86,3 +86,13 @@ test("bug 495: a lit or aimed node's brackets are no taller than the dot", () =>
     assert.ok(bracketHeight <= dotHeight, `${selector} is ${bracketHeight}px tall, the dot is ${dotHeight}px`);
   }
 });
+
+// not wanted: the button press is checked in a real browser by scripts/visual/button-press-checks.ts.
+// test("a pressed enabled text button moves 2px down and 2px right", () => {
+//   assert.equal(readDeclarationsOf("button:active:not(:disabled)").get("transform"), "translate(2px, 2px)");
+// });
+//
+// test("no plain button rule sets a transform that the pressed nudge would clash with", () => {
+//   assert.equal(readDeclarationsOf("button").has("transform"), false);
+//   assert.equal(readDeclarationsOf("button:hover").has("transform"), false);
+// });

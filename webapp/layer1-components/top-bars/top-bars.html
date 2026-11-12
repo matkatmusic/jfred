@@ -73,7 +73,8 @@
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>
       <label data-component="FindBox">Find bubble
-        <input id="find-file" type="text" size="22"></label>
+        <input id="find-file" type="text" size="22" autocomplete="off">
+        <div id="find-file-results" class="find-results"></div></label>
       <!--
         Task 271: explicit cycle controls; Enter still advances, these add a reverse direction.
       -->
