@@ -131,6 +131,10 @@ TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmus
 for TOOL_FOLDER in $TOOL_PARENT_FOLDERS; do
     set -- "$@" -v "$TOOL_FOLDER:$TOOL_FOLDER:ro"
 done
+if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    # The Mac config gained the 15-line function limit on 2026-10-30, after every recorded eslint call of this project, so the replay mounts the config of 2026-10-17 (dotfiles commit 62a68a3) over it.
+    set -- "$@" -v "$ENGINE_FOLDER/replay_overlays/debt_ratchet_eslint_config_at_2026_10_17.js.txt:/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/debt-ratchet/eslint.config.js:ro"
+fi
 if [ -n "$GIT_REPO_FOLDER" ]; then
     set -- "$@" -v "$GIT_REPO_FOLDER/.git:/input/repo.git:ro"
 fi
