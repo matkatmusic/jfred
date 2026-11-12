@@ -100,5 +100,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/subagents/agent-acdc94b88e7a81baa.jsonl",
     "lineNumber": 217,
     "standIn": "each playground/results file that no recorded Write/Edit/command makes, that the start state does not write, and that did not change after its first recorded use is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
+    "realProgram": "macOS stat -f FORMAT",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
+    "lineNumber": 250,
+    "standIn": "STAT_SCRIPT in engineV3/Dockerfile (/usr/local/bin/stat): turns stat -f FORMAT [-t TIMEFORMAT] files into %Sm (modified time) and %N (file name) lines and exits 1 when a file is missing; every other call runs /usr/bin/stat"
   }
 ]
