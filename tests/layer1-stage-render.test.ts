@@ -35,6 +35,33 @@ test("test_both_orphan_buckets_follow_the_pairs", async () => {
     assert.ok(stageText.indexOf("No on-disk match") < stageText.indexOf("No repository match"));
 });
 
+test("test_an_only_widget_is_the_whole_stage_with_no_empty_message", async () => {
+    // Scenario: given an only-widget, the stage holds exactly that widget; an empty view adds no message and no bucket.
+    initLayer1Dom();
+    const onlyWidget = document.createElement("div");
+    onlyWidget.className = "only-widget";
+    await renderLayer1Stage({ pairs: [], gitOrphans: [buildOrphan("a.ts")], diskOrphans: [], ruler: [] } as never, onlyWidget);
+    const stage = document.getElementById("stage")!;
+    assert.equal(stage.children.length, 1);
+    assert.equal(stage.children[0], onlyWidget);
+    assert.equal(stage.querySelectorAll(".nopairs").length, 0);
+});
+
+test("test_given_ruler_rows_the_gutter_and_leaders_draw_one_per_row", async () => {
+    // Scenario: ruler rows handed to the render replace the view's ruler in the gutter and the leader lines.
+    initLayer1Dom();
+    const rows = [
+        { axisPx: 0, text: "now", eventCount: 1, axisPxList: [0], instants: [] },
+        { axisPx: 22, text: "07-01 10:00:00.000", eventCount: 1, axisPxList: [22], instants: [T0] },
+    ];
+    await renderLayer1Stage({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never, undefined, rows);
+    const ticks = [...document.querySelectorAll<HTMLElement>("#ruler .tick")];
+    assert.deepEqual(ticks.map((tick) => tick.textContent), ["now", "07-01 10:00:00.000"]);
+    assert.deepEqual(ticks.map((tick) => tick.style.getPropertyValue("--axis-px")), ["0", "22"]);
+    const leaders = [...document.querySelectorAll<HTMLElement>("#leaders .leader")];
+    assert.deepEqual(leaders.map((leader) => leader.style.getPropertyValue("--axis-px")), ["0", "22"]);
+});
+
 // not behavior: only spies that an internal scroll listener was registered, no visible outcome.
 // test("test_a_render_installs_the_run_viewport_scroll_listener", async () => {
 //     // Scenario: drawing the stage starts the run viewport watcher, which listens for scroll on #timelines.

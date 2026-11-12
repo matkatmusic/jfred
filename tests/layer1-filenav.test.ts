@@ -70,3 +70,37 @@ test("test_the_nav_renders_folders_as_native_details", async () => {
     assert.equal(folders.length, 1);
     assert.equal(folders[0]!.querySelector("summary")?.textContent, "nested");
 });
+
+async function openDiskNodeAndCountClicks(isReverseOn: boolean): Promise<number> {
+    initLayer1Dom();
+    const toggle = await import("../webapp/layer1-components/top-bars/layer1-reverse-toggle.ts");
+    toggle.resetReverseToggle();
+    toggle.installReverseToggle();
+    if (isReverseOn) {
+        document.getElementById("reverse-toggle")!.click();
+    }
+    const diskNode = document.createElement("i");
+    diskNode.className = "node n-disk";
+    const fileName = document.createElement("div");
+    fileName.className = "fname";
+    fileName.dataset.path = "src/kept.ts";
+    const bubble = document.createElement("div");
+    bubble.className = "filebox";
+    bubble.append(fileName, diskNode);
+    document.getElementById("stage")!.replaceChildren(bubble);
+    let clickCount = 0;
+    diskNode.addEventListener("click", () => clickCount++);
+    const { openDiskNodeForPath } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");
+    openDiskNodeForPath("src/kept.ts");
+    return clickCount;
+}
+
+test("test_a_leaf_click_clicks_the_disk_node_while_reverse_is_off", async () => {
+    // Scenario: with reverse off, the nav's open function clicks the file's on-disk node once.
+    assert.equal(await openDiskNodeAndCountClicks(false), 1);
+});
+
+test("test_a_leaf_click_does_not_click_the_disk_node_while_reverse_is_on", async () => {
+    // Scenario: with reverse on, the open function returns at once and clicks nothing.
+    assert.equal(await openDiskNodeAndCountClicks(true), 0);
+});

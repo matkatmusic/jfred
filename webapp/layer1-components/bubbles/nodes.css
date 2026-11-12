@@ -28,11 +28,11 @@
     box-shadow: 0 0 0 2.5px var(--surface); }
   .blabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; opacity: .38; }
-  .n-commit { border-radius: 4px; background: var(--c-commit); }
+  .n-commit, .node.n-rev[data-kind="GitCommit"] { border-radius: 4px; background: var(--c-commit); }
   /*
     .n-disk background was: transparent.
   */
-  .n-disk { background: var(--surface); border: 3px double var(--c-disk); }
+  .n-disk, .node.n-rev[data-kind="DiskNow"] { background: var(--surface); border: 3px double var(--c-disk); }
   .n-created { border-style: dotted; border-color: var(--muted); }
   .nlabel { position: absolute; left: 14px; top: calc(var(--axis-px) * 1px); transform: translateY(-50%);
     font: 10px ui-monospace, Menlo, monospace; color: var(--ink2); white-space: nowrap; }
@@ -50,3 +50,22 @@
   .lane .nodes-with-same-timestamp { position: absolute; left: -11px; right: 0;
     top: calc(var(--axis-px) * 1px - 11px); height: calc(var(--span-px) * 1px + 22px);
     border: 1.5px solid var(--c-anchor); border-radius: 10px; background: var(--seg-a); }
+
+  /*
+    Reverse-walk bubble: a plain dot per state; the two gap kinds are hollow in the warning colour.
+  */
+  .node.n-rev { background: var(--c-disk); }
+  .node.n-rev[data-kind="FileCreated"] { background: var(--surface); border: 2px solid var(--c-disk); }
+  .node.n-rev[data-kind="UnknownChange"] { background: var(--surface); border: 3px solid var(--c-echo); }
+  /*
+    Shared with the forward rules instead: ScriptChange and PossibleChange (.n-script, node-states.css), GitCommit (.n-commit), BackupSnapshot (.n-snap), DiskNow (.n-disk), EditUndone and WriteUndone (.n-edit), ReadOnly (.n-read).
+    .node.n-rev[data-kind="ScriptChange"] { background: var(--surface); border: 3px dashed var(--c-echo); }
+    .node.n-rev[data-kind="GitCommit"] { background: var(--c-commit); }
+    .node.n-rev[data-kind="BackupSnapshot"] { background: var(--c-snap); }
+  */
+
+  /*
+    The "Show only modifying events for File" toggle dims the nodes that did not change the file; nothing moves.
+  */
+  .viz-root.reverse-modifying-only .node.n-rev[data-modifying="false"],
+  .viz-root.reverse-modifying-only .node.n-rev[data-modifying="false"] + .nlabel { opacity: .4; }
