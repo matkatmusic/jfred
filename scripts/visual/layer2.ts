@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findFreePort, openHeadlessPage, waitForHttp, waitMilliseconds, type HeadlessPage } from "./cdp.ts";
+import { validateButtonPressNudge } from "./button-press-checks.ts";
 import { executeLayer2Checks } from "./layer2-checks.ts";
 import { countExpectedSnapshots, type ViewPayload } from "./layer2-payload.ts";
 import { reportCheck, failures } from "./mockup-checks.ts";
@@ -67,6 +68,7 @@ async function executeDriveAndCheck(port: number, payload: ViewPayload): Promise
     await page.navigate(buildViewUrl(port));
     await page.waitFor("document.querySelectorAll('#stage .filebox').length > 0", 40_000);
     await executeLayer2Checks(page as HeadlessPage, payload);
+    await validateButtonPressNudge(page);
   }
   finally {
     await page.close();

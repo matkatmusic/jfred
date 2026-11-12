@@ -15,7 +15,7 @@
     "visual": "node --import tsx scripts/visual/run.ts",
     "visual:mockup": "node --import tsx scripts/visual/mockup.ts",
     "visual:computed-style": "node --import tsx scripts/visual/computed-style-compare.ts",
-    "app": "npm run build:webapp && tsx src/viewer_server.ts --projects-dir \"$HOME/.claude/projects\"",
+    "app": "trap 'kill 0' EXIT; npx tsc -p tsconfig.webapp.json --watch --preserveWatchOutput & npx tsx watch src/viewer_server.ts --projects-dir \"$HOME/.claude/projects\" --port 7420",
     "demo": "npm run build:webapp && tar -xf demo/repo.git.tar -C demo/projects/s87-demo-composite && tsx src/viewer_server.ts --projects-dir demo/projects --file-history-dir demo/file-history",
     "demo:baseline": "npm run build:webapp && tar -xf demo-baseline/repo.git.tar -C demo-baseline/projects/baseline-demo && tsx src/viewer_server.ts --projects-dir demo-baseline/projects --file-history-dir demo-baseline/file-history",
     "visual:engine-v3-mockup": "node --import tsx scripts/visual/engine-v3-mockup.ts",
