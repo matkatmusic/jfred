@@ -74,6 +74,10 @@ function isMacOnlyScriptRun(segment: ShellSegment, variables: Map<string, string
   if (!isEveryRedirectDiscarded(segment)) {
     return false;
   }
+  return isChromeScriptFileRun(segment, variables, cwd);
+}
+
+function isChromeScriptFileRun(segment: ShellSegment, variables: Map<string, string>, cwd: Path): boolean {
   const programWords = getProgramWords(segment);
   if (getProgramName(programWords) !== SCRIPT_RUNNER_PROGRAM) {
     return false;
@@ -115,6 +119,26 @@ export function isMacOnlyScriptCommand(command: string, cwd: Path): boolean {
     }
   }
   return runsMacOnlyScript;
+}
+
+// Text in a command that starts Chrome or Chromium, or talks to one it started.
+const CHROME_COMMAND_TEXTS = [CHROME_NAME_TEXT, "remote-debugging-port", "--headless", "chromium"];
+
+// Called after the command ran, so a script file that the command itself wrote is there to read.
+export function isChromeStartCommand(command: string, cwd: Path): boolean {
+  for (const chromeText of CHROME_COMMAND_TEXTS) {
+    if (command.includes(chromeText)) {
+      return true;
+    }
+  }
+  const variables = new Map<string, string>();
+  for (const segment of parseShellCommand(command).segments) {
+    recordShellVariables(segment, variables);
+    if (isChromeScriptFileRun(segment, variables, cwd)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function fillMacOnlyFile(state: Path, fill: MacOnlyFill, sourceRepo: Path): void {

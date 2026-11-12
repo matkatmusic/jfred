@@ -3,7 +3,7 @@
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import { getSessionId } from "../src/reconstruction_multi_source_paths.ts";
@@ -12,7 +12,8 @@ import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_re
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 // import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
-import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+// import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
@@ -75,12 +76,26 @@ function createFailureError(result: SpawnSyncReturns<string>, command: string): 
   return new Error(`executeScriptCommand: command failed with exit code ${result.status} signal ${result.signal} error ${result.error?.message}\ncommand: ${command}\nstderr: ${result.stderr}\nstdout: ${getTailOfOutput(result.stdout)}`);
 }
 
-function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): void {
+function getRunSourceText(run: ScriptRun): string {
+  if (run.source === undefined) {
+    throw new Error(`getRunSourceText: the Bash call has no JSONL file and line\ncommand: ${run.code}`);
+  }
+  return `${basename(run.source.filePath)}:${run.source.lineNumber}`;
+}
+
+// function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): void {
+function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, run: ScriptRun, cwd: string, expectsError: boolean): void {
+  const command = run.code;
   if (result.status === null) {
     throw createFailureError(result, command);
   }
   if (expectsError) {
     if (result.status === 0) {
+      // User decision 10: the container's Chromium can start in time where the Mac's Chrome did not.
+      if (isChromeStartCommand(command, new Path(cwd))) {
+        console.log(`${new Date().toISOString()} note: succeeded where the Mac failed: ${getRunSourceText(run)} (Chrome call)`);
+        return;
+      }
       throw new Error(`executeScriptCommand: command was expected to fail but exited 0\ncommand: ${command}`);
     }
     return;
@@ -116,7 +131,8 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: sessionId?.toString(), ...gitEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  assertExitMatchesExpectation(spawned, run.code, result.isError);
+  // assertExitMatchesExpectation(spawned, run.code, result.isError);
+  assertExitMatchesExpectation(spawned, run, cwd, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
 

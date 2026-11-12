@@ -74,6 +74,55 @@ test("test_executeScriptInState_throws_when_a_recorded_error_exits_0", (t) => {
   });
 });
 
+const CHROME_NOTE = /^\S+ note: succeeded where the Mac failed: session\.jsonl:1 \(Chrome call\)$/;
+
+function getPrintedLines(logMock: { mock: { calls: { arguments: unknown[] }[] } }): string[] {
+  return logMock.mock.calls.map((call) => String(call.arguments[0]));
+}
+
+test("test_executeScriptInState_prints_a_note_when_a_recorded_error_Chrome_call_exits_0", (t) => {
+  // Scenario: user decision 10: a Chrome call that failed on the Mac but works in the container goes on with a note.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line names remote-debugging-port, exits 0, and its recorded result has isError true
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints one note that names the JSONL file and line
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_prints_a_note_when_a_recorded_error_call_runs_a_Chrome_script_and_exits_0", (t) => {
+  // Scenario: the command text does not name Chrome, but the script file it runs does.
+  // the state folder is the record's cwd and holds a script file that names Google Chrome
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  writeFileSync(join(state.toString(), "shot.ts"), '// "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"\nconsole.log("shot");\n');
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line runs the script with bun, exits 0, and its recorded result has isError true
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "bun shot.ts", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints one note that names the JSONL file and line
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_prints_no_note_when_a_recorded_error_Chrome_call_fails_again", (t) => {
+  // Scenario: a Chrome call that fails again matches the record, so there is nothing to note.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line names remote-debugging-port, exits 1, and its recorded result has isError true
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333; exit 1", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints no note
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 0);
+});
+
 test("test_executeScriptInState_throws_when_a_recorded_error_is_killed_by_a_signal", (t) => {
   // Scenario: a signal always throws, even when an error is expected.
   // the state folder is the record's cwd
