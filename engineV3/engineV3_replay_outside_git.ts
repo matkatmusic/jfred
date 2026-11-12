@@ -97,6 +97,8 @@ function applyOutsideResetToState(state: Path, sourceRepo: Path, row: OutsideGit
   // The reflog does not record the reset mode; the Mac's 2026-10-28T16:06:48Z reset kept an uncommitted edit AND brought in docs/ from the target, which is --keep.
   // executeGit(state, ["reset", "-q", "--hard", row.newCommit]);
   // executeGit(state, ["reset", "-q", "--mixed", row.newCommit]);
+  // A --start-at restore rewrites files, so the index stat data is stale; status refreshes it and exits 0 even when content differs.
+  executeGit(state, ["status", "--porcelain", "-uno"]);
   executeGit(state, ["reset", "-q", "--keep", row.newCommit]);
 }
 

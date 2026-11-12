@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -183,6 +183,21 @@ test("test_applyOutsideGitRow_reset_keeps_an_uncommitted_change_in_the_work_tree
     // HEAD is commit 1 and a.txt still holds the uncommitted edit
     assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), source.commit1);
     assert.equal(readFileSync(join(stateFolder, "a.txt"), "utf8"), "uncommitted edit");
+});
+
+test("test_applyOutsideGitRow_reset_succeeds_when_a_differing_file_was_rewritten_with_the_same_bytes", (t) => {
+    // Scenario: state is at commit 2; b.txt differs from the reset target (commit 1). A --start-at restore rewrote b.txt with the same bytes and a new mtime, so the index stat data is stale.
+    const source = makeSourceRepo(t);
+    const stateFolder = makeStateAt(t, source, source.commit2);
+    const stalePath = join(stateFolder, "b.txt");
+    writeFileSync(stalePath, readFileSync(stalePath));
+    utimesSync(stalePath, new Date(1700000000000), new Date(1700000000000));
+    const rows = listRowsOf(source, new Map(), 55);
+    // apply the reset row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // HEAD is commit 1 and b.txt is gone, as the target has no b.txt
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), source.commit1);
+    assert.equal(existsSync(stalePath), false);
 });
 
 test("test_applyOutsideGitRow_throws_when_HEAD_is_not_the_row_new_commit", (t) => {
