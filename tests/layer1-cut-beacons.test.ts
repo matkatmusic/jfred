@@ -24,7 +24,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
   const tick = document.createElement("div");
   tick.className = "tick";
   tick.style.setProperty("--axis-px", String(axisPx));
-  document.getElementById("ruler")!.append(tick);
+  document.getElementById("timelineRulerComponent")!.append(tick);
   storeRow(tick, { axisPx, text: "t", eventCount: 1, axisPxList: [axisPx], instants: [buildInstant(hour)] });
   const bubble = document.createElement("div");
   bubble.className = "filebox";
@@ -36,7 +36,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
     node.dataset["instant"] = buildInstant(hour);
     bubble.append(node);
   }
-  document.getElementById("stage")!.append(bubble);
+  document.getElementById("fileBubbleContainer")!.append(bubble);
   return tick;
 }
 
@@ -78,7 +78,7 @@ test("test_a_created_node_beside_a_disk_node_still_makes_a_beacon", () => {
 });
 
 test("test_a_hidden_kind_still_counts", () => {
-  // Verify: the show-row hide class does not change the beacon fact.
+  // Verify: the timelineViewControls hide class does not change the beacon fact.
   initLayer1Dom();
   assert.equal(readFacts(addTick(1, ["node n-snap kind-hidden"])).isBeacon, true);
 });

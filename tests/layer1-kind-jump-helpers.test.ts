@@ -13,8 +13,8 @@
 // not behavior: tests the test-only synthetic stage fixture, not product behavior.
 // test("test_the_synthetic_stage_holds_five_nodes_and_a_pane_of_the_stated_height", async () => {
 //     await renderViewWithSyntheticStage();
-//     assert.equal(document.querySelectorAll("#stage .node").length, 5);
-//     assert.equal(document.getElementById("timelines")!.getBoundingClientRect().height, PANE_HEIGHT_PX);
+//     assert.equal(document.querySelectorAll("#fileBubbleContainer .node").length, 5);
+//     assert.equal(document.getElementById("timelineContainer")!.getBoundingClientRect().height, PANE_HEIGHT_PX);
 // });
 
 // not behavior: tests test-only helpers findArrow and readLandedY, not product behavior.

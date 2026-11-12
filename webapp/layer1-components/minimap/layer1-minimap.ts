@@ -1,4 +1,4 @@
-// The Layer 1 minimap (task 246): one mark per widget plus a viewport rectangle, in `.stagewrap`.
+// The Layer 1 minimap (task 246): one mark per widget plus a viewport rectangle, in `.sessionDataContainer`.
 // ponytail: every number is MEASURED, never derived from zoom, so the minimap stays correct under zoom.
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
@@ -7,7 +7,7 @@ import type { MinimapScale } from "./layer1-minimap-geometry.ts";
 
 // The scroll container. It carries an id purely so this module and the page share one lookup.
 function getTimelinePane(): HTMLElement {
-  return getRequiredElementById("timelines");
+  return getRequiredElementById("timelineContainer");
 }
 
 // The inner box the marks are drawn into; it carries the current scale in data attributes.

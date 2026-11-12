@@ -18,7 +18,7 @@ test("test_an_empty_view_draws_the_empty_message_and_zero_counts", async () => {
     initLayer1Dom();
     await renderLayer1Stage({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
     assert.equal(document.getElementById("crumb")!.textContent, "0 pairs · 0 repo-only · 0 disk-only");
-    assert.equal(document.querySelectorAll("#stage .nopairs").length, 1);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .nopairs").length, 1);
 });
 
 test("test_both_orphan_buckets_follow_the_pairs", async () => {
@@ -31,15 +31,15 @@ test("test_both_orphan_buckets_follow_the_pairs", async () => {
         ruler: [],
     } as never);
     assert.equal(document.getElementById("crumb")!.textContent, "0 pairs · 1 repo-only · 1 disk-only");
-    const stageText = document.getElementById("stage")!.textContent!;
+    const stageText = document.getElementById("fileBubbleContainer")!.textContent!;
     assert.ok(stageText.indexOf("No on-disk match") < stageText.indexOf("No repository match"));
 });
 
 // not behavior: only spies that an internal scroll listener was registered, no visible outcome.
 // test("test_a_render_installs_the_run_viewport_scroll_listener", async () => {
-//     // Scenario: drawing the stage starts the run viewport watcher, which listens for scroll on #timelines.
+//     // Scenario: drawing the stage starts the run viewport watcher, which listens for scroll on #timelineContainer.
 //     initLayer1Dom();
-//     const timelines = document.getElementById("timelines")!;
+//     const timelines = document.getElementById("timelineContainer")!;
 //     const listenedEvents: string[] = [];
 //     const addEventListener = timelines.addEventListener.bind(timelines);
 //     timelines.addEventListener = ((type: string, ...rest: unknown[]) => {

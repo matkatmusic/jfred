@@ -46,7 +46,7 @@ test("test_a_widget_pins_to_its_earliest_node_when_the_disk_state_predates_its_c
     // Scenario (tasks 247-249): the anchor is the earliest of ALL nodes, so none sits above the bubble's top edge.
     await loadPageWithView(buildDiskBeforeCommitsView());
     // the widget pins to the ON-DISK offset, because that is the earliest instant it draws.
-    const widget = listMatching("#stage .filebox:not(.bucket)")[0]!;
+    const widget = listMatching("#fileBubbleContainer .filebox:not(.bucket)")[0]!;
     assert.equal(readAxisOffsetPx(widget), DISK_FIRST_ON_DISK.axisPx);
 });
 
@@ -54,17 +54,17 @@ test("test_no_node_in_a_widget_is_placed_at_a_negative_offset", async () => {
     // Scenario (tasks 247-249): no node may carry a negative offset, which is what the old anchor failed.
     await loadPageWithView(buildDiskBeforeCommitsView());
     // every node, of either kind, sits at or after the lane's top.
-    const offsets = listMatching("#stage .node").map(readAxisOffsetPx);
+    const offsets = listMatching("#fileBubbleContainer .node").map(readAxisOffsetPx);
     assert.deepEqual(offsets.filter((offset) => offset < 0), []);
     // and the disk node specifically is at the lane top, since it is the earliest instant.
-    assert.deepEqual(listMatching("#stage .node.n-disk").map(readAxisOffsetPx), [0]);
+    assert.deepEqual(listMatching("#fileBubbleContainer .node.n-disk").map(readAxisOffsetPx), [0]);
 });
 
 test("test_a_widgets_lane_spans_to_its_latest_node_when_that_node_is_a_commit", async () => {
     // Scenario (tasks 247-249): when the LAST node is a commit, the lane must still contain its whole ladder.
     await loadPageWithView(buildDiskBeforeCommitsView());
     // the lane reaches the last commit, measured from the widget's own anchor.
-    const lane = listMatching("#stage .lane")[0]!;
+    const lane = listMatching("#fileBubbleContainer .lane")[0]!;
     const expectedSpan = DISK_FIRST_COMMITS[1]!.axisPx - DISK_FIRST_ON_DISK.axisPx;
     assert.equal(lane.style.getPropertyValue("--span-px"), String(expectedSpan));
 });

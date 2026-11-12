@@ -94,7 +94,7 @@ function stubHangingViewRoute(): void {
 }
 
 test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
-    // Scenario (task 302): Yes-cancel aborts the stream; crumb reports cancellation, strip hides, stage stays empty.
+    // Scenario (task 302): Yes-cancel aborts the stream; crumb reports cancellation, strip hides, fileBubbleContainer stays empty.
     initLayer1Dom(BOTH_ROOTS_SEARCH);
     stubHangingViewRoute();
     initLayer1Page();
@@ -106,10 +106,10 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
     assert.equal(document.getElementById("loadbar-confirm")!.hasAttribute("hidden"), false);
     document.getElementById("loadbar-confirm-yes")!.click();
     await waitForAsyncWork();
-    // ...and the abort is a clean stop: plain crumb, hidden strip, empty stage.
+    // ...and the abort is a clean stop: plain crumb, hidden strip, empty fileBubbleContainer.
     assert.equal(readCrumbText(), "load cancelled");
     assert.equal(checkLoadbarIsHidden(), true);
-    assert.equal(document.getElementById("stage")!.children.length, 0);
+    assert.equal(document.getElementById("fileBubbleContainer")!.children.length, 0);
 });
 
 test("test_a_terminal_error_line_lands_in_the_crumb_and_clears_the_bar", async () => {

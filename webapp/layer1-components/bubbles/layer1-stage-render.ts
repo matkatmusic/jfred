@@ -30,7 +30,7 @@ function renderRulerTicks(ruler: WireRulerTick[]): void {
   for (const row of listRulerRows(ruler)) {
     ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", text: row.text }), row.axisPx), row));
   }
-  getRequiredElementById("ruler").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
+  getRequiredElementById("timelineRulerComponent").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
 }
 
 // One shared line per ruler entry, replacing the slow per-bubble `.filebox::before`.
@@ -53,7 +53,7 @@ function renderStageHeader(view: WireLayer1View): void {
   rememberDrawnView(view);
   getRequiredElementById("crumb").textContent =
     `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
-  const openList = document.querySelector("#ruler .tickfiles");
+  const openList = document.querySelector("#timelineRulerComponent .tickfiles");
   renderRulerTicks(view.ruler);
   moveOpenRowToNewTicks(openList);
   renderLeaderLines(view.ruler);
@@ -115,7 +115,7 @@ export async function renderLayer1Stage(view: WireLayer1View): Promise<void> {
   const pass = ++stageRenderPass;
   renderStageHeader(view);
   const widgets = listStageWidgets(view);
-  const stage = getRequiredElementById("stage");
+  const stage = getRequiredElementById("fileBubbleContainer");
   const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
   stage.replaceChildren(...(isChunked ? [] : widgets));
   const isCurrentPass = !isChunked || await appendStageWidgetsInChunks(stage, widgets, pass);

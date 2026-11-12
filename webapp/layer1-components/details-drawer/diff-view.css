@@ -1,7 +1,7 @@
   /*
     Task 305: the classic Revision Viewer's renderers (webapp/diff-render.ts), on this page's tokens.
   */
-  .drawer { --mono: ui-monospace, Menlo, monospace;
+  .detailsPaneContainer { --mono: ui-monospace, Menlo, monospace;
     --add-bg: color-mix(in srgb, var(--c-snap) 14%, transparent);
     --del-bg: color-mix(in srgb, var(--c-user) 14%, transparent);
     --hunk-bg: color-mix(in srgb, var(--ink) 8%, transparent);

@@ -96,4 +96,4 @@ export async function toggleColumn(page: HeadlessPage, clickExpression: string, 
   await page.evaluate(clickExpression);
   await page.waitFor(`(document.getElementById('${elementId}') !== null) === ${isOn}`, WAIT_MS);
 }
-export const toggleSessionColumn = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, SESSION_TOGGLE_CLICK, "annotation-track", isOn);
+export const toggleSessionColumn = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, SESSION_TOGGLE_CLICK, "sessionDotLinesComponent", isOn);

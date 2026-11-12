@@ -52,7 +52,7 @@ test("a covering session's wash closes half a node row clear of the events it re
 
 test("a gutter row inside a picked session's band is marked", () => {
     initLayer1Dom();
-    const ruler = document.getElementById("ruler")!;
+    const ruler = document.getElementById("timelineRulerComponent")!;
     const insideTick = document.createElement("div");
     insideTick.className = "tick";
     insideTick.style.setProperty("--axis-px", "20");

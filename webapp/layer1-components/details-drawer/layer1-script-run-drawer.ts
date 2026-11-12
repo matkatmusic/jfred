@@ -203,7 +203,7 @@ function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun, cancelR
   storeOpenedNode({ instant: run.instant, sessionFile: run.sessionFile, line: run.line });
   hideDrawerStepButtons();
   renderScriptRunHeader(run, paths);
-  getRequiredElementById("drawer").classList.add("open");
+  getRequiredElementById("detailsPaneContainer").classList.add("open");
   setDrawerTools("none");
   renderDetailView([...buildScriptRunDetail(run, cancelRun), ...buildChangedNoBubbleSection(view, run.toolUseId), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {

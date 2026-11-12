@@ -21,7 +21,7 @@ test("test_the_arrows_are_disabled_for_a_kind_with_no_nodes_and_for_a_hidden_kin
         assert.equal(findArrow("script-run", direction).disabled, true);
         assert.equal(findArrow("snapshot", direction).disabled, false);
     }
-    const box = document.querySelector<HTMLInputElement>("#show-row input[data-kind=snapshot]")!;
+    const box = document.querySelector<HTMLInputElement>("#timelineViewControls input[data-kind=snapshot]")!;
     box.checked = false;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
     for (const direction of ["previous", "next"]) {
@@ -32,11 +32,11 @@ test("test_the_arrows_are_disabled_for_a_kind_with_no_nodes_and_for_a_hidden_kin
 test("test_the_branch_arrows_step_between_branch_dots_once_the_branch_box_is_ticked", async () => {
     await renderViewWithSyntheticStage();
     installStreamRoute("/api/layer1-branches", [{ pairs: [] }]);
-    const box = document.querySelector<HTMLInputElement>("#show-row input[data-kind=branch]")!;
+    const box = document.querySelector<HTMLInputElement>("#timelineViewControls input[data-kind=branch]")!;
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
     await waitForAsyncWork();
-    document.getElementById("stage")!.replaceChildren(buildNode("n-commit", 100), buildBranchDot(400), buildBranchDot(700));
+    document.getElementById("fileBubbleContainer")!.replaceChildren(buildNode("n-commit", 100), buildBranchDot(400), buildBranchDot(700));
     refreshKindJumpArrows();
     assert.equal(findArrow("branch", "previous").disabled, true);
     assert.equal(findArrow("branch", "next").disabled, false);

@@ -7,7 +7,7 @@ import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 test("initLayer1Dom installs the layer1 page markup and seeds the URL query", () => {
     initLayer1Dom("?progress=1");
 
-    assert.ok(document.getElementById("stage"));
+    assert.ok(document.getElementById("fileBubbleContainer"));
     assert.equal(location.search, "?progress=1");
 });
 

@@ -55,9 +55,9 @@ test("test_throws_when_the_name_is_missing", () => {
     assert.throws(() => findComponentSource(webappDir, "FileNav"), /FileNav/);
 });
 
-test("test_real_webapp_finds_ShowRow_in_show_row_html", () => {
+test("test_real_webapp_finds_timelineViewControls_in_show_row_html", () => {
     const realWebappDir = new Path(join(import.meta.dirname, "..", "webapp"));
-    const source = findComponentSource(realWebappDir, "ShowRow");
+    const source = findComponentSource(realWebappDir, "timelineViewControls");
     assert.ok(source.file.toString().endsWith(join("webapp", "layer1-components", "show-row", "show-row.html")));
     assert.equal(source.line, 1);
 });

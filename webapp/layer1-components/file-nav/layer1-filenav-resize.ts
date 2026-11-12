@@ -1,6 +1,6 @@
 // Task 279/288: `--filenav-w` writes ONCE on release, not per move, since move-per-write relaid out the ~156,000px canvas every frame.
 
-// ponytail: rejected `resize: horizontal` on `.filenav` — it grabs just the corner, and no other rule can read its width.
+// ponytail: rejected `resize: horizontal` on `.sourcesContainer` — it grabs just the corner, and no other rule can read its width.
 
 import { getRequiredElementById } from "../../app-dom.ts";
 
@@ -24,7 +24,7 @@ function setFileNavWidthPreview(stagewrap: HTMLElement, clientX: number): void {
 
 // Must be measured before the first preview, or the timeline's box is already the thing changing.
 function storeTimelineWidth(stagewrap: HTMLElement): void {
-  const timelineWidthPx = getRequiredElementById("timelines").getBoundingClientRect().width;
+  const timelineWidthPx = getRequiredElementById("timelineContainer").getBoundingClientRect().width;
   stagewrap.style.setProperty("--timeline-w", `${timelineWidthPx}px`);
   stagewrap.classList.add("resizing");
 }
@@ -68,7 +68,7 @@ function attachGripDrag(
 }
 
 export function initFileNavResize(): void {
-  const stagewrap = getRequiredElementById("stagewrap");
+  const stagewrap = getRequiredElementById("sessionDataContainer");
   const moveWidthPreview = (event: MouseEvent): void => setFileNavWidthPreview(stagewrap, event.clientX);
   const saveWidthAtPointer = (event: MouseEvent): void => saveFileNavWidth(stagewrap, event.clientX);
   const storeWidthDragTimeline = (): void => storeTimelineWidth(stagewrap);
@@ -87,7 +87,7 @@ function setFileNavPaneShare(filenav: HTMLElement, clientY: number): void {
 }
 
 export function initSessionPaneResize(): void {
-  const filenav = document.querySelector(".filenav") as HTMLElement | null;
+  const filenav = document.querySelector(".sourcesContainer") as HTMLElement | null;
   const grip = document.getElementById("navpane-grip");
   const isPaneMissing = filenav === null || grip === null;
   if (isPaneMissing) {

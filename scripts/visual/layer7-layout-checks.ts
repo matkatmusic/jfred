@@ -17,15 +17,15 @@ const TRACK_TO_STAGE_PX = 14;
 const TOLERANCE_PX = 1;
 const SCROLL_RIGHT_PX = 400;
 
-// Task 383: the gap is measured from the element just before #stage, the column or the jfred strip.
+// Task 383: the gap is measured from the element just before #fileBubbleContainer, the column or the jfred strip.
 export const LAYOUT_FACTS =`(() => {
     const edge = id => document.getElementById(id).getBoundingClientRect();
-    const track = document.getElementById('annotation-track');
+    const track = document.getElementById('sessionDotLinesComponent');
     const mark = track.querySelector('i.anode:not(.is-ignored)').getBoundingClientRect();
     const hit = document.elementFromPoint(mark.left + mark.width / 2, mark.top + mark.height / 2);
-    return { rulerRight: edge('ruler').right, trackLeft: edge('annotation-track').left, trackRight: edge('annotation-track').right,
-        beforeStageRight: document.getElementById('stage').previousElementSibling.getBoundingClientRect().right,
-        stageLeft: edge('stage').left, bubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
+    return { rulerRight: edge('timelineRulerComponent').right, trackLeft: edge('sessionDotLinesComponent').left, trackRight: edge('sessionDotLinesComponent').right,
+        beforeStageRight: document.getElementById('fileBubbleContainer').previousElementSibling.getBoundingClientRect().right,
+        stageLeft: edge('fileBubbleContainer').left, bubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
         isTrackOnTop: hit !== null && track.contains(hit) };
 })()`;
 
@@ -33,15 +33,15 @@ export const LAYOUT_FACTS =`(() => {
 export const RULE_FACTS = `(() => {
     const rules = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
     const count = text => rules.filter(rule => rule.selectorText === text).length;
-    const stage = document.getElementById('stage');
-    const track = document.getElementById('annotation-track');
+    const stage = document.getElementById('fileBubbleContainer');
+    const track = document.getElementById('sessionDotLinesComponent');
     const parent = track.parentNode;
     const next = track.nextSibling;
     const marginWith = getComputedStyle(stage).marginLeft;
     track.remove();
     const marginWithout = getComputedStyle(stage).marginLeft;
     parent.insertBefore(track, next);
-    return { rulerRules: count('.ruler + .stage'), trackRules: count('.atrack + .stage'), marginWith, marginWithout };
+    return { rulerRules: count('.timelineRulerComponent + .fileBubbleContainer'), trackRules: count('.sessionDotLinesComponent + .fileBubbleContainer'), marginWith, marginWithout };
 })()`;
 
 export function isColumnAfterRuler(facts: LayoutFacts): boolean {
@@ -84,7 +84,7 @@ async function validateBesideRuler(page: HeadlessPage): Promise<void> {
 
 async function validateSlackRule(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<RuleFacts>(RULE_FACTS);
-  reportCheck("L7 one rule for .ruler + .stage and one for .atrack + .stage, and the stage margin is the same without the column", isSlackRuleKept(facts), facts);
+  reportCheck("L7 one rule for .timelineRulerComponent + .fileBubbleContainer and one for .sessionDotLinesComponent + .fileBubbleContainer, and the stage margin is the same without the column", isSlackRuleKept(facts), facts);
 }
 
 export async function validateLayout(page: HeadlessPage): Promise<void> {

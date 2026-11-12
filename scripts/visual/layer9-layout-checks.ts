@@ -164,7 +164,7 @@ export async function validateTokens(page: HeadlessPage): Promise<void> {
 
 export async function validateSlack(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<SlackFacts>(SLACK_FACTS);
-  reportCheck("L9 one rule for .jfred-strip + .stage, and the stage margin is the same without the strip", facts.stripRules === 1 && facts.marginWith === facts.marginWithout, facts);
+  reportCheck("L9 one rule for .jfredCommitsDrawerComponent + .fileBubbleContainer, and the stage margin is the same without the strip", facts.stripRules === 1 && facts.marginWith === facts.marginWithout, facts);
 }
 
 // export async function validateStripOverlaps(page: HeadlessPage): Promise<void> {

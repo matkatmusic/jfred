@@ -83,7 +83,7 @@ test("test_a_click_on_a_tool_node_or_label_opens_no_drawer", () => {
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: "" }));
     const lane = buildLaneWithToolNodes(300);
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", "data-path": "src/run.ts" }),
         lane,
     ]));
@@ -91,6 +91,6 @@ test("test_a_click_on_a_tool_node_or_label_opens_no_drawer", () => {
     for (const target of [lane.querySelector<HTMLElement>(".tnode")!, lane.querySelector<HTMLElement>(".tlabel")!]) {
         target.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     }
-    assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
+    assert.equal(getRequiredElementById("detailsPaneContainer").classList.contains("open"), false);
     assert.equal(asks.length, 0);
 });

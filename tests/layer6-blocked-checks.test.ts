@@ -76,7 +76,7 @@ test("a popup far from the blocked dot fails only the beside-the-dot check", asy
 
 const PLACEMENT_CHECK = "L6 with the panel open, the popup stays in the timeline pane, so it never covers the panel";
 
-test("a popup outside #timelines fails only the placement check", async () => {
+test("a popup outside #timelineContainer fails only the placement check", async () => {
   const { lines } = await runBlocked({ leaksBlockedPost: false, dialogCount: 0, isPopupOutsidePane: true });
   assert.deepEqual(listFailedChecks(lines), [PLACEMENT_CHECK]);
 });

@@ -78,7 +78,7 @@ async function validateEdgeNode(page: HeadlessPage): Promise<void> {
 }
 
 async function validateDrawerNeverCoversPane(page: HeadlessPage): Promise<void> {
-  const view = await page.evaluate<CentredView>(readView(`document.getElementById('stage')`));
+  const view = await page.evaluate<CentredView>(readView(`document.getElementById('fileBubbleContainer')`));
   console.log(`CENTRE layout: pane ${JSON.stringify(view.pane)} drawer ${JSON.stringify(view.drawer)} uncovered area ${JSON.stringify(view.area)}`);
   let areaEqualsPane = true;
   for (let index = 0; index < view.area.length; index++) {
@@ -87,7 +87,7 @@ async function validateDrawerNeverCoversPane(page: HeadlessPage): Promise<void> 
     }
   }
   const drawerClearOfPane = view.drawer[0]! >= view.pane[2]! - EDGE_TOLERANCE_PX;
-  reportCheck("#drawer-centre the drawer is a flex sibling: it never covers #timelines, so the uncovered area is the pane",
+  reportCheck("#drawer-centre the drawer is a flex sibling: it never covers #timelineContainer, so the uncovered area is the pane",
     drawerClearOfPane && areaEqualsPane, view);
 }
 

@@ -10,12 +10,12 @@ const parseExpression = (expression: string) => new Function(`return (${expressi
 interface FakeNode { id: string; previousElementSibling: FakeNode | null; nextElementSibling: FakeNode | null }
 const makeNode = (id: string): FakeNode => ({ id, previousElementSibling: null, nextElementSibling: null });
 
-// Builds the element order before #stage for each layout the probe must judge.
+// Builds the element order before #fileBubbleContainer for each layout the probe must judge.
 function fakeNodes(kind: string): Record<string, FakeNode> {
-    const ruler = makeNode("ruler");
-    const track = makeNode("annotation-track");
-    const strip = makeNode("jfred-strip");
-    const stage = makeNode("stage");
+    const ruler = makeNode("timelineRulerComponent");
+    const track = makeNode("sessionDotLinesComponent");
+    const strip = makeNode("jfredCommitsDrawerComponent");
+    const stage = makeNode("fileBubbleContainer");
     const stranger = makeNode("stranger");
     ruler.nextElementSibling = track;
     if (kind === "track")
@@ -30,7 +30,7 @@ function fakeNodes(kind: string): Record<string, FakeNode> {
         strip.previousElementSibling = stranger;
         stage.previousElementSibling = strip;
     }
-    return { ruler, "annotation-track": track, stage };
+    return { timelineRulerComponent: ruler, sessionDotLinesComponent: track, fileBubbleContainer: stage };
 }
 
 // not behavior: it only checks that the builder's output text contains certain strings.
@@ -95,7 +95,7 @@ test("a broken expression is caught by the parse check", () => {
 });
 
 test("TRACK_FACTS accepts the jfred strip between the column and the stage, and nothing else", () => {
-    assert.ok(probes.TRACK_FACTS.includes("jfred-strip"));
+    assert.ok(probes.TRACK_FACTS.includes("jfredCommitsDrawerComponent"));
     const run = (layout: string) => {
         const nodes = fakeNodes(layout);
         return new Function("document", "getComputedStyle", `return (${probes.TRACK_FACTS});`)(
@@ -126,7 +126,7 @@ test("test_openSessionColumn_clicks_the_session_toggle_then_waits_for_the_track"
     assert.deepEqual(steps, [`evaluate ${probes.CLICK_SESSION_TOGGLE}`, `waitFor ${probes.TRACK_PRESENT}`]);
     assert.ok(probes.CLICK_SESSION_TOGGLE.includes("session-toggle"));
     assert.ok(probes.CLICK_SESSION_TOGGLE.includes(".click()"));
-    assert.ok(probes.TRACK_PRESENT.includes("annotation-track"));
+    assert.ok(probes.TRACK_PRESENT.includes("sessionDotLinesComponent"));
 });
 
 interface FakeDot {
@@ -177,7 +177,7 @@ test("test_buildBracketProbe_returns_the_left_and_right_edges_too", () => {
 });
 
 test("test_TRACK_LABEL_COUNT_counts_alabel_elements_inside_the_track", () => {
-    assert.ok(probes.TRACK_LABEL_COUNT.includes("#annotation-track .alabel"));
+    assert.ok(probes.TRACK_LABEL_COUNT.includes("#sessionDotLinesComponent .alabel"));
     assert.equal(new Function("document", `return (${probes.TRACK_LABEL_COUNT});`)({ querySelectorAll: () => [1, 2] }), 2);
 });
 
@@ -189,14 +189,14 @@ test("test_COLUMN_RULE_TEXTS_scans_the_new_selectors", () => {
     // Steps: one rule per new selector plus an unrelated rule; only the new ones are returned.
     const names = ["sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-snapshot", "hover-popup", "hp-line"];
     const rules = names.map((name) => makeRule(`.${name}`, `.${name} { color: red; }`));
-    // const found = listRuleTexts([...rules, makeRule(".other", ".other { color: red; }"), makeRule(".viz-root, .hover-popup", "tokens #fff", "#f9f9f7")]);
+    // const found = listRuleTexts([...rules, makeRule(".other", ".other { color: red; }"), makeRule(".appWindow, .hover-popup", "tokens #fff", "#f9f9f7")]);
     const found = listRuleTexts([...rules, makeRule(".other", ".other { color: red; }")]);
     assert.equal(found.length, names.length);
     // assert.ok(!found.some((text) => text.includes("tokens")));
 });
 
 test("test_COLUMN_RULE_TEXTS_keeps_the_old_selectors", () => {
-    const found = listRuleTexts(["anode", "alabel", "abracket", "atrack", "tnode", "tlabel", "tbracket", "a-user"].map((name) => makeRule(`.${name}`, name)));
+    const found = listRuleTexts(["anode", "alabel", "abracket", "sessionDotLinesComponent", "tnode", "tlabel", "tbracket", "a-user"].map((name) => makeRule(`.${name}`, name)));
     assert.equal(found.length, 8);
 });
 

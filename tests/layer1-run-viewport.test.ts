@@ -65,9 +65,9 @@ test("test_installRunViewportWatcher_scrolls_in_a_burst_ask_the_needs_route_once
     pairs: [{ path: "a.ts", commits: [], onDisk: { instant: run.instant, axisPx: 0 }, scriptRuns: [run] }], gitOrphans: [], diskOrphans: [], ruler: [],
   };
   rememberDrawnView(view);
-  const timelines = getRequiredElementById("timelines");
+  const timelines = getRequiredElementById("timelineContainer");
   timelines.getBoundingClientRect = () => PANE as DOMRect;
-  getRequiredElementById("stage").replaceChildren(buildDot("toolu_w", 10, 8));
+  getRequiredElementById("fileBubbleContainer").replaceChildren(buildDot("toolu_w", 10, 8));
   const urls = installNeedsFetch();
   installRunViewportWatcher();
   for (let burst = 0; burst < 3; burst++) {

@@ -17,7 +17,7 @@ test("a node already on the page opens without ticking any box", async () => {
   const node = createElement("i", {
     class: "node n-snap", "data-instant": IDENTITY.instant, "data-session-file": IDENTITY.sessionFile, "data-line": "2235", "data-version": "1",
   });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));
@@ -25,5 +25,5 @@ test("a node already on the page opens without ticking any box", async () => {
 
   await openLinkedNodeAfterLoad(IDENTITY);
 
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
 });

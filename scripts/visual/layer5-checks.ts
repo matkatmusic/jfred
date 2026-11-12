@@ -9,7 +9,7 @@ import { buildBubbleSelector, reportCheck, saveScreenshot } from "./mockup-check
 const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
 // Fork and rejoin instants of the canned lanes (src/viewer_api_layer5_mockup_branches.ts): a fork owns a tick.
-const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
+const BRANCH_BOX = `document.querySelector('#timelineViewControls input[data-kind="branch"]')`;
 // A marker spanning a lane carries --lanes-spanned; visible means it takes layout space.
 const COUNT_VISIBLE_BRANCH_TIE_MARKERS = `[...document.querySelectorAll('.nodes-with-same-timestamp[style*="lanes-spanned"]')]
   .filter(marker => getComputedStyle(marker).display !== 'none' && marker.getClientRects().length > 0).length`;
@@ -59,11 +59,11 @@ export async function validateLayer5(page: HeadlessPage, pageUrl: string): Promi
   await validateLaneNodeClicks(page, "L5", { max: 2 });
   // Bug 480: a branch node tied with one trunk node is the only reason this marker exists.
   await page.evaluate(`${BRANCH_BOX}.click()`);
-  await page.waitFor(`document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  await page.waitFor(`document.querySelector('.appWindow').dataset.hiddenKinds.includes('branch')`, 10_000);
   const branchOffTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
   reportCheck("L5 bug 480: with the branch box off, no pink marker of a branch-node tie is visible", branchOffTieCount === 0, branchOffTieCount);
   await page.evaluate(`${BRANCH_BOX}.click()`);
-  await page.waitFor(`!document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  await page.waitFor(`!document.querySelector('.appWindow').dataset.hiddenKinds.includes('branch')`, 10_000);
   const branchOnTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
   reportCheck("L5 bug 480: with the branch box on, a pink marker of a branch-node tie is visible", branchOnTieCount > 0, branchOnTieCount);
   await page.navigate(pageUrl);

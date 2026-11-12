@@ -24,11 +24,11 @@ export function installSettingsRoute(savedFile: unknown): { posted: () => unknow
 }
 
 export function toggleBox(kind: string, checked: boolean): void {
-  const box = document.querySelector<HTMLInputElement>(`#show-row [data-kind=${kind}]`)!;
+  const box = document.querySelector<HTMLInputElement>(`#timelineViewControls [data-kind=${kind}]`)!;
   box.checked = checked;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
 }
 
 export function readHiddenKinds(): string {
-  return document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!;
+  return document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds")!;
 }

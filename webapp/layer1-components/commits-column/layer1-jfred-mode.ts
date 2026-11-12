@@ -29,7 +29,7 @@ function loadSavedBase(view: WireLayer1View): void {
 }
 
 async function enableEveryKind(): Promise<boolean> {
-  const kindBoxes = document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]");
+  const kindBoxes = document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]");
   for (const box of kindBoxes) {
     if (!box.checked) {
       box.checked = true;

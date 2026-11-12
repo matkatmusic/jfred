@@ -51,7 +51,7 @@ test("test_a_step_between_two_ticks_gets_the_offset_between_them", () => {
 test("test_the_line_shows_when_the_session_column_is_off", () => {
     // Steps: the page has no Session track, draw the line, expect it shown.
     initLayer1Dom();
-    assert.equal(document.getElementById("annotation-track"), null);
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     storeEngineV3Steps([buildStep("2026-06-01T09:00:00.000Z")]);
     renderEngineV3LineAtTicks(TICKS);
     assert.equal(readLine().hidden, false);
@@ -85,7 +85,7 @@ test("test_the_line_moves_when_the_marker_moves_and_a_redraw_keeps_one_line", ()
 
 function stubRects(pane: { top: number; bottom: number }, line: { top: number; bottom: number }): { scrolls: unknown[] } {
     const scrolls: unknown[] = [];
-    getRequiredElementById("timelines").getBoundingClientRect = () => pane as DOMRect;
+    getRequiredElementById("timelineContainer").getBoundingClientRect = () => pane as DOMRect;
     readLine().getBoundingClientRect = () => line as DOMRect;
     readLine().scrollIntoView = (options?: unknown) => scrolls.push(options);
     return { scrolls };

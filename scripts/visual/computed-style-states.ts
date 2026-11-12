@@ -15,8 +15,8 @@ const WAIT_MS = 120_000;
 const CLEAR_THEME = `delete document.documentElement.dataset.theme`;
 const OPEN_ALL_FOLDERS = `document.querySelectorAll('#filenav-tree details').forEach((folder) => { folder.open = true; })`;
 const CLICK_FIRST_SESSION = `document.querySelector('.session-item').click()`;
-const DRAWER_ON_EDIT = `document.getElementById('drawer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`;
-const DRAWER_ON_SCRIPT = `document.getElementById('drawer').classList.contains('open') && document.querySelector('#drawer .scriptbody pre')?.textContent.length > 0`;
+const DRAWER_ON_EDIT = `document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`;
+const DRAWER_ON_SCRIPT = `document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent.length > 0`;
 
 export function buildSetThemeExpression(theme: string): string {
   return `document.documentElement.dataset.theme = '${theme}'`;

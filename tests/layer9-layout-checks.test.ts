@@ -192,7 +192,7 @@ test("validateTokens fails on a colour literal or on no rules at all", async () 
 //     for (const name of ["sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-", "hover-popup", "hp-line"])
 //         assert.ok(CUT_RULE_TEXTS.includes(name), name);
 //     // The old strip and mark names stay in the pattern, so no check is loosened.
-//     for (const name of ["jfred-strip", "jnode", "jlabel", "jchain", "jline", "jhead", "cut-", "jfred-message"])
+//     for (const name of ["jfredCommitsDrawerComponent", "jnode", "jlabel", "jchain", "jline", "jhead", "cut-", "jfred-message"])
 //         assert.ok(CUT_RULE_TEXTS.includes(name), name);
 //     // No rule is skipped: the scan has no --page filter.
 //     assert.ok(!CUT_RULE_TEXTS.includes("--page"));

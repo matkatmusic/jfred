@@ -1,15 +1,15 @@
   /*
     Task 257: the Detail View drawer is a flex sibling, so opening it shrinks the scrollport. No width transition.
   */
-  .drawer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
+  .detailsPaneContainer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
     background: var(--surface); }
-  .drawer.open { width: 50%; display: flex; flex-direction: column; }
-  .drawer .dhead { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  .detailsPaneContainer.open { width: 50%; display: flex; flex-direction: column; }
+  .detailsPaneContainer .dhead { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
     border-bottom: 1px solid var(--border); }
-  .drawer .dhead #dclose { margin-left: auto; }
-  .drawer .dpath { flex: 1; min-width: 0; font: 600 12px ui-monospace, Menlo, monospace;
+  .detailsPaneContainer .dhead #dclose { margin-left: auto; }
+  .detailsPaneContainer .dpath { flex: 1; min-width: 0; font: 600 12px ui-monospace, Menlo, monospace;
     color: var(--c-snap); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .drawer .dpath .run-check { color: var(--c-script); }
+  .detailsPaneContainer .dpath .run-check { color: var(--c-script); }
   /*
     Tasks 299/305: ONE header control strip — image zoom for an image, diff controls for a pair.
   */
@@ -30,7 +30,7 @@
   */
   .dbody .dimgwrap { flex: 1; align-self: stretch; display: grid; place-items: center; }
   .dbody .dimgwrap img.fit { max-width: 100%; max-height: 100%; }
-  .drawer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted); white-space: pre-line;
+  .detailsPaneContainer .dmeta { padding: 6px 12px; font: 10.5px ui-monospace, Menlo, monospace; color: var(--muted); white-space: pre-line;
     border-bottom: 1px solid var(--border); }
-  .drawer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;
+  .detailsPaneContainer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;
     font: 11.5px/1.55 ui-monospace, Menlo, monospace; color: var(--ink2); white-space: pre; }

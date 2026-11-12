@@ -65,7 +65,7 @@ async function executeDriveAndCheck(port: number, payload: ViewPayload): Promise
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   try {
     await page.navigate(buildViewUrl(port));
-    await page.waitFor("document.querySelectorAll('#stage .filebox').length > 0", 40_000);
+    await page.waitFor("document.querySelectorAll('#fileBubbleContainer .filebox').length > 0", 40_000);
     await executeLayer2Checks(page as HeadlessPage, payload);
   }
   finally {

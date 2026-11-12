@@ -120,7 +120,7 @@ test("test_stopRun_cancels_the_running_script_and_it_is_not_retried", async () =
 
 function drawRunDotOnPage(id: string): HTMLElement {
   const dot = createElement("i", { class: "node n-script", "data-tool-use-id": id });
-  getRequiredElementById("stage").replaceChildren(dot);
+  getRequiredElementById("fileBubbleContainer").replaceChildren(dot);
   return dot;
 }
 

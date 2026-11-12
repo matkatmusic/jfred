@@ -37,7 +37,7 @@ export function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement;
   const nodeA = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
   const nodeB = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
   const connector = createElement("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-  getRequiredElementById("stage").replaceChildren(
+  getRequiredElementById("fileBubbleContainer").replaceChildren(
     createElement("div", { class: "filebox" }, [
       createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
       createElement("div", { class: "lane" }, [nodeA]),
@@ -75,7 +75,7 @@ export async function openSingleRunDrawer(run: WireScriptRun): Promise<HTMLEleme
   } as WireLayer1View);
   rememberNavTargets([]);
   const node = createElement("i", { class: "node n-script", "data-tool-use-id": run.toolUseId });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));

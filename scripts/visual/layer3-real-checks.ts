@@ -5,7 +5,7 @@ import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import { containsCounterLabel, findUncertainEdit, listAllEdits, listEditsOnPaths } from "./layer3-real-edits.ts";
 
-const EDIT_BOX = `document.querySelector('#show-row input[data-kind="edit"]')`;
+const EDIT_BOX = `document.querySelector('#timelineViewControls input[data-kind="edit"]')`;
 const COUNT_EDIT_NODES = `document.querySelectorAll('i.node.n-edit, i.node.n-read').length`;
 const COUNT_EDIT_REQUESTS =
   `performance.getEntriesByType('resource').filter(e => e.name.includes('/api/layer1-edits')).length`;

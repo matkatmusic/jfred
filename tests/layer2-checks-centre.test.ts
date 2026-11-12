@@ -44,5 +44,5 @@ test("validateCentring fails the drawer check when the uncovered area is not the
     const overlapped: CentredView = { ...VIEW, area: [0, 0, 300, 400] };
     const page = fakePage([true, undefined, VIEW, false, overlapped, undefined, true, undefined]);
     const added = await failuresAddedBy(() => validateCentring(page));
-    assert.ok(added.includes("#drawer-centre the drawer is a flex sibling: it never covers #timelines, so the uncovered area is the pane"));
+    assert.ok(added.includes("#drawer-centre the drawer is a flex sibling: it never covers #timelineContainer, so the uncovered area is the pane"));
 });

@@ -29,15 +29,15 @@ function startDragToward(clientX: number): void {
 }
 
 function readFileNavWidth(): string {
-    return document.getElementById("stagewrap")!.style.getPropertyValue("--filenav-w");
+    return document.getElementById("sessionDataContainer")!.style.getPropertyValue("--filenav-w");
 }
 
 function readFileNavDragWidth(): string {
-    return document.getElementById("stagewrap")!.style.getPropertyValue("--filenav-drag-w");
+    return document.getElementById("sessionDataContainer")!.style.getPropertyValue("--filenav-drag-w");
 }
 
 function readFrozenTimelineWidth(): string {
-    return document.getElementById("stagewrap")!.style.getPropertyValue("--timeline-w");
+    return document.getElementById("sessionDataContainer")!.style.getPropertyValue("--timeline-w");
 }
 
 test("test_dragging_the_grip_writes_the_shared_filenav_width", () => {
@@ -76,7 +76,7 @@ test("test_a_drag_in_progress_moves_the_preview_and_not_the_pane", () => {
     // and the grip reads as a live preview line.
     assert.ok(document.getElementById("filenav-grip")!.classList.contains("dragging"));
     // 2026-07-26 follow-up: the timeline is frozen during the drag; CSS needs both `.resizing` and `--timeline-w`.
-    assert.ok(document.getElementById("stagewrap")!.classList.contains("resizing"));
+    assert.ok(document.getElementById("sessionDataContainer")!.classList.contains("resizing"));
     assert.notEqual(readFrozenTimelineWidth(), "");
 });
 
@@ -91,6 +91,6 @@ test("test_releasing_the_drag_commits_the_width_and_drops_the_preview", () => {
     // ...and the grip is no longer painted as a drag in progress.
     assert.equal(document.getElementById("filenav-grip")!.classList.contains("dragging"), false);
     // ...and the timeline's freeze is lifted, so a leftover half would pin a stale width.
-    assert.equal(document.getElementById("stagewrap")!.classList.contains("resizing"), false);
+    assert.equal(document.getElementById("sessionDataContainer")!.classList.contains("resizing"), false);
     assert.equal(readFrozenTimelineWidth(), "");
 });

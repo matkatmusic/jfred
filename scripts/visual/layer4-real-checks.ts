@@ -21,7 +21,7 @@ const NEVER_PROVABLE_RUN_ID = "toolu_01Ms5XvMy6ihtbg2xGqwstGz";
 const NEVER_PROVABLE_PATH = "skills/debate/tests/archive/test.sh";
 const DRAWER_TIMEOUT_MS = 60_000;
 
-const SCRIPT_BOX = `document.querySelector('#show-row input[data-kind="script-run"]')`;
+const SCRIPT_BOX = `document.querySelector('#timelineViewControls input[data-kind="script-run"]')`;
 const COUNT_SCRIPT_NODES = `document.querySelectorAll('i.node.n-script').length`;
 const COUNT_SCRIPT_REQUESTS =
   `performance.getEntriesByType('resource').filter(e => e.name.includes('/api/layer1-script-runs')).length`;
@@ -67,13 +67,13 @@ async function validateFirstFetch(page: HeadlessPage, payload: WireScriptRunsVie
 
 async function openScriptDrawer(page: HeadlessPage, click: string): Promise<{ path: string; body: string }> {
   await page.evaluate(`document.getElementById('dbody').replaceChildren();
-        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('detailsPaneContainer').classList.remove('open');
         ${click}`);
   await page.waitFor(
-    `document.getElementById('drawer').classList.contains('open') && document.querySelector('#drawer .scriptbody pre')?.textContent.length > 0`,
+    `document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent.length > 0`,
     DRAWER_TIMEOUT_MS);
   return await page.evaluate<{ path: string; body: string }>(
-    `({ path: document.getElementById('dpath').textContent.trim(), body: document.querySelector('#drawer .scriptbody pre').textContent })`);
+    `({ path: document.getElementById('dpath').textContent.trim(), body: document.querySelector('#detailsPaneContainer .scriptbody pre').textContent })`);
 }
 
 async function validateIndirectionExample(page: HeadlessPage, payload: WireScriptRunsView): Promise<void> {
@@ -82,7 +82,7 @@ async function validateIndirectionExample(page: HeadlessPage, payload: WireScrip
   const bubbles = await page.evaluate<string[]>(`${buildDotsOfRun(PYTHON_BY_INDIRECTION_RUN_ID)}.map(d => ${buildBubblePathExpression("d")})`);
   reportCheck("l4-wire-real example A has a node on both of its pairs", containsAll(bubbles, PYTHON_BY_INDIRECTION_PATHS), bubbles);
   const connectors = await page.evaluate<number>(
-    `document.querySelectorAll('#stage .script-connector[data-tool-use-id=${JSON.stringify(PYTHON_BY_INDIRECTION_RUN_ID)}]').length`);
+    `document.querySelectorAll('#fileBubbleContainer .script-connector[data-tool-use-id=${JSON.stringify(PYTHON_BY_INDIRECTION_RUN_ID)}]').length`);
   reportCheck("l4-wire-real example A has exactly one connector", connectors === 1, connectors);
   const neverProvable = await page.evaluate<boolean>(`${buildDotsOfRun(PYTHON_BY_INDIRECTION_RUN_ID)}[0].classList.contains('never-provable')`);
   reportCheck("l4-wire-real example A is python and not never-provable", !neverProvable && wire?.executorKind === "python");

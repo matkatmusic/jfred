@@ -1,4 +1,4 @@
-// Cross-bubble shift-click ranges and the wash sweep; the stage is built by hand, matching layer1-page.ts's DOM.
+// Cross-bubble shift-click ranges and the wash sweep; the fileBubbleContainer is built by hand, matching layer1-page.ts's DOM.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -19,7 +19,7 @@ test("task 329: a shift-click spanning two bubbles becomes a global range diffin
     getInputById("dir").value = "/project";
     const firstNode = createElement("i", { class: "node n-disk" });
     const otherNode = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
+    getRequiredElementById("fileBubbleContainer").replaceChildren(
         createElement("div", { class: "filebox" }, [
             createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
             createElement("div", { class: "lane" }, [firstNode]),
@@ -62,7 +62,7 @@ test("task 336: the wash sweeps in every file with a step inside the range, not 
     getInputById("dir").value = "/project";
     const firstNode = createElement("i", { class: "node n-disk" });
     const otherNode = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
+    getRequiredElementById("fileBubbleContainer").replaceChildren(
         createElement("div", { class: "filebox" }, [
             createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
             createElement("div", { class: "lane" }, [firstNode]),

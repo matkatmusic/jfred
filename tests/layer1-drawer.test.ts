@@ -22,7 +22,7 @@ test("clicking an on-disk node opens one DiffView pane showing the whole file, c
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
 
-    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+    assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
     const pane = getFirstPane();
     // The drawer header (asserted above) is the ONLY place a lone file is named.
@@ -48,11 +48,11 @@ test("a click on anything that is not a node leaves the drawer shut", async () =
     buildDiskNodeStage();
     installNodeDrawer();
 
-    getRequiredElementById("stage").querySelector(".fname")!
+    getRequiredElementById("fileBubbleContainer").querySelector(".fname")!
         .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();
 
-    assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
+    assert.equal(getRequiredElementById("detailsPaneContainer").classList.contains("open"), false);
 });
 
 const COMMIT_HASH = "5636d8ecb1a24f0e9c7d3a1b8e5f402716c9d8aa";
@@ -61,7 +61,7 @@ const MARKDOWN_PATH = "archive/interim-run-scenario/skill/SKILL.md";
 // A commit bubble: the dot's title carries the FULL hash the drawer reads (buildPairWidget's shape).
 function buildCommitNodeStage(hashTitle: string): HTMLElement {
     const node = createElement("i", { class: "node n-commit", title: hashTitle });
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "SKILL.md", "data-path": MARKDOWN_PATH }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: hashTitle.slice(0, 8), title: hashTitle })]),
     ]));
@@ -115,7 +115,7 @@ test("task 325: a File Nav leaf click selects the on-disk node and opens the dra
     openDiskNodeForPath(DISK_FILE_PATH);
     await waitForPendingFetches();
 
-    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+    assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "demo.ts — Current on-disk state");
     assert.ok(node.classList.contains("found"));
 });

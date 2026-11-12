@@ -18,13 +18,13 @@ export const CLICK_BLOCKED_GO = `document.querySelector('#run-blocked-popup .blo
 const BLOCKED_FACTS = `(() => {
     const popup = document.getElementById('run-blocked-popup');
     const box = popup?.getBoundingClientRect();
-    const drawer = document.getElementById('drawer');
+    const drawer = document.getElementById('detailsPaneContainer');
     const rect = r => r === undefined ? [] : [r.left, r.top, r.right, r.bottom];
     return { count: ${COUNT_BLOCKED_POPUPS}, text: popup?.textContent ?? '',
         dotRect: rect(${buildNodeExpression(BLOCKED_ID)}?.getBoundingClientRect()),
         buttons: popup === null ? [] : [...popup.querySelectorAll('button')].map(b => b.textContent),
-        insideStagewrap: popup?.closest('#stagewrap') != null, insideTimelines: popup?.closest('#timelines') != null, popupRect: rect(box),
-        drawerRect: rect(drawer.getBoundingClientRect()), paneRect: rect(document.getElementById('timelines').getBoundingClientRect()),
+        insideStagewrap: popup?.closest('#sessionDataContainer') != null, insideTimelines: popup?.closest('#timelineContainer') != null, popupRect: rect(box),
+        drawerRect: rect(drawer.getBoundingClientRect()), paneRect: rect(document.getElementById('timelineContainer').getBoundingClientRect()),
         drawerOpen: drawer.classList.contains('open') };
 })()`;
 
@@ -56,7 +56,7 @@ export function isBlockedBesideDot(facts: BlockedFacts): boolean {
 //   return facts.count === 1 && facts.insideStagewrap && facts.drawerOpen && popupRight <= drawerLeft;
 // }
 
-// The open panel narrows #timelines, so a popup inside it is clipped at the panel edge.
+// The open panel narrows #timelineContainer, so a popup inside it is clipped at the panel edge.
 export function isBlockedClippedByPane(facts: BlockedFacts): boolean {
   const paneRight = facts.paneRect[2] ?? Infinity;
   const drawerLeft = facts.drawerRect[0] ?? 0;

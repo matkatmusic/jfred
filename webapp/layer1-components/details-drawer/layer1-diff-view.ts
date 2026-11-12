@@ -86,7 +86,7 @@ function blockClick(event: Event): void {
 
 // `renderDetailView`: the drawer body is a dumb scrollable area — clear it, add the panes, done.
 export function renderDetailView(panes: HTMLElement[]): void {
-  getRequiredElementById("drawer").classList.add("open");
+  getRequiredElementById("detailsPaneContainer").classList.add("open");
   getRequiredElementById("dmulti").hidden = panes.length < 2;
   // The drawer header already names a lone file; its section plate would say it again.
   if (panes.length === 1) {

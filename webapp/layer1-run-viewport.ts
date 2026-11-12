@@ -28,7 +28,7 @@ function scanViewport(): void {
   if (view === undefined) {
     return;
   }
-  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const pane = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const dots = [...document.querySelectorAll<HTMLElement>(DOT_SELECTOR)];
   void addRunsToQueue(view, listOnScreenRunIds(pane, dots));
 }
@@ -51,7 +51,7 @@ function attachCanvasResizeObserver(): void {
 
 // ponytail: re-adding the SAME named function is a DOM no-op, so each draw keeps one scroll listener.
 export function installRunViewportWatcher(): void {
-  getRequiredElementById("timelines").addEventListener("scroll", scheduleViewportCheck);
+  getRequiredElementById("timelineContainer").addEventListener("scroll", scheduleViewportCheck);
   attachCanvasResizeObserver();
   scheduleViewportCheck();
 }

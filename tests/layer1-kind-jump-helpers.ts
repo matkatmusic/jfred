@@ -19,7 +19,7 @@ const NODE_HEIGHT_PX = 10;
 
 // The pane's scroll offset in content pixels; a node's on-screen box is its content y minus this.
 function readViewTopPx(): number {
-  return document.getElementById("timelines")!.scrollTop;
+  return document.getElementById("timelineContainer")!.scrollTop;
 }
 
 export function buildNode(className: string, centerY: number): HTMLElement {
@@ -37,11 +37,11 @@ export async function renderViewWithSyntheticStage(): Promise<void> {
   initLayer1Dom();
   getInputById("dir").value = "";
   await renderLayer1View(VIEW);
-  Object.assign(document.getElementById("timelines")!, {
+  Object.assign(document.getElementById("timelineContainer")!, {
     scrollTop: 0,
     getBoundingClientRect: () => ({ top: 0, bottom: PANE_HEIGHT_PX, left: 0, right: 1000, height: PANE_HEIGHT_PX }),
   });
-  document.getElementById("stage")!.replaceChildren(
+  document.getElementById("fileBubbleContainer")!.replaceChildren(
     buildNode("n-commit", 100), buildNode("n-commit", 400), buildNode("n-commit", 700),
     buildNode("n-snap", 50), buildNode("n-snap", 550),
   );
@@ -49,9 +49,9 @@ export async function renderViewWithSyntheticStage(): Promise<void> {
 }
 
 export function findArrow(kind: string, direction: string): HTMLButtonElement {
-  return document.querySelector<HTMLButtonElement>(`#show-row [data-jump-kind=${kind}][data-jump=${direction}]`)!;
+  return document.querySelector<HTMLButtonElement>(`#timelineViewControls [data-jump-kind=${kind}][data-jump=${direction}]`)!;
 }
 
 export function readLandedY(): string {
-  return document.querySelector<HTMLElement>("#stage .found")!.dataset["y"]!;
+  return document.querySelector<HTMLElement>("#fileBubbleContainer .found")!.dataset["y"]!;
 }

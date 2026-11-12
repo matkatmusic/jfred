@@ -11,7 +11,7 @@ function openDrawerHeading(dot: HTMLElement): void {
   }
   getRequiredElementById("dpath").textContent = dot.dataset["sessionTitle"]!;
   getRequiredElementById("dmeta").textContent = dot.dataset["recordLabel"]!;
-  getRequiredElementById("drawer").classList.add("open");
+  getRequiredElementById("detailsPaneContainer").classList.add("open");
   setDrawerTools("none");
 }
 

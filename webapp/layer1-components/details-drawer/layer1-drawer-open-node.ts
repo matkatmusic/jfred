@@ -32,7 +32,7 @@ function findAdjacentNode(offset: 1 | -1): HTMLElement | undefined {
   return nodes[nodes.indexOf(anchor.node) + offset];
 }
 
-// The drawer shrinks the pane, so re-centre against the POST-reflow layout (also why .drawer has no width transition).
+// The drawer shrinks the pane, so re-centre against the POST-reflow layout (also why .detailsPaneContainer has no width transition).
 function moveViewToAnchoredNode(): void {
   if (anchor === undefined) {
     return;
@@ -59,7 +59,7 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   getRequiredElementById("dmeta").textContent = detail.meta;
   // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
   markLandedElement(node);
-  getRequiredElementById("drawer").classList.add("open");
+  getRequiredElementById("detailsPaneContainer").classList.add("open");
   requestAnimationFrame(moveViewToAnchoredNode);
   const isImage = isImagePath(path);
   setDrawerTools(isImage ? "img" : "none");

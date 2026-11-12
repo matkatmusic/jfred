@@ -14,7 +14,7 @@ import {
 function buildTwoNodeStage(): { firstNode: HTMLElement; otherNode: HTMLElement } {
   const firstNode = createElement("i", { class: "node n-disk" });
   const otherNode = createElement("i", { class: "node n-disk" });
-  getRequiredElementById("stage").replaceChildren(
+  getRequiredElementById("fileBubbleContainer").replaceChildren(
     createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }), createElement("div", { class: "lane" }, [firstNode])]),
     createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": "src/other.ts" }), createElement("div", { class: "lane" }, [otherNode])]),
   );

@@ -35,7 +35,7 @@ async function validateIgnored(page: HeadlessPage): Promise<void> {
   await readIgnoredState(page, true);
 }
 
-const toggleCommitMode = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, COMMIT_MODE_CLICK, "jfred-strip", isOn);
+const toggleCommitMode = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, COMMIT_MODE_CLICK, "jfredCommitsDrawerComponent", isOn);
 
 // Arming Commit mode opens the replay question over the page; this answers No.
 export const DISMISS_RUN_CONSENT = `(async () => {
@@ -60,11 +60,11 @@ async function validateStrip(page: HeadlessPage, offStageLeft: number): Promise<
 }
 
 async function validatePopups(page: HeadlessPage): Promise<void> {
-  const node = `document.querySelector('#jfred-strip .jnode[data-short-hash="${COMMIT_HASHES[1]}"]')`;
-  const label = `[...document.querySelectorAll('#jfred-strip .jlabel')].find(l => l.textContent.includes('${COMMIT_HASHES[1]}'))`;
+  const node = `document.querySelector('#jfredCommitsDrawerComponent .jnode[data-short-hash="${COMMIT_HASHES[1]}"]')`;
+  const label = `[...document.querySelectorAll('#jfredCommitsDrawerComponent .jlabel')].find(l => l.textContent.includes('${COMMIT_HASHES[1]}'))`;
   await reportFacts(page, buildHoverProbe(node), "RULER commits: hovering the commit node shows its message in lines of 50 characters or fewer", isCommitPopupRight);
   await reportFacts(page, buildHoverProbe(label), "RULER commits: hovering the hash label shows the same message", isCommitPopupRight);
-  await reportFacts(page, buildHoverProbe(`document.querySelector('#jfred-strip .jnode[data-entry-kind="base"]')`), "RULER commits: the base entry shows no popup", isNoPopup);
+  await reportFacts(page, buildHoverProbe(`document.querySelector('#jfredCommitsDrawerComponent .jnode[data-entry-kind="base"]')`), "RULER commits: the base entry shows no popup", isNoPopup);
   await page.evaluate(buildClickEntry(COMMIT_HASHES[1]!));
   await reportFacts(page, DRAWER_FACTS, "RULER commits: a click on an entry opens the Details drawer with the message", isDrawerRight);
   await page.evaluate(buildClickById("dclose"));

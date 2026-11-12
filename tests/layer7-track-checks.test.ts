@@ -26,7 +26,7 @@ const UNKNOWN_TITLE = "L7 the unknown dot reads exactly ?, carries the worktree-
 const STAMPLESS_TITLE = "L7 the stampless dot shares its predecessor instant, is level with it, sits beside it at stack 1 with no dot overlap";
 const PAIR_TITLE = "L7 the column tool pair: two dots, one pair id, 40px apart, a dashed bracket spanning them and left of both, the hook between";
 const KEPT_TITLE = "L7 the column bracket stays, beside its lane, when ignored nodes are hidden";
-const COLUMN_BRACKET = buildBracketProbe("document", `#annotation-track .abracket[data-pair-id="${COLUMN_PAIR_ID}"]`);
+const COLUMN_BRACKET = buildBracketProbe("document", `#sessionDotLinesComponent .abracket[data-pair-id="${COLUMN_PAIR_ID}"]`);
 const BLOCK_COLOUR = "rgb(10, 20, 30)";
 
 interface Answers {

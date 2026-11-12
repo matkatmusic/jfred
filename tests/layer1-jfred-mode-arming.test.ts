@@ -57,7 +57,7 @@ async function waitUntil(isDone: () => boolean): Promise<void> {
 }
 
 function listKindBoxes(): HTMLInputElement[] {
-  return [...document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")];
+  return [...document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]")];
 }
 
 test("test_arming_commit_mode_checks_every_kind_box_and_loads_edits", async () => {
@@ -86,7 +86,7 @@ test("test_arming_commit_mode_stays_off_with_a_toast_when_a_kind_does_not_load",
   assert.equal(document.getElementById("dtoast")!.textContent, KINDS_NOT_LOADED_TEXT);
   assert.equal(readJfredBranch().isArmed, false);
   assert.equal(getButton().classList.contains("current"), false);
-  assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!.checked, false);
+  assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=branch]")!.checked, false);
 });
 
 test("test_turning_commit_mode_off_leaves_the_kinds_on", async () => {

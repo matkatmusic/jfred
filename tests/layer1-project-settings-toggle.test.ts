@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installProjectSettingsToggle } from "../webapp/layer1-components/top-bars/layer1-project-settings-toggle.ts";
 
 function readRowsOpen(): boolean {
-    return document.querySelector(".viz-root")!.classList.contains("project-settings-open");
+    return document.querySelector(".appWindow")!.classList.contains("project-settings-open");
 }
 
 function readButton(): HTMLButtonElement {
@@ -19,8 +19,8 @@ test("test_the_project_settings_rows_sit_in_the_header_and_start_hidden", () => 
     installProjectSettingsToggle();
     assert.equal(readRowsOpen(), false);
     assert.equal(readButton().classList.contains("current"), false);
-    assert.equal(document.querySelectorAll("header > .sources").length, 2);
-    assert.ok(document.querySelector("header > .sources.repo"));
+    assert.equal(document.querySelectorAll(".headerContainer > .sources").length, 2);
+    assert.ok(document.querySelector(".headerContainer > .sources.repo"));
 });
 
 test("test_the_project_settings_button_follows_the_time_bar", () => {

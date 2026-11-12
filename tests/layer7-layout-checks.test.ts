@@ -60,7 +60,7 @@ const runChecks = async (setup: Setup) => {
 
 const BETWEEN_TITLE = "L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it";
 const BESIDE_TITLE = "L7 scrolled right, the column still touches the ruler and covers the bubbles";
-const RULE_TITLE = "L7 one rule for .ruler + .stage and one for .atrack + .stage, and the stage margin is the same without the column";
+const RULE_TITLE = "L7 one rule for .timelineRulerComponent + .fileBubbleContainer and one for .sessionDotLinesComponent + .fileBubbleContainer, and the stage margin is the same without the column";
 
 test("the layout checks pass the good page: 3 checks", async () => {
     const { lines, newFailures } = await runChecks(makeSetup());
@@ -103,11 +103,11 @@ test("a missing rule or a margin that moves with the column fails only the rule 
 
 // not behavior: it only checks that probe constants contain certain strings and parse as JavaScript.
 // test("the probes read the column, the stage and the two slack rules", () => {
-//     assert.ok(LAYOUT_FACTS.includes("annotation-track"));
+//     assert.ok(LAYOUT_FACTS.includes("sessionDotLinesComponent"));
 //     assert.ok(LAYOUT_FACTS.includes("elementFromPoint"));
 //     assert.ok(LAYOUT_FACTS.includes("previousElementSibling"));
-//     assert.ok(RULE_FACTS.includes(".ruler + .stage"));
-//     assert.ok(RULE_FACTS.includes(".atrack + .stage"));
+//     assert.ok(RULE_FACTS.includes(".timelineRulerComponent + .fileBubbleContainer"));
+//     assert.ok(RULE_FACTS.includes(".sessionDotLinesComponent + .fileBubbleContainer"));
 //     assert.doesNotThrow(() => new Function(`return (${LAYOUT_FACTS});`));
 //     assert.doesNotThrow(() => new Function(`return (${RULE_FACTS});`));
 // });

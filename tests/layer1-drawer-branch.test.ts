@@ -18,7 +18,7 @@ function drawLaneNode(): { dot: HTMLElement; label: HTMLElement } {
   const identity = { "data-change-id": CHANGE_ID, "data-kind": "edit", "data-instant": "2026-06-02T09:35:00.000Z" };
   const dot = createElement("i", { class: "bnode", ...identity });
   const label = createElement("span", { class: "blabel", text: "edit", ...identity });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
     createElement("div", { class: "lane" }, [createElement("div", { class: "blane" }, [dot, label])]),
   ]));
@@ -47,7 +47,7 @@ test("clicking a lane dot opens the drawer and reads both sides of that change i
   assert.deepEqual([...new Set(params.map((entry) => entry.get("side")))].sort(), ["base", "target"]);
   assert.ok(params.every((entry) => entry.get("editChangeId") === CHANGE_ID && entry.get("branch") === "1"
     && entry.get("path") === "src/util.ts" && entry.get("dir") === "/work"));
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
   assert.equal(getFirstPane().querySelector(".dpair")?.textContent, "before - after");
 });
 
@@ -73,7 +73,7 @@ test("a trunk edit node's reads carry no branch flag", async () => {
   const asks = installRecordingFetch(answerBranchFile);
   const identity = { "data-change-id": CHANGE_ID, "data-kind": "edit", "data-confidence": "verified", "data-session-file": "/s/a.jsonl" };
   const node = createElement("i", { class: "node n-edit", ...identity });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));

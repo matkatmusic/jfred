@@ -1,4 +1,4 @@
-// Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (attachLeaderVisibility's precedent).
+// Task 257.5: the Detail View drawer; delegated on #fileBubbleContainer since bubbles rebuild per render (attachLeaderVisibility's precedent).
 
 import { getRequiredElementById } from "../../app-dom.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
@@ -48,7 +48,7 @@ function applyRangeGesture(event: Event, node: HTMLElement, path: string): boole
   const currentAnchor = readAnchor();
   const isShift = (event as MouseEvent).shiftKey;
   const hasAnchor = currentAnchor !== undefined;
-  const isDrawerOpen = getRequiredElementById("drawer").classList.contains("open");
+  const isDrawerOpen = getRequiredElementById("detailsPaneContainer").classList.contains("open");
   const isShiftWithAnchor = isShift && hasAnchor;
   const isRangeGesture = isShiftWithAnchor && isDrawerOpen;
   if (isRangeGesture) {
@@ -112,7 +112,7 @@ function openNextNeighbour(): void {
 }
 
 function closeDrawer(): void {
-  getRequiredElementById("drawer").classList.remove("open");
+  getRequiredElementById("detailsPaneContainer").classList.remove("open");
   getRequiredElementById("dmulti").hidden = true;
   clearDiffPair();
   clearAnchor();
@@ -122,7 +122,7 @@ function closeDrawer(): void {
 
 export function installNodeDrawer(): void {
   installImageZoomTools();
-  getRequiredElementById("stage").addEventListener("click", applyStageClick);
+  getRequiredElementById("fileBubbleContainer").addEventListener("click", applyStageClick);
   getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);
   getRequiredElementById("dnext").addEventListener("click", openNextNeighbour);
   getRequiredElementById("dclose").addEventListener("click", closeDrawer);

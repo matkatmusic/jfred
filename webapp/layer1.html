@@ -13,7 +13,7 @@
 <script src="/app/vendor/highlight.min.js"></script>
 </head>
 <body>
-<div class="viz-root">
+<div id="appWindow" class="appWindow" data-component="appWindow">
   <!--
     include layer1-components/top-bars/top-bars.html
   -->
@@ -43,9 +43,9 @@
   -->
 
   <!--
-    Task 246: .stagewrap doesn't scroll, so the minimap stays pinned; inside main.timelines it would scroll away.
+    Task 246: .sessionDataContainer doesn't scroll, so the minimap stays pinned; inside main.timelines it would scroll away.
   -->
-  <div class="stagewrap" id="stagewrap">
+  <div class="sessionDataContainer" id="sessionDataContainer" data-component="sessionDataContainer">
     <!--
       Task 252: the File Nav lists every identified file, left of the ruler gutter; layer1-filenav.ts rebuilds it per load.
     -->
@@ -53,7 +53,7 @@
       include layer1-components/file-nav/file-nav.html
     -->
     <!--
-      Task 279: drag handle is a sibling, not a child, so .filenav's overflow:auto can't scroll it away.
+      Task 279: drag handle is a sibling, not a child, so .sourcesContainer's overflow:auto can't scroll it away.
     -->
     <!--
       include layer1-components/file-nav/filenav-grip.html

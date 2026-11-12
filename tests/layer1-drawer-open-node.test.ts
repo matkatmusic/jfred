@@ -14,7 +14,7 @@ function buildTwoNodeLane(): { firstNode: HTMLElement; secondNode: HTMLElement }
   clearAnchor();
   const firstNode = createElement("i", { class: "node n-disk" });
   const secondNode = createElement("i", { class: "node n-disk" });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }),
     createElement("div", { class: "lane" }, [firstNode, secondNode]),
   ]));
@@ -25,7 +25,7 @@ test("opening a node anchors it, opens the drawer and disables the arrow with no
   const { firstNode } = buildTwoNodeLane();
   await openNodeDrawer(firstNode, DISK_FILE_PATH);
   assert.equal(readAnchor()?.node, firstNode);
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
   assert.equal((getRequiredElementById("dprev") as HTMLButtonElement).disabled, true);
   assert.equal((getRequiredElementById("dnext") as HTMLButtonElement).disabled, false);
 });

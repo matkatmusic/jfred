@@ -90,7 +90,7 @@ test("test_real_data_leaves_the_button_hidden_and_draws_no_strip", async () => {
   initLayer1Dom();
   await renderLayer1View(REAL_VIEW as never);
   assert.equal(getButton().hidden, true);
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
   assert.equal(getButton().onclick, null);
 });
 
@@ -101,7 +101,7 @@ test("test_fixture_data_shows_the_button_and_no_strip_until_commit_mode_is_on", 
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(getButton().hidden, false);
   assert.equal(getButton().textContent, "Commit mode");
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
 });
 
 test("test_the_click_draws_the_strip_and_a_second_click_removes_it", async () => {
@@ -112,10 +112,10 @@ test("test_the_click_draws_the_strip_and_a_second_click_removes_it", async () =>
   await renderLayer1View(CANNED_VIEW as never);
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
   getButton().click();
   await waitUntil(() => !readJfredBranch().isArmed);
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
 });
 
 test("test_the_button_toggles_current_and_the_armed_state", async () => {
@@ -141,7 +141,7 @@ test("test_a_second_render_keeps_the_fake_commits", async () => {
   setArmed(true);
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(readJfredBranch().commits.length, 3);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 4);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 4);
 });
 
 test("test_a_second_render_keeps_the_delete", async () => {
@@ -151,7 +151,7 @@ test("test_a_second_render_keeps_the_delete", async () => {
   setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(readJfredBranch().base, undefined);
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
   assert.equal(getButton().hidden, false);
 });
 
@@ -195,7 +195,7 @@ test("test_real_view_reload_restores_the_base_from_the_saved_hash_when_the_serve
   assert.deepEqual(readJfredBranch().base, { instant: SAVED_COMMIT_INSTANT, shortHash: SAVED_HASH.slice(0, 8) });
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode.j-base").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode.j-base").length, 1);
 });
 
 test("test_real_view_reload_prefers_the_server_base_over_the_saved_hash", async () => {

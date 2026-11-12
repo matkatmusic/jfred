@@ -1,24 +1,24 @@
   /*
-    Task 246: .stagewrap is the minimap's parent and holds the File Nav width (task 279).
+    Task 246: .sessionDataContainer is the minimap's parent and holds the File Nav width (task 279).
   */
-  .stagewrap { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
+  .sessionDataContainer { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
     display: flex; overflow: hidden; }
 
   /*
     Task 288: mid-drag the nav follows the pointer; the timeline keeps its width.
   */
-  .stagewrap.resizing .filenav { width: var(--filenav-drag-w); }
-  .stagewrap.resizing .timelines { flex: none; width: var(--timeline-w); }
+  .sessionDataContainer.resizing .sourcesContainer { width: var(--filenav-drag-w); }
+  .sessionDataContainer.resizing .timelineContainer { flex: none; width: var(--timeline-w); }
 
   /*
     Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
   */
-  .filenav { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
+  .sourcesContainer { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
     overflow: hidden; min-height: 0; --files-share: 50;
     border-right: 1px solid var(--border); background: var(--surface); }
   .navpane { overflow: auto; min-height: 0; }
-  #pane-files { flex: var(--files-share) 1 0; }
-  #pane-sessions { flex: calc(100 - var(--files-share)) 1 0; }
+  #fileNavComponent { flex: var(--files-share) 1 0; }
+  #jsonlsComponent { flex: calc(100 - var(--files-share)) 1 0; }
   /*
     Negative margins so the 7 px target straddles the boundary rather than pushing the panes apart.
   */
@@ -51,7 +51,7 @@
   .filenav-search button { flex: none; padding: 3px 8px; }
 
   /*
-    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimap's 20.
+    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimapComponent's 20.
   */
   .filenav-grip { position: absolute; top: 0; bottom: 0;
     left: calc(var(--filenav-drag-w, var(--filenav-w)) - 3px);

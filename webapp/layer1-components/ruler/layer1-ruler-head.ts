@@ -14,5 +14,5 @@ export function renderRulerHead(isOn: boolean, onToggle: () => void): void {
   const button = createElement("button", { id: TOGGLE_ID, class: isOn ? "session-toggle current" : "session-toggle", text: "session" });
   button.onclick = onToggle;
   const head = createElement("div", { id: HEAD_ID, class: "ruler-head" }, [button]);
-  getRequiredElementById("ruler").prepend(head);
+  getRequiredElementById("timelineRulerComponent").prepend(head);
 }

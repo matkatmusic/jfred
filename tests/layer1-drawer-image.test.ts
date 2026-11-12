@@ -1,4 +1,4 @@
-// An image node fills the drawer from the binary route; the stage is built by hand, matching layer1-page.ts's DOM.
+// An image node fills the drawer from the binary route; the fileBubbleContainer is built by hand, matching layer1-page.ts's DOM.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +14,7 @@ test("an image node renders an img off the binary route instead of fetching text
     installAnimationFrameStub();
     installFetchRoutes({});
     const node = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "logo.png", "data-path": "assets/logo.png" }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "on disk" })]),
     ]));

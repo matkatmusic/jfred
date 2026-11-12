@@ -1,4 +1,4 @@
-  <header data-component="TopBars">
+  <header id="headerContainer" class="headerContainer" data-component="headerContainer">
     <h1>Layer 1 View — Current File State vs Git State</h1>
     <span class="crumb" id="crumb"></span>
     <!--
@@ -68,7 +68,7 @@
     <!--
       Task 256: bucket jumps. `data-bucket` MUST match renderLayer1View's bucket heading exactly. Task 285: row also holds the find-bubble widget.
     -->
-    <div class="jumpbar">
+    <div id="jumpToRowComponent" class="jumpToRowComponent" data-component="jumpToRowComponent">
       <span class="lbl">Jump to:</span>
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk">No on-disk match</button>

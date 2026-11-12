@@ -1,4 +1,4 @@
-// Task L9 redo: the ruler head holds one `session` button and is rebuilt as the first child of #ruler.
+// Task L9 redo: the ruler head holds one `session` button and is rebuilt as the first child of #timelineRulerComponent.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -6,7 +6,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { removeRulerHead, renderRulerHead } from "../webapp/layer1-components/ruler/layer1-ruler-head.ts";
 
 function readRuler(): HTMLElement {
-    return document.getElementById("ruler")!;
+    return document.getElementById("timelineRulerComponent")!;
 }
 
 test("test_the_head_is_the_first_child_with_one_session_button", () => {

@@ -14,7 +14,7 @@ import {
 import { COLUMN_RULE_TEXTS, IGNORED_FACTS, SCROLL_HOME, buildSetHideIgnored } from "../scripts/visual/layer7-probes.ts";
 
 const SHOT = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-16-layer7-ignored-shown.png");
-const GOOD_RULES = [".anode { border: 2px solid var(--ink); }", ".atrack { background: var(--page); }"];
+const GOOD_RULES = [".anode { border: 2px solid var(--ink); }", ".sessionDotLinesComponent { background: var(--page); }"];
 
 const HIDDEN: IgnoredFacts = {
     text: "hide ignored nodes", isChecked: true, hasAttribute: true, ignoredCount: 2, ignoredShown: 0, otherShown: 6, opacities: [0.38, 0.38],

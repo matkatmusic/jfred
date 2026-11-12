@@ -24,7 +24,7 @@ function drawEditNode(kind: string, kindClass: string): HTMLElement {
   const identity = { "data-change-id": CHANGE_ID, "data-kind": kind, "data-confidence": "verified",
     "data-session-id": "fixture-b21d84c5", "data-session-file": SESSION_FILE, "data-line": "58" };
   const node = createElement("i", { class: `node ${kindClass} conf-verified`, ...identity });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "util.ts", "data-path": "src/util.ts" }),
     createElement("div", { class: "lane" }, [node, createElement("span", { class: `nlabel ${kindClass}`, text: "[e]" })]),
   ]));

@@ -55,7 +55,7 @@ export function listPaneArrows(): HTMLButtonElement[] {
 // One bubble with a single on-disk node: reads the working tree, so no commit hash needed.
 export function buildDiskNodeStage(): HTMLElement {
   const node = createElement("i", { class: "node n-disk" });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
     createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "on disk" })]),
   ]));
@@ -71,7 +71,7 @@ export function buildLaneStage(withMiddle: boolean): { commitNode: HTMLElement; 
   const diskNode = createElement("i", { class: "node n-disk" });
   diskNode.style.setProperty("--axis-px", "40");
   const laneNodes = withMiddle ? [commitNode, middleNode, diskNode] : [commitNode, diskNode];
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
     createElement("div", { class: "lane" }, laneNodes),
   ]));

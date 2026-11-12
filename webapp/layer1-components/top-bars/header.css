@@ -1,7 +1,7 @@
-  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  .headerContainer { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
     border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
-  header h1 { font-size: 14px; }
-  header .crumb { font-size: 11.5px; color: var(--muted); }
+  .headerContainer h1 { font-size: 14px; }
+  .headerContainer .crumb { font-size: 11.5px; color: var(--muted); }
 
   /*
     Zoom sits LEFT of the layer buttons: two auto margins split the free space between the groups.

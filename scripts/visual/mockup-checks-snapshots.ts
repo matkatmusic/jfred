@@ -32,7 +32,7 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
     dots.count === dots.total && dots.unclickable === 0, dots);
   reportCheck("#301 the show row carries a snapshot box",
     await page.evaluate<boolean>(
-      `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
+      `document.querySelector('#timelineViewControls input[data-kind="snapshot"]') !== null`));
   reportCheck("#259 a snapshot tied with the on-disk node joins a group of nodes with the same timestamp",
     await page.evaluate<number>(
       `document.querySelectorAll('${buildBubbleSelector("src/index.ts")} .nodes-with-same-timestamp').length`) === 1);
@@ -51,7 +51,7 @@ export async function validateSnapshotNodes(page: HeadlessPage): Promise<void> {
 
 // Task 63: replaces #304's Layer 1 vs 2 compare; the snapshot box hides snapshots by CSS.
 export async function validateSnapshotToggle(page: HeadlessPage): Promise<void> {
-  const snapshotBox = `document.querySelector('#show-row input[data-kind="snapshot"]')`;
+  const snapshotBox = `document.querySelector('#timelineViewControls input[data-kind="snapshot"]')`;
   const hiddenProbe = `[...document.querySelectorAll('${buildBubbleSelector("src/index.ts")} .nlabel.n-snap')]
         .map(n => getComputedStyle(n).display === 'none')`;
   const before = await page.evaluate<string>(buildShapeProbe("README.md"));

@@ -10,7 +10,7 @@ import { installAnimationFrameStub, installRecordingFetch, waitForPendingFetches
 function drawDot(): HTMLElement {
     const dot = createElement("i", { class: "anode a-user", "data-session-file": "/fixture/demo/projects/0f3c9a7e.jsonl",
         "data-line": "1007", "data-session-title": "seed the demo app", "data-record-label": "fix the trim bug" });
-    getRequiredElementById("stage").replaceChildren(dot);
+    getRequiredElementById("fileBubbleContainer").replaceChildren(dot);
     return dot;
 }
 
@@ -26,7 +26,7 @@ test("test_clicking_a_dot_opens_the_drawer_with_title_label_and_the_fetched_json
     const params = new URLSearchParams(asks[0]!.url.split("?")[1]);
     assert.equal(params.get("jsonl"), "/fixture/demo/projects/0f3c9a7e.jsonl");
     assert.equal(params.get("line"), "1007");
-    assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+    assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "seed the demo app");
     assert.equal(getRequiredElementById("dmeta").textContent, "fix the trim bug");
     assert.ok(getRequiredElementById("dbody").textContent?.includes("dot json line"));
@@ -37,7 +37,7 @@ test("test_clicking_something_that_is_not_a_dot_asks_for_nothing", async () => {
     initLayer1Dom();
     const asks = installRecordingFetch(() => ({}));
     const plain = createElement("div");
-    getRequiredElementById("stage").replaceChildren(plain);
+    getRequiredElementById("fileBubbleContainer").replaceChildren(plain);
     installAnnotationClick();
     plain.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

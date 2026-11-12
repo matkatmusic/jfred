@@ -17,4 +17,4 @@
     The marked node gets an outside ring, so its own color stays visible.
   */
   .node.n-commit.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }
-  .atrack .anode.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }
+  .sessionDotLinesComponent .anode.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }

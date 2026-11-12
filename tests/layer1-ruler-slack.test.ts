@@ -16,22 +16,22 @@ function readRuleBody(selector: string): string {
 }
 
 test("test_the_timelines_pane_gets_no_left_slack_padding", () => {
-  assert.doesNotMatch(readRuleBody(".timelines"), /--slack-left/);
+  assert.doesNotMatch(readRuleBody(".timelineContainer"), /--slack-left/);
 });
 
 test("test_the_stage_after_the_ruler_gets_the_left_slack_divided_by_zoom", () => {
-  const body = readRuleBody(".ruler + .stage");
+  const body = readRuleBody(".timelineRulerComponent + .fileBubbleContainer");
   assert.match(body, /margin-left: calc\(var\(--slack-left, 0px\) \/ var\(--zoom, 1\)\)/);
 });
 
 test("test_the_stage_after_the_session_column_gets_the_same_slack_rule_as_after_the_ruler", () => {
-  const rulerBody = readRuleBody(".ruler + .stage").split("{")[1];
-  const columnBody = readRuleBody(".atrack + .stage").split("{")[1];
+  const rulerBody = readRuleBody(".timelineRulerComponent + .fileBubbleContainer").split("{")[1];
+  const columnBody = readRuleBody(".sessionDotLinesComponent + .fileBubbleContainer").split("{")[1];
   assert.equal(columnBody, rulerBody);
 });
 
 test("test_the_stage_after_the_commit_strip_gets_the_same_slack_rule_as_after_the_ruler", () => {
-  const rulerBody = readRuleBody(".ruler + .stage").split("{")[1];
-  const stripBody = readRuleBody(".jfred-strip + .stage").split("{")[1];
+  const rulerBody = readRuleBody(".timelineRulerComponent + .fileBubbleContainer").split("{")[1];
+  const stripBody = readRuleBody(".jfredCommitsDrawerComponent + .fileBubbleContainer").split("{")[1];
   assert.equal(stripBody, rulerBody);
 });

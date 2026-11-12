@@ -61,7 +61,7 @@ function reportMissingSource(crumb: HTMLElement): void {
 // Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
 function clearViewBeforeBuild(crumb: HTMLElement): void {
   crumb.textContent = "";
-  getRequiredElementById("stage").replaceChildren();
+  getRequiredElementById("fileBubbleContainer").replaceChildren();
   getRequiredElementById("filenav-tree").replaceChildren();
   clearFolderFilterState();
   closeRulerExpansion();

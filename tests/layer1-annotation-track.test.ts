@@ -38,7 +38,7 @@ function buildSessionRecord(id: string, kind: WireRecordKind, instant: string, s
 }
 
 function readDrawnIds(): string[] {
-    return [...document.querySelectorAll<HTMLElement>("#annotation-track .anode")].map((node) => node.dataset["recordId"]!);
+    return [...document.querySelectorAll<HTMLElement>("#sessionDotLinesComponent .anode")].map((node) => node.dataset["recordId"]!);
 }
 
 // The column is off by default; module state outlives a test, so reset it first.
@@ -68,7 +68,7 @@ test("test_scrolling_draws_the_records_near_the_new_position", () => {
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks);
     const atTop = readDrawnIds();
-    const pane = document.getElementById("timelines")!;
+    const pane = document.getElementById("timelineContainer")!;
     pane.scrollTop = 2000;
     pane.dispatchEvent(new window.Event("scroll"));
     const afterScroll = readDrawnIds();
@@ -80,17 +80,17 @@ test("test_scrolling_draws_the_records_near_the_new_position", () => {
 test("test_the_track_is_the_sibling_right_after_the_ruler", () => {
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks);
-    const track = document.getElementById("annotation-track")!;
-    assert.equal(document.getElementById("ruler")!.nextElementSibling, track);
-    assert.equal(track.nextElementSibling, document.getElementById("stage"));
-    assert.ok(track.classList.contains("atrack"));
+    const track = document.getElementById("sessionDotLinesComponent")!;
+    assert.equal(document.getElementById("timelineRulerComponent")!.nextElementSibling, track);
+    assert.equal(track.nextElementSibling, document.getElementById("fileBubbleContainer"));
+    assert.ok(track.classList.contains("sessionDotLinesComponent"));
 });
 
 test("test_a_second_render_keeps_one_track", () => {
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks);
     renderAnnotationTrack(ticks);
-    assert.equal(document.querySelectorAll("#annotation-track").length, 1);
+    assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 1);
 });
 
 test("test_no_annotations_leave_no_track_and_remove_an_old_one", () => {
@@ -99,7 +99,7 @@ test("test_no_annotations_leave_no_track_and_remove_an_old_one", () => {
     renderRecords(buildRecords(ticks), ticks);
     storeAnnotations({});
     renderAnnotationTrack(ticks);
-    assert.equal(document.getElementById("annotation-track"), null);
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
 });
 
 test("test_empty_ticks_draw_nothing", () => {
@@ -115,7 +115,7 @@ test("test_a_node_carries_its_record_attributes_and_label", () => {
         isIgnored: true, isStampless: true, pairId: "toolu-1", sessionId: "s1", sessionTitle: "first", sessionFile: "/x/s1.jsonl", line: 1000,
     };
     renderRecords([record], ticks);
-    const node = document.querySelector<HTMLElement>("#annotation-track .anode")!;
+    const node = document.querySelector<HTMLElement>("#sessionDotLinesComponent .anode")!;
     assert.ok(node.classList.contains("a-tool-use"));
     assert.ok(node.classList.contains("is-ignored"));
     assert.ok(node.classList.contains("is-stampless"));
@@ -126,7 +126,7 @@ test("test_a_node_carries_its_record_attributes_and_label", () => {
     assert.equal(node.dataset["recordLabel"], "Bash: npm test");
     assert.equal(node.textContent, "t");
     assert.equal(node.hasAttribute("title"), false);
-    assert.equal(document.querySelector("#annotation-track .alabel"), null);
+    assert.equal(document.querySelector("#sessionDotLinesComponent .alabel"), null);
 });
 
 test("test_the_column_bracket_joins_the_pair_and_survives_hiding", () => {
@@ -138,8 +138,8 @@ test("test_the_column_bracket_joins_the_pair_and_survives_hiding", () => {
         { ...buildSessionRecord("r", WireRecordKind.toolResult, ticks[5]!.instant, "s1"), pairId: "p" },
     ];
     renderRecords(records, ticks);
-    document.querySelector(".viz-root")!.setAttribute("data-hide-ignored", "");
-    const bracket = document.querySelector<HTMLElement>("#annotation-track .abracket")!;
+    document.querySelector(".appWindow")!.setAttribute("data-hide-ignored", "");
+    const bracket = document.querySelector<HTMLElement>("#sessionDotLinesComponent .abracket")!;
     assert.equal(bracket.dataset["pairId"], "p");
     assert.equal(bracket.style.getPropertyValue("--axis-px"), "50");
     assert.equal(bracket.style.getPropertyValue("--span-px"), "200");
@@ -151,7 +151,7 @@ test("test_a_view_without_annotations_leaves_no_track_and_no_hide_control", () =
     initLayer1Dom();
     initLayer1Page();
     renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: buildTicks() } as never);
-    assert.equal(document.getElementById("annotation-track"), null);
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     assert.equal(document.getElementById("hide-ignored"), null);
 });
 
@@ -165,9 +165,9 @@ test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_but
     // A view with annotations makes the engineV3 bar fetch its steps.
     installRecordingFetch(() => ({ steps: [] }));
     renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: ticks, annotations: buildRecords(ticks) } as never);
-    assert.equal(document.querySelectorAll("#annotation-track").length, 0);
+    assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 0);
     document.getElementById("session-toggle")!.click();
-    assert.equal(document.querySelectorAll("#annotation-track").length, 1);
+    assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 1);
 });
 
 test("test_a_view_without_annotations_has_no_session_ui", () => {
@@ -183,10 +183,10 @@ test("test_a_view_without_annotations_has_no_session_ui", () => {
 test("test_by_default_there_is_a_head_with_the_session_button_and_no_track", () => {
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks, false);
-    const button = document.querySelector("#ruler > #ruler-head > button#session-toggle")!;
+    const button = document.querySelector("#timelineRulerComponent > #ruler-head > button#session-toggle")!;
     assert.equal(button.textContent, "session");
-    assert.equal(document.getElementById("annotation-track"), null);
-    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "0px");
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
+    assert.equal(document.querySelector<HTMLElement>(".sessionDataContainer")!.style.getPropertyValue("--track-w"), "0px");
 });
 
 test("test_the_button_builds_the_track_with_the_computed_width_and_a_second_click_removes_it", () => {
@@ -194,12 +194,12 @@ test("test_the_button_builds_the_track_with_the_computed_width_and_a_second_clic
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks, false);
     document.getElementById("session-toggle")!.click();
-    assert.ok(document.getElementById("annotation-track")!.querySelector(":scope > .ahead"));
-    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "40px");
+    assert.ok(document.getElementById("sessionDotLinesComponent")!.querySelector(":scope > .ahead"));
+    assert.equal(document.querySelector<HTMLElement>(".sessionDataContainer")!.style.getPropertyValue("--track-w"), "40px");
     assert.ok(document.getElementById("session-toggle")!.classList.contains("current"));
     document.getElementById("session-toggle")!.click();
-    assert.equal(document.getElementById("annotation-track"), null);
-    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "0px");
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
+    assert.equal(document.querySelector<HTMLElement>(".sessionDataContainer")!.style.getPropertyValue("--track-w"), "0px");
 });
 
 test("test_dots_of_one_session_share_a_color_and_overlapping_sessions_take_two_lanes", () => {
@@ -214,14 +214,14 @@ test("test_dots_of_one_session_share_a_color_and_overlapping_sessions_take_two_l
     const readColor = (id: string): string => document.querySelector<HTMLElement>(`[data-record-id="${id}"]`)!.style.getPropertyValue("--session-color");
     assert.equal(readColor("a1"), readColor("a2"));
     assert.notEqual(readColor("a1"), readColor("b1"));
-    assert.equal(document.querySelectorAll("#annotation-track .sline").length, 2);
-    assert.equal(document.querySelector<HTMLElement>(".stagewrap")!.style.getPropertyValue("--track-w"), "57px");
+    assert.equal(document.querySelectorAll("#sessionDotLinesComponent .sline").length, 2);
+    assert.equal(document.querySelector<HTMLElement>(".sessionDataContainer")!.style.getPropertyValue("--track-w"), "57px");
 });
 
 test("test_a_dot_popup_shows_the_session_title_then_the_log_line_in_the_session_color", () => {
     const ticks = buildTicks();
     renderRecords([{ ...buildSessionRecord("p1", WireRecordKind.toolUse, ticks[1]!.instant, "s1"), label: "Bash: npm test" }], ticks);
-    const dot = document.querySelector<HTMLElement>("#annotation-track .anode")!;
+    const dot = document.querySelector<HTMLElement>("#sessionDotLinesComponent .anode")!;
     dot.dispatchEvent(new window.Event("mouseover", { bubbles: true }));
     const popup = document.getElementById("hover-popup")!;
     assert.deepEqual([...popup.querySelectorAll(".hp-line")].map((line) => line.textContent), ["title s1", "Bash: npm test"]);

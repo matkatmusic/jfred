@@ -78,8 +78,8 @@ async function validateSessionLook(page: HeadlessPage): Promise<void> {
   await setHideIgnored(page, false);
   await reportFacts(page, ROW_DOT_FACTS, "RULER review: every ruler row in view has a dot at its own axis height", isEveryRowDotted);
   await setHideIgnored(page, true);
-  await reportFacts(page, buildSurfaceProbe("#annotation-track"), "RULER review: the track has a 1px solid right border and the File Nav background", isTrackSurfaceRight);
-  await reportFacts(page, buildMinimapEdgeProbe("#annotation-track"), "RULER review: the minimap left edge is at the track right edge", isMinimapFlush);
+  await reportFacts(page, buildSurfaceProbe("#sessionDotLinesComponent"), "RULER review: the track has a 1px solid right border and the File Nav background", isTrackSurfaceRight);
+  await reportFacts(page, buildMinimapEdgeProbe("#sessionDotLinesComponent"), "RULER review: the minimap left edge is at the track right edge", isMinimapFlush);
   await reportFacts(page, BRACKET_INSET_FACTS, "RULER review: a bracket sits at least 2px right of the track left edge", isBracketInset);
   await validateDotDrawer(page);
   await page.evaluate(buildScrollToDot(FILL_8));
@@ -87,10 +87,10 @@ async function validateSessionLook(page: HeadlessPage): Promise<void> {
 }
 
 async function validateCommitLook(page: HeadlessPage): Promise<void> {
-  await toggleColumn(page, COMMIT_MODE_CLICK, "jfred-strip", true);
-  await reportFacts(page, buildSurfaceProbe("#jfred-strip"), "RULER review: the commit strip has the File Nav background", isStripSurfaceRight);
-  await reportFacts(page, buildMinimapEdgeProbe("#jfred-strip"), "RULER review: the minimap left edge is at the strip right edge", isMinimapFlush);
-  await toggleColumn(page, COMMIT_MODE_CLICK, "jfred-strip", false);
+  await toggleColumn(page, COMMIT_MODE_CLICK, "jfredCommitsDrawerComponent", true);
+  await reportFacts(page, buildSurfaceProbe("#jfredCommitsDrawerComponent"), "RULER review: the commit strip has the File Nav background", isStripSurfaceRight);
+  await reportFacts(page, buildMinimapEdgeProbe("#jfredCommitsDrawerComponent"), "RULER review: the minimap left edge is at the strip right edge", isMinimapFlush);
+  await toggleColumn(page, COMMIT_MODE_CLICK, "jfredCommitsDrawerComponent", false);
 }
 
 // A node click shifts the stage, so the caller reloads the page afterwards.
@@ -107,7 +107,7 @@ export async function validateSnapshotJson(page: HeadlessPage): Promise<void> {
 export async function validateRulerReview(page: HeadlessPage): Promise<void> {
   await page.evaluate(SCROLL_HOME);
   await validateHeadTops(page);
-  await reportFacts(page, buildMinimapEdgeProbe("#ruler"), "RULER review: with both columns off the minimap left edge is at the ruler right edge", isMinimapFlush);
+  await reportFacts(page, buildMinimapEdgeProbe("#timelineRulerComponent"), "RULER review: with both columns off the minimap left edge is at the ruler right edge", isMinimapFlush);
   await toggleSessionColumn(page, true);
   await validateSessionLook(page);
   await toggleSessionColumn(page, false);

@@ -69,7 +69,7 @@ interface ScrollRequest { target: HTMLElement }
 function recordScrollRequests(): ScrollRequest[] {
     const requests: ScrollRequest[] = [];
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
-        if (this.id !== "timelines" && this.id !== "drawer") {
+        if (this.id !== "timelineContainer" && this.id !== "detailsPaneContainer") {
             requests.push({ target: this });
         }
         return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } as DOMRect;
@@ -88,7 +88,7 @@ async function loadPageWithView(view: object): Promise<void> {
 
 // Fails loudly: a tick the collision skip dropped has no row, and a test aimed at it tests nothing.
 function clickRulerTickAt(axisPx: number): void {
-    const tick = [...document.querySelectorAll("#ruler .tick")]
+    const tick = [...document.querySelectorAll("#timelineRulerComponent .tick")]
         .find((row) => (row as HTMLElement).style.getPropertyValue("--axis-px") === String(axisPx));
     assert.ok(tick, `no ruler tick was drawn at ${axisPx}px`);
     (tick as HTMLElement).click();

@@ -33,10 +33,10 @@ test("test_a_multi_chunk_render_paints_a_counted_drawing_label_before_finishing"
     assert.equal(document.getElementById("loadbar-label")!.textContent,
         `${LAYER1_PROGRESS_LABEL_DRAWING_TIMELINE} — 100 / 150`);
     assert.equal(document.getElementById("loadbar")!.hasAttribute("hidden"), false);
-    assert.equal(document.getElementById("stage")!.childElementCount, 100);
+    assert.equal(document.getElementById("fileBubbleContainer")!.childElementCount, 100);
     await pending;
     // Finished: every widget is in the DOM and the loadbar is put away.
-    assert.equal(document.getElementById("stage")!.childElementCount, 150);
+    assert.equal(document.getElementById("fileBubbleContainer")!.childElementCount, 150);
     assert.equal(document.getElementById("loadbar")!.hasAttribute("hidden"), true);
 });
 
@@ -45,6 +45,6 @@ test("test_a_single_chunk_render_completes_synchronously_without_the_loadbar", (
     initLayer1Dom();
     void renderLayer1Stage(buildViewWithPairs(3) as never);
     // Synchronously after the call: the whole stage is drawn and the loadbar never appeared.
-    assert.equal(document.getElementById("stage")!.childElementCount, 3);
+    assert.equal(document.getElementById("fileBubbleContainer")!.childElementCount, 3);
     assert.equal(document.getElementById("loadbar")!.hasAttribute("hidden"), true);
 });

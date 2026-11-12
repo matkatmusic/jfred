@@ -19,8 +19,8 @@ const USER_EXAMPLE = {
   nodeLine: "2235",
 };
 
-const DRAWER_OPEN = `document.getElementById('drawer').classList.contains('open') && document.querySelector('#drawer .scriptbody pre')?.textContent.length > 0`;
-const READ_DRAWER_META = `Object.fromEntries([...document.querySelectorAll('#drawer dl.script-meta dt')].map(t => [t.textContent, t.nextElementSibling.textContent]))`;
+const DRAWER_OPEN = `document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent.length > 0`;
+const READ_DRAWER_META = `Object.fromEntries([...document.querySelectorAll('#detailsPaneContainer dl.script-meta dt')].map(t => [t.textContent, t.nextElementSibling.textContent]))`;
 const STUB_CLIPBOARD = `window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied.push(t); } } })`;
 
 function stopPort(port: number): void {
@@ -51,7 +51,7 @@ async function saveShot(page: HeadlessPage, name: string): Promise<void> {
 
 async function copyLinkOfFirstScriptNode(page: HeadlessPage, port: number): Promise<string> {
   await page.navigate(buildPageUrl(port, {}));
-  await page.waitFor("document.querySelectorAll('#stage .filebox').length > 0", TIMEOUT_MS);
+  await page.waitFor("document.querySelectorAll('#fileBubbleContainer .filebox').length > 0", TIMEOUT_MS);
   await page.evaluate(STUB_CLIPBOARD);
   await page.evaluate(`document.getElementById('layer-4').click()`);
   await page.waitFor("document.querySelectorAll('i.node.n-script[data-line]').length > 0 && document.getElementById('busy-shield').hidden", TIMEOUT_MS);
@@ -86,7 +86,7 @@ async function assertLinkOpensSameNode(page: HeadlessPage, port: number, link: s
 
 async function assertUserExampleOpens(page: HeadlessPage, port: number): Promise<void> {
   await page.navigate(buildPageUrl(port, USER_EXAMPLE));
-  await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, TIMEOUT_MS);
+  await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open')`, TIMEOUT_MS);
   const header = await page.evaluate<string>(`document.getElementById('dpath').textContent.trim()`);
   reportCheck("node-link the user's example link (line 2235) opens a drawer", header !== "", header);
   await saveShot(page, "3-user-example");
