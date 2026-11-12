@@ -26,9 +26,18 @@ RUN set -e; \
             (cd "$seedFolder" && npm ci); \
         fi; \
     done; \
-    rm -rf /packageseed; \
+    playwrightScratch=$(mktemp -d); \
+    cd "$playwrightScratch"; \
+    echo '{"name":"playwrightcache","private":true}' > package.json; \
+    for playwrightVersion in 1.54.0 1.58.2 1.63.0; do \
+        bun add playwright@$playwrightVersion playwright-core@$playwrightVersion; \
+    done; \
+    bun add playwright-core --minimum-release-age=$(( $(date +%s) - 1793216156 )); \
+    cd /; \
+    rm -rf "$playwrightScratch" /packageseed; \
     mkdir -p /Users/matkatmusicllc/.bun /npm-cache; \
     chmod -R a+rwX /Users/matkatmusicllc/.bun /npm-cache
+# Recorded `ls ~/.bun/install/cache | rg playwright` (toolu_01Fb9Q45x2wCx4wd2Fqx9syZ) needs the Mac's playwright versions; the last add is the recorded `bun add playwright-core` (toolu_01VKD85mMmS76FR5DM31Prua, 2026-10-28T19:35:56Z = 1793216156) that installed 1.64.1.
 # Replaced: chmod -R a+rX /Users/matkatmusicllc/.bun /npm-cache (the bun cache must be writable for the replay user)
 # The container has no network, so a recorded bun add or bun install resolves from the package lists saved above, however old they are.
 # --minimum-release-age makes it pick the versions that existed at the recorded time (the engine sets REPLAY_RECORDED_AT_EPOCH_SECONDS).
