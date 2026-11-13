@@ -2,9 +2,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { /* ANNOTATION_MARGIN_PX, */ listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
+import { /* ANNOTATION_MARGIN_PX, */ listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements, listSessionPixelSpansFromServer, listSessionPixelSpansFromPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
-import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireAnnotation, WireSessionSpan } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 const TICKS: WireRulerTick[] = [
@@ -97,4 +97,42 @@ test("test_a_session_span_runs_from_its_first_to_its_last_record_and_a_lone_reco
 test("test_the_window_bounds_are_inclusive", () => {
     const records = [buildRecord("a", "2026-06-01T10:00:00Z"), buildRecord("c", "2026-06-01T11:00:00Z")];
     assert.equal(listWindowPlacements(computeAnnotationPlacements(records, TICKS), 20, 120).length, 2);
+});
+
+function buildServerSpan(sessionId: string, first: string, last: string): WireSessionSpan {
+    return { sessionId, first, last };
+}
+
+test("test_server_spans_become_pixel_spans_through_the_ruler_ticks", () => {
+    // Scenario: a span from the first tick's instant to the last tick's instant gives those ticks' axisPx.
+    const spans = [buildServerSpan("s1", "2026-06-01T10:00:00Z", "2026-06-01T11:00:00Z")];
+    assert.deepEqual(listSessionPixelSpansFromServer(spans, TICKS), [{ sessionId: "s1", firstPx: 20, lastPx: 120 }]);
+});
+
+test("test_a_server_span_that_ends_before_the_first_tick_is_dropped", () => {
+    // Scenario: the span ends one hour before the ruler starts, so it gets no pixel span.
+    const spans = [buildServerSpan("s1", "2026-06-01T08:00:00Z", "2026-06-01T09:00:00Z")];
+    assert.deepEqual(listSessionPixelSpansFromServer(spans, TICKS), []);
+});
+
+test("test_a_server_span_that_starts_after_the_last_tick_is_dropped", () => {
+    // Scenario: the span starts one hour after the ruler ends, so it gets no pixel span.
+    const spans = [buildServerSpan("s1", "2026-06-01T12:00:00Z", "2026-06-01T13:00:00Z")];
+    assert.deepEqual(listSessionPixelSpansFromServer(spans, TICKS), []);
+});
+
+test("test_a_server_span_that_starts_before_the_ruler_is_clamped_to_the_first_tick", () => {
+    // Scenario: the span starts before the ruler and ends at the middle; its first pixel is the first tick's axisPx.
+    const spans = [buildServerSpan("s1", "2026-06-01T08:00:00Z", "2026-06-01T10:30:00Z")];
+    assert.deepEqual(listSessionPixelSpansFromServer(spans, TICKS), [{ sessionId: "s1", firstPx: 20, lastPx: 70 }]);
+});
+
+test("test_placement_spans_become_pixel_spans_with_their_session_id", () => {
+    // Scenario: a session's placement span turns into a pixel span with the session's id.
+    const records = [
+        buildRecord("a", "2026-06-01T10:00:00Z", "s1"),
+        buildRecord("c", "2026-06-01T11:00:00Z", "s1"),
+    ];
+    const placementSpans = listSessionSpans(computeAnnotationPlacements(records, TICKS));
+    assert.deepEqual(listSessionPixelSpansFromPlacements(placementSpans), [{ sessionId: "s1", firstPx: 20, lastPx: 120 }]);
 });

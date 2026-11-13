@@ -14,6 +14,11 @@ export interface SessionSpan {
   lastPx: number;
 }
 
+// A session's first and last dot on the axis, for lanes and lines.
+export interface SessionPixelSpan extends SessionSpan {
+  sessionId: string;
+}
+
 function listIndexesByFirstPx(spans: readonly SessionSpan[]): number[] {
   const indexes: number[] = [];
   for (let index = 0; index < spans.length; index += 1) {

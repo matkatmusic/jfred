@@ -40,7 +40,9 @@ test("test_a_dot_shows_the_letter_only_and_carries_the_session_look", () => {
 });
 
 test("test_a_session_line_runs_from_the_first_dot_to_the_last_dot", () => {
-    const line = buildSessionLine([buildPlacement("a", 30), buildPlacement("b", 130)], LOOK);
+    // const line = buildSessionLine([buildPlacement("a", 30), buildPlacement("b", 130)], LOOK);
+    // Steps: build a line from a pixel span (30 to 130) for session s1, then read its class, session id and pixels.
+    const line = buildSessionLine({ sessionId: "s1", firstPx: 30, lastPx: 130 }, LOOK);
     assert.ok(line.classList.contains("sline"));
     assert.equal(line.dataset["sessionId"], "s1");
     assert.equal(line.style.getPropertyValue("--axis-px"), "30");

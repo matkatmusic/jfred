@@ -1,7 +1,8 @@
 // L9 redesign: letter dots, session lines, and the dot hover popup text.
 
 import { createElement } from "../../app-dom.ts";
-import { buildPairBracket } from "./layer1-annotation-bracket.ts";
+import { buildPairBracket, buildPixelBracket } from "./layer1-annotation-bracket.ts";
+import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import { ANNOTATION_LOOKS } from "./layer1-annotation-looks.ts";
 import { CURRENT_NODE_CLASS, isCurrentEngineV3Node } from "../engine-v3/layer1-engine-v3-state.ts";
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
@@ -64,12 +65,18 @@ export function buildNode(placement: Placement, look: SessionLook): HTMLElement 
 }
 
 // The line runs from the session's first dot to its last dot.
-export function buildSessionLine([first, last]: PairSpan, look: SessionLook): HTMLElement {
-  const line = buildPairBracket(buildNode(first, look), buildNode(last, look), "sline");
-  line.dataset["sessionId"] = first.annotation.sessionId;
+export function buildSessionLine(span: SessionPixelSpan, look: SessionLook): HTMLElement {
+  const line = buildPixelBracket(span.firstPx, span.lastPx, "sline");
+  line.dataset["sessionId"] = span.sessionId;
   setLookProperties(line, look);
   return line;
 }
+// export function buildSessionLine([first, last]: PairSpan, look: SessionLook): HTMLElement {
+//   const line = buildPairBracket(buildNode(first, look), buildNode(last, look), "sline");
+//   line.dataset["sessionId"] = first.annotation.sessionId;
+//   setLookProperties(line, look);
+//   return line;
+// }
 
 // Same bracket as before, moved to the lane of its first dot.
 export function buildPairSpanBracket([first, last]: PairSpan, look: SessionLook): HTMLElement {

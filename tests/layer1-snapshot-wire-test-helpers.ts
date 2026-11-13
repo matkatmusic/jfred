@@ -30,8 +30,9 @@ export function buildSnapshotRecord(path: string, backupFileName: string, versio
   };
 }
 
-export function writeSessionTranscript(treeRoot: string, sessionId: string, records: object[]): Path {
-  const projectDir = join(treeRoot, "projects", "-demo");
+export function writeSessionTranscript(treeRoot: string, sessionId: string, records: object[], projectFolderName: string = "-demo"): Path {
+  // const projectDir = join(treeRoot, "projects", "-demo");
+  const projectDir = join(treeRoot, "projects", projectFolderName);
   mkdirSync(projectDir, { recursive: true });
   const jsonlPath = join(projectDir, `${sessionId}.jsonl`);
   const lines: string[] = [];
