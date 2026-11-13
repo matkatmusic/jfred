@@ -1,6 +1,7 @@
 // The details pane floats over the bubbles, pinned to the right edge of the scroll box.
 
 import { getRequiredElementById } from "../../app-dom.ts";
+import { attachGripDrag } from "../file-nav/layer1-filenav-resize.ts";
 
 export const DEFAULT_PANE_SHARE_PERCENT = 35;
 export const MIN_PANE_SHARE_PERCENT = 30;
@@ -35,11 +36,21 @@ export function storeDetailsPaneSharePercent(sharePercent: number): void {
     paneSharePercent = sharePercent;
 }
 
+export function computePaneShareFromPointer(pointerX: number, scrollBoxRight: number, visibleWidthPx: number): number {
+    const share = (scrollBoxRight - pointerX) / visibleWidthPx * 100;
+    return Math.min(MAX_PANE_SHARE_PERCENT, Math.max(MIN_PANE_SHARE_PERCENT, share));
+}
+
+function readScrollBoxRight(): number {
+    const scrollBox = getRequiredElementById("timelineContainer");
+    // clientWidth leaves out the scrollbar, so the pane never covers it.
+    return scrollBox.getBoundingClientRect().left + scrollBox.clientWidth;
+}
+
 export function moveDetailsPaneToRightEdge(): void {
     const scrollBox = getRequiredElementById("timelineContainer");
     const scrollBoxRect = scrollBox.getBoundingClientRect();
-    // clientWidth leaves out the scrollbar, so the pane never covers it.
-    const scrollBoxRight = scrollBoxRect.left + scrollBox.clientWidth;
+    const scrollBoxRight = readScrollBoxRight();
     const visibleWidth = computeVisibleBubbleWidth(readVisibleOverlayRightEdges(), scrollBoxRight);
     const paneWidth = computePaneWidthPx(paneSharePercent, visibleWidth);
     const pane = getRequiredElementById("detailsPaneContainer");
@@ -80,4 +91,15 @@ export function openDetailsPane(): void {
 
 export function closeDetailsPane(): void {
     getRequiredElementById("detailsPaneContainer").classList.remove("open");
+}
+
+export function installDetailsPaneResize(): void {
+    const resizePaneToPointer = (event: MouseEvent): void => {
+        const scrollBoxRight = readScrollBoxRight();
+        const visibleWidth = computeVisibleBubbleWidth(readVisibleOverlayRightEdges(), scrollBoxRight);
+        const share = computePaneShareFromPointer(event.clientX, scrollBoxRight, visibleWidth);
+        storeDetailsPaneSharePercent(share);
+        moveDetailsPaneToRightEdge();
+    };
+    attachGripDrag(getRequiredElementById("details-pane-grip"), resizePaneToPointer, resizePaneToPointer);
 }

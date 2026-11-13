@@ -4,7 +4,8 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import {
-    DEFAULT_PANE_SHARE_PERCENT, closeDetailsPane, computeVisibleBubbleWidth, openDetailsPane, storeDetailsPaneSharePercent,
+    DEFAULT_PANE_SHARE_PERCENT, closeDetailsPane, computePaneShareFromPointer, computeVisibleBubbleWidth, installDetailsPaneResize,
+    openDetailsPane, storeDetailsPaneSharePercent,
 } from "../webapp/layer1-components/details-drawer/layer1-details-pane.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
@@ -156,4 +157,120 @@ test("test_pane_position_is_the_right_edge_of_the_scroll_box", () => {
     // The pane starts at the scroll box top and is as tall as the scroll box.
     assert.equal(style.top, "50px");
     assert.equal(style.height, "600px");
+});
+
+function getPaneGrip(): HTMLElement {
+    return getRequiredElementById("details-pane-grip");
+}
+
+function dragPaneGripTo(clientX: number): void {
+    getPaneGrip().dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true, clientX }));
+    window.dispatchEvent(new window.MouseEvent("pointermove", { clientX }));
+    window.dispatchEvent(new window.MouseEvent("pointerup", { clientX }));
+}
+
+test("test_pane_share_from_pointer_is_the_distance_to_the_scroll_box_right_as_a_percent_of_the_visible_width", () => {
+    // The pointer is at 800, the scroll box ends at 1200, and 1000px is visible.
+    const share = computePaneShareFromPointer(800, 1200, 1000);
+    // 400px of 1000px is 40 percent.
+    assert.equal(share, 40);
+});
+
+test("test_pane_share_from_pointer_stops_at_50_percent", () => {
+    // The pointer is far to the left of the scroll box.
+    const share = computePaneShareFromPointer(-5000, 1200, 1000);
+    assert.equal(share, 50);
+});
+
+test("test_pane_share_from_pointer_stops_at_30_percent", () => {
+    // The pointer is far to the right of the scroll box edge.
+    const share = computePaneShareFromPointer(5000, 1200, 1000);
+    assert.equal(share, 30);
+});
+
+test("test_dragging_the_pane_grip_left_widens_the_pane", () => {
+    // The pane is open at 350px and the grip is wired.
+    openDetailsPane();
+    installDetailsPaneResize();
+    // Drag the grip to x 800: 400px of the 1000px visible.
+    dragPaneGripTo(800);
+    assert.equal(getPane().style.width, "400px");
+});
+
+test("test_dragging_the_pane_grip_far_left_stops_at_50_percent", () => {
+    openDetailsPane();
+    installDetailsPaneResize();
+    // Drag far to the left.
+    dragPaneGripTo(-5000);
+    // 50% of 1000 is 500.
+    assert.equal(getPane().style.width, "500px");
+});
+
+test("test_dragging_the_pane_grip_far_right_stops_at_30_percent", () => {
+    openDetailsPane();
+    installDetailsPaneResize();
+    // Drag far to the right.
+    dragPaneGripTo(5000);
+    // 30% of 1000 is 300.
+    assert.equal(getPane().style.width, "300px");
+});
+
+test("test_the_drag_limit_at_the_far_left_follows_the_visible_part_when_the_session_lines_are_shown", () => {
+    // The session lines end at 400, so 800px is visible.
+    addOverlay("sessionDotLinesComponent", 400);
+    openDetailsPane();
+    installDetailsPaneResize();
+    dragPaneGripTo(-5000);
+    // 50% of 800 is 400.
+    assert.equal(getPane().style.width, "400px");
+});
+
+test("test_the_drag_limit_at_the_far_right_follows_the_visible_part_when_the_session_lines_are_shown", () => {
+    // The session lines end at 400, so 800px is visible.
+    addOverlay("sessionDotLinesComponent", 400);
+    openDetailsPane();
+    installDetailsPaneResize();
+    dragPaneGripTo(5000);
+    // 30% of 800 is 240.
+    assert.equal(getPane().style.width, "240px");
+});
+
+test("test_dragging_the_pane_grip_stays_inside_one_pointer_gesture", () => {
+    openDetailsPane();
+    installDetailsPaneResize();
+    // One full gesture ends at 800: 400px.
+    dragPaneGripTo(800);
+    // A later pointer move without a press on the grip.
+    window.dispatchEvent(new window.MouseEvent("pointermove", { clientX: 700 }));
+    // The width stays at 400px.
+    assert.equal(getPane().style.width, "400px");
+});
+
+test("test_pane_grip_drag_does_not_open_a_closed_pane", () => {
+    // The pane is closed.
+    installDetailsPaneResize();
+    dragPaneGripTo(800);
+    assert.equal(getPane().classList.contains("open"), false);
+});
+
+test("test_pane_grip_drag_does_not_close_an_open_pane", () => {
+    openDetailsPane();
+    installDetailsPaneResize();
+    dragPaneGripTo(800);
+    assert.equal(getPane().classList.contains("open"), true);
+});
+
+test("test_the_pane_grip_is_the_first_child_of_the_details_pane", () => {
+    assert.equal(getPane().firstElementChild, getPaneGrip());
+});
+
+test("test_a_second_open_keeps_the_width_the_user_dragged_with_the_grip", () => {
+    openDetailsPane();
+    installDetailsPaneResize();
+    // Drag to x 800: 40%.
+    dragPaneGripTo(800);
+    closeDetailsPane();
+    openDetailsPane();
+    // 40% of 1000 is 400.
+    assert.equal(getPane().style.width, "400px");
 });

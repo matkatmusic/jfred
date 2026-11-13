@@ -10,7 +10,7 @@ import { storeOpenedNode } from "../bubbles/layer1-node-link.ts";
 import { stopRun } from "../../layer1-run-queue.ts";
 import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
 import { openReverseNodeDrawer } from "./layer1-drawer-reverse.ts";
-import { closeDetailsPane } from "./layer1-details-pane.ts";
+import { closeDetailsPane, installDetailsPaneResize } from "./layer1-details-pane.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
@@ -142,6 +142,7 @@ function closeDrawer(): void {
 
 export function installNodeDrawer(): void {
   installImageZoomTools();
+  installDetailsPaneResize();
   getRequiredElementById("fileBubbleContainer").addEventListener("click", applyStageClick);
   getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);
   getRequiredElementById("dnext").addEventListener("click", openNextNeighbour);
