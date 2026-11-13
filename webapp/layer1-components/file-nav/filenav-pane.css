@@ -11,12 +11,13 @@
   .sessionDataContainer.resizing .timelineComponentsContainer { flex: none; width: var(--timeline-w); }
 
   /*
-    Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
+    Task 252: the File Nav lists every identified file. The pane split is each pane's inline flex-grow.
   */
   .sourcesContainer { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
-    overflow: hidden; min-height: 0; --files-share: 50;
+    overflow: hidden; min-height: 0;
     border-right: 1px solid var(--border); background: var(--surface); }
-  .navpane { overflow: auto; min-height: 0; }
+  /* --files-share: 50; retired: step 21, the panes share height by flex-grow. */
+  .navpane { overflow: auto; min-height: 0; flex-basis: 0; }
   /* #fileNavComponent { flex: var(--files-share) 1 0; } retired: step 21 replaces it. */
   /* #jsonlsComponent { flex: calc(100 - var(--files-share)) 1 0; } retired: step 21 replaces it. */
   /*

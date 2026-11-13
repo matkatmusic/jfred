@@ -3,6 +3,7 @@
 // ponytail: rejected `resize: horizontal` on `.sourcesContainer` — it grabs just the corner, and no other rule can read its width.
 
 import { getRequiredElementById } from "../../app-dom.ts";
+import { FlexBox } from "../../flex-box.ts";
 
 // The floor stops a drag collapsing the pane, which would take the grip with it and strand the user.
 const MIN_FILENAV_WIDTH_PX = 120;
@@ -50,7 +51,7 @@ function attachWindowDragListeners(grip: HTMLElement, onMove: (event: MouseEvent
   window.addEventListener("pointerup", stopDrag);
 }
 
-function attachGripDrag(
+export function attachGripDrag(
   grip: HTMLElement,
   onMove: (event: MouseEvent) => void,
   onRelease: (event: MouseEvent) => void,
@@ -76,23 +77,45 @@ export function initFileNavResize(): void {
 }
 
 // Task 292: commits per MOVE, unlike the width drag, because no flex sibling means no big repaint.
-const MIN_PANE_SHARE = 15;
-const MAX_PANE_SHARE = 85;
+// retired by step 21: the panes now share height by flex-grow.
+// const MIN_PANE_SHARE = 15;
+// const MAX_PANE_SHARE = 85;
+//
+// function setFileNavPaneShare(filenav: HTMLElement, clientY: number): void {
+//   const box = filenav.getBoundingClientRect();
+//   // happy-dom reports a zero-height box for every pane; guard so test drags write a share, not NaN.
+//   const share = box.height === 0 ? MIN_PANE_SHARE : ((clientY - box.top) / box.height) * 100;
+//   filenav.style.setProperty("--files-share", String(Math.min(MAX_PANE_SHARE, Math.max(MIN_PANE_SHARE, share))));
+// }
 
-function setFileNavPaneShare(filenav: HTMLElement, clientY: number): void {
-  const box = filenav.getBoundingClientRect();
-  // happy-dom reports a zero-height box for every pane; guard so test drags write a share, not NaN.
-  const share = box.height === 0 ? MIN_PANE_SHARE : ((clientY - box.top) / box.height) * 100;
-  filenav.style.setProperty("--files-share", String(Math.min(MAX_PANE_SHARE, Math.max(MIN_PANE_SHARE, share))));
+const TOTAL_GROW = 5;
+const MIN_PANE_HEIGHT_PX = 80;
+
+function setSourcesPaneGrows(sourcesBox: FlexBox, fileNavComponent: HTMLElement, jsonlsComponent: HTMLElement, clientY: number): void {
+  const box = sourcesBox.element.getBoundingClientRect();
+  // happy-dom reports a zero-height box; skip so a drag writes no NaN.
+  if (box.height === 0) {
+    return;
+  }
+  const minShare = MIN_PANE_HEIGHT_PX / box.height;
+  const rawShare = (clientY - box.top) / box.height;
+  const topShare = Math.min(1 - minShare, Math.max(minShare, rawShare));
+  sourcesBox.setGrow(fileNavComponent, topShare * TOTAL_GROW);
+  sourcesBox.setGrow(jsonlsComponent, (1 - topShare) * TOTAL_GROW);
 }
 
 export function initSessionPaneResize(): void {
-  const filenav = document.querySelector(".sourcesContainer") as HTMLElement | null;
-  const grip = document.getElementById("navpane-grip");
-  const isPaneMissing = filenav === null || grip === null;
-  if (isPaneMissing) {
-    return;
-  }
-  const updatePaneShare = (event: MouseEvent): void => setFileNavPaneShare(filenav, event.clientY);
-  attachGripDrag(grip, updatePaneShare, updatePaneShare);
+  const sourcesBox = new FlexBox(FlexBox.layoutModes.rows, getRequiredElementById("sourcesContainer"));
+  const fileNavComponent = getRequiredElementById("fileNavComponent");
+  const jsonlsComponent = getRequiredElementById("jsonlsComponent");
+  const updatePaneGrows = (event: MouseEvent): void => setSourcesPaneGrows(sourcesBox, fileNavComponent, jsonlsComponent, event.clientY);
+  attachGripDrag(getRequiredElementById("navpane-grip"), updatePaneGrows, updatePaneGrows);
+  // const filenav = document.querySelector(".sourcesContainer") as HTMLElement | null;
+  // const grip = document.getElementById("navpane-grip");
+  // const isPaneMissing = filenav === null || grip === null;
+  // if (isPaneMissing) {
+  //   return;
+  // }
+  // const updatePaneShare = (event: MouseEvent): void => setFileNavPaneShare(filenav, event.clientY);
+  // attachGripDrag(grip, updatePaneShare, updatePaneShare);
 }

@@ -51,6 +51,7 @@ export function buildLayer1Layout(): void {
     const sourcesContainerBox = createNamedBox(FlexBox.layoutModes.rows, { id: "sourcesContainer", class: "sourcesContainer", "data-component": "sourcesContainer" });
     const timelineComponentsContainerBox = createNamedBox(FlexBox.layoutModes.rows, { id: "timelineComponentsContainer", class: "timelineComponentsContainer", "data-component": "timelineComponentsContainer" });
     sourcesContainerBox.add(getRequiredElementById("fileNavComponent"), { grow: 3, minSize: 80 });
+    sourcesContainerBox.add(getRequiredElementById("navpane-grip"));
     sourcesContainerBox.add(getRequiredElementById("jsonlsComponent"), { grow: 2, minSize: 80 });
     sessionDataContainerBox.add(sourcesContainerBox);
     sessionDataContainerBox.add(getRequiredElementById("filenav-grip"));

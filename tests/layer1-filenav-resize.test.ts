@@ -94,3 +94,70 @@ test("test_releasing_the_drag_commits_the_width_and_drops_the_preview", () => {
     assert.equal(document.getElementById("sessionDataContainer")!.classList.contains("resizing"), false);
     assert.equal(readFrozenTimelineWidth(), "");
 });
+
+// happy-dom has no layout, so give #sourcesContainer a fixed box: top 0, height `height`.
+function stubSourcesContainerHeight(height: number): void {
+    const sourcesContainer = document.getElementById("sourcesContainer")!;
+    Object.defineProperty(sourcesContainer, "getBoundingClientRect", {
+        value: () => ({ top: 0, left: 0, width: 232, height, right: 232, bottom: height, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+}
+
+// Drive one complete drag of the row grip between the two panes: press, move, release.
+function dragPaneGripTo(clientY: number): void {
+    const grip = document.getElementById("navpane-grip")!;
+    grip.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true, clientY }));
+    window.dispatchEvent(new window.MouseEvent("pointermove", { clientY }));
+    window.dispatchEvent(new window.MouseEvent("pointerup", { clientY }));
+}
+
+function readFileNavGrow(): number {
+    return Number(document.getElementById("fileNavComponent")!.style.flexGrow);
+}
+
+function readJsonlsGrow(): number {
+    return Number(document.getElementById("jsonlsComponent")!.style.flexGrow);
+}
+
+test("test_dragging_the_pane_grip_down_gives_the_top_pane_more_grow", () => {
+    // Scenario: dragging the row grip down grows the top pane and shrinks the bottom one. Steps: height 400, drag to 280.
+    openResizablePage();
+    stubSourcesContainerHeight(400);
+    dragPaneGripTo(280);
+    // the top pane has more grow than the bottom pane.
+    assert.ok(readFileNavGrow() > readJsonlsGrow());
+    // the two grows still sum to 5.
+    assert.ok(Math.abs(readFileNavGrow() + readJsonlsGrow() - 5) < 1e-9);
+    // 280 of 400 is 70 percent, so the top pane gets 3.5.
+    assert.ok(Math.abs(readFileNavGrow() - 3.5) < 1e-9);
+});
+
+test("test_dragging_the_pane_grip_stops_when_a_pane_would_be_under_80_px", () => {
+    // Scenario: a drag past the top edge must not squash the top pane. Steps: height 400, drag to 10.
+    openResizablePage();
+    stubSourcesContainerHeight(400);
+    dragPaneGripTo(10);
+    // the top pane stops at 80 of 400 px, which is 1 of 5.
+    assert.ok(Math.abs(readFileNavGrow() - 1) < 1e-9);
+    // the bottom pane keeps the other 4.
+    assert.ok(Math.abs(readJsonlsGrow() - 4) < 1e-9);
+});
+
+test("test_pane_grip_sits_between_the_two_panes", () => {
+    // Scenario: the row grip is the divider between the File Nav pane and the JSONLs pane. Steps: open the page.
+    openResizablePage();
+    // the element after the File Nav pane is the grip.
+    assert.equal(document.getElementById("fileNavComponent")!.nextElementSibling!.id, "navpane-grip");
+    // the element after the grip is the JSONLs pane.
+    assert.equal(document.getElementById("navpane-grip")!.nextElementSibling!.id, "jsonlsComponent");
+});
+
+test("test_pane_grip_release_stops_following_the_pointer", () => {
+    // Scenario: release must remove the window listeners. Steps: height 400, drag to 280 and release, then move to 100.
+    openResizablePage();
+    stubSourcesContainerHeight(400);
+    dragPaneGripTo(280);
+    window.dispatchEvent(new window.MouseEvent("pointermove", { clientY: 100 }));
+    // the top pane is still where the drag left it.
+    assert.ok(Math.abs(readFileNavGrow() - 3.5) < 1e-9);
+});
