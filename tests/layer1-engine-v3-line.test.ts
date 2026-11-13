@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
 import { EngineV3StepKind, type WireEngineV3Step } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
@@ -107,6 +108,64 @@ test("test_the_line_does_not_scroll_when_it_is_on_screen", () => {
     const { scrolls } = stubRects({ top: 0, bottom: 800 }, { top: 400, bottom: 402 });
     moveEngineV3LineIntoView();
     assert.equal(scrolls.length, 0);
+});
+
+const HIDES_LINE_CLASS = "hides-engine-v3-line";
+
+function appendBubbleWithNode(container: HTMLElement, bubbleAxisPx: number, nodeAxisPx: number): HTMLElement {
+    const bubble = document.createElement("div");
+    bubble.className = "filebox";
+    bubble.style.setProperty("--axis-px", String(bubbleAxisPx));
+    const node = document.createElement("i");
+    node.className = "node";
+    node.style.setProperty("--axis-px", String(nodeAxisPx));
+    bubble.append(node);
+    container.append(bubble);
+    return bubble;
+}
+
+test("test_a_bubble_whose_node_the_line_crosses_hides_the_line", () => {
+    // Steps: line at axis px 300, bubble A starts at 250 with a node at 50 (drawn at 300), bubble B starts at 0 with a node at 500, draw, expect only A marked.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubbleA = appendBubbleWithNode(container, 250, 50);
+    const bubbleB = appendBubbleWithNode(container, 0, 500);
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(readLine().style.getPropertyValue("--axis-px"), "300");
+    assert.equal(bubbleA.classList.contains(HIDES_LINE_CLASS), true);
+    assert.equal(bubbleB.classList.contains(HIDES_LINE_CLASS), false);
+    clearFileBubbles(container);
+});
+
+test("test_when_the_line_moves_off_a_node_its_bubble_no_longer_hides_the_line", () => {
+    // Steps: same bubbles, first step at axis px 300 marks A, move the marker to the step at axis px 100 (no node there), draw again, expect neither marked.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z"), buildStep("2026-06-01T09:00:00.000Z")]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubbleA = appendBubbleWithNode(container, 250, 50);
+    const bubbleB = appendBubbleWithNode(container, 0, 500);
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(bubbleA.classList.contains(HIDES_LINE_CLASS), true);
+    moveMarkerForward();
+    renderEngineV3Line();
+    assert.equal(readLine().style.getPropertyValue("--axis-px"), "100");
+    assert.equal(bubbleA.classList.contains(HIDES_LINE_CLASS), false);
+    assert.equal(bubbleB.classList.contains(HIDES_LINE_CLASS), false);
+    clearFileBubbles(container);
+});
+
+test("test_a_hidden_line_hides_inside_no_bubble", () => {
+    // Steps: a bubble marked by hand, no current step so the line is hidden, draw, expect the mark gone.
+    initLayer1Dom();
+    storeEngineV3Steps([]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubble = appendBubbleWithNode(container, 250, 50);
+    bubble.classList.add(HIDES_LINE_CLASS);
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(readLine().hidden, true);
+    assert.equal(bubble.classList.contains(HIDES_LINE_CLASS), false);
+    clearFileBubbles(container);
 });
 
 test("test_the_line_color_differs_from_the_clicked_ruler_line_color", () => {

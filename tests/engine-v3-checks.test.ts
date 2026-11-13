@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
     BUTTON_LABELS, COUNT_COMMIT_NODES, COUNT_SESSION_NODES, FETCH_RULER, FETCH_STEPS, READ_COMMIT_HASHES, READ_CURRENT_NODE_ID, READ_LINE_DEPTH_FACTS,
     READ_LINE_FACTS, READ_LINE_IN_VIEW, READ_MARKER_INDEX, READ_OFF_FLAGS, READ_SENTENCE, READ_TRACK_COUNT, buildClickButtonByLabel, buildClickLabelWhileOn,
-    buildClickNode, buildReadLeaderTop, isCurrentNodeAboveLine, validateEngineV3Mockup,
+    buildClickNode, buildReadLeaderTop, isCurrentNodeAboveLine, isMarkedBubbleAboveLine, validateEngineV3Mockup,
 } from "../scripts/visual/engine-v3-checks.ts";
 import { CLICK_SESSION_TOGGLE } from "../scripts/visual/layer7-probes.ts";
 import {
@@ -29,7 +29,7 @@ const AXIS_STEP_PX = 100;
 const LANE_Y = 52;
 
 // What the fake page gets wrong, one fault per test.
-interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean; isLineOverNode?: boolean }
+interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean; isLineOverNode?: boolean; isBubbleUnderLine?: boolean }
 
 // The page's five off flags, in button order, as the panel sets them.
 function readOffFlags(isRuleBroken: boolean): string {
@@ -62,7 +62,9 @@ function listLineAnswers(faults: Faults, readSessionCount: () => number): [strin
         [READ_LINE_FACTS, () => ({ top: lineIndex() * AXIS_STEP_PX + LANE_Y, laneY: LANE_Y })],
         [READ_LINE_IN_VIEW, () => faults.isLineOffScreen !== true],
         [READ_TRACK_COUNT, readSessionCount],
-        [READ_LINE_DEPTH_FACTS, () => (faults.isLineOverNode ? { lineZ: 5, nodeZ: 3 } : { lineZ: 5, nodeZ: 7 })],
+        [READ_LINE_DEPTH_FACTS, () => ({
+            lineZ: 5, nodeZ: faults.isLineOverNode ? 3 : 7, bubbleZ: faults.isBubbleUnderLine ? 0 : 6, isBubbleSolid: !faults.isBubbleUnderLine,
+        })],
     ];
     for (const index of STEPS.keys()) answers.push([buildReadLeaderTop(index * AXIS_STEP_PX), () => index * AXIS_STEP_PX + LANE_Y]);
     return answers;
@@ -129,10 +131,25 @@ test("test_the_checks_fail_when_the_line_draws_over_the_marked_node", async () =
 
 test("test_the_depth_judge_passes_only_when_the_node_is_above_the_line", () => {
     // Steps: a higher node passes; a lower node, an equal node, and a missing node all fail.
-    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 7 }), true);
-    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 3 }), false);
-    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 5 }), false);
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 6, isBubbleSolid: true }), true);
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 3, bubbleZ: 6, isBubbleSolid: true }), false);
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 5, bubbleZ: 6, isBubbleSolid: true }), false);
     assert.equal(isCurrentNodeAboveLine(null), false);
+});
+
+test("test_the_checks_fail_when_the_line_draws_over_the_marked_nodes_bubble", async () => {
+    // Steps: the bubble z-index is below the line and not solid, expect only the bubble check to fail.
+    const failures = await listFailuresWith({ isBubbleUnderLine: true });
+    assert.ok(failures.length > 0);
+    assert.ok(failures.every((title) => title.includes("bubble")), failures.join(" | "));
+});
+
+test("test_the_bubble_judge_passes_only_for_a_solid_bubble_above_the_line", () => {
+    // Steps: a solid higher bubble passes; an equal bubble, a see-through bubble, and a missing bubble all fail.
+    assert.equal(isMarkedBubbleAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 6, isBubbleSolid: true }), true);
+    assert.equal(isMarkedBubbleAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 5, isBubbleSolid: true }), false);
+    assert.equal(isMarkedBubbleAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 6, isBubbleSolid: false }), false);
+    assert.equal(isMarkedBubbleAboveLine(null), false);
 });
 
 test("test_the_checks_look_at_the_line_with_the_session_column_off", async () => {

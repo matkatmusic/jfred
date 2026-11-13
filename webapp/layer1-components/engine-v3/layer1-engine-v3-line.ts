@@ -3,10 +3,26 @@
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { computeAxisPixelsAt } from "../bubbles/layer1-ranges.ts";
 import { setAxisPx } from "../bubbles/layer1-lane-nodes.ts";
+import { listElementsDrawnAtAxisPx } from "../ruler/layer1-ruler-click.ts";
 import { readCurrentStep } from "./layer1-engine-v3-state.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
 
 const LINE_ID = "engine-v3-line";
+
+// CSS draws a bubble with this class solid above the line, so the line hides inside it.
+const LINE_HIDING_BUBBLE_CLASS = "hides-engine-v3-line";
+
+function markBubblesHoldingNodesOnLine(axisPx: number | undefined): void {
+  for (const bubble of document.querySelectorAll<HTMLElement>(".filebox")) {
+    bubble.classList.remove(LINE_HIDING_BUBBLE_CLASS);
+  }
+  if (axisPx === undefined) {
+    return;
+  }
+  for (const element of listElementsDrawnAtAxisPx(axisPx)) {
+    element.closest<HTMLElement>(".filebox")!.classList.add(LINE_HIDING_BUBBLE_CLASS);
+  }
+}
 
 // Module state because a filter redraw hands the stage a view, and the marker moves between redraws.
 let ticks: readonly WireRulerTick[] = [];
@@ -27,9 +43,13 @@ export function renderEngineV3Line(): void {
   const step = readCurrentStep();
   line.hidden = step === undefined || ticks.length === 0;
   if (line.hidden) {
+    markBubblesHoldingNodesOnLine(undefined);
     return;
   }
-  setAxisPx(line, computeAxisPixelsAt(Date.parse(step!.nodeTime), ticks));
+  // setAxisPx(line, computeAxisPixelsAt(Date.parse(step!.nodeTime), ticks));
+  const axisPx = computeAxisPixelsAt(Date.parse(step!.nodeTime), ticks);
+  setAxisPx(line, axisPx);
+  markBubblesHoldingNodesOnLine(axisPx);
 }
 
 // Called by every stage render with its ruler, so a redraw keeps the line on the same time.

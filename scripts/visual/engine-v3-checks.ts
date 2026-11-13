@@ -32,13 +32,27 @@ export const READ_LINE_FACTS = `(() => {
   const laneY = parseFloat(getComputedStyle(document.querySelector('.canvas')).getPropertyValue('--lane-y'));
   return { top: line.getBoundingClientRect().top - ${CANVAS_TOP}, laneY };
 })()`;
-export interface LineDepthFacts { lineZ: number; nodeZ: number }
+// export interface LineDepthFacts { lineZ: number; nodeZ: number }
+export interface LineDepthFacts { lineZ: number; nodeZ: number; bubbleZ: number; isBubbleSolid: boolean }
 // Both sit in the .canvas stacking context, so comparing z-index gives paint order.
+// export const READ_LINE_DEPTH_FACTS = `(() => {
+//   const line = document.getElementById('engine-v3-line');
+//   const node = document.querySelector('.fileBubbleContainer i.node.n-commit.current-node');
+//   if (!line || !node) return null;
+//   return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex) };
+// })()`;
 export const READ_LINE_DEPTH_FACTS = `(() => {
   const line = document.getElementById('engine-v3-line');
   const node = document.querySelector('.fileBubbleContainer i.node.n-commit.current-node');
   if (!line || !node) return null;
-  return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex) };
+  const bubble = node.closest('.filebox');
+  const surfaceProbe = document.createElement('div');
+  surfaceProbe.style.background = 'var(--surface)';
+  bubble.append(surfaceProbe);
+  const surfaceColor = getComputedStyle(surfaceProbe).backgroundColor;
+  surfaceProbe.remove();
+  return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex),
+    bubbleZ: Number(getComputedStyle(bubble).zIndex), isBubbleSolid: getComputedStyle(bubble).backgroundColor === surfaceColor };
 })()`;
 export const READ_LINE_IN_VIEW = `(() => {
   const line = document.getElementById('engine-v3-line');
@@ -160,6 +174,13 @@ export function isCurrentNodeAboveLine(facts: LineDepthFacts | null): boolean {
   return facts.nodeZ > facts.lineZ;
 }
 
+export function isMarkedBubbleAboveLine(facts: LineDepthFacts | null): boolean {
+  if (facts === null) {
+    return false;
+  }
+  return facts.bubbleZ > facts.lineZ && facts.isBubbleSolid;
+}
+
 async function reportLineAt(page: HeadlessPage, title: string, steps: WireEngineV3Steps, ruler: readonly WireRulerTick[], index: number): Promise<void> {
   const facts = await page.evaluate<LineFacts | null>(READ_LINE_FACTS);
   const axisPx = findAxisPx(ruler, steps.steps[index]!.nodeTime);
@@ -183,6 +204,7 @@ async function validateLineWithSessionOff(page: HeadlessPage, steps: WireEngineV
   await reportLineAt(page, "session off, at load", steps, ruler, 0);
   const depth = await page.evaluate<LineDepthFacts | null>(READ_LINE_DEPTH_FACTS);
   reportCheck("engineV3 session off, at load: the marked commit node draws above the line", isCurrentNodeAboveLine(depth), depth);
+  reportCheck("engineV3 session off, at load: the marked node's bubble draws above the line and is solid", isMarkedBubbleAboveLine(depth), depth);
   await page.evaluate(buildClickLabelWhileOn("Jump to next commit"));
   await reportLineAt(page, "session off, after Jump to next commit", steps, ruler, findLastCommitIndex(steps.steps));
   await reportLineInView(page, "session off, after Jump to next commit");
