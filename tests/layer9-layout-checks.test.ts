@@ -13,7 +13,8 @@ import {
 import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts";
 
 // Session column off: the strip is 104px wide and starts at the ruler's right edge.
-const HOME: StripLayoutFacts = { stripLeft: 384, stripRight: 488, trackLeft: null, trackRight: null, rulerRight: 384, paneLeft: 232, position: "sticky", firstBoxLeft: 500 };
+// const HOME: StripLayoutFacts = { stripLeft: 384, stripRight: 488, trackLeft: null, trackRight: null, rulerRight: 384, paneLeft: 232, position: "sticky", firstBoxLeft: 500 };
+const HOME: StripLayoutFacts = { stripLeft: 384, stripRight: 488, trackLeft: null, trackRight: null, rulerRight: 384, paneLeft: 232, position: "relative", firstBoxLeft: 500 };
 // Scrolled 400px right: the strip stays put and the first bubble slides under it.
 const SCROLLED: StripLayoutFacts = { ...HOME, firstBoxLeft: 312 };
 // Session column on: a 96px track sits between the ruler and the strip.
@@ -45,8 +46,10 @@ const buildAnswers = (setup: Setup): Answers => new Map<string, unknown[]>([
     [ENTRY_FACTS, [setup.homeEntries, setup.scrolledEntries]], [SCROLL_HOME, [0]],
 ]);
 
-const SIDE_TITLE = "L9 session off: the strip's left edge meets the ruler's right edge, and the strip is sticky";
-const SIDE_ON_TITLE = "L9 session on: the strip's left edge meets the session column's right edge, and the strip is sticky";
+// const SIDE_TITLE = "L9 session off: the strip's left edge meets the ruler's right edge, and the strip is sticky";
+// const SIDE_ON_TITLE = "L9 session on: the strip's left edge meets the session column's right edge, and the strip is sticky";
+const SIDE_TITLE = "L9 session off: the strip's left edge meets the ruler's right edge, and the strip is relative";
+const SIDE_ON_TITLE = "L9 session on: the strip's left edge meets the session column's right edge, and the strip is relative";
 const STAGE_TITLE = "L9 session off: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing";
 const PINNED_TITLE = "L9 scrolled right, the strip stays pinned beside the column and the bubbles slide under it";
 const LEVEL_TITLE = "L9 scrolled down 600px, every strip node still shares a centre line with its ruler tick";
@@ -61,15 +64,17 @@ test("the layout checks pass the good page: 4 checks", async () => {
 });
 
 test("test_strip_left_edge_meets_the_ruler_right_edge_when_the_session_column_is_off", async () => {
-    // Setup: sticky strip at the ruler's right edge, no track on the page.
+    // Setup: relative strip at the ruler's right edge, no track on the page.
     const run = async (change: Partial<StripLayoutFacts>) => (await runCheck(() => validateStripLayout(makeScriptedPage(buildAnswers(makeSetup({
         home: { ...HOME, ...change }, scrolled: { ...SCROLLED, ...change } })))))).newFailures;
     // A 2px gap between the ruler and the strip fails.
     assert.deepEqual(await run({ stripLeft: 386 }), [SIDE_TITLE]);
     // A strip that starts inside the ruler fails.
     assert.deepEqual(await run({ rulerRight: 390 }), [SIDE_TITLE]);
-    // A strip that is not sticky fails.
+    // A strip that is not relative fails.
     assert.deepEqual(await run({ position: "static" }), [SIDE_TITLE]);
+    // A strip with the old sticky position fails.
+    assert.deepEqual(await run({ position: "sticky" }), [SIDE_TITLE]);
     // A track on the page while the session column is meant to be off fails.
     assert.deepEqual(await run({ trackLeft: 384, trackRight: 480 }), [SIDE_TITLE]);
 });
@@ -128,6 +133,8 @@ test("the strip judges take half a pixel and no more", () => {
     assert.equal(isStripBesideColumn({ ...HOME, stripLeft: 385 }, false), false);
     assert.equal(isStripBesideColumn(HOME_ON, true), true);
     assert.equal(isStripBesideColumn(HOME_ON, false), false);
+    // A strip with position "sticky" (the old strip) fails.
+    assert.equal(isStripBesideColumn({ ...HOME, position: "sticky" }, false), false);
     assert.equal(isStripPinned(HOME, SCROLLED, 400), true);
     assert.equal(isStripPinned(HOME, { ...SCROLLED, stripLeft: 383 }, 400), false);
 });

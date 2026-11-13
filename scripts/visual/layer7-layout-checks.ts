@@ -14,7 +14,7 @@ export interface RuleFacts { /* rulerRules: number; trackRules: number; */ margi
 const RULER_TO_TRACK_PX = 0;
 const TOUCH_TOLERANCE_PX = 0.5;
 // const TRACK_TO_STAGE_PX = 14;
-const TOLERANCE_PX = 1;
+// const TOLERANCE_PX = 1;
 const SCROLL_RIGHT_PX = 400;
 
 // Task 383: the gap is measured from the element just before #fileBubbleContainer, the column or the jfred strip.

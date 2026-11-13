@@ -8,8 +8,12 @@
   */
   /* .jfred-strip { position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
     width: var(--jfred-w); margin-left: -14px; margin-right: calc(var(--jfred-w) * -1); background: var(--page); border-left: 1px solid var(--border); } */
-  .jfredCommitsDrawerComponent { position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
-    width: var(--jfred-w); margin-left: -14px; margin-right: calc(var(--jfred-w) * -1); background: var(--surface); border-left: 1px solid var(--border); }
+  /* .jfredCommitsDrawerComponent { position: sticky; left: calc(var(--rail-x) + 2px + var(--track-w)); z-index: 7; flex: none;
+    width: var(--jfred-w); margin-left: -14px; margin-right: calc(var(--jfred-w) * -1); background: var(--surface); border-left: 1px solid var(--border); } */
+  /* In-flow overlay after the ruler or the session lines; margin-left cancels the container gap. */
+  .jfredCommitsDrawerComponent { position: relative; z-index: 7; flex: none;
+    width: var(--jfred-w); margin-left: -14px; background: var(--surface); border-left: 1px solid var(--border); }
+  .timelineRulerContainer:has(> .jfredCommitsDrawerComponent) { --jfred-shown-w: var(--jfred-w); }
   /* .jfred-strip .jhead { position: sticky; top: 0; z-index: 1; padding: 2px 4px 4px 8px; background: var(--page); font-size: 10px; color: var(--muted); } */
   .jfredCommitsDrawerComponent .jhead { overflow: hidden; padding: 2px 4px 4px 8px; font-size: 10px; color: var(--muted); }
   .jnode, .jlabel, .jchain, .jline { position: absolute; top: calc(var(--axis-px) * 1px + var(--lane-y)); }

@@ -9,6 +9,7 @@ initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { appendCommit, deleteJfredBranch, readJfredBranch, setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
 const { setCachedProjectSettings } = await import("../webapp/layer1-settings.ts");
+const { moveDetailsPaneToRightEdge } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 
 const REAL_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
 const CANNED_VIEW = {
@@ -132,6 +133,62 @@ test("test_the_button_toggles_current_and_the_armed_state", async () => {
   await waitUntil(() => !readJfredBranch().isArmed);
   assert.equal(readJfredBranch().isArmed, false);
   assert.equal(getButton().classList.contains("current"), false);
+});
+
+test("test_the_commit_mode_button_moves_the_minimap", async () => {
+  // Build a view with commit mode off.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  // The ruler container ends at 321 px.
+  const rulerContainer = document.getElementById("timelineRulerContainer")!;
+  const fullRect = { left: 0, right: 321, top: 0, bottom: 0, width: 321, height: 0, x: 0, y: 0, toJSON() { return {}; } };
+  Object.defineProperty(rulerContainer, "getBoundingClientRect", { configurable: true, value: () => fullRect });
+  // Click the button and wait for commit mode to turn on.
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
+  // The minimap left edge is the ruler container edge.
+  assert.equal(document.getElementById("minimapComponent")!.style.left, "321px");
+  // Turn commit mode back off for the other tests.
+  getButton().click();
+  await waitUntil(() => !readJfredBranch().isArmed);
+});
+
+test("test_an_open_details_pane_gets_narrower_when_the_commits_drawer_goes_on", async () => {
+  // Build a view with commit mode off and the details pane open.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  const pane = document.getElementById("detailsPaneContainer")!;
+  pane.classList.add("open");
+  // The scroll box is 1200 px wide; the ruler ends at 200 px and the commits drawer would end at 304 px.
+  const scrollBox = document.getElementById("timelineContainer")!;
+  Object.defineProperty(scrollBox, "clientWidth", { configurable: true, value: 1200 });
+  Object.defineProperty(scrollBox, "clientHeight", { configurable: true, value: 600 });
+  const rightEdgeById: Record<string, number> = { timelineRulerComponent: 200, jfredCommitsDrawerComponent: 304, timelineContainer: 0 };
+  const prototype = window.Element.prototype;
+  const originalGetBoundingClientRect = prototype.getBoundingClientRect;
+  prototype.getBoundingClientRect = function (this: Element): DOMRect {
+    const edge = rightEdgeById[this.id] ?? 0;
+    const left = this.id === "timelineContainer" ? 0 : edge;
+    return { left, right: edge, top: 0, bottom: 0, width: 0, height: 0, x: left, y: 0, toJSON() { return {}; } } as DOMRect;
+  };
+  try {
+    // With commit mode off the pane is 35% of (1200 - 200).
+    moveDetailsPaneToRightEdge();
+    assert.equal(pane.style.width, "350px");
+    // Turning commit mode on re-places the open pane: 35% of (1200 - 304).
+    getButton().click();
+    await waitUntil(() => readJfredBranch().isArmed);
+    assert.equal(pane.style.width, "313.6px");
+  } finally {
+    prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    // Turn commit mode back off for the other tests.
+    getButton().click();
+    await waitUntil(() => !readJfredBranch().isArmed);
+  }
 });
 
 test("test_a_second_render_keeps_the_fake_commits", async () => {

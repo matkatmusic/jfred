@@ -40,7 +40,8 @@ export function isStripBesideColumn(facts: StripLayoutFacts, isSessionOn: boolea
   const columnRight = facts.trackRight ?? facts.rulerRight;
   const isTouchingColumn = isNear(facts.stripLeft, columnRight, EDGE_TOLERANCE_PX);
   const isColumnTouchingRuler = isNear(facts.trackLeft ?? facts.rulerRight, facts.rulerRight, EDGE_TOLERANCE_PX);
-  return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "sticky";
+  // return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "sticky";
+  return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "relative";
 }
 
 export function isStageUnmoved(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
@@ -109,7 +110,8 @@ async function validateBesideColumn(page: HeadlessPage, isSessionOn: boolean): P
   await page.evaluate(SCROLL_HOME);
   const home = await page.evaluate<StripLayoutFacts>(STRIP_LAYOUT_FACTS);
   const columnName = isSessionOn ? "session column's" : "ruler's";
-  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is sticky`, isStripBesideColumn(home, isSessionOn), home);
+  // reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is sticky`, isStripBesideColumn(home, isSessionOn), home);
+  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is relative`, isStripBesideColumn(home, isSessionOn), home);
   return home;
 }
 

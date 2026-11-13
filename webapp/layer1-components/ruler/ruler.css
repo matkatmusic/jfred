@@ -4,8 +4,10 @@
   /* .timelineRulerContainer { position: sticky; left: 0; z-index: 8; flex: none; } */
   /* gap: 14px because the track and strip keep margin-left:-14px, which used to cancel the .canvas gap of 14px. */
   /* .timelineRulerContainer { position: sticky; left: 0; z-index: 8; flex: none; gap: 14px; } */
-  /* The negative right margin cancels the session lines width, so the bubbles never move. */
-  .timelineRulerContainer { position: sticky; left: 0; z-index: 8; flex: none; gap: 14px; margin-right: calc(-1 * var(--track-w, 0px)); }
+  /* The negative right margin cancels the session lines and commits drawer widths, so the bubbles never move. */
+  /* .timelineRulerContainer { position: sticky; left: 0; z-index: 8; flex: none; gap: 14px; margin-right: calc(-1 * var(--track-w, 0px)); } */
+  .timelineRulerContainer { position: sticky; left: 0; z-index: 8; flex: none; gap: 14px;
+    margin-right: calc(-1 * (var(--track-w, 0px) + var(--jfred-shown-w, 0px))); }
   .timelineRulerComponent { position: relative; width: calc(var(--rail-x) + 2px); background: var(--page); }
   /*
     Left slack follows the ruler container; dividing by --zoom cancels the canvas zoom.
