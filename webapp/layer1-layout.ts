@@ -56,7 +56,7 @@ export function buildLayer1Layout(): void {
     sessionDataContainerBox.add(sourcesContainerBox);
     sessionDataContainerBox.add(getRequiredElementById("filenav-grip"));
     sessionDataContainerBox.add(timelineComponentsContainerBox, { grow: 1 });
-    sessionDataContainerBox.add(getRequiredElementBySelector(".minimapComponent"));
+    // sessionDataContainerBox.add(getRequiredElementBySelector(".minimapComponent"));
     // sessionDataContainerBox.add(getRequiredElementById("detailsPaneContainer"));
     appWindowBox.add(sessionDataContainerBox, { grow: 1 });
 
@@ -66,6 +66,8 @@ export function buildLayer1Layout(): void {
     canvasBox.element.classList.add("canvas");
     const timelineRulerContainerBox = createNamedBox(FlexBox.layoutModes.columns, { id: "timelineRulerContainer", class: "timelineRulerContainer", "data-component": "timelineRulerContainer" });
     const fileBubbleContainerBox = createNamedBox(FlexBox.layoutModes.columns, { id: "fileBubbleContainer", class: "fileBubbleContainer", "data-component": "fileBubbleContainer" });
+    // First child: the session lines and commits drawer append after the ruler; the minimap is fixed, so order does not move it.
+    timelineRulerContainerBox.add(getRequiredElementBySelector(".minimapComponent"));
     timelineRulerContainerBox.add(getRequiredElementById("timelineRulerComponent"));
     canvasBox.add(getRequiredElementById("leaders"));
     canvasBox.add(getRequiredElementById("washes"));

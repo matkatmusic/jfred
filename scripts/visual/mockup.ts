@@ -23,6 +23,7 @@ import { validateLayer5 } from "./layer5-checks.ts";
 import { validateLayer6 } from "./layer6-checks.ts";
 import { validateLayer7 } from "./layer7-checks.ts";
 import { validateLayer9 } from "./layer9-checks.ts";
+import { validateMinimapPosition } from "./minimap-position-checks.ts";
 // // validateBubbleFlash (task 386: the real page has no bubble-click flash)
 import { validateBubbleFlash, validateSessionSearch } from "./mockup-checks-nav.ts";
 import { validateMultiFileDrawer } from "./mockup-checks-multi-drawer.ts";
@@ -67,6 +68,7 @@ async function executeFreshPageChecks(page: HeadlessPage, pageUrl: string): Prom
   await validateLayer6(page, pageUrl);
   await validateLayer7(page, pageUrl);
   await validateLayer9(page, pageUrl);
+  await validateMinimapPosition(page, pageUrl);
 }
 
 async function executeLayer1Checks(page: HeadlessPage): Promise<void> {

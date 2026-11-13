@@ -220,28 +220,30 @@ test("test_leaders_washes_and_ranges_stay_inside_the_canvas", () => {
     }
 });
 
-test("test_minimap_sits_after_the_timeline_inside_session_data_container", () => {
-    // Scenario: the minimap stays inside sessionDataContainer, after the timeline.
+test("test_minimap_is_the_first_child_of_the_timeline_ruler_container", () => {
+    // Scenario: the minimap is the first child of timelineRulerContainer, not a child of sessionDataContainer.
     initLayer1Dom();
     const sessionDataContainer = getRequiredBox("sessionDataContainer");
     const minimap = document.querySelector(".minimapComponent");
     assert.ok(minimap, "missing .minimapComponent");
-    // The children are in this order.
-    assert.equal(sessionDataContainer.children.length, 4);
+    // The minimap parent is timelineRulerContainer, and the minimap comes first.
+    assert.equal(minimap.parentElement!.id, "timelineRulerContainer");
+    assert.equal(minimap.parentElement!.children[0], minimap);
+    // sessionDataContainer now holds three children, in this order.
+    assert.equal(sessionDataContainer.children.length, 3);
     assert.equal(sessionDataContainer.children[0]!.id, "sourcesContainer");
     assert.equal(sessionDataContainer.children[1]!.id, "filenav-grip");
     assert.equal(sessionDataContainer.children[2]!.id, "timelineComponentsContainer");
-    assert.equal(sessionDataContainer.children[3], minimap);
-    // The minimap is not a direct child of appWindow.
-    assert.notEqual(minimap.parentElement, getRequiredBox("appWindow"));
 });
 
-test("test_ruler_container_holds_only_the_ruler_at_first", () => {
-    // Scenario: before any session lines or commit strip exist, the ruler container holds one child.
+test("test_ruler_container_holds_the_minimap_and_the_ruler_at_first", () => {
+    // Scenario: before any session lines or commit strip exist, the ruler container holds two children.
     initLayer1Dom();
     const rulerContainer = getRequiredBox("timelineRulerContainer");
-    // One child.
-    assert.equal(rulerContainer.children.length, 1);
-    // That child is the ruler.
-    assert.equal(rulerContainer.children[0]!.id, "timelineRulerComponent");
+    // Two children.
+    assert.equal(rulerContainer.children.length, 2);
+    // The first child is the minimap.
+    assert.ok(rulerContainer.children[0]!.classList.contains("minimapComponent"));
+    // The second child is the ruler.
+    assert.equal(rulerContainer.children[1]!.id, "timelineRulerComponent");
 });

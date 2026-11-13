@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WirePair } from "../webapp/layer1-wire.ts";
@@ -123,7 +124,9 @@ test("test_clicking_more_shows_the_other_names_and_a_second_click_hides_them", (
 test("test_every_file_at_a_shared_instant_is_found_by_the_ruler_row_lookup", () => {
   // Scenario: the ruler click lists the files drawn at 700 px; all three names must come back.
   const bucket = buildOrphanBucket("No repository match", [SHARED_FIRST, SHARED_SECOND, SHARED_THIRD])!;
-  document.getElementById("stage")!.replaceChildren(bucket);
+  const container = document.getElementById("fileBubbleContainer")!;
+  clearFileBubbles(container);
+  container.append(bucket);
   const events = listAllEventsAtRow([SHARED_FIRST.axisPx], collectStageBubbles());
   assert.deepEqual(events.map((event) => event.path), ["c/first.py", "c/second.py", "c/third.py"]);
 });

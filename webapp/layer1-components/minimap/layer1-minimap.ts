@@ -4,6 +4,7 @@
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { applyBoxToPlot, computeMinimapScale, measureInContent } from "./layer1-minimap-geometry.ts";
 import type { MinimapScale } from "./layer1-minimap-geometry.ts";
+import { moveMiniMapToRulerEdge } from "./layer1-minimap-position.ts";
 
 // The scroll container. It carries an id purely so this module and the page share one lookup.
 function getTimelinePane(): HTMLElement {
@@ -108,4 +109,5 @@ export function renderLayer1Minimap(): void {
   syncMinimapViewport();
   registerMinimapListeners();
   registerCanvasResizeObserver();
+  moveMiniMapToRulerEdge();
 }
