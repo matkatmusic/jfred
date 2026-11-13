@@ -99,6 +99,7 @@ function renderCandidateOverlay(candidate: Element | null): void {
 }
 
 function pushEnteredPart(part: Element): void {
+  readStackTop()?.classList.remove("ci-entered");
   inspector.enteredParts.push(part);
   part.classList.add("ci-entered");
   document.documentElement.classList.add("ci-zoomed");
@@ -113,6 +114,7 @@ function popStackTop(): void {
     leftPart.classList.remove("ci-entered");
     inspector.sourceByPart.delete(leftPart);
   }
+  readStackTop()?.classList.add("ci-entered");
   const enteredCount = inspector.enteredParts.length;
   if (enteredCount === 0) {
     document.documentElement.classList.remove("ci-zoomed");

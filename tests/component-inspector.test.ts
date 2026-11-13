@@ -87,6 +87,20 @@ test("test_entering_a_nested_part_requires_entering_its_parent_first", () => {
     assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
 });
 
+test("test_entering_a_nested_part_whites_out_its_siblings", () => {
+    // Scenario: with Nav entered inside Page, Header (a sibling of Nav inside Page) is hidden while Nav stays visible.
+    // Turn the inspector on.
+    startInspector();
+    switchInspectorOn();
+    // Enter the outer tagged part, Page.
+    clickElement("navText");
+    // Enter the nested tagged child of Page, Nav.
+    clickElement("navText");
+    // Header is a sibling of Nav inside Page: it is hidden; Nav stays visible.
+    assert.equal(window.getComputedStyle(document.getElementById("header")!).visibility, "hidden");
+    assert.equal(window.getComputedStyle(document.getElementById("nav")!).visibility, "visible");
+});
+
 test("test_copy_writes_the_name_file_line_hierarchy_text_for_the_stack_top", async () => {
     // Scenario: with Nav entered, the Copy button writes the exact text.
     startInspector();
