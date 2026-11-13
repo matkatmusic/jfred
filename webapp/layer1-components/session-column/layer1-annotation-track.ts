@@ -8,6 +8,7 @@ import type { SessionLook } from "./layer1-annotation-dots.ts";
 import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "./layer1-annotation-window.ts";
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
+import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
 import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
 import { removeRulerDisplay, renderRulerDisplay } from "../ruler/layer1-ruler-display.ts";
@@ -44,6 +45,7 @@ export function toggleSessionDotLines(): void {
   isSessionShown = !isSessionShown;
   renderAnnotationTrack(lastTicks);
   renderLayer1Minimap();
+  moveOpenDetailsPane();
 }
 
 // function buildTitle(annotation: WireAnnotation): string {

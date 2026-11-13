@@ -70,8 +70,9 @@ export function isCommitPopupRight(h: HoverFacts): boolean {
   return h.isVisible && isMessage && isEveryLineShort && h.isHiddenAfter;
 }
 export function isBothRight(f: BothFacts, offStageLeft: number): boolean {
-  const trackWidth = f.track.right - f.track.left;
-  const isShifted = isNear(f.stageLeft, offStageLeft + trackWidth, EDGE_PX) && !isNear(f.stageLeft, offStageLeft + f.strip.right - f.strip.left, EDGE_PX);
+  // const trackWidth = f.track.right - f.track.left;
+  // const isShifted = isNear(f.stageLeft, offStageLeft + trackWidth, EDGE_PX) && !isNear(f.stageLeft, offStageLeft + f.strip.right - f.strip.left, EDGE_PX);
+  const isStageUnmoved = isNear(f.stageLeft, offStageLeft, EDGE_PX);
   const isCrossing = f.isEveryLineCrossing && f.crossings > 0 && f.isEveryDotOnTop;
-  return isShifted && isCrossing && isNear(f.strip.left, f.track.right, EDGE_PX) && f.trackZ > f.stripZ && f.overlaps === 0;
+  return isStageUnmoved && isCrossing && isNear(f.strip.left, f.track.right, EDGE_PX) && f.trackZ > f.stripZ && f.overlaps === 0;
 }

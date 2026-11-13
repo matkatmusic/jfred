@@ -21,7 +21,7 @@ const COLUMN_BRACKET = buildBracketProbe("document", `#sessionDotLinesComponent 
 
 async function validatePlacement(page: HeadlessPage): Promise<void> {
   const track = await page.evaluate<TrackFacts>(TRACK_FACTS);
-  reportCheck("L7 the session column is one sticky element between the ruler and the stage", isTrackBetween(track), track);
+  reportCheck("L7 the session column is one relative element between the ruler and the stage", isTrackBetween(track), track);
   const nodes = await page.evaluate<ColumnNodeFacts[]>(COLUMN_NODE_FACTS);
   reportCheck("L7 the 8 block records each have one node and each kind class appears once", isBlockComplete(nodes), nodes.length);
 }

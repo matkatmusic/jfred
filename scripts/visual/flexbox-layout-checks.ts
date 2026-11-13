@@ -1,8 +1,9 @@
-// Flexbox layout checks: the sources split, the bubble container beside the details pane, and the pane size, edge and drag limits; validateFlexboxLayout leaves a fresh page behind.
+// Flexbox layout checks: the sources split, the bubble container beside the details pane, the pane size, edge and drag limits, and the session lines overlay; validateFlexboxLayout leaves a fresh page behind.
 
 import { type HeadlessPage, type MouseHeadlessPage } from "./cdp.ts";
 import { isNear } from "./layer7-facts.ts";
 import { reportCheck } from "./mockup-checks.ts";
+import { toggleSessionDotLines } from "./ruler-ui-session-checks.ts";
 
 export interface SourcesSplitFacts { fileNavHeight: number; jsonlsHeight: number }
 export interface SourcesMinimumFacts { smallestFileNavHeight: number; smallestJsonlsHeight: number }
@@ -10,9 +11,15 @@ export interface BubbleContainerWidthFacts { widthBefore: number; widthAfter: nu
 export interface PaneInitialWidthFacts { paneWidth: number; scrollBoxRight: number; overlayRightEdge: number }
 export interface PaneRightEdgeFacts { paneRight: number; scrollBoxRight: number }
 export interface PaneDragFacts { paneWidth: number; visibleWidth: number }
+export interface SessionLinesFacts {
+  firstBubbleLeftBefore: number; firstBubbleLeftAfter: number;
+  rulerContainerRightBefore: number; rulerContainerRightAfter: number;
+  trackWidth: number; bubbleContainerLeft: number;
+}
 
 interface Point { x: number; y: number }
 interface SourcesBox { top: number; bottom: number }
+interface SessionLinesEdges { firstBubbleLeft: number; rulerContainerRight: number; bubbleContainerLeft: number; trackWidth: number }
 interface PaneGeometry { paneWidth: number; paneRight: number; scrollBoxRight: number; overlayRightEdge: number; paneParentId: string; containerWidth: number }
 
 const SPLIT_TOLERANCE_PX = 1;
@@ -25,6 +32,8 @@ const INITIAL_PANE_SHARE = 0.35;
 const MAX_PANE_SHARE = 0.5;
 const MIN_PANE_SHARE = 0.3;
 const SCROLL_DISTANCE_PX = 400;
+const FIRST_BUBBLE_TOLERANCE_PX = 0.5;
+const RULER_GROWTH_TOLERANCE_PX = 1;
 
 export function isSourcesSplitThreeToTwo(facts: SourcesSplitFacts): boolean {
   return isNear(facts.fileNavHeight, facts.jsonlsHeight * 1.5, SPLIT_TOLERANCE_PX);
@@ -56,6 +65,18 @@ export function isPaneDragStoppedAtThirtyPercent(facts: PaneDragFacts): boolean 
   return isNear(facts.paneWidth, facts.visibleWidth * MIN_PANE_SHARE, PANE_TOLERANCE_PX);
 }
 
+export function isFirstBubbleUnmovedBySessionLines(facts: SessionLinesFacts): boolean {
+  return Math.abs(facts.firstBubbleLeftAfter - facts.firstBubbleLeftBefore) < FIRST_BUBBLE_TOLERANCE_PX;
+}
+
+export function isRulerContainerGrownByTrackWidth(facts: SessionLinesFacts): boolean {
+  return isNear(facts.rulerContainerRightAfter - facts.rulerContainerRightBefore, facts.trackWidth, RULER_GROWTH_TOLERANCE_PX);
+}
+
+export function isGrownPartOverBubbleContainer(facts: SessionLinesFacts): boolean {
+  return facts.rulerContainerRightAfter > facts.bubbleContainerLeft;
+}
+
 const READ_SOURCES_HEIGHTS = `(() => ({
     fileNavHeight: document.getElementById('fileNavComponent').getBoundingClientRect().height,
     jsonlsHeight: document.getElementById('jsonlsComponent').getBoundingClientRect().height,
@@ -78,7 +99,16 @@ const READ_PANE_GEOMETRY = `(() => {
         containerWidth: document.getElementById('fileBubbleContainer').getBoundingClientRect().width,
     };
 })()`;
-const READ_CONTAINER_WIDTH = `document.getElementById('fileBubbleContainer').getBoundingClientRect().width`;
+const READ_SESSION_LINES_EDGES = `(() => {
+    const track = document.getElementById('sessionDotLinesComponent');
+    return {
+        firstBubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
+        rulerContainerRight: document.getElementById('timelineRulerContainer').getBoundingClientRect().right,
+        bubbleContainerLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left,
+        trackWidth: track === null ? 0 : track.getBoundingClientRect().width,
+    };
+})()`;
+const READ_CONTAINER_WIDTH =`document.getElementById('fileBubbleContainer').getBoundingClientRect().width`;
 const CLICK_BUBBLE_NODE = `document.querySelector('i.n-snap').click()`;
 const PANE_IS_OPEN = `document.getElementById('detailsPaneContainer').classList.contains('open')`;
 const SCROLL_RIGHT = `(() => {
@@ -177,6 +207,22 @@ export async function validatePaneDrag(page: MouseHeadlessPage, scrollBoxRight: 
   reportCheck("FLEX dragging the pane grip far right stops the pane at 30% of the visible bubble width", isPaneDragStoppedAtThirtyPercent(farRight), farRight);
 }
 
+export async function validateSessionLinesOverlay(page: HeadlessPage): Promise<void> {
+  const before = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
+  await toggleSessionDotLines(page, true);
+  await page.evaluate(WAIT_FOR_FRAME);
+  const after = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
+  const facts: SessionLinesFacts = {
+    firstBubbleLeftBefore: before.firstBubbleLeft, firstBubbleLeftAfter: after.firstBubbleLeft,
+    rulerContainerRightBefore: before.rulerContainerRight, rulerContainerRightAfter: after.rulerContainerRight,
+    trackWidth: after.trackWidth, bubbleContainerLeft: after.bubbleContainerLeft,
+  };
+  reportCheck("FLEX turning the session lines on does not move the left edge of the first bubble", isFirstBubbleUnmovedBySessionLines(facts), facts);
+  reportCheck("FLEX turning the session lines on grows the ruler container right edge by the track width", isRulerContainerGrownByTrackWidth(facts), facts);
+  reportCheck("FLEX the grown part of the ruler container lies over the bubble container", isGrownPartOverBubbleContainer(facts), facts);
+  await toggleSessionDotLines(page, false);
+}
+
 // The reload at the end resets the pane share, the scroll and the sources split.
 export async function validateFlexboxLayout(page: HeadlessPage, pageUrl: string): Promise<void> {
   const mousePage = getMouseHeadlessPage(page);
@@ -187,5 +233,7 @@ export async function validateFlexboxLayout(page: HeadlessPage, pageUrl: string)
   const geometry = await validatePaneOpening(page);
   await validatePaneRightEdge(page);
   await validatePaneDrag(mousePage, geometry.scrollBoxRight);
+  await waitForFreshPage(page, pageUrl);
+  await validateSessionLinesOverlay(page);
   await waitForFreshPage(page, pageUrl);
 }

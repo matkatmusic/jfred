@@ -5,15 +5,19 @@ import { test } from "node:test";
 import { type HeadlessPage } from "../scripts/visual/cdp.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
 import {
-    LAYOUT_FACTS, RULE_FACTS, isBubbleBesideColumn, isColumnAfterRuler, isColumnBetween, isSlackRuleKept, isStageUnderColumn, validateLayout,
+    // LAYOUT_FACTS, RULE_FACTS, isBubbleBesideColumn, isColumnAfterRuler, isColumnBetween, isSlackRuleKept, isStageUnderColumn, validateLayout,
+    LAYOUT_FACTS, RULE_FACTS, isBubbleUnderColumn, isColumnAfterRuler, isSlackRuleKept, isStageUnderColumn, validateLayout,
     type LayoutFacts, type RuleFacts,
 } from "../scripts/visual/layer7-layout-checks.ts";
 import { SCROLL_HOME, buildScrollTo } from "../scripts/visual/layer7-probes.ts";
 
 const SCROLL_RIGHT = buildScrollTo(0, 400);
 // beforeStageRight: right edge of the track, or of the jfred strip when it sits between.
-const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, beforeStageRight: 346, stageLeft: 360, bubbleLeft: 360, isTrackOnTop: true };
-const GOOD_LAYOUT_WITH_STRIP: LayoutFacts = { ...GOOD_LAYOUT, beforeStageRight: 466, stageLeft: 480, bubbleLeft: 480 };
+// const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, beforeStageRight: 346, stageLeft: 360, bubbleLeft: 360, isTrackOnTop: true };
+// const GOOD_LAYOUT_WITH_STRIP: LayoutFacts = { ...GOOD_LAYOUT, beforeStageRight: 466, stageLeft: 480, bubbleLeft: 480 };
+// At home the column touches the ruler and lies over the stage: the stage starts 14px after the ruler, under the column.
+const GOOD_LAYOUT: LayoutFacts = { rulerRight: 152, trackLeft: 152, trackRight: 346, beforeStageRight: 346, stageLeft: 166, bubbleLeft: 166, isTrackOnTop: true };
+const GOOD_LAYOUT_WITH_STRIP: LayoutFacts = { ...GOOD_LAYOUT, beforeStageRight: 466, stageLeft: 166, bubbleLeft: 166 };
 const GOOD_RULES: RuleFacts = { marginWith: "0px", marginWithout: "0px" };
 // Scrolled 400px right: the pane starts at 232, the ruler and column stay pinned, the stage slid left.
 const SCROLLED_LAYOUT: LayoutFacts = { rulerRight: 384, trackLeft: 384, trackRight: 578, beforeStageRight: 578, stageLeft: 192, bubbleLeft: 192, isTrackOnTop: true };
@@ -58,7 +62,8 @@ const runChecks = async (setup: Setup) => {
     return { lines, newFailures };
 };
 
-const BETWEEN_TITLE = "L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it";
+// const BETWEEN_TITLE = "L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it";
+const BETWEEN_TITLE = "L7 the column touches the ruler and lies over the stage and the first bubble";
 const BESIDE_TITLE = "L7 scrolled right, the column still touches the ruler and covers the bubbles";
 const RULE_TITLE = "L7 the stage margin is the same with and without the session column";
 
@@ -68,23 +73,38 @@ test("the layout checks pass the good page: 3 checks", async () => {
     assert.equal(lines.filter((line) => line.startsWith("PASS  L7")).length, 3);
 });
 
-test("a column that is too close to the ruler or the stage fails only the between check", async () => {
+// test("a column that is too close to the ruler or the stage fails only the between check", async () => {
+//     const close = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, trackLeft: 170 } }));
+//     assert.deepEqual(close.newFailures, [BETWEEN_TITLE]);
+//     const crowded = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, stageLeft: 350 } }));
+//     assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
+// });
+test("a column that is off the ruler, or a stage that is pushed past the column, fails only the between check", async () => {
     const close = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, trackLeft: 170 } }));
     assert.deepEqual(close.newFailures, [BETWEEN_TITLE]);
-    const crowded = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, stageLeft: 350 } }));
-    assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
+    const pushed = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, stageLeft: 346, bubbleLeft: 346 } }));
+    assert.deepEqual(pushed.newFailures, [BETWEEN_TITLE]);
 });
 
-test("with the jfred strip between, the 14px gap is measured from the strip, not the column", async () => {
+// test("with the jfred strip between, the 14px gap is measured from the strip, not the column", async () => {
+//     assert.deepEqual((await runChecks(makeSetup({ atHome: GOOD_LAYOUT_WITH_STRIP }))).newFailures, []);
+//     const gapFromColumn = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, beforeStageRight: 346 } }));
+//     assert.deepEqual(gapFromColumn.newFailures, [BETWEEN_TITLE]);
+//     const crowded = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, stageLeft: 470 } }));
+//     assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
+// });
+test("with the jfred strip between, the stage and the first bubble still lie under the column", async () => {
     assert.deepEqual((await runChecks(makeSetup({ atHome: GOOD_LAYOUT_WITH_STRIP }))).newFailures, []);
-    const gapFromColumn = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, beforeStageRight: 346 } }));
-    assert.deepEqual(gapFromColumn.newFailures, [BETWEEN_TITLE]);
-    const crowded = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, stageLeft: 470 } }));
-    assert.deepEqual(crowded.newFailures, [BETWEEN_TITLE]);
+    const pushed = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT_WITH_STRIP, stageLeft: 480, bubbleLeft: 480 } }));
+    assert.deepEqual(pushed.newFailures, [BETWEEN_TITLE]);
 });
 
-test("a bubble that starts under the column fails only the between check", async () => {
-    const { newFailures } = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, bubbleLeft: 200 } }));
+// test("a bubble that starts under the column fails only the between check", async () => {
+//     const { newFailures } = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, bubbleLeft: 200 } }));
+//     assert.deepEqual(newFailures, [BETWEEN_TITLE]);
+// });
+test("a first bubble that starts at or after the column right edge fails only the between check", async () => {
+    const { newFailures } = await runChecks(makeSetup({ atHome: { ...GOOD_LAYOUT, bubbleLeft: 346 } }));
     assert.deepEqual(newFailures, [BETWEEN_TITLE]);
 });
 
@@ -111,14 +131,21 @@ test("a margin that moves with the column fails only the rule check", async () =
 // });
 
 test("the judges allow one pixel of slack and no more", () => {
-    assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 152.4 }), true);
-    assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 153 }), false);
-    assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 196 }), false);
-    assert.equal(isBubbleBesideColumn({ ...GOOD_LAYOUT, bubbleLeft: 345 }), true);
-    assert.equal(isBubbleBesideColumn({ ...GOOD_LAYOUT, bubbleLeft: 344 }), false);
+    // assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 152.4 }), true);
+    // assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 153 }), false);
+    // assert.equal(isColumnBetween({ ...GOOD_LAYOUT, trackLeft: 196 }), false);
+    // assert.equal(isBubbleBesideColumn({ ...GOOD_LAYOUT, bubbleLeft: 345 }), true);
+    // assert.equal(isBubbleBesideColumn({ ...GOOD_LAYOUT, bubbleLeft: 344 }), false);
+    assert.equal(isColumnAfterRuler({ ...GOOD_LAYOUT, trackLeft: 152.4 }), true);
+    assert.equal(isColumnAfterRuler({ ...GOOD_LAYOUT, trackLeft: 153 }), false);
+    assert.equal(isColumnAfterRuler({ ...GOOD_LAYOUT, trackLeft: 196 }), false);
+    assert.equal(isBubbleUnderColumn({ ...GOOD_LAYOUT, bubbleLeft: 345 }), true);
+    assert.equal(isBubbleUnderColumn({ ...GOOD_LAYOUT, bubbleLeft: 346 }), false);
     assert.equal(isSlackRuleKept(GOOD_RULES), true);
     assert.equal(isStageUnderColumn(SCROLLED_LAYOUT), true);
-    assert.equal(isStageUnderColumn(GOOD_LAYOUT), false);
+    // assert.equal(isStageUnderColumn(GOOD_LAYOUT), false);
+    assert.equal(isStageUnderColumn(GOOD_LAYOUT), true);
+    assert.equal(isStageUnderColumn({ ...GOOD_LAYOUT, stageLeft: 346 }), false);
     assert.equal(isColumnAfterRuler(SCROLLED_LAYOUT), true);
-    assert.equal(isColumnBetween(SCROLLED_LAYOUT), false);
+    // assert.equal(isColumnBetween(SCROLLED_LAYOUT), false);
 });

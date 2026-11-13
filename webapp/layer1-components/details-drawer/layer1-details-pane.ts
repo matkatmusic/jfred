@@ -60,7 +60,7 @@ export function moveDetailsPaneToRightEdge(): void {
     pane.style.height = `${scrollBox.clientHeight}px`;
 }
 
-function moveOpenDetailsPane(): void {
+export function moveOpenDetailsPane(): void {
     const isOpen = getRequiredElementById("detailsPaneContainer").classList.contains("open");
     if (isOpen) {
         moveDetailsPaneToRightEdge();

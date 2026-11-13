@@ -49,7 +49,7 @@ const makeGoodNodes = (): ColumnNodeFacts[] => {
     })).map((node, index) => (index === 7 ? stampless(node) : node));
 };
 const makeAnswers = (change: Partial<Answers> = {}): Answers => ({
-    track: { count: 1, isAfterRuler: true, isBeforeStage: true, position: "sticky" }, nodes: makeGoodNodes(),
+    track: { count: 1, isAfterRuler: true, isBeforeStage: true, position: "relative" }, nodes: makeGoodNodes(),
     window: { topIds: ["a", "b"], bottomIds: ["c"], outsideCount: 0 }, seen: listColumnIds(),
     duplicates: { stageParts: 0, trackTools: 0, ids: [...BLOCK_IDS, ...TOOL_IDS] }, unmatched: [],
     bracket: { count: 1, style: "dashed", top: 140, bottom: 200, left: 7, right: 13 },
@@ -110,8 +110,8 @@ test("test_the_track_checks_pass_the_good_fixture_page_with_13_checks_and_one_sc
 const failuresFor = async (change: Partial<Answers>) => (await runChecks(makeAnswers(change))).newFailures;
 
 test("test_a_second_column_element_a_node_outside_the_margin_or_every_record_drawn_fails_only_its_own_check", async () => {
-    const track = { count: 2, isAfterRuler: true, isBeforeStage: true, position: "sticky" };
-    assert.deepEqual(await failuresFor({ track }), ["L7 the session column is one sticky element between the ruler and the stage"]);
+    const track = { count: 2, isAfterRuler: true, isBeforeStage: true, position: "relative" };
+    assert.deepEqual(await failuresFor({ track }), ["L7 the session column is one relative element between the ruler and the stage"]);
     assert.deepEqual(await failuresFor({ window: { topIds: ["a"], bottomIds: ["c"], outsideCount: 3 } }),
         ["L7 every drawn column node lies inside the pane plus the margin"]);
     assert.deepEqual(await failuresFor({ window: { topIds: listColumnIds(), bottomIds: ["c"], outsideCount: 0 } }),

@@ -14,6 +14,7 @@ const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionDotLines } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
+const { moveDetailsPaneToRightEdge } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 const { renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
 
@@ -301,6 +302,38 @@ test("test_clicking_the_session_button_twice_removes_the_session_dot_lines", () 
     // The dot lines are gone and the button is not current.
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     assert.equal(document.getElementById("session-toggle")!.classList.contains("current"), false);
+});
+
+test("test_an_open_details_pane_gets_narrower_when_the_session_lines_go_on", () => {
+    // Build a view with annotations, the session lines off and the details pane open.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    const pane = document.getElementById("detailsPaneContainer")!;
+    pane.classList.add("open");
+    // The scroll box is 1200 px wide; the ruler ends at 200 px and the session lines would end at 300 px.
+    const scrollBox = document.getElementById("timelineContainer")!;
+    Object.defineProperty(scrollBox, "clientWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(scrollBox, "clientHeight", { configurable: true, value: 600 });
+    const rightEdgeById: Record<string, number> = { timelineRulerComponent: 200, sessionDotLinesComponent: 300, timelineContainer: 0 };
+    const prototype = window.Element.prototype;
+    const originalGetBoundingClientRect = prototype.getBoundingClientRect;
+    prototype.getBoundingClientRect = function (this: Element): DOMRect {
+        const edge = rightEdgeById[this.id] ?? 0;
+        const left = this.id === "timelineContainer" ? 0 : edge;
+        return { left, right: edge, top: 0, bottom: 0, width: 0, height: 0, x: left, y: 0, toJSON() { return {}; } } as DOMRect;
+    };
+    try {
+        // With the lines off the pane is 35% of (1200 - 200).
+        moveDetailsPaneToRightEdge();
+        assert.equal(pane.style.width, "350px");
+        // Turning the lines on re-places the open pane: 35% of (1200 - 300).
+        toggleSessionDotLines();
+        assert.equal(pane.style.width, "315px");
+    } finally {
+        prototype.getBoundingClientRect = originalGetBoundingClientRect;
+        // Leave the session lines off for the other tests in this file.
+        toggleSessionDotLines();
+    }
 });
 
 test("test_the_session_button_click_moves_the_minimap", () => {

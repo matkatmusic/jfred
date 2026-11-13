@@ -73,7 +73,7 @@ async function validatePopups(page: HeadlessPage): Promise<void> {
 async function validateBoth(page: HeadlessPage, offStageLeft: number): Promise<void> {
   await toggleSessionDotLines(page, true);
   const both = await page.evaluate<BothFacts>(BOTH_FACTS);
-  reportCheck("RULER both: the strip sits at the track edge, the stage moves by the track only, dots draw above the dashed lines", isBothRight(both, offStageLeft), both);
+  reportCheck("RULER both: the strip sits at the track edge, the stage does not move, dots draw above the dashed lines", isBothRight(both, offStageLeft), both);
   await shootRulerState(page, RULER_UI_SCREENSHOTS.both);
   await toggleSessionDotLines(page, false);
 }

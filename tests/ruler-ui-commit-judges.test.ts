@@ -12,7 +12,8 @@ const STRIP: commit.StripFacts = {
     lines: [makeLine(170), makeLine(170), makeLine(170)], untitledNo: 0, marks: { "cut-base": 1, "cut-set": 2, "cut-ok": 5, "cut-no": 9 },
 };
 const BOTH: commit.BothFacts = {
-    strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 262, trackZ: 8, stripZ: 7,
+    // strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 262, trackZ: 8, stripZ: 7,
+    strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 166, trackZ: 8, stripZ: 7,
     isEveryLineCrossing: true, overlaps: 0, crossings: 2, isEveryDotOnTop: true,
 };
 const dot = (display: string, opacity: number, cy: number) => ({ display, opacity, cy });
@@ -97,11 +98,13 @@ test("test_drawer_is_open_with_the_commit_message", () => {
     assert.equal(commit.isDrawerRight({ isOpen: true, text: "other", hasButton: false }), false);
 });
 
-test("test_both_on_moves_the_stage_by_the_track_only_and_draws_dots_above_the_lines", () => {
-    // Step: strip at the track edge, stage moved by the 96px track, track above strip, dots on top, passes.
+test("test_both_on_leaves_the_stage_unmoved_and_draws_dots_above_the_lines", () => {
+    // Step: strip at the track edge, stage stays at the off stage left, 166, because the lines lie on top of the bubbles, track above strip, dots on top, passes.
     assert.equal(commit.isBothRight(BOTH, 166), true);
     // Step: a stage moved by the strip, low track, overlap or covered dot fails.
     assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 270 }, 166), false);
+    // Step: a stage pushed right by the 96px track width fails, because the lines lie on top of the bubbles.
+    assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 262 }, 166), false);
     assert.equal(commit.isBothRight({ ...BOTH, trackZ: 7 }, 166), false);
     assert.equal(commit.isBothRight({ ...BOTH, overlaps: 1 }, 166), false);
     assert.equal(commit.isBothRight({ ...BOTH, isEveryDotOnTop: false }, 166), false);

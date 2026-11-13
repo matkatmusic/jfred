@@ -14,7 +14,7 @@ import {
 } from "./ruler-ui-probes.ts";
 import {
   APART_PX, FIRST_ID, FIRST_SESSION_ID, isBetweenTicks, isEveryDotLetterRight, isEverySessionColourRight, isLineEndAt, isLineStartAt, isPopupRight,
-  isSameInstantRight, isSessionOff, isStageShifted, isToggleGreen, isTrackPlaced, toggleSessionDotLines,
+  isSameInstantRight, isSessionOff, isStageUnmovedBySessionLines, isToggleGreen, isTrackPlaced, toggleSessionDotLines,
   type LineFacts, type OffFacts, type SameFacts, type ScanFacts,
 } from "./ruler-ui-session-checks.ts";
 
@@ -28,7 +28,8 @@ async function validateTrack(page: HeadlessPage, offLeft: number): Promise<void>
   const facts = await reportFacts(page, SESSION_FACTS, "RULER session: the button is current and green", isToggleGreen);
   reportCheck("RULER session: the track touches the ruler and is 74px wide for 3 lanes, below 100px", isTrackPlaced(facts), facts);
   reportCheck("RULER session: three overlapping sessions use three different columns", facts.laneXs.length === 3, facts.laneXs);
-  reportCheck("RULER session: the stage moves right by exactly the track width", isStageShifted(offLeft, facts), [offLeft, facts.stageLeft]);
+  // reportCheck("RULER session: the stage moves right by exactly the track width", isStageShifted(offLeft, facts), [offLeft, facts.stageLeft]);
+  reportCheck("RULER session: the stage does not move when the track goes on", isStageUnmovedBySessionLines(offLeft, facts), [offLeft, facts.stageLeft]);
 }
 
 async function validateScan(page: HeadlessPage): Promise<void> {

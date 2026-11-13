@@ -37,10 +37,17 @@ test("test_track_touches_the_ruler_and_is_74px_for_three_lanes", () => {
     assert.equal(session.isTrackPlaced({ ...SESSION, laneXs: ["18px", "35px"] }), false);
 });
 
-test("test_stage_moves_right_by_exactly_the_track_width", () => {
-    // Step: 166 before and 240 after, with a 74px track, passes; a stage that moved less fails.
-    assert.equal(session.isStageShifted(166, SESSION), true);
-    assert.equal(session.isStageShifted(200, SESSION), false);
+// test("test_stage_moves_right_by_exactly_the_track_width", () => {
+//     // Step: 166 before and 240 after, with a 74px track, passes; a stage that moved less fails.
+//     assert.equal(session.isStageShifted(166, SESSION), true);
+//     assert.equal(session.isStageShifted(200, SESSION), false);
+// });
+
+test("test_stage_does_not_move_when_the_session_lines_go_on", () => {
+    // Step: the stage is at 240 with the lines off and at 240 with the lines on, so it did not move; this passes.
+    assert.equal(session.isStageUnmovedBySessionLines(240, SESSION), true);
+    // Step: a stage that was at 166 and moved 74px to 240, the old push, fails.
+    assert.equal(session.isStageUnmovedBySessionLines(166, SESSION), false);
 });
 
 test("test_dots_read_one_listed_letter_with_no_title_and_no_old_label", () => {
