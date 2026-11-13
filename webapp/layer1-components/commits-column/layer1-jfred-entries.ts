@@ -41,6 +41,7 @@ export function listJfredEntries(branch: JfredBranch): JfredEntry[] {
 function buildEntryElement(tag: string, className: string, entry: JfredEntry, ticks: readonly WireRulerTick[], text?: string): HTMLElement {
   const element = createElement(tag, {
     class: className,
+    "data-component": "commitsEntryItem",
     "data-entry-kind": entry.kind,
     "data-short-hash": entry.shortHash,
     "data-parent-hash": entry.parentShortHash,

@@ -42,7 +42,7 @@ function updateImageZoom(factor: number): void {
 export function renderImageInto(host: HTMLElement, sourceUrl: string): void {
   imageScale = 0;
   host.replaceChildren(createElement("div", { class: "dimgwrap" }, [
-    createElement("img", { id: "dimg", class: "fit", alt: "image file", src: sourceUrl }),
+    createElement("img", { id: "dimg", "data-component": "detailsPaneImagePreviewItem", class: "fit", alt: "image file", src: sourceUrl }),
   ]));
 }
 

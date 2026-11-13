@@ -80,7 +80,7 @@ function buildPairLane(pair: WirePair, ladder: NodeWithSameTimestamp[], startPx:
   const lane = setAxisPx(createElement("div", { class: "lane", "data-component": "Lanes" }), 0);
   lane.style.setProperty("--span-px", String(railEndPx - startPx));
   // Task 259's markers go in before the nodes; with no z-index, DOM order keeps the rectangle behind the dots.
-  lane.append(createElement("div", { class: "lrail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
+  lane.append(createElement("div", { class: "lrail", "data-component": "bubbleLaneRail" }), ...buildNodesWithSameTimestampMarkers(ladder, startPx));
   appendTrunkNodes(lane, pair, startPx);
   appendEditNodes(lane, pair.edits ?? [], branches, startPx);
   appendScriptRunAndToolNodes(lane, pair, startPx);
@@ -92,13 +92,13 @@ function buildPairLane(pair: WirePair, ladder: NodeWithSameTimestamp[], startPx:
 
 function createPairFilebox(pair: WirePair, lane: HTMLElement, startPx: number): HTMLElement {
   const untrustedNotes = pair.createdNotTrusted === undefined ? [] : [
-    createElement("div", { class: "created-untrusted", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
+    createElement("div", { class: "created-untrusted", "data-component": "bubbleCreationUntrustedText", text: "creation time not trusted", title: CREATED_NOT_TRUSTED_SENTENCE[pair.createdNotTrusted] }),
   ];
   const filebox = setAxisPx(createElement("div", { class: "filebox", "data-component": "Bubbles" }, [
     ...untrustedNotes,
     // Task 280: full path lives on `data-path` — the find box and File Nav jump read it as identity.
-    createElement("div", { class: "fname", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
-    createElement("div", { class: "sub", text: `${pair.commits.length} commits · on disk` }),
+    createElement("div", { class: "fname", "data-component": "bubbleFileNameText", text: pair.path.split("/").pop() ?? pair.path, "data-path": pair.path }),
+    createElement("div", { class: "sub", "data-component": "bubbleCommitCountText", text: `${pair.commits.length} commits · on disk` }),
     lane,
   ]), startPx);
   filebox.style.setProperty("--lane-count", String((pair.branches ?? []).length));

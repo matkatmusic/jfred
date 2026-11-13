@@ -16,9 +16,9 @@ const RUN_CONSOLE_ID = "run-console";
 let shown: { toolUseId: string; cancelRun: CancelRun } | undefined;
 
 function buildTerminalBlock(state: RunConsoleTerminalState): HTMLElement {
-  return createElement("div", { class: `terminal-block ${state.className}` }, [
-    createElement("strong", { class: "terminal-title", text: state.label }),
-    createElement("p", { class: "terminal-desc", text: state.description }),
+  return createElement("div", { class: `terminal-block ${state.className}`, "data-component": "scriptRunConsoleTerminalBlock" }, [
+    createElement("strong", { class: "terminal-title", text: state.label, "data-component": "scriptRunConsoleTerminalTitle" }),
+    createElement("p", { class: "terminal-desc", text: state.description, "data-component": "scriptRunConsoleTerminalDescriptionText" }),
   ]);
 }
 
@@ -28,8 +28,8 @@ function closeRunConsole(): void {
 
 function buildRunConsoleHead(): HTMLElement {
   return createElement("div", { class: "run-console-head" }, [
-    createElement("strong", { text: "Run output" }),
-    createElement("button", { class: "run-console-close", text: "Close", onclick: closeRunConsole }),
+    createElement("strong", { text: "Run output", "data-component": "scriptRunConsoleTitle" }),
+    createElement("button", { class: "run-console-close", text: "Close", onclick: closeRunConsole, "data-component": "scriptRunConsoleCloseButton" }),
   ]);
 }
 
@@ -42,14 +42,14 @@ function getConsolePart(selector: string): HTMLElement {
 }
 
 function buildOutputPre(toolUseId: string, result: WireScriptResult | undefined): HTMLElement {
-  const pre = createElement("pre", { class: "console-pre" });
+  const pre = createElement("pre", { class: "console-pre", "data-component": "scriptRunConsoleOutputText" });
   if (result === undefined) {
     pre.textContent = getRunOutput(toolUseId);
     return pre;
   }
   pre.append(result.stdout);
   if (result.stderr.length > 0) {
-    pre.append(createElement("span", { class: "stderr", text: result.stderr }));
+    pre.append(createElement("span", { class: "stderr", text: result.stderr, "data-component": "scriptRunConsoleStderrText" }));
   }
   return pre;
 }
@@ -57,7 +57,7 @@ function buildOutputPre(toolUseId: string, result: WireScriptResult | undefined)
 function buildConsoleNotes(result: WireScriptResult | undefined): HTMLElement[] {
   const paragraphs: HTMLElement[] = [];
   for (const note of listRunConsoleNotes(result)) {
-    paragraphs.push(createElement("p", { class: "run-console-note", text: note }));
+    paragraphs.push(createElement("p", { class: "run-console-note", text: note, "data-component": "scriptRunConsoleNoteText" }));
   }
   return paragraphs;
 }
@@ -71,7 +71,7 @@ function buildCancelButton(toolUseId: string, cancelRun: CancelRun, result: Wire
   const isCancelled = getCancelledRunIds().has(toolUseId);
   const isRunning = isRunStarted(toolUseId) && result === undefined && !isCancelled;
   const state = findRunConsoleCancelState(selectRunConsoleCancelKey(isCancelled, isRunning));
-  const button = createElement("button", { class: `cancel-btn ${state.className}`, text: state.label, onclick: () => triggerConsoleCancel(toolUseId, cancelRun) });
+  const button = createElement("button", { class: `cancel-btn ${state.className}`, text: state.label, onclick: () => triggerConsoleCancel(toolUseId, cancelRun), "data-component": "scriptRunConsoleCancelButton" });
   (button as HTMLButtonElement).disabled = state.disabled;
   return button;
 }
@@ -95,7 +95,7 @@ export function buildRunConsolePopup(): HTMLElement {
     createElement("div", { class: "cancel-state-row" }),
     createElement("div", { class: "terminal-state-row" }),
   ]);
-  return createElement("div", { id: RUN_CONSOLE_ID, class: "run-console", hidden: "" }, [buildRunConsoleHead(), body]);
+  return createElement("div", { id: RUN_CONSOLE_ID, class: "run-console", hidden: "", "data-component": "scriptRunConsolePopup" }, [buildRunConsoleHead(), body]);
 }
 
 export function openRunConsole(toolUseId: string, cancelRun: CancelRun): void {
@@ -121,6 +121,6 @@ export function refreshRunConsole(toolUseId: string): void {
 }
 
 export function buildRunConsoleTrigger(toolUseId: string, cancelRun: CancelRun): HTMLElement {
-  const openButton = createElement("button", { class: "run-console-open", text: "Open run console", onclick: () => openRunConsole(toolUseId, cancelRun) });
+  const openButton = createElement("button", { class: "run-console-open", text: "Open run console", onclick: () => openRunConsole(toolUseId, cancelRun), "data-component": "scriptRunConsoleOpenButton" });
   return createElement("div", { class: "run-console-row" }, [openButton]);
 }

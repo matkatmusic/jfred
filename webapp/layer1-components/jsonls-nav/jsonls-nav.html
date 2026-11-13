@@ -1,10 +1,10 @@
       <section class="navpane jsonlsComponent" id="jsonlsComponent" data-component="jsonlsComponent">
-        <div class="filenav-title">JSONLs
-          <button id="clear-sessions" disabled>All sessions</button>
+        <div class="filenav-title" data-component="jsonlsPaneTitle">JSONLs
+          <button id="clear-sessions" disabled data-component="jsonlsAllSessionsButton">All sessions</button>
         </div>
         <div class="filenav-search">
-          <input id="session-search" type="text" placeholder="search titles..." aria-label="Search titles">
-          <button id="session-search-clear" title="Clear the title search">×</button>
+          <input id="session-search" type="text" placeholder="search titles..." aria-label="Search titles" data-component="jsonlsSessionSearchInput">
+          <button id="session-search-clear" title="Clear the title search" data-component="jsonlsSessionSearchClearButton">×</button>
         </div>
-        <div id="sessions"></div>
+        <div id="sessions" data-component="jsonlsSessionList"></div>
       </section>

@@ -17,7 +17,7 @@ function getEngineV3Line(): HTMLElement {
   if (existingLine !== null) {
     return existingLine;
   }
-  const line = createElement("div", { id: LINE_ID, class: "engine-v3-line" });
+  const line = createElement("div", { id: LINE_ID, class: "engine-v3-line", "data-component": "engineV3CurrentStepTick" });
   document.querySelector(".canvas")!.append(line);
   return line;
 }

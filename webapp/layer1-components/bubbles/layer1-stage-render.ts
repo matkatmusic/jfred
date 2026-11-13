@@ -29,16 +29,16 @@ function renderRulerTicks(rows: RulerRow[]): void {
   // A row carries every offset it ABSORBED, since a merged row's click must see all their events.
   const ticks: HTMLElement[] = [];
   for (const row of rows) {
-    ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", text: row.text }), row.axisPx), row));
+    ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", "data-component": "rulerTick", text: row.text }), row.axisPx), row));
   }
-  getRequiredElementById("timelineRulerComponent").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
+  getRequiredElementById("timelineRulerComponent").replaceChildren(createElement("div", { class: "rail", "data-component": "rulerDottedLine" }), ...ticks);
 }
 
 // One shared line per ruler entry, replacing the slow per-bubble `.filebox::before`.
 function renderLeaderLines(ruler: readonly { axisPx: number }[]): void {
   const leaders: HTMLElement[] = [];
   for (const entry of ruler) {
-    leaders.push(attachLeaderHover(setAxisPx(createElement("div", { class: "leader" }), entry.axisPx)));
+    leaders.push(attachLeaderHover(setAxisPx(createElement("div", { class: "leader", "data-component": "timelineLeaderBar" }), entry.axisPx)));
   }
   getRequiredElementById("leaders").replaceChildren(...leaders);
 }

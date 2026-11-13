@@ -25,9 +25,9 @@ function listDots(bubble: HTMLElement): HTMLElement[] {
 test("test_reverse_bubble_has_a_filebox_with_the_full_path_on_fname", () => {
     // Build a bubble for a nested path.
     const bubble = buildReverseBubble("src/deep/a.ts", buildThreeStates());
-    // The outer box is a filebox that belongs to the Bubbles component.
+    // The outer box is a filebox that belongs to the reverseBubble component.
     assert.ok(bubble.classList.contains("filebox"));
-    assert.equal(bubble.getAttribute("data-component"), "Bubbles");
+    assert.equal(bubble.getAttribute("data-component"), "reverseBubble");
     // The name shows the file name only and carries the full path as identity.
     const fname = bubble.querySelector<HTMLElement>(".fname")!;
     assert.equal(fname.textContent, "a.ts");

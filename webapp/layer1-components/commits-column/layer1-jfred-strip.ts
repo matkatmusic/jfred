@@ -39,8 +39,8 @@ export function registerPendingMarkMover(mover: (instant: string) => boolean): v
 let lastTicks: readonly WireRulerTick[] = [];
 
 function buildHead(): HTMLElement {
-  const title = createElement("span", { text: "commits" });
-  return createElement("div", { class: "jhead" }, [title, createElement("button", { class: "jdelete", text: "Delete jfred branch" })]);
+  const title = createElement("span", { "data-component": "commitsHeadTitle", text: "commits" });
+  return createElement("div", { class: "jhead" }, [title, createElement("button", { class: "jdelete", "data-component": "commitsDeleteBranchButton", text: "Delete jfred branch" })]);
 }
 
 function openCommitMessage(shortHash: string): void {

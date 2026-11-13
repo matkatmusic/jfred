@@ -8,9 +8,9 @@ import type { WireOrphan, WirePair } from "./layer1-wire.ts";
 
 // Task 266: rows carry the same `--axis-px` a `.node` does, so ruler clicks find bucket rows too.
 function createOrphanRow(row: WireOrphan, earliestAxisPx: number): HTMLElement {
-  return setAxisPx(createElement("li", {}, [
-    createElement("span", { text: row.path }),
-    createElement("em", { text: formatInstantLabel(row.instant) }),
+  return setAxisPx(createElement("li", { "data-component": "bubbleOrphanRow" }, [
+    createElement("span", { "data-component": "bubbleOrphanPathText", text: row.path }),
+    createElement("em", { "data-component": "bubbleOrphanInstantText", text: formatInstantLabel(row.instant) }),
   ]), row.axisPx - earliestAxisPx);
 }
 
@@ -41,8 +41,8 @@ function createInstantLine(sameInstantRows: WireOrphan[], earliestAxisPx: number
   for (const otherRow of otherRows) {
     otherLines.push(createOrphanRow(otherRow, earliestAxisPx));
   }
-  const popup = createElement("ul", { class: "more-files" }, otherLines);
-  const moreButton = createElement("button", { text: `+${otherRows.length} more`, onclick: () => popup.classList.toggle("open") });
+  const popup = createElement("ul", { class: "more-files", "data-component": "bubbleMoreFilesList" }, otherLines);
+  const moreButton = createElement("button", { "data-component": "bubbleMoreFilesButton", text: `+${otherRows.length} more`, onclick: () => popup.classList.toggle("open") });
   line.querySelector("span")!.after(createElement("div", { class: "more" }, [moreButton, popup]));
   return line;
 }
@@ -68,12 +68,12 @@ export function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElemen
     longestPathLength = Math.max(longestPathLength, row.path.length);
   }
   // Absolutely placed rows add no height or width, so the holder carries the span (as a pair's lane does) and a width from the longest path.
-  const rowHolder = createElement("ul", { class: "orphan-rows" }, lines);
+  const rowHolder = createElement("ul", { class: "orphan-rows", "data-component": "bubbleOrphanRowList" }, lines);
   rowHolder.style.setProperty("--span-px", String(rows[rows.length - 1]!.axisPx - earliest.axisPx));
   rowHolder.style.setProperty("--path-ch", String(longestPathLength));
-  return setAxisPx(createElement("div", { class: "filebox bucket" }, [
-    createElement("div", { class: "fname", text: title }),
-    createElement("div", { class: "sub", text: `${rows.length} files` }),
+  return setAxisPx(createElement("div", { class: "filebox bucket", "data-component": "bubbleOrphanBucketSection" }, [
+    createElement("div", { class: "fname", "data-component": "bubbleOrphanBucketTitle", text: title }),
+    createElement("div", { class: "sub", "data-component": "bubbleOrphanCountText", text: `${rows.length} files` }),
     rowHolder,
   ]), earliest.axisPx);
 }
@@ -81,7 +81,7 @@ export function buildOrphanBucket(title: string, rows: WireOrphan[]): HTMLElemen
 // The pair widgets, or the S18 empty-state message when the two roots share no path at all.
 export function buildStagePairs(pairs: WirePair[]): HTMLElement[] {
   if (pairs.length === 0) {
-    return [createElement("div", { class: "nopairs", text: "No git ↔ on-disk pairs." })];
+    return [createElement("div", { class: "nopairs", "data-component": "bubbleNoPairsText", text: "No git ↔ on-disk pairs." })];
   }
   const widgets: HTMLElement[] = [];
   for (const pair of pairs) {

@@ -55,7 +55,7 @@ export function computeAxisPixelsAt(instantMs: number, ticks: readonly WireRuler
 
 // One absolutely-placed strip: the two numbers both marks are built from.
 function buildMark(className: string, fromPx: number, spanPx: number): HTMLElement {
-  const node = createElement("div", { class: className });
+  const node = createElement("div", { class: className, "data-component": "timelineSessionRangeBar" });
   node.style.setProperty("--axis-px", String(fromPx));
   node.style.setProperty("--span-px", String(spanPx));
   return node;

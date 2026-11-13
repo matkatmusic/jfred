@@ -18,8 +18,8 @@ const PENDING_HASH_TEXT = "(pending)";
 function buildMessagePane(view: JfredMessageView, onCommit: (() => void) | undefined): HTMLElement {
   const pane = createElement("div", { class: "jpane" });
   if (onCommit !== undefined)
-    pane.append(createElement("button", { class: "jcommit", id: "jfred-commit-button", text: "Commit", onclick: onCommit }));
-  pane.append(createElement("pre", { class: "jfred-message", text: view.message }));
+    pane.append(createElement("button", { class: "jcommit", id: "jfred-commit-button", "data-component": "commitsPendingCommitButton", text: "Commit", onclick: onCommit }));
+  pane.append(createElement("pre", { class: "jfred-message", "data-component": "commitsMessageText", text: view.message }));
   return pane;
 }
 

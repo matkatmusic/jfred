@@ -39,6 +39,7 @@ function setLookProperties(element: HTMLElement, look: SessionLook): void {
 function buildNodeAttributes(annotation: WireAnnotation, className: string): Record<string, string | undefined> {
   return {
     class: className,
+    "data-component": "sessionDotsDot",
     "data-record-id": annotation.id,
     "data-record-kind": annotation.kind,
     "data-instant": annotation.instant,
