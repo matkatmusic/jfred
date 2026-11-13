@@ -2,6 +2,7 @@
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
+import { openDetailsPane } from "./layer1-details-pane.ts";
 import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
@@ -203,7 +204,8 @@ function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun, cancelR
   storeOpenedNode({ instant: run.instant, sessionFile: run.sessionFile, line: run.line });
   hideDrawerStepButtons();
   renderScriptRunHeader(run, paths);
-  getRequiredElementById("drawer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   setDrawerTools("none");
   renderDetailView([...buildScriptRunDetail(run, cancelRun), ...buildChangedNoBubbleSection(view, run.toolUseId), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {

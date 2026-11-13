@@ -14,7 +14,7 @@ export interface TickEvent {
   path: string;
   kind: string;
   element: HTMLElement;
-  // Task 360: undefined for an orphan row, which no show-row box governs.
+  // Task 360: undefined for an orphan row, which no timelineViewControls box governs.
   nodeKind: ShowRowKind | undefined;
   // Task 316: the owning JSONL, present only on a snapshot node, so its row can flash on click.
   session?: string;

@@ -21,13 +21,13 @@ function readReverseModifyingCheckbox(): HTMLInputElement {
 
 function applyReverseModifyingCheckbox(): void {
   modifyingOnlyOn = readReverseModifyingCheckbox().checked;
-  document.querySelector(".viz-root")!.classList.toggle(DIM_NON_MODIFYING_CLASS, modifyingOnlyOn);
+  document.querySelector(".appWindow")!.classList.toggle(DIM_NON_MODIFYING_CLASS, modifyingOnlyOn);
 }
 
 // function flipReverseModifyingToggle(): void {
 //   modifyingOnlyOn = !modifyingOnlyOn;
 //   getRequiredElementById("reverse-modifying-only").classList.toggle("current", modifyingOnlyOn);
-//   document.querySelector(".viz-root")!.classList.toggle(DIM_NON_MODIFYING_CLASS, modifyingOnlyOn);
+//   document.querySelector(".appWindow")!.classList.toggle(DIM_NON_MODIFYING_CLASS, modifyingOnlyOn);
 // }
 
 export function installReverseModifyingToggle(): void {

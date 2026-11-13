@@ -23,10 +23,10 @@ test("test_every_review_builder_output_parses_and_carries_its_arguments", () => 
     // Each builder gets a plain argument; the argument must appear in the expression.
     assert.doesNotThrow(() => parseAsync(probes.buildHeadProbe("document.body.click()")));
     assert.ok(probes.buildHeadProbe("document.body.click()").includes("document.body.click()"));
-    assert.doesNotThrow(() => parseAsync(probes.buildSurfaceProbe("#annotation-track")));
-    assert.ok(probes.buildSurfaceProbe("#annotation-track").includes("'#annotation-track'"));
-    assert.doesNotThrow(() => parseAsync(probes.buildMinimapEdgeProbe("#ruler")));
-    assert.ok(probes.buildMinimapEdgeProbe("#ruler").includes("'#ruler'"));
+    assert.doesNotThrow(() => parseAsync(probes.buildSurfaceProbe("#sessionDotLinesComponent")));
+    assert.ok(probes.buildSurfaceProbe("#sessionDotLinesComponent").includes("'#sessionDotLinesComponent'"));
+    assert.doesNotThrow(() => parseAsync(probes.buildMinimapEdgeProbe("#timelineRulerComponent")));
+    assert.ok(probes.buildMinimapEdgeProbe("#timelineRulerComponent").includes("'#timelineRulerComponent'"));
     assert.doesNotThrow(() => parseAsync(probes.buildDotClick("l7-row-000")));
     assert.ok(probes.buildDotClick("l7-row-000").includes('data-record-id="l7-row-000"'));
     assert.doesNotThrow(() => parseAsync(probes.buildDotDrawerFacts("l7-row-000")));

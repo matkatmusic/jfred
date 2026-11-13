@@ -65,7 +65,7 @@ function answerProbe(expression: string): unknown {
     if (expression.includes("rewind")) {
         return 0;
     }
-    if (expression.includes("'.ruler').length")) {
+    if (expression.includes("'.timelineRulerComponent').length")) {
         return 1;
     }
     return undefined;

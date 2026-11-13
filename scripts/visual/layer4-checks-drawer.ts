@@ -28,8 +28,8 @@ export async function validateScriptRunDrawerLayout(page: HeadlessPage): Promise
     preWhiteSpace: string; preOverflowY: string; preOverflows: boolean; dlWhiteSpace: string;
     metaRows: string[]; prov: string; hljsSpans: number; titleLabel: string; nodeLabel: string;
   }>(`(() => {
-        const pre = document.querySelector('#drawer .scriptbody pre');
-        const meta = document.querySelector('#drawer dl.script-meta');
+        const pre = document.querySelector('#detailsPaneContainer .scriptbody pre');
+        const meta = document.querySelector('#detailsPaneContainer dl.script-meta');
         return {
             badgeTitles: [...document.querySelectorAll('#dpath .run-status')].map(s => s.title),
             titleText: document.getElementById('dpath').textContent,
@@ -37,7 +37,7 @@ export async function validateScriptRunDrawerLayout(page: HeadlessPage): Promise
             panePaths: [...document.querySelectorAll('#dbody details.dfile .dfile-path')].map(p => p.dataset.target),
             metaTerms: [...meta.querySelectorAll('dt')].map(t => t.textContent),
             metaRows: [...meta.querySelectorAll('dt')].map(t => t.textContent + '=' + t.nextElementSibling.textContent),
-            prov: document.querySelector('#drawer .scriptbody .prov').textContent,
+            prov: document.querySelector('#detailsPaneContainer .scriptbody .prov').textContent,
             hljsSpans: pre.querySelectorAll('span[class^="hljs-"]').length,
             titleLabel: document.getElementById('dpath').firstChild.textContent,
             nodeLabel: document.querySelector('.nlabel.n-script[data-tool-use-id="' + ${JSON.stringify(PYTHON_RUN_ID)} + '"]').textContent,
@@ -72,11 +72,11 @@ export async function validateScriptRunDrawerLayout(page: HeadlessPage): Promise
 async function openScriptDrawer(page: HeadlessPage, click: string): Promise<void> {
   await page.evaluate(`document.getElementById('dbody').replaceChildren();
         document.getElementById('dpath').textContent = '';
-        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('detailsPaneContainer').classList.remove('open');
         ${click}`);
   await page.waitFor(
-    `document.getElementById('drawer').classList.contains('open')
-        && document.querySelector('#drawer .scriptbody pre')?.textContent.length > 0
+    `document.getElementById('detailsPaneContainer').classList.contains('open')
+        && document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent.length > 0
         && document.querySelectorAll('#dbody details.dfile').length > 0`,
     DRAWER_TIMEOUT_MS);
 }
@@ -85,9 +85,9 @@ const readDrawer = (page: HeadlessPage) => page.evaluate<{
   path: string; metaText: string; preText: string; hasHead: boolean; panes: number;
 }>(`({
         path: document.getElementById('dpath').firstChild.textContent.trim(),
-        metaText: document.querySelector('#drawer dl.script-meta')?.textContent ?? '',
-        preText: document.querySelector('#drawer .scriptbody pre')?.textContent ?? '',
-        hasHead: document.querySelector('#drawer .scriptbody .sbhead') !== null,
+        metaText: document.querySelector('#detailsPaneContainer dl.script-meta')?.textContent ?? '',
+        preText: document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent ?? '',
+        hasHead: document.querySelector('#detailsPaneContainer .scriptbody .sbhead') !== null,
         panes: document.querySelectorAll('#dbody details.dfile').length })`);
 
 export async function validatePythonDrawer(page: HeadlessPage): Promise<string> {

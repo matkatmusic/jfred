@@ -26,7 +26,7 @@ async function validateChrome(page: HeadlessPage): Promise<void> {
 
 async function validateLayer1HidesSnapshots(page: HeadlessPage): Promise<void> {
   // reportCheck("#314 the page opens on Layer 1",
-  //     await page.evaluate<string>(`document.querySelector('.viz-root').dataset.layer`) === "1");
+  //     await page.evaluate<string>(`document.querySelector('.appWindow').dataset.layer`) === "1");
   reportCheck("#312 snapshot nodes are always in the DOM (shipped, not refetched)",
     await page.evaluate<number>(`document.querySelectorAll('.node.n-snap').length`) > 0);
   // Task 64: validateSnapshotToggle replaces these.
@@ -36,7 +36,7 @@ async function validateLayer1HidesSnapshots(page: HeadlessPage): Promise<void> {
 
 // Task 64: replaces the #314 Layer 1 and 1->2->1 checks; snapshot box hides by CSS, no re-layout.
 async function validateSnapshotToggle(page: HeadlessPage, payload: ViewPayload): Promise<void> {
-  const snapshotBox = `document.querySelector('#show-row input[data-kind="snapshot"]')`;
+  const snapshotBox = `document.querySelector('#timelineViewControls input[data-kind="snapshot"]')`;
   let bare: string | undefined;
   for (const pair of payload.pairs) {
     const pairHasNoSnapshots = (pair.snapshots?.length ?? 0) === 0;
@@ -71,7 +71,7 @@ async function validateSnapshotToggle(page: HeadlessPage, payload: ViewPayload):
 
 async function openLayer2(page: HeadlessPage): Promise<void> {
   // await page.evaluate(`${LAYER(2)}.click()`);
-  // await page.waitFor(`document.querySelector('.viz-root').dataset.layer === "2"`, 5_000);
+  // await page.waitFor(`document.querySelector('.appWindow').dataset.layer === "2"`, 5_000);
   // reportCheck("#314 [2] carries .current and [1] does not", await page.evaluate<boolean>(
   //     `${LAYER(2)}.classList.contains('current') && !${LAYER(1)}.classList.contains('current')`));
 }
@@ -99,7 +99,7 @@ async function validateSnapshotNodes(page: HeadlessPage, payload: ViewPayload): 
   reportCheck("#315 every snapshot dot is clickable: a .node with session file, version and pointer cursor",
     dots.count === total && dots.unclickable === 0, { ...dots, total });
   reportCheck("#315 the show row carries a snapshot box", await page.evaluate<boolean>(
-    `document.querySelector('#show-row input[data-kind="snapshot"]') !== null`));
+    `document.querySelector('#timelineViewControls input[data-kind="snapshot"]') !== null`));
   let bare: string | undefined;
   for (const pair of payload.pairs) {
     const pairHasNoSnapshots = (pair.snapshots?.length ?? 0) === 0;
@@ -132,7 +132,7 @@ export async function executeLayer2Checks(page: HeadlessPage, payload: ViewPaylo
 
   await page.evaluate(`document.getElementById('dclose').click()`);
   // Task 64: validateSnapshotToggle replaces these.
-  // await page.waitFor(`document.querySelector('.viz-root').dataset.layer === "1"`, 5_000);
+  // await page.waitFor(`document.querySelector('.appWindow').dataset.layer === "1"`, 5_000);
   // reportCheck("#314 at Layer 1 again no snapshot node is visible",
   //     (await page.evaluate<string[]>(VISIBLE_SNAP_LABELS)).length === 0);
   // reportCheck("#314 1 -> 2 -> 1 lands back exactly where it started",

@@ -75,13 +75,13 @@ export function renderBlockedPopup(dotKey: string, toolUseId: string, blocker: B
   if (isDismissed) {
     return;
   }
-  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const pane = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const dot = findOnScreenDot(toolUseId, pane);
   if (dot === undefined) {
     return;
   }
   closeBlockedPopup();
-  const canvas = getRequiredElementById("timelines").querySelector<HTMLElement>(".canvas")!;
+  const canvas = getRequiredElementById("timelineContainer").querySelector<HTMLElement>(".canvas")!;
   const popup = buildBlockedPopup(dotKey, blocker, blockerFileName, onGoToFirst);
   canvas.append(popup);
   setPopupBesideDot(popup, dot.getBoundingClientRect(), canvas.getBoundingClientRect(), pane);

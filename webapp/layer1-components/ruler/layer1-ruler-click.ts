@@ -44,7 +44,7 @@ export function isAxisMatch(candidatePx: number, targetPx: number): boolean {
 
 // Buckets count as bubbles: one is placed at its earliest member's instant, so it also "begins".
 function listBubbles(): HTMLElement[] {
-  return [...getRequiredElementById("stage").querySelectorAll<HTMLElement>(".filebox")];
+  return [...getRequiredElementById("fileBubbleContainer").querySelectorAll<HTMLElement>(".filebox")];
 }
 
 // `li` is here because a bucket renders a plain list and no `.node` (task 266).
@@ -112,7 +112,7 @@ function triggerTickAction(tick: HTMLElement, row: RulerRow): void {
     toggleExpandedRow(tick, events);
     return;
   }
-  // Centred in the part of #timelines the Details drawer leaves uncovered.
+  // Centred in the part of #timelineContainer the Details drawer leaves uncovered.
   const landed = findScrollTargetForAxisPx(readAxisPx(tick));
   if (landed === undefined) {
     return;

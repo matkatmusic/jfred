@@ -37,9 +37,9 @@ async function loadModifyingToggle() {
 }
 
 test("test_the_modifying_only_checkbox_follows_the_reverse_button_in_the_jump_bar_and_starts_hidden", () => {
-    // Scenario: the labelled checkbox is right after `#reverse-toggle`, inside `.jumpbar`, and hidden until reverse mode shows it.
+    // Scenario: the labelled checkbox is right after `#reverse-toggle`, inside `.jumpToRowComponent`, and hidden until reverse mode shows it.
     initLayer1Dom();
-    assert.ok(document.querySelector(".jumpbar")!.contains(readLabel()));
+    assert.ok(document.querySelector(".jumpToRowComponent")!.contains(readLabel()));
     assert.equal(document.getElementById("reverse-toggle")!.nextElementSibling, readLabel());
     assert.equal(readLabel().textContent!.trim(), "Show only modifying events for File");
     assert.equal(readCheckbox().type, "checkbox");
@@ -76,15 +76,15 @@ test("test_the_modifying_only_toggle_starts_off", async () => {
     const modifyingToggle = await loadModifyingToggle();
     assert.equal(modifyingToggle.isReverseModifyingOnlyOn(), false);
     assert.equal(readCheckbox().checked, false);
-    assert.equal(document.querySelector(".viz-root")!.classList.contains(DIM_CLASS), false);
+    assert.equal(document.querySelector(".appWindow")!.classList.contains(DIM_CLASS), false);
 });
 
 test("test_checking_the_box_turns_modifying_only_on_and_marks_the_page", async () => {
-    // Scenario: checking the box flips the state to on and adds the dim class to `.viz-root`.
+    // Scenario: checking the box flips the state to on and adds the dim class to `.appWindow`.
     const modifyingToggle = await loadModifyingToggle();
     checkTheBox(true);
     assert.equal(modifyingToggle.isReverseModifyingOnlyOn(), true);
-    assert.equal(document.querySelector(".viz-root")!.classList.contains(DIM_CLASS), true);
+    assert.equal(document.querySelector(".appWindow")!.classList.contains(DIM_CLASS), true);
     checkTheBox(false);
 });
 
@@ -94,5 +94,5 @@ test("test_unchecking_the_box_turns_modifying_only_off_and_unmarks_the_page", as
     checkTheBox(true);
     checkTheBox(false);
     assert.equal(modifyingToggle.isReverseModifyingOnlyOn(), false);
-    assert.equal(document.querySelector(".viz-root")!.classList.contains(DIM_CLASS), false);
+    assert.equal(document.querySelector(".appWindow")!.classList.contains(DIM_CLASS), false);
 });

@@ -7,6 +7,7 @@ import { rememberDrawnView, readNavTargets, repaintDiffWash } from "./layer1-dif
 import { repaintCutMarks } from "../commits-column/layer1-cut-paint.ts";
 import { renderJfredStrip } from "../commits-column/layer1-jfred-strip.ts";
 import { attachLeaderHover } from "./layer1-leader-hover.ts";
+import { clearFileBubbles } from "./layer1-file-bubbles-clear.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
 import { refreshAllStoredRunDots } from "../../layer1-run-results.ts";
 import { installRunViewportWatcher } from "../../layer1-run-viewport.ts";
@@ -30,7 +31,7 @@ function renderRulerTicks(rows: RulerRow[]): void {
   for (const row of rows) {
     ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", text: row.text }), row.axisPx), row));
   }
-  getRequiredElementById("ruler").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
+  getRequiredElementById("timelineRulerComponent").replaceChildren(createElement("div", { class: "rail" }), ...ticks);
 }
 
 // One shared line per ruler entry, replacing the slow per-bubble `.filebox::before`.
@@ -54,7 +55,7 @@ function renderStageHeader(view: WireLayer1View, reverseRows?: RulerRow[]): void
   rememberDrawnView(view);
   getRequiredElementById("crumb").textContent =
     `${view.pairs.length} pairs · ${view.gitOrphans.length} repo-only · ${view.diskOrphans.length} disk-only`;
-  const openList = document.querySelector("#ruler .tickfiles");
+  const openList = document.querySelector("#timelineRulerComponent .tickfiles");
   renderRulerTicks(reverseRows ?? listRulerRows(view.ruler));
   moveOpenRowToNewTicks(openList);
   renderLeaderLines(reverseRows ?? view.ruler);
@@ -119,9 +120,14 @@ export async function renderLayer1Stage(view: WireLayer1View, onlyWidget?: HTMLE
   const pass = ++stageRenderPass;
   renderStageHeader(view, reverseRows);
   const widgets = listStageWidgets(view, onlyWidget);
-  const stage = getRequiredElementById("stage");
+  const stage = getRequiredElementById("fileBubbleContainer");
   const isChunked = widgets.length > STAGE_CHUNK_WIDGETS;
-  stage.replaceChildren(...(isChunked ? [] : widgets));
+  // stage.replaceChildren(...(isChunked ? [] : widgets));
+  // The details pane lives inside the stage, so a redraw must keep it.
+  clearFileBubbles(stage);
+  if (!isChunked) {
+    stage.append(...widgets);
+  }
   const isCurrentPass = !isChunked || await appendStageWidgetsInChunks(stage, widgets, pass);
   if (!isCurrentPass) {
     return;

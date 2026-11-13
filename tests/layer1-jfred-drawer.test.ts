@@ -20,10 +20,10 @@ function readText(id: string): string {
 }
 
 test("test_the_drawer_opens_with_the_header_the_meta_and_the_message", () => {
-  // Verify: #drawer opens, #dpath and #dmeta are written, the pre holds the message.
+  // Verify: #detailsPaneContainer opens, #dpath and #dmeta are written, the pre holds the message.
   initLayer1Dom();
   openJfredMessage(COMMITTED);
-  assert.equal(document.getElementById("drawer")!.classList.contains("open"), true);
+  assert.equal(document.getElementById("detailsPaneContainer")!.classList.contains("open"), true);
   assert.equal(readText("dpath"), "jfred commit c0ffee01");
   assert.equal(readText("dmeta"), "parent a1b2c3d4 | author date 2026-06-01T09:05:00.000Z");
   assert.equal(document.querySelector("#dbody pre.jfred-message")!.textContent, COMMITTED.message);

@@ -34,7 +34,7 @@ test("test_line_behind_dot_needs_column_above_strip_opaque_dot_crossing_line_and
 
 // not behavior: it only checks that a constant probe string contains certain text.
 // test("the probe reads the dots of the track, not the old labels, and keeps the bar hit test", () => {
-//     assert.ok(STACKING_FACTS.includes("#annotation-track i.anode"));
+//     assert.ok(STACKING_FACTS.includes("#sessionDotLinesComponent i.anode"));
 //     assert.ok(!STACKING_FACTS.includes("alabel"));
 //     assert.ok(STACKING_FACTS.includes("elementFromPoint"));
 // });

@@ -75,7 +75,7 @@ function clickReverseToggle(): void {
 }
 
 function listStageFilePaths(): (string | undefined)[] {
-    return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")].map((name) => name.dataset.path).sort();
+    return [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox .fname")].map((name) => name.dataset.path).sort();
 }
 
 async function waitForReverseLoad(): Promise<void> {
@@ -89,8 +89,8 @@ test("test_reverse_on_with_one_file_and_a_stored_walk_draws_only_the_reverse_bub
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
     assert.deepEqual(listStageFilePaths(), ["src/a.ts"]);
-    assert.equal(document.querySelectorAll("#stage .node.n-rev").length, 2);
-    assert.equal(document.querySelectorAll("#stage .node.n-disk").length, 0);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .node.n-rev").length, 2);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .node.n-disk").length, 0);
 });
 
 test("test_reverse_stage_ruler_has_one_tick_per_node_at_the_node_offset", () => {
@@ -99,8 +99,8 @@ test("test_reverse_stage_ruler_has_one_tick_per_node_at_the_node_offset", () => 
     clickReverseToggle();
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
-    const tickOffsets = [...document.querySelectorAll<HTMLElement>("#ruler .tick")].map((tick) => tick.style.getPropertyValue("--axis-px"));
-    const nodeOffsets = [...document.querySelectorAll<HTMLElement>("#stage .node.n-rev")].map((node) => node.style.getPropertyValue("--axis-px"));
+    const tickOffsets = [...document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick")].map((tick) => tick.style.getPropertyValue("--axis-px"));
+    const nodeOffsets = [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .node.n-rev")].map((node) => node.style.getPropertyValue("--axis-px"));
     assert.deepEqual(tickOffsets, nodeOffsets);
     assert.equal(tickOffsets.length, 2);
 });
@@ -111,7 +111,7 @@ test("test_reverse_stage_ruler_reads_now_then_the_instant", () => {
     clickReverseToggle();
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
-    const tickTexts = [...document.querySelectorAll<HTMLElement>("#ruler .tick")].map((tick) => tick.textContent);
+    const tickTexts = [...document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick")].map((tick) => tick.textContent);
     assert.deepEqual(tickTexts, ["now", "07-01 10:00:00.000"]);
 });
 
@@ -121,8 +121,8 @@ test("test_clicking_a_reverse_stage_tick_lights_its_node", () => {
     clickReverseToggle();
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
-    document.querySelectorAll<HTMLElement>("#ruler .tick")[1]!.click();
-    const litIndexes = [...document.querySelectorAll<HTMLElement>("#stage .node.n-rev.found")].map((node) => node.dataset.index);
+    document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick")[1]!.click();
+    const litIndexes = [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .node.n-rev.found")].map((node) => node.dataset.index);
     assert.deepEqual(litIndexes, ["1"]);
 });
 
@@ -145,7 +145,7 @@ test("test_when_the_load_ends_the_stage_redraws_with_the_reverse_bubble", async 
     selectFiles("src/a.ts");
     await waitForReverseLoad();
     assert.deepEqual(listStageFilePaths(), ["src/a.ts"]);
-    assert.equal(document.querySelectorAll("#stage .node.n-rev").length, 2);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .node.n-rev").length, 2);
 });
 
 test("test_a_load_that_ends_after_the_selection_moved_draws_the_new_selection", async () => {
@@ -182,7 +182,7 @@ test("test_reverse_off_with_one_file_and_a_stored_walk_keeps_the_normal_stage", 
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
     assert.deepEqual(listStageFilePaths(), ["src/a.ts", "src/b.ts"]);
-    assert.equal(document.querySelectorAll("#stage .node.n-rev").length, 0);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .node.n-rev").length, 0);
 });
 
 test("test_turning_reverse_off_redraws_the_normal_stage", () => {
@@ -211,12 +211,12 @@ test("test_a_reverse_selection_does_not_open_the_forward_drawer", () => {
     // Scenario: a click that selects the reverse target leaves the details drawer closed; forward mode opens it.
     openPageWithReverseStreamRoute();
     selectFiles("src/b.ts");
-    assert.ok(document.getElementById("drawer")!.classList.contains("open"));
+    assert.ok(document.getElementById("detailsPaneContainer")!.classList.contains("open"));
     openPageWithReverseStreamRoute();
     clickReverseToggle();
     reverseStore.storeReverseWalk(WALK_OF_A);
     selectFiles("src/a.ts");
-    assert.equal(document.getElementById("drawer")!.classList.contains("open"), false);
+    assert.equal(document.getElementById("detailsPaneContainer")!.classList.contains("open"), false);
 });
 
 test("test_rendering_the_view_again_keeps_the_reverse_bubble_for_the_remembered_selection", () => {
@@ -227,7 +227,7 @@ test("test_rendering_the_view_again_keeps_the_reverse_bubble_for_the_remembered_
     selectFiles("src/a.ts");
     renderLayer1View(FULL_VIEW as never);
     assert.deepEqual(listStageFilePaths(), ["src/a.ts"]);
-    assert.equal(document.querySelectorAll("#stage .node.n-rev").length, 2);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .node.n-rev").length, 2);
 });
 
 test("test_clearing_the_filter_state_forgets_stored_walks", () => {

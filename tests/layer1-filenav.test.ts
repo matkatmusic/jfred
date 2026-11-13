@@ -87,7 +87,7 @@ async function openDiskNodeAndCountClicks(isReverseOn: boolean): Promise<number>
     const bubble = document.createElement("div");
     bubble.className = "filebox";
     bubble.append(fileName, diskNode);
-    document.getElementById("stage")!.replaceChildren(bubble);
+    document.getElementById("fileBubbleContainer")!.replaceChildren(bubble);
     let clickCount = 0;
     diskNode.addEventListener("click", () => clickCount++);
     const { openDiskNodeForPath } = await import("../webapp/layer1-components/file-nav/layer1-filenav.ts");

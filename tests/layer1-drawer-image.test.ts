@@ -1,8 +1,9 @@
-// An image node fills the drawer from the binary route; the stage is built by hand, matching layer1-page.ts's DOM.
+// An image node fills the drawer from the binary route; the fileBubbleContainer is built by hand, matching layer1-page.ts's DOM.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
@@ -14,7 +15,9 @@ test("an image node renders an img off the binary route instead of fetching text
     installAnimationFrameStub();
     installFetchRoutes({});
     const node = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    const stage = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(stage);
+    stage.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "logo.png", "data-path": "assets/logo.png" }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "on disk" })]),
     ]));

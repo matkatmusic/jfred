@@ -28,11 +28,11 @@ function readCenterY(element: HTMLElement): number {
 }
 
 function readAnchorY(): number {
-  const pane = getRequiredElementById("timelines");
+  const pane = getRequiredElementById("timelineContainer");
   if (landed === undefined) {
     return readCenterY(pane);
   }
-  const stageHoldsLandedNode = getRequiredElementById("stage").contains(landed.node);
+  const stageHoldsLandedNode = getRequiredElementById("fileBubbleContainer").contains(landed.node);
   const paneIsUnscrolled = landed.scrollTop === pane.scrollTop;
   const isLandedNodeCurrent = stageHoldsLandedNode && paneIsUnscrolled;
   if (isLandedNodeCurrent) {
@@ -43,7 +43,7 @@ function readAnchorY(): number {
 
 function listKindNodes(kind: ShowRowKind): MeasuredNode[] {
   const measuredNodes: MeasuredNode[] = [];
-  for (const node of getRequiredElementById("stage").querySelectorAll<HTMLElement>(".node, .bnode, .tnode")) {
+  for (const node of getRequiredElementById("fileBubbleContainer").querySelectorAll<HTMLElement>(".node, .bnode, .tnode")) {
     const isRequestedKind = readNodeKind(node) === kind;
     if (isRequestedKind) {
       measuredNodes.push({ node, centerY: readCenterY(node) });
@@ -96,18 +96,18 @@ function triggerJumpFromArrowClick(event: MouseEvent): void {
   if (target === undefined) {
     return;
   }
-  // Same landing as a ruler tick click.
+  // Same landing as a timelineRulerComponent tick click.
   moveToUncoveredCentre(target);
   markLandedElement(target);
-  landed = { node: target, scrollTop: getRequiredElementById("timelines").scrollTop };
+  landed = { node: target, scrollTop: getRequiredElementById("timelineContainer").scrollTop };
   refreshKindJumpArrows();
 }
 
 // Run after every stage render, box toggle and scroll; assigned, not added, so a re-render never stacks listeners.
 export function refreshKindJumpArrows(): void {
-  const showRow = getRequiredElementById("show-row");
+  const showRow = getRequiredElementById("timelineViewControls");
   showRow.onclick = triggerJumpFromArrowClick;
-  getRequiredElementById("timelines").onscroll = refreshKindJumpArrows;
+  getRequiredElementById("timelineContainer").onscroll = refreshKindJumpArrows;
   const anchorY = readAnchorY();
   const nodesByKind = new Map<ShowRowKind, MeasuredNode[]>();
   for (const arrow of showRow.querySelectorAll<HTMLButtonElement>("button[data-jump-kind]")) {

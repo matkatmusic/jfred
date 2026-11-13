@@ -67,5 +67,5 @@
   /*
     The "Show only modifying events for File" toggle dims the nodes that did not change the file; nothing moves.
   */
-  .viz-root.reverse-modifying-only .node.n-rev[data-modifying="false"],
-  .viz-root.reverse-modifying-only .node.n-rev[data-modifying="false"] + .nlabel { opacity: .4; }
+  .appWindow.reverse-modifying-only .node.n-rev[data-modifying="false"],
+  .appWindow.reverse-modifying-only .node.n-rev[data-modifying="false"] + .nlabel { opacity: .4; }

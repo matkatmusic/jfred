@@ -20,7 +20,7 @@ test("test_the_reverse_button_sits_in_the_jump_bar_after_the_find_status", () =>
     // Scenario: the button is its own element in the jump bar, right after `#find-status`.  Steps: open the real markup.
     initLayer1Dom();
     assert.equal(document.getElementById("find-status")!.nextElementSibling, readButton());
-    assert.equal(readButton().parentElement, document.querySelector(".jumpbar"));
+    assert.equal(readButton().parentElement, document.querySelector(".jumpToRowComponent"));
     assert.equal(readButton().textContent, "reverse");
 });
 

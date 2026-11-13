@@ -1,4 +1,4 @@
-// Layer 7 hide-ignored checks: the show-row box, what its toggle does, and the colour tokens of the new rules.
+// Layer 7 hide-ignored checks: the timelineViewControls box, what its toggle does, and the colour tokens of the new rules.
 
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";

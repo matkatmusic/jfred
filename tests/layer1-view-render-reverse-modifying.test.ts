@@ -67,7 +67,7 @@ function readModifyingButton(): HTMLLabelElement {
 }
 
 function listReverseNodes(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>("#stage .node.n-rev")];
+    return [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .node.n-rev")];
 }
 
 function listNodeAxisPositions(): string[] {
@@ -102,14 +102,14 @@ test("test_the_bubble_draws_every_node_with_the_toggle_off", () => {
     // Scenario: with the toggle off, all three states are drawn and none is marked as dimmed.
     drawMixedReverseBubble();
     assert.equal(listReverseNodes().length, 3);
-    assert.equal(document.querySelector(".viz-root")!.classList.contains("reverse-modifying-only"), false);
+    assert.equal(document.querySelector(".appWindow")!.classList.contains("reverse-modifying-only"), false);
 });
 
 test("test_with_the_toggle_on_the_non_modifying_node_is_marked_for_dimming_and_the_modifying_nodes_are_not", () => {
     // Scenario: toggle on: the page carries the dim class; only the ReadOnly node says data-modifying false.
     drawMixedReverseBubble();
     clickModifyingToggle();
-    assert.equal(document.querySelector(".viz-root")!.classList.contains("reverse-modifying-only"), true);
+    assert.equal(document.querySelector(".appWindow")!.classList.contains("reverse-modifying-only"), true);
     const modifyingFlags = listReverseNodes().map((node) => node.dataset.modifying);
     assert.deepEqual(modifyingFlags, ["true", "false", "true"]);
     clickModifyingToggle();

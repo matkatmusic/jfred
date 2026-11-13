@@ -1,9 +1,10 @@
-// Cross-bubble shift-click ranges and the wash sweep; the stage is built by hand, matching layer1-page.ts's DOM.
+// Cross-bubble shift-click ranges and the wash sweep; the fileBubbleContainer is built by hand, matching layer1-page.ts's DOM.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -19,7 +20,9 @@ test("task 329: a shift-click spanning two bubbles becomes a global range diffin
     getInputById("dir").value = "/project";
     const firstNode = createElement("i", { class: "node n-disk" });
     const otherNode = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
+    const stage = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(stage);
+    stage.append(
         createElement("div", { class: "filebox" }, [
             createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
             createElement("div", { class: "lane" }, [firstNode]),
@@ -62,7 +65,9 @@ test("task 336: the wash sweeps in every file with a step inside the range, not 
     getInputById("dir").value = "/project";
     const firstNode = createElement("i", { class: "node n-disk" });
     const otherNode = createElement("i", { class: "node n-disk" });
-    getRequiredElementById("stage").replaceChildren(
+    const stage = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(stage);
+    stage.append(
         createElement("div", { class: "filebox" }, [
             createElement("div", { class: "fname", text: "demo.ts", "data-path": DISK_FILE_PATH }),
             createElement("div", { class: "lane" }, [firstNode]),

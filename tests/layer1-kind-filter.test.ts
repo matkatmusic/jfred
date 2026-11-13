@@ -1,4 +1,4 @@
-// Task 360: the show row's boxes hide node kinds by a `.viz-root` attribute and save per project.
+// Task 360: the show row's boxes hide node kinds by a `.appWindow` attribute and save per project.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -43,7 +43,7 @@ test("test_unchecking_a_box_sets_the_hidden_kinds_attribute_on_viz_root", async 
 
 test("test_unchecking_every_box_hides_every_kind", async () => {
     await renderFreshView();
-    for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input")) {
+    for (const box of document.querySelectorAll<HTMLInputElement>("#timelineViewControls input")) {
         toggleBox(box.dataset["kind"]!, false);
     }
     assert.equal(readHiddenKinds(), "edit script-run branch commit disk snapshot");
@@ -60,17 +60,17 @@ test("test_rechecking_a_box_removes_its_kind_from_the_attribute", async () => {
 test("test_the_attribute_survives_a_stage_redraw", async () => {
     await renderFreshView();
     toggleBox("snapshot", false);
-    const staleStageBubble = document.querySelector("#stage .filebox");
+    const staleStageBubble = document.querySelector("#fileBubbleContainer .filebox");
     await renderLayer1Stage(VIEW);
     assert.equal(readHiddenKinds(), "edit script-run branch snapshot");
-    assert.notEqual(document.querySelector("#stage .filebox"), staleStageBubble);
+    assert.notEqual(document.querySelector("#fileBubbleContainer .filebox"), staleStageBubble);
 });
 
 test("test_hiding_a_kind_never_redraws_the_stage", async () => {
     await renderFreshView();
-    const bubble = document.querySelector("#stage .filebox");
+    const bubble = document.querySelector("#fileBubbleContainer .filebox");
     const axisPx = (bubble as HTMLElement).style.getPropertyValue("--axis-px");
     toggleBox("snapshot", false);
-    assert.equal(document.querySelector("#stage .filebox"), bubble);
+    assert.equal(document.querySelector("#fileBubbleContainer .filebox"), bubble);
     assert.equal((bubble as HTMLElement).style.getPropertyValue("--axis-px"), axisPx);
 });

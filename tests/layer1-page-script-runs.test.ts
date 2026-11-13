@@ -53,14 +53,14 @@ function listMatching(selector: string): HTMLElement[] {
 }
 
 async function tickScriptRunBox(): Promise<void> {
-  const box = document.querySelector<HTMLInputElement>("#show-row [data-kind=script-run]")!;
+  const box = document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=script-run]")!;
   box.checked = true;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
   await waitForAsyncWork();
 }
 
 function readBubble(path: string): HTMLElement {
-  return listMatching("#stage .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
+  return listMatching("#fileBubbleContainer .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
 }
 
 function readNodeSignature(path: string): string[] {
@@ -69,18 +69,18 @@ function readNodeSignature(path: string): string[] {
 
 test("test_before_the_script_run_box_is_ticked_no_script_node_is_drawn_and_nothing_is_fetched", async () => {
   await loadPage();
-  assert.equal(listMatching("#stage .n-script").length, 0);
+  assert.equal(listMatching("#fileBubbleContainer .n-script").length, 0);
   assert.equal(scriptRunRequests, 0);
-  assert.match(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!, /script-run/);
+  assert.match(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds")!, /script-run/);
 });
 
 test("test_ticking_the_script_run_box_draws_a_dot_and_a_label_per_run_after_one_fetch", async () => {
   await loadPage();
   await tickScriptRunBox();
   assert.equal(scriptRunRequests, 1);
-  assert.equal(listMatching("#stage .node.n-script").length, 2);
-  assert.equal(listMatching("#stage .nlabel.n-script").length, 2);
-  assert.doesNotMatch(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!, /script-run/);
+  assert.equal(listMatching("#fileBubbleContainer .node.n-script").length, 2);
+  assert.equal(listMatching("#fileBubbleContainer .nlabel.n-script").length, 2);
+  assert.doesNotMatch(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds")!, /script-run/);
 });
 
 test("test_a_labelled_python_run_shows_its_label_and_a_bash_run_without_a_label_shows_a_bash_run_icon", async () => {
@@ -114,19 +114,19 @@ test("test_only_a_bash_run_dot_is_never_provable", async () => {
 test("test_a_script_run_dot_and_label_carry_the_run_identity", async () => {
   await loadPage();
   await tickScriptRunBox();
-  for (const element of listMatching('#stage [data-tool-use-id="toolu_fixture_py_rewrite"]')) {
+  for (const element of listMatching('#fileBubbleContainer [data-tool-use-id="toolu_fixture_py_rewrite"]')) {
     assert.equal(element.getAttribute("data-executor-kind"), "python");
     assert.equal(element.getAttribute("data-instant"), PYTHON_RUN.instant);
     assert.equal(element.getAttribute("data-session-id"), "fixture-0f3c9a7e");
     assert.equal(element.getAttribute("data-session-file"), "/fixture/demo/projects/0f3c9a7e.jsonl");
   }
-  assert.equal(listMatching('#stage [data-tool-use-id="toolu_fixture_py_rewrite"]').length, 2);
+  assert.equal(listMatching('#fileBubbleContainer [data-tool-use-id="toolu_fixture_py_rewrite"]').length, 2);
 });
 
 test("test_script_run_nodes_take_ruler_offsets_after_the_ladder_start", async () => {
   await loadPage();
   await tickScriptRunBox();
-  const offsets = listMatching("#stage .node.n-script").map((node) => Number(node.style.getPropertyValue("--axis-px")));
+  const offsets = listMatching("#fileBubbleContainer .node.n-script").map((node) => Number(node.style.getPropertyValue("--axis-px")));
   assert.equal(offsets.length, 2);
   assert.ok(offsets.every((offset) => Number.isFinite(offset) && offset > 0));
 });
@@ -142,7 +142,7 @@ test("test_the_layer_4_button_ticks_the_edit_box_and_the_script_run_box", async 
   await loadPage();
   document.getElementById("layer-4")!.click();
   await waitForAsyncWork();
-  assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!.checked, true);
-  assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=script-run]")!.checked, true);
+  assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!.checked, true);
+  assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=script-run]")!.checked, true);
   assert.equal(scriptRunRequests, 1);
 });

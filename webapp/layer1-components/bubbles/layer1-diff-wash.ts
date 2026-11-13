@@ -52,7 +52,7 @@ function readTickDistance(tick: HTMLElement, axisPx: number): number {
 }
 
 function findNearestTick(axisPx: number): HTMLElement | undefined {
-  const ticks = getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick");
+  const ticks = getRequiredElementById("timelineRulerComponent").querySelectorAll<HTMLElement>(".tick");
   let nearest: HTMLElement | undefined;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const tick of ticks) {

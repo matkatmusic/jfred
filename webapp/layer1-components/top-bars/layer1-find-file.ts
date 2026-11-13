@@ -43,10 +43,10 @@ function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; r
   return drawer.top > view.top ? { ...area, bottom: drawer.top } : { ...area, top: drawer.bottom };
 }
 
-// Centres the element in the part of #timelines the Details drawer leaves uncovered.
+// Centres the element in the part of #timelineContainer the Details drawer leaves uncovered.
 export function moveToUncoveredCentre(element: HTMLElement): void {
-  const pane = getRequiredElementById("timelines");
-  const area = computeUncoveredArea(pane.getBoundingClientRect(), getRequiredElementById("drawer").getBoundingClientRect());
+  const pane = getRequiredElementById("timelineContainer");
+  const area = computeUncoveredArea(pane.getBoundingClientRect(), getRequiredElementById("detailsPaneContainer").getBoundingClientRect());
   let box = element.getBoundingClientRect();
   const hasAddedSlack = addSlackForEdgeNode(pane, box, area);
   if (hasAddedSlack) {

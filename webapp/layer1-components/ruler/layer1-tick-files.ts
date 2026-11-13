@@ -68,7 +68,7 @@ function findTickAtExpandedInstant(): HTMLElement | undefined {
   if (expandedRow === undefined) {
     return undefined;
   }
-  for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
+  for (const tick of document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick")) {
     for (const instant of rowsByTick.get(tick)?.instants ?? []) {
       const isExpandedInstant = new Date(instant).getTime() === expandedRow.instantMs;
       if (isExpandedInstant) {
@@ -97,7 +97,7 @@ export function refreshTicksForKindFilter(): void {
   const isRowGone = tick === undefined || events.length <= 1;
   if (isRowGone) {
     closeRulerExpansion();
-    for (const openTick of document.querySelectorAll<HTMLElement>("#ruler .tick.expanded")) {
+    for (const openTick of document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick.expanded")) {
       openTick.querySelector(".tickfiles")?.remove();
       openTick.classList.remove("expanded");
     }

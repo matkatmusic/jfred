@@ -9,7 +9,7 @@ initLayer1Dom();
 const { listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } = await import("../webapp/layer1-components/top-bars/layer1-find-match.ts");
 
 function fillStageWithBubbles(paths: string[]): void {
-  getRequiredElementById("stage").innerHTML = paths
+  getRequiredElementById("fileBubbleContainer").innerHTML = paths
     .map((path) => `<div class="filebox"><span class="fname" data-path="${path}">${path.split("/").pop()}</span></div>`)
     .join("");
 }

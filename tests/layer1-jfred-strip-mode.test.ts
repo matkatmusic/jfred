@@ -41,7 +41,7 @@ function hoverEntry(selector: string): void {
 test("test_commit_mode_off_draws_no_strip", () => {
   // Verify: base and commits exist but Commit mode is off, so there is no strip.
   renderJfredStrip(TICKS);
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
 });
 
 test("test_refresh_draws_the_strip_from_the_last_ticks_when_commit_mode_turns_on", () => {
@@ -49,7 +49,7 @@ test("test_refresh_draws_the_strip_from_the_last_ticks_when_commit_mode_turns_on
   renderJfredStrip(TICKS);
   setArmed(true);
   refreshJfredStrip();
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 2);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 2);
 });
 
 test("test_refresh_removes_the_strip_when_commit_mode_turns_off", () => {
@@ -58,27 +58,27 @@ test("test_refresh_removes_the_strip_when_commit_mode_turns_off", () => {
   renderJfredStrip(TICKS);
   setArmed(false);
   refreshJfredStrip();
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
 });
 
 test("test_armed_with_no_base_keeps_the_head_and_the_delete_button", async () => {
   // Verify: Delete clears the base, yet the head stays across the next stage render.
   setArmed(true);
   renderJfredStrip(TICKS);
-  document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#jfredCommitsDrawerComponent .jdelete")!.click();
   document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
   await waitForAsyncWork();
   renderJfredStrip(TICKS);
-  assert.equal(document.querySelectorAll("#jfred-strip .jhead").length, 1);
-  assert.equal(document.querySelectorAll("#jfred-strip .jdelete").length, 1);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 0);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jhead").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jdelete").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 0);
 });
 
 test("test_hover_on_a_commit_node_shows_the_message_wrapped_at_50", () => {
   // Verify: the popup lines are the message, none longer than 50 characters.
   setArmed(true);
   renderJfredStrip(TICKS);
-  hoverEntry('#jfred-strip .jnode[data-short-hash="c0ffee01"]');
+  hoverEntry('#jfredCommitsDrawerComponent .jnode[data-short-hash="c0ffee01"]');
   const lines = [...document.querySelectorAll("#hover-popup .hp-line")].map((line) => line.textContent!);
   assert.equal(lines.join(" "), LONG_MESSAGE);
   assert.ok(lines.length > 1);
@@ -89,7 +89,7 @@ test("test_hover_on_a_commit_label_shows_the_message_too", () => {
   // Verify: the delegated popup works from the hash label.
   setArmed(true);
   renderJfredStrip(TICKS);
-  hoverEntry('#jfred-strip .jlabel[data-short-hash="c0ffee01"]');
+  hoverEntry('#jfredCommitsDrawerComponent .jlabel[data-short-hash="c0ffee01"]');
   assert.equal(document.getElementById("hover-popup")!.hidden, false);
 });
 
@@ -97,6 +97,6 @@ test("test_hover_on_the_base_shows_no_popup", () => {
   // Verify: the base has no message.
   setArmed(true);
   renderJfredStrip(TICKS);
-  hoverEntry("#jfred-strip .jnode.j-base");
+  hoverEntry("#jfredCommitsDrawerComponent .jnode.j-base");
   assert.equal(document.getElementById("hover-popup"), null);
 });

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { clearReverseWalks, storeReverseWalk } from "../webapp/layer1-reverse-store.ts";
 import { WireReverseKind, type WireReverseState } from "../webapp/layer1-wire-reverse.ts";
@@ -24,7 +25,9 @@ const REVERSE_STATES: WireReverseState[] = [
 
 function buildReverseNode(index: number, extra: Record<string, string> = {}): HTMLElement {
   const node = createElement("i", { class: "node n-rev", "data-index": String(index), "data-kind": REVERSE_STATES[index]!.kind, ...extra });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  const container = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(container);
+  container.append(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "util.ts", "data-path": REVERSE_PATH }),
     createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "state" })]),
   ]));
@@ -55,7 +58,7 @@ test("test_clicking_a_reverse_node_opens_the_drawer", async () => {
   // Steps: set up a walk and a stage with one reverse node; click the node; the drawer is open.
   setUpReversePage();
   await clickNode(buildReverseNode(1));
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
 });
 
 test("test_reverse_drawer_header_names_the_path", async () => {
@@ -176,7 +179,9 @@ test("test_reverse_drawer_meta_uses_the_words_for_read_only_and_possible_change"
   const expectedWords = ["read, no change", "possible change, bytes not known"];
   for (const [index, words] of expectedWords.entries()) {
     const node = createElement("i", { class: "node n-rev", "data-index": String(index), "data-kind": states[index]!.kind });
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    const container = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(container);
+    container.append(createElement("div", { class: "filebox" }, [
       createElement("div", { class: "fname", text: "util.ts", "data-path": REVERSE_PATH }),
       createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: "state" })]),
     ]));

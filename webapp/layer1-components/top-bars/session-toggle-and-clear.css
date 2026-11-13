@@ -1,5 +1,6 @@
   .session-toggle { height: 24px; }
   .session-toggle.current { background: var(--c-snap); border-color: var(--c-snap); color: var(--page); }
+  .timelineViewControls .session-toggle { align-self: center; }
 
   /*
     Task 358 part D: header Clear button and its inline yes/no, same look as .loadbar-confirm.

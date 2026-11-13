@@ -26,9 +26,9 @@ async function readFlashFile(page: HeadlessPage): Promise<string | null> {
 
 // Walk the expandable ruler rows until one lists a snapshot; leaves that row open on return.
 async function findSnapshotRow(page: HeadlessPage): Promise<{ snap: string; count: number } | null> {
-  const ticks = await page.evaluate<number>(`document.querySelectorAll('#ruler .tick.multi').length`);
+  const ticks = await page.evaluate<number>(`document.querySelectorAll('#timelineRulerComponent .tick.multi').length`);
   for (let i = 0; i < ticks; i++) {
-    await page.evaluate(`document.querySelectorAll('#ruler .tick.multi')[${i}].click()`);
+    await page.evaluate(`document.querySelectorAll('#timelineRulerComponent .tick.multi')[${i}].click()`);
     await page.waitFor(`document.querySelectorAll('.tickfiles button').length > 0`, 5_000)
       .catch(clearWaitTimeout);
     const rows = await page.evaluate<string[]>(
@@ -45,7 +45,7 @@ async function findSnapshotRow(page: HeadlessPage): Promise<{ snap: string; coun
     if (snap !== undefined) {
       return { snap, count: rows.length };
     }
-    await page.evaluate(`document.querySelector('#ruler .tick.expanded')?.click()`);
+    await page.evaluate(`document.querySelector('#timelineRulerComponent .tick.expanded')?.click()`);
     await waitMilliseconds(120);
   }
   return null;
@@ -74,7 +74,7 @@ export async function validateRulerRow(page: HeadlessPage, payload: ViewPayload)
   await waitMilliseconds(FADE_WAIT_MS);
   reportCheck("#303 the highlight fades out on its own",
     await page.evaluate<number>(`document.querySelectorAll('.session-item.flash').length`) === 0);
-  await page.evaluate(`document.querySelector('#ruler .tick.expanded')?.click()`);
+  await page.evaluate(`document.querySelector('#timelineRulerComponent .tick.expanded')?.click()`);
   await waitMilliseconds(200);
 }
 
@@ -92,11 +92,11 @@ interface ClickedNodeView {
 
 // Boxes are [left, top, right, bottom]; an axis may miss centre by a few px.
 const READ_CLICKED_NODE_VIEW = `(() => {
-    const pane = document.getElementById('timelines');
+    const pane = document.getElementById('timelineContainer');
     const read = (element) => { const r = element.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
-    const node = read(document.querySelector('#stage .node.found'));
+    const node = read(document.querySelector('#fileBubbleContainer .node.found'));
     const paneBox = read(pane);
-    const drawer = read(document.getElementById('drawer'));
+    const drawer = read(document.getElementById('detailsPaneContainer'));
     const area = [...paneBox];
     if (drawer[0] > paneBox[0] && drawer[0] < paneBox[2]) area[2] = drawer[0];
     const touchesDrawer = node[0] < drawer[2] && node[2] > drawer[0] && node[1] < drawer[3] && node[3] > drawer[1];
@@ -119,7 +119,7 @@ export async function validateDrawer(page: HeadlessPage): Promise<void> {
         n.click();
         return (n.dataset.sessionFile ?? '').split('/').pop();
     })()`);
-  await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, 5_000);
+  await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open')`, 5_000);
   await page.waitFor(`document.getElementById('dbody').textContent.trim().length > 0`, 8_000);
   const drawer = await page.evaluate<{ head: string; meta: string; body: string }>(
     `({ head: document.getElementById('dpath').textContent,

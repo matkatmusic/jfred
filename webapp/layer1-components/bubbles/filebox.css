@@ -1,5 +1,5 @@
   /*
-    padding-top is derived: header ends at y 39, first node reaches 10 px above lane, so 50 px clears.
+    padding-top is derived: headerContainer ends at y 39, first node reaches 10 px above lane, so 50 px clears.
   */
   /*
     Task 277: `scroll-margin-top` keeps a jumped-to bubble's name off the pane's top edge.
@@ -21,7 +21,7 @@
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap;
     user-select: none; }
   /*
-    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.ruler` (8).
+    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.timelineRulerComponent` (8).
   */
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }

@@ -94,9 +94,9 @@ function buildRunConsentOverlay(scripts: WireConsentScript[], answer: (isAllowed
 }
 
 function appendConsentOverlay(overlay: HTMLElement): void {
-  const page = document.querySelector(".viz-root");
+  const page = document.querySelector(".appWindow");
   if (page === null) {
-    throw new Error("run consent needs the .viz-root page element");
+    throw new Error("run consent needs the .appWindow page element");
   }
   page.append(overlay);
 }

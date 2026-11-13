@@ -8,7 +8,7 @@ let cycleIndex = 0;
 
 // `.fname` holds both matchable strings: its text is the basename, its `data-path` the full path.
 export function listNameElements(): HTMLElement[] {
-  return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")];
+  return [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox .fname")];
 }
 
 // One case-insensitive substring test over the full path; falls back to text for label-only buckets.

@@ -51,7 +51,7 @@ function listMatching(selector: string): HTMLElement[] {
 }
 
 function readEditBox(): HTMLInputElement {
-  return document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!;
+  return document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!;
 }
 
 async function tickEditBox(): Promise<void> {
@@ -62,14 +62,14 @@ async function tickEditBox(): Promise<void> {
 }
 
 function readNodeSignature(path: string): string[] {
-  const bubble = listMatching("#stage .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
+  const bubble = listMatching("#fileBubbleContainer .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
   return [...bubble.querySelectorAll(".node, .nlabel")].map((node) => `${node.className}|${node.textContent}`);
 }
 
 test("test_before_the_edit_box_is_ticked_no_edit_node_is_drawn_and_nothing_is_fetched", async () => {
   await loadPage();
   assert.equal(readEditBox().checked, false);
-  assert.equal(listMatching("#stage .n-edit, #stage .n-read").length, 0);
+  assert.equal(listMatching("#fileBubbleContainer .n-edit, #fileBubbleContainer .n-read").length, 0);
   assert.equal(editRequests, 0);
 });
 
@@ -77,16 +77,16 @@ test("test_ticking_the_edit_box_draws_one_labelled_node_per_event_after_one_fetc
   await loadPage();
   await tickEditBox();
   assert.equal(editRequests, 1);
-  assert.deepEqual(listMatching("#stage .nlabel.n-edit, #stage .nlabel.n-read").map((label) => label.textContent), ["[R]✓", "[e]", "[e]"]);
-  assert.equal(listMatching("#stage .node.n-edit").length, 2);
-  assert.equal(listMatching("#stage .node.n-read").length, 1);
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch");
+  assert.deepEqual(listMatching("#fileBubbleContainer .nlabel.n-edit, #fileBubbleContainer .nlabel.n-read").map((label) => label.textContent), ["[R]✓", "[e]", "[e]"]);
+  assert.equal(listMatching("#fileBubbleContainer .node.n-edit").length, 2);
+  assert.equal(listMatching("#fileBubbleContainer .node.n-read").length, 1);
+  assert.equal(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds"), "script-run branch");
 });
 
 test("test_an_edit_node_carries_its_identity_and_confidence_on_the_dot_and_the_label", async () => {
   await loadPage();
   await tickEditBox();
-  for (const element of listMatching('#stage [data-change-id="toolu_fixture_003"]')) {
+  for (const element of listMatching('#fileBubbleContainer [data-change-id="toolu_fixture_003"]')) {
     assert.equal(element.getAttribute("data-kind"), "edit");
     assert.equal(element.getAttribute("data-confidence"), "derived");
     assert.equal(element.getAttribute("data-session-id"), "fixture-b21d84c5");
@@ -94,14 +94,14 @@ test("test_an_edit_node_carries_its_identity_and_confidence_on_the_dot_and_the_l
     assert.equal(element.getAttribute("data-line"), "280");
     assert.equal(element.getAttribute("data-instant"), STALE.instant);
   }
-  assert.ok(listMatching("#stage .node.n-edit")[1]!.classList.contains("conf-derived"));
-  assert.ok(listMatching("#stage .node.n-edit")[0]!.classList.contains("conf-verified"));
+  assert.ok(listMatching("#fileBubbleContainer .node.n-edit")[1]!.classList.contains("conf-derived"));
+  assert.ok(listMatching("#fileBubbleContainer .node.n-edit")[0]!.classList.contains("conf-verified"));
 });
 
 test("test_a_reseeded_edit_draws_a_conf_reseeded_node", async () => {
   await loadPage([RESEEDED]);
   await tickEditBox();
-  const node = listMatching("#stage .node.n-edit")[0]!;
+  const node = listMatching("#fileBubbleContainer .node.n-edit")[0]!;
   assert.equal(node.getAttribute("data-confidence"), "reseeded");
   assert.ok(node.classList.contains("conf-reseeded"));
 });
@@ -109,7 +109,7 @@ test("test_a_reseeded_edit_draws_a_conf_reseeded_node", async () => {
 test("test_edit_nodes_take_ruler_offsets_in_instant_order", async () => {
   await loadPage();
   await tickEditBox();
-  const offsets = listMatching("#stage .node.n-read, #stage .node.n-edit").map((node) => Number(node.style.getPropertyValue("--axis-px")));
+  const offsets = listMatching("#fileBubbleContainer .node.n-read, #fileBubbleContainer .node.n-edit").map((node) => Number(node.style.getPropertyValue("--axis-px")));
   assert.deepEqual(offsets, [...offsets].sort((left, right) => left - right));
   assert.equal(new Set(offsets).size, 3);
 });
@@ -127,10 +127,10 @@ test("test_unticking_hides_the_edit_nodes_and_ticking_again_never_fetches_again"
   const box = readEditBox();
   box.checked = false;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch edit");
+  assert.equal(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds"), "script-run branch edit");
   await tickEditBox();
   assert.equal(editRequests, 1);
-  assert.equal(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds"), "script-run branch");
+  assert.equal(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds"), "script-run branch");
 });
 
 test("test_the_layer_3_button_ticks_only_the_edit_box_and_does_nothing_when_it_is_already_on", async () => {
@@ -139,7 +139,7 @@ test("test_the_layer_3_button_ticks_only_the_edit_box_and_does_nothing_when_it_i
   await waitForAsyncWork();
   assert.equal(readEditBox().checked, true);
   assert.equal(editRequests, 1);
-  assert.deepEqual(listMatching("#show-row input").filter((box) => !(box as HTMLInputElement).checked).map((box) => box.dataset["kind"]), ["script-run", "branch"]);
+  assert.deepEqual(listMatching("#timelineViewControls input").filter((box) => !(box as HTMLInputElement).checked).map((box) => box.dataset["kind"]), ["script-run", "branch"]);
   document.getElementById("layer-3")!.click();
   await waitForAsyncWork();
   assert.equal(readEditBox().checked, true);

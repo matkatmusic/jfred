@@ -16,14 +16,14 @@ type ButtonLabel = (typeof BUTTON_LABELS)[number];
 const buildVisibleButtonFinder = (labelExpression: string) => `[...document.querySelectorAll('button')].find((candidate) => candidate.textContent.trim() === ${labelExpression} && candidate.offsetParent !== null)`;
 export const STEPS_LOADED = `${BAR}.dataset.markerIndex !== undefined`;
 export const FETCH_STEPS = `fetch('/api/layer1-engine-v3-steps').then((response) => response.json())`;
-export const COUNT_SESSION_NODES = `document.querySelectorAll('#annotation-track i.anode.current-node').length`;
+export const COUNT_SESSION_NODES = `document.querySelectorAll('#sessionDotLinesComponent i.anode.current-node').length`;
 export const COUNT_COMMIT_NODES = `document.querySelectorAll('i.node.n-commit.current-node').length`;
 export const READ_COMMIT_HASHES = `[...new Set([...document.querySelectorAll('i.node.n-commit.current-node')].map((node) => node.title))].join(',')`;
-export const READ_CURRENT_NODE_ID = `document.querySelector('#annotation-track i.anode.current-node')?.dataset.recordId ?? ''`;
+export const READ_CURRENT_NODE_ID = `document.querySelector('#sessionDotLinesComponent i.anode.current-node')?.dataset.recordId ?? ''`;
 export const READ_MARKER_INDEX = `${BAR}.dataset.markerIndex`;
 export const READ_SENTENCE = `document.getElementById('engine-v3-sentence').textContent`;
 export const READ_OFF_FLAGS = `${JSON.stringify(BUTTON_LABELS)}.map((label) => (${buildVisibleButtonFinder("label")}).disabled ? '1' : '0').join('')`;
-export const READ_TRACK_COUNT = `document.querySelectorAll('#annotation-track').length`;
+export const READ_TRACK_COUNT = `document.querySelectorAll('#sessionDotLinesComponent').length`;
 export const FETCH_RULER = `fetch('/api/layer1-view').then((response) => response.json()).then((view) => view.ruler)`;
 const CANVAS_TOP = `document.querySelector('.canvas').getBoundingClientRect().top`;
 export const READ_LINE_FACTS = `(() => {
@@ -34,7 +34,7 @@ export const READ_LINE_FACTS = `(() => {
 })()`;
 export const READ_LINE_IN_VIEW = `(() => {
   const line = document.getElementById('engine-v3-line');
-  const pane = document.getElementById('timelines').getBoundingClientRect();
+  const pane = document.getElementById('timelineContainer').getBoundingClientRect();
   const box = line.getBoundingClientRect();
   return !line.hidden && box.top >= pane.top && box.bottom <= pane.bottom;
 })()`;
@@ -53,7 +53,7 @@ export const buildClickLabelWhileOn = (label: string) => `(() => {
   for (let click = 0; click < ${MAX_CLICKS} && !button.disabled; click += 1) button.click();
 })()`;
 export const buildClickNode = (nodeId: string) => `(() => {
-  const node = document.querySelector('#annotation-track i.anode[data-record-id="${nodeId}"]');
+  const node = document.querySelector('#sessionDotLinesComponent i.anode[data-record-id="${nodeId}"]');
   if (!node) throw new Error('Session column node ${nodeId} is not drawn');
   node.click();
 })()`;

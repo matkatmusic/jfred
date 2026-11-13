@@ -47,7 +47,7 @@ function listMatching(selector: string): HTMLElement[] {
 
 // Find a bucket by TITLE, never by index: mirrored buckets would hide an inverted binding.
 function findBucketTitled(title: string): HTMLElement | undefined {
-    return listMatching("#stage .filebox.bucket")
+    return listMatching("#fileBubbleContainer .filebox.bucket")
         .find((bucket) => bucket.querySelector(".fname")?.textContent === title);
 }
 
@@ -57,23 +57,23 @@ function listBucketPaths(bucket: HTMLElement): (string | null)[] {
 
 // Every path named by EITHER bucket, so "no bucket mentions X" cannot pass by checking one direction.
 function listEveryBucketPath(): (string | null)[] {
-    return listMatching("#stage .filebox.bucket").flatMap(listBucketPaths);
+    return listMatching("#fileBubbleContainer .filebox.bucket").flatMap(listBucketPaths);
 }
 
 test("test_unrelated_roots_render_zero_pair_widgets", async () => {
     // Scenario (task 238, spec S18): with no shared relative path, the stage draws no pair widget.
     await renderPageAgainstLiveEndpoint();
     // no pair widget is drawn — `:not(.bucket)` excludes the two orphan buckets, which are also .filebox elements.
-    assert.equal(listMatching("#stage .filebox:not(.bucket)").length, 0);
+    assert.equal(listMatching("#fileBubbleContainer .filebox:not(.bucket)").length, 0);
     // and the empty-state message stands in for them.
-    assert.equal(document.querySelector("#stage .nopairs")?.textContent, "No git ↔ on-disk pairs.");
+    assert.equal(document.querySelector("#fileBubbleContainer .nopairs")?.textContent, "No git ↔ on-disk pairs.");
 });
 
 test("test_unrelated_roots_render_exactly_the_two_orphan_buckets", async () => {
     // Scenario: with both directions non-empty, S18 draws BOTH buckets and omits neither.
     await renderPageAgainstLiveEndpoint();
     // exactly two buckets exist, and each is identified by title rather than by count alone.
-    assert.equal(listMatching("#stage .filebox.bucket").length, 2);
+    assert.equal(listMatching("#fileBubbleContainer .filebox.bucket").length, 2);
     assert.notEqual(findBucketTitled("No on-disk match"), undefined);
     assert.notEqual(findBucketTitled("No repository match"), undefined);
 });
@@ -98,6 +98,6 @@ test("test_layer1_view_reports_no_orphan_for_a_submodules_contents", async () =>
     // and the gitlink is no phantom "No on-disk match" row: `git ls-tree -r` lists a bare directory name.
     assert.equal(bucketPaths.includes(SUBMODULE_FIXTURE_FOLDER), false);
     // the root's own tracked file still pairs, so the exclusion did not over-reach.
-    assert.ok(listMatching("#stage .filebox:not(.bucket) .fname")
+    assert.ok(listMatching("#fileBubbleContainer .filebox:not(.bucket) .fname")
         .some((name) => name.textContent === "kept.txt"));
 });

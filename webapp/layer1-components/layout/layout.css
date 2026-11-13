@@ -1,0 +1,44 @@
+/*
+    Sizing rules for the boxes that layer1-layout.ts builds. FlexBox sets display and direction; this file sets shrink, fill and scroll.
+*/
+.appWindow {
+    height: 100vh;
+    min-height: 0;
+}
+
+.headerContainer {
+    flex: none;
+}
+
+.sessionDataContainer {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.sourcesContainer {
+    min-width: 0;
+    min-height: 0;
+}
+
+.timelineComponentsContainer {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.timelineComponentsContainer > :not(.timelineContainer) {
+    flex: none;
+}
+
+.timelineContainer {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.timelineRulerContainer,
+.fileBubbleContainer {
+    min-height: 0;
+}

@@ -54,14 +54,14 @@ function listMatching(selector: string): HTMLElement[] {
 }
 
 async function tickBox(kind: string): Promise<void> {
-  const box = document.querySelector<HTMLInputElement>(`#show-row [data-kind=${kind}]`)!;
+  const box = document.querySelector<HTMLInputElement>(`#timelineViewControls [data-kind=${kind}]`)!;
   box.checked = true;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
   await waitForAsyncWork();
 }
 
 function readBubble(path: string): HTMLElement {
-  return listMatching("#stage .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
+  return listMatching("#fileBubbleContainer .filebox").find((candidate) => candidate.querySelector(".fname")?.getAttribute("data-path") === path)!;
 }
 
 function readAxisPx(element: Element): number {
@@ -70,26 +70,26 @@ function readAxisPx(element: Element): number {
 
 test("test_before_the_branch_box_is_ticked_no_lane_is_drawn_and_nothing_is_fetched", async () => {
   await loadPage();
-  assert.equal(listMatching("#stage .blane").length, 0);
+  assert.equal(listMatching("#fileBubbleContainer .blane").length, 0);
   assert.equal(branchRequests, 0);
-  assert.match(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!, /branch/);
+  assert.match(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds")!, /branch/);
 });
 
 test("test_ticking_the_branch_box_draws_one_lane_per_branch_after_one_fetch", async () => {
   await loadPage();
   await tickBox("branch");
   assert.equal(branchRequests, 1);
-  assert.equal(listMatching("#stage .blane").length, 3);
+  assert.equal(listMatching("#fileBubbleContainer .blane").length, 3);
   assert.equal(readBubble("src/plain.ts").querySelectorAll(".blane").length, 0);
   assert.equal(readBubble("src/run.ts").style.getPropertyValue("--lane-count"), "3");
-  assert.doesNotMatch(document.querySelector(".viz-root")!.getAttribute("data-hidden-kinds")!, /branch/);
-  assert.equal(listMatching('#stage [class*="rewind"]').length, 0);
+  assert.doesNotMatch(document.querySelector(".appWindow")!.getAttribute("data-hidden-kinds")!, /branch/);
+  assert.equal(listMatching('#fileBubbleContainer [class*="rewind"]').length, 0);
 });
 
 test("test_every_lane_has_a_split_elbow_and_the_rejoin_and_kept_lanes_have_a_merge_elbow", async () => {
   await loadPage();
   await tickBox("branch");
-  const lanes = listMatching("#stage .blane");
+  const lanes = listMatching("#fileBubbleContainer .blane");
   assert.deepEqual(lanes.map((lane) => lane.querySelectorAll(".split-elbow").length), [1, 1, 1]);
   assert.deepEqual(lanes.map((lane) => lane.querySelectorAll(".merge-elbow").length), [1, 1, 0]);
 });
@@ -100,7 +100,7 @@ test("test_a_rejoin_elbow_lands_on_its_trunk_dot_and_a_kept_to_end_elbow_on_the_
   const bubble = readBubble("src/run.ts");
   const commitDot = bubble.querySelector<HTMLElement>(`.node.n-commit`)!;
   const onDiskDot = bubble.querySelector<HTMLElement>(`.node.n-disk`)!;
-  const [conversation, kept] = listMatching("#stage .blane");
+  const [conversation, kept] = listMatching("#fileBubbleContainer .blane");
   assert.equal(readAxisPx(conversation!.querySelector(".merge-elbow")!), readAxisPx(commitDot));
   assert.equal(readAxisPx(kept!.querySelector(".merge-elbow")!), readAxisPx(onDiskDot));
 });
@@ -109,8 +109,8 @@ test("test_a_fork_elbow_sits_on_its_own_row_apart_from_every_trunk_dot", async (
   await loadPage();
   await tickBox("branch");
   const bubble = readBubble("src/run.ts");
-  const trunkRows = listMatching("#stage .node").filter((dot) => bubble.contains(dot)).map(readAxisPx);
-  const forkRows = listMatching("#stage .split-elbow").map(readAxisPx);
+  const trunkRows = listMatching("#fileBubbleContainer .node").filter((dot) => bubble.contains(dot)).map(readAxisPx);
+  const forkRows = listMatching("#fileBubbleContainer .split-elbow").map(readAxisPx);
   assert.equal(new Set(forkRows).size, 3);
   assert.ok(forkRows.every((row) => !trunkRows.includes(row)));
 });
@@ -119,24 +119,24 @@ test("test_a_trunk_edit_that_a_lane_also_holds_is_tagged_n_moved_and_others_are_
   await loadPage();
   await tickBox("edit");
   await tickBox("branch");
-  const moved = listMatching('#stage .node[data-change-id="toolu_lane_moved"], #stage .nlabel[data-change-id="toolu_lane_moved"]');
+  const moved = listMatching('#fileBubbleContainer .node[data-change-id="toolu_lane_moved"], #fileBubbleContainer .nlabel[data-change-id="toolu_lane_moved"]');
   assert.ok(moved.length > 0 && moved.every((element) => element.classList.contains("n-moved")));
-  const kept = listMatching('#stage .node[data-change-id="toolu_trunk_kept"], #stage .nlabel[data-change-id="toolu_trunk_kept"]');
+  const kept = listMatching('#fileBubbleContainer .node[data-change-id="toolu_trunk_kept"], #fileBubbleContainer .nlabel[data-change-id="toolu_trunk_kept"]');
   assert.ok(kept.length > 0 && kept.every((element) => !element.classList.contains("n-moved")));
 });
 
 test("test_every_lane_dot_and_label_carries_its_change_id_and_event_word", async () => {
   await loadPage();
   await tickBox("branch");
-  const laneDots = listMatching("#stage .bnode");
+  const laneDots = listMatching("#fileBubbleContainer .bnode");
   assert.deepEqual(laneDots.map((dot) => dot.dataset.changeId).sort(), ["toolu_lane_a", "toolu_lane_b", "toolu_lane_c", "toolu_lane_moved"]);
-  assert.ok([...laneDots, ...listMatching("#stage .blabel")].every((element) => element.dataset.kind === "edit"));
+  assert.ok([...laneDots, ...listMatching("#fileBubbleContainer .blabel")].every((element) => element.dataset.kind === "edit"));
 });
 
 test("test_unticking_and_reticking_the_branch_box_never_fetches_again", async () => {
   await loadPage();
   await tickBox("branch");
-  const box = document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!;
+  const box = document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=branch]")!;
   box.checked = false;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
   await tickBox("branch");

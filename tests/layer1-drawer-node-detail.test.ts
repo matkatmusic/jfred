@@ -35,7 +35,7 @@ test("test_the_raw_json_button_reads_braces_without_square_brackets", () => {
   assert.equal(getRequiredElementById("dbody").querySelector<HTMLElement>(".json-toggle")?.textContent, "{ }");
 });
 
-// The page loads these sheets under .viz-root; the test DOM cannot lay out text, so computed styles are the honest check.
+// The page loads these sheets under .appWindow; the test DOM cannot lay out text, so computed styles are the honest check.
 function loadDrawerFrameStyles(): void {
   const style = document.createElement("style");
   const frameCss = readFileSync(new URL("../webapp/layer1-components/details-drawer/drawer-frame.css", import.meta.url), "utf8");

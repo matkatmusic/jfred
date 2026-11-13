@@ -9,7 +9,7 @@ import { buildBubbleSelector, reportCheck, saveScreenshot } from "./mockup-check
 const UTIL_PATH = "src/util.ts";
 const INDEX_PATH = "src/index.ts";
 // Fork and rejoin instants of the canned lanes (src/viewer_api_layer5_mockup_branches.ts): a fork owns a tick.
-const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
+const BRANCH_BOX = `document.querySelector('#timelineViewControls input[data-kind="branch"]')`;
 // A marker spanning a lane carries --lanes-spanned; visible means it takes layout space.
 const COUNT_VISIBLE_BRANCH_TIE_MARKERS = `[...document.querySelectorAll('.nodes-with-same-timestamp[style*="lanes-spanned"]')]
   .filter(marker => getComputedStyle(marker).display !== 'none' && marker.getClientRects().length > 0).length`;
@@ -46,24 +46,24 @@ export async function validateLayer5(page: HeadlessPage, pageUrl: string): Promi
 
   const ticks = await page.evaluate<{ text: string; cy: number }[]>(TICK_ROWS);
   validateDotRows([...util.lanes, ...index.lanes], ticks);
-  reportCheck("L5 exactly one ruler", await page.evaluate<number>(`document.querySelectorAll('.ruler').length`) === 1);
+  reportCheck("L5 exactly one ruler", await page.evaluate<number>(`document.querySelectorAll('.timelineRulerComponent').length`) === 1);
 
   // Bubbles are 10000px tall: pan to index.ts, then down to its first fork, clear of the ruler.
   const indexBubble = `document.querySelector(${JSON.stringify(buildBubbleSelector(INDEX_PATH))})`;
   await page.evaluate(`${indexBubble}.scrollIntoView({ block: 'nearest', inline: 'start' });
         ${indexBubble}.querySelector('.split-elbow').scrollIntoView({ block: 'start', inline: 'nearest' });
-        document.querySelector('.timelines').scrollBy(-190, -120)`);
+        document.querySelector('.timelineContainer').scrollBy(-190, -120)`);
   await saveScreenshot(page, "10-layer5-branches");
   console.log("L5 screenshot: scripts/visual/out/mockup-10-layer5-branches.png");
 
   await validateLaneNodeClicks(page, "L5", { max: 2 });
   // Bug 480: a branch node tied with one trunk node is the only reason this marker exists.
   await page.evaluate(`${BRANCH_BOX}.click()`);
-  await page.waitFor(`document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  await page.waitFor(`document.querySelector('.appWindow').dataset.hiddenKinds.includes('branch')`, 10_000);
   const branchOffTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
   reportCheck("L5 bug 480: with the branch box off, no pink marker of a branch-node tie is visible", branchOffTieCount === 0, branchOffTieCount);
   await page.evaluate(`${BRANCH_BOX}.click()`);
-  await page.waitFor(`!document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, 10_000);
+  await page.waitFor(`!document.querySelector('.appWindow').dataset.hiddenKinds.includes('branch')`, 10_000);
   const branchOnTieCount = await page.evaluate<number>(COUNT_VISIBLE_BRANCH_TIE_MARKERS);
   reportCheck("L5 bug 480: with the branch box on, a pink marker of a branch-node tie is visible", branchOnTieCount > 0, branchOnTieCount);
   await page.navigate(pageUrl);

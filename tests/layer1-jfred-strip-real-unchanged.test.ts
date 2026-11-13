@@ -27,7 +27,7 @@ function addTick(hour: number, nodeClasses: string[]): void {
   const axisPx = hour * 50;
   const tick = document.createElement("div");
   tick.className = "tick";
-  document.getElementById("ruler")!.append(tick);
+  document.getElementById("timelineRulerComponent")!.append(tick);
   storeRow(tick, { axisPx, text: "t", eventCount: 1, axisPxList: [axisPx], instants: [buildInstant(hour)] });
   const bubble = document.createElement("div");
   bubble.className = "filebox";
@@ -40,7 +40,7 @@ function addTick(hour: number, nodeClasses: string[]): void {
     node.style.setProperty("--axis-px", "0");
     bubble.append(node);
   }
-  document.getElementById("stage")!.append(bubble);
+  document.getElementById("fileBubbleContainer")!.append(bubble);
 }
 
 async function settle(): Promise<void> {

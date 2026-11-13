@@ -3,6 +3,7 @@
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { DiffPaneMode, createDiffPane, type DiffPaneModeValue, type DiffStep } from "./layer1-diff-pane.ts";
 import { isImagePath, renderImageInto } from "./layer1-drawer-image.ts";
+import { openDetailsPane } from "./layer1-details-pane.ts";
 
 export type DiffViewConfig = {
   // Arrows + the tools row drop for a lone selection: nothing to step, diff, or widen.
@@ -86,7 +87,8 @@ function blockClick(event: Event): void {
 
 // `renderDetailView`: the drawer body is a dumb scrollable area — clear it, add the panes, done.
 export function renderDetailView(panes: HTMLElement[]): void {
-  getRequiredElementById("drawer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   getRequiredElementById("dmulti").hidden = panes.length < 2;
   // The drawer header already names a lone file; its section plate would say it again.
   if (panes.length === 1) {

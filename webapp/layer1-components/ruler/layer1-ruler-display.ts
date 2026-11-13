@@ -82,7 +82,7 @@ function renderTickDisplay(tick: HTMLElement, row: RulerRow, sessionColor: strin
 
 // Changes what each tick shows, never the tick count; colors only while sessions show.
 export function renderRulerDisplay(annotations: readonly WireAnnotation[], colors: Map<string, string>, isSessionShown: boolean): void {
-  const ruler = document.getElementById("ruler")!;
+  const ruler = document.getElementById("timelineRulerComponent")!;
   ruler.classList.add(RULER_SESSIONS_CLASS);
   const sessionsByInstant = listSessionsByInstant(annotations);
   for (const tick of ruler.querySelectorAll<HTMLElement>(".tick")) {
@@ -96,5 +96,5 @@ export function renderRulerDisplay(annotations: readonly WireAnnotation[], color
 }
 
 export function removeRulerDisplay(): void {
-  document.getElementById("ruler")?.classList.remove(RULER_SESSIONS_CLASS);
+  document.getElementById("timelineRulerComponent")?.classList.remove(RULER_SESSIONS_CLASS);
 }

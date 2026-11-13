@@ -70,7 +70,7 @@ function addFile(path: string, nodes: { cls: string; instant: string; label: str
     label.textContent = node.label;
     box.append(dot, label);
   }
-  document.getElementById("stage")!.append(box);
+  document.getElementById("fileBubbleContainer")!.append(box);
 }
 
 test("test_snap_lines_take_the_latest_beacon_at_or_before_the_mark", () => {
@@ -98,6 +98,6 @@ test("test_snap_lines_skip_a_box_without_a_path", () => {
   initLayer1Dom();
   const bucket = document.createElement("div");
   bucket.className = "filebox";
-  document.getElementById("stage")!.append(bucket);
+  document.getElementById("fileBubbleContainer")!.append(bucket);
   assert.deepEqual(listSnapLines(Date.parse(MARK)), []);
 });

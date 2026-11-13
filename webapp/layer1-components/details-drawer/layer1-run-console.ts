@@ -101,7 +101,7 @@ export function buildRunConsolePopup(): HTMLElement {
 export function openRunConsole(toolUseId: string, cancelRun: CancelRun): void {
   const isBuilt = document.getElementById(RUN_CONSOLE_ID) !== null;
   if (!isBuilt) {
-    getRequiredElementById("stagewrap").append(buildRunConsolePopup());
+    getRequiredElementById("sessionDataContainer").append(buildRunConsolePopup());
   }
   shown = { toolUseId, cancelRun };
   fillRunConsole(toolUseId, cancelRun);

@@ -67,7 +67,7 @@ function findEarliestMarkableTick(instant: string): HTMLElement | undefined {
   const instantMs = Date.parse(instant);
   let bestTick: HTMLElement | undefined;
   let bestMs = Infinity;
-  for (const tick of getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick")) {
+  for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll<HTMLElement>(".tick")) {
     const candidateMs = readMarkableMsAtOrAfter(tick, snapshot, instantMs);
     if (candidateMs < bestMs) {
       bestTick = tick;
@@ -131,6 +131,6 @@ function applyCutClick(event: Event): void {
 
 // A named capture listener, so a second call is a DOM no-op; layer1-ruler-click.ts stays untouched.
 export function installCutMarkClick(): void {
-  getRequiredElementById("ruler").addEventListener("click", applyCutClick, true);
+  getRequiredElementById("timelineRulerComponent").addEventListener("click", applyCutClick, true);
   registerPendingMarkMover(movePendingMarkToInstant);
 }

@@ -19,12 +19,12 @@ test("test_scroll_area_without_a_reverse_bubble_has_room_below_for_the_minimap",
     initLayer1Dom();
     loadCanvasAndMinimapStyles();
     // Add a plain scroll area with no reverse bubble inside.
-    const stagewrap = document.createElement("div");
-    stagewrap.className = "stagewrap";
+    const sessionDataContainer = document.createElement("div");
+    sessionDataContainer.className = "sessionDataContainer";
     const timelines = document.createElement("main");
-    timelines.className = "timelines";
-    stagewrap.append(timelines);
-    document.body.append(stagewrap);
+    timelines.className = "timelineContainer";
+    sessionDataContainer.append(timelines);
+    document.body.append(sessionDataContainer);
     // Its bottom padding clears the minimap: height 124px + bottom gap 12px + margin 16px.
     // happy-dom resolves var() but leaves calc() unsolved, so the expected text keeps the calc wrapper.
     assert.equal(window.getComputedStyle(timelines).paddingBottom, "calc(124px + 12px + 16px + 0px)");

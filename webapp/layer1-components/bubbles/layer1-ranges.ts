@@ -101,7 +101,7 @@ function isInsideAnyBand(axisPx: number, bands: readonly AxisBand[]): boolean {
 
 // Mark gutter rows inside a band, read from the row's own `--axis-px` since merged rows hold one offset.
 function markTicksInsideBands(bands: readonly AxisBand[]): void {
-  for (const tick of getRequiredElementById("ruler").querySelectorAll(".tick")) {
+  for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll(".tick")) {
     const axisPx = Number((tick as HTMLElement).style.getPropertyValue("--axis-px"));
     const isInRange = isInsideAnyBand(axisPx, bands);
     tick.classList.toggle("inrange", isInRange);

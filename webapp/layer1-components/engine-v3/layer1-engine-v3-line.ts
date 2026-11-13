@@ -43,7 +43,7 @@ export function moveEngineV3LineIntoView(): void {
   if (line.hidden) {
     return;
   }
-  const paneBox = getRequiredElementById("timelines").getBoundingClientRect();
+  const paneBox = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const lineBox = line.getBoundingClientRect();
   const isInView = lineBox.top >= paneBox.top && lineBox.bottom <= paneBox.bottom;
   if (isInView) {

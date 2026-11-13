@@ -5,7 +5,7 @@ import { BLOCKED_ID, buildNodeExpression } from "./layer6-probes.ts";
 
 export interface BlockedFacts {
   count: number; buttons: string[]; text: string; insideStagewrap: boolean; insideTimelines: boolean; popupRect: number[]; dotRect: number[]; drawerRect: number[];
-  paneRect: number[]; drawerOpen: boolean;
+  paneRect: number[]; drawerOpen: boolean; isDrawerUncoveredByPopup: boolean;
 }
 
 const BESIDE_DOT_MAX_GAP_PX = 12;
@@ -18,14 +18,24 @@ export const CLICK_BLOCKED_GO = `document.querySelector('#run-blocked-popup .blo
 const BLOCKED_FACTS = `(() => {
     const popup = document.getElementById('run-blocked-popup');
     const box = popup?.getBoundingClientRect();
-    const drawer = document.getElementById('drawer');
+    const drawer = document.getElementById('detailsPaneContainer');
     const rect = r => r === undefined ? [] : [r.left, r.top, r.right, r.bottom];
     return { count: ${COUNT_BLOCKED_POPUPS}, text: popup?.textContent ?? '',
         dotRect: rect(${buildNodeExpression(BLOCKED_ID)}?.getBoundingClientRect()),
         buttons: popup === null ? [] : [...popup.querySelectorAll('button')].map(b => b.textContent),
-        insideStagewrap: popup?.closest('#stagewrap') != null, insideTimelines: popup?.closest('#timelines') != null, popupRect: rect(box),
-        drawerRect: rect(drawer.getBoundingClientRect()), paneRect: rect(document.getElementById('timelines').getBoundingClientRect()),
-        drawerOpen: drawer.classList.contains('open') };
+        insideStagewrap: popup?.closest('#sessionDataContainer') != null, insideTimelines: popup?.closest('#timelineContainer') != null, popupRect: rect(box),
+        drawerRect: rect(drawer.getBoundingClientRect()), paneRect: rect(document.getElementById('timelineContainer').getBoundingClientRect()),
+        drawerOpen: drawer.classList.contains('open'),
+        isDrawerUncoveredByPopup: (() => {
+            if (box === undefined) { return false; }
+            const pane = drawer.getBoundingClientRect();
+            const left = Math.max(box.left, pane.left);
+            const right = Math.min(box.right, pane.right);
+            const top = Math.max(box.top, pane.top);
+            const bottom = Math.min(box.bottom, pane.bottom);
+            if (left >= right || top >= bottom) { return true; }
+            return document.elementFromPoint((left + right) / 2, (top + bottom) / 2)?.closest('#detailsPaneContainer') != null;
+        })() };
 })()`;
 
 export function readBlockedFacts(page: HeadlessPage): Promise<BlockedFacts> {
@@ -56,11 +66,12 @@ export function isBlockedBesideDot(facts: BlockedFacts): boolean {
 //   return facts.count === 1 && facts.insideStagewrap && facts.drawerOpen && popupRight <= drawerLeft;
 // }
 
-// The open panel narrows #timelines, so a popup inside it is clipped at the panel edge.
+// The open panel narrows #timelineContainer, so a popup inside it is clipped at the panel edge.
 export function isBlockedClippedByPane(facts: BlockedFacts): boolean {
-  const paneRight = facts.paneRect[2] ?? Infinity;
-  const drawerLeft = facts.drawerRect[0] ?? 0;
-  return facts.count === 1 && facts.drawerOpen && facts.insideTimelines && paneRight <= drawerLeft;
+  // const paneRight = facts.paneRect[2] ?? Infinity;
+  // const drawerLeft = facts.drawerRect[0] ?? 0;
+  // The drawer floats over the scroll box, so it must paint over any part of the popup it meets.
+  return facts.count === 1 && facts.drawerOpen && facts.insideTimelines && facts.isDrawerUncoveredByPopup;
 }
 
 export function isBlockerNamed(facts: BlockedFacts, blockerFileName: string, stateText: string): boolean {

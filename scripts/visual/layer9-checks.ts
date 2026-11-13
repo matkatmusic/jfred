@@ -76,7 +76,7 @@ async function readCommitMessage(page: HeadlessPage, entry: EntryFacts): Promise
 // Commit mode is off at load; the click turns it on before the entries are read.
 export async function validateCannedColumn(page: HeadlessPage): Promise<EntryFacts[]> {
   const stripCountAtLoad = await page.evaluate<number>(STRIP_COUNT);
-  reportCheck("L9 at load Commit mode is off and the page has no #jfred-strip", stripCountAtLoad === 0, stripCountAtLoad);
+  reportCheck("L9 at load Commit mode is off and the page has no #jfredCommitsDrawerComponent", stripCountAtLoad === 0, stripCountAtLoad);
   await page.evaluate(COMMIT_MODE_CLICK);
   await page.evaluate(DISMISS_RUN_CONSENT);
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);

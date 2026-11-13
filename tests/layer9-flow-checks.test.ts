@@ -73,7 +73,7 @@ const runUnarmed = (states: TickState[], stripCount: number) =>
     failuresOf(() => validateUnarmedPaint(makeScriptedPage(new Map<string, unknown[]>([[TICK_STATES, [states]], [STRIP_COUNT, [stripCount]]]))));
 
 test("test_commit_mode_off_means_no_cut_class_on_any_tick_and_no_strip", async () => {
-    // Setup: ticks with no cut-* class and a page with no #jfred-strip.  The check passes.
+    // Setup: ticks with no cut-* class and a page with no #jfredCommitsDrawerComponent.  The check passes.
     assert.deepEqual(await runUnarmed(UNARMED, 0), []);
     // A strip on the page fails the check.
     assert.equal((await runUnarmed(UNARMED, 1)).length, 1);
