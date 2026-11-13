@@ -254,3 +254,31 @@ test("test_install_throws_when_the_rows_container_is_missing", () => {
     openPageWithMarkup("<button data-component-inspector-toggle>names</button>");
     assert.throws(() => installComponentInspector());
 });
+
+test("test_hovering_a_scrolled_part_clips_the_overlay_to_its_scroll_window", () => {
+    // Scenario: a part scrolled inside an overflow container gets an overlay cut to the container's visible window.
+    // Open a page with a scroller (overflow: auto) that holds a tagged part.
+    openPageWithMarkup(`
+        <button id="toggle" data-component-inspector-toggle>names</button>
+        <div id="rows" data-component-inspector-rows></div>
+        <div id="scroller" style="overflow: auto">
+            <div id="scrolledPart" data-component="ScrolledPart"><span id="scrolledText"></span></div>
+        </div>`);
+    installComponentInspector();
+    // happy-dom reports "" for an unset overflow where a browser reports "visible", so state it on body and html.
+    document.body.style.overflow = "visible";
+    document.documentElement.style.overflow = "visible";
+    // Stub the scroller window at left 100, top 150, right 700, bottom 600.
+    document.getElementById("scroller")!.getBoundingClientRect = () => ({ left: 100, top: 150, right: 700, bottom: 600, width: 600, height: 450 }) as DOMRect;
+    // Stub the part, scrolled up so its top is above the scroller window: left 120, top -400, right 500, bottom 400.
+    document.getElementById("scrolledPart")!.getBoundingClientRect = () => ({ left: 120, top: -400, right: 500, bottom: 400, width: 380, height: 800 }) as DOMRect;
+    // Turn the inspector on and hover the text inside the part.
+    switchInspectorOn();
+    hoverElement("scrolledText");
+    // The overlay covers only the visible piece: left 120, top 150 (scroller top), width 380, height 250 (400 - 150).
+    const overlay = document.querySelector<HTMLElement>(".ci-overlay")!;
+    assert.equal(overlay.style.left, "120px");
+    assert.equal(overlay.style.top, "150px");
+    assert.equal(overlay.style.width, "380px");
+    assert.equal(overlay.style.height, "250px");
+});

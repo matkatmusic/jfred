@@ -101,6 +101,36 @@ test("test_minimap_sits_at_the_bottom_of_the_scroll_box", () => {
     assert.equal(getMinimap().style.bottom, `${WINDOW_HEIGHT_PX - SCROLL_BOX_BOTTOM_PX + BOTTOM_GAP_PX}px`);
 });
 
+// This test must stay above any other test that calls renderLayer1Minimap: the pane observer registers only once per module load.
+test("test_minimap_moves_up_when_the_timeline_pane_shrinks", (testContext) => {
+    // Watch every resize observer the minimap creates, remembering what each one watches.
+    const observedCallbacks: Array<{ target: unknown; callback: () => void }> = [];
+    class CapturingResizeObserver {
+        constructor(private readonly callback: () => void) {}
+        observe(target: unknown): void {
+            observedCallbacks.push({ target, callback: this.callback });
+        }
+        unobserve(_target: unknown): void {}
+        disconnect(): void {}
+    }
+    const originalResizeObserver = window.ResizeObserver;
+    Object.assign(window, { ResizeObserver: CapturingResizeObserver });
+    testContext.after(() => Object.assign(window, { ResizeObserver: originalResizeObserver }));
+    // Render the minimap while the pane bottom is at 700.
+    renderLayer1Minimap();
+    assert.equal(getMinimap().style.bottom, `${WINDOW_HEIGHT_PX - SCROLL_BOX_BOTTOM_PX + BOTTOM_GAP_PX}px`);
+    // The names rows appear, so the pane bottom moves up to 500.
+    const shrunkPaneBottomPx = 500;
+    const timelinePane = getRequiredElementById("timelineContainer");
+    stubRect(timelinePane, { right: 1200, bottom: shrunkPaneBottomPx });
+    // The browser reports that the pane resized.
+    const paneObserver = observedCallbacks.find((entry) => entry.target === timelinePane);
+    assert.notEqual(paneObserver, undefined, "the minimap does not watch the timeline pane");
+    paneObserver!.callback();
+    // The minimap now sits above the new pane bottom: 900 - 500 + 12 = 412.
+    assert.equal(getMinimap().style.bottom, `${WINDOW_HEIGHT_PX - shrunkPaneBottomPx + BOTTOM_GAP_PX}px`);
+});
+
 test("test_rendering_the_minimap_moves_it_to_the_ruler_edge", () => {
     // Stub the sizes the render reads (copied from the minimap test).
     const scrollBox = getRequiredElementById("timelineContainer");

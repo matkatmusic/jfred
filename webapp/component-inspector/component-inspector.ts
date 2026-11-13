@@ -78,8 +78,27 @@ function renderRows(): void {
   }
 }
 
+// The part's box cut to the window and every clipping ancestor, so a scrolled part's label stays on screen.
+function readVisiblePartBox(part: Element): DOMRect {
+  const box = part.getBoundingClientRect();
+  let left = Math.max(box.left, 0);
+  let top = Math.max(box.top, 0);
+  let right = Math.min(box.right, window.innerWidth);
+  let bottom = Math.min(box.bottom, window.innerHeight);
+  for (let ancestor = part.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+    if (window.getComputedStyle(ancestor).overflow !== "visible") {
+      const clip = ancestor.getBoundingClientRect();
+      left = Math.max(left, clip.left);
+      top = Math.max(top, clip.top);
+      right = Math.min(right, clip.right);
+      bottom = Math.min(bottom, clip.bottom);
+    }
+  }
+  return new window.DOMRect(left, top, Math.max(right - left, 0), Math.max(bottom - top, 0));
+}
+
 function renderOverlayOver(candidate: Element): void {
-  const box = candidate.getBoundingClientRect();
+  const box = readVisiblePartBox(candidate);
   const { overlay, labelText } = inspector;
   overlay.style.left = `${box.left}px`;
   overlay.style.top = `${box.top}px`;
