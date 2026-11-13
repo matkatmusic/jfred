@@ -32,6 +32,14 @@ export const READ_LINE_FACTS = `(() => {
   const laneY = parseFloat(getComputedStyle(document.querySelector('.canvas')).getPropertyValue('--lane-y'));
   return { top: line.getBoundingClientRect().top - ${CANVAS_TOP}, laneY };
 })()`;
+export interface LineDepthFacts { lineZ: number; nodeZ: number }
+// Both sit in the .canvas stacking context, so comparing z-index gives paint order.
+export const READ_LINE_DEPTH_FACTS = `(() => {
+  const line = document.getElementById('engine-v3-line');
+  const node = document.querySelector('.fileBubbleContainer i.node.n-commit.current-node');
+  if (!line || !node) return null;
+  return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex) };
+})()`;
 export const READ_LINE_IN_VIEW = `(() => {
   const line = document.getElementById('engine-v3-line');
   const pane = document.getElementById('timelineContainer').getBoundingClientRect();
@@ -145,6 +153,13 @@ function findAxisPx(ruler: readonly WireRulerTick[], nodeTime: string): number {
   throw new Error(`the ruler has no tick at ${nodeTime}`);
 }
 
+export function isCurrentNodeAboveLine(facts: LineDepthFacts | null): boolean {
+  if (facts === null) {
+    return false;
+  }
+  return facts.nodeZ > facts.lineZ;
+}
+
 async function reportLineAt(page: HeadlessPage, title: string, steps: WireEngineV3Steps, ruler: readonly WireRulerTick[], index: number): Promise<void> {
   const facts = await page.evaluate<LineFacts | null>(READ_LINE_FACTS);
   const axisPx = findAxisPx(ruler, steps.steps[index]!.nodeTime);
@@ -166,6 +181,8 @@ async function validateLineWithSessionOff(page: HeadlessPage, steps: WireEngineV
   const trackCount = await page.evaluate<number>(READ_TRACK_COUNT);
   reportCheck("engineV3 session off: no Session column track is drawn", trackCount === 0, trackCount);
   await reportLineAt(page, "session off, at load", steps, ruler, 0);
+  const depth = await page.evaluate<LineDepthFacts | null>(READ_LINE_DEPTH_FACTS);
+  reportCheck("engineV3 session off, at load: the marked commit node draws above the line", isCurrentNodeAboveLine(depth), depth);
   await page.evaluate(buildClickLabelWhileOn("Jump to next commit"));
   await reportLineAt(page, "session off, after Jump to next commit", steps, ruler, findLastCommitIndex(steps.steps));
   await reportLineInView(page, "session off, after Jump to next commit");

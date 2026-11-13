@@ -3,9 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    BUTTON_LABELS, COUNT_COMMIT_NODES, COUNT_SESSION_NODES, FETCH_RULER, FETCH_STEPS, READ_COMMIT_HASHES, READ_CURRENT_NODE_ID, READ_LINE_FACTS,
-    READ_LINE_IN_VIEW, READ_MARKER_INDEX, READ_OFF_FLAGS, READ_SENTENCE, READ_TRACK_COUNT, buildClickButtonByLabel, buildClickLabelWhileOn, buildClickNode,
-    buildReadLeaderTop, validateEngineV3Mockup,
+    BUTTON_LABELS, COUNT_COMMIT_NODES, COUNT_SESSION_NODES, FETCH_RULER, FETCH_STEPS, READ_COMMIT_HASHES, READ_CURRENT_NODE_ID, READ_LINE_DEPTH_FACTS,
+    READ_LINE_FACTS, READ_LINE_IN_VIEW, READ_MARKER_INDEX, READ_OFF_FLAGS, READ_SENTENCE, READ_TRACK_COUNT, buildClickButtonByLabel, buildClickLabelWhileOn,
+    buildClickNode, buildReadLeaderTop, isCurrentNodeAboveLine, validateEngineV3Mockup,
 } from "../scripts/visual/engine-v3-checks.ts";
 import { CLICK_SESSION_TOGGLE } from "../scripts/visual/layer7-probes.ts";
 import {
@@ -29,7 +29,7 @@ const AXIS_STEP_PX = 100;
 const LANE_Y = 52;
 
 // What the fake page gets wrong, one fault per test.
-interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean }
+interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean; isLineOverNode?: boolean }
 
 // The page's five off flags, in button order, as the panel sets them.
 function readOffFlags(isRuleBroken: boolean): string {
@@ -62,6 +62,7 @@ function listLineAnswers(faults: Faults, readSessionCount: () => number): [strin
         [READ_LINE_FACTS, () => ({ top: lineIndex() * AXIS_STEP_PX + LANE_Y, laneY: LANE_Y })],
         [READ_LINE_IN_VIEW, () => faults.isLineOffScreen !== true],
         [READ_TRACK_COUNT, readSessionCount],
+        [READ_LINE_DEPTH_FACTS, () => (faults.isLineOverNode ? { lineZ: 5, nodeZ: 3 } : { lineZ: 5, nodeZ: 7 })],
     ];
     for (const index of STEPS.keys()) answers.push([buildReadLeaderTop(index * AXIS_STEP_PX), () => index * AXIS_STEP_PX + LANE_Y]);
     return answers;
@@ -117,6 +118,21 @@ test("test_the_checks_fail_when_the_line_is_not_scrolled_into_view", async () =>
     const failures = await listFailuresWith({ isLineOffScreen: true });
     assert.ok(failures.length > 0);
     assert.ok(failures.every((title) => title.includes("visible")), failures.join(" | "));
+});
+
+test("test_the_checks_fail_when_the_line_draws_over_the_marked_node", async () => {
+    // Steps: the node z-index is below the line, expect only the depth check to fail.
+    const failures = await listFailuresWith({ isLineOverNode: true });
+    assert.ok(failures.length > 0);
+    assert.ok(failures.every((title) => title.includes("above the line")), failures.join(" | "));
+});
+
+test("test_the_depth_judge_passes_only_when_the_node_is_above_the_line", () => {
+    // Steps: a higher node passes; a lower node, an equal node, and a missing node all fail.
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 7 }), true);
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 3 }), false);
+    assert.equal(isCurrentNodeAboveLine({ lineZ: 5, nodeZ: 5 }), false);
+    assert.equal(isCurrentNodeAboveLine(null), false);
 });
 
 test("test_the_checks_look_at_the_line_with_the_session_column_off", async () => {
