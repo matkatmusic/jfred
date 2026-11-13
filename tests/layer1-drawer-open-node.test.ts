@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { clearAnchor, openNeighbour, openNodeDrawer, readAnchor } from "../webapp/layer1-components/details-drawer/layer1-drawer-open-node.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { DISK_FILE_CONTENT, DISK_FILE_PATH, installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
@@ -14,7 +15,9 @@ function buildTwoNodeLane(): { firstNode: HTMLElement; secondNode: HTMLElement }
   clearAnchor();
   const firstNode = createElement("i", { class: "node n-disk" });
   const secondNode = createElement("i", { class: "node n-disk" });
-  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+  const container = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(container);
+  container.append(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }),
     createElement("div", { class: "lane" }, [firstNode, secondNode]),
   ]));

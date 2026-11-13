@@ -10,7 +10,7 @@ import { collectLines, createFakePage } from "./layer6-fake-page.ts";
 
 const FACTS: BlockedFacts = {
   count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "",
-  insideStagewrap: true, insideTimelines: true, popupRect: [0, 0, 1, 1], dotRect: [], drawerRect: [5, 0, 9, 9], paneRect: [0, 0, 5, 9], drawerOpen: false,
+  insideStagewrap: true, insideTimelines: true, popupRect: [0, 0, 1, 1], dotRect: [], drawerRect: [5, 0, 9, 9], paneRect: [0, 0, 5, 9], drawerOpen: false, isDrawerUncoveredByPopup: true,
 };
 
 interface Knobs { isHollow: boolean; pendingPosts: number; isStillCrashed: boolean; isAskingNothing: boolean }

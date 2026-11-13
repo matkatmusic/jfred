@@ -4,13 +4,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { installAnnotationClick } from "../webapp/layer1-components/session-column/layer1-annotation-click.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installAnimationFrameStub, installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 
 function drawDot(): HTMLElement {
     const dot = createElement("i", { class: "anode a-user", "data-session-file": "/fixture/demo/projects/0f3c9a7e.jsonl",
         "data-line": "1007", "data-session-title": "seed the demo app", "data-record-label": "fix the trim bug" });
-    getRequiredElementById("fileBubbleContainer").replaceChildren(dot);
+    const container = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(container);
+    container.append(dot);
     return dot;
 }
 
@@ -37,7 +40,9 @@ test("test_clicking_something_that_is_not_a_dot_asks_for_nothing", async () => {
     initLayer1Dom();
     const asks = installRecordingFetch(() => ({}));
     const plain = createElement("div");
-    getRequiredElementById("fileBubbleContainer").replaceChildren(plain);
+    const container = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(container);
+    container.append(plain);
     installAnnotationClick();
     plain.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     await waitForPendingFetches();

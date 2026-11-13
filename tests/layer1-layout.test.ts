@@ -220,24 +220,20 @@ test("test_leaders_washes_and_ranges_stay_inside_the_canvas", () => {
     }
 });
 
-test("test_minimap_and_details_pane_sit_after_the_timeline_inside_session_data_container", () => {
-    // Scenario: the minimap and the details pane stay inside sessionDataContainer, after the timeline.
+test("test_minimap_sits_after_the_timeline_inside_session_data_container", () => {
+    // Scenario: the minimap stays inside sessionDataContainer, after the timeline.
     initLayer1Dom();
     const sessionDataContainer = getRequiredBox("sessionDataContainer");
     const minimap = document.querySelector(".minimapComponent");
     assert.ok(minimap, "missing .minimapComponent");
-    const detailsPane = getRequiredBox("detailsPaneContainer");
     // The children are in this order.
-    assert.equal(sessionDataContainer.children.length, 5);
+    assert.equal(sessionDataContainer.children.length, 4);
     assert.equal(sessionDataContainer.children[0]!.id, "sourcesContainer");
     assert.equal(sessionDataContainer.children[1]!.id, "filenav-grip");
     assert.equal(sessionDataContainer.children[2]!.id, "timelineComponentsContainer");
     assert.equal(sessionDataContainer.children[3], minimap);
-    assert.equal(sessionDataContainer.children[4], detailsPane);
-    // Neither is a direct child of appWindow.
-    const appWindow = getRequiredBox("appWindow");
-    assert.notEqual(minimap.parentElement, appWindow);
-    assert.notEqual(detailsPane.parentElement, appWindow);
+    // The minimap is not a direct child of appWindow.
+    assert.notEqual(minimap.parentElement, getRequiredBox("appWindow"));
 });
 
 test("test_ruler_container_holds_only_the_ruler_at_first", () => {

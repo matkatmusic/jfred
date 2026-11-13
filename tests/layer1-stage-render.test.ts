@@ -42,8 +42,9 @@ test("test_an_only_widget_is_the_whole_stage_with_no_empty_message", async () =>
     onlyWidget.className = "only-widget";
     await renderLayer1Stage({ pairs: [], gitOrphans: [buildOrphan("a.ts")], diskOrphans: [], ruler: [] } as never, onlyWidget);
     const stage = document.getElementById("fileBubbleContainer")!;
-    assert.equal(stage.children.length, 1);
-    assert.equal(stage.children[0], onlyWidget);
+    const bubbleChildren = Array.from(stage.children).filter((child) => child.id !== "detailsPaneContainer");
+    assert.equal(bubbleChildren.length, 1);
+    assert.equal(bubbleChildren[0], onlyWidget);
     assert.equal(stage.querySelectorAll(".nopairs").length, 0);
 });
 

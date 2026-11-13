@@ -10,6 +10,7 @@ import { DiffPaneMode, type DiffStep } from "./layer1-diff-pane.ts";
 import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
+import { openDetailsPane } from "./layer1-details-pane.ts";
 
 const KIND_WORDS: Record<WireReverseKind, string> = {
   [WireReverseKind.DiskNow]: "on disk now",
@@ -57,7 +58,8 @@ export function openReverseNodeDrawer(node: HTMLElement, path: string): void {
   header.title = path;
   getRequiredElementById("dmeta").textContent = `state ${index + 1} of ${stateCount} · ${formatKindWords(state)} · ${state.instant ?? "now"}`;
   markLandedElement(node);
-  getRequiredElementById("detailsPaneContainer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   setDrawerTools("none");
   const steps = [createWalkStep(path, index + 1, readReverseState(path, index + 1)), createWalkStep(path, index, state)];
   renderDetailView([buildDiffView(path, steps, {

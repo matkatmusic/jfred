@@ -11,6 +11,7 @@ import { appendRawJsonRevealForLine, getNodeDrawerDetail } from "./layer1-drawer
 import { readNodeIdentity, storeOpenedNode } from "../bubbles/layer1-node-link.ts";
 import { createEditSteps } from "../top-bars/layer1-revision-sources.ts";
 import { flashSession } from "../jsonls-nav/layer1-session-flash.ts";
+import { openDetailsPane } from "./layer1-details-pane.ts";
 
 // Task 305: the last plainly-clicked node — the diff pair's anchor.
 let anchor: { node: HTMLElement; path: string } | undefined;
@@ -59,7 +60,8 @@ export async function openNodeDrawer(node: HTMLElement, path: string): Promise<v
   getRequiredElementById("dmeta").textContent = detail.meta;
   // Clicking a node IS selecting it (user, 2026-07-26): the same highlight language a ruler-tick landing speaks.
   markLandedElement(node);
-  getRequiredElementById("detailsPaneContainer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   requestAnimationFrame(moveViewToAnchoredNode);
   const isImage = isImagePath(path);
   setDrawerTools(isImage ? "img" : "none");

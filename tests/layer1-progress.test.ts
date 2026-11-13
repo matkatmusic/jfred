@@ -109,7 +109,7 @@ test("test_cancel_confirm_aborts_the_load_and_the_crumb_says_so", async () => {
     // ...and the abort is a clean stop: plain crumb, hidden strip, empty fileBubbleContainer.
     assert.equal(readCrumbText(), "load cancelled");
     assert.equal(checkLoadbarIsHidden(), true);
-    assert.equal(document.getElementById("fileBubbleContainer")!.children.length, 0);
+    assert.equal(Array.from(document.getElementById("fileBubbleContainer")!.children).filter((child) => child.id !== "detailsPaneContainer").length, 0);
 });
 
 test("test_a_terminal_error_line_lands_in_the_crumb_and_clears_the_bar", async () => {

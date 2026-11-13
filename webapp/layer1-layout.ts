@@ -57,7 +57,7 @@ export function buildLayer1Layout(): void {
     sessionDataContainerBox.add(getRequiredElementById("filenav-grip"));
     sessionDataContainerBox.add(timelineComponentsContainerBox, { grow: 1 });
     sessionDataContainerBox.add(getRequiredElementBySelector(".minimapComponent"));
-    sessionDataContainerBox.add(getRequiredElementById("detailsPaneContainer"));
+    // sessionDataContainerBox.add(getRequiredElementById("detailsPaneContainer"));
     appWindowBox.add(sessionDataContainerBox, { grow: 1 });
 
     // Timeline side (step 20).
@@ -72,6 +72,8 @@ export function buildLayer1Layout(): void {
     canvasBox.add(getRequiredElementById("ranges"));
     canvasBox.add(timelineRulerContainerBox);
     canvasBox.add(fileBubbleContainerBox);
+    // Step 22: the details pane floats over the bubbles, so it lives inside their container.
+    fileBubbleContainerBox.add(getRequiredElementById("detailsPaneContainer"));
     timelineContainerBox.add(canvasBox);
     timelineComponentsContainerBox.add(getRequiredElementById("loadbar"));
     timelineComponentsContainerBox.add(getRequiredElementById("timelineViewControls"));

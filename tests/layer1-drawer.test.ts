@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { openDiskNodeForPath } from "../webapp/layer1-components/file-nav/layer1-filenav.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -61,7 +62,9 @@ const MARKDOWN_PATH = "archive/interim-run-scenario/skill/SKILL.md";
 // A commit bubble: the dot's title carries the FULL hash the drawer reads (buildPairWidget's shape).
 function buildCommitNodeStage(hashTitle: string): HTMLElement {
     const node = createElement("i", { class: "node n-commit", title: hashTitle });
-    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+    const container = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(container);
+    container.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "SKILL.md", "data-path": MARKDOWN_PATH }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel", text: hashTitle.slice(0, 8), title: hashTitle })]),
     ]));

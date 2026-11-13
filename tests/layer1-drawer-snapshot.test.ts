@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import {
@@ -20,7 +21,9 @@ test("clicking a snapshot node reads the owning session and sets the range-corre
     getInputById("dir").value = "/work";
     const node = createElement("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+    const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(bubbleContainer);
+    bubbleContainer.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
     ]));
@@ -51,7 +54,9 @@ test("task 213: a snapshot node reveals a { } button that toggles its raw transc
     getInputById("dir").value = "/work";
     const node = createElement("i", { class: "node n-snap", "data-version": "2",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "300" });
-    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+    const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(bubbleContainer);
+    bubbleContainer.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "util.ts", "data-path": SNAPSHOT_PATH }),
         createElement("div", { class: "lane" }, [node, createElement("span", { class: "nlabel n-snap", text: "@v2 📸" })]),
     ]));
@@ -97,7 +102,9 @@ test("a snapshot node whose backup file is missing still reveals its raw JSON, a
     getInputById("dir").value = "/work";
     const node = createElement("i", { class: "node n-snap", "data-version": "1",
         "data-session-id": SNAPSHOT_SESSION_ID, "data-session-file": SNAPSHOT_SESSION_FILE, "data-line": "437" });
-    getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+    const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(bubbleContainer);
+    bubbleContainer.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "plugin.json", "data-path": SNAPSHOT_PATH }),
         createElement("div", { class: "lane" }, [node]),
     ]));

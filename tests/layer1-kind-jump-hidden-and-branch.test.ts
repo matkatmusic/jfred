@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import {
     buildNode, findArrow, readLandedY, refreshKindJumpArrows, renderViewWithSyntheticStage,
 } from "./layer1-kind-jump-helpers.ts";
@@ -36,7 +37,9 @@ test("test_the_branch_arrows_step_between_branch_dots_once_the_branch_box_is_tic
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
     await waitForAsyncWork();
-    document.getElementById("fileBubbleContainer")!.replaceChildren(buildNode("n-commit", 100), buildBranchDot(400), buildBranchDot(700));
+    const stage = document.getElementById("fileBubbleContainer")!;
+    clearFileBubbles(stage);
+    stage.append(buildNode("n-commit", 100), buildBranchDot(400), buildBranchDot(700));
     refreshKindJumpArrows();
     assert.equal(findArrow("branch", "previous").disabled, true);
     assert.equal(findArrow("branch", "next").disabled, false);

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement,getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
 import { applyDiffSelectionRange } from "../webapp/layer1-components/details-drawer/layer1-diff-selection-range.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
@@ -14,7 +15,9 @@ import {
 function buildTwoNodeStage(): { firstNode: HTMLElement; otherNode: HTMLElement } {
   const firstNode = createElement("i", { class: "node n-disk" });
   const otherNode = createElement("i", { class: "node n-disk" });
-  getRequiredElementById("fileBubbleContainer").replaceChildren(
+  const container = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(container);
+  container.append(
     createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": DISK_FILE_PATH }), createElement("div", { class: "lane" }, [firstNode])]),
     createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": "src/other.ts" }), createElement("div", { class: "lane" }, [otherNode])]),
   );

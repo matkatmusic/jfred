@@ -2,6 +2,7 @@
 
 import { createElement,getRequiredElementById } from "../webapp/app-dom.ts";
 import { rememberDrawnView, rememberNavTargets } from "../webapp/layer1-components/bubbles/layer1-diff-wash.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
@@ -37,7 +38,9 @@ export function buildScriptRunStage(): { nodeA: HTMLElement; nodeB: HTMLElement;
   const nodeA = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
   const nodeB = createElement("i", { class: "node n-script", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
   const connector = createElement("div", { class: "script-connector", "data-tool-use-id": SCRIPT_TOOL_USE_ID });
-  getRequiredElementById("fileBubbleContainer").replaceChildren(
+  const container = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(container);
+  container.append(
     createElement("div", { class: "filebox" }, [
       createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
       createElement("div", { class: "lane" }, [nodeA]),
@@ -75,7 +78,9 @@ export async function openSingleRunDrawer(run: WireScriptRun): Promise<HTMLEleme
   } as WireLayer1View);
   rememberNavTargets([]);
   const node = createElement("i", { class: "node n-script", "data-tool-use-id": run.toolUseId });
-  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [
+  const container = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(container);
+  container.append(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));

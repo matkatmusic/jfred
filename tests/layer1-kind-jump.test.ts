@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { buildNode, findArrow, PANE_HEIGHT_PX, readLandedY, refreshKindJumpArrows, renderViewWithSyntheticStage } from "./layer1-kind-jump-helpers.ts";
 
 test("test_each_kind_box_has_a_previous_and_a_next_arrow_under_it", async () => {
@@ -73,7 +74,9 @@ test("test_the_tool_arrows_land_on_a_tnode_that_is_not_a_node", async () => {
     for (const toolNode of [first, second]) {
         toolNode.className = "tnode a-tool-use";
     }
-    document.getElementById("fileBubbleContainer")!.replaceChildren(first, second);
+    const container = document.getElementById("fileBubbleContainer")!;
+    clearFileBubbles(container);
+    container.append(first, second);
     document.getElementById("timelineViewControls")!.append(buildToolArrow("previous"), buildToolArrow("next"));
     refreshKindJumpArrows();
     findArrow("tool", "next").click();

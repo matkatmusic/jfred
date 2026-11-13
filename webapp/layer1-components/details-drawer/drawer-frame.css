@@ -1,9 +1,13 @@
   /*
-    Task 257: the Detail View drawer is a flex sibling, so opening it shrinks the scrollport. No width transition.
+    Step 22: the details pane floats over the bubbles; code sets left, top, width and height in screen px.
   */
-  .detailsPaneContainer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
+  /* .detailsPaneContainer { flex: none; width: 0; overflow: hidden; border-left: 1px solid var(--border);
     background: var(--surface); }
-  .detailsPaneContainer.open { width: 50%; display: flex; flex-direction: column; }
+  .detailsPaneContainer.open { width: 50%; display: flex; flex-direction: column; } */
+  /* z-index 35 paints over the run popup and run console (30) that also live in .canvas. */
+  .detailsPaneContainer { position: fixed; zoom: calc(1 / var(--zoom, 1)); z-index: 35; display: none;
+    overflow: hidden; border-left: 1px solid var(--border); background: var(--surface); }
+  .detailsPaneContainer.open { display: flex; flex-direction: column; }
   .detailsPaneContainer .dhead { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
     border-bottom: 1px solid var(--border); }
   .detailsPaneContainer .dhead #dclose { margin-left: auto; }

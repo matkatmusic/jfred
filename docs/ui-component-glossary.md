@@ -46,11 +46,11 @@ div#appWindow
     │           │   ├── sessionDotLinesComponent (added when shown)
     │           │   └── jfredCommitsDrawerComponent (added when shown)
     │           └── fileBubbleContainer
-    ├── minimapComponent
-    └── detailsPaneContainer
+    │               └── detailsPaneContainer
+    └── minimapComponent
 ```
 
-The minimap and `#detailsPaneContainer` are last children of `sessionDataContainer` for now: they will move later (minimap into `timelineRulerContainer`, details pane into `fileBubbleContainer`).
+Only the minimap is still a last child of `sessionDataContainer` for now: it will move later into `timelineRulerContainer`. The details pane is now inside `fileBubbleContainer`.
 
 | Your name(s) | Canonical | Module | DOM id / CSS class | What it is |
 |---|---|---|---|---|
@@ -78,7 +78,7 @@ The minimap and `#detailsPaneContainer` are last children of `sessionDataContain
 | session wash, jsonl wash, session range bar | Session range bar + wash | bubbles/layer1-wash.ts (`spawnWash`→`.wash`), bubbles/layer1-ranges.ts | washes in `#washes` (`.washes`, behind bubbles); range bars in `#ranges` (`.ranges`) | Wash = translucent band over a file's session-answerable stretch; range bar = thin marker in left lane |
 | diff wash | Diff wash | bubbles/layer1-diff-wash.ts | reuses `.wash` in `#washes`; ruler labels `.wash-edge.base` / `.wash-edge.target` | Band between the two revisions of an open diff selection |
 | nav wash, file nav wash, selection wash | File Nav wash | file-nav/layer1-nav-wash.ts | reuses `.wash` in `#washes`; own marker `.nav-wash` | Band spanning the oldest→newest drawn event across the files currently selected in File Nav |
-| DetailView, Diff View, drawer, diff viewer, details pane, detailsPaneContainer | Detail View drawer | details-drawer/layer1-drawer.ts, details-drawer/layer1-drawer-diff.ts, details-drawer/layer1-drawer-multi.ts | `aside#detailsPaneContainer` (`.detailsPaneContainer`, `.open`); header `.dhead` (`#dpath`, tools `.dtools`, `#dclose`); body `#dbody` | Third flex pane; shows the file's bytes/diff at the clicked node |
+| DetailView, Diff View, drawer, diff viewer, details pane, detailsPaneContainer | Detail View drawer | details-drawer/layer1-drawer.ts, details-drawer/layer1-drawer-diff.ts, details-drawer/layer1-drawer-multi.ts, details-drawer/layer1-details-pane.ts | `aside#detailsPaneContainer` (`.detailsPaneContainer`, `.open`); header `.dhead` (`#dpath`, tools `.dtools`, `#dclose`); body `#dbody` | Overlay inside fileBubbleContainer, pinned to the right edge of timelineContainer; shows the file's bytes/diff at the clicked node |
 | git header row, diff viewer row #3, DiffView sections | DiffView sections / header rows | details-drawer/layer1-diff-view.ts | per-file `<details>.dfile`; header `.dhead.dfile-head` (`.dpath.dfile-path`); pair label `.dpair`; arrows `.dtools`; full-content `.dfull-toggle` | Drawer's per-file header rows + one collapsible section per file |
 | diff pane, diff rows | Diff pane | details-drawer/layer1-diff-pane.ts, diff-render.ts | mounts into `#dbody`; binary notice `.dbinary`; toast `#dtoast` (`.dtoast`) | Renders side/inline diff for a step pair |
 | find box, search box, jump-to row, jumpToRowComponent | Find box | top-bars/layer1-find-file.ts | input `#find-file`; `#find-prev`/`#find-next`; readout `#find-status`; in `#jumpToRowComponent` | Searches bubble names, cycles matches, scrolls to the bubble |

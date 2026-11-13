@@ -1,6 +1,7 @@
 // Shared setup and helpers for the kind-jump arrow tests.
 
 import { createElement, getInputById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -41,7 +42,9 @@ export async function renderViewWithSyntheticStage(): Promise<void> {
     scrollTop: 0,
     getBoundingClientRect: () => ({ top: 0, bottom: PANE_HEIGHT_PX, left: 0, right: 1000, height: PANE_HEIGHT_PX }),
   });
-  document.getElementById("fileBubbleContainer")!.replaceChildren(
+  const bubbleContainer = document.getElementById("fileBubbleContainer")!;
+  clearFileBubbles(bubbleContainer);
+  bubbleContainer.append(
     buildNode("n-commit", 100), buildNode("n-commit", 400), buildNode("n-commit", 700),
     buildNode("n-snap", 50), buildNode("n-snap", 550),
   );

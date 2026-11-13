@@ -10,6 +10,7 @@ import { storeOpenedNode } from "../bubbles/layer1-node-link.ts";
 import { stopRun } from "../../layer1-run-queue.ts";
 import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
 import { openReverseNodeDrawer } from "./layer1-drawer-reverse.ts";
+import { closeDetailsPane } from "./layer1-details-pane.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
@@ -130,7 +131,8 @@ function openNextNeighbour(): void {
 }
 
 function closeDrawer(): void {
-  getRequiredElementById("detailsPaneContainer").classList.remove("open");
+  // getRequiredElementById("detailsPaneContainer").classList.remove("open");
+  closeDetailsPane();
   getRequiredElementById("dmulti").hidden = true;
   clearDiffPair();
   clearAnchor();

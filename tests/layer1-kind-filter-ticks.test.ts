@@ -9,6 +9,7 @@ import { listEventsAtRow } from "../webapp/layer1-components/ruler/layer1-tick-e
 import {
     markMultiEventTicks, registerExpansionRelayout, readRulerExpansion, toggleExpandedRow, registerTickExpansion,
 } from "../webapp/layer1-components/ruler/layer1-tick-files.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const SHARED_PX = 40;
@@ -31,7 +32,9 @@ function drawRowOf(kindClasses: string[], extra: HTMLElement[] = []): HTMLElemen
     initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
     const nodes = kindClasses.flatMap((kindClass) => buildNode(kindClass, kindClass));
-    document.getElementById("fileBubbleContainer")!.replaceChildren(setAxisPx(createElement("div", { class: "filebox" }, [
+    const bubbleContainer = document.getElementById("fileBubbleContainer")!;
+    clearFileBubbles(bubbleContainer);
+    bubbleContainer.append(setAxisPx(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
         createElement("div", { class: "lane" }, nodes),
     ]), SHARED_PX), ...extra);

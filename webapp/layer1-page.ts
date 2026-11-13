@@ -8,6 +8,7 @@ import { initFileNavResize, initSessionPaneResize } from "./layer1-components/fi
 import { initFindFileBox } from "./layer1-components/top-bars/layer1-find-file.ts";
 import { attachBucketJumpButtons } from "./layer1-components/top-bars/layer1-jump-buckets.ts";
 import { moveFirstVisibleNodeIntoView } from "./layer1-components/bubbles/layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-components/top-bars/layer1-layer-toggle.ts";
+import { clearFileBubbles } from "./layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-components/bubbles/layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-components/bubbles/layer1-node-link.ts";
 import { attachLeaderVisibility } from "./layer1-components/bubbles/layer1-leader-visibility.ts";
@@ -64,7 +65,8 @@ function reportMissingSource(crumb: HTMLElement): void {
 // Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
 function clearViewBeforeBuild(crumb: HTMLElement): void {
   crumb.textContent = "";
-  getRequiredElementById("fileBubbleContainer").replaceChildren();
+  // getRequiredElementById("fileBubbleContainer").replaceChildren();
+  clearFileBubbles(getRequiredElementById("fileBubbleContainer"));
   getRequiredElementById("filenav-tree").replaceChildren();
   clearFolderFilterState();
   closeRulerExpansion();
