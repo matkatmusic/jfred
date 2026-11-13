@@ -7,10 +7,10 @@ function readAxisPx(node: HTMLElement): number {
 }
 
 // Starts at the upper node and runs to the lower one; the same two numbers as buildMark in layer1-ranges.ts.
-export function buildPairBracket(first: HTMLElement, second: HTMLElement, className: string): HTMLElement {
+export function buildPairBracket(first: HTMLElement, second: HTMLElement, className: string, componentTag: { "data-component": string }): HTMLElement {
   const firstPx = readAxisPx(first);
   const secondPx = readAxisPx(second);
-  const bracket = createElement("div", { class: className, "data-component": "sessionDotsBracket" });
+  const bracket = createElement("div", { class: className, ...componentTag });
   bracket.style.setProperty("--axis-px", String(Math.min(firstPx, secondPx)));
   bracket.style.setProperty("--span-px", String(Math.abs(secondPx - firstPx)));
   return bracket;

@@ -36,7 +36,7 @@ export function appendToolNodes(lane: HTMLElement, toolNodes: WireToolNode[], st
     const [first, second] = dots;
     const isPairComplete = first !== undefined && second !== undefined;
     if (isPairComplete) {
-      const bracket = buildPairBracket(first, second, "tbracket");
+      const bracket = buildPairBracket(first, second, "tbracket", { "data-component": "laneToolBracket" });
       bracket.setAttribute("data-pair-id", pairId);
       lane.append(bracket);
     }

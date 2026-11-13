@@ -43,14 +43,14 @@ function listPairLadder(pair: WirePair, branches: WireBranch[]): NodeWithSameTim
 
 function appendTrunkNodes(lane: HTMLElement, pair: WirePair, startPx: number): void {
   if (pair.created !== undefined) {
-    appendAxisNode(lane, pair.created.axisPx - startPx, pair.created.instant, "n-disk n-created", "created at", CREATED_NODE_TITLE);
+    appendAxisNode(lane, pair.created.axisPx - startPx, pair.created.instant, "n-disk n-created", "created at", { "data-component": "bubbleCreatedNode" }, { "data-component": "bubbleCreatedNodeLabel" }, CREATED_NODE_TITLE);
   }
   for (const commit of pair.commits) {
     const isCurrentCommit = isCurrentEngineV3Node(commit.hash);
     const nodeClass = isCurrentCommit ? `n-commit ${CURRENT_NODE_CLASS}` : "n-commit";
-    appendAxisNode(lane, commit.axisPx - startPx, commit.instant, nodeClass, commit.hash.slice(0, SHORT_HASH_LENGTH), commit.hash);
+    appendAxisNode(lane, commit.axisPx - startPx, commit.instant, nodeClass, commit.hash.slice(0, SHORT_HASH_LENGTH), { "data-component": "bubbleCommitNode" }, { "data-component": "bubbleCommitNodeLabel" }, commit.hash);
   }
-  appendAxisNode(lane, pair.onDisk.axisPx - startPx, pair.onDisk.instant, "n-disk", "on disk");
+  appendAxisNode(lane, pair.onDisk.axisPx - startPx, pair.onDisk.instant, "n-disk", "on disk", { "data-component": "bubbleOnDiskNode" }, { "data-component": "bubbleOnDiskNodeLabel" });
   for (const snapshot of pair.snapshots ?? []) {
     appendSnapshotNode(lane, snapshot.axisPx - startPx, snapshot);
   }

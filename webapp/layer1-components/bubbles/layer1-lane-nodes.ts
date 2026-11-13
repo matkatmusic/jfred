@@ -24,10 +24,10 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 }
 
 // The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
-export function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, titleText?: string): void {
+export function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, nodeTag: { "data-component": string }, labelTag: { "data-component": string }, titleText?: string): void {
   lane.append(
-    setAxisPx(createElement("i", { class: `node ${nodeClass}`, "data-component": "laneAxisNode", title: titleText, "data-instant": instant }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel", "data-component": "laneAxisNodeLabel", text, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("i", { class: `node ${nodeClass}`, ...nodeTag, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel", ...labelTag, text, title: titleText, "data-instant": instant }), axisPx),
   );
 }
 

@@ -84,6 +84,17 @@ function registerCanvasResizeObserver(): void {
   new window.ResizeObserver(() => renderLayer1Minimap()).observe(canvas);
 }
 
+let isTimelinePaneObserved = false;
+
+// The pane shrinks when the names rows appear; the fixed minimap must follow its bottom edge.
+function registerPaneResizeObserver(): void {
+  if (isTimelinePaneObserved) {
+    return;
+  }
+  isTimelinePaneObserved = true;
+  new window.ResizeObserver(() => moveMiniMapToRulerEdge()).observe(getTimelinePane());
+}
+
 // Rebuild the whole map after every render and every canvas resize.
 export function renderLayer1Minimap(): void {
   const pane = getTimelinePane();
@@ -109,5 +120,6 @@ export function renderLayer1Minimap(): void {
   syncMinimapViewport();
   registerMinimapListeners();
   registerCanvasResizeObserver();
+  registerPaneResizeObserver();
   moveMiniMapToRulerEdge();
 }

@@ -24,7 +24,7 @@ test("test_setAxisPx_sets_the_axis_px_custom_property_and_returns_the_node", () 
 test("test_appendAxisNode_adds_a_dot_and_a_label_with_the_title_and_instant", () => {
   // Scenario: a commit node with a title.
   const lane = document.createElement("div");
-  appendAxisNode(lane, 10, INSTANT, "n-commit", "abc12345", "abc12345full");
+  appendAxisNode(lane, 10, INSTANT, "n-commit", "abc12345", { "data-component": "testNode" }, { "data-component": "testNodeLabel" }, "abc12345full");
   const dot = lane.querySelector("i.node.n-commit");
   const label = lane.querySelector("span.nlabel");
   assert.equal(dot?.getAttribute("title"), "abc12345full");

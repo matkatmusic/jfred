@@ -90,3 +90,407 @@ The minimap is the first child of `timelineRulerContainer`. It uses `position: f
 | load bar, progress bar | Load progress bar | loading-bar/layer1-progress.ts | `#loadbar` in `#timelineComponentsContainer` | Load progress indicator |
 | branch picker, commit picker, branch dropdown | Branch picker | layer1-refs.ts (markup in top-bars/top-bars.html) | branch `#branch`, commit `#commit` (in `label.repo-only`); hidden until `.repo-ok` is set on `.sources.repo` | Dropdowns that write into `#ref` |
 | commits column, jfred strip, commits drawer, commit mode, jfredCommitsDrawerComponent | Commits column / Commit mode | commits-column/layer1-jfred-strip.ts, commits-column/layer1-cut-marks.ts | drawer `#jfredCommitsDrawerComponent` (`.jfredCommitsDrawerComponent`, added into `timelineRulerContainer` when shown, position: relative, pushes the bubbles right); button `#commit-mode`; nodes `.jnode`; chains `.jchain`; Yes/No row `#yesno-row` (popups/layer1-yes-no-row.ts) | Drawer of jfred commit nodes beside the timeline, plus the button that arms commit mode |
+
+## Every data-component name
+
+Turn the "names" button on, then hover any part of the page to see its name here. Copy gives the file and line.
+
+### Header row
+
+| Name | File | What you see |
+|---|---|---|
+| headerPageTitle | layer1-components/top-bars/top-bars.html | Big title "Layer 1 View" |
+| headerCrumbReadout | layer1-components/top-bars/top-bars.html | Small count text beside the title |
+| TimeToggle | layer1-components/top-bars/top-bars.html | The "Time:" box with the two buttons |
+| headerTimeCommitterButton | layer1-components/top-bars/top-bars.html | "committer" button |
+| headerTimeAuthorButton | layer1-components/top-bars/top-bars.html | "author" button |
+| headerProjectSettingsButton | layer1-components/top-bars/top-bars.html | "project settings" button |
+| headerClearResultsButton | layer1-components/top-bars/top-bars.html | "Clear saved results" button |
+| headerNamesToggleButton | layer1-components/top-bars/top-bars.html | "names" button |
+| headerClearResultsConfirmText | layer1-components/top-bars/top-bars.html | Question "Clear all saved results and compute everything again?" |
+| headerClearResultsYesButton | layer1-components/top-bars/top-bars.html | "Yes, clear" button |
+| headerClearResultsNoButton | layer1-components/top-bars/top-bars.html | "No" button next to "Yes, clear" |
+| ZoomBar | layer1-components/top-bars/top-bars.html | The "Zoom:" box with four controls |
+| headerZoomOutButton | layer1-components/top-bars/top-bars.html | "−" button |
+| headerZoomLevelReadout | layer1-components/top-bars/top-bars.html | Zoom number, for example "100%" |
+| headerZoomInButton | layer1-components/top-bars/top-bars.html | "+" button |
+| headerZoomResetButton | layer1-components/top-bars/top-bars.html | "Reset" button |
+| headerLayer3Button | layer1-components/top-bars/top-bars.html | Round button "3" |
+| headerLayer4Button | layer1-components/top-bars/top-bars.html | Round button "4" |
+| headerProjectFolderLabel | layer1-components/top-bars/top-bars.html | The "Project folder" label with its box and button |
+| headerProjectFolderInput | layer1-components/top-bars/top-bars.html | Text box for the project folder |
+| headerProjectFolderOpenButton | layer1-components/top-bars/top-bars.html | "Open…" button by the project folder |
+| headerJsonlSourcesButton | layer1-components/top-bars/top-bars.html | "JSONL sources" button |
+| headerFileHistorySnapshotsButton | layer1-components/top-bars/top-bars.html | "File History Snapshots" button |
+| headerSaveProjectSettingsButton | layer1-components/top-bars/top-bars.html | "Save project settings" button |
+| headerSavedNoteText | layer1-components/top-bars/top-bars.html | Small "saved" note after saving |
+| headerGitRepoLabel | layer1-components/top-bars/top-bars.html | The "Git repo" label with its box and button |
+| headerGitRepoInput | layer1-components/top-bars/top-bars.html | Text box for the git repo folder |
+| headerGitRepoOpenButton | layer1-components/top-bars/top-bars.html | "Open…" button by the git repo |
+| headerGitRepoFlagText | layer1-components/top-bars/top-bars.html | Green "✓ git repo" flag |
+| BranchPicker | layer1-components/top-bars/top-bars.html | The "Branch" label with its list |
+| headerBranchSelect | layer1-components/top-bars/top-bars.html | Branch drop-down list |
+| headerBranchItem | layer1-refs.ts | One branch name inside the branch list |
+| headerBranchHeadItem | layer1-refs.ts | First choice "(branch head)" in the branch list |
+| CommitPicker | layer1-components/top-bars/top-bars.html | The "Commit" label with its list |
+| headerCommitSelect | layer1-components/top-bars/top-bars.html | Commit drop-down list |
+| headerCommitItem | layer1-refs.ts | One commit line inside the commit list |
+| headerRefLabel | layer1-components/top-bars/top-bars.html | The "Ref" label with its box |
+| headerRefInput | layer1-components/top-bars/top-bars.html | Text box with "default branch" hint |
+| headerLoadButton | layer1-components/top-bars/top-bars.html | "Load" button |
+
+### Jump row
+
+| Name | File | What you see |
+|---|---|---|
+| jumpToRowComponent | layer1-components/top-bars/top-bars.html | The whole row that starts with "Jump to:" |
+| jumpToRowNoRepositoryMatchButton | layer1-components/top-bars/top-bars.html | "No repository match" button |
+| jumpToRowNoOnDiskMatchButton | layer1-components/top-bars/top-bars.html | "No on-disk match" button |
+| FindBox | layer1-components/top-bars/top-bars.html | The "Find bubble" label with its box and list |
+| jumpToRowFindFileInput | layer1-components/top-bars/top-bars.html | Text box where you type a file name |
+| jumpToRowFindResultsList | layer1-components/top-bars/top-bars.html | Drop-down list of matching files |
+| jumpToRowFindSuggestionItem | layer1-components/top-bars/layer1-find-file.ts | One file path in that drop-down list |
+| jumpToRowFindPreviousButton | layer1-components/top-bars/top-bars.html | "‹" button, previous match |
+| jumpToRowFindNextButton | layer1-components/top-bars/top-bars.html | "›" button, next match |
+| jumpToRowFindStatusReadout | layer1-components/top-bars/top-bars.html | Small text such as the match count |
+| jumpToRowReverseButton | layer1-components/top-bars/top-bars.html | "reverse" button |
+| jumpToRowReverseModifyingOnlyLabel | layer1-components/top-bars/top-bars.html | Label "Show only modifying events for File" |
+| jumpToRowReverseModifyingOnlyCheckbox | layer1-components/top-bars/top-bars.html | Check box inside that label |
+
+### Sources (file nav, JSONLs)
+
+| Name | File | What you see |
+|---|---|---|
+| fileNavComponent | layer1-components/file-nav/file-nav.html | Left upper pane "File Nav" |
+| fileNavTitleBar | layer1-components/file-nav/file-nav.html | Title strip of File Nav |
+| fileNavShowOnlySelectedButton | layer1-components/file-nav/file-nav.html | "Show Only Selected" button |
+| fileNavSearchInput | layer1-components/file-nav/file-nav.html | Box "search files..." |
+| fileNavSearchClearButton | layer1-components/file-nav/file-nav.html | "×" button by the file search |
+| fileNavTreeList | layer1-components/file-nav/file-nav.html | The file and folder tree |
+| fileNavFolderRow | views/sidebar.ts | One folder name line in the tree |
+| fileNavFolderItem | views/sidebar.ts | One folder with all that is inside it |
+| fileNavFolderToggle | views/sidebar.ts | Small arrow that opens or closes a folder |
+| fileNavFileRow | views/sidebar-file-leaf.ts | One file line in the tree |
+| fileNavRevisionCountReadout | views/sidebar-file-leaf.ts | Number in brackets after a file name |
+| fileNavRenameBadgeText | views/sidebar-file-leaf.ts | Small rename badge on a file line |
+| NavPaneGrip | layer1-components/file-nav/file-nav.html | Thin bar between File Nav and JSONLs; drag it to change heights |
+| FileNavGrip | layer1-components/file-nav/filenav-grip.html | Thin bar at the right of the left panes; drag it to change width |
+| jsonlsComponent | layer1-components/jsonls-nav/jsonls-nav.html | Left lower pane "JSONLs" |
+| jsonlsPaneTitle | layer1-components/jsonls-nav/jsonls-nav.html | Title strip "JSONLs" |
+| jsonlsAllSessionsButton | layer1-components/jsonls-nav/jsonls-nav.html | "All sessions" button |
+| jsonlsSessionSearchInput | layer1-components/jsonls-nav/jsonls-nav.html | Box "search titles..." |
+| jsonlsSessionSearchClearButton | layer1-components/jsonls-nav/jsonls-nav.html | "×" button by the title search |
+| jsonlsSessionList | layer1-components/jsonls-nav/jsonls-nav.html | The list of sessions |
+| jsonlsSessionRow | layer1-components/jsonls-nav/layer1-session-pane.ts | One session in the list |
+| jsonlsSessionTitleText | layer1-components/jsonls-nav/layer1-session-pane.ts | Title line of a session |
+| jsonlsSessionFileNameText | layer1-components/jsonls-nav/layer1-session-pane.ts | JSONL file name of a session |
+| jsonlsSessionMetaText | layer1-components/jsonls-nav/layer1-session-pane.ts | Date and "N files" line of a session |
+| jsonlsNoJsonlsEmptyText | layer1-components/jsonls-nav/layer1-session-pane.ts | Text "no JSONLs touched this project's files" |
+| jsonlsNoMatchesEmptyText | layer1-components/jsonls-nav/layer1-session-pane.ts | Text "no matches" |
+| jsonlsScanProgressBar | layer1-components/jsonls-nav/layer1-sessions.ts | Progress bar shown while the JSONLs are scanned |
+| jsonlsScanTrackBar | layer1-components/jsonls-nav/layer1-sessions.ts | Empty track of that progress bar |
+| jsonlsScanFillBar | layer1-components/jsonls-nav/layer1-sessions.ts | Filled part of that progress bar |
+| jsonlsScanLabel | layer1-components/jsonls-nav/layer1-sessions.ts | Text "scanning JSONL files" |
+| jsonlsErrorText | layer1-components/jsonls-nav/layer1-sessions.ts | Error text when the scan fails |
+
+### Timeline view controls
+
+| Name | File | What you see |
+|---|---|---|
+| timelineViewControls | layer1-components/show-row/show-row.html | The row of check boxes above the timeline |
+| viewControlsShowLabel | layer1-components/show-row/layer1-show-row.ts | Word "show:" at the start of the row |
+| viewControlsKindCheckbox | layer1-components/show-row/layer1-show-row.ts | One check box for one node kind |
+| viewControlsKindLabel | layer1-components/show-row/layer1-show-row.ts | Colour swatch and name of one node kind |
+| viewControlsKindJumpButton | layer1-components/show-row/layer1-show-row.ts | Small arrow button that jumps to the next or previous node of that kind |
+| viewControlsHideIgnoredCheckbox | layer1-components/show-row/layer1-hide-ignored.ts | Check box for "hide ignored nodes" |
+| viewControlsHideIgnoredLabel | layer1-components/show-row/layer1-hide-ignored.ts | Label "hide ignored nodes" |
+| viewControlsSessionToggleButton | layer1-components/show-row/show-row.html | "session" button at the end of the row |
+
+### Load bar
+
+| Name | File | What you see |
+|---|---|---|
+| LoadProgressBar | layer1-components/loading-bar/loading-bar.html | The whole bar above the timeline while it loads |
+| loadBarTrackBar | layer1-components/loading-bar/loading-bar.html | Empty track |
+| loadBarFillBar | layer1-components/loading-bar/loading-bar.html | Filled part of the track |
+| loadBarLabelText | layer1-components/loading-bar/loading-bar.html | Progress words |
+| loadBarCancelButton | layer1-components/loading-bar/loading-bar.html | "Cancel" button |
+| loadBarConfirmDialog | layer1-components/loading-bar/loading-bar.html | Question "Cancel this build?" |
+| loadBarConfirmYesButton | layer1-components/loading-bar/loading-bar.html | "Yes, cancel" button |
+| loadBarConfirmNoButton | layer1-components/loading-bar/loading-bar.html | "No" button in that question |
+
+### Ruler
+
+| Name | File | What you see |
+|---|---|---|
+| timelineRulerComponent | layer1-components/ruler/ruler.html | The time ruler at the left of the timeline |
+| rulerRailBar | layer1-components/ruler/ruler.html | Vertical line of the ruler before it is filled |
+| rulerDottedLine | layer1-components/bubbles/layer1-stage-render.ts | Vertical dotted line of the ruler |
+| rulerTick | layer1-components/bubbles/layer1-stage-render.ts | One tick mark with its text |
+| rulerHeadBar | layer1-components/ruler/layer1-ruler-head.ts | Strip at the top of the ruler |
+| rulerTimeText | layer1-components/ruler/layer1-ruler-display.ts | Time text on a tick |
+| rulerCountText | layer1-components/ruler/layer1-ruler-display.ts | Count text on a tick |
+| rulerKindDashList | layer1-components/ruler/layer1-tick-kinds.ts | Row of small coloured dashes on a tick |
+| rulerKindDashTick | layer1-components/ruler/layer1-tick-kinds.ts | One coloured dash, one node kind |
+| rulerTickFileList | layer1-components/ruler/layer1-tick-events.ts | List of file buttons under an opened tick |
+| rulerTickFileButton | layer1-components/ruler/layer1-tick-events.ts | One file button under an opened tick |
+
+### Session dots
+
+| Name | File | What you see |
+|---|---|---|
+| sessionDotLinesComponent | layer1-components/session-column/layer1-annotation-track.ts | The column of session dots next to the ruler |
+| sessionDotsDot | layer1-components/session-column/layer1-annotation-dots.ts | One round session dot |
+| sessionDotsLine | layer1-components/session-column/layer1-annotation-dots.ts | Line that joins two session dots |
+| sessionDotsBracket | layer1-components/session-column/layer1-annotation-dots.ts | Bracket that joins two session dots |
+| sessionDotsJsonText | layer1-components/session-column/layer1-annotation-click.ts | Raw JSON text in the details pane after a dot click |
+
+### Commits drawer
+
+| Name | File | What you see |
+|---|---|---|
+| jfredCommitsDrawerComponent | layer1-components/commits-column/layer1-jfred-strip.ts | The column of jfred commit nodes |
+| commitsHeadTitle | layer1-components/commits-column/layer1-jfred-strip.ts | Word "commits" at the top of the column |
+| commitsDeleteBranchButton | layer1-components/commits-column/layer1-jfred-strip.ts | "Delete jfred branch" button |
+| commitsNodeDot | layer1-components/commits-column/layer1-jfred-entries.ts | One commit dot |
+| commitsChainLine | layer1-components/commits-column/layer1-jfred-entries.ts | Line that joins two commit dots |
+| commitsHashLabel | layer1-components/commits-column/layer1-jfred-entries.ts | Short hash text beside a commit dot |
+| commitsHoverLine | layer1-components/commits-column/layer1-jfred-entries.ts | Horizontal line that shows when you point at a commit dot |
+| commitsPendingCommitButton | layer1-components/commits-column/layer1-jfred-drawer.ts | "Commit" button |
+| commitsMessageText | layer1-components/commits-column/layer1-jfred-drawer.ts | Commit message text |
+| CommitMode | layer1-components/commits-column/commits-column.html | "Commit mode" button |
+
+### Minimap
+
+| Name | File | What you see |
+|---|---|---|
+| minimapComponent | layer1-components/minimap/minimap.html | The small overview box |
+| minimapTitleText | layer1-components/minimap/minimap.html | Word "minimap" |
+| minimapPlotSection | layer1-components/minimap/minimap.html | The small picture area |
+| minimapViewportNode | layer1-components/minimap/minimap.html | Draggable frame for the part you see |
+| minimapWashMarkItem | layer1-components/minimap/layer1-minimap.ts | Small band for a wash |
+| minimapFileMarkItem | layer1-components/minimap/layer1-minimap.ts | Small box for one file bubble |
+
+### Bubbles and lanes
+
+| Name | File | What you see |
+|---|---|---|
+| Bubbles | layer1-pair-widget.ts | One file bubble (column) |
+| bubbleFileNameText | layer1-pair-widget.ts | File name at the top of a bubble |
+| bubbleCommitCountText | layer1-pair-widget.ts | Text such as "3 commits · on disk" |
+| bubbleCreationUntrustedText | layer1-pair-widget.ts | Text "creation time not trusted" |
+| Lanes | layer1-pair-widget.ts | Vertical time lane inside a bubble |
+| bubbleLaneRail | layer1-pair-widget.ts | Thin line of that lane |
+| bubbleCreatedNode | layer1-pair-widget.ts | Dot for the file creation time |
+| bubbleCreatedNodeLabel | layer1-pair-widget.ts | Text "created at" |
+| bubbleCommitNode | layer1-pair-widget.ts | Dot for a commit |
+| bubbleCommitNodeLabel | layer1-pair-widget.ts | Short commit hash |
+| bubbleOnDiskNode | layer1-pair-widget.ts | Dot for the file on disk |
+| bubbleOnDiskNodeLabel | layer1-pair-widget.ts | Text "on disk" |
+| laneSnapshotNode | layer1-components/bubbles/layer1-lane-nodes.ts | Dot for a file-history snapshot |
+| laneSnapshotNodeLabel | layer1-components/bubbles/layer1-lane-nodes.ts | Text "@v" and a number, with a camera |
+| laneEditNode | layer1-components/bubbles/layer1-lane-nodes.ts | Dot for an edit or read |
+| laneEditNodeLabel | layer1-components/bubbles/layer1-lane-nodes.ts | Text "[e]" or "[R]✓" |
+| laneScriptRunNode | layer1-components/bubbles/layer1-lane-nodes.ts | Dot for a script run |
+| laneScriptRunNodeLabel | layer1-components/bubbles/layer1-lane-nodes.ts | Text beside a script run dot |
+| laneBranchRailBar | layer1-components/bubbles/layer1-lane-nodes.ts | Line of a side branch lane |
+| laneBranchNode | layer1-components/bubbles/layer1-lane-nodes.ts | Dot on a side branch lane |
+| laneBranchNodeLabel | layer1-components/bubbles/layer1-lane-nodes.ts | Text beside a branch dot |
+| laneBranchSplitLink | layer1-components/bubbles/layer1-lane-nodes.ts | Elbow where a branch leaves the lane |
+| laneBranchMergeLink | layer1-components/bubbles/layer1-lane-nodes.ts | Elbow where a branch joins the lane |
+| laneToolNode | layer1-components/bubbles/layer1-tool-nodes.ts | Dot for a tool call |
+| laneToolNodeLabel | layer1-components/bubbles/layer1-tool-nodes.ts | Letter and text beside a tool dot |
+| laneToolBracket | layer1-components/bubbles/layer1-tool-nodes.ts | Bracket that joins the two dots of one tool call |
+| laneScriptConnectorLink | layer1-components/bubbles/layer1-script-connectors.ts | Line that joins a script run to its files |
+| laneSameTimestampItem | layer1-components/bubbles/layer1-nodes-with-same-timestamp.ts | Marker for nodes that share one time |
+| bubbleOrphanBucketSection | layer1-widgets.ts | Wide box for files with no match, such as "No repository match" |
+| bubbleOrphanBucketTitle | layer1-widgets.ts | Title of that box |
+| bubbleOrphanCountText | layer1-widgets.ts | Text such as "5 files" |
+| bubbleOrphanRowList | layer1-widgets.ts | List of files in that box |
+| bubbleOrphanRow | layer1-widgets.ts | One file line in that list |
+| bubbleOrphanPathText | layer1-widgets.ts | File path in that line |
+| bubbleOrphanInstantText | layer1-widgets.ts | Date in that line |
+| bubbleMoreFilesButton | layer1-widgets.ts | Button such as "+12 more" |
+| bubbleMoreFilesList | layer1-widgets.ts | List that opens from the "more" button |
+| bubbleNoPairsText | layer1-widgets.ts | Text "No git ↔ on-disk pairs." |
+| reverseBubble | layer1-components/bubbles/layer1-reverse-bubble.ts | One file bubble in reverse mode |
+| bubbleReverseFileNameText | layer1-components/bubbles/layer1-reverse-bubble.ts | File name at the top of a reverse bubble |
+| bubbleReverseStateCountText | layer1-components/bubbles/layer1-reverse-bubble.ts | Text such as "4 states, newest first" |
+| reverseBubbleLane | layer1-components/bubbles/layer1-reverse-bubble.ts | Lane inside a reverse bubble |
+| bubbleReverseLaneRail | layer1-components/bubbles/layer1-reverse-bubble.ts | Thin line of that lane |
+| bubbleReverseStateNode | layer1-components/bubbles/layer1-reverse-bubble.ts | Dot for one file state |
+| bubbleReverseStateText | layer1-components/bubbles/layer1-reverse-bubble.ts | Text beside that dot |
+
+### Timeline marks
+
+| Name | File | What you see |
+|---|---|---|
+| Leaders | layer1-components/bubbles/bubbles.html | Layer that holds all leader lines |
+| timelineLeaderBar | layer1-components/bubbles/layer1-stage-render.ts | One horizontal line from a ruler tick across the bubbles |
+| SessionRangeBar | layer1-components/bubbles/bubbles.html | Narrow strip at the left that holds the range bars |
+| timelineSessionRangeBar | layer1-components/bubbles/layer1-ranges.ts | One thin range bar for a session |
+| timelineWash | layer1-components/bubbles/layer1-wash.ts | Soft coloured band behind the bubbles |
+| timelineWashEdgeLabel | layer1-components/bubbles/layer1-diff-wash.ts | Text "selected diff range base" or "target" on the ruler |
+
+### Details pane
+
+| Name | File | What you see |
+|---|---|---|
+| detailsPaneContainer | layer1-components/details-drawer/details-drawer.html | The panel at the right that opens on a click |
+| detailsPaneResizeGrip | layer1-components/details-drawer/details-drawer.html | Thin bar at the left edge of the panel; drag it to change width |
+| detailsPaneFilePathText | layer1-components/details-drawer/details-drawer.html | File path at the top |
+| detailsPanePreviousRevisionButton | layer1-components/details-drawer/details-drawer.html | "↑" button |
+| detailsPaneNextRevisionButton | layer1-components/details-drawer/details-drawer.html | "↓" button |
+| detailsPaneImageZoomOutButton | layer1-components/details-drawer/details-drawer.html | "−" button for images |
+| detailsPaneImageZoomFitButton | layer1-components/details-drawer/details-drawer.html | "fit" button for images |
+| detailsPaneImageZoomInButton | layer1-components/details-drawer/details-drawer.html | "+" button for images |
+| detailsPaneCollapseAllButton | layer1-components/details-drawer/details-drawer.html | "Collapse all" button |
+| detailsPaneCopyLinkButton | layer1-components/details-drawer/details-drawer.html | "Copy link" button |
+| detailsPaneCloseButton | layer1-components/details-drawer/details-drawer.html | "Close" button |
+| detailsPaneMetaText | layer1-components/details-drawer/details-drawer.html | Small info line under the top strip |
+| detailsPaneImagePreviewItem | layer1-components/details-drawer/layer1-drawer-image.ts | The picture of an image file |
+| detailsPaneNoDiffText | layer1-components/details-drawer/layer1-diff-pane.ts | Text "No text differences between these revisions." |
+| detailsPaneLineRawJsonToggle | layer1-components/details-drawer/layer1-drawer-node-detail.ts | Switch that shows the raw JSON of a line |
+| detailsPaneNodeRawJsonToggle | layer1-components/details-drawer/layer1-drawer-node-detail.ts | Switch that shows the raw JSON of a node |
+| detailsPaneRawJsonExpandButton | inspector-json.ts | Button that opens a long raw JSON text |
+| detailsPaneRawJsonText | inspector-json.ts | Raw JSON text block |
+
+### Diff view
+
+| Name | File | What you see |
+|---|---|---|
+| DiffViewSections | layer1-components/details-drawer/layer1-diff-view.ts | One fold-open section for one file |
+| diffViewFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a changed file |
+| diffViewFilePathText | layer1-components/details-drawer/layer1-diff-view.ts | File name in a section header |
+| diffViewDeletedFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a deleted file |
+| diffViewDeletedText | layer1-components/details-drawer/layer1-diff-view.ts | Text "Deleted — no on-disk state to show." |
+| diffViewImageFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of an image file |
+| diffViewImageBody | layer1-components/details-drawer/layer1-diff-view.ts | Body of an image file section |
+| diffViewPairLabelText | layer1-components/details-drawer/layer1-diff-view.ts | Label for the two revisions that are compared |
+| diffViewBaseSideNameText | layer1-components/details-drawer/layer1-diff-view.ts | Words "Base commit" |
+| diffViewTargetSideNameText | layer1-components/details-drawer/layer1-diff-view.ts | Words "Target commit" |
+| diffViewRevisionArrowButton | layer1-components/details-drawer/layer1-diff-view.ts | Small arrow that moves one side to another revision |
+| diffViewToolsBar | layer1-components/details-drawer/layer1-diff-view.ts | Strip of diff buttons |
+| diffViewSideBySideButton | layer1-components/details-drawer/layer1-diff-view.ts | "diff side-by-side" button |
+| diffViewInlineButton | layer1-components/details-drawer/layer1-diff-view.ts | "diff inline" button |
+| diffViewFullContentLabel | layer1-components/details-drawer/layer1-diff-view.ts | Label " full content" |
+| diffViewFullContentCheckbox | layer1-components/details-drawer/layer1-diff-view.ts | Check box in that label |
+| diffViewExportPatchButton | layer1-components/details-drawer/layer1-diff-view.ts | "export as patch" button |
+| diffViewMetaText | layer1-components/details-drawer/layer1-diff-view.ts | Small info line of a file section |
+| diffViewFileBody | layer1-components/details-drawer/layer1-diff-view.ts | Body that holds the diff lines |
+| diffViewInlineLineList | diff-render.ts | Inline diff, all lines |
+| diffViewInlineLineRow | diff-render.ts | Inline diff, one line |
+| diffViewInlineLineNumber | diff-render.ts | Inline diff, number at the left of a line |
+| diffViewSplitLineList | diff-render.ts | Side-by-side diff, all lines |
+| diffViewSplitHunkText | diff-render.ts | Side-by-side diff, hunk header line |
+| diffViewSplitLineCell | diff-render.ts | Side-by-side diff, text of one side |
+| diffViewSplitLineNumber | diff-render.ts | Side-by-side diff, line number of one side |
+| diffViewSplitEmptyCell | diff-render.ts | Side-by-side diff, blank side |
+| diffViewSplitEmptyLineNumber | diff-render.ts | Side-by-side diff, blank line number |
+
+### Script run drawer
+
+| Name | File | What you see |
+|---|---|---|
+| scriptRunBodyHeadBar | layer1-components/details-drawer/layer1-script-run-drawer.ts | Header strip of the script code section |
+| scriptRunBodyTitle | layer1-components/details-drawer/layer1-script-run-drawer.ts | Bold script title |
+| scriptRunProvenanceText | layer1-components/details-drawer/layer1-script-run-drawer.ts | Small text that says where the script came from |
+| scriptRunBodyCodeText | layer1-components/details-drawer/layer1-script-run-drawer.ts | The script code |
+| scriptRunMetaFoldBar | layer1-components/details-drawer/layer1-script-run-drawer.ts | Fold bar "kind, executor, instant, session, line, tool use id" |
+| scriptRunMetaList | layer1-components/details-drawer/layer1-script-run-drawer.ts | List of script facts |
+| scriptRunMetaTermText | layer1-components/details-drawer/layer1-script-run-drawer.ts | Name of one fact |
+| scriptRunMetaValueText | layer1-components/details-drawer/layer1-script-run-drawer.ts | Value of one fact |
+| scriptRunNoBubbleFoldBar | layer1-components/details-drawer/layer1-script-run-drawer.ts | Fold bar "Changed, no bubble" |
+| scriptRunNoBubbleFileRow | layer1-components/details-drawer/layer1-script-run-drawer.ts | One changed file that has no bubble |
+| scriptRunFoldSection | layer1-components/details-drawer/layer1-script-run-folds.ts | One fold-open box in the script run view |
+| scriptRunFileFoldBar | layer1-components/details-drawer/layer1-script-run-folds.ts | Fold bar with a title and "N affected file(s)" |
+| scriptRunFileFoldPathsText | layer1-components/details-drawer/layer1-script-run-folds.ts | List of file paths in that fold |
+| scriptRunStatusCheckText | layer1-components/details-drawer/layer1-script-run-status.ts | Name of one check |
+| scriptRunStatusMarkText | layer1-components/details-drawer/layer1-script-run-status.ts | Green tick or red cross for that check |
+| scriptRunConsoleOpenButton | layer1-components/details-drawer/layer1-run-console.ts | "Open run console" button |
+| scriptRunConsolePopup | layer1-components/details-drawer/layer1-run-console.ts | The run console window |
+| scriptRunConsoleTitle | layer1-components/details-drawer/layer1-run-console.ts | Words "Run output" |
+| scriptRunConsoleCloseButton | layer1-components/details-drawer/layer1-run-console.ts | "Close" button of the console |
+| scriptRunConsoleOutputText | layer1-components/details-drawer/layer1-run-console.ts | Printed output of the script |
+| scriptRunConsoleStderrText | layer1-components/details-drawer/layer1-run-console.ts | Error output of the script |
+| scriptRunConsoleNoteText | layer1-components/details-drawer/layer1-run-console.ts | Short note paragraph in the console |
+| scriptRunConsoleCancelButton | layer1-components/details-drawer/layer1-run-console.ts | Cancel button of a running script |
+| scriptRunConsoleTerminalBlock | layer1-components/details-drawer/layer1-run-console.ts | Box that shows how the run ended |
+| scriptRunConsoleTerminalTitle | layer1-components/details-drawer/layer1-run-console.ts | Bold end state in that box |
+| scriptRunConsoleTerminalDescriptionText | layer1-components/details-drawer/layer1-run-console.ts | Explanation in that box |
+
+### Popups
+
+| Name | File | What you see |
+|---|---|---|
+| JsonlSourcePickers | layer1-components/popups/popups.html | Dark screen behind the source folder dialog |
+| pathPickerPopup | layer1-components/popups/popups.html | The source folder dialog |
+| pathPickerTitle | layer1-components/popups/popups.html | Title of that dialog |
+| pathPickerFolderList | layer1-components/popups/popups.html | List of folders |
+| pathPickerFolderRow | layer1-components/popups/layer1-path-picker.ts | One folder path in the list |
+| pathPickerEmptyText | layer1-components/popups/layer1-path-picker.ts | Text "no source folders" |
+| pathPickerHintText | layer1-components/popups/popups.html | Text "earlier folders win on conflict" |
+| pathPickerAlertText | layer1-components/popups/popups.html | Red warning line |
+| pathPickerAddButton | layer1-components/popups/popups.html | "+" button |
+| pathPickerRemoveButton | layer1-components/popups/popups.html | "−" button |
+| pathPickerMoveUpButton | layer1-components/popups/popups.html | "↑" button |
+| pathPickerMoveDownButton | layer1-components/popups/popups.html | "↓" button |
+| pathPickerCancelButton | layer1-components/popups/popups.html | "cancel" button |
+| pathPickerSetAndCloseButton | layer1-components/popups/popups.html | "set and close" button |
+| toastPopup | layer1-components/popups/toast.html | Small message that shows for a short time |
+| hoverPopupPopup | layer1-components/popups/layer1-hover-popup.ts | Small box that shows when you point at a node |
+| hoverPopupLineText | layer1-components/popups/layer1-hover-popup.ts | One text line in that box |
+| busyShieldDialog | layer1-components/popups/busy-shield.html | Centre card that blocks the page while work runs |
+| busyShieldProgressBar | layer1-components/popups/busy-shield.html | Progress bar in that card |
+| busyShieldStatusText | layer1-components/popups/busy-shield.html | Status words in that card |
+| busyShieldCancelButton | layer1-components/popups/busy-shield.html | "Cancel" button in that card |
+| busyShieldErrorText | layer1-components/popups/busy-shield.html | Error text in that card |
+| busyShieldCloseButton | layer1-components/popups/busy-shield.html | "Close" button in that card |
+| runConsentPopup | layer1-components/popups/layer1-run-consent.ts | Dark screen behind the replay question |
+| runConsentDialog | layer1-components/popups/layer1-run-consent.ts | The replay question box |
+| runConsentTitle | layer1-components/popups/layer1-run-consent.ts | Title "Replay recorded scripts?" |
+| runConsentNoteText | layer1-components/popups/layer1-run-consent.ts | Paragraph that explains the replay |
+| runConsentScriptCountText | layer1-components/popups/layer1-run-consent.ts | Text such as "3 recorded script(s) can run on this page" |
+| runConsentRunButton | layer1-components/popups/layer1-run-consent.ts | "Run scripts" button |
+| runConsentContinueWithoutRunningButton | layer1-components/popups/layer1-run-consent.ts | "Continue without running" button |
+| runConsentScriptRow | app-consent-rows.ts | One script line in the replay question |
+| runConsentScriptTimeText | app-consent-rows.ts | Time and folder of that script |
+| runConsentScriptCodeText | app-consent-rows.ts | Code of that script |
+| runConsentScriptExpandButton | app-consent-rows.ts | "Expand" button |
+| runBlockedPopup | layer1-components/popups/layer1-run-blocked-popup.ts | Small box that says a script run is blocked |
+| runBlockedMessageText | layer1-components/popups/layer1-run-blocked-popup.ts | Reason text in that box |
+| runBlockedFirstScriptStateText | layer1-components/popups/layer1-run-blocked-popup.ts | File name and state of the first blocking script |
+| runBlockedGoToFirstButton | layer1-components/popups/layer1-run-blocked-popup.ts | "Go to first unreplayed script node" button |
+| runBlockedCloseButton | layer1-components/popups/layer1-run-blocked-popup.ts | "close" button |
+| yesNoRow | layer1-components/popups/layer1-yes-no-row.ts | Row with a question and two buttons |
+| yesNoQuestionText | layer1-components/popups/layer1-yes-no-row.ts | The question |
+| yesNoYesButton | layer1-components/popups/layer1-yes-no-row.ts | Yes button |
+| yesNoNoButton | layer1-components/popups/layer1-yes-no-row.ts | No button |
+
+### engineV3 bar
+
+| Name | File | What you see |
+|---|---|---|
+| engineV3Bar | layer1-components/engine-v3/engine-v3.html | The whole engineV3 step bar |
+| engineV3BarTitle | layer1-components/engine-v3/engine-v3.html | Text "engineV3 mockup (fake steps):" |
+| engineV3StartOverButton | layer1-components/engine-v3/engine-v3.html | "Start over" button |
+| engineV3PreviousCommitButton | layer1-components/engine-v3/engine-v3.html | "Jump to previous commit" button |
+| engineV3StepBackwardsButton | layer1-components/engine-v3/engine-v3.html | "Step backwards" button |
+| engineV3StepForwardButton | layer1-components/engine-v3/engine-v3.html | "Step forward" button |
+| engineV3NextCommitButton | layer1-components/engine-v3/engine-v3.html | "Jump to next commit" button |
+| engineV3ReadoutText | layer1-components/engine-v3/engine-v3.html | Sentence and file list for the current step |
+| engineV3CurrentStepTick | layer1-components/engine-v3/layer1-engine-v3-line.ts | Line on the timeline that marks the current step |
+
+### Page boxes
+
+| Name | File | What you see |
+|---|---|---|
+| appWindow | layer1.html | The whole page |
+| headerContainer | layer1-layout.ts | Box above the session data; holds the header rows |
+| headerRowComponent | layer1-layout.ts | Top row with the title and the small buttons |
+| sessionDataContainer | layer1-layout.ts | Box under the header; holds sources and timeline |
+| sourcesContainer | layer1-layout.ts | Left column with File Nav and JSONLs |
+| timelineComponentsContainer | layer1-layout.ts | Right column with load bar, view controls, and timeline |
+| timelineContainer | layer1-layout.ts | The scroll box of the timeline |
+| timelineRulerContainer | layer1-layout.ts | Left sticky box with minimap, ruler, session dots, commits drawer |
+| fileBubbleContainer | layer1-layout.ts | Main area with all file bubbles |
