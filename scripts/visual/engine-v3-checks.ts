@@ -18,7 +18,8 @@ export const STEPS_LOADED = `${BAR}.dataset.markerIndex !== undefined`;
 export const FETCH_STEPS = `fetch('/api/layer1-engine-v3-steps').then((response) => response.json())`;
 export const COUNT_SESSION_NODES = `document.querySelectorAll('#sessionDotLinesComponent i.anode.current-node').length`;
 export const COUNT_COMMIT_NODES = `document.querySelectorAll('i.node.n-commit.current-node').length`;
-export const READ_COMMIT_HASHES = `[...new Set([...document.querySelectorAll('i.node.n-commit.current-node')].map((node) => node.title))].join(',')`;
+export const COUNT_BUBBLE_STEP_NODES = "document.querySelectorAll('.fileBubbleContainer i.node.current-node:not(.n-commit)').length";
+export const READ_COMMIT_HASHES =`[...new Set([...document.querySelectorAll('i.node.n-commit.current-node')].map((node) => node.title))].join(',')`;
 export const READ_CURRENT_NODE_ID = `document.querySelector('#sessionDotLinesComponent i.anode.current-node')?.dataset.recordId ?? ''`;
 export const READ_MARKER_INDEX = `${BAR}.dataset.markerIndex`;
 export const READ_SENTENCE = `document.getElementById('engine-v3-sentence').textContent`;
@@ -224,6 +225,8 @@ async function validateStepButtons(page: HeadlessPage, steps: WireEngineV3Steps)
   reportMarkerAt("at load", await readMarkerFacts(page), steps.steps, 0);
   await executeClickAndCheck(page, steps, "Step forward", 1);
   await executeClickAndCheck(page, steps, "Step forward", 2);
+  const bubbleStepNodeCount = await page.evaluate<number>(COUNT_BUBBLE_STEP_NODES);
+  reportCheck("engineV3 Step forward to step 2: a bubble node on the line has the ring", bubbleStepNodeCount > 0, bubbleStepNodeCount);
   await executeClickAndCheck(page, steps, "Step backwards", 1);
   await executeClickAndCheck(page, steps, "Jump to next commit", 3);
   await executeClickAndCheck(page, steps, "Jump to previous commit", 0);

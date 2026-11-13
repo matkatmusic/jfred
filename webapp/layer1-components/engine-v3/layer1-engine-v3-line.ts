@@ -4,13 +4,29 @@ import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { computeAxisPixelsAt } from "../bubbles/layer1-ranges.ts";
 import { setAxisPx } from "../bubbles/layer1-lane-nodes.ts";
 import { listElementsDrawnAtAxisPx } from "../ruler/layer1-ruler-click.ts";
-import { readCurrentStep } from "./layer1-engine-v3-state.ts";
+import { CURRENT_NODE_CLASS, readCurrentStep } from "./layer1-engine-v3-state.ts";
+import { EngineV3StepKind } from "./layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
 
 const LINE_ID = "engine-v3-line";
 
 // CSS draws a bubble with this class solid above the line, so the line hides inside it.
 const LINE_HIDING_BUBBLE_CLASS = "hides-engine-v3-line";
+
+// Commit nodes are ringed by hash in the panel; any other step rings the bubble nodes on its line.
+function ringStepNodesOnLine(elements: readonly HTMLElement[]): void {
+  const isCommitStep = readCurrentStep()!.kind === EngineV3StepKind.commit;
+  if (isCommitStep) {
+    return;
+  }
+  for (const element of elements) {
+    if (element.matches(".node")) {
+      if (!element.matches(".n-commit")) {
+        element.classList.add(CURRENT_NODE_CLASS);
+      }
+    }
+  }
+}
 
 function markBubblesHoldingNodesOnLine(axisPx: number | undefined): void {
   for (const bubble of document.querySelectorAll<HTMLElement>(".filebox")) {
@@ -19,9 +35,12 @@ function markBubblesHoldingNodesOnLine(axisPx: number | undefined): void {
   if (axisPx === undefined) {
     return;
   }
-  for (const element of listElementsDrawnAtAxisPx(axisPx)) {
+  const elementsOnLine = listElementsDrawnAtAxisPx(axisPx);
+  // for (const element of listElementsDrawnAtAxisPx(axisPx)) {
+  for (const element of elementsOnLine) {
     element.closest<HTMLElement>(".filebox")!.classList.add(LINE_HIDING_BUBBLE_CLASS);
   }
+  ringStepNodesOnLine(elementsOnLine);
 }
 
 // Module state because a filter redraw hands the stage a view, and the marker moves between redraws.

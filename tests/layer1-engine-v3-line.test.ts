@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
 import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
-import { moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
+import { CURRENT_NODE_CLASS, moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
 import { EngineV3StepKind, type WireEngineV3Step } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -18,6 +18,10 @@ const TICKS: WireRulerTick[] = [
 
 function buildStep(nodeTime: string): WireEngineV3Step {
     return { nodeId: "a1b2c3d4", nodeTime, kind: EngineV3StepKind.commit, filesChanged: [], sentence: "x" };
+}
+
+function buildStepOfKind(nodeTime: string, kind: EngineV3StepKind): WireEngineV3Step {
+    return { ...buildStep(nodeTime), kind };
 }
 
 function readLine(): HTMLElement {
@@ -165,6 +169,48 @@ test("test_a_hidden_line_hides_inside_no_bubble", () => {
     renderEngineV3LineAtTicks(TICKS);
     assert.equal(readLine().hidden, true);
     assert.equal(bubble.classList.contains(HIDES_LINE_CLASS), false);
+    clearFileBubbles(container);
+});
+
+test("test_an_edit_step_rings_the_bubble_nodes_on_the_line", () => {
+    // Steps: edit step at axis px 300, bubble A node drawn at 300 (n-edit), bubble B node at 500, draw, expect only A's node ringed.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStepOfKind("2026-06-01T10:00:00.000Z", EngineV3StepKind.edit)]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubbleA = appendBubbleWithNode(container, 250, 50);
+    const bubbleB = appendBubbleWithNode(container, 0, 500);
+    const nodeA = bubbleA.querySelector(".node")!;
+    const nodeB = bubbleB.querySelector(".node")!;
+    nodeA.classList.add("n-edit");
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(nodeA.classList.contains(CURRENT_NODE_CLASS), true);
+    assert.equal(nodeB.classList.contains(CURRENT_NODE_CLASS), false);
+    clearFileBubbles(container);
+});
+
+test("test_a_non_commit_step_does_not_ring_a_commit_node_on_the_line", () => {
+    // Steps: edit step at axis px 300, bubble A node drawn at 300 is a commit node, draw, expect no ring on it.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStepOfKind("2026-06-01T10:00:00.000Z", EngineV3StepKind.edit)]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubbleA = appendBubbleWithNode(container, 250, 50);
+    const nodeA = bubbleA.querySelector(".node")!;
+    nodeA.classList.add("n-commit");
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(nodeA.classList.contains(CURRENT_NODE_CLASS), false);
+    clearFileBubbles(container);
+});
+
+test("test_a_commit_step_adds_no_ring_from_the_line", () => {
+    // Steps: commit step at axis px 300, bubble A node drawn at 300 is an edit node, draw, expect no ring from the line.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStepOfKind("2026-06-01T10:00:00.000Z", EngineV3StepKind.commit)]);
+    const container = getRequiredElementById("fileBubbleContainer");
+    const bubbleA = appendBubbleWithNode(container, 250, 50);
+    const nodeA = bubbleA.querySelector(".node")!;
+    nodeA.classList.add("n-edit");
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(nodeA.classList.contains(CURRENT_NODE_CLASS), false);
     clearFileBubbles(container);
 });
 

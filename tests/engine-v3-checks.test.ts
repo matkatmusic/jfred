@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    BUTTON_LABELS, COUNT_COMMIT_NODES, COUNT_SESSION_NODES, FETCH_RULER, FETCH_STEPS, READ_COMMIT_HASHES, READ_CURRENT_NODE_ID, READ_LINE_DEPTH_FACTS,
+    BUTTON_LABELS, COUNT_BUBBLE_STEP_NODES, COUNT_COMMIT_NODES, COUNT_SESSION_NODES, FETCH_RULER, FETCH_STEPS, READ_COMMIT_HASHES, READ_CURRENT_NODE_ID, READ_LINE_DEPTH_FACTS,
     READ_LINE_FACTS, READ_LINE_IN_VIEW, READ_MARKER_INDEX, READ_OFF_FLAGS, READ_SENTENCE, READ_TRACK_COUNT, buildClickButtonByLabel, buildClickLabelWhileOn,
     buildClickNode, buildReadLeaderTop, isCurrentNodeAboveLine, isMarkedBubbleAboveLine, validateEngineV3Mockup,
 } from "../scripts/visual/engine-v3-checks.ts";
@@ -29,7 +29,7 @@ const AXIS_STEP_PX = 100;
 const LANE_Y = 52;
 
 // What the fake page gets wrong, one fault per test.
-interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean; isLineOverNode?: boolean; isBubbleUnderLine?: boolean }
+interface Faults { isRuleBroken?: boolean; isLineStuck?: boolean; isLineOffScreen?: boolean; isLineOverNode?: boolean; isBubbleUnderLine?: boolean; isBubbleRingMissing?: boolean }
 
 // The page's five off flags, in button order, as the panel sets them.
 function readOffFlags(isRuleBroken: boolean): string {
@@ -52,6 +52,7 @@ function listMarkerAnswers(faults: Faults): [string, () => unknown][] {
         [READ_MARKER_INDEX, () => String(readMarkerIndex())],
         [READ_SENTENCE, () => readCurrentStep()!.sentence],
         [READ_OFF_FLAGS, () => readOffFlags(faults.isRuleBroken === true)],
+        [COUNT_BUBBLE_STEP_NODES, () => (faults.isBubbleRingMissing || readCurrentStep()!.kind === commit ? 0 : 1)],
     ];
 }
 
@@ -150,6 +151,13 @@ test("test_the_bubble_judge_passes_only_for_a_solid_bubble_above_the_line", () =
     assert.equal(isMarkedBubbleAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 5, isBubbleSolid: true }), false);
     assert.equal(isMarkedBubbleAboveLine({ lineZ: 5, nodeZ: 7, bubbleZ: 6, isBubbleSolid: false }), false);
     assert.equal(isMarkedBubbleAboveLine(null), false);
+});
+
+test("test_the_checks_fail_when_a_non_commit_step_rings_no_bubble_node", async () => {
+    // Steps: no bubble node on the line has the ring, expect only the ring check to fail.
+    const failures = await listFailuresWith({ isBubbleRingMissing: true });
+    assert.ok(failures.length > 0);
+    assert.ok(failures.every((title) => title.includes("ring")), failures.join(" | "));
 });
 
 test("test_the_checks_look_at_the_line_with_the_session_column_off", async () => {

@@ -23,5 +23,6 @@
   */
   /* .node.n-commit.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; } */
   /* z-index 7 sits above the engineV3 line (5) and the other bubble dots (6). */
-  .node.n-commit.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 7; }
+  /* .node.n-commit.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 7; } */
+  .node.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 7; }
   .sessionDotLinesComponent .anode.current-node { outline: 3px solid var(--ink, #0b0b0b); outline-offset: 2px; z-index: 3; }
