@@ -243,9 +243,9 @@ test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", () =>
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     // Build the track by showing the session lines.
     toggleSessionColumn();
-    // The ruler container holds exactly: ruler, track, strip, in that order.
+    // The ruler container holds exactly: minimap, ruler, track, strip, in that order.
     const rulerContainer = document.getElementById("timelineRulerContainer")!;
-    assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
+    assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["minimapComponent", "timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
     // Leave Commit mode off for the other tests in this file.
     setArmed(false);
 });
