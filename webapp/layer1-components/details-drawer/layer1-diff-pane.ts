@@ -50,7 +50,7 @@ export function createDiffPane(mounts: DiffPaneMounts, options: DiffPaneOptions)
     }
     updateControls();
     if (diffText === "") {
-      mounts.body.replaceChildren(createElement("div", { class: "dbinary", text: "No text differences between these revisions." }));
+      mounts.body.replaceChildren(createElement("div", { "data-component": "detailsPaneNoDiffText", class: "dbinary", text: "No text differences between these revisions." }));
       return;
     }
     mounts.body.replaceChildren();

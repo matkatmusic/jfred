@@ -31,7 +31,7 @@ function renderTickTime(tick: HTMLElement, row: RulerRow): void {
     firstChild.textContent = timeText;
     return;
   }
-  const timeSpan = createElement("span", { class: "ttime", text: timeText });
+  const timeSpan = createElement("span", { class: "ttime", "data-component": "rulerTimeText", text: timeText });
   if (firstChild === null) {
     tick.prepend(timeSpan);
     return;
@@ -48,7 +48,7 @@ function renderTickCount(tick: HTMLElement, row: RulerRow): void {
     return;
   }
   const anchor = tick.querySelector(":scope > .kind-dashes") ?? tick.firstChild;
-  anchor?.after(createElement("span", { class: "tcount", text: countText }));
+  anchor?.after(createElement("span", { class: "tcount", "data-component": "rulerCountText", text: countText }));
 }
 
 // The row's only session, or undefined when zero or several sessions have a dot there.

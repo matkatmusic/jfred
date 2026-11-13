@@ -25,13 +25,13 @@ function buildSessionItem(session: WireSession, onChange: () => void): HTMLEleme
   const distinctTitles = [...new Set(session.titles)];
   const titleRows: HTMLElement[] = [];
   for (const title of distinctTitles) {
-    titleRows.push(createElement("div", { class: "stitle", text: title }));
+    titleRows.push(createElement("div", { class: "stitle", "data-component": "jsonlsSessionTitleText", text: title }));
   }
-  const item = createElement("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}` }, [
-    createElement("div", { class: "sname", text: session.file }),
+  const item = createElement("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}`, "data-component": "jsonlsSessionRow" }, [
+    createElement("div", { class: "sname", "data-component": "jsonlsSessionFileNameText", text: session.file }),
     ...titleRows,
     // The day, then how many project files this session touched.
-    createElement("div", { class: "smeta", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
+    createElement("div", { class: "smeta", "data-component": "jsonlsSessionMetaText", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
   ]);
   item.title = [...distinctTitles, `${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}`,
     ...session.paths].join("\n");
@@ -73,10 +73,10 @@ export function renderSessionPane(onChange: () => void): void {
   }
   const rows: HTMLElement[] = [];
   if (visible.length === 0) {
-    rows.push(createElement("div", { class: "navempty", text: "no JSONLs touched this project's files" }));
+    rows.push(createElement("div", { class: "navempty", "data-component": "jsonlsNoJsonlsEmptyText", text: "no JSONLs touched this project's files" }));
   }
   else if (matching.length === 0) {
-    rows.push(createElement("div", { class: "navempty", text: "no matches" }));
+    rows.push(createElement("div", { class: "navempty", "data-component": "jsonlsNoMatchesEmptyText", text: "no matches" }));
   }
   else {
     for (const session of matching) {

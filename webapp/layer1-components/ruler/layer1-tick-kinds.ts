@@ -20,10 +20,10 @@ function renderKindDashes(tick: HTMLElement, visible: TickEvent[]): void {
       }
     }
     if (hasVisibleEventOfKind) {
-      dashes.push(createElement("i", { class: `kdash kdash-${kind}`, title: SHOW_ROW_LABELS[kind] }));
+      dashes.push(createElement("i", { class: `kdash kdash-${kind}`, "data-component": "rulerKindDashTick", title: SHOW_ROW_LABELS[kind] }));
     }
   }
-  tick.insertBefore(createElement("span", { class: "kind-dashes" }, dashes), tick.firstChild?.nextSibling ?? null);
+  tick.insertBefore(createElement("span", { class: "kind-dashes", "data-component": "rulerKindDashList" }, dashes), tick.firstChild?.nextSibling ?? null);
 }
 
 // Underline rows that would EXPAND (mockup 687); a row with only hidden kinds hides but keeps its slot.

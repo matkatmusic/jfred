@@ -26,7 +26,7 @@ function readMinimapScale(): MinimapScale {
 
 // One `.wash` band's minimap mark: measured like a `.filebox` mark, plus its tint.
 function buildWashMark(wash: Element, pane: HTMLElement, paneRect: DOMRect, scale: MinimapScale): HTMLElement {
-  const mark = createElement("div", { class: "mm-wash" });
+  const mark = createElement("div", { class: "mm-wash", "data-component": "minimapWashMarkItem" });
   applyBoxToPlot(mark, measureInContent(wash, pane, paneRect), scale);
   mark.style.setProperty("--wash-color", (wash as HTMLElement).style.getPropertyValue("--wash-color"));
   return mark;
@@ -100,7 +100,7 @@ export function renderLayer1Minimap(): void {
   const marks: HTMLElement[] = [];
   for (const widget of document.querySelectorAll(".filebox")) {
     // Orphan buckets are `.filebox.bucket`; they read as muted on the map, as on the canvas.
-    const mark = createElement("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box" });
+    const mark = createElement("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box", "data-component": "minimapFileMarkItem" });
     applyBoxToPlot(mark, measureInContent(widget, pane, paneRect), scale);
     marks.push(mark);
   }

@@ -20,7 +20,7 @@ function findOrBuildPopupElement(): HTMLElement {
   if (existing !== null) {
     return existing;
   }
-  const popup = createElement("div", { id: POPUP_ID, class: "hover-popup", hidden: "" });
+  const popup = createElement("div", { id: POPUP_ID, class: "hover-popup", hidden: "", "data-component": "hoverPopupPopup" });
   const page = document.querySelector(".appWindow");
   if (page === null) {
     throw new Error("hover popup needs the .appWindow page element");
@@ -30,7 +30,7 @@ function findOrBuildPopupElement(): HTMLElement {
 }
 
 function setPopupContent(popup: HTMLElement, content: HoverPopupContent): void {
-  popup.replaceChildren(...content.lines.map((line) => createElement("div", { class: "hp-line", text: line })));
+  popup.replaceChildren(...content.lines.map((line) => createElement("div", { class: "hp-line", text: line, "data-component": "hoverPopupLineText" })));
   popup.style.backgroundColor = content.backgroundColor ?? "";
 }
 

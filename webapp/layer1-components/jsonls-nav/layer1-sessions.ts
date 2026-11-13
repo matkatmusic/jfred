@@ -101,10 +101,10 @@ function createSessionsQuery(folderPaths: readonly string[]): URLSearchParams {
 
 // The scan bar replaces the pane content, so the empty row never shows mid-scan.
 function renderScanLoadbar(): (text: string, current?: number, total?: number) => void {
-  const fill = createElement("div", { class: "loadbar-fill" });
-  const label = createElement("span", { class: "loadbar-label", text: "scanning JSONL files" });
-  getRequiredElementById("sessions").replaceChildren(createElement("div", { class: "loadbar pane-loadbar" }, [
-    createElement("div", { class: "loadbar-track" }, [fill]),
+  const fill = createElement("div", { class: "loadbar-fill", "data-component": "jsonlsScanFillBar" });
+  const label = createElement("span", { class: "loadbar-label", "data-component": "jsonlsScanLabel", text: "scanning JSONL files" });
+  getRequiredElementById("sessions").replaceChildren(createElement("div", { class: "loadbar pane-loadbar", "data-component": "jsonlsScanProgressBar" }, [
+    createElement("div", { class: "loadbar-track", "data-component": "jsonlsScanTrackBar" }, [fill]),
     label,
   ]));
   return (text, current, total) => renderLoadbar(fill, label, text, current, total);
@@ -119,7 +119,7 @@ async function fetchSessionsWithProgress(folderPaths: readonly string[]): Promis
 
 function renderSessionsError(error: unknown): void {
   getRequiredElementById("sessions").replaceChildren(
-    createElement("div", { class: "navempty", text: String(error) }),
+    createElement("div", { class: "navempty", "data-component": "jsonlsErrorText", text: String(error) }),
   );
 }
 

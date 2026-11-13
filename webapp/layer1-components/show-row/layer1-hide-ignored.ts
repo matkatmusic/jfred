@@ -12,8 +12,8 @@ function toggleHideIgnored(event: Event): void {
 }
 
 export function buildHideIgnoredControl(): HTMLElement {
-  const box = createElement("input", { type: "checkbox", id: "hide-ignored", onchange: toggleHideIgnored }) as HTMLInputElement;
+  const box = createElement("input", { type: "checkbox", id: "hide-ignored", onchange: toggleHideIgnored, "data-component": "viewControlsHideIgnoredCheckbox" }) as HTMLInputElement;
   box.checked = true;
   document.querySelector(".appWindow")!.setAttribute(HIDE_IGNORED_ATTRIBUTE, "");
-  return createElement("label", { class: "show-kind show-ignored" }, [box, "hide ignored nodes"]);
+  return createElement("label", { class: "show-kind show-ignored", "data-component": "viewControlsHideIgnoredLabel" }, [box, "hide ignored nodes"]);
 }

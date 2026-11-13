@@ -67,7 +67,7 @@ function findNearestTick(axisPx: number): HTMLElement | undefined {
 
 // The gutter names the wash's edges (user feedback, 2026-07-30): the ruler row nearest each boundary.
 function appendWashEdgeLabel(axisPx: number, edge: "base" | "target"): void {
-  findNearestTick(axisPx)?.append(createElement("div", { class: `wash-edge ${edge}`, text: `selected diff range ${edge}` }));
+  findNearestTick(axisPx)?.append(createElement("div", { class: `wash-edge ${edge}`, "data-component": "timelineWashEdgeLabel", text: `selected diff range ${edge}` }));
 }
 
 function renderDiffWash(baseInstant: string, targetInstant: string, ruler: readonly WireRulerTick[]): void {

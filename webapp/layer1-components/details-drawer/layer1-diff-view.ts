@@ -23,16 +23,16 @@ export function getBasename(path: string): string {
 
 function buildArrowButton(glyph: "↑" | "↓", side: string): HTMLButtonElement {
   const direction = glyph === "↑" ? "previous" : "next";
-  return createElement("button", { text: glyph, title: `${direction} ${side} revision` }) as HTMLButtonElement;
+  return createElement("button", { text: glyph, title: `${direction} ${side} revision`, "data-component": "diffViewRevisionArrowButton" }) as HTMLButtonElement;
 }
 
 // The single-pair drawer's three header rows (dhead/dpair/dfull-toggle/dmeta classes) plus the body.
 export function buildDiffView(path: string, steps: DiffStep[], config: DiffViewConfig): HTMLElement {
   const details = createElement("details", { class: "dfile", open: "", "data-component": "DiffViewSections" });
-  const namePlate = createElement("div", { class: "dpath dfile-path", text: getBasename(path), title: path, "data-target": path });
+  const namePlate = createElement("div", { class: "dpath dfile-path", text: getBasename(path), title: path, "data-target": path, "data-component": "diffViewFilePathText" });
   if (steps.length === 0) {
-    details.append(createElement("summary", { class: "dhead dfile-head" }, [namePlate]),
-      createElement("div", { class: "dbinary", text: config.emptyText ?? "Deleted — no on-disk state to show." }));
+    details.append(createElement("summary", { class: "dhead dfile-head", "data-component": "diffViewDeletedFileHeader" }, [namePlate]),
+      createElement("div", { class: "dbinary", text: config.emptyText ?? "Deleted — no on-disk state to show.", "data-component": "diffViewDeletedText" }));
     return details;
   }
   // An image section shows the target revision as a picture — the text-diff pipeline never sees it.
@@ -40,34 +40,34 @@ export function buildDiffView(path: string, steps: DiffStep[], config: DiffViewC
   if (isImage) {
     const params = steps[config.targetIndex]!.buildParams();
     params.set("binary", "1");
-    const imageBody = createElement("div", { class: "dfile-body" });
+    const imageBody = createElement("div", { class: "dfile-body", "data-component": "diffViewImageBody" });
     renderImageInto(imageBody, `/api/layer1-file?${params}`);
-    details.append(createElement("summary", { class: "dhead dfile-head" }, [namePlate]), imageBody);
+    details.append(createElement("summary", { class: "dhead dfile-head", "data-component": "diffViewImageFileHeader" }, [namePlate]), imageBody);
     return details;
   }
   const arrows: [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement] = [
     buildArrowButton("↑", "base"), buildArrowButton("↓", "base"),
     buildArrowButton("↑", "target"), buildArrowButton("↓", "target"),
   ];
-  const pairLabel = createElement("span", { class: "dpair" });
+  const pairLabel = createElement("span", { class: "dpair", "data-component": "diffViewPairLabelText" });
   // const revisionArrows = createElement("span", { class: "dtools" }, [arrows[0], arrows[1], pairLabel, arrows[2], arrows[3]]);
-  const baseSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Base commit" }), createElement("span", { class: "dside-arrows" }, [arrows[0], arrows[1]])]);
-  const targetSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Target commit" }), createElement("span", { class: "dside-arrows" }, [arrows[2], arrows[3]])]);
+  const baseSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Base commit", "data-component": "diffViewBaseSideNameText" }), createElement("span", { class: "dside-arrows" }, [arrows[0], arrows[1]])]);
+  const targetSide = createElement("span", { class: "dside" }, [createElement("span", { class: "dside-name", text: "Target commit", "data-component": "diffViewTargetSideNameText" }), createElement("span", { class: "dside-arrows" }, [arrows[2], arrows[3]])]);
   const revisionArrows = createElement("span", { class: "dtools" }, [baseSide, pairLabel, targetSide]);
-  const summary = createElement("summary", { class: "dhead dfile-head" }, [namePlate, revisionArrows]);
+  const summary = createElement("summary", { class: "dhead dfile-head", "data-component": "diffViewFileHeader" }, [namePlate, revisionArrows]);
   const modeButtons = [
-    createElement("button", { "data-mode": DiffPaneMode.side, text: "diff side-by-side" }),
-    createElement("button", { "data-mode": DiffPaneMode.inline, text: "diff inline" }),
+    createElement("button", { "data-mode": DiffPaneMode.side, text: "diff side-by-side", "data-component": "diffViewSideBySideButton" }),
+    createElement("button", { "data-mode": DiffPaneMode.inline, text: "diff inline", "data-component": "diffViewInlineButton" }),
   ];
-  const fullToggle = createElement("input") as HTMLInputElement;
+  const fullToggle = createElement("input", { "data-component": "diffViewFullContentCheckbox" }) as HTMLInputElement;
   fullToggle.type = "checkbox";
-  const fullLabel = createElement("label", { class: "dfull-toggle" }, [fullToggle, " full content"]);
-  const exportButton = createElement("button", { text: "export as patch" });
-  const tools = createElement("div", { class: "dhead" }, [createElement("span", { class: "dtools" }, [...modeButtons, fullLabel, exportButton])]);
+  const fullLabel = createElement("label", { class: "dfull-toggle", "data-component": "diffViewFullContentLabel" }, [fullToggle, " full content"]);
+  const exportButton = createElement("button", { text: "export as patch", "data-component": "diffViewExportPatchButton" });
+  const tools = createElement("div", { class: "dhead", "data-component": "diffViewToolsBar" }, [createElement("span", { class: "dtools" }, [...modeButtons, fullLabel, exportButton])]);
   // Born hidden: the pane reveals it only once a loaded pair actually differs.
   tools.style.display = "none";
-  const meta = createElement("div", { class: "dmeta" });
-  const body = createElement("div", { class: "dfile-body" });
+  const meta = createElement("div", { class: "dmeta", "data-component": "diffViewMetaText" });
+  const body = createElement("div", { class: "dfile-body", "data-component": "diffViewFileBody" });
   // The tools row stays OUT of the DOM for a lone revision: [hidden] loses to CSS display rules.
   details.append(...(config.revisionControlsShown ? [summary, tools, meta, body] : [summary, meta, body]));
   if (!config.revisionControlsShown) {

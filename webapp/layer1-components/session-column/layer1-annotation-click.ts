@@ -21,7 +21,7 @@ async function openAnnotationDrawer(dot: HTMLElement): Promise<void> {
   clearDiffPair();
   openDrawerHeading(dot);
   const json = await fetchRawJsonLine(dot.dataset["sessionFile"]!, Number(dot.dataset["line"]));
-  renderDetailView([createElement("div", { class: "node-json" }, [json])]);
+  renderDetailView([createElement("div", { class: "node-json", "data-component": "sessionDotsJsonText" }, [json])]);
 }
 
 function openDrawerOnDotClick(event: MouseEvent): void {

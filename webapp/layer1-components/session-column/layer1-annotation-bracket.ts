@@ -10,7 +10,7 @@ function readAxisPx(node: HTMLElement): number {
 export function buildPairBracket(first: HTMLElement, second: HTMLElement, className: string): HTMLElement {
   const firstPx = readAxisPx(first);
   const secondPx = readAxisPx(second);
-  const bracket = createElement("div", { class: className });
+  const bracket = createElement("div", { class: className, "data-component": "sessionDotsBracket" });
   bracket.style.setProperty("--axis-px", String(Math.min(firstPx, secondPx)));
   bracket.style.setProperty("--span-px", String(Math.abs(secondPx - firstPx)));
   return bracket;

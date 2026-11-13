@@ -66,19 +66,19 @@ function buildReverseIdentity(state: WireReverseState): Record<string, string> {
 function appendReverseNode(lane: HTMLElement, state: WireReverseState): void {
   const axisPx = state.index * RULER_NODE_ROW_PIXELS;
   lane.append(
-    setAxisPx(createElement("i", { class: "node n-rev", ...buildReverseIdentity(state) }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel", text: formatReverseLabel(state) }), axisPx),
+    setAxisPx(createElement("i", { class: "node n-rev", "data-component": "bubbleReverseStateNode", ...buildReverseIdentity(state) }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel", "data-component": "bubbleReverseStateText", text: formatReverseLabel(state) }), axisPx),
   );
 }
 
 function buildReverseLane(states: WireReverseState[]): HTMLElement {
-  const lane = setAxisPx(createElement("div", { class: "lane", "data-component": "Lanes" }), 0);
+  const lane = setAxisPx(createElement("div", { class: "lane", "data-component": "reverseBubbleLane" }), 0);
   const indexes: number[] = [];
   for (const state of states) {
     indexes.push(state.index);
   }
   lane.style.setProperty("--span-px", String(Math.max(...indexes) * RULER_NODE_ROW_PIXELS));
-  lane.append(createElement("div", { class: "lrail" }));
+  lane.append(createElement("div", { class: "lrail", "data-component": "bubbleReverseLaneRail" }));
   for (const state of states) {
     appendReverseNode(lane, state);
   }
@@ -87,9 +87,9 @@ function buildReverseLane(states: WireReverseState[]): HTMLElement {
 
 export function buildReverseBubble(path: string, states: WireReverseState[]): HTMLElement {
   const lane = buildReverseLane(states);
-  const filebox = setAxisPx(createElement("div", { class: "filebox reverse-bubble", "data-component": "Bubbles" }, [
-    createElement("div", { class: "fname", text: path.split("/").pop() ?? path, "data-path": path }),
-    createElement("div", { class: "sub", text: `${states.length} states, newest first` }),
+  const filebox = setAxisPx(createElement("div", { class: "filebox reverse-bubble", "data-component": "reverseBubble" }, [
+    createElement("div", { class: "fname", "data-component": "bubbleReverseFileNameText", text: path.split("/").pop() ?? path, "data-path": path }),
+    createElement("div", { class: "sub", "data-component": "bubbleReverseStateCountText", text: `${states.length} states, newest first` }),
     lane,
   ]), 0);
   filebox.style.setProperty("--lane-count", "0");

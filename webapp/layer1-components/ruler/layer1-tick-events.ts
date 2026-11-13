@@ -84,6 +84,7 @@ function readBasename(path: string): string {
 function buildTickFileButton(event: TickEvent): HTMLElement {
   return createElement("button", {
     class: event.nodeKind === undefined ? undefined : `tf-${event.nodeKind}`,
+    "data-component": "rulerTickFileButton",
     text: `${readBasename(event.path)}  ${event.kind}`.trimEnd(),
     title: event.path,
     onclick: (clickEvent: Event) => {
@@ -105,7 +106,7 @@ export function buildTickFileList(events: TickEvent[]): HTMLElement {
   for (const event of events) {
     buttons.push(buildTickFileButton(event));
   }
-  return createElement("div", { class: "tickfiles" }, buttons);
+  return createElement("div", { class: "tickfiles", "data-component": "rulerTickFileList" }, buttons);
 }
 
 // List height in axis px from a throwaway render; fallback covers layout-free DOMs.

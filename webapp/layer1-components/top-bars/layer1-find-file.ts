@@ -1,6 +1,6 @@
 // Layer 1's jump-to-bubble box; native scrollIntoView is used because offsetTop is unscaled when zoomed.
 
-import { getRequiredElementById } from "../../app-dom.ts";
+import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { addSlackForEdgeNode } from "./layer1-find-slack.ts";
 import { findMatchingBubbles, listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } from "./layer1-find-match.ts";
 
@@ -139,10 +139,7 @@ function renderSuggestions(box: HTMLInputElement): void {
     for (const bubble of findMatchingBubbles(term.toLowerCase())) {
       const nameElement = bubble.querySelector<HTMLElement>(".fname")!;
       const path = nameElement.dataset.path ?? nameElement.textContent!;
-      const row = document.createElement("div");
-      row.className = "find-suggestion";
-      row.dataset.path = path;
-      row.textContent = path;
+      const row = createElement("div", { class: "find-suggestion", "data-path": path, text: path, "data-component": "jumpToRowFindSuggestionItem" });
       row.addEventListener("click", () => pickSuggestion(box, path));
       rows.push(row);
     }

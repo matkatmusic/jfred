@@ -77,20 +77,20 @@ function buildConsentRows(scripts: WireConsentScript[]): HTMLElement[] {
 
 function buildConsentButtons(answer: (isAllowed: boolean) => void): HTMLElement {
   return createElement("div", { class: "consent-header-row" }, [
-    createElement("button", { class: "toolbar-btn consent-run", text: "Run scripts", onclick: () => answer(true) }),
-    createElement("button", { class: "toolbar-btn", text: "Continue without running", onclick: () => answer(false) }),
+    createElement("button", { class: "toolbar-btn consent-run", "data-component": "runConsentRunButton", text: "Run scripts", onclick: () => answer(true) }),
+    createElement("button", { class: "toolbar-btn", "data-component": "runConsentContinueWithoutRunningButton", text: "Continue without running", onclick: () => answer(false) }),
   ]);
 }
 
 function buildRunConsentOverlay(scripts: WireConsentScript[], answer: (isAllowed: boolean) => void): HTMLElement {
-  const box = createElement("div", { class: "consent-box" }, [
-    createElement("h2", { text: "Replay recorded scripts?" }),
-    createElement("p", { class: "consent-note", text: buildRunConsentText() }),
-    createElement("div", { class: "muted consent-count", text: `${scripts.length} recorded script(s) can run on this page` }),
+  const box = createElement("div", { class: "consent-box", "data-component": "runConsentDialog" }, [
+    createElement("h2", { "data-component": "runConsentTitle", text: "Replay recorded scripts?" }),
+    createElement("p", { class: "consent-note", "data-component": "runConsentNoteText", text: buildRunConsentText() }),
+    createElement("div", { class: "muted consent-count", "data-component": "runConsentScriptCountText", text: `${scripts.length} recorded script(s) can run on this page` }),
     buildConsentButtons(answer),
     ...buildConsentRows(scripts),
   ]);
-  return createElement("div", { class: "modal-wrap run-consent" }, [box]);
+  return createElement("div", { class: "modal-wrap run-consent", "data-component": "runConsentPopup" }, [box]);
 }
 
 function appendConsentOverlay(overlay: HTMLElement): void {

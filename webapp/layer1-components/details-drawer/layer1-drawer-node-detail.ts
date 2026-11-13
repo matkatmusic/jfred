@@ -114,6 +114,7 @@ export function appendRawJsonRevealForLine(sessionFile: string, line: number): v
   const jsonBox = createElement("div", { class: "node-json" });
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
+    "data-component": "detailsPaneLineRawJsonToggle",
     class: "json-toggle",
     text: "{ }",
     title: "Show raw transcript JSON",
@@ -127,6 +128,7 @@ export function appendRawJsonReveal(record: unknown): void {
   const jsonBox = createElement("div", { class: "node-json" }, [renderRawJson(record)]);
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
+    "data-component": "detailsPaneNodeRawJsonToggle",
     class: "json-toggle",
     text: "{ }",
     title: "Show raw transcript JSON",
