@@ -51,9 +51,8 @@ export function isTrackPlaced(f: SessionFacts): boolean {
   return f.laneXs.length === 3 && isWidthRight && isNarrow && isNear(f.trackLeft, f.rulerRight, EDGE_PX);
 }
 
-// export const isStageShifted = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft - offLeft, f.trackWidth, EDGE_PX);
-// The session lines lie on top of the bubbles, so the stage stays where it was with the lines off.
-export const isStageUnmovedBySessionLines = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft, offLeft, EDGE_PX);
+export const isStageShifted = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft - offLeft, f.trackWidth, EDGE_PX);
+// export const isStageUnmovedBySessionLines = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft, offLeft, EDGE_PX);
 export function isEveryDotLetterRight(scan: ScanFacts): boolean {
   let isRight = scan.letters.length > 0 && scan.titled === 0 && scan.alabels === 0;
   for (const letter of scan.letters)

@@ -42,9 +42,13 @@ export const TICK_TEXT_FACTS = `({ leaders: document.querySelectorAll('#leaders 
 // The axis line of a tick is the 1px top border of the leader with the same index.
 export const DASH_FACTS = `(leaders => ${TICKS}.map((t, i) => [t, leaders[i].getBoundingClientRect()]).filter(([t]) => t.querySelectorAll('.kdash').length > 0)
     .map(([t, leader]) => ({ time: ${BOX}(t.querySelector('.ttime')), dashes: ${BOX}(t.querySelector('.kind-dashes')), axisY: leader.top + 0.5 })))([...document.querySelectorAll('#leaders .leader')])`;
+// export const LAYOUT_FACTS = `((ruler, stage) => ({ rulerWidth: ruler.getBoundingClientRect().width, isBeforeStage: stage.previousElementSibling === ruler.parentElement,
+//     gap: stage.getBoundingClientRect().left - ruler.getBoundingClientRect().right,
+//     expectedGap: parseFloat(getComputedStyle(document.querySelector('.canvas')).columnGap) + parseFloat(getComputedStyle(stage).marginLeft) }))(document.getElementById('timelineRulerComponent'), document.getElementById('fileBubbleContainer'))`;
+// The ruler container's -14px right margin cancels the canvas gap, so only the slack margin is left.
 export const LAYOUT_FACTS = `((ruler, stage) => ({ rulerWidth: ruler.getBoundingClientRect().width, isBeforeStage: stage.previousElementSibling === ruler.parentElement,
     gap: stage.getBoundingClientRect().left - ruler.getBoundingClientRect().right,
-    expectedGap: parseFloat(getComputedStyle(document.querySelector('.canvas')).columnGap) + parseFloat(getComputedStyle(stage).marginLeft) }))(document.getElementById('timelineRulerComponent'), document.getElementById('fileBubbleContainer'))`;
+    expectedGap: parseFloat(getComputedStyle(stage).marginLeft) }))(document.getElementById('timelineRulerComponent'), document.getElementById('fileBubbleContainer'))`;
 
 // Clicks the multi-event row with most kinds, then finds it again by full time.
 export const EXPAND_CLICK = `(async () => {

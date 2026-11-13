@@ -14,7 +14,8 @@ export interface RuleFacts { /* rulerRules: number; trackRules: number; */ margi
 const RULER_TO_TRACK_PX = 0;
 const TOUCH_TOLERANCE_PX = 0.5;
 // const TRACK_TO_STAGE_PX = 14;
-// const TOLERANCE_PX = 1;
+const STAGE_GAP_PX = 0;
+const TOLERANCE_PX = 1;
 const SCROLL_RIGHT_PX = 400;
 
 // Task 383: the gap is measured from the element just before #fileBubbleContainer, the column or the jfred strip.
@@ -48,23 +49,23 @@ export function isColumnAfterRuler(facts: LayoutFacts): boolean {
   return isNear(facts.trackLeft - facts.rulerRight, RULER_TO_TRACK_PX, TOUCH_TOLERANCE_PX);
 }
 
-// export function isColumnBetween(facts: LayoutFacts): boolean {
-//   const isBeforeStage = isNear(facts.stageLeft - facts.beforeStageRight, TRACK_TO_STAGE_PX, TOLERANCE_PX);
-//   return isColumnAfterRuler(facts) && isBeforeStage;
-// }
+export function isColumnBetween(facts: LayoutFacts): boolean {
+  const isBeforeStage = isNear(facts.stageLeft - facts.beforeStageRight, STAGE_GAP_PX, TOLERANCE_PX);
+  return isColumnAfterRuler(facts) && isBeforeStage;
+}
 
-// The stage starts under the column, and slides further under it when scrolled right.
+// Scrolled right, the stage slides left under the pinned column.
 export function isStageUnderColumn(facts: LayoutFacts): boolean {
   return facts.stageLeft < facts.trackRight;
 }
 
-// export function isBubbleBesideColumn(facts: LayoutFacts): boolean {
-//   return facts.bubbleLeft >= facts.trackRight - TOLERANCE_PX;
-// }
-
-export function isBubbleUnderColumn(facts: LayoutFacts): boolean {
-  return facts.bubbleLeft < facts.trackRight;
+export function isBubbleBesideColumn(facts: LayoutFacts): boolean {
+  return facts.bubbleLeft >= facts.trackRight - TOLERANCE_PX;
 }
+
+// export function isBubbleUnderColumn(facts: LayoutFacts): boolean {
+//   return facts.bubbleLeft < facts.trackRight;
+// }
 
 export function isSlackRuleKept(facts: RuleFacts): boolean {
   // const isOneEach = facts.rulerRules === 1 && facts.trackRules === 1;
@@ -76,8 +77,10 @@ async function validateBetween(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<LayoutFacts>(LAYOUT_FACTS);
   // const isRight = isColumnBetween(facts) && isBubbleBesideColumn(facts);
   // reportCheck("L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it", isRight, facts);
-  const isRight = isColumnAfterRuler(facts) && isStageUnderColumn(facts) && isBubbleUnderColumn(facts);
-  reportCheck("L7 the column touches the ruler and lies over the stage and the first bubble", isRight, facts);
+  // const isRight = isColumnAfterRuler(facts) && isStageUnderColumn(facts) && isBubbleUnderColumn(facts);
+  // reportCheck("L7 the column touches the ruler and lies over the stage and the first bubble", isRight, facts);
+  const isRight = isColumnBetween(facts) && isBubbleBesideColumn(facts);
+  reportCheck("L7 the column touches the ruler, the stage starts at its right edge, and the first bubble starts after it", isRight, facts);
 }
 
 async function validateBesideRuler(page: HeadlessPage): Promise<void> {

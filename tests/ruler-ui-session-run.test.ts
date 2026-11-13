@@ -27,8 +27,8 @@ const DOT = { left: 200, right: 214, top: 100, bottom: 114 };
 const OFF_LEFT = 398;
 const LINE = { laneX: "18px", top: 100, bottom: 900, dotCy: 100 };
 const TITLES = {
-    // stage: "RULER session: the stage moves right by exactly the track width",
-    stage: "RULER session: the stage does not move when the track goes on",
+    stage: "RULER session: the stage moves right by exactly the track width",
+    // stage: "RULER session: the stage does not move when the track goes on",
     lineEnd: "RULER session: the first session line ends at its last dot",
     off: "RULER session off: the track is gone, --track-w is 0px, and the stage is back",
 };
@@ -36,8 +36,8 @@ const TITLES = {
 const makeGoodTable = (): Map<string, unknown> => new Map<string, unknown>([
     [SCROLL_HOME, 0], [STAGE_LEFT, OFF_LEFT], [SESSION_TOGGLE_CLICK, 0], [QUIET_FACTS, { errors: 0, isIdle: true }],
     [buildScrollToDot(FILL_8), true], [buildScrollToDot(ENDS.lastId), true], [buildScrollToDot(FILL_40), true], [buildScrollToDot(String(ANNOTATION_MID_IDS[0])), true],
-    // [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 472, laneXs: ["18px", "35px", "52px"] }],
-    [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT, laneXs: ["18px", "35px", "52px"] }],
+    [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 472, laneXs: ["18px", "35px", "52px"] }],
+    // [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT, laneXs: ["18px", "35px", "52px"] }],
     [SESSION_SCAN, {
         letters: ["u", "a"], titled: 0, alabels: 0, colours: [["c1"], ["c2"], ["c3"], ["c4"]],
         coloured: Array.from({ length: EXPECTED_COLOURED_TICKS }, () => ({ computed: "rgb(1, 1, 1)", expected: "rgb(1, 1, 1)" })),
@@ -103,10 +103,10 @@ test("test_the_good_fake_page_passes_the_14_session_state_checks_and_returns_the
     assert.equal(lines.filter((line) => line.startsWith("PASS  RULER")).length, 14);
 });
 
-// test("test_a_stage_that_moved_less_than_the_track_fails_only_the_stage_check", async () => {
-test("test_a_stage_pushed_right_by_the_track_width_fails_only_the_stage_check", async () => {
-    // const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "35px", "52px"] };
-    const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT + 74, laneXs: ["18px", "35px", "52px"] };
+test("test_a_stage_that_moved_less_than_the_track_fails_only_the_stage_check", async () => {
+// test("test_a_stage_pushed_right_by_the_track_width_fails_only_the_stage_check", async () => {
+    const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "35px", "52px"] };
+    // const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT + 74, laneXs: ["18px", "35px", "52px"] };
     assert.deepEqual((await runState([[SESSION_FACTS, facts]])).newFailures, [TITLES.stage]);
 });
 

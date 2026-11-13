@@ -11,8 +11,11 @@
   /*
     The line spans the whole canvas. Pink, since a ruler click draws green.
   */
+  /* .engine-v3-line { position: absolute; inset-inline: 0; inset-block-start: calc(var(--axis-px, 0) * 1px + var(--lane-y, 52px));
+    block-size: 0; border-block-start: 2px dashed var(--c-anchor, #e87ba4); pointer-events: none; z-index: 10; } */
+  /* z-index 5 sits below the bubble dots (.node is 6), so the line runs behind the node. */
   .engine-v3-line { position: absolute; inset-inline: 0; inset-block-start: calc(var(--axis-px, 0) * 1px + var(--lane-y, 52px));
-    block-size: 0; border-block-start: 2px dashed var(--c-anchor, #e87ba4); pointer-events: none; z-index: 10; }
+    block-size: 0; border-block-start: 2px dashed var(--c-anchor, #e87ba4); pointer-events: none; z-index: 5; }
   /*
     The marked node gets an outside ring, so its own color stays visible.
   */

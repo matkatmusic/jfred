@@ -7,7 +7,8 @@ export interface EntryFacts { kind: string; shortHash: string | null; parentHash
 // export interface TickState { text: string; classes: string; title: string; opacity: number; after: string }
 export interface TickState { text: string; fullTime: string; classes: string; title: string; opacity: number; after: string }
 export interface StripHeadFacts { stripCount: number; headText: string; deleteCount: number }
-export interface StageFacts { stageLeft: number; stripCount: number }
+// export interface StageFacts { stageLeft: number; stripCount: number }
+export interface StageFacts { stageLeft: number; stripCount: number; stripWidth: number }
 export interface DrawerFacts { isOpen: boolean; text: string; hasButton: boolean }
 export interface PendingFacts { entries: number; ticks: number }
 export interface MarkFacts { drawer: DrawerFacts; pending: PendingFacts; entries: EntryFacts[]; chains: number; requests: number }
@@ -93,7 +94,9 @@ export const COMMIT_MODE_CLICK = `(async () => {
     await ${SETTLE};
 })()`;
 export const STRIP_COUNT = `document.querySelectorAll('#jfredCommitsDrawerComponent').length`;
-export const STAGE_FACTS = `({ stageLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left, stripCount: ${STRIP_COUNT} })`;
+// export const STAGE_FACTS = `({ stageLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left, stripCount: ${STRIP_COUNT} })`;
+export const STAGE_FACTS = `({ stageLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left, stripCount: ${STRIP_COUNT},
+    stripWidth: document.getElementById('jfredCommitsDrawerComponent')?.getBoundingClientRect().width ?? 0 })`;
 export const STRIP_HEAD_FACTS = `({ stripCount: ${STRIP_COUNT}, headText: document.querySelector('#jfredCommitsDrawerComponent .jhead span')?.textContent ?? '',
     deleteCount: document.querySelectorAll('#jfredCommitsDrawerComponent .jdelete').length })`;
 export const MODE_STATE = `({ isCurrent: document.getElementById('commit-mode').classList.contains('current') })`;

@@ -44,8 +44,12 @@ export function isStripBesideColumn(facts: StripLayoutFacts, isSessionOn: boolea
   return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "relative";
 }
 
-export function isStageUnmoved(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
-  return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft, withoutStrip.stageLeft, EDGE_TOLERANCE_PX);
+// export function isStageUnmoved(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
+//   return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft, withoutStrip.stageLeft, EDGE_TOLERANCE_PX);
+// }
+
+export function isStageMovedByStrip(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
+  return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft - withoutStrip.stageLeft, withStrip.stripWidth, EDGE_TOLERANCE_PX);
 }
 
 export function isStripPinned(home: StripLayoutFacts, scrolled: StripLayoutFacts, scrollLeft: number): boolean {
@@ -115,13 +119,14 @@ async function validateBesideColumn(page: HeadlessPage, isSessionOn: boolean): P
   return home;
 }
 
-// Commit mode is on when this runs; it is turned off and on again.
+// Commit mode is on when this runs; it is turned off and on again. The strip pushes the stage right by the strip width.
 async function validateStageStays(page: HeadlessPage, isSessionOn: boolean): Promise<void> {
   const withStrip = await page.evaluate<StageFacts>(STAGE_FACTS);
   await page.evaluate(COMMIT_MODE_CLICK);
   const withoutStrip = await page.evaluate<StageFacts>(STAGE_FACTS);
   await page.evaluate(COMMIT_MODE_CLICK);
-  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing`, isStageUnmoved(withStrip, withoutStrip), [withStrip, withoutStrip]);
+  // reportCheck(`L9 ${formatSessionState(isSessionOn)}: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing`, isStageUnmoved(withStrip, withoutStrip), [withStrip, withoutStrip]);
+  reportCheck(`L9 ${formatSessionState(isSessionOn)}: Commit mode on moves the stage right by the strip width, and off moves it back`, isStageMovedByStrip(withStrip, withoutStrip), [withStrip, withoutStrip]);
 }
 
 async function validatePinned(page: HeadlessPage, home: StripLayoutFacts): Promise<void> {

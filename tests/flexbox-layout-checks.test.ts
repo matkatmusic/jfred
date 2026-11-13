@@ -5,8 +5,8 @@ import { test } from "node:test";
 import {
     isBubbleContainerWidthUnchangedByPane, isPaneDragStoppedAtFiftyPercent, isPaneDragStoppedAtThirtyPercent, isPaneInitialWidthThirtyFivePercent,
     isPaneStillAtTheRightEdgeAfterScrolling, isSourcesSplitHeldAtMinimum, isSourcesSplitThreeToTwo,
-    isFirstBubbleUnmovedBySessionLines, isGrownPartOverBubbleContainer, isRulerContainerGrownByTrackWidth,
-    type BubbleContainerWidthFacts, type PaneDragFacts, type PaneInitialWidthFacts, type PaneRightEdgeFacts, type SessionLinesFacts, type SourcesMinimumFacts, type SourcesSplitFacts,
+    isBubbleContainerAtDrawerEdge, isBubbleContainerAtRulerContainerEdge, isFirstBubbleMovedByTrackWidth, isRulerContainerGrownByTrackWidth,
+    type BubbleContainerWidthFacts, type BubbleEdgeFacts, type DrawerEdgeFacts, type PaneDragFacts, type PaneInitialWidthFacts, type PaneRightEdgeFacts, type SessionLinesFacts, type SourcesMinimumFacts, type SourcesSplitFacts,
 } from "../scripts/visual/flexbox-layout-checks.ts";
 
 test("test_sources_split_check_passes_when_the_heights_are_three_to_two", () => {
@@ -133,24 +133,69 @@ test("test_pane_drag_thirty_percent_check_fails_when_the_drag_goes_below_the_lim
 });
 
 const goodSessionLinesFacts: SessionLinesFacts = {
-    firstBubbleLeftBefore: 166, firstBubbleLeftAfter: 166,
+    firstBubbleLeftBefore: 152, firstBubbleLeftAfter: 226,
     rulerContainerRightBefore: 152, rulerContainerRightAfter: 226,
-    trackWidth: 74, bubbleContainerLeft: 166,
+    trackWidth: 74, bubbleContainerLeft: 226,
 };
 
-test("test_turning_the_session_lines_on_does_not_move_the_left_edge_of_the_first_bubble", () => {
-    // Setup: the first bubble starts at 166px before and after the session lines turn on.
+// test("test_turning_the_session_lines_on_does_not_move_the_left_edge_of_the_first_bubble", () => {
+//     // Setup: the first bubble starts at 166px before and after the session lines turn on.
+//     // The judge says pass.
+//     assert.equal(isFirstBubbleUnmovedBySessionLines(goodSessionLinesFacts), true);
+//     // A 0.3px move is under the 0.5px limit, so it still passes.
+//     assert.equal(isFirstBubbleUnmovedBySessionLines({ ...goodSessionLinesFacts, firstBubbleLeftAfter: 166.3 }), true);
+// });
+
+// test("test_the_first_bubble_check_fails_when_the_session_lines_push_the_bubble_by_the_track_width", () => {
+//     // Setup: the first bubble moved from 166px to 240px, which is the track width of 74px.
+//     const facts: SessionLinesFacts = { ...goodSessionLinesFacts, firstBubbleLeftAfter: 240 };
+//     // The judge says fail.
+//     assert.equal(isFirstBubbleUnmovedBySessionLines(facts), false);
+// });
+
+test("test_turning_the_session_lines_on_moves_the_first_bubble_right_by_the_track_width", () => {
+    // Setup: the first bubble moves from 152px to 226px, and the track is 74px wide.
     // The judge says pass.
-    assert.equal(isFirstBubbleUnmovedBySessionLines(goodSessionLinesFacts), true);
-    // A 0.3px move is under the 0.5px limit, so it still passes.
-    assert.equal(isFirstBubbleUnmovedBySessionLines({ ...goodSessionLinesFacts, firstBubbleLeftAfter: 166.3 }), true);
+    assert.equal(isFirstBubbleMovedByTrackWidth(goodSessionLinesFacts), true);
+    // A 0.5px error is under the 1px limit, so it still passes.
+    assert.equal(isFirstBubbleMovedByTrackWidth({ ...goodSessionLinesFacts, firstBubbleLeftAfter: 226.5 }), true);
 });
 
-test("test_the_first_bubble_check_fails_when_the_session_lines_push_the_bubble_by_the_track_width", () => {
-    // Setup: the first bubble moved from 166px to 240px, which is the track width of 74px.
-    const facts: SessionLinesFacts = { ...goodSessionLinesFacts, firstBubbleLeftAfter: 240 };
+test("test_the_first_bubble_check_fails_when_the_bubble_does_not_move", () => {
+    // Setup: the first bubble stays at 152px after the session lines turn on.
+    const facts: SessionLinesFacts = { ...goodSessionLinesFacts, firstBubbleLeftAfter: 152 };
     // The judge says fail.
-    assert.equal(isFirstBubbleUnmovedBySessionLines(facts), false);
+    assert.equal(isFirstBubbleMovedByTrackWidth(facts), false);
+});
+
+test("test_the_bubble_container_starts_at_the_ruler_container_right_edge", () => {
+    // Setup: the ruler container ends at 226px and the bubble container starts at 226px.
+    const facts: BubbleEdgeFacts = { rulerContainerRight: 226, bubbleContainerLeft: 226 };
+    // The judge says pass.
+    assert.equal(isBubbleContainerAtRulerContainerEdge(facts), true);
+    // A 0.4px gap is under the 0.5px limit, so it still passes.
+    assert.equal(isBubbleContainerAtRulerContainerEdge({ ...facts, bubbleContainerLeft: 226.4 }), true);
+});
+
+test("test_the_bubble_container_check_fails_with_the_old_14px_gap", () => {
+    // Setup: the ruler container ends at 226px and the bubble container starts at 240px.
+    const facts: BubbleEdgeFacts = { rulerContainerRight: 226, bubbleContainerLeft: 240 };
+    // The judge says fail.
+    assert.equal(isBubbleContainerAtRulerContainerEdge(facts), false);
+});
+
+test("test_the_bubble_container_starts_at_the_commits_drawer_right_edge", () => {
+    // Setup: the commits drawer ends at 330px and the bubble container starts at 330px.
+    const facts: DrawerEdgeFacts = { drawerRight: 330, bubbleContainerLeft: 330 };
+    // The judge says pass.
+    assert.equal(isBubbleContainerAtDrawerEdge(facts), true);
+});
+
+test("test_the_drawer_edge_check_fails_when_the_drawer_lies_over_the_bubbles", () => {
+    // Setup: the commits drawer ends at 330px and the bubble container starts at 240px.
+    const facts: DrawerEdgeFacts = { drawerRight: 330, bubbleContainerLeft: 240 };
+    // The judge says fail.
+    assert.equal(isBubbleContainerAtDrawerEdge(facts), false);
 });
 
 test("test_the_ruler_container_right_edge_grows_by_the_track_width", () => {
@@ -166,15 +211,15 @@ test("test_the_ruler_container_check_fails_when_the_container_does_not_grow", ()
     assert.equal(isRulerContainerGrownByTrackWidth(facts), false);
 });
 
-test("test_the_grown_part_covers_the_bubble_container", () => {
-    // Setup: the ruler container ends at 226px and the bubble container starts at 166px.
-    // The judge says pass.
-    assert.equal(isGrownPartOverBubbleContainer(goodSessionLinesFacts), true);
-});
+// test("test_the_grown_part_covers_the_bubble_container", () => {
+//     // Setup: the ruler container ends at 226px and the bubble container starts at 166px.
+//     // The judge says pass.
+//     assert.equal(isGrownPartOverBubbleContainer(goodSessionLinesFacts), true);
+// });
 
-test("test_the_grown_part_check_fails_when_the_container_ends_before_the_bubble_container", () => {
-    // Setup: the ruler container ends at 160px and the bubble container starts at 166px.
-    const facts: SessionLinesFacts = { ...goodSessionLinesFacts, rulerContainerRightAfter: 160, bubbleContainerLeft: 166 };
-    // The judge says fail.
-    assert.equal(isGrownPartOverBubbleContainer(facts), false);
-});
+// test("test_the_grown_part_check_fails_when_the_container_ends_before_the_bubble_container", () => {
+//     // Setup: the ruler container ends at 160px and the bubble container starts at 166px.
+//     const facts: SessionLinesFacts = { ...goodSessionLinesFacts, rulerContainerRightAfter: 160, bubbleContainerLeft: 166 };
+//     // The judge says fail.
+//     assert.equal(isGrownPartOverBubbleContainer(facts), false);
+// });

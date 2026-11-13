@@ -3,7 +3,8 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-    isEntryLevelWithTick, isLabelClear, isLineRight, isStageUnmoved, isStripBesideColumn, isStripContentInside, isStripPinned, validateSlack, validateStripBesideSession,
+    // isStageUnmoved,
+    isEntryLevelWithTick, isLabelClear, isLineRight, isStageMovedByStrip, isStripBesideColumn, isStripContentInside, isStripPinned, validateSlack, validateStripBesideSession,
     validateStripLayout, validateStripOverlaps, validateTokens, type OverlapFacts, type SlackFacts, type StripLayoutFacts,
 } from "../scripts/visual/layer9-layout-checks.ts";
 import { SCROLL_HOME, buildScrollTo } from "../scripts/visual/layer7-probes.ts";
@@ -19,8 +20,10 @@ const HOME: StripLayoutFacts = { stripLeft: 384, stripRight: 488, trackLeft: nul
 const SCROLLED: StripLayoutFacts = { ...HOME, firstBoxLeft: 312 };
 // Session column on: a 96px track sits between the ruler and the strip.
 const HOME_ON: StripLayoutFacts = { ...HOME, stripLeft: 480, stripRight: 584, trackLeft: 384, trackRight: 480, firstBoxLeft: 600 };
-const STAGE_WITH: StageFacts = { stageLeft: 396, stripCount: 1 };
-const STAGE_WITHOUT: StageFacts = { stageLeft: 396, stripCount: 0 };
+// const STAGE_WITH: StageFacts = { stageLeft: 396, stripCount: 1 };
+// const STAGE_WITHOUT: StageFacts = { stageLeft: 396, stripCount: 0 };
+const STAGE_WITH: StageFacts = { stageLeft: 500, stripCount: 1, stripWidth: 104 };
+const STAGE_WITHOUT: StageFacts = { stageLeft: 396, stripCount: 0, stripWidth: 0 };
 const makeEntry = (kind: string, cy: number, tickCy: number): EntryFacts => ({ kind, shortHash: "c0ffee01", parentHash: null, instant: "2026-06-01T09:00:00.000Z", cx: 650, cy, tickCy });
 const HOME_ENTRIES = [makeEntry("base", 300, 300), makeEntry("commit", 400, 400)];
 const SCROLLED_ENTRIES = [makeEntry("base", -300, -300), makeEntry("commit", -200, -200)];
@@ -50,7 +53,8 @@ const buildAnswers = (setup: Setup): Answers => new Map<string, unknown[]>([
 // const SIDE_ON_TITLE = "L9 session on: the strip's left edge meets the session column's right edge, and the strip is sticky";
 const SIDE_TITLE = "L9 session off: the strip's left edge meets the ruler's right edge, and the strip is relative";
 const SIDE_ON_TITLE = "L9 session on: the strip's left edge meets the session column's right edge, and the strip is relative";
-const STAGE_TITLE = "L9 session off: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing";
+// const STAGE_TITLE = "L9 session off: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing";
+const STAGE_TITLE = "L9 session off: Commit mode on moves the stage right by the strip width, and off moves it back";
 const PINNED_TITLE = "L9 scrolled right, the strip stays pinned beside the column and the bubbles slide under it";
 const LEVEL_TITLE = "L9 scrolled down 600px, every strip node still shares a centre line with its ruler tick";
 const clearTitle = (state: string) => `L9 ${state}: no two strip labels overlap, and no label reaches into the ruler or the session column`;
@@ -92,19 +96,25 @@ test("test_strip_left_edge_meets_the_track_right_edge_when_the_session_column_is
     assert.deepEqual(await run({ ...HOME_ON, trackLeft: 390 }), [SIDE_ON_TITLE]);
 });
 
-test("test_stage_left_edge_is_the_same_with_the_strip_on_and_off", async () => {
-    // Setup: the stage reads 396px with Commit mode on and again with it off.
+// test("test_stage_left_edge_is_the_same_with_the_strip_on_and_off", async () => {
+test("test_stage_moves_right_by_the_strip_width_with_the_strip_on", async () => {
+    // Setup: the stage reads 500px with Commit mode on and 396px with it off, and the strip is 104px wide.
     const run = async (stage: StageFacts[]) => (await runCheck(() => validateStripLayout(makeScriptedPage(buildAnswers(makeSetup({ stage })))))).newFailures;
-    // The same left edge passes.
+    // A stage pushed right by the strip width passes.
     assert.deepEqual(await run([STAGE_WITH, STAGE_WITHOUT]), []);
-    // A stage that moves 104px when the strip goes away fails.
-    assert.deepEqual(await run([STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 500 }]), [STAGE_TITLE]);
+    // A stage that did not move when the strip appeared fails.
+    // assert.deepEqual(await run([STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 500 }]), [STAGE_TITLE]);
+    assert.deepEqual(await run([{ ...STAGE_WITH, stageLeft: 396 }, STAGE_WITHOUT]), [STAGE_TITLE]);
     // A strip still on the page after the click, or missing before it, fails.
     assert.deepEqual(await run([STAGE_WITH, STAGE_WITH]), [STAGE_TITLE]);
     assert.deepEqual(await run([STAGE_WITHOUT, STAGE_WITHOUT]), [STAGE_TITLE]);
     // The judge allows half a pixel.
-    assert.equal(isStageUnmoved(STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 396.4 }), true);
-    assert.equal(isStageUnmoved(STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 397 }), false);
+    // assert.equal(isStageUnmoved(STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 396.4 }), true);
+    // assert.equal(isStageUnmoved(STAGE_WITH, { ...STAGE_WITHOUT, stageLeft: 397 }), false);
+    assert.equal(isStageMovedByStrip(STAGE_WITH, STAGE_WITHOUT), true);
+    assert.equal(isStageMovedByStrip({ ...STAGE_WITH, stageLeft: 500.4 }, STAGE_WITHOUT), true);
+    assert.equal(isStageMovedByStrip({ ...STAGE_WITH, stageLeft: 501 }, STAGE_WITHOUT), false);
+    assert.equal(isStageMovedByStrip({ ...STAGE_WITH, stageLeft: 396 }, STAGE_WITHOUT), false);
 });
 
 test("a pane that did not scroll, a moved strip or a bubble still beside it fails only the pinned check", async () => {

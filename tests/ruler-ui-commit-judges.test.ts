@@ -7,13 +7,15 @@ import * as commit from "../scripts/visual/ruler-ui-commit-judges.ts";
 const makeEntry = (kind: string, shortHash: string, cy: number) => ({ kind, shortHash, cx: 650, cy, tickCy: cy });
 const makeLine = (nodeCx: number) => ({ left: 152, right: nodeCx, top: 300, bottom: 301, style: "dashed", nodeCx });
 const STRIP: commit.StripFacts = {
-    strip: { left: 152, right: 256, top: 0, bottom: 9000 }, rulerRight: 152, stageLeft: 166, headText: "commits", deleteCount: 1, chains: 2, isCovering: true,
+    // strip: { left: 152, right: 256, top: 0, bottom: 9000 }, rulerRight: 152, stageLeft: 166, headText: "commits", deleteCount: 1, chains: 2, isCovering: true,
+    strip: { left: 152, right: 256, top: 0, bottom: 9000 }, rulerRight: 152, stageLeft: 270, headText: "commits", deleteCount: 1, chains: 2, isCovering: false,
     entries: [makeEntry("base", "a1b2c3d4", 300), makeEntry("commit", "c0ffee01", 400), makeEntry("commit", "c0ffee02", 500)],
     lines: [makeLine(170), makeLine(170), makeLine(170)], untitledNo: 0, marks: { "cut-base": 1, "cut-set": 2, "cut-ok": 5, "cut-no": 9 },
 };
 const BOTH: commit.BothFacts = {
     // strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 262, trackZ: 8, stripZ: 7,
-    strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 166, trackZ: 8, stripZ: 7,
+    // strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 166, trackZ: 8, stripZ: 7,
+    strip: { left: 248, right: 352, top: 0, bottom: 9000 }, track: { left: 152, right: 248, top: 0, bottom: 9000 }, stageLeft: 366, trackZ: 8, stripZ: 7,
     isEveryLineCrossing: true, overlaps: 0, crossings: 2, isEveryDotOnTop: true,
 };
 const dot = (display: string, opacity: number, cy: number) => ({ display, opacity, cy });
@@ -30,14 +32,16 @@ test("test_commit_mode_off_has_no_strip_and_no_cut_mark", () => {
     assert.equal(commit.isCommitOff({ stripCount: 0, cutTicks: 3 }), false);
 });
 
-test("test_strip_touches_the_ruler_is_104px_covers_bubbles_and_keeps_the_stage_still", () => {
+test("test_strip_touches_the_ruler_is_104px_covers_no_bubble_and_pushes_the_stage_by_its_width", () => {
     // Step: the good strip passes.
     assert.equal(commit.isStripPlaced(STRIP, 166), true);
-    // Step: a 120px width, moved stage, ruler gap or uncovered bubble fails.
+    // Step: a 120px width, a stage that is not pushed, a ruler gap or a covered bubble fails.
     assert.equal(commit.isStripPlaced({ ...STRIP, strip: { ...STRIP.strip, right: 272 } }, 166), false);
-    assert.equal(commit.isStripPlaced({ ...STRIP, stageLeft: 270 }, 166), false);
+    // assert.equal(commit.isStripPlaced({ ...STRIP, stageLeft: 270 }, 166), false);
+    assert.equal(commit.isStripPlaced({ ...STRIP, stageLeft: 166 }, 166), false);
     assert.equal(commit.isStripPlaced({ ...STRIP, rulerRight: 140 }, 166), false);
-    assert.equal(commit.isStripPlaced({ ...STRIP, isCovering: false }, 166), false);
+    // assert.equal(commit.isStripPlaced({ ...STRIP, isCovering: false }, 166), false);
+    assert.equal(commit.isStripPlaced({ ...STRIP, isCovering: true }, 166), false);
 });
 
 test("test_strip_head_holds_commits_and_one_delete_button", () => {
@@ -98,12 +102,14 @@ test("test_drawer_is_open_with_the_commit_message", () => {
     assert.equal(commit.isDrawerRight({ isOpen: true, text: "other", hasButton: false }), false);
 });
 
-test("test_both_on_leaves_the_stage_unmoved_and_draws_dots_above_the_lines", () => {
-    // Step: strip at the track edge, stage stays at the off stage left, 166, because the lines lie on top of the bubbles, track above strip, dots on top, passes.
+// test("test_both_on_leaves_the_stage_unmoved_and_draws_dots_above_the_lines", () => {
+test("test_both_on_pushes_the_stage_by_the_track_and_the_strip_and_draws_dots_above_the_lines", () => {
+    // Step: strip at the track edge, stage pushed right to 366 (166 + 96 track + 104 strip), track above strip, dots on top, passes.
     assert.equal(commit.isBothRight(BOTH, 166), true);
-    // Step: a stage moved by the strip, low track, overlap or covered dot fails.
-    assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 270 }, 166), false);
-    // Step: a stage pushed right by the 96px track width fails, because the lines lie on top of the bubbles.
+    // Step: a stage that is not pushed, low track, overlap or covered dot fails.
+    // assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 270 }, 166), false);
+    assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 166 }, 166), false);
+    // Step: a stage pushed right by the 96px track width only fails.
     assert.equal(commit.isBothRight({ ...BOTH, stageLeft: 262 }, 166), false);
     assert.equal(commit.isBothRight({ ...BOTH, trackZ: 7 }, 166), false);
     assert.equal(commit.isBothRight({ ...BOTH, overlaps: 1 }, 166), false);

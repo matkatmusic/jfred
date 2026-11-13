@@ -12,7 +12,7 @@
     background: var(--page); } */
   /* .sessionDotLinesComponent { position: sticky; left: calc(var(--rail-x) + 2px); z-index: 7; flex: none; width: var(--track-w); margin-left: -14px;
     background: var(--surface); border-right: 1px solid var(--muted); box-sizing: border-box; } */
-  /* Overlay inside the sticky ruler container; margin-left cancels the container gap. */
+  /* In-flow column inside the sticky ruler container; margin-left cancels the container gap. */
   .sessionDotLinesComponent { position: relative; z-index: 7; flex: none; width: var(--track-w); margin-left: -14px;
     background: var(--surface); border-right: 1px solid var(--muted); box-sizing: border-box; }
   /* .canvas:has(> .sessionDotLinesComponent) .ranges { z-index: 8; } */

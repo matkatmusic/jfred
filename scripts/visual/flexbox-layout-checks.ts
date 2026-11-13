@@ -1,9 +1,10 @@
-// Flexbox layout checks: the sources split, the bubble container beside the details pane, the pane size, edge and drag limits, and the session lines overlay; validateFlexboxLayout leaves a fresh page behind.
+// Flexbox layout checks: the sources split, the bubble container beside the details pane, the pane size, edge and drag limits, and the ruler side pushing the bubbles; validateFlexboxLayout leaves a fresh page behind.
 
 import { type HeadlessPage, type MouseHeadlessPage } from "./cdp.ts";
 import { isNear } from "./layer7-facts.ts";
 import { reportCheck } from "./mockup-checks.ts";
-import { toggleSessionDotLines } from "./ruler-ui-session-checks.ts";
+import { COMMIT_MODE_CLICK } from "./layer9-probes.ts";
+import { toggleColumn, toggleSessionDotLines } from "./ruler-ui-session-checks.ts";
 
 export interface SourcesSplitFacts { fileNavHeight: number; jsonlsHeight: number }
 export interface SourcesMinimumFacts { smallestFileNavHeight: number; smallestJsonlsHeight: number }
@@ -16,6 +17,8 @@ export interface SessionLinesFacts {
   rulerContainerRightBefore: number; rulerContainerRightAfter: number;
   trackWidth: number; bubbleContainerLeft: number;
 }
+export interface BubbleEdgeFacts { rulerContainerRight: number; bubbleContainerLeft: number }
+export interface DrawerEdgeFacts { drawerRight: number; bubbleContainerLeft: number }
 
 interface Point { x: number; y: number }
 interface SourcesBox { top: number; bottom: number }
@@ -32,8 +35,9 @@ const INITIAL_PANE_SHARE = 0.35;
 const MAX_PANE_SHARE = 0.5;
 const MIN_PANE_SHARE = 0.3;
 const SCROLL_DISTANCE_PX = 400;
-const FIRST_BUBBLE_TOLERANCE_PX = 0.5;
+// const FIRST_BUBBLE_TOLERANCE_PX = 0.5;
 const RULER_GROWTH_TOLERANCE_PX = 1;
+const BUBBLE_EDGE_TOLERANCE_PX = 0.5;
 
 export function isSourcesSplitThreeToTwo(facts: SourcesSplitFacts): boolean {
   return isNear(facts.fileNavHeight, facts.jsonlsHeight * 1.5, SPLIT_TOLERANCE_PX);
@@ -65,16 +69,28 @@ export function isPaneDragStoppedAtThirtyPercent(facts: PaneDragFacts): boolean 
   return isNear(facts.paneWidth, facts.visibleWidth * MIN_PANE_SHARE, PANE_TOLERANCE_PX);
 }
 
-export function isFirstBubbleUnmovedBySessionLines(facts: SessionLinesFacts): boolean {
-  return Math.abs(facts.firstBubbleLeftAfter - facts.firstBubbleLeftBefore) < FIRST_BUBBLE_TOLERANCE_PX;
+// export function isFirstBubbleUnmovedBySessionLines(facts: SessionLinesFacts): boolean {
+//   return Math.abs(facts.firstBubbleLeftAfter - facts.firstBubbleLeftBefore) < FIRST_BUBBLE_TOLERANCE_PX;
+// }
+
+export function isFirstBubbleMovedByTrackWidth(facts: SessionLinesFacts): boolean {
+  return isNear(facts.firstBubbleLeftAfter - facts.firstBubbleLeftBefore, facts.trackWidth, RULER_GROWTH_TOLERANCE_PX);
 }
 
 export function isRulerContainerGrownByTrackWidth(facts: SessionLinesFacts): boolean {
   return isNear(facts.rulerContainerRightAfter - facts.rulerContainerRightBefore, facts.trackWidth, RULER_GROWTH_TOLERANCE_PX);
 }
 
-export function isGrownPartOverBubbleContainer(facts: SessionLinesFacts): boolean {
-  return facts.rulerContainerRightAfter > facts.bubbleContainerLeft;
+// export function isGrownPartOverBubbleContainer(facts: SessionLinesFacts): boolean {
+//   return facts.rulerContainerRightAfter > facts.bubbleContainerLeft;
+// }
+
+export function isBubbleContainerAtRulerContainerEdge(facts: BubbleEdgeFacts): boolean {
+  return isNear(facts.bubbleContainerLeft, facts.rulerContainerRight, BUBBLE_EDGE_TOLERANCE_PX);
+}
+
+export function isBubbleContainerAtDrawerEdge(facts: DrawerEdgeFacts): boolean {
+  return isNear(facts.bubbleContainerLeft, facts.drawerRight, BUBBLE_EDGE_TOLERANCE_PX);
 }
 
 const READ_SOURCES_HEIGHTS = `(() => ({
@@ -108,6 +124,10 @@ const READ_SESSION_LINES_EDGES = `(() => {
         trackWidth: track === null ? 0 : track.getBoundingClientRect().width,
     };
 })()`;
+const READ_DRAWER_EDGES = `(() => ({
+    drawerRight: document.getElementById('jfredCommitsDrawerComponent').getBoundingClientRect().right,
+    bubbleContainerLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left,
+}))()`;
 const READ_CONTAINER_WIDTH =`document.getElementById('fileBubbleContainer').getBoundingClientRect().width`;
 const CLICK_BUBBLE_NODE = `document.querySelector('i.n-snap').click()`;
 const PANE_IS_OPEN = `document.getElementById('detailsPaneContainer').classList.contains('open')`;
@@ -207,8 +227,26 @@ export async function validatePaneDrag(page: MouseHeadlessPage, scrollBoxRight: 
   reportCheck("FLEX dragging the pane grip far right stops the pane at 30% of the visible bubble width", isPaneDragStoppedAtThirtyPercent(farRight), farRight);
 }
 
-export async function validateSessionLinesOverlay(page: HeadlessPage): Promise<void> {
+// export async function validateSessionLinesOverlay(page: HeadlessPage): Promise<void> {
+//   const before = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
+//   await toggleSessionDotLines(page, true);
+//   await page.evaluate(WAIT_FOR_FRAME);
+//   const after = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
+//   const facts: SessionLinesFacts = {
+//     firstBubbleLeftBefore: before.firstBubbleLeft, firstBubbleLeftAfter: after.firstBubbleLeft,
+//     rulerContainerRightBefore: before.rulerContainerRight, rulerContainerRightAfter: after.rulerContainerRight,
+//     trackWidth: after.trackWidth, bubbleContainerLeft: after.bubbleContainerLeft,
+//   };
+//   reportCheck("FLEX turning the session lines on does not move the left edge of the first bubble", isFirstBubbleUnmovedBySessionLines(facts), facts);
+//   reportCheck("FLEX turning the session lines on grows the ruler container right edge by the track width", isRulerContainerGrownByTrackWidth(facts), facts);
+//   reportCheck("FLEX the grown part of the ruler container lies over the bubble container", isGrownPartOverBubbleContainer(facts), facts);
+//   await toggleSessionDotLines(page, false);
+// }
+
+export async function validateRulerSidePushesBubbles(page: HeadlessPage): Promise<void> {
   const before = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
+  const offFacts: BubbleEdgeFacts = { rulerContainerRight: before.rulerContainerRight, bubbleContainerLeft: before.bubbleContainerLeft };
+  reportCheck("FLEX with the session lines and Commit mode off, #fileBubbleContainer starts at the right edge of #timelineRulerContainer", isBubbleContainerAtRulerContainerEdge(offFacts), offFacts);
   await toggleSessionDotLines(page, true);
   await page.evaluate(WAIT_FOR_FRAME);
   const after = await page.evaluate<SessionLinesEdges>(READ_SESSION_LINES_EDGES);
@@ -217,9 +255,15 @@ export async function validateSessionLinesOverlay(page: HeadlessPage): Promise<v
     rulerContainerRightBefore: before.rulerContainerRight, rulerContainerRightAfter: after.rulerContainerRight,
     trackWidth: after.trackWidth, bubbleContainerLeft: after.bubbleContainerLeft,
   };
-  reportCheck("FLEX turning the session lines on does not move the left edge of the first bubble", isFirstBubbleUnmovedBySessionLines(facts), facts);
+  reportCheck("FLEX turning the session lines on moves the first bubble right by the track width", isFirstBubbleMovedByTrackWidth(facts), facts);
   reportCheck("FLEX turning the session lines on grows the ruler container right edge by the track width", isRulerContainerGrownByTrackWidth(facts), facts);
-  reportCheck("FLEX the grown part of the ruler container lies over the bubble container", isGrownPartOverBubbleContainer(facts), facts);
+  const onFacts: BubbleEdgeFacts = { rulerContainerRight: after.rulerContainerRight, bubbleContainerLeft: after.bubbleContainerLeft };
+  reportCheck("FLEX with the session lines on, #fileBubbleContainer starts at the right edge of #timelineRulerContainer", isBubbleContainerAtRulerContainerEdge(onFacts), onFacts);
+  await toggleColumn(page, COMMIT_MODE_CLICK, "jfredCommitsDrawerComponent", true);
+  await page.evaluate(WAIT_FOR_FRAME);
+  const drawerFacts = await page.evaluate<DrawerEdgeFacts>(READ_DRAWER_EDGES);
+  reportCheck("FLEX with Commit mode on, #fileBubbleContainer starts at the right edge of #jfredCommitsDrawerComponent", isBubbleContainerAtDrawerEdge(drawerFacts), drawerFacts);
+  await toggleColumn(page, COMMIT_MODE_CLICK, "jfredCommitsDrawerComponent", false);
   await toggleSessionDotLines(page, false);
 }
 
@@ -234,6 +278,7 @@ export async function validateFlexboxLayout(page: HeadlessPage, pageUrl: string)
   await validatePaneRightEdge(page);
   await validatePaneDrag(mousePage, geometry.scrollBoxRight);
   await waitForFreshPage(page, pageUrl);
-  await validateSessionLinesOverlay(page);
+  // await validateSessionLinesOverlay(page);
+  await validateRulerSidePushesBubbles(page);
   await waitForFreshPage(page, pageUrl);
 }

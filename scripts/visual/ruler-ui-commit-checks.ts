@@ -52,7 +52,7 @@ export const DISMISS_RUN_CONSENT = `(async () => {
 async function validateStrip(page: HeadlessPage, offStageLeft: number): Promise<void> {
   await reportFacts(page, COLOUR_FACTS, "RULER commits: with the session button off every row stays plain", isRowsPlain);
   const strip = await page.evaluate<StripFacts>(STRIP_FACTS);
-  reportCheck("RULER commits: the strip touches the ruler, is 104px wide, covers bubbles, pushes the stage nowhere, and its head holds commits and Delete", isStripPlaced(strip, offStageLeft) && isStripHeadRight(strip), strip);
+  reportCheck("RULER commits: the strip touches the ruler, is 104px wide, covers no bubble, pushes the stage right by its width, and its head holds commits and Delete", isStripPlaced(strip, offStageLeft) && isStripHeadRight(strip), strip);
   reportCheck("RULER commits: base and 2 commits share one line, each level with its tick, joined by 2 chains", isEntryColumnRight(strip), strip.entries);
   reportCheck("RULER commits: 3 dashed lines run from the ruler edge to their nodes", isEveryLineRight(strip), strip.lines);
   reportCheck("RULER commits: ticks show cut-base, cut-set, cut-ok and cut-no, and each cut-no has a title", isEveryMarkRight(strip), [strip.marks, strip.untitledNo]);
@@ -73,7 +73,7 @@ async function validatePopups(page: HeadlessPage): Promise<void> {
 async function validateBoth(page: HeadlessPage, offStageLeft: number): Promise<void> {
   await toggleSessionDotLines(page, true);
   const both = await page.evaluate<BothFacts>(BOTH_FACTS);
-  reportCheck("RULER both: the strip sits at the track edge, the stage does not move, dots draw above the dashed lines", isBothRight(both, offStageLeft), both);
+  reportCheck("RULER both: the strip sits at the track edge, the stage moves right by the track and the strip, dots draw above the dashed lines", isBothRight(both, offStageLeft), both);
   await shootRulerState(page, RULER_UI_SCREENSHOTS.both);
   await toggleSessionDotLines(page, false);
 }
