@@ -9,6 +9,7 @@ import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacem
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
+import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
 import { removeRulerDisplay, renderRulerDisplay } from "../ruler/layer1-ruler-display.ts";
 import { removeRulerHead, renderRulerHead } from "../ruler/layer1-ruler-head.ts";
 import { listSelectedSessions } from "../jsonls-nav/layer1-sessions.ts";
@@ -39,7 +40,7 @@ export function isSessionColumnShown(): boolean {
   return isSessionShown;
 }
 
-export function toggleSessionColumn(): void {
+export function toggleSessionDotLines(): void {
   isSessionShown = !isSessionShown;
   renderAnnotationTrack(lastTicks);
   renderLayer1Minimap();
@@ -185,12 +186,21 @@ function removeSessionUi(): void {
   removeTrack();
   removeRulerHead();
   removeRulerDisplay();
+  getRequiredElementById("session-toggle").hidden = true;
   setTrackWidthPx(0);
 }
 
 function renderSessionControls(): void {
   renderRulerDisplay(annotations, colors, isSessionShown);
-  renderRulerHead(isSessionShown, toggleSessionColumn);
+  // renderRulerHead(isSessionShown, toggleSessionColumn);
+  renderRulerHead();
+  const sessionToggleButton = getRequiredElementById("session-toggle");
+  sessionToggleButton.hidden = false;
+  sessionToggleButton.classList.toggle("current", isSessionShown);
+  sessionToggleButton.onclick = () => {
+    toggleSessionDotLines();
+    moveMiniMapToRulerEdge();
+  };
   renderSessionColumn();
 }
 

@@ -61,9 +61,9 @@ function renderViewWithExtras(extras: object, pairExtras: object): void {
 }
 
 test("test_a_view_with_annotations_shows_the_hide_ignored_box_after_the_kind_columns", () => {
-    // Scenario: the box is the last child of the show row and carries the exact label.
+    // Scenario: the box is the last show-row control before the session button and carries the exact label.
     renderViewWithExtras({ annotations: [] }, {});
-    const lastChild = document.getElementById("timelineViewControls")!.lastElementChild!;
+    const lastChild = document.getElementById("session-toggle")!.previousElementSibling!;
     assert.equal(lastChild.querySelector("#hide-ignored")?.id, "hide-ignored");
     assert.equal(lastChild.textContent!.trim(), "hide ignored nodes");
     assert.equal(document.querySelectorAll("#timelineViewControls #hide-ignored").length, 1);
@@ -91,4 +91,15 @@ test("test_a_view_without_tool_nodes_lists_the_old_kinds_unchanged", () => {
     // Scenario: no pair has toolNodes, so there is no tool box.
     renderViewWithExtras({}, {});
     assert.equal(document.querySelector("#timelineViewControls input[data-kind=tool]"), null);
+});
+
+test("test_a_show_row_redraw_keeps_the_session_button", () => {
+    // Scenario: the static session button survives each rebuild of the show row, as the last child.
+    initLayer1Dom();
+    initLayer1Page();
+    const sessionButton = document.getElementById("session-toggle")!;
+    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
+    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
+    const controls = document.getElementById("timelineViewControls")!;
+    assert.equal(controls.lastElementChild, sessionButton);
 });

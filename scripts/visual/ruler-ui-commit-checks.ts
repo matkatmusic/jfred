@@ -16,7 +16,7 @@ import {
   BOTH_FACTS, COLOUR_FACTS, CUT_FACTS, ERROR_HOOK, IGNORED_DOT_FACTS, RULER_UI_SCREENSHOTS, STRIP_FACTS, WAIT_MS, buildHoverProbe, buildLineProbe,
 } from "./ruler-ui-probes.ts";
 import { validateRulerReview, validateSnapshotJson } from "./ruler-ui-review-checks.ts";
-import { FIRST_ID, FIRST_SESSION_ID, type LineFacts, toggleColumn, toggleSessionColumn } from "./ruler-ui-session-checks.ts";
+import { FIRST_ID, FIRST_SESSION_ID, type LineFacts, toggleColumn, toggleSessionDotLines } from "./ruler-ui-session-checks.ts";
 import { validateSessionOff, validateSessionState } from "./ruler-ui-session-run.ts";
 
 // export * from "./ruler-ui-commit-judges.ts";
@@ -71,11 +71,11 @@ async function validatePopups(page: HeadlessPage): Promise<void> {
 }
 
 async function validateBoth(page: HeadlessPage, offStageLeft: number): Promise<void> {
-  await toggleSessionColumn(page, true);
+  await toggleSessionDotLines(page, true);
   const both = await page.evaluate<BothFacts>(BOTH_FACTS);
   reportCheck("RULER both: the strip sits at the track edge, the stage moves by the track only, dots draw above the dashed lines", isBothRight(both, offStageLeft), both);
   await shootRulerState(page, RULER_UI_SCREENSHOTS.both);
-  await toggleSessionColumn(page, false);
+  await toggleSessionDotLines(page, false);
 }
 
 async function validateCommitState(page: HeadlessPage, offStageLeft: number): Promise<void> {

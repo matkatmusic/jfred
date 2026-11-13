@@ -12,7 +12,7 @@ import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 initLayer1Dom();
 const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionColumn } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
+const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionDotLines } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
 const { renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
@@ -47,13 +47,13 @@ function readDrawnIds(): string[] {
 // The column is off by default; module state outlives a test, so reset it first.
 function renderRecords(records: WireAnnotation[], ticks: WireRulerTick[], shouldShowSession = true): void {
     if (isSessionColumnShown()) {
-        toggleSessionColumn();
+        toggleSessionDotLines();
     }
     initLayer1Dom();
     storeAnnotations({ annotations: records });
     renderAnnotationTrack(ticks);
     if (shouldShowSession) {
-        toggleSessionColumn();
+        toggleSessionDotLines();
     }
 }
 
@@ -162,7 +162,7 @@ test("test_a_view_without_annotations_leaves_no_track_and_no_hide_control", () =
 test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_button_click", () => {
     const ticks = buildTicks();
     if (isSessionColumnShown()) {
-        toggleSessionColumn();
+        toggleSessionDotLines();
     }
     initLayer1Dom();
     initLayer1Page();
@@ -179,15 +179,17 @@ test("test_a_view_without_annotations_has_no_session_ui", () => {
     initLayer1Dom();
     initLayer1Page();
     renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: buildTicks() } as never);
-    for (const selector of ["#ruler-head", "#session-toggle", ".ruler-sessions", "[data-full-time]", ".ttime", ".tcount", "#hover-popup", ".sline"]) {
+    for (const selector of ["#ruler-head", ".ruler-sessions", "[data-full-time]", ".ttime", ".tcount", "#hover-popup", ".sline"]) {
         assert.equal(document.querySelector(selector), null, selector);
     }
 });
 
-test("test_by_default_there_is_a_head_with_the_session_button_and_no_track", () => {
+test("test_by_default_there_is_a_head_and_a_session_button_in_the_view_controls_and_no_track", () => {
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks, false);
-    const button = document.querySelector("#timelineRulerComponent > #ruler-head > button#session-toggle")!;
+    assert.ok(document.querySelector("#timelineRulerComponent > #ruler-head"));
+    assert.equal(document.querySelector("#ruler-head button"), null);
+    const button = document.querySelector("#timelineViewControls > button#session-toggle")!;
     assert.equal(button.textContent, "session");
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     assert.equal(document.querySelector<HTMLElement>(".sessionDataContainer")!.style.getPropertyValue("--track-w"), "0px");
@@ -242,10 +244,75 @@ test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", () =>
     renderJfredStrip(ticks);
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     // Build the track by showing the session lines.
-    toggleSessionColumn();
+    toggleSessionDotLines();
     // The ruler container holds exactly: minimap, ruler, track, strip, in that order.
     const rulerContainer = document.getElementById("timelineRulerContainer")!;
     assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["minimapComponent", "timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
     // Leave Commit mode off for the other tests in this file.
     setArmed(false);
+});
+
+test("test_the_session_button_is_inside_the_timeline_view_controls", () => {
+    // Build a view with annotations.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    // The session button is a direct child of the view controls.
+    const button = document.getElementById("session-toggle")!;
+    assert.equal(button.parentElement, document.getElementById("timelineViewControls"));
+});
+
+test("test_the_session_button_is_hidden_when_the_view_has_no_annotations", () => {
+    // Build a view with annotations, then store none and render the track again.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    storeAnnotations({});
+    renderAnnotationTrack(ticks);
+    // The button stays in the page but is hidden.
+    assert.equal(document.getElementById("session-toggle")!.hidden, true);
+});
+
+test("test_the_session_button_shows_when_the_view_has_annotations", () => {
+    // Build a view with annotations.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    // The button is not hidden.
+    assert.equal(document.getElementById("session-toggle")!.hidden, false);
+});
+
+test("test_clicking_the_session_button_adds_the_session_dot_lines_and_marks_the_button_current", () => {
+    // Build a view with annotations and the session lines off.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
+    // Click the button.
+    document.getElementById("session-toggle")!.click();
+    // The dot lines appear and the button is marked current.
+    assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 1);
+    assert.ok(document.getElementById("session-toggle")!.classList.contains("current"));
+});
+
+test("test_clicking_the_session_button_twice_removes_the_session_dot_lines", () => {
+    // Build a view with annotations and the session lines off.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    // Click the button twice.
+    document.getElementById("session-toggle")!.click();
+    document.getElementById("session-toggle")!.click();
+    // The dot lines are gone and the button is not current.
+    assert.equal(document.getElementById("sessionDotLinesComponent"), null);
+    assert.equal(document.getElementById("session-toggle")!.classList.contains("current"), false);
+});
+
+test("test_the_session_button_click_moves_the_minimap", () => {
+    // Build a view with annotations and the session lines off.
+    const ticks = buildTicks();
+    renderRecords(buildRecords(ticks), ticks, false);
+    // The ruler container now ends at 321 px.
+    const rulerContainer = document.getElementById("timelineRulerContainer")!;
+    const fullRect = { left: 0, right: 321, top: 0, bottom: 0, width: 321, height: 0, x: 0, y: 0, toJSON() { return {}; } };
+    Object.defineProperty(rulerContainer, "getBoundingClientRect", { configurable: true, value: () => fullRect });
+    // Click the button.
+    document.getElementById("session-toggle")!.click();
+    // The minimap left edge is the new ruler container edge.
+    assert.equal(document.getElementById("minimapComponent")!.style.left, "321px");
 });

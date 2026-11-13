@@ -26,7 +26,8 @@ export const SESSION_TOGGLE_CLICK = buildClickById("session-toggle");
 
 export const HEAD_FACTS = `(head => ({ isFirstChild: document.getElementById('timelineRulerComponent').firstElementChild === head, headButtons: head.querySelectorAll('button').length,
     headText: head.textContent.trim(), hasJfredButton: [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'jfred'),
-    trackCount: document.querySelectorAll('#sessionDotLinesComponent').length, stripCount: document.querySelectorAll('#jfredCommitsDrawerComponent').length }))(document.getElementById('ruler-head'))`;
+    trackCount: document.querySelectorAll('#sessionDotLinesComponent').length, stripCount: document.querySelectorAll('#jfredCommitsDrawerComponent').length,
+    sessionButtonParentId: document.getElementById('session-toggle')?.parentElement?.id ?? '' }))(document.getElementById('ruler-head'))`;
 export const COLOUR_FACTS = `({ coloured: document.querySelectorAll('#timelineRulerComponent .tick.s-coloured').length,
     withProperty: ${TICKS}.filter(t => t.style.getPropertyValue('--session-color') !== '').length })`;
 export const HEAD_SCROLL_FACTS = `(async () => {

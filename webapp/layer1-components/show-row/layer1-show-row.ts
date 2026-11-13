@@ -119,9 +119,11 @@ export function renderShowRow(view: ShowRowView): void {
   for (const kind of listPresentKinds(view))
     columns.push(buildKindColumn(kind));
   const isTrackShown = view.annotations !== undefined;
+  const sessionToggle = getRequiredElementById("session-toggle");
   getRequiredElementById("timelineViewControls").replaceChildren(
     createElement("span", { class: "lbl", text: "show:" }),
     ...columns,
     ...(isTrackShown ? [buildHideIgnoredControl()] : []),
+    sessionToggle,
   );
 }

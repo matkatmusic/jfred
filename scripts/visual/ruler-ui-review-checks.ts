@@ -14,7 +14,7 @@ import {
   buildDotClick, buildDotDrawerFacts, buildMinimapEdgeProbe, buildSurfaceProbe,
 } from "./ruler-ui-review-probes.ts";
 import { ESCAPE_CLOSE, WAIT_MS, buildScrollToDot } from "./ruler-ui-probes.ts";
-import { FIRST_ID, toggleColumn, toggleSessionColumn } from "./ruler-ui-session-checks.ts";
+import { FIRST_ID, toggleColumn, toggleSessionDotLines } from "./ruler-ui-session-checks.ts";
 
 export interface HeadTopFacts { headTop: number; paneTop: number }
 export interface RowDotFacts { rowCount: number; unmatchedCount: number }
@@ -108,8 +108,8 @@ export async function validateRulerReview(page: HeadlessPage): Promise<void> {
   await page.evaluate(SCROLL_HOME);
   await validateHeadTops(page);
   await reportFacts(page, buildMinimapEdgeProbe("#timelineRulerComponent"), "RULER review: with both columns off the minimap left edge is at the ruler right edge", isMinimapFlush);
-  await toggleSessionColumn(page, true);
+  await toggleSessionDotLines(page, true);
   await validateSessionLook(page);
-  await toggleSessionColumn(page, false);
+  await toggleSessionDotLines(page, false);
   await validateCommitLook(page);
 }
