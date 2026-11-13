@@ -9,6 +9,7 @@ import { applyDiffSelectionRange } from "./layer1-diff-selection-range.ts";
 import { storeOpenedNode } from "../bubbles/layer1-node-link.ts";
 import { stopRun } from "../../layer1-run-queue.ts";
 import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
+import { openReverseNodeDrawer } from "./layer1-drawer-reverse.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
@@ -81,9 +82,26 @@ function openPathNode(event: Event, node: HTMLElement): void {
   void openNodeDrawer(node, path);
 }
 
+// A reverse node's identity is its walk state, read from the stored walk for its bubble's path.
+function openReverseNodeState(node: HTMLElement): boolean {
+  const isReverse = node.classList.contains("n-rev");
+  if (isReverse) {
+    const path = findNodePath(node);
+    if (path === undefined) {
+      throw new Error("a reverse node has no owning file path");
+    }
+    openReverseNodeDrawer(node, path);
+  }
+  return isReverse;
+}
+
 function openShownNode(event: Event, node: HTMLElement): void {
   const isScriptOpened = openScriptNodeRun(node);
   if (isScriptOpened) {
+    return;
+  }
+  const isReverseOpened = openReverseNodeState(node);
+  if (isReverseOpened) {
     return;
   }
   openPathNode(event, node);

@@ -34,3 +34,40 @@
     border-bottom: 1px solid var(--border); }
   .detailsPaneContainer .dbody { flex: 1; min-height: 0; overflow: auto; padding: 12px;
     font: 11.5px/1.55 ui-monospace, Menlo, monospace; color: var(--ink2); white-space: pre; }
+  /*
+    The { } raw JSON box: it takes the row beside the button and wraps, even inside one long unbroken string.
+  */
+  .dbody .node-json { flex: 1; min-width: 0; }
+  .dbody .node-json .inspector-json { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; }
+  /*
+  .dbody .node-json .json-key { color: var(--c-commit); }
+  .dbody .node-json .json-string { color: var(--c-edit); }
+  .dbody .node-json .json-number { color: var(--c-user); }
+  .dbody .node-json .json-bool, .dbody .node-json .json-null { color: var(--c-script); }
+  */
+  /*
+    Raw JSON token colors, borrowed from the playground; dark mode switches like base.css does.
+  */
+  .node-json { --tok-string: #0a7a3e; --tok-number: #b25000; --tok-key: #1f5fbf; --tok-atom: #8a3fb0; --tok-punct: #52514e; }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .node-json {
+      --tok-string: #6fcf97; --tok-number: #f2a65a; --tok-key: #7ab7ff; --tok-atom: #c792ea; --tok-punct: #c3c2b7;
+    }
+  }
+  :root[data-theme="dark"] .node-json {
+    --tok-string: #6fcf97; --tok-number: #f2a65a; --tok-key: #7ab7ff; --tok-atom: #c792ea; --tok-punct: #c3c2b7;
+  }
+  .dbody .node-json .inspector-json { color: var(--tok-punct); }
+  .dbody .node-json .json-key { color: var(--tok-key); }
+  .dbody .node-json .json-string { color: var(--tok-string); }
+  .dbody .node-json .json-number { color: var(--tok-number); }
+  .dbody .node-json .json-bool, .dbody .node-json .json-null { color: var(--tok-atom); }
+  /*
+    A long string value shows 10 wrapped lines behind a […] button; the button is hidden when the whole string fits.
+  */
+  .dbody .node-json .json-collapsed {
+    display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 10; line-clamp: 10; overflow: hidden;
+  }
+  .dbody .node-json .json-expand { font-size: 10px; padding: 0 5px; vertical-align: top; }
+  .dbody .node-json .json-expand[hidden] { display: none; }

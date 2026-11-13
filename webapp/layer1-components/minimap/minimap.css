@@ -10,6 +10,11 @@
   */
   .sessionDataContainer:has(.ruler-sessions) .minimapComponent { left: calc(var(--filenav-w) + (152px + var(--track-w)) * var(--zoom, 1)); }
   .sessionDataContainer:has(#jfredCommitsDrawerComponent) .minimapComponent { left: calc(var(--filenav-w) + (152px + var(--track-w) + var(--jfred-w)) * var(--zoom, 1)); }
+  /*
+    Scroll room below the last bubble in every mode = minimap height 124px + bottom gap 12px + 16px margin.
+  */
+  /* .timelineContainer:has(.filebox.reverse-bubble) { padding-bottom: calc(124px + 12px + 16px + var(--slack-bottom, 0px)); } */
+  .timelineContainer { padding-bottom: calc(124px + 12px + 16px + var(--slack-bottom, 0px)); }
   .minimapComponent .mm-title { position: absolute; top: -8px; left: 8px; padding: 0 4px; font-size: 9px;
     color: var(--muted); background: var(--page); }
   /*

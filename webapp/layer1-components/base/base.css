@@ -47,3 +47,4 @@
   button:hover { border-color: var(--ink2); }
   button:disabled { color: var(--muted); cursor: not-allowed; }
   button:disabled:hover { border-color: var(--border); }
+  button:active:not(:disabled) { transform: translate(2px, 2px); }

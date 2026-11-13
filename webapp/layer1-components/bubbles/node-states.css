@@ -16,13 +16,13 @@
   /*
     Task 315: solid --c-snap dot; `.node.` scopes the fill to the dot, sparing the label.
   */
-  .node.n-snap { background: var(--c-snap, #1baf7a); }
+  .node.n-snap, .node.n-rev[data-kind="BackupSnapshot"] { background: var(--c-snap, #1baf7a); }
   /*
     Task 343: Edit/Write and Read dots. Confidence is a ring: verified solid, derived hollow dashed.
   */
-  .node.n-edit, .node.n-read { background: var(--node-colour, transparent); }
-  .node.n-edit { --node-colour: var(--c-edit); border-radius: 3px; }
-  .node.n-read { --node-colour: var(--c-read); }
+  .node.n-edit, .node.n-read, .node.n-rev[data-kind="EditUndone"], .node.n-rev[data-kind="WriteUndone"], .node.n-rev[data-kind="ReadOnly"] { background: var(--node-colour, transparent); }
+  .node.n-edit, .node.n-rev[data-kind="EditUndone"], .node.n-rev[data-kind="WriteUndone"] { --node-colour: var(--c-edit); border-radius: 3px; }
+  .node.n-read, .node.n-rev[data-kind="ReadOnly"] { --node-colour: var(--c-read); }
   .node.conf-verified { outline: 2px solid var(--node-colour, currentcolor); outline-offset: 3.5px; }
   /*
     .node.conf-derived background was: transparent.
@@ -35,8 +35,8 @@
   /*
     Script ring was: transparent background, 15px default size, outline-offset 3.5px, mismatch radial-gradient 3px dot, 4px double mismatch outline.
   */
-  .node.n-script { background: var(--surface, #fcfcfb); border: 3.5px solid var(--c-script, #4a3aa7); inline-size: 13px; block-size: 13px; }
-  .node.n-script.never-provable { border: 2px dashed var(--c-script, #4a3aa7); }
+  .node.n-script, .node.n-rev[data-kind="ScriptChange"], .node.n-rev[data-kind="PossibleChange"] { background: var(--surface, #fcfcfb); border: 3.5px solid var(--c-script, #4a3aa7); inline-size: 13px; block-size: 13px; }
+  .node.n-script.never-provable, .node.n-rev[data-kind="PossibleChange"] { border: 2px dashed var(--c-script, #4a3aa7); }
   /*
     Old per-confidence outlines, replaced by the run marks below:
     .node.n-script.run-state-verified { outline: 2px solid var(--c-edit); outline-offset: 1px; }

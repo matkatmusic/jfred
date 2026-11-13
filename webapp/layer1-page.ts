@@ -25,6 +25,8 @@ import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from ".
 import { closeRulerExpansion, registerTickExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import { registerTimeSourceToggle } from "./layer1-components/top-bars/layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer1-project-settings-toggle.ts";
+import { installReverseToggle } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
+import { installReverseModifyingToggle } from "./layer1-components/top-bars/layer1-reverse-modifying-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 import { attachZoomControls } from "./layer1-components/top-bars/layer1-zoom.ts";
@@ -135,6 +137,8 @@ function attachSettingsControls(): void {
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
   registerTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
+  installReverseToggle();
+  installReverseModifyingToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
   registerRefPickers(loadViewInBackground);
   void fillRefsFromRepo();

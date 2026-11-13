@@ -1,6 +1,6 @@
 // The component inspector module: toggle, enter, Escape, click blocking, and Copy. happy-dom has no layout, so these test state, not pixels.
 
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { Window } from "happy-dom";
 
@@ -96,6 +96,70 @@ test("test_copy_writes_the_name_file_line_hierarchy_text_for_the_stack_top", asy
     document.querySelector<HTMLElement>(".ci-copy")!.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(copiedTexts, ["{ Nav, /abs/nav.html, 7, Page.Nav }"]);
+});
+
+const COPIED_TEXT_DURATION_MS = 5000;
+
+function readCopyButtonText(): string {
+    return document.querySelector<HTMLElement>(".ci-copy")!.textContent;
+}
+
+async function clickCopyAndFlushPromises(): Promise<void> {
+    document.querySelector<HTMLElement>(".ci-copy")!.click();
+    await new Promise((resolve) => setImmediate(resolve));
+}
+
+function startInspectorWithNavEnteredAndFakeTimers(): void {
+    startInspector();
+    switchInspectorOn();
+    clickElement("navText");
+    clickElement("navText");
+    mock.timers.enable({ apis: ["setTimeout"] });
+}
+
+test("test_copy_button_says_copied_right_after_a_click", async () => {
+    // Scenario: a successful copy changes the button text from Copy to Copied.
+    startInspectorWithNavEnteredAndFakeTimers();
+    try {
+        assert.equal(readCopyButtonText(), "Copy");
+        await clickCopyAndFlushPromises();
+        assert.equal(readCopyButtonText(), "Copied");
+    }
+    finally {
+        mock.timers.reset();
+    }
+});
+
+test("test_copy_button_says_copy_again_after_five_seconds", async () => {
+    // Scenario: 5000 ms after the click the button text returns to Copy, and not before.
+    startInspectorWithNavEnteredAndFakeTimers();
+    try {
+        await clickCopyAndFlushPromises();
+        mock.timers.tick(COPIED_TEXT_DURATION_MS - 1);
+        assert.equal(readCopyButtonText(), "Copied");
+        mock.timers.tick(1);
+        assert.equal(readCopyButtonText(), "Copy");
+    }
+    finally {
+        mock.timers.reset();
+    }
+});
+
+test("test_a_second_copy_click_restarts_the_five_seconds", async () => {
+    // Scenario: clicking again at 3 s keeps Copied until 5 s after the second click.
+    startInspectorWithNavEnteredAndFakeTimers();
+    try {
+        await clickCopyAndFlushPromises();
+        mock.timers.tick(3000);
+        await clickCopyAndFlushPromises();
+        mock.timers.tick(COPIED_TEXT_DURATION_MS - 1);
+        assert.equal(readCopyButtonText(), "Copied");
+        mock.timers.tick(1);
+        assert.equal(readCopyButtonText(), "Copy");
+    }
+    finally {
+        mock.timers.reset();
+    }
 });
 
 test("test_while_on_a_click_on_a_page_button_does_not_reach_the_page_listener", () => {
