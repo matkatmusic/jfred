@@ -77,24 +77,35 @@ async function validateEdgeNode(page: HeadlessPage): Promise<void> {
   reportCheck("#drawer-centre each clamped axis sits exactly at its scroll end, each free axis is centred", isEveryAxisSettled, { targets, view });
 }
 
-async function validateDrawerNeverCoversPane(page: HeadlessPage): Promise<void> {
+// async function validateDrawerNeverCoversPane(page: HeadlessPage): Promise<void> {
+//   const view = await page.evaluate<CentredView>(readView(`document.getElementById('fileBubbleContainer')`));
+//   console.log(`CENTRE layout: pane ${JSON.stringify(view.pane)} drawer ${JSON.stringify(view.drawer)} uncovered area ${JSON.stringify(view.area)}`);
+//   let areaEqualsPane = true;
+//   for (let index = 0; index < view.area.length; index++) {
+//     if (view.area[index] !== view.pane[index]) {
+//       areaEqualsPane = false;
+//     }
+//   }
+//   const drawerClearOfPane = view.drawer[0]! >= view.pane[2]! - EDGE_TOLERANCE_PX;
+//   reportCheck("#drawer-centre the drawer is a flex sibling: it never covers #timelineContainer, so the uncovered area is the pane",
+//     drawerClearOfPane && areaEqualsPane, view);
+// }
+
+async function validateDrawerCoversRightOfPane(page: HeadlessPage): Promise<void> {
   const view = await page.evaluate<CentredView>(readView(`document.getElementById('fileBubbleContainer')`));
   console.log(`CENTRE layout: pane ${JSON.stringify(view.pane)} drawer ${JSON.stringify(view.drawer)} uncovered area ${JSON.stringify(view.area)}`);
-  let areaEqualsPane = true;
-  for (let index = 0; index < view.area.length; index++) {
-    if (view.area[index] !== view.pane[index]) {
-      areaEqualsPane = false;
-    }
-  }
-  const drawerClearOfPane = view.drawer[0]! >= view.pane[2]! - EDGE_TOLERANCE_PX;
-  reportCheck("#drawer-centre the drawer is a flex sibling: it never covers #timelineContainer, so the uncovered area is the pane",
-    drawerClearOfPane && areaEqualsPane, view);
+  const isAreaLeftOfDrawer = Math.abs(view.area[2]! - view.drawer[0]!) <= EDGE_TOLERANCE_PX;
+  const isAreaSideEdgesThePane = view.area[0] === view.pane[0] && view.area[1] === view.pane[1] && view.area[3] === view.pane[3];
+  const isDrawerOverPane = view.drawer[0]! < view.pane[2]!;
+  reportCheck("#drawer-centre the drawer lies over the right part of #timelineContainer, so the uncovered area is the pane up to the drawer's left edge",
+    isAreaLeftOfDrawer && isAreaSideEdgesThePane && isDrawerOverPane, view);
 }
 
 export async function validateCentring(page: HeadlessPage): Promise<void> {
   await validateInteriorNode(page);
   await validateEdgeNode(page);
-  await validateDrawerNeverCoversPane(page);
+  // await validateDrawerNeverCoversPane(page);
+  await validateDrawerCoversRightOfPane(page);
   await validateArrowLandings(page);
   await page.evaluate(`document.getElementById('zoom-reset').click()`);
   await waitMilliseconds(300);

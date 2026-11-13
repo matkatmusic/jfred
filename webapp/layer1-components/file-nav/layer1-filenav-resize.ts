@@ -14,28 +14,28 @@ function normalizeFileNavWidth(widthPx: number): number {
 }
 
 // Measures the WRAPPER, not the pane, so the number is independent of the width the drag is changing.
-function readFileNavWidthAtPointer(stagewrap: HTMLElement, clientX: number): number {
-  return normalizeFileNavWidth(clientX - stagewrap.getBoundingClientRect().left);
+function readFileNavWidthAtPointer(sessionDataContainer: HTMLElement, clientX: number): number {
+  return normalizeFileNavWidth(clientX - sessionDataContainer.getBoundingClientRect().left);
 }
 
 // Preview-only: only the absolutely-positioned grip reads it, so a move repaints one element, not the whole canvas (task 288).
-function setFileNavWidthPreview(stagewrap: HTMLElement, clientX: number): void {
-  stagewrap.style.setProperty("--filenav-drag-w", `${readFileNavWidthAtPointer(stagewrap, clientX)}px`);
+function setFileNavWidthPreview(sessionDataContainer: HTMLElement, clientX: number): void {
+  sessionDataContainer.style.setProperty("--filenav-drag-w", `${readFileNavWidthAtPointer(sessionDataContainer, clientX)}px`);
 }
 
 // Must be measured before the first preview, or the timeline's box is already the thing changing.
-function storeTimelineWidth(stagewrap: HTMLElement): void {
+function storeTimelineWidth(sessionDataContainer: HTMLElement): void {
   const timelineWidthPx = getRequiredElementById("timelineComponentsContainer").getBoundingClientRect().width;
-  stagewrap.style.setProperty("--timeline-w", `${timelineWidthPx}px`);
-  stagewrap.classList.add("resizing");
+  sessionDataContainer.style.setProperty("--timeline-w", `${timelineWidthPx}px`);
+  sessionDataContainer.classList.add("resizing");
 }
 
 // The preview property must be removed or the grip stays pinned to the drag's last position forever.
-function saveFileNavWidth(stagewrap: HTMLElement, clientX: number): void {
-  stagewrap.style.setProperty("--filenav-w", `${readFileNavWidthAtPointer(stagewrap, clientX)}px`);
-  stagewrap.style.removeProperty("--filenav-drag-w");
-  stagewrap.style.removeProperty("--timeline-w");
-  stagewrap.classList.remove("resizing");
+function saveFileNavWidth(sessionDataContainer: HTMLElement, clientX: number): void {
+  sessionDataContainer.style.setProperty("--filenav-w", `${readFileNavWidthAtPointer(sessionDataContainer, clientX)}px`);
+  sessionDataContainer.style.removeProperty("--filenav-drag-w");
+  sessionDataContainer.style.removeProperty("--timeline-w");
+  sessionDataContainer.classList.remove("resizing");
 }
 
 // Move/release listen on the WINDOW since a fast drag outruns the 7px handle; happy-dom (the test runner) lacks `setPointerCapture`.
@@ -69,10 +69,10 @@ export function attachGripDrag(
 }
 
 export function initFileNavResize(): void {
-  const stagewrap = getRequiredElementById("sessionDataContainer");
-  const moveWidthPreview = (event: MouseEvent): void => setFileNavWidthPreview(stagewrap, event.clientX);
-  const saveWidthAtPointer = (event: MouseEvent): void => saveFileNavWidth(stagewrap, event.clientX);
-  const storeWidthDragTimeline = (): void => storeTimelineWidth(stagewrap);
+  const sessionDataContainer = getRequiredElementById("sessionDataContainer");
+  const moveWidthPreview = (event: MouseEvent): void => setFileNavWidthPreview(sessionDataContainer, event.clientX);
+  const saveWidthAtPointer = (event: MouseEvent): void => saveFileNavWidth(sessionDataContainer, event.clientX);
+  const storeWidthDragTimeline = (): void => storeTimelineWidth(sessionDataContainer);
   attachGripDrag(getRequiredElementById("filenav-grip"), moveWidthPreview, saveWidthAtPointer, storeWidthDragTimeline);
 }
 
