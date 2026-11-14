@@ -2,7 +2,7 @@
 
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { collectReadEchoNodes } from "../src/layered_anchor.ts";
-import { parseCpPaths, parseMvPaths } from "../src/reconstruction_bash_events.ts";
+import { parseCpPaths, parseMvPaths, parseRmTargets } from "../src/reconstruction_bash_events.ts";
 import { codeLiteralMoveCall, codeVariableMoveCall } from "../src/regex_expressions.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
 import { isBeaconElided } from "../src/reconstruction_beacons_elided_match.ts";
@@ -36,14 +36,14 @@ export enum FileEventType {
   RowBytesUnknown = "RowBytesUnknown",
 }
 
-export type FileEvent = { type: FileEventType; instant: Date | undefined; source: RecordSource | undefined; commitHash: CommitHash | undefined; bytes: string | undefined; row: FileChangeRow | undefined; moveOrCopySourceFile: Path | undefined };
+export type FileEvent = { type: FileEventType; instant: Date | undefined; source: RecordSource | undefined; commitHash: CommitHash | undefined; bytes: string | undefined; row: FileChangeRow | undefined; moveOrCopySourceFile: Path | undefined; removedByScript: boolean; movedAwayToFile: Path | undefined };
 export type ReverseEventsResult = { states: ReverseFileState[]; unhandledEvents: FileEvent[] };
 
 enum EntryRole { Own, RowAfter, RowBefore }
 type Entry = { event: FileEvent; role: EntryRole; bytes: string | undefined };
 
 function createEvent(type: FileEventType, instant: Date | undefined, source: RecordSource | undefined, fields: Partial<FileEvent> = {}): FileEvent {
-  return { type, instant, source, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, ...fields };
+  return { type, instant, source, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, ...fields };
 }
 
 function convertKnownStateToEvent(type: FileEventType, state: KnownFileState): FileEvent {
@@ -136,6 +136,23 @@ function getSourceOfMoveOrCopyOnto(scriptRun: ScriptRun, transcriptFile: Path): 
   return undefined;
 }
 
+function getRemovalOrMoveAwayOfFile(scriptRun: ScriptRun, transcriptFile: Path): { removedByScript: boolean; movedAwayToFile: Path | undefined } {
+  let removedByScript = false;
+  let movedAwayToFile: Path | undefined;
+  for (const target of parseRmTargets(scriptRun.code)) {
+    if (new Path(normalizeAgainstCwd(scriptRun.cwd, target)).equals(transcriptFile)) {
+      removedByScript = true;
+    }
+  }
+  const move = parseMvPaths(scriptRun.code);
+  if (move !== undefined) {
+    if (new Path(normalizeAgainstCwd(scriptRun.cwd, move.from)).equals(transcriptFile)) {
+      movedAwayToFile = new Path(normalizeAgainstCwd(scriptRun.cwd, move.to));
+    }
+  }
+  return { removedByScript, movedAwayToFile };
+}
+
 function listScriptEvents(transcriptFile: Path, jsonlLines: JSONLLine[]): FileEvent[] {
   const fileNamePattern = createFileNamePattern(transcriptFile);
   const events: FileEvent[] = [];
@@ -149,7 +166,7 @@ function listScriptEvents(transcriptFile: Path, jsonlLines: JSONLLine[]): FileEv
         let fields: Partial<FileEvent> = {};
         if (isScriptCodeWriteCapable(scriptRun.code)) {
           type = FileEventType.ScriptMayWrite;
-          fields = { moveOrCopySourceFile: getSourceOfMoveOrCopyOnto(scriptRun, transcriptFile) };
+          fields = { moveOrCopySourceFile: getSourceOfMoveOrCopyOnto(scriptRun, transcriptFile), ...getRemovalOrMoveAwayOfFile(scriptRun, transcriptFile) };
         }
         events.push(createEvent(type, scriptRun.timestamp, scriptRun.source, fields));
       }

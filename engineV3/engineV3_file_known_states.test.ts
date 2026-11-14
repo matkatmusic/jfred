@@ -22,7 +22,7 @@ function makeEvent(type: FileEventType, second: number | undefined, fields: Part
     if (second !== undefined) {
         instant = makeInstant(second);
     }
-    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, ...fields };
+    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, ...fields };
 }
 
 function makeDiskNowEvent(text: string | undefined): FileEvent {
