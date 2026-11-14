@@ -13,7 +13,7 @@ const JOT_LANE_FROM = "2026-05-01T19:11:00Z";
 const JOT_LANE_TO = "2026-05-01T19:17:00Z";
 const FINDING_LABEL = /finding branches.*\d+ \/ \d+/;
 const RECONSTRUCTING_LABEL = /reconstructing branches.*\d+ \/ \d+/;
-const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
+const BRANCH_BOX = `document.querySelector('#timelineViewControls input[data-kind="branch"]')`;
 const COUNT_LANES = `document.querySelectorAll('.blane').length`;
 const COUNT_REQUESTS = `performance.getEntriesByType('resource').filter(e => e.name.includes('/api/layer1-branches')).length`;
 const SHIELD_HIDDEN = `document.getElementById('busy-shield').hidden`;
@@ -50,7 +50,7 @@ export async function validateBeforeTick(page: HeadlessPage): Promise<void> {
 export async function validateFirstFetch(page: HeadlessPage, payload: WireBranchesView, fetchTimeoutMs: number): Promise<void> {
   await page.evaluate(WATCH_BUSY);
   await page.evaluate(`${BRANCH_BOX}.click()`);
-  await page.waitFor(`${COUNT_LANES} > 0 && ${SHIELD_HIDDEN} && !document.querySelector('.viz-root').dataset.hiddenKinds.includes('branch')`, fetchTimeoutMs);
+  await page.waitFor(`${COUNT_LANES} > 0 && ${SHIELD_HIDDEN} && !document.querySelector('.appWindow').dataset.hiddenKinds.includes('branch')`, fetchTimeoutMs);
   const busy = await page.evaluate<{ shieldShown: boolean; stripShown: boolean; labels: string[] }>(`window.__busy`);
   const findingAt = findLabelIndex(busy.labels, FINDING_LABEL);
   const reconstructingAt = findLabelIndex(busy.labels, RECONSTRUCTING_LABEL);

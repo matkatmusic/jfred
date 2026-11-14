@@ -2,11 +2,11 @@
     Task 302: sits directly above the timeline and carries the Cancel that aborts the in-flight build.
   -->
   <div class="loadbar" id="loadbar" hidden data-component="LoadProgressBar">
-    <div class="loadbar-track"><div class="loadbar-fill" id="loadbar-fill"></div></div>
-    <span class="loadbar-label" id="loadbar-label"></span>
-    <button id="loadbar-cancel">Cancel</button>
-    <span class="loadbar-confirm" id="loadbar-confirm" hidden>Cancel this build?
-      <button id="loadbar-confirm-yes">Yes, cancel</button>
-      <button id="loadbar-confirm-no">No</button>
+    <div class="loadbar-track" data-component="loadBarTrackBar"><div class="loadbar-fill" id="loadbar-fill" data-component="loadBarFillBar"></div></div>
+    <span class="loadbar-label" id="loadbar-label" data-component="loadBarLabelText"></span>
+    <button id="loadbar-cancel" data-component="loadBarCancelButton">Cancel</button>
+    <span class="loadbar-confirm" id="loadbar-confirm" hidden data-component="loadBarConfirmDialog">Cancel this build?
+      <button id="loadbar-confirm-yes" data-component="loadBarConfirmYesButton">Yes, cancel</button>
+      <button id="loadbar-confirm-no" data-component="loadBarConfirmNoButton">No</button>
     </span>
   </div>

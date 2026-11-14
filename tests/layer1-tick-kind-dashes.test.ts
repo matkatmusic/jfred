@@ -29,12 +29,12 @@ function buildNode(kindClass: string): HTMLElement[] {
 function drawRowOf(kindClasses: string[]): HTMLElement {
     initLayer1Dom();
     renderShowRowWithKindFilter(BOX_VIEW, () => {});
-    document.getElementById("stage")!.replaceChildren(setAxisPx(createElement("div", { class: "filebox" }, [
+    document.getElementById("fileBubbleContainer")!.replaceChildren(setAxisPx(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", text: "a.ts", "data-path": "a.ts" }),
         createElement("div", { class: "lane" }, kindClasses.flatMap(buildNode)),
     ]), SHARED_PX));
     const tick = setAxisPx(createElement("div", { class: "tick", text: TICK_TEXT }), SHARED_PX);
-    document.getElementById("ruler")!.appendChild(tick);
+    document.getElementById("timelineRulerComponent")!.appendChild(tick);
     attachRulerTickClick(tick, { axisPx: SHARED_PX, text: TICK_TEXT, axisPxList: [SHARED_PX], instants: [INSTANT], eventCount: 3 });
     registerExpansionRelayout(markMultiEventTicks);
     registerTickExpansion();
@@ -43,7 +43,7 @@ function drawRowOf(kindClasses: string[]): HTMLElement {
 }
 
 function toggleBox(kind: string, checked: boolean): void {
-    const box = document.querySelector<HTMLInputElement>(`#show-row [data-kind=${kind}]`)!;
+    const box = document.querySelector<HTMLInputElement>(`#timelineViewControls [data-kind=${kind}]`)!;
     box.checked = checked;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
 }

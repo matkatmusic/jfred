@@ -1,8 +1,8 @@
 // Layer 1's jump-to-bubble box; native scrollIntoView is used because offsetTop is unscaled when zoomed.
 
-import { getRequiredElementById } from "../../app-dom.ts";
+import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { addSlackForEdgeNode } from "./layer1-find-slack.ts";
-import { listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } from "./layer1-find-match.ts";
+import { findMatchingBubbles, listNameElements, reportFindStatus, resetFindCycle, selectMatchAtStep } from "./layer1-find-match.ts";
 
 // A list because a landing lights the row and its owning bubble.
 let litElements: HTMLElement[] = [];
@@ -43,10 +43,10 @@ function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; r
   return drawer.top > view.top ? { ...area, bottom: drawer.top } : { ...area, top: drawer.bottom };
 }
 
-// Centres the element in the part of #timelines the Details drawer leaves uncovered.
+// Centres the element in the part of #timelineContainer the Details drawer leaves uncovered.
 export function moveToUncoveredCentre(element: HTMLElement): void {
-  const pane = getRequiredElementById("timelines");
-  const area = computeUncoveredArea(pane.getBoundingClientRect(), getRequiredElementById("drawer").getBoundingClientRect());
+  const pane = getRequiredElementById("timelineContainer");
+  const area = computeUncoveredArea(pane.getBoundingClientRect(), getRequiredElementById("detailsPaneContainer").getBoundingClientRect());
   let box = element.getBoundingClientRect();
   const hasAddedSlack = addSlackForEdgeNode(pane, box, area);
   if (hasAddedSlack) {
@@ -108,21 +108,78 @@ function clearFindState(): void {
   reportFindStatus("");
 }
 
-function attachFindBoxInputListeners(box: HTMLInputElement): void {
-  function moveOnEnter(event: Event): void {
-    if ((event as KeyboardEvent).key === "Enter") {
-      moveToNamedBubble(box.value);
+// Module scope like the cycle: -1 means no row is selected, so Enter searches the typed text.
+let selectedSuggestionIndex = -1;
+
+function listSuggestionRows(): HTMLElement[] {
+  return [...getRequiredElementById("find-file-results").children] as HTMLElement[];
+}
+
+function markSelectedSuggestion(index: number): void {
+  selectedSuggestionIndex = index;
+  const rows = listSuggestionRows();
+  for (const [rowIndex, row] of rows.entries()) {
+    row.classList.toggle("selected", rowIndex === index);
+  }
+}
+
+// The picked path goes into the box, then the existing find runs on it as if it had been typed.
+function pickSuggestion(box: HTMLInputElement, path: string): void {
+  box.value = path;
+  getRequiredElementById("find-file-results").replaceChildren();
+  selectedSuggestionIndex = -1;
+  moveToNamedBubble(path);
+}
+
+// The list is the bubbles the find would land on, so every row is pickable.
+function renderSuggestions(box: HTMLInputElement): void {
+  const rows: HTMLElement[] = [];
+  const term = box.value.trim();
+  if (term !== "") {
+    for (const bubble of findMatchingBubbles(term.toLowerCase())) {
+      const nameElement = bubble.querySelector<HTMLElement>(".fname")!;
+      const path = nameElement.dataset.path ?? nameElement.textContent!;
+      const row = createElement("div", { class: "find-suggestion", "data-path": path, text: path, "data-component": "jumpToRowFindSuggestionItem" });
+      row.addEventListener("click", () => pickSuggestion(box, path));
+      rows.push(row);
     }
   }
-  function clearOnEmptyInput(): void {
+  selectedSuggestionIndex = -1;
+  getRequiredElementById("find-file-results").replaceChildren(...rows);
+}
+
+function attachFindBoxInputListeners(box: HTMLInputElement): void {
+  function moveOnKey(event: Event): void {
+    const key = (event as KeyboardEvent).key;
+    const rows = listSuggestionRows();
+    if (key === "ArrowDown") {
+      event.preventDefault();
+      markSelectedSuggestion(Math.min(selectedSuggestionIndex + 1, rows.length - 1));
+    }
+    if (key === "ArrowUp") {
+      event.preventDefault();
+      markSelectedSuggestion(Math.max(selectedSuggestionIndex - 1, 0));
+    }
+    if (key === "Enter") {
+      const selectedRow = rows[selectedSuggestionIndex];
+      if (selectedRow !== undefined) {
+        pickSuggestion(box, selectedRow.dataset.path!);
+      }
+      else {
+        moveToNamedBubble(box.value);
+      }
+    }
+  }
+  function refreshSuggestionsAndClearOnEmptyInput(): void {
+    renderSuggestions(box);
     const isBoxEmpty = box.value.trim() === "";
     if (isBoxEmpty) {
       clearFindState();
     }
   }
-  box.addEventListener("keydown", moveOnEnter);
+  box.addEventListener("keydown", moveOnKey);
   // `input`, not `keyup`: it fires for paste, cut, and the clear button, which a key listener misses.
-  box.addEventListener("input", clearOnEmptyInput);
+  box.addEventListener("input", refreshSuggestionsAndClearOnEmptyInput);
 }
 
 function attachFindStepButtonListeners(box: HTMLInputElement): void {

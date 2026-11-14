@@ -1,5 +1,5 @@
   /*
-    Task l6-mockup: run console sits over the timeline inside .stagewrap, above the minimap (20), below .modal-wrap (50).
+    Task l6-mockup: run console sits over the timeline inside .sessionDataContainer, above the minimap (20), below .modal-wrap (50).
   */
   .run-console { position: absolute; top: 12px; left: calc(var(--filenav-w) + 12px); z-index: 30; width: min(540px, calc(100% - var(--filenav-w) - 24px));
     border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 24px rgba(0,0,0,.18); }
@@ -32,7 +32,7 @@
   /*
     Task 358 part D: the console ends left of the open drawer and its output scrolls.
   */
-  .stagewrap:has(.drawer.open) .run-console { width: min(540px, calc(50% - var(--filenav-w) - 24px)); }
+  .sessionDataContainer:has(.detailsPaneContainer.open) .run-console { width: min(540px, calc(50% - var(--filenav-w) - 24px)); }
   .console-pre { max-height: 240px; overflow: auto; }
   .console-pre .stderr { color: var(--c-mismatch); }
   .run-console-note { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 8px; }

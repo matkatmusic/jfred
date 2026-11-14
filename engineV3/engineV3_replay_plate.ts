@@ -109,16 +109,37 @@ function createPlateRun(macPlatePath: Path, captureFile: Path, capture: PlateCap
   return { captureFile, eventName, cwd, sessionId: new Uuid(capture.session_id), transcriptPath: new Path(capture.transcript_path), toolCalls: capture.tool_calls, agentTranscriptPath, timeMs: getPlateCaptureTimeMs(captureFile) };
 }
 
+function createReplayedSessionIds(jsonlsPaths: Path[]): Set<string> {
+  const jsonlFolderTexts: string[] = [];
+  for (const jsonlsPath of jsonlsPaths) {
+    jsonlFolderTexts.push(jsonlsPath.toString());
+  }
+  const replayedSessionIds = new Set<string>();
+  for (const transcriptFile of listTranscriptFiles(jsonlFolderTexts)) {
+    if (!transcriptFile.toString().includes(SUBAGENT_FOLDER_SEGMENT)) {
+      replayedSessionIds.add(basename(transcriptFile.toString(), ".jsonl"));
+    }
+  }
+  return replayedSessionIds;
+}
+
 // One run = one agent capture; a "user" capture is a by-product of a run.
+// A capture from a session that is not a replayed JSONL session is ignored, and one line says so.
 export function listPlateRuns(macPlatePath: Path, jsonlsPaths: Path[]): PlateRun[] {
   const captureFiles: Path[] = [];
   listCaptureFiles(macPlatePath.toString(), captureFiles);
   const subagentIndex = createSubagentIndex(jsonlsPaths);
+  const replayedSessionIds = createReplayedSessionIds(jsonlsPaths);
   const runs: PlateRun[] = [];
   for (const captureFile of captureFiles) {
     const capture = readPlateCaptureFile(captureFile);
     if (capture.session_id !== USER_SESSION_ID) {
-      runs.push(createPlateRun(macPlatePath, captureFile, capture, subagentIndex));
+      if (replayedSessionIds.has(capture.session_id)) {
+        runs.push(createPlateRun(macPlatePath, captureFile, capture, subagentIndex));
+      }
+      else {
+        console.log(`ignored plate capture: session ${capture.session_id} is not a replayed session, file ${captureFile.toString()}`);
+      }
     }
   }
   return runs.sort(compareRunTimes);

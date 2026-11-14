@@ -48,7 +48,7 @@ export async function validateNavOpensDiskNode(page: HeadlessPage): Promise<void
         [...document.querySelectorAll('#filenav-tree .file-item')]
             .find(i => i.title === want || i.title === want + ' (deleted)').click();
     })()`);
-  await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, 10_000);
+  await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open')`, 10_000);
   reportCheck("#325 it shows the file's ON-DISK state",
     (await page.evaluate<string>(`document.getElementById('dpath').textContent`)).includes("Current on-disk state"));
   // Task 386: #329 nav click lands on the file's bubble, shows its on-disk pane, selects no lane node.

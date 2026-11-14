@@ -8,24 +8,25 @@ import { SCROLL_HOME, buildScrollTo } from "./layer7-probes.ts";
 export interface LayoutFacts {
   rulerRight: number; trackLeft: number; trackRight: number; beforeStageRight: number; stageLeft: number; bubbleLeft: number; isTrackOnTop: boolean;
 }
-export interface RuleFacts { rulerRules: number; trackRules: number; marginWith: string; marginWithout: string }
+export interface RuleFacts { /* rulerRules: number; trackRules: number; */ marginWith: string; marginWithout: string }
 
 // The column touches the ruler: no gap where a file box could show.
 const RULER_TO_TRACK_PX = 0;
 const TOUCH_TOLERANCE_PX = 0.5;
-const TRACK_TO_STAGE_PX = 14;
+// const TRACK_TO_STAGE_PX = 14;
+const STAGE_GAP_PX = 0;
 const TOLERANCE_PX = 1;
 const SCROLL_RIGHT_PX = 400;
 
-// Task 383: the gap is measured from the element just before #stage, the column or the jfred strip.
+// Task 383: the gap is measured from the element just before #fileBubbleContainer, the column or the jfred strip.
 export const LAYOUT_FACTS =`(() => {
     const edge = id => document.getElementById(id).getBoundingClientRect();
-    const track = document.getElementById('annotation-track');
+    const track = document.getElementById('sessionDotLinesComponent');
     const mark = track.querySelector('i.anode:not(.is-ignored)').getBoundingClientRect();
     const hit = document.elementFromPoint(mark.left + mark.width / 2, mark.top + mark.height / 2);
-    return { rulerRight: edge('ruler').right, trackLeft: edge('annotation-track').left, trackRight: edge('annotation-track').right,
-        beforeStageRight: document.getElementById('stage').previousElementSibling.getBoundingClientRect().right,
-        stageLeft: edge('stage').left, bubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
+    return { rulerRight: edge('timelineRulerComponent').right, trackLeft: edge('sessionDotLinesComponent').left, trackRight: edge('sessionDotLinesComponent').right,
+        beforeStageRight: document.getElementById('fileBubbleContainer').previousElementSibling.getBoundingClientRect().right,
+        stageLeft: edge('fileBubbleContainer').left, bubbleLeft: document.querySelector('.filebox').getBoundingClientRect().left,
         isTrackOnTop: hit !== null && track.contains(hit) };
 })()`;
 
@@ -33,15 +34,15 @@ export const LAYOUT_FACTS =`(() => {
 export const RULE_FACTS = `(() => {
     const rules = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
     const count = text => rules.filter(rule => rule.selectorText === text).length;
-    const stage = document.getElementById('stage');
-    const track = document.getElementById('annotation-track');
+    const stage = document.getElementById('fileBubbleContainer');
+    const track = document.getElementById('sessionDotLinesComponent');
     const parent = track.parentNode;
     const next = track.nextSibling;
     const marginWith = getComputedStyle(stage).marginLeft;
     track.remove();
     const marginWithout = getComputedStyle(stage).marginLeft;
     parent.insertBefore(track, next);
-    return { rulerRules: count('.ruler + .stage'), trackRules: count('.atrack + .stage'), marginWith, marginWithout };
+    return { rulerRules: count('.timelineRulerComponent + .fileBubbleContainer'), trackRules: count('.sessionDotLinesComponent + .fileBubbleContainer'), marginWith, marginWithout };
 })()`;
 
 export function isColumnAfterRuler(facts: LayoutFacts): boolean {
@@ -49,7 +50,7 @@ export function isColumnAfterRuler(facts: LayoutFacts): boolean {
 }
 
 export function isColumnBetween(facts: LayoutFacts): boolean {
-  const isBeforeStage = isNear(facts.stageLeft - facts.beforeStageRight, TRACK_TO_STAGE_PX, TOLERANCE_PX);
+  const isBeforeStage = isNear(facts.stageLeft - facts.beforeStageRight, STAGE_GAP_PX, TOLERANCE_PX);
   return isColumnAfterRuler(facts) && isBeforeStage;
 }
 
@@ -62,16 +63,24 @@ export function isBubbleBesideColumn(facts: LayoutFacts): boolean {
   return facts.bubbleLeft >= facts.trackRight - TOLERANCE_PX;
 }
 
+// export function isBubbleUnderColumn(facts: LayoutFacts): boolean {
+//   return facts.bubbleLeft < facts.trackRight;
+// }
+
 export function isSlackRuleKept(facts: RuleFacts): boolean {
-  const isOneEach = facts.rulerRules === 1 && facts.trackRules === 1;
-  return isOneEach && facts.marginWith === facts.marginWithout;
+  // const isOneEach = facts.rulerRules === 1 && facts.trackRules === 1;
+  return facts.marginWith === facts.marginWithout;
 }
 
 async function validateBetween(page: HeadlessPage): Promise<void> {
   await page.evaluate(SCROLL_HOME);
   const facts = await page.evaluate<LayoutFacts>(LAYOUT_FACTS);
+  // const isRight = isColumnBetween(facts) && isBubbleBesideColumn(facts);
+  // reportCheck("L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it", isRight, facts);
+  // const isRight = isColumnAfterRuler(facts) && isStageUnderColumn(facts) && isBubbleUnderColumn(facts);
+  // reportCheck("L7 the column touches the ruler and lies over the stage and the first bubble", isRight, facts);
   const isRight = isColumnBetween(facts) && isBubbleBesideColumn(facts);
-  reportCheck("L7 the column touches the ruler, sits 14px left of the stage, and the first bubble starts after it", isRight, facts);
+  reportCheck("L7 the column touches the ruler, the stage starts at its right edge, and the first bubble starts after it", isRight, facts);
 }
 
 async function validateBesideRuler(page: HeadlessPage): Promise<void> {
@@ -84,7 +93,7 @@ async function validateBesideRuler(page: HeadlessPage): Promise<void> {
 
 async function validateSlackRule(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<RuleFacts>(RULE_FACTS);
-  reportCheck("L7 one rule for .ruler + .stage and one for .atrack + .stage, and the stage margin is the same without the column", isSlackRuleKept(facts), facts);
+  reportCheck("L7 the stage margin is the same with and without the session column", isSlackRuleKept(facts), facts);
 }
 
 export async function validateLayout(page: HeadlessPage): Promise<void> {

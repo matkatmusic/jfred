@@ -82,15 +82,30 @@ export async function fetchRawJsonLine(sessionFile: string, line: number): Promi
   return renderRawJson(await response.json());
 }
 
+// A collapsed string is clipped at 10 lines; it needs its […] button only when the clip hides text. Only the shown box has layout to measure.
+function hideExpandButtonsOfStringsThatFit(jsonBox: HTMLElement): void {
+  for (const collapsedString of jsonBox.querySelectorAll<HTMLElement>(".json-collapsed")) {
+    const expandButton = collapsedString.nextElementSibling as HTMLElement;
+    expandButton.hidden = collapsedString.scrollHeight <= collapsedString.clientHeight;
+  }
+}
+
 function createRawJsonToggleHandler(jsonBox: HTMLElement, sessionFile: string, line: number): () => Promise<void> {
   let isRequested = false;
   return async () => {
     jsonBox.hidden = !jsonBox.hidden;
-    if (isRequested) {
-      return;
+    // if (isRequested) {
+    //   return;
+    // }
+    // isRequested = true;
+    // jsonBox.replaceChildren(await fetchRawJsonLine(sessionFile, line));
+    if (!isRequested) {
+      isRequested = true;
+      jsonBox.replaceChildren(await fetchRawJsonLine(sessionFile, line));
     }
-    isRequested = true;
-    jsonBox.replaceChildren(await fetchRawJsonLine(sessionFile, line));
+    if (!jsonBox.hidden) {
+      hideExpandButtonsOfStringsThatFit(jsonBox);
+    }
   };
 }
 
@@ -99,6 +114,7 @@ export function appendRawJsonRevealForLine(sessionFile: string, line: number): v
   const jsonBox = createElement("div", { class: "node-json" });
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
+    "data-component": "detailsPaneLineRawJsonToggle",
     class: "json-toggle",
     text: "{ }",
     title: "Show raw transcript JSON",
@@ -112,11 +128,15 @@ export function appendRawJsonReveal(record: unknown): void {
   const jsonBox = createElement("div", { class: "node-json" }, [renderRawJson(record)]);
   jsonBox.hidden = true;
   const jsonToggle = createElement("button", {
+    "data-component": "detailsPaneNodeRawJsonToggle",
     class: "json-toggle",
     text: "{ }",
     title: "Show raw transcript JSON",
     onclick: () => {
       jsonBox.hidden = !jsonBox.hidden;
+      if (!jsonBox.hidden) {
+        hideExpandButtonsOfStringsThatFit(jsonBox);
+      }
     },
   });
   getRequiredElementById("dbody").append(jsonToggle, jsonBox);

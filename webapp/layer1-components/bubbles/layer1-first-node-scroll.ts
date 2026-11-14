@@ -9,7 +9,7 @@ interface NodeBox {
 
 function collectVisibleNodeBoxes(): NodeBox[] {
   const boxes: NodeBox[] = [];
-  for (const node of document.querySelectorAll<HTMLElement>("#stage .node")) {
+  for (const node of document.querySelectorAll<HTMLElement>("#fileBubbleContainer .node")) {
     const isVisible = node.checkVisibility();
     if (isVisible) {
       boxes.push({ node, rect: node.getBoundingClientRect() });
@@ -39,7 +39,7 @@ function findTopmostBox(boxes: NodeBox[]): NodeBox {
 }
 
 export function moveFirstVisibleNodeIntoView(): void {
-  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const pane = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const boxes = collectVisibleNodeBoxes();
   if (boxes.length === 0) {
     return;

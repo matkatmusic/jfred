@@ -18,7 +18,7 @@ function clearAimedElements(): void {
 
 // True when an element overlaps the timeline pane's scrollport at all; rect-vs-rect, so correct under `zoom`.
 function isInsideVisibleTimeline(element: HTMLElement): boolean {
-  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const pane = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const box = element.getBoundingClientRect();
   return box.right > pane.left && box.left < pane.right
         && box.bottom > pane.top && box.top < pane.bottom;

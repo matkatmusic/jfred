@@ -24,10 +24,10 @@ export function setAxisPx(node: HTMLElement, axisPx: number): HTMLElement {
 }
 
 // The dot carries the title too: layer1-drawer.ts reads a commit's hash off the clicked dot.
-export function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, titleText?: string): void {
+export function appendAxisNode(lane: HTMLElement, axisPx: number, instant: string, nodeClass: string, text: string, nodeTag: { "data-component": string }, labelTag: { "data-component": string }, titleText?: string): void {
   lane.append(
-    setAxisPx(createElement("i", { class: `node ${nodeClass}`, title: titleText, "data-instant": instant }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel", text, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("i", { class: `node ${nodeClass}`, ...nodeTag, title: titleText, "data-instant": instant }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel", ...labelTag, text, title: titleText, "data-instant": instant }), axisPx),
   );
 }
 
@@ -41,8 +41,8 @@ export function appendSnapshotNode(lane: HTMLElement, axisPx: number, snapshot: 
     "data-line": snapshot.line === undefined ? undefined : String(snapshot.line),
   };
   lane.append(
-    setAxisPx(createElement("i", { class: "node n-snap", ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-snap", text: `@v${snapshot.version} 📸${snapshot.isBackupMissing ? "🚫" : ""}`, ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: "node n-snap", "data-component": "laneSnapshotNode", ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-snap", "data-component": "laneSnapshotNodeLabel", text: `@v${snapshot.version} 📸${snapshot.isBackupMissing ? "🚫" : ""}`, ...identity }), axisPx),
   );
 }
 
@@ -66,8 +66,8 @@ export function appendEditNode(lane: HTMLElement, axisPx: number, edit: WireEdit
   const kindClass = `${isRead ? "n-read" : "n-edit"}${isMoved ? " n-moved" : ""}`;
   const identity = buildEditIdentity(edit);
   lane.append(
-    setAxisPx(createElement("i", { class: `node ${kindClass} conf-${edit.confidence}`, ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: `nlabel ${kindClass}`, text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
+    setAxisPx(createElement("i", { class: `node ${kindClass} conf-${edit.confidence}`, "data-component": "laneEditNode", ...identity }), axisPx),
+    setAxisPx(createElement("span", { class: `nlabel ${kindClass}`, "data-component": "laneEditNodeLabel", text: isRead ? "[R]✓" : "[e]", ...identity }), axisPx),
   );
 }
 
@@ -91,13 +91,13 @@ export function appendScriptRunNode(lane: HTMLElement, axisPx: number, run: Wire
   // A labelled run puts its file name on its own line, so the label stays inside the bubble.
   const labelParts = run.label === undefined ? [iconText] : [iconText, " ", createElement("span", { class: "nfile", text: run.label.slice(iconText.length + 1) })];
   const isStateKnown = run.confidence !== undefined;
-  const dot = setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}${isStateKnown ? ` run-state-${run.confidence}` : ""}`, ...identity }), axisPx);
+  const dot = setAxisPx(createElement("i", { class: `node n-script${isBash ? " never-provable" : ""}${isStateKnown ? ` run-state-${run.confidence}` : ""}`, "data-component": "laneScriptRunNode", ...identity }), axisPx);
   // A redrawn dot reads the stored run state, so it matches the dots drawn before it.
   renderRunDot(dot, run.confidence);
   lane.append(
     dot,
     // setAxisPx(createElement("span", { class: "nlabel n-script", text: run.label ?? iconText, ...identity }), axisPx),
-    setAxisPx(createElement("span", { class: "nlabel n-script", ...identity }, labelParts), axisPx),
+    setAxisPx(createElement("span", { class: "nlabel n-script", "data-component": "laneScriptRunNodeLabel", ...identity }, labelParts), axisPx),
   );
 }
 
@@ -119,7 +119,7 @@ function findLastBranchNodePx(branch: WireBranch, startPx: number): number {
 }
 
 function createBranchRail(railFromPx: number, railToPx: number): HTMLElement {
-  const rail = setAxisPx(createElement("div", { class: "brail" }), railFromPx);
+  const rail = setAxisPx(createElement("div", { class: "brail", "data-component": "laneBranchRailBar" }), railFromPx);
   rail.style.setProperty("--span-px", String(railToPx - railFromPx));
   return rail;
 }
@@ -128,8 +128,8 @@ function appendBranchNodes(branchLane: HTMLElement, branch: WireBranch, startPx:
   for (const node of branch.nodes) {
     const identity = { title: `${node.label}: ${BRANCH_NODE_NOTE[branch.rewindKind]}`, "data-instant": node.instant, "data-change-id": node.changeId, "data-kind": node.label };
     branchLane.append(
-      setAxisPx(createElement("i", { class: "bnode", ...identity }), node.axisPx - startPx),
-      setAxisPx(createElement("span", { class: "blabel", text: node.label, ...identity }), node.axisPx - startPx),
+      setAxisPx(createElement("i", { class: "bnode", "data-component": "laneBranchNode", ...identity }), node.axisPx - startPx),
+      setAxisPx(createElement("span", { class: "blabel", "data-component": "laneBranchNodeLabel", text: node.label, ...identity }), node.axisPx - startPx),
     );
   }
 }
@@ -143,9 +143,9 @@ export function appendBranchLane(lane: HTMLElement, branch: WireBranch, laneInde
   const branchLane = createElement("div", { class: "blane" });
   branchLane.style.setProperty("--lane-index", String(laneIndex));
   const rail = createBranchRail(railFromPx, railToPx);
-  branchLane.append(setAxisPx(createElement("div", { class: "split-elbow" }), forkPx), rail);
+  branchLane.append(setAxisPx(createElement("div", { class: "split-elbow", "data-component": "laneBranchSplitLink" }), forkPx), rail);
   if (rejoinPx !== undefined) {
-    branchLane.append(setAxisPx(createElement("div", { class: "merge-elbow" }), rejoinPx));
+    branchLane.append(setAxisPx(createElement("div", { class: "merge-elbow", "data-component": "laneBranchMergeLink" }), rejoinPx));
   }
   appendBranchNodes(branchLane, branch, startPx);
   lane.append(branchLane);

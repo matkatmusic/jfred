@@ -38,9 +38,10 @@ export function listJfredEntries(branch: JfredBranch): JfredEntry[] {
   return entries;
 }
 
-function buildEntryElement(tag: string, className: string, entry: JfredEntry, ticks: readonly WireRulerTick[], text?: string): HTMLElement {
+function buildEntryElement(tag: string, className: string, componentTag: { "data-component": string }, entry: JfredEntry, ticks: readonly WireRulerTick[], text?: string): HTMLElement {
   const element = createElement(tag, {
     class: className,
+    ...componentTag,
     "data-entry-kind": entry.kind,
     "data-short-hash": entry.shortHash,
     "data-parent-hash": entry.parentShortHash,
@@ -55,7 +56,7 @@ function buildEntryElement(tag: string, className: string, entry: JfredEntry, ti
 
 function buildEntryNode(entry: JfredEntry, ticks: readonly WireRulerTick[]): HTMLElement {
   const lookClass = entry.kind === JfredEntryKind.commit ? "" : ` j-${entry.kind}`;
-  return buildEntryElement("i", `jnode${lookClass}`, entry, ticks);
+  return buildEntryElement("i", `jnode${lookClass}`, { "data-component": "commitsNodeDot" }, entry, ticks);
 }
 
 export function buildJfredEntries(branch: JfredBranch, ticks: readonly WireRulerTick[]): HTMLElement[] {
@@ -66,8 +67,8 @@ export function buildJfredEntries(branch: JfredBranch, ticks: readonly WireRuler
     const node = buildEntryNode(entry, ticks);
     const chainClass = entry.kind === JfredEntryKind.pending ? "jchain j-pending" : "jchain";
     if (previousNode !== undefined)
-      elements.push(buildPairBracket(previousNode, node, chainClass));
-    elements.push(node, buildEntryElement("span", "jlabel", entry, ticks, entry.label), buildEntryElement("div", "jline", entry, ticks));
+      elements.push(buildPairBracket(previousNode, node, chainClass, { "data-component": "commitsChainLine" }));
+    elements.push(node, buildEntryElement("span", "jlabel", { "data-component": "commitsHashLabel" }, entry, ticks, entry.label), buildEntryElement("div", "jline", { "data-component": "commitsHoverLine" }, entry, ticks));
     previousNode = node;
   }
   return elements;

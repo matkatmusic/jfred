@@ -3,6 +3,8 @@
 import { getInputById, getRequiredElementById } from "../../app-dom.ts";
 import { getJfredBaseHashForProject, saveJfredBaseHash } from "../../layer1-settings.ts";
 import { openToast } from "../details-drawer/layer1-diff-pane-support.ts";
+import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
+import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
 import { toggleKindBox } from "../show-row/layer1-kind-filter.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { installCutMarkClick } from "./layer1-cut-marks.ts";
@@ -29,7 +31,7 @@ function loadSavedBase(view: WireLayer1View): void {
 }
 
 async function enableEveryKind(): Promise<boolean> {
-  const kindBoxes = document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]");
+  const kindBoxes = document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]");
   for (const box of kindBoxes) {
     if (!box.checked) {
       box.checked = true;
@@ -56,6 +58,8 @@ async function toggleCommitMode(): Promise<void> {
   getRequiredElementById("commit-mode").classList.toggle("current", readJfredBranch().isArmed);
   repaintCutMarks();
   refreshJfredStrip();
+  moveMiniMapToRulerEdge();
+  moveOpenDetailsPane();
 }
 
 function loadBranchForView(view: WireLayer1View, isCanned: boolean): void {

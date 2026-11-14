@@ -9,7 +9,7 @@ export interface PageStyleSnapshot {
 
 // The minimap box follows scrolling a moment late: true once it and the scroll position stop changing.
 export const WAIT_FOR_STABLE_LAYOUT = `(async () => {
-    const timelines = document.getElementById('timelines');
+    const timelines = document.getElementById('timelineContainer');
     const read = () => document.getElementById('mm-view')?.style.cssText + '|' + timelines?.scrollTop + ',' + timelines?.scrollLeft;
     let last = read();
     for (let attempt = 0; attempt < 20; attempt++) {

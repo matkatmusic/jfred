@@ -15,9 +15,9 @@ function openZoomablePage(): void {
     initLayer1Page();
 }
 
-// The zoom value lives on .viz-root so it inherits down; .canvas only consumes it, never sets it.
+// The zoom value lives on .appWindow so it inherits down; .canvas only consumes it, never sets it.
 function readPublishedZoom(): string {
-    return (document.querySelector(".viz-root") as HTMLElement).style.getPropertyValue("--zoom");
+    return (document.querySelector(".appWindow") as HTMLElement).style.getPropertyValue("--zoom");
 }
 
 function readZoomLevelText(): string | null {
@@ -49,7 +49,7 @@ function litBubbleWithRecordedScroll(): { options: ScrollIntoViewOptions[] } {
     bubble.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => {
         recorded.push(options as ScrollIntoViewOptions);
     };
-    document.getElementById("stage")!.append(bubble);
+    document.getElementById("fileBubbleContainer")!.append(bubble);
     return { options: recorded };
 }
 

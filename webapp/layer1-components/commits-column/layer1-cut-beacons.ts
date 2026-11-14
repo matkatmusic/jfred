@@ -41,7 +41,7 @@ export function readTickBeaconFacts(tick: HTMLElement, snapshot: BubbleSnapshot[
 export function countSkippedBeaconTicks(fromMs: number, toMs: number): number {
   const snapshot = collectStageBubbles();
   let count = 0;
-  for (const tick of getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick")) {
+  for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll<HTMLElement>(".tick")) {
     const facts = readTickBeaconFacts(tick, snapshot);
     const isBetween = facts.instantMs > fromMs && facts.instantMs < toMs;
     if (isBetween) {

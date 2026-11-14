@@ -44,7 +44,7 @@ function buildOrphanBubble(title: string, path: string, bucketPx: number): HTMLE
 // `build` is a callback because `createElement` reads the global `document`; inline bubbles would bind to the previous test's page.
 function drawStage(build: () => HTMLElement[]): void {
     initLayer1Dom();
-    document.getElementById("stage")!.replaceChildren(...build());
+    document.getElementById("fileBubbleContainer")!.replaceChildren(...build());
 }
 
 // spanning.ts holds an interior node on the shared instant; beginning.ts BEGINS on it too, drawing a row at SHARED_PX.

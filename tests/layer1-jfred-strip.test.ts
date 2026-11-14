@@ -38,42 +38,42 @@ beforeEach(() => {
 
 function addAnnotationTrack(): HTMLElement {
   const track = document.createElement("div");
-  track.id = "annotation-track";
-  document.getElementById("ruler")!.after(track);
+  track.id = "sessionDotLinesComponent";
+  document.getElementById("timelineRulerComponent")!.after(track);
   return track;
 }
 
 function findEntry(shortHashOrKind: string): HTMLElement {
-  return document.querySelector<HTMLElement>(`#jfred-strip [data-short-hash="${shortHashOrKind}"], #jfred-strip [data-entry-kind="${shortHashOrKind}"]`)!;
+  return document.querySelector<HTMLElement>(`#jfredCommitsDrawerComponent [data-short-hash="${shortHashOrKind}"], #jfredCommitsDrawerComponent [data-entry-kind="${shortHashOrKind}"]`)!;
 }
 
 test("test_the_strip_is_the_sibling_right_after_the_session_column", () => {
   // Verify: with a track present, the strip sits right after it.
   const track = addAnnotationTrack();
   renderJfredStrip(TICKS);
-  assert.equal(track.nextElementSibling!.id, "jfred-strip");
+  assert.equal(track.nextElementSibling!.id, "jfredCommitsDrawerComponent");
 });
 
 test("test_without_a_session_column_the_strip_follows_the_ruler", () => {
-  // Verify: the ruler is the anchor when no track exists.
+  // Verify: the timelineRulerComponent is the anchor when no track exists.
   renderJfredStrip(TICKS);
-  assert.equal(document.getElementById("ruler")!.nextElementSibling!.id, "jfred-strip");
+  assert.equal(document.getElementById("timelineRulerComponent")!.nextElementSibling!.id, "jfredCommitsDrawerComponent");
 });
 
 test("test_a_second_render_keeps_one_strip_with_one_head", () => {
   // Verify: the strip is built once; the second render only redraws it.
   renderJfredStrip(TICKS);
   renderJfredStrip(TICKS);
-  assert.equal(document.querySelectorAll("#jfred-strip").length, 1);
-  assert.equal(document.querySelectorAll("#jfred-strip .jhead").length, 1);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jhead").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
 });
 
 test("test_the_head_holds_the_title_and_the_delete_button", () => {
   // Verify: the head reads `commits` and carries `Delete jfred branch`.
   renderJfredStrip(TICKS);
-  assert.equal(document.querySelector("#jfred-strip .jhead span")!.textContent, "commits");
-  assert.equal(document.querySelector("#jfred-strip .jhead button.jdelete")!.textContent, "Delete jfred branch");
+  assert.equal(document.querySelector("#jfredCommitsDrawerComponent .jhead span")!.textContent, "commits");
+  assert.equal(document.querySelector("#jfredCommitsDrawerComponent .jhead button.jdelete")!.textContent, "Delete jfred branch");
 });
 
 test("test_commit_mode_off_removes_the_strip", () => {
@@ -81,24 +81,24 @@ test("test_commit_mode_off_removes_the_strip", () => {
   renderJfredStrip(TICKS);
   setArmed(false);
   renderJfredStrip(TICKS);
-  assert.equal(document.getElementById("jfred-strip"), null);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent"), null);
 });
 
 test("test_the_delete_button_clears_the_state_and_keeps_the_head", async () => {
   // Verify: after the Yes answer, base, commits and pending are gone, no entry is drawn, the head stays.
   renderJfredStrip(TICKS);
-  document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#jfredCommitsDrawerComponent .jdelete")!.click();
   document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
   await waitForAsyncWork();
   const branch = readJfredBranch();
   assert.equal(branch.base, undefined);
   assert.equal(branch.commits.length, 0);
-  assert.equal(document.querySelectorAll("#jfred-strip .jhead").length, 1);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 0);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jhead").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 0);
 });
 
 test("test_a_click_on_a_commit_entry_opens_its_message_without_a_button", () => {
-  // Verify: the drawer shows the stored message, header and parent.
+  // Verify: the detailsPaneContainer shows the stored message, header and parent.
   renderJfredStrip(TICKS);
   findEntry("c0ffee02").click();
   assert.equal(document.getElementById("dpath")!.textContent, "jfred commit c0ffee02");
@@ -110,7 +110,7 @@ test("test_a_click_on_a_commit_entry_opens_its_message_without_a_button", () => 
 test("test_a_click_on_a_label_opens_the_same_message", () => {
   // Verify: the delegated click works from the label too.
   renderJfredStrip(TICKS);
-  document.querySelector<HTMLElement>('#jfred-strip .jlabel[data-short-hash="c0ffee01"]')!.click();
+  document.querySelector<HTMLElement>('#jfredCommitsDrawerComponent .jlabel[data-short-hash="c0ffee01"]')!.click();
   assert.equal(document.querySelector("#dbody pre")!.textContent, "message one");
 });
 
@@ -137,25 +137,25 @@ test("test_the_commit_button_adds_the_entry_and_the_drawer_shows_it_without_a_bu
   await waitForAsyncWork();
   assert.equal(readJfredBranch().commits.at(-1)!.shortHash, "c0ffee03");
   assert.equal(findEntry("c0ffee03").dataset["parentHash"], "c0ffee02");
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 4);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 4);
   assert.equal(document.getElementById("dpath")!.textContent, "jfred commit c0ffee03");
   assert.equal(document.getElementById("jfred-commit-button"), null);
 });
 
 test("test_a_click_on_the_base_opens_nothing", () => {
-  // Verify: the base has no message, so the drawer stays closed.
+  // Verify: the base has no message, so the detailsPaneContainer stays closed.
   renderJfredStrip(TICKS);
   findEntry("base").click();
-  assert.equal(document.getElementById("drawer")!.classList.contains("open"), false);
+  assert.equal(document.getElementById("detailsPaneContainer")!.classList.contains("open"), false);
 });
 
 test("test_redraw_builds_the_strip_from_the_stored_ticks", async () => {
   // Verify: after a delete, a new base plus a redraw brings the entry back without new ticks.
   renderJfredStrip(TICKS);
-  document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#jfredCommitsDrawerComponent .jdelete")!.click();
   document.querySelector<HTMLElement>("#yesno-row .yesno-yes")!.click();
   await waitForAsyncWork();
   loadJfredBranch(CANNED_VIEW);
   renderJfredEntries();
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
 });

@@ -8,7 +8,9 @@ import type { SessionLook } from "./layer1-annotation-dots.ts";
 import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "./layer1-annotation-window.ts";
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
+import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
+import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
 import { removeRulerDisplay, renderRulerDisplay } from "../ruler/layer1-ruler-display.ts";
 import { removeRulerHead, renderRulerHead } from "../ruler/layer1-ruler-head.ts";
 import { listSelectedSessions } from "../jsonls-nav/layer1-sessions.ts";
@@ -18,7 +20,7 @@ import type { SessionSpan } from "./layer1-session-lanes.ts";
 import type { WireAnnotation } from "./layer1-wire-annotations.ts";
 import type { WireLayer1View, WireRulerTick } from "../../layer1-wire.ts";
 
-const TRACK_ID = "annotation-track";
+const TRACK_ID = "sessionDotLinesComponent";
 
 // Module state because a filter redraw hands the stage a view that no longer carries the field.
 let annotations: WireAnnotation[] = [];
@@ -39,10 +41,11 @@ export function isSessionColumnShown(): boolean {
   return isSessionShown;
 }
 
-export function toggleSessionColumn(): void {
+export function toggleSessionDotLines(): void {
   isSessionShown = !isSessionShown;
   renderAnnotationTrack(lastTicks);
   renderLayer1Minimap();
+  moveOpenDetailsPane();
 }
 
 // function buildTitle(annotation: WireAnnotation): string {
@@ -64,7 +67,7 @@ export function toggleSessionColumn(): void {
 
 // CSS `zoom` shrinks scroll offsets, so divide the viewport back into axis pixels; unset zoom means 1.
 function readCanvasZoom(): number {
-  const rawZoom = document.querySelector<HTMLElement>(".viz-root")!.style.getPropertyValue("--zoom");
+  const rawZoom = document.querySelector<HTMLElement>(".appWindow")!.style.getPropertyValue("--zoom");
   if (rawZoom === "") {
     return 1;
   }
@@ -110,7 +113,7 @@ function listWindowElements(topPx: number, bottomPx: number): HTMLElement[] {
 
 // Also the scroll handler: a named function, so adding it again is a DOM no-op.
 export function renderAnnotationWindow(): void {
-  const pane = getRequiredElementById("timelines");
+  const pane = getRequiredElementById("timelineContainer");
   const zoom = readCanvasZoom();
   const topPx = pane.scrollTop / zoom - ANNOTATION_MARGIN_PX;
   const bottomPx = (pane.scrollTop + pane.clientHeight) / zoom + ANNOTATION_MARGIN_PX;
@@ -124,10 +127,16 @@ function buildTrackOnce(): void {
   if (existingTrack !== null) {
     return;
   }
-  const track = createElement("div", { id: TRACK_ID, class: "atrack" });
-  getRequiredElementById("ruler").after(track);
+  const track = createElement("div", { id: TRACK_ID, class: "sessionDotLinesComponent", "data-component": "sessionDotLinesComponent" });
+  // getRequiredElementById("timelineRulerComponent").after(track);
+  const strip = document.getElementById("jfredCommitsDrawerComponent");
+  if (strip !== null) {
+    strip.before(track);
+  } else {
+    getRequiredElementById("timelineRulerContainer").append(track);
+  }
   attachHoverPopup(track, readDotPopup);
-  getRequiredElementById("timelines").addEventListener("scroll", renderAnnotationWindow);
+  getRequiredElementById("timelineContainer").addEventListener("scroll", renderAnnotationWindow);
 }
 
 function removeTrack(): void {
@@ -136,11 +145,11 @@ function removeTrack(): void {
     return;
   }
   track.remove();
-  getRequiredElementById("timelines").removeEventListener("scroll", renderAnnotationWindow);
+  getRequiredElementById("timelineContainer").removeEventListener("scroll", renderAnnotationWindow);
 }
 
 function setTrackWidthPx(widthPx: number): void {
-  getRequiredElementById("stagewrap").style.setProperty("--track-w", `${widthPx}px`);
+  getRequiredElementById("sessionDataContainer").style.setProperty("--track-w", `${widthPx}px`);
 }
 
 function listSessionSpanPixels(spans: readonly PairSpan[]): SessionSpan[] {
@@ -179,12 +188,21 @@ function removeSessionUi(): void {
   removeTrack();
   removeRulerHead();
   removeRulerDisplay();
+  getRequiredElementById("session-toggle").hidden = true;
   setTrackWidthPx(0);
 }
 
 function renderSessionControls(): void {
   renderRulerDisplay(annotations, colors, isSessionShown);
-  renderRulerHead(isSessionShown, toggleSessionColumn);
+  // renderRulerHead(isSessionShown, toggleSessionColumn);
+  renderRulerHead();
+  const sessionToggleButton = getRequiredElementById("session-toggle");
+  sessionToggleButton.hidden = false;
+  sessionToggleButton.classList.toggle("current", isSessionShown);
+  sessionToggleButton.onclick = () => {
+    toggleSessionDotLines();
+    moveMiniMapToRulerEdge();
+  };
   renderSessionColumn();
 }
 

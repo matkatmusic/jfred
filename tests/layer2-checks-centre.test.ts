@@ -27,7 +27,8 @@ async function failuresAddedBy(run: () => Promise<void>): Promise<string[]> {
 }
 
 const VIEW: CentredView = {
-    node: [150, 150, 250, 250], area: [0, 0, 400, 400], pane: [0, 0, 400, 400], drawer: [400, 0, 600, 400],
+    // node: [150, 150, 250, 250], area: [0, 0, 400, 400], pane: [0, 0, 400, 400], drawer: [400, 0, 600, 400],
+    node: [150, 150, 250, 250], area: [0, 0, 400, 400], pane: [0, 0, 600, 400], drawer: [400, 0, 600, 400],
     scroll: [100, 100], maxScroll: [500, 500], offset: [0, 0], isInside: true, touchesDrawer: false,
 };
 
@@ -40,9 +41,23 @@ test("validateCentring passes the interior and drawer checks and fails the missi
     ]);
 });
 
-test("validateCentring fails the drawer check when the uncovered area is not the pane", async () => {
+// test("validateCentring fails the drawer check when the uncovered area is not the pane", async () => {
+//     const overlapped: CentredView = { ...VIEW, area: [0, 0, 300, 400] };
+//     const page = fakePage([true, undefined, VIEW, false, overlapped, undefined, true, undefined]);
+//     const added = await failuresAddedBy(() => validateCentring(page));
+//     assert.ok(added.includes("#drawer-centre the drawer is a flex sibling: it never covers #timelineContainer, so the uncovered area is the pane"));
+// });
+
+test("validateCentring fails the drawer check when the uncovered area does not end at the drawer's left edge", async () => {
     const overlapped: CentredView = { ...VIEW, area: [0, 0, 300, 400] };
     const page = fakePage([true, undefined, VIEW, false, overlapped, undefined, true, undefined]);
     const added = await failuresAddedBy(() => validateCentring(page));
-    assert.ok(added.includes("#drawer-centre the drawer is a flex sibling: it never covers #timelines, so the uncovered area is the pane"));
+    assert.ok(added.includes("#drawer-centre the drawer lies over the right part of #timelineContainer, so the uncovered area is the pane up to the drawer's left edge"));
+});
+
+test("validateCentring fails the drawer check for the old layout with the drawer beside the pane", async () => {
+    const drawerBesidePane: CentredView = { ...VIEW, pane: [0, 0, 400, 400] };
+    const page = fakePage([true, undefined, VIEW, false, drawerBesidePane, undefined, true, undefined]);
+    const added = await failuresAddedBy(() => validateCentring(page));
+    assert.ok(added.includes("#drawer-centre the drawer lies over the right part of #timelineContainer, so the uncovered area is the pane up to the drawer's left edge"));
 });

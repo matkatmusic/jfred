@@ -3,11 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { buildNode, findArrow, PANE_HEIGHT_PX, readLandedY, refreshKindJumpArrows, renderViewWithSyntheticStage } from "./layer1-kind-jump-helpers.ts";
 
 test("test_each_kind_box_has_a_previous_and_a_next_arrow_under_it", async () => {
     await renderViewWithSyntheticStage();
-    for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
+    for (const box of document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]")) {
         const column = box.closest(".show-kind-col")!;
         const labelRow = column.querySelector("label.show-kind")!;
         const arrows = [...column.querySelectorAll<HTMLButtonElement>("button")];
@@ -29,7 +30,7 @@ test("test_next_lands_on_the_nearest_node_after_the_view_and_a_second_next_steps
 test("test_an_arrow_landing_centres_the_node_in_the_visible_timeline", async () => {
     await renderViewWithSyntheticStage();
     findArrow("commit", "next").click();
-    const box = document.querySelector<HTMLElement>("#stage .found")!.getBoundingClientRect();
+    const box = document.querySelector<HTMLElement>("#fileBubbleContainer .found")!.getBoundingClientRect();
     assert.equal((box.top + box.bottom) / 2, PANE_HEIGHT_PX / 2);
 });
 
@@ -47,7 +48,7 @@ test("test_after_the_user_scrolls_the_pane_an_arrow_steps_from_the_view_centre_n
     await renderViewWithSyntheticStage();
     findArrow("commit", "next").click();
     assert.equal(readLandedY(), "400");
-    document.getElementById("timelines")!.scrollTop = 500;
+    document.getElementById("timelineContainer")!.scrollTop = 500;
     findArrow("commit", "previous").click();
     assert.equal(readLandedY(), "400");
 });
@@ -73,8 +74,10 @@ test("test_the_tool_arrows_land_on_a_tnode_that_is_not_a_node", async () => {
     for (const toolNode of [first, second]) {
         toolNode.className = "tnode a-tool-use";
     }
-    document.getElementById("stage")!.replaceChildren(first, second);
-    document.getElementById("show-row")!.append(buildToolArrow("previous"), buildToolArrow("next"));
+    const container = document.getElementById("fileBubbleContainer")!;
+    clearFileBubbles(container);
+    container.append(first, second);
+    document.getElementById("timelineViewControls")!.append(buildToolArrow("previous"), buildToolArrow("next"));
     refreshKindJumpArrows();
     findArrow("tool", "next").click();
     assert.equal(readLandedY(), "400");
@@ -85,6 +88,6 @@ test("test_the_tool_arrows_land_on_a_tnode_that_is_not_a_node", async () => {
 test("test_a_kind_jump_does_not_toggle_the_checkbox", async () => {
     await renderViewWithSyntheticStage();
     findArrow("commit", "next").click();
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row input[data-kind=commit]")!.checked, true);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls input[data-kind=commit]")!.checked, true);
 });
 

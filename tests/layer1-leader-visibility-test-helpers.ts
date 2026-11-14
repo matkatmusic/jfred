@@ -66,7 +66,7 @@ export function listShownLeaderOffsets(): number[] {
 
 export function findBubble(basename: string): HTMLElement {
   let bubble: HTMLElement | undefined;
-  for (const name of document.querySelectorAll<HTMLElement>("#stage .filebox .fname")) {
+  for (const name of document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox .fname")) {
     const isNamedBasename = name.textContent === basename;
     if (isNamedBasename) {
       bubble = name.closest(".filebox") as HTMLElement;
@@ -79,7 +79,7 @@ export function findBubble(basename: string): HTMLElement {
 
 export function findTickAt(axisPx: number): HTMLElement {
   let found: HTMLElement | undefined;
-  for (const tick of document.querySelectorAll<HTMLElement>("#ruler .tick")) {
+  for (const tick of document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick")) {
     const isAtAxisPx = tick.style.getPropertyValue("--axis-px") === String(axisPx);
     if (isAtAxisPx) {
       found = tick;
@@ -93,7 +93,7 @@ export function findTickAt(axisPx: number): HTMLElement {
 // Drive hover through a bubbling event, because the listener is wired to the PANE: this proves wiring and lookup.
 export function triggerHover(element: Element | undefined): void {
   if (element === undefined) {
-    document.getElementById("timelines")?.dispatchEvent(new window.Event("pointerleave"));
+    document.getElementById("timelineContainer")?.dispatchEvent(new window.Event("pointerleave"));
     return;
   }
   element.dispatchEvent(new window.Event("pointerover", { bubbles: true }));

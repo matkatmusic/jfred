@@ -67,7 +67,7 @@ test("test_the_loadbar_names_every_phase_from_the_edit_fetch_to_the_drawn_nodes"
   ]);
   await renderLayer1View(buildChunkedView());
   const samples = sampleLoadbarEveryStep();
-  const box = document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!;
+  const box = document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!;
   box.checked = true;
   box.dispatchEvent(new window.Event("change", { bubbles: true }));
   for (let turn = 0; turn < 10; turn++) {

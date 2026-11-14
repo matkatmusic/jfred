@@ -89,9 +89,9 @@ export function listPresentKinds(view: ShowRowView): ShowRowKind[] {
 }
 
 function buildKindCheckbox(kind: ShowRowKind): HTMLElement {
-  const box = createElement("input", { type: "checkbox", "data-kind": kind });
+  const box = createElement("input", { type: "checkbox", "data-kind": kind, "data-component": "viewControlsKindCheckbox" });
   (box as HTMLInputElement).checked = true;
-  return createElement("label", { class: "show-kind" }, [box, createElement("i", { class: `swatch sw-${kind}` }), SHOW_ROW_LABELS[kind]]);
+  return createElement("label", { class: "show-kind", "data-component": "viewControlsKindLabel" }, [box, createElement("i", { class: `swatch sw-${kind}` }), SHOW_ROW_LABELS[kind]]);
 }
 
 // The arrows sit outside the label so a click never toggles the box; layer1-kind-jump.ts wires them.
@@ -108,7 +108,7 @@ function buildKindColumn(kind: ShowRowKind): HTMLElement {
   for (const direction of Object.values(KindJumpDirection)) {
     arrows.push(createElement("button", {
       type: "button", class: "kind-jump", "data-jump-kind": kind, "data-jump": direction,
-      title: `${direction} ${SHOW_ROW_LABELS[kind]}`, text: KIND_JUMP_SYMBOLS[direction],
+      title: `${direction} ${SHOW_ROW_LABELS[kind]}`, text: KIND_JUMP_SYMBOLS[direction], "data-component": "viewControlsKindJumpButton",
     }));
   }
   return createElement("div", { class: "show-kind-col" }, [buildKindCheckbox(kind), createElement("div", { class: "kind-jumps" }, arrows)]);
@@ -119,9 +119,11 @@ export function renderShowRow(view: ShowRowView): void {
   for (const kind of listPresentKinds(view))
     columns.push(buildKindColumn(kind));
   const isTrackShown = view.annotations !== undefined;
-  getRequiredElementById("show-row").replaceChildren(
-    createElement("span", { class: "lbl", text: "show:" }),
+  const sessionToggle = getRequiredElementById("session-toggle");
+  getRequiredElementById("timelineViewControls").replaceChildren(
+    createElement("span", { class: "lbl", text: "show:", "data-component": "viewControlsShowLabel" }),
     ...columns,
     ...(isTrackShown ? [buildHideIgnoredControl()] : []),
+    sessionToggle,
   );
 }

@@ -68,6 +68,7 @@ function appendRevisionLinkSpan(
 function appendCollapsibleLongValue(pre: HTMLElement, tokenClass: string, token: string) {
   const valueSpan = createElement("span", { class: `${tokenClass} json-collapsed`, text: token });
   const expandToggle = createElement("button", {
+    "data-component": "detailsPaneRawJsonExpandButton",
     class: "row-btn json-expand",
     text: "[…]",
     title: "Show the full value",
@@ -85,7 +86,7 @@ export function renderHighlightedJson(
   showLine: (line: number) => void, filesTouched: WireFileHistory[],
   openRevision: (link: WireRevisionLink) => void, snapshotContext?: SnapshotContext,
 ) {
-  const pre = createElement("pre", { class: "inspector-json" });
+  const pre = createElement("pre", { "data-component": "detailsPaneRawJsonText", class: "inspector-json" });
   let lastIndex = 0;
   for (const match of prettyText.matchAll(JSON_TOKEN_PATTERN)) {
     if (match.index > lastIndex) {

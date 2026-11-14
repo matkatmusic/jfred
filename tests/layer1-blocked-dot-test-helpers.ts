@@ -12,7 +12,7 @@ export const DEFAULT_CANVAS = buildRect(-100, -50, 3000, 2000);
 export const DEFAULT_DOT = buildRect(200, 100, 8, 8);
 
 export function appendBlockedDot(toolUseId: string, dot: DOMRect = DEFAULT_DOT, pane: DOMRect = DEFAULT_PANE, canvas: DOMRect = DEFAULT_CANVAS): HTMLElement {
-  const timelines = document.getElementById("timelines")!;
+  const timelines = document.getElementById("timelineContainer")!;
   const canvasElement = timelines.querySelector<HTMLElement>(".canvas")!;
   timelines.getBoundingClientRect = () => pane;
   canvasElement.getBoundingClientRect = () => canvas;

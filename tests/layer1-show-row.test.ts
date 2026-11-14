@@ -19,7 +19,7 @@ function renderViewAndListShownKinds(pair: object | undefined): string[] {
     initLayer1Dom();
     initLayer1Page();
     renderLayer1View({ pairs: pair === undefined ? [] : [pair], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
-    return [...document.querySelectorAll<HTMLInputElement>("#show-row input[type=checkbox]")]
+    return [...document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[type=checkbox]")]
         .map((box) => box.dataset["kind"]!);
 }
 
@@ -43,7 +43,7 @@ test("test_the_edit_and_script_run_boxes_exist_even_when_the_view_has_no_pairs",
 test("test_the_show_row_boxes_start_checked_except_edit_and_script_run_and_the_legend_is_gone", () => {
     // Scenario: every box starts checked except edit and script-run; the static legend no longer renders.
     renderViewAndListShownKinds({ path: "src/run.ts", commits: [COMMIT], onDisk: INSTANT });
-    const boxes = [...document.querySelectorAll<HTMLInputElement>("#show-row input")];
+    const boxes = [...document.querySelectorAll<HTMLInputElement>("#timelineViewControls input")];
     assert.ok(boxes.filter((box) => !["edit", "script-run", "branch"].includes(box.dataset["kind"]!)).every((box) => box.checked));
     assert.equal(boxes.find((box) => box.dataset["kind"] === "branch")!.checked, false);
     assert.equal(boxes.find((box) => box.dataset["kind"] === "edit")!.checked, false);
@@ -61,34 +61,45 @@ function renderViewWithExtras(extras: object, pairExtras: object): void {
 }
 
 test("test_a_view_with_annotations_shows_the_hide_ignored_box_after_the_kind_columns", () => {
-    // Scenario: the box is the last child of the show row and carries the exact label.
+    // Scenario: the box is the last show-row control before the session button and carries the exact label.
     renderViewWithExtras({ annotations: [] }, {});
-    const lastChild = document.getElementById("show-row")!.lastElementChild!;
+    const lastChild = document.getElementById("session-toggle")!.previousElementSibling!;
     assert.equal(lastChild.querySelector("#hide-ignored")?.id, "hide-ignored");
     assert.equal(lastChild.textContent!.trim(), "hide ignored nodes");
-    assert.equal(document.querySelectorAll("#show-row #hide-ignored").length, 1);
+    assert.equal(document.querySelectorAll("#timelineViewControls #hide-ignored").length, 1);
 });
 
 test("test_a_view_without_annotations_shows_no_hide_ignored_box", () => {
     // Scenario: real data never sets annotations, so the show row and the viz root stay as before.
     renderViewWithExtras({}, {});
     assert.equal(document.getElementById("hide-ignored"), null);
-    assert.equal(document.querySelector(".viz-root")!.hasAttribute("data-hide-ignored"), false);
+    assert.equal(document.querySelector(".appWindow")!.hasAttribute("data-hide-ignored"), false);
 });
 
 test("test_a_view_with_tool_nodes_lists_the_tool_kind_last", () => {
     // Scenario: one pair with a tool node adds a tool box after the branch box.
     renderViewWithExtras({}, { toolNodes: [TOOL_NODE] });
     const kinds: string[] = [];
-    for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
+    for (const box of document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]")) {
         kinds.push(box.dataset["kind"]!);
     }
     assert.deepEqual(kinds,["commit", "disk", "edit", "script-run", "branch", "tool"]);
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row input[data-kind=tool]")!.checked, true);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls input[data-kind=tool]")!.checked, true);
 });
 
 test("test_a_view_without_tool_nodes_lists_the_old_kinds_unchanged", () => {
     // Scenario: no pair has toolNodes, so there is no tool box.
     renderViewWithExtras({}, {});
-    assert.equal(document.querySelector("#show-row input[data-kind=tool]"), null);
+    assert.equal(document.querySelector("#timelineViewControls input[data-kind=tool]"), null);
+});
+
+test("test_a_show_row_redraw_keeps_the_session_button", () => {
+    // Scenario: the static session button survives each rebuild of the show row, as the last child.
+    initLayer1Dom();
+    initLayer1Page();
+    const sessionButton = document.getElementById("session-toggle")!;
+    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
+    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] } as never);
+    const controls = document.getElementById("timelineViewControls")!;
+    assert.equal(controls.lastElementChild, sessionButton);
 });

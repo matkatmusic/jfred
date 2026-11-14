@@ -16,10 +16,11 @@ export function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, 
     class: entry.isDeleted ? "file-item deleted" : "file-item",
     title: entry.isDeleted ? `${entry.target} (deleted)` : entry.target,
     "data-target": entry.target,
+    "data-component": "fileNavFileRow",
   }, [createElement("span", { class: "file-label", text: node.name })]);
   const segments = coverage?.get(entry.target);
   if (segments === undefined) {
-    item.append(createElement("span", { class: "revcount", text: `(${entry.revisionCount})` }));
+    item.append(createElement("span", { class: "revcount", "data-component": "fileNavRevisionCountReadout", text: `(${entry.revisionCount})` }));
   }
   else {
     appendCoverageStrip(item, entry.target, segments);
@@ -27,6 +28,7 @@ export function renderFileTreeLeaf(node: FileTreeNode, entry: FileSidebarEntry, 
   if (entry.originalPath !== undefined) {
     item.append(createElement("span", {
       class: "rename-badge",
+      "data-component": "fileNavRenameBadgeText",
       text: `← ${entry.renameBadgeLabel ?? getBasename(entry.originalPath)}`,
       title: `renamed from ${entry.originalPath}`,
     }));

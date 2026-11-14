@@ -8,7 +8,7 @@ import {
   SCROLL_EXPANDED, SINGLE_CLICK, TICK_TEXT_FACTS, type Box,
 } from "./ruler-ui-probes.ts";
 
-export interface HeadFacts { isFirstChild: boolean; headButtons: number; headText: string; hasJfredButton: boolean; trackCount: number; stripCount: number }
+export interface HeadFacts { isFirstChild: boolean; headButtons: number; headText: string; hasJfredButton: boolean; trackCount: number; stripCount: number; sessionButtonParentId: string }
 export interface ColourFacts { coloured: number; withProperty: number }
 interface HeadAt { height: number; offset: number; borderStyle: string; tickTop: number }
 export interface HeadScrollFacts { home: HeadAt; scrolled: HeadAt }
@@ -35,7 +35,8 @@ const BAND_PX = 3;
 const BELOW_SLACK_PX = 2; // a time span's line box may end past the tick, where the dashes start
 const centreY = (box: Box) => (box.top + box.bottom) / 2;
 export const isHeadRight = (f: HeadFacts) =>
-  f.isFirstChild && f.headButtons === 1 && f.headText === "session" && !f.hasJfredButton && f.trackCount === 0 && f.stripCount === 0;
+  f.isFirstChild && f.headButtons === 0 && f.headText === "" && !f.hasJfredButton && f.trackCount === 0 && f.stripCount === 0
+  && f.sessionButtonParentId === "timelineViewControls";
 export const isRowsPlain = (f: ColourFacts) => f.coloured === 0 && f.withProperty === 0;
 export function isHeadFixed({ home, scrolled }: HeadScrollFacts): boolean {
   const isTall = isNear(home.height, HEAD_HEIGHT_PX, EDGE_PX) && isNear(scrolled.height, HEAD_HEIGHT_PX, EDGE_PX);
@@ -126,7 +127,7 @@ async function validateDefaultRows(page: HeadlessPage): Promise<void> {
 }
 
 export async function validateDefaultState(page: HeadlessPage): Promise<void> {
-  await reportFacts(page, HEAD_FACTS, "RULER default: the head is the first child of the ruler with one session button, no jfred button, no session or commit column", isHeadRight);
+  await reportFacts(page, HEAD_FACTS, "RULER default: the head is the first child of the ruler and empty, the session button is in the view controls, no jfred button, no session or commit column", isHeadRight);
   await reportFacts(page, COLOUR_FACTS, "RULER default: no row is coloured while the session button is off", isRowsPlain);
   await reportFacts(page, HEAD_SCROLL_FACTS, "RULER default: the head is 44px tall with a dotted bottom and stays fixed while the ticks scroll", isHeadFixed);
   await validateDefaultRows(page);

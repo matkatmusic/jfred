@@ -116,11 +116,11 @@ test("test_replay_failed_and_not_replayed_show_the_reason_and_no_terminal_block"
 });
 
 test("test_openRunConsole_twice_leaves_one_popup_and_Close_hides_it_and_the_trigger_opens_it_again", () => {
-  // Verify: one popup inside #stagewrap; the trigger button opens it with the id it was given.
+  // Verify: one popup inside #sessionDataContainer; the trigger button opens it with the id it was given.
   const popup = startConsole();
   openRunConsole(ID, () => undefined);
   assert.equal(document.querySelectorAll("#run-console").length, 1);
-  assert.equal(popup.parentElement!.id, "stagewrap");
+  assert.equal(popup.parentElement!.id, "sessionDataContainer");
   popup.querySelector<HTMLButtonElement>("button.run-console-close")!.click();
   assert.equal(popup.hidden, true);
   const openButton = buildRunConsoleTrigger(ID, () => undefined).querySelector<HTMLButtonElement>("button.run-console-open")!;

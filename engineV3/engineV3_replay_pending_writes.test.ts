@@ -117,6 +117,33 @@ test("test_applyJSONLLineToState_checks_the_disk_again_after_the_result_line", (
   assert.throws(() => applyAllLines(folders, lines), /must not exist/);
 });
 
+test("test_applyJSONLLineToState_compares_a_named_backup_with_the_originalFile_of_the_result", (t) => {
+  // Step 1: the file holds the old text. The backup and the result originalFile hold the old text plus a user line that the replay never saw.
+  const folders = makeTestFolders(t);
+  const filePath = join(folders.state, "f.txt");
+  writeFileSync(filePath, "old text\n");
+  writeFileSync(join(folders.history, SESSION_ID, "abc@v2"), "old text\n# user line\n");
+  const updateResult = { type: "update", filePath, content: "new text\n", structuredPatch: [], originalFile: "old text\n# user line\n", userModified: false };
+  const namedBackup = { "f.txt": { backupFileName: "abc@v2", version: 2, backupTime: BACKUP_TIME } };
+  const lines = loadRows(folders, [makeWriteCallRow("c1", filePath, "new text\n", 1), makeSnapshotRow(namedBackup, "m1"), makeWriteResultRow("c1", updateResult, 3)]);
+  // Step 2: all three lines apply without a throw, because the backup equals the originalFile.
+  applyAllLines(folders, lines);
+  assert.equal(readFileSync(filePath, "utf8"), "new text\n");
+});
+
+test("test_applyJSONLLineToState_throws_when_a_named_backup_differs_from_the_originalFile_of_the_result", (t) => {
+  // Step 1: the originalFile holds a user line, and the backup holds other text.
+  const folders = makeTestFolders(t);
+  const filePath = join(folders.state, "f.txt");
+  writeFileSync(filePath, "old text\n");
+  writeFileSync(join(folders.history, SESSION_ID, "abc@v2"), "other text\n");
+  const updateResult = { type: "update", filePath, content: "new text\n", structuredPatch: [], originalFile: "old text\n# user line\n", userModified: false };
+  const namedBackup = { "f.txt": { backupFileName: "abc@v2", version: 2, backupTime: BACKUP_TIME } };
+  const lines = loadRows(folders, [makeWriteCallRow("c1", filePath, "new text\n", 1), makeSnapshotRow(namedBackup, "m1"), makeWriteResultRow("c1", updateResult, 3)]);
+  // Step 2: the snapshot line throws, and the error shows the originalFile as the replayed text.
+  assert.throws(() => applyAllLines(folders, lines), /differs from its backup[\s\S]*user line/);
+});
+
 test("test_addPendingWrite_keeps_the_first_before_content_until_the_last_result_arrives", (t) => {
   // Step 1: the file holds text A. Two write calls to the file are recorded, and the file changes between them.
   const folders = makeTestFolders(t);

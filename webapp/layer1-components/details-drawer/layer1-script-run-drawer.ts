@@ -2,6 +2,7 @@
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { DiffPaneMode } from "./layer1-diff-pane.ts";
+import { openDetailsPane } from "./layer1-details-pane.ts";
 import { buildDiffView, renderDetailView } from "./layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "./layer1-drawer-diff.ts";
 import { appendRawJsonRevealForLine } from "./layer1-drawer-node-detail.ts";
@@ -62,7 +63,7 @@ function listChangedNoBubbleRows(view: WireLayer1View, result: WireScriptResult)
   for (const file of result.files) {
     const hasBubble = pairPaths.has(file.path);
     if (!hasBubble) {
-      rows.push(createElement("div", { text: `${file.path} · ${CHANGE_KIND_LABELS[file.change]}` }));
+      rows.push(createElement("div", { text: `${file.path} · ${CHANGE_KIND_LABELS[file.change]}`, "data-component": "scriptRunNoBubbleFileRow" }));
     }
   }
   return rows;
@@ -78,7 +79,7 @@ export function buildChangedNoBubbleSection(view: WireLayer1View, toolUseId: str
   if (rows.length === 0) {
     return [];
   }
-  const summary = createElement("summary", { text: "Changed, no bubble" });
+  const summary = createElement("summary", { text: "Changed, no bubble", "data-component": "scriptRunNoBubbleFoldBar" });
   return [buildScriptRunFold("script-no-bubble-fold", summary, rows, true)];
 }
 
@@ -137,14 +138,14 @@ function collectScriptRunMeta(run: WireScriptRun): { metaRows: [string, string][
 
 export function buildScriptRunDetail(run: WireScriptRun, cancelRun: CancelRun): HTMLElement[] {
   const { metaRows, provenanceParts } = collectScriptRunMeta(run);
-  const scriptMeta = createElement("dl", { class: "script-meta" });
+  const scriptMeta = createElement("dl", { class: "script-meta", "data-component": "scriptRunMetaList" });
   for (const [term, value] of metaRows) {
-    scriptMeta.append(createElement("dt", { text: term }), createElement("dd", { text: value }));
+    scriptMeta.append(createElement("dt", { text: term, "data-component": "scriptRunMetaTermText" }), createElement("dd", { text: value, "data-component": "scriptRunMetaValueText" }));
   }
-  const pre = createElement("pre");
+  const pre = createElement("pre", { "data-component": "scriptRunBodyCodeText" });
   renderCellCode(pre, run.code, computeScriptHighlightLanguage(run.language));
-  const head = createElement("summary", { class: "sbhead" }, [createElement("b", { text: getScriptRunTitle(run) }), createElement("span", { class: "prov", text: provenanceParts.join(" · ") })]);
-  const metaSummary = createElement("summary", { text: "kind, executor, instant, session, line, tool use id" });
+  const head = createElement("summary", { class: "sbhead", "data-component": "scriptRunBodyHeadBar" }, [createElement("b", { text: getScriptRunTitle(run), "data-component": "scriptRunBodyTitle" }), createElement("span", { class: "prov", text: provenanceParts.join(" · "), "data-component": "scriptRunProvenanceText" })]);
+  const metaSummary = createElement("summary", { text: "kind, executor, instant, session, line, tool use id", "data-component": "scriptRunMetaFoldBar" });
   const folds = [buildScriptRunFold("script-meta-fold", metaSummary, [scriptMeta], false), buildScriptRunFold("scriptbody", head, [pre], true)];
   // const hasRunState = run.confidence !== undefined;
   // const isConsoleShown = isRunStarted(run.toolUseId) && run.executorKind === WireScriptExecutorKind.python;
@@ -203,7 +204,8 @@ function renderScriptRunDrawer(view: WireLayer1View, run: WireScriptRun, cancelR
   storeOpenedNode({ instant: run.instant, sessionFile: run.sessionFile, line: run.line });
   hideDrawerStepButtons();
   renderScriptRunHeader(run, paths);
-  getRequiredElementById("drawer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   setDrawerTools("none");
   renderDetailView([...buildScriptRunDetail(run, cancelRun), ...buildChangedNoBubbleSection(view, run.toolUseId), ...buildScriptRunDiffPanes(view, run.instant, paths)]);
   if (run.line !== undefined) {

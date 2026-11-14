@@ -4,6 +4,7 @@ import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { renderDetailView } from "../details-drawer/layer1-diff-view.ts";
 import { clearDiffPair, setDrawerTools } from "../details-drawer/layer1-drawer-diff.ts";
 import { fetchRawJsonLine } from "../details-drawer/layer1-drawer-node-detail.ts";
+import { openDetailsPane } from "../details-drawer/layer1-details-pane.ts";
 
 function openDrawerHeading(dot: HTMLElement): void {
   for (const id of ["dprev", "dnext"] as const) {
@@ -11,7 +12,8 @@ function openDrawerHeading(dot: HTMLElement): void {
   }
   getRequiredElementById("dpath").textContent = dot.dataset["sessionTitle"]!;
   getRequiredElementById("dmeta").textContent = dot.dataset["recordLabel"]!;
-  getRequiredElementById("drawer").classList.add("open");
+  // getRequiredElementById("detailsPaneContainer").classList.add("open");
+  openDetailsPane();
   setDrawerTools("none");
 }
 
@@ -19,7 +21,7 @@ async function openAnnotationDrawer(dot: HTMLElement): Promise<void> {
   clearDiffPair();
   openDrawerHeading(dot);
   const json = await fetchRawJsonLine(dot.dataset["sessionFile"]!, Number(dot.dataset["line"]));
-  renderDetailView([createElement("div", { class: "node-json" }, [json])]);
+  renderDetailView([createElement("div", { class: "node-json", "data-component": "sessionDotsJsonText" }, [json])]);
 }
 
 function openDrawerOnDotClick(event: MouseEvent): void {

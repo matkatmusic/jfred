@@ -18,10 +18,17 @@ const NEVER_RAN_PREFIXES = [
   "Exit code 127\npyenv: python: command not found",
 ];
 
+// A ctx_execute result opens with an upgrade notice, so this text is found inside the result, not at its start.
+const CTX_EXECUTE_NEVER_RAN_TEXT = "Exit code: 127\n\nstdout:\n\n\nstderr:\npyenv: python: command not found";
+
 function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string, BashCallStart>): void {
   for (const block of getContentBlocks(line)) {
     if (block.type === BlockType.tool_use) {
-      if (block.name === ToolName.Bash) {
+      const isBash = block.name === ToolName.Bash;
+      const isCtxExecute = block.name === ToolName.CtxExecute;
+      const isCtxExecuteFile = block.name === ToolName.CtxExecuteFile;
+      // if (isBash || isCtxExecute) {
+      if (isBash || isCtxExecute || isCtxExecuteFile) {
         starts.set(block.id.toString(), { toolUseId: block.id, startMs });
       }
     }
@@ -80,6 +87,9 @@ export function collectBashCallResults(lines: JSONLLine[]): Map<string, BashCall
 export function isNeverRanResult(result: BashCallResult): boolean {
   if (!result.isError) {
     return false;
+  }
+  if (result.resultText.includes(CTX_EXECUTE_NEVER_RAN_TEXT)) {
+    return true;
   }
   for (const prefix of NEVER_RAN_PREFIXES) {
     const hasPrefix = result.resultText.startsWith(prefix);

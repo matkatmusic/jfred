@@ -20,8 +20,8 @@ async function renderFreshView(dir: string = ""): Promise<void> {
 test("test_the_edit_box_starts_unchecked_and_is_never_saved_as_hidden", async () => {
     const route = installSettingsRoute(null);
     await renderFreshView("/tmp/edit-app");
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!.checked, false);
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=script-run]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=script-run]")!.checked, false);
     toggleBox("commit", false);
     assert.deepEqual(route.posted(), [{ dir: "/tmp/edit-app", hiddenKinds: ["commit"] }]);
 });
@@ -32,8 +32,8 @@ test("test_the_boxes_restore_from_saved_settings", async () => {
     installSettingsRoute({ lastDir: dir, projects: { [dir]: { dir, hiddenKinds: ["snapshot"] } } });
     await loadSavedSettings();
     await renderLayer1View(VIEW);
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=snapshot]")!.checked, false);
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=commit]")!.checked, true);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=snapshot]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=commit]")!.checked, true);
     assert.equal(readHiddenKinds(), "snapshot edit script-run branch");
 });
 
@@ -50,7 +50,7 @@ test("test_toggling_a_box_posts_dir_and_hidden_kinds", async () => {
 test("test_the_branch_box_starts_unchecked_and_is_never_saved_as_hidden", async () => {
     const route = installSettingsRoute(null);
     await renderFreshView("/tmp/branch-app");
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=branch]")!.checked, false);
     toggleBox("commit", false);
     assert.deepEqual(route.posted(), [{ dir: "/tmp/branch-app", hiddenKinds: ["commit"] }]);
 });

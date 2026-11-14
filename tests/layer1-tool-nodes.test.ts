@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installAnimationFrameStub, installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { WireRecordKind, type WireToolNode } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 initLayer1Dom();
@@ -83,7 +84,9 @@ test("test_a_click_on_a_tool_node_or_label_opens_no_drawer", () => {
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ content: "" }));
     const lane = buildLaneWithToolNodes(300);
-    getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+    const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+    clearFileBubbles(bubbleContainer);
+    bubbleContainer.append(createElement("div", { class: "filebox" }, [
         createElement("div", { class: "fname", "data-path": "src/run.ts" }),
         lane,
     ]));
@@ -91,6 +94,6 @@ test("test_a_click_on_a_tool_node_or_label_opens_no_drawer", () => {
     for (const target of [lane.querySelector<HTMLElement>(".tnode")!, lane.querySelector<HTMLElement>(".tlabel")!]) {
         target.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
     }
-    assert.equal(getRequiredElementById("drawer").classList.contains("open"), false);
+    assert.equal(getRequiredElementById("detailsPaneContainer").classList.contains("open"), false);
     assert.equal(asks.length, 0);
 });

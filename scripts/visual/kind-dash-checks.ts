@@ -3,11 +3,11 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
-const SCRIPT_DOTS = `document.querySelectorAll('#stage i.node.n-script')`;
+const SCRIPT_DOTS = `document.querySelectorAll('#fileBubbleContainer i.node.n-script')`;
 const STRIP_IDLE = `document.getElementById('loadbar').hidden`;
 const LOAD_TIMEOUT_MS = 15_000;
-const selectKindBox = (kind: string) => `document.querySelector('#show-row input[data-kind="${kind}"]')`;
-const countDashes = (kindClass: string) => `document.querySelectorAll('#ruler .tick .kdash-${kindClass}').length`;
+const selectKindBox = (kind: string) => `document.querySelector('#timelineViewControls input[data-kind="${kind}"]')`;
+const countDashes = (kindClass: string) => `document.querySelectorAll('#timelineRulerComponent .tick .kdash-${kindClass}').length`;
 
 interface DashProbe {
   title: string;
@@ -17,7 +17,7 @@ interface DashProbe {
 }
 
 const READ_FIRST_DASH = `(() => {
-    const dash = document.querySelector('#ruler .tick .kind-dashes:has(> .kdash:only-child) > .kdash');
+    const dash = document.querySelector('#timelineRulerComponent .tick .kind-dashes:has(> .kdash:only-child) > .kdash');
     const rect = dash.getBoundingClientRect();
     const style = getComputedStyle(dash);
     return { title: dash.title, width: rect.width, height: rect.height,
@@ -25,21 +25,21 @@ const READ_FIRST_DASH = `(() => {
 })()`;
 
 async function validateDashesDrawn(page: HeadlessPage): Promise<void> {
-  const total = await page.evaluate<number>(`document.querySelectorAll('#ruler .tick .kdash').length`);
+  const total = await page.evaluate<number>(`document.querySelectorAll('#timelineRulerComponent .tick .kdash').length`);
   reportCheck("KD ticks show dashes", total > 0, total);
   const mixedMulti = await page.evaluate<number>(
-    `[...document.querySelectorAll('#ruler .tick.multi')].filter(t => t.querySelectorAll('.kdash').length > 1).length`);
+    `[...document.querySelectorAll('#timelineRulerComponent .tick.multi')].filter(t => t.querySelectorAll('.kdash').length > 1).length`);
   reportCheck("KD a .tick.multi with mixed kinds shows more than 1 dash", mixedMulti > 0, mixedMulti);
   const dash = await page.evaluate<DashProbe>(READ_FIRST_DASH);
   reportCheck("KD a dash has a non-empty title", dash.title !== "", dash);
   reportCheck("KD a dash measures about 12x4 px and is visible",
     dash.visible && Math.abs(dash.width - 12) <= 1 && Math.abs(dash.height - 4) <= 1, dash);
   const stray = await page.evaluate<number>(
-    `[...document.querySelectorAll('#ruler .tick')].filter(t => t.querySelectorAll('.kind-dashes').length !== 1).length`);
+    `[...document.querySelectorAll('#timelineRulerComponent .tick')].filter(t => t.querySelectorAll('.kind-dashes').length !== 1).length`);
   reportCheck("KD every tick holds exactly one dash container", stray === 0, stray);
   const pastRail = await page.evaluate<number[]>(
-    `(() => { const rail = document.querySelector('#ruler .rail').getBoundingClientRect().left;
-      return [...document.querySelectorAll('#ruler .tick .kind-dashes')].map(d => d.getBoundingClientRect().right - rail).filter(over => over > 0); })()`);
+    `(() => { const rail = document.querySelector('#timelineRulerComponent .rail').getBoundingClientRect().left;
+      return [...document.querySelectorAll('#timelineRulerComponent .tick .kind-dashes')].map(d => d.getBoundingClientRect().right - rail).filter(over => over > 0); })()`);
   reportCheck("KD no dash container reaches past the ruler rail", pastRail.length === 0, pastRail);
   await saveScreenshot(page, "10-kind-dashes");
 }

@@ -19,8 +19,8 @@ function buildToolIdentity(node: WireToolNode, title: string) {
 function appendToolNode(lane: HTMLElement, node: WireToolNode, axisPx: number): HTMLElement {
   const look = ANNOTATION_LOOKS[node.kind];
   const identity = buildToolIdentity(node, `${node.kind}: ${node.label}`);
-  const dot = setAxisPx(createElement("i", { class: `tnode ${look.cssClass}`, ...identity }), axisPx);
-  const label = setAxisPx(createElement("span", { class: "tlabel", text: `${look.letter} ${node.label}`, ...identity }), axisPx);
+  const dot = setAxisPx(createElement("i", { class: `tnode ${look.cssClass}`, "data-component": "laneToolNode", ...identity }), axisPx);
+  const label = setAxisPx(createElement("span", { class: "tlabel", "data-component": "laneToolNodeLabel", text: `${look.letter} ${node.label}`, ...identity }), axisPx);
   lane.append(dot, label);
   return dot;
 }
@@ -36,7 +36,7 @@ export function appendToolNodes(lane: HTMLElement, toolNodes: WireToolNode[], st
     const [first, second] = dots;
     const isPairComplete = first !== undefined && second !== undefined;
     if (isPairComplete) {
-      const bracket = buildPairBracket(first, second, "tbracket");
+      const bracket = buildPairBracket(first, second, "tbracket", { "data-component": "laneToolBracket" });
       bracket.setAttribute("data-pair-id", pairId);
       lane.append(bracket);
     }

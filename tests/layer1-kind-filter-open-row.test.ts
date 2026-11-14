@@ -63,12 +63,12 @@ test("test_ticking_the_edit_box_during_a_chunked_redraw_keeps_the_open_ruler_row
     initLayer1Dom();
     installStreamRoute("/api/layer1-edits", [{ pairs: [] }]);
     await renderLayer1View(buildChunkedView());
-    const tick = [...document.querySelectorAll<HTMLElement>("#ruler .tick.multi")].find((candidate) => candidate.textContent!.endsWith("(2)"))!;
+    const tick = [...document.querySelectorAll<HTMLElement>("#timelineRulerComponent .tick.multi")].find((candidate) => candidate.textContent!.endsWith("(2)"))!;
     tick.click();
     await settleRedraws();
     assert.ok(document.querySelectorAll(".tickfiles button").length >= 2);
     const samples = sampleOpenRowEveryStep();
-    const box = document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!;
+    const box = document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!;
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
     await settleRedraws();

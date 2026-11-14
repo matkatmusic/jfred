@@ -55,7 +55,7 @@ function readAxisOffsetPx(element: HTMLElement): number {
 test("test_two_bubbles_sharing_one_instant_share_a_single_leader_line", async () => {
     // Scenario (task 264): at most one dashed line per ruler entry, however many bubbles start there.
     await loadPageWithView(buildSharedInstantView(CROWDED_RULER));
-    assert.equal(listMatching("#stage .filebox").length, 2);
+    assert.equal(listMatching("#fileBubbleContainer .filebox").length, 2);
     // one leader per RULER ENTRY — three, not one per bubble and not two at the shared instant.
     assert.deepEqual(listMatching("#leaders .leader").map(readAxisOffsetPx), [0, 4, 14]);
 });
@@ -64,13 +64,13 @@ test("test_a_leader_is_drawn_even_where_the_tick_label_was_skipped", async () =>
     // Scenario (task 264): the overprint skip drops a LABEL, not an instant, so bubbles there keep their leader.
     await loadPageWithView(buildSharedInstantView(CROWDED_RULER));
     // two labels drawn, but three leaders — the counts are deliberately allowed to disagree.
-    assert.equal(listMatching("#ruler .tick").length, 2);
+    assert.equal(listMatching("#timelineRulerComponent .tick").length, 2);
     assert.equal(listMatching("#leaders .leader").length, 3);
 });
 
 test("test_no_leader_is_drawn_inside_a_bubble", async () => {
     // Scenario (task 263): no bubble draws a leader. Leaders live in their own container outside the stage, against `.canvas`.
     await loadPageWithView(buildSharedInstantView(CROWDED_RULER));
-    assert.equal(listMatching("#stage .leader").length, 0);
+    assert.equal(listMatching("#fileBubbleContainer .leader").length, 0);
     assert.equal(listMatching("#leaders .leader").length, 3);
 });
