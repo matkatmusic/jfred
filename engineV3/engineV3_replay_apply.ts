@@ -24,6 +24,7 @@ import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResu
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
+import { writeBlockedCallSavedFiles } from "./engineV3_replay_blocked_edits.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -362,6 +363,8 @@ function learnHandEditsForSnapshot(state: Path, line: JSONLLine, context: Script
 
 // The state folder has the Mac repo path, so it is the path base for lines.
 export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[], context: ScriptReplayContext): Path {
+  // Before the early return below: a blocked Write/Edit result is an applied result.
+  writeBlockedCallSavedFiles(line);
   for (const callId of listWriteEditCallIds(line)) {
     const resultLine = context.writeEditResultLines.get(callId);
     if (resultLine !== undefined) {

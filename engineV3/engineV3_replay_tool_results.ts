@@ -13,7 +13,7 @@ function isWriteOrEditName(name: string): boolean {
 }
 
 // A line with no timestamp (an api-request-blob) has blocks that getContentBlocks cannot read, and holds no tool call.
-function getBlocksOfTimedLine(line: JSONLLine): ContentBlock[] {
+export function getBlocksOfTimedLine(line: JSONLLine): ContentBlock[] {
   if (line.timestamp instanceof Date) {
     return getContentBlocks(line);
   }

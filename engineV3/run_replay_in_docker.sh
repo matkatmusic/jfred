@@ -229,6 +229,9 @@ EOF
 
 docker exec "$NAME" mkdir -p /input/jfred "$STATE_FOLDER"
 docker exec "$NAME" chown replay "$STATE_FOLDER" /snapshots
+# The engine writes the Mac temp files that hooks saved (block-parent-edits) under the Mac temp folder /var/folders/<..>/T.
+docker exec "$NAME" mkdir -p /var/folders
+docker exec "$NAME" chown replay /var/folders
 # docker made each outside git Mac path root-owned, as the parent of its .git mount; the engine writes the files there.
 for OUTSIDE_GIT_FOLDER in $OUTSIDE_GIT_FOLDERS; do
     docker exec "$NAME" chown replay "$OUTSIDE_GIT_FOLDER"
