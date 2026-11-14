@@ -19,6 +19,20 @@ function computeRecordIdentityKey(record: TranscriptRecord): string | undefined 
   return `${sessionId.toString()} ${recordUuid.toString()}`;
 }
 
+// True when the record is the first of its identity; records with no identity always count as first.
+function isFirstOccurrence(record: TranscriptRecord, seen: Set<string>): boolean {
+  const identityKey = computeRecordIdentityKey(record);
+  if (identityKey === undefined) {
+    return true;
+  }
+  const isDuplicate = seen.has(identityKey);
+  if (isDuplicate) {
+    return false;
+  }
+  seen.add(identityKey);
+  return true;
+}
+
 // §c1: dedupe by (sessionId, uuid); first wins.
 export function removeDuplicateRecordsBySessionAndUuid(
   records: TranscriptRecord[],
@@ -26,48 +40,62 @@ export function removeDuplicateRecordsBySessionAndUuid(
 ): TranscriptRecord[] {
   const kept: TranscriptRecord[] = [];
   for (const record of records) {
-    const identityKey = computeRecordIdentityKey(record);
-    if (identityKey === undefined) {
+    const isKept = isFirstOccurrence(record, seen);
+    if (isKept) {
       kept.push(record);
-      continue;
     }
-    const isDuplicate = seen.has(identityKey);
-    if (isDuplicate) {
-      continue;
-    }
-    seen.add(identityKey);
-    kept.push(record);
   }
   return kept;
 }
 
-// Sort key: own timestamp, else the later of carried-forward and own snapshot.timestamp, else first stamped.
-function computeListSortKeys(records: TranscriptRecord[], sortTimeOverrides?: Map<TranscriptRecord, number>): number[] {
-  let carriedKey = Number.POSITIVE_INFINITY;
+function findFirstStampedKey(records: TranscriptRecord[]): number {
   for (const record of records) {
     if (record.timestamp !== undefined) {
-      carriedKey = record.timestamp.getTime();
-      break;
+      return record.timestamp.getTime();
     }
   }
+  return Number.POSITIVE_INFINITY;
+}
+
+function computeCarriedKey(record: TranscriptRecord, carriedKey: number, overrideKey: number | undefined): number {
+  if (overrideKey !== undefined) {
+    return overrideKey;
+  }
+  if (record.timestamp !== undefined) {
+    return record.timestamp.getTime();
+  }
+  const snapshotMessage = getFileHistorySnapshot(record);
+  if (snapshotMessage !== undefined) {
+    return Math.max(carriedKey, snapshotMessage.snapshot.timestamp.getTime());
+  }
+  return carriedKey;
+}
+
+// Sort key: own timestamp, else the later of carried-forward and own snapshot.timestamp, else first stamped.
+function computeListSortKeys(records: TranscriptRecord[], sortTimeOverrides?: Map<TranscriptRecord, number>): number[] {
+  let carriedKey = findFirstStampedKey(records);
   const sortKeys: number[] = [];
   for (const record of records) {
-    const overrideKey = sortTimeOverrides?.get(record);
-    if (overrideKey !== undefined) {
-      carriedKey = overrideKey;
-    }
-    else if (record.timestamp !== undefined) {
-      carriedKey = record.timestamp.getTime();
-    }
-    else {
-      const snapshotMessage = getFileHistorySnapshot(record);
-      if (snapshotMessage !== undefined) {
-        carriedKey = Math.max(carriedKey, snapshotMessage.snapshot.timestamp.getTime());
-      }
-    }
+    carriedKey = computeCarriedKey(record, carriedKey, sortTimeOverrides?.get(record));
     sortKeys.push(carriedKey);
   }
   return sortKeys;
+}
+
+function computeAllListSortKeys(recordLists: TranscriptRecord[][], sortTimeOverrides?: Map<TranscriptRecord, number>): number[][] {
+  const allSortKeys: number[][] = [];
+  for (const list of recordLists) {
+    allSortKeys.push(computeListSortKeys(list, sortTimeOverrides));
+  }
+  return allSortKeys;
+}
+
+function countRecordsInLists(recordLists: TranscriptRecord[][]): number {
+  let totalCount = 0;
+  for (const list of recordLists) {
+    totalCount += list.length;
+  }
+  return totalCount;
 }
 
 // Pick the list with the smallest next sort key.
@@ -89,14 +117,9 @@ function selectEarliestList(recordLists: TranscriptRecord[][], sortKeys: number[
 
 // §c3 — strict wall-clock interleave of per-session record lists, each list's internal order preserved.
 export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][], sortTimeOverrides?: Map<TranscriptRecord, number>): TranscriptRecord[] {
-  const sortKeys: number[][] = [];
-  const positions: number[] = [];
-  let totalCount = 0;
-  for (const list of recordLists) {
-    sortKeys.push(computeListSortKeys(list, sortTimeOverrides));
-    positions.push(0);
-    totalCount += list.length;
-  }
+  const sortKeys = computeAllListSortKeys(recordLists, sortTimeOverrides);
+  const positions = new Array<number>(recordLists.length).fill(0);
+  const totalCount = countRecordsInLists(recordLists);
   const merged: TranscriptRecord[] = [];
   while (merged.length < totalCount) {
     const chosenList = selectEarliestList(recordLists, sortKeys, positions);
@@ -104,44 +127,6 @@ export function mergeRecordsByTimestamp(recordLists: TranscriptRecord[][], sortT
     positions[chosenList]! += 1;
   }
   return merged;
-}
-
-// Unstamped records stay glued to their neighbor's session group.
-function selectGroupForRecord(
-  record: TranscriptRecord,
-  groups: TranscriptRecord[][],
-  groupBySession: Map<string, TranscriptRecord[]>,
-  currentGroup: TranscriptRecord[] | undefined,
-): TranscriptRecord[] {
-  const sessionId = getSessionId(record);
-  if (sessionId === undefined) {
-    if (currentGroup !== undefined) {
-      return currentGroup;
-    }
-    const leadingGroup: TranscriptRecord[] = [];
-    groups.push(leadingGroup);
-    return leadingGroup;
-  }
-  const existingGroup = groupBySession.get(sessionId.toString());
-  if (existingGroup !== undefined) {
-    return existingGroup;
-  }
-  const newGroup: TranscriptRecord[] = [];
-  groupBySession.set(sessionId.toString(), newGroup);
-  groups.push(newGroup);
-  return newGroup;
-}
-
-// A flat merged stream regrouped into per-session lists (first-seen order).
-export function splitRecordsBySession(records: TranscriptRecord[]): TranscriptRecord[][] {
-  const groups: TranscriptRecord[][] = [];
-  const groupBySession = new Map<string, TranscriptRecord[]>();
-  let currentGroup: TranscriptRecord[] | undefined;
-  for (const record of records) {
-    currentGroup = selectGroupForRecord(record, groups, groupBySession, currentGroup);
-    currentGroup.push(record);
-  }
-  return groups;
 }
 
 // §c composition: dedupe, interleave by wall clock, graft fork roots, join cross-source identities.
