@@ -10,7 +10,7 @@ export const BUBBLE_PAIR_ID = "toolu_fixture_l7_grep";
 
 // The session column is off at load: this click turns it on.
 export const CLICK_SESSION_TOGGLE = `document.getElementById('session-toggle').click()`;
-export const TRACK_PRESENT = `document.getElementById('annotation-track') !== null`;
+export const TRACK_PRESENT = `document.getElementById('sessionDotLinesComponent') !== null`;
 const TRACK_WAIT_MS = 10_000;
 
 export async function openSessionColumn(page: HeadlessPage): Promise<void> {
@@ -18,14 +18,14 @@ export async function openSessionColumn(page: HeadlessPage): Promise<void> {
   await page.waitFor(TRACK_PRESENT, TRACK_WAIT_MS);
 }
 
-const PANE = `document.getElementById('timelines')`;
+const PANE = `document.getElementById('timelineContainer')`;
 const SETTLE = `new Promise(resolve => setTimeout(resolve, 150))`;
-const VIZ_ROOT = `document.querySelector('.viz-root')`;
-export const DRAWN_NODES = `document.querySelectorAll('#annotation-track i.anode')`;
+const VIZ_ROOT = `document.querySelector('.appWindow')`;
+export const DRAWN_NODES = `document.querySelectorAll('#sessionDotLinesComponent i.anode')`;
 export const DISPATCHER_BUBBLE = `document.querySelector(${JSON.stringify(buildBubbleSelector(TOOL_NODE_PATH))})`;
 export const HIDDEN_KINDS = `(${VIZ_ROOT}.getAttribute('data-hidden-kinds') ?? '')`;
 export const REQUEST_COUNT = `performance.getEntriesByType('resource').length`;
-export const buildKindBoxStates = (skippedKind: string) => `[...document.querySelectorAll('#show-row input[data-kind]')]
+export const buildKindBoxStates = (skippedKind: string) => `[...document.querySelectorAll('#timelineViewControls input[data-kind]')]
     .filter(i => i.dataset.kind !== '${skippedKind}').map(i => i.dataset.kind + ':' + i.checked).join(',')`;
 
 // A huge top clamps to the bottom; the wait lets the scroll handler redraw the column.
@@ -40,19 +40,19 @@ export const buildRecordDot = (id: string) => `document.querySelector('i[data-re
 
 // Task 383: the jfred strip may sit between the column and the stage.
 export const TRACK_FACTS = `(() => {
-    const track = document.getElementById('annotation-track');
-    const before = document.getElementById('stage').previousElementSibling;
-    const isStripAfterTrack = before.id === 'jfred-strip' && before.previousElementSibling === track;
-    return { count: document.querySelectorAll('#annotation-track').length,
-        isAfterRuler: document.getElementById('ruler').nextElementSibling === track,
-        isBeforeStage: before === track || isStripAfterTrack,
+    const track = document.getElementById('sessionDotLinesComponent');
+    const before = document.getElementById('fileBubbleContainer').previousElementSibling;
+    // const isStripAfterTrack = before.id === 'jfredCommitsDrawerComponent' && before.previousElementSibling === track;
+    return { count: document.querySelectorAll('#sessionDotLinesComponent').length,
+        isAfterRuler: document.getElementById('timelineRulerComponent').nextElementSibling === track,
+        isBeforeStage: track.parentElement === document.getElementById('fileBubbleContainer').previousElementSibling,
         position: getComputedStyle(track).position };
 })()`;
 
 // export const COLUMN_NODE_FACTS = `[...${DRAWN_NODES}].map(n => {
 //     const style = getComputedStyle(n);
 //     const box = n.getBoundingClientRect();
-//     const label = document.querySelector('#annotation-track .alabel[data-record-id="' + n.dataset.recordId + '"]');
+//     const label = document.querySelector('#sessionDotLinesComponent .alabel[data-record-id="' + n.dataset.recordId + '"]');
 //     const text = label ? label.getBoundingClientRect() : { left: 0, right: 0, top: 0, bottom: 0 };
 //     return { id: n.dataset.recordId, classes: n.className, instant: n.dataset.instant, pairId: n.dataset.pairId,
 //         cx: box.left + box.width / 2, cy: box.top + box.height / 2, borderStyle: style.borderTopStyle,
@@ -67,7 +67,7 @@ export const COLUMN_NODE_FACTS = `[...${DRAWN_NODES}].map(n => {
         cx: box.left + box.width / 2, cy: box.top + box.height / 2,
         nodeBox: { left: box.left, right: box.right, top: box.top, bottom: box.bottom } };
 })`;
-export const TRACK_LABEL_COUNT = `document.querySelectorAll('#annotation-track .alabel').length`;
+export const TRACK_LABEL_COUNT = `document.querySelectorAll('#sessionDotLinesComponent .alabel').length`;
 
 // Drawn ids at the top and the bottom, and drawn nodes outside the pane plus margin.
 export const WINDOW_FACTS = `(async () => {
@@ -125,8 +125,8 @@ export const SESSION_DOT_COLOURS = buildFullScrollProbe("n.dataset.sessionId + '
   "({ sessionId: n.dataset.sessionId, backgroundColor: getComputedStyle(n).backgroundColor })");
 
 export const DUPLICATE_FACTS = `({
-    stageParts: document.querySelectorAll('#stage .anode, #stage .alabel, #stage .abracket').length,
-    trackTools: document.querySelectorAll('#annotation-track .tnode').length,
+    stageParts: document.querySelectorAll('#fileBubbleContainer .anode, #fileBubbleContainer .alabel, #fileBubbleContainer .abracket').length,
+    trackTools: document.querySelectorAll('#sessionDotLinesComponent .tnode').length,
     ids: [...document.querySelectorAll('i.anode, i.tnode')].map(n => n.dataset.recordId) })`;
 
 // `root` is `document` for the column or a bubble expression for its tool bracket.
@@ -137,9 +137,9 @@ export const buildBracketProbe = (root: string, selector: string) => `(list => {
 })([...${root}.querySelectorAll(${JSON.stringify(selector)})])`;
 
 export const COLUMN_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
-    .filter(rule => /\\.(anode|alabel|abracket|atrack|tnode|tlabel|tbracket|a-[a-z-]+|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line)\\b/.test(rule.selectorText ?? ''))
+    .filter(rule => /\\.(anode|alabel|abracket|sessionDotLinesComponent|tnode|tlabel|tbracket|a-[a-z-]+|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line)\\b/.test(rule.selectorText ?? ''))
     .map(rule => rule.cssText)`;
-// Retired: token rules now use plain .viz-root, so no --page skip.
+// Retired: token rules now use plain .appWindow, so no --page skip.
 //     .filter(rule => rule.style.getPropertyValue('--page') === '')
 
 export const IGNORED_FACTS = `(() => {
@@ -154,13 +154,13 @@ export const IGNORED_FACTS = `(() => {
         kindBoxes: ${buildKindBoxStates("")}, requests: ${REQUEST_COUNT} };
 })()`;
 
-export const TOOL_BOX = `document.querySelector('#show-row input[data-kind="tool"]')`;
+export const TOOL_BOX = `document.querySelector('#timelineViewControls input[data-kind="tool"]')`;
 export const TOOL_BOX_FACTS = `(() => {
     const box = ${TOOL_BOX};
     const shown = selector => [...document.querySelectorAll(selector)].filter(n => n.getClientRects().length > 0).length;
     return { exists: box !== null, isChecked: box?.checked, label: box?.parentElement.textContent.trim(),
         hiddenKinds: ${HIDDEN_KINDS}, otherBoxes: ${buildKindBoxStates("tool")},
-        toolShown: shown('i.tnode, .tlabel, .tbracket'), columnToolShown: shown('#annotation-track i[data-pair-id="${COLUMN_PAIR_ID}"]') };
+        toolShown: shown('i.tnode, .tlabel, .tbracket'), columnToolShown: shown('#sessionDotLinesComponent i[data-pair-id="${COLUMN_PAIR_ID}"]') };
 })()`;
 
 export const CLICK_TOOL_NODE = `(async () => {
@@ -168,7 +168,7 @@ export const CLICK_TOOL_NODE = `(async () => {
     const before = ${REQUEST_COUNT};
     document.querySelector('i.tnode').click();
     await ${SETTLE};
-    return { isOpen: document.getElementById('drawer').classList.contains('open'), requests: ${REQUEST_COUNT} - before };
+    return { isOpen: document.getElementById('detailsPaneContainer').classList.contains('open'), requests: ${REQUEST_COUNT} - before };
 })()`;
 
 export const BUBBLE_TOOL_FACTS = `(bubble => {

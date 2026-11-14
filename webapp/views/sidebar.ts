@@ -97,11 +97,12 @@ export function renderFileTreeNode(
       childElements.push(renderFileTreeNode(child, callbacks, selectionRoot, coverage, collapse, folderPath));
     }
     const kids = createElement("div", { class: "file-folder-kids" }, childElements);
-    const summary = createElement("summary", { class: FOLDER_NAME_CLASS, text: node.name });
+    const summary = createElement("summary", { class: FOLDER_NAME_CLASS, "data-component": "fileNavFolderRow", text: node.name });
     attachFolderClick(summary, node, callbacks, selectionRoot);
     const isOpen = !(collapse?.collapsedPaths.has(folderPath) ?? false);
     return createElement("details", {
       class: "file-folder",
+      "data-component": "fileNavFolderItem",
       open: isOpen ? "" : undefined,
       ontoggle: collapse === undefined ? undefined :
         (event: Event) => collapse.onToggle(folderPath, (event.currentTarget as HTMLDetailsElement).open),
@@ -117,7 +118,7 @@ function attachFolderClick(summary: HTMLElement, node: FileTreeNode, callbacks: 
     return;
   }
   // A REAL element, not a ::before pseudo-element, so `event.target` can distinguish a click on it.
-  const toggle = createElement("span", { class: "file-folder-toggle" });
+  const toggle = createElement("span", { class: "file-folder-toggle", "data-component": "fileNavFolderToggle" });
   summary.prepend(toggle);
   folderTargetsBySummary.set(summary, listDescendantTargets(node));
   function selectFolder(event: MouseEvent): void {

@@ -42,7 +42,8 @@ export const isDrawerRight = (d: DrawerFacts) => d.isOpen && d.text.includes("jf
 export function isStripPlaced(f: StripFacts, offStageLeft: number): boolean {
   const width = f.strip.right - f.strip.left;
   const isWidthRight = isNear(width, STRIP_WIDTH_PX, EDGE_PX) && width < MAX_STRIP_WIDTH_PX;
-  return isWidthRight && isNear(f.strip.left, f.rulerRight, EDGE_PX) && isNear(f.stageLeft, offStageLeft, EDGE_PX) && f.isCovering;
+  // return isWidthRight && isNear(f.strip.left, f.rulerRight, EDGE_PX) && isNear(f.stageLeft, offStageLeft, EDGE_PX) && f.isCovering;
+  return isWidthRight && isNear(f.strip.left, f.rulerRight, EDGE_PX) && isNear(f.stageLeft, offStageLeft + width, EDGE_PX) && !f.isCovering;
 }
 export function isEntryColumnRight(f: StripFacts): boolean {
   const [base, first, second] = f.entries;
@@ -70,8 +71,11 @@ export function isCommitPopupRight(h: HoverFacts): boolean {
   return h.isVisible && isMessage && isEveryLineShort && h.isHiddenAfter;
 }
 export function isBothRight(f: BothFacts, offStageLeft: number): boolean {
-  const trackWidth = f.track.right - f.track.left;
-  const isShifted = isNear(f.stageLeft, offStageLeft + trackWidth, EDGE_PX) && !isNear(f.stageLeft, offStageLeft + f.strip.right - f.strip.left, EDGE_PX);
+  // const trackWidth = f.track.right - f.track.left;
+  // const isShifted = isNear(f.stageLeft, offStageLeft + trackWidth, EDGE_PX) && !isNear(f.stageLeft, offStageLeft + f.strip.right - f.strip.left, EDGE_PX);
+  // const isStageUnmoved = isNear(f.stageLeft, offStageLeft, EDGE_PX);
+  const isStageMovedByTrackAndStrip = isNear(f.stageLeft, offStageLeft + (f.track.right - f.track.left) + (f.strip.right - f.strip.left), EDGE_PX);
   const isCrossing = f.isEveryLineCrossing && f.crossings > 0 && f.isEveryDotOnTop;
-  return isShifted && isCrossing && isNear(f.strip.left, f.track.right, EDGE_PX) && f.trackZ > f.stripZ && f.overlaps === 0;
+  // return isStageUnmoved && isCrossing && isNear(f.strip.left, f.track.right, EDGE_PX) && f.trackZ > f.stripZ && f.overlaps === 0;
+  return isStageMovedByTrackAndStrip && isCrossing && isNear(f.strip.left, f.track.right, EDGE_PX) && f.trackZ > f.stripZ && f.overlaps === 0;
 }

@@ -58,7 +58,7 @@ test("test_hierarchy_text_for_a_nested_part_is_outermost_first_dot_joined", () =
 
 test("test_copy_text_has_the_exact_name_file_line_hierarchy_shape", () => {
     // Scenario: Copy writes `{ Name, file, line, Hierarchy }`.
-    const copyText = buildCopyText("FileNavPane", { file: "/abs/file-nav.html", line: 3 }, "Layer1Page.FileNav.FileNavPane");
+    const copyText = buildCopyText("fileNavComponent", { file: "/abs/file-nav.html", line: 3 }, "Layer1Page.FileNav.fileNavComponent");
     // the shape is exact.
-    assert.equal(copyText, "{ FileNavPane, /abs/file-nav.html, 3, Layer1Page.FileNav.FileNavPane }");
+    assert.equal(copyText, "{ fileNavComponent, /abs/file-nav.html, 3, Layer1Page.FileNav.fileNavComponent }");
 });

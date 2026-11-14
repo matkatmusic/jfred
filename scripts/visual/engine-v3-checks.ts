@@ -16,14 +16,15 @@ type ButtonLabel = (typeof BUTTON_LABELS)[number];
 const buildVisibleButtonFinder = (labelExpression: string) => `[...document.querySelectorAll('button')].find((candidate) => candidate.textContent.trim() === ${labelExpression} && candidate.offsetParent !== null)`;
 export const STEPS_LOADED = `${BAR}.dataset.markerIndex !== undefined`;
 export const FETCH_STEPS = `fetch('/api/layer1-engine-v3-steps').then((response) => response.json())`;
-export const COUNT_SESSION_NODES = `document.querySelectorAll('#annotation-track i.anode.current-node').length`;
+export const COUNT_SESSION_NODES = `document.querySelectorAll('#sessionDotLinesComponent i.anode.current-node').length`;
 export const COUNT_COMMIT_NODES = `document.querySelectorAll('i.node.n-commit.current-node').length`;
-export const READ_COMMIT_HASHES = `[...new Set([...document.querySelectorAll('i.node.n-commit.current-node')].map((node) => node.title))].join(',')`;
-export const READ_CURRENT_NODE_ID = `document.querySelector('#annotation-track i.anode.current-node')?.dataset.recordId ?? ''`;
+export const COUNT_BUBBLE_STEP_NODES = "document.querySelectorAll('.fileBubbleContainer i.node.current-node:not(.n-commit)').length";
+export const READ_COMMIT_HASHES =`[...new Set([...document.querySelectorAll('i.node.n-commit.current-node')].map((node) => node.title))].join(',')`;
+export const READ_CURRENT_NODE_ID = `document.querySelector('#sessionDotLinesComponent i.anode.current-node')?.dataset.recordId ?? ''`;
 export const READ_MARKER_INDEX = `${BAR}.dataset.markerIndex`;
 export const READ_SENTENCE = `document.getElementById('engine-v3-sentence').textContent`;
 export const READ_OFF_FLAGS = `${JSON.stringify(BUTTON_LABELS)}.map((label) => (${buildVisibleButtonFinder("label")}).disabled ? '1' : '0').join('')`;
-export const READ_TRACK_COUNT = `document.querySelectorAll('#annotation-track').length`;
+export const READ_TRACK_COUNT = `document.querySelectorAll('#sessionDotLinesComponent').length`;
 export const FETCH_RULER = `fetch('/api/layer1-view').then((response) => response.json()).then((view) => view.ruler)`;
 const CANVAS_TOP = `document.querySelector('.canvas').getBoundingClientRect().top`;
 export const READ_LINE_FACTS = `(() => {
@@ -32,9 +33,31 @@ export const READ_LINE_FACTS = `(() => {
   const laneY = parseFloat(getComputedStyle(document.querySelector('.canvas')).getPropertyValue('--lane-y'));
   return { top: line.getBoundingClientRect().top - ${CANVAS_TOP}, laneY };
 })()`;
+// export interface LineDepthFacts { lineZ: number; nodeZ: number }
+export interface LineDepthFacts { lineZ: number; nodeZ: number; bubbleZ: number; isBubbleSolid: boolean }
+// Both sit in the .canvas stacking context, so comparing z-index gives paint order.
+// export const READ_LINE_DEPTH_FACTS = `(() => {
+//   const line = document.getElementById('engine-v3-line');
+//   const node = document.querySelector('.fileBubbleContainer i.node.n-commit.current-node');
+//   if (!line || !node) return null;
+//   return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex) };
+// })()`;
+export const READ_LINE_DEPTH_FACTS = `(() => {
+  const line = document.getElementById('engine-v3-line');
+  const node = document.querySelector('.fileBubbleContainer i.node.n-commit.current-node');
+  if (!line || !node) return null;
+  const bubble = node.closest('.filebox');
+  const surfaceProbe = document.createElement('div');
+  surfaceProbe.style.background = 'var(--surface)';
+  bubble.append(surfaceProbe);
+  const surfaceColor = getComputedStyle(surfaceProbe).backgroundColor;
+  surfaceProbe.remove();
+  return { lineZ: Number(getComputedStyle(line).zIndex), nodeZ: Number(getComputedStyle(node).zIndex),
+    bubbleZ: Number(getComputedStyle(bubble).zIndex), isBubbleSolid: getComputedStyle(bubble).backgroundColor === surfaceColor };
+})()`;
 export const READ_LINE_IN_VIEW = `(() => {
   const line = document.getElementById('engine-v3-line');
-  const pane = document.getElementById('timelines').getBoundingClientRect();
+  const pane = document.getElementById('timelineContainer').getBoundingClientRect();
   const box = line.getBoundingClientRect();
   return !line.hidden && box.top >= pane.top && box.bottom <= pane.bottom;
 })()`;
@@ -53,7 +76,7 @@ export const buildClickLabelWhileOn = (label: string) => `(() => {
   for (let click = 0; click < ${MAX_CLICKS} && !button.disabled; click += 1) button.click();
 })()`;
 export const buildClickNode = (nodeId: string) => `(() => {
-  const node = document.querySelector('#annotation-track i.anode[data-record-id="${nodeId}"]');
+  const node = document.querySelector('#sessionDotLinesComponent i.anode[data-record-id="${nodeId}"]');
   if (!node) throw new Error('Session column node ${nodeId} is not drawn');
   node.click();
 })()`;
@@ -145,6 +168,20 @@ function findAxisPx(ruler: readonly WireRulerTick[], nodeTime: string): number {
   throw new Error(`the ruler has no tick at ${nodeTime}`);
 }
 
+export function isCurrentNodeAboveLine(facts: LineDepthFacts | null): boolean {
+  if (facts === null) {
+    return false;
+  }
+  return facts.nodeZ > facts.lineZ;
+}
+
+export function isMarkedBubbleAboveLine(facts: LineDepthFacts | null): boolean {
+  if (facts === null) {
+    return false;
+  }
+  return facts.bubbleZ > facts.lineZ && facts.isBubbleSolid;
+}
+
 async function reportLineAt(page: HeadlessPage, title: string, steps: WireEngineV3Steps, ruler: readonly WireRulerTick[], index: number): Promise<void> {
   const facts = await page.evaluate<LineFacts | null>(READ_LINE_FACTS);
   const axisPx = findAxisPx(ruler, steps.steps[index]!.nodeTime);
@@ -166,6 +203,9 @@ async function validateLineWithSessionOff(page: HeadlessPage, steps: WireEngineV
   const trackCount = await page.evaluate<number>(READ_TRACK_COUNT);
   reportCheck("engineV3 session off: no Session column track is drawn", trackCount === 0, trackCount);
   await reportLineAt(page, "session off, at load", steps, ruler, 0);
+  const depth = await page.evaluate<LineDepthFacts | null>(READ_LINE_DEPTH_FACTS);
+  reportCheck("engineV3 session off, at load: the marked commit node draws above the line", isCurrentNodeAboveLine(depth), depth);
+  reportCheck("engineV3 session off, at load: the marked node's bubble draws above the line and is solid", isMarkedBubbleAboveLine(depth), depth);
   await page.evaluate(buildClickLabelWhileOn("Jump to next commit"));
   await reportLineAt(page, "session off, after Jump to next commit", steps, ruler, findLastCommitIndex(steps.steps));
   await reportLineInView(page, "session off, after Jump to next commit");
@@ -185,6 +225,8 @@ async function validateStepButtons(page: HeadlessPage, steps: WireEngineV3Steps)
   reportMarkerAt("at load", await readMarkerFacts(page), steps.steps, 0);
   await executeClickAndCheck(page, steps, "Step forward", 1);
   await executeClickAndCheck(page, steps, "Step forward", 2);
+  const bubbleStepNodeCount = await page.evaluate<number>(COUNT_BUBBLE_STEP_NODES);
+  reportCheck("engineV3 Step forward to step 2: a bubble node on the line has the ring", bubbleStepNodeCount > 0, bubbleStepNodeCount);
   await executeClickAndCheck(page, steps, "Step backwards", 1);
   await executeClickAndCheck(page, steps, "Jump to next commit", 3);
   await executeClickAndCheck(page, steps, "Jump to previous commit", 0);

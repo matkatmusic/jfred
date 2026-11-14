@@ -10,6 +10,7 @@ import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
 import { receiveJfredCommit, receiveJfredDelete } from "./viewer_api_layer1_jfred_route.ts";
 import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendClearResultsResponse } from "./viewer_api_clear_results.ts";
+import { sendLayer1ReverseResponse } from "./viewer_api_layer1_reverse.ts";
 import { receiveScriptNeeds } from "./viewer_api_layer1_script_needs.ts";
 import { receiveScriptRun } from "./viewer_api_layer1_script_run.ts";
 import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
@@ -44,6 +45,7 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-script-runs", (_request, response, url) => sendLayer1ScriptRunsResponse(response, url.searchParams)],
   ["/api/layer1-branches", (_request, response, url) => sendLayer1BranchesResponse(response, url.searchParams)],
   ["/api/layer1-record", (_request, response, url) => sendLayer1Record(response, url.searchParams)],
+  ["/api/layer1-reverse", (_request, response, url) => sendLayer1ReverseResponse(response, url.searchParams)],
   ["/api/layer1-file", (_request, response, url) => sendLayer1FileResponse(response, url.searchParams)],
   ["/api/layer1-diff", (_request, response, url) => sendLayer1Diff(response, url.searchParams)],
   ["/api/scan-source", (_request, response, url) => sendScanSourceResponse(response, url.searchParams)],

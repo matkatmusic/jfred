@@ -57,7 +57,7 @@ const makeFakePage = (answers: PageAnswers, scrolls: string[]): HeadlessPage => 
             return answers.nodes;
         if (expression.includes(".never-provable"))
             return answers.ruleCount;
-        if (expression.includes("#show-row"))
+        if (expression.includes("#timelineViewControls"))
             return answers.kinds;
         if (expression.includes("run-consent"))
             return consentExpressions.push(expression);

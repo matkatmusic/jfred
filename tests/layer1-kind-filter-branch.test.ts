@@ -50,6 +50,6 @@ test("test_a_failed_branch_fetch_unticks_the_box_and_keeps_the_kind_hidden", asy
     renderShowRowWithKindFilter(buildFreshView(), () => {});
     toggleBox("branch", true);
     await waitForAsyncWork();
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=branch]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=branch]")!.checked, false);
     assert.equal(readHiddenKinds(), "edit script-run branch");
 });

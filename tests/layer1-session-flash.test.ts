@@ -29,7 +29,7 @@ async function openBubble(): Promise<{ name: HTMLElement; node: HTMLElement }> {
     node.className = "node";
     node.dataset.instant = "2026-06-01T08:30:00Z";
     box.append(name, node);
-    document.getElementById("stage")!.append(box);
+    document.getElementById("fileBubbleContainer")!.append(box);
     wireBubbleFlash();
     return { name, node };
 }

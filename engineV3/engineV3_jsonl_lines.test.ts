@@ -1,6 +1,6 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -79,6 +79,27 @@ test("test_loadMergedJSONLLines_throws_naming_the_file_and_line_of_bad_json", (t
     const expectedPart = `${join(folder, "one.jsonl")}:2`;
     const hasFileLineAndText = (error: Error): boolean => error.message.includes(expectedPart) && error.message.includes(badJsonLine);
     assert.throws(() => loadMergedJSONLLines([folder]), hasFileLineAndText);
+});
+
+test("test_loadMergedJSONLLines_loads_a_copied_transcript_once", (t) => {
+    // Scenario: a source-a1 folder holds a byte-identical copy of one.jsonl; its lines load once.
+    const folder = makeTempFolder(t);
+    const copyFolder = join(folder, "source-a1", "projects", "proj");
+    mkdirSync(copyFolder, { recursive: true });
+    const lines = [makeUserLine("a", 20, {}), makeUserLine("b", 30, {})];
+    writeJSONLFile(folder, "one.jsonl", lines);
+    writeJSONLFile(copyFolder, "one.jsonl", lines);
+    assert.deepEqual(listUuids(folder), ["a", "b"]);
+});
+
+test("test_loadMergedJSONLLines_loads_same_named_files_with_different_content_both", (t) => {
+    // Scenario: two files named one.jsonl hold different lines; both load.
+    const folder = makeTempFolder(t);
+    const otherFolder = join(folder, "other");
+    mkdirSync(otherFolder);
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {})]);
+    writeJSONLFile(otherFolder, "one.jsonl", [makeUserLine("b", 30, {})]);
+    assert.deepEqual(listUuids(folder), ["a", "b"]);
 });
 
 test("test_loadMergedJSONLLines_lists_an_unknown_field_once_and_still_loads", (t) => {

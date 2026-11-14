@@ -32,7 +32,7 @@ function buildPage(dialogText: string, blocks: string[], state = "verified", not
             return { count: 1, classes: "node n-script never-provable" };
         if (expression.includes("consent-note"))
             return dialogText;
-        if (expression.includes("#drawer .run-console-open').length"))
+        if (expression.includes("#detailsPaneContainer .run-console-open').length"))
             return 0;
         if (expression.includes(".run-console-open').length"))
             return 1;
@@ -113,7 +113,7 @@ function drawRunDots(paths: string[] = ["src/changed.py", "src/other.py"]): HTML
         dots.push(dot);
         bubbles.push(createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": path }), dot]));
     }
-    getRequiredElementById("stage").replaceChildren(...bubbles);
+    getRequiredElementById("fileBubbleContainer").replaceChildren(...bubbles);
     return dots;
 }
 

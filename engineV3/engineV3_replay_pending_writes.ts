@@ -19,7 +19,7 @@ export function clearPendingWrites(): void {
 }
 
 // The absolute path that the result line writes, or undefined when the line writes no file.
-function findWrittenFile(state: Path, resultLine: JSONLLine): string | undefined {
+export function findWrittenFile(state: Path, resultLine: JSONLLine): string | undefined {
   const kind = getJSONLLineKind(resultLine, state);
   switch (kind) {
     case JSONLLineKind.WriteCreate:
@@ -38,6 +38,27 @@ function readBeforeContent(file: string): BeforeContent {
   return readFileSync(file);
 }
 
+// The file text that the result line says was on disk before the write, or null when the result has none.
+export function findResultOriginalFile(state: Path, resultLine: JSONLLine): string | null {
+  const kind = getJSONLLineKind(resultLine, state);
+  switch (kind) {
+    case JSONLLineKind.WriteCreate:
+    case JSONLLineKind.WriteUpdate: return convertWriteResult(resultLine.toolUseResult).originalFile;
+    case JSONLLineKind.EditWholeFile:
+    case JSONLLineKind.EditPartial: return convertEditResult(resultLine.toolUseResult).originalFile;
+    default: return null;
+  }
+}
+
+// The originalFile is the real disk text, and it includes user edits that the replay never saw.
+function findBeforeContent(state: Path, resultLine: JSONLLine, file: string): BeforeContent {
+  const originalFile = findResultOriginalFile(state, resultLine);
+  if (originalFile === null) {
+    return readBeforeContent(file);
+  }
+  return Buffer.from(originalFile, "utf8");
+}
+
 // Call this just before the result line is applied early. A second pending write to the same file keeps the first before-content.
 export function addPendingWrite(state: Path, resultLine: JSONLLine): void {
   const file = findWrittenFile(state, resultLine);
@@ -46,7 +67,7 @@ export function addPendingWrite(state: Path, resultLine: JSONLLine): void {
   }
   const pendingWrite = pendingWritesByFile.get(file);
   if (pendingWrite === undefined) {
-    pendingWritesByFile.set(file, { beforeContent: readBeforeContent(file), pendingCount: 1 });
+    pendingWritesByFile.set(file, { beforeContent: findBeforeContent(state, resultLine, file), pendingCount: 1 });
     return;
   }
   pendingWrite.pendingCount += 1;

@@ -8,6 +8,7 @@ import { initFileNavResize, initSessionPaneResize } from "./layer1-components/fi
 import { initFindFileBox } from "./layer1-components/top-bars/layer1-find-file.ts";
 import { attachBucketJumpButtons } from "./layer1-components/top-bars/layer1-jump-buckets.ts";
 import { moveFirstVisibleNodeIntoView } from "./layer1-components/bubbles/layer1-first-node-scroll.ts"; // import { wireLayerToggle } from "./layer1-components/top-bars/layer1-layer-toggle.ts";
+import { clearFileBubbles } from "./layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { openLinkedNodeAfterLoad } from "./layer1-components/bubbles/layer1-linked-node.ts";
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-components/bubbles/layer1-node-link.ts";
 import { attachLeaderVisibility } from "./layer1-components/bubbles/layer1-leader-visibility.ts";
@@ -25,9 +26,12 @@ import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from ".
 import { closeRulerExpansion, registerTickExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import { registerTimeSourceToggle } from "./layer1-components/top-bars/layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer1-project-settings-toggle.ts";
+import { installReverseToggle } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
+import { installReverseModifyingToggle } from "./layer1-components/top-bars/layer1-reverse-modifying-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 import { attachZoomControls } from "./layer1-components/top-bars/layer1-zoom.ts";
+import { buildLayer1Layout } from "./layer1-layout.ts";
 
 // Task 366: the project #dir named when its saved settings were last applied; a switch re-fetches the new project's.
 let appliedProjectDir: string | undefined = undefined;
@@ -61,7 +65,8 @@ function reportMissingSource(crumb: HTMLElement): void {
 // Clear all three before the ~10 s build: leaving the stale view up made the page read as frozen.
 function clearViewBeforeBuild(crumb: HTMLElement): void {
   crumb.textContent = "";
-  getRequiredElementById("stage").replaceChildren();
+  // getRequiredElementById("fileBubbleContainer").replaceChildren();
+  clearFileBubbles(getRequiredElementById("fileBubbleContainer"));
   getRequiredElementById("filenav-tree").replaceChildren();
   clearFolderFilterState();
   closeRulerExpansion();
@@ -134,6 +139,8 @@ function attachSettingsControls(): void {
   // AFTER fillSourceBoxesFromUrl, which seeds the choice from ?time=. Instants resolve server-side, so flipping the toggle re-loads the view.
   registerTimeSourceToggle(loadViewInBackground);
   installProjectSettingsToggle();
+  installReverseToggle();
+  installReverseModifyingToggle();
   // A branch pick re-loads the whole view; the commit pick only writes into #ref.
   registerRefPickers(loadViewInBackground);
   void fillRefsFromRepo();
@@ -168,6 +175,7 @@ async function openLinkedNodeIfPresent(linkedNode: ReturnType<typeof readNodeLin
 }
 
 export async function initLayer1Page(): Promise<void> {
+  buildLayer1Layout();
   // BEFORE loadLayer1View, whose replaceState drops the node params from the URL.
   const linkedNode = readNodeLinkIdentity(location.search);
   // FIRST: readSourceParams reads the BOXES, so a deep link would otherwise draw nothing.

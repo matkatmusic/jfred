@@ -157,7 +157,8 @@ export function isEveryIdUnique(ids: string[]): boolean {
 }
 
 export function isTrackBetween(track: TrackFacts): boolean {
-  return track.count === 1 && track.isAfterRuler && track.isBeforeStage && track.position === "sticky";
+  // return track.count === 1 && track.isAfterRuler && track.isBeforeStage && track.position === "sticky";
+  return track.count === 1 && track.isAfterRuler && track.isBeforeStage && track.position === "relative";
 }
 
 function countNodesWithId(nodes: ColumnNodeFacts[], id: string): number {

@@ -88,7 +88,7 @@ test("test_commit_click_on_a_real_branch_posts_the_view_query_and_shows_the_serv
   assert.deepEqual(sent[0]!.init.headers, { "content-type": "application/json" });
   assert.deepEqual(JSON.parse(String(sent[0]!.init.body)), { baseShortHash: "a1b2c3d4", markInstant: TICKS[2]!.instant, message: "draft message", allowScripts: false });
   assert.equal(readJfredBranch().commits.at(-1)!.shortHash, "deadbeef");
-  assert.equal(document.getElementById("jfred-strip")!.innerHTML.includes("c0ffee"), false);
+  assert.equal(document.getElementById("jfredCommitsDrawerComponent")!.innerHTML.includes("c0ffee"), false);
   assert.equal(document.querySelector("#dbody pre")!.textContent, "server message");
 });
 

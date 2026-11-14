@@ -28,7 +28,7 @@ function buildBubble(stage: HTMLElement, toolUseId: string, boxLeft: number, box
 
 function buildStage(): HTMLElement {
   initLayer1Dom();
-  const stage = document.getElementById("stage")!;
+  const stage = document.getElementById("fileBubbleContainer")!;
   stage.replaceChildren();
   return stage;
 }

@@ -21,7 +21,7 @@ import type { HoverPopupContent } from "../popups/layer1-hover-popup.ts";
 import { openYesNoQuestion } from "../popups/layer1-yes-no-row.ts";
 import { wrapTextAtColumns } from "../ruler/layer1-wrap-text.ts";
 
-const STRIP_ID = "jfred-strip";
+const STRIP_ID = "jfredCommitsDrawerComponent";
 const POPUP_COLUMNS = 50;
 export const DELETE_QUESTION = "Delete the jfred branch? This removes every jfred commit from the list.";
 const MOVE_QUESTION_START = "This range changes no file, so no commit is made. Move the end mark to ";
@@ -39,8 +39,8 @@ export function registerPendingMarkMover(mover: (instant: string) => boolean): v
 let lastTicks: readonly WireRulerTick[] = [];
 
 function buildHead(): HTMLElement {
-  const title = createElement("span", { text: "commits" });
-  return createElement("div", { class: "jhead" }, [title, createElement("button", { class: "jdelete", text: "Delete jfred branch" })]);
+  const title = createElement("span", { "data-component": "commitsHeadTitle", text: "commits" });
+  return createElement("div", { class: "jhead" }, [title, createElement("button", { class: "jdelete", "data-component": "commitsDeleteBranchButton", text: "Delete jfred branch" })]);
 }
 
 function openCommitMessage(shortHash: string): void {
@@ -200,8 +200,9 @@ function buildStripOnce(): HTMLElement {
   const existing = document.getElementById(STRIP_ID);
   if (existing !== null)
     return existing;
-  const strip = createElement("div", { id: STRIP_ID, class: "jfred-strip", "data-component": "CommitsColumn" });
-  (document.getElementById("annotation-track") ?? getRequiredElementById("ruler")).after(strip);
+  const strip = createElement("div", { id: STRIP_ID, class: "jfredCommitsDrawerComponent", "data-component": "jfredCommitsDrawerComponent" });
+  // (document.getElementById("sessionDotLinesComponent") ?? getRequiredElementById("timelineRulerComponent")).after(strip);
+  getRequiredElementById("timelineRulerContainer").append(strip);
   strip.addEventListener("click", dispatchStripClick);
   attachHoverPopup(strip, readEntryPopup);
   return strip;

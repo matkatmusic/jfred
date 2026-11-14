@@ -74,7 +74,7 @@ async function validateRestart(page: HeadlessPage): Promise<void> {
 
 async function validatePlacement(page: HeadlessPage): Promise<void> {
   await page.evaluate(`${buildNodeExpression(BLOCKED_ID)}.click()`);
-  await page.waitFor(`document.getElementById('drawer').classList.contains('open')`, WAIT_MS);
+  await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open')`, WAIT_MS);
   await waitForDebounce();
   const facts = await readBlockedFacts(page);
   reportCheck("L6 with the panel open, the popup stays in the timeline pane, so it never covers the panel", isBlockedClippedByPane(facts), facts);

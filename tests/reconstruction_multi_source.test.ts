@@ -32,6 +32,16 @@ function fabricateBareRecord(fields: object): TranscriptRecord {
     return fields as unknown as TranscriptRecord;
 }
 
+// A raw timestamp-less file-history-snapshot record carrying only its own snapshot.timestamp.
+function fabricateSnapshotRecord(snapshotTimestamp: string): TranscriptRecord {
+    return fabricateBareRecord({
+        type: "file-history-snapshot",
+        messageId: "00000000-0000-4000-8000-000000000001",
+        isSnapshotUpdate: false,
+        snapshot: { messageId: "00000000-0000-4000-8000-000000000001", timestamp: snapshotTimestamp, trackedFileBackups: {} },
+    });
+}
+
 test("test_dedupe_drops_replicated_records_keeping_first", () => {
     // Scenario (§c1): a record in two sources survives once, first occurrence winning. Step: feed one fixture's records twice.
     const tree = createSourceTree("-dedupe-project");
@@ -70,11 +80,34 @@ test("test_interleave_orders_records_across_sessions_by_wall_clock", () => {
 
 test("test_interleave_keeps_unstamped_leading_records_with_their_session", () => {
     // Scenario (§c3): a session's unstamped leading record stays before its first stamped record, not at the stream head.
-    const unstamped = fabricateBareRecord({ type: "file-history-snapshot" });
+    const unstamped = fabricateSnapshotRecord("2026-07-22T10:01:00.000Z");
     const recordA1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:00:00.000Z") });
     const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
     const merged = mergeRecordsByTimestamp([[recordA1], [unstamped, recordB1]]);
     assert.deepEqual(merged, [recordA1, unstamped, recordB1]);
+});
+
+test("test_interleave_sorts_unstamped_snapshot_at_its_own_later_snapshot_timestamp", () => {
+    // Scenario (s84, s75): a timestamp-less snapshot line carries its own snapshot.timestamp, minutes after the previous line; another session's record in between must come first.
+    const recordA1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:00:00.000Z") });
+    const recordA2 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:10:00.000Z") });
+    const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
+    const snapshotB = fabricateSnapshotRecord("2026-07-22T10:20:00.000Z");
+    const recordB2 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:25:00.000Z") });
+    // Test action: merge list A with list B, where B has a snapshot after its first record.
+    const merged = mergeRecordsByTimestamp([[recordA1, recordA2], [recordB1, snapshotB, recordB2]]);
+    // Test verification: the snapshot sorts after A's 10:10 record, at its own 10:20 time.
+    assert.deepEqual(merged, [recordA1, recordB1, recordA2, snapshotB, recordB2]);
+});
+
+test("test_interleave_keeps_unstamped_snapshot_at_carried_key_when_snapshot_timestamp_is_earlier", () => {
+    // Scenario: the order within one file stays forward-only: an earlier snapshot.timestamp never moves the line before its predecessor.
+    const recordA1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:00:00.000Z") });
+    const recordA2 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:03:00.000Z") });
+    const recordB1 = fabricateBareRecord({ timestamp: new Date("2026-07-22T10:05:00.000Z") });
+    const snapshotB = fabricateSnapshotRecord("2026-07-22T10:01:00.000Z");
+    const merged = mergeRecordsByTimestamp([[recordA1, recordA2], [recordB1, snapshotB]]);
+    assert.deepEqual(merged, [recordA1, recordA2, recordB1, snapshotB]);
 });
 
 test("test_single_source_records_pass_through_unchanged", () => {

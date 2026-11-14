@@ -46,9 +46,9 @@ test("test_a_snapshotted_pair_draws_one_camera_node_per_version_at_the_wire_offs
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1, SNAP2] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1, SNAP2));
     // one snapshot dot per version, placed at axisPx - startPx (startPx is the commit's 30).
-    assert.deepEqual(listMatching("#stage .node.n-snap").map(readAxisOffsetPx), [60, 90]);
+    assert.deepEqual(listMatching("#fileBubbleContainer .node.n-snap").map(readAxisOffsetPx), [60, 90]);
     // the labels read `@vN 📸`, in wire order.
-    assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸"]);
+    assert.deepEqual(listMatching("#fileBubbleContainer .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸"]);
 });
 
 test("test_a_snapshot_whose_backup_file_is_missing_is_labelled_camera_no_entry", async () => {
@@ -56,14 +56,14 @@ test("test_a_snapshot_whose_backup_file_is_missing_is_labelled_camera_no_entry",
     const missingSnap = { ...SNAP2, isBackupMissing: true };
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1, missingSnap] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1, missingSnap));
-    assert.deepEqual(listMatching("#stage .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸🚫"]);
+    assert.deepEqual(listMatching("#fileBubbleContainer .nlabel.n-snap").map((label) => label.textContent), ["@v1 📸", "@v2 📸🚫"]);
 });
 
 test("test_a_snapshot_node_carries_its_version_session_file_and_line_for_tasks_316_317", async () => {
     // Scenario: tasks 316/317 act without a second fetch, so dot and label carry identity in data- attrs (task 280).
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK, snapshots: [SNAP1] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK, SNAP1));
-    for (const element of listMatching("#stage .n-snap")) {
+    for (const element of listMatching("#fileBubbleContainer .n-snap")) {
         assert.equal(element.getAttribute("data-version"), "1");
         assert.equal(element.getAttribute("data-session-file"), "alpha.jsonl");
         assert.equal(element.getAttribute("data-line"), "12");
@@ -74,10 +74,10 @@ test("test_a_snapshot_free_pair_is_unchanged_from_layer_1", async () => {
     // Scenario: an empty snapshots key draws no 📸 node and keeps the pair's Layer 1 anchor and span.
     const pair = { path: "src/run.ts", commits: [COMMIT], onDisk: ON_DISK };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, ON_DISK));
-    assert.equal(listMatching("#stage .n-snap").length, 0);
-    const widget = listMatching("#stage .filebox:not(.bucket)")[0]!;
+    assert.equal(listMatching("#fileBubbleContainer .n-snap").length, 0);
+    const widget = listMatching("#fileBubbleContainer .filebox:not(.bucket)")[0]!;
     assert.equal(readAxisOffsetPx(widget), COMMIT.axisPx);
-    assert.equal(listMatching("#stage .lane")[0]!.style.getPropertyValue("--span-px"), String(ON_DISK.axisPx - COMMIT.axisPx));
+    assert.equal(listMatching("#fileBubbleContainer .lane")[0]!.style.getPropertyValue("--span-px"), String(ON_DISK.axisPx - COMMIT.axisPx));
 });
 
 test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_group_of_same_timestamp_nodes", async () => {
@@ -85,13 +85,13 @@ test("test_a_snapshot_sharing_the_on_disk_instant_sits_one_row_apart_inside_a_gr
     const pair = { path: "src/index.ts", commits: [COMMIT], onDisk: TIED_ON_DISK, snapshots: [TIED_SNAP] };
     await loadPageWithView(viewWithOnePair(pair, COMMIT, TIED_ON_DISK));
     const startPx = COMMIT.axisPx;
-    const diskOffset = readAxisOffsetPx(listMatching("#stage .node.n-disk")[0]!);
-    const snapOffset = readAxisOffsetPx(listMatching("#stage .node.n-snap")[0]!);
+    const diskOffset = readAxisOffsetPx(listMatching("#fileBubbleContainer .node.n-disk")[0]!);
+    const snapOffset = readAxisOffsetPx(listMatching("#fileBubbleContainer .node.n-snap")[0]!);
     assert.equal(diskOffset, TIED_ON_DISK.axisPx - startPx);
     assert.equal(snapOffset, TIED_SNAP.axisPx - startPx);
     assert.notEqual(diskOffset, snapOffset);
     // the "same instant" rectangle spans the disk node down to the snapshot.
-    const tie = listMatching("#stage .nodes-with-same-timestamp")[0]!;
+    const tie = listMatching("#fileBubbleContainer .nodes-with-same-timestamp")[0]!;
     assert.equal(readAxisOffsetPx(tie), TIED_ON_DISK.axisPx - startPx);
     assert.equal(tie.style.getPropertyValue("--span-px"), String(TIED_SNAP.axisPx - TIED_ON_DISK.axisPx));
 });

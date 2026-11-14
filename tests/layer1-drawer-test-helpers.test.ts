@@ -28,5 +28,5 @@
 //     const node = buildDiskNodeStage();
 //
 //     assert.ok(node.classList.contains("n-disk"));
-//     assert.equal(document.getElementById("stage")!.querySelectorAll(".node").length, 1);
+//     assert.equal(document.getElementById("fileBubbleContainer")!.querySelectorAll(".node").length, 1);
 // });

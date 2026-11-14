@@ -16,13 +16,13 @@ import { isConsentTextRight } from "./layer6-popup-facts.ts";
 import { WAIT_MS, openFreshPage, openScriptLayer, readRunPostIds } from "./layer6-steps.ts";
 
 const SCRIPT_DOT_TOTAL = 20;
-const DRAWER_SETTLED = `document.getElementById('drawer').classList.contains('open')
-    && document.querySelector('#drawer .scriptbody pre')?.textContent.length > 0
+const DRAWER_SETTLED = `document.getElementById('detailsPaneContainer').classList.contains('open')
+    && document.querySelector('#detailsPaneContainer .scriptbody pre')?.textContent.length > 0
     && document.querySelectorAll('#dbody details.dfile').length > 0`;
 
 async function openNodeDrawer(page: HeadlessPage, toolUseId: string): Promise<void> {
   await page.evaluate(`document.getElementById('dbody').replaceChildren();
-        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('detailsPaneContainer').classList.remove('open');
         ${buildNodeExpression(toolUseId)}.click()`);
   await page.waitFor(DRAWER_SETTLED, WAIT_MS);
 }
@@ -36,7 +36,7 @@ async function validateNoButtonFor(page: HeadlessPage, toolUseId: string, name: 
 async function validateConsent(page: HeadlessPage): Promise<void> {
   const dialog = await page.evaluate<{ count: number; text: string; insideVizRoot: boolean }>(CONSENT_FACTS);
   const posts = await readRunPostIds(page);
-  reportCheck("L6 the consent dialog is open once, inside .viz-root, before the first run request", dialog.count === 1 && dialog.insideVizRoot && posts.length === 0, { dialog, posts });
+  reportCheck("L6 the consent dialog is open once, inside .appWindow, before the first run request", dialog.count === 1 && dialog.insideVizRoot && posts.length === 0, { dialog, posts });
   reportCheck("L6 the dialog names copied files only, no network, a Docker container and Docker on, and not full access", isConsentTextRight(dialog.text), dialog.text);
   await page.evaluate(CLICK_RUN_SCRIPTS);
   await page.waitFor(`${buildDotClasses(PENDING_ID)}.includes('run-state-verified')`, WAIT_MS);

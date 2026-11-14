@@ -7,6 +7,8 @@ export type FileHistoryBackup = {
   backupFileName: Path | null;
   version: number;
   backupTime: Date;
+  // Newer Claude Code versions name the folder that really holds the file; the key is relative to the session's start folder.
+  realParentDir?: Path;
 };
 
 // A snapshot's per-file backup map: a string-keyed Map inside, but the public surface only speaks Path.
@@ -77,12 +79,17 @@ function parseBackup(raw: unknown): FileHistoryBackup {
     backupFileName: string | null;
     version: number;
     backupTime: string;
+    realParentDir?: string;
   };
-  return {
+  const parsed: FileHistoryBackup = {
     backupFileName: parsePathOrNull(backup.backupFileName),
     version: backup.version,
     backupTime: new Date(backup.backupTime),
   };
+  if (backup.realParentDir !== undefined) {
+    parsed.realParentDir = new Path(backup.realParentDir);
+  }
+  return parsed;
 }
 
 function parseBackups(raw: unknown): FileBackupMap {

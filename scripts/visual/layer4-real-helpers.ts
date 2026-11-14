@@ -7,7 +7,7 @@ type ScriptRun = WireScriptRunsView["pairs"][number]["scriptRuns"][number];
 export const buildDotsOfRun = (toolUseId: string) =>
   `[...document.querySelectorAll('i.node.n-script[data-tool-use-id=${JSON.stringify(toolUseId)}]')]`;
 export const buildConnectorOfRun = (toolUseId: string) =>
-  `document.querySelector('#stage .script-connector[data-tool-use-id=${JSON.stringify(toolUseId)}]')`;
+  `document.querySelector('#fileBubbleContainer .script-connector[data-tool-use-id=${JSON.stringify(toolUseId)}]')`;
 export const buildBubblePathExpression = (dot: string) => `${dot}.closest('.filebox').querySelector('.fname[data-path]').dataset.path`;
 
 export function listRunsOnPaths(payload: WireScriptRunsView, paths: Set<string>): ScriptRun[] {

@@ -31,7 +31,7 @@ export const buildDotClasses = (toolUseId: string) => `${buildNodeExpression(too
 export const buildScrollToDot = (toolUseId: string) => `${buildNodeExpression(toolUseId)}.scrollIntoView({ block: 'center', inline: 'center' })`;
 export const buildDotInView = (toolUseId: string) => `(d => {
     const r = d.getBoundingClientRect();
-    const p = document.getElementById('timelines').getBoundingClientRect();
+    const p = document.getElementById('timelineContainer').getBoundingClientRect();
     return r.right > p.left && r.left < p.right && r.bottom > p.top && r.top < p.bottom;
 })(${buildNodeExpression(toolUseId)})`;
 
@@ -60,7 +60,7 @@ export const CLEAR_RESULTS_PROBE = `fetch('/api/layer1-clear-results', { ${POST_
 export const COUNT_CONSENT_DIALOGS = `document.querySelectorAll('.run-consent').length`;
 export const CONSENT_FACTS = `(() => {
     const dialog = document.querySelector('.run-consent');
-    return { count: ${COUNT_CONSENT_DIALOGS}, text: dialog?.textContent ?? '', insideVizRoot: dialog?.closest('.viz-root') != null };
+    return { count: ${COUNT_CONSENT_DIALOGS}, text: dialog?.textContent ?? '', insideVizRoot: dialog?.closest('.appWindow') != null };
 })()`;
 export const CLICK_RUN_SCRIPTS = `document.querySelector('.run-consent .consent-run').click()`;
 export const HIDE_CONSENT = `document.querySelector('.run-consent').style.display = 'none'`;
@@ -82,7 +82,7 @@ export const README_NODE_FACTS = `[...${README_BUBBLE}.querySelectorAll('i.node.
 
 export const NEVER_PROVABLE_RULE_COUNT = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
     .filter(rule => rule.selectorText?.includes('.never-provable')).length`;
-export const SHOW_BOX_KINDS = `[...document.querySelectorAll('#show-row input[data-kind]')].map(i => i.dataset.kind)`;
+export const SHOW_BOX_KINDS = `[...document.querySelectorAll('#timelineViewControls input[data-kind]')].map(i => i.dataset.kind)`;
 
 export interface PopupFacts {
   hidden: boolean; width: number; height: number; popupRect: number[]; stageRect: number[]; drawerRect: number[]; insideDrawer: boolean; drawerOpen: boolean; position: string;
@@ -95,16 +95,16 @@ export interface PopupFacts {
 export const POPUP_FACTS = `(() => {
     const popup = document.getElementById('run-console');
     const box = popup.getBoundingClientRect();
-    const wrap = document.getElementById('stagewrap').getBoundingClientRect();
-    const lines = document.getElementById('timelines').getBoundingClientRect();
+    const wrap = document.getElementById('sessionDataContainer').getBoundingClientRect();
+    const lines = document.getElementById('timelineContainer').getBoundingClientRect();
     const pre = popup.querySelector('pre.console-pre');
     const button = popup.querySelector('.cancel-btn');
     const buttonStyle = getComputedStyle(button);
     return {
         hidden: popup.hidden, width: box.width, height: box.height,
         popupRect: [box.left, box.top, box.right, box.bottom], stageRect: [wrap.left, wrap.top, wrap.right, wrap.bottom],
-        drawerRect: (d => [d.left, d.top, d.right, d.bottom])(document.getElementById('drawer').getBoundingClientRect()),
-        insideDrawer: popup.closest('#drawer') !== null, drawerOpen: document.getElementById('drawer').classList.contains('open'),
+        drawerRect: (d => [d.left, d.top, d.right, d.bottom])(document.getElementById('detailsPaneContainer').getBoundingClientRect()),
+        insideDrawer: popup.closest('#detailsPaneContainer') !== null, drawerOpen: document.getElementById('detailsPaneContainer').classList.contains('open'),
         position: getComputedStyle(popup).position,
         insideStagewrap: box.left >= wrap.left && box.right <= wrap.right && box.top >= wrap.top && box.bottom <= wrap.bottom,
         overlapsTimelines: box.left < lines.right && box.right > lines.left && box.top < lines.bottom && box.bottom > lines.top,
@@ -120,7 +120,7 @@ export const CLICK_OPEN_BUTTON = `document.querySelector('.run-console-open').cl
 export const CLICK_CANCEL = `document.querySelector('#run-console .cancel-btn').click()`;
 export const CLICK_CLOSE = `document.querySelector('#run-console .run-console-close').click()`;
 export const CLOSE_LABEL = `document.querySelector('#run-console .run-console-close').textContent`;
-export const RESET_DRAWER = `(document.getElementById('dbody').replaceChildren(), document.getElementById('drawer').classList.remove('open'))`;
+export const RESET_DRAWER = `(document.getElementById('dbody').replaceChildren(), document.getElementById('detailsPaneContainer').classList.remove('open'))`;
 export const OPEN_BUTTON_PRESENT = `document.querySelector('.run-console-open') !== null`;
 export const CONSOLE_FINISHED = `document.querySelector('#run-console .cancel-btn.btn-idle') !== null`;
 
@@ -128,7 +128,7 @@ export interface ButtonFacts { count: number; text: string | undefined; insideDr
 
 export const BUTTON_FACTS = `({
     count: ${COUNT_CONSOLE_BUTTONS}, text: document.querySelector('.run-console-open')?.textContent,
-    insideDrawer: document.querySelector('.run-console-open')?.closest('#drawer') !== null })`;
+    insideDrawer: document.querySelector('.run-console-open')?.closest('#detailsPaneContainer') !== null })`;
 
 // Replaced: one popup now holds one terminal block, so the title colour is read from the popup facts.
 // export const buildTitleColour = (termClass: string) => `getComputedStyle(document.querySelector('.${termClass} .terminal-title')).color`;

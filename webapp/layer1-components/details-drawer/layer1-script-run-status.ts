@@ -29,8 +29,8 @@ function buildStatusBadge(check: keyof RunStatus, isPassed: boolean): (string | 
   const name = `${check[0]!.toUpperCase()}${check.slice(1)}: `;
   return [
     BAR,
-    createElement("span", { class: "run-check", text: name }),
-    createElement("span", { class: "run-status", text: isPassed ? "✅" : "❌", title: isPassed ? check : `not ${check}` }),
+    createElement("span", { class: "run-check", text: name, "data-component": "scriptRunStatusCheckText" }),
+    createElement("span", { class: "run-status", text: isPassed ? "✅" : "❌", title: isPassed ? check : `not ${check}`, "data-component": "scriptRunStatusMarkText" }),
   ];
 }
 

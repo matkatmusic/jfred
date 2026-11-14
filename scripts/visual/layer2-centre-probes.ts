@@ -9,17 +9,17 @@ export const EDGE_TOLERANCE_PX = 1;
 const INTERIOR_MARGIN_PX = 10;
 
 const DEFINE_MEASURE = `
-    const pane = document.getElementById('timelines');
+    const pane = document.getElementById('timelineContainer');
     const read = (element) => { const r = element.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
     const paneBox = read(pane);
-    const drawerBox = read(document.getElementById('drawer'));
+    const drawerBox = read(document.getElementById('detailsPaneContainer'));
     const area = [...paneBox];
     if (drawerBox[2] > drawerBox[0] && drawerBox[0] > paneBox[0] && drawerBox[0] < paneBox[2]) area[2] = drawerBox[0];
     const maxScroll = [pane.scrollWidth - pane.clientWidth, pane.scrollHeight - pane.clientHeight];
     const scroll = [pane.scrollLeft, pane.scrollTop];
     const centreOf = (box, axis) => (box[axis] + box[axis + 2]) / 2;
     const targetOf = (node, axis) => scroll[axis] + centreOf(read(node), axis) - centreOf(area, axis);
-    const visibleNodes = () => [...document.querySelectorAll('#stage .node.n-snap')].filter((node) => node.offsetParent !== null);
+    const visibleNodes = () => [...document.querySelectorAll('#fileBubbleContainer .node.n-snap')].filter((node) => node.offsetParent !== null);
 `;
 
 export interface CentredView {

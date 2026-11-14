@@ -100,6 +100,15 @@ if [ -n "$GIT_REPO_FOLDER" ]; then
 fi
 if [ -n "$FILE_HISTORY_FOLDER" ]; then
     docker cp "$FILE_HISTORY_FOLDER" "$NAME:/input/file-history"
+    # Multi-source scenarios keep each source's backups in <project>/source-*/file-history
+    SOURCE_FILE_HISTORY_FOLDERS="$(find "$PROJECT_FOLDER" -mindepth 2 -maxdepth 2 -type d -name file-history -path '*/source-*/file-history')"
+    while IFS= read -r SOURCE_FILE_HISTORY_FOLDER; do
+        if [ -n "$SOURCE_FILE_HISTORY_FOLDER" ]; then
+            docker cp "$SOURCE_FILE_HISTORY_FOLDER/." "$NAME:/input/file-history"
+        fi
+    done <<EOF
+$SOURCE_FILE_HISTORY_FOLDERS
+EOF
 fi
 for JSONL_FOLDER in "$@"; do
     docker cp "$JSONL_FOLDER" "$NAME:$(dirname "$JSONL_FOLDER")/"

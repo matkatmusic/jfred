@@ -49,7 +49,7 @@ function addTick(hour: number): HTMLElement {
   const axisPx = hour * TICK_SPACING_PX;
   const tick = document.createElement("div");
   tick.className = "tick";
-  document.getElementById("ruler")!.append(tick);
+  document.getElementById("timelineRulerComponent")!.append(tick);
   storeRow(tick, { axisPx, text: "t", eventCount: 1, axisPxList: [axisPx], instants: [buildInstant(hour)] });
   return tick;
 }
@@ -74,7 +74,7 @@ function addFileBox(nodes: { hour: number; nodeClass: string; label: string }[])
     nodeLabel.textContent = label;
     box.append(node, nodeLabel);
   }
-  document.getElementById("stage")!.append(box);
+  document.getElementById("fileBubbleContainer")!.append(box);
 }
 
 // Fresh armed page: hour 1 commit, hour 2 snapshot and hour 3 edit dot of one file.

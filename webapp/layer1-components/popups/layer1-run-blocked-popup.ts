@@ -35,15 +35,15 @@ function triggerGoToFirst(onGoToFirst: () => void): void {
 
 function buildBlockedButtons(dotKey: string, onGoToFirst: () => void): HTMLElement {
   return createElement("div", { class: "blocked-buttons" }, [
-    createElement("button", { class: "blocked-close", text: "close", onclick: () => closeDotPopup(dotKey) }),
-    createElement("button", { class: "blocked-go", text: "Go to first unreplayed script node", onclick: () => triggerGoToFirst(onGoToFirst) }),
+    createElement("button", { class: "blocked-close", "data-component": "runBlockedCloseButton", text: "close", onclick: () => closeDotPopup(dotKey) }),
+    createElement("button", { class: "blocked-go", "data-component": "runBlockedGoToFirstButton", text: "Go to first unreplayed script node", onclick: () => triggerGoToFirst(onGoToFirst) }),
   ]);
 }
 
 function buildBlockedPopup(dotKey: string, blocker: Blocker, blockerFileName: string, onGoToFirst: () => void): HTMLElement {
-  return createElement("div", { id: POPUP_ID, class: "run-blocked-popup" }, [
-    createElement("p", { class: "blocked-text", text: BLOCKED_TEXT }),
-    createElement("p", { class: "blocked-text blocked-first", text: `${blockerFileName}: ${STATE_TEXT[blocker.state]}` }),
+  return createElement("div", { id: POPUP_ID, class: "run-blocked-popup", "data-component": "runBlockedPopup" }, [
+    createElement("p", { class: "blocked-text", "data-component": "runBlockedMessageText", text: BLOCKED_TEXT }),
+    createElement("p", { class: "blocked-text blocked-first", "data-component": "runBlockedFirstScriptStateText", text: `${blockerFileName}: ${STATE_TEXT[blocker.state]}` }),
     buildBlockedButtons(dotKey, onGoToFirst),
   ]);
 }
@@ -75,13 +75,13 @@ export function renderBlockedPopup(dotKey: string, toolUseId: string, blocker: B
   if (isDismissed) {
     return;
   }
-  const pane = getRequiredElementById("timelines").getBoundingClientRect();
+  const pane = getRequiredElementById("timelineContainer").getBoundingClientRect();
   const dot = findOnScreenDot(toolUseId, pane);
   if (dot === undefined) {
     return;
   }
   closeBlockedPopup();
-  const canvas = getRequiredElementById("timelines").querySelector<HTMLElement>(".canvas")!;
+  const canvas = getRequiredElementById("timelineContainer").querySelector<HTMLElement>(".canvas")!;
   const popup = buildBlockedPopup(dotKey, blocker, blockerFileName, onGoToFirst);
   canvas.append(popup);
   setPopupBesideDot(popup, dot.getBoundingClientRect(), canvas.getBoundingClientRect(), pane);

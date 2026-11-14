@@ -66,3 +66,19 @@ test("test_the_file_nav_search_clear_button_restores_every_file", async () => {
     assert.equal(searchBox().value, "");
     assert.deepEqual(listLeafPaths(), ["src/kept.ts", "src/nested/gone.ts", "src/untracked.ts"]);
 });
+
+test("test_the_file_nav_search_box_sits_in_the_same_part_as_the_show_only_selected_button", async () => {
+    // Scenario: the search box stays at the pane top with the title row, so it lives inside the title row part.  Steps: boot the nav.
+    await bootFileNav();
+    // find the search input, the show-only-selected button, and the tree.
+    const searchInput = document.getElementById("filenav-search") as HTMLElement;
+    const onlySelectedButton = document.getElementById("filenav-only-selected") as HTMLElement;
+    const tree = document.getElementById("filenav-tree") as HTMLElement;
+    // the search input sits inside a title row part.
+    const title = searchInput.closest(".filenav-title");
+    assert.notEqual(title, null);
+    // the button sits inside that same title row part.
+    assert.equal(onlySelectedButton.closest(".filenav-title"), title);
+    // the tree is not inside the title row part.
+    assert.equal((title as Element).contains(tree), false);
+});

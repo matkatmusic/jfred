@@ -14,7 +14,7 @@ import {
 
 const STATE_CLASS_TOTAL = `document.querySelectorAll('[class*="run-state-"]').length`;
 const SCROLL_TO_FIRST_NODE = `${README_BUBBLE}.querySelector('i.node.n-script').scrollIntoView({ block: 'center', inline: 'start' });
-        document.getElementById('timelines').scrollBy(-190, 0)`;
+        document.getElementById('timelineContainer').scrollBy(-190, 0)`;
 
 async function validateBeforeOpen(page: HeadlessPage): Promise<void> {
   const total = await page.evaluate<number>(`${COUNT_CONSOLES} + ${COUNT_CONSOLE_BUTTONS}`);

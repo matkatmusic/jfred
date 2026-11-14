@@ -1,19 +1,19 @@
 // Retired by task 352: the show row (task 360) replaces it.
 // // The Layer 1/2 switcher (task 314): a client-side show/hide, never a refetch (task 312 always ships snapshots).
 // //
-// // Publishes the layer as `data-layer` on `.viz-root`; CSS hides task 315's `.snap` elements below layer 2.
+// // Publishes the layer as `data-layer` on `.appWindow`; CSS hides task 315's `.snap` elements below layer 2.
 //
 // const DEFAULT_LAYER = "1";
 //
 // function vizRoot(): HTMLElement {
-//     return document.querySelector(".viz-root") as HTMLElement;
+//     return document.querySelector(".appWindow") as HTMLElement;
 // }
 //
 // function layerButtons(): HTMLElement[] {
 //     return [...document.querySelectorAll<HTMLElement>(".layerbar button[data-layer]")];
 // }
 //
-// // Publish the layer onto .viz-root and move `.current` to the chosen button. `buttons` is passed in so a click and the boot sync share one list rather than re-querying.
+// // Publish the layer onto .appWindow and move `.current` to the chosen button. `buttons` is passed in so a click and the boot sync share one list rather than re-querying.
 // function selectLayer(layer: string, buttons: HTMLElement[]): void {
 //     vizRoot().dataset.layer = layer;
 //     for (const button of buttons) {

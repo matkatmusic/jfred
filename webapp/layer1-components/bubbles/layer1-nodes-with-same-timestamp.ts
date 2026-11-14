@@ -41,7 +41,7 @@ function collectTiedLadderNodes(ladder: readonly NodeWithSameTimestamp[]): NodeW
 export function buildNodesWithSameTimestampMarkers(ladder: readonly NodeWithSameTimestamp[], startPx: number): HTMLElement[] {
   const markers: HTMLElement[] = [];
   for (const run of collectTiedLadderNodes(ladder)) {
-    const marker = createElement("div", { class: "nodes-with-same-timestamp" });
+    const marker = createElement("div", { class: "nodes-with-same-timestamp", "data-component": "laneSameTimestampItem" });
     const axisPxValues: number[] = [];
     const laneIndexValues: number[] = [];
     let trunkNodeCount = 0;

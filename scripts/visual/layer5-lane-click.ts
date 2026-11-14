@@ -39,8 +39,8 @@ const READ_CLICKED = `(() => {
     const read = (element) => { const r = element.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
     const node = document.querySelector('[data-lane-click]');
     const box = read(node);
-    const paneBox = read(document.getElementById('timelines'));
-    const drawerBox = read(document.getElementById('drawer'));
+    const paneBox = read(document.getElementById('timelineContainer'));
+    const drawerBox = read(document.getElementById('detailsPaneContainer'));
     const lines = [...document.querySelectorAll('#dbody .diff-line')];
     return {
         head: document.getElementById('dpath').textContent,
@@ -51,7 +51,7 @@ const READ_CLICKED = `(() => {
         isShown: node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden',
         isInsidePane: box[0] >= paneBox[0] && box[1] >= paneBox[1] && box[2] <= paneBox[2] && box[3] <= paneBox[3],
         touchesDrawer: box[0] < drawerBox[2] && box[2] > drawerBox[0] && box[1] < drawerBox[3] && box[3] > drawerBox[1],
-        drawerOpen: document.getElementById('drawer').classList.contains('open') };
+        drawerOpen: document.getElementById('detailsPaneContainer').classList.contains('open') };
 })()`;
 
 export async function validateLaneNodeClicks(page: HeadlessPage, tag: string, options: LaneClickOptions): Promise<void> {
@@ -62,7 +62,7 @@ export async function validateLaneNodeClicks(page: HeadlessPage, tag: string, op
       break;
     }
     await page.evaluate(CLICK_DOT);
-    await page.waitFor(`document.getElementById('drawer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`, DRAWER_TIMEOUT_MS);
+    await page.waitFor(`document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`, DRAWER_TIMEOUT_MS);
     await waitMilliseconds(RECENTRE_WAIT_MS);
     const facts = await page.evaluate<ClickedLaneNode>(READ_CLICKED);
     const label = `${tag} lane node ${index + 1}/${dotCount}`;

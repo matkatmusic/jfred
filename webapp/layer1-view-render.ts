@@ -12,6 +12,12 @@ import { renderShowRowWithKindFilter } from "./layer1-components/show-row/layer1
 import { renderSessionPane } from "./layer1-components/jsonls-nav/layer1-session-pane.ts";
 import { listSessionFilterTargets, loadLayer1Sessions, setKnownProjectPaths } from "./layer1-components/jsonls-nav/layer1-sessions.ts";
 import { renderLayer1Stage } from "./layer1-components/bubbles/layer1-stage-render.ts";
+import { buildReverseBubble } from "./layer1-components/bubbles/layer1-reverse-bubble.ts";
+import { isReverseOn, registerReverseChange } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
+import { showReverseModifyingToggle } from "./layer1-components/top-bars/layer1-reverse-modifying-toggle.ts";
+import { listReverseRulerRows } from "./layer1-components/ruler/layer1-reverse-ruler.ts";
+import { loadReverseWalk } from "./layer1-reverse-load.ts";
+import { clearReverseWalks, readReverseWalk } from "./layer1-reverse-store.ts";
 import { applyReplayResultsToView } from "./layer1-run-placement.ts";
 import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -56,6 +62,43 @@ export function clearFolderFilterState(): void {
   rememberNavTargets([]);
   onlySelectedIsOn = false;
   getRequiredElementById("filenav-only-selected").classList.remove("current");
+  clearReverseWalks();
+}
+
+// The one selected file that reverse mode draws; undefined means the stage draws as usual.
+function readReverseTarget(): string | undefined {
+  if (!isReverseOn()) {
+    return undefined;
+  }
+  if (folderTargets.length !== 1) {
+    return undefined;
+  }
+  return folderTargets[0];
+}
+
+const reverseLoadsInFlight = new Set<string>();
+
+function startReverseLoad(path: string, redrawStage: () => Promise<void>): void {
+  if (reverseLoadsInFlight.has(path)) {
+    return;
+  }
+  reverseLoadsInFlight.add(path);
+  void loadReverseWalk(path).then(redrawStage).finally(() => reverseLoadsInFlight.delete(path));
+}
+
+// Undefined when the normal stage must draw: no reverse target, or its walk is still loading.
+function renderReverseTargetStage(redrawStage: () => Promise<void>): Promise<void> | undefined {
+  const path = readReverseTarget();
+  if (path === undefined) {
+    return undefined;
+  }
+  const walk = readReverseWalk(path);
+  if (walk === undefined) {
+    startReverseLoad(path, redrawStage);
+    return undefined;
+  }
+  const emptyView: WireLayer1View = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+  return renderLayer1Stage(emptyView, buildReverseBubble(path, walk.states), listReverseRulerRows(walk.states));
 }
 
 interface StageRenderers {
@@ -65,14 +108,25 @@ interface StageRenderers {
 
 // Task 300: the expansion's own redraw keeps the open row; any FILTER redraw closes it first.
 function createStageRenderers(view: WireLayer1View): StageRenderers {
-  const renderFilteredStage = (): Promise<void> => renderLayer1Stage(filterLayer1ViewByTargets(
-    applyReplayResultsToView(view), getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
-  ));
+  const renderFilteredStage = (): Promise<void> => {
+    const reverseStageDrawn = renderReverseTargetStage(renderFilteredStage);
+    if (reverseStageDrawn !== undefined) {
+      return reverseStageDrawn;
+    }
+    return renderLayer1Stage(filterLayer1ViewByTargets(
+      applyReplayResultsToView(view), getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
+    ));
+  };
   const closeRowAndRenderStage = (): void => {
     closeRulerExpansion();
     renderFilteredStage();
   };
   registerExpansionRelayout(renderFilteredStage);
+  registerReverseChange(() => {
+    clearReverseWalks();
+    showReverseModifyingToggle(isReverseOn());
+    void renderFilteredStage();
+  });
   return { renderFilteredStage, closeRowAndRenderStage };
 }
 
@@ -96,7 +150,9 @@ function createFolderTargetSelector(view: WireLayer1View, closeRowAndRenderStage
     closeRowAndRenderStage();
     // Task 329: any selection fills the drawer: one DiffView per file, 1..N uniformly.
     if (targets.length >= 1) {
-      openDetailViewForFiles(view, targets);
+      if (readReverseTarget() === undefined) {
+        openDetailViewForFiles(view, targets);
+      }
     }
   };
 }
@@ -117,12 +173,13 @@ function listKnownPaths(view: WireLayer1View): string[] {
 export function renderLayer1View(view: WireLayer1View): Promise<void> {
   const { renderFilteredStage, closeRowAndRenderStage } = createStageRenderers(view);
   attachOnlySelectedButton(closeRowAndRenderStage);
+  showReverseModifyingToggle(isReverseOn());
   renderLayer1FileNav(view, createFolderTargetSelector(view, closeRowAndRenderStage));
   storeAnnotations(view);
   rememberJfredCommits(view);
   void loadEngineV3Steps(view);
   renderShowRowWithKindFilter(view, renderFilteredStage);
-  const stageDrawn = renderLayer1Stage(view);
+  const stageDrawn = renderReverseTargetStage(renderFilteredStage) ?? renderLayer1Stage(view);
   // The steps may load before the stage nodes exist: mark again once the stage is drawn.
   void stageDrawn.then(renderEngineV3Marker);
   setKnownProjectPaths(getInputById("dir").value.trim(), listKnownPaths(view));

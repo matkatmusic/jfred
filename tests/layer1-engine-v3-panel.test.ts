@@ -38,7 +38,7 @@ function drawNodes(): void {
             stage.append(secondLaneNode);
         }
     }
-    getRequiredElementById("stage").replaceChildren(stage);
+    getRequiredElementById("fileBubbleContainer").replaceChildren(stage);
 }
 
 async function openPanel(): Promise<void> {
@@ -73,7 +73,7 @@ const LINE_TICKS = [
 function watchLineScrolls(): { scrolls: unknown[] } {
     renderEngineV3LineAtTicks(LINE_TICKS);
     const scrolls: unknown[] = [];
-    getRequiredElementById("timelines").getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+    getRequiredElementById("timelineContainer").getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
     getRequiredElementById("engine-v3-line").getBoundingClientRect = () => ({ top: 2000, bottom: 2002 }) as DOMRect;
     getRequiredElementById("engine-v3-line").scrollIntoView = (options?: unknown) => scrolls.push(options);
     return { scrolls };
