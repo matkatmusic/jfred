@@ -55,13 +55,25 @@ export function checkScenarioAgainstStepStates(scenarioFolder: Path, fileHistory
         cpSync(scenarioGitFolder, join(projectFolder, ".git"), { recursive: true });
     }
 
-    const transcriptFile = listTranscriptFiles([scenarioFolder.toString()])[0];
-    if (transcriptFile === undefined) {
+    const transcriptFiles = listTranscriptFiles([scenarioFolder.toString()]);
+    if (transcriptFiles.length === 0) {
         throw new Error(`checkScenarioAgainstStepStates: scenario ${scenarioName} has no transcript`);
     }
-    const recordedRoot = findFirstRecordCwd(loadTranscript(transcriptFile.toString()).records);
+    // Transcripts of nested folders record deeper cwds, so the project root is the shortest first cwd.
+    let recordedRoot: Path | undefined;
+    for (const transcriptFile of transcriptFiles) {
+        const transcriptCwd = findFirstRecordCwd(loadTranscript(transcriptFile.toString()).records);
+        if (transcriptCwd === undefined) {
+            throw new Error(`checkScenarioAgainstStepStates: the transcript ${transcriptFile.toString()} records no cwd`);
+        }
+        if (recordedRoot === undefined) {
+            recordedRoot = transcriptCwd;
+        } else if (transcriptCwd.toString().length < recordedRoot.toString().length) {
+            recordedRoot = transcriptCwd;
+        }
+    }
     if (recordedRoot === undefined) {
-        throw new Error(`checkScenarioAgainstStepStates: the transcript ${transcriptFile.toString()} records no cwd`);
+        throw new Error(`checkScenarioAgainstStepStates: scenario ${scenarioName} has no transcript`);
     }
     const projectFiles: ProjectFile[] = relativePaths.map((relativePath) => ({ file: new Path(join(projectFolder, relativePath)), transcriptFile: new Path(join(recordedRoot.toString(), relativePath)) }));
     const results = buildInverseReposForFiles(new Path(projectFolder), projectFiles, [scenarioFolder], [fileHistoryFolder], new Path(join(workFolder.toString(), "store")), FIXED_DISK_NOW_INSTANT, () => {});
