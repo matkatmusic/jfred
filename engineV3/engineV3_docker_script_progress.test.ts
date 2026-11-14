@@ -274,6 +274,170 @@ test("test_dockerfile_installs_chromium_at_the_mac_chrome_path", () => {
     assert.ok(dockerfileText.includes('exec chromium --no-sandbox --disable-dev-shm-usage "$@"'));
 });
 
+test("test_dockerfile_installs_file_bc_xxd_and_pdftotext", () => {
+    // Scenario: recorded Bash calls run file, bc, xxd and pdftotext, so the image needs them.
+    const dockerfileLines = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8").split("\n");
+    // the one apt-get install line that runs names each package
+    const installLines = dockerfileLines.filter((dockerfileLine) => dockerfileLine.trimStart().startsWith("&& apt-get install "));
+    assert.equal(installLines.length, 1);
+    for (const packageName of ["file", "bc", "xxd", "poppler-utils"]) {
+        assert.match(installLines[0]!, new RegExp(` ${packageName}( |$)`));
+    }
+});
+
+// The body of one Dockerfile stand-in, written to a temp file so tests can run it with sh.
+function writeDockerfileStandInScript(heredocName: string, standInPath: string, testFolder: string): string {
+    const dockerfileText = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8");
+    const startMarker = `COPY --chmod=755 <<'${heredocName}' ${standInPath}\n`;
+    const startIndex = dockerfileText.indexOf(startMarker);
+    assert.notEqual(startIndex, -1, `the Dockerfile writes a stand-in to ${standInPath}`);
+    const bodyStartIndex = startIndex + startMarker.length;
+    const bodyEndIndex = dockerfileText.indexOf(`\n${heredocName}\n`, bodyStartIndex);
+    assert.notEqual(bodyEndIndex, -1);
+    const standInScriptPath = join(testFolder, `${heredocName}.sh`);
+    writeFileSync(standInScriptPath, dockerfileText.slice(bodyStartIndex, bodyEndIndex + 1));
+    return standInScriptPath;
+}
+
+// A program that prints each of its arguments on its own line, in place of the real sed.
+function writeArgumentPrinter(testFolder: string): string {
+    const printerPath = join(testFolder, "print-arguments");
+    writeFileSync(printerPath, "#!/bin/sh\nfor argument in \"$@\"; do printf '%s\\n' \"$argument\"; done\n", { mode: 0o755 });
+    return printerPath;
+}
+
+function runSedStandIn(sedArguments: string[]): { status: number | null; stdout: string; stderr: string } {
+    const testFolder = mkdtempSync(join(tmpdir(), "sed-stand-in-"));
+    const standInScriptPath = writeDockerfileStandInScript("SED_SCRIPT", "/usr/local/bin/sed", testFolder);
+    const printerPath = writeArgumentPrinter(testFolder);
+    const standInRun = spawnSync("sh", [standInScriptPath, ...sedArguments], { encoding: "utf8", env: { ...process.env, SED_STAND_IN_REAL_SED: printerPath } });
+    rmSync(testFolder, { recursive: true, force: true });
+    return standInRun;
+}
+
+for (const [sedArguments, realSedArguments] of [
+    [["-i", "", "s/a/b/", "f"], ["-i", "s/a/b/", "f"]],
+    [["-i", "", "-E", "s/a+/b/", "f", "g"], ["-i", "-E", "s/a+/b/", "f", "g"]],
+    [["-i", "", "-e", "1s/a/b/", "-e", "2s/a/b/", "f"], ["-i", "-e", "1s/a/b/", "-e", "2s/a/b/", "f"]],
+    [["-n", "1p", "f"], ["-n", "1p", "f"]],
+    [["-i.bak", "s/a/b/", "f"], ["-i.bak", "s/a/b/", "f"]],
+]) {
+    test(`test_dockerfile_sed_stand_in_runs_the_real_sed_with: ${JSON.stringify(realSedArguments)} for sed ${JSON.stringify(sedArguments)}`, () => {
+        // Scenario: BSD `sed -i ''` means "edit in place, no backup"; GNU sed reads the '' as the script, so the stand-in drops it.
+        // the stand-in runs the real sed (here a program that prints its arguments)
+        const standInRun = runSedStandIn(sedArguments!);
+        // the real sed gets the translated arguments
+        assert.equal(standInRun.status, 0);
+        assert.deepEqual(standInRun.stdout.split("\n").slice(0, -1), realSedArguments);
+    });
+}
+
+for (const sedArguments of [["-i", "24d", "f"], ["-i"], ["-n", "-i", "", "1p", "f"]]) {
+    test(`test_dockerfile_sed_stand_in_fails_loudly_for: sed ${JSON.stringify(sedArguments)}`, () => {
+        // Scenario: on the Mac `sed -i 24d f` takes 24d as the backup suffix and fails; GNU sed would edit f, so the stand-in must fail.
+        const standInRun = runSedStandIn(sedArguments);
+        // the real sed never runs, and the stand-in says why on stderr
+        assert.notEqual(standInRun.status, 0);
+        assert.equal(standInRun.stdout, "");
+        assert.match(standInRun.stderr, /sed stand-in/);
+    });
+}
+
+// Runs the stat stand-in in a folder that holds the file "f"; fake stat and date print their arguments in brackets.
+function runStatStandIn(statArguments: string[], fakeStatOutput?: string): { status: number | null; stdout: string; stderr: string } {
+    const testFolder = mkdtempSync(join(tmpdir(), "stat-stand-in-"));
+    const standInScriptPath = writeDockerfileStandInScript("STAT_SCRIPT", "/usr/local/bin/stat", testFolder);
+    writeFileSync(join(testFolder, "f"), "file text\n");
+    const fakeStatPath = join(testFolder, "fake-stat");
+    writeFileSync(fakeStatPath, "#!/bin/sh\necho \"${FAKE_STAT_OUTPUT:-stat[$*]}\"\n", { mode: 0o755 });
+    const fakeDatePath = join(testFolder, "fake-date");
+    writeFileSync(fakeDatePath, "#!/bin/sh\necho \"date[$*]\"\n", { mode: 0o755 });
+    const standInEnvironment: NodeJS.ProcessEnv = { ...process.env, STAT_STAND_IN_REAL_STAT: fakeStatPath, STAT_STAND_IN_REAL_DATE: fakeDatePath };
+    if (fakeStatOutput !== undefined) {
+        standInEnvironment.FAKE_STAT_OUTPUT = fakeStatOutput;
+    }
+    const standInRun = spawnSync("sh", [standInScriptPath, ...statArguments], { encoding: "utf8", cwd: testFolder, env: standInEnvironment });
+    rmSync(testFolder, { recursive: true, force: true });
+    return standInRun;
+}
+
+for (const [statArguments, expectedOutput] of [
+    [["-f", "%m", "f"], "stat[-c %Y -- f]\n"],
+    [["-f", "%z", "f"], "stat[-c %s -- f]\n"],
+    [["-f", "%Sm", "f"], "date[-d @stat[-c %Y -- f] +%b %e %H:%M:%S %Y]\n"],
+    [["-f", "%Sm", "-t", "%T", "f", "f"], "date[-d @stat[-c %Y -- f] +%T]\ndate[-d @stat[-c %Y -- f] +%T]\n"],
+    [["-f", "%Sm %z %N", "-t", "%m-%d %H:%M", "f"], "date[-d @stat[-c %Y -- f] +%m-%d %H:%M] stat[-c %s -- f] f\n"],
+    [["-f", "%N %Sm birth=%SB", "f"], "f date[-d @stat[-c %Y -- f] +%b %e %H:%M:%S %Y] birth=date[-d @stat[-c %W -- f] +%b %e %H:%M:%S %Y]\n"],
+    [["f"], "stat[f]\n"],
+]) {
+    test(`test_dockerfile_stat_stand_in_translates: stat ${JSON.stringify(statArguments)}`, () => {
+        // Scenario: BSD `stat -f <format>` prints file facts; GNU `stat -f` means "file system", so the stand-in asks GNU stat and date for each fact.
+        const standInRun = runStatStandIn(statArguments as string[]);
+        // the output joins the facts in the shape of the BSD format
+        assert.equal(standInRun.stderr, "");
+        assert.equal(standInRun.status, 0);
+        assert.equal(standInRun.stdout, expectedOutput);
+    });
+}
+
+test("test_dockerfile_stat_stand_in_reports_a_missing_file_like_the_mac_and_goes_on", () => {
+    // Scenario: recorded `stat -f "%Sm %z %N" -t "%H:%M" layers.json ...` printed the Mac error for the missing file and still printed the others.
+    const standInRun = runStatStandIn(["-f", "%z", "missing.json", "f"]);
+    // the missing file gets the Mac message, the other file still prints, and the exit status is 1
+    assert.equal(standInRun.stderr, "stat: missing.json: stat: No such file or directory\n");
+    assert.equal(standInRun.stdout, "stat[-c %s -- f]\n");
+    assert.equal(standInRun.status, 1);
+});
+
+for (const [statArguments, fakeStatOutput] of [[["-f", "%p", "f"]], [["-L", "-f", "%m", "f"]], [["-f", "%m", "-x", "f"]], [["-f", "%SB", "f"], "0"], [["-f", "%SB", "f"], "-"]] as [string[], string?][]) {
+    test(`test_dockerfile_stat_stand_in_fails_loudly_for: stat ${JSON.stringify(statArguments)} with GNU output ${fakeStatOutput}`, () => {
+        // Scenario: a BSD stat form the stand-in does not translate, or a birth time GNU stat cannot give, must not print a wrong answer.
+        const standInRun = runStatStandIn(statArguments, fakeStatOutput);
+        // the stand-in exits non-zero and says why on stderr
+        assert.notEqual(standInRun.status, 0);
+        assert.equal(standInRun.stdout, "");
+        assert.match(standInRun.stderr, /stat stand-in/);
+    });
+}
+
+// Runs the md5 stand-in in a folder that holds files "f" and "g"; fake md5sum prints a hash made from its input.
+function runMd5StandIn(md5Arguments: string[], standardInput: string): { status: number | null; stdout: string; stderr: string } {
+    const testFolder = mkdtempSync(join(tmpdir(), "md5-stand-in-"));
+    const standInScriptPath = writeDockerfileStandInScript("MD5_SCRIPT", "/usr/local/bin/md5", testFolder);
+    writeFileSync(join(testFolder, "f"), "f text\n");
+    writeFileSync(join(testFolder, "g"), "g text\n");
+    const fakeMd5sumPath = join(testFolder, "fake-md5sum");
+    writeFileSync(fakeMd5sumPath, "#!/bin/sh\nif [ $# -eq 0 ]; then\n    echo \"stdinhash-$(cat)  -\"\nelse\n    echo \"filehash-$1  $1\"\nfi\n", { mode: 0o755 });
+    const standInRun = spawnSync("sh", [standInScriptPath, ...md5Arguments], { encoding: "utf8", cwd: testFolder, input: standardInput, env: { ...process.env, MD5_STAND_IN_REAL_MD5SUM: fakeMd5sumPath } });
+    rmSync(testFolder, { recursive: true, force: true });
+    return standInRun;
+}
+
+for (const [md5Arguments, expectedOutput] of [
+    [["f"], "MD5 (f) = filehash-f\n"],
+    [["-q", "f"], "filehash-f\n"],
+    [["-q", "f", "g"], "filehash-f\nfilehash-g\n"],
+    [[], "stdinhash-piped\n"],
+] as [string[], string][]) {
+    test(`test_dockerfile_md5_stand_in_prints_the_mac_shape_for: md5 ${JSON.stringify(md5Arguments)}`, () => {
+        // Scenario: Mac md5 prints "MD5 (f) = hash"; with -q only the hash per file; with no file only the hash of stdin.
+        const standInRun = runMd5StandIn(md5Arguments, "piped");
+        assert.equal(standInRun.stderr, "");
+        assert.equal(standInRun.status, 0);
+        assert.equal(standInRun.stdout, expectedOutput);
+    });
+}
+
+for (const md5Arguments of [["-s", "text"], ["-q"]]) {
+    test(`test_dockerfile_md5_stand_in_fails_loudly_for: md5 ${JSON.stringify(md5Arguments)}`, () => {
+        // Scenario: md5 forms that no recorded call uses must not print a wrong answer.
+        const standInRun = runMd5StandIn(md5Arguments, "piped");
+        assert.notEqual(standInRun.status, 0);
+        assert.equal(standInRun.stdout, "");
+        assert.match(standInRun.stderr, /md5 stand-in/);
+    });
+}
+
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
     // Scenario: the two print functions run in sh and print "<ISO time> setup: <stage>" and "<ISO time> setup: <stage> done in <N>s".
     const output = execFileSync("sh", ["-eu", "-c", `${readSetupStageFunctionsText()}\nprintSetupStageStart "example stage"\nprintSetupStageDone "example stage"\n`], { encoding: "utf8" });
