@@ -15,7 +15,8 @@ import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 // import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
 // import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
-import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+// import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isBrowserTestWithNoProjectWrite, isChromeStartCommand, isMacOnlyCommand, readScriptTextFromDisk, writeHeredocFiles } from "./engineV3_replay_script_skip.ts";
 // import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 import { isReadOnlyCommand } from "./engineV3_replay_script_internet.ts";
 import { fillOutsideGitFoldersAtTime, OUTSIDE_LIVE_ROOT } from "./engineV3_replay_outside_folders.ts";
@@ -168,6 +169,13 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     // The user's rule: only calls that change a file matter.
     if (isReadOnlyCommand(run.code)) {
       console.log(`${new Date().toISOString()} note: skipped, changes no file: ${getRunSourceText(run)}`);
+      return;
+    }
+    // The user's rule: a browser test makes the app server run `claude -p`, which the container cannot do.
+    const heredocFiles = new Map<string, string>();
+    if (isBrowserTestWithNoProjectWrite(run.code, getRunCwd(run), readScriptTextFromDisk, heredocFiles)) {
+      writeHeredocFiles(heredocFiles);
+      console.log(`${new Date().toISOString()} note: skipped, browser test writes no project file: ${getRunSourceText(run)}`);
       return;
     }
     // The image has Chromium at the Chrome program path, so a call that runs a Chrome script file runs for real.

@@ -1,7 +1,7 @@
 // Rules for the recorded Bash calls the replay skips because they run only on the Mac, and the files that stand in for them.
 
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, normalize } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
 import { writeFileIntoState } from "./engineV3_replay_submodule.ts";
@@ -100,25 +100,342 @@ function isChromeScriptFileRun(segment: ShellSegment, variables: Map<string, str
   return isMacOnlyScriptText(readFileSync(scriptPath, "utf8"));
 }
 
-// Skipping drops the whole call, so every other simple command in it must change no file.
-export function isMacOnlyScriptCommand(command: string, cwd: Path): boolean {
-  const parsed = parseShellCommand(command);
+// The browser test skip rule below replaces this one.
+// // Skipping drops the whole call, so every other simple command in it must change no file.
+// export function isMacOnlyScriptCommand(command: string, cwd: Path): boolean {
+//   const parsed = parseShellCommand(command);
+//   if (parsed.hasUncheckedText) {
+//     return false;
+//   }
+//   const variables = new Map<string, string>();
+//   let runsMacOnlyScript = false;
+//   for (const segment of parsed.segments) {
+//     recordShellVariables(segment, variables);
+//     if (isMacOnlyScriptRun(segment, variables, cwd)) {
+//       runsMacOnlyScript = true;
+//       continue;
+//     }
+//     if (!isSegmentReadOnly(segment)) {
+//       return false;
+//     }
+//   }
+//   return runsMacOnlyScript;
+// }
+
+export type ReadScriptText = (scriptPath: string) => string | undefined;
+
+type HeredocSplit = { commandText: string; heredocBodies: string[] };
+
+// The Mac temp folders hold every session scratchpad and no project folder.
+const OUTSIDE_PROJECT_FOLDER_STARTS = ["/private/tmp/", "/tmp/", "/var/folders/", "/private/var/folders/"];
+const DISCARD_FILE = "/dev/null";
+const BROWSER_TEXT = /Google Chrome|chromium|remote-debugging-port|--headless|playwright|puppeteer/i;
+const BROWSER_PROGRAM_TEXT = /Google Chrome|chromium/i;
+const BROWSER_SCRIPT_RUNNER_PROGRAMS = new Set(["bun", "node", "tsx"]);
+const FILE_ARGUMENT_PROGRAMS = new Set(["mkdir", "touch", "rm"]);
+const CHANGE_FOLDER_PROGRAM = "cd";
+const HEREDOC_PROGRAM = "cat";
+// Without a value these Chrome flags write into the current folder.
+const CURRENT_FOLDER_FILE_FLAGS = new Set(["--screenshot", "--print-to-pdf"]);
+const HEREDOC_START = /<<(-?)\s*(['"]?)(\w+)\2/;
+const HERE_STRING_TEXT = "<<<";
+const HEREDOC_WORD = "__engineV3_heredoc__";
+const UNRESOLVED_PATH_TEXT = /[$~*?`]/;
+const URL_START = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//;
+// A parenthesis that is not a $( ): with a subshell the cd of one part may not reach the next part.
+const SUBSHELL_START = /(^|[^$])\(/;
+const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
+const HOME_VARIABLE = "HOME";
+const CURRENT_FOLDER_VARIABLE = "PWD";
+
+// Cuts each quoted heredoc body out of the command and leaves HEREDOC_WORD where its << stood.
+// Undefined for a heredoc form these rules do not read: an unquoted one (its body expands $( )), two on one line, a here-string, or no end line.
+function splitHeredocBodies(command: string): HeredocSplit | undefined {
+  const lines = command.split("\n");
+  const keptLines: string[] = [];
+  const heredocBodies: string[] = [];
+  let lineIndex = 0;
+  while (lineIndex < lines.length) {
+    const line = lines[lineIndex]!;
+    lineIndex += 1;
+    const heredoc = HEREDOC_START.exec(line);
+    if (heredoc === null) {
+      keptLines.push(line);
+      continue;
+    }
+    if (line.includes(HERE_STRING_TEXT)) {
+      return undefined;
+    }
+    if (heredoc[2] === "") {
+      return undefined;
+    }
+    const lineEnd = line.slice(heredoc.index + heredoc[0].length);
+    if (HEREDOC_START.test(lineEnd)) {
+      return undefined;
+    }
+    keptLines.push(`${line.slice(0, heredoc.index)} ${HEREDOC_WORD} ${lineEnd}`);
+    const bodyLines: string[] = [];
+    let isEndFound = false;
+    while (lineIndex < lines.length) {
+      const bodyLine = lines[lineIndex]!;
+      lineIndex += 1;
+      let endCandidate = bodyLine;
+      if (heredoc[1] === "-") {
+        endCandidate = bodyLine.replace(/^\t+/, "");
+      }
+      if (endCandidate === heredoc[3]) {
+        isEndFound = true;
+        break;
+      }
+      bodyLines.push(bodyLine);
+    }
+    if (!isEndFound) {
+      return undefined;
+    }
+    heredocBodies.push(bodyLines.map((bodyLine) => `${bodyLine}\n`).join(""));
+  }
+  return { commandText: keptLines.join("\n"), heredocBodies };
+}
+
+function isBrowserScriptText(scriptText: string): boolean {
+  if (BROWSER_TEXT.test(scriptText)) {
+    return true;
+  }
+  return isMacOnlyScriptText(scriptText);
+}
+
+// A later call that still runs can use a script that a skipped call wrote with a heredoc (shot.ts is written once and run many times).
+export function writeHeredocFiles(heredocFiles: Map<string, string>): void {
+  for (const [filePath, fileText] of heredocFiles) {
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, fileText);
+  }
+}
+
+export function readScriptTextFromDisk(scriptPath: string): string | undefined {
+  if (!existsSync(scriptPath)) {
+    return undefined;
+  }
+  if (!statSync(scriptPath).isFile()) {
+    return undefined;
+  }
+  return readFileSync(scriptPath, "utf8");
+}
+
+// Undefined when the word still holds a variable, a ~, a $( ) or a glob after the expansion, or is relative to an unknown folder.
+function resolveWordPath(word: string, variables: Map<string, string>, cwd: string | undefined): string | undefined {
+  let expandedWord = expandShellVariables(word, variables);
+  if (expandedWord === "~") {
+    expandedWord = MAC_HOME_FOLDER;
+  }
+  if (expandedWord.startsWith("~/")) {
+    expandedWord = MAC_HOME_FOLDER + expandedWord.slice(1);
+  }
+  if (UNRESOLVED_PATH_TEXT.test(expandedWord)) {
+    return undefined;
+  }
+  if (isAbsolute(expandedWord)) {
+    return normalize(expandedWord);
+  }
+  if (cwd === undefined) {
+    return undefined;
+  }
+  return join(cwd, expandedWord);
+}
+
+function isOutsideProjectFolder(path: string | undefined): boolean {
+  if (path === undefined) {
+    return false;
+  }
+  if (path === DISCARD_FILE) {
+    return true;
+  }
+  const folderPath = `${path}/`;
+  for (const folderStart of OUTSIDE_PROJECT_FOLDER_STARTS) {
+    if (folderPath.startsWith(folderStart)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A word with a / or a dot names a file; a word with an @ is a user name or an email.
+function isFileWord(word: string): boolean {
+  if (word.includes("/")) {
+    return true;
+  }
+  if (word.includes("@")) {
+    return false;
+  }
+  return word.includes(".");
+}
+
+// A browser or a browser script writes only into the files and folders that its words name.
+function isBrowserArgumentOutsideProject(word: string, variables: Map<string, string>, cwd: string | undefined): boolean {
+  let value = word;
+  if (word.startsWith("-")) {
+    const equalsIndex = word.indexOf("=");
+    if (equalsIndex === -1) {
+      return !CURRENT_FOLDER_FILE_FLAGS.has(word);
+    }
+    value = word.slice(equalsIndex + 1);
+  }
+  const expandedValue = expandShellVariables(value, variables);
+  if (URL_START.test(expandedValue)) {
+    return true;
+  }
+  if (UNRESOLVED_PATH_TEXT.test(expandedValue)) {
+    return false;
+  }
+  if (!isFileWord(expandedValue)) {
+    return true;
+  }
+  return isOutsideProjectFolder(resolveWordPath(expandedValue, variables, cwd));
+}
+
+function isEveryBrowserArgumentOutsideProject(argumentWords: string[], variables: Map<string, string>, cwd: string | undefined): boolean {
+  for (const argumentWord of argumentWords) {
+    if (!isBrowserArgumentOutsideProject(argumentWord, variables, cwd)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isEveryFileArgumentOutsideProject(argumentWords: string[], variables: Map<string, string>, cwd: string | undefined): boolean {
+  for (const argumentWord of argumentWords) {
+    if (argumentWord.startsWith("-")) {
+      continue;
+    }
+    if (!isOutsideProjectFolder(resolveWordPath(argumentWord, variables, cwd))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function setCurrentFolder(variables: Map<string, string>, cwd: string | undefined): void {
+  if (cwd === undefined) {
+    variables.delete(CURRENT_FOLDER_VARIABLE);
+    return;
+  }
+  variables.set(CURRENT_FOLDER_VARIABLE, cwd);
+}
+
+// A cd to -, to no folder, to more than one word or to an unresolved folder leaves the current folder unknown.
+function getFolderAfterChange(argumentWords: string[], variables: Map<string, string>, cwd: string | undefined): string | undefined {
+  if (argumentWords.length !== 1) {
+    return undefined;
+  }
+  const folderWord = argumentWords[0]!;
+  if (folderWord === "-") {
+    return undefined;
+  }
+  return resolveWordPath(folderWord, variables, cwd);
+}
+
+// heredocFiles gets each file that a cat heredoc of the call writes, with its text, so a skip can still write it.
+// The default is "runs": any part these rules cannot prove writes outside the project folder makes the call run.
+export function isBrowserTestWithNoProjectWrite(command: string, callCwd: Path, readScriptText: ReadScriptText, heredocFiles: Map<string, string>): boolean {
+  const split = splitHeredocBodies(command);
+  if (split === undefined) {
+    return false;
+  }
+  const parsed = parseShellCommand(split.commandText);
   if (parsed.hasUncheckedText) {
     return false;
   }
-  const variables = new Map<string, string>();
-  let runsMacOnlyScript = false;
+  const hasSubshell = SUBSHELL_START.test(split.commandText);
+  const variables = new Map<string, string>([[HOME_VARIABLE, MAC_HOME_FOLDER]]);
+  let cwd: string | undefined = callCwd.toString();
+  setCurrentFolder(variables, cwd);
+  let drivesBrowser = BROWSER_TEXT.test(command);
+  let heredocIndex = 0;
   for (const segment of parsed.segments) {
     recordShellVariables(segment, variables);
-    if (isMacOnlyScriptRun(segment, variables, cwd)) {
-      runsMacOnlyScript = true;
+    for (const target of segment.redirectTargets) {
+      if (!isOutsideProjectFolder(resolveWordPath(target, variables, cwd))) {
+        return false;
+      }
+    }
+    const programWords = getProgramWords(segment);
+    const programName = getProgramName(programWords);
+    const argumentWords = programWords.slice(1);
+    if (segment.words.includes(HEREDOC_WORD)) {
+      if (programName !== HEREDOC_PROGRAM) {
+        return false;
+      }
+      if (programWords.length !== 2) {
+        return false;
+      }
+      const heredocBody = split.heredocBodies[heredocIndex]!;
+      heredocIndex += 1;
+      for (const target of segment.redirectTargets) {
+        heredocFiles.set(resolveWordPath(target, variables, cwd)!, heredocBody);
+      }
+      continue;
+    }
+    if (programName === undefined) {
+      if (!isEveryRedirectDiscarded(segment)) {
+        return false;
+      }
+      continue;
+    }
+    if (BROWSER_PROGRAM_TEXT.test(expandShellVariables(programWords[0]!, variables))) {
+      if (!isEveryBrowserArgumentOutsideProject(argumentWords, variables, cwd)) {
+        return false;
+      }
+      drivesBrowser = true;
+      continue;
+    }
+    if (BROWSER_SCRIPT_RUNNER_PROGRAMS.has(programName)) {
+      const scriptWord = argumentWords[0];
+      if (scriptWord === undefined) {
+        return false;
+      }
+      if (scriptWord.startsWith("-")) {
+        return false;
+      }
+      const scriptPath = resolveWordPath(scriptWord, variables, cwd);
+      if (scriptPath === undefined) {
+        return false;
+      }
+      const scriptText = heredocFiles.get(scriptPath) ?? readScriptText(scriptPath);
+      if (scriptText === undefined) {
+        return false;
+      }
+      if (!isBrowserScriptText(scriptText)) {
+        return false;
+      }
+      if (!isEveryBrowserArgumentOutsideProject(argumentWords.slice(1), variables, cwd)) {
+        return false;
+      }
+      drivesBrowser = true;
+      continue;
+    }
+    // A later call that still runs may read what another command wrote, so only browser output and heredoc files may go unwritten.
+    if (!isEveryRedirectDiscarded(segment)) {
+      return false;
+    }
+    if (programName === CHANGE_FOLDER_PROGRAM) {
+      cwd = getFolderAfterChange(argumentWords, variables, cwd);
+      if (hasSubshell) {
+        cwd = undefined;
+      }
+      setCurrentFolder(variables, cwd);
+      continue;
+    }
+    if (FILE_ARGUMENT_PROGRAMS.has(programName)) {
+      if (!isEveryFileArgumentOutsideProject(argumentWords, variables, cwd)) {
+        return false;
+      }
       continue;
     }
     if (!isSegmentReadOnly(segment)) {
       return false;
     }
   }
-  return runsMacOnlyScript;
+  return drivesBrowser;
 }
 
 // Text in a command that starts Chrome or Chromium, or talks to one it started.
