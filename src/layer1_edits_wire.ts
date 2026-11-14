@@ -37,6 +37,7 @@ export function collectViewEditEventsByRelativePath(
       label: LAYER1_PROGRESS_LABEL_READING_EDITS,
       current: index + 1,
       total: sessionFiles.length,
+      ...(index === 0 ? { steps: [LAYER1_PROGRESS_LABEL_READING_EDITS, LAYER1_PROGRESS_LABEL_REPLAYING_EDITS] } : {}),
     });
     for (const event of readSessionEditEvents(sessionFile)) {
       const relativePath = convertToProjectRelativePath(projectFolder, event.target.toString());

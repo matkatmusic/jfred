@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { attachBusyShield, closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "../webapp/layer1-components/popups/layer1-busy-shield.ts";
+import { paintStepConsoleHosts, recordStepLines } from "../webapp/layer1-components/loading-bar/layer1-step-console.ts";
 import { loadEditsOnce } from "../webapp/layer1-edits.ts";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
@@ -24,6 +25,41 @@ test("test_open_shows_shield_with_label_and_zero_fill", () => {
   assert.equal(checkHidden("busy-cancel"), false);
   assert.equal(checkHidden("busy-error"), true);
   assert.equal(checkHidden("busy-close"), true);
+});
+
+test("test_open_adds_empty_step_console_host_inside_popup_card", () => {
+  initLayer1Dom();
+  openBusyShield("starting");
+  const host = readById("busy-steps");
+  assert.equal(host.closest(".busy-card") !== null, true);
+  assert.equal(host.children.length, 0);
+});
+
+test("test_recorded_steps_show_as_rows_in_popup_host", () => {
+  initLayer1Dom();
+  openBusyShield("starting");
+  recordStepLines([{ label: "reading Edit/Write events", current: 3, total: 10 }]);
+  paintStepConsoleHosts();
+  const host = readById("busy-steps");
+  assert.equal(host.children.length, 1);
+  assert.equal(host.textContent, "reading Edit/Write events3 of 10");
+});
+
+test("test_second_open_empties_the_step_list", () => {
+  initLayer1Dom();
+  openBusyShield("starting");
+  recordStepLines([{ label: "reading Edit/Write events", current: 3, total: 10 }]);
+  paintStepConsoleHosts();
+  openBusyShield("starting again");
+  assert.equal(readById("busy-steps").children.length, 0);
+});
+
+test("test_view_host_stays_empty_while_popup_scope_is_current", () => {
+  initLayer1Dom();
+  openBusyShield("starting");
+  recordStepLines([{ label: "reading Edit/Write events", current: 3, total: 10 }]);
+  paintStepConsoleHosts();
+  assert.equal(readById("loadbar-steps").children.length, 0);
 });
 
 test("test_paint_counts_up_label_and_fill_width", () => {
