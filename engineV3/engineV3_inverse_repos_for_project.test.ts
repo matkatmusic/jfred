@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -194,14 +194,70 @@ test("test_progress_is_reported_once_per_file_with_current_counting_up_to_total"
     assert.ok(events[1]!.label.startsWith(join("sub", "b.txt")));
 });
 
-test("test_an_existing_repo_folder_throws_with_the_folder_in_the_message", (t) => {
-    // Scenario: a repo folder that is already there is never overwritten.
-    // A project is set and the repo folder of a.txt already exists.
+// An existing repo folder no longer throws: without a stamp it is rebuilt.
+// test("test_an_existing_repo_folder_throws_with_the_folder_in_the_message", (t) => {
+//     // Scenario: a repo folder that is already there is never overwritten.
+//     // A project is set and the repo folder of a.txt already exists.
+//     const project = makeProject(t);
+//     const repoFolder = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+//     mkdirSync(repoFolder.toString(), { recursive: true });
+//     // The build throws and the message holds that folder.
+//     assert.throws(() => buildProject(project), (error: Error) => error.message.includes(repoFolder.toString()));
+// });
+
+test("test_a_first_call_returns_was_reused_false", (t) => {
+    // Scenario: a repo that is built now was not reused.
+    // A project has two files and no store yet.
     const project = makeProject(t);
-    const repoFolder = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
-    mkdirSync(repoFolder.toString(), { recursive: true });
-    // The build throws and the message holds that folder.
-    assert.throws(() => buildProject(project), (error: Error) => error.message.includes(repoFolder.toString()));
+    // The first call builds both repos.
+    const results = buildProject(project);
+    // Every result says wasReused is false.
+    assert.deepEqual(results.map((result) => result.wasReused), [false, false]);
+});
+
+test("test_a_second_call_with_the_same_inputs_returns_was_reused_true_and_keeps_the_commit_hashes", (t) => {
+    // Scenario: the same inputs a second time do no work.
+    // A project is built one time and the commit hashes of a.txt are noted.
+    const project = makeProject(t);
+    buildProject(project);
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    const commitHashesBefore = listInverseCommits(repoFolderOfA, "a.txt").map((commit) => commit.commitHash.toString());
+    // The second call runs with the same files and the same logs.
+    const results = buildProject(project);
+    // Every result says wasReused is true and the counts are the counts of the first call.
+    assert.deepEqual(results.map((result) => result.wasReused), [true, true]);
+    assert.equal(results[0]!.commitCount, commitHashesBefore.length);
+    // The commit hashes of a.txt are the same.
+    const commitHashesAfter = listInverseCommits(repoFolderOfA, "a.txt").map((commit) => commit.commitHash.toString());
+    assert.deepEqual(commitHashesAfter, commitHashesBefore);
+});
+
+test("test_a_change_of_the_file_on_disk_makes_was_reused_false_and_the_first_commit_holds_the_new_bytes", (t) => {
+    // Scenario: new bytes on disk make the stamp differ.
+    // A project is built one time.
+    const project = makeProject(t);
+    buildProject(project);
+    // The text of a.txt on disk changes.
+    writeFileSync(project.fileA.toString(), "three\n");
+    // The second call rebuilds a.txt.
+    const results = buildProject(project);
+    assert.equal(results[0]!.wasReused, false);
+    // The first commit of a.txt holds the new bytes.
+    const commitsOfA = listInverseCommits(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA), "a.txt");
+    assert.equal(commitsOfA[0]!.text, "three\n");
+});
+
+test("test_a_new_log_line_that_names_the_file_makes_was_reused_false", (t) => {
+    // Scenario: a new log line makes the stamp differ.
+    // A project is built one time.
+    const project = makeProject(t);
+    buildProject(project);
+    // One new log line names a.txt.
+    const newRows = makeEditRows("toolu_a0", project.fileA.toString(), "zero", "one", "zero\n", 10);
+    appendFileSync(join(project.jsonlsFolder.toString(), "s1.jsonl"), newRows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+    // The second call rebuilds a.txt.
+    const results = buildProject(project);
+    assert.equal(results[0]!.wasReused, false);
 });
 
 test("test_a_file_outside_the_project_folder_throws", (t) => {
