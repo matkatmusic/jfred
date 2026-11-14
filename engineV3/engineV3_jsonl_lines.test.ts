@@ -119,3 +119,15 @@ test("test_loadMergedJSONLLines_lists_an_unknown_field_once_and_still_loads", (t
     assert.equal(result.jsonlLines.length, 2);
     assert.deepEqual(result.unknownFields, [{ recordType: "user", fieldName: "bogusField" }]);
 });
+
+test("test_loadMergedJSONLLines_gives_a_Bash_call_the_cwd_of_the_previous_calls_result_line", (t) => {
+    // Scenario: the second call line says playground, but the first call's result line says the shell stayed in the root.
+    const folder = makeTempFolder(t);
+    const root = "/Users/me/repo";
+    const playground = "/Users/me/repo/playground";
+    const makeCallLine = (uuid: string, toolUseId: string, seconds: number, cwd: string) => JSON.stringify({ type: "assistant", uuid, timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)).toISOString(), cwd, message: { role: "assistant", content: [{ type: "tool_use", id: toolUseId, name: "Bash", input: { command: "ls" } }] } });
+    const makeResultLine = (uuid: string, toolUseId: string, seconds: number, cwd: string) => JSON.stringify({ type: "user", uuid, timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)).toISOString(), cwd, message: { role: "user", content: [{ type: "tool_result", tool_use_id: toolUseId, content: "ok" }] } });
+    writeJSONLFile(folder, "one.jsonl", [makeCallLine("c1", "t1", 10, root), makeResultLine("r1", "t1", 11, root), makeCallLine("c2", "t2", 12, playground), makeResultLine("r2", "t2", 13, playground)]);
+    const secondCallLine = loadMergedJSONLLines([folder]).jsonlLines.find((line) => String(line.uuid) === "c2") as JSONLLine;
+    assert.equal(String(secondCallLine.cwd), root);
+});
