@@ -45,6 +45,7 @@ export function addLinesNamingWrittenScripts(linesByFileKey: Map<string, JSONLLi
         const existingLines = linesByFileKey.get(fileKey) ?? [];
         const knownSourceKeys = new Set(existingLines.map(getLineSourceKey));
         const addedLineLists: JSONLLine[][] = [];
+        let addedLineCount = 0;
         for (const scriptBaseName of scriptBaseNames) {
             const addedLines: JSONLLine[] = [];
             for (const scriptLine of scriptLinesByBaseName.get(scriptBaseName)!) {
@@ -54,8 +55,11 @@ export function addLinesNamingWrittenScripts(linesByFileKey: Map<string, JSONLLi
                     addedLines.push(scriptLine);
                 }
             }
+            addedLineCount += addedLines.length;
             addedLineLists.push(addedLines);
         }
-        linesByFileKey.set(fileKey, mergeRecordsByTimestamp([existingLines, ...addedLineLists]));
+        if (addedLineCount > 0) {
+            linesByFileKey.set(fileKey, mergeRecordsByTimestamp([existingLines, ...addedLineLists]));
+        }
     }
 }

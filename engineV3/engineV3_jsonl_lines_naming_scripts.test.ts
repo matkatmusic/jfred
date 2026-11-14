@@ -129,6 +129,26 @@ test("test_line_already_in_the_list_is_not_added_twice", (t) => {
     assert.equal(keysAfter.filter((key) => key.endsWith(":2")).length, 1);
 });
 
+test("test_list_of_a_file_that_no_script_names_is_left_unchanged", (t) => {
+    // core_beta.py is written directly. move_files.py names only core_alpha.py and is run.
+    const jsonlsFolder = makeJsonlsFolder(t);
+    const otherFile = new Path("/work/core_beta.py");
+    writeRecords(jsonlsFolder, "one.jsonl", [
+        makeScriptWriteRecord("core_beta.py", "y = 1", 1),
+        makeScriptWriteRecord(SCRIPT_NAME, "open('core_alpha.py','w').write('x')", 2),
+        makeScriptRunRecord(SCRIPT_NAME, 3),
+    ]);
+    const jsonlsFolders = [new Path(jsonlsFolder)];
+    const linesByFileKey = loadJSONLLinesNamingFiles([TARGET_FILE, otherFile], jsonlsFolders);
+    const alphaListBefore = linesByFileKey.get(TARGET_FILE.toString())!;
+    const betaListBefore = linesByFileKey.get(otherFile.toString())!;
+    // Add the lines naming written scripts for both files.
+    addLinesNamingWrittenScripts(linesByFileKey, [TARGET_FILE, otherFile], jsonlsFolders);
+    // The core_beta.py list is the same array object as before. The core_alpha.py list grew.
+    assert.strictEqual(linesByFileKey.get(otherFile.toString()), betaListBefore);
+    assert.ok(linesByFileKey.get(TARGET_FILE.toString())!.length > alphaListBefore.length);
+});
+
 test("test_added_lines_keep_timestamp_order", (t) => {
     // The run lines come from a second transcript and fall between and after the Write lines of the first.
     const jsonlsFolder = makeJsonlsFolder(t);
