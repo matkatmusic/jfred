@@ -16,7 +16,7 @@ function buildContainer(): { container: HTMLElement; accepted: HTMLElement; reje
   const rejected = document.createElement("b");
   container.append(accepted, rejected);
   const page = document.createElement("div");
-  page.className = "viz-root";
+  page.className = "appWindow";
   page.append(container);
   document.body.append(page);
   return { container, accepted, rejected };
@@ -51,7 +51,7 @@ test("test_the_popup_sits_inside_viz_root", () => {
   const { container, accepted } = buildContainer();
   attachHoverPopup(container, readAcceptedContent);
   dispatchMouse(accepted, "mouseover");
-  assert.equal(readPopup().parentElement, document.querySelector(".viz-root"));
+  assert.equal(readPopup().parentElement, document.querySelector(".appWindow"));
 });
 
 test("test_mouseout_hides_the_popup", () => {

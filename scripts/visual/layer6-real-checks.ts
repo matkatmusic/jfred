@@ -26,13 +26,13 @@ const CLICK_RUN_SCRIPTS = `document.querySelector('.run-consent .consent-run').c
 const READ_DIALOG_TEXT = `document.querySelector('.run-consent .consent-note').textContent`;
 const CONSOLE_TEXT = `document.getElementById('run-console')?.textContent ?? ''`;
 const COUNT_CONSOLE_BUTTONS = `document.querySelectorAll('.run-console-open').length`;
-const COUNT_DRAWER_BUTTONS = `document.querySelectorAll('#drawer .run-console-open').length`;
-const CLICK_CONSOLE_BUTTON = `document.querySelector('#drawer .run-console-open').click()`;
+const COUNT_DRAWER_BUTTONS = `document.querySelectorAll('#detailsPaneContainer .run-console-open').length`;
+const CLICK_CONSOLE_BUTTON = `document.querySelector('#detailsPaneContainer .run-console-open').click()`;
 const READ_BASH_FACTS = `(dot => ({ count: document.querySelectorAll('i.node.n-script.never-provable').length, classes: dot?.className ?? '' }))
     (document.querySelector('i.node.n-script.never-provable'))`;
 const RESET_DRAWER = `document.getElementById('dbody').replaceChildren(); document.getElementById('dpath').textContent = '';
-    document.getElementById('drawer').classList.remove('open')`;
-const IS_DRAWER_FILLED = `document.getElementById('drawer').classList.contains('open') && document.getElementById('dpath').textContent.trim().length > 0`;
+    document.getElementById('detailsPaneContainer').classList.remove('open')`;
+const IS_DRAWER_FILLED = `document.getElementById('detailsPaneContainer').classList.contains('open') && document.getElementById('dpath').textContent.trim().length > 0`;
 
 const buildChangedDotExpression = (picked: RealScript) =>
   `${buildDotsOfRun(picked.toolUseId)}.find(d => ${buildBubblePathExpression("d")} === ${JSON.stringify(picked.changedPaths[0])})`;
@@ -73,7 +73,7 @@ const buildConsoleFacts = (picked: RealScript) => `import('/app/layer1-run-resul
     popupText: document.getElementById('run-console').textContent,
     preText: document.querySelector('#run-console .console-pre')?.textContent ?? '',
     popupRight: document.getElementById('run-console').getBoundingClientRect().right,
-    drawerLeft: document.getElementById('drawer').getBoundingClientRect().left }))`;
+    drawerLeft: document.getElementById('detailsPaneContainer').getBoundingClientRect().left }))`;
 
 const buildConsoleButtonFacts = (picked: RealScript) => `({ buttonCount: ${COUNT_CONSOLE_BUTTONS}, drawerButtonCount: ${COUNT_DRAWER_BUTTONS},
     dotClasses: ${buildChangedDotExpression(picked)}?.className, drawerTitle: document.getElementById('dpath').textContent,

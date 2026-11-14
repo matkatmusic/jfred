@@ -7,7 +7,8 @@ export interface EntryFacts { kind: string; shortHash: string | null; parentHash
 // export interface TickState { text: string; classes: string; title: string; opacity: number; after: string }
 export interface TickState { text: string; fullTime: string; classes: string; title: string; opacity: number; after: string }
 export interface StripHeadFacts { stripCount: number; headText: string; deleteCount: number }
-export interface StageFacts { stageLeft: number; stripCount: number }
+// export interface StageFacts { stageLeft: number; stripCount: number }
+export interface StageFacts { stageLeft: number; stripCount: number; stripWidth: number }
 export interface DrawerFacts { isOpen: boolean; text: string; hasButton: boolean }
 export interface PendingFacts { entries: number; ticks: number }
 export interface MarkFacts { drawer: DrawerFacts; pending: PendingFacts; entries: EntryFacts[]; chains: number; requests: number }
@@ -31,11 +32,11 @@ export const CutClass = { ok: "cut-ok", no: "cut-no", base: "cut-base", set: "cu
 export const FIXTURE_BASE_HASH = "a1b2c3d4";
 export const FOOTNOTE_PREFIX = "reconstructed by JFRED @ ";
 export const COMMIT_MODE_LABEL = "Commit mode";
-// export const CUT_RULE_PATTERN = "jfred-strip|jnode|jlabel|jchain|jline|jhead|cut-|jfred-message";
-export const CUT_RULE_PATTERN = "jfred-strip|jnode|jlabel|jchain|jline|jhead|cut-|jfred-message|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line";
+// export const CUT_RULE_PATTERN = "jfredCommitsDrawerComponent|jnode|jlabel|jchain|jline|jhead|cut-|jfred-message";
+export const CUT_RULE_PATTERN = "jfredCommitsDrawerComponent|jnode|jlabel|jchain|jline|jhead|cut-|jfred-message|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line";
 
 const SETTLE = `new Promise(resolve => setTimeout(resolve, 200))`;
-const TICKS = `document.querySelectorAll('#ruler .tick')`;
+const TICKS = `document.querySelectorAll('#timelineRulerComponent .tick')`;
 // const BEACON = `n => !n.classList.contains('n-created') && ['n-commit', 'n-disk', 'n-snap'].some(c => n.classList.contains(c))`;
 const BEACON = `n => !n.classList.contains('n-created') && ['n-commit', 'n-disk', 'n-snap', 'n-edit'].some(c => n.classList.contains(c))`;
 
@@ -49,12 +50,12 @@ export const buildFindTick = (label: string) => `(() => {
 })()`;
 export const buildClickTick = (label: string) => `(async () => { ${buildFindTick(label)}.click(); await ${SETTLE}; })()`;
 export const buildClickEntry = (shortHash: string) =>
-  `(async () => { document.querySelector('#jfred-strip .jnode[data-short-hash=${JSON.stringify(shortHash)}]').click(); await ${SETTLE}; })()`;
+  `(async () => { document.querySelector('#jfredCommitsDrawerComponent .jnode[data-short-hash=${JSON.stringify(shortHash)}]').click(); await ${SETTLE}; })()`;
 export const buildClickById = (id: string) => `(async () => { document.getElementById('${id}').click(); await ${SETTLE}; })()`;
 const WAIT_TIMEOUT_MS = 10000;
-// export const DELETE_CLICK = `(async () => { document.querySelector('#jfred-strip .jdelete').click(); await ${SETTLE}; })()`;
+// export const DELETE_CLICK = `(async () => { document.querySelector('#jfredCommitsDrawerComponent .jdelete').click(); await ${SETTLE}; })()`;
 export const DELETE_OPEN = `(async () => {
-    document.querySelector('#jfred-strip .jdelete').click();
+    document.querySelector('#jfredCommitsDrawerComponent .jdelete').click();
     const deadline = Date.now() + ${WAIT_TIMEOUT_MS};
     while (document.getElementById('yesno-row') === null) {
         if (Date.now() > deadline) throw new Error('yesno-row did not appear');
@@ -92,10 +93,12 @@ export const COMMIT_MODE_CLICK = `(async () => {
     }
     await ${SETTLE};
 })()`;
-export const STRIP_COUNT = `document.querySelectorAll('#jfred-strip').length`;
-export const STAGE_FACTS = `({ stageLeft: document.getElementById('stage').getBoundingClientRect().left, stripCount: ${STRIP_COUNT} })`;
-export const STRIP_HEAD_FACTS = `({ stripCount: ${STRIP_COUNT}, headText: document.querySelector('#jfred-strip .jhead span')?.textContent ?? '',
-    deleteCount: document.querySelectorAll('#jfred-strip .jdelete').length })`;
+export const STRIP_COUNT = `document.querySelectorAll('#jfredCommitsDrawerComponent').length`;
+// export const STAGE_FACTS = `({ stageLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left, stripCount: ${STRIP_COUNT} })`;
+export const STAGE_FACTS = `({ stageLeft: document.getElementById('fileBubbleContainer').getBoundingClientRect().left, stripCount: ${STRIP_COUNT},
+    stripWidth: document.getElementById('jfredCommitsDrawerComponent')?.getBoundingClientRect().width ?? 0 })`;
+export const STRIP_HEAD_FACTS = `({ stripCount: ${STRIP_COUNT}, headText: document.querySelector('#jfredCommitsDrawerComponent .jhead span')?.textContent ?? '',
+    deleteCount: document.querySelectorAll('#jfredCommitsDrawerComponent .jdelete').length })`;
 export const MODE_STATE = `({ isCurrent: document.getElementById('commit-mode').classList.contains('current') })`;
 
 // A new .filebox proves the time toggle redrew the stage without a page load.
@@ -107,7 +110,7 @@ export const TOGGLE_SETTLED = `document.querySelector('.filebox') !== null && do
 
 export const ENTRY_FACTS = `(() => {
     const ticks = [...${TICKS}];
-    return [...document.querySelectorAll('#jfred-strip .jnode[data-entry-kind]')].map(n => {
+    return [...document.querySelectorAll('#jfredCommitsDrawerComponent .jnode[data-entry-kind]')].map(n => {
         const box = n.getBoundingClientRect();
         const at = n.dataset.instant;
         const tick = ticks.find(t => ${TICK_LABEL_TEXT}(t).startsWith(at.slice(5, 10) + ' ' + at.slice(11, 23)));
@@ -116,14 +119,14 @@ export const ENTRY_FACTS = `(() => {
             cx: box.left + box.width / 2, cy: box.top + box.height / 2, tickCy: tickBox ? tickBox.top + tickBox.height / 2 : -1 };
     });
 })()`;
-export const CHAIN_COUNT = `document.querySelectorAll('#jfred-strip .jchain').length`;
-export const PENDING_FACTS = `({ entries: document.querySelectorAll('#jfred-strip .jnode.j-pending').length, ticks: document.querySelectorAll('#ruler .tick.cut-pending').length })`;
-export const TICKFILES_COUNT = `document.querySelectorAll('#ruler .tickfiles').length`;
+export const CHAIN_COUNT = `document.querySelectorAll('#jfredCommitsDrawerComponent .jchain').length`;
+export const PENDING_FACTS = `({ entries: document.querySelectorAll('#jfredCommitsDrawerComponent .jnode.j-pending').length, ticks: document.querySelectorAll('#timelineRulerComponent .tick.cut-pending').length })`;
+export const TICKFILES_COUNT = `document.querySelectorAll('#timelineRulerComponent .tickfiles').length`;
 export const TICK_STATES = `[...${TICKS}].map(t => ({ text: t.textContent, fullTime: t.dataset.fullTime ?? '', classes: t.className, title: t.title,
     opacity: Number(getComputedStyle(t).opacity), after: getComputedStyle(t, '::after').content }))`;
 export const DRAWER_FACTS = `(() => {
     const pre = document.querySelector('#dbody pre');
-    return { isOpen: document.getElementById('drawer').classList.contains('open'), text: pre ? pre.textContent : '',
+    return { isOpen: document.getElementById('detailsPaneContainer').classList.contains('open'), text: pre ? pre.textContent : '',
         hasButton: document.getElementById('jfred-commit-button') !== null };
 })()`;
 export const MARK_FACTS = `({ drawer: ${DRAWER_FACTS}, pending: ${PENDING_FACTS}, entries: ${ENTRY_FACTS}, chains: ${CHAIN_COUNT}, requests: ${REQUEST_COUNT} })`;
@@ -135,7 +138,7 @@ export const buildRefusalClick = (label: string) => `(() => {
     toast.textContent = '';
     ${buildFindTick(label)}.click();
     return { text: toast.textContent, isShown: !toast.hidden && getComputedStyle(toast).display !== 'none', tickFiles: ${TICKFILES_COUNT},
-        entries: document.querySelectorAll('#jfred-strip .jnode.j-pending').length, ticks: document.querySelectorAll('#ruler .tick.cut-pending').length };
+        entries: document.querySelectorAll('#jfredCommitsDrawerComponent .jnode.j-pending').length, ticks: document.querySelectorAll('#timelineRulerComponent .tick.cut-pending').length };
 })()`;
 
 export const buildSnapLines = (instant: string) =>
@@ -143,7 +146,7 @@ export const buildSnapLines = (instant: string) =>
 // Independent count: distinct beacon-node instants between two marks, read from the stage.
 export const buildBeaconInstantCount = (fromInstant: string, toInstant: string) => `(() => {
     const isBeacon = ${BEACON};
-    const instants = new Set([...document.querySelectorAll('#stage .node')].filter(isBeacon).map(n => Date.parse(n.dataset.instant)));
+    const instants = new Set([...document.querySelectorAll('#fileBubbleContainer .node')].filter(isBeacon).map(n => Date.parse(n.dataset.instant)));
     return [...instants].filter(ms => ms > Date.parse(${JSON.stringify(fromInstant)}) && ms < Date.parse(${JSON.stringify(toInstant)})).length;
 })()`;
 
@@ -151,37 +154,37 @@ export const BUTTON_FACTS = `(() => {
     const button = document.getElementById('commit-mode');
     return { text: button.textContent, previousId: button.previousElementSibling.id, isHidden: button.hidden,
         display: getComputedStyle(button).display, isSettingsOpen: document.querySelector('.project-settings-open') !== null,
-        isInShowRow: [...document.querySelectorAll('#show-row *')].some(e => e.textContent.trim() === '${COMMIT_MODE_LABEL}') };
+        isInShowRow: [...document.querySelectorAll('#timelineViewControls *')].some(e => e.textContent.trim() === '${COMMIT_MODE_LABEL}') };
 })()`;
 
 // The track exists only while the session column is on, so its edges are null when it is off.
 // export const STRIP_LAYOUT_FACTS = `(() => {
 //     const box = id => document.getElementById(id).getBoundingClientRect();
-//     return { stripLeft: box('jfred-strip').left, stripRight: box('jfred-strip').right, trackLeft: box('annotation-track').left,
-//         trackRight: box('annotation-track').right, rulerRight: box('ruler').right, paneLeft: box('timelines').left,
-//         position: getComputedStyle(document.getElementById('jfred-strip')).position,
+//     return { stripLeft: box('jfredCommitsDrawerComponent').left, stripRight: box('jfredCommitsDrawerComponent').right, trackLeft: box('sessionDotLinesComponent').left,
+//         trackRight: box('sessionDotLinesComponent').right, rulerRight: box('timelineRulerComponent').right, paneLeft: box('timelineContainer').left,
+//         position: getComputedStyle(document.getElementById('jfredCommitsDrawerComponent')).position,
 //         firstBoxLeft: document.querySelector('.filebox').getBoundingClientRect().left };
 // })()`;
 export const STRIP_LAYOUT_FACTS = `(() => {
     const box = id => document.getElementById(id).getBoundingClientRect();
-    const track = document.getElementById('annotation-track');
-    return { stripLeft: box('jfred-strip').left, stripRight: box('jfred-strip').right, trackLeft: track ? box('annotation-track').left : null,
-        trackRight: track ? box('annotation-track').right : null, rulerRight: box('ruler').right, paneLeft: box('timelines').left,
-        position: getComputedStyle(document.getElementById('jfred-strip')).position,
+    const track = document.getElementById('sessionDotLinesComponent');
+    return { stripLeft: box('jfredCommitsDrawerComponent').left, stripRight: box('jfredCommitsDrawerComponent').right, trackLeft: track ? box('sessionDotLinesComponent').left : null,
+        trackRight: track ? box('sessionDotLinesComponent').right : null, rulerRight: box('timelineRulerComponent').right, paneLeft: box('timelineContainer').left,
+        position: getComputedStyle(document.getElementById('jfredCommitsDrawerComponent')).position,
         firstBoxLeft: document.querySelector('.filebox').getBoundingClientRect().left };
 })()`;
 export const OVERLAP_FACTS = `(() => {
     const box = e => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
-    const strip = document.getElementById('jfred-strip');
+    const strip = document.getElementById('jfredCommitsDrawerComponent');
     const button = strip.querySelector('.jdelete');
-    const track = document.getElementById('annotation-track');
+    const track = document.getElementById('sessionDotLinesComponent');
     const centreOf = line => { const node = strip.querySelector('.jnode[data-instant="' + line.dataset.instant + '"]'); const r = node.getBoundingClientRect(); return r.left + r.width / 2; };
-    return { strip: box(strip), ruler: box(document.getElementById('ruler')), track: track ? box(track) : null, labels: [...strip.querySelectorAll('.jlabel')].map(box),
+    return { strip: box(strip), ruler: box(document.getElementById('timelineRulerComponent')), track: track ? box(track) : null, labels: [...strip.querySelectorAll('.jlabel')].map(box),
         button: { ...box(button), isClipped: button.scrollWidth > button.clientWidth },
         lines: [...strip.querySelectorAll('.jline')].map(line => ({ ...box(line), nodeCx: centreOf(line) })) };
 })()`;
 
-// The --page skip is off: the theme token selector is plain .viz-root again.
+// The --page skip is off: the theme token selector is plain .appWindow again.
 // export const CUT_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
 //     .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).filter(rule => rule.style.getPropertyValue('--page') === '')
 //     .map(rule => rule.style.cssText)`;
@@ -189,13 +192,13 @@ export const CUT_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sh
     .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).map(rule => rule.style.cssText)`;
 export const SLACK_FACTS = `(() => {
     const rules = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
-    const stage = document.getElementById('stage');
-    const strip = document.getElementById('jfred-strip');
+    const stage = document.getElementById('fileBubbleContainer');
+    const strip = document.getElementById('jfredCommitsDrawerComponent');
     const parent = strip.parentNode;
     const next = strip.nextSibling;
     const marginWith = getComputedStyle(stage).marginLeft;
     strip.remove();
     const marginWithout = getComputedStyle(stage).marginLeft;
     parent.insertBefore(strip, next);
-    return { stripRules: rules.filter(rule => rule.selectorText === '.jfred-strip + .stage').length, marginWith, marginWithout };
+    return { stripRules: rules.filter(rule => rule.selectorText === '.jfredCommitsDrawerComponent + .fileBubbleContainer').length, marginWith, marginWithout };
 })()`;

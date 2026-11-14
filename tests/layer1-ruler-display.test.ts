@@ -28,7 +28,7 @@ function drawTicks(): HTMLElement[] {
   const instants = [FIRST_INSTANT, SECOND_INSTANT, THIRD_INSTANT];
   for (let index = 0; index < instants.length; index++) {
     const tick = createElement("div", { class: "tick", text: "old text" }, [createElement("span", { class: "kind-dashes" })]);
-    document.getElementById("ruler")!.append(tick);
+    document.getElementById("timelineRulerComponent")!.append(tick);
     storeRow(tick, { axisPx: index * 22, text: "old text", eventCount: index + 1, axisPxList: [index * 22], instants: [instants[index]!] });
     ticks.push(tick);
   }
@@ -48,7 +48,7 @@ const ONE_SESSION_PER_ROW = [
 test("test_the_tick_count_is_the_same_before_and_after", () => {
   drawTicks();
   renderRecords(ONE_SESSION_PER_ROW, true);
-  assert.equal(document.querySelectorAll("#ruler .tick").length, 3);
+  assert.equal(document.querySelectorAll("#timelineRulerComponent .tick").length, 3);
 });
 
 test("test_the_dashes_stay_the_second_child", () => {
@@ -83,7 +83,7 @@ test("test_one_session_sets_the_color_while_the_session_button_is_on", () => {
 test("test_the_session_button_off_leaves_no_color_and_on_then_off_removes_it", () => {
   const ticks = drawTicks();
   renderRecords(ONE_SESSION_PER_ROW, false);
-  assert.equal(document.querySelectorAll("#ruler .s-coloured").length, 0);
+  assert.equal(document.querySelectorAll("#timelineRulerComponent .s-coloured").length, 0);
   renderRecords(ONE_SESSION_PER_ROW, true);
   assert.ok(ticks[0]!.classList.contains("s-coloured"));
   renderRecords(ONE_SESSION_PER_ROW, false);
@@ -106,7 +106,7 @@ test("test_a_second_call_on_the_same_ticks_adds_nothing", () => {
 test("test_removing_the_display_takes_the_class_off_the_ruler", () => {
   drawTicks();
   renderRecords(ONE_SESSION_PER_ROW, true);
-  assert.ok(document.getElementById("ruler")!.classList.contains("ruler-sessions"));
+  assert.ok(document.getElementById("timelineRulerComponent")!.classList.contains("ruler-sessions"));
   removeRulerDisplay();
-  assert.equal(document.getElementById("ruler")!.classList.contains("ruler-sessions"), false);
+  assert.equal(document.getElementById("timelineRulerComponent")!.classList.contains("ruler-sessions"), false);
 });

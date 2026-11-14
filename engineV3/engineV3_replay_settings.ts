@@ -4,6 +4,8 @@ import { Path } from "../src/structures/domain.ts";
 import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import type { RecordSource } from "../src/parse/loadTranscript.ts";
 
+export type ReverseSettings = { file: Path; jsonlsFolder: Path };
+
 export type ReplaySettings = { repoPath: Path | undefined; state: Path; jsonlsPaths: Path[]; touchedOutput: Path; macPlatePath: Path; jotPath: Path; fileHistoryPath: Path | undefined; startFilesPath: Path | undefined; snapshotsPath: Path | undefined; watchPaths: Path[]; stopBefore: RecordSource | undefined; startAt: number | undefined; writePlaygroundStartFiles: boolean };
 
 const JSONL_FLAG = "--jsonl";
@@ -13,10 +15,10 @@ const WATCH_FLAG = "--watch";
 const STOP_BEFORE_PATTERN = /^(.*):(\d+)$/;
 const USAGE = "usage: node engineV3_replay.mjs [--git-repo <path>] --state <folder> --touched-out <file> --mac-plate <folder> --jot <folder> [--file-history <folder>] [--start-files <folder>] [--snapshots <folder>] [--start-at <event number>] [--watch <folder> ...] [--playground-start-files] [--stop-before <jsonl file>:<line>] --jsonl <folder> [--jsonl <folder> ...]";
 
-function readRequiredFlag(argumentList: string[], flag: string): { value: string; rest: string[] } {
+function readRequiredFlag(argumentList: string[], flag: string, usage: string = USAGE): { value: string; rest: string[] } {
   const { value, rest } = extractValueFlag(argumentList, flag);
   if (value === undefined) {
-    throw new Error(USAGE);
+    throw new Error(usage);
   }
   return { value, rest };
 }
@@ -91,6 +93,19 @@ function readWatchPaths(argumentList: string[]): { paths: Path[]; rest: string[]
     hasWatchFlag = rest.includes(WATCH_FLAG);
   }
   return { paths, rest };
+}
+
+const REVERSE_FLAG = "--reverse";
+const REVERSE_USAGE = "usage: node engineV3_replay.mjs --reverse --file <absolute file path> --jsonls <folder>";
+
+// Undefined when the run is not a reverse run.
+export function readReverseSettingsFromArguments(argumentList: string[]): ReverseSettings | undefined {
+  if (!argumentList.includes(REVERSE_FLAG)) {
+    return undefined;
+  }
+  const fileFlag = readRequiredFlag(argumentList, "--file", REVERSE_USAGE);
+  const jsonlsFlag = readRequiredFlag(fileFlag.rest, "--jsonls", REVERSE_USAGE);
+  return { file: new Path(fileFlag.value), jsonlsFolder: new Path(jsonlsFlag.value) };
 }
 
 export function readReplaySettingsFromArguments(argumentList: string[]): ReplaySettings {

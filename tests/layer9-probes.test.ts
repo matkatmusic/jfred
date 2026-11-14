@@ -63,20 +63,20 @@ test("a broken expression is caught by the parse check", () => {
 
 // not behavior: it only checks that constant probe strings equal or contain certain text.
 // test("test_strip_probes_read_the_strip_that_exists_only_in_commit_mode", () => {
-//     // The strip count is a plain count of #jfred-strip elements.
-//     assert.equal(probes.STRIP_COUNT, "document.querySelectorAll('#jfred-strip').length");
+//     // The strip count is a plain count of #jfredCommitsDrawerComponent elements.
+//     assert.equal(probes.STRIP_COUNT, "document.querySelectorAll('#jfredCommitsDrawerComponent').length");
 //     // The head probe reads head text and Delete count; the stage probe reads the left edge.
 //     assert.ok(probes.STRIP_HEAD_FACTS.includes("deleteCount") && probes.STRIP_HEAD_FACTS.includes(".jhead span"));
-//     assert.ok(probes.STAGE_FACTS.includes("getElementById('stage')") && probes.STAGE_FACTS.includes("stripCount"));
-//     // The layout probes accept a page with no #annotation-track, since the session column is off at load.
-//     assert.ok(probes.STRIP_LAYOUT_FACTS.includes("track ? box('annotation-track').left : null"));
+//     assert.ok(probes.STAGE_FACTS.includes("getElementById('fileBubbleContainer')") && probes.STAGE_FACTS.includes("stripCount"));
+//     // The layout probes accept a page with no #sessionDotLinesComponent, since the session column is off at load.
+//     assert.ok(probes.STRIP_LAYOUT_FACTS.includes("track ? box('sessionDotLinesComponent').left : null"));
 //     assert.ok(probes.OVERLAP_FACTS.includes("track: track ? box(track) : null"));
 // });
 
 // not behavior: it only checks that a constant pattern string contains certain names.
 // test("test_rule_scan_pattern_holds_the_new_names_and_skips_no_rule", () => {
 //     // The pattern names the strip, mark and message rules and every new class of the ruler redesign.
-//     for (const name of ["jfred-strip", "cut-", "sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-", "hover-popup", "hp-line"])
+//     for (const name of ["jfredCommitsDrawerComponent", "cut-", "sline", "ahead", "ruler-head", "session-toggle", "ttime", "tcount", "s-coloured", "tf-", "hover-popup", "hp-line"])
 //         assert.ok(probes.CUT_RULE_PATTERN.includes(name), name);
 //     // No rule is skipped: the scan has no --page filter.
 //     assert.ok(!probes.CUT_RULE_TEXTS.includes("--page"));

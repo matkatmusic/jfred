@@ -22,14 +22,14 @@ export function isCentredOnFreeAxes(view: CentredView): boolean {
 
 // Middle-pane landings: each axis not pinned at a scroll end is centred; one landing has both axes free.
 export async function validateArrowLandings(page: HeadlessPage): Promise<void> {
-  await page.evaluate(`(() => { const p = document.getElementById('timelines'); p.scrollTop = (p.scrollHeight - p.clientHeight) / 2; p.scrollLeft = (p.scrollWidth - p.clientWidth) / 2; })()`);
+  await page.evaluate(`(() => { const p = document.getElementById('timelineContainer'); p.scrollTop = (p.scrollHeight - p.clientHeight) / 2; p.scrollLeft = (p.scrollWidth - p.clientWidth) / 2; })()`);
   await waitMilliseconds(300);
-  const arrow = `document.querySelector('#show-row button[data-jump-kind="snapshot"][data-jump="next"]')`;
+  const arrow = `document.querySelector('#timelineViewControls button[data-jump-kind="snapshot"][data-jump="next"]')`;
   const landings: CentredView[] = [];
   for (let clicks = 0; clicks < MAX_ARROW_CLICKS && !(await page.evaluate<boolean>(`${arrow}.disabled`)); clicks++) {
     await page.evaluate(`${arrow}.click()`);
     await waitMilliseconds(300);
-    const view = await page.evaluate<CentredView>(readView(`document.querySelector('#stage .node.found')`));
+    const view = await page.evaluate<CentredView>(readView(`document.querySelector('#fileBubbleContainer .node.found')`));
     console.log(formatCentreLine(`arrow landing ${clicks + 1}`, view));
     landings.push(view);
   }

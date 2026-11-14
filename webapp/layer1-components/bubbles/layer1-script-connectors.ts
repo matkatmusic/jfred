@@ -46,7 +46,7 @@ export function renderScriptConnectors(stage: HTMLElement): void {
       leftPx = Math.min(leftPx, centre.xPx);
       rightPx = Math.max(rightPx, centre.xPx);
     }
-    const connector = createElement("div", { class: "script-connector", "data-tool-use-id": toolUseId });
+    const connector = createElement("div", { class: "script-connector", "data-component": "laneScriptConnectorLink", "data-tool-use-id": toolUseId });
     connector.style.left = `${leftPx}px`;
     connector.style.top = `${centres[0]!.yPx}px`;
     connector.style.width = `${rightPx - leftPx}px`;

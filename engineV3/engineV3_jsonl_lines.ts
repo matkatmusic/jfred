@@ -4,32 +4,16 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { getRecordSource, loadTranscript, setRecordSource, type RecordSource, type SkippedLine } from "../src/parse/loadTranscript.ts";
-import { findUnmodeledTopLevelKeys } from "../src/parse/recordKeys.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { readCommitTimestamp } from "../src/reconstruction_base_commit_evidence.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { getContentBlocks } from "../src/structures/content-blocks.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
+import { loadFileRecords, type UnknownField } from "./engineV3_jsonl_file_records.ts";
 import { ignorePhaseProgress, type ReportPhaseProgress } from "./engineV3_startup_progress.ts";
 
-export type UnknownField = { recordType: string; fieldName: string };
 export type MergedJSONLLines = { jsonlLines: JSONLLine[]; unknownFields: UnknownField[]; unknownRecordTypes: string[]; transcriptFileCount: number };
-
-// Each (record type, field) pair is added once.
-function collectUnknownFields(records: JSONLLine[], seenFieldIds: Set<string>, unknownFields: UnknownField[]): void {
-  for (const record of records) {
-    for (const fieldName of findUnmodeledTopLevelKeys(record)) {
-      const fieldId = `${record.type}.${fieldName}`;
-      const isNewField = !seenFieldIds.has(fieldId);
-      if (isNewField) {
-        seenFieldIds.add(fieldId);
-        unknownFields.push({ recordType: record.type, fieldName });
-      }
-    }
-  }
-}
 
 function printUnknownFields(unknownFields: UnknownField[]): void {
   for (const unknownField of unknownFields) {
@@ -43,69 +27,18 @@ function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
   }
 }
 
-const UNKNOWN_TYPE_REASON_PREFIX = "Unknown transcript record type";
-
-// Any skipped line except an unknown record type stops the run.
-function assertOnlyUnknownTypesSkipped(transcriptFile: Path, skippedLines: SkippedLine[], fileLines: string[]): void {
-  for (const skippedLine of skippedLines) {
-    const isUnknownType = skippedLine.reason.startsWith(UNKNOWN_TYPE_REASON_PREFIX);
-    if (!isUnknownType) {
-      const skippedText = (fileLines[skippedLine.lineNumber - 1] as string).slice(0, 200);
-      throw new Error(`${transcriptFile.toString()}:${skippedLine.lineNumber} skipped (${skippedLine.reason}): ${skippedText}`);
-    }
-  }
-}
-
-// The loader rejects the line's type, so this parses the raw text without that check.
-function parseUnknownTypeLine(text: string): JSONLLine {
-  const parsed = JSON.parse(text) as Record<string, unknown>;
-  if (typeof parsed.timestamp === "string") {
-    parsed.timestamp = new Date(parsed.timestamp);
-  }
-  return parsed as JSONLLine;
-}
-
-function mapRecordsByLineNumber(transcriptFile: Path, records: JSONLLine[], skippedLines: SkippedLine[], fileLines: string[], unknownRecordTypes: Set<string>): Map<number, JSONLLine> {
-  const byLineNumber = new Map<number, JSONLLine>();
-  for (const record of records) {
-    byLineNumber.set((getRecordSource(record) as RecordSource).lineNumber, record);
-  }
-  for (const skippedLine of skippedLines) {
-    const record = parseUnknownTypeLine(fileLines[skippedLine.lineNumber - 1] as string);
-    setRecordSource(record, { filePath: transcriptFile.toString(), lineNumber: skippedLine.lineNumber });
-    unknownRecordTypes.add(String(record.type));
-    byLineNumber.set(skippedLine.lineNumber, record);
-  }
-  return byLineNumber;
-}
-
-function listRecordsInFileOrder(byLineNumber: Map<number, JSONLLine>, lineCount: number): JSONLLine[] {
-  const ordered: JSONLLine[] = [];
-  for (let lineNumber = 1; lineNumber <= lineCount; lineNumber++) {
-    const record = byLineNumber.get(lineNumber);
-    if (record !== undefined) {
-      ordered.push(record);
-    }
-  }
-  return ordered;
-}
-
-function loadFileRecords(transcriptFile: Path, seenFieldIds: Set<string>, unknownFields: UnknownField[], unknownRecordTypes: Set<string>): JSONLLine[] {
-  const { records, skippedLines } = loadTranscript(transcriptFile.toString(), undefined, true);
-  const fileLines = readFileSync(transcriptFile.toString(), "utf8").split("\n");
-  assertOnlyUnknownTypesSkipped(transcriptFile, skippedLines, fileLines);
-  collectUnknownFields(records, seenFieldIds, unknownFields);
-  const byLineNumber = mapRecordsByLineNumber(transcriptFile, records, skippedLines, fileLines, unknownRecordTypes);
-  return listRecordsInFileOrder(byLineNumber, fileLines.length);
+function getTranscriptFileId(transcriptFile: Path): string {
+  const hasher = createHash("sha256");
+  hasher.update(readFileSync(transcriptFile.toString()));
+  return `${basename(transcriptFile.toString())}:${hasher.digest("hex")}`;
 }
 
 // A multi-source scenario folder holds each transcript twice: at the top and in source-*/projects. The first copy wins.
-function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
+function filterOutCopiedTranscripts(transcriptFiles: Path[]): Path[] {
   const seenFileIds = new Set<string>();
   const uniqueFiles: Path[] = [];
   for (const transcriptFile of transcriptFiles) {
-    const contentHash = createHash("sha256").update(readFileSync(transcriptFile.toString())).digest("hex");
-    const fileId = `${basename(transcriptFile.toString())}:${contentHash}`;
+    const fileId = getTranscriptFileId(transcriptFile);
     const isNewFile = !seenFileIds.has(fileId);
     if (isNewFile) {
       seenFileIds.add(fileId);
@@ -115,9 +48,7 @@ function dropCopiedTranscripts(transcriptFiles: Path[]): Path[] {
   return uniqueFiles;
 }
 
-// A Bash or ctx_execute call whose result comes much later waited for the user's permission, so the script ran just before its result.
-const PERMISSION_WAIT_MILLISECONDS = 60000;
-function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+function getResultTimeByCallId(records: JSONLLine[]): Map<string, number> {
   const resultTimeByCallId = new Map<string, number>();
   for (const record of records) {
     if (record.timestamp instanceof Date) {
@@ -128,21 +59,42 @@ function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: 
       }
     }
   }
-  for (const record of records) {
-    if (record.timestamp instanceof Date) {
-      for (const block of getContentBlocks(record)) {
-        if (block.type === BlockType.tool_use) {
-          const isScriptTool = block.name === ToolName.Bash || block.name === ToolName.CtxExecute;
-          const resultTime = resultTimeByCallId.get(block.id.toString());
-          if (isScriptTool && resultTime !== undefined) {
-            if (resultTime - record.timestamp.getTime() > PERMISSION_WAIT_MILLISECONDS) {
-              sortTimeOverrides.set(record, resultTime);
-            }
+  return resultTimeByCallId;
+}
+
+// A Bash or ctx_execute call whose result comes much later waited for the user's permission, so the script ran just before its result.
+const PERMISSION_WAIT_MILLISECONDS = 60000;
+function collectDelayedCallTimesInRecord(record: JSONLLine, callTime: number, resultTimeByCallId: Map<string, number>, sortTimeOverrides: Map<JSONLLine, number>): void {
+  for (const block of getContentBlocks(record)) {
+    if (block.type === BlockType.tool_use) {
+      const isScriptTool = block.name === ToolName.Bash || block.name === ToolName.CtxExecute;
+      const resultTime = resultTimeByCallId.get(block.id.toString());
+      if (isScriptTool) {
+        if (resultTime !== undefined) {
+          if (resultTime - callTime > PERMISSION_WAIT_MILLISECONDS) {
+            sortTimeOverrides.set(record, resultTime);
           }
         }
       }
     }
   }
+}
+
+function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+  const resultTimeByCallId = getResultTimeByCallId(records);
+  for (const record of records) {
+    if (record.timestamp instanceof Date) {
+      collectDelayedCallTimesInRecord(record, record.timestamp.getTime(), resultTimeByCallId, sortTimeOverrides);
+    }
+  }
+}
+
+function createSortTimeOverrides(recordLists: JSONLLine[][]): Map<JSONLLine, number> {
+  const sortTimeOverrides = new Map<JSONLLine, number>();
+  for (const recordList of recordLists) {
+    collectDelayedScriptCallTimes(recordList, sortTimeOverrides);
+  }
+  return sortTimeOverrides;
 }
 
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
@@ -152,15 +104,12 @@ function readMergedJSONLLines(jsonlFolders: string[], reportProgress: ReportPhas
   const unknownFields: UnknownField[] = [];
   const seenFieldIds = new Set<string>();
   const unknownRecordTypes = new Set<string>();
-  const transcriptFiles = dropCopiedTranscripts(listTranscriptFiles(jsonlFolders));
+  const transcriptFiles = filterOutCopiedTranscripts(listTranscriptFiles(jsonlFolders));
   for (const transcriptFile of transcriptFiles) {
     recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
     reportProgress(recordLists.length, transcriptFiles.length);
   }
-  const sortTimeOverrides = new Map<JSONLLine, number>();
-  for (const recordList of recordLists) {
-    collectDelayedScriptCallTimes(recordList, sortTimeOverrides);
-  }
+  const sortTimeOverrides = createSortTimeOverrides(recordLists);
   printUnknownFields(unknownFields);
   printUnknownRecordTypes(unknownRecordTypes);
   return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes], transcriptFileCount: transcriptFiles.length };

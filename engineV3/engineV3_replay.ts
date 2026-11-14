@@ -5,7 +5,8 @@ import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
-import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3_replay_settings.ts";
+import { readReplaySettingsFromArguments, readReverseSettingsFromArguments, type ReplaySettings } from "./engineV3_replay_settings.ts";
+import { printReverseWalk } from "./engineV3_replay_reverse.ts";
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
@@ -161,7 +162,15 @@ export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: 
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
+let isForwardRun = isCliRun;
 if (isCliRun) {
+  const reverseSettings = readReverseSettingsFromArguments(process.argv.slice(2));
+  if (reverseSettings !== undefined) {
+    printReverseWalk(reverseSettings);
+    isForwardRun = false;
+  }
+}
+if (isForwardRun) {
   const settings = readReplaySettingsFromArguments(process.argv.slice(2));
   assertSafeToReplay(settings.state);
   // copyRepoIntoState(settings.repoPath, settings.state);

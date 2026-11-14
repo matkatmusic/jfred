@@ -9,8 +9,8 @@ const css = [
   readFileSync(new URL("../webapp/layer1-components/bubbles/nodes.css", import.meta.url), "utf8"),
   readFileSync(new URL("../webapp/layer1-components/bubbles/found-highlight.css", import.meta.url), "utf8"),
 ].join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
-const LIGHT_BLOCK = ".viz-root {";
-const DARK_BLOCK = ':root[data-theme="dark"] .viz-root {';
+const LIGHT_BLOCK = ".appWindow {";
+const DARK_BLOCK = ':root[data-theme="dark"] .appWindow {';
 const LIGHT_THEME_MIN_DIFFERENCE = 28;
 const DARK_THEME_MIN_DIFFERENCE = 40;
 
@@ -86,3 +86,13 @@ test("bug 495: a lit or aimed node's brackets are no taller than the dot", () =>
     assert.ok(bracketHeight <= dotHeight, `${selector} is ${bracketHeight}px tall, the dot is ${dotHeight}px`);
   }
 });
+
+// not wanted: the button press is checked in a real browser by scripts/visual/button-press-checks.ts.
+// test("a pressed enabled text button moves 2px down and 2px right", () => {
+//   assert.equal(readDeclarationsOf("button:active:not(:disabled)").get("transform"), "translate(2px, 2px)");
+// });
+//
+// test("no plain button rule sets a transform that the pressed nudge would clash with", () => {
+//   assert.equal(readDeclarationsOf("button").has("transform"), false);
+//   assert.equal(readDeclarationsOf("button:hover").has("transform"), false);
+// });

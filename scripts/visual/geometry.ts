@@ -54,7 +54,7 @@ export const GEOMETRY_PROBE = `(() => {
         const r = element.getBoundingClientRect();
         return { x: round(r.x), y: round(r.y), w: round(r.width), h: round(r.height) };
     };
-    const lanes = [...document.querySelectorAll('#stage .lane')];
+    const lanes = [...document.querySelectorAll('#fileBubbleContainer .lane')];
     const describe = (element, group) => {
         const box = element.closest('.filebox');
         const lane = element.closest('.lane');
@@ -78,8 +78,8 @@ export const GEOMETRY_PROBE = `(() => {
         [...document.querySelectorAll(selector)]
             .filter((element) => element.getClientRects().length > 0)
             .map((element) => describe(element, group));
-    const scroller = document.getElementById('timelines');
-    const root = document.querySelector('.viz-root');
+    const scroller = document.getElementById('timelineContainer');
+    const root = document.querySelector('.appWindow');
     return {
         zoom: (getComputedStyle(root).getPropertyValue('--zoom') || '1').trim(),
         crumb: document.getElementById('crumb').textContent || '',
@@ -89,12 +89,12 @@ export const GEOMETRY_PROBE = `(() => {
             scrollLeft: round(scroller.scrollLeft),
             scrollTop: round(scroller.scrollTop),
         }),
-        fileboxes: collect('#stage .filebox', 'filebox'),
-        fnames: collect('#stage .filebox > .fname', 'fname'),
-        nodes: collect('#stage .node', 'node'),
-        labels: collect('#stage .nlabel', 'nlabel'),
-        ticks: collect('#ruler .tick', 'tick'),
-        tickFiles: collect('#ruler .tickfiles button', 'tickfile'),
+        fileboxes: collect('#fileBubbleContainer .filebox','filebox'),
+        fnames: collect('#fileBubbleContainer .filebox >.fname', 'fname'),
+        nodes: collect('#fileBubbleContainer .node', 'node'),
+        labels: collect('#fileBubbleContainer .nlabel', 'nlabel'),
+        ticks: collect('#timelineRulerComponent .tick','tick'),
+        tickFiles: collect('#timelineRulerComponent .tickfiles button', 'tickfile'),
         found: collect('.found', 'found'),
     };
 })()`;

@@ -40,7 +40,7 @@ async function settle(): Promise<void> {
 async function clickDeleteThenAnswer(view: typeof REAL_VIEW, answerClass: string): Promise<void> {
   loadJfredBranch(view);
   renderJfredStrip(TICKS);
-  document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+  document.querySelector<HTMLElement>("#jfredCommitsDrawerComponent .jdelete")!.click();
   document.querySelector<HTMLElement>(answerClass)?.click();
   await settle();
 }
@@ -50,7 +50,7 @@ test("test_delete_click_asks_a_yes_no_question_before_any_request", () => {
   for (const view of [REAL_VIEW, CANNED_VIEW]) {
     loadJfredBranch(view);
     renderJfredStrip(TICKS);
-    document.querySelector<HTMLElement>("#jfred-strip .jdelete")!.click();
+    document.querySelector<HTMLElement>("#jfredCommitsDrawerComponent .jdelete")!.click();
     assert.equal(document.querySelectorAll("#yesno-row").length, 1);
     assert.equal(document.querySelector("#yesno-row span")!.textContent, DELETE_QUESTION);
     assert.equal(sent.length, 0);
@@ -64,7 +64,7 @@ test("test_delete_click_answered_no_sends_no_request_and_keeps_the_entries", asy
   await clickDeleteThenAnswer(REAL_VIEW, ".yesno-no");
   assert.equal(document.getElementById("yesno-row"), null);
   assert.equal(sent.length, 0);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
 });
 
 test("test_delete_click_answered_yes_on_a_real_branch_posts_to_the_delete_route_then_clears_the_entries", async () => {
@@ -73,13 +73,13 @@ test("test_delete_click_answered_yes_on_a_real_branch_posts_to_the_delete_route_
   assert.equal(sent.length, 1);
   assert.equal(sent[0]!.pathname, "/api/layer1-jfred-delete");
   assert.equal(sent[0]!.init.method, "POST");
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 3);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
   releaseDeleteReply();
   await settle();
   assert.equal(readJfredBranch().base, undefined);
   assert.equal(readJfredBranch().commits.length, 0);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 0);
-  assert.equal(document.querySelectorAll("#jfred-strip .jhead").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 0);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jhead").length, 1);
 });
 
 test("test_delete_click_answered_yes_on_a_real_branch_clears_the_saved_base_hash", async () => {
@@ -98,5 +98,5 @@ test("test_delete_click_answered_yes_on_a_canned_branch_clears_the_entries_and_s
   await clickDeleteThenAnswer(CANNED_VIEW, ".yesno-yes");
   assert.equal(sent.length, 0);
   assert.equal(readJfredBranch().commits.length, 0);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode").length, 0);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 0);
 });

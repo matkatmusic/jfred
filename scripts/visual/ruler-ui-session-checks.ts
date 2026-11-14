@@ -52,6 +52,7 @@ export function isTrackPlaced(f: SessionFacts): boolean {
 }
 
 export const isStageShifted = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft - offLeft, f.trackWidth, EDGE_PX);
+// export const isStageUnmovedBySessionLines = (offLeft: number, f: SessionFacts) => isNear(f.stageLeft, offLeft, EDGE_PX);
 export function isEveryDotLetterRight(scan: ScanFacts): boolean {
   let isRight = scan.letters.length > 0 && scan.titled === 0 && scan.alabels === 0;
   for (const letter of scan.letters)
@@ -96,4 +97,4 @@ export async function toggleColumn(page: HeadlessPage, clickExpression: string, 
   await page.evaluate(clickExpression);
   await page.waitFor(`(document.getElementById('${elementId}') !== null) === ${isOn}`, WAIT_MS);
 }
-export const toggleSessionColumn = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, SESSION_TOGGLE_CLICK, "annotation-track", isOn);
+export const toggleSessionDotLines = (page: HeadlessPage, isOn: boolean) => toggleColumn(page, SESSION_TOGGLE_CLICK, "sessionDotLinesComponent", isOn);

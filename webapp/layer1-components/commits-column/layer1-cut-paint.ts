@@ -68,7 +68,7 @@ function paintArmedTick(tick: HTMLElement, snapshot: BubbleSnapshot[]): void {
 export function repaintCutMarks(): void {
   const branch = readJfredBranch();
   const snapshot = branch.isArmed ? collectStageBubbles() : [];
-  for (const tick of getRequiredElementById("ruler").querySelectorAll<HTMLElement>(".tick")) {
+  for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll<HTMLElement>(".tick")) {
     tick.classList.remove(...Object.values(CutClass));
     restoreTickTitle(tick);
     if (branch.isArmed) {

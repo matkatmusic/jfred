@@ -55,7 +55,7 @@ export function computeAxisPixelsAt(instantMs: number, ticks: readonly WireRuler
 
 // One absolutely-placed strip: the two numbers both marks are built from.
 function buildMark(className: string, fromPx: number, spanPx: number): HTMLElement {
-  const node = createElement("div", { class: className });
+  const node = createElement("div", { class: className, "data-component": "timelineSessionRangeBar" });
   node.style.setProperty("--axis-px", String(fromPx));
   node.style.setProperty("--span-px", String(spanPx));
   return node;
@@ -101,7 +101,7 @@ function isInsideAnyBand(axisPx: number, bands: readonly AxisBand[]): boolean {
 
 // Mark gutter rows inside a band, read from the row's own `--axis-px` since merged rows hold one offset.
 function markTicksInsideBands(bands: readonly AxisBand[]): void {
-  for (const tick of getRequiredElementById("ruler").querySelectorAll(".tick")) {
+  for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll(".tick")) {
     const axisPx = Number((tick as HTMLElement).style.getPropertyValue("--axis-px"));
     const isInRange = isInsideAnyBand(axisPx, bands);
     tick.classList.toggle("inrange", isInRange);

@@ -23,13 +23,13 @@
 // not behavior: tests a test-only checkbox helper, not product behavior.
 // test("test_toggle_box_sets_checked_and_fires_change", () => {
 //     initLayer1Dom();
-//     document.body.innerHTML = `<div id="show-row"><input type="checkbox" data-kind="commit" checked></div><div class="viz-root" data-hidden-kinds="a b"></div>`;
+//     document.body.innerHTML = `<div id="timelineViewControls" class="timelineViewControls"><input type="checkbox" data-kind="commit" checked></div><div class="appWindow" data-hidden-kinds="a b"></div>`;
 //     let changes = 0;
-//     document.querySelector("#show-row [data-kind=commit]")!.addEventListener("change", () => {
+//     document.querySelector("#timelineViewControls [data-kind=commit]")!.addEventListener("change", () => {
 //         changes++;
 //     });
 //     toggleBox("commit", false);
-//     assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=commit]")!.checked, false);
+//     assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=commit]")!.checked, false);
 //     assert.equal(changes, 1);
 //     assert.equal(readHiddenKinds(), "a b");
 // });

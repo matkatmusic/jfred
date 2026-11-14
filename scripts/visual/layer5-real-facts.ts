@@ -24,7 +24,7 @@ export const PAGE_PROBE = `(() => {
     const railLeft = (b) => rect(b.querySelector('.lrail')).left - rect(b).left;
     const plain = boxes.find(b => !b.querySelector('.blane'));
     return {
-        ticks: [...document.querySelectorAll('.ruler .tick')].map(t => ({ text: t.textContent, cy: rect(t).cy })),
+        ticks: [...document.querySelectorAll('#timelineRulerComponent .tick')].map(t => ({ text: t.textContent, cy: rect(t).cy })),
         plainRailLeft: plain ? railLeft(plain) : null,
         bubbles: boxes.filter(b => b.querySelector('.blane')).map(b => ({
             path: b.querySelector('.fname[data-path]').dataset.path,

@@ -14,7 +14,7 @@ import {
 } from "./ruler-ui-probes.ts";
 import {
   APART_PX, FIRST_ID, FIRST_SESSION_ID, isBetweenTicks, isEveryDotLetterRight, isEverySessionColourRight, isLineEndAt, isLineStartAt, isPopupRight,
-  isSameInstantRight, isSessionOff, isStageShifted, isToggleGreen, isTrackPlaced, toggleSessionColumn,
+  isSameInstantRight, isSessionOff, isStageShifted, isToggleGreen, isTrackPlaced, toggleSessionDotLines,
   type LineFacts, type OffFacts, type SameFacts, type ScanFacts,
 } from "./ruler-ui-session-checks.ts";
 
@@ -29,6 +29,7 @@ async function validateTrack(page: HeadlessPage, offLeft: number): Promise<void>
   reportCheck("RULER session: the track touches the ruler and is 74px wide for 3 lanes, below 100px", isTrackPlaced(facts), facts);
   reportCheck("RULER session: three overlapping sessions use three different columns", facts.laneXs.length === 3, facts.laneXs);
   reportCheck("RULER session: the stage moves right by exactly the track width", isStageShifted(offLeft, facts), [offLeft, facts.stageLeft]);
+  // reportCheck("RULER session: the stage does not move when the track goes on", isStageUnmovedBySessionLines(offLeft, facts), [offLeft, facts.stageLeft]);
 }
 
 async function validateScan(page: HeadlessPage): Promise<void> {
@@ -65,7 +66,7 @@ async function validateBracketAndPopup(page: HeadlessPage): Promise<void> {
 }
 
 export async function validateSessionOff(page: HeadlessPage, offLeft: number): Promise<void> {
-  await toggleSessionColumn(page, false);
+  await toggleSessionDotLines(page, false);
   const off = await page.evaluate<OffFacts>(OFF_FACTS);
   reportCheck("RULER session off: the track is gone, --track-w is 0px, and the stage is back", isSessionOff(off, offLeft), off);
   await reportFacts(page, COLOUR_FACTS, "RULER session off: every row returns to the plain color", isRowsPlain);
@@ -76,7 +77,7 @@ export async function validateSessionOff(page: HeadlessPage, offLeft: number): P
 export async function validateSessionState(page: HeadlessPage): Promise<number> {
   await page.evaluate(SCROLL_HOME);
   const offLeft = await page.evaluate<number>(STAGE_LEFT);
-  await toggleSessionColumn(page, true);
+  await toggleSessionDotLines(page, true);
   await validateTrack(page, offLeft);
   await validateScan(page);
   await validateLines(page);

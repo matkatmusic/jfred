@@ -25,12 +25,12 @@ function createRowPicker(index: number): () => void {
 function renderPicker(): void {
   const rows: HTMLElement[] = [];
   for (const [index, path] of draftPaths.entries()) {
-    const row = createElement("div", { class: index === draftPick ? "picked" : undefined, text: path });
+    const row = createElement("div", { class: index === draftPick ? "picked" : undefined, text: path, "data-component": "pathPickerFolderRow" });
     row.addEventListener("click", createRowPicker(index));
     rows.push(row);
   }
   getRequiredElementById("pp-list").replaceChildren(
-    ...(rows.length > 0 ? rows : [createElement("div", { class: "mempty", text: "no source folders" })]),
+    ...(rows.length > 0 ? rows : [createElement("div", { class: "mempty", text: "no source folders", "data-component": "pathPickerEmptyText" })]),
   );
   (getRequiredElementById("pp-remove") as HTMLButtonElement).disabled = draftPick < 0;
   (getRequiredElementById("pp-up") as HTMLButtonElement).disabled = draftPick <= 0;

@@ -5,7 +5,7 @@ import { toggleKindBox } from "./layer1-kind-filter.ts";
 import { ShowRowKind } from "./layer1-show-row.ts";
 
 function findKindBox(kind: ShowRowKind): HTMLInputElement {
-  return document.querySelector<HTMLInputElement>(`#show-row input[data-kind="${kind}"]`)!;
+  return document.querySelector<HTMLInputElement>(`#timelineViewControls input[data-kind="${kind}"]`)!;
 }
 
 // The [3] button clicks the Edit box, so both share one code path.

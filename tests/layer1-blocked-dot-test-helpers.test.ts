@@ -17,5 +17,5 @@
 //   const dot = appendBlockedDot("toolu_h");
 //   assert.equal(dot.parentElement!.className, "canvas");
 //   assert.equal(dot.getBoundingClientRect(), DEFAULT_DOT);
-//   assert.equal(document.getElementById("timelines")!.getBoundingClientRect(), DEFAULT_PANE);
+//   assert.equal(document.getElementById("timelineContainer")!.getBoundingClientRect(), DEFAULT_PANE);
 // });

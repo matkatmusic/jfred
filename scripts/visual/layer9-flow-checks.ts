@@ -62,7 +62,7 @@ function countTicksWithClass(states: TickState[], name: string): number {
 //   return setCount === 2 && baseCount === 1;
 // }
 
-// Commit mode off: no tick carries a cut-* class and the page has no #jfred-strip.
+// Commit mode off: no tick carries a cut-* class and the page has no #jfredCommitsDrawerComponent.
 export function isUnarmedPaintRight(states: TickState[], stripCount: number): boolean {
   let isClean = stripCount === 0;
   for (const state of states)
@@ -135,7 +135,7 @@ export async function validateUnarmedPaint(page: HeadlessPage): Promise<void> {
   const states = await page.evaluate<TickState[]>(TICK_STATES);
   const stripCount = await page.evaluate<number>(STRIP_COUNT);
   // reportCheck("L9 Commit mode off: no tick is scissors or dim; the base tick and two commit ticks keep their marks", isUnarmedPaintRight(states));
-  reportCheck("L9 Commit mode off: no tick carries a cut-* class and there is no #jfred-strip", isUnarmedPaintRight(states, stripCount), [stripCount]);
+  reportCheck("L9 Commit mode off: no tick carries a cut-* class and there is no #jfredCommitsDrawerComponent", isUnarmedPaintRight(states, stripCount), [stripCount]);
 }
 
 export async function validateArmedPaint(page: HeadlessPage): Promise<void> {

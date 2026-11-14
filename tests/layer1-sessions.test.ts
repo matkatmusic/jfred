@@ -208,7 +208,7 @@ function drawBubble(path: string): { name: HTMLElement; topNode: HTMLElement } {
     name.dataset.path = path;
     const topNode = buildNodeAt(TOP_NODE_INSTANT, TOP_NODE_CENTER_Y);
     box.append(name, topNode, buildNodeAt(BOTTOM_NODE_INSTANT, BOTTOM_NODE_CENTER_Y));
-    getRequiredElementById("stage").append(box);
+    getRequiredElementById("fileBubbleContainer").append(box);
     wireBubbleFlash();
     return { name, topNode };
 }

@@ -3,15 +3,15 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 
-const SCRIPT_BOX = `document.querySelector('#show-row input[data-kind="script-run"]')`;
-const SCRIPT_DOTS = `document.querySelectorAll('#stage i.node.n-script')`;
+const SCRIPT_BOX = `document.querySelector('#timelineViewControls input[data-kind="script-run"]')`;
+const SCRIPT_DOTS = `document.querySelectorAll('#fileBubbleContainer i.node.n-script')`;
 const STRIP_IDLE = `document.getElementById('loadbar').hidden`;
 const LOAD_TIMEOUT_MS = 15_000;
 // One run cannot take more steps than this, so a higher count means the arrows never end.
 const MAX_STEPS = 20;
 
 const selectArrow = (direction: "previous" | "next") =>
-  `document.querySelector('#show-row button[data-jump-kind="script-run"][data-jump="${direction}"]')`;
+  `document.querySelector('#timelineViewControls button[data-jump-kind="script-run"][data-jump="${direction}"]')`;
 
 interface Landed {
   isScript: boolean;
@@ -23,9 +23,9 @@ interface Landed {
 }
 
 const READ_LANDED = `(() => {
-    const node = document.querySelector('#stage i.node.found');
+    const node = document.querySelector('#fileBubbleContainer i.node.found');
     if (!node) return null;
-    const scroller = document.getElementById('timelines');
+    const scroller = document.getElementById('timelineContainer');
     const pane = scroller.getBoundingClientRect();
     const box = node.getBoundingClientRect();
     return {
@@ -33,7 +33,7 @@ const READ_LANDED = `(() => {
         onScreen: box.top >= pane.top - 1 && box.bottom <= pane.bottom + 1 && box.left >= pane.left - 1 && box.right <= pane.right + 1,
         isCentred: (Math.abs((box.left + box.right) / 2 - (pane.left + pane.right) / 2) <= 4 || scroller.scrollLeft <= 1 || scroller.scrollLeft >= scroller.scrollWidth - scroller.clientWidth - 1)
             && (Math.abs((box.top + box.bottom) / 2 - (pane.top + pane.bottom) / 2) <= 4 || scroller.scrollTop <= 1 || scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1),
-        flashed: document.querySelectorAll('#stage i.node.found').length === 1,
+        flashed: document.querySelectorAll('#fileBubbleContainer i.node.found').length === 1,
         y: box.top + box.height / 2,
         boxChecked: ${SCRIPT_BOX}.checked };
 })()`;
@@ -60,7 +60,7 @@ async function validateDisabledBeforeTick(page: HeadlessPage): Promise<void> {
 async function validateStepsForward(page: HeadlessPage): Promise<Landed[]> {
   await page.evaluate(`${SCRIPT_BOX}.click()`);
   await page.waitFor(`${SCRIPT_DOTS}.length > 0 && ${STRIP_IDLE}`, LOAD_TIMEOUT_MS);
-  await page.evaluate(`document.getElementById('timelines').scrollTop = 0`);
+  await page.evaluate(`document.getElementById('timelineContainer').scrollTop = 0`);
   // A node at the pane's centre counts as landed, so start from the first node.
   for (let step = 0; step < MAX_STEPS; step++) {
     const isAtFirstNode = await page.evaluate<boolean>(`${selectArrow("previous")}.disabled`);

@@ -11,7 +11,7 @@ async function importKindButtonsWithBoxes(editChecked: boolean, scriptRunChecked
     document.body.innerHTML = `
         <button id="layer-3"></button>
         <button id="layer-4"></button>
-        <div id="show-row">
+        <div id="timelineViewControls" class="timelineViewControls" data-component="timelineViewControls">
             <input type="checkbox" data-kind="edit" ${editState}>
             <input type="checkbox" data-kind="script-run" ${scriptRunState}>
         </div>`;
@@ -19,7 +19,7 @@ async function importKindButtonsWithBoxes(editChecked: boolean, scriptRunChecked
 }
 
 function findBox(kind: string): HTMLInputElement {
-    return document.querySelector<HTMLInputElement>(`#show-row input[data-kind="${kind}"]`)!;
+    return document.querySelector<HTMLInputElement>(`#timelineViewControls input[data-kind="${kind}"]`)!;
 }
 
 test("test_layer_3_button_ticks_the_edit_box", async () => {

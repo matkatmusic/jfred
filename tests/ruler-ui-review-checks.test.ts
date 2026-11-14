@@ -33,11 +33,11 @@ const TITLES = {
 const makeGoodTable = (): Map<string, unknown> => new Map<string, unknown>([
     [SCROLL_HOME, 0], [ESCAPE_CLOSE, 0], [buildSetHideIgnored(false), undefined], [buildSetHideIgnored(true), undefined], [SESSION_TOGGLE_CLICK, 0], [COMMIT_MODE_CLICK, 0], [buildScrollToDot(FILL_8), true],
     [probes.HEAD_AT_REST, HEAD_OK], [probes.HEAD_SCROLLED, HEAD_OK], [probes.HEAD_AFTER_ROW_CLICK, HEAD_OK],
-    [probes.buildMinimapEdgeProbe("#ruler"), { minimapLeft: 384, neighbourRight: 384 }],
-    [probes.buildMinimapEdgeProbe("#annotation-track"), { minimapLeft: 458, neighbourRight: 458.4 }],
-    [probes.buildMinimapEdgeProbe("#jfred-strip"), { minimapLeft: 562, neighbourRight: 562 }],
+    [probes.buildMinimapEdgeProbe("#timelineRulerComponent"), { minimapLeft: 384, neighbourRight: 384 }],
+    [probes.buildMinimapEdgeProbe("#sessionDotLinesComponent"), { minimapLeft: 458, neighbourRight: 458.4 }],
+    [probes.buildMinimapEdgeProbe("#jfredCommitsDrawerComponent"), { minimapLeft: 562, neighbourRight: 562 }],
     [probes.DOT_FONT_SIZE, "11px"], [probes.ROW_DOT_FACTS, { rowCount: 40, unmatchedCount: 0 }],
-    [probes.buildSurfaceProbe("#annotation-track"), SURFACE], [probes.buildSurfaceProbe("#jfred-strip"), SURFACE],
+    [probes.buildSurfaceProbe("#sessionDotLinesComponent"), SURFACE], [probes.buildSurfaceProbe("#jfredCommitsDrawerComponent"), SURFACE],
     [probes.BRACKET_INSET_FACTS, { count: 1, minInset: 3 }], [probes.LANE_GAPS, [3, 3]],
     [probes.buildDotClick(FIRST_ID), undefined], [probes.CLOSE_DRAWER, undefined],
     [probes.buildDotDrawerFacts(FIRST_ID), { title: FIXTURE_LOG_SESSIONS[0]!.title, label: "Made-up chat line", json: '{"content": "Made-up chat line"}' }],
@@ -99,27 +99,27 @@ test("test_a_row_without_a_dot_or_no_rows_in_view_fails_only_the_row_check", asy
 });
 
 test("test_a_track_without_a_solid_1px_right_border_or_with_another_background_fails_only_the_track_check", async () => {
-    const track = probes.buildSurfaceProbe("#annotation-track");
+    const track = probes.buildSurfaceProbe("#sessionDotLinesComponent");
     assert.deepEqual((await runReview([[track, { ...SURFACE, borderRightStyle: "dashed" }]])).newFailures, [TITLES.track]);
     assert.deepEqual((await runReview([[track, { ...SURFACE, borderRightWidth: "2px" }]])).newFailures, [TITLES.track]);
     assert.deepEqual((await runReview([[track, { ...SURFACE, background: "rgb(9, 9, 9)" }]])).newFailures, [TITLES.track]);
 });
 
 test("test_a_strip_with_another_background_fails_only_the_strip_surface_check", async () => {
-    const strip = probes.buildSurfaceProbe("#jfred-strip");
+    const strip = probes.buildSurfaceProbe("#jfredCommitsDrawerComponent");
     const { newFailures } = await runReview([[strip, { ...SURFACE, background: "rgb(9, 9, 9)" }]]);
     assert.deepEqual(newFailures, ["RULER review: the commit strip has the File Nav background"]);
 });
 
 test("test_a_minimap_2px_off_the_ruler_or_the_strip_fails_only_its_own_check", async () => {
-    const ruler = probes.buildMinimapEdgeProbe("#ruler");
+    const ruler = probes.buildMinimapEdgeProbe("#timelineRulerComponent");
     assert.deepEqual((await runReview([[ruler, { minimapLeft: 386, neighbourRight: 384 }]])).newFailures, [TITLES.minimapRuler]);
-    const strip = probes.buildMinimapEdgeProbe("#jfred-strip");
+    const strip = probes.buildMinimapEdgeProbe("#jfredCommitsDrawerComponent");
     assert.deepEqual((await runReview([[strip, { minimapLeft: 560, neighbourRight: 562 }]])).newFailures, [TITLES.minimapStrip]);
 });
 
 test("test_a_minimap_off_the_track_edge_fails_only_the_track_minimap_check", async () => {
-    const track = probes.buildMinimapEdgeProbe("#annotation-track");
+    const track = probes.buildMinimapEdgeProbe("#sessionDotLinesComponent");
     const { newFailures } = await runReview([[track, { minimapLeft: 470, neighbourRight: 458 }]]);
     assert.deepEqual(newFailures, ["RULER review: the minimap left edge is at the track right edge"]);
 });

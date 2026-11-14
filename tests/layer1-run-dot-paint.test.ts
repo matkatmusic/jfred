@@ -41,7 +41,7 @@ function drawDots(): HTMLElement[] {
     dots.push(dot);
     bubbles.push(createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": path }), dot]));
   }
-  getRequiredElementById("stage").replaceChildren(...bubbles);
+  getRequiredElementById("fileBubbleContainer").replaceChildren(...bubbles);
   return dots;
 }
 

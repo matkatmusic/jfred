@@ -14,20 +14,20 @@ export const MIN_SCREENSHOT_BYTES = 10 * 1024;
 export const FAKE_HASH_PREFIX = "c0ffee";
 export const BASE_NEEDS_COMMIT_TEXT = "the base must be a commit";
 
-export const STAGE_READY = `document.querySelectorAll('#stage .filebox').length > 0`;
+export const STAGE_READY = `document.querySelectorAll('#fileBubbleContainer .filebox').length > 0`;
 // Armed: mode on, strip drawn, busy shield closed, edit dots loaded.
-export const ARMED_STATE = `document.getElementById('commit-mode').classList.contains('current') && document.getElementById('jfred-strip') !== null
-    && document.getElementById('busy-shield').hidden && document.querySelectorAll('#stage .n-edit').length > 0`;
-export const ARM_FACTS = `(boxes => ({ boxes: boxes.length, unchecked: boxes.filter(b => !b.checked).length, editDots: document.querySelectorAll('#stage .n-edit').length }))
-    ([...document.querySelectorAll('#show-row input[data-kind]')])`;
+export const ARMED_STATE = `document.getElementById('commit-mode').classList.contains('current') && document.getElementById('jfredCommitsDrawerComponent') !== null
+    && document.getElementById('busy-shield').hidden && document.querySelectorAll('#fileBubbleContainer .n-edit').length > 0`;
+export const ARM_FACTS = `(boxes => ({ boxes: boxes.length, unchecked: boxes.filter(b => !b.checked).length, editDots: document.querySelectorAll('#fileBubbleContainer .n-edit').length }))
+    ([...document.querySelectorAll('#timelineViewControls input[data-kind]')])`;
 export const COMMIT_BUTTON_CLICK = `document.getElementById('jfred-commit-button').click()`;
 export const COMMIT_SETTLED = `document.getElementById('jfred-commit-button') === null || document.getElementById('yesno-row') !== null`;
 export const TOAST_SHOWN = `!document.getElementById('dtoast').hidden && document.getElementById('dtoast').textContent.trim() !== ''`;
 export const READ_TOAST_TEXT = `document.getElementById('dtoast').textContent`;
 export const YESNO_FACTS = `({ rows: document.querySelectorAll('#yesno-row').length, text: document.getElementById('yesno-row')?.textContent ?? '' })`;
-// export const PENDING_TICK_TIME = `(document.querySelector('#ruler .tick.cut-pending')?.dataset.fullTime ?? '')`;
-export const PENDING_TICK_TIME = `(document.querySelector('#ruler .tick.cut-pending')?.textContent ?? '')`;
-export const STRIP_ENTRY_COUNT = `document.querySelectorAll('#jfred-strip .jnode[data-entry-kind]').length`;
+// export const PENDING_TICK_TIME = `(document.querySelector('#timelineRulerComponent .tick.cut-pending')?.dataset.fullTime ?? '')`;
+export const PENDING_TICK_TIME = `(document.querySelector('#timelineRulerComponent .tick.cut-pending')?.textContent ?? '')`;
+export const STRIP_ENTRY_COUNT = `document.querySelectorAll('#jfredCommitsDrawerComponent .jnode[data-entry-kind]').length`;
 export const BRANCH_OPTIONS = `[...document.querySelectorAll('#branch option')].map(o => o.value)`;
 export const LOADING_IDLE = `document.getElementById('loadbar').hasAttribute('hidden') && document.getElementById('busy-shield').hidden`;
 // Every label the loading bar shows is kept; an observer sees labels that a 50 ms poll would miss.

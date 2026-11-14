@@ -26,11 +26,11 @@ function formatCommit(commit: RepoCommitRow): string {
 }
 
 function createBranchOption(name: string): HTMLElement {
-  return createElement("option", { value: name, text: name });
+  return createElement("option", { "data-component": "headerBranchItem", value: name, text: name });
 }
 
 function createCommitOption(commit: RepoCommitRow): HTMLElement {
-  return createElement("option", { value: commit.hash, text: formatCommit(commit) });
+  return createElement("option", { "data-component": "headerCommitItem", value: commit.hash, text: formatCommit(commit) });
 }
 
 function fillBranchOptions(refs: Layer1RefsView, ref: string): void {
@@ -51,7 +51,7 @@ function fillCommitOptions(commits: RepoCommitRow[], ref: string): void {
     options.push(createCommitOption(commit));
   }
   // The empty first option means "whatever the ref box already says": a branch name, or nothing.
-  select.replaceChildren(createElement("option", { value: "", text: "(branch head)" }), ...options);
+  select.replaceChildren(createElement("option", { "data-component": "headerBranchHeadItem", value: "", text: "(branch head)" }), ...options);
   // Select only a listed hash: an unmatched value blanks the select, worse than "(branch head)".
   let selectedHash = "";
   for (const commit of commits) {

@@ -31,7 +31,7 @@ function renderTickTime(tick: HTMLElement, row: RulerRow): void {
     firstChild.textContent = timeText;
     return;
   }
-  const timeSpan = createElement("span", { class: "ttime", text: timeText });
+  const timeSpan = createElement("span", { class: "ttime", "data-component": "rulerTimeText", text: timeText });
   if (firstChild === null) {
     tick.prepend(timeSpan);
     return;
@@ -48,7 +48,7 @@ function renderTickCount(tick: HTMLElement, row: RulerRow): void {
     return;
   }
   const anchor = tick.querySelector(":scope > .kind-dashes") ?? tick.firstChild;
-  anchor?.after(createElement("span", { class: "tcount", text: countText }));
+  anchor?.after(createElement("span", { class: "tcount", "data-component": "rulerCountText", text: countText }));
 }
 
 // The row's only session, or undefined when zero or several sessions have a dot there.
@@ -82,7 +82,7 @@ function renderTickDisplay(tick: HTMLElement, row: RulerRow, sessionColor: strin
 
 // Changes what each tick shows, never the tick count; colors only while sessions show.
 export function renderRulerDisplay(annotations: readonly WireAnnotation[], colors: Map<string, string>, isSessionShown: boolean): void {
-  const ruler = document.getElementById("ruler")!;
+  const ruler = document.getElementById("timelineRulerComponent")!;
   ruler.classList.add(RULER_SESSIONS_CLASS);
   const sessionsByInstant = listSessionsByInstant(annotations);
   for (const tick of ruler.querySelectorAll<HTMLElement>(".tick")) {
@@ -96,5 +96,5 @@ export function renderRulerDisplay(annotations: readonly WireAnnotation[], color
 }
 
 export function removeRulerDisplay(): void {
-  document.getElementById("ruler")?.classList.remove(RULER_SESSIONS_CLASS);
+  document.getElementById("timelineRulerComponent")?.classList.remove(RULER_SESSIONS_CLASS);
 }

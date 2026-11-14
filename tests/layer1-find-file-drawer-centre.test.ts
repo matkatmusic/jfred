@@ -13,11 +13,11 @@ test("test_clicking_a_node_scrolls_it_to_the_centre_of_the_part_the_drawer_leave
     installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
     const node = buildDiskNodeStage();
     installNodeDrawer();
-    const pane = getRequiredElementById("timelines");
+    const pane = getRequiredElementById("timelineContainer");
     pane.scrollTop = 1000;
     pane.getBoundingClientRect = () => ({ left: 0, right: 1000, top: 0, bottom: 800, width: 1000, height: 800 }) as DOMRect;
     // The drawer overlays the right half only once open; closed it is zero wide.
-    getRequiredElementById("drawer").getBoundingClientRect = () => (getRequiredElementById("drawer").classList.contains("open")
+    getRequiredElementById("detailsPaneContainer").getBoundingClientRect = () => (getRequiredElementById("detailsPaneContainer").classList.contains("open")
         ? { left: 500, right: 1000, top: 0, bottom: 800, width: 500, height: 800 }
         : { left: 1000, right: 1000, top: 0, bottom: 800, width: 0, height: 800 }) as DOMRect;
     node.getBoundingClientRect = () => ({ left: 700, right: 715, top: 100, bottom: 115, width: 15, height: 15 }) as DOMRect;

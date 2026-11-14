@@ -7,7 +7,7 @@ import { DISPATCHER_PATH, DRAWER_TIMEOUT_MS, INDEX_PATH, UTIL_PATH, buildDotFind
 async function openNode(page: HeadlessPage, dot: string): Promise<void> {
   await page.evaluate(`document.getElementById('dbody').replaceChildren(); ${dot}.click()`);
   await page.waitFor(
-    `document.getElementById('drawer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`,
+    `document.getElementById('detailsPaneContainer').classList.contains('open') && document.querySelectorAll('#dbody .diff-line').length > 0`,
     DRAWER_TIMEOUT_MS);
 }
 

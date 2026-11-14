@@ -34,7 +34,7 @@ export function isKindHidden(kind: ShowRowKind | undefined): boolean {
 }
 
 function applyHiddenKindsAttribute(): void {
-  document.querySelector(".viz-root")!.setAttribute("data-hidden-kinds", [...hiddenKinds].join(" "));
+  document.querySelector(".appWindow")!.setAttribute("data-hidden-kinds", [...hiddenKinds].join(" "));
 }
 
 // Task 343: the view and redraw the Edit box uses; each render sets them.
@@ -175,7 +175,7 @@ function toggleKindBoxFromEvent(event: Event): Promise<void> {
 }
 
 function updateKindBoxChecks(): void {
-  for (const box of document.querySelectorAll<HTMLInputElement>("#show-row input[data-kind]")) {
+  for (const box of document.querySelectorAll<HTMLInputElement>("#timelineViewControls input[data-kind]")) {
     box.checked = !hiddenKinds.has(box.dataset["kind"] as ShowRowKind);
   }
 }
@@ -202,6 +202,6 @@ export function renderShowRowWithKindFilter(view: WireLayer1View, redrawView: ()
   renderShowRow(view);
   resetHiddenKindsFromSettings();
   // Assigned, not added, so a re-render never stacks listeners.
-  getRequiredElementById("show-row").onchange = toggleKindBoxFromEvent;
+  getRequiredElementById("timelineViewControls").onchange = toggleKindBoxFromEvent;
   attachKindButtons();
 }

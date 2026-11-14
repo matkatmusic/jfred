@@ -27,7 +27,7 @@ function buildStageBubble(path: string): string {
   return `<div class="filebox"><div class="fname" data-path="${path}">${basename}</div></div>`;
 }
 
-// A booted page whose stage holds `paths` as bubbles. Emptying the box clears cycle state, which outlives the DOM.
+// A booted page whose fileBubbleContainer holds `paths` as bubbles. Emptying the box clears cycle state, which outlives the DOM.
 export function openFoundPage(paths: string[]): void {
   initLayer1Dom();
   initLayer1Page();
@@ -40,7 +40,7 @@ export function openFoundPage(paths: string[]): void {
   let bubblesHtml = "";
   for (const path of paths)
     bubblesHtml += buildStageBubble(path);
-  document.getElementById("stage")!.innerHTML = bubblesHtml;
+  document.getElementById("fileBubbleContainer")!.innerHTML = bubblesHtml;
 }
 
 export function readCrumbText(): string {

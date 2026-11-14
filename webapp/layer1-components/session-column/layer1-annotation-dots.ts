@@ -39,6 +39,7 @@ function setLookProperties(element: HTMLElement, look: SessionLook): void {
 function buildNodeAttributes(annotation: WireAnnotation, className: string): Record<string, string | undefined> {
   return {
     class: className,
+    "data-component": "sessionDotsDot",
     "data-record-id": annotation.id,
     "data-record-kind": annotation.kind,
     "data-instant": annotation.instant,
@@ -64,7 +65,7 @@ export function buildNode(placement: Placement, look: SessionLook): HTMLElement 
 
 // The line runs from the session's first dot to its last dot.
 export function buildSessionLine([first, last]: PairSpan, look: SessionLook): HTMLElement {
-  const line = buildPairBracket(buildNode(first, look), buildNode(last, look), "sline");
+  const line = buildPairBracket(buildNode(first, look), buildNode(last, look), "sline", { "data-component": "sessionDotsLine" });
   line.dataset["sessionId"] = first.annotation.sessionId;
   setLookProperties(line, look);
   return line;
@@ -72,7 +73,7 @@ export function buildSessionLine([first, last]: PairSpan, look: SessionLook): HT
 
 // Same bracket as before, moved to the lane of its first dot.
 export function buildPairSpanBracket([first, last]: PairSpan, look: SessionLook): HTMLElement {
-  const bracket = buildPairBracket(buildNode(first, look), buildNode(last, look), "abracket");
+  const bracket = buildPairBracket(buildNode(first, look), buildNode(last, look), "abracket", { "data-component": "sessionDotsBracket" });
   bracket.dataset["pairId"] = first.annotation.pairId!;
   bracket.style.setProperty("--lane-x", `${look.laneX}px`);
   return bracket;

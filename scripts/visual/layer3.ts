@@ -67,7 +67,7 @@ async function executeDriveAndCheck(port: number, payload: WireEditsView): Promi
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   try {
     await page.navigate(`http://127.0.0.1:${port}/app/layer1.html?${buildViewParams()}`);
-    await page.waitFor("document.querySelectorAll('#stage .filebox').length > 0", PAGE_TIMEOUT_MS);
+    await page.waitFor("document.querySelectorAll('#fileBubbleContainer .filebox').length > 0", PAGE_TIMEOUT_MS);
     await executeLayer3RealChecks(page, payload, PAGE_TIMEOUT_MS, IS_JOT ? "08-layer3-jot" : "07-layer3-real");
   }
   finally {

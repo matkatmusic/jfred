@@ -6,7 +6,7 @@ import * as checks from "../scripts/visual/ruler-ui-checks.ts";
 import { makeScriptedPage, runCheck } from "./layer9-fake-page.ts";
 
 const BOX_TIME = { left: 10, right: 110, top: 0, bottom: 12 };
-const HEAD: checks.HeadFacts = { isFirstChild: true, headButtons: 1, headText: "session", hasJfredButton: false, trackCount: 0, stripCount: 0 };
+const HEAD: checks.HeadFacts = { isFirstChild: true, headButtons: 0, headText: "", hasJfredButton: false, trackCount: 0, stripCount: 0, sessionButtonParentId: "timelineViewControls" };
 const HEAD_AT = { height: 44, offset: 0, borderStyle: "dotted", tickTop: 100 };
 const makeTick = (n: number) => ({ time: "06-01-2026:09:00", count: "(2)", fullTime: `06-01 09:00:00.${String(n).padStart(3, "0")}`, title: `06-01 09:00:00.${String(n).padStart(3, "0")}` });
 const makeTicks = (count: number) => Array.from({ length: count }, (_, n) => makeTick(n % 1000));
@@ -16,14 +16,14 @@ const EXPANDED: checks.ExpandFacts = {
     buttons: [{ text: "a.py  abcd1234", kind: "tf-edit", color: "rgb(4, 5, 6)" }, { text: "b.py  @v2 📸", kind: "tf-snapshot", color: "rgb(1, 2, 3)" }],
 };
 
-test("test_head_with_one_session_button_passes", () => {
-    // Step: the head is first, holds only the session button, and no column exists.
+test("test_empty_head_with_the_session_button_in_the_view_controls_passes", () => {
+    // Step: the head is first and empty, the session button is in the view controls, and no column exists.
     assert.equal(checks.isHeadRight(HEAD), true);
 });
 
 test("test_head_fails_for_a_jfred_button_a_second_button_a_track_or_a_strip", () => {
     // Step: break one fact at a time; each must fail the judge.
-    for (const change of [{ hasJfredButton: true }, { headButtons: 2 }, { trackCount: 1 }, { stripCount: 1 }, { isFirstChild: false }, { headText: "jfred" }])
+    for (const change of [{ hasJfredButton: true }, { headButtons: 1 }, { trackCount: 1 }, { stripCount: 1 }, { isFirstChild: false }, { headText: "session" }, { sessionButtonParentId: "ruler-head" }])
         assert.equal(checks.isHeadRight({ ...HEAD, ...change }), false, JSON.stringify(change));
 });
 

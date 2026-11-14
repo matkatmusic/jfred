@@ -67,7 +67,7 @@ function stubEveryRectOnScreen(): void {
 
 function stubPaneScrolledAwayFromTargets(): void {
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
-        return this.id === "timelines" ? SCROLLED_PAST_TARGETS : ON_SCREEN;
+        return this.id === "timelineContainer" ? SCROLLED_PAST_TARGETS : ON_SCREEN;
     };
 }
 

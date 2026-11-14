@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { openLinkedNodeAfterLoad } from "../webapp/layer1-components/bubbles/layer1-linked-node.ts";
 import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -17,7 +18,9 @@ test("a node already on the page opens without ticking any box", async () => {
   const node = createElement("i", {
     class: "node n-snap", "data-instant": IDENTITY.instant, "data-session-file": IDENTITY.sessionFile, "data-line": "2235", "data-version": "1",
   });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(bubbleContainer);
+  bubbleContainer.append(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));
@@ -25,5 +28,5 @@ test("a node already on the page opens without ticking any box", async () => {
 
   await openLinkedNodeAfterLoad(IDENTITY);
 
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
 });

@@ -6,21 +6,30 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installProjectSettingsToggle } from "../webapp/layer1-components/top-bars/layer1-project-settings-toggle.ts";
 
 function readRowsOpen(): boolean {
-    return document.querySelector(".viz-root")!.classList.contains("project-settings-open");
+    return document.querySelector(".appWindow")!.classList.contains("project-settings-open");
 }
 
 function readButton(): HTMLButtonElement {
     return document.getElementById("project-settings") as HTMLButtonElement;
 }
 
-test("test_the_project_settings_rows_sit_in_the_header_and_start_hidden", () => {
-    // Scenario: the page opens with the toggle off, and both rows are header children.
+test("test_the_project_settings_rows_sit_in_the_header_container_and_start_hidden", () => {
+    // Scenario: the page opens with the toggle off, and both rows are children [1] and [2] of #headerContainer.
     initLayer1Dom();
     installProjectSettingsToggle();
+    // The toggle is off and the button is not marked `.current`.
     assert.equal(readRowsOpen(), false);
     assert.equal(readButton().classList.contains("current"), false);
-    assert.equal(document.querySelectorAll("header > .sources").length, 2);
-    assert.ok(document.querySelector("header > .sources.repo"));
+    // The first child of #headerContainer is the header row, so the rows follow it.
+    const headerContainer = document.getElementById("headerContainer")!;
+    const jsonlRow = headerContainer.children[1]!;
+    const repoRow = headerContainer.children[2]!;
+    assert.ok(jsonlRow.classList.contains("sources"));
+    assert.equal(jsonlRow.classList.contains("repo"), false);
+    assert.ok(repoRow.classList.contains("sources"));
+    assert.ok(repoRow.classList.contains("repo"));
+    // No `.sources` row sits anywhere else in the page.
+    assert.equal(document.querySelectorAll(".sources").length, 2);
 });
 
 test("test_the_project_settings_button_follows_the_time_bar", () => {

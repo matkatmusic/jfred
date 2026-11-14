@@ -35,7 +35,7 @@ function openPageWithBuckets(gitOrphanPaths: string[], diskOrphanPaths: string[]
 
 // Click the header button that aims at `title`; `data-bucket` is the only link between a button and its bucket.
 function clickJumpButtonFor(title: string): void {
-    const button = document.querySelector<HTMLElement>(`.jumpbar [data-bucket="${title}"]`);
+    const button = document.querySelector<HTMLElement>(`.jumpToRowComponent [data-bucket="${title}"]`);
     assert.notEqual(button, null, `no jump button carries data-bucket="${title}"`);
     button!.click();
 }

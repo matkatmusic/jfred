@@ -10,7 +10,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 test("markTickKindState leaves an event-less tick unmarked with an empty dash holder", () => {
     initLayer1Dom();
     const tick = createElement("div", { class: "tick", text: "06-02 09:00:00" });
-    document.getElementById("ruler")!.appendChild(tick);
+    document.getElementById("timelineRulerComponent")!.appendChild(tick);
     markTickKindState([]);
     assert.equal(tick.classList.contains("multi"), false);
     assert.equal(tick.classList.contains(KIND_HIDDEN_CLASS), false);
