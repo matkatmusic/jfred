@@ -36,7 +36,10 @@ const TITLES = {
 const makeGoodTable = (): Map<string, unknown> => new Map<string, unknown>([
     [SCROLL_HOME, 0], [STAGE_LEFT, OFF_LEFT], [SESSION_TOGGLE_CLICK, 0], [QUIET_FACTS, { errors: 0, isIdle: true }],
     [buildScrollToDot(FILL_8), true], [buildScrollToDot(ENDS.lastId), true], [buildScrollToDot(FILL_40), true], [buildScrollToDot(String(ANNOTATION_MID_IDS[0])), true],
-    [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 472, laneXs: ["18px", "35px", "52px"] }],
+    // task 912: the fixture track is 91px wide with lanes at 18, 35 and 52
+    // [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 104, rulerRight: 384, stageLeft: 502, laneXs: ["18px", "57px", "82px"] }],
+    [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 91, rulerRight: 384, stageLeft: 489, laneXs: ["18px", "35px", "52px"] }],
+    // [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 472, laneXs: ["18px", "35px", "52px"] }],
     // [SESSION_FACTS, { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT, laneXs: ["18px", "35px", "52px"] }],
     [SESSION_SCAN, {
         letters: ["u", "a"], titled: 0, alabels: 0, colours: [["c1"], ["c2"], ["c3"], ["c4"]],
@@ -105,7 +108,10 @@ test("test_the_good_fake_page_passes_the_14_session_state_checks_and_returns_the
 
 test("test_a_stage_that_moved_less_than_the_track_fails_only_the_stage_check", async () => {
 // test("test_a_stage_pushed_right_by_the_track_width_fails_only_the_stage_check", async () => {
-    const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "35px", "52px"] };
+    // task 912: the fixture track is 91px wide with lanes at 18, 35 and 52
+    // const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 104, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "57px", "82px"] };
+    const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 91, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "35px", "52px"] };
+    // const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: 400, laneXs: ["18px", "35px", "52px"] };
     // const facts = { isCurrent: true, background: "rgb(25, 158, 112)", trackLeft: 384, trackWidth: 74, rulerRight: 384, stageLeft: OFF_LEFT + 74, laneXs: ["18px", "35px", "52px"] };
     assert.deepEqual((await runState([[SESSION_FACTS, facts]])).newFailures, [TITLES.stage]);
 });

@@ -18,7 +18,7 @@ function drawDot(): HTMLElement {
 }
 
 test("test_clicking_a_dot_opens_the_drawer_with_title_label_and_the_fetched_json", async () => {
-    // Steps: click a dot, wait, then check the request, heading and JSON box.
+    // Steps: click a dot, wait, then check the request, heading, file name and line, full-path tooltip and JSON box.
     initLayer1Dom();
     installAnimationFrameStub();
     const asks = installRecordingFetch(() => ({ type: "user", note: "dot json line" }));
@@ -31,7 +31,8 @@ test("test_clicking_a_dot_opens_the_drawer_with_title_label_and_the_fetched_json
     assert.equal(params.get("line"), "1007");
     assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
     assert.equal(getRequiredElementById("dpath").textContent, "seed the demo app");
-    assert.equal(getRequiredElementById("dmeta").textContent, "fix the trim bug");
+    assert.equal(getRequiredElementById("dmeta").textContent, "fix the trim bug\n0f3c9a7e.jsonl line 1007");
+    assert.equal(getRequiredElementById("dpath").title, "/fixture/demo/projects/0f3c9a7e.jsonl");
     assert.ok(getRequiredElementById("dbody").textContent?.includes("dot json line"));
 });
 

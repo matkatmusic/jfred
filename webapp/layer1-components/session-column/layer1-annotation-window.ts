@@ -1,8 +1,10 @@
 // Task 382: pure placement of session records on the axis, and the window of them near the viewport.
 
 import { computeAxisPixelsAt } from "../bubbles/layer1-ranges.ts";
-import type { WireAnnotation } from "./layer1-wire-annotations.ts";
+import type { WireAnnotation, WireSessionSpan } from "./layer1-wire-annotations.ts";
+import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
+import { buildDotLineKey } from "./layer1-session-slots.ts";
 
 // How far past the viewport edge the column keeps drawing records.
 export const ANNOTATION_MARGIN_PX = 300;
@@ -99,6 +101,41 @@ export function listSessionSpans(list: readonly Placement[]): PairSpan[] {
   return listSpansByKey(list, readSessionKey);
 }
 
+function isSpanInsideRuler(span: WireSessionSpan, ticks: readonly WireRulerTick[]): boolean {
+  const firstTickMs = Date.parse(ticks[0]!.instant);
+  const lastTickMs = Date.parse(ticks[ticks.length - 1]!.instant);
+  const spanFirstMs = Date.parse(span.first);
+  const spanLastMs = Date.parse(span.last);
+  if (spanLastMs < firstTickMs) {
+    return false;
+  }
+  if (spanFirstMs > lastTickMs) {
+    return false;
+  }
+  return true;
+}
+
+// The ruler's first and last tick bound what can be drawn: a session wholly outside it would pile on one pixel.
+export function listSessionPixelSpansFromServer(spans: readonly WireSessionSpan[], ticks: readonly WireRulerTick[]): SessionPixelSpan[] {
+  const pixelSpans: SessionPixelSpan[] = [];
+  for (const span of spans) {
+    if (isSpanInsideRuler(span, ticks)) {
+      const firstPx = computeAxisPixelsAt(Date.parse(span.first), ticks);
+      const lastPx = computeAxisPixelsAt(Date.parse(span.last), ticks);
+      pixelSpans.push({ sessionId: span.sessionId, firstPx, lastPx });
+    }
+  }
+  return pixelSpans;
+}
+
+export function listSessionPixelSpansFromPlacements(spans: readonly PairSpan[]): SessionPixelSpan[] {
+  const pixelSpans: SessionPixelSpan[] = [];
+  for (const [first, last] of spans) {
+    pixelSpans.push({ sessionId: first.annotation.sessionId, firstPx: first.axisPx, lastPx: last.axisPx });
+  }
+  return pixelSpans;
+}
+
 export function listWindowPlacements(placements: readonly Placement[], topPx: number, bottomPx: number): Placement[] {
   const kept: Placement[] = [];
   for (const placement of placements) {
@@ -110,4 +147,17 @@ export function listWindowPlacements(placements: readonly Placement[], topPx: nu
     }
   }
   return kept;
+}
+
+// One placement per (session, y) that has extra dots: the one with the largest stack.
+export function listConnectorPlacements(list: readonly Placement[]): Placement[] {
+  const widestByLine = new Map<string, Placement>();
+  for (const placement of list) {
+    const key = buildDotLineKey(placement.annotation.sessionId, placement.axisPx);
+    const widestStack = widestByLine.get(key)?.stack ?? 0;
+    if (placement.stack > widestStack) {
+      widestByLine.set(key, placement);
+    }
+  }
+  return [...widestByLine.values()];
 }

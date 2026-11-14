@@ -1,12 +1,17 @@
 // Layer 7 session-column checks: placement, windowing, duplicates and the look of each record kind.
 
 import { type HeadlessPage } from "./cdp.ts";
-import { buildRulerMatchProbe } from "./layer4-probes.ts";
+// import { buildRulerMatchProbe } from "./layer4-probes.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
+import { SESSION_DOT_PX } from "../../webapp/layer1-components/ruler/layer1-session-dot-counts.ts";
 import { LANE_STEP_PX } from "../../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 import {
+  // task 912: isBracketClearOfDots is commented out in layer7-facts.ts
+  // isBracketClearOfDots,
   BLOCK_IDS, TOOL_IDS, countNodesWithClass, findColumnNode, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane, isBracketSpanning,
+  // isNear,
   isEveryIdUnique, isLetterSetExpected, isStampedWithPredecessor, isTrackBetween, isWindowed, listBlockNodes, listColumnIds, listMissingIds,
+  // type PageBox,
   type ColumnBracketFacts, type ColumnNodeFacts, type DuplicateFacts, type SessionDotColour, type TrackFacts, type WindowFacts,
 } from "./layer7-facts.ts";
 import {
@@ -59,14 +64,97 @@ export async function validateTrack(page: HeadlessPage): Promise<void> {
   await validateNoDuplicates(page, await validateFullScroll(page));
 }
 
-async function validateRulerMatch(page: HeadlessPage): Promise<void> {
-  const unmatched: string[] = [];
-  for (const id of [...BLOCK_IDS, ...TOOL_IDS]) {
-    const isMatched = await page.evaluate<boolean>(buildRulerMatchProbe(buildRecordDot(id)));
-    if (!isMatched)
-      unmatched.push(id);
+// async function validateRulerMatch(page: HeadlessPage): Promise<void> {
+//   const unmatched: string[] = [];
+//   for (const id of [...BLOCK_IDS, ...TOOL_IDS]) {
+//     const isMatched = await page.evaluate<boolean>(buildRulerMatchProbe(buildRecordDot(id)));
+//     if (!isMatched)
+//       unmatched.push(id);
+//   }
+//   reportCheck("L7 every block node and both tool nodes sit level with a ruler tick", unmatched.length === 0, unmatched);
+// }
+
+const LINE_TOLERANCE_PX = 2;
+// const STAMPLESS_TOLERANCE_PX = 1;
+// const MAX_STAMPLESS_OVERLAP_AREA_PX = 0.5;
+
+interface RowOffsetFacts { dotCy: number; tickCy: number | null }
+interface RowLineFacts { lineIndex: number | undefined; tickCy: number | null }
+
+// The row tick is the lowest tick whose centre is not below the dot centre.
+const buildRowOffsetProbe = (dot: string) => `(d => {
+    const box = d.getBoundingClientRect();
+    const dotCy = box.top + box.height / 2;
+    let tickCy = null;
+    for (const t of document.querySelectorAll('.timelineRulerComponent .tick')) {
+        const row = t.getBoundingClientRect();
+        const rowCy = row.top + row.height / 2;
+        if (rowCy <= dotCy + ${LINE_TOLERANCE_PX} && (tickCy === null || rowCy > tickCy))
+            tickCy = rowCy;
+    }
+    return { dotCy, tickCy };
+})(${dot})`;
+
+// Whole number of dot lines under the row tick, or undefined when the dot is off the line grid or above its tick.
+function computeLineIndex(facts: RowOffsetFacts): number | undefined {
+  if (facts.tickCy === null)
+    return undefined;
+  const lines = (facts.dotCy - facts.tickCy) / SESSION_DOT_PX;
+  if (Math.abs(lines - Math.round(lines)) * SESSION_DOT_PX > LINE_TOLERANCE_PX)
+    return undefined;
+  if (Math.round(lines) < 0)
+    return undefined;
+  return Math.round(lines);
+}
+
+async function measureRowLine(page: HeadlessPage, id: string): Promise<RowLineFacts> {
+  const facts = await page.evaluate<RowOffsetFacts>(buildRowOffsetProbe(buildRecordDot(id)));
+  return { lineIndex: computeLineIndex(facts), tickCy: facts.tickCy };
+}
+
+async function listBadToolIds(page: HeadlessPage): Promise<string[]> {
+  const badIds: string[] = [];
+  for (const id of TOOL_IDS) {
+    const line = await measureRowLine(page, id);
+    if (line.lineIndex === undefined)
+      badIds.push(id);
   }
-  reportCheck("L7 every block node and both tool nodes sit level with a ruler tick", unmatched.length === 0, unmatched);
+  return badIds;
+}
+
+// Fills lowestLineBySessionRow with the smallest line index of each session in each row.
+async function listBadBlockIds(page: HeadlessPage, nodes: ColumnNodeFacts[], lowestLineBySessionRow: Map<string, number>): Promise<string[]> {
+  const badIds: string[] = [];
+  for (const id of BLOCK_IDS) {
+    const line = await measureRowLine(page, id);
+    if (line.lineIndex === undefined) {
+      badIds.push(id);
+      continue;
+    }
+    const sessionRow = `${findColumnNode(nodes, id).sessionId}|${line.tickCy}`;
+    const lowestLine = lowestLineBySessionRow.get(sessionRow);
+    if (lowestLine === undefined || line.lineIndex < lowestLine)
+      lowestLineBySessionRow.set(sessionRow, line.lineIndex);
+  }
+  return badIds;
+}
+
+function listSessionRowsWithoutLevelDot(lowestLineBySessionRow: Map<string, number>): string[] {
+  const sessionRows: string[] = [];
+  for (const [sessionRow, lowestLine] of lowestLineBySessionRow) {
+    if (lowestLine !== 0)
+      sessionRows.push(sessionRow);
+  }
+  return sessionRows;
+}
+
+async function validateRulerMatch(page: HeadlessPage, nodes: ColumnNodeFacts[]): Promise<void> {
+  const lowestLineBySessionRow = new Map<string, number>();
+  const badBlockIds = await listBadBlockIds(page, nodes, lowestLineBySessionRow);
+  const badToolIds = await listBadToolIds(page);
+  const unlevelSessionRows = listSessionRowsWithoutLevelDot(lowestLineBySessionRow);
+  const unmatched = [...badBlockIds, ...badToolIds, ...unlevelSessionRows];
+  reportCheck("L7 every block node and both tool nodes sit a whole number of 14px lines under their row tick, and each session's first dot in a row is level with the tick", unmatched.length === 0, unmatched);
 }
 
 function isPairRight(nodes: ColumnNodeFacts[], bracket: ColumnBracketFacts): boolean {
@@ -79,6 +167,9 @@ function isPairRight(nodes: ColumnNodeFacts[], bracket: ColumnBracketFacts): boo
   const isApart = result.cy - use.cy >= MIN_PAIR_GAP_PX;
   const isHookBetween = hook.cy > use.cy && hook.cy < result.cy;
   const isBesideLane = isBracketBesideLane(bracket, [use, result], LANE_STEP_PX);
+  // task 912: the pair check no longer demands room between the bracket and the neighbour lane
+  // const isClearOfDots = isBracketClearOfDots(bracket, nodes);
+  // return isTyped && isSamePair && isApart && isHookBetween && isBesideLane && isClearOfDots && isBracketSpanning(bracket, use.cy, result.cy, BRACKET_TOLERANCE_PX);
   return isTyped && isSamePair && isApart && isHookBetween && isBesideLane && isBracketSpanning(bracket, use.cy, result.cy, BRACKET_TOLERANCE_PX);
 }
 
@@ -116,6 +207,32 @@ function isStamplessRight(nodes: ColumnNodeFacts[]): boolean {
   return isOnce && isStampedWithPredecessor(stampless, predecessor);
 }
 
+// function computeOverlapArea(first: PageBox, second: PageBox): number {
+//   const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+//   const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
+//   if (width <= 0)
+//     return 0;
+//   if (height <= 0)
+//     return 0;
+//   return width * height;
+// }
+
+// // Same instant, same lane, exactly one dot height under the predecessor, and the two dot boxes do not overlap.
+// function isStamplessUnderPredecessor(stampless: ColumnNodeFacts, predecessor: ColumnNodeFacts): boolean {
+//   const isSameInstant = stampless.instant === predecessor.instant;
+//   const isSameLane = isNear(stampless.nodeBox.left, predecessor.nodeBox.left, STAMPLESS_TOLERANCE_PX);
+//   const isOneDotUnder = isNear(stampless.nodeBox.top - predecessor.nodeBox.top, SESSION_DOT_PX, STAMPLESS_TOLERANCE_PX);
+//   const isClear = computeOverlapArea(stampless.nodeBox, predecessor.nodeBox) < MAX_STAMPLESS_OVERLAP_AREA_PX;
+//   return isSameInstant && isSameLane && isOneDotUnder && isClear;
+// }
+
+// function isStamplessRight(nodes: ColumnNodeFacts[]): boolean {
+//   const isOnce = countNodesWithClass(nodes, "is-stampless") === 1;
+//   const stampless = findColumnNode(nodes, BLOCK_IDS[7]!);
+//   const predecessor = findColumnNode(nodes, BLOCK_IDS[6]!);
+//   return isOnce && isStamplessUnderPredecessor(stampless, predecessor);
+// }
+
 async function validateColumnPair(page: HeadlessPage, nodes: ColumnNodeFacts[]): Promise<void> {
   const bracket = await page.evaluate<ColumnBracketFacts>(COLUMN_BRACKET);
   reportCheck("L7 the column tool pair: two dots, one pair id, 40px apart, a dashed bracket spanning them and left of both, the hook between", isPairRight(nodes, bracket), bracket);
@@ -137,6 +254,7 @@ async function validateDotLooks(page: HeadlessPage, nodes: ColumnNodeFacts[]): P
   reportCheck("L7 the unknown dot reads exactly ?, carries the worktree-state log text, and the column draws no .alabel label", isUnknownRight(nodes, labelCount), labelCount);
   const stamplessDetail = [findColumnNode(nodes, BLOCK_IDS[6]!).nodeBox, findColumnNode(nodes, BLOCK_IDS[7]!).nodeBox];
   reportCheck("L7 the stampless dot shares its predecessor instant, is level with it, sits beside it at stack 1 with no dot overlap", isStamplessRight(nodes), stamplessDetail);
+  // reportCheck("L7 the stampless dot shares its predecessor instant and lane, sits exactly one dot height (14px) under it, and the two dot boxes do not overlap", isStamplessRight(nodes), stamplessDetail);
 }
 
 // Runs with hide ignored nodes off so every node has a box; it ends with the box on again.
@@ -145,7 +263,7 @@ export async function validateColumnNodes(page: HeadlessPage): Promise<void> {
   await page.evaluate(buildSetHideIgnored(false));
   await page.waitFor(buildHideSettled(false), WAIT_MS);
   const nodes = await page.evaluate<ColumnNodeFacts[]>(COLUMN_NODE_FACTS);
-  await validateRulerMatch(page);
+  await validateRulerMatch(page, nodes);
   await validateDotLooks(page, nodes);
   await validateColumnPair(page, nodes);
 }

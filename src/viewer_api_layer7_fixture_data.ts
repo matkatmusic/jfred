@@ -5,7 +5,7 @@ import { WireRecordKind, type WireAnnotationOf, type WireToolNodeOf } from "../w
 import type { Layer1WireView } from "./viewer_api_layer1.ts";
 import { parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import {
-  buildSameInstantAnnotation, listMidAnnotations, listRowAnnotations, readBlockSession, readFillerSession, readSessionFields,
+  buildSameInstantAnnotation, buildSecondSameInstantAnnotation, listMidAnnotations, listRowAnnotations, readBlockSession, readFillerSession, readSessionFields,
   type AnnotationDraft,
 } from "./viewer_api_layer7_fixture_sessions.ts";
 
@@ -118,6 +118,7 @@ export function buildFixtureAnnotations(ruler: Ruler): Annotation[] {
     ...fillers,
     ...listMidAnnotations(fillers, ruler),
     buildSameInstantAnnotation(fillers),
+    buildSecondSameInstantAnnotation(fillers),
   ].sort(compareAnnotationInstants);
   // return all.sort(compareAnnotationInstants);
   const all = [...canned, ...listRowAnnotations(canned, ruler)].sort(compareAnnotationInstants);

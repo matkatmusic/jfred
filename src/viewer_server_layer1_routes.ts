@@ -14,6 +14,8 @@ import { sendLayer1ReverseResponse } from "./viewer_api_layer1_reverse.ts";
 import { receiveScriptNeeds } from "./viewer_api_layer1_script_needs.ts";
 import { receiveScriptRun } from "./viewer_api_layer1_script_run.ts";
 import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
+import { sendLayer1SessionDotInstantsResponse } from "./viewer_api_layer1_session_dot_instants.ts";
+import { sendLayer1SessionDotsResponse } from "./viewer_api_layer1_session_dots.ts";
 import { sendLayer1SessionsResponse } from "./viewer_api_layer1_sessions.ts";
 import { sendLayer1Settings, receiveLayer1SettingsUpdate } from "./viewer_api_layer1_settings.ts";
 import { sendScanSourceResponse } from "./viewer_api_layer1_sources.ts";
@@ -45,7 +47,9 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-script-runs", (_request, response, url) => sendLayer1ScriptRunsResponse(response, url.searchParams)],
   ["/api/layer1-branches", (_request, response, url) => sendLayer1BranchesResponse(response, url.searchParams)],
   ["/api/layer1-record", (_request, response, url) => sendLayer1Record(response, url.searchParams)],
-  ["/api/layer1-reverse", (_request, response, url) => sendLayer1ReverseResponse(response, url.searchParams)],
+  ["/api/layer1-session-dots", (_request, response, url) => sendLayer1SessionDotsResponse(response, url.searchParams)],
+  ["/api/layer1-session-dot-instants", (_request, response, url) => sendLayer1SessionDotInstantsResponse(response, url.searchParams)],
+  ["/api/layer1-reverse",(_request, response, url) => sendLayer1ReverseResponse(response, url.searchParams)],
   ["/api/layer1-file", (_request, response, url) => sendLayer1FileResponse(response, url.searchParams)],
   ["/api/layer1-diff", (_request, response, url) => sendLayer1Diff(response, url.searchParams)],
   ["/api/scan-source", (_request, response, url) => sendScanSourceResponse(response, url.searchParams)],

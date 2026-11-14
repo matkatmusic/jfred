@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
-const { buildPairBracket } = await import("../webapp/layer1-components/session-column/layer1-annotation-bracket.ts");
+const { buildPairBracket, buildPixelBracket } =await import("../webapp/layer1-components/session-column/layer1-annotation-bracket.ts");
 
 function buildNodeAt(axisPx: number): HTMLElement {
     const node = document.createElement("i");
@@ -23,6 +23,14 @@ test("test_the_bracket_starts_at_the_first_node_and_spans_to_the_second", () => 
 test("test_the_bracket_takes_the_class_name_it_is_given", () => {
     assert.equal(buildPairBracket(buildNodeAt(1), buildNodeAt(2), "abracket", { "data-component": "testBracket" }).className, "abracket");
     assert.equal(buildPairBracket(buildNodeAt(1), buildNodeAt(2), "tbracket", { "data-component": "testBracket" }).className, "tbracket");
+});
+
+test("test_a_pixel_bracket_starts_at_the_smaller_px_and_spans_the_difference", () => {
+    // Steps: build a bracket from two pixel numbers (larger first), then read its start, span and class.
+    const bracket = buildPixelBracket(130, 30, "sline", { "data-component": "testBracket" });
+    assert.equal(bracket.style.getPropertyValue("--axis-px"), "30");
+    assert.equal(bracket.style.getPropertyValue("--span-px"), "100");
+    assert.equal(bracket.className, "sline");
 });
 
 test("test_the_span_is_never_negative", () => {

@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { findNestedRepos } from "../src/reconstruction_repo_discovery.ts";
+import { encodeProjectFolderName, findNestedRepos } from "../src/reconstruction_repo_discovery.ts";
 
 function makeTempDir(): string {
     return mkdtempSync(join(tmpdir(), "reveng-repo-discovery-"));
@@ -55,4 +55,11 @@ test("test_skips_node_modules_subtree", () => {
     // Step: discovery never descends into node_modules, so nothing is returned.
     const found = findNestedRepos(new Path(root));
     assert.deepEqual(found, []);
+});
+
+test("test_encodeProjectFolderName_turns_every_non_alphanumeric_character_into_a_dash", () => {
+    // Scenario: a path with slashes, a space and a dot.
+    // Step: every character that is not a letter or digit becomes a dash.
+    assert.equal(encodeProjectFolderName("/Users/x/Programming/jot"), "-Users-x-Programming-jot");
+    assert.equal(encodeProjectFolderName("/a b/c.d"), "-a-b-c-d");
 });

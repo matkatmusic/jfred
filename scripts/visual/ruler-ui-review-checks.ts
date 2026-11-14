@@ -28,6 +28,12 @@ const ONE_PX = 1;
 const DOT_FONT_SIZE_TEXT = "11px";
 const MIN_LANE_GAP_PX = 2;
 const MAX_LANE_GAP_PX = 4;
+// task 912: slots are 17px apart, so neighbouring lane dots are 3px apart again.
+// Session layout: a lane advances 17 + 8 px, so one-slot lane dots are 25 - 14 = 11px apart; each extra slot adds 14px.
+// const MIN_LANE_GAP_PX = 10;
+// const MAX_LANE_GAP_PX = 12;
+// const MIN_WIDE_LANE_GAP_PX = 24;
+// const MAX_WIDE_LANE_GAP_PX = 26;
 const MIN_BRACKET_INSET_PX = 2;
 const JSON_BUTTON_TEXT = "{ }";
 const FILL_8 = String(listFillerIds()[8]);
@@ -46,6 +52,10 @@ export function isLaneGapRight(gaps: number[]): boolean {
   let isRight = gaps.length > 0;
   for (const gap of gaps) {
     const isInRange = gap >= MIN_LANE_GAP_PX && gap <= MAX_LANE_GAP_PX;
+    // task 912: one gap range again, no wide-lane range.
+    // const isAfterOneSlotLane = gap >= MIN_LANE_GAP_PX && gap <= MAX_LANE_GAP_PX;
+    // const isAfterTwoSlotLane = gap >= MIN_WIDE_LANE_GAP_PX && gap <= MAX_WIDE_LANE_GAP_PX;
+    // isRight &&= isAfterOneSlotLane || isAfterTwoSlotLane;
     isRight &&= isInRange;
   }
   return isRight;
@@ -84,6 +94,8 @@ async function validateSessionLook(page: HeadlessPage): Promise<void> {
   await validateDotDrawer(page);
   await page.evaluate(buildScrollToDot(FILL_8));
   await reportFacts(page, LANE_GAPS, "RULER review: dots in neighbouring lanes have a gap of 2px to 4px between their edges", isLaneGapRight);
+  // task 912: slots are 17px apart, so the gap is 2px to 4px again.
+  // await reportFacts(page, LANE_GAPS, "RULER review: dots in neighbouring lanes have a gap of 10px to 12px between their edges, or 24px to 26px after a lane two dots wide", isLaneGapRight);
 }
 
 async function validateCommitLook(page: HeadlessPage): Promise<void> {

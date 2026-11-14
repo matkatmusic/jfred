@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { listSessionColors } from "../webapp/layer1-components/session-column/layer1-session-colors.ts";
+import { buildSessionColor, listSessionColors } from "../webapp/layer1-components/session-column/layer1-session-colors.ts";
 import { WireRecordKind, type WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 
 function buildAnnotation(id: string, sessionId: string): WireAnnotation {
@@ -46,4 +46,17 @@ test("test_four_sessions_have_four_distinct_colors", () => {
 test("test_second_call_gives_the_same_colors", () => {
   // Scenario: reload gives the same colors.
   assert.deepEqual([...listSessionColors(ANNOTATIONS)], [...listSessionColors(ANNOTATIONS)]);
+});
+
+test("test_colors_follow_the_position_in_a_list_of_session_spans", () => {
+    // Scenario: a list with only sessionId (no annotations) still gives colors by position.
+    // Steps:
+    // two session spans, "b" first and "a" second, with no other fields.
+    const sessionSpans = [{ sessionId: "b" }, { sessionId: "a" }];
+    // ask for the colors.
+    const colors = listSessionColors(sessionSpans);
+    // the keys come out in list order.
+    assert.deepEqual([...colors.keys()], ["b", "a"]);
+    // the first session gets the color for position 0.
+    assert.equal(colors.get("b"), buildSessionColor(0));
 });

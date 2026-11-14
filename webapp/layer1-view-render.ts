@@ -1,7 +1,9 @@
 // Draws a whole Layer 1 view and keeps the folder-selection filter state.
 
 import { getInputById, getRequiredElementById } from "./app-dom.ts";
-import { storeAnnotations } from "./layer1-components/session-column/layer1-annotation-track.ts";
+import { isSessionColumnShown, registerSessionRelayout, storeAnnotations } from "./layer1-components/session-column/layer1-annotation-track.ts";
+import { readRequiredSessionDotInstants } from "./layer1-components/session-column/layer1-session-dot-instants.ts";
+import type { SessionDotInstants } from "./layer1-components/ruler/layer1-session-dot-counts.ts";
 import { rememberNavTargets } from "./layer1-components/bubbles/layer1-diff-wash.ts";
 import { openDetailViewForFiles } from "./layer1-components/details-drawer/layer1-drawer-multi.ts";
 import { renderLayer1FileNav } from "./layer1-components/file-nav/layer1-filenav.ts";
@@ -101,6 +103,15 @@ function renderReverseTargetStage(redrawStage: () => Promise<void>): Promise<voi
   return renderLayer1Stage(emptyView, buildReverseBubble(path, walk.states), listReverseRulerRows(walk.states));
 }
 
+// Undefined while the session button is off, so the ruler keeps its time layout.
+function readSessionRowDots(): SessionDotInstants | undefined {
+  const isShown = isSessionColumnShown();
+  if (!isShown) {
+    return undefined;
+  }
+  return readRequiredSessionDotInstants();
+}
+
 interface StageRenderers {
   renderFilteredStage: () => Promise<void>;
   closeRowAndRenderStage: () => void;
@@ -114,7 +125,7 @@ function createStageRenderers(view: WireLayer1View): StageRenderers {
       return reverseStageDrawn;
     }
     return renderLayer1Stage(filterLayer1ViewByTargets(
-      applyReplayResultsToView(view), getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(),
+      applyReplayResultsToView(view), getIntersectedFilterTargets(onlySelectedIsOn ? folderTargets : [], listSessionFilterTargets()), readRulerExpansion(), readSessionRowDots(),
     ));
   };
   const closeRowAndRenderStage = (): void => {
@@ -122,6 +133,7 @@ function createStageRenderers(view: WireLayer1View): StageRenderers {
     renderFilteredStage();
   };
   registerExpansionRelayout(renderFilteredStage);
+  registerSessionRelayout(renderFilteredStage);
   registerReverseChange(() => {
     clearReverseWalks();
     showReverseModifyingToggle(isReverseOn());

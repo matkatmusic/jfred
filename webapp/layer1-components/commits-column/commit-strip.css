@@ -24,7 +24,8 @@
   .jlabel { left: 24px; transform: translateY(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
   .jchain { left: 11px; height: calc(var(--span-px) * 1px); border-left: 2px solid var(--ink); }
   .jchain.j-pending { border-left-style: dashed; border-color: var(--sel-edge); }
-  .jline { left: calc(var(--track-w) * -1); width: calc(var(--track-w) + 12px); border-top: 1px dashed var(--muted); pointer-events: none; }
+  /* .jline { left: calc(var(--track-w) * -1); width: calc(var(--track-w) + 12px); border-top: 1px dashed var(--muted); pointer-events: none; } */
+  .jline { left: calc(var(--column-w) * -1); width: calc(var(--column-w) + 12px); border-top: 1px dashed var(--muted); pointer-events: none; }
   .timelineRulerComponent .tick.cut-ok::after, .timelineRulerComponent .tick.cut-set::after, .timelineRulerComponent .tick.cut-pending::after, .timelineRulerComponent .tick.cut-base::after {
     content: "\2702"; position: absolute; left: 142px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--ink2); }
   .timelineRulerComponent .tick.cut-no { opacity: .38; }
@@ -40,7 +41,9 @@
     Task 558: the column paints above the strip, so the dashed line runs behind session text.
   */
   .canvas:has(.jfredCommitsDrawerComponent) .sessionDotLinesComponent { z-index: 8; background: transparent; }
-  .jfredCommitsDrawerComponent::before { content: ""; position: absolute; left: calc(var(--track-w) * -1); width: var(--track-w); top: 0; bottom: 0;
+  /* .jfredCommitsDrawerComponent::before { content: ""; position: absolute; left: calc(var(--track-w) * -1); width: var(--track-w); top: 0; bottom: 0;
+    background: var(--surface); pointer-events: none; } */
+  .jfredCommitsDrawerComponent::before { content: ""; position: absolute; left: calc(var(--column-w) * -1); width: var(--column-w); top: 0; bottom: 0;
     background: var(--surface); pointer-events: none; }
   /* .canvas:has(> .jfred-strip) .alabel { background: var(--page); } */
   .canvas:has(.jfredCommitsDrawerComponent) .ranges { z-index: 9; }

@@ -1,6 +1,7 @@
 // Task 253: axisPx accumulates, so filtering re-runs the endpoint's SAME layout rather than hiding bubbles.
 
-import { computeNodeLadderLayout, type NodeLadder, type RulerLayout } from "../ruler/layer1-ruler-axis.ts";
+import { computeNodeLadderLayout, type NodeLadder, type RulerLayout, type RulerPosition } from "../ruler/layer1-ruler-axis.ts";
+import type { SessionDotInstants } from "../ruler/layer1-session-dot-counts.ts";
 import { listRulerRows, type RulerRow } from "../ruler/layer1-ruler-rows.ts";
 import { setDiskOrphanAxisPx, setNodeAxisPx, setPairAxisPx } from "../ruler/layer1-axis-placement.ts";
 import { listOrphanLadderInstants, listPairLadderInstants } from "../../layer1-wire-ladder.ts";
@@ -26,15 +27,21 @@ function setOrphanAxisPx(tickOffsetsPx: Map<number, number>, orphan: WireOrphan)
   return setNodeAxisPx(orphan, axisPx);
 }
 
+// dotBlockPx reaches the wire only in session layout.
+function buildWireTick(tick: RulerPosition): WireRulerTick {
+  const wireTick: WireRulerTick = { instant: tick.instant.toISOString(), axisPx: tick.offsetPx, eventCount: tick.eventCount };
+  if (tick.dotBlockPx !== undefined) {
+    wireTick.dotBlockPx = tick.dotBlockPx;
+  }
+  return wireTick;
+}
+
 // eventCount is re-measured: a folder filter removes bubbles, so counts per instant shrink.
 function listRulerWire(layout: RulerLayout): WireRulerTick[] {
   const wireTicks: WireRulerTick[] = [];
   for (const tick of layout.ticks) {
-    wireTicks.push({
-      instant: tick.instant.toISOString(),
-      axisPx: tick.offsetPx,
-      eventCount: tick.eventCount,
-    });
+    // wireTicks.push({ instant: tick.instant.toISOString(), axisPx: tick.offsetPx, eventCount: tick.eventCount });
+    wireTicks.push(buildWireTick(tick));
   }
   return wireTicks;
 }
@@ -86,11 +93,12 @@ function listViewLadders(view: WireLayer1View): NodeLadder[] {
 }
 
 // Task 300: a draft pass learns which row absorbs the expanded instant, the real pass adds its height.
-export function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansion): WireLayer1View {
+export function computeRelaidLayer1View(view: WireLayer1View, expansion?: RulerExpansion, sessionDots?: SessionDotInstants): WireLayer1View {
   const ladders = listViewLadders(view);
   const diskOrphanLadderBase = view.pairs.length + view.gitOrphans.length;
-  const extraGapPx = measureExpansionGapPx(computeNodeLadderLayout(ladders), expansion);
-  const layout = computeNodeLadderLayout(ladders, extraGapPx);
+  // const extraGapPx = measureExpansionGapPx(computeNodeLadderLayout(ladders), expansion);
+  const extraGapPx = measureExpansionGapPx(computeNodeLadderLayout(ladders, new Map(), undefined, sessionDots), expansion);
+  const layout = computeNodeLadderLayout(ladders, extraGapPx, undefined, sessionDots);
   const tickOffsetsPx = new Map<number, number>();
   for (const tick of layout.ticks) {
     tickOffsetsPx.set(tick.instant.getTime(), tick.offsetPx);
@@ -128,9 +136,9 @@ function filterByPath<Item extends { path: string }>(items: Item[], selected: Se
 }
 
 // Tasks 278+326: exact LEAF-path matching; undefined = no filter, an empty list draws an empty stage.
-export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[] | undefined, expansion?: RulerExpansion): WireLayer1View {
+export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonly string[] | undefined, expansion?: RulerExpansion, sessionDots?: SessionDotInstants): WireLayer1View {
   if (targets === undefined) {
-    return computeRelaidLayer1View(view, expansion);
+    return computeRelaidLayer1View(view, expansion, sessionDots);
   }
   const selected = new Set(targets);
   return computeRelaidLayer1View({
@@ -139,5 +147,5 @@ export function filterLayer1ViewByTargets(view: WireLayer1View, targets: readonl
     diskOrphans: filterByPath(view.diskOrphans, selected),
     // Replaced wholesale by the re-layout below; the surviving records are its only real input.
     ruler: [],
-  }, expansion);
+  }, expansion, sessionDots);
 }

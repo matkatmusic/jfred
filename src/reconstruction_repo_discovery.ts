@@ -40,8 +40,8 @@ function scanForGitRepos(dir: string, found: Path[]): void {
   }
 }
 
-// Claude Code's project-folder name: non-alphanumerics become "-"; duplicated because webapp cannot import src/.
-function encodeProjectFolderName(projectFolder: string): string {
+// Claude Code's project-folder name: non-alphanumerics become "-"; the webapp keeps its own copy because it cannot import src/.
+export function encodeProjectFolderName(projectFolder: string): string {
   return projectFolder.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
