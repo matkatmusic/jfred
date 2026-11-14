@@ -102,7 +102,7 @@ function summarizeStates(states: ReverseFileState[]): string[] {
 
 function makeEvent(type: FileEventType, instant: Date | undefined = makeInstant(1), originalFile: string | undefined = undefined): FileEvent {
     const row = { toolName: "Edit", timestamp: makeInstant(1), source: undefined, oldString: "a", newString: "b", replaceAll: false, originalFile };
-    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined };
+    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined };
 }
 
 function listScriptMayWriteEventsForFile(scene: Scene, transcriptFile: Path): FileEvent[] {
@@ -602,4 +602,88 @@ test("test_getAllEventsForFileFrom_does_not_mark_a_cp_run_as_removed_or_moved_aw
     assert.equal(events.length, 1);
     assert.equal(events[0]!.removedByScript, false);
     assert.equal(events[0]!.movedAwayToFile, undefined);
+});
+
+const MOVE_FILES_SCRIPT_BODY = 'import shutil\nshutil.move("a.py", "b.py")';
+
+function makeWrittenScriptRows(toolUseId: string, scriptFile: string, body: string, second: number): object[] {
+    return [makeCallRecord("Write", toolUseId, { file_path: scriptFile, content: body }, second)];
+}
+
+// The lines are the ones that name the script file, because the run names the target only through the script body.
+function listScriptEventsThroughIndirection(scene: Scene, scriptFile: string, targetFile: Path): FileEvent[] {
+    const jsonlLines = loadJSONLLinesNamingFile(new Path(scriptFile), [scene.jsonlFolder]);
+    const events = getAllEventsForFileFromLines(scene.file, targetFile, jsonlLines, [scene.snapshotFolder], true);
+    return events.filter((event) => event.type === FileEventType.ScriptReadOnly || event.type === FileEventType.ScriptMayWrite);
+}
+
+test("test_run_that_calls_a_written_script_names_the_target_through_the_script_body", (t) => {
+    // Scenario: a Write makes move_files.py, whose body moves a.py to b.py, then a Bash call runs `python3 move_files.py`.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // with indirection on, b.py gets one script event from that run
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.type, FileEventType.ScriptMayWrite);
+});
+
+test("test_exec_open_run_of_a_written_script_names_the_target_through_the_script_body", (t) => {
+    // Scenario: the same Write, then a Bash call runs `python3 -c 'exec(open("move_files.py").read())'`.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    const command = `python3 -c 'exec(open("move_files.py").read())'`;
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", command, 5, scene.folder)]);
+    // with indirection on, b.py gets one script event from that run
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.type, FileEventType.ScriptMayWrite);
+});
+
+test("test_move_in_the_script_body_sets_the_move_or_copy_source_file", (t) => {
+    // Scenario: the script body calls shutil.move("a.py", "b.py") and a Bash call in the project folder runs it.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // the event of b.py holds <cwd>/a.py as its move or copy source
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "a.py"))]);
+});
+
+test("test_script_event_holds_the_resolved_script_run", (t) => {
+    // Scenario: the same Write and run as the move test.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // the event holds the run with the script body as its code and the called command kept
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events[0]!.scriptRun!.code, MOVE_FILES_SCRIPT_BODY);
+    assert.equal(events[0]!.scriptRun!.invokedScriptFile, "move_files.py");
+    assert.equal(events[0]!.scriptRun!.invokedCommand, "python3 move_files.py");
+});
+
+test("test_run_of_an_unwritten_script_stays_a_raw_run", (t) => {
+    // Scenario: a Bash call runs `python3 b.py`, and no Write made b.py.
+    const scene = makeScene(t, "A");
+    const targetFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", "python3 b.py", 5, scene.folder));
+    // the event holds the run unchanged: its code is the command and no script file is recorded
+    const events = listScriptEventsThroughIndirection(scene, targetFile, new Path(targetFile));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.scriptRun!.code, "python3 b.py");
+    assert.equal(events[0]!.scriptRun!.invokedScriptFile, undefined);
+});
+
+test("test_old_walk_entry_does_not_resolve_script_indirection", (t) => {
+    // Scenario: the Write of move_files.py moves b.py, and a Bash call runs `python3 move_files.py b.py`, which names b.py itself.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    const command = "python3 move_files.py b.py";
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", command, 5, scene.folder)]);
+    // the old walk gives b.py one read-only script event that holds the raw command, not the script body
+    const events = getAllEventsForFileFrom(scene.file, new Path(join(scene.folder, "b.py")), [scene.jsonlFolder], [scene.snapshotFolder]);
+    const scriptEvents = events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents.length, 1);
+    assert.equal(scriptEvents[0]!.type, FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents[0]!.scriptRun!.code, command);
 });
