@@ -289,3 +289,128 @@ test("test_the_argument_parser_throws_when_a_folder_is_missing", () => {
     // The parser throws the usage text.
     assert.throws(() => readInverseReposSettingsFromArguments(argumentList), /usage/);
 });
+
+type CopyScene = { projectFolder: Path; jsonlsFolder: Path; snapshotFolder: Path; storeFolder: Path };
+
+function makeCallRecord(toolName: string, toolUseId: string, input: object, second: number, cwd: string): object {
+    const content = [{ type: "tool_use", id: toolUseId, name: toolName, input, caller: { type: "direct" } }];
+    return { type: "assistant", uuid: `call-${toolUseId}`, timestamp: new Date(makeInstant(second).getTime() - 1).toISOString(), cwd, message: { role: "assistant", content } };
+}
+
+function makeWriteCreateRows(toolUseId: string, filePath: string, content: string, second: number, cwd: string): object[] {
+    const toolUseResult = { type: "create", filePath, content, originalFile: null, structuredPatch: [], userModified: false };
+    const resultContent = [{ type: "tool_result", tool_use_id: toolUseId, content: "ok" }];
+    const resultRecord = { type: "user", uuid: `result-${toolUseId}`, timestamp: makeInstant(second).toISOString(), message: { role: "user", content: resultContent }, toolUseResult };
+    return [makeCallRecord("Write", toolUseId, { file_path: filePath }, second, cwd), resultRecord];
+}
+
+function makeCopyRows(toolUseId: string, sourceFile: Path, destinationFile: Path, second: number, cwd: string): object[] {
+    return [makeCallRecord("Bash", toolUseId, { command: `cp ${sourceFile.toString()} ${destinationFile.toString()}` }, second, cwd)];
+}
+
+// A project folder that holds the named files with the given text on disk, no git, and one transcript with the given records.
+function makeCopyScene(t: TestContext, diskTextByFileName: Record<string, string>, makeRecords: (projectFolder: Path) => object[]): CopyScene {
+    const rootFolder = makeTempFolder(t);
+    const projectFolder = join(rootFolder, "project");
+    const jsonlsFolder = join(rootFolder, "jsonls");
+    const snapshotFolder = join(rootFolder, "file-history");
+    mkdirSync(projectFolder);
+    mkdirSync(jsonlsFolder);
+    mkdirSync(snapshotFolder);
+    for (const [fileName, diskText] of Object.entries(diskTextByFileName)) {
+        writeFileSync(join(projectFolder, fileName), diskText);
+    }
+    const records = makeRecords(new Path(projectFolder));
+    writeFileSync(join(jsonlsFolder, "s1.jsonl"), records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    return { projectFolder: new Path(projectFolder), jsonlsFolder: new Path(jsonlsFolder), snapshotFolder: new Path(snapshotFolder), storeFolder: new Path(join(rootFolder, "store")) };
+}
+
+function buildCopyScene(scene: CopyScene, fileNames: string[]): FileInverseRepoResult[] {
+    const projectFiles = fileNames.map((fileName) => {
+        const file = new Path(join(scene.projectFolder.toString(), fileName));
+        return { file, transcriptFile: file };
+    });
+    return buildInverseReposForFiles(scene.projectFolder, projectFiles, [scene.jsonlsFolder], [scene.snapshotFolder], scene.storeFolder, DISK_NOW_INSTANT, () => {});
+}
+
+function listCommitsOfCopySceneFile(scene: CopyScene, fileName: string) {
+    const file = new Path(join(scene.projectFolder.toString(), fileName));
+    return listInverseCommits(getInverseRepoFolderForFile(scene.storeFolder, scene.projectFolder, file), fileName);
+}
+
+function makeCopyOfAIntoBRecords(projectFolder: Path): object[] {
+    const fileA = new Path(join(projectFolder.toString(), "a.py"));
+    const fileB = new Path(join(projectFolder.toString(), "b.py"));
+    return [
+        ...makeWriteCreateRows("w1", fileA.toString(), "A1", 1, projectFolder.toString()),
+        ...makeCopyRows("c1", fileA, fileB, 2, projectFolder.toString()),
+    ];
+}
+
+function makeChainRecords(projectFolder: Path): object[] {
+    const fileA = new Path(join(projectFolder.toString(), "a.py"));
+    const fileB = new Path(join(projectFolder.toString(), "b.py"));
+    const fileC = new Path(join(projectFolder.toString(), "c.py"));
+    return [
+        ...makeCopyOfAIntoBRecords(projectFolder),
+        ...makeCopyRows("c2", fileB, fileC, 3, projectFolder.toString()),
+    ];
+}
+
+test("test_a_file_born_by_a_copy_gets_the_text_of_its_source_as_born_text", (t) => {
+    // Scenario: a.py holds "A1", then `cp a.py b.py` runs; b.py holds other text on disk now.
+    const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now" }, makeCopyOfAIntoBRecords);
+    // Both files are project files.
+    buildCopyScene(scene, ["b.py", "a.py"]);
+    // The repo of b.py has a commit with the text of a.py before the copy, and a commit that says b.py was absent.
+    const commitsOfB = listCommitsOfCopySceneFile(scene, "b.py");
+    assert.ok(commitsOfB.some((commit) => commit.text === "A1"));
+    assert.ok(commitsOfB.some((commit) => commit.isFileAbsent));
+});
+
+test("test_a_file_born_by_a_copy_gets_no_born_text_when_the_source_is_not_a_project_file", (t) => {
+    // Scenario: the same copy, but only b.py is a project file.
+    const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now" }, makeCopyOfAIntoBRecords);
+    // The build runs for b.py alone and does not throw.
+    buildCopyScene(scene, ["b.py"]);
+    // The repo of b.py has no commit with the text of a.py, and still has the absent commit.
+    const commitsOfB = listCommitsOfCopySceneFile(scene, "b.py");
+    assert.ok(!commitsOfB.some((commit) => commit.text === "A1"));
+    assert.ok(commitsOfB.some((commit) => commit.isFileAbsent));
+});
+
+test("test_a_chain_of_copies_gives_the_last_file_the_text_of_the_first_when_the_born_file_is_listed_before_its_source", (t) => {
+    // Scenario: a.py holds "A1"; `cp a.py b.py` runs; then `cp b.py c.py` runs.
+    const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now", "c.py": "C-now" }, makeChainRecords);
+    // The project files are listed with each born file before its source.
+    buildCopyScene(scene, ["c.py", "b.py", "a.py"]);
+    // The repo of c.py has a commit with the text "A1".
+    const commitsOfC = listCommitsOfCopySceneFile(scene, "c.py");
+    assert.ok(commitsOfC.some((commit) => commit.text === "A1"));
+});
+
+test("test_a_file_born_by_a_copy_gets_no_born_text_when_the_source_text_before_the_copy_is_not_known", (t) => {
+    // Scenario: `cp a.py b.py` runs, but no event of a.py is older than the copy.
+    const scene = makeCopyScene(t, { "a.py": "A-now", "b.py": "B-now" }, (projectFolder) => {
+        const fileA = new Path(join(projectFolder.toString(), "a.py"));
+        const fileB = new Path(join(projectFolder.toString(), "b.py"));
+        return makeCopyRows("c1", fileA, fileB, 2, projectFolder.toString());
+    });
+    // The build runs and does not throw.
+    buildCopyScene(scene, ["b.py", "a.py"]);
+    // Every commit of b.py holds either its disk text or no text.
+    const commitsOfB = listCommitsOfCopySceneFile(scene, "b.py");
+    assert.ok(commitsOfB.every((commit) => commit.text === undefined || commit.text === "B-now"));
+});
+
+test("test_the_results_keep_the_order_of_the_project_files_when_a_born_file_is_listed_before_its_source", (t) => {
+    // Scenario: a chain of copies, with the project files listed born file first.
+    const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now", "c.py": "C-now" }, makeChainRecords);
+    const fileNames = ["c.py", "b.py", "a.py"];
+    // The build runs.
+    const results = buildCopyScene(scene, fileNames);
+    // Result i names project file i.
+    for (const [index, fileName] of fileNames.entries()) {
+        assert.equal(results[index]!.file.toString(), join(scene.projectFolder.toString(), fileName));
+    }
+});

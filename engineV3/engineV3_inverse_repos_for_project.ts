@@ -8,10 +8,10 @@ import { listCurrentFileState } from "../src/layer1_disk_walk.ts";
 import type { ProgressSink } from "../src/parse/loadTranscript.ts";
 import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
-import { StateConfidence, listKnownStatesForFile } from "./engineV3_file_known_states.ts";
+import { StateConfidence, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 import { buildInverseRepoByEventKind } from "./engineV3_inverse_repo.ts";
 import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.ts";
-import { getAllEventsForFileFromLines, sortEventsNewestToOldest } from "./engineV3_replay_reverse_events.ts";
+import { getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number };
 
@@ -34,6 +34,48 @@ export function getInverseRepoFolderForFile(storeFolder: Path, projectFolder: Pa
 // file is the path on disk now; transcriptFile is the path the session logs use for it.
 export type ProjectFile = { file: Path; transcriptFile: Path };
 
+function findProjectFileIndexByTranscriptFile(projectFiles: ProjectFile[], transcriptFile: Path): number | undefined {
+    for (const [index, projectFile] of projectFiles.entries()) {
+        if (projectFile.transcriptFile.equals(transcriptFile)) {
+            return index;
+        }
+    }
+    return undefined;
+}
+
+// A file born by a move or a copy takes the text its source file had just before that event, so the source states come first.
+function listStatesOfProjectFile(fileIndex: number, projectFiles: ProjectFile[], eventsByFile: FileEvent[][], statesByFile: (FileKnownState[] | undefined)[], fileIndexesBeingComputed: Set<number>): FileKnownState[] {
+    const computedStates = statesByFile[fileIndex];
+    if (computedStates !== undefined) {
+        return computedStates;
+    }
+    fileIndexesBeingComputed.add(fileIndex);
+    const events = eventsByFile[fileIndex]!;
+    const oldestEvent = events[events.length - 1];
+    if (oldestEvent !== undefined) {
+        if (oldestEvent.moveOrCopySourceFile !== undefined) {
+            if (oldestEvent.instant === undefined) {
+                throw new Error(`listStatesOfProjectFile: the oldest event of ${projectFiles[fileIndex]!.file.toString()} has a move or copy source but no instant`);
+            }
+            const sourceFileIndex = findProjectFileIndexByTranscriptFile(projectFiles, oldestEvent.moveOrCopySourceFile);
+            if (sourceFileIndex !== undefined) {
+                if (fileIndexesBeingComputed.has(sourceFileIndex)) {
+                    throw new Error(`listStatesOfProjectFile: ${projectFiles[fileIndex]!.file.toString()} and ${projectFiles[sourceFileIndex]!.file.toString()} are each born from the other`);
+                }
+                const sourceStates = listStatesOfProjectFile(sourceFileIndex, projectFiles, eventsByFile, statesByFile, fileIndexesBeingComputed);
+                const bornText = getTextJustBeforeInstant(sourceStates, oldestEvent.instant);
+                if (bornText !== undefined) {
+                    oldestEvent.bytes = bornText;
+                }
+            }
+        }
+    }
+    const states = listKnownStatesForFile(events);
+    fileIndexesBeingComputed.delete(fileIndex);
+    statesByFile[fileIndex] = states;
+    return states;
+}
+
 export function buildInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
     const repoFolders: Path[] = [];
     for (const { file } of projectFiles) {
@@ -44,11 +86,17 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
         repoFolders.push(repoFolder);
     }
     const linesByFileKey = loadJSONLLinesNamingFiles(projectFiles.map((projectFile) => projectFile.transcriptFile), jsonlsFolders);
+    const eventsByFile: FileEvent[][] = [];
+    for (const { file, transcriptFile } of projectFiles) {
+        eventsByFile.push(sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders)));
+    }
+    const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
+    const fileIndexesBeingComputed = new Set<number>();
     const results: FileInverseRepoResult[] = [];
-    for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
+    for (const [index, { file }] of projectFiles.entries()) {
         const repoFolder = repoFolders[index]!;
-        const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders));
-        const states = listKnownStatesForFile(events);
+        const events = eventsByFile[index]!;
+        const states = listStatesOfProjectFile(index, projectFiles, eventsByFile, statesByFile, fileIndexesBeingComputed);
         mkdirSync(repoFolder.toString(), { recursive: true });
         buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant);
         const unknownStateCount = states.filter((state) => state.confidence === StateConfidence.Unknown).length;
