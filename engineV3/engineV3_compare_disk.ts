@@ -26,66 +26,92 @@ function readTouchedPaths(touchedFile: Path): string[] {
   return paths;
 }
 
-export function chooseDiskFolder(scenarioFolder: Path): Path {
+function findLastStepName(stepStatesFolder: string): string | undefined {
+  let lastStepName: string | undefined;
+  let lastStepNumber = -1;
+  for (const name of readdirSync(stepStatesFolder)) {
+    const isStepName = /^step-\d+$/.test(name);
+    const stepNumber = Number(name.slice("step-".length));
+    const isLastSoFar = isStepName && stepNumber >= lastStepNumber;
+    if (isLastSoFar) {
+      lastStepName = name;
+      lastStepNumber = stepNumber;
+    }
+  }
+  return lastStepName;
+}
+
+export function selectDiskFolder(scenarioFolder: Path): Path {
   const stepStatesFolder = join(scenarioFolder.toString(), ".step_states");
-  if (existsSync(stepStatesFolder) === false) {
+  const hasStepStates = existsSync(stepStatesFolder);
+  if (hasStepStates === false) {
     return scenarioFolder;
   }
-  const stepNames = readdirSync(stepStatesFolder).filter((name) => /^step-\d+$/.test(name));
-  stepNames.sort((first, second) => Number(first.slice("step-".length)) - Number(second.slice("step-".length)));
-  const lastStepName = stepNames[stepNames.length - 1];
+  const lastStepName = findLastStepName(stepStatesFolder);
   if (lastStepName === undefined) {
     throw new Error(`no step-NNN folder in ${stepStatesFolder}`);
   }
   return new Path(join(stepStatesFolder, lastStepName));
 }
 
+function isIgnoredTouchedPath(touchedPath: string): boolean {
+  if (touchedPath === ".git") {
+    return true;
+  }
+  const isInsideGit = touchedPath.startsWith(".git/");
+  if (isInsideGit) {
+    return true;
+  }
+  if (touchedPath === ".idleState") {
+    return true;
+  }
+  const isInsideIdleState = touchedPath.startsWith(".idleState/");
+  return isInsideIdleState;
+}
+
+enum PathComparison {
+  Same = "same",
+  Extra = "extra in state",
+  Missing = "missing from state",
+  Different = "different content",
+}
+
+function comparePathToDisk(stateFile: string, diskFile: string): PathComparison {
+  const isInState = existsSync(stateFile);
+  const isOnDisk = existsSync(diskFile);
+  if (isOnDisk === false) {
+    return isInState ? PathComparison.Extra : PathComparison.Same;
+  }
+  if (isInState === false) {
+    return PathComparison.Missing;
+  }
+  const isSameBytes = readFileSync(stateFile).equals(readFileSync(diskFile));
+  return isSameBytes ? PathComparison.Same : PathComparison.Different;
+}
+
+function filterIgnoredPaths(touchedPaths: string[]): string[] {
+  const keptPaths: string[] = [];
+  for (const touchedPath of touchedPaths) {
+    const isIgnored = isIgnoredTouchedPath(touchedPath);
+    if (isIgnored === false) {
+      keptPaths.push(touchedPath);
+    }
+  }
+  return keptPaths;
+}
+
 export function compareStateToDisk(state: Path, disk: Path, touchedFile: Path): string[] {
   const lines: string[] = [];
-  let missingCount = 0;
-  let extraCount = 0;
-  let differentCount = 0;
-  let sameCount = 0;
-  for (const touchedPath of readTouchedPaths(touchedFile)) {
-    if (touchedPath === ".git") {
-      continue;
+  const counts = { [PathComparison.Same]: 0, [PathComparison.Extra]: 0, [PathComparison.Missing]: 0, [PathComparison.Different]: 0 };
+  const touchedPaths = filterIgnoredPaths(readTouchedPaths(touchedFile));
+  for (const touchedPath of touchedPaths) {
+    const comparison = comparePathToDisk(join(state.toString(), touchedPath), join(disk.toString(), touchedPath));
+    counts[comparison]++;
+    if (comparison !== PathComparison.Same) {
+      lines.push(`${comparison}: ${touchedPath}`);
     }
-    if (touchedPath.startsWith(".git/")) {
-      continue;
-    }
-    if (touchedPath === ".idleState") {
-      continue;
-    }
-    if (touchedPath.startsWith(".idleState/")) {
-      continue;
-    }
-    const stateFile = join(state.toString(), touchedPath);
-    const diskFile = join(disk.toString(), touchedPath);
-    const isInState = existsSync(stateFile);
-    const isOnDisk = existsSync(diskFile);
-    if (isOnDisk === false) {
-      if (isInState) {
-        lines.push(`extra in state: ${touchedPath}`);
-        extraCount++;
-        continue;
-      }
-      sameCount++;
-      continue;
-    }
-    if (isInState === false) {
-      lines.push(`missing from state: ${touchedPath}`);
-      missingCount++;
-      continue;
-    }
-    const isSameBytes = readFileSync(stateFile).equals(readFileSync(diskFile));
-    if (isSameBytes) {
-      sameCount++;
-      continue;
-    }
-    lines.push(`different content: ${touchedPath}`);
-    differentCount++;
   }
-  lines.push(`check vs disk ${disk.toString()}: ${missingCount} missing, ${extraCount} extra, ${differentCount} different, ${sameCount} same`);
+  lines.push(`check vs disk ${disk.toString()}: ${counts[PathComparison.Missing]} missing, ${counts[PathComparison.Extra]} extra, ${counts[PathComparison.Different]} different, ${counts[PathComparison.Same]} same`);
   return lines;
 }
 
@@ -93,7 +119,7 @@ const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
   const argumentList = process.argv.slice(2);
   const state = new Path(readRequiredFlag(argumentList, "--state"));
-  const disk = chooseDiskFolder(new Path(readRequiredFlag(argumentList, "--disk")));
+  const disk = selectDiskFolder(new Path(readRequiredFlag(argumentList, "--disk")));
   const touchedFile = new Path(readRequiredFlag(argumentList, "--touched"));
   for (const line of compareStateToDisk(state, disk, touchedFile)) {
     console.log(line);
