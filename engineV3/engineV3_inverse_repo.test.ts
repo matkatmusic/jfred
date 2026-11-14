@@ -375,7 +375,7 @@ test("test_a_commit_message_with_an_unknown_event_type_makes_listInverseCommits_
     const inverseFolder = makeInverseFolder(t);
     runGit(inverseFolder, ["init", "--bare", "--initial-branch=inverse"]);
     const treeHash = execFileSync("git", ["mktree"], { cwd: inverseFolder.toString(), input: "", encoding: "utf8" }).trim();
-    const message = JSON.stringify({ jsonlPath: null, line: null, timestamp: null, eventType: "NotAnEventType", moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: 0, isFileAbsent: true });
+    const message = JSON.stringify({ jsonlPath: null, line: null, timestamp: null, eventType: "NotAnEventType", moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: 0, isFileAbsent: true, removedByScript: false, movedAwayToFile: null });
     const commitHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", message]);
     runGit(inverseFolder, ["update-ref", "refs/heads/inverse", commitHash]);
     // Listing the commits throws.
@@ -395,4 +395,64 @@ test("test_a_repo_that_grows_by_a_second_event_kind_keeps_the_json_messages_of_t
     const commits = listInverseCommits(inverseFolder, FILE_NAME);
     assert.deepEqual(commits.map((commit) => commit.position), [0, 1, 2]);
     assert.equal(readRawMessage(inverseFolder, commits[2]!.commitHash.toString()), messageBefore);
+});
+
+const MOVED_AWAY_DESTINATION = "/project/moved-to.txt";
+
+function makeStateWithEventFlags(position: number, removedByScript: boolean, movedAwayToFile: Path | undefined): OrderedKnownState {
+    const state = makeState(FileEventType.EditRow, position * 10, "edit\n");
+    return { state: { ...state, event: { ...state.event, removedByScript, movedAwayToFile } }, position };
+}
+
+test("test_a_commit_of_a_removed_event_reads_back_with_removed_by_script_true", (t) => {
+    // Scenario: the removed-by-script fact of an event is written into the commit and read back.
+    // The repo holds the disk-now state and a state whose event was removed by a script.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeStateWithEventFlags(1, true, undefined)]);
+    // The listed commit says removedByScript is true.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.equal(commits[1]!.removedByScript, true);
+});
+
+test("test_a_commit_of_a_moved_away_event_reads_back_the_destination_path", (t) => {
+    // Scenario: the destination of a moved-away event is written into the commit and read back as a Path.
+    // The repo holds the disk-now state and a state whose event moved the file away.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeStateWithEventFlags(1, false, new Path(MOVED_AWAY_DESTINATION))]);
+    // The listed commit holds the destination as a Path.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.deepEqual(commits[1]!.movedAwayToFile, new Path(MOVED_AWAY_DESTINATION));
+});
+
+test("test_a_commit_of_an_ordinary_event_reads_back_false_and_no_destination", (t) => {
+    // Scenario: an ordinary event reads back with no removal and no destination.
+    // The repo holds the disk-now state and an ordinary state.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n")]);
+    // Both listed commits say removedByScript is false and movedAwayToFile is undefined.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    for (const commit of commits) {
+        assert.equal(commit.removedByScript, false);
+        assert.equal(commit.movedAwayToFile, undefined);
+    }
+});
+
+test("test_a_commit_message_without_the_new_keys_throws", (t) => {
+    // Scenario: a message from before the two keys existed is not read.
+    // A repo is made by hand with a root commit whose JSON message has every old key and neither new key.
+    const inverseFolder = makeInverseFolder(t);
+    runGit(inverseFolder, ["init", "--bare", "--initial-branch=inverse"]);
+    const treeHash = execFileSync("git", ["mktree"], { cwd: inverseFolder.toString(), input: "", encoding: "utf8" }).trim();
+    const oldFields = { jsonlPath: null, line: null, timestamp: null, eventType: FileEventType.DiskNow, moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: 0, isFileAbsent: true, sourceCommit: null };
+    const oldHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", JSON.stringify(oldFields)]);
+    runGit(inverseFolder, ["update-ref", "refs/heads/inverse", oldHash]);
+    // Listing the commits throws and names the key removedByScript.
+    assert.throws(() => listInverseCommits(inverseFolder, FILE_NAME), /parseCommitMessage: the commit message has no removedByScript/);
+    // A message with removedByScript but without movedAwayToFile throws and names the key movedAwayToFile.
+    const halfHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", JSON.stringify({ ...oldFields, removedByScript: false })]);
+    runGit(inverseFolder, ["update-ref", "refs/heads/inverse", halfHash]);
+    assert.throws(() => listInverseCommits(inverseFolder, FILE_NAME), /parseCommitMessage: the commit message has no movedAwayToFile/);
 });
