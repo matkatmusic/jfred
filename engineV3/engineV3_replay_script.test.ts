@@ -302,3 +302,39 @@ test("test_executeScriptInState_gives_the_script_the_session_id_of_its_line", (t
   // session-id.txt holds the line's session id
   assert.equal(readFileSync(join(state.toString(), "session-id.txt"), "utf8"), "7d31cfda-fb91-4f61-ba61-7031cb5484e2");
 });
+
+const FIRST_RECORDED_UUID = "a8da816e-4851-4ad7-bf1d-6e99d7555fdf";
+const SECOND_RECORDED_UUID = "3f2b1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d";
+
+test("test_executeScriptInState_hands_the_new_recorded_uuids_to_node_randomUUID_in_order", (t) => {
+  // Scenario: `bun demo/makeSession.ts` named its file with crypto.randomUUID; the replay must make the uuid the Mac printed.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call's recorded output holds two new uuids
+  const context = makeContext(ALLOWED_TOOL_USE_ID);
+  context.newOutputUuids = new Map([[ALLOWED_TOOL_USE_ID, [new Uuid(FIRST_RECORDED_UUID), new Uuid(SECOND_RECORDED_UUID)]]]);
+  // two node processes ask for three uuids: require form, global form, then one more after the list is used up
+  const command = "node -e 'console.log(require(\"node:crypto\").randomUUID())' > uuids.txt; node -e 'console.log(crypto.randomUUID()); console.log(crypto.randomUUID())' >> uuids.txt";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, context);
+  const uuidTexts = readFileSync(join(state.toString(), "uuids.txt"), "utf8").trim().split("\n");
+  // the first two are the recorded uuids, in order
+  assert.deepEqual(uuidTexts.slice(0, 2), [FIRST_RECORDED_UUID, SECOND_RECORDED_UUID]);
+  // the third is a real random uuid
+  assert.match(uuidTexts[2] as string, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(uuidTexts[2], FIRST_RECORDED_UUID);
+  assert.notEqual(uuidTexts[2], SECOND_RECORDED_UUID);
+});
+
+test("test_executeScriptInState_sets_no_uuid_preload_env_for_a_call_with_no_new_uuid", (t) => {
+  // Scenario: a call whose recorded output holds no new uuid runs exactly as before.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the command writes the three env values the preload uses
+  const command = "printf '%s|%s|%s' \"${ENGINEV3_RECORDED_UUIDS-unset}\" \"${BUN_OPTIONS-unset}\" \"${NODE_OPTIONS-unset}\" > env.txt";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  const envText = readFileSync(join(state.toString(), "env.txt"), "utf8");
+  // no uuid list and no bun preload
+  assert.equal(envText.startsWith("unset|unset|"), true);
+  // the node options do not name the preload
+  assert.equal(envText.includes("engineV3_recorded_uuids_preload"), false);
+});

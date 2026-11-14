@@ -17,9 +17,11 @@ import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalR
 import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 import { fillOutsideGitFoldersAtTime, OUTSIDE_LIVE_ROOT } from "./engineV3_replay_outside_folders.ts";
+import { getRecordedUuidEnv } from "./engineV3_replay_new_uuids.ts";
 
 // export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[] };
+// export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[] };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[]; newOutputUuids?: Map<string, Uuid[]> };
 
 const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
@@ -131,7 +133,9 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   // const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
-  const env = { ...process.env, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: sessionId?.toString(), ...gitEnv };
+  // const env = { ...process.env, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: sessionId?.toString(), ...gitEnv };
+  const uuidEnv = getRecordedUuidEnv(context.newOutputUuids?.get(result.toolUseId.toString()));
+  const env = { ...process.env, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: sessionId?.toString(), ...gitEnv, ...uuidEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   // assertExitMatchesExpectation(spawned, run.code, result.isError);

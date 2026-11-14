@@ -13,6 +13,7 @@ import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { getFirstLineTime } from "./engineV3_jsonl_lines.ts";
 import { loadJSONLLineIndex, readFullJSONLLine, readFullResultLines } from "./engineV3_jsonl_line_index.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
+import { collectNewOutputUuids } from "./engineV3_replay_new_uuids.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { collectPostToolHookRewrites } from "./engineV3_replay_post_tool_hooks.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
@@ -166,7 +167,9 @@ export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: 
   const postToolHookRewrites = runStartupPhase("collectPostToolHookRewrites", () => collectPostToolHookRewrites(jsonlLines), describeCollectStep("collectPostToolHookRewrites"));
   // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
   // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER };
-  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER, postToolHookRewrites, outsideGitFolders: settings.outsideGitFolders };
+  const newOutputUuids = runStartupPhase("collectNewOutputUuids", (reportProgress) => collectNewOutputUuids(jsonlLines, bashCallResults, reportProgress), describeCollectStep("collectNewOutputUuids"));
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER, postToolHookRewrites, outsideGitFolders: settings.outsideGitFolders };
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER, postToolHookRewrites, outsideGitFolders: settings.outsideGitFolders, newOutputUuids };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
