@@ -11,9 +11,10 @@ import { computeStaticFileRelative, findStaticFilePath } from "../src/viewer_api
 const WEBAPP_DIR = resolve(import.meta.dirname, "..", "webapp");
 const WEBAPP_DIST_DIR = resolve(WEBAPP_DIR, "dist");
 
-test("test_root_maps_to_layered_index_page", () => {
-    // Scenario (task 205): the layered page claimed index.html as the app's main page.
-    assert.equal(computeStaticFileRelative("/"), "index.html");
+test("test_root_maps_to_layer1_page", () => {
+    // Scenario: the layer1 page is the app's default page; index.html stays reachable by its own name.
+    assert.equal(computeStaticFileRelative("/"), "layer1.html");
+    assert.equal(computeStaticFileRelative("/index.html"), "index.html");
 });
 
 test("test_layered_index_resolves_to_existing_source_file", () => {
