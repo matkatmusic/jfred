@@ -1,7 +1,7 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
 
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { mkdirSync, mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -10,11 +10,14 @@ import type { JSONLLine } from "./engineV3.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
-import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
+import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
+import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
 
 export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
 
-const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
+export const SCRIPT_TIMEOUT_MILLISECONDS = 300000;
+const BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS = 30000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
 const PYTHON_LANGUAGE = "python";
@@ -105,12 +108,46 @@ function getScriptCwd(run: ScriptRun): string {
   return cwd;
 }
 
+// The Mac Bash tool shell has the command text in no process argument, so `pkill -f <text>` must not find the replay's own shell: a shell reads the text from a file and evals it.
+function getInterpreterArguments(run: ScriptRun, code: string): string[] {
+  if (isPythonCtxExecuteRun(run)) {
+    return ["-c", code];
+  }
+  const scriptFile = join(mkdtempSync(join(tmpdir(), "engine-v3-script-")), "script.txt");
+  writeFileSync(scriptFile, code);
+  return ["-c", `eval "$(cat ${scriptFile})"`];
+}
+
+function sleepMilliseconds(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+// A run_in_background command (a dev server) never exits, so it starts detached and the replay waits only for its first output line.
+function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv): void {
+  const outputFile = join(mkdtempSync(join(tmpdir(), "engine-v3-background-")), "output.txt");
+  const outputDescriptor = openSync(outputFile, "w");
+  const child = spawn(getInterpreter(run), getInterpreterArguments(run, run.code), { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
+  child.unref();
+  const deadlineMs = Date.now() + BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS;
+  while (statSync(outputFile).size === 0) {
+    if (Date.now() > deadlineMs) {
+      throw new Error(`startBackgroundCommand: no output within ${BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS} ms\ncommand: ${run.code}`);
+    }
+    sleepMilliseconds(100);
+  }
+}
+
 function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
-  const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv };
+  const recordedAtEpochSeconds = Math.floor(run.timestamp.getTime() / 1000);
+  const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  if (run.runInBackground === true) {
+    startBackgroundCommand(run, cwd, env);
+    return;
+  }
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   assertExitMatchesExpectation(spawned, run.code, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
@@ -122,10 +159,15 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     throw new Error(`executeScriptRun: no recorded result for Bash call ${toolUseId.toString()}\ncommand: ${run.code}`);
   }
   if (isNeverRanResult(result)) {
+    replayBlockedTestRun(run, result);
     return;
   }
   if (isMacOnlyCommand(run.code)) {
     fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
+    return;
+  }
+  const isMacOnlyScript = isMacOnlyScriptRun(run);
+  if (isMacOnlyScript) {
     return;
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);

@@ -19,7 +19,7 @@ test("test_writeEventSnapshot_writes_a_blob_once_for_two_files_with_the_same_con
   writeFileIn(folder, "b.txt", "same");
   const changes = listChangesSinceLastScan(new Map(), scanWatchedFolders([folder], [store], new Map()));
   // write the event snapshot
-  writeEventSnapshot(store, "000001_x_1.json", { event: 1, eventText: "text", previousEvent: null, changes });
+  writeEventSnapshot(store, "000001_x_1.json", { event: 1, eventText: "text", previousEvent: null, touched: [], changes });
   // the blobs folder holds one file, named by the hash, with the content
   const blobNames = readdirSync(join(store.toString(), "blobs"));
   assert.equal(blobNames.length, 1);
@@ -34,7 +34,7 @@ test("test_writeEventSnapshot_names_the_file_with_the_event_number_jsonl_name_an
   // build the file name, then write the event with one deleted path
   const fileName = formatJsonlEventFileName(1034, JSONL_FILE_NAME, 575);
   const changes = [{ path: "/work/old.ts", change: ChangeKind.Deleted }];
-  writeEventSnapshot(store, fileName, { event: 1034, eventText: "next event", previousEvent: "001033_x_9.json", changes });
+  writeEventSnapshot(store, fileName, { event: 1034, eventText: "next event", previousEvent: "001033_x_9.json", touched: [], changes });
   // the name has the event number, the JSONL name without .jsonl, and the line
   assert.equal(fileName, "001034_9789f2d0-5506-4633-9117-f64471817355_575.json");
   // the file holds the event fields

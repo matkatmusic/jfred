@@ -255,9 +255,10 @@ function getEditResultKind(raw: Record<string, unknown>, repo: Path): JSONLLineK
   if (result.oldString === result.originalFile) {
     return JSONLLineKind.EditWholeFile;
   }
-  if (result.originalFile === null) {
-    return JSONLLineKind.Skip;
-  }
+  // An Edit result with no originalFile still changed the file: skipping it lost the change.
+  // if (result.originalFile === null) {
+  //   return JSONLLineKind.Skip;
+  // }
   return JSONLLineKind.EditPartial;
 }
 

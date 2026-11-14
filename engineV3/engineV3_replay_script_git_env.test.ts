@@ -202,3 +202,23 @@ test("test_assertHeadMatchesLog_passes_for_a_command_without_git", (t) => {
   // the check does not throw
   assert.doesNotThrow(() => assertHeadMatchesLog("echo hi", makeResultAround(FIRST_SECONDS), sourceRepo, new Path(repo), NO_OUTPUT));
 });
+
+test("test_assertHeadMatchesLog_passes_for_a_command_whose_git_calls_only_read", (t) => {
+  // Scenario: a hand rebase made the log rows in the window while the command only read git state, so the command did not move HEAD.
+  // a repo whose HEAD differs from the window row
+  const { repo, sourceRepo } = makeTempRepo(t);
+  makeCommitAt(repo, FIRST_SECONDS, "Ann");
+  makeCommitAt(repo, SECOND_SECONDS, "Bob");
+  // the check does not throw for a command that runs git status and git log
+  assert.doesNotThrow(() => assertHeadMatchesLog("git status | head -8; git log --oneline -6; node report.ts", makeResultAround(FIRST_SECONDS), sourceRepo, new Path(repo), NO_OUTPUT));
+});
+
+test("test_assertHeadMatchesLog_throws_when_a_read_only_git_call_comes_with_a_commit", (t) => {
+  // Scenario: one git commit among reads still gets the check.
+  // a repo whose HEAD differs from the window row
+  const { repo, sourceRepo } = makeTempRepo(t);
+  makeCommitAt(repo, FIRST_SECONDS, "Ann");
+  makeCommitAt(repo, SECOND_SECONDS, "Bob");
+  // the check throws
+  assert.throws(() => assertHeadMatchesLog("git status; git commit -m x", makeResultAround(FIRST_SECONDS), sourceRepo, new Path(repo), NO_OUTPUT));
+});

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { getRecordSource } from "../src/parse/loadTranscript.ts";
 import { getJSONLLineKind, JSONLLineKind, type JSONLLine } from "./engineV3.ts";
-import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 
 function makeTempFolder(t: TestContext): string {
     const folder = mkdtempSync(join(tmpdir(), "engine-v3-jsonl-lines-"));
@@ -100,6 +100,15 @@ test("test_loadMergedJSONLLines_loads_same_named_files_with_different_content_bo
     writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {})]);
     writeJSONLFile(otherFolder, "one.jsonl", [makeUserLine("b", 30, {})]);
     assert.deepEqual(listUuids(folder), ["a", "b"]);
+});
+
+test("test_getFirstLineTime_returns_the_earliest_timestamp_even_when_a_line_has_none", (t) => {
+    // Scenario: a line with no timestamp comes first, and the earliest stamped line is last in the file.
+    const folder = makeTempFolder(t);
+    const noTimestampLine = JSON.stringify({ type: "last-prompt", leafUuid: "x", sessionId: "s" });
+    writeJSONLFile(folder, "one.jsonl", [noTimestampLine, makeUserLine("late", 50, {}), makeUserLine("early", 20, {})]);
+    const jsonlLines = loadMergedJSONLLines([folder]).jsonlLines;
+    assert.equal(getFirstLineTime(jsonlLines).toISOString(), "2026-01-01T00:00:20.000Z");
 });
 
 test("test_loadMergedJSONLLines_lists_an_unknown_field_once_and_still_loads", (t) => {

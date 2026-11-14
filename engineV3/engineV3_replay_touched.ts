@@ -23,6 +23,10 @@ export function clearTouchedPaths(): void {
   touchedAbsolutePaths.clear();
 }
 
+export function listTouchedAbsolutePaths(): string[] {
+  return [...touchedAbsolutePaths];
+}
+
 export function listTouchedPaths(state: Path): string[] {
   const relativePaths: string[] = [];
   for (const absolutePath of touchedAbsolutePaths) {

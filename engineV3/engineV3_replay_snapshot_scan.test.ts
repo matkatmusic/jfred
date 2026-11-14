@@ -26,6 +26,14 @@ test("test_scanWatchedFolders_stamps_a_file_with_kind_mode_and_content_hash", (t
   assert.equal(stamp.contentHash, hashOf("hello"));
 });
 
+test("test_scanWatchedFolders_lists_nothing_for_a_watched_folder_that_does_not_exist_yet", (t) => {
+  // Scenario: the check folder is made by a recorded command later in the replay, so at the start it is not there.
+  const folder = makeTempFolder(t, "snap-scan-");
+  // scan a folder path that was never made
+  const stamps = scanWatchedFolders([new Path(join(folder.toString(), "not-made-yet"))], [makeTempFolder(t, "snap-skip-")], new Map());
+  // nothing is listed
+  assert.equal(stamps.size, 0);
+});
 test("test_scanWatchedFolders_records_a_symlink_target_without_following_it", (t) => {
   // Scenario: a link to a folder is one symlink entry; the files behind the link are not listed.
   const folder = makeTempFolder(t, "snap-scan-");

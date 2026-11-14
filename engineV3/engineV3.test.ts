@@ -229,11 +229,19 @@ test("test_getJSONLLineKind_returns_EditPartial_for_an_Edit_of_part_of_a_file", 
     assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.EditPartial);
 });
 
-test("test_getJSONLLineKind_returns_Skip_for_a_partial_Edit_with_no_originalFile", (t) => {
-    // Scenario: an Edit result with a null originalFile has the Skip kind.
+// Obsolete: a skipped Edit with no originalFile left its change out of the replay (Attune specs/message-rating-app.md).
+// test("test_getJSONLLineKind_returns_Skip_for_a_partial_Edit_with_no_originalFile", (t) => {
+//     // Scenario: an Edit result with a null originalFile has the Skip kind.
+//     const { repo } = makeThreeCommitRepo(t);
+//     const line = makeEditRecord(join(repo.toString(), "change.txt"), "mid", "x", null);
+//     assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+// });
+
+test("test_getJSONLLineKind_returns_EditPartial_for_a_partial_Edit_with_no_originalFile", (t) => {
+    // Scenario: an Edit result with a null originalFile still changed the file, so it has the EditPartial kind.
     const { repo } = makeThreeCommitRepo(t);
     const line = makeEditRecord(join(repo.toString(), "change.txt"), "mid", "x", null);
-    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.Skip);
+    assert.equal(getJSONLLineKind(line, repo), JSONLLineKind.EditPartial);
 });
 
 function makeSnapshotRecord(trackedFileBackups: object): JSONLLine {

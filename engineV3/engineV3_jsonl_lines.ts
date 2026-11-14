@@ -11,8 +11,9 @@ import { getContentBlocks } from "../src/structures/content-blocks.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
 import { loadFileRecords, type UnknownField } from "./engineV3_jsonl_file_records.ts";
+import { ignorePhaseProgress, type ReportPhaseProgress } from "./engineV3_startup_progress.ts";
 
-export type MergedJSONLLines = { jsonlLines: JSONLLine[]; unknownFields: UnknownField[]; unknownRecordTypes: string[] };
+export type MergedJSONLLines = { jsonlLines: JSONLLine[]; unknownFields: UnknownField[]; unknownRecordTypes: string[]; transcriptFileCount: number };
 
 function printUnknownFields(unknownFields: UnknownField[]): void {
   for (const unknownField of unknownFields) {
@@ -97,18 +98,49 @@ function createSortTimeOverrides(recordLists: JSONLLine[][]): Map<JSONLLine, num
 }
 
 // Subagent transcripts are included; the engine's timestamp rule orders the lines.
-export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
+// export function loadMergedJSONLLines(jsonlFolders: string[]): MergedJSONLLines {
+function readMergedJSONLLines(jsonlFolders: string[], reportProgress: ReportPhaseProgress): MergedJSONLLines {
   const recordLists: JSONLLine[][] = [];
   const unknownFields: UnknownField[] = [];
   const seenFieldIds = new Set<string>();
   const unknownRecordTypes = new Set<string>();
-  for (const transcriptFile of filterOutCopiedTranscripts(listTranscriptFiles(jsonlFolders))) {
+  const transcriptFiles = filterOutCopiedTranscripts(listTranscriptFiles(jsonlFolders));
+  for (const transcriptFile of transcriptFiles) {
     recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
+    reportProgress(recordLists.length, transcriptFiles.length);
   }
   const sortTimeOverrides = createSortTimeOverrides(recordLists);
   printUnknownFields(unknownFields);
   printUnknownRecordTypes(unknownRecordTypes);
-  return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes] };
+  return { jsonlLines: mergeRecordsByTimestamp(recordLists, sortTimeOverrides), unknownFields, unknownRecordTypes: [...unknownRecordTypes], transcriptFileCount: transcriptFiles.length };
+}
+
+// A big project takes minutes to read, and the replay asks for the same folders twice.
+const mergedLinesByFolders = new Map<string, MergedJSONLLines>();
+export function loadMergedJSONLLines(jsonlFolders: string[], reportProgress: ReportPhaseProgress = ignorePhaseProgress): MergedJSONLLines {
+  const foldersKey = JSON.stringify(jsonlFolders);
+  const memoizedLines = mergedLinesByFolders.get(foldersKey);
+  if (memoizedLines !== undefined) {
+    return memoizedLines;
+  }
+  const mergedLines = readMergedJSONLLines(jsonlFolders, reportProgress);
+  mergedLinesByFolders.set(foldersKey, mergedLines);
+  return mergedLines;
+}
+// The earliest timestamp of any line; the replay start point is read at this time.
+export function getFirstLineTime(jsonlLines: JSONLLine[]): Date {
+  let firstTime: Date | undefined;
+  for (const line of jsonlLines) {
+    if (line.timestamp instanceof Date) {
+      if (firstTime === undefined || line.timestamp.getTime() < firstTime.getTime()) {
+        firstTime = line.timestamp;
+      }
+    }
+  }
+  if (firstTime === undefined) {
+    throw new Error("getFirstLineTime: no JSONL line has a timestamp");
+  }
+  return firstTime;
 }
 
 // function getCommitTimeInMilliseconds(repo: Path, commit: CommitHash): number {
