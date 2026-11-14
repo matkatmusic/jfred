@@ -31,6 +31,7 @@ const MID_FILLER_STEP = 5;
 const SAME_INSTANT_FILLER_INDEX = 7;
 
 export const ANNOTATION_SAME_ID = new Uuid("l7-same-0");
+export const ANNOTATION_SAME_SECOND_ID = new Uuid("l7-same-1");
 
 function listMidIds(): Uuid[] {
   const ids: Uuid[] = [];
@@ -153,5 +154,19 @@ export function buildSameInstantAnnotation(fillers: AnnotationDraft[]): Annotati
     instant: fillers[SAME_INSTANT_FILLER_INDEX]!.instant,
     label: "same time as S2",
     ...readSessionFields(session),
+  };
+}
+
+// Same instant as filler 7, in the same session 2: a second dot on that line.
+export function buildSecondSameInstantAnnotation(fillers: AnnotationDraft[]): AnnotationDraft {
+  const filler = fillers[SAME_INSTANT_FILLER_INDEX]!;
+  return {
+    id: ANNOTATION_SAME_SECOND_ID,
+    kind: WireRecordKind.assistant,
+    instant: filler.instant,
+    label: "second record at the same time as S2",
+    sessionId: filler.sessionId,
+    sessionTitle: filler.sessionTitle,
+    sessionFile: filler.sessionFile,
   };
 }

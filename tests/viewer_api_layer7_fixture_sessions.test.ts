@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { buildFixtureAnnotations, listFillerIds } from "../src/viewer_api_layer7_fixture_data.ts";
 import { buildFixtureLayer1View } from "../src/viewer_api_layer1_fixture_view.ts";
 import {
-  ANNOTATION_MID_IDS, ANNOTATION_SAME_ID, FIXTURE_LOG_SESSIONS,
+  ANNOTATION_MID_IDS, ANNOTATION_SAME_ID, ANNOTATION_SAME_SECOND_ID, FIXTURE_LOG_SESSIONS,
 } from "../src/viewer_api_layer7_fixture_sessions.ts";
 
 const TICK_COUNT = 300;
@@ -58,7 +58,9 @@ test("test_counts_per_session", () => {
   }
   // assert.equal(total, 81);
   // 81 canned records, plus one row record for each of the 235 ticks that had no visible record.
-  assert.equal(total, 81 + 235);
+  // task 912: the new record l7-same-1 makes 82 canned records.
+  // assert.equal(total, 81 + 235);
+  assert.equal(total, 82 + 235);
   const fourthId = FIXTURE_LOG_SESSIONS[3]!.id.toString();
   // assert.equal(counts.get(fourthId), 30 + 6);
   assert.equal(counts.get(fourthId), FOURTH_SESSION_COUNT);
@@ -155,4 +157,18 @@ test("test_same_record_shares_an_instant_with_filler_seven_and_differs_in_sessio
   const filler = records.find((record) => record.id.toString() === listFillerIds()[7]!.toString())!;
   assert.equal(same.instant.getTime(), filler.instant.getTime());
   assert.notEqual(same.sessionId.toString(), filler.sessionId.toString());
+});
+
+test("test_second_same_record_shares_the_instant_and_session_of_filler_seven", () => {
+  // Build the records and find the second same-instant record and filler seven.
+  const records = listRecords();
+  const secondSame = records.find((record) => record.id.toString() === ANNOTATION_SAME_SECOND_ID.toString())!;
+  const filler = records.find((record) => record.id.toString() === listFillerIds()[7]!.toString())!;
+  // It has the same instant and the same session as filler seven.
+  assert.equal(secondSame.instant.getTime(), filler.instant.getTime());
+  assert.equal(secondSame.sessionId.toString(), filler.sessionId.toString());
+  // Its line number is higher than the filler's line number.
+  assert.ok(secondSame.line > filler.line);
+  // Its id text is l7-same-1.
+  assert.equal(ANNOTATION_SAME_SECOND_ID.toString(), "l7-same-1");
 });

@@ -10,7 +10,7 @@ import { resetMarkerToStart, moveMarkerForward, storeEngineV3Steps } from "../we
 import { EngineV3StepKind } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 
 initLayer1Dom();
-const { buildNode, buildSessionLine, readDotPopup, STAMPLESS_NOTE } = await import("../webapp/layer1-components/session-column/layer1-annotation-dots.ts");
+const { buildNode, buildSessionLine, buildDotConnector, readDotPopup, STAMPLESS_NOTE } = await import("../webapp/layer1-components/session-column/layer1-annotation-dots.ts");
 
 const LOOK = { laneX: 46, color: "hsl(10 65% 60%)" };
 
@@ -47,6 +47,19 @@ test("test_a_session_line_runs_from_the_first_dot_to_the_last_dot", () => {
     assert.equal(line.dataset["sessionId"], "s1");
     assert.equal(line.style.getPropertyValue("--axis-px"), "30");
     assert.equal(line.style.getPropertyValue("--span-px"), "100");
+});
+
+test("test_a_connector_runs_from_the_lane_to_the_farthest_extra_dot", () => {
+    // Steps: build a connector for a placement with stack 3, then read its class, data attributes and style values.
+    const connector = buildDotConnector({ ...buildPlacement("a", 120), stack: 3 }, LOOK);
+    assert.ok(connector.classList.contains("aconnector"));
+    assert.equal(connector.classList.contains("anode"), false);
+    assert.equal(connector.dataset["component"], "sessionDotsConnector");
+    assert.equal(connector.dataset["sessionId"], "s1");
+    assert.equal(connector.style.getPropertyValue("--axis-px"), "120");
+    assert.equal(connector.style.getPropertyValue("--stack"), "3");
+    assert.equal(connector.style.getPropertyValue("--lane-x"), "46px");
+    assert.equal(connector.style.getPropertyValue("--session-color"), LOOK.color);
 });
 
 test("test_the_popup_reader_returns_title_and_label_and_adds_the_stampless_note", () => {

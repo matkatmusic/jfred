@@ -3,9 +3,11 @@
 import { createElement, getInputById, getRequiredElementById } from "../../app-dom.ts";
 // import { buildPairBracket } from "./layer1-annotation-bracket.ts";
 // import { ANNOTATION_LOOKS } from "./layer1-annotation-looks.ts";
-import { buildNode, buildPairSpanBracket, buildSessionLine, readDotPopup } from "./layer1-annotation-dots.ts";
+// import { buildNode, buildPairSpanBracket, buildSessionLine, readDotPopup } from "./layer1-annotation-dots.ts";
+import { buildDotConnector, buildNode, buildPairSpanBracket, buildSessionLine, readDotPopup } from "./layer1-annotation-dots.ts";
 import type { SessionLook } from "./layer1-annotation-dots.ts";
-import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionPixelSpansFromPlacements, listSessionPixelSpansFromServer, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "./layer1-annotation-window.ts";
+// import { ANNOTATION_MARGIN_PX, listPairSpans, listSessionPixelSpansFromPlacements, listSessionPixelSpansFromServer, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "./layer1-annotation-window.ts";
+import { ANNOTATION_MARGIN_PX, listConnectorPlacements, listPairSpans, listSessionPixelSpansFromPlacements, listSessionPixelSpansFromServer, listSessionSpans, listWindowPlacements, computeAnnotationPlacements } from "./layer1-annotation-window.ts";
 import type { PairSpan, Placement } from "./layer1-annotation-window.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
 import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
@@ -17,8 +19,9 @@ import { buildLaneStrip, LANE_STRIP_ID, renderLaneStrip, scrollLanesByWheel } fr
 import { listSelectedSessions } from "../jsonls-nav/layer1-sessions.ts";
 import { listSessionColors } from "./layer1-session-colors.ts";
 // import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
-import { computeBarReservePx, computeLaneWidthSlots, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
-import { computeSessionWidthSlots } from "../ruler/layer1-session-dot-counts.ts";
+// import { computeBarReservePx, computeLaneWidthSlots, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
+import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
+// import { computeSessionWidthSlots } from "../ruler/layer1-session-dot-counts.ts";
 // import type { SessionSpan } from "./layer1-session-lanes.ts";
 import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import { scheduleSessionDotsFetch, stopSessionDotsFetch } from "./layer1-session-dots-fetch.ts";
@@ -34,7 +37,10 @@ import type { TopRowAnchor } from "./layer1-session-scroll-anchor.ts";
 import { clearSessionDotInstants, loadSessionDotInstants, readRequiredSessionDotInstants, readSessionDotInstants, storeSessionDotInstants } from "./layer1-session-dot-instants.ts";
 import { listSessionDotInstantsFromAnnotations } from "./layer1-wire-session-instants.ts";
 // import { computeSessionDotPlacements, listSessionPixelSpansFromInstants } from "./layer1-session-dot-placement.ts";
-import { computeSessionDotPlacements, isSessionLayout, listSessionPixelSpansFromInstants, readSessionMs } from "./layer1-session-dot-placement.ts";
+// import { computeSessionDotPlacements, isSessionLayout, listSessionPixelSpansFromInstants, readSessionMs } from "./layer1-session-dot-placement.ts";
+import { computeSessionDotPlacements, isSessionLayout, listSessionDotLines, listSessionPixelSpansFromInstants } from "./layer1-session-dot-placement.ts";
+import { computeSessionSlots } from "./layer1-session-slots.ts";
+import type { SessionSlots } from "./layer1-session-slots.ts";
 
 const TRACK_ID = "sessionDotLinesComponent";
 
@@ -45,6 +51,7 @@ let placements: Placement[] = [];
 let pairSpans: PairSpan[] = [];
 // let sessionSpans: PairSpan[] = [];
 let sessionSpans: SessionPixelSpan[] = [];
+let sessionSlots: SessionSlots = { laneSlotBySession: new Map(), dotSlotsByLine: new Map(), slotCount: 0 };
 let looksBySession = new Map<string, SessionLook>();
 let lastTicks: readonly WireRulerTick[] = [];
 let isSessionShown = false;
@@ -189,6 +196,17 @@ function readLook(placement: Placement): SessionLook {
   return looksBySession.get(placement.annotation.sessionId)!;
 }
 
+function listWindowConnectors(topPx: number, bottomPx: number): HTMLElement[] {
+  const connectors: HTMLElement[] = [];
+  const isSessionRuler = isSessionLayout(lastTicks);
+  if (isSessionRuler) {
+    for (const placement of listConnectorPlacements(listWindowPlacements(placements, topPx, bottomPx))) {
+      connectors.push(buildDotConnector(placement, readLook(placement)));
+    }
+  }
+  return connectors;
+}
+
 function listWindowLines(topPx: number, bottomPx: number): HTMLElement[] {
   const lines: HTMLElement[] = [];
   for (const span of listOverlappingSessionSpans(sessionSpans, topPx, bottomPx)) {
@@ -197,6 +215,7 @@ function listWindowLines(topPx: number, bottomPx: number): HTMLElement[] {
   for (const span of listOverlappingSpans(pairSpans, topPx, bottomPx)) {
     lines.push(buildPairSpanBracket(span, readLook(span[0])));
   }
+  lines.push(...listWindowConnectors(topPx, bottomPx));
   return lines;
 }
 
@@ -312,36 +331,78 @@ function setTrackWidthPx(widthPx: number): void {
 //   return pixels;
 // }
 
-function listSessionWidthSlots(spans: readonly SessionPixelSpan[]): number[] {
-  const instants = readRequiredSessionDotInstants();
-  const widthSlots: number[] = [];
-  for (const span of spans) {
-    widthSlots.push(computeSessionWidthSlots(readSessionMs(instants, span.sessionId)));
+// task 912: slots replace lane widths.
+// function listSessionWidthSlots(spans: readonly SessionPixelSpan[]): number[] {
+//   const instants = readRequiredSessionDotInstants();
+//   const widthSlots: number[] = [];
+//   for (const span of spans) {
+//     widthSlots.push(computeSessionWidthSlots(readSessionMs(instants, span.sessionId)));
+//   }
+//   return widthSlots;
+// }
+
+// task 912: slots replace lane widths.
+// // Session layout: lanes are as wide as their widest session. Time layout: undefined, lanes stay 1 slot.
+// function listLaneWidthSlots(lanes: readonly number[], spans: readonly SessionPixelSpan[]): number[] | undefined {
+//   const isSessionRuler = isSessionLayout(lastTicks);
+//   if (!isSessionRuler) {
+//     return undefined;
+//   }
+//   return computeLaneWidthSlots(lanes, listSessionWidthSlots(spans));
+// }
+
+function readLaneSlot(sessionId: string): number {
+  const laneSlot = sessionSlots.laneSlotBySession.get(sessionId);
+  if (laneSlot === undefined) {
+    throw new Error(`session ${sessionId} has no lane slot`);
   }
-  return widthSlots;
+  return laneSlot;
 }
 
-// Session layout: lanes are as wide as their widest session. Time layout: undefined, lanes stay 1 slot.
-function listLaneWidthSlots(lanes: readonly number[], spans: readonly SessionPixelSpan[]): number[] | undefined {
-  const isSessionRuler = isSessionLayout(lastTicks);
-  if (!isSessionRuler) {
-    return undefined;
-  }
-  return computeLaneWidthSlots(lanes, listSessionWidthSlots(spans));
-}
-
-// Fills looksBySession and returns the track width for the packed lanes.
-function setSessionLooks(spans: readonly SessionPixelSpan[]): number {
+// Time layout: packed lanes, as before task 912.
+function setTimeLayoutLooks(spans: readonly SessionPixelSpan[], reservePx: number): number {
   const lanes = computeSessionLanes(spans);
-  const laneWidthSlots = listLaneWidthSlots(lanes, spans);
+  for (const [index, span] of spans.entries()) {
+    looksBySession.set(span.sessionId, { laneX: computeLaneX(lanes[index]!, reservePx), color: colors.get(span.sessionId)! });
+  }
+  return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx);
+}
+
+// Session layout: a lane is a slot of the whole-index slot rule.
+function setSessionLayoutLooks(spans: readonly SessionPixelSpan[], reservePx: number): number {
+  for (const span of spans) {
+    looksBySession.set(span.sessionId, { laneX: computeLaneX(readLaneSlot(span.sessionId), reservePx), color: colors.get(span.sessionId)! });
+  }
+  return computeTrackWidthPx(sessionSlots.slotCount, reservePx);
+}
+
+// Fills looksBySession and returns the track width.
+function setSessionLooks(spans: readonly SessionPixelSpan[]): number {
   const reservePx = computeBarReservePx(listSelectedSessions().length);
   looksBySession = new Map<string, SessionLook>();
-  for (const [index, span] of spans.entries()) {
-    looksBySession.set(span.sessionId, { laneX: computeLaneX(lanes[index]!, reservePx, laneWidthSlots), color: colors.get(span.sessionId)! });
+  const isSessionRuler = isSessionLayout(lastTicks);
+  if (isSessionRuler) {
+    return setSessionLayoutLooks(spans, reservePx);
   }
-  // return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx);
-  return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx, laneWidthSlots);
+  return setTimeLayoutLooks(spans, reservePx);
 }
+
+function setSessionLayoutClass(): void {
+  const isSessionRuler = isSessionLayout(lastTicks);
+  getRequiredElementById(TRACK_ID).classList.toggle("is-session-layout", isSessionRuler);
+}
+
+// task 912: old setSessionLooks, replaced by the three functions above.
+// function setSessionLooks(spans: readonly SessionPixelSpan[]): number {
+//   const lanes = computeSessionLanes(spans);
+//   const laneWidthSlots = listLaneWidthSlots(lanes, spans);
+//   const reservePx = computeBarReservePx(listSelectedSessions().length);
+//   looksBySession = new Map<string, SessionLook>();
+//   for (const [index, span] of spans.entries()) {
+//     looksBySession.set(span.sessionId, { laneX: computeLaneX(lanes[index]!, reservePx, laneWidthSlots), color: colors.get(span.sessionId)! });
+//   }
+//   return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx, laneWidthSlots);
+// }
 
 // The column reaches the bottom of the last row's dot block.
 function setTrackMinHeight(): void {
@@ -362,6 +423,7 @@ function renderSessionColumn(): void {
   }
   setTrackWidthPx(setSessionLooks(sessionSpans));
   buildTrackOnce();
+  setSessionLayoutClass();
   setTrackMinHeight();
   renderAnnotationWindow();
   renderLaneStrip();
@@ -401,7 +463,9 @@ function renderSessionControls(): void {
 
 function placeSessionLayoutDots(ticks: readonly WireRulerTick[]): void {
   const instants = readRequiredSessionDotInstants();
-  placements = computeSessionDotPlacements(annotations, ticks, instants);
+  sessionSlots = computeSessionSlots(listSessionDotLines(ticks, instants));
+  // placements = computeSessionDotPlacements(annotations, ticks, instants);
+  placements = computeSessionDotPlacements(annotations, ticks, instants, sessionSlots);
   pairSpans = listPairSpans(placements);
   sessionSpans = isRealView ? listSessionPixelSpansFromInstants(serverSessionSpans, ticks, instants) : listSessionPixelSpansFromPlacements(listSessionSpans(placements));
 }

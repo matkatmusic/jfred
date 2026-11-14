@@ -5,8 +5,12 @@ import { test } from "node:test";
 import { FIXTURE_LOG_SESSIONS } from "../src/viewer_api_layer7_fixture_sessions.ts";
 import * as session from "../scripts/visual/ruler-ui-session-checks.ts";
 
+// task 912: the fixture track is 91px wide with lanes at 18, 35 and 52.
+// const SESSION: session.SessionFacts = {
+//     isCurrent: true, background: "rgb(60, 180, 90)", trackLeft: 152, trackWidth: 104, rulerRight: 152, stageLeft: 270, laneXs: ["18px", "57px", "82px"],
+// };
 const SESSION: session.SessionFacts = {
-    isCurrent: true, background: "rgb(60, 180, 90)", trackLeft: 152, trackWidth: 104, rulerRight: 152, stageLeft: 270, laneXs: ["18px", "57px", "82px"],
+    isCurrent: true, background: "rgb(60, 180, 90)", trackLeft: 152, trackWidth: 91, rulerRight: 152, stageLeft: 257, laneXs: ["18px", "35px", "52px"],
 };
 const makeTick = (n: number) => ({ computed: `rgb(${n}, 1, 1)`, expected: `rgb(${n}, 1, 1)` });
 const SCAN: session.ScanFacts = {
@@ -28,17 +32,27 @@ test("test_toggle_is_current_and_green", () => {
     assert.equal(session.isToggleGreen({ ...SESSION, background: "rgba(0, 0, 0, 0)" }), false);
 });
 
-test("test_track_touches_the_ruler_and_is_104px_for_three_lanes", () => {
-    // Step: three lanes at 104px, touching the ruler, pass.
+// task 912: renamed for the 91px track.
+// test("test_track_touches_the_ruler_and_is_104px_for_three_lanes", () => {
+//     // Step: three lanes at 104px, touching the ruler, pass.
+//     assert.equal(session.isTrackPlaced(SESSION), true);
+//     // Step: the old 96px width, a gap to the ruler, or two lanes each fail.
+//     assert.equal(session.isTrackPlaced({ ...SESSION, trackWidth: 96 }), false);
+//     assert.equal(session.isTrackPlaced({ ...SESSION, trackLeft: 160 }), false);
+//     assert.equal(session.isTrackPlaced({ ...SESSION, laneXs: ["18px", "35px"] }), false);
+// });
+
+test("test_track_touches_the_ruler_and_is_91px_for_three_lanes", () => {
+    // Step: three lanes at 91px, touching the ruler, pass.
     assert.equal(session.isTrackPlaced(SESSION), true);
-    // Step: the old 96px width, a gap to the ruler, or two lanes each fail.
-    assert.equal(session.isTrackPlaced({ ...SESSION, trackWidth: 96 }), false);
+    // Step: the width without the extra slot, a gap to the ruler, or two lanes each fail.
+    assert.equal(session.isTrackPlaced({ ...SESSION, trackWidth: 74 }), false);
     assert.equal(session.isTrackPlaced({ ...SESSION, trackLeft: 160 }), false);
     assert.equal(session.isTrackPlaced({ ...SESSION, laneXs: ["18px", "35px"] }), false);
 });
 
 test("test_stage_moves_right_by_exactly_the_track_width", () => {
-    // Step: 166 before and 270 after, with a 104px track, passes; a stage that moved less fails.
+    // Step: 166 before and 257 after, with a 91px track, passes; a stage that moved less fails.
     assert.equal(session.isStageShifted(166, SESSION), true);
     assert.equal(session.isStageShifted(200, SESSION), false);
 });

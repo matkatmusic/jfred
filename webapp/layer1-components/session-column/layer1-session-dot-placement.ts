@@ -1,7 +1,9 @@
 // Task 908: session layout puts each dot at its row's top plus its line, one line per distinct instant.
 
-import { SESSION_DOT_PX, countInstantsBefore, listDistinctInstantsBySession } from "../ruler/layer1-session-dot-counts.ts";
+import { SESSION_DOT_PX, countInstantsBefore, listDistinctInstants, listDistinctInstantsBySession } from "../ruler/layer1-session-dot-counts.ts";
 import type { SessionDotInstants } from "../ruler/layer1-session-dot-counts.ts";
+import { buildDotLineKey } from "./layer1-session-slots.ts";
+import type { SessionDotLine, SessionDotLines, SessionSlots } from "./layer1-session-slots.ts";
 import type { Placement } from "./layer1-annotation-window.ts";
 import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import type { WireAnnotation, WireSessionSpan } from "./layer1-wire-annotations.ts";
@@ -48,6 +50,56 @@ export function computeSessionDotAxisPx(ticks: readonly WireRulerTick[], tickMs:
 //   return ticks[rowIndex]!.axisPx + (dotIndex - rowStartIndex) * SESSION_DOT_PX;
 // }
 
+// A run of equal instants is one line: its y and how many dots share it.
+function listDotLinesOfSession(ticks: readonly WireRulerTick[], tickMs: readonly number[], sortedMs: readonly number[]): SessionDotLine[] {
+  const distinctMs = listDistinctInstants(sortedMs);
+  const lines: SessionDotLine[] = [];
+  for (const instantMs of distinctMs) {
+    const axisPx = computeSessionDotAxisPx(ticks, tickMs, distinctMs, instantMs);
+    const dotCount = countInstantsBefore(sortedMs, instantMs + 1) - countInstantsBefore(sortedMs, instantMs);
+    lines.push({ axisPx, dotCount });
+  }
+  return lines;
+}
+
+interface SessionStart { sessionId: string; firstMs: number; }
+
+function compareSessionStarts(left: SessionStart, right: SessionStart): number {
+  const startStep = left.firstMs - right.firstMs;
+  if (startStep !== 0) {
+    return startStep;
+  }
+  return left.sessionId < right.sessionId ? -1 : 1;
+}
+
+// Whole-index instants only: lanes must not change when the loaded dots change.
+export function listSessionDotLines(ticks: readonly WireRulerTick[], instants: SessionDotInstants): SessionDotLines[] {
+  const tickMs = listTickMs(ticks);
+  const starts: SessionStart[] = [];
+  for (const [sessionId, sortedMs] of instants) {
+    starts.push({ sessionId, firstMs: sortedMs[0]! });
+  }
+  starts.sort(compareSessionStarts);
+  const sessions: SessionDotLines[] = [];
+  for (const start of starts) {
+    sessions.push({ sessionId: start.sessionId, lines: listDotLinesOfSession(ticks, tickMs, readSessionMs(instants, start.sessionId)) });
+  }
+  return sessions;
+}
+
+function readStackOfDot(slots: SessionSlots, annotation: WireAnnotation, axisPx: number, rank: number): number {
+  const laneSlot = slots.laneSlotBySession.get(annotation.sessionId);
+  const dotSlot = slots.dotSlotsByLine.get(buildDotLineKey(annotation.sessionId, axisPx))?.[rank];
+  const message = `session ${annotation.sessionId} instant ${annotation.instant} rank ${rank} has no slot`;
+  if (laneSlot === undefined) {
+    throw new Error(message);
+  }
+  if (dotSlot === undefined) {
+    throw new Error(message);
+  }
+  return dotSlot - laneSlot;
+}
+
 function compareByInstantThenLine(left: WireAnnotation, right: WireAnnotation): number {
   const instantStep = Date.parse(left.instant) - Date.parse(right.instant);
   if (instantStep !== 0) {
@@ -64,22 +116,26 @@ function takeSameInstantRank(rankCounts: Map<string, number>, annotation: WireAn
   return rank;
 }
 
-function buildSessionPlacement(annotation: WireAnnotation, rank: number, ticks: readonly WireRulerTick[], tickMs: readonly number[], distinctInstants: SessionDotInstants): Placement {
+function buildSessionPlacement(annotation: WireAnnotation, rank: number, ticks: readonly WireRulerTick[], tickMs: readonly number[], distinctInstants: SessionDotInstants, slots: SessionSlots): Placement {
   const distinctMs = readSessionMs(distinctInstants, annotation.sessionId);
   const axisPx = computeSessionDotAxisPx(ticks, tickMs, distinctMs, Date.parse(annotation.instant));
-  return { annotation, axisPx, stack: rank };
+  // task 912: stack is the slot offset from the lane, not the same-instant rank.
+  // return { annotation, axisPx, stack: rank };
+  return { annotation, axisPx, stack: readStackOfDot(slots, annotation, axisPx, rank) };
 }
 // Old placement used dotIndex = countInstantsBefore(sessionMs, instant) + rank and stack: 0.
 
 // Placements come back ordered by instant then line.
-export function computeSessionDotPlacements(list: readonly WireAnnotation[], ticks: readonly WireRulerTick[], instants: SessionDotInstants): Placement[] {
+// task 912: the placements need the slots.
+// export function computeSessionDotPlacements(list: readonly WireAnnotation[], ticks: readonly WireRulerTick[], instants: SessionDotInstants): Placement[] {
+export function computeSessionDotPlacements(list: readonly WireAnnotation[], ticks: readonly WireRulerTick[], instants: SessionDotInstants, slots: SessionSlots): Placement[] {
   const tickMs = listTickMs(ticks);
   const distinctInstants = listDistinctInstantsBySession(instants);
   const rankCounts = new Map<string, number>();
   const placements: Placement[] = [];
   for (const annotation of [...list].sort(compareByInstantThenLine)) {
     const rank = takeSameInstantRank(rankCounts, annotation);
-    placements.push(buildSessionPlacement(annotation, rank, ticks, tickMs, distinctInstants));
+    placements.push(buildSessionPlacement(annotation, rank, ticks, tickMs, distinctInstants, slots));
   }
   return placements;
 }

@@ -4,7 +4,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
     BLOCK_IDS, /* TOOL_IDS, */ countNodesWithClass, findColumnNode, isApart, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane,
-    isBracketClearOfDots, isBracketSpanning, isEveryIdUnique, isLetterSetExpected, isNear, isStampedWithPredecessor, isTrackBetween, isWindowed,
+    /* isBracketClearOfDots, */ isBracketSpanning, isEveryIdUnique, isLetterSetExpected, isNear, isStampedWithPredecessor, isTrackBetween, isWindowed,
     listBlockNodes, listColumnIds, listMissingIds,
     type ColumnBracketFacts, type ColumnNodeFacts,
 } from "../scripts/visual/layer7-facts.ts";
@@ -131,26 +131,27 @@ test("test_isBracketBesideLane_needs_the_bracket_left_of_both_dots_and_right_of_
     assert.equal(isBracketBesideLane({ ...bracket, left: -7 }, dots, 28), false);
 });
 
-test("test_a_bracket_under_a_dot_of_another_lane_is_not_clear", () => {
-    // Steps: the bracket box is x 20 to 26; the dot of the lane to its left spans x 11 to 25, so they overlap by 5 px.
-    const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 20, right: 26 };
-    const dotOfOtherLane = { ...makeNodes()[0]!, nodeBox: { left: 11, right: 25, top: 93, bottom: 107 } };
-    assert.equal(isBracketClearOfDots(bracket, [dotOfOtherLane]), false);
-});
-
-test("test_a_bracket_with_a_three_pixel_gap_to_the_dot_before_it_is_clear", () => {
-    // Steps: the bracket box is x 42 to 48; the dot before it ends at x 39, so 3 px sit between them.
-    const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 42, right: 48 };
-    const dotBeforeIt = { ...makeNodes()[0]!, nodeBox: { left: 25, right: 39, top: 93, bottom: 107 } };
-    assert.equal(isBracketClearOfDots(bracket, [dotBeforeIt]), true);
-});
-
-test("test_a_bracket_touching_its_own_dot_is_clear", () => {
-    // Steps: the bracket box ends at x 41 and its own dot starts at x 41, so they touch without overlap.
-    const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 35, right: 41 };
-    const ownDot = { ...makeNodes()[0]!, nodeBox: { left: 41, right: 55, top: 93, bottom: 107 } };
-    assert.equal(isBracketClearOfDots(bracket, [ownDot]), true);
-});
+// task 912: bracket room is off (user ruling), so the task 911 clear-of-dots fact is retired.
+// test("test_a_bracket_under_a_dot_of_another_lane_is_not_clear", () => {
+//     // Steps: the bracket box is x 20 to 26; the dot of the lane to its left spans x 11 to 25, so they overlap by 5 px.
+//     const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 20, right: 26 };
+//     const dotOfOtherLane = { ...makeNodes()[0]!, nodeBox: { left: 11, right: 25, top: 93, bottom: 107 } };
+//     assert.equal(isBracketClearOfDots(bracket, [dotOfOtherLane]), false);
+// });
+//
+// test("test_a_bracket_with_a_three_pixel_gap_to_the_dot_before_it_is_clear", () => {
+//     // Steps: the bracket box is x 42 to 48; the dot before it ends at x 39, so 3 px sit between them.
+//     const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 42, right: 48 };
+//     const dotBeforeIt = { ...makeNodes()[0]!, nodeBox: { left: 25, right: 39, top: 93, bottom: 107 } };
+//     assert.equal(isBracketClearOfDots(bracket, [dotBeforeIt]), true);
+// });
+//
+// test("test_a_bracket_touching_its_own_dot_is_clear", () => {
+//     // Steps: the bracket box ends at x 41 and its own dot starts at x 41, so they touch without overlap.
+//     const bracket: ColumnBracketFacts = { count: 1, style: "dashed", top: 100, bottom: 200, left: 35, right: 41 };
+//     const ownDot = { ...makeNodes()[0]!, nodeBox: { left: 41, right: 55, top: 93, bottom: 107 } };
+//     assert.equal(isBracketClearOfDots(bracket, [ownDot]), true);
+// });
 
 test("test_the_list_helpers_drop_repeats_and_name_what_is_missing", () => {
     assert.deepEqual(listMissingIds(["a", "b"], ["a", "c"]), ["c"]);

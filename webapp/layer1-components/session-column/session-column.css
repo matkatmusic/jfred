@@ -46,6 +46,11 @@
   .sessionDotLinesComponent .anode { left: calc(var(--lane-x) + var(--stack, 0) * 14px - var(--lane-shift)); z-index: 2; width: 14px; height: 14px; box-sizing: border-box;
     border-radius: 50%; border: 2px solid var(--session-color); background: var(--session-color); color: black;
     display: grid; place-items: center; font: 700 11px/1 ui-monospace, Menlo, monospace; transform: translate(-50%, -50%); cursor: pointer; }
+  /* task 912: in session layout a slot is 17px, so a stacked dot steps 17px. */
+  .sessionDotLinesComponent.is-session-layout .anode { left: calc(var(--lane-x) + var(--stack, 0) * 17px - var(--lane-shift)); }
+  /* task 912: thin line from the lane centre to the farthest extra dot, behind the dots (z-index 2). */
+  .aconnector { position: absolute; left: calc(var(--lane-x) - var(--lane-shift)); z-index: 1; width: calc(var(--stack, 0) * 17px); height: 1px;
+    top: calc(var(--axis-px) * 1px + var(--lane-y)); background: var(--session-color); transform: translateY(-50%); pointer-events: none; }
   /* .alabel { left: calc(34px + var(--stack, 0) * 16px); transform: translateY(-50%); font-size: 10px; color: var(--muted);
     white-space: nowrap; } */
   /*

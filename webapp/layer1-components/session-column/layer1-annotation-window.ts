@@ -4,6 +4,7 @@ import { computeAxisPixelsAt } from "../bubbles/layer1-ranges.ts";
 import type { WireAnnotation, WireSessionSpan } from "./layer1-wire-annotations.ts";
 import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
+import { buildDotLineKey } from "./layer1-session-slots.ts";
 
 // How far past the viewport edge the column keeps drawing records.
 export const ANNOTATION_MARGIN_PX = 300;
@@ -146,4 +147,17 @@ export function listWindowPlacements(placements: readonly Placement[], topPx: nu
     }
   }
   return kept;
+}
+
+// One placement per (session, y) that has extra dots: the one with the largest stack.
+export function listConnectorPlacements(list: readonly Placement[]): Placement[] {
+  const widestByLine = new Map<string, Placement>();
+  for (const placement of list) {
+    const key = buildDotLineKey(placement.annotation.sessionId, placement.axisPx);
+    const widestStack = widestByLine.get(key)?.stack ?? 0;
+    if (placement.stack > widestStack) {
+      widestByLine.set(key, placement);
+    }
+  }
+  return [...widestByLine.values()];
 }

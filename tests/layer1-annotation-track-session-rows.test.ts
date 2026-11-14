@@ -5,6 +5,7 @@ import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { buildDot, buildTicks, resetSessionDotsPage, setPaneSize, setUpSessionDotsPage } from "./layer1-session-dots-test-helpers.ts";
 import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
+import { LANE_STEP_PX } from "../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 const { registerSessionRelayout, renderAnnotationTrack, storeAnnotations, toggleSessionDotLines } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
 const INSTANTS_PATHNAME = "/api/layer1-session-dot-instants";
@@ -46,7 +47,9 @@ function readLaneX(recordId: string): string {
 }
 
 function readDotLeftPx(node: HTMLElement): number {
-    return parseFloat(node.style.getPropertyValue("--lane-x")) + Number(node.style.getPropertyValue("--stack")) * DOT_SIZE_PX - DOT_SIZE_PX / 2;
+    // task 912: session layout steps --stack by LANE_STEP_PX
+    // return parseFloat(node.style.getPropertyValue("--lane-x")) + Number(node.style.getPropertyValue("--stack")) * DOT_SIZE_PX - DOT_SIZE_PX / 2;
+    return parseFloat(node.style.getPropertyValue("--lane-x")) + Number(node.style.getPropertyValue("--stack")) * LANE_STEP_PX - DOT_SIZE_PX / 2;
 }
 
 function computeDotOverlapAreaPx(first: HTMLElement, second: HTMLElement): number {

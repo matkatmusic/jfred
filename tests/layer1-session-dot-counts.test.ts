@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import {
     SESSION_DOT_PX,
     computeDotBlockPxByTick,
-    computeSessionWidthSlots,
+    // task 912: computeSessionWidthSlots is commented out in the source.
+    // computeSessionWidthSlots,
     countInstantsBefore,
     listDistinctInstants,
     type SessionDotInstants,
@@ -65,15 +66,16 @@ test("test_listDistinctInstants_drops_repeats", () => {
     assert.deepEqual(listDistinctInstants([]), []);
 });
 
-test("test_computeSessionWidthSlots_is_the_biggest_same_instant_group", () => {
-    // Steps: three lists with different biggest groups.
-    // The biggest group is the three dots at 20.
-    assert.equal(computeSessionWidthSlots([10, 20, 20, 20, 30, 30]), 3);
-    // No repeats: every group has one dot.
-    assert.equal(computeSessionWidthSlots([10, 20]), 1);
-    // No dots: the lane still needs one slot.
-    assert.equal(computeSessionWidthSlots([]), 1);
-});
+// task 912: computeSessionWidthSlots is commented out in the source, so its test is off.
+// test("test_computeSessionWidthSlots_is_the_biggest_same_instant_group", () => {
+//     // Steps: three lists with different biggest groups.
+//     // The biggest group is the three dots at 20.
+//     assert.equal(computeSessionWidthSlots([10, 20, 20, 20, 30, 30]), 3);
+//     // No repeats: every group has one dot.
+//     assert.equal(computeSessionWidthSlots([10, 20]), 1);
+//     // No dots: the lane still needs one slot.
+//     assert.equal(computeSessionWidthSlots([]), 1);
+// });
 
 test("test_a_dot_exactly_on_a_tick_belongs_to_that_tick", () => {
     // Steps: one dot at ms 100, which is also the middle tick.

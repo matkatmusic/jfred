@@ -39,19 +39,20 @@ export function listDistinctInstantsBySession(instants: SessionDotInstants): Ses
   return distinctBySession;
 }
 
-// Most dots of one session at one instant: how many dot slots its lane needs (at least 1).
-export function computeSessionWidthSlots(sortedMs: readonly number[]): number {
-  let widthSlots = 1;
-  let runLength = 0;
-  let previousMs: number | undefined = undefined;
-  for (const ms of sortedMs) {
-    const isSameInstant = ms === previousMs;
-    runLength = isSameInstant ? runLength + 1 : 1;
-    widthSlots = Math.max(widthSlots, runLength);
-    previousMs = ms;
-  }
-  return widthSlots;
-}
+// task 912: lane width helper is unused; slots replace it
+// // Most dots of one session at one instant: how many dot slots its lane needs (at least 1).
+// export function computeSessionWidthSlots(sortedMs: readonly number[]): number {
+//   let widthSlots = 1;
+//   let runLength = 0;
+//   let previousMs: number | undefined = undefined;
+//   for (const ms of sortedMs) {
+//     const isSameInstant = ms === previousMs;
+//     runLength = isSameInstant ? runLength + 1 : 1;
+//     widthSlots = Math.max(widthSlots, runLength);
+//     previousMs = ms;
+//   }
+//   return widthSlots;
+// }
 
 function measureBusiestSessionLines(instants: SessionDotInstants, fromMs: number, toMs: number): number {
   let busiestLines = 0;

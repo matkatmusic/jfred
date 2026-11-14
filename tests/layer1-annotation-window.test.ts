@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { /* ANNOTATION_MARGIN_PX, */ listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements, listSessionPixelSpansFromServer, listSessionPixelSpansFromPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
+import { /* ANNOTATION_MARGIN_PX, */ listPairSpans, listSessionSpans, listWindowPlacements, computeAnnotationPlacements, listSessionPixelSpansFromServer, listSessionPixelSpansFromPlacements, listConnectorPlacements } from "../webapp/layer1-components/session-column/layer1-annotation-window.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireAnnotation, WireSessionSpan } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
@@ -135,4 +135,27 @@ test("test_placement_spans_become_pixel_spans_with_their_session_id", () => {
     ];
     const placementSpans = listSessionSpans(computeAnnotationPlacements(records, TICKS));
     assert.deepEqual(listSessionPixelSpansFromPlacements(placementSpans), [{ sessionId: "s1", firstPx: 20, lastPx: 120 }]);
+});
+
+test("test_a_connector_is_wanted_once_per_session_line_with_extra_dots_on_the_widest_dot", () => {
+    // Scenario: s1 has three dots on one line and one dot on another line; s2 has one extra dot on the first line.
+    const placements = [
+        { annotation: buildRecord("a", "2026-06-01T10:00:00Z", "s1"), axisPx: 100, stack: 0 },
+        { annotation: buildRecord("b", "2026-06-01T10:00:00Z", "s1"), axisPx: 100, stack: 1 },
+        { annotation: buildRecord("c", "2026-06-01T10:00:00Z", "s1"), axisPx: 100, stack: 3 },
+        { annotation: buildRecord("d", "2026-06-01T10:10:00Z", "s1"), axisPx: 114, stack: 0 },
+        { annotation: buildRecord("e", "2026-06-01T10:00:00Z", "s2"), axisPx: 100, stack: 2 },
+    ];
+    // Expect exactly two connectors: the widest s1 dot on line 100 and the s2 dot on line 100.
+    const connectors = listConnectorPlacements(placements);
+    assert.deepEqual(connectors.map((placement) => [placement.annotation.id, placement.axisPx, placement.stack]), [["c", 100, 3], ["e", 100, 2]]);
+});
+
+test("test_no_connector_is_wanted_when_every_dot_is_in_its_lane_slot", () => {
+    // Scenario: every dot has stack 0, so no dot sits right of its lane and no connector is wanted.
+    const placements = [
+        { annotation: buildRecord("a", "2026-06-01T10:00:00Z", "s1"), axisPx: 100, stack: 0 },
+        { annotation: buildRecord("b", "2026-06-01T10:10:00Z", "s2"), axisPx: 114, stack: 0 },
+    ];
+    assert.deepEqual(listConnectorPlacements(placements), []);
 });

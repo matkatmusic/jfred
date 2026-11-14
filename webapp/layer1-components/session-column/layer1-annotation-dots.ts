@@ -78,6 +78,19 @@ export function buildSessionLine(span: SessionPixelSpan, look: SessionLook): HTM
 //   return line;
 // }
 
+// A thin line from the lane centre to the farthest extra dot of one line.
+export function buildDotConnector(placement: Placement, look: SessionLook): HTMLElement {
+  const connector = createElement("i", {
+    class: "aconnector",
+    "data-component": "sessionDotsConnector",
+    "data-session-id": placement.annotation.sessionId,
+  });
+  connector.style.setProperty("--axis-px", String(placement.axisPx));
+  connector.style.setProperty("--stack", String(placement.stack));
+  setLookProperties(connector, look);
+  return connector;
+}
+
 // Same bracket as before, moved to the lane of its first dot.
 export function buildPairSpanBracket([first, last]: PairSpan, look: SessionLook): HTMLElement {
   const bracket = buildPairBracket(buildNode(first, look), buildNode(last, look), "abracket");

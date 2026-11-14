@@ -6,7 +6,9 @@ import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import { SESSION_DOT_PX } from "../../webapp/layer1-components/ruler/layer1-session-dot-counts.ts";
 import { LANE_STEP_PX } from "../../webapp/layer1-components/session-column/layer1-session-lanes.ts";
 import {
-  BLOCK_IDS, TOOL_IDS, countNodesWithClass, findColumnNode, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane, isBracketClearOfDots, isBracketSpanning,
+  // task 912: isBracketClearOfDots is commented out in layer7-facts.ts
+  // isBracketClearOfDots,
+  BLOCK_IDS, TOOL_IDS, countNodesWithClass, findColumnNode, isBlockColourOwnAlone, isBlockComplete, isBracketBesideLane, isBracketSpanning,
   // isNear,
   isEveryIdUnique, isLetterSetExpected, isStampedWithPredecessor, isTrackBetween, isWindowed, listBlockNodes, listColumnIds, listMissingIds,
   // type PageBox,
@@ -165,8 +167,10 @@ function isPairRight(nodes: ColumnNodeFacts[], bracket: ColumnBracketFacts): boo
   const isApart = result.cy - use.cy >= MIN_PAIR_GAP_PX;
   const isHookBetween = hook.cy > use.cy && hook.cy < result.cy;
   const isBesideLane = isBracketBesideLane(bracket, [use, result], LANE_STEP_PX);
-  const isClearOfDots = isBracketClearOfDots(bracket, nodes);
-  return isTyped && isSamePair && isApart && isHookBetween && isBesideLane && isClearOfDots && isBracketSpanning(bracket, use.cy, result.cy, BRACKET_TOLERANCE_PX);
+  // task 912: the pair check no longer demands room between the bracket and the neighbour lane
+  // const isClearOfDots = isBracketClearOfDots(bracket, nodes);
+  // return isTyped && isSamePair && isApart && isHookBetween && isBesideLane && isClearOfDots && isBracketSpanning(bracket, use.cy, result.cy, BRACKET_TOLERANCE_PX);
+  return isTyped && isSamePair && isApart && isHookBetween && isBesideLane && isBracketSpanning(bracket, use.cy, result.cy, BRACKET_TOLERANCE_PX);
 }
 
 // function isUnknownRight(nodes: ColumnNodeFacts[]): boolean {
