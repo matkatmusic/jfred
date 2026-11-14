@@ -5,8 +5,9 @@ import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/layer1-created-reason.ts";
-import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
-import type { WirePair } from "../webapp/layer1-wire.ts";
+import { ShowRowKind } from "../webapp/layer1-components/show-row/layer1-show-row.ts";
+import { WireRecordKind }from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import type { WireOrphan, WirePair, WireSnapshot } from "../webapp/layer1-wire.ts";
 
 initLayer1Dom();
 const { buildStagePairs, buildOrphanBucket } = await import("../webapp/layer1-widgets.ts");
@@ -129,4 +130,93 @@ test("test_every_file_at_a_shared_instant_is_found_by_the_ruler_row_lookup", () 
   container.append(bucket);
   const events = listAllEventsAtRow([SHARED_FIRST.axisPx], collectStageBubbles());
   assert.deepEqual(events.map((event) => event.path), ["c/first.py", "c/second.py", "c/third.py"]);
+});
+
+const NINE_AM = { instant: "2026-06-02T09:00:00.000Z", axisPx: 400 };
+const TEN_AM = { instant: "2026-06-02T10:00:00.000Z", axisPx: 700 };
+const EIGHT_AM = { instant: "2026-06-02T08:00:00.000Z", axisPx: 100 };
+
+function buildSnapshot(when: { instant: string; axisPx: number }, version: number): WireSnapshot {
+  return { ...when, version, sessionId: "session-a", sessionFile: "session-a.jsonl" };
+}
+
+function buildSnapshotOrphan(path: string, mtime: { instant: string; axisPx: number }, snapshots: WireSnapshot[]): WireOrphan {
+  return { path, ...mtime, snapshots };
+}
+
+test("test_a_file_with_two_snapshots_draws_three_lines_at_their_offsets_each_showing_the_name", () => {
+  // Scenario: mtime at 100 px, snapshots at 400 and 700 px; the bucket has one line per instant, 0/300/600 px below the start.
+  const orphan = buildSnapshotOrphan("d/snap.py", EIGHT_AM, [buildSnapshot(NINE_AM, 1), buildSnapshot(TEN_AM, 2)]);
+  const lines = listRowLines(buildOrphanBucket("No repository match", [orphan])!);
+  assert.deepEqual(lines.map((line) => line.style.getPropertyValue("--axis-px")), ["0", "300", "600"]);
+  assert.deepEqual(lines.map((line) => line.querySelector("span")?.textContent), ["d/snap.py", "d/snap.py", "d/snap.py"]);
+});
+
+test("test_a_snapshot_line_has_the_snapshot_class_and_dot_and_the_mtime_line_has_neither", () => {
+  // Scenario: the snapshot line is hideable (n-snap) and shows a dot that is not a .node; the mtime line has neither.
+  const orphan = buildSnapshotOrphan("d/snap.py", EIGHT_AM, [buildSnapshot(NINE_AM, 1)]);
+  const [mtimeLine, snapshotLine] = listRowLines(buildOrphanBucket("No repository match", [orphan])!);
+  assert.equal(snapshotLine!.classList.contains("n-snap"), true);
+  assert.equal(snapshotLine!.querySelectorAll(".snap-dot").length, 1);
+  assert.equal(snapshotLine!.querySelector(".node"), null);
+  assert.equal(mtimeLine!.classList.contains("n-snap"), false);
+  assert.equal(mtimeLine!.querySelector(".snap-dot"), null);
+});
+
+test("test_snapshots_of_two_files_at_one_instant_draw_one_line_with_a_more_count", () => {
+  // Scenario: two files each have a snapshot at 700 px; those two make one line "+1 more", the two mtime lines stay single.
+  const fileA = buildSnapshotOrphan("d/a.py", EIGHT_AM, [buildSnapshot(TEN_AM, 1)]);
+  const fileB = buildSnapshotOrphan("d/b.py", NINE_AM, [buildSnapshot(TEN_AM, 1)]);
+  const lines = listRowLines(buildOrphanBucket("No repository match", [fileA, fileB])!);
+  assert.equal(lines.length, 3);
+  assert.equal(lines[0]!.querySelector("button"), null);
+  assert.equal(lines[2]!.querySelector("button")?.textContent, "+1 more");
+});
+
+test("test_a_snapshot_before_the_earliest_mtime_moves_the_bucket_start_and_keeps_offsets_positive", () => {
+  // Scenario: mtime at 400 px, snapshot at 100 px; the bucket starts at 100 and the mtime line is 300 below it.
+  const orphan = buildSnapshotOrphan("d/snap.py", NINE_AM, [buildSnapshot(EIGHT_AM, 1)]);
+  const bucket = buildOrphanBucket("No repository match", [orphan])!;
+  assert.equal(bucket.style.getPropertyValue("--axis-px"), "100");
+  const offsets = listRowLines(bucket).map((line) => Number(line.style.getPropertyValue("--axis-px")));
+  assert.deepEqual(offsets, [0, 300]);
+});
+
+test("test_a_snapshot_after_the_latest_mtime_widens_the_bucket_span", () => {
+  // Scenario: mtime at 400 px, snapshot at 700 px; the span is 300 px, not 0.
+  const orphan = buildSnapshotOrphan("d/snap.py", NINE_AM, [buildSnapshot(TEN_AM, 1)]);
+  const rowHolder = buildOrphanBucket("No repository match", [orphan])!.querySelector<HTMLElement>(".orphan-rows")!;
+  assert.equal(rowHolder.style.getPropertyValue("--span-px"), "300");
+});
+
+test("test_the_file_count_text_counts_files_not_snapshots", () => {
+  // Scenario: one file with two snapshots still says "1 files".
+  const orphan = buildSnapshotOrphan("d/snap.py", EIGHT_AM, [buildSnapshot(NINE_AM, 1), buildSnapshot(TEN_AM, 2)]);
+  const bucket = buildOrphanBucket("No repository match", [orphan])!;
+  assert.equal(bucket.querySelector(".sub")?.textContent, "1 files");
+});
+
+test("test_a_snapshot_sharing_an_instant_with_an_mtime_shows_the_mtime_name_first_on_a_line_that_is_not_hideable", () => {
+  // Scenario: a/snap.py has a snapshot at 700 px where c/first.py has its mtime; one line, c/first.py first, no n-snap on the line, n-snap inside the popup.
+  const snapFile = buildSnapshotOrphan("a/snap.py", EIGHT_AM, [buildSnapshot(SHARED_FIRST, 1)]);
+  const lines = listRowLines(buildOrphanBucket("No repository match", [snapFile, SHARED_FIRST])!);
+  assert.equal(lines.length, 2);
+  const sharedLine = lines[1]!;
+  assert.equal(sharedLine.querySelector("span")?.textContent, "c/first.py");
+  assert.equal(sharedLine.classList.contains("n-snap"), false);
+  assert.equal(sharedLine.querySelector("button")?.textContent, "+1 more");
+  const popupLine = sharedLine.querySelector<HTMLElement>(".more-files li")!;
+  assert.equal(popupLine.querySelector("span")?.textContent, "a/snap.py");
+  assert.equal(popupLine.classList.contains("n-snap"), true);
+});
+
+test("test_the_ruler_row_lookup_reports_a_snapshot_line_as_the_snapshot_kind", () => {
+  // Scenario: the ruler click at 400 px finds the snapshot line, and its kind is snapshot so the show-row checkbox can hide it.
+  const orphan = buildSnapshotOrphan("d/snap.py", EIGHT_AM, [buildSnapshot(NINE_AM, 1)]);
+  const bucket = buildOrphanBucket("No repository match", [orphan])!;
+  const container = document.getElementById("fileBubbleContainer")!;
+  clearFileBubbles(container);
+  container.append(bucket);
+  const events = listAllEventsAtRow([NINE_AM.axisPx], collectStageBubbles());
+  assert.deepEqual(events.map((event) => event.nodeKind), [ShowRowKind.snapshot]);
 });
