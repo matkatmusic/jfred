@@ -123,6 +123,15 @@ test("test_applyJSONLLineToState_user_edit_keeps_a_missing_final_newline", (t) =
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT);
 });
 
+test("test_applyJSONLLineToState_user_edit_with_an_empty_snippet_leaves_the_file_unchanged", (t) => {
+    // Scenario: another agent's Edit changed the file, and the harness gave this session an edited_text_file record with an empty snippet.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "index.html"), "<!doctype html>\n<html lang=\"en\">\n</html>\n");
+    // the empty snippet holds no file text, so the replay must not change the file
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "index.html", ""), [], NO_SCRIPT_CONTEXT);
+    assert.equal(readFileSync(join(stateFolder, "index.html"), "utf8"), "<!doctype html>\n<html lang=\"en\">\n</html>\n");
+});
+
 test("test_applyJSONLLineToState_user_edit_snippet_from_line_1_keeps_the_old_lines_after_its_8_context_lines", (t) => {
     // Scenario: the user adds 2 lines at line 3; the snippet shows lines 1 to 12 and stops before the old last line.
     const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");

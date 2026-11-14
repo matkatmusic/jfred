@@ -17,6 +17,7 @@ import { findWorktreeAgentId } from "./engineV3_replay_worktree.ts";
 import { findScriptRun } from "./engineV3_replay_script.ts";
 import { findReplayRoot } from "./engineV3_replay_root.ts";
 import { getUserEditEvent } from "../src/reconstruction_user_edit.ts";
+import { getAttachmentEntry } from "../src/structures/session-meta.ts";
 import type { UserEditEvent } from "../src/reconstruction_events.ts";
 import type { OutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import type { PlateRun } from "./engineV3_replay_plate.ts";
@@ -294,9 +295,14 @@ function getToolResultLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
   return getToolResultKind(raw, repo);
 }
 
-function getUserEditKind(event: UserEditEvent, repo: Path): JSONLLineKind {
+// An empty snippet is a change notice with no file text (often another agent's recorded Edit), so it changes nothing.
+function getUserEditKind(event: UserEditEvent, line: JSONLLine, repo: Path): JSONLLineKind {
   const isInRepo = findReplayRoot(repo, event.target) !== undefined;
   if (!isInRepo) {
+    return JSONLLineKind.Skip;
+  }
+  const isSnippetEmpty = getAttachmentEntry(line)!.attachment.snippet === "";
+  if (isSnippetEmpty) {
     return JSONLLineKind.Skip;
   }
   return JSONLLineKind.UserEdit;
@@ -308,7 +314,7 @@ export function getJSONLLineKind(line: JSONLLine, repo: Path): JSONLLineKind {
   }
   const userEditEvent = getUserEditEvent(line);
   if (userEditEvent !== undefined) {
-    return getUserEditKind(userEditEvent, repo);
+    return getUserEditKind(userEditEvent, line, repo);
   }
   const worktreeAgentId = findWorktreeAgentId(line);
   if (worktreeAgentId !== undefined) {
