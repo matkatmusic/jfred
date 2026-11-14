@@ -188,3 +188,38 @@ test("test_formatEventText_says_the_idle_state_file_was_copied_from_the_mac_at_i
   const text = formatEventText({ type: TimelineEventKind.IdleStateCopy, copy, timestamp: copy.timeMs }, undefined);
   assert.ok(text.endsWith(`idle-state file ${join(folders.state, ".idleState", "a.json")} copied from the Mac at 2026-10-27T00:00:10.000Z`));
 });
+
+// The Mac task list file sits under the plate folder at <home>/.claude/tasks/dotfiles, like the docker mount.
+function writeMacTaskListFile(folders: Folders, home: string, name: string, content: string, second: number): void {
+  const taskListFolder = join(folders.macPlate, home, ".claude", "tasks", "dotfiles");
+  mkdirSync(taskListFolder, { recursive: true });
+  const file = join(taskListFolder, name);
+  writeFileSync(file, content);
+  const time = new Date(Date.UTC(2026, 9, 27, 0, 0, second));
+  utimesSync(file, time, time);
+}
+
+test("test_listIdleStateCopies_lists_a_task_list_file_at_its_mtime_and_logs_it_as_a_task_list_file", (t) => {
+  // Scenario: one file in the Mac dotfiles task list, no recorded Write: one copy at the file's mtime, logged as a task-list file.
+  const folders = makeFolders(t);
+  const home = makeTempFolder(t, "idle-home-");
+  writeMacTaskListFile(folders, home, "435.json", "{}", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeWriteCallRow("c1", join(folders.state, "other.txt"), 5)]);
+  const copies = listIdleStateCopies(new Path(folders.macPlate), lines);
+  assert.equal(copies.length, 1);
+  assert.equal(copies[0]!.targetPath.toString(), join(home, ".claude", "tasks", "dotfiles", "435.json"));
+  assert.equal(copies[0]!.timeMs, Date.UTC(2026, 9, 27, 0, 0, IDLE_FILE_SECONDS));
+  const text = formatEventText({ type: TimelineEventKind.IdleStateCopy, copy: copies[0]!, timestamp: copies[0]!.timeMs }, undefined);
+  assert.ok(text.endsWith(`task-list file ${join(home, ".claude", "tasks", "dotfiles", "435.json")} copied from the Mac at 2026-10-27T00:00:10.000Z`));
+});
+
+test("test_applyIdleStateCopyToState_writes_a_task_list_file_at_its_path_outside_the_state", (t) => {
+  // Scenario: the task list file is not under the state folder: applying the copy still puts the Mac bytes at its own path.
+  const folders = makeFolders(t);
+  const home = makeTempFolder(t, "idle-home-");
+  writeMacTaskListFile(folders, home, "435.json", "{\"id\":435}", IDLE_FILE_SECONDS);
+  const lines = loadRows(folders, [makeWriteCallRow("c1", join(folders.state, "x.txt"), 5)]);
+  const copy = listIdleStateCopies(new Path(folders.macPlate), lines)[0]!;
+  applyIdleStateCopyToState(new Path(folders.state), copy);
+  assert.equal(readFileSync(join(home, ".claude", "tasks", "dotfiles", "435.json"), "utf8"), "{\"id\":435}");
+});

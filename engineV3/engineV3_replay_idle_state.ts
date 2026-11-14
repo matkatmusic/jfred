@@ -1,7 +1,7 @@
-// Copies the idle-state hook files (<project>/.idleState/*) and the playground results files (<project>/playground/results/*) that no recorded call makes, at their Mac mtime.
+// Copies the idle-state hook files (<project>/.idleState/*), the playground results files (<project>/playground/results/*) and the dotfiles task list files (~/.claude/tasks/dotfiles/*) that no recorded call makes, at their Mac mtime.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { BlockType, EXECUTOR_TOOL_NAMES, ToolName } from "../src/structures/vocabulary.ts";
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
@@ -20,6 +20,9 @@ const IDLE_STATE_LABEL = "idle-state";
 const PLAYGROUND_FOLDER_NAME = "playground";
 const RESULTS_FOLDER_NAME = "results";
 const RESULTS_LABEL = "results";
+const TASKS_FOLDER_NAME = "tasks";
+const TASK_LIST_FOLDER_NAME = "dotfiles";
+const TASK_LIST_LABEL = "task-list";
 const PLATE_FOLDER_NAME = ".plate";
 const PARENT_FOLDER_PREFIX = "..";
 // A redirect to a file, tee, cp, mv, rm, touch, sed -i, a file-write call, or curl -o; an unsure match counts as a write.
@@ -88,10 +91,20 @@ function isPlaygroundResultsFolder(parentFolder: string, folderName: string): bo
   return false;
 }
 
+function isTaskListFolder(parentFolder: string, folderName: string): boolean {
+  if (folderName === TASK_LIST_FOLDER_NAME) {
+    return basename(parentFolder) === TASKS_FOLDER_NAME;
+  }
+  return false;
+}
+
 function listMacFiles(folder: string, macFiles: MacFile[]): void {
   for (const entry of readdirSync(folder, { withFileTypes: true })) {
     if (entry.name === IDLE_STATE_FOLDER_NAME) {
       addFolderFiles(join(folder, entry.name), IDLE_STATE_LABEL, macFiles);
+    }
+    else if (isTaskListFolder(folder, entry.name)) {
+      addFolderFiles(join(folder, entry.name), TASK_LIST_LABEL, macFiles);
     }
     else if (isPlaygroundResultsFolder(folder, entry.name)) {
       addFolderFiles(join(folder, entry.name), RESULTS_LABEL, macFiles);
@@ -106,7 +119,7 @@ function listMacFiles(folder: string, macFiles: MacFile[]): void {
 
 // A results file is copied only if no recorded command made it, the start state does not write it, and it did not change after its first recorded use.
 function shouldCopyMacFile(folderLabel: string, targetPath: Path, timeMs: number, recordedUses: Map<string, RecordedUse>, printLine: PrintLine): boolean {
-  if (folderLabel === IDLE_STATE_LABEL) {
+  if (folderLabel !== RESULTS_LABEL) {
     return true;
   }
   if (targetPath.toString().endsWith("/" + PLAYGROUND_HISTORY_PATH)) {
@@ -162,6 +175,11 @@ export function formatIdleStateCopyText(copy: IdleStateCopy): string {
 }
 
 export function applyIdleStateCopyToState(state: Path, copy: IdleStateCopy): void {
+  if (copy.folderLabel === TASK_LIST_LABEL) {
+    mkdirSync(dirname(copy.targetPath.toString()), { recursive: true });
+    writeFileSync(copy.targetPath.toString(), readFileSync(copy.macFile.toString()));
+    return;
+  }
   const relativeTarget = relative(state.toString(), copy.targetPath.toString());
   if (relativeTarget.startsWith(PARENT_FOLDER_PREFIX)) {
     throw new Error(`applyIdleStateCopyToState: ${copy.targetPath.toString()} is outside the state folder ${state.toString()}`);

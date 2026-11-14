@@ -191,6 +191,15 @@ while IFS= read -r RESULTS_FOLDER; do
 done <<EOF
 $MAC_RESULTS_FOLDERS
 EOF
+# Three dotfiles task list files that the recorded stop reads (user decision 2026-11-13) are mounted under /input/plate too; the engine copies them at their Mac mtime
+MAC_TASK_LIST_FOLDER="$HOME/.claude/tasks/dotfiles"
+for TASK_NUMBER in 435 440 441; do
+    if [ ! -f "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" ]; then
+        echo "missing task list file $MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" >&2
+        exit 1
+    fi
+    set -- "$@" -v "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:/input/plate$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:ro"
+done
 # Without a git repo the engine writes these start files into the state folder
 if [ -z "$GIT_REPO_FOLDER" ]; then
     for START_FILE in conftest.py tests/conftest.py .gitignore settings.json hooks.json block-compound.sh; do
@@ -239,6 +248,9 @@ fi
 # done
 # On the Mac, ~/.claude/guides is a link into the dotfiles folder
 docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/guides /Users/matkatmusicllc/.claude/guides
+# The engine, running as the replay user, copies the task list files into this one folder
+docker exec "$NAME" mkdir -p /Users/matkatmusicllc/.claude/tasks/dotfiles
+docker exec "$NAME" chown replay /Users/matkatmusicllc/.claude/tasks/dotfiles
 # for JSONL_FOLDER in "$@"; do
 #     docker exec "$NAME" mkdir -p "$(dirname "$JSONL_FOLDER")"
 # done

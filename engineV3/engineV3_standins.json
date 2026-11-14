@@ -102,6 +102,12 @@
     "standIn": "each playground/results file that no recorded Write/Edit/command makes, that the start state does not write, and that did not change after its first recorded use is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
   },
   {
+    "realProgram": "Claude Code task files of the user's dotfiles task list, ~/.claude/tasks/{435,440,441}.json under dotfiles/, made outside this project; no recorded call writes them",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
+    "lineNumber": 447,
+    "standIn": "run_replay_in_docker.sh mounts exactly these 3 files read-only under /input/plate and makes the replay user own /Users/matkatmusicllc/.claude/tasks/dotfiles; the engine copies each into that folder at its Mac mtime (2026-11-05T17:12:42Z, after line 223 and before line 447), one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
     "realProgram": "macOS stat -f FORMAT",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
     "lineNumber": 250,
