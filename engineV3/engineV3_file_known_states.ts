@@ -151,6 +151,13 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
         }
         break;
       }
+      case FileEventType.UserEditNotice: {
+        // The laid-over text is a guess, so it is not pending; the text before the notice is unknown.
+        knownStates.push({ event, moment: StateMoment.AtEvent, confidence: StateConfidence.Derived, isFileAbsent: false, text: event.bytes });
+        carried = UNKNOWN_TEXT;
+        isBehindRoadblock = true;
+        break;
+      }
       case FileEventType.ReadPartial:
       case FileEventType.ScriptReadOnly: {
         const stateAtEvent = createUnprovenState(event, StateMoment.AtEvent, carried);

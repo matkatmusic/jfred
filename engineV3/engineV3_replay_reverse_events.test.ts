@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
-import { ReverseStateKind, type ReverseFileState } from "./engineV3_replay_reverse.ts";
+import { ReverseStateKind, loadJSONLLinesNamingFile, type ReverseFileState } from "./engineV3_replay_reverse.ts";
 import {
-    FileEventType, formatUnhandledEventLines, getAllEventsForFileFrom, getReverseStatesForFile, isBeaconEvent, isEventTypeHandled, pruneBeaconsFromEvents, sortEventsNewestToOldest,
+    FileEventType, formatUnhandledEventLines, getAllEventsForFileFrom, getAllEventsForFileFromLines, getReverseStatesForFile, isBeaconEvent, isEventTypeHandled, pruneBeaconsFromEvents, sortEventsNewestToOldest,
     type FileEvent, type ReverseEventsResult,
 } from "./engineV3_replay_reverse_events.ts";
 
@@ -109,6 +109,75 @@ function listScriptMayWriteEventsForFile(scene: Scene, transcriptFile: Path): Fi
     const events = getAllEventsForFileFrom(scene.file, transcriptFile, [scene.jsonlFolder], [scene.snapshotFolder]);
     return events.filter((event) => event.type === FileEventType.ScriptMayWrite);
 }
+
+const BACKUP_TEXT = Array.from({ length: 20 }, (_, index) => `a${index + 1}`).join("\n") + "\n";
+// The user changed lines 3 and 11; the harness shows each changed line with context, and 8 context lines after the last change.
+const ELIDED_USER_EDIT_SNIPPET = "2\ta2\n3\tA3\n4\ta4\n...\n10\ta10\n11\tA11\n12\ta12\n13\ta13\n14\ta14\n15\ta15\n16\ta16\n17\ta17\n18\ta18\n19\ta19";
+const TEXT_AFTER_USER_EDIT = BACKUP_TEXT.replace("a3\n", "A3\n").replace("a11\n", "A11\n");
+
+// A scene whose log holds a backup of a.txt at second 1 and an edited_text_file notice for a.txt at the given second.
+function makeSceneWithBackupAndUserEditNotice(t: TestContext, noticeSecond: number, snippet: string, makeExtraRecords: (file: string) => object[] = () => []): Scene {
+    const scene = makeScene(t, "disk");
+    mkdirSync(join(scene.snapshotFolder.toString(), "s1"));
+    writeFileSync(join(scene.snapshotFolder.toString(), "s1", "abc@v1"), BACKUP_TEXT);
+    const backups = { [scene.file.toString()]: { backupFileName: "abc@v1", version: 1, backupTime: makeInstant(1).toISOString() } };
+    const snapshotRecord = { type: "file-history-snapshot", messageId: "m1", snapshot: { messageId: "m1", trackedFileBackups: backups, timestamp: makeInstant(1).toISOString() }, isSnapshotUpdate: false };
+    const noticeRecord = { type: "attachment", uuid: "notice-1", timestamp: makeInstant(noticeSecond).toISOString(), attachment: { type: "edited_text_file", filename: scene.file.toString(), snippet } };
+    writeRecords(scene, [snapshotRecord, ...makeExtraRecords(scene.file.toString()), noticeRecord]);
+    return scene;
+}
+
+function listEventsOfTypeFromLines(scene: Scene, type: FileEventType): FileEvent[] {
+    const jsonlLines = loadJSONLLinesNamingFile(scene.file, [scene.jsonlFolder]);
+    return getAllEventsForFileFromLines(scene.file, scene.file, jsonlLines, [scene.snapshotFolder]).filter((event) => event.type === type);
+}
+
+test("test_getAllEventsForFileFromLines_lays_an_elided_user_edit_notice_over_the_nearest_older_backup", (t) => {
+    // Scenario: a backup at second 1 holds twenty lines; a notice at second 5 shows the lines around a user edit of lines 3 and 11.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET);
+    const noticeEvents = listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice);
+    // One notice event, at the notice time, whose bytes are the backup with the shown lines laid over it.
+    assert.equal(noticeEvents.length, 1);
+    assert.equal(noticeEvents[0]!.instant!.getTime(), makeInstant(5).getTime());
+    assert.equal(noticeEvents[0]!.bytes, TEXT_AFTER_USER_EDIT);
+});
+
+test("test_getAllEventsForFileFromLines_lays_a_notice_over_a_newer_Edit_text_instead_of_the_older_backup", (t) => {
+    // Scenario: the backup is at second 1, an Edit with originalFile at second 3 changes line 5, and the notice is at second 5.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET, (file) => makeEditRows("e1", file, "a5", "A5", BACKUP_TEXT, 3));
+    const noticeEvents = listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice);
+    // The text under the notice is the Edit's text, so line 5 stays changed.
+    assert.equal(noticeEvents[0]!.bytes, TEXT_AFTER_USER_EDIT.replace("a5\n", "A5\n"));
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_no_backup_is_older_than_the_notice", (t) => {
+    // Scenario: the notice at second 0 is older than the only backup, which is at second 1.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 0, ELIDED_USER_EDIT_SNIPPET);
+    // There is nothing to lay the notice over.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_the_notice_shows_a_line_past_the_end_of_the_backup", (t) => {
+    // Scenario: the backup has twenty lines; the notice shows line 21, so the file was longer than the backup when the notice was made.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, "19\ta19\n21\tA21");
+    // The notice does not fit the backup, so there is no event.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_the_lines_after_the_change_are_shifted", (t) => {
+    // Scenario: the user deleted line 11, so the lines shown after the change sit one line higher than in the backup.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, "10\ta10\n11\ta12\n12\ta13\n13\ta14\n14\ta15\n15\ta16\n16\ta17\n17\ta18\n18\ta19");
+    // Laying those lines over the backup would give a false text, so there is no event.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFrom_does_not_return_user_edit_notice_events", (t) => {
+    // Scenario: the same scene as the first notice test, read through the wrapper that the reverse viewer uses.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET);
+    const events = getAllEventsForFileFrom(scene.file, scene.file, [scene.jsonlFolder], [scene.snapshotFolder]);
+    // The viewer path stays as it was: no notice event.
+    assert.equal(events.some((event) => event.type === FileEventType.UserEditNotice), false);
+});
 
 test("test_isBeaconEvent_is_true_for_events_that_carry_the_whole_file", () => {
     // Scenario: the events that carry the whole text by themselves are beacons.
