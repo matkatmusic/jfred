@@ -5,6 +5,7 @@ import { sendLayer1BranchesResponse } from "./viewer_api_layer1_branches.ts";
 import { sendLayer1Diff, sendLayer1DiffContent } from "./viewer_api_layer1_diff.ts";
 import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
 import { sendLayer1FileResponse } from "./viewer_api_layer1_file.ts";
+import { sendLayer1InverseReposResponse } from "./viewer_api_layer1_inverse_repos.ts";
 import { sendLayer1Record } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
 import { receiveJfredCommit, receiveJfredDelete } from "./viewer_api_layer1_jfred_route.ts";
@@ -44,6 +45,7 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-refs", (_request, response, url) => sendLayer1RefsResponse(response, url.searchParams)],
   ["/api/layer1-sessions", (_request, response, url) => sendLayer1SessionsResponse(response, url.searchParams)],
   ["/api/layer1-edits", (_request, response, url) => sendLayer1EditsResponse(response, url.searchParams)],
+  ["/api/layer1-inverse-repos", (_request, response, url) => sendLayer1InverseReposResponse(response, url.searchParams)],
   ["/api/layer1-script-runs", (_request, response, url) => sendLayer1ScriptRunsResponse(response, url.searchParams)],
   ["/api/layer1-branches", (_request, response, url) => sendLayer1BranchesResponse(response, url.searchParams)],
   ["/api/layer1-record", (_request, response, url) => sendLayer1Record(response, url.searchParams)],
