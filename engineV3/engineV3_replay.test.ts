@@ -61,30 +61,34 @@ const FIXED_NOW_MS = 1794267667512;
 const FIXED_NOW_ISO = "2026-11-09T23:41:07.512Z";
 
 test("test_formatEventText_names_the_kind_new_commit_and_message_for_an_outside_git_row", (t) => {
-    // Scenario: the first event is the outside row of commit A, so the text names its kind, new commit and message.
+    // Scenario: the second event is the outside row of commit A, so the text names its kind, new commit and message.
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "w.txt", "w", 5) + "\n" + makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
     const repoPath = new Path(join(timedRepo.repoFolder, ".git"));
-    const event = getNextEvent(repoPath, [new Path(jsonlFolder)], null) as TimelineEvent;
+    const jsonlsPaths = [new Path(jsonlFolder)];
+    // step past the line at 5s to the row of commit A
+    const firstLineEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;
+    const event = getNextEvent(repoPath, jsonlsPaths, firstLineEvent) as TimelineEvent;
     // format the outside git event with the clock fixed
     t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
     assert.equal(formatEventText(event, repoPath), `${FIXED_NOW_ISO} next event: outside git: Commit ${timedRepo.commitA} commit (initial): change.txt`);
 });
 
 test("test_formatEventText_names_the_jsonl_file_and_line_number_for_a_line", (t) => {
-    // Scenario: the second event is the line at 15s, so the text names its file and line number.
+    // Scenario: the third event is the line at 15s, so the text names its file and line number.
     const timedRepo = makeTimedRepo(t);
     const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
-    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(timedRepo.repoFolder, "w.txt", "w", 5) + "\n" + makeWriteCreateLine(timedRepo.repoFolder, "x.txt", "x", 15) + "\n");
     const repoPath = new Path(join(timedRepo.repoFolder, ".git"));
     const jsonlsPaths = [new Path(jsonlFolder)];
-    // step past the row of commit A to the line
-    const commitEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;
+    // step past the line at 5s and the row of commit A to the line at 15s
+    const firstLineEvent = getNextEvent(repoPath, jsonlsPaths, null) as TimelineEvent;
+    const commitEvent = getNextEvent(repoPath, jsonlsPaths, firstLineEvent) as TimelineEvent;
     const lineEvent = getNextEvent(repoPath, jsonlsPaths, commitEvent) as TimelineEvent;
     // format the line event with the clock fixed
     t.mock.timers.enable({ apis: ["Date"], now: FIXED_NOW_MS });
-    assert.equal(formatEventText(lineEvent, repoPath), `${FIXED_NOW_ISO} next event: source:${join(jsonlFolder, "s1.jsonl")} line:1`);
+    assert.equal(formatEventText(lineEvent, repoPath), `${FIXED_NOW_ISO} next event: source:${join(jsonlFolder, "s1.jsonl")} line:2`);
 });
 
 test("test_formatEventText_prints_the_capture_file_name_event_name_and_cwd_of_a_plate_capture", (t) => {

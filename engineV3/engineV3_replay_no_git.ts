@@ -1,12 +1,14 @@
 // The replay with no --git-repo: no start repo, no git rows and no HEAD checks, so no git command runs against a missing repo.
 
 import { cpSync } from "node:fs";
+import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { createStartRepo, readStartPoint } from "./engineV3_replay_git_start.ts";
 import { assertHeadMatchesLog, getGitEnvForCall } from "./engineV3_replay_script_git_env.ts";
 import { fillMissingBunLockfile } from "./engineV3_replay_script_lockfile.ts";
+import { getSubmoduleGitFolder, listSubmodulePaths } from "./engineV3_replay_submodule.ts";
 import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
 
 // Every file under the start folder lands in the state folder at the same relative path.
@@ -47,6 +49,11 @@ export function assertHeadMatchesLogInOptionalRepo(command: string, result: Bash
     return;
   }
   assertHeadMatchesLog(command, result, sourceRepo, state, output);
+  // Each submodule repo gets the same check; one with no HEAD log row in the call window returns at once.
+  for (const submodulePath of listSubmodulePaths(sourceRepo)) {
+    const submoduleState = new Path(join(state.toString(), submodulePath.toString()));
+    assertHeadMatchesLog(command, result, getSubmoduleGitFolder(sourceRepo, submodulePath), submoduleState, output);
+  }
 }
 
 export function fillMissingBunLockfileFromOptionalRepo(state: Path, run: ScriptRun, sourceRepo: Path | undefined): void {

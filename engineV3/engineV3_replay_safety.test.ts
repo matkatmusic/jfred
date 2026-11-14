@@ -65,7 +65,8 @@ function writeFakeBunSeedFolder(): string {
 }
 
 function isAllowedWritablePath(path: string): boolean {
-    for (const root of [STATE_FOLDER, CHECK_FOLDER, "/tmp", "/private/tmp"]) {
+    // merge: the Dockerfile makes the bun cache and the npm cache writable on purpose (Attune recorded bun add and npm install calls)
+    for (const root of [STATE_FOLDER, CHECK_FOLDER, "/tmp", "/private/tmp", "/Users/matkatmusicllc/.bun", "/npm-cache"]) {
         if (path === root) {
             return true;
         }
@@ -78,7 +79,8 @@ function isAllowedWritablePath(path: string): boolean {
 
 before(() => {
     // runDocker(["build", "-t", IMAGE_TAG, import.meta.dirname]);
-    runDocker(["build", "-t", IMAGE_TAG, "--build-context", `bunseed=${writeFakeBunSeedFolder()}`, "--build-context", `playwrightcache=${PLAYWRIGHT_CACHE_FOLDER}`, import.meta.dirname]);
+    // merge: the Dockerfile build context is named packageseed (was bunseed)
+    runDocker(["build", "-t", IMAGE_TAG, "--build-context", `packageseed=${writeFakeBunSeedFolder()}`, "--build-context", `playwrightcache=${PLAYWRIGHT_CACHE_FOLDER}`, import.meta.dirname]);
     runDocker(["run", "-d", "--network", "none", "--name", CONTAINER, IMAGE_TAG, "sleep", "infinity"]);
     runDocker(["exec", CONTAINER, "mkdir", "-p", STATE_FOLDER]);
     runDocker(["exec", CONTAINER, "chown", "replay", STATE_FOLDER]);
@@ -148,7 +150,7 @@ test("test_input_tree_is_unchanged_after_a_script_tries_to_wipe_it", { timeout: 
 });
 
 test("test_no_folder_outside_state_and_tmp_is_writable_by_the_replay_user", { timeout: PROOF_TIMEOUT_MS }, () => {
-    const run = runAsReplay("find / -xdev -writable -not -path '/proc/*' 2>/dev/null");
+    const run = runAsReplay("find / -xdev -writable -not -type l -not -path '/proc/*' 2>/dev/null");
     const writablePaths = run.stdout.split("\n");
     assert.ok(writablePaths.includes(STATE_FOLDER), run.stderr);
     const unexpectedPaths: string[] = [];

@@ -16,13 +16,13 @@ import { ignorePhaseProgress, type ReportPhaseProgress } from "./engineV3_startu
 
 export type MergedJSONLLines = { jsonlLines: JSONLLine[]; unknownFields: UnknownField[]; unknownRecordTypes: string[]; transcriptFileCount: number };
 
-function printUnknownFields(unknownFields: UnknownField[]): void {
+export function printUnknownFields(unknownFields: UnknownField[]): void {
   for (const unknownField of unknownFields) {
     console.log(`unknown field: ${unknownField.recordType}.${unknownField.fieldName}`);
   }
 }
 
-function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
+export function printUnknownRecordTypes(unknownRecordTypes: Set<string>): void {
   for (const recordType of unknownRecordTypes) {
     console.log(`unknown record type: ${recordType}`);
   }
@@ -35,7 +35,7 @@ function getTranscriptFileId(transcriptFile: Path): string {
 }
 
 // A multi-source scenario folder holds each transcript twice: at the top and in source-*/projects. The first copy wins.
-function filterOutCopiedTranscripts(transcriptFiles: Path[]): Path[] {
+export function filterOutCopiedTranscripts(transcriptFiles: Path[]): Path[] {
   const seenFileIds = new Set<string>();
   const uniqueFiles: Path[] = [];
   for (const transcriptFile of transcriptFiles) {
@@ -81,7 +81,7 @@ function collectDelayedCallTimesInRecord(record: JSONLLine, callTime: number, re
   }
 }
 
-function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
+export function collectDelayedScriptCallTimes(records: JSONLLine[], sortTimeOverrides: Map<JSONLLine, number>): void {
   const resultTimeByCallId = getResultTimeByCallId(records);
   for (const record of records) {
     if (record.timestamp instanceof Date) {
@@ -130,6 +130,7 @@ export function loadMergedJSONLLines(jsonlFolders: string[], reportProgress: Rep
   mergedLinesByFolders.set(foldersKey, mergedLines);
   return mergedLines;
 }
+
 // The earliest timestamp of any line; the replay start point is read at this time.
 export function getFirstLineTime(jsonlLines: JSONLLine[]): Date {
   let firstTime: Date | undefined;

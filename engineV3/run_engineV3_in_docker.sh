@@ -18,7 +18,7 @@ done
 
 # docker build -t engine-v3:1 "$ENGINE_FOLDER"
 # docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" "$ENGINE_FOLDER"
-docker build -t engine-v3:1 --build-context bunseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
+docker build -t engine-v3:1 --build-context packageseed="$SEED_FOLDER" --build-context playwrightcache=/Users/matkatmusicllc/Library/Caches/ms-playwright "$ENGINE_FOLDER"
 # bun build "$ENGINE_FOLDER/engineV3_replay.ts" --target=node --outfile="$BUNDLE_FOLDER/engineV3_replay.mjs"
 
 NAME="engine-v3-$(date +%s)"

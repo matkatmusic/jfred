@@ -86,7 +86,8 @@ test("test_createLinkedWorktreeWhenCommandNamesIt_lets_a_recorded_worktree_remov
 test("test_executeScriptInState_makes_the_typesafe_playground_test_worktree_before_a_command_that_names_it", (t) => {
   // Scenario: executeScriptRun calls the worktree maker; the state has no 85c2c39, so the maker's git worktree add stops the run (nothing is made on this machine).
   const scenario = makeScenario(t);
-  const command = "ls /Users/matkatmusicllc/Programming/typesafe-playground-test/playground/results";
+  // merge: `touch` changes a file, so the replay does not skip the call as a read-only call (Attune rule); `ls` would be skipped before the worktree maker
+  const command = "touch /Users/matkatmusicllc/Programming/typesafe-playground-test/playground/results/marker.txt";
   const block = { type: "tool_use", id: TOOL_USE_ID, name: "Bash", input: { command, description: "test" }, caller: { type: "direct" } };
   const callLine = { type: "assistant", uuid: "4b836cc7-2357-412e-9f53-b23191b3c68a", parentUuid: null, cwd: scenario.state.toString(), timestamp: "2026-10-27T17:24:20.837Z", sessionId: "7d31cfda-fb91-4f61-ba61-7031cb5484e2", message: { role: "assistant", content: [block] } };
   const jsonlFile = join(makeTempFolder(t, "engine-v3-test-worktree-jsonl-"), "session.jsonl");

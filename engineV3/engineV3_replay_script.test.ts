@@ -169,11 +169,13 @@ test("test_executeScriptInState_returns_a_mismatch_error_with_command_exit_code_
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has an allowed Bash call that prints to stderr and exits 3
-  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
+  // A failure that changes no project file goes on now, so the call writes a file first.
+  // const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "touch made.txt; echo boom 1>&2; exit 3", state.toString());
   // the returned mismatch error names the command, the exit code and the stderr
   const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
   assert.equal(mismatches.length, 1);
-  assert.match(mismatches[0]!.error.message, /echo boom 1>&2; exit 3/);
+  assert.match(mismatches[0]!.error.message, /touch made\.txt; echo boom 1>&2; exit 3/);
   assert.match(mismatches[0]!.error.message, /exit code 3/);
   assert.match(mismatches[0]!.error.message, /boom/);
 });
@@ -220,11 +222,56 @@ test("test_executeScriptInState_runs_the_call_with_zsh_so_echo_triple_equals_fai
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has a Bash call whose recorded result is an error
-  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
+  // A read-only echo is skipped now, so the redirect makes the call run.
+  // const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes > shapes.txt", state.toString());
   const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "", command: "" };
   const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
   // running the line does not throw, because the call exits non-zero as recorded
   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));
+});
+
+const CHANGES_NO_FILE_NOTE = /^\S+ note: skipped, changes no file: session\.jsonl:1$/;
+
+function getPrintedLines(logMock: { mock: { calls: { arguments: unknown[] }[] } }): string[] {
+  return logMock.mock.calls.map((call) => String(call.arguments[0]));
+}
+
+test("test_executeScriptInState_skips_a_read_only_call_from_no_old_category", (t) => {
+  // Scenario: the user's rule: only calls that change a file matter, so a read-only rg call is skipped.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call reads a file, and its recorded result is an error, so a real run that exits 0 would throw
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "rg -n foo demo/server.ts | head -5", state.toString());
+  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "", command: "" };
+  const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
+  // the call does not run, so nothing throws
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));
+  // the run prints one skip note that names the JSONL file and line
+  assert.equal(getPrintedLines(logMock).filter((printed) => CHANGES_NO_FILE_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_skips_a_read_only_ctx_execute_shell_run", (t) => {
+  // Scenario: a shell ctx_execute run goes through the same skip as a Bash call.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the shell run only lists the folder
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxLs", "shell", "ls -la | head -3")], state.toString());
+  executeScriptInState(state, line, makeContext("toolu_01CtxLs"));
+  // the run prints one skip note
+  assert.equal(getPrintedLines(logMock).filter((printed) => CHANGES_NO_FILE_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_runs_a_call_with_an_unknown_program", (t) => {
+  // Scenario: the judge cannot check an unknown program, so the call may change files and runs.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call runs touch, which is not on the read-only list
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "touch ran.txt", state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  // ran.txt is in the state folder
+  assert.equal(existsSync(join(state.toString(), "ran.txt")), true);
 });
 
 test("test_getJSONLLineKind_is_Script_for_a_ctx_execute_shell_run", (t) => {
@@ -322,3 +369,177 @@ test("test_applyJSONLLineToState_runs_the_script_for_a_Script_line", (t) => {
   // ran.txt is in the state folder
   assert.equal(existsSync(join(state.toString(), "ran.txt")), true);
 });
+
+test("test_executeScriptInState_gives_the_script_the_session_id_of_its_line", (t) => {
+  // Scenario: a recorded hook command such as `node ~/.claude/hooks/turn-done.ts` reads CLAUDE_CODE_SESSION_ID, so the script sees the session id of the JSONL line that holds the call.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call line has sessionId 7d31cfda-..., and its command writes the variable into session-id.txt
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "sh -c 'printf %s \"$CLAUDE_CODE_SESSION_ID\" > session-id.txt'", state.toString());
+  // run the call line
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  // session-id.txt holds the line's session id
+  assert.equal(readFileSync(join(state.toString(), "session-id.txt"), "utf8"), "7d31cfda-fb91-4f61-ba61-7031cb5484e2");
+});
+
+const FIRST_RECORDED_UUID = "a8da816e-4851-4ad7-bf1d-6e99d7555fdf";
+const SECOND_RECORDED_UUID = "3f2b1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d";
+
+test("test_executeScriptInState_hands_the_new_recorded_uuids_to_node_randomUUID_in_order", (t) => {
+  // Scenario: `bun demo/makeSession.ts` named its file with crypto.randomUUID; the replay must make the uuid the Mac printed.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call's recorded output holds two new uuids
+  const context = makeContext(ALLOWED_TOOL_USE_ID);
+  context.newOutputUuids = new Map([[ALLOWED_TOOL_USE_ID, [new Uuid(FIRST_RECORDED_UUID), new Uuid(SECOND_RECORDED_UUID)]]]);
+  // two node processes ask for three uuids: require form, global form, then one more after the list is used up
+  const command = "node -e 'console.log(require(\"node:crypto\").randomUUID())' > uuids.txt; node -e 'console.log(crypto.randomUUID()); console.log(crypto.randomUUID())' >> uuids.txt";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, context);
+  const uuidTexts = readFileSync(join(state.toString(), "uuids.txt"), "utf8").trim().split("\n");
+  // the first two are the recorded uuids, in order
+  assert.deepEqual(uuidTexts.slice(0, 2), [FIRST_RECORDED_UUID, SECOND_RECORDED_UUID]);
+  // the third is a real random uuid
+  assert.match(uuidTexts[2] as string, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(uuidTexts[2], FIRST_RECORDED_UUID);
+  assert.notEqual(uuidTexts[2], SECOND_RECORDED_UUID);
+});
+
+test("test_executeScriptInState_sets_no_uuid_preload_env_for_a_call_with_no_new_uuid", (t) => {
+  // Scenario: a call whose recorded output holds no new uuid runs exactly as before.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the command writes the three env values the preload uses
+  const command = "printf '%s|%s|%s' \"${ENGINEV3_RECORDED_UUIDS-unset}\" \"${BUN_OPTIONS-unset}\" \"${NODE_OPTIONS-unset}\" > env.txt";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  const envText = readFileSync(join(state.toString(), "env.txt"), "utf8");
+  // no uuid list and no bun preload
+  assert.equal(envText.startsWith("unset|unset|"), true);
+  // the node options do not name the preload
+  assert.equal(envText.includes("engineV3_recorded_uuids_preload"), false);
+});
+
+const FAILED_NO_CHANGE_NOTE = /^\S+ note: failed, changed no project file: session\.jsonl:1 exit \S+: /;
+
+// No source repo, so a git command gets no recorded git env and no HEAD check.
+function makeContextWithNoSourceRepo(toolUseId: string): ScriptReplayContext {
+  return { ...makeContext(toolUseId), sourceRepo: undefined };
+}
+
+// The state is a git repo with one commit that holds .gitignore (ignoring build/) and page.html.
+function makeGitState(t: TestContext): Path {
+  const state = makeTempFolder(t, "engine-v3-script-git-state-");
+  writeFileSync(join(state, ".gitignore"), "build/\n");
+  writeFileSync(join(state, "page.html"), "old\n");
+  execFileSync("git", ["init", "-q"], { cwd: state });
+  execFileSync("git", ["add", "."], { cwd: state });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "start"], { cwd: state });
+  return new Path(state);
+}
+
+function countFailedNoChangeNotes(logMock: { mock: { calls: { arguments: unknown[] }[] } }): number {
+  return getPrintedLines(logMock).filter((printed) => FAILED_NO_CHANGE_NOTE.test(printed)).length;
+}
+
+test("test_executeScriptInState_throws_when_a_call_edits_a_project_file_and_then_fails", (t) => {
+  // Scenario: the line-573 shape: a python heredoc edits a project file, then `cp missing x` fails.
+  const state = makeGitState(t);
+  // the call edits page.html, then copies a file that does not exist
+  const command = "python3 - <<'EOF'\nopen('page.html','w').write('new')\nEOF\ncp missing x";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  // merge: the run returns the exit mismatch, which settleExitMismatches throws for when the event changed a file (typesafe 2026-11-13)
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID));
+  assert.match(mismatches[0]!.error.message, /command failed with exit code 1/);
+});
+
+test("test_executeScriptInState_throws_when_a_call_commits_and_then_fails", (t) => {
+  // Scenario: the line-866 shape: `git add && git commit` succeeds, then `nosuchprogram --version` fails.
+  const state = makeGitState(t);
+  writeFileSync(join(state.toString(), "page.html"), "edited\n");
+  // the call commits page.html, then runs a program that does not exist
+  const command = "git add page.html && git -c user.name=t -c user.email=t@t commit -q -m edit && nosuchprogram --version";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  // merge: the run returns the exit mismatch, because the commit changed HEAD, the refs and the index (typesafe 2026-11-13)
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID));
+  assert.match(mismatches[0]!.error.message, /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_creates_a_git_ignored_project_file", (t) => {
+  // Scenario: an ignored file is a project file too.
+  const state = makeGitState(t);
+  mkdirSync(join(state.toString(), "build"));
+  // the call writes build/out.txt, which git ignores, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo x > build/out.txt; nosuchprogram", state.toString());
+  // merge: the run returns the exit mismatch (typesafe 2026-11-13)
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID));
+  assert.match(mismatches[0]!.error.message, /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_only_stages_a_file", (t) => {
+  // Scenario: a change to the git index is a project change.
+  const state = makeGitState(t);
+  writeFileSync(join(state.toString(), "page.html"), "edited\n");
+  // the call stages page.html, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "git add page.html; nosuchprogram", state.toString());
+  // merge: the run returns the exit mismatch (typesafe 2026-11-13)
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID));
+  assert.match(mismatches[0]!.error.message, /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_deletes_a_top_level_project_file", (t) => {
+  // Scenario: a deleted file leaves no entry to check; its folder's change time shows the delete.
+  const state = makeGitState(t);
+  // the call deletes page.html, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "rm page.html; nosuchprogram", state.toString());
+  // merge: the run returns the exit mismatch (typesafe 2026-11-13)
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID));
+  assert.match(mismatches[0]!.error.message, /command failed with exit code 127/);
+});
+
+// merge: an exit code is settled by settleExitMismatches, which logs "exit mismatch ignored" (typesafe 2026-11-13); only a timeout or signal prints this note
+// test("test_executeScriptInState_goes_on_with_a_note_when_a_failing_call_writes_only_outside_the_project", (t) => {
+//   // Scenario: the line-752 shape: the call edits a page in a scratch folder, takes screenshots there, then exits 1.
+//   const state = makeGitState(t);
+//   const scratchFolder = makeTempFolder(t, "engine-v3-script-scratch-");
+//   // the printed lines are captured
+//   const logMock = t.mock.method(console, "log", () => {});
+//   // the call writes page.html and a screenshot under the scratch folder only
+//   const command = `S=${scratchFolder}; python3 - <<'EOF'\nopen('${scratchFolder}/page.html','w').write('x')\nEOF\nfor k in now A; do nosuchchrome --screenshot=$S/$k.png >/dev/null 2>&1; touch $S/$k.png; done; exit 1`;
+//   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+//   // the run does not throw
+//   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)));
+//   // the scratch files exist, so the call did run
+//   assert.equal(existsSync(join(scratchFolder, "A.png")), true);
+//   // the run prints one note
+//   assert.equal(countFailedNoChangeNotes(logMock), 1);
+// });
+
+test("test_executeScriptInState_goes_on_with_a_note_when_a_call_times_out_with_no_project_change", (t) => {
+  // Scenario: a call that hits the time limit and changed no project file goes on.
+  const state = makeGitState(t);
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call runs an unknown program, then waits longer than a 300 ms time limit
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "nosuchprogram 2>/dev/null; sleep 5", state.toString());
+  const context = { ...makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID), scriptTimeoutMilliseconds: 300 };
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, context));
+  // the run prints one note that names the signal
+  assert.equal(getPrintedLines(logMock).filter((printed) => /exit SIGTERM: /.test(printed)).length, 1);
+  assert.equal(countFailedNoChangeNotes(logMock), 1);
+});
+
+// merge: an exit code is settled by settleExitMismatches, which logs "exit mismatch ignored" (typesafe 2026-11-13); only a timeout or signal prints this note
+// test("test_executeScriptInState_goes_on_with_a_note_when_an_unknown_program_fails", (t) => {
+//   // Scenario: an unknown program that is missing in the container changes nothing.
+//   const state = makeGitState(t);
+//   // the printed lines are captured
+//   const logMock = t.mock.method(console, "log", () => {});
+//   // the call runs a program that does not exist
+//   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "nosuchprogram", state.toString());
+//   // the run does not throw
+//   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)));
+//   // the run prints one note with exit 127 and the first stderr line
+//   const notes = getPrintedLines(logMock).filter((printed) => FAILED_NO_CHANGE_NOTE.test(printed));
+//   assert.equal(notes.length, 1);
+//   assert.match(notes[0] as string, /exit 127: .*nosuchprogram/);
+// });

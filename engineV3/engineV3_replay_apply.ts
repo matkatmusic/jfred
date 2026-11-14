@@ -17,13 +17,15 @@ import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { addPendingExitMismatches } from "./engineV3_replay_exit_mismatch.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
-import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordProvenBytes, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listToolResultIds, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
-import { runRecordedPostToolHook } from "./engineV3_replay_post_tool_hooks.ts";
+import { listStopHookReformattedFiles, recordToolWriteOfFile, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
+import { getAttachmentEntry } from "../src/structures/session-meta.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { RecordType } from "../src/structures/vocabulary.ts";
+import { writeBlockedCallSavedFiles } from "./engineV3_replay_blocked_edits.ts";
 
 // const NO_NEWLINE_MARKER_PREFIX = "\\";
 
@@ -143,11 +145,28 @@ function applyUserEditAndRecordIt(state: Path, line: JSONLLine): Path {
 //   recordFileChange(file, bytesBefore, readFileSync(file), false);
 //   return state;
 // }
+// A Write result, and an Edit result applied to its originalFile, give the file's full Mac text.
+function hasFullFileText(state: Path, line: JSONLLine): boolean {
+  const kind = getJSONLLineKind(line, state);
+  if (kind === JSONLLineKind.WriteCreate) {
+    return true;
+  }
+  if (kind === JSONLLineKind.WriteUpdate) {
+    return true;
+  }
+  return convertEditResult(line.toolUseResult).originalFile !== null;
+}
+
 // A recorded PostToolUse hook that rewrote the file runs right after the Edit/Write, so the recorded change holds its rewrite.
 function applyWriteEditAndRecordIt(state: Path, line: JSONLLine, applyLine: (state: Path, line: JSONLLine) => Path, context: ScriptReplayContext): Path {
   const file = findWrittenFile(state, line)!;
   const bytesBefore = existsSync(file) ? readFileSync(file) : undefined;
   applyLine(state, line);
+  recordToolWriteOfFile(file, line);
+  // Before the hook rewrite: the rewrite is not a proven text.
+  if (hasFullFileText(state, line)) {
+    recordProvenBytes(file, readFileSync(file));
+  }
   for (const resultId of listToolResultIds(line)) {
     const rewrite = context.postToolHookRewrites?.get(resultId);
     if (rewrite !== undefined) {
@@ -380,6 +399,8 @@ export function recordPendingWritesOfSkippedLine(state: Path, line: JSONLLine, c
 
 // The state folder has the Mac repo path, so it is the path base for lines.
 export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPaths: Path[], context: ScriptReplayContext): Path {
+  // Before the early return below: a blocked Write/Edit result is an applied result.
+  writeBlockedCallSavedFiles(line);
   for (const callId of listWriteEditCallIds(line)) {
     const resultLine = context.writeEditResultLines.get(callId);
     if (resultLine !== undefined) {
@@ -403,6 +424,20 @@ function executeScriptAndRecordIt(state: Path, line: JSONLLine, context: ScriptR
   return state;
 }
 
+// The hook rewrite is not recorded as a file change: the backup rule does not list hook rewrites, so the snippet chain of the file ends.
+function runStopHookReformatsOfLine(state: Path, line: JSONLLine): Path {
+  const entry = getAttachmentEntry(line);
+  if (entry === undefined) {
+    return state;
+  }
+  for (const macFile of listStopHookReformattedFiles(entry)) {
+    const root = getReplayRoot(state, new Path(macFile));
+    const relativePath = getRepoRelativePath(root, new Path(macFile));
+    runRecordedStopHookReformat(join(root.toString(), relativePath.toString()), entry);
+  }
+  return state;
+}
+
 function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const kind = getJSONLLineKind(line, state);
   switch (kind) {
@@ -422,7 +457,8 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
     case JSONLLineKind.Script: return executeScriptAndRecordIt(state, line, context);
     case JSONLLineKind.UserEdit: return applyUserEditAndRecordIt(state, line);
-    case JSONLLineKind.Skip: return state;
+    // case JSONLLineKind.Skip: return state;
+    case JSONLLineKind.Skip: return runStopHookReformatsOfLine(state, line);
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
   }
 }

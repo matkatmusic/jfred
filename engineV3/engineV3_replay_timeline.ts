@@ -3,7 +3,11 @@
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { TimelineEventKind, executeGit, type CommitHash, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { listCommitsFromStartToEnd } from "./engineV3test.ts"; import { createCommitEventsInTimeOrder, listReflogOnlyCommits } from "./engineV3_replay_commit_events.ts";
-import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+// import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime } from "./engineV3_jsonl_lines.ts";
+import { loadJSONLLineIndex, readFullJSONLLine } from "./engineV3_jsonl_line_index.ts";
+import { BlockType } from "../src/structures/vocabulary.ts";
+import { getBlocksOfTimedLine } from "./engineV3_replay_tool_results.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { listOutsideGitRows } from "./engineV3_replay_outside_git.ts";
 import { mergeIdleStateEventsIntoActions } from "./engineV3_replay_idle_state.ts";
@@ -11,9 +15,6 @@ import { mergePlateEventsIntoActions } from "./engineV3_replay_plate.ts";
 import { runStartupPhase } from "./engineV3_startup_progress.ts";
 
 export const TERMINAL_EVENT = Symbol("TERMINAL_EVENT");
-
-// 2026-10-26T23:57:39Z, the first chat line: reflog rows at or before it are not replayed.
-export const START_SECONDS = 1793059059;
 
 type Timeline = { key: string; events: TimelineEvent[]; indexByEvent: Map<TimelineEvent, number> };
 
@@ -55,8 +56,9 @@ export function readHeadCommit(repoPath: Path): CommitHash {
 //   return createCommitEventsInTimeOrder(repoPath, [...commits, ...reflogOnlyCommits]);
 // }
 
-function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
-  const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), START_SECONDS);
+export function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]): TimelineEvent[] {
+  const startSeconds = Math.floor(getFirstLineTime(lines).getTime() / 1000);
+  const rows = repoPath === undefined ? [] : listOutsideGitRows(repoPath, collectBashCallResults(lines), startSeconds);
   const events: TimelineEvent[] = [];
   for (const row of rows) {
     events.push({ type: TimelineEventKind.OutsideGitAction, row, timestamp: row.seconds * 1000 });
@@ -64,7 +66,7 @@ function createOutsideGitEvents(repoPath: Path | undefined, lines: JSONLLine[]):
   return events;
 }
 
-function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
+export function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
   const events: TimelineEvent[] = new Array(lines.length);
   // A line with no time takes the time of the next timed line, or infinity after the last.
   let timeOfNextTimedLine = Number.POSITIVE_INFINITY;
@@ -80,7 +82,7 @@ function createLineEvents(lines: JSONLLine[]): TimelineEvent[] {
 }
 
 // A line in the same second as a commit goes before that commit (user ruling).
-function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEvent[]): TimelineEvent[] {
+export function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEvent[]): TimelineEvent[] {
   const merged: TimelineEvent[] = [];
   let commitIndex = 0;
   let lineIndex = 0;
@@ -110,13 +112,29 @@ function mergeEventsByTime(commitEvents: TimelineEvent[], lineEvents: TimelineEv
   }
 }
 
+// merge: the idle-state step reads the input of every tool call, but an index line keeps the input only for Bash-type calls, so each line with a tool call is read in full.
+function readFullLinesOfToolCalls(indexLines: JSONLLine[]): JSONLLine[] {
+  const fullLines: JSONLLine[] = [];
+  for (const indexLine of indexLines) {
+    const hasToolCall = getBlocksOfTimedLine(indexLine).some((block) => block.type === BlockType.tool_use);
+    if (hasToolCall) {
+      fullLines.push(readFullJSONLLine(indexLine));
+    }
+    else {
+      fullLines.push(indexLine);
+    }
+  }
+  return fullLines;
+}
+
 function createTimeline(key: string, repoPath: Path | undefined,jsonlsPaths: Path[], macPlatePath: Path | undefined): Timeline {
-  const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
+  // const lines = loadMergedJSONLLines(convertToPathTexts(jsonlsPaths)).jsonlLines;
+  const lines = loadJSONLLineIndex(convertToPathTexts(jsonlsPaths)).indexLines;
   // const commitEvents = createCommitEvents(repoPath);
   // const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
   const outsideGitEvents = runStartupPhase("outside-git events", () => createOutsideGitEvents(repoPath, lines), (built) => `built ${built.length} outside-git events`);
   const plateEvents = runStartupPhase("plate events", () => mergePlateEventsIntoActions(outsideGitEvents, macPlatePath, jsonlsPaths), (merged) => `merged ${merged.length - outsideGitEvents.length} plate events into ${outsideGitEvents.length} outside-git events`);
-  const actionEvents = runStartupPhase("idle-state events", () => mergeIdleStateEventsIntoActions(plateEvents, macPlatePath, lines), (merged) => `merged ${merged.length - plateEvents.length} idle-state copy events into ${plateEvents.length} plate and outside-git events`);
+  const actionEvents = runStartupPhase("idle-state events", () => mergeIdleStateEventsIntoActions(plateEvents, macPlatePath, macPlatePath === undefined ? lines : readFullLinesOfToolCalls(lines)), (merged) => `merged ${merged.length - plateEvents.length} idle-state copy events into ${plateEvents.length} plate and outside-git events`);
   const lineEvents = runStartupPhase("line events", () => createLineEvents(lines), (built) => `built ${built.length} line events`);
   const events = runStartupPhase("timeline merge", () => mergeEventsByTime(actionEvents, lineEvents), (merged) => `merged the timeline: ${merged.length} events`);
   const indexByEvent = new Map<TimelineEvent, number>();

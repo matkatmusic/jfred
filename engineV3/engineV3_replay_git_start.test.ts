@@ -109,6 +109,27 @@ test("test_createStartRepo_makes_no_other_refs", (t) => {
     assert.deepEqual(refNames, ["refs/heads/WIP", "refs/heads/develop", "refs/heads/master", "refs/remotes/origin/HEAD", "refs/remotes/origin/master"]);
 });
 
+function readGitAtTime(folder: string, args: string[], seconds: number): string {
+    const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args];
+    const env = { ...process.env, GIT_COMMITTER_DATE: `${seconds} +0000`, GIT_AUTHOR_DATE: `${seconds} +0000` };
+    return execFileSync("git", gitArgs, { cwd: folder, encoding: "utf8", env }).trim();
+}
+
+test("test_readStartPoint_takes_HEAD_from_the_first_later_checkout_when_no_checkout_is_before_the_start", (t) => {
+    // Scenario: HEAD sat on master at the start; a later "checkout: moving from master to develop" made develop the current HEAD.
+    const workFolder = makeTempFolder(t, "engine-v3-start-later-checkout-");
+    // a commit on master at second 1700001000
+    readGitAtTime(workFolder, ["init", "-q", "-b", "master"], 1700001000);
+    writeFileSync(join(workFolder, "a.txt"), "a");
+    readGitAtTime(workFolder, ["add", "-A"], 1700001000);
+    readGitAtTime(workFolder, ["commit", "-q", "-m", "a"], 1700001000);
+    // the checkout to a new develop branch at second 1700003000
+    readGitAtTime(workFolder, ["checkout", "-q", "-b", "develop"], 1700003000);
+    // the start at second 1700002000 is before the checkout, so HEAD was master
+    const startPoint = readStartPoint(new Path(workFolder), new Date(1700002000 * 1000));
+    assert.equal(startPoint.headBranch, "refs/heads/master");
+});
+
 test("test_readStartPoint_for_typesafe_playground_equals_the_four_hard_coded_start_refs", () => {
     // Scenario: the reflog rule gives the same 4 refs and HEAD that were hard-coded for typesafe-playground.
     const playground = new Path("/Users/matkatmusicllc/Programming/typesafe-playground");

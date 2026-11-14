@@ -43,7 +43,8 @@ test("test_executeScriptInState_writes_the_background_output_at_the_path_in_the_
   // the recorded result names an output file inside a folder that does not exist yet
   const outputPath = join(makeTempFolder(t, "engine-v3-background-output-root-"), "tasks", "bfisnv02h.output");
   // the line holds a background Bash call that prints 200 and exits 0
-  const line = loadBackgroundBashLine(t, "echo 200", state.toString());
+  // merge: `touch` changes a file, so the replay does not skip the call as a read-only call (Attune rule)
+  const line = loadBackgroundBashLine(t, "touch marker.txt; echo 200", state.toString());
   // run the line
   executeScriptInState(state, line, makeContext(BACKGROUND_TOOL_USE_ID, outputPath));
   // the file at the recorded path holds the printed text, a blank line, and the exit line

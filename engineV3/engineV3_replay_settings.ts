@@ -6,14 +6,15 @@ import type { RecordSource } from "../src/parse/loadTranscript.ts";
 
 export type ReverseSettings = { file: Path; jsonlsFolder: Path };
 
-export type ReplaySettings = { repoPath: Path | undefined; state: Path; jsonlsPaths: Path[]; touchedOutput: Path; macPlatePath: Path; jotPath: Path; fileHistoryPath: Path | undefined; startFilesPath: Path | undefined; snapshotsPath: Path | undefined; watchPaths: Path[]; stopBefore: RecordSource | undefined; startAt: number | undefined; writePlaygroundStartFiles: boolean };
+export type ReplaySettings = { repoPath: Path | undefined; state: Path; jsonlsPaths: Path[]; touchedOutput: Path; macPlatePath: Path; jotPath: Path; fileHistoryPath: Path | undefined; startFilesPath: Path | undefined; snapshotsPath: Path | undefined; watchPaths: Path[]; stopBefore: RecordSource | undefined; startAt: number | undefined; writePlaygroundStartFiles: boolean; outsideGitFolders: Path[] };
 
 const JSONL_FLAG = "--jsonl";
 const PLAYGROUND_START_FILES_FLAG = "--playground-start-files";
 const WATCH_FLAG = "--watch";
+const OUTSIDE_GIT_FOLDER_FLAG = "--outside-git-folder";
 // The greedy path part splits at the LAST colon
 const STOP_BEFORE_PATTERN = /^(.*):(\d+)$/;
-const USAGE = "usage: node engineV3_replay.mjs [--git-repo <path>] --state <folder> --touched-out <file> --mac-plate <folder> --jot <folder> [--file-history <folder>] [--start-files <folder>] [--snapshots <folder>] [--start-at <event number>] [--watch <folder> ...] [--playground-start-files] [--stop-before <jsonl file>:<line>] --jsonl <folder> [--jsonl <folder> ...]";
+const USAGE = "usage: node engineV3_replay.mjs [--git-repo <path>] --state <folder> --touched-out <file> --mac-plate <folder> --jot <folder> [--file-history <folder>] [--start-files <folder>] [--snapshots <folder>] [--start-at <event number>] [--watch <folder> ...] [--playground-start-files] [--outside-git-folder <folder> ...] [--stop-before <jsonl file>:<line>] --jsonl <folder> [--jsonl <folder> ...]";
 
 function readRequiredFlag(argumentList: string[], flag: string, usage: string = USAGE): { value: string; rest: string[] } {
   const { value, rest } = extractValueFlag(argumentList, flag);
@@ -82,15 +83,28 @@ function assertStartAtHasSnapshots(startAt: number | undefined, snapshotsPath: P
   }
 }
 
-function readWatchPaths(argumentList: string[]): { paths: Path[]; rest: string[] } {
+// function readWatchPaths(argumentList: string[]): { paths: Path[]; rest: string[] } {
+//   const paths: Path[] = [];
+//   let rest = argumentList;
+//   let hasWatchFlag = rest.includes(WATCH_FLAG);
+//   while (hasWatchFlag) {
+//     const watchFlag = readRequiredFlag(rest, WATCH_FLAG);
+//     paths.push(new Path(watchFlag.value));
+//     rest = watchFlag.rest;
+//     hasWatchFlag = rest.includes(WATCH_FLAG);
+//   }
+//   return { paths, rest };
+// }
+
+function readRepeatedPathFlag(argumentList: string[], flag: string): { paths: Path[]; rest: string[] } {
   const paths: Path[] = [];
   let rest = argumentList;
-  let hasWatchFlag = rest.includes(WATCH_FLAG);
-  while (hasWatchFlag) {
-    const watchFlag = readRequiredFlag(rest, WATCH_FLAG);
-    paths.push(new Path(watchFlag.value));
-    rest = watchFlag.rest;
-    hasWatchFlag = rest.includes(WATCH_FLAG);
+  let hasFlag = rest.includes(flag);
+  while (hasFlag) {
+    const readFlag = readRequiredFlag(rest, flag);
+    paths.push(new Path(readFlag.value));
+    rest = readFlag.rest;
+    hasFlag = rest.includes(flag);
   }
   return { paths, rest };
 }
@@ -120,7 +134,9 @@ export function readReplaySettingsFromArguments(argumentList: string[]): ReplayS
   const stopBefore = readOptionalStopBeforeFlag(snapshots.rest);
   const startAt = readOptionalStartAtFlag(stopBefore.rest);
   assertStartAtHasSnapshots(startAt.startAt, snapshots.path);
-  const watch = readWatchPaths(startAt.rest.filter((argument) => argument !== PLAYGROUND_START_FILES_FLAG));
-  const jsonlsPaths = readJsonlPaths(watch.rest);
-  return { repoPath: gitRepo.path, state: new Path(stateFlag.value), jsonlsPaths, touchedOutput: new Path(touchedFlag.value), macPlatePath: new Path(macPlateFlag.value), jotPath: new Path(jotFlag.value), fileHistoryPath: fileHistory.path, startFilesPath: startFiles.path, snapshotsPath: snapshots.path, watchPaths: watch.paths, stopBefore: stopBefore.stopBefore, startAt: startAt.startAt, writePlaygroundStartFiles: startAt.rest.includes(PLAYGROUND_START_FILES_FLAG) };
+  const writePlaygroundStartFiles = startAt.rest.includes(PLAYGROUND_START_FILES_FLAG);
+  const watch = readRepeatedPathFlag(startAt.rest.filter((argument) => argument !== PLAYGROUND_START_FILES_FLAG), WATCH_FLAG);
+  const outsideGit = readRepeatedPathFlag(watch.rest, OUTSIDE_GIT_FOLDER_FLAG);
+  const jsonlsPaths = readJsonlPaths(outsideGit.rest);
+  return { repoPath: gitRepo.path, state: new Path(stateFlag.value), jsonlsPaths, touchedOutput: new Path(touchedFlag.value), macPlatePath: new Path(macPlateFlag.value), jotPath: new Path(jotFlag.value), fileHistoryPath: fileHistory.path, startFilesPath: startFiles.path, snapshotsPath: snapshots.path, watchPaths: watch.paths, stopBefore: stopBefore.stopBefore, startAt: startAt.startAt, writePlaygroundStartFiles, outsideGitFolders: outsideGit.paths };
 }

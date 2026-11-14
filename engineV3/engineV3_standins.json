@@ -69,7 +69,7 @@
     "realProgram": "/Applications/Google Chrome.app on the Mac",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2/subagents/agent-a7f987b7735bcfc62.jsonl",
     "lineNumber": 287,
-    "standIn": "empty folder /Applications/Google Chrome.app made in engineV3/Dockerfile"
+    "standIn": "launcher script /Applications/Google Chrome.app/Contents/MacOS/Google Chrome made in engineV3/Dockerfile: it runs chromium --no-sandbox --disable-dev-shm-usage with the arguments it gets"
   },
   {
     "realProgram": "puppeteer-core driving /Applications/Google Chrome.app (scratchpad/pup/dbl.ts, flow.ts, flow2.ts, scroll.ts, tab.ts)",
@@ -111,7 +111,7 @@
     "realProgram": "macOS stat -f FORMAT",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
     "lineNumber": 250,
-    "standIn": "STAT_SCRIPT in engineV3/Dockerfile (/usr/local/bin/stat): turns stat -f FORMAT [-t TIMEFORMAT] files into %Sm (modified time) and %N (file name) lines and exits 1 when a file is missing; every other call runs /usr/bin/stat"
+    "standIn": "STAT_SCRIPT in engineV3/Dockerfile (/usr/local/bin/stat): turns stat -f FORMAT [-t TIMEFORMAT] files into lines with the specifiers %Sm (modified time), %N (file name), %SB (birth time), %m (modified seconds) and %z (size in bytes); it exits 1 when a file is missing, when GNU stat does not know the birth time, or when the format has any other specifier or a flag it does not translate; every other call runs /usr/bin/stat"
   },
   {
     "realProgram": "Mac Chrome remote debugging port 47312 driven by curl and scratchpad shot.ts",

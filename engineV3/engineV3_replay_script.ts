@@ -1,17 +1,24 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
+// A call that changes no file is skipped too.
 
 import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdtempSync, openSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
+import { getSessionId } from "../src/reconstruction_multi_source_paths.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import type { AttachmentEntry } from "../src/structures/session-meta.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
-import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
+// import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
+import { fillMacOnlyFiles, isBrowserTestWithNoProjectWrite, isChromeStartCommand, isMacOnlyCommand, isMacOnlyScriptRun, readScriptTextFromDisk, writeHeredocFiles } from "./engineV3_replay_script_skip.ts";
+import { isReadOnlyCommand } from "./engineV3_replay_script_internet.ts";
+import { fillOutsideGitFoldersAtTime, OUTSIDE_LIVE_ROOT } from "./engineV3_replay_outside_folders.ts";
+import { getRecordedUuidEnv } from "./engineV3_replay_new_uuids.ts";
+import { recordContinuedFailure } from "./engineV3_replay_backups.ts";
 import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
 import { CLAUDE_CODE_ENV, replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
 import { createLinkedWorktreeWhenCommandNamesIt, PLAYGROUND_TEST_WORKTREE } from "./engineV3_replay_test_worktree.ts";
@@ -19,10 +26,14 @@ import { createFolderOwnedByReplay, recordReplayOwnFile, type ExitMismatch } fro
 import { getRecordSource } from "../src/parse/loadTranscript.ts";
 
 // export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; postToolHookRewrites?: Map<string, AttachmentEntry> };
+// export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; postToolHookRewrites?: Map<string, AttachmentEntry> };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[]; newOutputUuids?: Map<string, Uuid[]>; scriptTimeoutMilliseconds?: number };
 
 export const SCRIPT_TIMEOUT_MILLISECONDS = 300000;
 const BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS = 30000;
+const RUN_START_MARKER_FILE = join(tmpdir(), "engineV3-run-start-marker");
+const MAX_NOTE_STDERR_CHARACTERS = 200;
+const TIMEOUT_ERROR_CODE = "ETIMEDOUT";
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
 const PYTHON_LANGUAGE = "python";
@@ -96,13 +107,80 @@ function createFailureError(result: SpawnSyncReturns<string>, command: string): 
 //   }
 // }
 
+function getRunSourceText(run: ScriptRun): string {
+  if (run.source === undefined) {
+    throw new Error(`getRunSourceText: the Bash call has no JSONL file and line\ncommand: ${run.code}`);
+  }
+  return `${basename(run.source.filePath)}:${run.source.lineNumber}`;
+}
+
+// New content each time, so the write always moves the marker's change time; the kernel clock that stamps it also stamps the project's files.
+function readRunStartChangeTime(): bigint {
+  writeFileSync(RUN_START_MARKER_FILE, process.hrtime.bigint().toString());
+  return lstatSync(RUN_START_MARKER_FILE, { bigint: true }).ctimeNs;
+}
+
+// Every write, create, delete, rename or mode change moves a change time, also under .git and in ignored folders.
+function isEntryChangedSince(entryPath: string, runStartChangeTime: bigint): boolean {
+  const stats = lstatSync(entryPath, { bigint: true });
+  if (stats.ctimeNs >= runStartChangeTime) {
+    return true;
+  }
+  if (!stats.isDirectory()) {
+    return false;
+  }
+  for (const name of readdirSync(entryPath)) {
+    if (isEntryChangedSince(join(entryPath, name), runStartChangeTime)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isTimeoutError(error: Error): boolean {
+  return (error as NodeJS.ErrnoException).code === TIMEOUT_ERROR_CODE;
+}
+
+// The user's rule: only calls that change a file matter. A program that never started is not a failure of the call.
+// Only a call that the record shows as a success goes on; a call that the record shows as an error is settled by findExitMismatchError.
+function isFailureOfRecordedSuccessThatChangedNoProjectFile(result: SpawnSyncReturns<string>, recordedIsError: boolean, state: Path, runStartChangeTime: bigint): boolean {
+  if (recordedIsError) {
+    return false;
+  }
+  if (result.status === 0) {
+    return false;
+  }
+  // merge: an exit code is settled by settleExitMismatches (typesafe 2026-11-13); only a timeout or signal goes on here.
+  if (result.status !== null) {
+    return false;
+  }
+  if (result.error !== undefined) {
+    if (!isTimeoutError(result.error)) {
+      return false;
+    }
+  }
+  return !isEntryChangedSince(state.toString(), runStartChangeTime);
+}
+
+function getFirstStderrLine(result: SpawnSyncReturns<string>): string {
+  const firstLine = result.stderr.split("\n")[0] as string;
+  return firstLine.slice(0, MAX_NOTE_STDERR_CHARACTERS);
+}
+
 // A signal or a timeout is no exit code, so it still throws at once. An exit code that differs from the record comes back as an error for the caller to settle.
-function findExitMismatchError(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): Error | undefined {
+// function findExitMismatchError(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): Error | undefined {
+function findExitMismatchError(result: SpawnSyncReturns<string>, run: ScriptRun, cwd: string, expectsError: boolean): Error | undefined {
+  const command = run.code;
   if (result.status === null) {
     throw createFailureError(result, command);
   }
   if (expectsError) {
     if (result.status === 0) {
+      // User decision 10: the container's Chromium can start in time where the Mac's Chrome did not.
+      if (isChromeStartCommand(command, new Path(cwd))) {
+        console.log(`${new Date().toISOString()} note: succeeded where the Mac failed: ${getRunSourceText(run)} (Chrome call)`);
+        return undefined;
+      }
       return new Error(`executeScriptCommand: command was expected to fail but exited 0\ncommand: ${command}`);
     }
     return undefined;
@@ -185,11 +263,14 @@ function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.Process
 }
 
 // Returns the exit mismatch when the replayed exit code differs from the record: the caller decides once the event's file changes are known.
+// A recorded hook command such as `node ~/.claude/hooks/turn-done.ts` reads CLAUDE_CODE_SESSION_ID; a line with no sessionId leaves it unset (spawnSync drops undefined values).
 function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, line: JSONLLine, context: ScriptReplayContext): ExitMismatch | undefined {
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const recordedAtEpochSeconds = Math.floor(run.timestamp.getTime() / 1000);
-  const env = { ...process.env, ...CLAUDE_CODE_ENV, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  const uuidEnv = getRecordedUuidEnv(context.newOutputUuids?.get(result.toolUseId.toString()));
+  // const env = { ...process.env, ...CLAUDE_CODE_ENV, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  const env = { ...process.env, ...CLAUDE_CODE_ENV, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: getSessionId(line)?.toString(), ...gitEnv, ...uuidEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
   createScratchpadFoldersNamedByCommand(run.code);
   if (run.runInBackground === true) {
     startBackgroundCommand(run, cwd, env, result);
@@ -198,11 +279,23 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   // const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   // The Mac Bash tool gives the command no stdin; a piped stdin makes `rg` with no path search stdin instead of the folder.
-  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env, stdio: ["ignore", "pipe", "pipe"] });
-  const exitMismatchError = findExitMismatchError(spawned, run.code, result.isError);
+  const timeout = context.scriptTimeoutMilliseconds ?? SCRIPT_TIMEOUT_MILLISECONDS;
+  const runStartChangeTime = readRunStartChangeTime();
+  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env, stdio: ["ignore", "pipe", "pipe"] });
+  let exitMismatchError: Error | undefined = undefined;
+  if (isFailureOfRecordedSuccessThatChangedNoProjectFile(spawned, result.isError, state, runStartChangeTime)) {
+    recordContinuedFailure(getRunSourceText(run));
+    console.log(`${new Date().toISOString()} note: failed, changed no project file: ${getRunSourceText(run)} exit ${spawned.status ?? spawned.signal}: ${getFirstStderrLine(spawned)}`);
+  } else {
+    exitMismatchError = findExitMismatchError(spawned, run, cwd, result.isError);
+  }
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
   if (exitMismatchError === undefined) {
     return undefined;
+  }
+  if (!result.isError) {
+    // The Mac call succeeded, so if the settle step ignores this mismatch the call may have changed files on the Mac: the backup rules must not cover for it.
+    recordContinuedFailure(getRunSourceText(run));
   }
   return { error: exitMismatchError, source: getRecordSource(line)!, toolUseId: run.toolUseId!.toString(), recordedIsError: result.isError, replayedExitCode: spawned.status! };
 }
@@ -226,6 +319,30 @@ function executeScriptRun(state: Path, run: ScriptRun, line: JSONLLine, context:
     fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
     return undefined;
   }
+  if (!isPythonCtxExecuteRun(run)) {
+    // if (isReadOnlyInternetCommand(run.code)) {
+    //   return;
+    // }
+    // if (isReadOnlyMacStateCommand(run.code)) {
+    //   return;
+    // }
+    // The user's rule: only calls that change a file matter.
+    if (isReadOnlyCommand(run.code)) {
+      console.log(`${new Date().toISOString()} note: skipped, changes no file: ${getRunSourceText(run)}`);
+      return undefined;
+    }
+    // The user's rule: a browser test makes the app server run `claude -p`, which the container cannot do.
+    const heredocFiles = new Map<string, string>();
+    if (isBrowserTestWithNoProjectWrite(run.code, getRunCwd(run), readScriptTextFromDisk, heredocFiles)) {
+      writeHeredocFiles(heredocFiles);
+      console.log(`${new Date().toISOString()} note: skipped, browser test writes no project file: ${getRunSourceText(run)}`);
+      return undefined;
+    }
+    // The image has Chromium at the Chrome program path, so a call that runs a Chrome script file runs for real.
+    // if (isMacOnlyScriptCommand(run.code, getRunCwd(run))) {
+    //   return;
+    // }
+  }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
   createLinkedWorktreeWhenCommandNamesIt(state, run.code, PLAYGROUND_TEST_WORKTREE);
   return executeScriptCommand(state, run, result, line, context);
@@ -236,6 +353,12 @@ export function executeScriptInState(state: Path, line: JSONLLine, context: Scri
   const runs = findScriptRun(line);
   if (runs === undefined) {
     throw new Error("executeScriptInState: the line holds no Bash call");
+  }
+  if (context.outsideGitFolders !== undefined) {
+    if (!(line.timestamp instanceof Date)) {
+      throw new Error("executeScriptInState: a Bash line with outside git folders needs a timestamp");
+    }
+    fillOutsideGitFoldersAtTime(context.outsideGitFolders, OUTSIDE_LIVE_ROOT, line.timestamp);
   }
   const exitMismatches: ExitMismatch[] = [];
   for (const run of runs) {

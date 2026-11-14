@@ -70,7 +70,9 @@ test("test_executeScriptInState_mismatch_error_shows_the_tail_of_stdout", (t) =>
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line prints 5000 zeros and then exits 3, but the record says it passed
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
+  // A call that changes no project file is skipped, so the call writes a file first.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "touch made.txt; printf '%05000d' 0; exit 3", state.toString());
   // the mismatch error has exactly the last 4000 zeros
   const mismatches = executeScriptInState(state, line, makeContext(false));
   assert.match(mismatches[0]!.error.message, /0{4000}/);
@@ -82,11 +84,67 @@ test("test_executeScriptInState_returns_a_mismatch_when_a_recorded_error_exits_0
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line has a command that exits 0 and a recorded result with isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
+  // A read-only `true` is skipped now, so the call writes a file to make it run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "touch ran.txt", state.toString());
   // the mismatch error names the command and says it was expected to fail
   const mismatches = executeScriptInState(state, line, makeContext(true));
-  assert.match(mismatches[0]!.error.message, /command: true/);
+  // assert.match(mismatches[0]!.error.message, /command: true/);
+  assert.match(mismatches[0]!.error.message, /command: touch ran\.txt/);
   assert.match(mismatches[0]!.error.message, /expected to fail/);
+});
+
+const CHROME_NOTE = /^\S+ note: succeeded where the Mac failed: session\.jsonl:1 \(Chrome call\)$/;
+
+function getPrintedLines(logMock: { mock: { calls: { arguments: unknown[] }[] } }): string[] {
+  return logMock.mock.calls.map((call) => String(call.arguments[0]));
+}
+
+test("test_executeScriptInState_prints_a_note_when_a_recorded_error_Chrome_call_exits_0", (t) => {
+  // Scenario: user decision 10: a Chrome call that failed on the Mac but works in the container goes on with a note.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line names remote-debugging-port, exits 0, and its recorded result has isError true
+  // A read-only echo is skipped now, so the redirect makes the call run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333 > chrome.txt", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints one note that names the JSONL file and line
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_prints_a_note_when_a_recorded_error_call_runs_a_Chrome_script_and_exits_0", (t) => {
+  // Scenario: the command text does not name Chrome, but the script file it runs does.
+  // the state folder is the record's cwd and holds a script file that names Google Chrome
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  writeFileSync(join(state.toString(), "shot.ts"), '// "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"\nconsole.log("shot");\n');
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line runs the script with bun, exits 0, and its recorded result has isError true
+  // The browser test skip drops a Chrome script call that writes no project file, so python3 (a part the skip rule cannot read) makes the call run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "bun shot.ts", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "python3 -c 'pass'; bun shot.ts", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints one note that names the JSONL file and line
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_prints_no_note_when_a_recorded_error_Chrome_call_fails_again", (t) => {
+  // Scenario: a Chrome call that fails again matches the record, so there is nothing to note.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call line names remote-debugging-port, exits 1, and its recorded result has isError true
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333; exit 1", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
+  // the run prints no note
+  assert.deepEqual(getPrintedLines(logMock).filter((printed) => CHROME_NOTE.test(printed)).length, 0);
 });
 
 test("test_executeScriptInState_throws_when_a_recorded_error_is_killed_by_a_signal", (t) => {
@@ -94,7 +152,8 @@ test("test_executeScriptInState_throws_when_a_recorded_error_is_killed_by_a_sign
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line has a command that kills itself and a recorded result with isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "kill -9 $$", state.toString());
+  // the touch makes the call change a file, so the user decision 9 skip of a kill does not apply
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "kill -9 $$; touch never-made.txt", state.toString());
   // the run throws and names the signal
   assert.throws(() => executeScriptInState(state, line, makeContext(true)), /signal SIGKILL/);
 });

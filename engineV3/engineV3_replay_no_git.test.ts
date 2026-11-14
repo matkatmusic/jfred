@@ -121,6 +121,37 @@ test("test_git_wrappers_do_nothing_when_there_is_no_repo", (t) => {
   assert.equal(existsSync(join(stateFolder, ".git")), false);
 });
 
+function runGitAtSeconds(folder: string, seconds: number, args: string[]): string {
+  const gitArgs = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always", ...args];
+  const date = `${seconds} +0000`;
+  return execFileSync("git", gitArgs, { cwd: folder, encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: date, GIT_AUTHOR_DATE: date } }).trim();
+}
+
+test("test_assertHeadMatchesLogInOptionalRepo_throws_when_a_submodule_head_is_not_its_log_commit", (t) => {
+  // Step 1: a parent repo with submodule "sub"; at second 1700000050 a call commits s2.txt inside the submodule.
+  const subSource = makeTempFolder(t, "no-git-sub-source-");
+  runGitAtSeconds(subSource, 1700000000, ["init", "-q", "-b", "main"]);
+  writeFileSync(join(subSource, "s1.txt"), "s1");
+  runGitAtSeconds(subSource, 1700000000, ["add", "-A"]);
+  runGitAtSeconds(subSource, 1700000000, ["commit", "-q", "-m", "s1"]);
+  const parentFolder = makeTempFolder(t, "no-git-sub-parent-");
+  runGitAtSeconds(parentFolder, 1700000010, ["init", "-q", "-b", "main"]);
+  runGitAtSeconds(parentFolder, 1700000010, ["submodule", "add", "-q", subSource, "sub"]);
+  runGitAtSeconds(parentFolder, 1700000010, ["commit", "-q", "-m", "add sub"]);
+  writeFileSync(join(parentFolder, "sub", "s2.txt"), "s2");
+  runGitAtSeconds(join(parentFolder, "sub"), 1700000050, ["add", "-A"]);
+  runGitAtSeconds(join(parentFolder, "sub"), 1700000050, ["commit", "-q", "-m", "s2"]);
+  // Step 2: the state's submodule repo stays at the clone commit, so its HEAD is not the logged commit.
+  const stateFolder = makeTempFolder(t, "no-git-sub-state-");
+  runGitAtSeconds(stateFolder, 1700000010, ["init", "-q", "-b", "main"]);
+  mkdirSync(join(stateFolder, "sub"));
+  runGitAtSeconds(join(stateFolder, "sub"), 1700000010, ["clone", "-q", subSource, "."]);
+  const result = { startMs: 1700000049000, endMs: 1700000051000, isError: false } as BashCallResult;
+  // Step 3: the HEAD check of the submodule throws.
+  const gitFolder = new Path(join(parentFolder, ".git"));
+  assert.throws(() => assertHeadMatchesLogInOptionalRepo("cd sub && git commit -m s2", result, gitFolder, new Path(stateFolder), { stdout: "", stderr: "" }), /assertHeadMatchesLog: the command left HEAD/);
+});
+
 test("test_getNextEvent_with_no_repo_returns_only_line_events_then_terminal", (t) => {
   // Step 1: write the s5 JSONL into a temp folder.
   const jsonlFolder = makeS5JsonlFolder(t, "/state");

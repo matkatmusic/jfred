@@ -18,6 +18,7 @@ GIT_REPO_FOLDER=""
 JSONL_LIST=""
 STOP_BEFORE=""
 START_AT=""
+OUTSIDE_GIT_FOLDERS=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --project) PROJECT_FOLDER="$(cd "${2:?--project needs a folder}" && pwd)" ;;
@@ -135,6 +136,29 @@ if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground
     # The Mac config gained the 15-line function limit on 2026-10-30, after every recorded eslint call of this project, so the replay mounts the config of 2026-10-17 (dotfiles commit 62a68a3) over it.
     set -- "$@" -v "$ENGINE_FOLDER/replay_overlays/debt_ratchet_eslint_config_at_2026_10_17.js.txt:/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/debt-ratchet/eslint.config.js:ro"
 fi
+# Recorded Attune Bash calls read these paths outside the project, so each one is mounted read-only at its Mac path.
+# Only for Attune: in another project one of these paths can be the state folder.
+if [ "$STATE_FOLDER" = "/Users/matkatmusicllc/Programming/Attune" ]; then
+    ATTUNE_OUTSIDE_PATHS="/Users/matkatmusicllc/Programming/harms /Users/matkatmusicllc/Programming/taskTools /Users/matkatmusicllc/Programming/sms_extractor /Users/matkatmusicllc/Programming/relationship-mermaid /Users/matkatmusicllc/Programming/wheels /Users/matkatmusicllc/Programming/nrc-eil /Users/matkatmusicllc/Programming/taskTools-worktrees /Users/matkatmusicllc/Programming/matkat_claude_libs /Users/matkatmusicllc/Programming/taskTools-86 /Users/matkatmusicllc/Programming/message-panel /Users/matkatmusicllc/Programming/taskTools-frozen /Users/matkatmusicllc/Downloads/dictionary-pages /Users/matkatmusicllc/Desktop/AffectVec-v1.0 /Users/matkatmusicllc/Desktop/Feelings+Wheel+Download-ables.pdf /Users/matkatmusicllc/.claude/plugins /Users/matkatmusicllc/.claude/tasks /Users/matkatmusicllc/.claude/skills /Users/matkatmusicllc/.claude/sessions /Users/matkatmusicllc/.claude/array-debt /Users/matkatmusicllc/.claude/usage-data /Users/matkatmusicllc/.claude/debug /Users/matkatmusicllc/.claude/commands"
+    for OUTSIDE_PATH in $ATTUNE_OUTSIDE_PATHS; do
+        # docker -v makes a missing source as an empty root-owned folder on the Mac
+        if [ ! -e "$OUTSIDE_PATH" ]; then
+            echo "outside path $OUTSIDE_PATH does not exist on the Mac" >&2
+            exit 1
+        fi
+        # A git folder with a HEAD log is mounted at /outside-live; the engine fills its Mac path with the files of the event's time.
+        if [ -f "$OUTSIDE_PATH/.git/logs/HEAD" ]; then
+            set -- "$@" -v "$OUTSIDE_PATH:/outside-live$OUTSIDE_PATH:ro"
+            # The hook files stage mounts the taskTools .git; docker refuses two mounts at one path.
+            if [ "$OUTSIDE_PATH/.git" != /Users/matkatmusicllc/Programming/taskTools/.git ]; then
+                set -- "$@" -v "$OUTSIDE_PATH/.git:$OUTSIDE_PATH/.git:ro"
+            fi
+            OUTSIDE_GIT_FOLDERS="$OUTSIDE_GIT_FOLDERS $OUTSIDE_PATH"
+        else
+            set -- "$@" -v "$OUTSIDE_PATH:$OUTSIDE_PATH:ro"
+        fi
+    done
+fi
 if [ -n "$GIT_REPO_FOLDER" ]; then
     set -- "$@" -v "$GIT_REPO_FOLDER/.git:/input/repo.git:ro"
 fi
@@ -192,14 +216,17 @@ done <<EOF
 $MAC_RESULTS_FOLDERS
 EOF
 # Three dotfiles task list files that the recorded stop reads (user decision 2026-11-13) are mounted under /input/plate too; the engine copies them at their Mac mtime
+# merge: only the typesafe-playground run; an Attune run mounts ~/.claude/tasks read-only.
 MAC_TASK_LIST_FOLDER="$HOME/.claude/tasks/dotfiles"
-for TASK_NUMBER in 435 440 441; do
-    if [ ! -f "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" ]; then
-        echo "missing task list file $MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" >&2
-        exit 1
-    fi
-    set -- "$@" -v "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:/input/plate$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:ro"
-done
+if [ "$STATE_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    for TASK_NUMBER in 435 440 441; do
+        if [ ! -f "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" ]; then
+            echo "missing task list file $MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" >&2
+            exit 1
+        fi
+        set -- "$@" -v "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:/input/plate$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:ro"
+    done
+fi
 # Without a git repo the engine writes these start files into the state folder
 if [ -z "$GIT_REPO_FOLDER" ]; then
     for START_FILE in conftest.py tests/conftest.py .gitignore settings.json hooks.json block-compound.sh; do
@@ -208,13 +235,29 @@ if [ -z "$GIT_REPO_FOLDER" ]; then
         fi
     done
 fi
+printSetupStageDone "mounts"
+printSetupStageStart "hook files"
+# The recorded Bash calls run `node ~/.claude/hooks/turn-done.ts`. On the Mac that link points to a file that claude_hooks commit db4822d removed,
+# so the version just before that commit is used for every call (user decision). It reads ../shared/session-state.ts and ../.env.
+CLAUDE_HOOKS_REPO=/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks
+HOOK_FILES_FOLDER="$(mktemp -d)"
+git -C "$CLAUDE_HOOKS_REPO" archive db4822d~1 ask-dont-dump-issues shared | tar -x -C "$HOOK_FILES_FOLDER"
+# sh has no pipefail, so a failed git archive would otherwise go unnoticed.
+if [ ! -f "$HOOK_FILES_FOLDER/ask-dont-dump-issues/turn-done.ts" ]; then
+    echo "git archive of $CLAUDE_HOOKS_REPO at db4822d~1 gave no ask-dont-dump-issues/turn-done.ts" >&2
+    exit 1
+fi
+printf '%s\n' "CLAUDE_HOOKS_SESSION_STATE_DIR=/tmp/claude-hooks-session-state" > "$HOOK_FILES_FOLDER/.env"
+set -- "$@" -v "$HOOK_FILES_FOLDER/ask-dont-dump-issues:/Users/matkatmusicllc/.claude/hooks:ro" -v "$HOOK_FILES_FOLDER/shared:/Users/matkatmusicllc/.claude/shared:ro" -v "$HOOK_FILES_FOLDER/.env:/Users/matkatmusicllc/.claude/.env:ro"
 # The engine runs the recorded taskTools reflow hook after an Edit/Write, exported from this git folder at the commit of the event's time.
 TASK_TOOLS_GIT_FOLDER=/Users/matkatmusicllc/Programming/taskTools/.git
 set -- "$@" -v "$TASK_TOOLS_GIT_FOLDER:$TASK_TOOLS_GIT_FOLDER:ro"
-printSetupStageDone "mounts"
+printSetupStageDone "hook files"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
-docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
+# User decision 8: recorded internet calls that change files run with the network; the read-only ones are skipped by the engine.
+# docker run -d --network none --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
+docker run -d --name "$NAME" -v "$SNAPSHOT_VOLUME:/snapshots" "$@" ${ENGINEV3_IMAGE_TAG:-engine-v3:1} sleep infinity
 trap 'docker rm -f "$NAME" >/dev/null' EXIT
 # From here on "$@" is the JSONL folders again
 set --
@@ -231,6 +274,13 @@ EOF
 
 docker exec "$NAME" mkdir -p /input/jfred "$STATE_FOLDER"
 docker exec "$NAME" chown replay "$STATE_FOLDER" /snapshots
+# The engine writes the Mac temp files that hooks saved (block-parent-edits) under the Mac temp folder /var/folders/<..>/T.
+docker exec "$NAME" mkdir -p /var/folders
+docker exec "$NAME" chown replay /var/folders
+# docker made each outside git Mac path root-owned, as the parent of its .git mount; the engine writes the files there.
+for OUTSIDE_GIT_FOLDER in $OUTSIDE_GIT_FOLDERS; do
+    docker exec "$NAME" chown replay "$OUTSIDE_GIT_FOLDER"
+done
 CHECK_FOLDER=""
 if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
     CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
@@ -251,9 +301,12 @@ fi
 # done
 # On the Mac, ~/.claude/guides is a link into the dotfiles folder
 docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/guides /Users/matkatmusicllc/.claude/guides
+docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/settings.json /Users/matkatmusicllc/.claude/settings.json
 # The engine, running as the replay user, copies the task list files into this one folder
-docker exec "$NAME" mkdir -p /Users/matkatmusicllc/.claude/tasks/dotfiles
-docker exec "$NAME" chown replay /Users/matkatmusicllc/.claude/tasks/dotfiles
+if [ "$STATE_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    docker exec "$NAME" mkdir -p /Users/matkatmusicllc/.claude/tasks/dotfiles
+    docker exec "$NAME" chown replay /Users/matkatmusicllc/.claude/tasks/dotfiles
+fi
 # for JSONL_FOLDER in "$@"; do
 #     docker exec "$NAME" mkdir -p "$(dirname "$JSONL_FOLDER")"
 # done
@@ -328,6 +381,9 @@ fi
 if [ -n "$START_AT" ]; then
     ENGINE_FLAGS="$ENGINE_FLAGS --start-at $START_AT"
 fi
+for OUTSIDE_GIT_FOLDER in $OUTSIDE_GIT_FOLDERS; do
+    ENGINE_FLAGS="$ENGINE_FLAGS --outside-git-folder $OUTSIDE_GIT_FOLDER"
+done
 for JSONL_FOLDER in "$@"; do
     if [ -d "$JSONL_FOLDER/memory" ]; then
         # The snapshot store must hold memory files so a --start-at run restores them.
@@ -338,19 +394,35 @@ for JSONL_FOLDER in "$@"; do
 done
 # Stand-ins for programs that were listening on the recorded Mac (see engineV3_standins.json). They write no files.
 printSetupStageStart "stand-ins"
-docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
-docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
-for STANDIN_PORT in 3000 37777 7420 59824 56656; do
-    STANDIN_ATTEMPTS=0
-    until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
-        STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
-        if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
-            echo "stand-in port $STANDIN_PORT is not listening" >&2
-            exit 1
-        fi
-        sleep 0.5
+# The stand-ins stand for programs on the typesafe-playground Mac only. Other projects, such as Attune, start their own server on port 3000.
+# docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
+# docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
+# for STANDIN_PORT in 3000 37777 7420 59824 56656; do
+#     STANDIN_ATTEMPTS=0
+#     until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
+#         STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
+#         if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
+#             echo "stand-in port $STANDIN_PORT is not listening" >&2
+#             exit 1
+#         fi
+#         sleep 0.5
+#     done
+# done
+if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    docker exec -d -u replay "$NAME" bun -e 'Bun.listen({ hostname: "0.0.0.0", port: 3000, socket: { data() {} } }); Bun.listen({ hostname: "127.0.0.1", port: 37777, socket: { data() {} } });'
+    docker exec -d -u replay "$NAME" node -e 'const net = require("net"); for (const port of [7420, 59824, 56656]) { net.createServer().listen(port, "127.0.0.1"); }'
+    for STANDIN_PORT in 3000 37777 7420 59824 56656; do
+        STANDIN_ATTEMPTS=0
+        until docker exec -u replay "$NAME" lsof -iTCP:"$STANDIN_PORT" -sTCP:LISTEN -n -P >/dev/null; do
+            STANDIN_ATTEMPTS=$((STANDIN_ATTEMPTS + 1))
+            if [ "$STANDIN_ATTEMPTS" -ge 10 ]; then
+                echo "stand-in port $STANDIN_PORT is not listening" >&2
+                exit 1
+            fi
+            sleep 0.5
+        done
     done
-done
+fi
 printSetupStageDone "stand-ins"
 if [ -n "$STOP_BEFORE" ]; then
     printSetupStageStart "engine start"

@@ -63,6 +63,16 @@ test("test_readReplaySettingsFromArguments_leaves_snapshots_undefined_and_watch_
   assert.deepEqual(settings.watchPaths, []);
 });
 
+test("test_readReplaySettingsFromArguments_reads_every_outside_git_folder", () => {
+  // Step 1: read settings with 2 --outside-git-folder flags, and without the flag.
+  const settings = readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--outside-git-folder", "/outside-one", "--outside-git-folder", "/outside-two"]);
+  const withoutFlag = readReplaySettingsFromArguments(REQUIRED_ARGUMENTS);
+  // Step 2: both folders hold their values, the JSONL path is still read, and no flag gives no folders.
+  assert.deepEqual(settings.outsideGitFolders.map(String), ["/outside-one", "/outside-two"]);
+  assert.equal(settings.jsonlsPaths[0]?.toString(), "/jsonl");
+  assert.deepEqual(withoutFlag.outsideGitFolders, []);
+});
+
 test("test_readReplaySettingsFromArguments_splits_stop_before_at_the_last_colon", () => {
   // Step 1: read settings from arguments that have --stop-before with a space in the path.
   const settings = readReplaySettingsFromArguments([...REQUIRED_ARGUMENTS, "--stop-before", "/a b/x.jsonl:70"]);

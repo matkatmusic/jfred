@@ -11,8 +11,11 @@ import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { settleExitMismatches } from "./engineV3_replay_exit_mismatch.ts";
-import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+// import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { getFirstLineTime } from "./engineV3_jsonl_lines.ts";
+import { loadJSONLLineIndex, readFullJSONLLine, readFullResultLines } from "./engineV3_jsonl_line_index.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
+import { collectNewOutputUuids } from "./engineV3_replay_new_uuids.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import { collectPostToolHookRewrites } from "./engineV3_replay_post_tool_hooks.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
@@ -30,6 +33,7 @@ import { writeTouchedPathsFile } from "./engineV3_replay_touched.ts";
 import { TEMP_FOLDER, createSnapshotLoopIfRequested, writeSnapshotAfterEvent, type SnapshotLoop } from "./engineV3_replay_snapshot_loop.ts";
 import { createSnapshotLoopAtEvent, recordPendingWritesOfSkippedEvent, skipEventBeforeStartAt } from "./engineV3_replay_snapshot_start_at.ts";
 import { runStartupPhase } from "./engineV3_startup_progress.ts";
+import { createSessionScratchpadFolder, MAC_CLAUDE_TEMP_FOLDER } from "./engineV3_replay_scratchpad.ts";
 
 const DOCKER_MARKER_FILE = "/.dockerenv";
 
@@ -55,6 +59,9 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
     applyIdleStateCopyToState(state, event.copy);
     return state;
   }
+  if (context.claudeTempFolder !== undefined) {
+    createSessionScratchpadFolder(context.claudeTempFolder, event.line);
+  }
   return applyJSONLLineToState(state, event.line, fileSnapshots, context);
 }
 
@@ -63,7 +70,8 @@ export function formatEventText(event: TimelineEvent, repoPath: Path | undefined
     return `${new Date().toISOString()} next event: source:${repoPath?.toString()} commit:${event.commit.toString()}`;
   }
   if (event.type === TimelineEventKind.OutsideGitAction) {
-    return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
+    // return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
+    return `${new Date().toISOString()} next event: outside git: ${event.row.submodulePath === undefined ? "" : `${event.row.submodulePath.toString()} `}${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
   }
   if (event.type === TimelineEventKind.PlateCapture) {
     return `${new Date().toISOString()} next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
@@ -102,6 +110,14 @@ function logEventThenStopIfBeforeLine(event: TimelineEvent, eventText: string, s
   }
 }
 
+// The timeline holds index lines; the full line is read from disk only for the event being replayed.
+function readFullLineOfEvent(event: TimelineEvent): TimelineEvent {
+  if (event.type === TimelineEventKind.JSONLLine) {
+    return { ...event, line: readFullJSONLLine(event.line) };
+  }
+  return event;
+}
+
 function replayEvent(state: Path, event: TimelineEvent, eventNumber: number, repoPath: Path | undefined, jsonlsPaths: Path[], fileSnapshots: Path[], context: ScriptReplayContext, snapshotLoop?: SnapshotLoop, stopBefore?: { line: RecordSource; nextLineFile: Path }, startAtEvent?: number): Path {
   const eventText = formatEventText(event, repoPath);
   const isSkipped = skipEventBeforeStartAt(snapshotLoop, eventText, eventNumber, startAtEvent);
@@ -126,7 +142,9 @@ export function executeReplay(state: Path, repoPath: Path | undefined,jsonlsPath
       break;
     }
     eventNumber++;
-    state = replayEvent(state, event, eventNumber, repoPath, jsonlsPaths, fileSnapshots, context, snapshotLoop, stopBefore, startAtEvent);
+    const replayedEvent = readFullLineOfEvent(event);
+    state = replayEvent(state, replayedEvent, eventNumber, repoPath, jsonlsPaths, fileSnapshots, context, snapshotLoop, stopBefore, startAtEvent);
+    // getNextEvent finds its place by the timeline's own event object.
     lastEvent = event;
   }
   return state;
@@ -155,8 +173,10 @@ export function loadReplayJSONLLines(settings: ReplaySettings): JSONLLine[] {
   for (const jsonlPath of settings.jsonlsPaths) {
     jsonlPathTexts.push(jsonlPath.toString());
   }
-  const mergedLines = runStartupPhase("JSONL load", (reportProgress) => loadMergedJSONLLines(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.jsonlLines.length} lines`);
-  return mergedLines.jsonlLines;
+  // const mergedLines = runStartupPhase("JSONL load", (reportProgress) => loadMergedJSONLLines(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.jsonlLines.length} lines`);
+  // return mergedLines.jsonlLines;
+  const lineIndex = runStartupPhase("JSONL load", (reportProgress) => loadJSONLLineIndex(jsonlPathTexts, reportProgress), (loaded) => `loaded ${loaded.transcriptFileCount} JSONL files, ${loaded.indexLines.length} lines`);
+  return lineIndex.indexLines;
 }
 
 function describeCollectStep(stepName: string): (entries: Map<string, unknown> | Set<string>) => string {
@@ -165,13 +185,17 @@ function describeCollectStep(stepName: string): (entries: Map<string, unknown> |
 
 export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: JSONLLine[]): ScriptReplayContext {
   const bashCallResults = runStartupPhase("collectBashCallResults", () => collectBashCallResults(jsonlLines), describeCollectStep("collectBashCallResults"));
-  const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => collectWriteEditResultLines(jsonlLines), describeCollectStep("collectWriteEditResultLines"));
+  // const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => collectWriteEditResultLines(jsonlLines), describeCollectStep("collectWriteEditResultLines"));
+  const writeEditResultLines = runStartupPhase("collectWriteEditResultLines", () => readFullResultLines(collectWriteEditResultLines(jsonlLines)), describeCollectStep("collectWriteEditResultLines"));
   const forkedMessageIds = runStartupPhase("collectForkedMessageIds", () => collectForkedMessageIds(jsonlLines), describeCollectStep("collectForkedMessageIds"));
   const earlierSiblingMessageIds = runStartupPhase("collectEarlierSiblingMessageIds", () => collectEarlierSiblingMessageIds(jsonlLines), describeCollectStep("collectEarlierSiblingMessageIds"));
   const resultTurnSnapshotIds = runStartupPhase("collectResultTurnSnapshotIds", () => collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines), describeCollectStep("collectResultTurnSnapshotIds"));
   const postToolHookRewrites = runStartupPhase("collectPostToolHookRewrites", () => collectPostToolHookRewrites(jsonlLines), describeCollectStep("collectPostToolHookRewrites"));
   // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
-  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, postToolHookRewrites };
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER };
+  const newOutputUuids = runStartupPhase("collectNewOutputUuids", (reportProgress) => collectNewOutputUuids(jsonlLines, bashCallResults, reportProgress), describeCollectStep("collectNewOutputUuids"));
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER, postToolHookRewrites, outsideGitFolders: settings.outsideGitFolders };
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, claudeTempFolder: MAC_CLAUDE_TEMP_FOLDER, postToolHookRewrites, outsideGitFolders: settings.outsideGitFolders, newOutputUuids };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);

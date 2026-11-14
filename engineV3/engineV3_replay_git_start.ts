@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
+import { executeGitWithoutWorkTree, getUploadPackOption } from "./engineV3_replay_submodule.ts";
 
 // export type StartRef = { refName: string; shortHash: string };
 
@@ -15,8 +16,13 @@ import { executeGit } from "./engineV3.ts";
 //   { refName: "refs/remotes/origin/master", shortHash: "6510b84" },
 // ];
 
+// function readGitText(repo: Path, args: string[]): string {
+//   return executeGit(repo, args).toString("utf8").trim();
+// }
+
+// Only the source repo is read here; a submodule's copied git folder has a core.worktree that points at a missing folder.
 function readGitText(repo: Path, args: string[]): string {
-  return executeGit(repo, args).toString("utf8").trim();
+  return executeGitWithoutWorkTree(repo, args).toString("utf8").trim();
 }
 
 export type StartPoint = { refs: { refName: string; fullHash: string }[]; headBranch: string; originHeadTarget: string | undefined };
@@ -41,7 +47,7 @@ const ZERO_HASH = "0".repeat(40);
 
 // The new hash of the last reflog entry stamped at or before startTime.
 // When every entry is later, the old hash of the first entry; undefined when that hash is all zeros.
-function readHashAtTime(reflogFile: string, startTime: Date): string | undefined {
+export function readHashAtTime(reflogFile: string, startTime: Date): string | undefined {
   let hashAtTime: string | undefined;
   let firstOldHash: string | undefined;
   for (const line of readFileSync(reflogFile, "utf8").split("\n")) {
@@ -64,19 +70,46 @@ function readHashAtTime(reflogFile: string, startTime: Date): string | undefined
   return firstOldHash;
 }
 
-// The branch of the last "checkout: moving from X to Y" at or before startTime; the current HEAD branch when there is none.
+// // The branch of the last "checkout: moving from X to Y" at or before startTime; the current HEAD branch when there is none.
+// function readHeadBranchAtTime(sourceRepo: Path, logsFolder: string, startTime: Date): string {
+//   let headBranch = readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
+//   for (const line of readFileSync(join(logsFolder, "HEAD"), "utf8").split("\n")) {
+//     const [header, message] = line.split("\t");
+//     const headerWords = (header as string).split(" ");
+//     const entryTime = Number(headerWords[headerWords.length - 2]) * 1000;
+//     const checkout = /^checkout: moving from .+ to (.+)$/.exec(message ?? "");
+//     if (checkout !== null && entryTime <= startTime.getTime()) {
+//       headBranch = `refs/heads/${checkout[1]}`;
+//     }
+//   }
+//   return headBranch;
+// }
+
+// The branch Y of the last "checkout: moving from X to Y" at or before startTime.
+// With none, HEAD sat on the X of the first later checkout until that checkout; the current HEAD branch when there is no checkout at all.
 function readHeadBranchAtTime(sourceRepo: Path, logsFolder: string, startTime: Date): string {
-  let headBranch = readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
+  let branchOfLastCheckoutBeforeStart: string | undefined;
+  let branchLeftByFirstLaterCheckout: string | undefined;
   for (const line of readFileSync(join(logsFolder, "HEAD"), "utf8").split("\n")) {
     const [header, message] = line.split("\t");
     const headerWords = (header as string).split(" ");
     const entryTime = Number(headerWords[headerWords.length - 2]) * 1000;
-    const checkout = /^checkout: moving from .+ to (.+)$/.exec(message ?? "");
-    if (checkout !== null && entryTime <= startTime.getTime()) {
-      headBranch = `refs/heads/${checkout[1]}`;
+    const checkout = /^checkout: moving from (.+) to (.+)$/.exec(message ?? "");
+    if (checkout !== null) {
+      if (entryTime <= startTime.getTime()) {
+        branchOfLastCheckoutBeforeStart = `refs/heads/${checkout[2]}`;
+      } else {
+        branchLeftByFirstLaterCheckout ??= `refs/heads/${checkout[1]}`;
+      }
     }
   }
-  return headBranch;
+  if (branchOfLastCheckoutBeforeStart !== undefined) {
+    return branchOfLastCheckoutBeforeStart;
+  }
+  if (branchLeftByFirstLaterCheckout !== undefined) {
+    return branchLeftByFirstLaterCheckout;
+  }
+  return readGitText(sourceRepo, ["symbolic-ref", "HEAD"]);
 }
 
 export function readStartPoint(sourceRepo: Path, startTime: Date): StartPoint {
@@ -110,7 +143,8 @@ function setRefs(state: Path, startPoint: StartPoint): void {
 export function createStartRepo(sourceRepo: Path, state: Path, startPoint: StartPoint): void {
   executeGit(state, ["init", "-q"]);
   const fullHashes = startPoint.refs.map((ref) => ref.fullHash);
-  executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), ...fullHashes]);
+  // executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), ...fullHashes]);
+  executeGit(state, ["fetch", "-q", "--no-tags", getUploadPackOption(sourceRepo), sourceRepo.toString(), ...fullHashes]);
   setRefs(state, startPoint);
   const originUrl = readGitText(sourceRepo, ["config", "remote.origin.url"]);
   executeGit(state, ["remote", "add", "origin", originUrl]);

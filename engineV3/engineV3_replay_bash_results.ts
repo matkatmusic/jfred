@@ -37,7 +37,7 @@ function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string,
   }
 }
 
-function collectBashCallStarts(lines: JSONLLine[]): Map<string, BashCallStart> {
+export function collectBashCallStarts(lines: JSONLLine[]): Map<string, BashCallStart> {
   const starts = new Map<string, BashCallStart>();
   for (const line of lines) {
     if (line.timestamp instanceof Date) {

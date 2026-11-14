@@ -57,6 +57,7 @@ export const EXECUTOR_TOOL_NAMES = new Set<string>([
 // Discriminant only; per-kind payload fields are deferred (edited_text_file's filename/snippet are read via getAttachmentEntry).
 export enum AttachmentPayloadType {
   hook_success = "hook_success",
+  hook_blocking_error = "hook_blocking_error",
   hook_system_message = "hook_system_message",
   hook_additional_context = "hook_additional_context",
   deferred_tools_delta = "deferred_tools_delta",

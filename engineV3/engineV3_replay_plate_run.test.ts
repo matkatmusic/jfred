@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { PlateEventName, type PlateRun } from "./engineV3_replay_plate.ts";
 import { assertPlateCapturesEqual, executePlateHook, executePlateRun } from "./engineV3_replay_plate_run.ts";
+import { clearSeenBackups, recordContinuedFailure, recordProvenBytes } from "./engineV3_replay_backups.ts";
 
 const REAL_JOT_FOLDER = join(homedir(), "Programming", "jot");
 const JOT_HOOK_FILES = ["common/scripts/plate/plate_capture_hook.py", "common/scripts/git_lib.py", "external/claude_plugin_lib/git_lib.py", "external/claude_plugin_lib/util_lib.py"];
@@ -119,4 +120,75 @@ test("test_assertPlateCapturesEqual_throws_when_a_path_is_missing_in_the_mac_cap
     const macCapture = writeCaptureFile(folder, MAC_CAPTURE_NAME, { "/r/a.txt": "a" });
     const replayCapture = writeCaptureFile(folder, "2_2.json", { "/r/a.txt": "a", "/r/c.txt": "c" });
     assert.throws(() => assertPlateCapturesEqual(new Path(macCapture), new Path(replayCapture)), /\/r\/c\.txt.*missing in the Mac capture/);
+});
+
+type CaptureMismatch = { replayedFile: string; macCapture: Path; replayCapture: Path };
+
+// The replayed file on disk and the replay capture hold replayedText; the Mac capture holds macText.
+function makeCaptureMismatch(t: TestContext, replayedText: string, macText: string): CaptureMismatch {
+    clearSeenBackups();
+    const folder = makeTempFolder(t);
+    const replayedFile = join(folder, "a.txt");
+    writeFileSync(replayedFile, replayedText);
+    const macCapture = writeCaptureFile(folder, MAC_CAPTURE_NAME, { [replayedFile]: macText });
+    const replayCapture = writeCaptureFile(folder, "2_2.json", { [replayedFile]: replayedText });
+    return { replayedFile, macCapture: new Path(macCapture), replayCapture: new Path(replayCapture) };
+}
+
+test("test_assertPlateCapturesEqual_throws_when_the_replay_blanked_a_file_with_a_proven_text", (t) => {
+    // Scenario (the 267 shape): a Write gave the file its full text, then the replay blanked it; the Mac capture has the full text.
+    const mismatch = makeCaptureMismatch(t, "", "one\ntwo\n");
+    recordProvenBytes(mismatch.replayedFile, Buffer.from("one\ntwo\n"));
+    // the check throws as before, and the file keeps its replayed bytes
+    assert.throws(() => assertPlateCapturesEqual(mismatch.macCapture, mismatch.replayCapture), /a\.txt differs/);
+    assert.equal(readFileSync(mismatch.replayedFile, "utf8"), "");
+});
+
+test("test_assertPlateCapturesEqual_throws_when_a_script_changed_the_file_after_its_proven_text", (t) => {
+    // Scenario (the 311 shape): a Write gave the file its full text, then a Bash call wrote other bytes than the record says.
+    const mismatch = makeCaptureMismatch(t, "one\nscript bytes\n", "one\nrecord bytes\n");
+    recordProvenBytes(mismatch.replayedFile, Buffer.from("one\ntwo\n"));
+    // the check throws, and the file keeps the script's bytes
+    assert.throws(() => assertPlateCapturesEqual(mismatch.macCapture, mismatch.replayCapture), /a\.txt differs/);
+    assert.equal(readFileSync(mismatch.replayedFile, "utf8"), "one\nscript bytes\n");
+});
+
+test("test_assertPlateCapturesEqual_throws_for_a_file_with_no_proven_text", (t) => {
+    // Scenario: no Write, Edit with originalFile, capture or backup ever gave this file a full text.
+    const mismatch = makeCaptureMismatch(t, "one\n", "one\nhand\n");
+    // the check throws, and the file keeps its bytes
+    assert.throws(() => assertPlateCapturesEqual(mismatch.macCapture, mismatch.replayCapture), /a\.txt differs/);
+    assert.equal(readFileSync(mismatch.replayedFile, "utf8"), "one\n");
+});
+
+test("test_assertPlateCapturesEqual_throws_instead_of_copying_after_a_failed_call_went_on", (t) => {
+    // Scenario: the file still has its proven text, but a failed call that went on may have changed it on the Mac.
+    const mismatch = makeCaptureMismatch(t, "one\n", "one\nhand\n");
+    recordProvenBytes(mismatch.replayedFile, Buffer.from("one\n"));
+    recordContinuedFailure("s.jsonl:9");
+    // the check throws and names the failed call; the file keeps its bytes
+    assert.throws(() => assertPlateCapturesEqual(mismatch.macCapture, mismatch.replayCapture), /after the failed call s\.jsonl:9 went on/);
+    assert.equal(readFileSync(mismatch.replayedFile, "utf8"), "one\n");
+});
+
+test("test_executePlateRun_copies_a_hand_edit_seen_only_in_the_plate_capture", (t) => {
+    // Scenario (the 633 shape): a Write gave a.txt its full text, nothing else changed it, and the Mac capture differs in one line.
+    clearSeenBackups();
+    const repoFolder = makeRepoWithAgentWrite(t);
+    const replayedFile = join(repoFolder, "a.txt");
+    recordProvenBytes(replayedFile, Buffer.from("new\n"));
+    const macFolder = makeTempFolder(t);
+    const firstMacCapture = writeCaptureFile(macFolder, MAC_CAPTURE_NAME, { [replayedFile]: "new by hand\n" });
+    const logged: string[] = [];
+    t.mock.method(console, "log", (text: string) => logged.push(text));
+    const jotFolder = copyJotFiles(t);
+    // the run copies the capture text into the state and logs one note
+    executePlateRun(makeRun(repoFolder, firstMacCapture), jotFolder);
+    assert.equal(readFileSync(replayedFile, "utf8"), "new by hand\n");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0] as string, new RegExp(`note: hand edit copied from plate capture: ${replayedFile} ${MAC_CAPTURE_NAME} 1 changed lines, first at line 1$`));
+    // a following identical capture passes with no second copy
+    const secondMacCapture = writeCaptureFile(macFolder, "1793071425959172000_111.json", { [replayedFile]: "new by hand\n" });
+    executePlateRun(makeRun(repoFolder, secondMacCapture), jotFolder);
+    assert.equal(logged.length, 1);
 });

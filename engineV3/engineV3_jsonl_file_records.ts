@@ -36,7 +36,7 @@ function assertOnlyUnknownTypesSkipped(transcriptFile: Path, skippedLines: Skipp
 }
 
 // The loader rejects the line's type, so this parses the raw text without that check.
-function parseUnknownTypeLine(text: string): JSONLLine {
+export function parseUnknownTypeLine(text: string): JSONLLine {
   const parsed = JSON.parse(text) as Record<string, unknown>;
   if (typeof parsed.timestamp === "string") {
     parsed.timestamp = new Date(parsed.timestamp);

@@ -110,7 +110,8 @@ test("test_settleExitMismatches_logs_recorded_error_when_a_recorded_error_exits_
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-mismatch-state-"));
   // the call line exits 0, and the recorded result is an error
-  const line = loadBashCallLine(t, "true", state.toString());
+  // merge: `touch` changes a file, so the replay does not skip it as a read-only call (Attune rule)
+  const line = loadBashCallLine(t, "touch marker.txt", state.toString());
   addPendingExitMismatches(executeScriptInState(state, line, makeContext(true)));
   // the event has no file changes
   const loggedLines = captureLoggedLines(t);
@@ -205,7 +206,7 @@ test("test_settleExitMismatches_ignores_the_background_output_file_the_replay_wr
   const state = new Path(makeTempFolder(t, "engine-v3-mismatch-state-"));
   // the line holds a background call that prints a line, then a call that exits 3 although the record says it passed
   const callLine = { type: "assistant", uuid: "4b836cc7-2357-412e-9f53-b23191b3c68a", parentUuid: null, cwd: state.toString(), timestamp: "2026-10-27T17:24:20.837Z", sessionId: "7d31cfda-fb91-4f61-ba61-7031cb5484e2", message: { role: "assistant", content: [
-    { type: "tool_use", id: "toolu_01Background", name: "Bash", input: { command: "echo started", description: "test", run_in_background: true }, caller: { type: "direct" } },
+    { type: "tool_use", id: "toolu_01Background", name: "Bash", input: { command: "touch started.txt", description: "test", run_in_background: true }, caller: { type: "direct" } },
     { type: "tool_use", id: TOOL_USE_ID, name: "Bash", input: { command: "exit 3", description: "test" }, caller: { type: "direct" } },
   ] } };
   const jsonlFile = join(makeTempFolder(t, "engine-v3-mismatch-jsonl-"), "session.jsonl");

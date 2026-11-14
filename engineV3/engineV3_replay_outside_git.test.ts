@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -120,6 +120,29 @@ test("test_listOutsideGitRows_throws_on_an_unknown_reflog_message", (t) => {
     assert.throws(() => listRowsOf(source, new Map(), 5), /no replay for reflog message "merge side/);
 });
 
+test("test_listOutsideGitRows_names_a_row_with_no_message_a_head_move", (t) => {
+    // Scenario: git update-ref HEAD writes a reflog row with an empty message.
+    const source = makeSourceRepo(t);
+    runGitAt(join(source.gitFolder, ".."), 70, ["update-ref", "HEAD", source.commit2]);
+    const rows = listRowsOf(source, new Map(), 65);
+    // the +70 row is the only row after +65
+    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.HeadMove]);
+    assert.equal(rows[0]?.newCommit, source.commit2);
+});
+
+test("test_applyOutsideGitRow_head_move_moves_the_branch_and_leaves_the_files", (t) => {
+    // Scenario: state is at commit 1; the head move row puts main on commit 2 without writing b.txt.
+    const source = makeSourceRepo(t);
+    runGitAt(join(source.gitFolder, ".."), 70, ["update-ref", "HEAD", source.commit2]);
+    const stateFolder = makeStateAt(t, source, source.commit1);
+    const rows = listRowsOf(source, new Map(), 65);
+    // apply the head move row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // main is at commit 2 and the files are still those of commit 1
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), source.commit2);
+    assert.equal(existsSync(join(stateFolder, "b.txt")), false);
+});
+
 test("test_applyOutsideGitRow_commit_moves_the_branch_and_writes_the_file", (t) => {
     // Scenario: state is at commit 1; the commit 2 row moves main to commit 2 and writes b.txt.
     const source = makeSourceRepo(t);
@@ -142,6 +165,18 @@ test("test_applyOutsideGitRow_checkout_moves_HEAD_to_the_target_branch", (t) => 
     applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
     // HEAD names side
     assert.equal(runGitAt(stateFolder, 0, ["symbolic-ref", "--short", "HEAD"]), "side");
+});
+
+test("test_applyOutsideGitRow_checkout_creates_a_missing_branch_at_the_row_new_commit", (t) => {
+    // Scenario: the user ran `git checkout -b side` in a terminal, so the state has no side branch yet.
+    const source = makeSourceRepo(t);
+    const stateFolder = makeStateAt(t, source, source.commit2);
+    const rows = listRowsOf(source, new Map(), 25);
+    // apply the +30 checkout row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // HEAD names side, and side is at the row's new commit
+    assert.equal(runGitAt(stateFolder, 0, ["symbolic-ref", "--short", "HEAD"]), "side");
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "side"]), source.commit2);
 });
 
 test("test_applyOutsideGitRow_reset_moves_the_branch_and_untracks_files", (t) => {
@@ -198,6 +233,104 @@ test("test_applyOutsideGitRow_reset_succeeds_when_a_differing_file_was_rewritten
     // HEAD is commit 1 and b.txt is gone, as the target has no b.txt
     assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), source.commit1);
     assert.equal(existsSync(stalePath), false);
+});
+
+test("test_applyOutsideGitRow_fetches_a_commit_that_moves_a_submodule_pointer_when_the_submodule_is_active", (t) => {
+    // Scenario: commit 2 moves the gitlink of submodule "mp"; the state marks "mp" active and holds the files of "mp" without a git folder, as the replay writes them.
+    const sourceFolder = makeTempFolder(t, "engine-v3-outside-submodule-source-");
+    runGitAt(sourceFolder, 0, ["init", "-q", "-b", "main"]);
+    runGitAt(sourceFolder, 0, ["config", "-f", ".gitmodules", "submodule.mp.path", "mp"]);
+    runGitAt(sourceFolder, 0, ["config", "-f", ".gitmodules", "submodule.mp.url", "https://example.invalid/mp.git"]);
+    runGitAt(sourceFolder, 0, ["add", ".gitmodules"]);
+    runGitAt(sourceFolder, 10, ["update-index", "--add", "--cacheinfo", "160000,1111111111111111111111111111111111111111,mp"]);
+    runGitAt(sourceFolder, 10, ["commit", "-q", "-m", "commit 1"]);
+    const commit1 = runGitAt(sourceFolder, 10, ["rev-parse", "HEAD"]);
+    runGitAt(sourceFolder, 20, ["update-index", "--cacheinfo", "160000,2222222222222222222222222222222222222222,mp"]);
+    runGitAt(sourceFolder, 20, ["commit", "-q", "-m", "commit 2"]);
+    const commit2 = runGitAt(sourceFolder, 20, ["rev-parse", "HEAD"]);
+    runGitAt(sourceFolder, 30, ["reset", "-q", "--hard", commit1]);
+    runGitAt(sourceFolder, 70, ["update-ref", "HEAD", commit2]);
+    const source: SourceRepo = { gitFolder: join(sourceFolder, ".git"), commit1, commit2, commit3: commit2 };
+    const stateFolder = makeStateAt(t, source, commit1);
+    runGitAt(stateFolder, 0, ["config", "submodule.mp.active", "true"]);
+    runGitAt(stateFolder, 0, ["config", "submodule.mp.url", "https://example.invalid/mp.git"]);
+    mkdirSync(join(stateFolder, "mp"), { recursive: true });
+    writeFileSync(join(stateFolder, "mp", "file.txt"), "file of the submodule");
+    const rows = listRowsOf(source, new Map(), 65);
+    // apply the head move row that fetches commit 2
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // main is at commit 2
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "main"]), commit2);
+});
+
+type ParentWithSubmoduleSource = { gitFolder: string; parentCommit0: string; subCommit1: string; subCommit2: string };
+
+// Rows: +20 parent commit 0, +30 clone of "sub", +40 parent commit that adds "sub", +60 fast-forward pull in "sub".
+// Only .git is copied, so the submodule's core.worktree points at a missing folder, as in the docker container.
+function makeSourceWithSubmodule(t: TestContext): ParentWithSubmoduleSource {
+    const subSource = makeTempFolder(t, "engine-v3-outside-sub-source-");
+    runGitAt(subSource, 0, ["init", "-q", "-b", "main"]);
+    const subCommit1 = commitFileAt(subSource, 10, "s1.txt");
+    const parentFolder = makeTempFolder(t, "engine-v3-outside-sub-parent-");
+    runGitAt(parentFolder, 0, ["init", "-q", "-b", "main"]);
+    const parentCommit0 = commitFileAt(parentFolder, 20, "p.txt");
+    runGitAt(parentFolder, 30, ["-c", "protocol.file.allow=always", "submodule", "add", "-q", subSource, "sub"]);
+    runGitAt(parentFolder, 40, ["commit", "-q", "-m", "add sub"]);
+    const subCommit2 = commitFileAt(subSource, 50, "s2.txt");
+    runGitAt(join(parentFolder, "sub"), 60, ["pull", "-q", "--ff-only", "origin", "main"]);
+    const copyFolder = makeTempFolder(t, "engine-v3-outside-sub-copy-");
+    const gitFolder = join(copyFolder, "repo.git");
+    cpSync(join(parentFolder, ".git"), gitFolder, { recursive: true });
+    return { gitFolder, parentCommit0, subCommit1, subCommit2 };
+}
+
+function makeParentStateAt(t: TestContext, gitFolder: string, commit: string): string {
+    const stateFolder = makeTempFolder(t, "engine-v3-outside-sub-state-");
+    runGitAt(stateFolder, 0, ["init", "-q", "-b", "main"]);
+    runGitAt(stateFolder, 0, ["fetch", "-q", "--no-tags", gitFolder, commit]);
+    runGitAt(stateFolder, 0, ["reset", "-q", "--hard", commit]);
+    return stateFolder;
+}
+
+test("test_listOutsideGitRows_lists_the_rows_of_a_submodule_with_its_path_in_time_order", (t) => {
+    // Scenario: the submodule's own reflog rows join the parent's rows, sorted by second.
+    const source = makeSourceWithSubmodule(t);
+    const rows = listOutsideGitRows(new Path(source.gitFolder), new Map(), BASE_SECONDS + 5);
+    // each row names its repo: no path for the parent, "sub" for the submodule
+    const repoAndKind = rows.map((row) => `${row.submodulePath?.toString() ?? "parent"} ${row.kind}`);
+    assert.deepEqual(repoAndKind, ["parent Commit", "sub SubmoduleClone", "parent Commit", "sub SubmodulePull"]);
+});
+
+test("test_applyOutsideGitRow_clone_makes_a_submodule_repo_where_a_recorded_git_add_works", (t) => {
+    // Scenario: the user ran `git submodule add` in a terminal; a later recorded call runs `git add` inside the submodule folder.
+    const source = makeSourceWithSubmodule(t);
+    const stateFolder = makeParentStateAt(t, source.gitFolder, source.parentCommit0);
+    const rows = listOutsideGitRows(new Path(source.gitFolder), new Map(), BASE_SECONDS + 25);
+    // apply the +30 clone row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // the submodule folder is its own repo at the cloned commit, with its files
+    const subState = join(stateFolder, "sub");
+    assert.equal(runGitAt(subState, 0, ["rev-parse", "--show-toplevel"]), realpathSync(subState));
+    assert.equal(runGitAt(subState, 0, ["rev-parse", "HEAD"]), source.subCommit1);
+    assert.equal(existsSync(join(subState, "s1.txt")), true);
+    // a recorded-style git add inside the submodule folder stages the new file
+    writeFileSync(join(subState, "new.txt"), "new");
+    runGitAt(subState, 0, ["add", "new.txt"]);
+    assert.equal(runGitAt(subState, 0, ["status", "--short"]), "A  new.txt");
+});
+
+test("test_applyOutsideGitRow_fast_forward_pull_moves_the_submodule_head_and_writes_its_files", (t) => {
+    // Scenario: clone, parent commit, then a terminal pull inside the submodule fast-forwards it to sub commit 2.
+    const source = makeSourceWithSubmodule(t);
+    const stateFolder = makeParentStateAt(t, source.gitFolder, source.parentCommit0);
+    const rows = listOutsideGitRows(new Path(source.gitFolder), new Map(), BASE_SECONDS + 25);
+    // apply all three rows in order
+    for (const row of rows) {
+        applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), row);
+    }
+    // the submodule is at sub commit 2 with s2.txt on disk
+    assert.equal(runGitAt(join(stateFolder, "sub"), 0, ["rev-parse", "HEAD"]), source.subCommit2);
+    assert.equal(existsSync(join(stateFolder, "sub", "s2.txt")), true);
 });
 
 test("test_applyOutsideGitRow_throws_when_HEAD_is_not_the_row_new_commit", (t) => {

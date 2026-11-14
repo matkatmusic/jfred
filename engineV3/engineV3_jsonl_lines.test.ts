@@ -40,6 +40,15 @@ test("test_loadMergedJSONLLines_orders_lines_of_two_files_by_time", (t) => {
     assert.deepEqual(listUuids(folder), ["a", "b", "c"]);
 });
 
+test("test_loadMergedJSONLLines_reads_the_same_folders_once", (t) => {
+    // Scenario: a second call for the same folders gives the very same lines without reading the files again.
+    const folder = makeTempFolder(t);
+    writeJSONLFile(folder, "one.jsonl", [makeUserLine("a", 20, {})]);
+    const firstLoad = loadMergedJSONLLines([folder]);
+    const secondLoad = loadMergedJSONLLines([folder]);
+    assert.equal(secondLoad, firstLoad);
+});
+
 test("test_loadMergedJSONLLines_keeps_a_line_without_timestamp_after_the_line_before_it", (t) => {
     // Scenario: a last-prompt line without timestamp stays right after the 20s line.
     const folder = makeTempFolder(t);

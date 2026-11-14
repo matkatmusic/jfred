@@ -1,6 +1,6 @@
 // Applies git tree changes to the state folder, including submodule pointers, with files read from git.
 
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit, type CommitHash } from "./engineV3.ts";
@@ -19,6 +19,40 @@ const SUBMODULES_FOLDER = "modules";
 // The folder's own core.worktree may be missing in a copied .git; these commands never touch a work tree.
 export function executeGitWithoutWorkTree(gitFolder: Path, args: string[]): Buffer {
   return executeGit(gitFolder, [`--work-tree=${gitFolder.toString()}`, ...args]);
+}
+
+// A fetch from a copied submodule git folder runs upload-pack there, which dies on the missing core.worktree too.
+export function getUploadPackOption(gitFolder: Path): string {
+  return `--upload-pack=git --work-tree='${gitFolder.toString()}' upload-pack`;
+}
+
+export function getSubmoduleGitFolder(gitFolder: Path, submodulePath: Path): Path {
+  return new Path(join(gitFolder.toString(), SUBMODULES_FOLDER, submodulePath.toString()));
+}
+
+function collectSubmodulePathsUnder(modulesFolder: string, relativeFolder: string, submodulePaths: Path[]): void {
+  for (const entry of readdirSync(join(modulesFolder, relativeFolder), { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      const entryPath = join(relativeFolder, entry.name);
+      // A folder with its own HEAD log is a submodule git folder; a path with slashes nests folders.
+      if (existsSync(join(modulesFolder, entryPath, "logs", "HEAD"))) {
+        submodulePaths.push(new Path(entryPath));
+      } else {
+        collectSubmodulePathsUnder(modulesFolder, entryPath, submodulePaths);
+      }
+    }
+  }
+}
+
+// The paths of the submodules whose git folders sit under <git folder>/modules.
+export function listSubmodulePaths(gitFolder: Path): Path[] {
+  const modulesFolder = join(gitFolder.toString(), SUBMODULES_FOLDER);
+  const submodulePaths: Path[] = [];
+  if (!existsSync(modulesFolder)) {
+    return submodulePaths;
+  }
+  collectSubmodulePathsUnder(modulesFolder, "", submodulePaths);
+  return submodulePaths;
 }
 
 // Raw diff-tree rows are ":oldMode newMode oldHash newHash status", then the path, separated by NUL.
@@ -63,7 +97,8 @@ function readOldSubmoduleCommit(change: TreeChange): string {
 
 // The submodule's git folder is inside the parent git folder, under modules/<path>.
 function applySubmoduleChangeToState(change: TreeChange, state: Path, gitFolder: Path): void {
-  const submoduleGitFolder = new Path(join(gitFolder.toString(), SUBMODULES_FOLDER, change.path.toString()));
+  // const submoduleGitFolder = new Path(join(gitFolder.toString(), SUBMODULES_FOLDER, change.path.toString()));
+  const submoduleGitFolder = getSubmoduleGitFolder(gitFolder, change.path);
   const submoduleState = new Path(join(state.toString(), change.path.toString()));
   const oldCommit = readOldSubmoduleCommit(change);
   const submoduleChanges = listChangesBetweenCommits(submoduleGitFolder, oldCommit, change.newHash);
@@ -86,7 +121,8 @@ function applyChangeToState(change: TreeChange, commit: string, state: Path, git
   }
   if (change.status === DELETED_STATUS) {
     recordTouchedPath(targetPath);
-    rmSync(targetPath);
+    // An outside commit may record a deletion that a replayed call already made, so an absent file is fine.
+    rmSync(targetPath, { force: true });
     return;
   }
   const isBlobStatus = BLOB_STATUSES.includes(change.status);

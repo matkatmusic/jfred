@@ -13,7 +13,8 @@ export function parseLogFile(logFile: string): LogLine[] {
   const logLines: LogLine[] = [];
   for (const row of rows) {
     if (row !== "") {
-      const [head, message] = row.split("\t") as [string, string];
+      // git update-ref without -m writes a row with no tab and no message
+      const [head, message = ""] = row.split("\t") as [string, string | undefined];
       const fields = head.split(" ");
       logLines.push({ oldCommit: fields[0] as string, newCommit: fields[1] as string, seconds: Number(fields[fields.length - 2]), message });
     }

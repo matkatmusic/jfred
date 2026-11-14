@@ -10,6 +10,8 @@ import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
+import { clearSeenBackups } from "./engineV3_replay_backups.ts";
+import { assertPlateCapturesEqual } from "./engineV3_replay_plate_run.ts";
 
 const NO_SCRIPT_CONTEXT: ScriptReplayContext = { bashCallResults: new Map(), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 
@@ -123,6 +125,15 @@ test("test_applyJSONLLineToState_user_edit_keeps_a_missing_final_newline", (t) =
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), USER_EDIT_CONTENT);
 });
 
+test("test_applyJSONLLineToState_user_edit_with_an_empty_snippet_leaves_the_file_unchanged", (t) => {
+    // Scenario: another agent's Edit changed the file, and the harness gave this session an edited_text_file record with an empty snippet.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "index.html"), "<!doctype html>\n<html lang=\"en\">\n</html>\n");
+    // the empty snippet holds no file text, so the replay must not change the file
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "index.html", ""), [], NO_SCRIPT_CONTEXT);
+    assert.equal(readFileSync(join(stateFolder, "index.html"), "utf8"), "<!doctype html>\n<html lang=\"en\">\n</html>\n");
+});
+
 test("test_applyJSONLLineToState_user_edit_snippet_from_line_1_keeps_the_old_lines_after_its_8_context_lines", (t) => {
     // Scenario: the user adds 2 lines at line 3; the snippet shows lines 1 to 12 and stops before the old last line.
     const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
@@ -209,6 +220,23 @@ test("test_applyCommitToState_removes_a_deleted_file_from_the_state_folder", (t)
     assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
 });
 
+test("test_applyCommitToState_accepts_a_deleted_file_that_the_state_already_lacks", (t) => {
+    // Scenario: a replayed Bash rm already removed gone.txt, then the user's outside commit records that deletion.
+    const repoFolder = makeTempFolder(t, "engine-v3-replay-repo-");
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    runGitWithDate(repoFolder, "2026-01-01T00:00:10Z", ["init", "-q"]);
+    commitFileWithDate(repoFolder, "2026-01-01T00:00:10Z", "gone.txt", "soon gone");
+    runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["rm", "-q", "gone.txt"]);
+    runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["commit", "-q", "-m", "delete"]);
+    const deleteCommit = runGitWithDate(repoFolder, "2026-01-01T00:00:20Z", ["rev-parse", "HEAD"]);
+    // the state folder does not hold gone.txt
+    assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
+    // apply the delete commit: it does not throw
+    applyCommitToState(new Uuid(deleteCommit), new Path(stateFolder), new Path(repoFolder));
+    // the file is still absent
+    assert.equal(existsSync(join(stateFolder, "gone.txt")), false);
+});
+
 // os.tmpdir() is under /var/folders on macOS, so the /tmp cases need a real folder under /tmp.
 function makeTmpRootFolder(t: TestContext): string {
     const folder = mkdtempSync(join("/tmp", "engine-v3-replay-tmproot-"));
@@ -260,4 +288,45 @@ test("test_applyJSONLLineToState_writes_a_Write_create_into_the_state_folder", (
     applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
     // the file exists with the written content
     assert.equal(readFileSync(join(stateFolder, "dir/new.txt"), "utf8"), "created");
+});
+
+// The replay capture holds the file's disk text; the Mac capture holds macText.
+function checkPlateCaptureOfFile(t: TestContext, filePath: string, macText: string): void {
+    const captureFolder = makeTempFolder(t, "engine-v3-replay-captures-");
+    const macCapture = join(captureFolder, "1793071425958172000_111.json");
+    const replayCapture = join(captureFolder, "2_2.json");
+    writeFileSync(macCapture, JSON.stringify({ session_id: "s1", transcript_path: "/t/p.jsonl", file_changes: { [filePath]: macText }, tool_calls: [] }));
+    writeFileSync(replayCapture, JSON.stringify({ session_id: "s1", transcript_path: "/t/p.jsonl", file_changes: { [filePath]: readFileSync(filePath, "utf8") }, tool_calls: [] }));
+    assertPlateCapturesEqual(new Path(macCapture), new Path(replayCapture));
+}
+
+test("test_applyJSONLLineToState_Write_gives_the_file_a_proven_text_that_a_differing_plate_capture_may_replace", (t) => {
+    // Scenario: a Write result sets the file's full text; the Mac capture then shows a hand edit.
+    clearSeenBackups();
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), makeWriteCreateLine(stateFolder, "new.txt", "created\n", 15) + "\n");
+    const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
+    t.mock.method(console, "log", () => {});
+    // the capture check copies the hand-edited text
+    checkPlateCaptureOfFile(t, join(stateFolder, "new.txt"), "created by hand\n");
+    assert.equal(readFileSync(join(stateFolder, "new.txt"), "utf8"), "created by hand\n");
+});
+
+test("test_applyJSONLLineToState_Edit_with_no_originalFile_gives_no_proven_text", (t) => {
+    // Scenario: an Edit result with no originalFile changed the replayed text, so the replay does not know the full Mac text.
+    clearSeenBackups();
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    const jsonlFolder = makeTempFolder(t, "engine-v3-replay-jsonl-");
+    const filePath = join(stateFolder, "f.txt");
+    writeFileSync(filePath, "A\n<person> rated\nB\n");
+    const structuredPatch = [{ oldStart: 2, oldLines: 1, newStart: 2, newLines: 1, lines: ["-<person> rated", "+<username> rated"] }];
+    const toolUseResult = { filePath, oldString: "<person>", newString: "<username>", originalFile: null, structuredPatch, userModified: false, replaceAll: false };
+    writeFileSync(join(jsonlFolder, "s1.jsonl"), JSON.stringify({ type: "user", uuid: "u-edit", timestamp: "2026-01-01T00:00:15.000Z", toolUseResult }) + "\n");
+    const line = (loadMergedJSONLLines([jsonlFolder]).jsonlLines)[0];
+    applyJSONLLineToState(new Path(stateFolder), line!, [], NO_SCRIPT_CONTEXT);
+    // the capture check throws, and the file keeps the replayed text
+    assert.throws(() => checkPlateCaptureOfFile(t, filePath, "A\n<username> rated by hand\nB\n"), /f\.txt differs/);
+    assert.equal(readFileSync(filePath, "utf8"), "A\n<username> rated\nB\n");
 });
