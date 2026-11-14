@@ -525,6 +525,23 @@ test("test_a_file_born_by_a_copy_gets_no_born_text_when_the_source_text_before_t
     assert.ok(commitsOfB.every((commit) => commit.text === undefined || commit.text === "B-now"));
 });
 
+test("test_a_file_that_is_gone_now_gets_a_repo_whose_first_commit_says_the_file_is_absent", (t) => {
+    // Scenario: the logs write a.py with "A1" and then remove it; a.py is not on disk now.
+    const scene = makeCopyScene(t, {}, (projectFolder) => {
+        const fileA = join(projectFolder.toString(), "a.py");
+        return [
+            ...makeWriteCreateRows("w1", fileA, "A1", 1, projectFolder.toString()),
+            makeCallRecord("Bash", "r1", { command: `rm ${fileA}` }, 3, projectFolder.toString()),
+        ];
+    });
+    // The build runs for the gone file and does not throw.
+    buildCopyScene(scene, ["a.py"]);
+    // The first commit says the file is absent, and a later commit holds the text "A1".
+    const commitsOfA = listCommitsOfCopySceneFile(scene, "a.py");
+    assert.equal(commitsOfA[0]!.isFileAbsent, true);
+    assert.ok(commitsOfA.some((commit) => commit.text === "A1"));
+});
+
 test("test_the_results_keep_the_order_of_the_project_files_when_a_born_file_is_listed_before_its_source", (t) => {
     // Scenario: a chain of copies, with the project files listed born file first.
     const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now", "c.py": "C-now" }, makeChainRecords);
