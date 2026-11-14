@@ -26,6 +26,10 @@ export type InverseRepoFileWire = { file: string; commits: InverseCommitWire[] }
 
 export type InverseReposWire = { files: InverseRepoFileWire[] };
 
+export type InverseStateWire = { file: string; commit: InverseCommitWire | null; text: string | null };
+
+export type InverseDiffWire = { file: string; diff: string };
+
 export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire {
     return {
         commitHash: commit.commitHash.toString(),
