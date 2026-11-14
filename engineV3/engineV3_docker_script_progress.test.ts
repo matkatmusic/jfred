@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -216,6 +216,42 @@ test("test_dockerfile_wraps_pkill_and_pgrep_so_they_skip_the_shell_that_runs_the
         assert.match(dockerfileText, new RegExp(`COPY --chmod=755 <<'[A-Z_]+' /usr/local/bin/${programName}\\n#!/bin/sh\\nexec /usr/bin/${programName} --ignore-ancestors "\\$@"\\n`));
     }
 });
+
+function readDockerfileClaudeStandInText(): string {
+    const dockerfileText = readFileSync(join(import.meta.dirname, "Dockerfile"), "utf8");
+    const startMarker = "COPY --chmod=755 <<'CLAUDE_SCRIPT' /usr/local/bin/claude\n";
+    const startIndex = dockerfileText.indexOf(startMarker);
+    assert.notEqual(startIndex, -1, "the Dockerfile writes a claude stand-in to /usr/local/bin/claude");
+    const bodyStartIndex = startIndex + startMarker.length;
+    const bodyEndIndex = dockerfileText.indexOf("\nCLAUDE_SCRIPT\n", bodyStartIndex);
+    assert.notEqual(bodyEndIndex, -1);
+    return dockerfileText.slice(bodyStartIndex, bodyEndIndex + 1);
+}
+
+for (const standInArguments of [["--version"], ["--help"], ["plugin", "--help"], ["plugin", "validate", "demo/crash-fix-mod"]]) {
+    test(`test_dockerfile_claude_stand_in_exits_0_and_prints_nothing_for: claude ${standInArguments.join(" ")}`, () => {
+        // Scenario: recorded calls only look at the Mac claude program (user decision: skip these commands), so the stand-in does nothing.
+        const standInText = readDockerfileClaudeStandInText();
+        // the stand-in runs in sh with the recorded arguments
+        const standInRun = spawnSync("sh", ["-s", "--", ...standInArguments], { input: standInText, encoding: "utf8" });
+        // it exits 0 with no output
+        assert.equal(standInRun.status, 0);
+        assert.equal(standInRun.stdout, "");
+        assert.equal(standInRun.stderr, "");
+    });
+}
+
+for (const standInArguments of [["-p", "--system-prompt-file", "prompt.md"], []]) {
+    test(`test_dockerfile_claude_stand_in_fails_loudly_for: claude ${standInArguments.join(" ")}`, () => {
+        // Scenario: the Attune app runs claude -p; the stand-in cannot answer, so it must fail instead of returning nothing.
+        const standInText = readDockerfileClaudeStandInText();
+        // the stand-in runs in sh with arguments it does not know
+        const standInRun = spawnSync("sh", ["-s", "--", ...standInArguments], { input: standInText, encoding: "utf8" });
+        // it exits non-zero and says why on stderr
+        assert.notEqual(standInRun.status, 0);
+        assert.match(standInRun.stderr, /claude stand-in/);
+    });
+}
 
 test("test_dockerfile_installs_tmux", () => {
     // Scenario: recorded Bash calls run tmux new-session and send-keys for real, so the image needs tmux.

@@ -54,6 +54,17 @@ COPY --chmod=755 <<'PGREP_SCRIPT' /usr/local/bin/pgrep
 #!/bin/sh
 exec /usr/bin/pgrep --ignore-ancestors "$@"
 PGREP_SCRIPT
+# Recorded calls only look at the Mac claude program, so they do nothing here (user decision: skip these commands); any other use fails.
+COPY --chmod=755 <<'CLAUDE_SCRIPT' /usr/local/bin/claude
+#!/bin/sh
+case "$1" in
+    --version|--help|plugin)
+        exit 0
+        ;;
+esac
+echo "claude stand-in: the replay image has no Claude Code program, so 'claude $*' cannot run" >&2
+exit 1
+CLAUDE_SCRIPT
 # Recorded bun scripts start Chrome at its Mac path; COPY cannot write a path with spaces, so printf writes the file.
 RUN mkdir -p "/Applications/Google Chrome.app/Contents/MacOS" \
     && printf '#!/bin/sh\nexec chromium --no-sandbox --disable-dev-shm-usage "$@"\n' > "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
