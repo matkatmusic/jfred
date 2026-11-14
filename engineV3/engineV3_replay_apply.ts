@@ -189,7 +189,7 @@ function getTruncatedLineCount(snippetContent: string): number | undefined {
 
 // The harness shows a changed hunk plus 8 lines of context after it, so a snippet from line 1 may stop before the file ends.
 // When the snippet's last 8 lines match the old file at some end line, the old lines after that line stay.
-const TRAILING_CONTEXT_LINE_COUNT = 8;
+export const TRAILING_CONTEXT_LINE_COUNT = 8;
 function listOldLinesAfterWindow(oldLines: string[], snippet: BeaconSnippet): string[] {
   const snippetLines = snippet.lines.map((snippetLine) => snippetLine.text);
   if (snippetLines.length < TRAILING_CONTEXT_LINE_COUNT) {
@@ -212,7 +212,7 @@ function listOldLinesAfterWindow(oldLines: string[], snippet: BeaconSnippet): st
 }
 
 // Replaces only the file lines the window snippet shows; the gap lines and the lines after it stay.
-function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
+export function patchWindowIntoText(oldText: string, snippet: BeaconSnippet): string {
   const fileLines = splitLines(oldText);
   // A last window that shows only unchanged lines is the context before deleted end lines, so the file ends at its last line.
   let lastWindowStart = snippet.lines.length - 1;

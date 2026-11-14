@@ -1,7 +1,7 @@
 // For one file: the moments where its text is known, each with how sure we are.
 
-import { computeRowUndo } from "./engineV3_replay_reverse.ts";
-import { FileEventType, getEventBytes, isBeaconEvent, type FileEvent } from "./engineV3_replay_reverse_events.ts";
+import { applyEditToText, computeRowUndo, countOccurrences, type EditRow } from "./engineV3_replay_reverse.ts";
+import { FileEventType, findNextOlderEventBytes, getEventBytes, isBeaconEvent, type FileEvent } from "./engineV3_replay_reverse_events.ts";
 
 export enum StateConfidence {
   Proven = "proven",
@@ -92,13 +92,27 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
     }
     switch (event.type) {
       case FileEventType.EditRow: {
-        const stateAtEvent = createUnprovenState(event, StateMoment.AtEvent, carried);
-        knownStates.push(stateAtEvent);
-        pendingStates.push({ state: stateAtEvent, isBehindRoadblock });
+        let textAtEvent = carried;
         let textBefore = UNKNOWN_TEXT;
         if (carried.isKnown) {
           textBefore = computeRowUndo(event.row!, carried.text).textBefore;
         }
+        if (!textBefore.isKnown) {
+          // The Edit cannot be undone from the newer text, so it is applied forward onto the next older beacon.
+          const older = findNextOlderEventBytes(eventsNewestToOldest, eventIndex);
+          const editRow = event.row as EditRow;
+          if (older.bytes !== undefined) {
+            if (!editRow.replaceAll) {
+              if (countOccurrences(older.bytes, editRow.oldString) === 1) {
+                textBefore = createKnownText(older.bytes);
+                textAtEvent = createKnownText(applyEditToText(older.bytes, editRow));
+              }
+            }
+          }
+        }
+        const stateAtEvent = createUnprovenState(event, StateMoment.AtEvent, textAtEvent);
+        knownStates.push(stateAtEvent);
+        pendingStates.push({ state: stateAtEvent, isBehindRoadblock });
         if (!textBefore.isKnown) {
           isBehindRoadblock = true;
         }
@@ -135,6 +149,13 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
             knownStates.push({ event, moment: StateMoment.BeforeEvent, confidence: StateConfidence.Derived, isFileAbsent: true, text: undefined });
           }
         }
+        break;
+      }
+      case FileEventType.UserEditNotice: {
+        // The laid-over text is a guess, so it is not pending; the text before the notice is unknown.
+        knownStates.push({ event, moment: StateMoment.AtEvent, confidence: StateConfidence.Derived, isFileAbsent: false, text: event.bytes });
+        carried = UNKNOWN_TEXT;
+        isBehindRoadblock = true;
         break;
       }
       case FileEventType.ReadPartial:
