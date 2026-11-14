@@ -75,5 +75,13 @@
     display: -webkit-box; -webkit-box-orient: vertical;
     -webkit-line-clamp: 10; line-clamp: 10; overflow: hidden;
   }
+  /*
   .dbody .node-json .json-expand { font-size: 10px; padding: 0 5px; vertical-align: top; }
+  */
+  .dbody .node-json .json-expand, .dbody .node-json .json-format { font-size: 10px; padding: 0 5px; vertical-align: top; }
   .dbody .node-json .json-expand[hidden] { display: none; }
+  /*
+    A formatted string swaps the raw token for a code block; .json-collapsed sets display, which beats the hidden attribute.
+  */
+  .dbody .node-json .json-collapsed[hidden], .dbody .node-json .json-code[hidden] { display: none; }
+  .dbody .node-json .json-code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Menlo, monospace; margin: 4px 0; padding: 6px 8px; border-left: 2px solid var(--border); }

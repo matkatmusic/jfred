@@ -65,12 +65,56 @@ export function getNodeDrawerDetail(node: HTMLElement, path: string): NodeDrawer
 // The raw JSON reveal has no transcript to link to, so a link click does nothing.
 function addNoJsonLink(): void {}
 
+function appendFormatButton(rawString: HTMLElement, expandButton: HTMLElement, codeText: string): void {
+  const codeBlock = createElement("span", { class: "json-code", text: codeText });
+  codeBlock.hidden = true;
+  let isFormatted = false;
+  let expandButtonWasHidden = false;
+  const formatButton = createElement("button", {
+    "data-component": "detailsPaneRawJsonFormatButton",
+    class: "row-btn json-format",
+    text: "format",
+    title: "Show this value as code",
+    onclick: () => {
+      isFormatted = !isFormatted;
+      rawString.hidden = isFormatted;
+      codeBlock.hidden = !isFormatted;
+      if (isFormatted) {
+        expandButtonWasHidden = expandButton.hidden;
+        expandButton.hidden = true;
+      } else {
+        expandButton.hidden = expandButtonWasHidden;
+      }
+      formatButton.textContent = isFormatted ? "raw" : "format";
+    },
+  });
+  expandButton.after(formatButton);
+  formatButton.after(codeBlock);
+}
+
+function appendFormatButtonsToCodeStrings(jsonPre: HTMLElement): void {
+  for (const expandButton of jsonPre.querySelectorAll<HTMLElement>(".json-expand")) {
+    const rawString = expandButton.previousElementSibling as HTMLElement;
+    const codeText = JSON.parse(rawString.textContent!) as string;
+    if (codeText.includes("\n")) {
+      appendFormatButton(rawString, expandButton, codeText);
+    }
+  }
+}
+
 export function renderRawJson(record: unknown): HTMLElement {
-  return renderHighlightedJson(
+  // return renderHighlightedJson(
+  //   JSON.stringify(record, null, 4), record as WireValue, 0,
+  //   { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
+  //   addNoJsonLink, [], addNoJsonLink,
+  // );
+  const jsonPre = renderHighlightedJson(
     JSON.stringify(record, null, 4), record as WireValue, 0,
     { uuidToLine: new Map<string, number>(), toolIdToLines: new Map<string, number[]>() },
     addNoJsonLink, [], addNoJsonLink,
   );
+  appendFormatButtonsToCodeStrings(jsonPre);
+  return jsonPre;
 }
 
 // A failed response throws.
