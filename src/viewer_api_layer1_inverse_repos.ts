@@ -1,6 +1,6 @@
 // HTTP surface for GET /api/layer1-inverse-repos; parses and frames only, layer1_inverse_repos_wire.ts builds the result.
 
-import { rmSync } from "node:fs";
+// import { rmSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { buildInverseReposWire } from "./layer1_inverse_repos_wire.ts";
@@ -22,8 +22,8 @@ export function sendLayer1InverseReposResponse(response: ServerResponse, query: 
     const jsonlFolders = query.getAll("jsonl").map((jsonlFolder) => new Path(jsonlFolder));
     const snapshotFolders = query.getAll("snapshots").map((snapshotsFolder) => new Path(snapshotsFolder));
     const storeFolder = getInverseReposStoreFolder(projectFolder);
-    // ponytail: rebuilds every call, drop when repo reuse lands
-    rmSync(storeFolder.toString(), { recursive: true, force: true });
+    // The store folder stays, so each repo is reused by its stamp.
+    // rmSync(storeFolder.toString(), { recursive: true, force: true });
     const progressParam = query.get("progress");
     if (progressParam !== "1") {
         sendJson(response, 200, buildInverseReposWire(projectFolder, jsonlFolders, snapshotFolders, storeFolder));

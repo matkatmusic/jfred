@@ -48,6 +48,7 @@ function buildQueryForProjectWithLogs(progress: boolean): URLSearchParams {
 test("test_inverse_repos_route_streams_plan_then_progress_then_result", () => {
     const query = buildQueryForProjectWithLogs(true);
     const { response, body } = buildResponseStub();
+    rmSync(getInverseReposStoreFolder(new Path(query.get("dir")!)).toString(), { recursive: true, force: true });
     sendLayer1InverseReposResponse(response, query);
     rmSync(getInverseReposStoreFolder(new Path(query.get("dir")!)).toString(), { recursive: true, force: true });
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
