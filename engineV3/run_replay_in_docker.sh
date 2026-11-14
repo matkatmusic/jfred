@@ -388,11 +388,25 @@ docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3
 
 COMPARE_FOLDER="$(mktemp -d)"
 echo "compare folder: $COMPARE_FOLDER"
-docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER/state"
+# The touched paths climb out of the state folder (../../.claude/...), so the copies keep their container paths under the compare folder.
+mkdir -p "$COMPARE_FOLDER$(dirname "$STATE_FOLDER")"
+docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER$STATE_FOLDER"
 docker cp "$NAME:/tmp/touched-paths.txt" "$COMPARE_FOLDER/touched-paths.txt"
+# docker cp reads nothing from the memory tmpfs, so each memory folder leaves the container as a tar file.
+while IFS= read -r JSONL_FOLDER; do
+    if [ -n "$JSONL_FOLDER" ]; then
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            docker exec "$NAME" tar -C / -cf "/tmp/memory-$(basename "$JSONL_FOLDER").tar" "${JSONL_FOLDER#/}/memory"
+            docker cp "$NAME:/tmp/memory-$(basename "$JSONL_FOLDER").tar" "$COMPARE_FOLDER/memory-$(basename "$JSONL_FOLDER").tar"
+            tar -C "$COMPARE_FOLDER" -xf "$COMPARE_FOLDER/memory-$(basename "$JSONL_FOLDER").tar"
+        fi
+    fi
+done <<EOF
+$JSONL_LIST
+EOF
 printSetupStageDone "copy-out"
 printSetupStageStart "disk check"
 DISK_CHECK_EXIT_CODE=0
-"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER/state" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" || DISK_CHECK_EXIT_CODE=$?
+"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER$STATE_FOLDER" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" || DISK_CHECK_EXIT_CODE=$?
 printSetupStageDone "disk check"
 exit "$DISK_CHECK_EXIT_CODE"
