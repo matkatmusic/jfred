@@ -1,9 +1,10 @@
 // The /api/layer1-inverse-repos wire: the inverse repo of every project file, as commit metadata without file text.
 
-import { basename, join } from "node:path";
+import { basename, relative } from "node:path";
 import { buildInverseReposForFiles, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { listInverseCommits, type InverseCommit } from "../engineV3/engineV3_inverse_repo.ts";
-import { listCurrentFileState } from "./layer1_disk_walk.ts";
+import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+// import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
@@ -44,11 +45,12 @@ export function buildInverseReposWire(
     storeFolder: Path,
     reportProgress: ProgressSink = () => {},
 ): InverseReposWire {
-    const relativePaths = listCurrentFileState(projectFolder).map((fileState) => fileState.relativePath.toString());
-    const projectFiles: ProjectFile[] = relativePaths.map((relativePath) => {
-        const file = new Path(join(projectFolder.toString(), relativePath));
-        return { file, transcriptFile: file };
-    });
+    // const relativePaths = listCurrentFileState(projectFolder).map((fileState) => fileState.relativePath.toString());
+    // const projectFiles: ProjectFile[] = relativePaths.map((relativePath) => {
+    //     const file = new Path(join(projectFolder.toString(), relativePath));
+    //     return { file, transcriptFile: file };
+    // });
+    const projectFiles: ProjectFile[] = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlFolders);
     reportProgress({
         kind: DocumentResponseKind.progress,
         label: LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS,
@@ -60,7 +62,7 @@ export function buildInverseReposWire(
     const files: InverseRepoFileWire[] = [];
     for (const [index, result] of results.entries()) {
         const commits = listInverseCommits(result.repoFolder, basename(result.file.toString())).map(buildInverseCommitWire);
-        files.push({ file: relativePaths[index]!, commits });
+        files.push({ file: relative(projectFolder.toString(), result.file.toString()), commits });
     }
     return { files };
 }

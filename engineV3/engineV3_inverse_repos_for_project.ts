@@ -203,8 +203,11 @@ const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
     const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
     const startMilliseconds = Date.now();
-    const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
-    const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
+    // const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
+    // const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
+    const { listProjectFilesOnDiskAndInLogs } = await import("./engineV3_inverse_repos_project_files.ts");
+    const projectFiles = listProjectFilesOnDiskAndInLogs(settings.projectFolder, [settings.jsonlsFolder]);
+    const files = projectFiles.map((projectFile) => projectFile.file);
     const { createTerminalBarsSink } = await import("./engineV3_inverse_repos_terminal_bars.ts");
     const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
     // const reportProgress = (event) => { console.log(`${event.current}/${event.total}  ${event.label}`); };

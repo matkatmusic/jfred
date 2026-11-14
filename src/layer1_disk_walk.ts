@@ -94,7 +94,7 @@ function splitNullSeparatedPaths(output: string): string[] {
 }
 
 // Git omits `.git` but untracked `node_modules` would flood results without this guard.
-function isPathAlwaysExcluded(relativePath: string): boolean {
+export function isPathAlwaysExcluded(relativePath: string): boolean {
   for (const segment of relativePath.split("/")) {
     const isExcludedName = ALWAYS_EXCLUDED_NAMES.includes(segment);
     if (isExcludedName) {
