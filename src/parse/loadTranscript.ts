@@ -14,6 +14,9 @@ export type ProgressEvent = {
   current?: number;   // present only on counted per-record events
   total?: number;     // present only on counted per-record events
   steps?: string[];   // present only on the first event of a build
+  file?: string;            // project-relative path of the file this event is about, forward slashes
+  fileStepsDone?: number;   // steps of this file that are done
+  fileStepsTotal?: number;  // all steps of this file
 };
 export type ProgressSink = (event: ProgressEvent) => void;
 

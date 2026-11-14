@@ -33,6 +33,28 @@ test("test_long_file_name_is_cut_to_fixed_width", () => {
     assert.ok(longLine.includes("last.ts"));
 });
 
+test("test_terminal_bar_of_a_half_done_file_is_half_full", () => {
+    // With isTTY true, a step event with 1 of 2 steps done fills half of the cells of the bar of that file.
+    const writes: string[] = [];
+    const sink = createTerminalBarsSink({ isTTY: true, write: (text) => writes.push(text) }, ["a.ts", "b.ts"]);
+    writes.length = 0;
+    sink({ kind: DocumentResponseKind.progress, label: "b.ts", file: "b.ts", fileStepsDone: 1, fileStepsTotal: 2 });
+    const halfBar = `[${"█".repeat(BAR_CELLS / 2)}${"░".repeat(BAR_CELLS / 2)}]`;
+    const redrawnLines = writes.join("").split("\n");
+    assert.ok(redrawnLines[0]!.includes("a.ts"));
+    assert.ok(redrawnLines[0]!.includes(`[${"░".repeat(BAR_CELLS)}]`));
+    assert.ok(redrawnLines[1]!.includes("b.ts"));
+    assert.ok(redrawnLines[1]!.includes(halfBar));
+});
+
+test("test_non_terminal_writer_prints_nothing_for_step_events", () => {
+    // With isTTY false, a step event writes no line.
+    const writes: string[] = [];
+    const sink = createTerminalBarsSink({ isTTY: false, write: (text) => writes.push(text) }, ["a.ts"]);
+    sink({ kind: DocumentResponseKind.progress, label: "a.ts", file: "a.ts", fileStepsDone: 1, fileStepsTotal: 2 });
+    assert.deepEqual(writes, []);
+});
+
 test("test_non_terminal_writer_prints_one_plain_line_per_finished_file", () => {
     // With isTTY false, each progress event gives one plain line and no escape codes are written.
     const writes: string[] = [];

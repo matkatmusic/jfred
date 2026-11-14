@@ -165,7 +165,7 @@ function readStoredCommits(repoFolder: Path): StoredCommit[] {
   return storedCommits;
 }
 
-export function createInverseRepo(repoFolder: Path, fileName: string, diskNowState: OrderedKnownState, diskNowInstant: Date): void {
+export function createInverseRepo(repoFolder: Path, fileName: string, diskNowState: OrderedKnownState, diskNowInstant: Date, onNewStateCommitted?: () => void): void {
   if (diskNowState.state.event.type !== FileEventType.DiskNow) {
     throw new Error(`createInverseRepo: the first state must be DiskNow, got ${diskNowState.state.event.type}`);
   }
@@ -173,11 +173,12 @@ export function createInverseRepo(repoFolder: Path, fileName: string, diskNowSta
   runJfredGit(repoFolder, ["init", "--bare", `--initial-branch=${INITIAL_BRANCH_NAME}`]);
   const rootCommit = writeStateCommit(repoFolder, fileName, diskNowState, undefined, diskNowInstant);
   runJfredGit(repoFolder, ["update-ref", FINAL_BRANCH, rootCommit.toString()]);
+  onNewStateCommitted?.();
 }
 
 type MergeStep = { position: number; newState: OrderedKnownState | undefined; storedCommit: StoredCommit | undefined };
 
-export function insertStatesIntoInverseRepo(repoFolder: Path, fileName: string, newStates: OrderedKnownState[]): void {
+export function insertStatesIntoInverseRepo(repoFolder: Path, fileName: string, newStates: OrderedKnownState[], onNewStateCommitted?: () => void): void {
   const storedCommits = readStoredCommits(repoFolder);
   const steps: MergeStep[] = [];
   const takenPositions = new Set<number>();
@@ -204,6 +205,7 @@ export function insertStatesIntoInverseRepo(repoFolder: Path, fileName: string, 
         throw new Error(`insertStatesIntoInverseRepo: the ${step.newState.state.event.type} state at position ${step.position} has no instant`);
       }
       parent = writeStateCommit(repoFolder, fileName, step.newState, parent, instant);
+      onNewStateCommitted?.();
     } else {
       const stored = step.storedCommit!;
       parent = writeCommit(repoFolder, stored.treeHash, parent, stored.message, stored.authorSeconds);
@@ -237,8 +239,8 @@ function getInsertGroup(state: FileKnownState): InsertGroup | undefined {
 }
 
 // states is the full listKnownStatesForFile output, newest first, so states[0] is the disk-now state.
-export function buildInverseRepoByEventKind(repoFolder: Path, fileName: string, states: FileKnownState[], diskNowInstant: Date): void {
-  createInverseRepo(repoFolder, fileName, { state: states[0]!, position: 0 }, diskNowInstant);
+export function buildInverseRepoByEventKind(repoFolder: Path, fileName: string, states: FileKnownState[], diskNowInstant: Date, onNewStateCommitted?: () => void): void {
+  createInverseRepo(repoFolder, fileName, { state: states[0]!, position: 0 }, diskNowInstant, onNewStateCommitted);
   const groups: OrderedKnownState[][] = [[], [], [], [], []];
   for (const [position, state] of states.entries()) {
     if (position > 0) {
@@ -250,7 +252,7 @@ export function buildInverseRepoByEventKind(repoFolder: Path, fileName: string, 
   }
   for (const group of groups) {
     if (group.length > 0) {
-      insertStatesIntoInverseRepo(repoFolder, fileName, group);
+      insertStatesIntoInverseRepo(repoFolder, fileName, group, onNewStateCommitted);
     }
   }
 }

@@ -160,6 +160,8 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
         const repoFolder = repoFolders[index]!;
         const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), transcriptFile: transcriptFile.toString(), logFilesHash };
         const existingStamp = readInverseRepoStamp(repoFolder);
+        const relativeFile = getRelativePathInProject(projectFolder, file);
+        const projectRelativeFile = relativeFile.split(sep).join("/");
         let result: FileInverseRepoResult | undefined;
         if (existingStamp !== undefined) {
             if (isStampBuiltFromInputs(existingStamp, inputs)) {
@@ -171,14 +173,21 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
             const events = getEvents(index);
             const states = listStatesOfProjectFile(index, projectFiles, getEvents, statesByFile, fileIndexesBeingComputed);
             mkdirSync(repoFolder.toString(), { recursive: true });
-            buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant);
             const unknownStateCount = states.filter((state) => state.confidence === StateConfidence.Unknown).length;
-            result = { file, repoFolder, eventCount: events.length, stateCount: states.length, commitCount: states.length - unknownStateCount, unknownStateCount, wasReused: false };
+            // The states are computed before the repo is written, so the commit count is known before the first commit.
+            const commitCount = states.length - unknownStateCount;
+            let fileStepsDone = 0;
+            const reportStepDone = (): void => {
+                fileStepsDone += 1;
+                reportProgress({ kind: DocumentResponseKind.progress, label: relativeFile, file: projectRelativeFile, fileStepsDone, fileStepsTotal: commitCount });
+            };
+            buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant, reportStepDone);
+            result = { file, repoFolder, eventCount: events.length, stateCount: states.length, commitCount, unknownStateCount, wasReused: false };
             writeInverseRepoStamp(repoFolder, { inputs, eventCount: result.eventCount, stateCount: result.stateCount, commitCount: result.commitCount, unknownStateCount });
         }
         results.push(result);
-        const label = `${getRelativePathInProject(projectFolder, file)}  events ${result.eventCount}  commits ${result.commitCount}  unknown ${result.unknownStateCount}`;
-        reportProgress({ kind: DocumentResponseKind.progress, label, current: index + 1, total: projectFiles.length });
+        const label = `${relativeFile}  events ${result.eventCount}  commits ${result.commitCount}  unknown ${result.unknownStateCount}`;
+        reportProgress({ kind: DocumentResponseKind.progress, label, current: index + 1, total: projectFiles.length, file: projectRelativeFile, fileStepsDone: result.commitCount, fileStepsTotal: result.commitCount });
     }
     return results;
 }
