@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
-import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
+import { replayBlockedTestRun, TYPESAFE_API_KEY_PLACEHOLDER } from "./engineV3_replay_blocked_test_run.ts";
 const RECORDED_LOG_NAME = "1793122549168-0.log";
 function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
@@ -71,4 +71,20 @@ test("test_replayBlockedTestRun_runs_the_hook_with_CLAUDECODE_so_the_log_lists_n
   // the log shows the summary but not the passing test name
   assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
   assert.doesNotMatch(readFileSync(recordedLog, "utf8"), /passing_name_probe/);
+});
+test("test_replayBlockedTestRun_runs_the_hook_with_the_fake_TYPESAFE_API_KEY_placeholder", (t) => {
+  // Scenario: on the Mac the hook ran with TYPESAFE_API_KEY set, so a test that reads it saw a value; the replay gives it the fake placeholder.
+  // the project has a package.json and one test that passes only when the variable holds the placeholder
+  const project = makeTempFolder(t, "engine-v3-blocked-project-");
+  writeFileSync(join(project, "package.json"), "{}");
+  writeFileSync(join(project, "sample.test.ts"), `import { expect, test } from "bun:test";\ntest("key_probe", () => { expect(Bun.env.TYPESAFE_API_KEY).toBe("${TYPESAFE_API_KEY_PLACEHOLDER}"); });\n`);
+  // the recorded result names a log in a log folder
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(project, recordedLog, "sample.test.ts");
+  const run: ScriptRun = { code: "bun test sample.test.ts", cwd: new Path(project), timestamp: new Date("2026-11-03T06:47:31.825Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
+  // the log shows the test passed
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
 });

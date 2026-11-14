@@ -7,6 +7,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
+import { TYPESAFE_API_KEY_PLACEHOLDER } from "./engineV3_replay_blocked_test_run.ts";
 const RECORDED_TOOL_USE_ID = "toolu_01ClaudeCodeEnvBashCall";
 function makeContext(toolUseId: string): ScriptReplayContext {
   const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
@@ -16,6 +17,21 @@ function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   return folder;
+}
+function setHostKey(t: TestContext, value: string | undefined): void {
+  const hostValue = process.env.TYPESAFE_API_KEY;
+  t.after(() => {
+    if (hostValue === undefined) {
+      delete process.env.TYPESAFE_API_KEY;
+    } else {
+      process.env.TYPESAFE_API_KEY = hostValue;
+    }
+  });
+  if (value === undefined) {
+    delete process.env.TYPESAFE_API_KEY;
+  } else {
+    process.env.TYPESAFE_API_KEY = value;
+  }
 }
 function loadBashLine(t: TestContext, command: string, cwd: string): JSONLLine {
   const jsonlFile = join(makeTempFolder(t, "engine-v3-claudecode-jsonl-"), "session.jsonl");
@@ -34,4 +50,30 @@ test("test_executeScriptInState_sets_CLAUDECODE_to_1_like_the_Mac_Bash_tool", (t
   executeScriptInState(state, line, makeContext(RECORDED_TOOL_USE_ID));
   // the file holds 1
   assert.equal(readFileSync(join(state.toString(), "claudecode.txt"), "utf8"), "1");
+});
+test("test_executeScriptInState_runs_the_recorded_env_rg_TYPESAFE_API_KEY_check_with_exit_0", (t) => {
+  // Scenario: the Mac shell had TYPESAFE_API_KEY, so the recorded `env | rg -c TYPESAFE_API_KEY` exited 0; the replay must find the variable too.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-claudecode-state-"));
+  // the replay process environment does not hold the variable
+  setHostKey(t, undefined);
+  // the line holds the recorded presence check; the recorded result is not an error
+  const line = loadBashLine(t, "env | rg -c TYPESAFE_API_KEY > count.txt", state.toString());
+  // run the line (a nonzero exit makes the replay throw)
+  executeScriptInState(state, line, makeContext(RECORDED_TOOL_USE_ID));
+  // rg counted one matching environment line
+  assert.equal(readFileSync(join(state.toString(), "count.txt"), "utf8").trim(), "1");
+});
+test("test_executeScriptInState_gives_the_command_the_fake_placeholder_not_the_host_key", (t) => {
+  // Scenario: the real key must never enter the replay, so a key already in the replay process's environment is replaced by the fake placeholder.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-claudecode-state-"));
+  // the replay process environment holds a probe value in place of a real key
+  setHostKey(t, "host-probe-not-the-placeholder");
+  // the line holds a command that writes the variable to a file
+  const line = loadBashLine(t, 'printf %s "$TYPESAFE_API_KEY" > key.txt', state.toString());
+  // run the line
+  executeScriptInState(state, line, makeContext(RECORDED_TOOL_USE_ID));
+  // the file holds the placeholder
+  assert.equal(readFileSync(join(state.toString(), "key.txt"), "utf8"), TYPESAFE_API_KEY_PLACEHOLDER);
 });

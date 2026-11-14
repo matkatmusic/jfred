@@ -112,5 +112,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/subagents/agent-ac894917bac015fa9.jsonl",
     "lineNumber": 126,
     "standIn": "none: the curl to 127.0.0.1:47312 and the 7 bun shot.ts runs that name port 47312 are skipped like the Chrome launch; the scratchpad report-new.png is written from commit a458d15 (docs/report.png) at the last shot.ts run before each cp into docs/report.png; MAC_ONLY_FILLS in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "Mac shell environment variable TYPESAFE_API_KEY",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2fa36f95-01f4-42c5-936b-6abbce7a78a9/subagents/agent-a1b06c9dba139ae95.jsonl",
+    "lineNumber": 167,
+    "standIn": "fake placeholder value: TYPESAFE_API_KEY_PLACEHOLDER (\"replay-placeholder-not-a-real-key\") in CLAUDE_CODE_ENV in engineV3_replay_blocked_test_run.ts, set for every replayed command and test-hook run; the recorded env | rg -c TYPESAFE_API_KEY found it present (2026-11-03T06:47:31Z and 2026-11-05T17:10:22Z); the real key never enters the replay"
   }
 ]

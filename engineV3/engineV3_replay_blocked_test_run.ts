@@ -5,7 +5,9 @@ import { dirname, join } from "node:path";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
 // Claude Code sets CLAUDECODE=1 for every Bash call and hook; bun test then hides passing test names.
-export const CLAUDE_CODE_ENV = { CLAUDECODE: "1" };
+// A fake value: the Mac shell had TYPESAFE_API_KEY, and the real key must never enter the replay.
+export const TYPESAFE_API_KEY_PLACEHOLDER = "replay-placeholder-not-a-real-key";
+export const CLAUDE_CODE_ENV = { CLAUDECODE: "1", TYPESAFE_API_KEY: TYPESAFE_API_KEY_PLACEHOLDER };
 const HOOK_FOLDER ="/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/block-npm-test";
 const BLOCKED_TEXT = "Test runners are blocked.";
 const LOG_PATH_LINE = /^Then read the log: (\S+)$/gm;
