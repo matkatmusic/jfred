@@ -299,3 +299,100 @@ test("test_list_round_trips_event_type_moment_confidence_instant_absence_and_tex
         assert.equal(actual.text, expected.state.text);
     }
 });
+
+const SOURCE_JSONL_PATH = "/tmp/session.jsonl";
+const SOURCE_LINE_NUMBER = 42;
+
+function makeStateWithSource(position: number): OrderedKnownState {
+    const state = makeState(FileEventType.EditRow, position * 10, "edit\n");
+    const source = { filePath: SOURCE_JSONL_PATH, lineNumber: SOURCE_LINE_NUMBER };
+    return { state: { ...state, event: { ...state.event, source } }, position };
+}
+
+function readRawMessage(inverseFolder: Path, commitHash: string): string {
+    return runGit(inverseFolder, ["log", "-1", "--format=%B", commitHash]);
+}
+
+test("test_commit_message_of_a_state_with_a_source_is_json_with_jsonlPath_line_timestamp_and_eventType", (t) => {
+    // Scenario: the message of a state that came from a log line is one JSON object that names the log line.
+    // The repo is created and a state with a source is inserted.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    const orderedState = makeStateWithSource(1);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [orderedState]);
+    // The raw message of the second commit is a JSON object with the facts of the log line.
+    const commitHash = listInverseCommits(inverseFolder, FILE_NAME)[1]!.commitHash.toString();
+    const message = JSON.parse(readRawMessage(inverseFolder, commitHash));
+    assert.equal(message.jsonlPath, SOURCE_JSONL_PATH);
+    assert.equal(message.line, SOURCE_LINE_NUMBER);
+    assert.equal(message.timestamp, orderedState.state.event.instant!.toISOString());
+    assert.equal(message.eventType, FileEventType.EditRow);
+});
+
+test("test_commit_message_of_a_state_without_a_source_stores_null_for_jsonlPath_and_line", (t) => {
+    // Scenario: a git commit state has no log line, so the JSON message holds null for both.
+    // The repo is created and a state without a source is inserted.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n")]);
+    // The raw message of the second commit has null for jsonlPath and line.
+    const commitHash = listInverseCommits(inverseFolder, FILE_NAME)[1]!.commitHash.toString();
+    const message = JSON.parse(readRawMessage(inverseFolder, commitHash));
+    assert.equal(message.jsonlPath, null);
+    assert.equal(message.line, null);
+});
+
+test("test_listInverseCommits_returns_jsonlPath_and_line", (t) => {
+    // Scenario: the log file and the log line of a state come back from the list.
+    // The repo holds the disk-now state, a state with a source, and a state without a source.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeStateWithSource(1), makeOlderState(2, "two\n")]);
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    // The state with a source returns both values as Path and number.
+    assert.deepEqual(commits[1]!.jsonlPath, new Path(SOURCE_JSONL_PATH));
+    assert.equal(commits[1]!.line, SOURCE_LINE_NUMBER);
+    // The states without a source return undefined.
+    assert.equal(commits[0]!.jsonlPath, undefined);
+    assert.equal(commits[2]!.line, undefined);
+});
+
+test("test_a_commit_message_that_is_not_json_makes_listInverseCommits_throw", (t) => {
+    // Scenario: an old-format message is not read.
+    // A repo is made by hand with a root commit whose message is plain text.
+    const inverseFolder = makeInverseFolder(t);
+    runGit(inverseFolder, ["init", "--bare", "--initial-branch=inverse"]);
+    const treeHash = execFileSync("git", ["mktree"], { cwd: inverseFolder.toString(), input: "", encoding: "utf8" }).trim();
+    const commitHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", "DiskNow at-event proven\n\nPosition: 0\nInstant: now\nFile-Absent: true"]);
+    runGit(inverseFolder, ["update-ref", "refs/heads/inverse", commitHash]);
+    // Listing the commits throws.
+    assert.throws(() => listInverseCommits(inverseFolder, FILE_NAME));
+});
+
+test("test_a_commit_message_with_an_unknown_event_type_makes_listInverseCommits_throw", (t) => {
+    // Scenario: an enum value that the code does not know is not read.
+    // A repo is made by hand with a root commit whose JSON message has an unknown eventType.
+    const inverseFolder = makeInverseFolder(t);
+    runGit(inverseFolder, ["init", "--bare", "--initial-branch=inverse"]);
+    const treeHash = execFileSync("git", ["mktree"], { cwd: inverseFolder.toString(), input: "", encoding: "utf8" }).trim();
+    const message = JSON.stringify({ jsonlPath: null, line: null, timestamp: null, eventType: "NotAnEventType", moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: 0, isFileAbsent: true });
+    const commitHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", message]);
+    runGit(inverseFolder, ["update-ref", "refs/heads/inverse", commitHash]);
+    // Listing the commits throws.
+    assert.throws(() => listInverseCommits(inverseFolder, FILE_NAME), /NotAnEventType/);
+});
+
+test("test_a_repo_that_grows_by_a_second_event_kind_keeps_the_json_messages_of_the_first_kind", (t) => {
+    // Scenario: the copy of stored commits passes the JSON message text through unchanged.
+    // The repo holds a state with a source at position 2.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeStateWithSource(2)]);
+    const messageBefore = readRawMessage(inverseFolder, listInverseCommits(inverseFolder, FILE_NAME)[1]!.commitHash.toString());
+    // A state of a second kind is inserted at position 1, before the first kind in the chain.
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n")]);
+    // The commit at position 2 is a new commit with the same message text.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.deepEqual(commits.map((commit) => commit.position), [0, 1, 2]);
+    assert.equal(readRawMessage(inverseFolder, commits[2]!.commitHash.toString()), messageBefore);
+});

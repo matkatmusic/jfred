@@ -18,19 +18,34 @@ export type InverseCommit = {
   moment: StateMoment;
   confidence: StateConfidence;
   instant: Date | undefined;
+  jsonlPath: Path | undefined;
+  line: number | undefined;
   isFileAbsent: boolean;
   text: string | undefined;
 };
 
 type StoredCommit = { commitHash: CommitHash; treeHash: Uuid; authorSeconds: number; message: string };
-type ParsedMessage = { eventType: FileEventType; moment: StateMoment; confidence: StateConfidence; position: number; instant: Date | undefined; isFileAbsent: boolean };
+type ParsedMessage = { eventType: FileEventType; moment: StateMoment; confidence: StateConfidence; position: number; instant: Date | undefined; jsonlPath: Path | undefined; line: number | undefined; isFileAbsent: boolean };
+
+// The keys of the one JSON object that is a commit message.
+enum CommitMessageKey {
+  JsonlPath = "jsonlPath",
+  Line = "line",
+  Timestamp = "timestamp",
+  EventType = "eventType",
+  Moment = "moment",
+  Confidence = "confidence",
+  Position = "position",
+  IsFileAbsent = "isFileAbsent",
+  SourceCommit = "sourceCommit",
+}
 
 const FINAL_BRANCH = "refs/heads/inverse";
 const BUILDING_BRANCH = "refs/heads/inverse-next";
 const INITIAL_BRANCH_NAME = "inverse";
 const COMMIT_IDENTITY_NAME = "jfred inverse repo";
 const COMMIT_IDENTITY_EMAIL = "inverse-repo@jfred.invalid";
-const INSTANT_NOW_TEXT = "now";
+// const INSTANT_NOW_TEXT = "now";
 const FIELD_SEPARATOR = "\x1f";
 const RECORD_SEPARATOR = "\x1e";
 
@@ -50,37 +65,48 @@ function parseEnumValue<T extends string>(enumObject: Record<string, T>, value: 
   return value as T;
 }
 
-function formatCommitMessage(state: FileKnownState, position: number, instantText: string): string {
-  const lines = [`${state.event.type} ${state.moment} ${state.confidence}`, "", `Position: ${position}`, `Instant: ${instantText}`, `File-Absent: ${state.isFileAbsent}`];
-  if (state.event.source !== undefined) {
-    lines.push(`Source: ${state.event.source.filePath}:${state.event.source.lineNumber}`);
-  }
-  if (state.event.commitHash !== undefined) {
-    lines.push(`Source-Commit: ${state.event.commitHash.toString()}`);
-  }
-  return lines.join("\n");
+function formatCommitMessage(state: FileKnownState, position: number, instant: Date | undefined): string {
+  const source = state.event.source;
+  const fields = {
+    [CommitMessageKey.JsonlPath]: source?.filePath ?? null,
+    [CommitMessageKey.Line]: source?.lineNumber ?? null,
+    [CommitMessageKey.Timestamp]: instant?.toISOString() ?? null,
+    [CommitMessageKey.EventType]: state.event.type,
+    [CommitMessageKey.Moment]: state.moment,
+    [CommitMessageKey.Confidence]: state.confidence,
+    [CommitMessageKey.Position]: position,
+    [CommitMessageKey.IsFileAbsent]: state.isFileAbsent,
+    [CommitMessageKey.SourceCommit]: state.event.commitHash?.toString() ?? null,
+  };
+  return JSON.stringify(fields);
 }
 
 function parseCommitMessage(message: string): ParsedMessage {
-  const [headline, ...trailerLines] = message.split("\n").filter((line) => line !== "");
-  const [eventType, moment, confidence] = headline!.split(" ") as [string, string, string];
-  const trailers = new Map<string, string>();
-  for (const trailerLine of trailerLines) {
-    const separatorIndex = trailerLine.indexOf(": ");
-    trailers.set(trailerLine.slice(0, separatorIndex), trailerLine.slice(separatorIndex + 2));
-  }
-  const instantText = trailers.get("Instant")!;
+  const fields = JSON.parse(message) as Record<string, unknown>;
+  const timestamp = fields[CommitMessageKey.Timestamp];
   let instant: Date | undefined;
-  if (instantText !== INSTANT_NOW_TEXT) {
-    instant = new Date(instantText);
+  if (timestamp !== null) {
+    instant = new Date(timestamp as string);
+  }
+  const jsonlPathText = fields[CommitMessageKey.JsonlPath];
+  let jsonlPath: Path | undefined;
+  if (jsonlPathText !== null) {
+    jsonlPath = new Path(jsonlPathText as string);
+  }
+  const lineNumber = fields[CommitMessageKey.Line];
+  let line: number | undefined;
+  if (lineNumber !== null) {
+    line = lineNumber as number;
   }
   return {
-    eventType: parseEnumValue(FileEventType, eventType),
-    moment: parseEnumValue(StateMoment, moment),
-    confidence: parseEnumValue(StateConfidence, confidence),
-    position: Number(trailers.get("Position")!),
+    eventType: parseEnumValue(FileEventType, fields[CommitMessageKey.EventType] as string),
+    moment: parseEnumValue(StateMoment, fields[CommitMessageKey.Moment] as string),
+    confidence: parseEnumValue(StateConfidence, fields[CommitMessageKey.Confidence] as string),
+    position: fields[CommitMessageKey.Position] as number,
     instant,
-    isFileAbsent: trailers.get("File-Absent")! === "true",
+    jsonlPath,
+    line,
+    isFileAbsent: fields[CommitMessageKey.IsFileAbsent] as boolean,
   };
 }
 
@@ -116,12 +142,12 @@ function writeCommit(repoFolder: Path, treeHash: Uuid, parent: CommitHash | unde
 
 function writeStateCommit(repoFolder: Path, fileName: string, orderedState: OrderedKnownState, parent: CommitHash | undefined, commitInstant: Date): CommitHash {
   const { state, position } = orderedState;
-  let instantText = commitInstant.toISOString();
+  let messageInstant: Date | undefined = commitInstant;
   if (state.event.type === FileEventType.DiskNow) {
-    instantText = INSTANT_NOW_TEXT;
+    messageInstant = undefined;
   }
   const treeHash = writeStateTree(repoFolder, fileName, state);
-  const message = formatCommitMessage(state, position, instantText);
+  const message = formatCommitMessage(state, position, messageInstant);
   return writeCommit(repoFolder, treeHash, parent, message, Math.floor(commitInstant.getTime() / 1000));
 }
 
