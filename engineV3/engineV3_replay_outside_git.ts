@@ -15,6 +15,7 @@ export enum OutsideGitKind {
   Reset = "Reset",
   SubmoduleClone = "SubmoduleClone",
   SubmodulePull = "SubmodulePull",
+  SubmoduleCommit = "SubmoduleCommit",
 }
 
 export type OutsideGitRow = { seconds: number; oldCommit: string; newCommit: string; message: string; kind: OutsideGitKind; submodulePath?: Path };
@@ -98,8 +99,7 @@ function listSubmodulePaths(sourceRepo: Path): Path[] {
   return submodulePaths;
 }
 
-// User decision 2026-11-13: only the submodule's clone and pull rows are replayed; its commit rows are not.
-function parseSubmoduleKind(message: string): OutsideGitKind | undefined {
+function parseSubmoduleKind(message: string): OutsideGitKind {
   if (message.startsWith(SUBMODULE_CLONE_MESSAGE_PREFIX)) {
     return OutsideGitKind.SubmoduleClone;
   }
@@ -107,12 +107,12 @@ function parseSubmoduleKind(message: string): OutsideGitKind | undefined {
     return OutsideGitKind.SubmodulePull;
   }
   if (message.startsWith(COMMIT_MESSAGE_PREFIX)) {
-    return undefined;
+    return OutsideGitKind.SubmoduleCommit;
   }
   throw new Error(`parseSubmoduleKind: no replay for submodule reflog message "${message}"`);
 }
 
-// Rows after the start second that fall in no Bash call's window: the repo's rows in reflog order, then each submodule's clone and pull rows.
+// Rows after the start second that fall in no Bash call's window: the repo's rows in reflog order, then each submodule's rows.
 export function listOutsideGitRows(sourceRepo: Path, bashCallResults: Map<string, BashCallResult>, startSeconds: number): OutsideGitRow[] {
   const rows: OutsideGitRow[] = [];
   for (const logLine of listLogLinesOutsideBashCalls(join(sourceRepo.toString(), "logs", "HEAD"), bashCallResults, startSeconds)) {
@@ -121,10 +121,7 @@ export function listOutsideGitRows(sourceRepo: Path, bashCallResults: Map<string
   for (const submodulePath of listSubmodulePaths(sourceRepo)) {
     const submoduleLogFile = join(sourceRepo.toString(), SUBMODULES_FOLDER, submodulePath.toString(), "logs", "HEAD");
     for (const logLine of listLogLinesOutsideBashCalls(submoduleLogFile, bashCallResults, startSeconds)) {
-      const kind = parseSubmoduleKind(logLine.message);
-      if (kind !== undefined) {
-        rows.push({ ...logLine, kind, submodulePath });
-      }
+      rows.push({ ...logLine, kind: parseSubmoduleKind(logLine.message), submodulePath });
     }
   }
   return rows;
@@ -195,6 +192,13 @@ function applySubmodulePullToState(state: Path, sourceRepo: Path, row: OutsideGi
   executeGit(submoduleState, ["merge", "-q", "--ff-only", row.newCommit]);
 }
 
+// Reuses the main-repo commit path with the submodule's work tree as the state and its git folder as the source.
+function applySubmoduleCommitToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
+  const submodulePath = getRequiredSubmodulePath(row);
+  const submoduleState = new Path(join(state.toString(), submodulePath.toString()));
+  applyOutsideCommitToState(submoduleState, new Path(getSubmoduleGitFolder(sourceRepo, submodulePath)), row);
+}
+
 function assertHeadMatchesRow(repo: Path, row: OutsideGitRow): void {
   const headCommit = executeGit(repo, ["rev-parse", "HEAD"]).toString("utf8").trim();
   if (headCommit !== row.newCommit) {
@@ -209,6 +213,7 @@ export function applyOutsideGitRow(state: Path, sourceRepo: Path, row: OutsideGi
     case OutsideGitKind.Reset: applyOutsideResetToState(state, sourceRepo, row); break;
     case OutsideGitKind.SubmoduleClone: applySubmoduleCloneToState(state, sourceRepo, row); break;
     case OutsideGitKind.SubmodulePull: applySubmodulePullToState(state, sourceRepo, row); break;
+    case OutsideGitKind.SubmoduleCommit: applySubmoduleCommitToState(state, sourceRepo, row); break;
   }
   const isSubmoduleRow = row.submodulePath !== undefined;
   if (isSubmoduleRow) {

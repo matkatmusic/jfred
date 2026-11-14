@@ -260,22 +260,14 @@ function applySubmoduleRows(stateFolder: string, source: SubmoduleSource, rowCou
     }
 }
 
-test("test_listOutsideGitRows_names_the_submodule_clone_and_pull_rows", (t) => {
+test("test_listOutsideGitRows_names_the_submodule_clone_pull_and_commit_rows", (t) => {
     // Scenario: the submodule log has a clone row, a pull row and a commit row.
     const source = makeSubmoduleSource(t);
     const rows = listSubmoduleRowsOf(source, new Map());
-    // the kinds, new commits and submodule path follow the clone and pull rows
-    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.SubmoduleClone, OutsideGitKind.SubmodulePull]);
-    assert.deepEqual(rows.map((row) => row.newCommit), [source.commit1, source.commit2]);
-    assert.deepEqual(rows.map((row) => row.submodulePath?.toString()), [SUBMODULE_PATH, SUBMODULE_PATH]);
-});
-
-test("test_listOutsideGitRows_skips_a_submodule_commit_row", (t) => {
-    // Scenario: the +300 commit row has no recorded call, and the user chose not to replay it.
-    const source = makeSubmoduleSource(t);
-    const rows = listSubmoduleRowsOf(source, new Map());
-    // commit 3 is not listed
-    assert.equal(rows.some((row) => row.newCommit === source.commit3), false);
+    // the kinds, new commits and submodule path follow the clone, pull and commit rows
+    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.SubmoduleClone, OutsideGitKind.SubmodulePull, OutsideGitKind.SubmoduleCommit]);
+    assert.deepEqual(rows.map((row) => row.newCommit), [source.commit1, source.commit2, source.commit3]);
+    assert.deepEqual(rows.map((row) => row.submodulePath?.toString()), [SUBMODULE_PATH, SUBMODULE_PATH, SUBMODULE_PATH]);
 });
 
 test("test_listOutsideGitRows_skips_a_submodule_row_inside_a_bash_call_window", (t) => {
@@ -283,8 +275,8 @@ test("test_listOutsideGitRows_skips_a_submodule_row_inside_a_bash_call_window", 
     const source = makeSubmoduleSource(t);
     const bashCalls = makeBashCallResult(BASE_SECONDS + 99.5, BASE_SECONDS + 100.2, "git submodule add x y");
     const rows = listSubmoduleRowsOf(source, bashCalls);
-    // only the pull row is listed
-    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.SubmodulePull]);
+    // only the pull and commit rows are listed
+    assert.deepEqual(rows.map((row) => row.kind), [OutsideGitKind.SubmodulePull, OutsideGitKind.SubmoduleCommit]);
 });
 
 test("test_applyOutsideGitRow_submodule_clone_checks_out_the_clone_commit_on_master", (t) => {
@@ -372,4 +364,45 @@ test("test_applyOutsideGitRow_submodule_pull_leaves_the_staged_gitlink_at_the_cl
     // the gitlink still names commit 1, so the parent shows the submodule as added and modified
     assert.equal(runGitAt(stateFolder, 0, ["ls-files", "-s", SUBMODULE_PATH]).startsWith(`160000 ${source.commit1}`), true);
     assert.equal(runGitAt(stateFolder, 0, ["status", "--short"]), `A  .gitmodules\nAM ${SUBMODULE_PATH}`);
+});
+
+test("test_applyOutsideGitRow_submodule_commit_moves_master_to_the_commit_and_leaves_origin_master", (t) => {
+    // Scenario: the clone, pull and commit rows.
+    const source = makeSubmoduleSource(t);
+    const stateFolder = makeStateWithOneCommit(t);
+    // apply the clone, pull and commit rows
+    applySubmoduleRows(stateFolder, source, 3);
+    // the submodule is at commit 3 on master with a clean work tree and index, and origin/master stays at commit 2
+    const submoduleFolder = join(stateFolder, SUBMODULE_PATH);
+    assert.equal(runGitAt(submoduleFolder, 0, ["rev-parse", "HEAD"]), source.commit3);
+    assert.equal(runGitAt(submoduleFolder, 0, ["rev-parse", "master"]), source.commit3);
+    assert.equal(runGitAt(submoduleFolder, 0, ["rev-parse", "origin/master"]), source.commit2);
+    assert.equal(runGitAt(submoduleFolder, 0, ["status", "--short"]), "");
+    assert.equal(readFileSync(join(submoduleFolder, "three.txt"), "utf8"), "three.txt");
+});
+
+test("test_applyOutsideGitRow_submodule_commit_overwrites_a_work_tree_file_the_commit_changes", (t) => {
+    // Scenario: replayed edits left three.txt different from commit 3 before the commit row.
+    const source = makeSubmoduleSource(t);
+    const stateFolder = makeStateWithOneCommit(t);
+    applySubmoduleRows(stateFolder, source, 2);
+    const submoduleFolder = join(stateFolder, SUBMODULE_PATH);
+    writeFileSync(join(submoduleFolder, "three.txt"), "replayed edit");
+    // apply the commit row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), listSubmoduleRowsOf(source, new Map())[2] as OutsideGitRow);
+    // the commit's file content wins, as for a main-repo commit row, and the submodule is clean at commit 3
+    assert.equal(readFileSync(join(submoduleFolder, "three.txt"), "utf8"), "three.txt");
+    assert.equal(runGitAt(submoduleFolder, 0, ["status", "--short"]), "");
+});
+
+test("test_applyOutsideGitRow_submodule_commit_leaves_the_staged_gitlink_and_the_state_HEAD", (t) => {
+    // Scenario: a real `git commit` in the submodule does not restage the parent's gitlink.
+    const source = makeSubmoduleSource(t);
+    const stateFolder = makeStateWithOneCommit(t);
+    const headBefore = runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]);
+    // apply the clone, pull and commit rows
+    applySubmoduleRows(stateFolder, source, 3);
+    // the gitlink still names commit 1 and the state HEAD did not move
+    assert.equal(runGitAt(stateFolder, 0, ["ls-files", "-s", SUBMODULE_PATH]).startsWith(`160000 ${source.commit1}`), true);
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "HEAD"]), headBefore);
 });
