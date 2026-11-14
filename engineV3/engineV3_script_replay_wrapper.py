@@ -150,7 +150,9 @@ def find_missing_executable(exit_code, stderr):
     matches = []
     if exit_code == 127:
         matches += [(match.start(), match.group(1)) for match in COMMAND_NOT_FOUND.finditer(stderr)]
-    matches += [(match.start(), match.group(1)) for match in FILE_NOT_FOUND.finditer(stderr)]
+    # Python prints the same FileNotFoundError for a missing data file; only a failed program start has this traceback line.
+    if "in _execute_child" in stderr:
+        matches += [(match.start(), match.group(1)) for match in FILE_NOT_FOUND.finditer(stderr)]
     matches += [(match.start(), match.group(1)) for match in MODULE_NOT_FOUND.finditer(stderr)]
     if not matches:
         return None

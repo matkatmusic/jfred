@@ -418,3 +418,18 @@ test("test_missing_python_module_is_named_in_missing_executable", { timeout: DOC
     // The missing module is named.
     assert.equal(response.missingExecutable, "nosuchmodule");
 });
+
+test("test_missing_data_file_is_not_named_in_missing_executable", { timeout: DOCKER_TEST_TIMEOUT_MS }, async () => {
+    // Run Python `open("input.csv")` where the file does not exist.
+    const response = await runScriptInContainer(makeRequest(ScriptInterpreter.Python, 'open("input.csv")'));
+    // The script fails with FileNotFoundError, and no missing executable is named.
+    assert.match(response.stderr, /FileNotFoundError/);
+    assert.equal(response.missingExecutable, null);
+});
+
+test("test_missing_program_started_from_python_is_named_in_missing_executable", { timeout: DOCKER_TEST_TIMEOUT_MS }, async () => {
+    // Run Python `subprocess.run(["nosuchtool"])`.
+    const response = await runScriptInContainer(makeRequest(ScriptInterpreter.Python, 'import subprocess\nsubprocess.run(["nosuchtool"])'));
+    // The missing program is named.
+    assert.equal(response.missingExecutable, "nosuchtool");
+});
