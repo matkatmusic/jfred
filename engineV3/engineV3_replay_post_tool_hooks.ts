@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { getAttachmentEntry, type AttachmentEntry } from "../src/structures/session-meta.ts";
 import { AttachmentPayloadType } from "../src/structures/vocabulary.ts";
 import type { JSONLLine } from "./engineV3.ts";
+import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 
 const REWRITTEN_BY_HOOK_TEXT = "were rewritten by a hook";
 const POST_TOOL_USE_EVENT = "PostToolUse";
@@ -163,6 +164,49 @@ function exportEslintConfigAtCommit(commit: string): string {
     return config;
 }
 
+type ToolWriteOfFile = { source: RecordSource; time: Date };
+const lastToolWriteByFile = new Map<string, ToolWriteOfFile>();
+
+export function recordToolWriteOfFile(file: string, resultLine: JSONLLine): void {
+    const source = getRecordSource(resultLine);
+    if (source === undefined) {
+        return;
+    }
+    if (resultLine.timestamp === undefined) {
+        throw new Error(`recordToolWriteOfFile: the Write/Edit result at ${source.filePath}:${source.lineNumber} has no timestamp`);
+    }
+    lastToolWriteByFile.set(file, { source, time: resultLine.timestamp });
+}
+
+// The hook starts after the stopping agent's last turn line, the line before the record.
+function getStopHookStartTime(recordSource: RecordSource): Date {
+    const transcriptLines = readFileSync(recordSource.filePath, "utf8").split("\n");
+    const lastTurnLine = JSON.parse(transcriptLines[recordSource.lineNumber - 2] as string) as { timestamp: string };
+    return new Date(lastTurnLine.timestamp);
+}
+
+// The hook reads the file before and after eslint --fix, so another agent's Edit/Write between the two reads looks like a reformat.
+function findOtherAgentWriteDuringStopHook(file: string, record: AttachmentEntry): ToolWriteOfFile | undefined {
+    const recordSource = getRecordSource(record as unknown as JSONLLine);
+    if (recordSource === undefined) {
+        return undefined;
+    }
+    const write = lastToolWriteByFile.get(file);
+    if (write === undefined) {
+        return undefined;
+    }
+    if (write.source.filePath === recordSource.filePath) {
+        return undefined;
+    }
+    if (write.time.getTime() <= getStopHookStartTime(recordSource).getTime()) {
+        return undefined;
+    }
+    if (write.time.getTime() > record.timestamp.getTime()) {
+        return undefined;
+    }
+    return write;
+}
+
 // Runs only the hook's eslint --fix step: its printed text also depends on a ledger file and the transcript of that time.
 export function runRecordedStopHookReformat(file: string, record: AttachmentEntry): void {
     const commit = getDotfilesCommitAtTime(record.timestamp);
@@ -180,6 +224,11 @@ export function runRecordedStopHookReformat(file: string, record: AttachmentEntr
         }
     }
     if (bytesBefore.equals(readFileSync(file))) {
+        const otherAgentWrite = findOtherAgentWriteDuringStopHook(file, record);
+        if (otherAgentWrite !== undefined) {
+            console.log(`stop hook reformat record is another agent's edit during the hook: ${file}, eslint --fix changed nothing, edit at ${otherAgentWrite.source.filePath}:${otherAgentWrite.source.lineNumber} (${otherAgentWrite.time.toISOString()}) before the ${record.attachment.hookEvent} record at ${record.timestamp.toISOString()}`);
+            return;
+        }
         throw new Error(`runRecordedStopHookReformat: the record says the ${record.attachment.hookEvent} hook reformatted ${file} at ${record.timestamp.toISOString()}, but dotfiles ${commit} eslint --fix changed nothing`);
     }
 }

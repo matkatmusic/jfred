@@ -18,7 +18,7 @@ import { executeScriptInState, type ScriptReplayContext } from "./engineV3_repla
 import { getReplayRoot } from "./engineV3_replay_root.ts";
 import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordProvenBytes, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listToolResultIds, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
-import { listStopHookReformattedFiles, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
+import { listStopHookReformattedFiles, recordToolWriteOfFile, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
 import { getAttachmentEntry } from "../src/structures/session-meta.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
@@ -157,6 +157,7 @@ function applyWriteEditAndRecordIt(state: Path, line: JSONLLine, applyLine: (sta
   const file = findWrittenFile(state, line)!;
   const bytesBefore = existsSync(file) ? readFileSync(file) : undefined;
   applyLine(state, line);
+  recordToolWriteOfFile(file, line);
   // Before the hook rewrite: the rewrite is not a proven text.
   if (hasFullFileText(state, line)) {
     recordProvenBytes(file, readFileSync(file));

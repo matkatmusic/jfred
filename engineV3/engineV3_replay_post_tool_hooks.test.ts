@@ -6,7 +6,8 @@ import { join } from "node:path";
 
 import { getAttachmentEntry, type AttachmentEntry } from "../src/structures/session-meta.ts";
 import { loadJSONLLineIndex } from "./engineV3_jsonl_line_index.ts";
-import { collectPostToolHookRewrites, listStopHookReformattedFiles, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
+import { collectPostToolHookRewrites, listStopHookReformattedFiles, recordToolWriteOfFile, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
+import { getRecordSource, setRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 
 const REFLOW_COMMENTS_STATUS_MESSAGE = "Reflowing wrapped comments...";
 const FIRST_ATTUNE_REWRITE_TIME = "2026-10-06T15:15:40.402Z";
@@ -137,6 +138,54 @@ test("test_runRecordedStopHookReformat_throws_when_eslint_changes_nothing", (t) 
     const file = join(makeTempFolder(t), "server.ts");
     writeFileSync(file, SPLIT_FINALLY_TEXT);
     const record = makeStopHookRecord("SubagentStop", DOTFILES_HOOK_COMMAND, makeReformatStdout([file]));
+    // The replay stops loudly.
+    assert.throws(() => runRecordedStopHookReformat(file, record), /changed nothing/);
+});
+
+// Line 1 of the stopping agent's transcript is its last turn line; line 2 is the stop hook record at ATTUNE_SUBAGENT_STOP_REFORMAT_TIME.
+function makeSourcedStopHookRecord(t: TestContext, file: string, lastTurnLineTime: string): AttachmentEntry {
+    const transcript = join(makeTempFolder(t), "agent-stopping.jsonl");
+    writeFileSync(transcript, `${JSON.stringify({ type: "user", timestamp: lastTurnLineTime })}\n{}\n`);
+    const record = makeStopHookRecord("SubagentStop", DOTFILES_HOOK_COMMAND, makeReformatStdout([file]));
+    setRecordSource(record as never, { filePath: transcript, lineNumber: 2 });
+    return record;
+}
+
+function recordOtherAgentEdit(file: string, transcript: string, time: string): void {
+    const resultLine = { type: "user", timestamp: new Date(time) };
+    setRecordSource(resultLine as never, { filePath: transcript, lineNumber: 26 });
+    recordToolWriteOfFile(file, resultLine as never);
+}
+
+test("test_runRecordedStopHookReformat_passes_when_another_agent_edited_the_file_while_the_hook_ran", (t) => {
+    // Scenario: agent-ae5eb9b08da174755 line 46: the hook read wheel.ts before eslint, agent-af2372bb1cabdf3a9 edited it, the hook read it again after eslint.
+    const file = join(makeTempFolder(t), "wheel.ts");
+    writeFileSync(file, SPLIT_FINALLY_TEXT);
+    const record = makeSourcedStopHookRecord(t, file, "2026-10-06T15:59:39.000Z");
+    // The other agent's Edit result lands after the stopping agent's last turn line and before the record.
+    recordOtherAgentEdit(file, "/x/agent-other.jsonl", "2026-10-06T15:59:40.000Z");
+    // eslint changes nothing, and the replay does not stop.
+    runRecordedStopHookReformat(file, record);
+    assert.equal(readFileSync(file, "utf8"), SPLIT_FINALLY_TEXT);
+});
+
+test("test_runRecordedStopHookReformat_throws_when_the_other_agent_edit_came_before_the_hook_ran", (t) => {
+    // Scenario: the other agent's Edit result lands before the stopping agent's last turn line, so the hook saw it in both reads.
+    const file = join(makeTempFolder(t), "wheel.ts");
+    writeFileSync(file, SPLIT_FINALLY_TEXT);
+    const record = makeSourcedStopHookRecord(t, file, "2026-10-06T15:59:39.000Z");
+    recordOtherAgentEdit(file, "/x/agent-other.jsonl", "2026-10-06T15:59:38.000Z");
+    // The replay stops loudly.
+    assert.throws(() => runRecordedStopHookReformat(file, record), /changed nothing/);
+});
+
+test("test_runRecordedStopHookReformat_throws_when_the_edit_in_the_hook_window_is_from_the_stopping_agent", (t) => {
+    // Scenario: the only Edit result inside the hook window comes from the stopping agent's own transcript.
+    const file = join(makeTempFolder(t), "wheel.ts");
+    writeFileSync(file, SPLIT_FINALLY_TEXT);
+    const record = makeSourcedStopHookRecord(t, file, "2026-10-06T15:59:39.000Z");
+    const ownTranscript = (getRecordSource(record as never) as RecordSource).filePath;
+    recordOtherAgentEdit(file, ownTranscript, "2026-10-06T15:59:40.000Z");
     // The replay stops loudly.
     assert.throws(() => runRecordedStopHookReformat(file, record), /changed nothing/);
 });
