@@ -2,7 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeVisibleInstantRange } from "../webapp/layer1-components/session-column/layer1-session-dots-viewport.ts";
+import { computeVisibleInstantRange, EARLIEST_INSTANT, LATEST_INSTANT } from "../webapp/layer1-components/session-column/layer1-session-dots-viewport.ts";
 import type { RulerRow } from "../webapp/layer1-components/ruler/layer1-ruler-rows.ts";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -62,4 +62,69 @@ test("test_an_expanded_row_uses_the_earliest_and_latest_absorbed_instant", () =>
     const range = computeVisibleInstantRange([buildRow(0, absorbedInstants)], 0, 100);
     // The range uses the earliest and the latest of the three.
     assert.deepEqual(range, { from: buildInstantAtHour(2), to: buildInstantAtHour(9) });
+});
+
+// One row per axisPx value; the row at index N has the instant of hour N.
+function buildRowsAtAxisPx(axisPxList: number[]): RulerRow[] {
+    const rows: RulerRow[] = [];
+    for (const [hour, axisPx] of axisPxList.entries()) {
+        rows.push(buildRow(axisPx, [buildInstantAtHour(hour)]));
+    }
+    return rows;
+}
+
+test("test_in_session_layout_a_window_holding_the_first_row_asks_from_the_earliest_instant", () => {
+    // A window with no edge row asks the same range as time layout.
+    const middleRange = computeVisibleInstantRange(buildFiveRows(), 150, 250, true);
+    assert.deepEqual(middleRange, { from: buildInstantAtHour(1), to: buildInstantAtHour(3) });
+    // A window above every row reaches back to the earliest instant.
+    const aboveRange = computeVisibleInstantRange(buildFiveRows(), -500, -100, true);
+    assert.deepEqual(aboveRange, { from: EARLIEST_INSTANT, to: buildInstantAtHour(0) });
+    // A window that shows the first row reaches back to the earliest instant.
+    const topRange = computeVisibleInstantRange(buildFiveRows(), 0, 150, true);
+    assert.deepEqual(topRange, { from: EARLIEST_INSTANT, to: buildInstantAtHour(2) });
+});
+
+test("test_in_session_layout_a_window_holding_the_last_row_asks_to_the_latest_instant", () => {
+    // A window that shows the last row reaches forward to the latest instant.
+    const bottomRange = computeVisibleInstantRange(buildFiveRows(), 350, 450, true);
+    assert.deepEqual(bottomRange, { from: buildInstantAtHour(3), to: LATEST_INSTANT });
+    // A window below every row reaches forward to the latest instant.
+    const belowRange = computeVisibleInstantRange(buildFiveRows(), 500, 600, true);
+    assert.deepEqual(belowRange, { from: buildInstantAtHour(4), to: LATEST_INSTANT });
+});
+
+test("test_in_session_layout_one_row_asks_from_the_earliest_to_the_latest_instant", () => {
+    // The only row is both the first row and the last row.
+    const range = computeVisibleInstantRange([buildRow(0, [buildInstantAtHour(2)])], 0, 100, true);
+    assert.deepEqual(range, { from: EARLIEST_INSTANT, to: LATEST_INSTANT });
+});
+
+test("test_a_window_wholly_inside_one_tall_row_still_asks_for_that_row", () => {
+    // Four tall rows; the window 6000..6900 lies inside the block of the row at 5000.
+    const rows = buildRowsAtAxisPx([0, 5000, 10000, 15000]);
+    const expectedRange = { from: buildInstantAtHour(1), to: buildInstantAtHour(2) };
+    // Session layout asks for the block of that row.
+    assert.deepEqual(computeVisibleInstantRange(rows, 6000, 6900, true), expectedRange);
+    // Time layout asks for the same block.
+    assert.deepEqual(computeVisibleInstantRange(rows, 6000, 6900), expectedRange);
+});
+
+test("test_a_window_inside_the_last_tall_row_asks_to_the_latest_instant", () => {
+    // Two tall rows; the window 6000..6900 lies inside the block of the last row.
+    const rows = buildRowsAtAxisPx([0, 5000]);
+    const range = computeVisibleInstantRange(rows, 6000, 6900, true);
+    // The last block runs on to the latest instant.
+    assert.deepEqual(range, { from: buildInstantAtHour(1), to: LATEST_INSTANT });
+});
+
+test("test_the_edge_instants_are_dates_the_server_accepts", () => {
+    // Both edge instants read as real dates.
+    assert.equal(Number.isNaN(new Date(EARLIEST_INSTANT).getTime()), false);
+    assert.equal(Number.isNaN(new Date(LATEST_INSTANT).getTime()), false);
+    // Both survive a trip through a query string unchanged.
+    const query = new URLSearchParams({ from: EARLIEST_INSTANT, to: LATEST_INSTANT });
+    const readBack = new URLSearchParams(query.toString());
+    assert.equal(readBack.get("from"), EARLIEST_INSTANT);
+    assert.equal(readBack.get("to"), LATEST_INSTANT);
 });

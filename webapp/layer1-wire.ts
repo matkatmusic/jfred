@@ -20,6 +20,8 @@ export interface WireCommitOf<I> extends WireInstantOf<I> {
 export interface WireRulerTickOf<I> extends WireInstantOf<I> {
   // How many nodes the view draws at this instant, across every bubble.
   eventCount: number;
+  // Session mode only: height of this row's dot block in px. Absent means time layout.
+  dotBlockPx?: number;
 }
 
 // Task 312: a snapshot node; @vN is per session, so sessionId identifies it.

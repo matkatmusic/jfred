@@ -19,6 +19,7 @@ const { writeSourcePaths } = await import("../webapp/layer1-components/top-bars/
 
 const DEBOUNCE_PLUS_SLACK_MS = 300;
 const WHOLE_RULER_HEIGHT_PX = 100000;
+const SESSION_DOT_INSTANTS_PATHNAME = "/api/layer1-session-dot-instants";
 
 function waitMilliseconds(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -72,6 +73,7 @@ test("test_a_real_view_draws_the_dots_of_its_chat_log_when_the_session_button_is
     // Scenario: real log to real dots: server index, route answer, page track.
     const { encodeProjectFolderName } = await import("../src/reconstruction_repo_discovery.ts");
     const { buildLayer1SessionDots } = await import("../src/viewer_api_layer1_session_dots.ts");
+    const { buildLayer1SessionDotInstants } = await import("../src/viewer_api_layer1_session_dot_instants.ts");
     // A project log holds a user record, a tool_use, its tool_result, and a record without a timestamp.
     const diskDir = createFixtureDiskFolder();
     const treeRoot = createTempDir();
@@ -92,10 +94,13 @@ test("test_a_real_view_draws_the_dots_of_its_chat_log_when_the_session_button_is
         function answerFromTheRealServer(url: unknown): Promise<Response> {
             const { pathname, searchParams } = new URL(String(url), "http://localhost:7343");
             const isDotsRoute = pathname === SESSION_DOTS_PATHNAME;
-            const status = isDotsRoute ? 200 : 404;
+            const isInstantsRoute = pathname === SESSION_DOT_INSTANTS_PATHNAME;
+            const isKnownRoute = isDotsRoute || isInstantsRoute;
+            const status = isKnownRoute ? 200 : 404;
             const range = { from: new Date(searchParams.get("from") ?? ""), to: new Date(searchParams.get("to") ?? "") };
-            const answer = isDotsRoute ? JSON.parse(JSON.stringify(buildLayer1SessionDots(new Path(diskDir), [logFile], range))) : {};
-            return Promise.resolve({ ok: isDotsRoute, status, json: async () => answer, text: async () => "not stubbed" } as unknown as Response);
+            const dotsAnswer = isDotsRoute ? JSON.parse(JSON.stringify(buildLayer1SessionDots(new Path(diskDir), [logFile], range))) : {};
+            const answer = isInstantsRoute ? JSON.parse(JSON.stringify(buildLayer1SessionDotInstants(new Path(diskDir), [logFile]))) : dotsAnswer;
+            return Promise.resolve({ ok: isKnownRoute, status, json: async () => answer, text: async () => "not stubbed" } as unknown as Response);
         }
         Object.assign(globalThis, { fetch: answerFromTheRealServer });
         await renderLayer1View(view);

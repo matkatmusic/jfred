@@ -47,11 +47,28 @@ function measureInstantRange(rows: readonly RulerRow[], startIndex: number, endI
   return { from, to };
 }
 
-export function computeVisibleInstantRange(rows: readonly RulerRow[], topPx: number, bottomPx: number): InstantRange | undefined {
+// The widest instants new Date() reads; the server accepts both (src/viewer_api_layer1_session_dots.ts).
+export const EARLIEST_INSTANT = new Date(-8.64e15).toISOString();
+export const LATEST_INSTANT = new Date(8.64e15).toISOString();
+
+// Session layout: the first row owns every earlier dot and the last row every later dot.
+function reachEdgeDots(range: InstantRange, startIndex: number, endIndex: number, rowCount: number): InstantRange {
+  const from = startIndex === 0 ? EARLIEST_INSTANT : range.from;
+  const to = endIndex === rowCount - 1 ? LATEST_INSTANT : range.to;
+  return { from, to };
+}
+
+// export function computeVisibleInstantRange(rows: readonly RulerRow[], topPx: number, bottomPx: number): InstantRange | undefined {
+export function computeVisibleInstantRange(rows: readonly RulerRow[], topPx: number, bottomPx: number, isSessionLayout = false): InstantRange | undefined {
   if (rows.length === 0) {
     return undefined;
   }
   const startIndex = Math.max(0, findFirstRowIndexAtOrBelow(rows, topPx) - 1);
   const endIndex = Math.min(rows.length - 1, findLastRowIndexAtOrAbove(rows, bottomPx) + 1);
-  return measureInstantRange(rows, startIndex, endIndex);
+  const range = measureInstantRange(rows, startIndex, endIndex);
+  if (!isSessionLayout) {
+    return range;
+  }
+  return reachEdgeDots(range, startIndex, endIndex, rows.length);
+  // return measureInstantRange(rows, startIndex, endIndex);
 }

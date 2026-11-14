@@ -9,6 +9,7 @@ import { writeSessionTranscript } from "./layer1-snapshot-wire-test-helpers.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 import { encodeProjectFolderName } from "../src/reconstruction_repo_discovery.ts";
 import type { WireSessionDots } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
+import { EARLIEST_INSTANT, LATEST_INSTANT } from "../webapp/layer1-components/session-column/layer1-session-dots-viewport.ts";
 
 // 17400 to 22900 are taken by other server tests: parallel files must never collide.
 const SCRATCH_PORT = 23400 + (process.pid % 500);
@@ -44,4 +45,19 @@ test("test_the_server_answers_the_session_dots_route_over_http", async () => {
     const body = await response.json() as WireSessionDots;
     assert.equal(body.annotations.length, 1);
     assert.equal(body.annotations[0]!.instant, DOT_INSTANT);
+});
+
+test("test_the_route_accepts_the_widest_range_and_returns_every_dot", async () => {
+    // Scenario: the route answers the widest possible ask (earliest to latest instant) with every dot.
+    // Steps:
+    // the same project log holds one user record at 10:00 (written in before).
+    // ask the route from EARLIEST_INSTANT to LATEST_INSTANT with the log folder as the jsonl param.
+    const query = new URLSearchParams({ dir: diskDir, from: EARLIEST_INSTANT, to: LATEST_INSTANT });
+    query.append("jsonl", logTreeRoot);
+    const response = await fetch(`http://127.0.0.1:${SCRATCH_PORT}/api/layer1-session-dots?${query.toString()}`);
+    // the route accepts the edge instants and answers 200.
+    assert.equal(response.status, 200);
+    // the body holds the one dot.
+    const body = await response.json() as WireSessionDots;
+    assert.equal(body.annotations.length, 1);
 });

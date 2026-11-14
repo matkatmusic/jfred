@@ -241,3 +241,24 @@ export function isBracketBesideLane(bracket: ColumnBracketFacts, dots: ColumnNod
   }
   return isBeside;
 }
+
+function computeOverlapArea(one: PageBox, two: PageBox): number {
+  const width = Math.min(one.right, two.right) - Math.max(one.left, two.left);
+  const height = Math.min(one.bottom, two.bottom) - Math.max(one.top, two.top);
+  if (width <= 0)
+    return 0;
+  if (height <= 0)
+    return 0;
+  return width * height;
+}
+
+// No dot box overlaps the bracket box by more than half a square pixel.
+export function isBracketClearOfDots(bracket: ColumnBracketFacts, dots: ColumnNodeFacts[]): boolean {
+  let isClear = true;
+  for (const dot of dots) {
+    const overlapArea = computeOverlapArea(bracket, dot.nodeBox);
+    if (overlapArea > 0.5)
+      isClear = false;
+  }
+  return isClear;
+}

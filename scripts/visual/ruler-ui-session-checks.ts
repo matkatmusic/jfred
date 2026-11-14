@@ -19,8 +19,12 @@ export interface OffFacts { trackCount: number; trackWidth: string; stageLeft: n
 const DOT_LETTERS = ["u", "a", "t", "r", "h", "m", "n", "?"];
 // const FIXTURE_TRACK_WIDTH_PX = 96;
 // const MIN_COLOURED_TICKS = 12;
-const FIXTURE_TRACK_WIDTH_PX = 74;
-const MAX_TRACK_WIDTH_PX = 100;
+// const FIXTURE_TRACK_WIDTH_PX = 74;
+// const MAX_TRACK_WIDTH_PX = 100;
+// Lane 0 holds the first session, which has two dots at one instant: 18, 57, 82 plus the 22px end pad.
+const FIXTURE_LANE_WIDTH_SLOTS = [2, 1, 1];
+const FIXTURE_TRACK_WIDTH_PX = 104;
+const MAX_TRACK_WIDTH_PX = 120;
 // Every ruler row has one session except the one row where two sessions share an instant.
 export const EXPECTED_COLOURED_TICKS = FIXTURE_TICK_COUNT - 1;
 export const APART_PX = 2;
@@ -46,7 +50,8 @@ export function isToggleGreen(f: SessionFacts): boolean {
 }
 
 export function isTrackPlaced(f: SessionFacts): boolean {
-  const isWidthRight = isNear(f.trackWidth, computeTrackWidthPx(f.laneXs.length, computeBarReservePx(0)), EDGE_PX);
+  // const isWidthRight = isNear(f.trackWidth, computeTrackWidthPx(f.laneXs.length, computeBarReservePx(0)), EDGE_PX);
+  const isWidthRight = isNear(f.trackWidth, computeTrackWidthPx(f.laneXs.length, computeBarReservePx(0), FIXTURE_LANE_WIDTH_SLOTS), EDGE_PX);
   const isNarrow = isNear(f.trackWidth, FIXTURE_TRACK_WIDTH_PX, EDGE_PX) && f.trackWidth < MAX_TRACK_WIDTH_PX;
   return f.laneXs.length === 3 && isWidthRight && isNarrow && isNear(f.trackLeft, f.rulerRight, EDGE_PX);
 }

@@ -26,7 +26,8 @@ const BRACKET_SELECTOR = `.abracket[data-pair-id="${COLUMN_PAIR_ID}"]`;
 async function validateTrack(page: HeadlessPage, offLeft: number): Promise<void> {
   await page.evaluate(buildScrollToDot(FILL_8));
   const facts = await reportFacts(page, SESSION_FACTS, "RULER session: the button is current and green", isToggleGreen);
-  reportCheck("RULER session: the track touches the ruler and is 74px wide for 3 lanes, below 100px", isTrackPlaced(facts), facts);
+  // reportCheck("RULER session: the track touches the ruler and is 74px wide for 3 lanes, below 100px", isTrackPlaced(facts), facts);
+  reportCheck("RULER session: the track touches the ruler and is 104px wide for 3 lanes, below 120px", isTrackPlaced(facts), facts);
   reportCheck("RULER session: three overlapping sessions use three different columns", facts.laneXs.length === 3, facts.laneXs);
   reportCheck("RULER session: the stage moves right by exactly the track width", isStageShifted(offLeft, facts), [offLeft, facts.stageLeft]);
   // reportCheck("RULER session: the stage does not move when the track goes on", isStageUnmovedBySessionLines(offLeft, facts), [offLeft, facts.stageLeft]);

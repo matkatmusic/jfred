@@ -6,7 +6,7 @@ import { FIXTURE_LOG_SESSIONS } from "../src/viewer_api_layer7_fixture_sessions.
 import * as session from "../scripts/visual/ruler-ui-session-checks.ts";
 
 const SESSION: session.SessionFacts = {
-    isCurrent: true, background: "rgb(60, 180, 90)", trackLeft: 152, trackWidth: 74, rulerRight: 152, stageLeft: 240, laneXs: ["18px", "35px", "52px"],
+    isCurrent: true, background: "rgb(60, 180, 90)", trackLeft: 152, trackWidth: 104, rulerRight: 152, stageLeft: 270, laneXs: ["18px", "57px", "82px"],
 };
 const makeTick = (n: number) => ({ computed: `rgb(${n}, 1, 1)`, expected: `rgb(${n}, 1, 1)` });
 const SCAN: session.ScanFacts = {
@@ -28,8 +28,8 @@ test("test_toggle_is_current_and_green", () => {
     assert.equal(session.isToggleGreen({ ...SESSION, background: "rgba(0, 0, 0, 0)" }), false);
 });
 
-test("test_track_touches_the_ruler_and_is_74px_for_three_lanes", () => {
-    // Step: three lanes at 74px, touching the ruler, pass.
+test("test_track_touches_the_ruler_and_is_104px_for_three_lanes", () => {
+    // Step: three lanes at 104px, touching the ruler, pass.
     assert.equal(session.isTrackPlaced(SESSION), true);
     // Step: the old 96px width, a gap to the ruler, or two lanes each fail.
     assert.equal(session.isTrackPlaced({ ...SESSION, trackWidth: 96 }), false);
@@ -38,15 +38,15 @@ test("test_track_touches_the_ruler_and_is_74px_for_three_lanes", () => {
 });
 
 test("test_stage_moves_right_by_exactly_the_track_width", () => {
-    // Step: 166 before and 240 after, with a 74px track, passes; a stage that moved less fails.
+    // Step: 166 before and 270 after, with a 104px track, passes; a stage that moved less fails.
     assert.equal(session.isStageShifted(166, SESSION), true);
     assert.equal(session.isStageShifted(200, SESSION), false);
 });
 
 // test("test_stage_does_not_move_when_the_session_lines_go_on", () => {
-//     // Step: the stage is at 240 with the lines off and at 240 with the lines on, so it did not move; this passes.
-//     assert.equal(session.isStageUnmovedBySessionLines(240, SESSION), true);
-//     // Step: a stage that was at 166 and moved 74px to 240, the old push, fails.
+//     // Step: the stage is at 270 with the lines off and at 270 with the lines on, so it did not move; this passes.
+//     assert.equal(session.isStageUnmovedBySessionLines(270, SESSION), true);
+//     // Step: a stage that was at 166 and moved 104px to 270, the old push, fails.
 //     assert.equal(session.isStageUnmovedBySessionLines(166, SESSION), false);
 // });
 

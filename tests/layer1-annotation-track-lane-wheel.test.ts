@@ -29,12 +29,12 @@ function buildSpan(sessionId: string, firstHour: number, lastHour: number): Wire
 }
 
 // The view loads with no annotations, the user turns the session button on: ask number 0 starts.
-function openRealTrack(): DeferredDotsFetch {
+async function openRealTrack(): Promise<DeferredDotsFetch> {
     setPaneSize(600, 0);
     const asks = installDeferredDotsFetch();
     storeAnnotations({});
     renderAnnotationTrack(ticks);
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     return asks;
 }
 
@@ -80,7 +80,7 @@ test("test_a_sideways_wheel_over_the_column_moves_the_lanes_and_not_the_pane", a
     // Scenario: 14 lanes need the strip; the user wheels 25 px sideways over the column.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: buildWideSpans() });
         // The strip is needed and sits at 40 px.
@@ -102,7 +102,7 @@ test("test_an_up_and_down_wheel_over_the_column_still_scrolls_the_pane", async (
     // Scenario: the user wheels 60 px up and down (and 5 px sideways) over the column.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: buildWideSpans() });
         startStripAtMiddleScroll();
@@ -121,7 +121,7 @@ test("test_a_sideways_wheel_passes_through_when_the_lanes_fit", async () => {
     // Scenario: 2 lanes fit the column, so there is no strip to move; a sideways wheel goes to the pane.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(227, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: [buildSpan("A", 1, 10), buildSpan("B", 1, 10)] });
         // The strip is not needed.
@@ -142,7 +142,7 @@ test("test_a_sideways_wheel_over_a_dot_moves_the_lanes", async () => {
     // Scenario: the pointer is over a dot inside the column; the wheel event bubbles up to the column.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [buildDot("d1", buildInstantAtHour(2), "S1")], sessionSpans: buildWideSpans() });
         startStripAtMiddleScroll();

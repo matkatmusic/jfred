@@ -25,7 +25,7 @@ const TITLES = {
     minimapRuler: "RULER review: with both columns off the minimap left edge is at the ruler right edge",
     minimapStrip: "RULER review: the minimap left edge is at the strip right edge",
     bracket: "RULER review: a bracket sits at least 2px right of the track left edge",
-    laneGap: "RULER review: dots in neighbouring lanes have a gap of 2px to 4px between their edges",
+    laneGap: "RULER review: dots in neighbouring lanes have a gap of 10px to 12px between their edges, or 24px to 26px after a lane two dots wide",
     dotDrawer: "RULER review: a click on a dot opens the drawer with the session title and the dot label in the JSON",
     snapshot: "RULER review: on a snapshot node the button reads { } and one click shows the JSON",
 };
@@ -38,7 +38,7 @@ const makeGoodTable = (): Map<string, unknown> => new Map<string, unknown>([
     [probes.buildMinimapEdgeProbe("#jfredCommitsDrawerComponent"), { minimapLeft: 562, neighbourRight: 562 }],
     [probes.DOT_FONT_SIZE, "11px"], [probes.ROW_DOT_FACTS, { rowCount: 40, unmatchedCount: 0 }],
     [probes.buildSurfaceProbe("#sessionDotLinesComponent"), SURFACE], [probes.buildSurfaceProbe("#jfredCommitsDrawerComponent"), SURFACE],
-    [probes.BRACKET_INSET_FACTS, { count: 1, minInset: 3 }], [probes.LANE_GAPS, [3, 3]],
+    [probes.BRACKET_INSET_FACTS, { count: 1, minInset: 3 }], [probes.LANE_GAPS, [25, 11]],
     [probes.buildDotClick(FIRST_ID), undefined], [probes.CLOSE_DRAWER, undefined],
     [probes.buildDotDrawerFacts(FIRST_ID), { title: FIXTURE_LOG_SESSIONS[0]!.title, label: "Made-up chat line", json: '{"content": "Made-up chat line"}' }],
     [probes.SNAPSHOT_CLICK, undefined], [probes.SNAPSHOT_TOGGLE_CLICK, undefined],
@@ -124,9 +124,10 @@ test("test_a_minimap_off_the_track_edge_fails_only_the_track_minimap_check", asy
     assert.deepEqual(newFailures, ["RULER review: the minimap left edge is at the track right edge"]);
 });
 
-test("test_lane_gaps_outside_2px_to_4px_or_no_lane_pair_fail_only_the_lane_gap_check", async () => {
-    assert.deepEqual((await runReview([[probes.LANE_GAPS, [3, 1]]])).newFailures, [TITLES.laneGap]);
-    assert.deepEqual((await runReview([[probes.LANE_GAPS, [5]]])).newFailures, [TITLES.laneGap]);
+test("test_lane_gaps_outside_10px_to_12px_and_24px_to_26px_or_no_lane_pair_fail_only_the_lane_gap_check", async () => {
+    assert.deepEqual((await runReview([[probes.LANE_GAPS, [25, 3]]])).newFailures, [TITLES.laneGap]);
+    assert.deepEqual((await runReview([[probes.LANE_GAPS, [13]]])).newFailures, [TITLES.laneGap]);
+    assert.deepEqual((await runReview([[probes.LANE_GAPS, [18]]])).newFailures, [TITLES.laneGap]);
     assert.deepEqual((await runReview([[probes.LANE_GAPS, []]])).newFailures, [TITLES.laneGap]);
 });
 

@@ -32,12 +32,12 @@ function buildSessionDot(id: string, sessionId: string, hour: number): WireAnnot
 }
 
 // The view loads with no annotations, the user turns the session button on: ask number 0 starts.
-function openRealTrack(): DeferredDotsFetch {
+async function openRealTrack(): Promise<DeferredDotsFetch> {
     setPaneSize(600, 0);
     const asks = installDeferredDotsFetch();
     storeAnnotations({});
     renderAnnotationTrack(ticks);
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     return asks;
 }
 
@@ -68,7 +68,7 @@ test("test_colors_and_lanes_do_not_change_when_the_window_changes", async () => 
     // Scenario: sessions A and B overlap; answer 1 holds only A dots, answer 2 (after a scroll) holds only B dots.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         const spans = [buildSpan("A", 1, 4), buildSpan("B", 2, 5)];
         // Answer 1 holds only A dots: both session lines are drawn.
         await answerAsk(asks, 0, { annotations: [buildSessionDot("a1", "A", 1), buildSessionDot("a2", "A", 4)], sessionSpans: spans });
@@ -92,7 +92,7 @@ test("test_the_session_line_comes_from_the_full_span_when_only_one_dot_is_fetche
     // Scenario: session A runs from tick 1 (50 px) to tick 10 (500 px); the answer holds one A dot at tick 5.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         await answerAsk(asks, 0, { annotations: [buildSessionDot("a5", "A", 5)], sessionSpans: [buildSpan("A", 1, 10)] });
         // The line runs over the whole span, not from the one dot.
         const line = readSessionLine("A")!;
@@ -108,7 +108,7 @@ test("test_the_track_width_follows_the_lanes_of_the_full_span_list", async () =>
     // Scenario: two overlapping spans need two lanes, but the answer holds dots of session A only.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         await answerAsk(asks, 0, { annotations: [buildSessionDot("a1", "A", 1)], sessionSpans: [buildSpan("A", 1, 4), buildSpan("B", 2, 5)] });
         // 18 + 17 + 22 = 57 px.
         assert.equal(readTrackWidth(), "57px");
@@ -122,7 +122,7 @@ test("test_a_session_wholly_outside_the_ruler_takes_no_lane_and_no_line", async 
     // Scenario: session O ends before the first tick; session A starts at the first tick.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         await answerAsk(asks, 0, { annotations: [buildSessionDot("a1", "A", 1)], sessionSpans: [buildSpan("O", -10, -5), buildSpan("A", 0, 3)] });
         // O has no line, and A keeps the first lane in a one-lane track.
         assert.equal(readSessionLine("O"), null);
@@ -139,7 +139,7 @@ test("test_an_answer_with_no_sessions_keeps_the_track_one_lane_wide", async () =
     // Scenario: the answer has no dots and no spans.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         await answerAsk(asks, 0, { annotations: [], sessionSpans: [] });
         // 18 + 22 = 40 px.
         assert.equal(readTrackWidth(), "40px");

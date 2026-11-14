@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
-import { installRecordingFetch } from "./layer1-drawer-test-helpers.ts";
+import { installRecordingFetch, waitForPendingFetches } from "./layer1-drawer-test-helpers.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireAnnotation } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
@@ -12,9 +12,9 @@ import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 initLayer1Dom();
 const { initLayer1Page } = await import("../webapp/layer1-page.ts");
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
-const { isSessionColumnShown, storeAnnotations,renderAnnotationTrack, toggleSessionDotLines } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
+const { registerSessionRelayout, storeAnnotations,renderAnnotationTrack, toggleSessionDotLines } = await import("../webapp/layer1-components/session-column/layer1-annotation-track.ts");
 
-const { moveDetailsPaneToRightEdge } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
+const { moveDetailsPaneToRightEdge, moveOpenDetailsPane } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 const { renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
 
@@ -45,16 +45,23 @@ function readDrawnIds(): string[] {
     return [...document.querySelectorAll<HTMLElement>("#sessionDotLinesComponent .anode")].map((node) => node.dataset["recordId"]!);
 }
 
-// The column is off by default; module state outlives a test, so reset it first.
+// A renderLayer1View in an earlier test leaves the page's stage redraw registered; these tests need the plain time-layout track redraw.
+function useTrackOnlyRelayout(ticks: WireRulerTick[]): void {
+    registerSessionRelayout(async () => {
+        renderAnnotationTrack(ticks);
+        moveOpenDetailsPane();
+    });
+}
+
+// storeAnnotations turns the column off, so every render starts with it off.
 function renderRecords(records: WireAnnotation[], ticks: WireRulerTick[], shouldShowSession = true): void {
-    if (isSessionColumnShown()) {
-        toggleSessionDotLines();
-    }
     initLayer1Dom();
     storeAnnotations({ annotations: records });
+    useTrackOnlyRelayout(ticks);
     renderAnnotationTrack(ticks);
     if (shouldShowSession) {
-        toggleSessionDotLines();
+        // A demo view has its instants stored, so the toggle finishes inside the call.
+        void toggleSessionDotLines();
     }
 }
 
@@ -160,18 +167,18 @@ test("test_a_view_without_annotations_leaves_no_track_and_no_hide_control", () =
     assert.equal(document.getElementById("hide-ignored"), null);
 });
 
-test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_button_click", () => {
+test("test_a_view_with_annotations_gets_a_track_through_the_render_after_the_button_click", async () => {
     const ticks = buildTicks();
-    if (isSessionColumnShown()) {
-        toggleSessionDotLines();
-    }
     initLayer1Dom();
     initLayer1Page();
     // A view with annotations makes the engineV3 bar fetch its steps.
     installRecordingFetch(() => ({ steps: [] }));
-    renderLayer1View({ pairs: [], gitOrphans: [], diskOrphans: [], ruler: ticks, annotations: buildRecords(ticks) } as never);
+    // The page's redraw lays the ruler out again from the bubbles, so the view needs orphans to keep ticks.
+    const gitOrphans = [{ path: "src/a.ts", instant: ticks[0]!.instant, axisPx: 0 }, { path: "src/b.ts", instant: ticks[1]!.instant, axisPx: 50 }];
+    renderLayer1View({ pairs: [], gitOrphans, diskOrphans: [], ruler: ticks, annotations: buildRecords(ticks) } as never);
     assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 0);
     document.getElementById("session-toggle")!.click();
+    await waitForPendingFetches();
     assert.equal(document.querySelectorAll("#sessionDotLinesComponent").length, 1);
 });
 
@@ -235,7 +242,7 @@ test("test_a_dot_popup_shows_the_session_title_then_the_log_line_in_the_session_
     assert.equal(popup.style.backgroundColor, dot.style.getPropertyValue("--session-color"));
 });
 
-test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", () => {
+test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", async () => {
     // Scenario: the commits strip exists first, then the session button builds the track.
     // Build the page with annotations but leave the session lines off, so no track exists yet.
     const ticks = buildTicks();
@@ -245,7 +252,7 @@ test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", () =>
     renderJfredStrip(ticks);
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
     // Build the track by showing the session lines.
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     // The ruler container holds exactly: minimap, ruler, track, strip, in that order.
     const rulerContainer = document.getElementById("timelineRulerContainer")!;
     assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["minimapComponent", "timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
@@ -304,7 +311,7 @@ test("test_clicking_the_session_button_twice_removes_the_session_dot_lines", () 
     assert.equal(document.getElementById("session-toggle")!.classList.contains("current"), false);
 });
 
-test("test_an_open_details_pane_gets_narrower_when_the_session_lines_go_on", () => {
+test("test_an_open_details_pane_gets_narrower_when_the_session_lines_go_on", async () => {
     // Build a view with annotations, the session lines off and the details pane open.
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks, false);
@@ -327,12 +334,12 @@ test("test_an_open_details_pane_gets_narrower_when_the_session_lines_go_on", () 
         moveDetailsPaneToRightEdge();
         assert.equal(pane.style.width, "350px");
         // Turning the lines on re-places the open pane: 35% of (1200 - 300).
-        toggleSessionDotLines();
+        await toggleSessionDotLines();
         assert.equal(pane.style.width, "315px");
     } finally {
         prototype.getBoundingClientRect = originalGetBoundingClientRect;
         // Leave the session lines off for the other tests in this file.
-        toggleSessionDotLines();
+        await toggleSessionDotLines();
     }
 });
 

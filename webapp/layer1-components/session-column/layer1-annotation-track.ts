@@ -16,7 +16,9 @@ import { removeRulerHead, renderRulerHead } from "../ruler/layer1-ruler-head.ts"
 import { buildLaneStrip, LANE_STRIP_ID, renderLaneStrip, scrollLanesByWheel } from "./layer1-session-lane-strip.ts";
 import { listSelectedSessions } from "../jsonls-nav/layer1-sessions.ts";
 import { listSessionColors } from "./layer1-session-colors.ts";
-import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
+// import { computeBarReservePx, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
+import { computeBarReservePx, computeLaneWidthSlots, computeLaneX, computeSessionLanes, computeTrackWidthPx } from "./layer1-session-lanes.ts";
+import { computeSessionWidthSlots } from "../ruler/layer1-session-dot-counts.ts";
 // import type { SessionSpan } from "./layer1-session-lanes.ts";
 import type { SessionPixelSpan } from "./layer1-session-lanes.ts";
 import { scheduleSessionDotsFetch, stopSessionDotsFetch } from "./layer1-session-dots-fetch.ts";
@@ -27,6 +29,12 @@ import { readSourcePaths } from "../top-bars/layer1-source-paths.ts";
 import type { WireAnnotation, WireSessionDots, WireSessionSpan } from "./layer1-wire-annotations.ts";
 import { SourceKind } from "../../layer1-wire.ts";
 import type { WireLayer1View, WireRulerTick } from "../../layer1-wire.ts";
+import { computeAnchoredTopAxisPx, findTopRowAnchor } from "./layer1-session-scroll-anchor.ts";
+import type { TopRowAnchor } from "./layer1-session-scroll-anchor.ts";
+import { clearSessionDotInstants, loadSessionDotInstants, readRequiredSessionDotInstants, readSessionDotInstants, storeSessionDotInstants } from "./layer1-session-dot-instants.ts";
+import { listSessionDotInstantsFromAnnotations } from "./layer1-wire-session-instants.ts";
+// import { computeSessionDotPlacements, listSessionPixelSpansFromInstants } from "./layer1-session-dot-placement.ts";
+import { computeSessionDotPlacements, isSessionLayout, listSessionPixelSpansFromInstants, readSessionMs } from "./layer1-session-dot-placement.ts";
 
 const TRACK_ID = "sessionDotLinesComponent";
 
@@ -45,8 +53,18 @@ let isRealView = false;
 let loadedProject: { dir: string; jsonlFolders: string[] } = { dir: "", jsonlFolders: [] };
 let serverSessionSpans: WireSessionSpan[] = [];
 
+// A new view starts with the column off and fresh instants.
+function resetSessionDotState(wireAnnotations: WireAnnotation[] | undefined): void {
+  clearSessionDotInstants();
+  isSessionShown = false;
+  if (wireAnnotations !== undefined) {
+    storeSessionDotInstants(listSessionDotInstantsFromAnnotations(wireAnnotations));
+  }
+}
+
 export function storeAnnotations(view: Pick<WireLayer1View, "annotations">): void {
   stopSessionDotsFetch();
+  resetSessionDotState(view.annotations);
   const jsonlFolders = [...readSourcePaths(SourceKind.jsonl)];
   const hasNoAnnotations = view.annotations === undefined;
   const hasJsonlFolders = jsonlFolders.length > 0;
@@ -61,11 +79,58 @@ export function isSessionColumnShown(): boolean {
   return isSessionShown;
 }
 
-export function toggleSessionDotLines(): void {
-  isSessionShown = !isSessionShown;
+// export function toggleSessionDotLines(): void {
+//   isSessionShown = !isSessionShown;
+//   renderAnnotationTrack(lastTicks);
+//   renderLayer1Minimap();
+//   moveOpenDetailsPane();
+// }
+
+// The page registers its stage redraw here, like registerExpansionRelayout; the default only redraws the track.
+let relayoutStage: () => Promise<void> | void = redrawTrackOnly;
+
+export function registerSessionRelayout(callback: () => Promise<void>): void {
+  relayoutStage = callback;
+}
+
+function redrawTrackOnly(): void {
   renderAnnotationTrack(lastTicks);
   renderLayer1Minimap();
   moveOpenDetailsPane();
+}
+
+function readTopRowAnchor(): TopRowAnchor {
+  const pane = getRequiredElementById("timelineContainer");
+  return findTopRowAnchor(lastTicks, pane.scrollTop / readCanvasZoom());
+}
+
+function restoreTopRow(anchor: TopRowAnchor): void {
+  const pane = getRequiredElementById("timelineContainer");
+  pane.scrollTop = computeAnchoredTopAxisPx(anchor, lastTicks) * readCanvasZoom();
+}
+
+// Returns a promise only when the relayout is async, so the demo path stays synchronous.
+function relayoutKeepingTopRow(willShow: boolean): Promise<void> | void {
+  const anchor = readTopRowAnchor();
+  isSessionShown = willShow;
+  const relayoutResult = relayoutStage();
+  const isRelayoutPending = relayoutResult instanceof Promise;
+  if (isRelayoutPending) {
+    return relayoutResult.then(() => restoreTopRow(anchor));
+  }
+  restoreTopRow(anchor);
+}
+
+// Stays synchronous when the instants are already stored (demo, second turn-on).
+export async function toggleSessionDotLines(): Promise<void> {
+  const willShow = !isSessionShown;
+  const isLoaded = readSessionDotInstants() !== undefined;
+  if (willShow) {
+    if (!isLoaded) {
+      await loadSessionDotInstants(loadedProject);
+    }
+  }
+  await relayoutKeepingTopRow(willShow);
 }
 
 // function buildTitle(annotation: WireAnnotation): string {
@@ -154,7 +219,8 @@ function readWindowBoundsPx(): { topPx: number; bottomPx: number } {
 
 function readSessionDotsRequest(): SessionDotsRequest | undefined {
   const { topPx, bottomPx } = readWindowBoundsPx();
-  const range = computeVisibleInstantRange(listRulerRows([...lastTicks]), topPx, bottomPx);
+  // const range = computeVisibleInstantRange(listRulerRows([...lastTicks]), topPx, bottomPx);
+  const range = computeVisibleInstantRange(listRulerRows([...lastTicks]), topPx, bottomPx, isSessionLayout(lastTicks));
   if (range === undefined) {
     return undefined;
   }
@@ -246,15 +312,46 @@ function setTrackWidthPx(widthPx: number): void {
 //   return pixels;
 // }
 
+function listSessionWidthSlots(spans: readonly SessionPixelSpan[]): number[] {
+  const instants = readRequiredSessionDotInstants();
+  const widthSlots: number[] = [];
+  for (const span of spans) {
+    widthSlots.push(computeSessionWidthSlots(readSessionMs(instants, span.sessionId)));
+  }
+  return widthSlots;
+}
+
+// Session layout: lanes are as wide as their widest session. Time layout: undefined, lanes stay 1 slot.
+function listLaneWidthSlots(lanes: readonly number[], spans: readonly SessionPixelSpan[]): number[] | undefined {
+  const isSessionRuler = isSessionLayout(lastTicks);
+  if (!isSessionRuler) {
+    return undefined;
+  }
+  return computeLaneWidthSlots(lanes, listSessionWidthSlots(spans));
+}
+
 // Fills looksBySession and returns the track width for the packed lanes.
 function setSessionLooks(spans: readonly SessionPixelSpan[]): number {
   const lanes = computeSessionLanes(spans);
+  const laneWidthSlots = listLaneWidthSlots(lanes, spans);
   const reservePx = computeBarReservePx(listSelectedSessions().length);
   looksBySession = new Map<string, SessionLook>();
   for (const [index, span] of spans.entries()) {
-    looksBySession.set(span.sessionId, { laneX: computeLaneX(lanes[index]!, reservePx), color: colors.get(span.sessionId)! });
+    looksBySession.set(span.sessionId, { laneX: computeLaneX(lanes[index]!, reservePx, laneWidthSlots), color: colors.get(span.sessionId)! });
   }
-  return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx);
+  // return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx);
+  return computeTrackWidthPx(Math.max(0, ...lanes) + 1, reservePx, laneWidthSlots);
+}
+
+// The column reaches the bottom of the last row's dot block.
+function setTrackMinHeight(): void {
+  const track = getRequiredElementById(TRACK_ID);
+  const lastTick = lastTicks[lastTicks.length - 1]!;
+  if (lastTick.dotBlockPx === undefined) {
+    track.style.minHeight = "";
+    return;
+  }
+  track.style.minHeight = `calc((${lastTick.axisPx + lastTick.dotBlockPx}) * 1px + var(--lane-y))`;
 }
 
 function renderSessionColumn(): void {
@@ -265,6 +362,7 @@ function renderSessionColumn(): void {
   }
   setTrackWidthPx(setSessionLooks(sessionSpans));
   buildTrackOnce();
+  setTrackMinHeight();
   renderAnnotationWindow();
   renderLaneStrip();
 }
@@ -295,13 +393,27 @@ function renderSessionControls(): void {
   sessionToggleButton.hidden = false;
   sessionToggleButton.classList.toggle("current", isSessionShown);
   sessionToggleButton.onclick = () => {
-    toggleSessionDotLines();
+    void toggleSessionDotLines();
     moveMiniMapToRulerEdge();
   };
   renderSessionColumn();
 }
 
+function placeSessionLayoutDots(ticks: readonly WireRulerTick[]): void {
+  const instants = readRequiredSessionDotInstants();
+  placements = computeSessionDotPlacements(annotations, ticks, instants);
+  pairSpans = listPairSpans(placements);
+  sessionSpans = isRealView ? listSessionPixelSpansFromInstants(serverSessionSpans, ticks, instants) : listSessionPixelSpansFromPlacements(listSessionSpans(placements));
+}
+
 function placeSessionDots(ticks: readonly WireRulerTick[]): void {
+  // const firstDotBlockPx = ticks[0]?.dotBlockPx;
+  // if (firstDotBlockPx !== undefined) {
+  const isSessionRuler = isSessionLayout(ticks);
+  if (isSessionRuler) {
+    placeSessionLayoutDots(ticks);
+    return;
+  }
   placements = computeAnnotationPlacements(annotations, ticks);
   pairSpans = listPairSpans(placements);
   sessionSpans = isRealView ? listSessionPixelSpansFromServer(serverSessionSpans, ticks) : listSessionPixelSpansFromPlacements(listSessionSpans(placements));

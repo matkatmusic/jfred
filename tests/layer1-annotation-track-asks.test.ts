@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
-import { SESSION_DOTS_PATHNAME, buildDot, buildTicks, installDeferredDotsFetch, resetSessionDotsPage, setPaneSize, setUpSessionDotsPage } from "./layer1-session-dots-test-helpers.ts";
+import { SESSION_DOTS_PATHNAME, SESSION_DOT_INSTANTS_PATHNAME, buildDot, buildTicks, installDeferredDotsFetch, resetSessionDotsPage, setPaneSize, setUpSessionDotsPage } from "./layer1-session-dots-test-helpers.ts";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { buildSessionColor } from "../webapp/layer1-components/session-column/layer1-session-colors.ts";
 import { WireRecordKind } from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
@@ -40,7 +40,7 @@ async function turnSessionButtonOn(): Promise<void> {
     setPaneSize(600, 0);
     storeAnnotations({});
     renderAnnotationTrack(ticks);
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     await wait(300);
 }
 
@@ -89,7 +89,7 @@ test("test_an_answer_never_triggers_another_ask", () => runOnRealPage(async () =
 
 test("test_a_zero_dot_answer_keeps_the_button_and_draws_no_dots", () => runOnRealPage(async () => {
     // Scenario: the server answers with no dots and no sessions.
-    installFetchRoutes({ [SESSION_DOTS_PATHNAME]: { annotations: [], sessionSpans: [] } });
+    installFetchRoutes({ [SESSION_DOT_INSTANTS_PATHNAME]: { sessions: [] }, [SESSION_DOTS_PATHNAME]: { annotations: [], sessionSpans: [] } });
     await turnSessionButtonOn();
     assert.equal(document.getElementById("session-toggle")!.hidden, false);
     assert.equal(readDrawnDots().length, 0);
@@ -99,7 +99,7 @@ test("test_the_dots_of_an_answer_are_drawn_with_their_letters_and_the_session_co
     // Scenario: an assistant dot of session s1 and a user dot of session s2 come back.
     const assistantDot = buildDot("d1", ticks[2]!.instant, "s1", WireRecordKind.assistant);
     const userDot = buildDot("d2", ticks[3]!.instant, "s2");
-    installFetchRoutes({ [SESSION_DOTS_PATHNAME]: buildAnswer([assistantDot, userDot]) });
+    installFetchRoutes({ [SESSION_DOT_INSTANTS_PATHNAME]: { sessions: [] }, [SESSION_DOTS_PATHNAME]: buildAnswer([assistantDot, userDot]) });
     await turnSessionButtonOn();
     const drawn = readDrawnDots();
     assert.deepEqual(drawn.map((dot) => dot.textContent), ["a", "u"]);
@@ -110,7 +110,7 @@ test("test_turning_the_button_off_removes_the_track_and_stops_asking", () => run
     // Scenario: the button goes off, then the pane scrolls: no track and no new ask.
     const fetchStub = installDeferredDotsFetch();
     await turnSessionButtonOn();
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     scrollPaneTo(2000);
     await wait(300);
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);

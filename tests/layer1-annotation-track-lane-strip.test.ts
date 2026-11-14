@@ -28,12 +28,12 @@ function buildSpan(sessionId: string, firstHour: number, lastHour: number): Wire
 }
 
 // The view loads with no annotations, the user turns the session button on: ask number 0 starts.
-function openRealTrack(): DeferredDotsFetch {
+async function openRealTrack(): Promise<DeferredDotsFetch> {
     setPaneSize(600, 0);
     const asks = installDeferredDotsFetch();
     storeAnnotations({});
     renderAnnotationTrack(ticks);
-    toggleSessionDotLines();
+    await toggleSessionDotLines();
     return asks;
 }
 
@@ -74,7 +74,7 @@ test("test_a_wide_lane_list_shows_the_strip_and_keeps_the_full_track_width", asy
     // Scenario: 14 overlapping sessions need 261 px, the visible column is 227 px, so the strip is needed.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         // The strip measures 260 px of content in a 227 px box.
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: buildWideSpans() });
@@ -91,7 +91,7 @@ test("test_a_narrow_lane_list_shows_no_strip", async () => {
     // Scenario: 2 overlapping sessions need 57 px, the content fits the box, so the strip stays hidden.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(227, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: [buildSpan("A", 1, 10), buildSpan("B", 1, 10)] });
         // The strip is not marked as needed, and --track-w is the narrow width.
@@ -107,7 +107,7 @@ test("test_scrolling_the_strip_moves_the_dots_and_lines_of_the_column", async ()
     // Scenario: the user drags the strip 34 px sideways; the column shifts its dots and lines by 34 px.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [buildDot("d1", buildInstantAtHour(2), "S1")], sessionSpans: buildWideSpans() });
         // The strip scrolls to 34 px and fires its scroll event.
@@ -127,7 +127,7 @@ test("test_the_strip_and_its_scroll_survive_a_pane_scroll", async () => {
     // Scenario: the window redraws on every pane scroll; the same strip element must stay in the column after it.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: buildWideSpans() });
         const stripBefore = readStrip();
@@ -147,7 +147,7 @@ test("test_the_session_button_off_removes_the_strip", async () => {
     // Scenario: the user turns the session button off; the strip leaves the page with the column.
     setUpSessionDotsPage();
     try {
-        const asks = openRealTrack();
+        const asks = await openRealTrack();
         stubStripGeometry(260, 227);
         await answerAsk(asks, 0, { annotations: [], sessionSpans: buildWideSpans() });
         // The strip exists while the button is on.
