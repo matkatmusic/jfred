@@ -56,6 +56,14 @@ function makeMoveOrCopyScriptEvent(second: number, moveOrCopySourceFile: Path | 
     return { ...makeMayWriteScriptEvent(second), moveOrCopySourceFile, bytes };
 }
 
+function makeRemovedByScriptEvent(second: number): FileEvent {
+    return { ...makeMayWriteScriptEvent(second), removedByScript: true };
+}
+
+function makeMovedAwayScriptEvent(second: number, movedAwayToFile: Path): FileEvent {
+    return { ...makeMayWriteScriptEvent(second), movedAwayToFile };
+}
+
 function makeReadOnlyScriptEvent(second: number): FileEvent {
     return makeEvent(FileEventType.ScriptReadOnly, second);
 }
@@ -283,6 +291,50 @@ test("test_born_bytes_do_not_confirm_a_read_only_script_state", () => {
     assert.equal(states[1]!.event.type, FileEventType.ScriptReadOnly);
     assert.equal(states[1]!.confidence, StateConfidence.Derived);
     assert.equal(states[1]!.text, TEXT_AFTER_EDIT);
+});
+
+test("test_a_removed_by_script_event_keeps_an_absent_derived_state_when_an_older_write_has_text", () => {
+    // Scenario: disk, a script that removes the file, then an older write with text.
+    const removeEvent = makeRemovedByScriptEvent(2);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), removeEvent, makeWriteEvent(1, TEXT_UNRELATED, false, undefined)]);
+    // The script state is derived, not unknown.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/derived", "WriteRow/at-event/proven"]);
+    // The file is absent right after the script, with no text.
+    assert.equal(states[1]!.event, removeEvent);
+    assert.equal(states[1]!.isFileAbsent, true);
+    assert.equal(states[1]!.text, undefined);
+});
+
+test("test_a_moved_away_event_keeps_an_absent_derived_state_when_an_older_write_has_text", () => {
+    // Scenario: disk, a script that moves the file away, then an older write with text.
+    const moveAwayEvent = makeMovedAwayScriptEvent(2, MOVE_OR_COPY_SOURCE_FILE);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), moveAwayEvent, makeWriteEvent(1, TEXT_UNRELATED, false, undefined)]);
+    // The script state is derived, not unknown.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/derived", "WriteRow/at-event/proven"]);
+    // The file is absent right after the script, with no text.
+    assert.equal(states[1]!.event, moveAwayEvent);
+    assert.equal(states[1]!.isFileAbsent, true);
+    assert.equal(states[1]!.text, undefined);
+});
+
+test("test_a_script_event_without_the_flags_still_settles_to_unknown", () => {
+    // Scenario: disk, a may-write script with no remove or move-away flag, then an older write with text.
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), makeMayWriteScriptEvent(2), makeWriteEvent(1, TEXT_UNRELATED, false, undefined)]);
+    // The script state is unknown, with no text.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/unknown", "WriteRow/at-event/proven"]);
+    assert.equal(states[1]!.isFileAbsent, false);
+    assert.equal(states[1]!.text, undefined);
+});
+
+test("test_a_removed_by_script_event_that_is_the_oldest_event_gives_one_absent_derived_state", () => {
+    // Scenario: disk, then a script that removes the file; nothing is older.
+    const removeEvent = makeRemovedByScriptEvent(1);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), removeEvent]);
+    // The script gives exactly one state: derived, at the event, with the file absent.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/derived"]);
+    assert.equal(states[1]!.event, removeEvent);
+    assert.equal(states[1]!.isFileAbsent, true);
+    assert.equal(states[1]!.text, undefined);
 });
 
 test("test_get_text_just_before_instant_returns_text_of_newest_older_state", () => {
