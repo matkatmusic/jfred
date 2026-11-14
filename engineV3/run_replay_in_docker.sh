@@ -17,6 +17,7 @@ FILE_HISTORY_FOLDER=""
 GIT_REPO_FOLDER=""
 JSONL_LIST=""
 STOP_BEFORE=""
+OUTSIDE_GIT_FOLDERS=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --project) PROJECT_FOLDER="$(cd "${2:?--project needs a folder}" && pwd)" ;;
@@ -135,7 +136,17 @@ if [ "$STATE_FOLDER" = "/Users/matkatmusicllc/Programming/Attune" ]; then
             echo "outside path $OUTSIDE_PATH does not exist on the Mac" >&2
             exit 1
         fi
-        set -- "$@" -v "$OUTSIDE_PATH:$OUTSIDE_PATH:ro"
+        # A git folder with a HEAD log is mounted at /outside-live; the engine fills its Mac path with the files of the event's time.
+        if [ -f "$OUTSIDE_PATH/.git/logs/HEAD" ]; then
+            set -- "$@" -v "$OUTSIDE_PATH:/outside-live$OUTSIDE_PATH:ro"
+            # The hook files stage mounts the taskTools .git; docker refuses two mounts at one path.
+            if [ "$OUTSIDE_PATH/.git" != /Users/matkatmusicllc/Programming/taskTools/.git ]; then
+                set -- "$@" -v "$OUTSIDE_PATH/.git:$OUTSIDE_PATH/.git:ro"
+            fi
+            OUTSIDE_GIT_FOLDERS="$OUTSIDE_GIT_FOLDERS $OUTSIDE_PATH"
+        else
+            set -- "$@" -v "$OUTSIDE_PATH:$OUTSIDE_PATH:ro"
+        fi
     done
 fi
 if [ -n "$GIT_REPO_FOLDER" ]; then
@@ -218,6 +229,10 @@ EOF
 
 docker exec "$NAME" mkdir -p /input/jfred "$STATE_FOLDER"
 docker exec "$NAME" chown replay "$STATE_FOLDER" /snapshots
+# docker made each outside git Mac path root-owned, as the parent of its .git mount; the engine writes the files there.
+for OUTSIDE_GIT_FOLDER in $OUTSIDE_GIT_FOLDERS; do
+    docker exec "$NAME" chown replay "$OUTSIDE_GIT_FOLDER"
+done
 CHECK_FOLDER=""
 if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
     CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
@@ -308,6 +323,9 @@ fi
 if [ -n "$FILE_HISTORY_FOLDER" ]; then
     ENGINE_FLAGS="$ENGINE_FLAGS --file-history /input/file-history"
 fi
+for OUTSIDE_GIT_FOLDER in $OUTSIDE_GIT_FOLDERS; do
+    ENGINE_FLAGS="$ENGINE_FLAGS --outside-git-folder $OUTSIDE_GIT_FOLDER"
+done
 for JSONL_FOLDER in "$@"; do
     set -- "$@" --jsonl "$JSONL_FOLDER"
     shift

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -153,6 +153,18 @@ test("test_attune_outside_paths_loop_mounts_an_existing_path_read_only", () => {
     const existingPath = tmpdir();
     const output = execFileSync("sh", ["-eu", "-c", `ATTUNE_OUTSIDE_PATHS="${existingPath}"\nset --\n${loopText}printf '%s\\n' "$@"\n`], { encoding: "utf8" });
     assert.deepEqual(output.trim().split("\n"), ["-v", `${existingPath}:${existingPath}:ro`]);
+});
+
+test("test_attune_outside_paths_loop_mounts_a_git_folder_at_outside_live_and_its_git_folder_at_the_mac_path", (t) => {
+    // Scenario: a git folder with a HEAD log goes to /outside-live, so the engine can fill its Mac path with the files of the event's time.
+    const loopText = readAttuneOutsidePathsLoopText();
+    const gitPath = mkdtempSync(join(tmpdir(), "engine-v3-outside-git-"));
+    t.after(() => rmSync(gitPath, { recursive: true, force: true }));
+    mkdirSync(join(gitPath, ".git", "logs"), { recursive: true });
+    writeFileSync(join(gitPath, ".git", "logs", "HEAD"), "");
+    const output = execFileSync("sh", ["-eu", "-c", `ATTUNE_OUTSIDE_PATHS="${gitPath}"\nOUTSIDE_GIT_FOLDERS=""\nset --\n${loopText}printf '%s\\n' "$@" "folders:$OUTSIDE_GIT_FOLDERS"\n`], { encoding: "utf8" });
+    // the live folder is read-only at /outside-live, its .git is read-only at the Mac path, and the folder is listed for the engine
+    assert.deepEqual(output.trim().split("\n"), ["-v", `${gitPath}:/outside-live${gitPath}:ro`, "-v", `${gitPath}/.git:${gitPath}/.git:ro`, `folders: ${gitPath}`]);
 });
 
 test("test_attune_outside_paths_loop_stops_on_a_missing_path", () => {

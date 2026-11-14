@@ -41,7 +41,7 @@ const ZERO_HASH = "0".repeat(40);
 
 // The new hash of the last reflog entry stamped at or before startTime.
 // When every entry is later, the old hash of the first entry; undefined when that hash is all zeros.
-function readHashAtTime(reflogFile: string, startTime: Date): string | undefined {
+export function readHashAtTime(reflogFile: string, startTime: Date): string | undefined {
   let hashAtTime: string | undefined;
   let firstOldHash: string | undefined;
   for (const line of readFileSync(reflogFile, "utf8").split("\n")) {
