@@ -208,6 +208,9 @@ if [ -z "$GIT_REPO_FOLDER" ]; then
         fi
     done
 fi
+# The engine runs the recorded taskTools reflow hook after an Edit/Write, exported from this git folder at the commit of the event's time.
+TASK_TOOLS_GIT_FOLDER=/Users/matkatmusicllc/Programming/taskTools/.git
+set -- "$@" -v "$TASK_TOOLS_GIT_FOLDER:$TASK_TOOLS_GIT_FOLDER:ro"
 printSetupStageDone "mounts"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null

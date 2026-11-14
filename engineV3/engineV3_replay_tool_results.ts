@@ -33,7 +33,7 @@ export function listWriteEditCallIds(line: JSONLLine): string[] {
   return callIds;
 }
 
-function listToolResultIds(line: JSONLLine): string[] {
+export function listToolResultIds(line: JSONLLine): string[] {
   const resultIds: string[] = [];
   for (const block of getBlocksOfTimedLine(line)) {
     if (block.type === BlockType.tool_result) {

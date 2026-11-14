@@ -74,6 +74,13 @@ test("test_setup_stages_run_in_the_listed_order", () => {
     }
 });
 
+test("test_mounts_stage_mounts_the_taskTools_git_folder_read_only_at_the_same_path", () => {
+    // Scenario: the replay runs the recorded taskTools reflow hook at the commit of each event's time, so it reads the taskTools git folder.
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    assert.match(scriptText, /-v "\$TASK_TOOLS_GIT_FOLDER:\$TASK_TOOLS_GIT_FOLDER:ro"/);
+    assert.match(scriptText, /TASK_TOOLS_GIT_FOLDER=\/Users\/matkatmusicllc\/Programming\/taskTools\/\.git/);
+});
+
 test("test_setup_stage_lines_print_the_iso_time_and_the_seconds", () => {
     // Scenario: the two print functions run in sh and print "<ISO time> setup: <stage>" and "<ISO time> setup: <stage> done in <N>s".
     const output = execFileSync("sh", ["-eu", "-c", `${readSetupStageFunctionsText()}\nprintSetupStageStart "example stage"\nprintSetupStageDone "example stage"\n`], { encoding: "utf8" });

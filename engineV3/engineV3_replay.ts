@@ -12,6 +12,7 @@ import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
+import { collectPostToolHookRewrites } from "./engineV3_replay_post_tool_hooks.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
 import { compareStateToHead } from "./engineV3_replay_check.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
@@ -165,7 +166,9 @@ export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: 
   const forkedMessageIds = runStartupPhase("collectForkedMessageIds", () => collectForkedMessageIds(jsonlLines), describeCollectStep("collectForkedMessageIds"));
   const earlierSiblingMessageIds = runStartupPhase("collectEarlierSiblingMessageIds", () => collectEarlierSiblingMessageIds(jsonlLines), describeCollectStep("collectEarlierSiblingMessageIds"));
   const resultTurnSnapshotIds = runStartupPhase("collectResultTurnSnapshotIds", () => collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines), describeCollectStep("collectResultTurnSnapshotIds"));
-  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  const postToolHookRewrites = runStartupPhase("collectPostToolHookRewrites", () => collectPostToolHookRewrites(jsonlLines), describeCollectStep("collectPostToolHookRewrites"));
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, postToolHookRewrites };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);
