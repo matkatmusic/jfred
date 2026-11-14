@@ -13,7 +13,7 @@ import { StateConfidence, listKnownStatesForFile, type FileKnownState } from "./
 import { buildInverseRepoByEventKind, listInverseCommits } from "./engineV3_inverse_repo.ts";
 import {
     buildInverseReposForFiles, getInverseRepoFolderForFile, readInverseReposSettingsFromArguments,
-    type FileInverseRepoResult,
+    type FileInverseRepoResult, type ProjectFile,
 } from "./engineV3_inverse_repos_for_project.ts";
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
@@ -71,7 +71,28 @@ function makeProject(t: TestContext): Project {
 }
 
 function buildProject(project: Project, reportProgress: (event: ProgressEvent) => void = () => {}): FileInverseRepoResult[] {
-    return buildInverseReposForFiles(project.projectFolder, [project.fileA, project.fileB], [project.jsonlsFolder], [project.snapshotFolder], project.storeFolder, DISK_NOW_INSTANT, reportProgress);
+    const projectFiles = [project.fileA, project.fileB].map((file) => ({ file, transcriptFile: file }));
+    return buildInverseReposForFiles(project.projectFolder, projectFiles, [project.jsonlsFolder], [project.snapshotFolder], project.storeFolder, DISK_NOW_INSTANT, reportProgress);
+}
+
+const TRANSCRIPT_ROOT = "/transcript-root";
+
+// The same project, but the logs name the files under TRANSCRIPT_ROOT instead of their path on disk.
+function makeProjectWhoseLogsNameOtherRoot(t: TestContext): { project: Project; projectFiles: ProjectFile[] } {
+    const project = makeProject(t);
+    const transcriptFileA = new Path(join(TRANSCRIPT_ROOT, "a.txt"));
+    const transcriptFileB = new Path(join(TRANSCRIPT_ROOT, "sub", "b.txt"));
+    const records = [
+        ...makeEditRows("toolu_a", transcriptFileA.toString(), "one", "two", "one\n", 20),
+        ...makeEditRows("toolu_b", transcriptFileB.toString(), "red", "blue", "red\n", 30),
+    ];
+    writeFileSync(join(project.jsonlsFolder.toString(), "s1.jsonl"), records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    const projectFiles = [{ file: project.fileA, transcriptFile: transcriptFileA }, { file: project.fileB, transcriptFile: transcriptFileB }];
+    return { project, projectFiles };
+}
+
+function buildWithProjectFiles(project: Project, projectFiles: ProjectFile[], storeFolder: Path): FileInverseRepoResult[] {
+    return buildInverseReposForFiles(project.projectFolder, projectFiles, [project.jsonlsFolder], [project.snapshotFolder], storeFolder, DISK_NOW_INSTANT, () => {});
 }
 
 type SingleFileBuild = { eventCount: number; states: FileKnownState[] };
@@ -190,6 +211,67 @@ test("test_a_file_outside_the_project_folder_throws", (t) => {
     const outsideFile = new Path(join(makeTempFolder(t), "outside.txt"));
     // Asking for the repo folder of that file throws.
     assert.throws(() => getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, outsideFile), /outside/);
+});
+
+test("test_the_write_and_edit_events_are_found_when_the_logs_name_the_files_under_another_root", (t) => {
+    // Scenario: the logs name each file by a path that differs from its path on disk.
+    // A project has logs that name its files under another root.
+    const { project, projectFiles } = makeProjectWhoseLogsNameOtherRoot(t);
+    // The build uses the transcript path of each file.
+    const results = buildWithProjectFiles(project, projectFiles, project.storeFolder);
+    // The same build with the transcript path set equal to the disk path finds fewer events.
+    const sameRootFiles = projectFiles.map((projectFile) => ({ file: projectFile.file, transcriptFile: projectFile.file }));
+    const sameRootResults = buildWithProjectFiles(project, sameRootFiles, new Path(join(makeTempFolder(t), "other-store")));
+    for (const [index, result] of results.entries()) {
+        assert.ok(result.eventCount > sameRootResults[index]!.eventCount);
+    }
+});
+
+test("test_the_first_commit_is_the_text_on_disk_when_the_logs_name_the_files_under_another_root", (t) => {
+    // Scenario: the disk text stays the newest state even when the log paths differ.
+    // A project has logs that name its files under another root.
+    const { project, projectFiles } = makeProjectWhoseLogsNameOtherRoot(t);
+    // The build uses the transcript path of each file.
+    buildWithProjectFiles(project, projectFiles, project.storeFolder);
+    // The first commit of each repo holds the text of the file on disk.
+    const commitsOfA = listInverseCommits(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA), "a.txt");
+    assert.equal(commitsOfA[0]!.eventType, FileEventType.DiskNow);
+    assert.equal(commitsOfA[0]!.text, "two\n");
+});
+
+test("test_the_repo_folder_follows_the_disk_path_when_the_logs_name_the_files_under_another_root", (t) => {
+    // Scenario: the store keeps the disk-relative path, not the transcript path.
+    // A project has logs that name its files under another root.
+    const { project, projectFiles } = makeProjectWhoseLogsNameOtherRoot(t);
+    // The build uses the transcript path of each file.
+    const results = buildWithProjectFiles(project, projectFiles, project.storeFolder);
+    // The repo folder of sub/b.txt is the store folder plus the disk-relative path plus ".git".
+    assert.equal(results[1]!.repoFolder.toString(), join(project.storeFolder.toString(), "sub", "b.txt.git"));
+});
+
+test("test_a_project_with_no_git_gets_one_disk_now_commit_per_file", (t) => {
+    // Scenario: a folder that is not a git repo has no git commits, so each repo holds only the disk text.
+    // A project folder is outside any git repo and holds two files.
+    const rootFolder = makeTempFolder(t);
+    const projectFolder = join(rootFolder, "project");
+    mkdirSync(join(projectFolder, "sub"), { recursive: true });
+    mkdirSync(join(rootFolder, "jsonls"));
+    mkdirSync(join(rootFolder, "file-history"));
+    writeFileSync(join(projectFolder, "a.txt"), "two\n");
+    writeFileSync(join(projectFolder, "sub", "b.txt"), "blue\n");
+    const fileA = new Path(join(projectFolder, "a.txt"));
+    const fileB = new Path(join(projectFolder, "sub", "b.txt"));
+    const storeFolder = new Path(join(rootFolder, "store"));
+    // The build runs and does not throw.
+    const projectFiles = [fileA, fileB].map((file) => ({ file, transcriptFile: file }));
+    buildInverseReposForFiles(new Path(projectFolder), projectFiles, [new Path(join(rootFolder, "jsonls"))], [new Path(join(rootFolder, "file-history"))], storeFolder, DISK_NOW_INSTANT, () => {});
+    // Each repo holds exactly one commit: the disk-now commit.
+    const commitsOfA = listInverseCommits(getInverseRepoFolderForFile(storeFolder, new Path(projectFolder), fileA), "a.txt");
+    assert.equal(commitsOfA.length, 1);
+    assert.equal(commitsOfA[0]!.eventType, FileEventType.DiskNow);
+    const commitsOfB = listInverseCommits(getInverseRepoFolderForFile(storeFolder, new Path(projectFolder), fileB), "b.txt");
+    assert.equal(commitsOfB.length, 1);
+    assert.equal(commitsOfB[0]!.eventType, FileEventType.DiskNow);
 });
 
 test("test_the_argument_parser_returns_the_four_folders", () => {

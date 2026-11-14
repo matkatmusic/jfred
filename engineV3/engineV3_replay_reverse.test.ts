@@ -1038,9 +1038,17 @@ test("test_collectGitKnownStates_skips_the_commit_that_deleted_the_file", (t) =>
     assert.deepEqual(states, [{ timestamp: makeInstant(10), content: "first", commitHash: new Uuid(firstCommitHash), source: undefined }]);
 });
 
-test("test_collectGitKnownStates_throws_when_the_file_is_not_inside_a_git_repo", (t) => {
+// Obsolete since 2026-11-13: the user decided a file outside git has no git commit states (see the test below).
+// test("test_collectGitKnownStates_throws_when_the_file_is_not_inside_a_git_repo", (t) => {
+//     // Scenario: the file sits in a plain temp folder.
+//     const file = makeTargetFile(t, "text");
+//     // collecting throws
+//     assert.throws(() => collectGitKnownStates(file), /git/);
+// });
+
+test("test_collectGitKnownStates_returns_no_states_when_the_file_is_not_inside_a_git_repo", (t) => {
     // Scenario: the file sits in a plain temp folder.
     const file = makeTargetFile(t, "text");
-    // collecting throws
-    assert.throws(() => collectGitKnownStates(file), /git/);
+    // collecting returns an empty list
+    assert.deepEqual(collectGitKnownStates(file), []);
 });

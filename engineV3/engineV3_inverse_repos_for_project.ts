@@ -31,20 +31,23 @@ export function getInverseRepoFolderForFile(storeFolder: Path, projectFolder: Pa
     return new Path(join(storeFolder.toString(), `${getRelativePathInProject(projectFolder, file)}.git`));
 }
 
-export function buildInverseReposForFiles(projectFolder: Path, files: Path[], jsonlsFolders: Path[], snapshotFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
+// file is the path on disk now; transcriptFile is the path the session logs use for it.
+export type ProjectFile = { file: Path; transcriptFile: Path };
+
+export function buildInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
     const repoFolders: Path[] = [];
-    for (const file of files) {
+    for (const { file } of projectFiles) {
         const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
         if (existsSync(repoFolder.toString())) {
             throw new Error(`buildInverseReposForFiles: the repo folder already exists: ${repoFolder.toString()}`);
         }
         repoFolders.push(repoFolder);
     }
-    const linesByFileKey = loadJSONLLinesNamingFiles(files, jsonlsFolders);
+    const linesByFileKey = loadJSONLLinesNamingFiles(projectFiles.map((projectFile) => projectFile.transcriptFile), jsonlsFolders);
     const results: FileInverseRepoResult[] = [];
-    for (const [index, file] of files.entries()) {
+    for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
         const repoFolder = repoFolders[index]!;
-        const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, file, linesByFileKey.get(file.toString())!, snapshotFolders));
+        const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders));
         const states = listKnownStatesForFile(events);
         mkdirSync(repoFolder.toString(), { recursive: true });
         buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant);
@@ -52,7 +55,7 @@ export function buildInverseReposForFiles(projectFolder: Path, files: Path[], js
         const result = { file, repoFolder, eventCount: events.length, stateCount: states.length, commitCount: states.length - unknownStateCount, unknownStateCount };
         results.push(result);
         const label = `${getRelativePathInProject(projectFolder, file)}  events ${result.eventCount}  commits ${result.commitCount}  unknown ${result.unknownStateCount}`;
-        reportProgress({ kind: DocumentResponseKind.progress, label, current: index + 1, total: files.length });
+        reportProgress({ kind: DocumentResponseKind.progress, label, current: index + 1, total: projectFiles.length });
     }
     return results;
 }
@@ -78,7 +81,8 @@ if (isCliRun) {
     const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
     const startMilliseconds = Date.now();
     const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
-    const results = buildInverseReposForFiles(settings.projectFolder, files, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), (event) => {
+    const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
+    const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), (event) => {
         console.log(`${event.current}/${event.total}  ${event.label}`);
     });
     const commitTotal = results.reduce((sum, result) => sum + result.commitCount, 0);

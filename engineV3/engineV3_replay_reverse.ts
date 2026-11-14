@@ -1,7 +1,8 @@
 // Walks backwards from the file on disk through the Write/Edit rows that changed it, listing every earlier state.
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isInsideGitWorkTree } from "../src/reconstruction_script_sandbox_project.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { getRecordSource, setRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { parseRecord } from "../src/parse/parseRecord.ts";
@@ -492,10 +493,16 @@ export function collectBackupKnownStates(file: Path, jsonlLines: JSONLLine[], fi
   return knownStates;
 }
 
-// Runs in the file's own folder, so git throws outside a repo; --diff-filter=d leaves out the commits that deleted the file.
+// Asks git from the nearest existing folder, and a file outside a git work tree has no states; --diff-filter=d leaves out the commits that deleted the file.
 export function collectGitKnownStates(file: Path): KnownFileState[] {
-  const folder = new Path(dirname(file.toString()));
-  const fileName = basename(file.toString());
+  let folder = new Path(dirname(file.toString()));
+  while (!existsSync(folder.toString())) {
+    folder = new Path(dirname(folder.toString()));
+  }
+  if (!isInsideGitWorkTree(folder)) {
+    return [];
+  }
+  const fileName = relative(folder.toString(), file.toString());
   const logText = executeGit(folder, ["log", "--diff-filter=d", "--format=%H %ct", "--", `./${fileName}`]).toString("utf8");
   const knownStates: KnownFileState[] = [];
   for (const logRow of logText.split("\n")) {
