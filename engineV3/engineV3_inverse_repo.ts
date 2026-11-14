@@ -21,11 +21,13 @@ export type InverseCommit = {
   jsonlPath: Path | undefined;
   line: number | undefined;
   isFileAbsent: boolean;
+  removedByScript: boolean;
+  movedAwayToFile: Path | undefined;
   text: string | undefined;
 };
 
 type StoredCommit = { commitHash: CommitHash; treeHash: Uuid; authorSeconds: number; message: string };
-type ParsedMessage = { eventType: FileEventType; moment: StateMoment; confidence: StateConfidence; position: number; instant: Date | undefined; jsonlPath: Path | undefined; line: number | undefined; isFileAbsent: boolean };
+type ParsedMessage = { eventType: FileEventType; moment: StateMoment; confidence: StateConfidence; position: number; instant: Date | undefined; jsonlPath: Path | undefined; line: number | undefined; isFileAbsent: boolean; removedByScript: boolean; movedAwayToFile: Path | undefined };
 
 // The keys of the one JSON object that is a commit message.
 enum CommitMessageKey {
@@ -38,6 +40,8 @@ enum CommitMessageKey {
   Position = "position",
   IsFileAbsent = "isFileAbsent",
   SourceCommit = "sourceCommit",
+  RemovedByScript = "removedByScript",
+  MovedAwayToFile = "movedAwayToFile",
 }
 
 const FINAL_BRANCH = "refs/heads/inverse";
@@ -77,6 +81,8 @@ function formatCommitMessage(state: FileKnownState, position: number, instant: D
     [CommitMessageKey.Position]: position,
     [CommitMessageKey.IsFileAbsent]: state.isFileAbsent,
     [CommitMessageKey.SourceCommit]: state.event.commitHash?.toString() ?? null,
+    [CommitMessageKey.RemovedByScript]: state.event.removedByScript,
+    [CommitMessageKey.MovedAwayToFile]: state.event.movedAwayToFile?.toString() ?? null,
   };
   return JSON.stringify(fields);
 }
@@ -98,6 +104,18 @@ function parseCommitMessage(message: string): ParsedMessage {
   if (lineNumber !== null) {
     line = lineNumber as number;
   }
+  const removedByScript = fields[CommitMessageKey.RemovedByScript];
+  if (removedByScript === undefined) {
+    throw new Error(`parseCommitMessage: the commit message has no ${CommitMessageKey.RemovedByScript}`);
+  }
+  const movedAwayToFileText = fields[CommitMessageKey.MovedAwayToFile];
+  if (movedAwayToFileText === undefined) {
+    throw new Error(`parseCommitMessage: the commit message has no ${CommitMessageKey.MovedAwayToFile}`);
+  }
+  let movedAwayToFile: Path | undefined;
+  if (movedAwayToFileText !== null) {
+    movedAwayToFile = new Path(movedAwayToFileText as string);
+  }
   return {
     eventType: parseEnumValue(FileEventType, fields[CommitMessageKey.EventType] as string),
     moment: parseEnumValue(StateMoment, fields[CommitMessageKey.Moment] as string),
@@ -107,6 +125,8 @@ function parseCommitMessage(message: string): ParsedMessage {
     jsonlPath,
     line,
     isFileAbsent: fields[CommitMessageKey.IsFileAbsent] as boolean,
+    removedByScript: removedByScript as boolean,
+    movedAwayToFile,
   };
 }
 
