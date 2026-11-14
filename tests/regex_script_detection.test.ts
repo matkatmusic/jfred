@@ -12,6 +12,14 @@ test("test_shellWritePrimitive_matches_write_verbs_and_file_redirects", () => {
     assert.equal(shellWritePrimitive.test("python3 check.py >> logs/run.log"), true);
 });
 
+test("test_shellWritePrimitive_matches_perl_in_place_edits", () => {
+    // Scenario (s88 inventory.py step 3): `perl -pi -e` rewrites its file in place, like `sed -i`.
+    assert.equal(shellWritePrimitive.test("perl -pi -e 's/a/b/g' inventory.py"), true);
+    assert.equal(shellWritePrimitive.test("perl -i.bak -pe 's/a/b/' inventory.py"), true);
+    // A perl run without the in-place flag only reads.
+    assert.equal(shellWritePrimitive.test("perl -ne 'print if /a/' inventory.py"), false);
+});
+
 test("test_shellWritePrimitive_ln_word_requires_command_position", () => {
     // Scenario (task 192, optimizations.md Phase 2): the `ln` word must match only as a real command, never as the tail of an option cluster or an identifier.  Steps: `grep -ln pattern file` is a read-only search — the `ln` letters sit inside `-ln`.
     assert.equal(shellWritePrimitive.test("grep -ln pattern file"), false);
