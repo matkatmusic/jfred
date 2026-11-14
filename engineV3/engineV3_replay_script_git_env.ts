@@ -6,6 +6,7 @@ import { executeGit } from "./engineV3.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { parseLogFile, type LogLine } from "./engineV3_replay_git.ts";
 import { moveHeadToRealCommitWhenSameFiles } from "./engineV3_replay_script_git_adopt.ts";
+import { getUploadPackOption } from "./engineV3_replay_submodule.ts";
 
 type SecondsWindow = { from: number; to: number };
 type SpawnOutput = { stdout: string; stderr: string };
@@ -110,7 +111,9 @@ export function assertHeadMatchesLog(command: string, result: BashCallResult, so
   const expectedHash = (rows[rows.length - 1] as LogLine).newCommit;
   const actualHash = executeGit(state, ["rev-parse", "HEAD"]).toString().trim();
   if (actualHash !== expectedHash) {
-    executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), expectedHash]);
+    // A populated submodule in the state would make a plain fetch also fetch from the submodule's network remote.
+    // executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), expectedHash]);
+    executeGit(state, ["fetch", "-q", "--no-tags", "--no-recurse-submodules", getUploadPackOption(sourceRepo), sourceRepo.toString(), expectedHash]);
     if (moveHeadToRealCommitWhenSameFiles(state, expectedHash, actualHash)) {
       return;
     }

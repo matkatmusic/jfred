@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
+import { executeGitWithoutWorkTree, getUploadPackOption } from "./engineV3_replay_submodule.ts";
 
 // export type StartRef = { refName: string; shortHash: string };
 
@@ -15,8 +16,13 @@ import { executeGit } from "./engineV3.ts";
 //   { refName: "refs/remotes/origin/master", shortHash: "6510b84" },
 // ];
 
+// function readGitText(repo: Path, args: string[]): string {
+//   return executeGit(repo, args).toString("utf8").trim();
+// }
+
+// Only the source repo is read here; a submodule's copied git folder has a core.worktree that points at a missing folder.
 function readGitText(repo: Path, args: string[]): string {
-  return executeGit(repo, args).toString("utf8").trim();
+  return executeGitWithoutWorkTree(repo, args).toString("utf8").trim();
 }
 
 export type StartPoint = { refs: { refName: string; fullHash: string }[]; headBranch: string; originHeadTarget: string | undefined };
@@ -137,7 +143,8 @@ function setRefs(state: Path, startPoint: StartPoint): void {
 export function createStartRepo(sourceRepo: Path, state: Path, startPoint: StartPoint): void {
   executeGit(state, ["init", "-q"]);
   const fullHashes = startPoint.refs.map((ref) => ref.fullHash);
-  executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), ...fullHashes]);
+  // executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), ...fullHashes]);
+  executeGit(state, ["fetch", "-q", "--no-tags", getUploadPackOption(sourceRepo), sourceRepo.toString(), ...fullHashes]);
   setRefs(state, startPoint);
   const originUrl = readGitText(sourceRepo, ["config", "remote.origin.url"]);
   executeGit(state, ["remote", "add", "origin", originUrl]);

@@ -62,7 +62,8 @@ export function formatEventText(event: TimelineEvent, repoPath: Path | undefined
     return `${new Date().toISOString()} next event: source:${repoPath?.toString()} commit:${event.commit.toString()}`;
   }
   if (event.type === TimelineEventKind.OutsideGitAction) {
-    return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
+    // return `${new Date().toISOString()} next event: outside git: ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
+    return `${new Date().toISOString()} next event: outside git: ${event.row.submodulePath?.toString() ?? ""} ${event.row.kind} ${event.row.newCommit} ${event.row.message}`;
   }
   if (event.type === TimelineEventKind.PlateCapture) {
     return `${new Date().toISOString()} next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
