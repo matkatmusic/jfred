@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { waitForAsyncWork, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
+import { resetStepConsole, StepConsoleScope } from "../webapp/layer1-components/loading-bar/layer1-step-console.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
 const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
@@ -118,4 +119,62 @@ test("test_a_terminal_error_line_lands_in_the_crumb_and_clears_the_bar", async (
     await waitForAsyncWork();
     assert.equal(readCrumbText(), "Error: unknown ref: nope");
     assert.equal(checkLoadbarIsHidden(), true);
+});
+
+// Fresh DOM with one popup step-console host and an empty console, ready for a direct stream read.
+function openStepConsoleHost(): HTMLElement {
+    initLayer1Dom(BOTH_ROOTS_SEARCH);
+    document.body.insertAdjacentHTML("beforeend", '<div id="test-steps" data-step-console="popup"></div>');
+    resetStepConsole(StepConsoleScope.popup);
+    return document.getElementById("test-steps")!;
+}
+
+function readStepRowTexts(host: HTMLElement): string[] {
+    return Array.from(host.children).map((row) => row.textContent!);
+}
+
+test("test_two_progress_lines_in_one_chunk_leave_both_rows_in_the_step_console", async () => {
+    // Scenario (task 893): the bar paints only the last line of a chunk, but the console lists every step.
+    const host = openStepConsoleHost();
+    installStreamRoute("/api/layer1-view", [
+        { kind: "progress", label: "reading file history", current: 5, total: 10 },
+        { kind: "progress", label: "pairing files", current: 3, total: 4 },
+        EMPTY_VIEW,
+    ]);
+    await readLayer1ViewStream("/api/layer1-view?progress=1");
+    // the bar shows only the last line...
+    assert.equal(readLoadbarLabel(), "pairing files — 3 / 4");
+    // ...while the console keeps both steps (the stream ended, so both read done).
+    assert.deepEqual(readStepRowTexts(host), ["reading file historydone (10)", "pairing filesdone (4)"]);
+});
+
+test("test_a_first_line_with_steps_makes_waiting_rows_for_steps_not_started", async () => {
+    // Scenario (task 893): the planned step labels show as waiting until their own progress line arrives.
+    const host = openStepConsoleHost();
+    installStreamRoute("/api/layer1-view", [
+        { kind: "progress", label: "reading file history", steps: ["reading file history", "pairing files", "drawing"] },
+        EMPTY_VIEW,
+    ]);
+    await readLayer1ViewStream("/api/layer1-view?progress=1");
+    // finishing the stream marks only the running row done; planned-but-unstarted rows stay waiting.
+    assert.deepEqual(readStepRowTexts(host), ["reading file historydone", "pairing fileswaiting", "drawingwaiting"]);
+});
+
+test("test_the_step_console_marks_every_running_row_done_when_the_stream_ends_with_the_view", async () => {
+    // Scenario (task 893): the last progress line leaves a running row; the view arriving finishes it.
+    const host = openStepConsoleHost();
+    installStreamRoute("/api/layer1-view", [
+        { kind: "progress", label: "pairing files", current: 3, total: 4 },
+        EMPTY_VIEW,
+    ]);
+    await readLayer1ViewStream("/api/layer1-view?progress=1");
+    assert.deepEqual(readStepRowTexts(host), ["pairing filesdone (4)"]);
+});
+
+test("test_a_stream_with_no_progress_lines_leaves_the_step_console_empty", async () => {
+    // Scenario (task 893): a plain view has no steps to list.
+    const host = openStepConsoleHost();
+    installStreamRoute("/api/layer1-view", [EMPTY_VIEW]);
+    await readLayer1ViewStream("/api/layer1-view?progress=1");
+    assert.equal(host.children.length, 0);
 });

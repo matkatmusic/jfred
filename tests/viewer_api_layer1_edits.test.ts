@@ -5,7 +5,7 @@ import type { ServerResponse } from "node:http";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { join } from "node:path";
-import { LAYER1_PROGRESS_LABEL_READING_EDITS } from "../src/layer1_edits_wire.ts";
+import { LAYER1_PROGRESS_LABEL_READING_EDITS, LAYER1_PROGRESS_LABEL_REPLAYING_EDITS } from "../src/layer1_edits_wire.ts";
 import { sendLayer1EditsResponse } from "../src/viewer_api_layer1_edits.ts";
 import {
     SESSION_A, createSourceTree, writeTranscriptFixture,
@@ -46,7 +46,7 @@ test("test_edits_route_streams_progress_then_view", () => {
     const { response, body } = buildResponseStub();
     sendLayer1EditsResponse(response, buildQuery(projectFolder, [writeSessionFolder(projectFolder)], true));
     const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
-    assert.deepEqual(lines[0], { kind: "progress", label: LAYER1_PROGRESS_LABEL_READING_EDITS, current: 1, total: 1 });
+    assert.deepEqual(lines[0], { kind: "progress", label: LAYER1_PROGRESS_LABEL_READING_EDITS, current: 1, total: 1, steps: [LAYER1_PROGRESS_LABEL_READING_EDITS, LAYER1_PROGRESS_LABEL_REPLAYING_EDITS] });
     const terminal = lines.at(-1) as { pairs: { path: string; edits: { kind: string }[] }[] };
     assert.equal(terminal.pairs[0]!.path, "a.py");
     assert.equal(terminal.pairs[0]!.edits[0]!.kind, "write");

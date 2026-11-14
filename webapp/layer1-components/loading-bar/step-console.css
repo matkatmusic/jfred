@@ -1,0 +1,11 @@
+  /*
+    Task 893: list of server steps inside the build strip and the busy shield; each host is a [data-step-console] element.
+  */
+  .step-console { display: grid; grid-template-columns: max-content max-content; gap: 2px 24px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-variant-numeric: tabular-nums;
+    color: var(--ink); }
+  .step-row { display: contents; }
+  .step-row.step-done .step-status { color: var(--muted); }
+  .step-console:empty { display: none; }
+  .loadbar .step-console { flex: 0 0 100%; }
+  .loadbar:has(> .step-console:not(:empty)) { flex-wrap: wrap; }

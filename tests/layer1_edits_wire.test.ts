@@ -56,6 +56,24 @@ test("test_progress_line_per_session_file", () => {
     ]);
 });
 
+test("test_first_progress_line_carries_the_ordered_step_labels", () => {
+    // Build the view while recording every progress line.
+    const lines: ProgressEvent[] = [];
+    buildEditsView(PROJECT_FOLDER, writeTwoSessions(), (event) => lines.push(event));
+    // The first line lists the reading label, then the replaying label.
+    assert.deepEqual(lines[0]!.steps, [LAYER1_PROGRESS_LABEL_READING_EDITS, LAYER1_PROGRESS_LABEL_REPLAYING_EDITS]);
+});
+
+test("test_later_progress_lines_have_no_steps_key", () => {
+    // Build the view while recording every progress line.
+    const lines: ProgressEvent[] = [];
+    buildEditsView(PROJECT_FOLDER, writeTwoSessions(), (event) => lines.push(event));
+    // Every line after the first has no steps key at all.
+    const laterLines = lines.slice(1);
+    assert.equal(laterLines.length, 2);
+    assert.deepEqual(laterLines.map((line) => "steps" in line), [false, false]);
+});
+
 test("test_the_view_build_counts_one_replay_progress_line_per_path_after_the_session_reads", () => {
     const lines: ProgressEvent[] = [];
     buildEditsView(PROJECT_FOLDER, writeTwoSessions(), (event) => lines.push(event));

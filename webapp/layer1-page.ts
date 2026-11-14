@@ -15,6 +15,7 @@ import { attachLeaderVisibility } from "./layer1-components/bubbles/layer1-leade
 import { attachBusyShield } from "./layer1-components/popups/layer1-busy-shield.ts";
 import { attachClearResultsButton } from "./layer1-components/top-bars/layer1-clear-results.ts";
 import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
+import { resetStepConsole, StepConsoleScope } from "./layer1-components/loading-bar/layer1-step-console.ts";
 import { fillRefsFromRepo, registerRefPickers } from "./layer1-refs.ts";
 import { registerPathPickers } from "./layer1-components/popups/layer1-path-picker.ts";
 import { wireBubbleFlash } from "./layer1-components/jsonls-nav/layer1-session-flash.ts";
@@ -71,6 +72,7 @@ function clearViewBeforeBuild(crumb: HTMLElement): void {
   clearFolderFilterState();
   closeRulerExpansion();
   resetSessionSelection();
+  resetStepConsole(StepConsoleScope.view);
   renderLayer1Progress("starting");
 }
 

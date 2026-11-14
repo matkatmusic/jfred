@@ -10,10 +10,15 @@ import {
     LAYER1_PROGRESS_LABEL_WALKING_FOLDER,
     buildLayer1View,
 } from "../src/viewer_api_layer1.ts";
+import { LAYER1_PROGRESS_LABEL_INDEXING_SESSION_DOTS } from "../src/layer1_session_dots_index.ts";
+import { LAYER1_PROGRESS_LABEL_READING_SNAPSHOTS } from "../src/layer1_snapshot_wire.ts";
+import { encodeProjectFolderName } from "../src/reconstruction_repo_discovery.ts";
 import type { ProgressEvent } from "../src/parse/loadTranscript.ts";
 import { Path } from "../src/structures/domain.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
+import { createTempDir } from "./overrides-test-helpers.ts";
 import { createFixtureDiskFolder, createFixtureRepo } from "./layer1-view-test-helpers.ts";
+import { SESSION_ONE, writeSessionTranscript } from "./layer1-snapshot-wire-test-helpers.ts";
 
 // Build the shared fixture's view, recording every event the sink is handed.
 function recordProgressWhileBuilding(): ProgressEvent[] {
@@ -75,6 +80,51 @@ test("test_buildLayer1View_reports_a_counted_event_per_resolved_ladder", () => {
     // the counter runs 1..N over the ladders and reaches its total.
     assert.deepEqual(counted.map((event) => event.current), counted.map((_, index) => index + 1));
     assert.equal(counted.at(-1)!.current, counted.at(-1)!.total);
+});
+
+function recordProgressWhileBuildingWithSessionFile(): ProgressEvent[] {
+    const events: ProgressEvent[] = [];
+    const diskDir = createFixtureDiskFolder();
+    const sessionFile = writeSessionTranscript(createTempDir(), SESSION_ONE, [], encodeProjectFolderName(diskDir));
+    buildLayer1View(new Path(diskDir), new Path(createFixtureRepo()), "HEAD", (event) => events.push(event), undefined, [sessionFile]);
+    return events;
+}
+
+test("test_buildLayer1View_first_event_with_session_files_lists_all_seven_step_labels", () => {
+    // Scenario: the first event carries the whole plan so the page can show waiting rows.
+    const events = recordProgressWhileBuildingWithSessionFile();
+    // the first event is the walking-folder stage and carries the seven labels in run order.
+    assert.equal(events[0]!.label, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
+    assert.deepEqual(events[0]!.steps, [
+        LAYER1_PROGRESS_LABEL_WALKING_FOLDER,
+        LAYER1_PROGRESS_LABEL_READING_TREE,
+        LAYER1_PROGRESS_LABEL_READING_HISTORY,
+        LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY,
+        LAYER1_PROGRESS_LABEL_READING_SNAPSHOTS,
+        LAYER1_PROGRESS_LABEL_INDEXING_SESSION_DOTS,
+        LAYER1_PROGRESS_LABEL_RESOLVING_RULER,
+    ]);
+});
+
+test("test_buildLayer1View_first_event_without_session_files_lists_five_step_labels", () => {
+    // Scenario: with no session files the snapshot and dots stages never run, so they are not promised.
+    const events = recordProgressWhileBuilding();
+    // the first event carries the five labels, with no snapshots and no dots.
+    assert.deepEqual(events[0]!.steps, [
+        LAYER1_PROGRESS_LABEL_WALKING_FOLDER,
+        LAYER1_PROGRESS_LABEL_READING_TREE,
+        LAYER1_PROGRESS_LABEL_READING_HISTORY,
+        LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY,
+        LAYER1_PROGRESS_LABEL_RESOLVING_RULER,
+    ]);
+});
+
+test("test_buildLayer1View_later_events_carry_no_steps_key", () => {
+    // Scenario: only the first event carries the plan.
+    const events = recordProgressWhileBuilding();
+    // every event after the first has no `steps` key at all.
+    assert.ok(events.length > 1);
+    assert.equal(events.slice(1).some((event) => "steps" in event), false);
 });
 
 test("test_buildLayer1View_needs_no_sink_at_all", () => {

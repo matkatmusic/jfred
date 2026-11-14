@@ -4,12 +4,12 @@ import { listPairCommitHistory } from "./layer1_commit_history.ts";
 import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import { findDiskRepoPairing } from "./layer1_pairing.ts";
 import { readRepoTreeAtRef } from "./layer1_repo_tree.ts";
-import { getSessionDotIndex } from "./layer1_session_dots_index.ts";
+import { LAYER1_PROGRESS_LABEL_INDEXING_SESSION_DOTS, getSessionDotIndex } from "./layer1_session_dots_index.ts";
 import { computeNodeLadderLayout, type NodeLadder } from "../webapp/layer1-components/ruler/layer1-ruler-axis.ts";
-import { collectViewSnapshotsByRelativePath, listSnapshotInstants } from "./layer1_snapshot_wire.ts";
+import { LAYER1_PROGRESS_LABEL_READING_SNAPSHOTS, collectViewSnapshotsByRelativePath, listSnapshotInstants } from "./layer1_snapshot_wire.ts";
 import type { SnapshotPlacement } from "./layer1_snapshots.ts";
 import type { Instant } from "./layered_types.ts";
-import type { ProgressSink } from "./parse/loadTranscript.ts";
+import type { ProgressEvent, ProgressSink } from "./parse/loadTranscript.ts";
 import { Path, Uuid } from "./structures/domain.ts";
 import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
 import { CommitTimeSource, type WireInstantOf, type WireCommitOf, type WireRulerTickOf, type WirePairOf, type WireOrphanOf, type WireLayer1ViewOf } from "../webapp/layer1-wire.ts";
@@ -38,8 +38,27 @@ interface GitOrphanPlacement {
 }
 
 // Reuses /api/document's ProgressEvent shape rather than a second progress vocabulary.
-function reportStage(reportProgress: ProgressSink, label: string, current?: number, total?: number): void {
-  reportProgress({ kind: DocumentResponseKind.progress, label, current, total });
+function reportStage(reportProgress: ProgressSink, label: string, current?: number, total?: number, steps?: string[]): void {
+  const event: ProgressEvent = { kind: DocumentResponseKind.progress, label, current, total };
+  if (steps !== undefined) {
+    event.steps = steps;
+  }
+  reportProgress(event);
+}
+
+// Snapshot and dots stages report only when session files exist (both loop over them; dots is gated explicitly).
+export function listLayer1ViewStepLabels(hasSessionFiles: boolean): string[] {
+  const labels = [
+    LAYER1_PROGRESS_LABEL_WALKING_FOLDER,
+    LAYER1_PROGRESS_LABEL_READING_TREE,
+    LAYER1_PROGRESS_LABEL_READING_HISTORY,
+    LAYER1_PROGRESS_LABEL_PLACING_REPO_ONLY,
+  ];
+  if (hasSessionFiles) {
+    labels.push(LAYER1_PROGRESS_LABEL_READING_SNAPSHOTS, LAYER1_PROGRESS_LABEL_INDEXING_SESSION_DOTS);
+  }
+  labels.push(LAYER1_PROGRESS_LABEL_RESOLVING_RULER);
+  return labels;
 }
 
 // A repo path with no on-disk counterpart is placed at its last touching commit.
@@ -67,7 +86,7 @@ export function buildLayer1View(
   timeSource: CommitTimeSource = CommitTimeSource.committer,
   sessionFiles: readonly Path[] = [],
 ): Layer1WireView {
-  reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER);
+  reportStage(reportProgress, LAYER1_PROGRESS_LABEL_WALKING_FOLDER, undefined, undefined, listLayer1ViewStepLabels(sessionFiles.length > 0));
   const diskFiles = listCurrentFileState(projectFolder);
   reportStage(reportProgress, LAYER1_PROGRESS_LABEL_READING_TREE);
   // Runs before any history read so a bad ref throws once.

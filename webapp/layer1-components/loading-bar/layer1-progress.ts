@@ -2,6 +2,7 @@
 
 import { getRequiredElementById } from "../../app-dom.ts";
 import { splitNdjsonChunk } from "../../app-ndjson.ts";
+import { finishStepConsole, paintStepConsoleHosts, recordStepLines, type StepLine } from "./layer1-step-console.ts";
 
 // One stream line: progress/error lines carry `kind`; webapp/ cannot import src/.
 interface Layer1StreamLine {
@@ -9,6 +10,7 @@ interface Layer1StreamLine {
   label?: string;
   current?: number;
   total?: number;
+  steps?: string[];
 }
 
 // Where one progress line lands: the main strip by default, a pane-local bar when the caller passes its own.
@@ -106,6 +108,12 @@ function applyStreamLines<ViewType>(lines: string[], onProgress: ProgressPainter
   const latest = progressLines.at(-1);
   if (latest !== undefined) {
     onProgress(latest.label ?? "", latest.current, latest.total);
+    const stepLines: StepLine[] = [];
+    for (const progressLine of progressLines) {
+      stepLines.push({ label: progressLine.label ?? "", current: progressLine.current, total: progressLine.total, steps: progressLine.steps });
+    }
+    recordStepLines(stepLines);
+    paintStepConsoleHosts();
   }
   return view;
 }
@@ -136,6 +144,8 @@ export async function readLayer1ViewStream<ViewType>(url: string, onProgress: Pr
       // The view is always last, so this means the connection dropped mid-build — name it loudly.
       throw new Error("the Layer 1 stream ended before the view arrived");
     }
+    finishStepConsole();
+    paintStepConsoleHosts();
     return view;
   }
   catch (error) {

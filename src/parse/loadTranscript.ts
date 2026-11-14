@@ -13,6 +13,7 @@ export type ProgressEvent = {
   label: string;
   current?: number;   // present only on counted per-record events
   total?: number;     // present only on counted per-record events
+  steps?: string[];   // present only on the first event of a build
 };
 export type ProgressSink = (event: ProgressEvent) => void;
 

@@ -2,12 +2,14 @@
 
 import { getRequiredElementById } from "../../app-dom.ts";
 import { type ProgressPainter, renderLoadbar, stopLayer1Load } from "../loading-bar/layer1-progress.ts";
+import { resetStepConsole, StepConsoleScope } from "../loading-bar/layer1-step-console.ts";
 
 export const renderBusyShield: ProgressPainter = (label, current, total) => {
   renderLoadbar(getRequiredElementById("busy-fill"), getRequiredElementById("busy-label"), label, current, total);
 };
 
 export function openBusyShield(label: string): void {
+  resetStepConsole(StepConsoleScope.popup);
   getRequiredElementById("busy-fill").style.width = "0";
   getRequiredElementById("busy-label").textContent = label;
   getRequiredElementById("busy-error").setAttribute("hidden", "");

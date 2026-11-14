@@ -129,6 +129,40 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
 
+const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+
+function readStepRowTexts(hostId: string): string[] {
+    return listMatching(`#${hostId} .step-row`).map((row) => row.textContent ?? "");
+}
+
+test("test_a_view_load_lists_its_planned_steps_in_the_loading_bar_step_list", async () => {
+    // Steps: stream a plan of three steps, then progress on the second, then the view.
+    const planLine = { kind: "progress", label: "walking project folder", steps: ["walking project folder", "reading repository tree", "resolving the ruler"] };
+    const secondLine = { kind: "progress", label: "reading repository tree" };
+    await loadPageWithView(EMPTY_VIEW, BOTH_ROOTS_SEARCH, [planLine, secondLine]);
+    // The host lists the first two steps done and the unreached step waiting.
+    assert.deepEqual(readStepRowTexts("loadbar-steps"), [
+        "walking project folderdone", "reading repository treedone", "resolving the rulerwaiting",
+    ]);
+});
+
+test("test_a_view_load_leaves_the_popup_step_list_empty", async () => {
+    // Steps: stream the same plan; the popup host belongs to the popup scope only.
+    const planLine = { kind: "progress", label: "walking project folder", steps: ["walking project folder", "reading repository tree", "resolving the ruler"] };
+    await loadPageWithView(EMPTY_VIEW, BOTH_ROOTS_SEARCH, [planLine]);
+    assert.deepEqual(readStepRowTexts("busy-steps"), []);
+});
+
+test("test_a_second_view_load_starts_from_an_empty_step_list", async () => {
+    // Steps: load once with plan A; load again with plan B; plan A rows must be gone.
+    const planA = { kind: "progress", label: "first load step", steps: ["first load step"] };
+    const planB = { kind: "progress", label: "second load step", steps: ["second load step"] };
+    await loadPageWithView(EMPTY_VIEW, BOTH_ROOTS_SEARCH, [planA]);
+    assert.deepEqual(readStepRowTexts("loadbar-steps"), ["first load stepdone"]);
+    await loadPageWithView(EMPTY_VIEW, BOTH_ROOTS_SEARCH, [planB]);
+    assert.deepEqual(readStepRowTexts("loadbar-steps"), ["second load stepdone"]);
+});
+
 test("test_the_header_clear_button_posts_to_clear_results_and_reloads_the_view", async () => {
     // Part Z: Yes on the inline confirm sends one clear POST, then the page fetches the view again.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
