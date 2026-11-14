@@ -149,6 +149,18 @@ test("test_applyOutsideGitRow_checkout_moves_HEAD_to_the_target_branch", (t) => 
     assert.equal(runGitAt(stateFolder, 0, ["symbolic-ref", "--short", "HEAD"]), "side");
 });
 
+test("test_applyOutsideGitRow_checkout_creates_a_missing_branch_at_the_row_new_commit", (t) => {
+    // Scenario: the user ran `git checkout -b side` in a terminal, so the state has no side branch yet.
+    const source = makeSourceRepo(t);
+    const stateFolder = makeStateAt(t, source, source.commit2);
+    const rows = listRowsOf(source, new Map(), 25);
+    // apply the +30 checkout row
+    applyOutsideGitRow(new Path(stateFolder), new Path(source.gitFolder), rows[0] as OutsideGitRow);
+    // HEAD names side, and side is at the row's new commit
+    assert.equal(runGitAt(stateFolder, 0, ["symbolic-ref", "--short", "HEAD"]), "side");
+    assert.equal(runGitAt(stateFolder, 0, ["rev-parse", "side"]), source.commit2);
+});
+
 test("test_applyOutsideGitRow_reset_moves_the_branch_and_removes_files", (t) => {
     // Scenario: state is at commit 2; the reset row moves main back to commit 1 and removes b.txt.
     const source = makeSourceRepo(t);

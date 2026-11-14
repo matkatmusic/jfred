@@ -1,5 +1,6 @@
 // Replays git actions the user did in an outside terminal: rows of the copied repo's HEAD log that no Bash call covers.
 
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
@@ -80,9 +81,20 @@ function applyOutsideCommitToState(state: Path, sourceRepo: Path, row: OutsideGi
   executeGit(state, ["read-tree", row.newCommit]);
 }
 
+function isRevisionInState(state: Path, revision: string): boolean {
+  return spawnSync("git", ["rev-parse", "--verify", "--quiet", revision], { cwd: state.toString() }).status === 0;
+}
+
 function applyOutsideCheckoutToState(state: Path, row: OutsideGitRow): void {
   const targetStart = row.message.lastIndexOf(CHECKOUT_TARGET_SEPARATOR) + CHECKOUT_TARGET_SEPARATOR.length;
-  executeGit(state, ["checkout", "-q", row.message.slice(targetStart)]);
+  // executeGit(state, ["checkout", "-q", row.message.slice(targetStart)]);
+  const target = row.message.slice(targetStart);
+  if (!isRevisionInState(state, target)) {
+    // A terminal `git checkout -b` writes no HEAD log row for the branch creation, so create the branch here.
+    executeGit(state, ["checkout", "-q", "-b", target, row.newCommit]);
+    return;
+  }
+  executeGit(state, ["checkout", "-q", target]);
 }
 
 function applyOutsideResetToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
