@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { getAttachmentEntry, type AttachmentEntry } from "../src/structures/session-meta.ts";
 import { loadJSONLLineIndex } from "./engineV3_jsonl_line_index.ts";
-import { collectPostToolHookRewrites, runRecordedPostToolHook } from "./engineV3_replay_post_tool_hooks.ts";
+import { collectPostToolHookRewrites, listStopHookReformattedFiles, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
 
 const REFLOW_COMMENTS_STATUS_MESSAGE = "Reflowing wrapped comments...";
 const FIRST_ATTUNE_REWRITE_TIME = "2026-10-06T15:15:40.402Z";
@@ -81,4 +81,53 @@ test("test_runRecordedPostToolHook_throws_for_a_hook_command_with_no_replay_rule
     assert.throws(() => runRecordedPostToolHook(file, rewrite), /no replay rule for the PostToolUse hook "node "\$\{CLAUDE_PLUGIN_ROOT\}\/dispatcher\/dispatch\.ts""/);
     // The file is left as the Edit wrote it.
     assert.equal(readFileSync(file, "utf8"), ONE_LINE_COMMENT_TEXT);
+});
+
+const DOTFILES_HOOK_COMMAND = "node ${HOME}/.claude/hooks/dotfiles-hooks.ts";
+const ATTUNE_SUBAGENT_STOP_REFORMAT_TIME = "2026-10-06T15:59:41.615Z";
+const ONE_LINE_FINALLY_TEXT = "try {\n  run();\n} finally {\n  stop();\n}\n";
+const SPLIT_FINALLY_TEXT = "try {\n  run();\n}\nfinally {\n  stop();\n}\n";
+
+function makeReformatStdout(files: string[]): string {
+    const additionalContext = `This hook reformatted these files to the house layout: ${files.join(", ")}. Do not revert that reformatting.`;
+    return `${JSON.stringify({ hookSpecificOutput: { hookEventName: "SubagentStop", additionalContext } })}\n`;
+}
+
+function makeStopHookRecord(hookEvent: string, command: string, stdout: string): AttachmentEntry {
+    const attachment = { type: "hook_success", hookName: hookEvent, toolUseID: "d9972cf6", hookEvent, content: "", stdout, stderr: "", exitCode: 0, command, durationMs: 2016 };
+    const record = { type: "attachment", uuid: "h1", parentUuid: "r1", sessionId: "sA", timestamp: new Date(ATTUNE_SUBAGENT_STOP_REFORMAT_TIME), attachment };
+    return getAttachmentEntry(record as never) as AttachmentEntry;
+}
+
+test("test_listStopHookReformattedFiles_reads_the_files_a_stop_hook_record_names", () => {
+    // Scenario: line 179 of subagent agent-abd0845e1293e1692 says the dotfiles SubagentStop hook reformatted two files.
+    const record = makeStopHookRecord("SubagentStop", DOTFILES_HOOK_COMMAND, makeReformatStdout(["/x/server.ts", "/x/app.ts"]));
+    // Both files are listed, in record order.
+    assert.deepEqual(listStopHookReformattedFiles(record), ["/x/server.ts", "/x/app.ts"]);
+    // A PostToolUse record with the same text is not a stop hook record.
+    const postToolRecord = makeStopHookRecord("PostToolUse", DOTFILES_HOOK_COMMAND, makeReformatStdout(["/x/server.ts"]));
+    assert.deepEqual(listStopHookReformattedFiles(postToolRecord), []);
+    // A stop hook record that reformatted nothing lists no file.
+    const quietRecord = makeStopHookRecord("Stop", DOTFILES_HOOK_COMMAND, "");
+    assert.deepEqual(listStopHookReformattedFiles(quietRecord), []);
+});
+
+test("test_runRecordedStopHookReformat_splits_a_finally_line_like_the_mac_hook_did", (t) => {
+    // Scenario: the subagent left `} finally {` on one line; on the Mac the dotfiles eslint --fix of that day split it.
+    const file = join(makeTempFolder(t), "server.ts");
+    writeFileSync(file, ONE_LINE_FINALLY_TEXT);
+    const record = makeStopHookRecord("SubagentStop", DOTFILES_HOOK_COMMAND, makeReformatStdout([file]));
+    // The replay runs the hook's eslint --fix on the file.
+    runRecordedStopHookReformat(file, record);
+    // The file now holds `}` and `finally {` on two lines.
+    assert.equal(readFileSync(file, "utf8"), SPLIT_FINALLY_TEXT);
+});
+
+test("test_runRecordedStopHookReformat_throws_when_eslint_changes_nothing", (t) => {
+    // Scenario: the record says the file was reformatted, but the replayed file is already in the house layout.
+    const file = join(makeTempFolder(t), "server.ts");
+    writeFileSync(file, SPLIT_FINALLY_TEXT);
+    const record = makeStopHookRecord("SubagentStop", DOTFILES_HOOK_COMMAND, makeReformatStdout([file]));
+    // The replay stops loudly.
+    assert.throws(() => runRecordedStopHookReformat(file, record), /changed nothing/);
 });

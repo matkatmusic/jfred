@@ -18,7 +18,8 @@ import { executeScriptInState, type ScriptReplayContext } from "./engineV3_repla
 import { getReplayRoot } from "./engineV3_replay_root.ts";
 import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listToolResultIds, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
-import { runRecordedPostToolHook } from "./engineV3_replay_post_tool_hooks.ts";
+import { listStopHookReformattedFiles, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
+import { getAttachmentEntry } from "../src/structures/session-meta.ts";
 import { removePendingWrite, addPendingWrite, findPendingBeforeContent, findResultOriginalFile, findWrittenFile } from "./engineV3_replay_pending_writes.ts";
 import { getFileHistorySnapshot } from "../src/structures/file-history.ts";
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
@@ -384,6 +385,20 @@ function executeScriptAndRecordIt(state: Path, line: JSONLLine, context: ScriptR
   return state;
 }
 
+// The hook rewrite is not recorded as a file change: the backup rule does not list hook rewrites, so the snippet chain of the file ends.
+function runStopHookReformatsOfLine(state: Path, line: JSONLLine): Path {
+  const entry = getAttachmentEntry(line);
+  if (entry === undefined) {
+    return state;
+  }
+  for (const macFile of listStopHookReformattedFiles(entry)) {
+    const root = getReplayRoot(state, new Path(macFile));
+    const relativePath = getRepoRelativePath(root, new Path(macFile));
+    runRecordedStopHookReformat(join(root.toString(), relativePath.toString()), entry);
+  }
+  return state;
+}
+
 function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const kind = getJSONLLineKind(line, state);
   switch (kind) {
@@ -403,7 +418,8 @@ function applyLineByKind(state: Path, line: JSONLLine, context: ScriptReplayCont
     case JSONLLineKind.WorktreeAdd: return addWorktreeToState(state, line);
     case JSONLLineKind.Script: return executeScriptAndRecordIt(state, line, context);
     case JSONLLineKind.UserEdit: return applyUserEditAndRecordIt(state, line);
-    case JSONLLineKind.Skip: return state;
+    // case JSONLLineKind.Skip: return state;
+    case JSONLLineKind.Skip: return runStopHookReformatsOfLine(state, line);
     default: throw new Error(`applyJSONLLineToState: no replay yet for kind ${kind}`);
   }
 }
