@@ -37,11 +37,17 @@ export const MAC_ONLY_FILLS: MacOnlyFill[] = [
 // The Mac Chrome of agent-ac894917bac015fa9.jsonl (lines 114, 280) listened on port 47312; lines 126 (curl) and 135-292 (bun shot.ts <server port> 47312 report-new.png) talk to it. The pgrep at line 315 also names the port but runs with git worktree remove, so it is not matched.
 const CHROME_DEBUG_PORT_CALL = /(?:127\.0\.0\.1|localhost):47312\b|\bshot\.ts\s+\d+\s+47312\b/;
 
+// The Mac Chrome of agent-a1b06c9dba139ae95.jsonl (session 2fa36f95; lines 197, 302, 452) listened on port 9333; the curls to it (lines 201, 321) and the scratchpad drive.ts / drive2.ts runs (lines 201-229, 306-346, 462) talk to it. The pkill and pgrep at lines 235 and 351 only name the port in a pattern, so they are not matched.
+const CHROME_DEBUG_PORT_9333_CALL = /(?:127\.0\.0\.1|localhost):9333\b|\bbun\s+drive2?\.ts\b/;
+
 export function isMacOnlyCommand(command: string): boolean {
   if (SIPS_WORD.test(command)) {
     return true;
   }
   if (CHROME_DEBUG_PORT_CALL.test(command)) {
+    return true;
+  }
+  if (CHROME_DEBUG_PORT_9333_CALL.test(command)) {
     return true;
   }
   return command.includes(CHROME_PROGRAM_TEXT);

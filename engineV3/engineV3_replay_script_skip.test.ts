@@ -85,6 +85,38 @@ test("test_isMacOnlyCommand_is_false_when_shot_ts_gets_other_ports", () => {
   assert.equal(isMacOnlyCommand(command), false);
 });
 
+test("test_isMacOnlyCommand_is_true_when_curl_asks_the_skipped_chrome_debugging_port_9333", () => {
+  // Scenario: the skipped Mac Chrome of session 2fa36f95 listens on port 9333, so a curl to that port finds nothing in the container.
+  // a command that asks port 9333 for the Chrome version
+  const command = "sleep 3; curl -s http://127.0.0.1:9333/json/version | head -c 150";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_bun_runs_drive_ts_that_drives_the_skipped_chrome", () => {
+  // Scenario: drive.ts opens a WebSocket to the Chrome on port 9333 and prints JSON.
+  // a command that runs drive.ts from the scratchpad
+  const command = "cd $S && bun drive.ts WITH_FIX 2>&1 | sed '1s/^WITH_FIX //' | jq -c 'del(.initial)'";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_bun_runs_drive2_ts_that_drives_the_skipped_chrome", () => {
+  // Scenario: drive2.ts is the second script that drives the Chrome on port 9333.
+  // a command that makes a seed file and runs drive2.ts
+  const command = "cd $S; bun makeSeed.ts $S/clone/playground/results/playground-history.json 20; bun drive2.ts 1229 2>&1 | jq -c \"$JQ\"";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_false_when_the_command_only_stops_the_chrome_on_port_9333", () => {
+  // Scenario: a command that kills the Chrome by its flag and then runs git status must still run.
+  // a command with a pkill pattern that names port 9333
+  const command = 'pkill -f "remote-debugging-port=9333"; pgrep -fl "remote-debugging-port=9333" | wc -l; cd /tmp/project && git status --short';
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
 function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
@@ -194,6 +226,26 @@ test("test_executeScriptInState_skips_a_shot_ts_run_that_drives_the_skipped_chro
   const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
   // the call runs shot.ts against port 47312 and its recorded result is not an error
   const { line, context } = loadCallAndContext(t, `cd ${state.toString()} && bun shot.ts 47311 47312 report-new.png`, "[]", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_curl_to_the_skipped_chrome_debugging_port_9333", (t) => {
+  // Scenario: no Chrome listens in the container, so the recorded curl is not run.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call asks port 9333 for the Chrome version and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "curl -s http://127.0.0.1:9333/json/version", "{}", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_drive_ts_run_that_drives_the_skipped_chrome", (t) => {
+  // Scenario: drive.ts would drive the skipped Chrome; here the scratchpad has no drive.ts, so a run would exit 1.
+  // the state folder is the record's cwd and holds no drive.ts
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call runs drive.ts and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, `cd ${state.toString()} && bun drive.ts WITH_FIX`, "[]", false, state.toString());
   // running the line does not throw
   assert.doesNotThrow(() => executeScriptInState(state, line, context));
 });

@@ -118,5 +118,11 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2fa36f95-01f4-42c5-936b-6abbce7a78a9/subagents/agent-a1b06c9dba139ae95.jsonl",
     "lineNumber": 167,
     "standIn": "fake placeholder value: TYPESAFE_API_KEY_PLACEHOLDER (\"replay-placeholder-not-a-real-key\") in CLAUDE_CODE_ENV in engineV3_replay_blocked_test_run.ts, set for every replayed command and test-hook run; the recorded env | rg -c TYPESAFE_API_KEY found it present (2026-11-03T06:47:31Z and 2026-11-05T17:10:22Z); the real key never enters the replay"
+  },
+  {
+    "realProgram": "Mac Chrome remote debugging port 9333 driven by curl and scratchpad drive.ts and drive2.ts",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2fa36f95-01f4-42c5-936b-6abbce7a78a9/subagents/agent-a1b06c9dba139ae95.jsonl",
+    "lineNumber": 201,
+    "standIn": "none: every command that names 127.0.0.1:9333 or runs bun drive.ts or bun drive2.ts (15 calls; lines 197, 302 and 452 are already skipped as the Chrome launch) is skipped; drive.ts and drive2.ts only talk to port 9333 and print JSON, and the skipped calls write only under the session scratchpad; isMacOnlyCommand in engineV3_replay_script_skip.ts"
   }
 ]
