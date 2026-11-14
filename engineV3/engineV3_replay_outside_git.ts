@@ -1,25 +1,32 @@
 // Replays git actions the user did in an outside terminal: rows of the copied repo's HEAD log that no Bash call covers.
 
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { executeGit } from "./engineV3.ts";
 import { applyCommitToState } from "./engineV3_replay_apply.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
-import { parseLogFile } from "./engineV3_replay_git.ts";
+import { parseLogFile, type LogLine } from "./engineV3_replay_git.ts";
 import { isGitCommand } from "./engineV3_replay_script_git_env.ts";
 
 export enum OutsideGitKind {
   Commit = "Commit",
   Checkout = "Checkout",
   Reset = "Reset",
+  SubmoduleClone = "SubmoduleClone",
+  SubmodulePull = "SubmodulePull",
 }
 
-export type OutsideGitRow = { seconds: number; oldCommit: string; newCommit: string; message: string; kind: OutsideGitKind };
+export type OutsideGitRow = { seconds: number; oldCommit: string; newCommit: string; message: string; kind: OutsideGitKind; submodulePath?: Path };
 
 const COMMIT_MESSAGE_PREFIX = "commit";
 const CHECKOUT_MESSAGE_PREFIX = "checkout: moving from ";
 const RESET_MESSAGE_PREFIX = "reset: moving to ";
+const SUBMODULE_CLONE_MESSAGE_PREFIX = "clone: from ";
+const SUBMODULE_PULL_MESSAGE_PREFIX = "pull";
 const CHECKOUT_TARGET_SEPARATOR = " to ";
+const SUBMODULES_FOLDER = "modules";
+const SUBMODULE_HEAD_LOG_SUFFIX = "/logs/HEAD";
 const WINDOW_MARGIN_SECONDS = 1;
 
 function parseOutsideGitKind(message: string): OutsideGitKind {
@@ -61,15 +68,62 @@ function isSecondsInBashCallWindow(seconds: number, bashCallResults: Map<string,
   return false;
 }
 
-// Rows after the start second that fall in no Bash call's window, in reflog order.
-export function listOutsideGitRows(sourceRepo: Path, bashCallResults: Map<string, BashCallResult>, startSeconds: number): OutsideGitRow[] {
-  const rows: OutsideGitRow[] = [];
-  for (const logLine of parseLogFile(join(sourceRepo.toString(), "logs", "HEAD"))) {
+// Log rows after the start second that fall in no Bash call's window, in log order.
+function listLogLinesOutsideBashCalls(logFile: string, bashCallResults: Map<string, BashCallResult>, startSeconds: number): LogLine[] {
+  const logLines: LogLine[] = [];
+  for (const logLine of parseLogFile(logFile)) {
     const isAfterStart = logLine.seconds > startSeconds;
     if (isAfterStart) {
       const isInsideBashCall = isSecondsInBashCallWindow(logLine.seconds, bashCallResults);
       if (!isInsideBashCall) {
-        rows.push({ ...logLine, kind: parseOutsideGitKind(logLine.message) });
+        logLines.push(logLine);
+      }
+    }
+  }
+  return logLines;
+}
+
+// The submodule git folders are modules/<submodule path>, each with its own logs/HEAD.
+function listSubmodulePaths(sourceRepo: Path): Path[] {
+  const modulesFolder = join(sourceRepo.toString(), SUBMODULES_FOLDER);
+  if (!existsSync(modulesFolder)) {
+    return [];
+  }
+  const submodulePaths: Path[] = [];
+  for (const entry of readdirSync(modulesFolder, { recursive: true }) as string[]) {
+    if (entry.endsWith(SUBMODULE_HEAD_LOG_SUFFIX)) {
+      submodulePaths.push(new Path(entry.slice(0, -SUBMODULE_HEAD_LOG_SUFFIX.length)));
+    }
+  }
+  return submodulePaths;
+}
+
+// User decision 2026-11-13: only the submodule's clone and pull rows are replayed; its commit rows are not.
+function parseSubmoduleKind(message: string): OutsideGitKind | undefined {
+  if (message.startsWith(SUBMODULE_CLONE_MESSAGE_PREFIX)) {
+    return OutsideGitKind.SubmoduleClone;
+  }
+  if (message.startsWith(SUBMODULE_PULL_MESSAGE_PREFIX)) {
+    return OutsideGitKind.SubmodulePull;
+  }
+  if (message.startsWith(COMMIT_MESSAGE_PREFIX)) {
+    return undefined;
+  }
+  throw new Error(`parseSubmoduleKind: no replay for submodule reflog message "${message}"`);
+}
+
+// Rows after the start second that fall in no Bash call's window: the repo's rows in reflog order, then each submodule's clone and pull rows.
+export function listOutsideGitRows(sourceRepo: Path, bashCallResults: Map<string, BashCallResult>, startSeconds: number): OutsideGitRow[] {
+  const rows: OutsideGitRow[] = [];
+  for (const logLine of listLogLinesOutsideBashCalls(join(sourceRepo.toString(), "logs", "HEAD"), bashCallResults, startSeconds)) {
+    rows.push({ ...logLine, kind: parseOutsideGitKind(logLine.message) });
+  }
+  for (const submodulePath of listSubmodulePaths(sourceRepo)) {
+    const submoduleLogFile = join(sourceRepo.toString(), SUBMODULES_FOLDER, submodulePath.toString(), "logs", "HEAD");
+    for (const logLine of listLogLinesOutsideBashCalls(submoduleLogFile, bashCallResults, startSeconds)) {
+      const kind = parseSubmoduleKind(logLine.message);
+      if (kind !== undefined) {
+        rows.push({ ...logLine, kind, submodulePath });
       }
     }
   }
@@ -102,10 +156,49 @@ function applyOutsideResetToState(state: Path, sourceRepo: Path, row: OutsideGit
   executeGit(state, ["reset", "-q", "--keep", row.newCommit]);
 }
 
-function assertStateHeadMatchesRow(state: Path, row: OutsideGitRow): void {
-  const headCommit = executeGit(state, ["rev-parse", "HEAD"]).toString("utf8").trim();
+function getRequiredSubmodulePath(row: OutsideGitRow): Path {
+  if (row.submodulePath === undefined) {
+    throw new Error(`getRequiredSubmodulePath: the ${row.kind} row ${row.newCommit} has no submodule path`);
+  }
+  return row.submodulePath;
+}
+
+function getSubmoduleGitFolder(sourceRepo: Path, submodulePath: Path): string {
+  return join(sourceRepo.toString(), SUBMODULES_FOLDER, submodulePath.toString());
+}
+
+function readCurrentBranch(repo: Path): string {
+  return executeGit(repo, ["symbolic-ref", "--short", "HEAD"]).toString("utf8").trim();
+}
+
+// Leaves what the Mac's `git submodule add <GitHub URL> <path>` left: the submodule on its branch at the clone commit, .gitmodules and the gitlink staged, the GitHub URL everywhere.
+function applySubmoduleCloneToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
+  const submodulePath = getRequiredSubmodulePath(row);
+  const submodulePathText = submodulePath.toString();
+  const githubUrl = row.message.slice(SUBMODULE_CLONE_MESSAGE_PREFIX.length);
+  const submoduleState = new Path(join(state.toString(), submodulePathText));
+  executeGit(state, ["-c", "protocol.file.allow=always", "submodule", "add", "-q", getSubmoduleGitFolder(sourceRepo, submodulePath), submodulePathText]);
+  // The local copy is at its newest commit; the Mac cloned at the clone commit.
+  executeGit(submoduleState, ["reset", "-q", "--hard", row.newCommit]);
+  executeGit(submoduleState, ["update-ref", `refs/remotes/origin/${readCurrentBranch(submoduleState)}`, row.newCommit]);
+  executeGit(submoduleState, ["remote", "set-url", "origin", githubUrl]);
+  executeGit(state, ["config", "-f", ".gitmodules", `submodule.${submodulePathText}.url`, githubUrl]);
+  executeGit(state, ["config", `submodule.${submodulePathText}.url`, githubUrl]);
+  executeGit(state, ["add", ".gitmodules", submodulePathText]);
+}
+
+function applySubmodulePullToState(state: Path, sourceRepo: Path, row: OutsideGitRow): void {
+  const submodulePath = getRequiredSubmodulePath(row);
+  const submoduleState = new Path(join(state.toString(), submodulePath.toString()));
+  const originBranchRef = `refs/remotes/origin/${readCurrentBranch(submoduleState)}`;
+  executeGit(submoduleState, ["fetch", "-q", "--no-tags", getSubmoduleGitFolder(sourceRepo, submodulePath), `+${row.newCommit}:${originBranchRef}`]);
+  executeGit(submoduleState, ["merge", "-q", "--ff-only", row.newCommit]);
+}
+
+function assertHeadMatchesRow(repo: Path, row: OutsideGitRow): void {
+  const headCommit = executeGit(repo, ["rev-parse", "HEAD"]).toString("utf8").trim();
   if (headCommit !== row.newCommit) {
-    throw new Error(`applyOutsideGitRow: state HEAD ${headCommit} is not the row's new commit ${row.newCommit}`);
+    throw new Error(`applyOutsideGitRow: ${repo.toString()} HEAD ${headCommit} is not the row's new commit ${row.newCommit}`);
   }
 }
 
@@ -114,6 +207,13 @@ export function applyOutsideGitRow(state: Path, sourceRepo: Path, row: OutsideGi
     case OutsideGitKind.Commit: applyOutsideCommitToState(state, sourceRepo, row); break;
     case OutsideGitKind.Checkout: applyOutsideCheckoutToState(state, row); break;
     case OutsideGitKind.Reset: applyOutsideResetToState(state, sourceRepo, row); break;
+    case OutsideGitKind.SubmoduleClone: applySubmoduleCloneToState(state, sourceRepo, row); break;
+    case OutsideGitKind.SubmodulePull: applySubmodulePullToState(state, sourceRepo, row); break;
   }
-  assertStateHeadMatchesRow(state, row);
+  const isSubmoduleRow = row.submodulePath !== undefined;
+  if (isSubmoduleRow) {
+    assertHeadMatchesRow(new Path(join(state.toString(), getRequiredSubmodulePath(row).toString())), row);
+    return;
+  }
+  assertHeadMatchesRow(state, row);
 }
