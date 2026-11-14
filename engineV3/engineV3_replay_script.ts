@@ -3,7 +3,7 @@
 import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { JSONLLine } from "./engineV3.ts";
@@ -123,11 +123,29 @@ function sleepMilliseconds(milliseconds: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
+function getBackgroundOutputPath(result: BashCallResult): string {
+  const outputPath = /Output is being written to: (\S+)\./.exec(result.resultText)?.[1];
+  if (outputPath === undefined) {
+    throw new Error(`getBackgroundOutputPath: the recorded result names no output file\nresult: ${result.resultText}`);
+  }
+  return outputPath;
+}
+
+// Claude Code makes the session scratchpad folder at session start, so a command that names it finds it there.
+function createScratchpadFoldersNamedByCommand(command: string): void {
+  for (const match of command.matchAll(/\/private\/tmp\/claude-\d+\/[^/\s]+\/[0-9a-f-]{36}\/scratchpad/g)) {
+    mkdirSync(match[0], { recursive: true });
+  }
+}
+
 // A run_in_background command (a dev server) never exits, so it starts detached and the replay waits only for its first output line.
-function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv): void {
-  const outputFile = join(mkdtempSync(join(tmpdir(), "engine-v3-background-")), "output.txt");
+// Claude Code writes the output to the recorded path and ends it with "\n[exited with code N]"; the wrapper shell writes that line.
+function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv, result: BashCallResult): void {
+  const outputFile = getBackgroundOutputPath(result);
+  mkdirSync(dirname(outputFile), { recursive: true });
   const outputDescriptor = openSync(outputFile, "w");
-  const child = spawn(getInterpreter(run), getInterpreterArguments(run, run.code), { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
+  const wrapperScript = `"$@"; printf '\\n[exited with code %s]' "$?"`;
+  const child = spawn("sh", ["-c", wrapperScript, "sh", getInterpreter(run), ...getInterpreterArguments(run, run.code)], { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
   child.unref();
   const deadlineMs = Date.now() + BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS;
   while (statSync(outputFile).size === 0) {
@@ -143,8 +161,9 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const recordedAtEpochSeconds = Math.floor(run.timestamp.getTime() / 1000);
   const env = { ...process.env, ...CLAUDE_CODE_ENV, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  createScratchpadFoldersNamedByCommand(run.code);
   if (run.runInBackground === true) {
-    startBackgroundCommand(run, cwd, env);
+    startBackgroundCommand(run, cwd, env, result);
     return;
   }
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
