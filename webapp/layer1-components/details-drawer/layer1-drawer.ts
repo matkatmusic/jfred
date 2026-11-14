@@ -1,4 +1,4 @@
-// Task 257.5: the Detail View drawer; delegated on #stage since bubbles rebuild per render (attachLeaderVisibility's precedent).
+// Task 257.5: the Detail View drawer; delegated on #fileBubbleContainer since bubbles rebuild per render (attachLeaderVisibility's precedent).
 
 import { getRequiredElementById } from "../../app-dom.ts";
 import { renderLayer1Minimap } from "../minimap/layer1-minimap.ts";
@@ -9,6 +9,8 @@ import { applyDiffSelectionRange } from "./layer1-diff-selection-range.ts";
 import { storeOpenedNode } from "../bubbles/layer1-node-link.ts";
 import { stopRun } from "../../layer1-run-queue.ts";
 import { openScriptRunDrawer } from "./layer1-script-run-drawer.ts";
+import { openReverseNodeDrawer } from "./layer1-drawer-reverse.ts";
+import { closeDetailsPane, installDetailsPaneResize } from "./layer1-details-pane.ts";
 
 // The clicked node, or undefined; a label opens too, and its dot is its previous sibling (appendAxisNode's order).
 function findClickedNode(target: HTMLElement): HTMLElement | undefined {
@@ -48,7 +50,7 @@ function applyRangeGesture(event: Event, node: HTMLElement, path: string): boole
   const currentAnchor = readAnchor();
   const isShift = (event as MouseEvent).shiftKey;
   const hasAnchor = currentAnchor !== undefined;
-  const isDrawerOpen = getRequiredElementById("drawer").classList.contains("open");
+  const isDrawerOpen = getRequiredElementById("detailsPaneContainer").classList.contains("open");
   const isShiftWithAnchor = isShift && hasAnchor;
   const isRangeGesture = isShiftWithAnchor && isDrawerOpen;
   if (isRangeGesture) {
@@ -81,9 +83,26 @@ function openPathNode(event: Event, node: HTMLElement): void {
   void openNodeDrawer(node, path);
 }
 
+// A reverse node's identity is its walk state, read from the stored walk for its bubble's path.
+function openReverseNodeState(node: HTMLElement): boolean {
+  const isReverse = node.classList.contains("n-rev");
+  if (isReverse) {
+    const path = findNodePath(node);
+    if (path === undefined) {
+      throw new Error("a reverse node has no owning file path");
+    }
+    openReverseNodeDrawer(node, path);
+  }
+  return isReverse;
+}
+
 function openShownNode(event: Event, node: HTMLElement): void {
   const isScriptOpened = openScriptNodeRun(node);
   if (isScriptOpened) {
+    return;
+  }
+  const isReverseOpened = openReverseNodeState(node);
+  if (isReverseOpened) {
     return;
   }
   openPathNode(event, node);
@@ -112,7 +131,8 @@ function openNextNeighbour(): void {
 }
 
 function closeDrawer(): void {
-  getRequiredElementById("drawer").classList.remove("open");
+  // getRequiredElementById("detailsPaneContainer").classList.remove("open");
+  closeDetailsPane();
   getRequiredElementById("dmulti").hidden = true;
   clearDiffPair();
   clearAnchor();
@@ -122,7 +142,8 @@ function closeDrawer(): void {
 
 export function installNodeDrawer(): void {
   installImageZoomTools();
-  getRequiredElementById("stage").addEventListener("click", applyStageClick);
+  installDetailsPaneResize();
+  getRequiredElementById("fileBubbleContainer").addEventListener("click", applyStageClick);
   getRequiredElementById("dprev").addEventListener("click", openPreviousNeighbour);
   getRequiredElementById("dnext").addEventListener("click", openNextNeighbour);
   getRequiredElementById("dclose").addEventListener("click", closeDrawer);

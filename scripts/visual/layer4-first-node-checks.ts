@@ -8,8 +8,8 @@ const SCROLL_TIMEOUT_MS = 10_000;
 // Keeps one visible node, pushes it off screen, calls the real module, reports where it ended.
 const RUN_FIRST_NODE_SCROLL = `(async () => {
     const { moveFirstVisibleNodeIntoView } = await import('/app/layer1-components/bubbles/layer1-first-node-scroll.js');
-    const pane = document.getElementById('timelines');
-    const visible = [...document.querySelectorAll('#stage .node')].filter(n => n.checkVisibility());
+    const pane = document.getElementById('timelineContainer');
+    const visible = [...document.querySelectorAll('#fileBubbleContainer .node')].filter(n => n.checkVisibility());
     if (visible.length === 0) return { visibleCount: 0 };
     const lastNode = visible[visible.length - 1];
     for (const node of visible) { if (node !== lastNode) node.style.display = 'none'; }
@@ -41,7 +41,7 @@ export function isBroughtOnScreen(probe: FirstNodeScrollProbe): boolean {
 }
 
 export async function validateFirstNodeScroll(page: HeadlessPage): Promise<void> {
-  await page.waitFor(`document.querySelectorAll('#stage .node').length > 0`, SCROLL_TIMEOUT_MS);
+  await page.waitFor(`document.querySelectorAll('#fileBubbleContainer .node').length > 0`, SCROLL_TIMEOUT_MS);
   const result = await page.evaluate<FirstNodeScrollProbe>(RUN_FIRST_NODE_SCROLL);
   reportCheck("first-node-scroll setup: the lone visible node starts off screen", isSetupValid(result), result);
   reportCheck("first-node-scroll: moveFirstVisibleNodeIntoView brings the lone node onto the screen", isBroughtOnScreen(result), result);

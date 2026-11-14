@@ -57,7 +57,7 @@ test("test_a_cancelled_script_run_fetch_leaves_the_box_unchecked_and_the_nodes_h
     renderShowRowWithKindFilter(buildFreshView(), () => {});
     toggleBox("script-run", true);
     await waitForAsyncWork();
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=script-run]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=script-run]")!.checked, false);
     assert.equal(readHiddenKinds(), "edit script-run branch");
 });
 
@@ -95,6 +95,6 @@ test("test_a_cancelled_edit_fetch_leaves_the_box_unchecked_and_the_nodes_hidden"
     renderShowRowWithKindFilter(buildFreshView(), () => {});
     toggleBox("edit", true);
     await waitForAsyncWork();
-    assert.equal(document.querySelector<HTMLInputElement>("#show-row [data-kind=edit]")!.checked, false);
+    assert.equal(document.querySelector<HTMLInputElement>("#timelineViewControls [data-kind=edit]")!.checked, false);
     assert.equal(readHiddenKinds(), "edit script-run branch");
 });

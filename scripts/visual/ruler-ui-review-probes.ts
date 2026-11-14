@@ -2,14 +2,14 @@
 
 import { buildRecordDot } from "./layer7-probes.ts";
 
-const PANE = `document.getElementById('timelines')`;
+const PANE = `document.getElementById('timelineContainer')`;
 const SETTLE = `new Promise(resolve => setTimeout(resolve, 200))`;
-const DOTS = `[...document.querySelectorAll('#annotation-track i.anode')].filter(d => d.getClientRects().length > 0)`;
+const DOTS = `[...document.querySelectorAll('#sessionDotLinesComponent i.anode')].filter(d => d.getClientRects().length > 0)`;
 const LEVEL_PX = 1;
 
-export const DOT_FONT_SIZE = `getComputedStyle(document.querySelector('#annotation-track i.anode')).fontSize`;
+export const DOT_FONT_SIZE = `getComputedStyle(document.querySelector('#sessionDotLinesComponent i.anode')).fontSize`;
 export const CLOSE_DRAWER = `document.getElementById('dclose').click()`;
-export const DRAWER_JSON_FILLED = `document.getElementById('drawer').classList.contains('open')
+export const DRAWER_JSON_FILLED = `document.getElementById('detailsPaneContainer').classList.contains('open')
     && (box => box !== null && box.textContent !== '')(document.querySelector('#dbody .node-json'))`;
 export const SNAPSHOT_TOGGLE_READY = `document.querySelectorAll('#dbody .json-toggle').length === 1`;
 
@@ -18,7 +18,7 @@ export const buildHeadProbe = (prepare: string) => `(async () => { ${prepare}; a
     return { headTop: document.getElementById('ruler-head').getBoundingClientRect().top, paneTop: ${PANE}.getBoundingClientRect().top }; })()`;
 export const HEAD_AT_REST = buildHeadProbe(`${PANE}.scrollTop = 0`);
 export const HEAD_SCROLLED = buildHeadProbe(`${PANE}.scrollTop = 600`);
-export const HEAD_AFTER_ROW_CLICK = buildHeadProbe(`${PANE}.scrollTop = 0; document.querySelector('#ruler .tick').click()`);
+export const HEAD_AFTER_ROW_CLICK = buildHeadProbe(`${PANE}.scrollTop = 0; document.querySelector('#timelineRulerComponent .tick').click()`);
 
 // A row in view is unmatched when no drawn dot centre is within 1px of its centre.
 export const ROW_DOT_FACTS = `(() => {
@@ -26,14 +26,14 @@ export const ROW_DOT_FACTS = `(() => {
     const headBottom = document.getElementById('ruler-head').getBoundingClientRect().bottom;
     const paneBottom = ${PANE}.getBoundingClientRect().bottom;
     const dotCentres = ${DOTS}.map(centre);
-    const rows = [...document.querySelectorAll('#ruler .tick')].map(centre).filter(c => c > headBottom && c < paneBottom);
+    const rows = [...document.querySelectorAll('#timelineRulerComponent .tick')].map(centre).filter(c => c > headBottom && c < paneBottom);
     return { rowCount: rows.length, unmatchedCount: rows.filter(c => !dotCentres.some(d => Math.abs(d - c) <= ${LEVEL_PX})).length };
 })()`;
 
 export const buildSurfaceProbe = (selector: string) => `((box, filenav) => { const style = getComputedStyle(box);
     return { borderRightWidth: style.borderRightWidth, borderRightStyle: style.borderRightStyle, background: style.backgroundColor,
-        filenavBackground: getComputedStyle(filenav).backgroundColor }; })(document.querySelector('${selector}'), document.querySelector('.filenav'))`;
-export const buildMinimapEdgeProbe = (neighbourSelector: string) => `({ minimapLeft: document.querySelector('.minimap').getBoundingClientRect().left,
+        filenavBackground: getComputedStyle(filenav).backgroundColor }; })(document.querySelector('${selector}'), document.querySelector('.sourcesContainer'))`;
+export const buildMinimapEdgeProbe = (neighbourSelector: string) => `({ minimapLeft: document.querySelector('.minimapComponent').getBoundingClientRect().left,
     neighbourRight: document.querySelector('${neighbourSelector}').getBoundingClientRect().right })`;
 
 // Stack-0 dots of two neighbouring lanes: the pair closest in height gives the gap between their edges.
@@ -51,8 +51,8 @@ export const LANE_GAPS = `(() => {
 })()`;
 
 export const BRACKET_INSET_FACTS = `(() => {
-    const trackLeft = document.getElementById('annotation-track').getBoundingClientRect().left;
-    const insets = [...document.querySelectorAll('#annotation-track .abracket')].map(b => b.getBoundingClientRect().left - trackLeft);
+    const trackLeft = document.getElementById('sessionDotLinesComponent').getBoundingClientRect().left;
+    const insets = [...document.querySelectorAll('#sessionDotLinesComponent .abracket')].map(b => b.getBoundingClientRect().left - trackLeft);
     return { count: insets.length, minInset: Math.min(...insets) };
 })()`;
 

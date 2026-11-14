@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { Path } from "../src/structures/domain.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
-import { assertSnapshotBackupsMatchState, clearSeenBackups } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, clearSeenBackups, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 
@@ -102,6 +102,33 @@ test("test_assertSnapshotBackupsMatchState_throws_when_the_backup_is_null_and_th
   // Step 2: the check throws with the path and the replayed text.
   const check = () => assertSnapshotBackupsMatchState(new Path(folders.state), line, createContext(folders));
   assert.throws(check, /f\.txt[\s\S]*\.jsonl:1[\s\S]*should not be here/);
+});
+
+test("test_assertSnapshotBackupsMatchState_deletes_the_file_when_the_backup_is_null_and_the_snapshot_message_is_a_fork", (t) => {
+  // Step 1: the backup name is null, the state has the file, and the snapshot's message is a rewind fork.
+  const folders = makeTestFolders(t);
+  writeFileSync(join(folders.state, "f.txt"), "restored away by the rewind\n");
+  const line = loadSnapshotLine(folders, NULL_BACKUP);
+  const forkContext = { ...createContext(folders), forkedMessageIds: new Set(["m1"]) };
+  // Step 2: the check does not throw and the file is gone from the state.
+  const state = new Path(folders.state);
+  assert.equal(assertSnapshotBackupsMatchState(state, line, forkContext), state);
+  assert.equal(existsSync(join(folders.state, "f.txt")), false);
+});
+
+test("test_collectForkedMessageIds_lists_the_later_child_of_a_parent_that_has_two_children", (t) => {
+  // Step 1: three lines; the second and the third are children of the first, the third is a child of the second.
+  const folders = makeTestFolders(t);
+  const rows = [
+    { type: "user", uuid: "root", parentUuid: null, timestamp: "2026-06-27T16:15:45.001Z", message: { role: "user", content: "a" } },
+    { type: "user", uuid: "first", parentUuid: "root", timestamp: "2026-06-27T16:15:45.002Z", message: { role: "user", content: "b" } },
+    { type: "user", uuid: "second", parentUuid: "root", timestamp: "2026-06-27T16:15:45.003Z", message: { role: "user", content: "c" } },
+    { type: "user", uuid: "third", parentUuid: "second", timestamp: "2026-06-27T16:15:45.004Z", message: { role: "user", content: "d" } },
+  ];
+  writeFileSync(join(folders.jsonl, `${SESSION_ID}.jsonl`), rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+  const lines = loadMergedJSONLLines([folders.jsonl]).jsonlLines;
+  // Step 2: only the later child of the shared parent is a fork.
+  assert.deepEqual([...collectForkedMessageIds(lines)], ["second"]);
 });
 
 test("test_assertSnapshotBackupsMatchState_throws_when_a_backup_is_named_and_file_history_is_not_given", (t) => {

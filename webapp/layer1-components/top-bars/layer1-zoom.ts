@@ -15,10 +15,10 @@ export function getCurrentZoom(): number {
   return currentZoom;
 }
 
-// Clamp, publish, and report. `--zoom` goes on `.viz-root` so any zoom-aware rule inherits it; only `.canvas` uses it today.
+// Clamp, publish, and report. `--zoom` goes on `.appWindow` so any zoom-aware rule inherits it; only `.canvas` uses it today.
 export function applyZoom(requestedZoom: number): void {
   currentZoom = Math.min(Math.max(requestedZoom, ZOOM_MINIMUM), ZOOM_MAXIMUM);
-  (document.querySelector(".viz-root") as HTMLElement).style.setProperty("--zoom", String(currentZoom));
+  (document.querySelector(".appWindow") as HTMLElement).style.setProperty("--zoom", String(currentZoom));
   getRequiredElementById("zoom-level").textContent = `${Math.round(currentZoom * 100)}%`;
   // Native `zoom` keeps the scroll position, so a lit bubble drifts off screen; re-anchor on it, as layer1-drawer.ts does.
   // ponytail: anchor is the selection only; with nothing lit, zoom pivots on the scroll origin. Upgrade: save pane centre.

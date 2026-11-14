@@ -65,7 +65,7 @@ test("test_the_previous_button_steps_backward_and_wraps", () => {
 test("test_the_find_widget_sits_at_the_end_of_the_jump_bar", () => {
     // The user asked for the find widget right of the last `Jump to:` button.
     openFoundPage([]);
-    const jumpbar = document.querySelector(".jumpbar")!;
+    const jumpbar = document.querySelector(".jumpToRowComponent")!;
     for (const id of ["find-file", "find-prev", "find-next", "find-status"]) {
         assert.ok(jumpbar.contains(document.getElementById(id)), `${id} is not in the jump bar`);
     }

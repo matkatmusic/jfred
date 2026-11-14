@@ -11,7 +11,7 @@ import { DISK_FILE_CONTENT, installAnimationFrameStub, installRecordingFetch, wa
 test("task 356: clicking a script-run node opens the shared drawer with the resolved body", async () => {
   await openScriptRunDrawerByClick();
 
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
   const header = getRequiredElementById("dpath");
   assert.equal(header.firstChild?.textContent, "rename_inv.py");
   const badges = [...header.querySelectorAll(".run-status")].map((badge) => `${badge.textContent}=${badge.getAttribute("title")}`);

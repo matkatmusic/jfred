@@ -14,9 +14,9 @@ export function openYesNoQuestion(question: string, yesText: string, noText: str
   if (openRow !== null)
     throw new Error("a yes/no question is already open");
   return new Promise((resolve) => {
-    const yesButton = createElement("button", { class: "yesno-yes", text: yesText });
-    const noButton = createElement("button", { class: "yesno-no", text: noText });
-    const row = createElement("div", { id: ROW_ID, class: "yesno-row" }, [createElement("span", { text: question }), yesButton, noButton]);
+    const yesButton = createElement("button", { class: "yesno-yes", text: yesText, "data-component": "yesNoYesButton" });
+    const noButton = createElement("button", { class: "yesno-no", text: noText, "data-component": "yesNoNoButton" });
+    const row = createElement("div", { id: ROW_ID, class: "yesno-row", "data-component": "yesNoRow" }, [createElement("span", { text: question, "data-component": "yesNoQuestionText" }), yesButton, noButton]);
     const closeRowAsYes = (): void => closeRowWithAnswer(row, resolve, true);
     const closeRowAsNo = (): void => closeRowWithAnswer(row, resolve, false);
     yesButton.addEventListener("click", closeRowAsYes);

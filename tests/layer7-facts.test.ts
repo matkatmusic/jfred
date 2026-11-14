@@ -57,13 +57,16 @@ test("test_findColumnNode_returns_the_node_and_throws_for_an_id_that_is_not_draw
     assert.throws(() => findColumnNode(makeNodes(), "l7-fill-09"), /no drawn node l7-fill-09/);
 });
 
-test("test_isTrackBetween_needs_one_sticky_element_after_the_ruler_and_before_the_stage", () => {
-    const good = { count: 1, isAfterRuler: true, isBeforeStage: true, position: "sticky" };
+test("test_isTrackBetween_needs_one_relative_element_after_the_ruler_and_before_the_stage", () => {
+    // const good = { count: 1, isAfterRuler: true, isBeforeStage: true, position: "sticky" };
+    const good = { count: 1, isAfterRuler: true, isBeforeStage: true, position: "relative" };
     assert.equal(isTrackBetween(good), true);
     assert.equal(isTrackBetween({ ...good, count: 2 }), false);
     assert.equal(isTrackBetween({ ...good, isAfterRuler: false }), false);
     assert.equal(isTrackBetween({ ...good, isBeforeStage: false }), false);
     assert.equal(isTrackBetween({ ...good, position: "absolute" }), false);
+    // the old sticky track no longer counts
+    assert.equal(isTrackBetween({ ...good, position: "sticky" }), false);
 });
 
 test("test_isWindowed_needs_two_partial_sets_that_differ", () => {

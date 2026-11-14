@@ -1,16 +1,19 @@
   /*
     Task 305: the classic Revision Viewer's renderers (webapp/diff-render.ts), on this page's tokens.
   */
-  .drawer { --mono: ui-monospace, Menlo, monospace;
+  .detailsPaneContainer { --mono: ui-monospace, Menlo, monospace;
     --add-bg: color-mix(in srgb, var(--c-snap) 14%, transparent);
     --del-bg: color-mix(in srgb, var(--c-user) 14%, transparent);
     --hunk-bg: color-mix(in srgb, var(--ink) 8%, transparent);
     --green: var(--c-snap); --red: var(--c-user); --accent: var(--c-commit); }
-  .dbody .diff { flex: 1; font-family: var(--mono); font-size: 11px; min-width: max-content; }
-  .dbody .diff-line { display: flex; white-space: pre; }
+  /* .dbody .diff { flex: 1; font-family: var(--mono); font-size: 11px; min-width: max-content; } */
+  .dbody .diff { flex: 1; font-family: var(--mono); font-size: 11px; }
+  /* .dbody .diff-line { display: flex; white-space: pre; } */
+  .dbody .diff-line { display: flex; white-space: pre-wrap; overflow-wrap: anywhere; }
   .dbody .diff-ln { flex: 0 0 36px; text-align: right; padding-right: 6px; color: var(--muted);
     user-select: none; }
-  .dbody .diff-body { padding-left: 8px; }
+  /* .dbody .diff-body { padding-left: 8px; } */
+  .dbody .diff-body { padding-left: 8px; min-width: 0; }
   .dbody .diff-line.add { background: var(--add-bg); }
   .dbody .diff-line.add .diff-body { color: var(--green); }
   .dbody .diff-line.del { background: var(--del-bg); }
@@ -26,4 +29,4 @@
   .dbody .dc-add { background: var(--add-bg); }
   .dbody .dc-body.dc-add { color: var(--green); }
   .dbody .dc-hunk { grid-column: 1 / -1; background: var(--hunk-bg); color: var(--accent);
-    padding-left: 8px; white-space: pre-wrap; }
+    padding-left: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }

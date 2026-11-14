@@ -27,9 +27,9 @@ function appendMarkedCode(cell: HTMLElement, text: string, language: string | un
 // One .diff-line per unified line, gutter number + raw text; dels number the old side, hunk headers show ⋯.
 export function appendInlineDiff(body: HTMLElement, diffText: string, path: string): void {
   const language = computeLanguageForPath(path);
-  const pane = createElement("div", { class: "diff" });
+  const pane = createElement("div", { class: "diff", "data-component": "diffViewInlineLineList" });
   for (const row of computeInlineRows(diffText)) {
-    const line = createElement("div", { class: "diff-line" });
+    const line = createElement("div", { class: "diff-line", "data-component": "diffViewInlineLineRow" });
     let lineNumberText: number | undefined;
     if (row.lineClass === "diff-line-hunk") {
       line.classList.add("hunk");
@@ -53,7 +53,7 @@ export function appendInlineDiff(body: HTMLElement, diffText: string, path: stri
     else {
       appendMarkedCode(lineBody, row.text, language);
     }
-    line.append(createElement("span", { class: "diff-ln", text: gutterText }), lineBody);
+    line.append(createElement("span", { class: "diff-ln", text: gutterText, "data-component": "diffViewInlineLineNumber" }), lineBody);
     pane.append(line);
   }
   body.append(pane);
@@ -75,18 +75,18 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
   const sideClass = side === 1 ? " dc-right" : "";
   if (cell === undefined) {
     grid.append(
-      createElement("span", { class: `dc-ln${sideClass}` }),
-      createElement("span", { class: "dc-body" }),
+      createElement("span", { class: `dc-ln${sideClass}`, "data-component": "diffViewSplitEmptyLineNumber" }),
+      createElement("span", { class: "dc-body", "data-component": "diffViewSplitEmptyCell" }),
     );
     return;
   }
   const cellClass = computeSplitCellClass(cell.lineClass);
-  const cellBody = createElement("span", { class: `dc-body ${cellClass}`.trim() });
+  const cellBody = createElement("span", { class: `dc-body ${cellClass}`.trim(), "data-component": "diffViewSplitLineCell" });
   // Task 319: every split cell leads with its +/-/space marker, kept outside the highlighted code.
   const sign = cellClass === "dc-del" ? "-" : cellClass === "dc-add" ? "+" : " ";
   appendMarkedCode(cellBody, sign + cell.text, language);
   grid.append(
-    createElement("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber) }),
+    createElement("span", { class: `dc-ln${sideClass} ${cellClass}`.trim(), text: cell.lineNumber === undefined ? "" : String(cell.lineNumber), "data-component": "diffViewSplitLineNumber" }),
     cellBody,
   );
 }
@@ -94,10 +94,10 @@ function appendSplitCellPair(grid: HTMLElement, cell: { lineClass: string; lineN
 // The two-column diff grid; full rows span it as hunk headers, pair rows emit ln+body cells per side.
 export function appendColumnsDiff(body: HTMLElement, diffText: string, path: string): void {
   const language = computeLanguageForPath(path);
-  const grid = createElement("div", { class: "diff-cols" });
+  const grid = createElement("div", { class: "diff-cols", "data-component": "diffViewSplitLineList" });
   for (const row of computeSplitRows(diffText)) {
     if (row.kind === SplitRowKind.full) {
-      grid.append(createElement("span", { class: "dc-hunk", text: row.text }));
+      grid.append(createElement("span", { class: "dc-hunk", text: row.text, "data-component": "diffViewSplitHunkText" }));
       continue;
     }
     for (const [side, cell] of [row.left, row.right].entries()) {

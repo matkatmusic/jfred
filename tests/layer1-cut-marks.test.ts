@@ -25,7 +25,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
   const axisPx = hour * TICK_SPACING_PX;
   const tick = document.createElement("div");
   tick.className = "tick";
-  document.getElementById("ruler")!.append(tick);
+  document.getElementById("timelineRulerComponent")!.append(tick);
   storeRow(tick, { axisPx, text: "t", eventCount: 1, axisPxList: [axisPx], instants: [buildInstant(hour)] });
   const bubble = document.createElement("div");
   bubble.className = "filebox";
@@ -38,7 +38,7 @@ function addTick(hour: number, nodeClasses: string[]): HTMLElement {
     node.style.setProperty("--axis-px", "0");
     bubble.append(node);
   }
-  document.getElementById("stage")!.append(bubble);
+  document.getElementById("fileBubbleContainer")!.append(bubble);
   return tick;
 }
 
@@ -98,7 +98,7 @@ test("test_the_first_accepted_click_sets_the_base_from_the_commit_node_title", (
   const [commit] = buildPage(true);
   commit!.click();
   assert.deepEqual(readJfredBranch().base, { instant: buildInstant(1), shortHash: COMMIT_HASH.slice(0, 8) });
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode[data-entry-kind=base]").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode[data-entry-kind=base]").length, 1);
   assert.equal(commit!.classList.contains("cut-base"), true);
 });
 
@@ -119,7 +119,7 @@ test("test_with_a_base_an_accepted_click_sets_the_pending_mark_and_opens_the_dra
   const pending = readJfredBranch().pending!;
   assert.equal(pending.instant, buildInstant(3));
   assert.match(pending.message, /^jfred: reconstruct to /);
-  assert.ok(document.getElementById("drawer")!.classList.contains("open"));
+  assert.ok(document.getElementById("detailsPaneContainer")!.classList.contains("open"));
   assert.notEqual(document.getElementById("jfred-commit-button"), null);
   assert.equal(snap!.classList.contains("cut-pending"), true);
 });
@@ -133,7 +133,7 @@ test("test_a_later_click_moves_the_pending_mark_and_counts_skipped_beacons", () 
   const pending = readJfredBranch().pending!;
   assert.equal(pending.instant, buildInstant(4));
   assert.match(pending.message, /includes 1 unmarked changes/);
-  assert.equal(document.querySelectorAll("#jfred-strip .jnode[data-entry-kind=pending]").length, 1);
+  assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode[data-entry-kind=pending]").length, 1);
   assert.equal(snap!.classList.contains("cut-pending"), false);
 });
 

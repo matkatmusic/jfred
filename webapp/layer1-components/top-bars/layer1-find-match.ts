@@ -8,7 +8,7 @@ let cycleIndex = 0;
 
 // `.fname` holds both matchable strings: its text is the basename, its `data-path` the full path.
 export function listNameElements(): HTMLElement[] {
-  return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")];
+  return [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox .fname")];
 }
 
 // One case-insensitive substring test over the full path; falls back to text for label-only buckets.
@@ -18,7 +18,7 @@ function isMatchingSearchTerm(nameElement: HTMLElement, lowerTerm: string): bool
 }
 
 // A collision is not an error: an ambiguous term yields a list that repeat-submit cycles through.
-function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
+export function findMatchingBubbles(lowerTerm: string): HTMLElement[] {
   const bubbles: HTMLElement[] = [];
   for (const nameElement of listNameElements()) {
     const isMatch = isMatchingSearchTerm(nameElement, lowerTerm);

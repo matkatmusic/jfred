@@ -1,17 +1,17 @@
   /*
     Task 260: a tick is a navigation control. Hover changes colour only, so the label stays put.
   */
-  .ruler .tick { cursor: pointer; }
-  .ruler .tick:hover { color: var(--ink); text-decoration: underline; }
+  .timelineRulerComponent .tick { cursor: pointer; }
+  .timelineRulerComponent .tick:hover { color: var(--ink); text-decoration: underline; }
 
   /*
     Task 284: a shared tick expands into the files touched at that instant.
   */
-  .ruler .tick.multi { text-decoration: underline dotted; }
-  .ruler .tick.expanded { color: var(--ink); }
-  .ruler .tick .kind-dashes { display: inline-flex; gap: 4px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
-  .ruler .tick .kdash { position: relative; flex: 0 1 12px; min-width: 3px; height: 4px; border-radius: 2px; }
-  .ruler .tick .kdash::after { content: ""; position: absolute; inset: -5px -1px; }
+  .timelineRulerComponent .tick.multi { text-decoration: underline dotted; }
+  .timelineRulerComponent .tick.expanded { color: var(--ink); }
+  .timelineRulerComponent .tick .kind-dashes { display: inline-flex; gap: 4px; height: 14px; width: 28px; align-items: center; margin-left: 3px; vertical-align: middle; }
+  .timelineRulerComponent .tick .kdash { position: relative; flex: 0 1 12px; min-width: 3px; height: 4px; border-radius: 2px; }
+  .timelineRulerComponent .tick .kdash::after { content: ""; position: absolute; inset: -5px -1px; }
   .kdash-created { background: var(--muted); }
   .kdash-commit { background: var(--c-commit); }
   .kdash-disk { background: var(--c-disk); }

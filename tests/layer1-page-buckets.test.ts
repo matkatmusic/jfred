@@ -87,14 +87,14 @@ function readBoxValue(id: string): string {
 
 // Matching on NAME rather than position or size stops an inverted gitOrphans/diskOrphans binding from slipping through on shape.
 function findBucketTitled(title: string): HTMLElement | undefined {
-    return listMatching("#stage .filebox.bucket")
+    return listMatching("#fileBubbleContainer .filebox.bucket")
         .find((bucket) => bucket.querySelector(".fname")?.textContent === title);
 }
 
 test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", async () => {
     // The orphan sets mirror each other, so checking WHICH path lands in WHICH bucket catches a swap.
     await loadPageWithView(buildPartialOverlapView(), BOTH_ROOTS_SEARCH);
-    assert.equal(listMatching("#stage .filebox.bucket").length, 2);
+    assert.equal(listMatching("#fileBubbleContainer .filebox.bucket").length, 2);
     const gitBucket = findBucketTitled("No on-disk match")!;
     assert.deepEqual(listTextOf(gitBucket, "li span"), [GIT_ORPHAN.path]);
     assert.equal(readAxisOffsetPx(gitBucket), GIT_ORPHAN.axisPx);
@@ -108,11 +108,11 @@ test("test_each_orphan_bucket_binds_its_own_wire_property_to_its_own_title", asy
 test("test_empty_bucket_is_omitted_and_zero_pairs_shows_the_no_pairs_message", async () => {
     // A view sharing no path must still draw the ruler and the populated bucket, not just a message.
     await loadPageWithView(buildDiskOnlyView(), BOTH_ROOTS_SEARCH);
-    assert.equal(listMatching("#stage .filebox:not(.bucket)").length, 0);
-    assert.equal(document.querySelector("#stage .nopairs")?.textContent, "No git ↔ on-disk pairs.");
-    assert.equal(listMatching("#ruler .tick").length, 1);
+    assert.equal(listMatching("#fileBubbleContainer .filebox:not(.bucket)").length, 0);
+    assert.equal(document.querySelector("#fileBubbleContainer .nopairs")?.textContent, "No git ↔ on-disk pairs.");
+    assert.equal(listMatching("#timelineRulerComponent .tick").length, 1);
     // The survivor must be the NON-EMPTY DIRECTION, not merely "a bucket".
-    const buckets = listMatching("#stage .filebox.bucket");
+    const buckets = listMatching("#fileBubbleContainer .filebox.bucket");
     assert.equal(buckets.length, 1);
     assert.equal(buckets[0]?.querySelector(".fname")?.textContent, "No repository match");
     assert.equal(findBucketTitled("No on-disk match"), undefined);

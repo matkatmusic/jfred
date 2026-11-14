@@ -32,5 +32,5 @@
 
 // not behavior: checks that a constant string matches a pattern.
 // test("readiness is measured on drawn bubbles, not on document.readyState", () => {
-//     assert.match(READY_EXPRESSION, /#stage \.filebox/);
+//     assert.match(READY_EXPRESSION, /#fileBubbleContainer \.filebox/);
 // });

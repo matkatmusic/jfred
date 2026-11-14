@@ -121,7 +121,7 @@ test("test_findBlockerDot_finds_the_dot_in_a_bubble_the_blocked_run_does_not_tou
   // Verify: the lookup reads the tool use id only, not the bubble.
   initLayer1Dom();
   const dot = createElement("i", { class: "node n-script", "data-tool-use-id": "e" });
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [dot]));
+  getRequiredElementById("fileBubbleContainer").replaceChildren(createElement("div", { class: "filebox" }, [dot]));
   assert.equal(findBlockerDot({ ...buildNeed("e", 1), state: BlockerState.unreplayed }), dot);
   assert.equal(findBlockerDot({ ...buildNeed("none", 1), state: BlockerState.unreplayed }), undefined);
 });

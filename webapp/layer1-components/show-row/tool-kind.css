@@ -1,4 +1,4 @@
-  .viz-root[data-hidden-kinds~="tool"] .tnode,
-  .viz-root[data-hidden-kinds~="tool"] .tlabel,
-  .viz-root[data-hidden-kinds~="tool"] .tbracket { display: none; }
-  .show-row .sw-tool { background: var(--ink); border-radius: 3px; }
+  .appWindow[data-hidden-kinds~="tool"] .tnode,
+  .appWindow[data-hidden-kinds~="tool"] .tlabel,
+  .appWindow[data-hidden-kinds~="tool"] .tbracket { display: none; }
+  .timelineViewControls .sw-tool { background: var(--ink); border-radius: 3px; }

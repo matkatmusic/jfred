@@ -1,13 +1,14 @@
-// The Layer 1 minimap (task 246): one mark per widget plus a viewport rectangle, in `.stagewrap`.
+// The Layer 1 minimap (task 246): one mark per widget plus a viewport rectangle, in `.sessionDataContainer`.
 // ponytail: every number is MEASURED, never derived from zoom, so the minimap stays correct under zoom.
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { applyBoxToPlot, computeMinimapScale, measureInContent } from "./layer1-minimap-geometry.ts";
 import type { MinimapScale } from "./layer1-minimap-geometry.ts";
+import { moveMiniMapToRulerEdge } from "./layer1-minimap-position.ts";
 
 // The scroll container. It carries an id purely so this module and the page share one lookup.
 function getTimelinePane(): HTMLElement {
-  return getRequiredElementById("timelines");
+  return getRequiredElementById("timelineContainer");
 }
 
 // The inner box the marks are drawn into; it carries the current scale in data attributes.
@@ -25,7 +26,7 @@ function readMinimapScale(): MinimapScale {
 
 // One `.wash` band's minimap mark: measured like a `.filebox` mark, plus its tint.
 function buildWashMark(wash: Element, pane: HTMLElement, paneRect: DOMRect, scale: MinimapScale): HTMLElement {
-  const mark = createElement("div", { class: "mm-wash" });
+  const mark = createElement("div", { class: "mm-wash", "data-component": "minimapWashMarkItem" });
   applyBoxToPlot(mark, measureInContent(wash, pane, paneRect), scale);
   mark.style.setProperty("--wash-color", (wash as HTMLElement).style.getPropertyValue("--wash-color"));
   return mark;
@@ -83,6 +84,17 @@ function registerCanvasResizeObserver(): void {
   new window.ResizeObserver(() => renderLayer1Minimap()).observe(canvas);
 }
 
+let isTimelinePaneObserved = false;
+
+// The pane shrinks when the names rows appear; the fixed minimap must follow its bottom edge.
+function registerPaneResizeObserver(): void {
+  if (isTimelinePaneObserved) {
+    return;
+  }
+  isTimelinePaneObserved = true;
+  new window.ResizeObserver(() => moveMiniMapToRulerEdge()).observe(getTimelinePane());
+}
+
 // Rebuild the whole map after every render and every canvas resize.
 export function renderLayer1Minimap(): void {
   const pane = getTimelinePane();
@@ -99,7 +111,7 @@ export function renderLayer1Minimap(): void {
   const marks: HTMLElement[] = [];
   for (const widget of document.querySelectorAll(".filebox")) {
     // Orphan buckets are `.filebox.bucket`; they read as muted on the map, as on the canvas.
-    const mark = createElement("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box" });
+    const mark = createElement("div", { class: widget.classList.contains("bucket") ? "mm-box bucket" : "mm-box", "data-component": "minimapFileMarkItem" });
     applyBoxToPlot(mark, measureInContent(widget, pane, paneRect), scale);
     marks.push(mark);
   }
@@ -108,4 +120,6 @@ export function renderLayer1Minimap(): void {
   syncMinimapViewport();
   registerMinimapListeners();
   registerCanvasResizeObserver();
+  registerPaneResizeObserver();
+  moveMiniMapToRulerEdge();
 }

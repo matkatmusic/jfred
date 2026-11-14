@@ -35,7 +35,7 @@ export async function validateMultiFileDrawer(page: HeadlessPage): Promise<void>
   await page.evaluate(buildShiftClickLeafScript(b));
   const pair = await page.evaluate<string[]>(SECTION_PATHS);
   reportCheck("#328 shift-clicking two leaves opens one section per file, alphabetical",
-    await page.evaluate<boolean>(`document.getElementById('drawer').classList.contains('open')`)
+    await page.evaluate<boolean>(`document.getElementById('detailsPaneContainer').classList.contains('open')`)
         && JSON.stringify(pair) === JSON.stringify([a, b].sort()), { pair, a, b });
 
   // #dbody is a row flex for the single-file gutter+code; sections must opt out and stack.

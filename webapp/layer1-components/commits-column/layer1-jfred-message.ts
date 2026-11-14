@@ -41,7 +41,7 @@ function findLatestBeaconNode(box: HTMLElement, markMs: number): HTMLElement | u
 
 export function listSnapLines(markMs: number): string[] {
   const lines: string[] = [];
-  for (const box of document.querySelectorAll<HTMLElement>("#stage .filebox")) {
+  for (const box of document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox")) {
     const path = box.querySelector<HTMLElement>(".fname")?.dataset["path"];
     const node = path === undefined ? undefined : findLatestBeaconNode(box, markMs);
     if (path === undefined)

@@ -99,7 +99,7 @@ function triggerBubbleFlash(event: MouseEvent): void {
 }
 
 function registerBubbleFlash(): void {
-  getRequiredElementById("stage").addEventListener("click", triggerBubbleFlash);
+  getRequiredElementById("fileBubbleContainer").addEventListener("click", triggerBubbleFlash);
 }
 
 export { addSessionFlash as flashSession, registerBubbleFlash as wireBubbleFlash };

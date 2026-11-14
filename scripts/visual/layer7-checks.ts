@@ -14,15 +14,15 @@ export interface MinimapFacts { scaleX: number; viewWidth: number }
 export interface RewindFacts { bnodeCount: number; opacity: number; elbowStyle: string; rewindCount: number }
 
 const WAIT_MS = 15_000;
-const BRANCH_BOX = `document.querySelector('#show-row input[data-kind="branch"]')`;
+const BRANCH_BOX = `document.querySelector('#timelineViewControls input[data-kind="branch"]')`;
 const RANGE_FACTS = `(async () => {
     const bar = document.querySelector('.range');
     bar.scrollIntoView({ block: 'center', inline: 'nearest' });
     await new Promise(resolve => setTimeout(resolve, 150));
     const box = bar.getBoundingClientRect();
     const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-    const drawn = [...document.querySelectorAll('#annotation-track i.anode')].filter(n => n.getClientRects().length > 0);
-    return { left: box.left, right: box.right, trackLeft: document.getElementById('annotation-track').getBoundingClientRect().left,
+    const drawn = [...document.querySelectorAll('#sessionDotLinesComponent i.anode')].filter(n => n.getClientRects().length > 0);
+    return { left: box.left, right: box.right, trackLeft: document.getElementById('sessionDotLinesComponent').getBoundingClientRect().left,
         nodeLeft: Math.min(...drawn.map(n => n.getBoundingClientRect().left)), isHit: hit === bar };
 })()`;
 const MINIMAP_FACTS = `({ scaleX: Number(document.getElementById('mm-plot').dataset.scaleX),

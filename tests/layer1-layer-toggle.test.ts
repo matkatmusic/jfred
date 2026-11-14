@@ -16,7 +16,7 @@
 // }
 //
 // function vizLayer(): string | undefined {
-//     return (document.querySelector(".viz-root") as HTMLElement).dataset.layer;
+//     return (document.querySelector(".appWindow") as HTMLElement).dataset.layer;
 // }
 //
 // function layerButtons(): HTMLElement[] {

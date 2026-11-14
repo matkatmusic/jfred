@@ -1,7 +1,7 @@
   /*
     Lifted verbatim from plans/layer1-mockup.html (user-signed-off 2026-07-25), so this reads as the same app.
   */
-  .viz-root {
+  .appWindow {
     color-scheme: light;
     --page: #f9f9f7; --surface: #fcfcfb;
     --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
@@ -13,7 +13,7 @@
     --sel-edge: #1baf7a; --box: #d98a2b;
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) .viz-root {
+    :root:where(:not([data-theme="light"])) .appWindow {
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19;
       --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
@@ -25,7 +25,7 @@
       --sel-edge: #199e70; --box: #b57427;
     }
   }
-  :root[data-theme="dark"] .viz-root {
+  :root[data-theme="dark"] .appWindow {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19;
     --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
@@ -39,7 +39,7 @@
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
   body { background: var(--page); }
-  .viz-root { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  .appWindow { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--ink); background: var(--page); height: 100vh; display: flex; flex-direction: column; }
 
   button { font: 600 12px system-ui; padding: 4px 10px; border-radius: 6px;
@@ -47,3 +47,4 @@
   button:hover { border-color: var(--ink2); }
   button:disabled { color: var(--muted); cursor: not-allowed; }
   button:disabled:hover { border-color: var(--border); }
+  button:active:not(:disabled) { transform: translate(2px, 2px); }

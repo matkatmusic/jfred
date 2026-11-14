@@ -20,20 +20,20 @@ const CLEAR_SESSIONS = `document.getElementById('clear-sessions').click()`;
 //     const zOf = id => Number(getComputedStyle(document.getElementById(id)).zIndex);
 //     let line = null;
 //     let label = null;
-//     for (const candidate of document.querySelectorAll('#jfred-strip .jline'))
-//         for (const text of document.querySelectorAll('#annotation-track .alabel'))
+//     for (const candidate of document.querySelectorAll('#jfredCommitsDrawerComponent .jline'))
+//         for (const text of document.querySelectorAll('#sessionDotLinesComponent .alabel'))
 //             if (label === null && Date.parse(text.dataset.instant) === Date.parse(candidate.dataset.instant)) { line = candidate; label = text; }
-//     const facts = { trackZ: zOf('annotation-track'), stripZ: zOf('jfred-strip'), labelBackground: label ? getComputedStyle(label).backgroundColor : '',
+//     const facts = { trackZ: zOf('sessionDotLinesComponent'), stripZ: zOf('jfredCommitsDrawerComponent'), labelBackground: label ? getComputedStyle(label).backgroundColor : '',
 //         line: line ? box(line) : null, label: label ? box(label) : null };
 export const STACKING_FACTS =`(async () => {
     const box = e => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
     const zOf = id => Number(getComputedStyle(document.getElementById(id)).zIndex);
     let line = null;
     let dot = null;
-    for (const candidate of document.querySelectorAll('#jfred-strip .jline'))
-        for (const node of document.querySelectorAll('#annotation-track i.anode'))
+    for (const candidate of document.querySelectorAll('#jfredCommitsDrawerComponent .jline'))
+        for (const node of document.querySelectorAll('#sessionDotLinesComponent i.anode'))
             if (dot === null && node.getClientRects().length > 0 && Date.parse(node.dataset.instant) === Date.parse(candidate.dataset.instant)) { line = candidate; dot = node; }
-    const facts = { trackZ: zOf('annotation-track'), stripZ: zOf('jfred-strip'), dotBackground: dot ? getComputedStyle(dot).backgroundColor : '',
+    const facts = { trackZ: zOf('sessionDotLinesComponent'), stripZ: zOf('jfredCommitsDrawerComponent'), dotBackground: dot ? getComputedStyle(dot).backgroundColor : '',
         line: line ? box(line) : null, dot: dot ? box(dot) : null };
     const bar = document.querySelector('.range');
     bar.scrollIntoView({ block: 'center', inline: 'nearest' });

@@ -19,7 +19,7 @@ export function clearPendingWrites(): void {
 }
 
 // The absolute path that the result line writes, or undefined when the line writes no file.
-function findWrittenFile(state: Path, resultLine: JSONLLine): string | undefined {
+export function findWrittenFile(state: Path, resultLine: JSONLLine): string | undefined {
   const kind = getJSONLLineKind(resultLine, state);
   switch (kind) {
     case JSONLLineKind.WriteCreate:
@@ -39,7 +39,7 @@ function readBeforeContent(file: string): BeforeContent {
 }
 
 // The file text that the result line says was on disk before the write, or null when the result has none.
-function findResultOriginalFile(state: Path, resultLine: JSONLLine): string | null {
+export function findResultOriginalFile(state: Path, resultLine: JSONLLine): string | null {
   const kind = getJSONLLineKind(resultLine, state);
   switch (kind) {
     case JSONLLineKind.WriteCreate:

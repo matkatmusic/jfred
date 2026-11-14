@@ -63,7 +63,7 @@ export function updateHoveredLeader(element: HTMLElement | undefined): void {
 }
 
 export function attachLeaderVisibility(): void {
-  const pane = getRequiredElementById("timelines");
+  const pane = getRequiredElementById("timelineContainer");
   function updateLeaderOnPointerOver(event: PointerEvent): void {
     updateHoveredLeader(event.target as HTMLElement);
   }

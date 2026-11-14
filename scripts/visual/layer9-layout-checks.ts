@@ -13,7 +13,8 @@ import {
 export interface StripLayoutFacts {
   stripLeft: number; stripRight: number; trackLeft: number | null; trackRight: number | null; rulerRight: number; paneLeft: number; position: string; firstBoxLeft: number;
 }
-export interface SlackFacts { stripRules: number; marginWith: string; marginWithout: string }
+// export interface SlackFacts { stripRules: number; marginWith: string; marginWithout: string }
+export interface SlackFacts { marginWith: string; marginWithout: string }
 // export interface OverlapFacts {
 //   strip: PageBox; track: PageBox; labels: PageBox[]; button: PageBox & { isClipped: boolean }; lines: (PageBox & { nodeCx: number })[];
 // }
@@ -39,11 +40,16 @@ export function isStripBesideColumn(facts: StripLayoutFacts, isSessionOn: boolea
   const columnRight = facts.trackRight ?? facts.rulerRight;
   const isTouchingColumn = isNear(facts.stripLeft, columnRight, EDGE_TOLERANCE_PX);
   const isColumnTouchingRuler = isNear(facts.trackLeft ?? facts.rulerRight, facts.rulerRight, EDGE_TOLERANCE_PX);
-  return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "sticky";
+  // return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "sticky";
+  return isTrackExpected && isTouchingColumn && isColumnTouchingRuler && facts.position === "relative";
 }
 
-export function isStageUnmoved(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
-  return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft, withoutStrip.stageLeft, EDGE_TOLERANCE_PX);
+// export function isStageUnmoved(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
+//   return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft, withoutStrip.stageLeft, EDGE_TOLERANCE_PX);
+// }
+
+export function isStageMovedByStrip(withStrip: StageFacts, withoutStrip: StageFacts): boolean {
+  return withStrip.stripCount === 1 && withoutStrip.stripCount === 0 && isNear(withStrip.stageLeft - withoutStrip.stageLeft, withStrip.stripWidth, EDGE_TOLERANCE_PX);
 }
 
 export function isStripPinned(home: StripLayoutFacts, scrolled: StripLayoutFacts, scrollLeft: number): boolean {
@@ -108,17 +114,19 @@ async function validateBesideColumn(page: HeadlessPage, isSessionOn: boolean): P
   await page.evaluate(SCROLL_HOME);
   const home = await page.evaluate<StripLayoutFacts>(STRIP_LAYOUT_FACTS);
   const columnName = isSessionOn ? "session column's" : "ruler's";
-  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is sticky`, isStripBesideColumn(home, isSessionOn), home);
+  // reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is sticky`, isStripBesideColumn(home, isSessionOn), home);
+  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the strip's left edge meets the ${columnName} right edge, and the strip is relative`, isStripBesideColumn(home, isSessionOn), home);
   return home;
 }
 
-// Commit mode is on when this runs; it is turned off and on again.
+// Commit mode is on when this runs; it is turned off and on again. The strip pushes the stage right by the strip width.
 async function validateStageStays(page: HeadlessPage, isSessionOn: boolean): Promise<void> {
   const withStrip = await page.evaluate<StageFacts>(STAGE_FACTS);
   await page.evaluate(COMMIT_MODE_CLICK);
   const withoutStrip = await page.evaluate<StageFacts>(STAGE_FACTS);
   await page.evaluate(COMMIT_MODE_CLICK);
-  reportCheck(`L9 ${formatSessionState(isSessionOn)}: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing`, isStageUnmoved(withStrip, withoutStrip), [withStrip, withoutStrip]);
+  // reportCheck(`L9 ${formatSessionState(isSessionOn)}: the stage keeps its left edge with Commit mode on and off, so the strip pushes nothing`, isStageUnmoved(withStrip, withoutStrip), [withStrip, withoutStrip]);
+  reportCheck(`L9 ${formatSessionState(isSessionOn)}: Commit mode on moves the stage right by the strip width, and off moves it back`, isStageMovedByStrip(withStrip, withoutStrip), [withStrip, withoutStrip]);
 }
 
 async function validatePinned(page: HeadlessPage, home: StripLayoutFacts): Promise<void> {
@@ -164,7 +172,7 @@ export async function validateTokens(page: HeadlessPage): Promise<void> {
 
 export async function validateSlack(page: HeadlessPage): Promise<void> {
   const facts = await page.evaluate<SlackFacts>(SLACK_FACTS);
-  reportCheck("L9 one rule for .jfred-strip + .stage, and the stage margin is the same without the strip", facts.stripRules === 1 && facts.marginWith === facts.marginWithout, facts);
+  reportCheck("L9 the stage margin is the same with and without the strip", facts.marginWith === facts.marginWithout, facts);
 }
 
 // export async function validateStripOverlaps(page: HeadlessPage): Promise<void> {

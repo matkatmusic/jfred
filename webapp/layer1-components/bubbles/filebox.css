@@ -1,5 +1,5 @@
   /*
-    padding-top is derived: header ends at y 39, first node reaches 10 px above lane, so 50 px clears.
+    padding-top is derived: headerContainer ends at y 39, first node reaches 10 px above lane, so 50 px clears.
   */
   /*
     Task 277: `scroll-margin-top` keeps a jumped-to bubble's name off the pane's top edge.
@@ -21,7 +21,7 @@
     font: 600 13px ui-monospace, Menlo, monospace; color: var(--c-snap); white-space: nowrap;
     user-select: none; }
   /*
-    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.ruler` (8).
+    Task 280/270: hover reveals the whole path in page. z-index 7 sits above `.node` (6) and below `.timelineRulerComponent` (8).
   */
   .filebox .fname:hover { max-width: none; overflow: visible; z-index: 7; color: var(--c-user);
     background: var(--surface); border-radius: 4px; padding: 0 4px; margin-left: -4px; }
@@ -38,7 +38,24 @@
   .filebox.bucket { border-style: dashed; border-color: var(--muted); }
   .filebox.bucket .fname { color: var(--ink2); font-family: inherit; font-size: 12px; }
   .bucket ul { list-style: none; }
-  .bucket li { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0;
+  /*
+    Rows sit at their own instant like a `.node` does (same `top`); the holder gets a lane's height from --span-px and its width from the longest path.
+  */
+  .bucket .orphan-rows { position: relative; min-height: calc(var(--span-px) * 1px + 18px);
+    min-width: calc(var(--path-ch) * 1ch + 220px); }
+  .bucket .orphan-rows > li { position: absolute; left: 0; right: 0; top: calc(var(--axis-px) * 1px); transform: translateY(-50%); }
+  /* was: .bucket li { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0; */
+  .bucket li { display: flex; align-items: baseline; gap: 16px; padding: 1px 0;
     font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); }
-  .bucket li em { font-style: normal; color: var(--muted); font-size: 10px; }
+  .bucket li em { margin-left: auto; font-style: normal; color: var(--muted); font-size: 10px; }
+  /*
+    The "+N more" list hangs beside the line and never takes layout space; `visibility` keeps its rows measurable for ruler jumps.
+  */
+  .bucket .more { position: relative; }
+  .bucket .more button { font: inherit; color: var(--muted); background: none; border: none; padding: 0; cursor: pointer; }
+  .bucket .more-files { position: absolute; left: 100%; top: 0; z-index: 7; visibility: hidden; margin-left: 8px;
+    padding: 4px 8px; background: var(--surface); border: 1px solid var(--muted); border-radius: 4px; }
+  .bucket .more-files.open, .bucket .more:has(li.found, li.aimed) .more-files { visibility: visible; }
+  .bucket .more-files li { white-space: nowrap; }
+  .bucket .more-files li em { display: none; }
   .nopairs { color: var(--muted); font-size: 11.5px; padding: 34px 8px 0; }

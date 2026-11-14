@@ -1,24 +1,25 @@
   /*
-    Task 246: .stagewrap is the minimap's parent and holds the File Nav width (task 279).
+    Task 246: .sessionDataContainer is the minimap's parent and holds the File Nav width (task 279).
   */
-  .stagewrap { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
+  .sessionDataContainer { --track-w: 0px; --jfred-w: 104px; --filenav-w: 232px; flex: 1; min-width: 0; min-height: 0; position: relative;
     display: flex; overflow: hidden; }
 
   /*
     Task 288: mid-drag the nav follows the pointer; the timeline keeps its width.
   */
-  .stagewrap.resizing .filenav { width: var(--filenav-drag-w); }
-  .stagewrap.resizing .timelines { flex: none; width: var(--timeline-w); }
+  .sessionDataContainer.resizing .sourcesContainer { width: var(--filenav-drag-w); }
+  .sessionDataContainer.resizing .timelineComponentsContainer { flex: none; width: var(--timeline-w); }
 
   /*
-    Task 252: the File Nav lists every identified file. `--files-share` is the pane split, out of 100.
+    Task 252: the File Nav lists every identified file. The pane split is each pane's inline flex-grow.
   */
-  .filenav { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
-    overflow: hidden; min-height: 0; --files-share: 50;
+  .sourcesContainer { flex: none; width: var(--filenav-w); display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0;
     border-right: 1px solid var(--border); background: var(--surface); }
-  .navpane { overflow: auto; min-height: 0; }
-  #pane-files { flex: var(--files-share) 1 0; }
-  #pane-sessions { flex: calc(100 - var(--files-share)) 1 0; }
+  /* --files-share: 50; retired: step 21, the panes share height by flex-grow. */
+  .navpane { overflow: auto; min-height: 0; flex-basis: 0; }
+  /* #fileNavComponent { flex: var(--files-share) 1 0; } retired: step 21 replaces it. */
+  /* #jsonlsComponent { flex: calc(100 - var(--files-share)) 1 0; } retired: step 21 replaces it. */
   /*
     Negative margins so the 7 px target straddles the boundary rather than pushing the panes apart.
   */
@@ -30,14 +31,14 @@
   */
   .filenav-title { padding: 8px 10px 6px; font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-    display: flex; align-items: center; gap: 6px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     position: sticky; top: 0; z-index: 4; background: var(--surface); }
-  .filenav-title button { margin-left: auto; padding: 1px 7px; font-size: 10px;
+  .filenav-title > button { margin-left: auto; padding: 1px 7px; font-size: 10px;
     letter-spacing: normal; text-transform: none; }
   /*
     Task 326: the toggle paints like every other .current button on the page.
   */
-  .filenav-title button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
+  .filenav-title > button.current { background: var(--sel-edge); border-color: var(--sel-edge); color: #fff; }
 
   /*
     Task 281: the nav's search box copies `.sources input`'s values and sticks to the pane top.
@@ -49,9 +50,19 @@
     background: var(--page); border: 1px solid var(--border); border-radius: 6px; }
   .filenav-search input:focus { outline: none; border-color: var(--sel-edge); }
   .filenav-search button { flex: none; padding: 3px 8px; }
+  /*
+    The File Nav search row sits inside the title row, on its own line.
+  */
+  .filenav-title > .filenav-search { flex-basis: 100%; padding: 0; position: static; }
 
   /*
-    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimap's 20.
+    Only the tree scrolls, so the title and the search box stay at the pane top.
+  */
+  #fileNavComponent { display: flex; flex-direction: column; overflow: hidden; }
+  #filenav-tree { flex: 1; min-height: 0; overflow: auto; }
+
+  /*
+    Task 279: the drag handle straddles the pane's right edge; z-index 21 beats .minimapComponent's 20.
   */
   .filenav-grip { position: absolute; top: 0; bottom: 0;
     left: calc(var(--filenav-drag-w, var(--filenav-w)) - 3px);

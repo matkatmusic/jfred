@@ -3,7 +3,7 @@
 
 // A bucket is identified by its `.fname` heading; each button carries that text in `data-bucket` in layer1.html.
 const BUCKET_SELECTOR = ".filebox.bucket";
-const JUMP_BUTTON_SELECTOR = ".jumpbar [data-bucket]";
+const JUMP_BUTTON_SELECTOR = ".jumpToRowComponent [data-bucket]";
 
 // The rendered bucket titled `title`, or undefined; match by heading because empty buckets are dropped.
 function findBucketByTitle(title: string): HTMLElement | undefined {

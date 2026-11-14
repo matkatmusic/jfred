@@ -70,7 +70,7 @@ async function executeRealChecks(target: WireTarget): Promise<void> {
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   try {
     await page.navigate(`${target.origin}/app/layer1.html?${target.query}`);
-    await page.waitFor("document.querySelectorAll('#stage .filebox').length > 0", PAGE_TIMEOUT_MS);
+    await page.waitFor("document.querySelectorAll('#fileBubbleContainer .filebox').length > 0", PAGE_TIMEOUT_MS);
     await executeLayer6RealChecks(page, target, picked, PAGE_TIMEOUT_MS);
   }
   finally {

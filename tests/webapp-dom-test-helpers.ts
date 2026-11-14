@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Window } from "happy-dom";
 import { joinLayer1Page } from "../src/viewer_layer1_page_join.ts";
+import { buildLayer1Layout } from "../webapp/layer1-layout.ts";
 
 // writeln must invoke its completion callback so app-console's scroll-in-callback pattern still runs.
 class FakeXtermTerminal {
@@ -123,6 +124,7 @@ export function initLayer1Dom(search: string = ""): void {
     requestAnimationFrame: browserWindow.requestAnimationFrame.bind(browserWindow),
   });
   browserWindow.document.body.innerHTML = readLayer1HtmlBodyMarkup();
+  buildLayer1Layout();
 }
 
 // The debug page's body markup (task 183): the per-file debug viewer skeleton.

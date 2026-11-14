@@ -118,7 +118,7 @@ function buildConnectorProbe(): string {
         const centres = dots.map(r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
         const xs = centres.map(c => c.x);
         return {
-            count: document.querySelectorAll('#stage .script-connector[data-tool-use-id="${PYTHON_RUN_ID}"]').length,
+            count: document.querySelectorAll('#fileBubbleContainer .script-connector[data-tool-use-id="${PYTHON_RUN_ID}"]').length,
             total: document.querySelectorAll('.script-connector').length,
             centreDeltaY: line ? Math.max(...centres.map(c => Math.abs(line.top + line.height / 2 - c.y))) : 99999,
             leftDelta: line ? Math.abs(line.left - Math.min(...xs)) : 99999,
@@ -130,7 +130,7 @@ async function validateConnector(page: HeadlessPage): Promise<void> {
   const shape = await page.evaluate<{
     count: number; total: number; centreDeltaY: number; leftDelta: number; rightDelta: number;
   }>(buildConnectorProbe());
-  reportCheck("L4 exactly one python connector in #stage, and none for the bash run", shape.count === 1 && shape.total === 1, shape);
+  reportCheck("L4 exactly one python connector in #fileBubbleContainer, and none for the bash run", shape.count === 1 && shape.total === 1, shape);
   reportCheck("L4 the connector is level with both python dots (within 2px)", shape.centreDeltaY <= 2, shape);
   reportCheck("L4 the connector spans from one dot centre to the other (within 3px)",
     shape.leftDelta <= 3 && shape.rightDelta <= 3, shape);

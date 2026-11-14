@@ -47,14 +47,14 @@ function onlySelectedButton(): HTMLElement {
 }
 
 function shownPaths(): (string | undefined)[] {
-    return [...document.querySelectorAll<HTMLElement>("#stage .filebox .fname")].map((n) => n.dataset.path).sort();
+    return [...document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox .fname")].map((n) => n.dataset.path).sort();
 }
 
 test("test_a_single_selection_leaves_the_toggle_off_and_the_stage_unfiltered", () => {
     openLayer1Page();
     shiftClick(findNavRow(".file-item", "src/keep/a.ts"));
     assert.equal(onlySelectedButton().classList.contains("current"), false);
-    assert.equal(document.querySelectorAll("#stage .filebox").length, 3);
+    assert.equal(document.querySelectorAll("#fileBubbleContainer .filebox").length, 3);
 });
 
 test("test_growing_the_selection_past_one_item_does_not_arm_the_toggle_or_filter_the_stage", () => {

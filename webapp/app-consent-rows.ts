@@ -12,7 +12,7 @@ import { renderCodeInto } from "./highlight.ts";
 
 // Shell lines carrying inline code (`python3 -c "…"`) highlight only the quoted body, in the interpreter's language.
 export function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
-  const pre = createElement("pre");
+  const pre = createElement("pre", { "data-component": "runConsentScriptCodeText" });
   const inline = splitInlineInterpreterCode(script.code);
   if (inline === undefined) {
     renderCodeInto(pre, script.code, CONSENT_SCRIPT_LANGUAGE_PATH);
@@ -22,13 +22,13 @@ export function buildConsentScriptRow(script: WireConsentScript): HTMLElement {
     renderCodeInto(bodySpan, inline.body, inline.languagePath);
     pre.append(document.createTextNode(inline.prefix), bodySpan, document.createTextNode(inline.suffix));
   }
-  const row = createElement("div", { class: "consent-script" }, [
-    createElement("div", { class: "muted", text: new Date(script.timestamp).toLocaleString() + (script.cwd ? `  ·  cwd ${script.cwd}` : "") + formatConsentSourceToken(script.source) }),
+  const row = createElement("div", { class: "consent-script", "data-component": "runConsentScriptRow" }, [
+    createElement("div", { class: "muted", "data-component": "runConsentScriptTimeText", text: new Date(script.timestamp).toLocaleString() + (script.cwd ? `  ·  cwd ${script.cwd}` : "") + formatConsentSourceToken(script.source) }),
     pre,
   ]);
   const overflowsPreview = isConsentScriptOverflowingPreview(script.code);
   if (overflowsPreview) {
-    const expandButton = createElement("button", { class: "toolbar-btn", text: "Expand" });
+    const expandButton = createElement("button", { class: "toolbar-btn", "data-component": "runConsentScriptExpandButton", text: "Expand" });
     expandButton.onclick = () => {
       const nowExpanded = pre.classList.toggle("expanded");
       expandButton.textContent = nowExpanded ? "Collapse" : "Expand";

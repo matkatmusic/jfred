@@ -3,6 +3,7 @@
 import { getInputById, getRequiredElementById } from "../../app-dom.ts";
 import { getCollapsedFoldersForProject, saveFolderCollapseState } from "../../layer1-settings.ts";
 import { moveToBubbleAtPath } from "../top-bars/layer1-find-file.ts";
+import { isReverseOn } from "../top-bars/layer1-reverse-toggle.ts";
 import { renderFileTreeNode, type FolderCollapseState } from "../../views/sidebar.ts";
 import { buildFileTree } from "../../views/timeline-file-tree.ts";
 
@@ -39,6 +40,9 @@ export function listFileNavEntries(view: FileNavView) {
 // Task 325: leaf click selects the on-disk node; the synthetic click rides the stage's delegated drawer handler.
 // ponytail: polls because a filter repaint rebuilds the stage async; 2 s ceiling, then the orphan report stands.
 export function openDiskNodeForPath(path: string, attempt: number = 0): void {
+  if (isReverseOn()) {
+    return;
+  }
   const bubble = moveToBubbleAtPath(path);
   if (bubble !== undefined) {
     bubble.querySelector<HTMLElement>(".node.n-disk")?.click();

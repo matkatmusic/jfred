@@ -44,7 +44,7 @@ function drawDots(): HTMLElement[] {
     dots.push(dot);
     bubbles.push(createElement("div", { class: "filebox" }, [createElement("div", { class: "fname", "data-path": path }), dot]));
   }
-  getRequiredElementById("stage").replaceChildren(...bubbles);
+  getRequiredElementById("fileBubbleContainer").replaceChildren(...bubbles);
   return dots;
 }
 
@@ -236,7 +236,7 @@ test("test_a_bash_dot_shows_no_run_state_and_no_mark", () => {
   resetRunResults();
   initLayer1Dom();
   const dot = createElement("i", { class: "node n-script never-provable", "data-tool-use-id": "toolu_1" });
-  getRequiredElementById("stage").replaceChildren(dot);
+  getRequiredElementById("fileBubbleContainer").replaceChildren(dot);
   markRunStarted("toolu_1");
   renderRunDotsOfRun("toolu_1");
   storeRunResult(buildView(), buildResult([]));

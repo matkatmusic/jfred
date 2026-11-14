@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, getRequiredElementById } from "../webapp/app-dom.ts";
+import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { installNodeDrawer } from "../webapp/layer1-components/details-drawer/layer1-drawer.ts";
 import {
   buildNodeLinkUrl, findNodeByIdentity, installCopyLinkButton, openLinkedNode, readNodeLinkIdentity,
@@ -56,7 +57,9 @@ test("a node is found by instant, session file and line together", () => {
   initLayer1Dom();
   const wrongLine = buildIdentityNode({ ...IDENTITY, line: 1 }, "node n-edit");
   const match = buildIdentityNode(IDENTITY, "node n-edit");
-  getRequiredElementById("stage").replaceChildren(wrongLine, match);
+  const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(bubbleContainer);
+  bubbleContainer.append(wrongLine, match);
 
   assert.equal(findNodeByIdentity(document, IDENTITY), match);
   assert.equal(findNodeByIdentity(document, { ...IDENTITY, sessionFile: "/other.jsonl" }), undefined);
@@ -92,7 +95,9 @@ test("opening a linked node clicks it, which opens the drawer", async () => {
   installRecordingFetch(() => ({ content: DISK_FILE_CONTENT }));
   const node = buildIdentityNode(IDENTITY, "node n-snap");
   node.dataset["version"] = "1";
-  getRequiredElementById("stage").replaceChildren(createElement("div", { class: "filebox" }, [
+  const bubbleContainer = getRequiredElementById("fileBubbleContainer");
+  clearFileBubbles(bubbleContainer);
+  bubbleContainer.append(createElement("div", { class: "filebox" }, [
     createElement("div", { class: "fname", text: "a.ts", "data-path": "src/a.ts" }),
     createElement("div", { class: "lane" }, [node]),
   ]));
@@ -100,12 +105,12 @@ test("opening a linked node clicks it, which opens the drawer", async () => {
 
   await openLinkedNode(IDENTITY);
 
-  assert.ok(getRequiredElementById("drawer").classList.contains("open"));
+  assert.ok(getRequiredElementById("detailsPaneContainer").classList.contains("open"));
 });
 
 test("opening a node that is not on the page throws", async () => {
   initLayer1Dom();
-  getRequiredElementById("stage").replaceChildren();
+  clearFileBubbles(getRequiredElementById("fileBubbleContainer"));
 
   await assert.rejects(openLinkedNode(IDENTITY), /not on this page/);
 });

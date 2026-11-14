@@ -25,7 +25,7 @@ function clampScroll(pane: HTMLElement, wanted: number, contentPx: number, viewP
 
 // A pane that clamps scroll like a browser and shifts content by its start-side slack.
 function buildClampingPane(): HTMLElement {
-  const pane = getRequiredElementById("timelines");
+  const pane = getRequiredElementById("timelineContainer");
   let scrollLeft = 0;
   let scrollTop = 0;
   Object.defineProperty(pane, "scrollLeft", {
@@ -41,7 +41,7 @@ function buildClampingPane(): HTMLElement {
   Object.defineProperty(pane, "clientWidth", { get: () => PANE_WIDTH_PX });
   Object.defineProperty(pane, "clientHeight", { get: () => PANE_HEIGHT_PX });
   pane.getBoundingClientRect = () => ({ left: 0, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: PANE_WIDTH_PX, height: PANE_HEIGHT_PX }) as DOMRect;
-  getRequiredElementById("drawer").getBoundingClientRect = () => ({ left: PANE_WIDTH_PX, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: 0, height: PANE_HEIGHT_PX }) as DOMRect;
+  getRequiredElementById("detailsPaneContainer").getBoundingClientRect = () => ({ left: PANE_WIDTH_PX, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: 0, height: PANE_HEIGHT_PX }) as DOMRect;
   return pane;
 }
 

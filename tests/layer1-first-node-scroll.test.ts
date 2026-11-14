@@ -14,8 +14,8 @@ type StubbedNode = { top: number; isVisible: boolean };
 function buildStubbedStage(nodes: StubbedNode[]): number[] {
     initLayer1Dom();
     const scrolled: number[] = [];
-    getRequiredElementById("timelines").getBoundingClientRect = () => PANE_RECT as DOMRect;
-    const stage = getRequiredElementById("stage");
+    getRequiredElementById("timelineContainer").getBoundingClientRect = () => PANE_RECT as DOMRect;
+    const stage = getRequiredElementById("fileBubbleContainer");
     stage.replaceChildren(...nodes.map((stub, index) => {
         const node = createElement("i", { class: "node" });
         node.getBoundingClientRect = () => ({ top: stub.top, bottom: stub.top + 15, left: 100, right: 115 }) as DOMRect;

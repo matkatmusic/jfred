@@ -16,7 +16,7 @@ export interface VisualState {
 }
 
 // The page has finished its ~10 s build and drawn bubbles.
-export const READY_EXPRESSION = "document.querySelectorAll('#stage .filebox').length > 0";
+export const READY_EXPRESSION = "document.querySelectorAll('#fileBubbleContainer .filebox').length > 0";
 
 // Click the folder row, not the expand triangle — the two are distinct targets (task 253).
 const CLICK_FIRST_FOLDER = `(() => {
@@ -28,7 +28,7 @@ const CLICK_FIRST_FOLDER = `(() => {
 
 // Open Detail View on the first non-bucket pair bubble's node.
 const CLICK_FIRST_NODE = `(() => {
-    const node = document.querySelector('#stage .filebox:not(.bucket) .node');
+    const node = document.querySelector('#fileBubbleContainer .filebox:not(.bucket) .node');
     if (node === null) { return false; }
     node.click();
     return true;
@@ -44,7 +44,7 @@ const CLEAR_FOLDER_FILTER = `(() => {
 
 // Expand a shared gutter row; `.multi` guarantees the row is expandable.
 const CLICK_MULTI_TICK = `(() => {
-    const tick = document.querySelector('#ruler .tick.multi');
+    const tick = document.querySelector('#timelineRulerComponent .tick.multi');
     if (tick === null) { return false; }
     tick.click();
     return true;
@@ -52,7 +52,7 @@ const CLICK_MULTI_TICK = `(() => {
 
 // Jump to the last bubble — the furthest right, most likely to land off-screen.
 const JUMP_TO_LAST_BUBBLE = `(() => {
-    const names = [...document.querySelectorAll('#stage .filebox:not(.bucket) .fname')];
+    const names = [...document.querySelectorAll('#fileBubbleContainer .filebox:not(.bucket) .fname')];
     const last = names[names.length - 1];
     if (last === undefined) { return false; }
     const box = document.getElementById('find-file');
@@ -100,7 +100,7 @@ export const VISUAL_STATES: VisualState[] = [
     name: "03-file-selected",
     drive: async (page) => {
       await triggerClickInPage(page, CLICK_FIRST_NODE, "pair bubble with a node");
-      await waitUntilSettled(page, "document.querySelector('#drawer.open') && document.getElementById('dpath').textContent");
+      await waitUntilSettled(page, "document.querySelector('#detailsPaneContainer.open') && document.getElementById('dpath').textContent");
     },
   },
   {
@@ -108,16 +108,16 @@ export const VISUAL_STATES: VisualState[] = [
     drive: async (page) => {
       await triggerClickInPage(page, CLEAR_FOLDER_FILTER, "selected folder to unfilter");
       // The multi mark comes after the chunked render ends, so wait for it.
-      await waitUntilSettled(page, "document.querySelector('#ruler .tick.multi')");
+      await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tick.multi')");
       await triggerClickInPage(page, CLICK_MULTI_TICK, "multi-event ruler row");
-      await waitUntilSettled(page, "document.querySelector('#ruler .tickfiles button')");
+      await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tickfiles button')");
     },
   },
   {
     name: "05-jump-to-bubble",
     drive: async (page) => {
       await triggerClickInPage(page, JUMP_TO_LAST_BUBBLE, "pair bubble to jump to");
-      await waitUntilSettled(page, "document.querySelector('#stage .filebox.found')");
+      await waitUntilSettled(page, "document.querySelector('#fileBubbleContainer .filebox.found')");
     },
   },
   {

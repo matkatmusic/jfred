@@ -10,7 +10,7 @@ import { createFakePage } from "./layer6-fake-page.ts";
 const GOOD_FACTS: BlockedFacts = {
   count: 1, buttons: ["close", "Go to first unreplayed script node"], text: "The earlier script dots must run first.module_20.tsx: not run yet closeGo",
   insideStagewrap: true, insideTimelines: true, popupRect: [10, 10, 100, 60], dotRect: [0, 20, 2, 28], drawerRect: [120, 0, 400, 500],
-  paneRect: [0, 0, 120, 500], drawerOpen: true,
+  paneRect: [0, 0, 120, 500], drawerOpen: true, isDrawerUncoveredByPopup: true,
 };
 
 test("the button texts are exactly close and Go to first unreplayed script node", () => {
@@ -25,10 +25,11 @@ test("isBlockedPopupRight passes one popup with both buttons and fails other but
   assert.equal(isBlockedPopupRight({ ...GOOD_FACTS, insideStagewrap: false }), false);
 });
 
-test("isBlockedClippedByPane passes a popup in a pane that ends at the open drawer and fails the other cases", () => {
+test("isBlockedClippedByPane passes a popup the open drawer paints over and fails the other cases", () => {
   assert.equal(isBlockedClippedByPane(GOOD_FACTS), true);
   assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, insideTimelines: false }), false);
-  assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, paneRect: [0, 0, 200, 500] }), false);
+  assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, paneRect: [0, 0, 200, 500] }), true);
+  assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, isDrawerUncoveredByPopup: false }), false);
   assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, drawerOpen: false }), false);
   assert.equal(isBlockedClippedByPane({ ...GOOD_FACTS, count: 0 }), false);
 });

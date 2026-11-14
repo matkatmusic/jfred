@@ -1,19 +1,19 @@
-    <aside class="filenav" data-component="FileNav">
-      <section class="navpane" id="pane-files" data-component="FileNavPane">
-        <div class="filenav-title">File Nav
+    <!-- step 19: the sourcesContainer aside wrapper is now built in layer1-layout.ts -->
+      <section class="navpane fileNavComponent" id="fileNavComponent" data-component="fileNavComponent">
+        <div class="filenav-title" data-component="fileNavTitleBar">File Nav
           <!--
             task 326: filters the timeline to the selected folders' files while toggled on
           -->
-          <button id="filenav-only-selected" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
+          <button id="filenav-only-selected" data-component="fileNavShowOnlySelectedButton" title="Filter the timeline to the selected folders' files">Show Only Selected</button>
+          <!--
+            Task 281: the nav's own search box. It narrows this tree only; the find-bubble box scrolls the timeline.
+          -->
+          <div class="filenav-search">
+            <input id="filenav-search" data-component="fileNavSearchInput" type="text" placeholder="search files..." aria-label="Search files">
+            <button id="filenav-search-clear" data-component="fileNavSearchClearButton" title="Clear the file search">×</button>
+          </div>
         </div>
-        <!--
-          Task 281: the nav's own search box. It narrows this tree only; the find-bubble box scrolls the timeline.
-        -->
-        <div class="filenav-search">
-          <input id="filenav-search" type="text" placeholder="search files..." aria-label="Search files">
-          <button id="filenav-search-clear" title="Clear the file search">×</button>
-        </div>
-        <div id="filenav-tree"></div>
+        <div id="filenav-tree" data-component="fileNavTreeList"></div>
       </section>
       <!--
         Task 292: the horizontal split between the two panes; dragging it re-shares the aside's height.
@@ -25,4 +25,4 @@
       <!--
         include layer1-components/jsonls-nav/jsonls-nav.html
       -->
-    </aside>
+    <!-- step 19: end of the retired aside wrapper -->
