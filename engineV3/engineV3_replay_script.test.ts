@@ -1,5 +1,6 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -157,10 +158,13 @@ test("test_executeScriptInState_throws_with_command_exit_code_and_stderr_on_a_no
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has an allowed Bash call that prints to stderr and exits 3
-  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
+  // A failure that changes no project file goes on now, so the call writes a file first.
+  // const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "touch made.txt; echo boom 1>&2; exit 3", state.toString());
   // the error names the command, the exit code and the stderr
   assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID)), (error: Error) => {
-    assert.match(error.message, /echo boom 1>&2; exit 3/);
+    // assert.match(error.message, /echo boom 1>&2; exit 3/);
+    assert.match(error.message, /touch made\.txt; echo boom 1>&2; exit 3/);
     assert.match(error.message, /exit code 3/);
     assert.match(error.message, /boom/);
     return true;
@@ -382,4 +386,123 @@ test("test_executeScriptInState_sets_no_uuid_preload_env_for_a_call_with_no_new_
   assert.equal(envText.startsWith("unset|unset|"), true);
   // the node options do not name the preload
   assert.equal(envText.includes("engineV3_recorded_uuids_preload"), false);
+});
+
+const FAILED_NO_CHANGE_NOTE = /^\S+ note: failed, changed no project file: session\.jsonl:1 exit \S+: /;
+
+// No source repo, so a git command gets no recorded git env and no HEAD check.
+function makeContextWithNoSourceRepo(toolUseId: string): ScriptReplayContext {
+  return { ...makeContext(toolUseId), sourceRepo: undefined };
+}
+
+// The state is a git repo with one commit that holds .gitignore (ignoring build/) and page.html.
+function makeGitState(t: TestContext): Path {
+  const state = makeTempFolder(t, "engine-v3-script-git-state-");
+  writeFileSync(join(state, ".gitignore"), "build/\n");
+  writeFileSync(join(state, "page.html"), "old\n");
+  execFileSync("git", ["init", "-q"], { cwd: state });
+  execFileSync("git", ["add", "."], { cwd: state });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "start"], { cwd: state });
+  return new Path(state);
+}
+
+function countFailedNoChangeNotes(logMock: { mock: { calls: { arguments: unknown[] }[] } }): number {
+  return getPrintedLines(logMock).filter((printed) => FAILED_NO_CHANGE_NOTE.test(printed)).length;
+}
+
+test("test_executeScriptInState_throws_when_a_call_edits_a_project_file_and_then_fails", (t) => {
+  // Scenario: the line-573 shape: a python heredoc edits a project file, then `cp missing x` fails.
+  const state = makeGitState(t);
+  // the call edits page.html, then copies a file that does not exist
+  const command = "python3 - <<'EOF'\nopen('page.html','w').write('new')\nEOF\ncp missing x";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  // the run throws, because the call changed a project file
+  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)), /command failed with exit code 1/);
+});
+
+test("test_executeScriptInState_throws_when_a_call_commits_and_then_fails", (t) => {
+  // Scenario: the line-866 shape: `git add && git commit` succeeds, then `nosuchprogram --version` fails.
+  const state = makeGitState(t);
+  writeFileSync(join(state.toString(), "page.html"), "edited\n");
+  // the call commits page.html, then runs a program that does not exist
+  const command = "git add page.html && git -c user.name=t -c user.email=t@t commit -q -m edit && nosuchprogram --version";
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  // the run throws, because the commit changed HEAD, the refs and the index
+  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)), /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_creates_a_git_ignored_project_file", (t) => {
+  // Scenario: an ignored file is a project file too.
+  const state = makeGitState(t);
+  mkdirSync(join(state.toString(), "build"));
+  // the call writes build/out.txt, which git ignores, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo x > build/out.txt; nosuchprogram", state.toString());
+  // the run throws
+  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)), /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_only_stages_a_file", (t) => {
+  // Scenario: a change to the git index is a project change.
+  const state = makeGitState(t);
+  writeFileSync(join(state.toString(), "page.html"), "edited\n");
+  // the call stages page.html, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "git add page.html; nosuchprogram", state.toString());
+  // the run throws
+  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)), /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_throws_when_a_failing_call_deletes_a_top_level_project_file", (t) => {
+  // Scenario: a deleted file leaves no entry to check; its folder's change time shows the delete.
+  const state = makeGitState(t);
+  // the call deletes page.html, then fails
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "rm page.html; nosuchprogram", state.toString());
+  // the run throws
+  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)), /command failed with exit code 127/);
+});
+
+test("test_executeScriptInState_goes_on_with_a_note_when_a_failing_call_writes_only_outside_the_project", (t) => {
+  // Scenario: the line-752 shape: the call edits a page in a scratch folder, takes screenshots there, then exits 1.
+  const state = makeGitState(t);
+  const scratchFolder = makeTempFolder(t, "engine-v3-script-scratch-");
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call writes page.html and a screenshot under the scratch folder only
+  const command = `S=${scratchFolder}; python3 - <<'EOF'\nopen('${scratchFolder}/page.html','w').write('x')\nEOF\nfor k in now A; do nosuchchrome --screenshot=$S/$k.png >/dev/null 2>&1; touch $S/$k.png; done; exit 1`;
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, command, state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)));
+  // the scratch files exist, so the call did run
+  assert.equal(existsSync(join(scratchFolder, "A.png")), true);
+  // the run prints one note
+  assert.equal(countFailedNoChangeNotes(logMock), 1);
+});
+
+test("test_executeScriptInState_goes_on_with_a_note_when_a_call_times_out_with_no_project_change", (t) => {
+  // Scenario: a call that hits the time limit and changed no project file goes on.
+  const state = makeGitState(t);
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call runs an unknown program, then waits longer than a 300 ms time limit
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "nosuchprogram 2>/dev/null; sleep 5", state.toString());
+  const context = { ...makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID), scriptTimeoutMilliseconds: 300 };
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, context));
+  // the run prints one note that names the signal
+  assert.equal(getPrintedLines(logMock).filter((printed) => /exit SIGTERM: /.test(printed)).length, 1);
+  assert.equal(countFailedNoChangeNotes(logMock), 1);
+});
+
+test("test_executeScriptInState_goes_on_with_a_note_when_an_unknown_program_fails", (t) => {
+  // Scenario: an unknown program that is missing in the container changes nothing.
+  const state = makeGitState(t);
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call runs a program that does not exist
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "nosuchprogram", state.toString());
+  // the run does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, makeContextWithNoSourceRepo(ALLOWED_TOOL_USE_ID)));
+  // the run prints one note with exit 127 and the first stderr line
+  const notes = getPrintedLines(logMock).filter((printed) => FAILED_NO_CHANGE_NOTE.test(printed));
+  assert.equal(notes.length, 1);
+  assert.match(notes[0] as string, /exit 127: .*nosuchprogram/);
 });

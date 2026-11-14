@@ -2,7 +2,7 @@
 // A call that changes no file is skipped too.
 
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -21,12 +21,17 @@ import { fillMacOnlyFiles, isBrowserTestWithNoProjectWrite, isChromeStartCommand
 import { isReadOnlyCommand } from "./engineV3_replay_script_internet.ts";
 import { fillOutsideGitFoldersAtTime, OUTSIDE_LIVE_ROOT } from "./engineV3_replay_outside_folders.ts";
 import { getRecordedUuidEnv } from "./engineV3_replay_new_uuids.ts";
+import { recordContinuedFailure } from "./engineV3_replay_backups.ts";
 
 // export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
 // export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[] };
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[]; newOutputUuids?: Map<string, Uuid[]> };
+// export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[]; newOutputUuids?: Map<string, Uuid[]> };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry>; outsideGitFolders?: Path[]; newOutputUuids?: Map<string, Uuid[]>; scriptTimeoutMilliseconds?: number };
 
 const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
+const RUN_START_MARKER_FILE = join(tmpdir(), "engineV3-run-start-marker");
+const MAX_NOTE_STDERR_CHARACTERS = 200;
+const TIMEOUT_ERROR_CODE = "ETIMEDOUT";
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 const MAC_HOME_FOLDER = "/Users/matkatmusicllc";
 const PYTHON_LANGUAGE = "python";
@@ -91,9 +96,62 @@ function getRunSourceText(run: ScriptRun): string {
   return `${basename(run.source.filePath)}:${run.source.lineNumber}`;
 }
 
+// New content each time, so the write always moves the marker's change time; the kernel clock that stamps it also stamps the project's files.
+function readRunStartChangeTime(): bigint {
+  writeFileSync(RUN_START_MARKER_FILE, process.hrtime.bigint().toString());
+  return lstatSync(RUN_START_MARKER_FILE, { bigint: true }).ctimeNs;
+}
+
+// Every write, create, delete, rename or mode change moves a change time, also under .git and in ignored folders.
+function isEntryChangedSince(entryPath: string, runStartChangeTime: bigint): boolean {
+  const stats = lstatSync(entryPath, { bigint: true });
+  if (stats.ctimeNs >= runStartChangeTime) {
+    return true;
+  }
+  if (!stats.isDirectory()) {
+    return false;
+  }
+  for (const name of readdirSync(entryPath)) {
+    if (isEntryChangedSince(join(entryPath, name), runStartChangeTime)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isTimeoutError(error: Error): boolean {
+  return (error as NodeJS.ErrnoException).code === TIMEOUT_ERROR_CODE;
+}
+
+// The user's rule: only calls that change a file matter. A program that never started is not a failure of the call.
+function isFailureThatChangedNoProjectFile(result: SpawnSyncReturns<string>, state: Path, runStartChangeTime: bigint): boolean {
+  if (result.status === 0) {
+    return false;
+  }
+  if (result.error !== undefined) {
+    if (!isTimeoutError(result.error)) {
+      return false;
+    }
+  }
+  return !isEntryChangedSince(state.toString(), runStartChangeTime);
+}
+
+function getFirstStderrLine(result: SpawnSyncReturns<string>): string {
+  const firstLine = result.stderr.split("\n")[0] as string;
+  return firstLine.slice(0, MAX_NOTE_STDERR_CHARACTERS);
+}
+
 // function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): void {
-function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, run: ScriptRun, cwd: string, expectsError: boolean): void {
+// function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, run: ScriptRun, cwd: string, expectsError: boolean): void {
+function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, run: ScriptRun, cwd: string, expectsError: boolean, state: Path, runStartChangeTime: bigint): void {
   const command = run.code;
+  if (!expectsError) {
+    if (isFailureThatChangedNoProjectFile(result, state, runStartChangeTime)) {
+      recordContinuedFailure(getRunSourceText(run));
+      console.log(`${new Date().toISOString()} note: failed, changed no project file: ${getRunSourceText(run)} exit ${result.status ?? result.signal}: ${getFirstStderrLine(result)}`);
+      return;
+    }
+  }
   if (result.status === null) {
     throw createFailureError(result, command);
   }
@@ -140,9 +198,13 @@ function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResul
   const uuidEnv = getRecordedUuidEnv(context.newOutputUuids?.get(result.toolUseId.toString()));
   const env = { ...process.env, HOME: MAC_HOME_FOLDER, CLAUDE_CODE_SESSION_ID: sessionId?.toString(), ...gitEnv, ...uuidEnv };
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  // const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  const timeout = context.scriptTimeoutMilliseconds ?? SCRIPT_TIMEOUT_MILLISECONDS;
+  const runStartChangeTime = readRunStartChangeTime();
+  const spawned = spawnSync(getInterpreter(run),["-c", run.code], { cwd, timeout, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
   // assertExitMatchesExpectation(spawned, run.code, result.isError);
-  assertExitMatchesExpectation(spawned, run, cwd, result.isError);
+  // assertExitMatchesExpectation(spawned, run, cwd, result.isError);
+  assertExitMatchesExpectation(spawned, run, cwd, result.isError, state, runStartChangeTime);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
 }
 

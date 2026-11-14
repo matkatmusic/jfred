@@ -51,7 +51,9 @@ test("test_executeScriptInState_failure_message_shows_the_tail_of_stdout", (t) =
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line prints 5000 zeros and then exits 3, but the record says it passed
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
+  // A failure that changes no project file goes on now, so the call writes a file first.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "touch made.txt; printf '%05000d' 0; exit 3", state.toString());
   // the error has exactly the last 4000 zeros
   assert.throws(() => executeScriptInState(state, line, makeContext(false)), (error: Error) => {
     assert.match(error.message, /0{4000}/);

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { Path } from "../src/structures/domain.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
-import { assertSnapshotBackupsMatchState, clearSeenBackups, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
+// import { assertSnapshotBackupsMatchState, clearSeenBackups, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, clearSeenBackups, collectForkedMessageIds, recordContinuedFailure, recordFileChange } from "./engineV3_replay_backups.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 
@@ -185,4 +186,59 @@ test("test_applyJSONLLineToState_checks_the_backups_of_a_snapshot_line", (t) => 
   // Step 2: applying the line throws the backup error, not the old "not supported yet" error.
   const apply = () => applyJSONLLineToState(new Path(folders.state), line, [], createContext(folders));
   assert.throws(apply, /differs from its backup/);
+});
+
+const FIRST_VERSION_BACKUP = { "f.txt": { backupFileName: "abc@v1", version: 1, backupTime: "2026-06-27T16:15:45.747Z" } };
+const SECOND_VERSION_BACKUP = { "f.txt": { backupFileName: "abc@v2", version: 2, backupTime: "2026-06-27T16:20:45.747Z" } };
+
+// Line one matches f.txt ("one"); line two names a backup with "two".
+function loadMatchThenChangedSnapshotLines(folders: TestFolders): JSONLLine[] {
+  writeFileSync(join(folders.state, "f.txt"), "one\n");
+  writeFileSync(join(folders.history, SESSION_ID, "abc@v1"), "one\n");
+  writeFileSync(join(folders.history, SESSION_ID, "abc@v2"), "two\n");
+  return loadTwoSnapshotLines(folders, FIRST_VERSION_BACKUP, SECOND_VERSION_BACKUP);
+}
+
+test("test_assertSnapshotBackupsMatchState_copies_an_unrecorded_hand_edit_when_no_failed_call_went_on", (t) => {
+  // Scenario: the user's backup rule (a) stays as it is when no failed call went on.
+  const folders = makeTestFolders(t);
+  const lines = loadMatchThenChangedSnapshotLines(folders);
+  const state = new Path(folders.state);
+  t.mock.method(console, "log", () => {});
+  // line one matches the file
+  assertSnapshotBackupsMatchState(state, lines[0] as JSONLLine, createContext(folders));
+  // line two copies the backup, because nothing replayed changed the file since the match
+  assertSnapshotBackupsMatchState(state, lines[1] as JSONLLine, createContext(folders));
+  assert.equal(readFileSync(join(folders.state, "f.txt"), "utf8"), "two\n");
+});
+
+test("test_assertSnapshotBackupsMatchState_throws_instead_of_copying_an_unrecorded_hand_edit_after_a_failed_call_went_on", (t) => {
+  // Scenario: a failed call that went on may have changed the file on the Mac, so rule (a) must not copy the Mac's bytes.
+  const folders = makeTestFolders(t);
+  const lines = loadMatchThenChangedSnapshotLines(folders);
+  const state = new Path(folders.state);
+  // line one matches the file
+  assertSnapshotBackupsMatchState(state, lines[0] as JSONLLine, createContext(folders));
+  // a failed call goes on with a note
+  recordContinuedFailure("s.jsonl:9");
+  // line two throws and names the failed call; the file keeps its bytes
+  assert.throws(() => assertSnapshotBackupsMatchState(state, lines[1] as JSONLLine, createContext(folders)), /after the failed call s\.jsonl:9 went on/);
+  assert.equal(readFileSync(join(folders.state, "f.txt"), "utf8"), "one\n");
+});
+
+test("test_assertSnapshotBackupsMatchState_throws_instead_of_completing_a_hand_edit_snippet_after_a_failed_call_went_on", (t) => {
+  // Scenario: rule (b) has the same hole, so it gets the same guard.
+  const folders = makeTestFolders(t);
+  const lines = loadMatchThenChangedSnapshotLines(folders);
+  const state = new Path(folders.state);
+  const replayedFile = join(folders.state, "f.txt");
+  // line one matches the file
+  assertSnapshotBackupsMatchState(state, lines[0] as JSONLLine, createContext(folders));
+  // a hand-edit snippet changes the file, then a failed call goes on with a note
+  writeFileSync(replayedFile, "one snippet\n");
+  recordFileChange(replayedFile, Buffer.from("one\n"), Buffer.from("one snippet\n"), true);
+  recordContinuedFailure("s.jsonl:9");
+  // line two throws; the file keeps its bytes
+  assert.throws(() => assertSnapshotBackupsMatchState(state, lines[1] as JSONLLine, createContext(folders)), /after the failed call s\.jsonl:9 went on/);
+  assert.equal(readFileSync(replayedFile, "utf8"), "one snippet\n");
 });

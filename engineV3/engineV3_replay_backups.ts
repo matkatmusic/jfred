@@ -32,6 +32,33 @@ const bytesAfterOnlyHandEditSnippets = new Map<string, Buffer>();
 // The files that a hand-edit snippet changed while the chain held: the chain bytes of such a file may lack hidden snippet lines.
 const filesWithHandEditSnippet = new Set<string>();
 
+// A failed call that went on changed nothing in the replay, but it may have changed files on the Mac.
+let continuedFailureCount = 0;
+let lastContinuedFailureSource = "";
+// The continued-failure count at each file's latest match with its backup.
+const continuedFailureCountAtMatch = new Map<string, number>();
+
+export function recordContinuedFailure(runSourceText: string): void {
+  continuedFailureCount++;
+  lastContinuedFailureSource = runSourceText;
+}
+
+function recordMatchedBytes(replayedFile: string, bytes: Buffer): void {
+  lastMatchedBytes.set(replayedFile, bytes);
+  continuedFailureCountAtMatch.set(replayedFile, continuedFailureCount);
+}
+
+// The backup copy rules must not take the Mac's bytes for a change that a continued failed call made on the Mac.
+function assertNoContinuedFailureSinceMatch(replayedFile: string, line: JSONLLine, expectedBytes: Buffer, actualBytes: Buffer): void {
+  const countAtMatch = continuedFailureCountAtMatch.get(replayedFile);
+  if (countAtMatch === undefined) {
+    throw new Error(`assertNoContinuedFailureSinceMatch: ${replayedFile} has no recorded match\n${createLineText(line)}`);
+  }
+  if (continuedFailureCount > countAtMatch) {
+    throw new Error(`assertSnapshotBackupsMatchState: ${replayedFile} differs from its backup after the failed call ${lastContinuedFailureSource} went on, so the backup is not copied\n${createMismatchMessage(replayedFile, line, expectedBytes.toString("utf8"), actualBytes.toString("utf8"))}`);
+  }
+}
+
 // Call for each hand-edit snippet, Edit result and Write result. Any other change leaves the bytes different from the chain, so the next call or the check sees it.
 export function recordFileChange(replayedFile: string, bytesBefore: Buffer | undefined, bytesAfter: Buffer, isHandEditSnippet: boolean): void {
   const chainBytes = bytesAfterOnlyHandEditSnippets.get(replayedFile);
@@ -207,7 +234,8 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const expectedBytes = readFileSync(backupFile);
   const isSame = actualBytes.equals(expectedBytes);
   if (isSame) {
-    lastMatchedBytes.set(replayedFile, actualBytes);
+    // lastMatchedBytes.set(replayedFile, actualBytes);
+    recordMatchedBytes(replayedFile, actualBytes);
     bytesAfterOnlyHandEditSnippets.set(replayedFile, actualBytes);
     filesWithHandEditSnippet.delete(replayedFile);
     return;
@@ -216,10 +244,12 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   if (bytesAfterSnippets !== undefined) {
     if (actualBytes.equals(bytesAfterSnippets)) {
       if (filesWithHandEditSnippet.has(replayedFile)) {
+        assertNoContinuedFailureSinceMatch(replayedFile, line, expectedBytes, actualBytes);
         const source = getSourceOfLine(line);
         console.log(`hand edit snippet incomplete: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
         writeFileSync(replayedFile, expectedBytes);
-        lastMatchedBytes.set(replayedFile, expectedBytes);
+        // lastMatchedBytes.set(replayedFile, expectedBytes);
+        recordMatchedBytes(replayedFile, expectedBytes);
         bytesAfterOnlyHandEditSnippets.set(replayedFile, expectedBytes);
         filesWithHandEditSnippet.delete(replayedFile);
         return;
@@ -230,10 +260,12 @@ function assertFileEqualsBackup(replayedFile: string, backupFile: string, line: 
   const matchedBytes = lastMatchedBytes.get(replayedFile);
   if (matchedBytes !== undefined) {
     if (actualBytes.equals(matchedBytes)) {
+      assertNoContinuedFailureSinceMatch(replayedFile, line, expectedBytes, actualBytes);
       const source = getSourceOfLine(line);
       console.log(`hand edit with no transcript record: ${replayedFile} taken from backup ${basename(backupFile)} at ${source.filePath}:${source.lineNumber}`);
       writeFileSync(replayedFile, expectedBytes);
-      lastMatchedBytes.set(replayedFile, expectedBytes);
+      // lastMatchedBytes.set(replayedFile, expectedBytes);
+      recordMatchedBytes(replayedFile, expectedBytes);
       return;
     }
   }
@@ -246,6 +278,9 @@ export function clearSeenBackups(): void {
   filesWithHandEditSnippet.clear();
   lastSeenBackupTexts.clear();
   snapshotFileBytes.clear();
+  continuedFailureCountAtMatch.clear();
+  continuedFailureCount = 0;
+  lastContinuedFailureSource = "";
 }
 
 // A snapshot line repeats the entries of earlier lines, so only a new or changed entry is checked.
