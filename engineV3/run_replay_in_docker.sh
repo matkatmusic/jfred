@@ -119,6 +119,10 @@ set --
 while IFS= read -r JSONL_FOLDER; do
     if [ -n "$JSONL_FOLDER" ]; then
         set -- "$@" -v "$JSONL_FOLDER:$JSONL_FOLDER:ro"
+        # The Mac memory folder holds files that the recorded history wrote later, so the replay starts with an empty one and the recorded memory Writes fill it.
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            set -- "$@" --tmpfs "$JSONL_FOLDER/memory"
+        fi
     fi
 done <<EOF
 $JSONL_LIST
@@ -127,6 +131,10 @@ TOOL_PARENT_FOLDERS="/Users/matkatmusicllc/Programming/dotfiles /Users/matkatmus
 for TOOL_FOLDER in $TOOL_PARENT_FOLDERS; do
     set -- "$@" -v "$TOOL_FOLDER:$TOOL_FOLDER:ro"
 done
+if [ "$GIT_REPO_FOLDER" = "/Users/matkatmusicllc/Programming/typesafe-playground" ]; then
+    # The Mac config gained the 15-line function limit on 2026-10-30, after every recorded eslint call of this project, so the replay mounts the config of 2026-10-17 (dotfiles commit 62a68a3) over it.
+    set -- "$@" -v "$ENGINE_FOLDER/replay_overlays/debt_ratchet_eslint_config_at_2026_10_17.js.txt:/Users/matkatmusicllc/Programming/dotfiles/claude/claude_hooks/debt-ratchet/eslint.config.js:ro"
+fi
 if [ -n "$GIT_REPO_FOLDER" ]; then
     set -- "$@" -v "$GIT_REPO_FOLDER/.git:/input/repo.git:ro"
 fi
@@ -163,6 +171,35 @@ while IFS= read -r CAPTURE_FOLDER; do
 done <<EOF
 $MAC_PLATE_CAPTURE_FOLDERS
 EOF
+# The Mac idle-state hook files are mounted under /input/plate too; the engine copies them at their Mac mtime
+MAC_IDLE_STATE_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/\.idleState$' "$PROJECT_FOLDER")"
+while IFS= read -r IDLE_STATE_FOLDER; do
+    if [ -n "$IDLE_STATE_FOLDER" ]; then
+        IDLE_STATE_FOLDER="${IDLE_STATE_FOLDER%/}"
+        set -- "$@" -v "$IDLE_STATE_FOLDER:/input/plate$IDLE_STATE_FOLDER:ro"
+    fi
+done <<EOF
+$MAC_IDLE_STATE_FOLDERS
+EOF
+# The Mac playground results folders are mounted under /input/plate too; the engine copies the files no recorded command made at their Mac mtime
+MAC_RESULTS_FOLDERS="$(fd -HI -t d -E node_modules --full-path '/playground/results$' "$PROJECT_FOLDER")"
+while IFS= read -r RESULTS_FOLDER; do
+    if [ -n "$RESULTS_FOLDER" ]; then
+        RESULTS_FOLDER="${RESULTS_FOLDER%/}"
+        set -- "$@" -v "$RESULTS_FOLDER:/input/plate$RESULTS_FOLDER:ro"
+    fi
+done <<EOF
+$MAC_RESULTS_FOLDERS
+EOF
+# Three dotfiles task list files that the recorded stop reads (user decision 2026-11-13) are mounted under /input/plate too; the engine copies them at their Mac mtime
+MAC_TASK_LIST_FOLDER="$HOME/.claude/tasks/dotfiles"
+for TASK_NUMBER in 435 440 441; do
+    if [ ! -f "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" ]; then
+        echo "missing task list file $MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json" >&2
+        exit 1
+    fi
+    set -- "$@" -v "$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:/input/plate$MAC_TASK_LIST_FOLDER/$TASK_NUMBER.json:ro"
+done
 # Without a git repo the engine writes these start files into the state folder
 if [ -z "$GIT_REPO_FOLDER" ]; then
     for START_FILE in conftest.py tests/conftest.py .gitignore settings.json hooks.json block-compound.sh; do
@@ -171,6 +208,9 @@ if [ -z "$GIT_REPO_FOLDER" ]; then
         fi
     done
 fi
+# The engine runs the recorded taskTools reflow hook after an Edit/Write, exported from this git folder at the commit of the event's time.
+TASK_TOOLS_GIT_FOLDER=/Users/matkatmusicllc/Programming/taskTools/.git
+set -- "$@" -v "$TASK_TOOLS_GIT_FOLDER:$TASK_TOOLS_GIT_FOLDER:ro"
 printSetupStageDone "mounts"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null
@@ -181,6 +221,9 @@ set --
 while IFS= read -r JSONL_FOLDER; do
     if [ -n "$JSONL_FOLDER" ]; then
         set -- "$@" "$JSONL_FOLDER"
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            docker exec "$NAME" chown replay "$JSONL_FOLDER/memory"
+        fi
     fi
 done <<EOF
 $JSONL_LIST
@@ -208,6 +251,9 @@ fi
 # done
 # On the Mac, ~/.claude/guides is a link into the dotfiles folder
 docker exec "$NAME" ln -sfn /Users/matkatmusicllc/Programming/dotfiles/claude/guides /Users/matkatmusicllc/.claude/guides
+# The engine, running as the replay user, copies the task list files into this one folder
+docker exec "$NAME" mkdir -p /Users/matkatmusicllc/.claude/tasks/dotfiles
+docker exec "$NAME" chown replay /Users/matkatmusicllc/.claude/tasks/dotfiles
 # for JSONL_FOLDER in "$@"; do
 #     docker exec "$NAME" mkdir -p "$(dirname "$JSONL_FOLDER")"
 # done
@@ -283,6 +329,10 @@ if [ -n "$START_AT" ]; then
     ENGINE_FLAGS="$ENGINE_FLAGS --start-at $START_AT"
 fi
 for JSONL_FOLDER in "$@"; do
+    if [ -d "$JSONL_FOLDER/memory" ]; then
+        # The snapshot store must hold memory files so a --start-at run restores them.
+        ENGINE_FLAGS="$ENGINE_FLAGS --watch $JSONL_FOLDER/memory"
+    fi
     set -- "$@" --jsonl "$JSONL_FOLDER"
     shift
 done
@@ -322,7 +372,7 @@ if [ -n "$STOP_BEFORE" ]; then
     echo "folder: $STOPPED_FOLDER"
     exit 0
 fi
-# ENGINE_FLAGS holds only container paths without spaces, so it is left unquoted
+# ENGINE_FLAGS holds only paths without spaces (container paths and the JSONL memory folders), so it is left unquoted
 printSetupStageStart "engine start"
 ENGINE_EXIT_CODE=0
 # shellcheck disable=SC2086
@@ -338,11 +388,26 @@ docker run --rm -v "$SNAPSHOT_VOLUME:/snapshots" ${ENGINEV3_IMAGE_TAG:-engine-v3
 
 COMPARE_FOLDER="$(mktemp -d)"
 echo "compare folder: $COMPARE_FOLDER"
-docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER/state"
+# The touched paths climb out of the state folder (../../.claude/...), so the copies keep their container paths under the compare folder.
+mkdir -p "$COMPARE_FOLDER$(dirname "$STATE_FOLDER")"
+docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER$STATE_FOLDER"
 docker cp "$NAME:/tmp/touched-paths.txt" "$COMPARE_FOLDER/touched-paths.txt"
+docker cp "$NAME:/snapshots/events" "$COMPARE_FOLDER/events"
+# docker cp reads nothing from the memory tmpfs, so each memory folder leaves the container as a tar file.
+while IFS= read -r JSONL_FOLDER; do
+    if [ -n "$JSONL_FOLDER" ]; then
+        if [ -d "$JSONL_FOLDER/memory" ]; then
+            docker exec "$NAME" tar -C / -cf "/tmp/memory-$(basename "$JSONL_FOLDER").tar" "${JSONL_FOLDER#/}/memory"
+            docker cp "$NAME:/tmp/memory-$(basename "$JSONL_FOLDER").tar" "$COMPARE_FOLDER/memory-$(basename "$JSONL_FOLDER").tar"
+            tar -C "$COMPARE_FOLDER" -xf "$COMPARE_FOLDER/memory-$(basename "$JSONL_FOLDER").tar"
+        fi
+    fi
+done <<EOF
+$JSONL_LIST
+EOF
 printSetupStageDone "copy-out"
 printSetupStageStart "disk check"
 DISK_CHECK_EXIT_CODE=0
-"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER/state" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" || DISK_CHECK_EXIT_CODE=$?
+"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER$STATE_FOLDER" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" --events "$COMPARE_FOLDER/events" --container-state "$STATE_FOLDER" || DISK_CHECK_EXIT_CODE=$?
 printSetupStageDone "disk check"
 exit "$DISK_CHECK_EXIT_CODE"

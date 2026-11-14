@@ -12,7 +12,7 @@ import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { executeScriptInState, SCRIPT_TIMEOUT_MILLISECONDS, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 
 function makeContext(toolUseId: string): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "" };
+  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
   return { bashCallResults: new Map([[toolUseId, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 
@@ -153,19 +153,29 @@ test("test_executeScriptInState_creates_a_missing_cwd_outside_the_state_and_runs
 //   assert.equal(existsSync(join(outsideFolder, "ran.txt")), false);
 // });
 
-test("test_executeScriptInState_throws_with_command_exit_code_and_stderr_on_a_non_zero_exit", (t) => {
-  // Scenario: a failing command stops the replay with the full failure.
+// replaced: a command that changes no file no longer throws on its exit code; the mismatch comes back as a value (user 2026-11-13)
+// test("test_executeScriptInState_throws_with_command_exit_code_and_stderr_on_a_non_zero_exit", (t) => {
+//   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+//   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
+//   assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID)), (error: Error) => {
+//     assert.match(error.message, /echo boom 1>&2; exit 3/);
+//     assert.match(error.message, /exit code 3/);
+//     assert.match(error.message, /boom/);
+//     return true;
+//   });
+// });
+test("test_executeScriptInState_returns_a_mismatch_error_with_command_exit_code_and_stderr_on_a_non_zero_exit", (t) => {
+  // Scenario: a failing command that changes no file hands its full failure to the caller instead of throwing.
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has an allowed Bash call that prints to stderr and exits 3
   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo boom 1>&2; exit 3", state.toString());
-  // the error names the command, the exit code and the stderr
-  assert.throws(() => executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID)), (error: Error) => {
-    assert.match(error.message, /echo boom 1>&2; exit 3/);
-    assert.match(error.message, /exit code 3/);
-    assert.match(error.message, /boom/);
-    return true;
-  });
+  // the returned mismatch error names the command, the exit code and the stderr
+  const mismatches = executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  assert.equal(mismatches.length, 1);
+  assert.match(mismatches[0]!.error.message, /echo boom 1>&2; exit 3/);
+  assert.match(mismatches[0]!.error.message, /exit code 3/);
+  assert.match(mismatches[0]!.error.message, /boom/);
 });
 
 // One assistant line that holds several tool_use blocks; each block is { id, name, input }.
@@ -211,7 +221,7 @@ test("test_executeScriptInState_runs_the_call_with_zsh_so_echo_triple_equals_fai
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has a Bash call whose recorded result is an error
   const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
-  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "" };
+  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "", command: "" };
   const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
   // running the line does not throw, because the call exits non-zero as recorded
   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));

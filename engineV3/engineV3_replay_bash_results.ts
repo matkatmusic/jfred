@@ -1,13 +1,14 @@
 // Pairs each recorded Bash call with its time window and result, and spots the calls that never ran.
 
 import { getContentBlocks } from "../src/structures/content-blocks.ts";
-import type { Uuid } from "../src/structures/domain.ts";
+import type { Path, Uuid } from "../src/structures/domain.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { JSONLLine } from "./engineV3.ts";
 
-export type BashCallResult = { toolUseId: Uuid; startMs: number; endMs: number; isError: boolean; resultText: string };
+// resultCwd is the cwd of the result line: the shell folder after the call, which for a call that never ran is the folder the call started in.
+export type BashCallResult = { toolUseId: Uuid; startMs: number; endMs: number; isError: boolean; resultText: string; command: string; resultCwd?: Path };
 
-type BashCallStart = { toolUseId: Uuid; startMs: number };
+type BashCallStart = { toolUseId: Uuid; startMs: number; command: string };
 
 const NEVER_RAN_PREFIXES = [
   "PreToolUse:Bash hook error",
@@ -29,7 +30,8 @@ function addBashCallStarts(line: JSONLLine, startMs: number, starts: Map<string,
       const isCtxExecuteFile = block.name === ToolName.CtxExecuteFile;
       // if (isBash || isCtxExecute) {
       if (isBash || isCtxExecute || isCtxExecuteFile) {
-        starts.set(block.id.toString(), { toolUseId: block.id, startMs });
+        const input = block.input as { code?: string; command?: string };
+        starts.set(block.id.toString(), { toolUseId: block.id, startMs, command: (input.code ?? input.command) as string });
       }
     }
   }
@@ -65,7 +67,8 @@ function addBashCallResults(line: JSONLLine, endMs: number, starts: Map<string, 
       const start = starts.get(block.tool_use_id.toString());
       if (start !== undefined) {
         const isError = block.is_error === true;
-        results.set(start.toolUseId.toString(), { ...start, endMs, isError, resultText: getResultText(block.content) });
+        const resultCwd = (line as { cwd?: Path }).cwd;
+        results.set(start.toolUseId.toString(), { ...start, endMs, isError, resultText: getResultText(block.content), ...(resultCwd === undefined ? {} : { resultCwd }) });
       }
     }
   }

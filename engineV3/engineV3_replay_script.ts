@@ -1,20 +1,25 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
 
 import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, openSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { JSONLLine } from "./engineV3.ts";
+import type { AttachmentEntry } from "../src/structures/session-meta.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
 import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptRun } from "./engineV3_replay_script_skip.ts";
 import { replaceDebtReportCall } from "./engineV3_replay_debt_report.ts";
-import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
+import { CLAUDE_CODE_ENV, replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
+import { createLinkedWorktreeWhenCommandNamesIt, PLAYGROUND_TEST_WORKTREE } from "./engineV3_replay_test_worktree.ts";
+import { createFolderOwnedByReplay, recordReplayOwnFile, type ExitMismatch } from "./engineV3_replay_exit_mismatch.ts";
+import { getRecordSource } from "../src/parse/loadTranscript.ts";
 
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
+// export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string> };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; postToolHookRewrites?: Map<string, AttachmentEntry> };
 
 export const SCRIPT_TIMEOUT_MILLISECONDS = 300000;
 const BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS = 30000;
@@ -75,19 +80,37 @@ function createFailureError(result: SpawnSyncReturns<string>, command: string): 
   return new Error(`executeScriptCommand: command failed with exit code ${result.status} signal ${result.signal} error ${result.error?.message}\ncommand: ${command}\nstderr: ${result.stderr}\nstdout: ${getTailOfOutput(result.stdout)}`);
 }
 
-function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): void {
+// replaced by findExitMismatchError: a mismatch no longer throws before the event's file changes are known (user 2026-11-13)
+// function assertExitMatchesExpectation(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): void {
+//   if (result.status === null) {
+//     throw createFailureError(result, command);
+//   }
+//   if (expectsError) {
+//     if (result.status === 0) {
+//       throw new Error(`executeScriptCommand: command was expected to fail but exited 0\ncommand: ${command}`);
+//     }
+//     return;
+//   }
+//   if (result.status !== 0) {
+//     throw createFailureError(result, command);
+//   }
+// }
+
+// A signal or a timeout is no exit code, so it still throws at once. An exit code that differs from the record comes back as an error for the caller to settle.
+function findExitMismatchError(result: SpawnSyncReturns<string>, command: string, expectsError: boolean): Error | undefined {
   if (result.status === null) {
     throw createFailureError(result, command);
   }
   if (expectsError) {
     if (result.status === 0) {
-      throw new Error(`executeScriptCommand: command was expected to fail but exited 0\ncommand: ${command}`);
+      return new Error(`executeScriptCommand: command was expected to fail but exited 0\ncommand: ${command}`);
     }
-    return;
+    return undefined;
   }
   if (result.status !== 0) {
-    throw createFailureError(result, command);
+    return createFailureError(result, command);
   }
+  return undefined;
 }
 
 function getRunCwd(run: ScriptRun): Path {
@@ -101,10 +124,12 @@ function getRunCwd(run: ScriptRun): Path {
 function getScriptCwd(run: ScriptRun): string {
   // if (isPythonCtxExecuteRun(run)) {
   if (isPythonCtxExecuteRun(run) && run.hasInputCwd !== true) {
-    return mkdtempSync(join(tmpdir(), ".ctx-mode-"));
+    const ctxModeFolder = mkdtempSync(join(tmpdir(), ".ctx-mode-"));
+    recordReplayOwnFile(ctxModeFolder);
+    return ctxModeFolder;
   }
   const cwd = getRunCwd(run).toString();
-  mkdirSync(cwd, { recursive: true });
+  createFolderOwnedByReplay(cwd);
   return cwd;
 }
 
@@ -113,8 +138,11 @@ function getInterpreterArguments(run: ScriptRun, code: string): string[] {
   if (isPythonCtxExecuteRun(run)) {
     return ["-c", code];
   }
-  const scriptFile = join(mkdtempSync(join(tmpdir(), "engine-v3-script-")), "script.txt");
+  const scriptFolder = mkdtempSync(join(tmpdir(), "engine-v3-script-"));
+  const scriptFile = join(scriptFolder, "script.txt");
   writeFileSync(scriptFile, code);
+  recordReplayOwnFile(scriptFolder);
+  recordReplayOwnFile(scriptFile);
   return ["-c", `eval "$(cat ${scriptFile})"`];
 }
 
@@ -122,11 +150,30 @@ function sleepMilliseconds(milliseconds: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
+function getBackgroundOutputPath(result: BashCallResult): string {
+  const outputPath = /Output is being written to: (\S+)\./.exec(result.resultText)?.[1];
+  if (outputPath === undefined) {
+    throw new Error(`getBackgroundOutputPath: the recorded result names no output file\nresult: ${result.resultText}`);
+  }
+  return outputPath;
+}
+
+// Claude Code makes the session scratchpad folder at session start, so a command that names it finds it there.
+function createScratchpadFoldersNamedByCommand(command: string): void {
+  for (const match of command.matchAll(/\/private\/tmp\/claude-\d+\/[^/\s]+\/[0-9a-f-]{36}\/scratchpad/g)) {
+    createFolderOwnedByReplay(match[0]);
+  }
+}
+
 // A run_in_background command (a dev server) never exits, so it starts detached and the replay waits only for its first output line.
-function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv): void {
-  const outputFile = join(mkdtempSync(join(tmpdir(), "engine-v3-background-")), "output.txt");
+// Claude Code writes the output to the recorded path and ends it with "\n[exited with code N]"; the wrapper shell writes that line.
+function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.ProcessEnv, result: BashCallResult): void {
+  const outputFile = getBackgroundOutputPath(result);
+  createFolderOwnedByReplay(dirname(outputFile));
   const outputDescriptor = openSync(outputFile, "w");
-  const child = spawn(getInterpreter(run), getInterpreterArguments(run, run.code), { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
+  recordReplayOwnFile(outputFile);
+  const wrapperScript = `"$@"; printf '\\n[exited with code %s]' "$?"`;
+  const child = spawn("sh", ["-c", wrapperScript, "sh", getInterpreter(run), ...getInterpreterArguments(run, run.code)], { cwd, env, detached: true, stdio: ["ignore", outputDescriptor, outputDescriptor] });
   child.unref();
   const deadlineMs = Date.now() + BACKGROUND_FIRST_OUTPUT_TIMEOUT_MILLISECONDS;
   while (statSync(outputFile).size === 0) {
@@ -137,22 +184,30 @@ function startBackgroundCommand(run: ScriptRun, cwd: string, env: NodeJS.Process
   }
 }
 
-function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, context: ScriptReplayContext): void {
+// Returns the exit mismatch when the replayed exit code differs from the record: the caller decides once the event's file changes are known.
+function executeScriptCommand(state: Path, run: ScriptRun, result: BashCallResult, line: JSONLLine, context: ScriptReplayContext): ExitMismatch | undefined {
   const cwd = getScriptCwd(run);
   const gitEnv = getGitEnvForOptionalRepo(run.code, result, context.sourceRepo);
   const recordedAtEpochSeconds = Math.floor(run.timestamp.getTime() / 1000);
-  const env = { ...process.env, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  const env = { ...process.env, ...CLAUDE_CODE_ENV, HOME: MAC_HOME_FOLDER, ...gitEnv, REPLAY_RECORDED_AT_EPOCH_SECONDS: String(recordedAtEpochSeconds) };
+  createScratchpadFoldersNamedByCommand(run.code);
   if (run.runInBackground === true) {
-    startBackgroundCommand(run, cwd, env);
-    return;
+    startBackgroundCommand(run, cwd, env, result);
+    return undefined;
   }
   // const spawned = spawnSync("bash", ["-c", run.code], { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
-  assertExitMatchesExpectation(spawned, run.code, result.isError);
+  // const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env });
+  // The Mac Bash tool gives the command no stdin; a piped stdin makes `rg` with no path search stdin instead of the folder.
+  const spawned = spawnSync(getInterpreter(run), getInterpreterArguments(run, replaceDebtReportCall(run.code)), { cwd, timeout: SCRIPT_TIMEOUT_MILLISECONDS, encoding: "utf8", maxBuffer: SCRIPT_MAX_BUFFER_BYTES, env, stdio: ["ignore", "pipe", "pipe"] });
+  const exitMismatchError = findExitMismatchError(spawned, run.code, result.isError);
   assertHeadMatchesLogInOptionalRepo(run.code, result, context.sourceRepo, state, spawned);
+  if (exitMismatchError === undefined) {
+    return undefined;
+  }
+  return { error: exitMismatchError, source: getRecordSource(line)!, toolUseId: run.toolUseId!.toString(), recordedIsError: result.isError, replayedExitCode: spawned.status! };
 }
 
-function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayContext): void {
+function executeScriptRun(state: Path, run: ScriptRun, line: JSONLLine, context: ScriptReplayContext): ExitMismatch | undefined {
   const toolUseId = run.toolUseId as Uuid;
   const result = context.bashCallResults.get(toolUseId.toString());
   if (result === undefined) {
@@ -160,29 +215,36 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
   }
   if (isNeverRanResult(result)) {
     replayBlockedTestRun(run, result);
-    return;
+    return undefined;
   }
   if (isMacOnlyCommand(run.code)) {
     fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
-    return;
+    return undefined;
   }
   const isMacOnlyScript = isMacOnlyScriptRun(run);
   if (isMacOnlyScript) {
-    return;
+    fillMacOnlyFiles(state, toolUseId, getRequiredSourceRepo(context.sourceRepo));
+    return undefined;
   }
   fillMissingBunLockfileFromOptionalRepo(state, run, context.sourceRepo);
-  executeScriptCommand(state, run, result, context);
+  createLinkedWorktreeWhenCommandNamesIt(state, run.code, PLAYGROUND_TEST_WORKTREE);
+  return executeScriptCommand(state, run, result, line, context);
 }
 
-export function executeScriptInState(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
+// Returns the exit mismatches of its runs: the caller settles them once the event's file changes are known.
+export function executeScriptInState(state: Path, line: JSONLLine, context: ScriptReplayContext): ExitMismatch[] {
   const runs = findScriptRun(line);
   if (runs === undefined) {
     throw new Error("executeScriptInState: the line holds no Bash call");
   }
+  const exitMismatches: ExitMismatch[] = [];
   for (const run of runs) {
-    executeScriptRun(state, run, context);
+    const exitMismatch = executeScriptRun(state, run, line, context);
+    if (exitMismatch !== undefined) {
+      exitMismatches.push(exitMismatch);
+    }
   }
-  return state;
+  return exitMismatches;
 }
 
 // The allow list is off: every Bash call runs. The old code is kept below.

@@ -163,6 +163,15 @@ test("test_applyJSONLLineToState_user_edit_window_whose_numbers_restart_after_th
     assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nc\nd\ne\nF\nG\n");
 });
 
+test("test_applyJSONLLineToState_user_edit_with_an_empty_snippet_leaves_the_file_as_it_was", (t) => {
+    // Scenario: the harness shows no changed lines (newer versions say "The changes are not shown here"), so the snippet is empty.
+    const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");
+    writeFileSync(join(stateFolder, "s.py"), "a\nb\nc\n");
+    applyJSONLLineToState(new Path(stateFolder), makeUserEditLine(t, stateFolder, "s.py", ""), [], NO_SCRIPT_CONTEXT);
+    // no line is shown, so no line changes
+    assert.equal(readFileSync(join(stateFolder, "s.py"), "utf8"), "a\nb\nc\n");
+});
+
 test("test_applyJSONLLineToState_user_edit_throws_when_the_file_is_missing_in_the_state", (t) => {
     // Scenario: the state folder has no such file, so the hand edit throws and names the path.
     const stateFolder = makeTempFolder(t, "engine-v3-replay-state-");

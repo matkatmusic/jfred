@@ -78,6 +78,9 @@ function formatEventFileName(eventNumber: number, event: TimelineEvent): string 
   if (event.type === TimelineEventKind.PlateCapture) {
     return `${paddedEventNumber}_plate_${basename(event.capture.captureFile.toString(), ".json")}.json`;
   }
+  if (event.type === TimelineEventKind.IdleStateCopy) {
+    return `${paddedEventNumber}_idle-state_${basename(event.copy.targetPath.toString(), ".json")}.json`;
+  }
   return formatLineEventFileName(eventNumber, event.line);
 }
 
@@ -117,9 +120,10 @@ function listChangesAfterEvent(snapshotLoop: SnapshotLoop, isSkipped: boolean): 
   return changes;
 }
 
-export function writeSnapshotAfterEvent(snapshotLoop: SnapshotLoop | undefined, event: TimelineEvent, eventText: string, state: Path, writeEditResultLines: Map<string, JSONLLine>): void {
+// Returns the event's file changes, or undefined when the replay has no snapshot loop.
+export function writeSnapshotAfterEvent(snapshotLoop: SnapshotLoop | undefined, event: TimelineEvent, eventText: string, state: Path, writeEditResultLines: Map<string, JSONLLine>): FileChange[] | undefined {
   if (snapshotLoop === undefined) {
-    return;
+    return undefined;
   }
   snapshotLoop.eventNumber++;
   const eventFileName = formatEventFileName(snapshotLoop.eventNumber, event);
@@ -129,4 +133,5 @@ export function writeSnapshotAfterEvent(snapshotLoop: SnapshotLoop | undefined, 
   const touched = listNewTouchedPaths(snapshotLoop);
   writeEventSnapshot(snapshotLoop.store, eventFileName, { event: snapshotLoop.eventNumber, eventText: removeTimeStampPrefix(eventText), previousEvent, touched, changes });
   snapshotLoop.previousEventFileName = eventFileName;
+  return changes;
 }

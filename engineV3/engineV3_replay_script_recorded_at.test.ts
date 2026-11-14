@@ -9,7 +9,7 @@ import type { JSONLLine } from "./engineV3.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 const RECORDED_TOOL_USE_ID = "toolu_01RecordedAtBashCall";
 function makeContext(toolUseId: string): ScriptReplayContext {
-  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "" };
+  const result = { toolUseId: new Uuid(toolUseId), startMs: 0, endMs: 1, isError: false, resultText: "", command: "" };
   return { bashCallResults: new Map([[toolUseId, result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
 }
 function makeTempFolder(t: TestContext, prefix: string): string {

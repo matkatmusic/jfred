@@ -36,6 +36,18 @@
     "standIn": "/usr/local/bin/md5 sh script in engineV3/Dockerfile printing MD5 (<file>) = <md5sum hash>"
   },
   {
+    "realProgram": "macOS ifconfig",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c7e1c1e2-715b-490c-bb1d-9da5049c03cb/subagents/agent-adf1290ff251a21bf.jsonl",
+    "lineNumber": 963,
+    "standIn": "/usr/local/bin/ifconfig sh script in engineV3/Dockerfile printing the one recorded line: tab, inet 192.168.1.144 netmask 0xffffff00 broadcast 192.168.1.255"
+  },
+  {
+    "realProgram": "rtk 1.1.0 (/opt/homebrew/bin/rtk)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
+    "lineNumber": 322,
+    "standIn": "/usr/local/bin/rtk sh script in engineV3/Dockerfile: rtk read <files> runs cat <files>; rtk <program> <args> runs exec <program> <args>; keeps the exit code, not rtk's shortened output"
+  },
+  {
     "realProgram": "bun install picking package versions from the npm registry (network)",
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/9789f2d0-5506-4633-9117-f64471817355/subagents/agent-a37b95e0795a8e948.jsonl",
     "lineNumber": 80,
@@ -64,5 +76,65 @@
     "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2/subagents/agent-a7f987b7735bcfc62.jsonl",
     "lineNumber": 475,
     "standIn": "none: the call is skipped like the sips and Chrome calls; isMacOnlyScriptRun in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "playwright-core driving the Mac arm64 chrome-headless-shell (scratchpad/shotscript/probe.mjs, shoot.mjs, report2.mjs, report3.mjs)",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/subagents/agent-a692f025ba883a3cd.jsonl",
+    "lineNumber": 191,
+    "standIn": "none: the call is skipped like the puppeteer calls; each picture a later recorded cp copies into docs/ is written to its scratchpad path from the git commit that holds it; MAC_ONLY_FILLS in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "linked git worktree /Users/matkatmusicllc/Programming/typesafe-playground-test at 85c2c39 (detached), made by no recorded command, with a playground/results folder filled by the user's own playground run",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl",
+    "lineNumber": 924,
+    "standIn": "git worktree add --detach at 85c2c39 plus an empty playground/results folder, made before the first recorded command that names the folder; engineV3_replay_test_worktree.ts"
+  },
+  {
+    "realProgram": "idle-state Claude Code hook writing /Users/matkatmusicllc/Programming/typesafe-playground/.idleState/*.json",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/c5a578ce-9057-4d32-89d5-a25125e332b3/subagents/agent-a28ebb946f8a15af3.jsonl",
+    "lineNumber": 20,
+    "standIn": "each .idleState file that no recorded Write/Edit creates is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
+    "realProgram": "files the user saved from the playground app in the browser into /Users/matkatmusicllc/Programming/typesafe-playground/playground/results/ (git-ignored), made by no recorded command",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2d04358e-e99b-4a40-8519-409322d4bc8c/subagents/agent-acdc94b88e7a81baa.jsonl",
+    "lineNumber": 217,
+    "standIn": "each playground/results file that no recorded Write/Edit/command makes, that the start state does not write, and that did not change after its first recorded use is copied from the read-only Mac mount under /input/plate into the state at its Mac mtime, one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
+    "realProgram": "Claude Code task files of the user's dotfiles task list, ~/.claude/tasks/{435,440,441}.json under dotfiles/, made outside this project; no recorded call writes them",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
+    "lineNumber": 447,
+    "standIn": "run_replay_in_docker.sh mounts exactly these 3 files read-only under /input/plate and makes the replay user own /Users/matkatmusicllc/.claude/tasks/dotfiles; the engine copies each into that folder at its Mac mtime (2026-11-05T17:12:42Z, after line 223 and before line 447), one timeline event per file; engineV3_replay_idle_state.ts"
+  },
+  {
+    "realProgram": "macOS stat -f FORMAT",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2b1644e3-98c4-41f1-9eb3-c8a54e92ae99.jsonl",
+    "lineNumber": 250,
+    "standIn": "STAT_SCRIPT in engineV3/Dockerfile (/usr/local/bin/stat): turns stat -f FORMAT [-t TIMEFORMAT] files into %Sm (modified time) and %N (file name) lines and exits 1 when a file is missing; every other call runs /usr/bin/stat"
+  },
+  {
+    "realProgram": "Mac Chrome remote debugging port 47312 driven by curl and scratchpad shot.ts",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/subagents/agent-ac894917bac015fa9.jsonl",
+    "lineNumber": 126,
+    "standIn": "none: the curl to 127.0.0.1:47312 and the 7 bun shot.ts runs that name port 47312 are skipped like the Chrome launch; the scratchpad report-new.png is written from commit a458d15 (docs/report.png) at the last shot.ts run before each cp into docs/report.png; MAC_ONLY_FILLS in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "Mac shell environment variable TYPESAFE_API_KEY",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2fa36f95-01f4-42c5-936b-6abbce7a78a9/subagents/agent-a1b06c9dba139ae95.jsonl",
+    "lineNumber": 167,
+    "standIn": "fake placeholder value: TYPESAFE_API_KEY_PLACEHOLDER (\"replay-placeholder-not-a-real-key\") in CLAUDE_CODE_ENV in engineV3_replay_blocked_test_run.ts, set for every replayed command and test-hook run; the recorded env | rg -c TYPESAFE_API_KEY found it present (2026-11-03T06:47:31Z and 2026-11-05T17:10:22Z); the real key never enters the replay"
+  },
+  {
+    "realProgram": "Mac Chrome remote debugging port 9333 driven by curl and scratchpad drive.ts and drive2.ts",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/2fa36f95-01f4-42c5-936b-6abbce7a78a9/subagents/agent-a1b06c9dba139ae95.jsonl",
+    "lineNumber": 201,
+    "standIn": "none: every command that names 127.0.0.1:9333 or runs bun drive.ts or bun drive2.ts (15 calls; lines 197, 302 and 452 are already skipped as the Chrome launch) is skipped; drive.ts and drive2.ts only talk to port 9333 and print JSON, and the skipped calls write only under the session scratchpad; isMacOnlyCommand in engineV3_replay_script_skip.ts"
+  },
+  {
+    "realProgram": "git submodule add https://github.com/matkatmusic/typesafe-checks.git playground/typesafe-checks (network), run by the user outside Claude after the denied call at line 171 (user message at line 196: \"repo trusted.  submodule added.\") and the user's later git pull in the submodule",
+    "jsonlFile": "/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Programming-typesafe-playground/70acab65-8467-404e-8848-e7478d987dba.jsonl",
+    "lineNumber": 196,
+    "standIn": "two outside-git events from the submodule's own reflog (the Mac .git/modules/playground/typesafe-checks, read-only under /input/repo.git), found by engineV3_replay_outside_git.ts: SubmoduleClone at 2026-11-05T20:33:35Z runs git submodule add from the local copy, then puts the submodule on master at b7e9aaa, sets every URL back to the GitHub URL and stages .gitmodules and the gitlink; SubmodulePull at 2026-11-05T20:44:15Z fast-forwards the submodule to 23fe850 from the local copy; SubmoduleCommit at 2026-11-06T18:34:19Z and 18:50:32Z rebuilds the user's 2 submodule commits (e6d427c, e3fa62d) from the local copy the way main-repo Commit events are rebuilt (user decision 2026-11-13), so the submodule ends at e3fa62d like the Mac"
   }
 ]

@@ -10,9 +10,11 @@ import { printReverseWalk } from "./engineV3_replay_reverse.ts";
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
+import { settleExitMismatches } from "./engineV3_replay_exit_mismatch.ts";
 import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
+import { collectPostToolHookRewrites } from "./engineV3_replay_post_tool_hooks.ts";
 import { collectEarlierSiblingMessageIds, collectForkedMessageIds } from "./engineV3_replay_backups.ts";
 import { compareStateToHead } from "./engineV3_replay_check.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
@@ -20,6 +22,7 @@ import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
 // import { createStartRepo } from "./engineV3_replay_git_start.ts";
 // import { writeUntrackedStartFiles } from "./engineV3_replay_start_files.ts";
 import { createStartState, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
+import { applyIdleStateCopyToState, formatIdleStateCopyText } from "./engineV3_replay_idle_state.ts";
 import { applyOutsideGitRow } from "./engineV3_replay_outside_git.ts";
 import { executePlateRun } from "./engineV3_replay_plate_run.ts";
 import { TERMINAL_EVENT, getNextEvent } from "./engineV3_replay_timeline.ts";
@@ -48,6 +51,10 @@ export function doSomethingWithEvent(state: Path, event: TimelineEvent, repoPath
     executePlateRun(event.capture, context.jotPath);
     return state;
   }
+  if (event.type === TimelineEventKind.IdleStateCopy) {
+    applyIdleStateCopyToState(state, event.copy);
+    return state;
+  }
   return applyJSONLLineToState(state, event.line, fileSnapshots, context);
 }
 
@@ -60,6 +67,9 @@ export function formatEventText(event: TimelineEvent, repoPath: Path | undefined
   }
   if (event.type === TimelineEventKind.PlateCapture) {
     return `${new Date().toISOString()} next event: plate capture: ${basename(event.capture.captureFile.toString())} ${event.capture.eventName} ${event.capture.cwd.toString()}`;
+  }
+  if (event.type === TimelineEventKind.IdleStateCopy) {
+    return `${new Date().toISOString()} next event: ${formatIdleStateCopyText(event.copy)}`;
   }
   const source = getRecordSource(event.line);
   if (source === undefined) {
@@ -101,7 +111,8 @@ function replayEvent(state: Path, event: TimelineEvent, eventNumber: number, rep
   }
   logEventThenStopIfBeforeLine(event, eventText, stopBefore);
   state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
-  writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+  const changes = writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+  settleExitMismatches(changes);
   return state;
 }
 
@@ -158,7 +169,9 @@ export function createScriptReplayContext(settings: ReplaySettings, jsonlLines: 
   const forkedMessageIds = runStartupPhase("collectForkedMessageIds", () => collectForkedMessageIds(jsonlLines), describeCollectStep("collectForkedMessageIds"));
   const earlierSiblingMessageIds = runStartupPhase("collectEarlierSiblingMessageIds", () => collectEarlierSiblingMessageIds(jsonlLines), describeCollectStep("collectEarlierSiblingMessageIds"));
   const resultTurnSnapshotIds = runStartupPhase("collectResultTurnSnapshotIds", () => collectResultTurnSnapshotIds(jsonlLines, writeEditResultLines), describeCollectStep("collectResultTurnSnapshotIds"));
-  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  const postToolHookRewrites = runStartupPhase("collectPostToolHookRewrites", () => collectPostToolHookRewrites(jsonlLines), describeCollectStep("collectPostToolHookRewrites"));
+  // return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds };
+  return { bashCallResults, writeEditResultLines, resultTurnSnapshotIds, sourceRepo: settings.repoPath, macPlatePath: settings.macPlatePath, jotPath: settings.jotPath, fileHistoryPath: settings.fileHistoryPath, forkedMessageIds, earlierSiblingMessageIds, postToolHookRewrites };
 }
 
 const isCliRun =process.argv[1] === fileURLToPath(import.meta.url);

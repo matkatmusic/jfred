@@ -10,6 +10,7 @@ import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { getContentBlocks } from "../src/structures/content-blocks.ts";
 import { BlockType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
+import { setBashCallCwdsToShellCwds } from "./engineV3_jsonl_bash_cwd.ts";
 import { loadFileRecords, type UnknownField } from "./engineV3_jsonl_file_records.ts";
 import { ignorePhaseProgress, type ReportPhaseProgress } from "./engineV3_startup_progress.ts";
 
@@ -106,7 +107,9 @@ function readMergedJSONLLines(jsonlFolders: string[], reportProgress: ReportPhas
   const unknownRecordTypes = new Set<string>();
   const transcriptFiles = filterOutCopiedTranscripts(listTranscriptFiles(jsonlFolders));
   for (const transcriptFile of transcriptFiles) {
-    recordLists.push(loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes));
+    const fileRecords = loadFileRecords(transcriptFile, seenFieldIds, unknownFields, unknownRecordTypes);
+    setBashCallCwdsToShellCwds(fileRecords);
+    recordLists.push(fileRecords);
     reportProgress(recordLists.length, transcriptFiles.length);
   }
   const sortTimeOverrides = createSortTimeOverrides(recordLists);

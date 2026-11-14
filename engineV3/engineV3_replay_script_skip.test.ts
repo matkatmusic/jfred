@@ -53,6 +53,70 @@ test("test_isMacOnlyCommand_is_false_when_the_command_only_lists_the_chrome_fold
   assert.equal(isMacOnlyCommand(command), false);
 });
 
+test("test_isMacOnlyCommand_is_true_when_curl_asks_the_skipped_chrome_debugging_port", () => {
+  // Scenario: the skipped Mac Chrome listens on port 47312, so a curl to that port finds nothing in the container.
+  // a command that asks the debugging port for the Chrome version
+  const command = "curl -s http://127.0.0.1:47312/json/version";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_shot_ts_drives_the_skipped_chrome_debugging_port", () => {
+  // Scenario: shot.ts takes the Chrome debugging port as its second argument and saves the picture in the scratchpad.
+  // a command that runs shot.ts with server port 47311 and debugging port 47312
+  const command = "cd /private/tmp/scratchpad && bun shot.ts 47311 47312 report-new.png";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_false_when_the_command_only_checks_for_the_chrome_process", () => {
+  // Scenario: a command that removes a worktree and names the debugging port in a pgrep pattern must still run.
+  // a command with a pgrep pattern that names the port
+  const command = 'git worktree remove --force /tmp/wt; pgrep -fl "playground.ts --port 47311|remote-debugging-port=47312"';
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
+test("test_isMacOnlyCommand_is_false_when_shot_ts_gets_other_ports", () => {
+  // Scenario: only the run that names the skipped Chrome's port is skipped.
+  // a command that runs shot.ts with other ports
+  const command = "cd /tmp/scratchpad && bun shot.ts 47311 40000 report-new.png";
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
+test("test_isMacOnlyCommand_is_true_when_curl_asks_the_skipped_chrome_debugging_port_9333", () => {
+  // Scenario: the skipped Mac Chrome of session 2fa36f95 listens on port 9333, so a curl to that port finds nothing in the container.
+  // a command that asks port 9333 for the Chrome version
+  const command = "sleep 3; curl -s http://127.0.0.1:9333/json/version | head -c 150";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_bun_runs_drive_ts_that_drives_the_skipped_chrome", () => {
+  // Scenario: drive.ts opens a WebSocket to the Chrome on port 9333 and prints JSON.
+  // a command that runs drive.ts from the scratchpad
+  const command = "cd $S && bun drive.ts WITH_FIX 2>&1 | sed '1s/^WITH_FIX //' | jq -c 'del(.initial)'";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_true_when_bun_runs_drive2_ts_that_drives_the_skipped_chrome", () => {
+  // Scenario: drive2.ts is the second script that drives the Chrome on port 9333.
+  // a command that makes a seed file and runs drive2.ts
+  const command = "cd $S; bun makeSeed.ts $S/clone/playground/results/playground-history.json 20; bun drive2.ts 1229 2>&1 | jq -c \"$JQ\"";
+  // the command is Mac only
+  assert.equal(isMacOnlyCommand(command), true);
+});
+
+test("test_isMacOnlyCommand_is_false_when_the_command_only_stops_the_chrome_on_port_9333", () => {
+  // Scenario: a command that kills the Chrome by its flag and then runs git status must still run.
+  // a command with a pkill pattern that names port 9333
+  const command = 'pkill -f "remote-debugging-port=9333"; pgrep -fl "remote-debugging-port=9333" | wc -l; cd /tmp/project && git status --short';
+  // the command is not Mac only
+  assert.equal(isMacOnlyCommand(command), false);
+});
+
 function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
@@ -85,6 +149,23 @@ test("test_fillMacOnlyFile_writes_the_bytes_of_the_commit_file_into_the_state", 
   assert.deepEqual(readFileSync(join(state.toString(), "docs", "report.png")), bytes);
 });
 
+test("test_fillMacOnlyFile_writes_the_bytes_of_the_commit_file_to_the_destination_path", (t) => {
+  // Scenario: a skipped screenshot run left a picture in the scratchpad; the fill puts the commit's docs/report.png bytes there.
+  // the source repo has a commit with docs/report.png
+  const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x01, 0xfe]);
+  const source = makeRepoWithReport(t, bytes);
+  // the state folder and the scratchpad folder are both empty
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  const scratchpad = makeTempFolder(t, "engine-v3-skip-scratchpad-");
+  // fill the scratchpad path from that commit
+  const destinationPath = new Path(join(scratchpad, "out", "report.png"));
+  fillMacOnlyFile(state, { toolUseId: new Uuid("toolu_x"), repoPath: new Path("docs/report.png"), commit: source.commit, destinationPath }, source.gitFolder);
+  // the scratchpad path has the commit's bytes
+  assert.deepEqual(readFileSync(destinationPath.toString()), bytes);
+  // the state folder has no docs/report.png
+  assert.equal(existsSync(join(state.toString(), "docs", "report.png")), false);
+});
+
 test("test_fillMacOnlyFiles_writes_nothing_for_a_call_without_a_fill", (t) => {
   // Scenario: only the one named call gets a stand-in file.
   // the state folder is empty and the source repo does not exist
@@ -101,7 +182,7 @@ function loadCallAndContext(t: TestContext, command: string, resultText: string,
   const callLine = { type: "assistant", uuid: "4b836cc7-2357-412e-9f53-b23191b3c68a", parentUuid: null, cwd, timestamp: "2026-10-27T17:24:20.837Z", sessionId: "7d31cfda-fb91-4f61-ba61-7031cb5484e2", message: { role: "assistant", content: [block] } };
   const jsonlFile = join(makeTempFolder(t, "engine-v3-skip-jsonl-"), "session.jsonl");
   writeFileSync(jsonlFile, JSON.stringify(callLine) + "\n");
-  const result = { toolUseId: new Uuid("toolu_01Skip"), startMs: 0, endMs: 1, isError, resultText };
+  const result = { toolUseId: new Uuid("toolu_01Skip"), startMs: 0, endMs: 1, isError, resultText, command };
   return { line: loadTranscript(jsonlFile).records[0] as JSONLLine, context: { bashCallResults: new Map([["toolu_01Skip", result]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") } };
 }
 
@@ -129,12 +210,69 @@ test("test_executeScriptInState_skips_a_Mac_only_call", (t) => {
   assert.equal(existsSync(join(state.toString(), "ran.txt")), false);
 });
 
+test("test_executeScriptInState_skips_a_curl_to_the_skipped_chrome_debugging_port", (t) => {
+  // Scenario: no Chrome listens in the container, so the recorded curl (exit 7 when run) is not run.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call asks port 47312 for the Chrome version and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "curl -s http://127.0.0.1:47312/json/version", "{}", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_shot_ts_run_that_drives_the_skipped_chrome", (t) => {
+  // Scenario: shot.ts would drive the skipped Chrome; here the scratchpad has no shot.ts, so a run would fail.
+  // the state folder is the record's cwd and holds no shot.ts
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call runs shot.ts against port 47312 and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, `cd ${state.toString()} && bun shot.ts 47311 47312 report-new.png`, "[]", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_curl_to_the_skipped_chrome_debugging_port_9333", (t) => {
+  // Scenario: no Chrome listens in the container, so the recorded curl is not run.
+  // the state folder is the record's cwd
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call asks port 9333 for the Chrome version and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, "curl -s http://127.0.0.1:9333/json/version", "{}", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_executeScriptInState_skips_a_drive_ts_run_that_drives_the_skipped_chrome", (t) => {
+  // Scenario: drive.ts would drive the skipped Chrome; here the scratchpad has no drive.ts, so a run would exit 1.
+  // the state folder is the record's cwd and holds no drive.ts
+  const state = new Path(makeTempFolder(t, "engine-v3-skip-state-"));
+  // the call runs drive.ts and its recorded result is not an error
+  const { line, context } = loadCallAndContext(t, `cd ${state.toString()} && bun drive.ts WITH_FIX`, "[]", false, state.toString());
+  // running the line does not throw
+  assert.doesNotThrow(() => executeScriptInState(state, line, context));
+});
+
+test("test_MAC_ONLY_FILLS_puts_the_a458d15_report_png_into_report_new_png_for_the_last_two_shot_ts_runs", () => {
+  // Scenario: the cp at line 263 and the cp at line 303 of agent-ac894917bac015fa9.jsonl copy report-new.png into docs/report.png; commit a458d15 holds the final picture.
+  const scratchpadPicture = "/private/tmp/claude-501/-Users-matkatmusicllc-Programming-typesafe-playground/24366073-dc22-42eb-a4fe-73006a20752f/scratchpad/report-new.png";
+  // the last shot.ts run before line 263 (line 242) and the last before line 303 (line 292)
+  for (const toolUseId of ["toolu_01Q4iavqiTRdi2JyrbBbDqAK", "toolu_01RdrCxapAehwcJuUvnpQhct"]) {
+    // the call has one fill
+    const fills = MAC_ONLY_FILLS.filter((candidate) => candidate.toolUseId.toString() === toolUseId);
+    assert.equal(fills.length, 1);
+    // the fill writes docs/report.png from commit a458d15 to report-new.png in the scratchpad
+    const fill = fills[0]!;
+    assert.equal(fill.repoPath.toString(), "docs/report.png");
+    assert.equal(fill.commit, "a458d15");
+    assert.equal(fill.destinationPath?.toString(), scratchpadPicture);
+  }
+});
+
 test("test_MAC_ONLY_FILLS_names_the_report_png_call_and_its_commit", () => {
   // Scenario: the one skipped call that copied docs/report.png gets that file back from commit 9becb03.
-  // the fill list has one entry
-  assert.equal(MAC_ONLY_FILLS.length, 1);
+  // the fill list has one entry for that call
+  const fills = MAC_ONLY_FILLS.filter((candidate) => candidate.toolUseId.toString() === "toolu_01MCSxEwsbVK6FgSQZMCN8Jp");
+  assert.equal(fills.length, 1);
   // the entry names the call, the repo path and the commit
-  const fill = MAC_ONLY_FILLS[0]!;
+  const fill = fills[0]!;
   assert.equal(fill.toolUseId.toString(), "toolu_01MCSxEwsbVK6FgSQZMCN8Jp");
   assert.equal(fill.repoPath.toString(), "docs/report.png");
   assert.equal(fill.commit, "9becb03");

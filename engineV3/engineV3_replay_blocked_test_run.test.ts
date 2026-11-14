@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import type { BashCallResult } from "./engineV3_replay_bash_results.ts";
-import { replayBlockedTestRun } from "./engineV3_replay_blocked_test_run.ts";
+import { replayBlockedTestRun, TYPESAFE_API_KEY_PLACEHOLDER } from "./engineV3_replay_blocked_test_run.ts";
 const RECORDED_LOG_NAME = "1793122549168-0.log";
 function makeTempFolder(t: TestContext, prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
@@ -15,7 +15,7 @@ function makeTempFolder(t: TestContext, prefix: string): string {
 }
 function makeBlockedResult(project: string, recordedLog: string, testFile: string): BashCallResult {
   const resultText = `PreToolUse:Bash hook error: Test runners are blocked. bun test ${testFile} runs in the background in ${project}.\nRun this command with a Bash timeout of 300000 to be notified when the test run is finished:\nnode /x/monitor-test-run.ts ${recordedLog}\nThen read the log: ${recordedLog}`;
-  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText };
+  return { toolUseId: new Uuid("toolu_01BlockedTestRun"), startMs: 0, endMs: 1, isError: true, resultText, command: "", resultCwd: new Path(project) };
 }
 test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running_the_hook", (t) => {
   // Scenario: on the Mac the block-npm-test hook ran the tests in the background and wrote a log under the recorded name; a later command reads that log.
@@ -34,5 +34,57 @@ test("test_replayBlockedTestRun_makes_the_recorded_log_and_done_files_by_running
   // the done file exists under the recorded name
   assert.equal(existsSync(`${recordedLog}.done`), true);
   // the log under the recorded name holds the passing test summary
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
+});
+test("test_replayBlockedTestRun_runs_the_hook_in_the_shell_folder_the_result_line_records", (t) => {
+  // Scenario: an earlier parallel call ran `cd playground`, so the Mac hook ran in playground (which has package.json); the call line still says the root (no package.json).
+  // the root has no package.json; playground has one and a passing test file
+  const root = makeTempFolder(t, "engine-v3-blocked-root-");
+  const playground = join(root, "playground");
+  mkdirSync(playground);
+  writeFileSync(join(playground, "package.json"), "{}");
+  writeFileSync(join(playground, "sample.test.ts"), 'import { test } from "bun:test";\ntest("ok", () => {});\n');
+  // the recorded result names a log in a log folder and says the shell was in playground
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(playground, recordedLog, "sample.test.ts");
+  // the call line says the root
+  const run: ScriptRun = { code: `cd ${playground} && bun test sample.test.ts`, cwd: new Path(root), timestamp: new Date("2026-11-03T06:10:00.904Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
+  // the log under the recorded name holds the passing test summary
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
+});
+test("test_replayBlockedTestRun_runs_the_hook_with_CLAUDECODE_so_the_log_lists_no_passing_test_names", (t) => {
+  // Scenario: on the Mac the hook ran with CLAUDECODE=1, and bun test then prints no passing test names, so a later rg on the log finds nothing.
+  // the project has a package.json and one passing test file
+  const project = makeTempFolder(t, "engine-v3-blocked-project-");
+  writeFileSync(join(project, "package.json"), "{}");
+  writeFileSync(join(project, "sample.test.ts"), 'import { test } from "bun:test";\ntest("passing_name_probe", () => {});\n');
+  // the recorded result names a log in a log folder
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(project, recordedLog, "sample.test.ts");
+  const run: ScriptRun = { code: "bun test sample.test.ts", cwd: new Path(project), timestamp: new Date("2026-10-27T17:35:49.168Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
+  // the log shows the summary but not the passing test name
+  assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
+  assert.doesNotMatch(readFileSync(recordedLog, "utf8"), /passing_name_probe/);
+});
+test("test_replayBlockedTestRun_runs_the_hook_with_the_fake_TYPESAFE_API_KEY_placeholder", (t) => {
+  // Scenario: on the Mac the hook ran with TYPESAFE_API_KEY set, so a test that reads it saw a value; the replay gives it the fake placeholder.
+  // the project has a package.json and one test that passes only when the variable holds the placeholder
+  const project = makeTempFolder(t, "engine-v3-blocked-project-");
+  writeFileSync(join(project, "package.json"), "{}");
+  writeFileSync(join(project, "sample.test.ts"), `import { expect, test } from "bun:test";\ntest("key_probe", () => { expect(Bun.env.TYPESAFE_API_KEY).toBe("${TYPESAFE_API_KEY_PLACEHOLDER}"); });\n`);
+  // the recorded result names a log in a log folder
+  const logFolder = makeTempFolder(t, "engine-v3-blocked-logs-");
+  const recordedLog = join(logFolder, RECORDED_LOG_NAME);
+  const result = makeBlockedResult(project, recordedLog, "sample.test.ts");
+  const run: ScriptRun = { code: "bun test sample.test.ts", cwd: new Path(project), timestamp: new Date("2026-11-03T06:47:31.825Z") };
+  // replay the blocked call
+  replayBlockedTestRun(run, result);
+  // the log shows the test passed
   assert.match(readFileSync(recordedLog, "utf8"), /1 pass/);
 });

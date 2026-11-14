@@ -6,6 +6,7 @@ import { TimelineEventKind, executeGit, type CommitHash, type JSONLLine, type Ti
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { listOutsideGitRows } from "./engineV3_replay_outside_git.ts";
+import { mergeIdleStateEventsIntoActions } from "./engineV3_replay_idle_state.ts";
 import { mergePlateEventsIntoActions } from "./engineV3_replay_plate.ts";
 import { runStartupPhase } from "./engineV3_startup_progress.ts";
 
@@ -114,7 +115,8 @@ function createTimeline(key: string, repoPath: Path | undefined,jsonlsPaths: Pat
   // const commitEvents = createCommitEvents(repoPath);
   // const actionEvents = mergePlateEventsIntoActions(createOutsideGitEvents(repoPath, lines), macPlatePath, jsonlsPaths);
   const outsideGitEvents = runStartupPhase("outside-git events", () => createOutsideGitEvents(repoPath, lines), (built) => `built ${built.length} outside-git events`);
-  const actionEvents = runStartupPhase("plate events", () => mergePlateEventsIntoActions(outsideGitEvents, macPlatePath, jsonlsPaths), (merged) => `merged ${merged.length - outsideGitEvents.length} plate events into ${outsideGitEvents.length} outside-git events`);
+  const plateEvents = runStartupPhase("plate events", () => mergePlateEventsIntoActions(outsideGitEvents, macPlatePath, jsonlsPaths), (merged) => `merged ${merged.length - outsideGitEvents.length} plate events into ${outsideGitEvents.length} outside-git events`);
+  const actionEvents = runStartupPhase("idle-state events", () => mergeIdleStateEventsIntoActions(plateEvents, macPlatePath, lines), (merged) => `merged ${merged.length - plateEvents.length} idle-state copy events into ${plateEvents.length} plate and outside-git events`);
   const lineEvents = runStartupPhase("line events", () => createLineEvents(lines), (built) => `built ${built.length} line events`);
   const events = runStartupPhase("timeline merge", () => mergeEventsByTime(actionEvents, lineEvents), (merged) => `merged the timeline: ${merged.length} events`);
   const indexByEvent = new Map<TimelineEvent, number>();
