@@ -24,6 +24,8 @@ function buildInverseCommit(instant: Date | undefined): InverseCommit {
         moment: StateMoment.BeforeEvent,
         confidence: StateConfidence.Proven,
         instant,
+        jsonlPath: undefined,
+        line: undefined,
         isFileAbsent: false,
         text: "file text that must not reach the wire\n",
     };
