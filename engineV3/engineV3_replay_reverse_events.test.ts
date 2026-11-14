@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -102,7 +102,7 @@ function summarizeStates(states: ReverseFileState[]): string[] {
 
 function makeEvent(type: FileEventType, instant: Date | undefined = makeInstant(1), originalFile: string | undefined = undefined): FileEvent {
     const row = { toolName: "Edit", timestamp: makeInstant(1), source: undefined, oldString: "a", newString: "b", replaceAll: false, originalFile };
-    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never, moveOrCopySourceFile: undefined };
+    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined };
 }
 
 function listScriptMayWriteEventsForFile(scene: Scene, transcriptFile: Path): FileEvent[] {
@@ -493,4 +493,113 @@ test("test_getAllEventsForFileFrom_gives_no_move_source_when_a_name_is_assigned_
     // any ScriptMayWrite event of <cwd>/b.py has no move or copy source
     const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
     assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), events.map(() => undefined));
+});
+
+const SCENARIOS_EXECUTED_FOLDER = "/Users/matkatmusicllc/Desktop/claude code src/tui-progress-worktree/jfred/scenarios/executed";
+const S1_JSONL_FILE = join(SCENARIOS_EXECUTED_FOLDER, "s1-delete-file", "a35bc28e-3687-4c06-ac02-2c4daebc964b.jsonl");
+const S1_RECORDED_FOLDER = "/private/var/folders/fy/wg2tzrv957sg2vqjcvdkdzvm0000gn/T/run-scenario.y4hths0f";
+const S2_JSONL_FILE = join(SCENARIOS_EXECUTED_FOLDER, "s2-move-file", "70781551-ea2a-4ae3-a0db-e9e1bb6fee1f.jsonl");
+const S2_RECORDED_FOLDER = "/private/var/folders/fy/wg2tzrv957sg2vqjcvdkdzvm0000gn/T/run-scenario.bbkg5qkl";
+
+// The scenario's JSONL is copied unchanged into the scene's transcripts folder; the recorded path is the transcript path of the file.
+function listEventsOfRecordedFile(scene: Scene, scenarioJsonlFile: string, recordedFile: string): FileEvent[] {
+    writeFileSync(join(scene.jsonlFolder.toString(), "scenario.jsonl"), readFileSync(scenarioJsonlFile, "utf8"));
+    return getAllEventsForFileFrom(scene.file, new Path(recordedFile), [scene.jsonlFolder], [scene.snapshotFolder]);
+}
+
+test("test_getAllEventsForFileFrom_marks_the_first_rm_target_of_the_s1_run_as_removed_by_script", (t) => {
+    // Scenario: s1 runs one rm call with two targets; this is the first target.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "s1_delete.py"));
+    // exactly one event is marked, and it is the script event
+    const markedEvents = events.filter((event) => event.removedByScript);
+    assert.deepEqual(markedEvents.map((event) => event.type), [FileEventType.ScriptMayWrite]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_second_rm_target_of_the_s1_run_as_removed_by_script", (t) => {
+    // Scenario: s1 runs one rm call with two targets; this is the second target.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "tests", "test_s1_delete.py"));
+    // exactly one event is marked, and it is the script event
+    const markedEvents = events.filter((event) => event.removedByScript);
+    assert.deepEqual(markedEvents.map((event) => event.type), [FileEventType.ScriptMayWrite]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_the_write_events_of_s1_as_removed_by_script", (t) => {
+    // Scenario: s1 writes s1_delete.py, then removes it.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "s1_delete.py"));
+    // the Write row event exists and is not marked
+    const writeEvents = events.filter((event) => event.type === FileEventType.WriteRow);
+    assert.equal(writeEvents.length, 1);
+    assert.equal(writeEvents[0]!.removedByScript, false);
+});
+
+test("test_getAllEventsForFileFrom_gives_the_s2_source_file_the_destination_it_moved_to", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_original.py"));
+    // exactly one event of the source file holds the destination
+    const movedAwayEvents = events.filter((event) => event.movedAwayToFile !== undefined);
+    assert.deepEqual(movedAwayEvents.map((event) => event.movedAwayToFile), [new Path(join(S2_RECORDED_FOLDER, "s2_moved.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_give_the_s2_destination_file_a_moved_away_destination", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`; the file read here is the destination.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_moved.py"));
+    // the mv run is an event of the destination file, and it is not marked as moved away
+    assert.equal(events.some((event) => event.type === FileEventType.ScriptMayWrite), true);
+    assert.equal(events.some((event) => event.movedAwayToFile !== undefined), false);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_the_s2_run_as_removed_by_script", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`.
+    const scene = makeScene(t, "A");
+    const sourceEvents = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_original.py"));
+    // the mv run is an event of the source file, and it is not marked as removed
+    assert.equal(sourceEvents.some((event) => event.type === FileEventType.ScriptMayWrite), true);
+    assert.equal(sourceEvents.some((event) => event.removedByScript), false);
+    const destinationEvents = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_moved.py"));
+    assert.equal(destinationEvents.some((event) => event.removedByScript), false);
+});
+
+test("test_getAllEventsForFileFrom_marks_a_relative_rm_run_as_removed_by_script", (t) => {
+    // Scenario: a Bash call in the project folder runs `rm a.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "rm a.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/a.py is marked as removed
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.removedByScript), [true]);
+});
+
+test("test_getAllEventsForFileFrom_marks_an_rm_run_with_a_flag_as_removed_by_script", (t) => {
+    // Scenario: a Bash call runs `rm -f /abs/a.py`.
+    const scene = makeScene(t, "A");
+    const file = join(scene.folder, "a.py");
+    writeRecords(scene, makeBashRows("b1", `rm -f ${file}`, 5, scene.folder));
+    // the ScriptMayWrite event of a.py is marked as removed
+    const events = listScriptMayWriteEventsForFile(scene, new Path(file));
+    assert.deepEqual(events.map((event) => event.removedByScript), [true]);
+});
+
+test("test_getAllEventsForFileFrom_gives_a_relative_git_mv_source_its_absolute_destination", (t) => {
+    // Scenario: a Bash call in the project folder runs `git mv a.py b.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "git mv a.py b.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/a.py holds <cwd>/b.py as its moved-away destination
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.movedAwayToFile), [new Path(join(scene.folder, "b.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_a_cp_run_as_removed_or_moved_away", (t) => {
+    // Scenario: a Bash call runs `cp /abs/a.py /abs/b.py`.
+    const scene = makeScene(t, "A");
+    const sourceFile = join(scene.folder, "a.py");
+    writeRecords(scene, makeBashRows("b1", `cp ${sourceFile} ${join(scene.folder, "b.py")}`, 5, scene.folder));
+    // the ScriptMayWrite event of the copy source is neither removed nor moved away
+    const events = listScriptMayWriteEventsForFile(scene, new Path(sourceFile));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.removedByScript, false);
+    assert.equal(events[0]!.movedAwayToFile, undefined);
 });

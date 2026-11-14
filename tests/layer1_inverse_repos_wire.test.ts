@@ -27,6 +27,8 @@ function buildInverseCommit(instant: Date | undefined): InverseCommit {
         jsonlPath: undefined,
         line: undefined,
         isFileAbsent: false,
+        removedByScript: false,
+        movedAwayToFile: undefined,
         text: "file text that must not reach the wire\n",
     };
 }
