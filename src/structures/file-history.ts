@@ -74,13 +74,15 @@ function parsePathOrNull(value: string | null): Path | null {
   return new Path(value);
 }
 
+type RawFileHistoryBackup = {
+  backupFileName: string | null;
+  version: number;
+  backupTime: string;
+  realParentDir?: string;
+};
+
 function parseBackup(raw: unknown): FileHistoryBackup {
-  const backup = raw as {
-    backupFileName: string | null;
-    version: number;
-    backupTime: string;
-    realParentDir?: string;
-  };
+  const backup = raw as RawFileHistoryBackup;
   const parsed: FileHistoryBackup = {
     backupFileName: parsePathOrNull(backup.backupFileName),
     version: backup.version,
