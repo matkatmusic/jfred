@@ -21,11 +21,11 @@ function runGit(repoDir: string, args: string[]): string {
     return execFileSync("git", args, { cwd: repoDir, encoding: "utf8" });
 }
 
-function commitMark(repo: TempRepo, parentShortHash: string | undefined, texts: Record<string, string>, newlinePaths: string[] = []) {
+function commitMark(repo: TempRepo, parentShortHash: string | undefined, texts: Record<string, string>, newlinePaths: string[] = [], absentPaths: string[] = []) {
     const request: WireJfredCommitRequest = { baseShortHash: repo.commitHashes[1]!.slice(0, 8), markInstant: MARK_INSTANT, message: MESSAGE, allowScripts: false };
     if (parentShortHash !== undefined)
         request.parentShortHash = parentShortHash;
-    return writeJfredMarkCommit(new Path(repo.repoDir), request, COMMITTED_AT, new Map(Object.entries(texts)), () => new Set(newlinePaths));
+    return writeJfredMarkCommit(new Path(repo.repoDir), request, COMMITTED_AT, new Map(Object.entries(texts)), () => new Set(newlinePaths), new Set(absentPaths));
 }
 
 function readJfredTip(repo: TempRepo): string {
@@ -117,6 +117,35 @@ test("test_writeJfredMarkCommit_returns_the_new_commit_as_the_last_listed_commit
     assert.equal(second.shortHash, readJfredTip(repo).slice(0, 8));
     assert.equal(second.parentShortHash, first.shortHash);
     assert.equal(second.instant.getTime(), Date.parse(MARK_INSTANT));
+});
+
+test("test_delete_only_commit_is_written", () => {
+    // Setup: the reader says sub/b.txt is absent and lists no text.
+    const repo = createJfredTempRepo();
+    // Action: commit the mark.
+    const commit = commitMark(repo, undefined, {}, [], ["sub/b.txt"]);
+    // Verify: a commit exists, sub/b.txt is gone, and the other files keep the parent bytes.
+    assert.notEqual(commit, undefined);
+    assert.equal(runGit(repo.repoDir, ["ls-tree", "-r", "--name-only", "jfred"]).trim(), "a.txt\nrun.sh");
+    assert.equal(runGit(repo.repoDir, ["show", "jfred:a.txt"]), runGit(repo.repoDir, ["show", `${repo.commitHashes[1]}:a.txt`]));
+});
+
+test("test_commit_with_an_edit_and_a_delete_holds_both", () => {
+    // Setup and action: edit a.txt and delete sub/b.txt in one commit.
+    const repo = createJfredTempRepo();
+    commitMark(repo, undefined, { "a.txt": "edited" }, ["a.txt"], ["sub/b.txt"]);
+    // Verify: a.txt holds the edit and sub/b.txt is gone.
+    assert.equal(runGit(repo.repoDir, ["show", "jfred:a.txt"]), "edited\n");
+    assert.equal(runGit(repo.repoDir, ["ls-tree", "-r", "--name-only", "jfred"]).trim(), "a.txt\nrun.sh");
+});
+
+test("test_absent_path_already_absent_in_parent_returns_undefined_and_writes_nothing", () => {
+    // Setup and action: the reader says nope.txt is absent; the parent never held it.
+    const repo = createJfredTempRepo();
+    const commit = commitMark(repo, undefined, {}, [], ["nope.txt"]);
+    // Verify: no commit and no branch.
+    assert.equal(commit, undefined);
+    assert.equal(runGit(repo.repoDir, ["for-each-ref", "refs/heads/jfred"]), "");
 });
 
 test("test_removeJfredBranch_removes_only_the_jfred_ref", () => {
