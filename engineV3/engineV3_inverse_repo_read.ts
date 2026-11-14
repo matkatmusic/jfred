@@ -13,7 +13,10 @@ export type ProjectFileStateAtInstant = { file: Path; commit: InverseCommit | un
 
 // An at-event state holds from its instant on; a before-event state holds until its instant, from the next older commit on.
 export function getInverseCommitAtInstant(repoFolder: Path, fileName: string, instant: Date): InverseCommit | undefined {
-    const commits = listInverseCommits(repoFolder, fileName);
+    return selectInverseCommitAtInstant(listInverseCommits(repoFolder, fileName), instant);
+}
+
+export function selectInverseCommitAtInstant(commits: InverseCommit[], instant: Date): InverseCommit | undefined {
     for (const [index, commit] of commits.entries()) {
         if (commit.instant !== undefined) {
             if (commit.instant.getTime() <= instant.getTime()) {

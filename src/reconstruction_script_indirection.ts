@@ -75,7 +75,7 @@ function findBodyAtInstant(bodies: WrittenScriptBody[], when: Date): string | un
 const SCRIPT_EXTENSIONS = [".py", ".sh", ".js", ".ts"];
 
 // Whether a filename ends with a known script extension.
-function isScriptFile(name: string): boolean {
+export function isScriptFile(name: string): boolean {
   for (const ext of SCRIPT_EXTENSIONS) {
     const hasExtension = name.endsWith(ext);
     if (hasExtension) {
