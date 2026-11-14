@@ -2,7 +2,8 @@
 
 import { type ServerResponse } from "node:http";
 import { getPathOverrides } from "./reconstruction_overrides.ts";
-import { mergeMultiSourceRecords, splitRecordsBySession } from "./reconstruction_multi_source.ts";
+import { mergeMultiSourceRecords } from "./reconstruction_multi_source.ts";
+import { splitRecordsBySession } from "./reconstruction_multi_source_regroup.ts";
 import { buildSidecarReader } from "./reconstruction_sidecar_reader.ts";
 import type { BackupReader } from "./reconstruction_sidecar.ts";
 import { selectLiveBranch } from "./reconstruction_branch.ts";
