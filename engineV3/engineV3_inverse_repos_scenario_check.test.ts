@@ -163,6 +163,18 @@ test("test_a_git_folder_of_the_scenario_is_copied_into_the_project_copy", (t) =>
     assert.equal(projectHead, scenarioHead);
 });
 
+test("test_the_project_root_is_the_outermost_cwd_of_all_transcripts", (t) => {
+    // Scenario: one transcript ran in the project root and another ran in its tests subfolder; the nested transcript is listed first.
+    const scenario = makeScenario(t, [{ "a.py": "one\n" }, { "a.py": "two\n" }], makeWriteRows("toolu_w", "a.py", "one\n", 10));
+    const nestedRecord = { type: "user", uuid: "nested-1", timestamp: makeInstant(5).toISOString(), cwd: `${RECORDED_ROOT}/tests`, message: { role: "user", content: "hello" } };
+    writeFileSync(join(scenario.scenarioFolder.toString(), "00000000-0000-0000-0000-000000000000.jsonl"), JSON.stringify(nestedRecord) + "\n");
+    // Run the check.
+    const result = runCheck(scenario);
+    // The Write at the project root explains the step 1 text and the disk-now state holds the step 2 text, so nothing is missed.
+    assert.deepEqual(result.missedStepTexts, []);
+    assert.equal(result.foundStepTextCount, 2);
+});
+
 test("test_a_scenario_with_no_step_folders_throws_an_error_naming_it", (t) => {
     // Scenario: the .step_states folder is empty.
     const scenario = makeScenario(t, [], []);
