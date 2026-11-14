@@ -38,7 +38,7 @@ function readTickEvent(element: HTMLElement): TickEvent {
   // An orphan's row IS its path; the bucket `.fname` is a heading, and kind stays empty (mockup 899-903).
   const isOrphanRow = element.matches("li");
   if (isOrphanRow) {
-    return { path: element.querySelector("span")?.textContent ?? "", kind: "", element, nodeKind: undefined };
+    return { path: element.querySelector("span")?.textContent ?? "", kind: "", element, nodeKind: readNodeKind(element) };
   }
   // A `.node`'s label is the `.nlabel` beside it; the bare `.filebox` safety net has none, so it's path-only.
   const label = element.matches(".node") ? element.nextElementSibling?.textContent : undefined;
