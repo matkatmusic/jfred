@@ -129,6 +129,13 @@ function readAttuneOutsidePathsLoopText(): string {
     return scriptText.slice(loopStart, loopEnd);
 }
 
+test("test_hook_files_stage_mounts_the_taskTools_git_folder_read_only_at_the_same_path", () => {
+    // Scenario: the replay runs the recorded taskTools reflow hook at the commit of each event's time, so it reads the taskTools git folder.
+    const scriptText = readFileSync(DOCKER_SCRIPT_PATH, "utf8");
+    assert.match(scriptText, /-v "\$TASK_TOOLS_GIT_FOLDER:\$TASK_TOOLS_GIT_FOLDER:ro"/);
+    assert.match(scriptText, /TASK_TOOLS_GIT_FOLDER=\/Users\/matkatmusicllc\/Programming\/taskTools\/\.git/);
+});
+
 test("test_attune_replay_mounts_every_outside_path_read_only_at_the_same_path", () => {
     // Scenario: recorded Attune Bash calls read folders outside the project, such as `cd ~/Programming/harms/fight-review`.
     // The script lists exactly those paths, only for the Attune state folder.

@@ -8,6 +8,7 @@ import { Path, Uuid } from "../src/structures/domain.ts";
 import { listRunsInRecord, ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import { getSessionId } from "../src/reconstruction_multi_source_paths.ts";
 import type { JSONLLine } from "./engineV3.ts";
+import type { AttachmentEntry } from "../src/structures/session-meta.ts";
 import { isNeverRanResult, type BashCallResult } from "./engineV3_replay_bash_results.ts";
 import { getTailOfOutput } from "./engineV3_replay_script_git_env.ts";
 import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalRepo, getGitEnvForOptionalRepo, getRequiredSourceRepo } from "./engineV3_replay_no_git.ts";
@@ -16,7 +17,8 @@ import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalR
 import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
 
-export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
+// export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path };
+export type ScriptReplayContext = { bashCallResults: Map<string, BashCallResult>; writeEditResultLines: Map<string, JSONLLine>; sourceRepo: Path | undefined; macPlatePath?: Path; jotPath?: Path; fileHistoryPath?: Path; forkedMessageIds?: Set<string>; earlierSiblingMessageIds?: Map<string, string[]>; resultTurnSnapshotIds?: Map<string, string>; claudeTempFolder?: Path; postToolHookRewrites?: Map<string, AttachmentEntry> };
 
 const SCRIPT_TIMEOUT_MILLISECONDS = 120000;
 const SCRIPT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;

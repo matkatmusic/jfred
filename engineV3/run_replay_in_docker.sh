@@ -196,6 +196,9 @@ if [ ! -f "$HOOK_FILES_FOLDER/ask-dont-dump-issues/turn-done.ts" ]; then
 fi
 printf '%s\n' "CLAUDE_HOOKS_SESSION_STATE_DIR=/tmp/claude-hooks-session-state" > "$HOOK_FILES_FOLDER/.env"
 set -- "$@" -v "$HOOK_FILES_FOLDER/ask-dont-dump-issues:/Users/matkatmusicllc/.claude/hooks:ro" -v "$HOOK_FILES_FOLDER/shared:/Users/matkatmusicllc/.claude/shared:ro" -v "$HOOK_FILES_FOLDER/.env:/Users/matkatmusicllc/.claude/.env:ro"
+# The engine runs the recorded taskTools reflow hook after an Edit/Write, exported from this git folder at the commit of the event's time.
+TASK_TOOLS_GIT_FOLDER=/Users/matkatmusicllc/Programming/taskTools/.git
+set -- "$@" -v "$TASK_TOOLS_GIT_FOLDER:$TASK_TOOLS_GIT_FOLDER:ro"
 printSetupStageDone "hook files"
 printSetupStageStart "container start"
 docker volume create "$SNAPSHOT_VOLUME" >/dev/null

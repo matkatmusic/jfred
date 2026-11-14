@@ -6,7 +6,7 @@ import { Path } from "../src/structures/domain.ts";
 import { getRecordSource, setRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { parseRecord } from "../src/parse/parseRecord.ts";
 import { getContentBlocks } from "../src/structures/content-blocks.ts";
-import { BlockType, RecordType } from "../src/structures/vocabulary.ts";
+import { AttachmentPayloadType, BlockType, RecordType } from "../src/structures/vocabulary.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
@@ -74,6 +74,13 @@ function createIndexLine(record: JSONLLine, keepResultContent: boolean): JSONLLi
       if (Array.isArray(message.content)) {
         indexFields.message = { content: createIndexContent(message.content, keepResultContent) };
       }
+    }
+  }
+  // collectPostToolHookRewrites reads hook_success attachments.
+  if (record.type === RecordType.attachment) {
+    const attachment = recordFields.attachment as { type: unknown };
+    if (attachment.type === AttachmentPayloadType.hook_success) {
+      indexFields.attachment = attachment;
     }
   }
   if (record.type === RecordType.fileHistorySnapshot) {
