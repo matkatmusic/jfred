@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -12,7 +12,7 @@ import { getAllEventsForFileFrom, sortEventsNewestToOldest, FileEventType } from
 import { StateConfidence, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 import { buildInverseRepoByEventKind, listInverseCommits } from "./engineV3_inverse_repo.ts";
 import {
-    buildInverseReposForFiles, getInverseRepoFolderForFile, readInverseReposSettingsFromArguments,
+    INVERSE_REPO_FORMAT_VERSION, buildInverseReposForFiles, getInverseRepoFolderForFile, readInverseReposSettingsFromArguments,
     type FileInverseRepoResult, type ProjectFile,
 } from "./engineV3_inverse_repos_for_project.ts";
 
@@ -324,6 +324,39 @@ test("test_a_new_log_line_that_names_the_file_makes_was_reused_false", (t) => {
     // The second call rebuilds a.txt.
     const results = buildProject(project);
     assert.equal(results[0]!.wasReused, false);
+});
+
+test("test_a_repo_whose_stamp_has_no_format_version_is_rebuilt", (t) => {
+    // Scenario: a repo built before the format version existed is built again.
+    // A project is built one time and the stamp of a.txt is noted.
+    const project = makeProject(t);
+    buildProject(project);
+    const stampPathOfA = join(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA).toString(), "jfred-stamp.json");
+    // The stamp of a.txt loses its format version, like a stamp written by the old code.
+    const stampOfA = JSON.parse(readFileSync(stampPathOfA, "utf8"));
+    delete stampOfA.inputs.formatVersion;
+    writeFileSync(stampPathOfA, JSON.stringify(stampOfA));
+    // The second call rebuilds a.txt and reuses b.txt.
+    const results = buildProject(project);
+    assert.deepEqual(results.map((result) => result.wasReused), [false, true]);
+    // The new stamp of a.txt holds the current format version.
+    assert.equal(JSON.parse(readFileSync(stampPathOfA, "utf8")).inputs.formatVersion, INVERSE_REPO_FORMAT_VERSION);
+});
+
+test("test_a_repo_whose_stamp_has_the_current_format_version_is_reused", (t) => {
+    // Scenario: a repo built with the current format version is not built again.
+    // A project is built one time and the commit hashes of a.txt are noted.
+    const project = makeProject(t);
+    buildProject(project);
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    // The stamp of a.txt holds the current format version.
+    const stampOfA = JSON.parse(readFileSync(join(repoFolderOfA.toString(), "jfred-stamp.json"), "utf8"));
+    assert.equal(stampOfA.inputs.formatVersion, INVERSE_REPO_FORMAT_VERSION);
+    const commitHashesBefore = listInverseCommits(repoFolderOfA, "a.txt").map((commit) => commit.commitHash.toString());
+    // The second call reuses both repos and the commit hashes of a.txt are the same.
+    const results = buildProject(project);
+    assert.deepEqual(results.map((result) => result.wasReused), [true, true]);
+    assert.deepEqual(listInverseCommits(repoFolderOfA, "a.txt").map((commit) => commit.commitHash.toString()), commitHashesBefore);
 });
 
 test("test_a_file_outside_the_project_folder_throws", (t) => {

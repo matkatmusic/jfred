@@ -19,9 +19,10 @@ import { getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
 
 // The inputs a repo was built from: the bytes on disk, the log path of the file, and the log files with size and modified time.
-type InverseRepoStampInputs = { diskBytesHash: string; transcriptFile: string; logFilesHash: string };
+type InverseRepoStampInputs = { diskBytesHash: string; transcriptFile: string; logFilesHash: string; formatVersion: number };
 type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number };
 
+export const INVERSE_REPO_FORMAT_VERSION = 2;
 const STAMP_FILE_NAME = "jfred-stamp.json";
 const ABSENT_DISK_BYTES_HASH = "absent";
 
@@ -121,7 +122,9 @@ function writeInverseRepoStamp(repoFolder: Path, stamp: InverseRepoStamp): void 
 function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStampInputs): boolean {
     if (stamp.inputs.diskBytesHash === inputs.diskBytesHash) {
         if (stamp.inputs.transcriptFile === inputs.transcriptFile) {
-            return stamp.inputs.logFilesHash === inputs.logFilesHash;
+            if (stamp.inputs.logFilesHash === inputs.logFilesHash) {
+                return stamp.inputs.formatVersion === inputs.formatVersion;
+            }
         }
     }
     return false;
@@ -158,7 +161,7 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
     const results: FileInverseRepoResult[] = [];
     for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
         const repoFolder = repoFolders[index]!;
-        const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), transcriptFile: transcriptFile.toString(), logFilesHash };
+        const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
         const existingStamp = readInverseRepoStamp(repoFolder);
         const relativeFile = getRelativePathInProject(projectFolder, file);
         const projectRelativeFile = relativeFile.split(sep).join("/");
