@@ -112,6 +112,15 @@ test("test_listStopHookReformattedFiles_reads_the_files_a_stop_hook_record_names
     assert.deepEqual(listStopHookReformattedFiles(quietRecord), []);
 });
 
+test("test_listStopHookReformattedFiles_reads_the_files_a_blocking_stop_hook_record_names", () => {
+    // Scenario: line 30 of subagent agent-ae8c91bca6e985474 says the dotfiles SubagentStop hook reformatted a file and then blocked the stop.
+    const blockingErrorText = "This hook reformatted these files to the house layout: /x/makeSession.ts. Do not revert that reformatting.\nStyle debt is 1 and must drop below 0.";
+    const attachment = { type: "hook_blocking_error", hookName: "SubagentStop", toolUseID: "10c1c809", hookEvent: "SubagentStop", blockingError: { blockingError: blockingErrorText, command: DOTFILES_HOOK_COMMAND } };
+    const record = getAttachmentEntry({ type: "attachment", uuid: "h1", parentUuid: "r1", sessionId: "sA", timestamp: new Date("2026-10-06T16:03:15.533Z"), attachment } as never) as AttachmentEntry;
+    // The file the record names is listed.
+    assert.deepEqual(listStopHookReformattedFiles(record), ["/x/makeSession.ts"]);
+});
+
 test("test_runRecordedStopHookReformat_splits_a_finally_line_like_the_mac_hook_did", (t) => {
     // Scenario: the subagent left `} finally {` on one line; on the Mac the dotfiles eslint --fix of that day split it.
     const file = join(makeTempFolder(t), "server.ts");

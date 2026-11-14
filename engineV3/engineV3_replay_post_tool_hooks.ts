@@ -103,17 +103,37 @@ const ESLINT_EXIT_CODE_ERRORS_REMAIN = 1;
 
 const eslintConfigByCommit = new Map<string, string>();
 
+type StopHookOutput = { command: unknown; text: unknown };
+
+// A hook that reformatted and then blocked the stop is a hook_blocking_error record, with its text and command under blockingError.
+function getStopHookOutput(entry: AttachmentEntry): StopHookOutput | undefined {
+    if (entry.attachment.type === AttachmentPayloadType.hook_success) {
+        return { command: entry.attachment.command, text: entry.attachment.stdout };
+    }
+    if (entry.attachment.type === AttachmentPayloadType.hook_blocking_error) {
+        const blockingError = entry.attachment.blockingError as { blockingError: unknown; command: unknown };
+        return { command: blockingError.command, text: blockingError.blockingError };
+    }
+    return undefined;
+}
+
 export function listStopHookReformattedFiles(entry: AttachmentEntry): string[] {
-    if (entry.attachment.type !== AttachmentPayloadType.hook_success) {
+    // if (entry.attachment.type !== AttachmentPayloadType.hook_success) {
+    //     return [];
+    // }
+    const output = getStopHookOutput(entry);
+    if (output === undefined) {
         return [];
     }
     if (!STOP_HOOK_EVENTS.has(String(entry.attachment.hookEvent))) {
         return [];
     }
-    if (entry.attachment.command !== DOTFILES_HOOK_COMMAND) {
+    // if (entry.attachment.command !== DOTFILES_HOOK_COMMAND) {
+    if (output.command !== DOTFILES_HOOK_COMMAND) {
         return [];
     }
-    const match = String(entry.attachment.stdout).match(REFORMATTED_FILES_PATTERN);
+    // const match = String(entry.attachment.stdout).match(REFORMATTED_FILES_PATTERN);
+    const match = String(output.text).match(REFORMATTED_FILES_PATTERN);
     if (match === null) {
         return [];
     }
