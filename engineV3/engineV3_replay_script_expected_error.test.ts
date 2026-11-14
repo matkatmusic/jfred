@@ -46,32 +46,47 @@ test("test_executeScriptInState_does_not_throw_when_a_recorded_error_exits_1", (
   assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
 });
 
-test("test_executeScriptInState_failure_message_shows_the_tail_of_stdout", (t) => {
-  // Scenario: a command that fails by surprise prints its stdout into the stop message.
+// replaced: a command that changes no file no longer throws on its exit code; the mismatch comes back as a value (user 2026-11-13)
+// test("test_executeScriptInState_failure_message_shows_the_tail_of_stdout", (t) => {
+//   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+//   const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
+//   assert.throws(() => executeScriptInState(state, line, makeContext(false)), (error: Error) => {
+//     assert.match(error.message, /0{4000}/);
+//     assert.doesNotMatch(error.message, /0{4001}/);
+//     return true;
+//   });
+// });
+// test("test_executeScriptInState_throws_when_a_recorded_error_exits_0", (t) => {
+//   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+//   const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
+//   assert.throws(() => executeScriptInState(state, line, makeContext(true)), (error: Error) => {
+//     assert.match(error.message, /command: true/);
+//     assert.match(error.message, /expected to fail/);
+//     return true;
+//   });
+// });
+test("test_executeScriptInState_mismatch_error_shows_the_tail_of_stdout", (t) => {
+  // Scenario: a command that fails by surprise and changes no file hands its stdout tail to the caller in the mismatch error.
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line prints 5000 zeros and then exits 3, but the record says it passed
   const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "printf '%05000d' 0; exit 3", state.toString());
-  // the error has exactly the last 4000 zeros
-  assert.throws(() => executeScriptInState(state, line, makeContext(false)), (error: Error) => {
-    assert.match(error.message, /0{4000}/);
-    assert.doesNotMatch(error.message, /0{4001}/);
-    return true;
-  });
+  // the mismatch error has exactly the last 4000 zeros
+  const mismatches = executeScriptInState(state, line, makeContext(false));
+  assert.match(mismatches[0]!.error.message, /0{4000}/);
+  assert.doesNotMatch(mismatches[0]!.error.message, /0{4001}/);
 });
 
-test("test_executeScriptInState_throws_when_a_recorded_error_exits_0", (t) => {
-  // Scenario: a command that was recorded as failing must fail again.
+test("test_executeScriptInState_returns_a_mismatch_when_a_recorded_error_exits_0", (t) => {
+  // Scenario: a command that was recorded as failing but exits 0 and changes no file hands its error to the caller.
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line has a command that exits 0 and a recorded result with isError true
   const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
-  // the error names the command and says it was expected to fail
-  assert.throws(() => executeScriptInState(state, line, makeContext(true)), (error: Error) => {
-    assert.match(error.message, /command: true/);
-    assert.match(error.message, /expected to fail/);
-    return true;
-  });
+  // the mismatch error names the command and says it was expected to fail
+  const mismatches = executeScriptInState(state, line, makeContext(true));
+  assert.match(mismatches[0]!.error.message, /command: true/);
+  assert.match(mismatches[0]!.error.message, /expected to fail/);
 });
 
 test("test_executeScriptInState_throws_when_a_recorded_error_is_killed_by_a_signal", (t) => {

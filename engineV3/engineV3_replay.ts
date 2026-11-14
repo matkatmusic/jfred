@@ -9,6 +9,7 @@ import { readReplaySettingsFromArguments, type ReplaySettings } from "./engineV3
 import { TimelineEventKind, type JSONLLine, type TimelineEvent } from "./engineV3.ts";
 // import { applyCommitToState, applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
+import { settleExitMismatches } from "./engineV3_replay_exit_mismatch.ts";
 import { getFirstLineTime, loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
 import { collectBashCallResults } from "./engineV3_replay_bash_results.ts";
 import { collectResultTurnSnapshotIds, collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
@@ -109,7 +110,8 @@ function replayEvent(state: Path, event: TimelineEvent, eventNumber: number, rep
   }
   logEventThenStopIfBeforeLine(event, eventText, stopBefore);
   state = doSomethingWithEvent(state, event, repoPath, jsonlsPaths, fileSnapshots, context);
-  writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+  const changes = writeSnapshotAfterEvent(snapshotLoop, event, eventText, state, context.writeEditResultLines);
+  settleExitMismatches(changes);
   return state;
 }
 

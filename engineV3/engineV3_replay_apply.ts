@@ -15,6 +15,7 @@ import { applyChangesToState, listChangesInCommit, writeFileIntoState } from "./
 import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_newline.ts";
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
+import { addPendingExitMismatches } from "./engineV3_replay_exit_mismatch.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
 import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listToolResultIds, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
@@ -397,7 +398,7 @@ export function applyJSONLLineToState(state: Path, line: JSONLLine, snapshotPath
 
 function executeScriptAndRecordIt(state: Path, line: JSONLLine, context: ScriptReplayContext): Path {
   const chainBytesBeforeScript = copyChainBytesBeforeScript();
-  executeScriptInState(state, line, context);
+  addPendingExitMismatches(executeScriptInState(state, line, context));
   recordScriptFileChanges(chainBytesBeforeScript);
   return state;
 }
