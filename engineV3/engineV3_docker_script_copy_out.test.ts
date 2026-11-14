@@ -45,6 +45,24 @@ test("test_copy_out_copies_each_memory_folder_with_tar_because_docker_cp_reads_n
     assert.ok(copyOutText.includes('tar -C "$COMPARE_FOLDER" -xf "$COMPARE_FOLDER/memory-$(basename "$JSONL_FOLDER").tar"'), "the tar file is unpacked at the container path");
 });
 
+test("test_copy_out_copies_the_whole_snapshot_events_folder_for_the_disk_check", () => {
+    // Scenario: the disk check needs every stored event, the events before a start-at run included, so the events folder leaves the container whole.
+    // read the copy-out stage
+    const copyOutText = readCopyOutStageText();
+    // the events folder is copied from the snapshot store in the container to the compare folder
+    assert.ok(copyOutText.includes('docker cp "$NAME:/snapshots/events" "$COMPARE_FOLDER/events"'), "the events folder is copied out");
+});
+
+test("test_disk_check_gets_the_events_copy_and_the_container_state_path", () => {
+    // Scenario: the disk check reads the events copy and turns their container paths into state paths with the container state path.
+    // read the disk check stage
+    const diskCheckText = readDiskCheckStageText();
+    // the events argument is the copy in the compare folder
+    assert.ok(diskCheckText.includes('--events "$COMPARE_FOLDER/events"'), "the events argument is the events copy");
+    // the container state argument is the state folder path
+    assert.ok(diskCheckText.includes('--container-state "$STATE_FOLDER"'), "the container state argument is the state folder");
+});
+
 test("test_disk_check_reads_the_state_folder_copy_at_its_container_path", () => {
     // Scenario: the disk check gets the state folder copy that sits at the container path, so ../../.claude/... lands on the memory copy.
     // read the disk check stage

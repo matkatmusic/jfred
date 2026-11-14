@@ -392,6 +392,7 @@ echo "compare folder: $COMPARE_FOLDER"
 mkdir -p "$COMPARE_FOLDER$(dirname "$STATE_FOLDER")"
 docker cp "$NAME:$STATE_FOLDER" "$COMPARE_FOLDER$STATE_FOLDER"
 docker cp "$NAME:/tmp/touched-paths.txt" "$COMPARE_FOLDER/touched-paths.txt"
+docker cp "$NAME:/snapshots/events" "$COMPARE_FOLDER/events"
 # docker cp reads nothing from the memory tmpfs, so each memory folder leaves the container as a tar file.
 while IFS= read -r JSONL_FOLDER; do
     if [ -n "$JSONL_FOLDER" ]; then
@@ -407,6 +408,6 @@ EOF
 printSetupStageDone "copy-out"
 printSetupStageStart "disk check"
 DISK_CHECK_EXIT_CODE=0
-"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER$STATE_FOLDER" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" || DISK_CHECK_EXIT_CODE=$?
+"$JFRED_FOLDER/node_modules/.bin/tsx" "$ENGINE_FOLDER/engineV3_compare_disk.ts" --state "$COMPARE_FOLDER$STATE_FOLDER" --disk "$PROJECT_FOLDER" --touched "$COMPARE_FOLDER/touched-paths.txt" --events "$COMPARE_FOLDER/events" --container-state "$STATE_FOLDER" || DISK_CHECK_EXIT_CODE=$?
 printSetupStageDone "disk check"
 exit "$DISK_CHECK_EXIT_CODE"
