@@ -146,6 +146,10 @@ function listOtherRowEvents(transcriptFile: Path, jsonlLines: JSONLLine[]): File
 // The transcripts may call the file by another path than the one on disk (a scenario run folder); transcriptFile is that path.
 export function getAllEventsForFileFrom(file: Path, transcriptFile: Path, jsonlFolders: Path[], snapshotFolders: Path[]): FileEvent[] {
   const jsonlLines = loadJSONLLinesNamingFile(transcriptFile, jsonlFolders);
+  return getAllEventsForFileFromLines(file, transcriptFile, jsonlLines, snapshotFolders);
+}
+
+export function getAllEventsForFileFromLines(file: Path, transcriptFile: Path, jsonlLines: JSONLLine[], snapshotFolders: Path[]): FileEvent[] {
   const events: FileEvent[] = [createEvent(FileEventType.DiskNow, undefined, undefined, { bytes: readDiskText(file) })];
   for (const state of collectGitKnownStates(file)) {
     events.push(convertKnownStateToEvent(FileEventType.GitCommit, state));

@@ -509,10 +509,10 @@ export function collectGitKnownStates(file: Path): KnownFileState[] {
 }
 
 const NEWLINE_BYTE = 0x0a;
-const CWD_KEY_TEXT = '"cwd":"';
-const KNOWN_RECORD_TYPE_SET = new Set<string>(KNOWN_RECORD_TYPES);
+export const CWD_KEY_TEXT = '"cwd":"';
+export const KNOWN_RECORD_TYPE_SET = new Set<string>(KNOWN_RECORD_TYPES);
 
-type LineSpan = { start: number; end: number };
+export type LineSpan = { start: number; end: number };
 
 function findLineSpanAround(transcriptBytes: Buffer, position: number): LineSpan {
   const start = transcriptBytes.lastIndexOf(NEWLINE_BYTE, position) + 1;
@@ -547,7 +547,7 @@ function listLineSpansNamingText(transcriptBytes: Buffer, needleText: string): L
   return spans;
 }
 
-function countNewlinesBefore(transcriptBytes: Buffer, from: number, to: number): number {
+export function countNewlinesBefore(transcriptBytes: Buffer, from: number, to: number): number {
   let count = 0;
   let position = transcriptBytes.indexOf(NEWLINE_BYTE, from);
   while (position !== -1) {
