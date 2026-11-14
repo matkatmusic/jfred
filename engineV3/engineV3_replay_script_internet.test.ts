@@ -123,6 +123,24 @@ test("test_isReadOnlyCommand_ignores_a_redirect_sign_inside_quotes", () => {
   assert.equal(isReadOnlyCommand("rg -n 'a > b' file.txt"), true);
 });
 
+test("test_isReadOnlyCommand_is_true_for_mac_open_of_a_project_page", () => {
+  // Scenario: the Mac open program only shows a file in a Mac app.
+  // the command writes no file
+  assert.equal(isReadOnlyCommand("open demo/index.html"), true);
+});
+
+test("test_isReadOnlyCommand_is_true_for_ls_then_mac_open", () => {
+  // Scenario: ls and open both change no file.
+  // the command writes no file
+  assert.equal(isReadOnlyCommand("ls x; open /private/tmp/a.html"), true);
+});
+
+test("test_isReadOnlyCommand_is_false_for_mac_open_with_a_redirect_into_the_project", () => {
+  // Scenario: the redirect writes demo/out.txt.
+  // the command may change files
+  assert.equal(isReadOnlyCommand("open x > demo/out.txt"), false);
+});
+
 test("test_isInternetCommand_is_false_for_a_program_name_inside_quotes", () => {
   // Scenario: rg searching for the word ssh does not run ssh.
   // the command needs no internet

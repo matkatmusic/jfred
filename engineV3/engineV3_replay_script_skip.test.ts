@@ -180,6 +180,14 @@ test("test_isBrowserTestWithNoProjectWrite_runs_a_browser_script_with_a_relative
   assert.equal(isBrowserTestSkippedWithDiskScripts(command,new Path(scratchpad)), false);
 });
 
+test("test_isBrowserTestWithNoProjectWrite_skips_the_line_662_call", () => {
+  // Scenario: 7d070893-e20b-4e1d-a24e-59c9f16d93ff.jsonl line 662 screenshots a scratchpad page, then shows it with the Mac open program.
+  // the recorded command text
+  const command = `S=/private/tmp/claude-501/-Users-matkatmusicllc-Programming-Attune/7d070893-e20b-4e1d-a24e-59c9f16d93ff/scratchpad; "${CHROME_PROGRAM}" --headless=new --disable-gpu --window-size=1300,1100 --screenshot=$S/marks.png file://$S/bubble-marks.html >/dev/null 2>&1; ls -la $S/marks.png; open $S/bubble-marks.html`;
+  // the call is skipped
+  assert.equal(isBrowserTestSkippedWithDiskScripts(command, new Path(PROJECT_FOLDER)), true);
+});
+
 test("test_isMacOnlyScriptCommand_is_true_when_bun_runs_a_script_that_starts_chrome", (t) => {
   // Scenario: the Chrome program path is in the script file, not in the command text.
   // a scratchpad shot.ts that starts Chrome

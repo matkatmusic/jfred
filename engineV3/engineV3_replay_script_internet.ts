@@ -40,8 +40,8 @@ const INTERNET_SUBCOMMANDS = new Map([
 const PROGRAMS_THAT_NAME_A_URL = new Set(["curl", "wget"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
 
-// Programs that change no file in the container. ssh is here because it changes files only on the other machine.
-const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "echo", "printf", "jq", "wc", "cut", "cd", "true", "sleep", "for", "done", "fi", "ps", "pgrep", "dig", "nslookup", "host", "ping", "ssh", "pkill", "kill", "lsof", "sysctl", "tr", "[", "break"]);
+// Programs that change no file in the container. ssh is here because it changes files only on the other machine. The Mac open program only shows a file, a folder or a URL in a Mac app.
+const READ_ONLY_PROGRAMS = new Set(["rg", "grep", "cat", "head", "tail", "ls", "echo", "printf", "jq", "wc", "cut", "cd", "true", "sleep", "for", "done", "fi", "ps", "pgrep", "dig", "nslookup", "host", "ping", "ssh", "pkill", "kill", "lsof", "sysctl", "tr", "[", "break", "open"]);
 // sort -o and --output write the sorted text into a file.
 const SORT_OUTPUT_FLAG_LETTER = "o";
 const SORT_OUTPUT_LONG_FLAG = "--output";
