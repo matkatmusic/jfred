@@ -1,6 +1,6 @@
 // Ruler-row and drawer checks for the Layer 2 run; split out of layer2-checks.ts.
 
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { waitMilliseconds, type HeadlessPage } from "./cdp.ts";
@@ -12,6 +12,7 @@ const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "out");
 const FADE_WAIT_MS = 3_000;
 
 export async function saveScreenshot(page: HeadlessPage, name: string): Promise<void> {
+  mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(join(OUT_DIR, `layer2-${name}.png`), Buffer.from(await page.screenshot(), "base64"));
 }
 
