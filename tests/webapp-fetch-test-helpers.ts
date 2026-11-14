@@ -37,7 +37,7 @@ function buildStreamStarter(encoded: Uint8Array): (controller: ReadableStreamDef
   };
 }
 
-function buildNdjsonResponse(lines: unknown[]): Response {
+export function buildNdjsonResponse(lines: unknown[]): Response {
   const serializedLines: string[] = [];
   for (const line of lines) {
     serializedLines.push(JSON.stringify(line));
