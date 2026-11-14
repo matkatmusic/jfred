@@ -1,14 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { Path } from "../src/structures/domain.ts";
 import { ToolName } from "../src/structures/vocabulary.ts";
 import { ReverseStateKind, type EditRow, type WriteRow } from "./engineV3_replay_reverse.ts";
 import { FileEventType, createNodesWhenBytesDiffer, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
-import { StateConfidence, StateMoment, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
+import { StateConfidence, StateMoment, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 
 const TEXT_AFTER_EDIT = "one TWO three";
 const TEXT_BEFORE_EDIT = "one two three";
 const TEXT_UNRELATED = "something else entirely";
+const TEXT_BORN = "born";
+const MOVE_OR_COPY_SOURCE_FILE = new Path("/project/source.py");
 
 function makeInstant(second: number): Date {
     return new Date(Date.UTC(2026, 0, 1, 0, 0, 0) + second * 1000);
@@ -19,7 +22,7 @@ function makeEvent(type: FileEventType, second: number | undefined, fields: Part
     if (second !== undefined) {
         instant = makeInstant(second);
     }
-    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: undefined, ...fields };
+    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, ...fields };
 }
 
 function makeDiskNowEvent(text: string | undefined): FileEvent {
@@ -49,8 +52,16 @@ function makeMayWriteScriptEvent(second: number): FileEvent {
     return makeEvent(FileEventType.ScriptMayWrite, second);
 }
 
+function makeMoveOrCopyScriptEvent(second: number, moveOrCopySourceFile: Path | undefined, bytes: string | undefined = undefined): FileEvent {
+    return { ...makeMayWriteScriptEvent(second), moveOrCopySourceFile, bytes };
+}
+
 function makeReadOnlyScriptEvent(second: number): FileEvent {
     return makeEvent(FileEventType.ScriptReadOnly, second);
+}
+
+function makeState(second: number | undefined, confidence: StateConfidence, isFileAbsent: boolean, text: string | undefined): FileKnownState {
+    return { event: makeEvent(FileEventType.GitCommit, second), moment: StateMoment.AtEvent, confidence, isFileAbsent, text };
 }
 
 function describeStates(states: FileKnownState[]): string[] {
@@ -197,6 +208,109 @@ test("test_output_is_newest_first_with_at_event_before_before_event", () => {
     const states = listKnownStatesForFile(sortEventsNewestToOldest(unsorted));
     // Newest first; the Edit's at-event state comes right before its before-event state.
     assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "EditRow/at-event/proven", "EditRow/before-event/proven", "GitCommit/at-event/proven"]);
+});
+
+test("test_oldest_move_or_copy_destination_gives_derived_absent_before_state", () => {
+    // Scenario: disk, then a may-write script that moved a file onto this file; nothing is older.
+    const moveEvent = makeMoveOrCopyScriptEvent(1, MOVE_OR_COPY_SOURCE_FILE);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), moveEvent]);
+    // The last state is for the move event, before it, derived, with the file absent and no text.
+    const lastState = states[states.length - 1]!;
+    assert.equal(lastState.event, moveEvent);
+    assert.equal(lastState.moment, StateMoment.BeforeEvent);
+    assert.equal(lastState.confidence, StateConfidence.Derived);
+    assert.equal(lastState.isFileAbsent, true);
+    assert.equal(lastState.text, undefined);
+});
+
+test("test_oldest_move_or_copy_destination_keeps_its_at_event_state", () => {
+    // Scenario: same events as the absent-before-state case.
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), makeMoveOrCopyScriptEvent(1, MOVE_OR_COPY_SOURCE_FILE)]);
+    // The at-event state of the move event is unknown with no text, as it was before this change.
+    assert.equal(states[1]!.moment, StateMoment.AtEvent);
+    assert.equal(states[1]!.confidence, StateConfidence.Unknown);
+    assert.equal(states[1]!.isFileAbsent, false);
+    assert.equal(states[1]!.text, undefined);
+});
+
+test("test_oldest_may_write_script_that_is_not_a_destination_gives_no_absent_state", () => {
+    // Scenario: disk, then an oldest may-write script whose moveOrCopySourceFile is undefined.
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), makeMoveOrCopyScriptEvent(1, undefined)]);
+    // No state says the file is absent.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/unknown"]);
+    assert.equal(states.some((state) => state.isFileAbsent), false);
+});
+
+test("test_move_or_copy_destination_with_an_older_beacon_gives_no_absent_state", () => {
+    // Scenario: disk, a move-or-copy destination script, then an older write with text.
+    const moveEvent = makeMoveOrCopyScriptEvent(2, MOVE_OR_COPY_SOURCE_FILE);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), moveEvent, makeWriteEvent(1, TEXT_UNRELATED, false, undefined)]);
+    // The move event is not the oldest event: it has no before-event state and no state is absent.
+    assert.equal(states.some((state) => state.event === moveEvent && state.moment === StateMoment.BeforeEvent), false);
+    assert.equal(states.some((state) => state.isFileAbsent), false);
+});
+
+test("test_oldest_move_or_copy_destination_with_born_bytes_gives_derived_at_event_text", () => {
+    // Scenario: disk, then an oldest move-or-copy destination script that carries the born text.
+    const moveEvent = makeMoveOrCopyScriptEvent(1, MOVE_OR_COPY_SOURCE_FILE, TEXT_BORN);
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), moveEvent]);
+    // The move event has an at-event state, derived, with the born text and not absent.
+    assert.equal(states[1]!.event, moveEvent);
+    assert.equal(states[1]!.moment, StateMoment.AtEvent);
+    assert.equal(states[1]!.confidence, StateConfidence.Derived);
+    assert.equal(states[1]!.isFileAbsent, false);
+    assert.equal(states[1]!.text, TEXT_BORN);
+    // The before-event state follows: derived and absent.
+    assert.equal(states[2]!.moment, StateMoment.BeforeEvent);
+    assert.equal(states[2]!.confidence, StateConfidence.Derived);
+    assert.equal(states[2]!.isFileAbsent, true);
+    assert.equal(states.length, 3);
+});
+
+test("test_oldest_move_or_copy_destination_without_born_bytes_keeps_unknown_at_event_state", () => {
+    // Scenario: same events, but the born bytes are undefined.
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), makeMoveOrCopyScriptEvent(1, MOVE_OR_COPY_SOURCE_FILE, undefined)]);
+    // The at-event state is unknown with no text, and the absent before-event state is still there.
+    assert.deepEqual(describeStates(states), ["DiskNow/at-event/proven", "ScriptMayWrite/at-event/unknown", "ScriptMayWrite/before-event/derived"]);
+    assert.equal(states[1]!.text, undefined);
+    assert.equal(states[2]!.isFileAbsent, true);
+});
+
+test("test_born_bytes_do_not_confirm_a_read_only_script_state", () => {
+    // Scenario: disk, a read-only script, then an oldest move-or-copy destination with born bytes.
+    const states = listKnownStatesForFile([makeDiskNowEvent(TEXT_AFTER_EDIT), makeReadOnlyScriptEvent(2), makeMoveOrCopyScriptEvent(1, MOVE_OR_COPY_SOURCE_FILE, TEXT_BORN)]);
+    // The read-only state is the same as without born bytes: derived, with the disk text.
+    assert.equal(states[1]!.event.type, FileEventType.ScriptReadOnly);
+    assert.equal(states[1]!.confidence, StateConfidence.Derived);
+    assert.equal(states[1]!.text, TEXT_AFTER_EDIT);
+});
+
+test("test_get_text_just_before_instant_returns_text_of_newest_older_state", () => {
+    // Scenario: states at second 3, 2 and 1, and an instant between 2 and 3.
+    const states = [makeState(3, StateConfidence.Proven, false, "three"), makeState(2, StateConfidence.Proven, false, "two"), makeState(1, StateConfidence.Proven, false, "one")];
+    // The text of the state at second 2 comes back.
+    assert.equal(getTextJustBeforeInstant(states, makeInstant(2.5)), "two");
+});
+
+test("test_get_text_just_before_instant_returns_undefined_when_first_older_state_is_unknown", () => {
+    // Scenario: the first older state is unknown; a still older state has a text.
+    const states = [makeState(2, StateConfidence.Unknown, false, undefined), makeState(1, StateConfidence.Proven, false, "one")];
+    // The older text is not used.
+    assert.equal(getTextJustBeforeInstant(states, makeInstant(3)), undefined);
+});
+
+test("test_get_text_just_before_instant_returns_undefined_when_first_older_state_is_absent", () => {
+    // Scenario: the first older state says the file is absent; a still older state has a text.
+    const states = [makeState(2, StateConfidence.Proven, true, undefined), makeState(1, StateConfidence.Proven, false, "one")];
+    // The older text is not used.
+    assert.equal(getTextJustBeforeInstant(states, makeInstant(3)), undefined);
+});
+
+test("test_get_text_just_before_instant_returns_undefined_when_no_state_is_older_and_skips_states_without_instant", () => {
+    // Scenario: a state with no instant, and states at second 2 and 3; the instant is second 2.
+    const states = [makeState(undefined, StateConfidence.Proven, false, "disk"), makeState(3, StateConfidence.Proven, false, "three"), makeState(2, StateConfidence.Proven, false, "two")];
+    // No state is strictly older, and the state without an instant is passed over.
+    assert.equal(getTextJustBeforeInstant(states, makeInstant(2)), undefined);
 });
 
 test("test_event_type_row_bytes_unknown_throws_naming_the_type", () => {

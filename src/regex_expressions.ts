@@ -140,3 +140,22 @@ export const codeLiteralMoveCall = new RegExp(
     + zeroOrMoreWhitespace + "\\)",
   globalFlag,
 );
+
+// A line that starts by assigning the name captured in group 1 or 2 again, alone or as part of a tuple.
+const lineAssigningMoveNameAgain = "\\n" + zeroOrMoreWhitespace
+  + wrapOptionalGroup(wordChar + oneOrMore + zeroOrMoreWhitespace + "," + zeroOrMoreWhitespace)
+  + matchAnyOf("\\1", "\\2") + zeroOrMoreWhitespace + matchOneOf("=,");
+
+// `a, b = "x", "y"` then `shutil.move(a, b)` or `os.rename(b, a)` with no new assignment between: groups 3 and 4 are the literals x and y, group 5 is the call's first argument name.
+export const codeVariableMoveCall = new RegExp(
+  wrapNegativeLookbehind(wordChar) + wrapCapture(wordChar + oneOrMore) + zeroOrMoreWhitespace + "," + zeroOrMoreWhitespace
+    + wrapCapture(wordChar + oneOrMore) + zeroOrMoreWhitespace + "=" + zeroOrMoreWhitespace
+    + '"' + wrapCapture(matchNoneOf('"') + oneOrMore) + '"'
+    + zeroOrMoreWhitespace + "," + zeroOrMoreWhitespace
+    + '"' + wrapCapture(matchNoneOf('"') + oneOrMore) + '"'
+    + matchAnyOf(wrapNegativeLookahead(lineAssigningMoveNameAgain) + matchOneOf(whitespace + nonWhitespace)) + zeroOrMore + lazy
+    + matchAnyOf("shutil" + literalDot + "move", "os" + literalDot + "rename")
+    + "\\(" + zeroOrMoreWhitespace + wrapCapture(matchAnyOf("\\1", "\\2")) + zeroOrMoreWhitespace + "," + zeroOrMoreWhitespace
+    + wrapNegativeLookahead("\\5" + wrapNegativeLookahead(wordChar)) + matchAnyOf("\\1", "\\2") + zeroOrMoreWhitespace + "\\)",
+  globalFlag,
+);

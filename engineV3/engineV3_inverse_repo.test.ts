@@ -41,7 +41,7 @@ function makeState(type: FileEventType, second: number | undefined, text: string
     if (second !== undefined) {
         instant = makeInstant(second);
     }
-    const event = { type, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined };
+    const event = { type, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined };
     return { event, moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, isFileAbsent: text === undefined, text, ...overrides };
 }
 

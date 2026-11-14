@@ -74,7 +74,7 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
   let pendingStates: PendingState[] = [];
   let carried: TextKnowledge = UNKNOWN_TEXT;
   let isBehindRoadblock = false;
-  for (const event of eventsNewestToOldest) {
+  for (const [eventIndex, event] of eventsNewestToOldest.entries()) {
     if (isBeaconEvent(event)) {
       const textAfter = getEventBytes(event);
       settlePendingStates(pendingStates, isCarriedTextEqualTo(carried, textAfter));
@@ -112,9 +112,29 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
       case FileEventType.OtherRow: {
         // The roadblock's own state is tentative too: the event may have changed the file.
         isBehindRoadblock = true;
-        const stateAtEvent = createUnprovenState(event, StateMoment.AtEvent, carried);
-        knownStates.push(stateAtEvent);
-        pendingStates.push({ state: stateAtEvent, isBehindRoadblock });
+        const isOldestEvent = eventIndex === eventsNewestToOldest.length - 1;
+        let isBornTextKnown = false;
+        if (isOldestEvent) {
+          if (event.moveOrCopySourceFile !== undefined) {
+            if (event.bytes !== undefined) {
+              isBornTextKnown = true;
+            }
+          }
+        }
+        if (isBornTextKnown) {
+          // The born text is a guess, so it is not pending: no settle can turn it into Unknown.
+          knownStates.push({ event, moment: StateMoment.AtEvent, confidence: StateConfidence.Derived, isFileAbsent: false, text: event.bytes });
+        } else {
+          const stateAtEvent = createUnprovenState(event, StateMoment.AtEvent, carried);
+          knownStates.push(stateAtEvent);
+          pendingStates.push({ state: stateAtEvent, isBehindRoadblock });
+        }
+        if (event.moveOrCopySourceFile !== undefined) {
+          if (isOldestEvent) {
+            // A move or a copy can overwrite a file, so the absence before it is a guess.
+            knownStates.push({ event, moment: StateMoment.BeforeEvent, confidence: StateConfidence.Derived, isFileAbsent: true, text: undefined });
+          }
+        }
         break;
       }
       case FileEventType.ReadPartial:
@@ -130,4 +150,22 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
   }
   settlePendingStates(pendingStates, false);
   return knownStates;
+}
+
+// Looks only at the first state older than the instant: a still older state is never used in its place.
+export function getTextJustBeforeInstant(statesNewestToOldest: FileKnownState[], instant: Date): string | undefined {
+  for (const state of statesNewestToOldest) {
+    if (state.event.instant !== undefined) {
+      if (state.event.instant.getTime() < instant.getTime()) {
+        if (state.confidence === StateConfidence.Unknown) {
+          return undefined;
+        }
+        if (state.isFileAbsent) {
+          return undefined;
+        }
+        return state.text;
+      }
+    }
+  }
+  return undefined;
 }
