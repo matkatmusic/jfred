@@ -126,6 +126,15 @@ export function listKnownStatesForFile(eventsNewestToOldest: FileEvent[]): FileK
       case FileEventType.OtherRow: {
         // The roadblock's own state is tentative too: the event may have changed the file.
         isBehindRoadblock = true;
+        let isGoneAfterEvent = event.removedByScript;
+        if (!isGoneAfterEvent) {
+          isGoneAfterEvent = event.movedAwayToFile !== undefined;
+        }
+        if (isGoneAfterEvent) {
+          // The command says the file is gone right after it: a guess, not pending, so no settle makes it Unknown.
+          knownStates.push({ event, moment: StateMoment.AtEvent, confidence: StateConfidence.Derived, isFileAbsent: true, text: undefined });
+          break;
+        }
         const isOldestEvent = eventIndex === eventsNewestToOldest.length - 1;
         let isBornTextKnown = false;
         if (isOldestEvent) {
