@@ -6,8 +6,8 @@ import { join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
 import { StateConfidence, StateMoment, type FileKnownState } from "./engineV3_file_known_states.ts";
-import { createInverseRepo, insertStatesIntoInverseRepo, type OrderedKnownState } from "./engineV3_inverse_repo.ts";
-import { getDiffTextBetweenInstants, getInverseCommitAtInstant, listProjectFileStatesAtInstant } from "./engineV3_inverse_repo_read.ts";
+import { createInverseRepo, insertStatesIntoInverseRepo, listInverseCommits, type OrderedKnownState } from "./engineV3_inverse_repo.ts";
+import { getDiffTextBetweenInstants, getInverseCommitAtInstant, listProjectFileStatesAtInstant, selectInverseCommitAtInstant } from "./engineV3_inverse_repo_read.ts";
 import { FileEventType } from "./engineV3_replay_reverse_events.ts";
 
 const FILE_NAME = "a.txt";
@@ -31,7 +31,7 @@ function makeOrderedState(position: number, second: number | undefined, moment: 
     } else {
         instant = makeInstant(second);
     }
-    const event = { type: eventType, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined };
+    const event = { type: eventType, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined };
     const state: FileKnownState = { event, moment, confidence: StateConfidence.Proven, isFileAbsent: text === undefined, text };
     return { state, position };
 }
@@ -168,6 +168,43 @@ test("test_project_function_returns_one_entry_per_file_in_the_order_of_the_files
     assert.equal(entries[0]!.commit!.text, "old b\n");
     assert.ok(entries[1]!.file.equals(secondFile));
     assert.equal(entries[1]!.commit!.text, "old a\n");
+});
+
+test("test_select_returns_the_same_commit_as_get_for_an_at_event_commit", (t) => {
+    // Three at-event states are stored at seconds 100, 200 and 300.
+    const repoFolder = makeThreeAtEventStatesRepo(t);
+    // The commits are listed once from the repo.
+    const commits = listInverseCommits(repoFolder, FILE_NAME);
+    // The instant is second 250, between 200 and 300.
+    const selectedCommit = selectInverseCommitAtInstant(commits, makeInstant(250));
+    // The selected commit is the commit of second 200, the same commit that the get function returns.
+    assert.equal(selectedCommit!.text, "two\n");
+    assert.equal(selectedCommit!.commitHash.toString(), getInverseCommitAtInstant(repoFolder, FILE_NAME, makeInstant(250))!.commitHash.toString());
+});
+
+test("test_select_returns_the_newer_before_event_commit_for_a_before_event_commit", (t) => {
+    // Two before-event states are stored: second 300 holds "before-300" and second 200 holds "before-200".
+    const repoFolder = makeTempFolder(t);
+    makeRepo(repoFolder, FILE_NAME, "now\n", [
+        makeOrderedState(1, 300, StateMoment.BeforeEvent, "before-300\n"),
+        makeOrderedState(2, 200, StateMoment.BeforeEvent, "before-200\n"),
+    ]);
+    const commits = listInverseCommits(repoFolder, FILE_NAME);
+    // The instant is exactly second 200.
+    const selectedCommit = selectInverseCommitAtInstant(commits, makeInstant(200));
+    // The selected commit is the newer before-event commit, the one of second 300.
+    assert.equal(selectedCommit!.text, "before-300\n");
+    assert.equal(selectedCommit!.moment, StateMoment.BeforeEvent);
+});
+
+test("test_select_returns_undefined_before_the_oldest_instant", (t) => {
+    // Three at-event states are stored at seconds 100, 200 and 300.
+    const repoFolder = makeThreeAtEventStatesRepo(t);
+    const commits = listInverseCommits(repoFolder, FILE_NAME);
+    // The instant is second 50, older than all of them.
+    const selectedCommit = selectInverseCommitAtInstant(commits, makeInstant(50));
+    // No commit is selected.
+    assert.equal(selectedCommit, undefined);
 });
 
 test("test_project_function_throws_when_a_repo_folder_is_missing", (t) => {
