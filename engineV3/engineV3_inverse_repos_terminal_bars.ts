@@ -37,12 +37,17 @@ export function createTerminalBarsSink(stream: TerminalBarStream, fileNames: str
     }
     return (event) => {
         if (stream.isTTY !== true) {
-            stream.write(`${event.current}/${event.total}  ${event.label}\n`);
+            if (event.current !== undefined) {
+                stream.write(`${event.current}/${event.total}  ${event.label}\n`);
+            }
             return;
         }
-        const row = rows[event.current! - 1]!;
-        row.fraction = 1;
-        row.countText = event.label.slice(row.fileName.length).trim();
+        const row = rows.find((candidateRow) => candidateRow.fileName === event.file)!;
+        row.fraction = event.fileStepsDone! / event.fileStepsTotal!;
+        row.countText = `${event.fileStepsDone}/${event.fileStepsTotal}`;
+        if (event.current !== undefined) {
+            row.countText = event.label.slice(row.fileName.length).trim();
+        }
         // ponytail: redraws every row on each event and breaks when rows outnumber the terminal height; add a window of rows when that matters
         stream.write(`\x1b[${rows.length}A`);
         drawRows();

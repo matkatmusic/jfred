@@ -186,12 +186,78 @@ test("test_progress_is_reported_once_per_file_with_current_counting_up_to_total"
     const events: ProgressEvent[] = [];
     // The project function builds both repos.
     buildProject(project, (event) => events.push(event));
+    // The per-file events are the ones that count files; step events leave current and total unset.
+    const fileEvents = events.filter((event) => event.current !== undefined);
     // There is one event per file, in file order, counting 1..2 of 2.
-    assert.deepEqual(events.map((event) => [event.current, event.total]), [[1, 2], [2, 2]]);
+    assert.deepEqual(fileEvents.map((event) => [event.current, event.total]), [[1, 2], [2, 2]]);
     assert.ok(events.every((event) => event.kind === DocumentResponseKind.progress));
     // Each label starts with the project-relative path of its file.
-    assert.ok(events[0]!.label.startsWith("a.txt"));
-    assert.ok(events[1]!.label.startsWith(join("sub", "b.txt")));
+    assert.ok(fileEvents[0]!.label.startsWith("a.txt"));
+    assert.ok(fileEvents[1]!.label.startsWith(join("sub", "b.txt")));
+});
+
+test("test_a_built_file_sends_one_step_event_per_commit_with_rising_done_and_fixed_total", (t) => {
+    // Scenario: while a.txt is built, each commit written into its repo is reported as one step.
+    // A project has two files and a progress sink collects the events.
+    const project = makeProject(t);
+    const events: ProgressEvent[] = [];
+    // The project function builds both repos.
+    const results = buildProject(project, (event) => events.push(event));
+    // The step events of a.txt leave current and total unset.
+    const stepEvents = events.filter((event) => event.file === "a.txt" && event.current === undefined);
+    // There is one step event per commit of a.txt.
+    assert.equal(stepEvents.length, results[0]!.commitCount);
+    // The steps done rise 1, 2, 3 and so on.
+    assert.deepEqual(stepEvents.map((event) => event.fileStepsDone), stepEvents.map((_event, index) => index + 1));
+    // The steps total is the commit count in every step event.
+    assert.ok(stepEvents.every((event) => event.fileStepsTotal === results[0]!.commitCount));
+    assert.ok(stepEvents.every((event) => event.total === undefined));
+});
+
+test("test_the_last_event_of_a_file_has_steps_done_equal_to_steps_total", (t) => {
+    // Scenario: the finished-file event of a.txt shows the bar full.
+    // A project has two files and a progress sink collects the events.
+    const project = makeProject(t);
+    const events: ProgressEvent[] = [];
+    // The project function builds both repos.
+    const results = buildProject(project, (event) => events.push(event));
+    // The last event of a.txt is its per-file event.
+    const eventsOfA = events.filter((event) => event.file === "a.txt");
+    const lastEventOfA = eventsOfA[eventsOfA.length - 1]!;
+    assert.equal(lastEventOfA.current, 1);
+    // Its steps done equal its steps total, which is the commit count.
+    assert.equal(lastEventOfA.fileStepsDone, lastEventOfA.fileStepsTotal);
+    assert.equal(lastEventOfA.fileStepsTotal, results[0]!.commitCount);
+});
+
+test("test_every_event_of_a_file_carries_its_project_relative_path_with_forward_slashes", (t) => {
+    // Scenario: the web page finds the bar of a file by the file field of each event.
+    // A project has a.txt and sub/b.txt and a progress sink collects the events.
+    const project = makeProject(t);
+    const events: ProgressEvent[] = [];
+    // The project function builds both repos.
+    buildProject(project, (event) => events.push(event));
+    // Every event carries the file field, and it is one of the two paths.
+    assert.ok(events.every((event) => event.file === "a.txt" || event.file === "sub/b.txt"));
+    // Both files are in the events.
+    assert.ok(events.some((event) => event.file === "sub/b.txt"));
+});
+
+test("test_a_reused_file_sends_exactly_one_event_with_steps_done_equal_to_its_commit_count", (t) => {
+    // Scenario: a file whose repo is reused does no work, so it reports one event.
+    // A project is built one time.
+    const project = makeProject(t);
+    const firstResults = buildProject(project);
+    // The second call reuses both repos and a progress sink collects the events.
+    const events: ProgressEvent[] = [];
+    buildProject(project, (event) => events.push(event));
+    // There is exactly one event per file.
+    assert.equal(events.length, 2);
+    // The event of a.txt holds the file, the file count and the stored commit count as done and total.
+    assert.equal(events[0]!.file, "a.txt");
+    assert.equal(events[0]!.current, 1);
+    assert.equal(events[0]!.fileStepsDone, firstResults[0]!.commitCount);
+    assert.equal(events[0]!.fileStepsTotal, firstResults[0]!.commitCount);
 });
 
 // An existing repo folder no longer throws: without a stamp it is rebuilt.

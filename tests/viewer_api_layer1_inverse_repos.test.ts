@@ -51,7 +51,8 @@ test("test_inverse_repos_route_streams_plan_then_progress_then_result", () => {
     rmSync(getInverseReposStoreFolder(new Path(query.get("dir")!)).toString(), { recursive: true, force: true });
     sendLayer1InverseReposResponse(response, query);
     rmSync(getInverseReposStoreFolder(new Path(query.get("dir")!)).toString(), { recursive: true, force: true });
-    const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>);
+    // Per-file step events carry no current; this test checks the plan, the per-file events and the result.
+    const lines = body().split("\n").filter((line) => line !== "").map((line) => JSON.parse(line) as Record<string, unknown>).filter((line) => line["fileStepsDone"] === undefined || line["current"] !== undefined);
     assert.deepEqual(lines[0], { kind: "progress", label: LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS, current: 0, total: 2, steps: [LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS] });
     assert.equal(lines.length, 4);
     assert.equal(lines[1]!["kind"], "progress");
