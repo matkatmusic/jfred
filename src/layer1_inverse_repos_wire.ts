@@ -20,6 +20,8 @@ export type InverseCommitWire = {
     position: number;
     instant: string | null;
     isFileAbsent: boolean;
+    isRemoved: boolean;
+    movedAwayTo: string | null;
 };
 
 export type InverseRepoFileWire = { file: string; commits: InverseCommitWire[] };
@@ -39,6 +41,8 @@ export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire
         position: commit.position,
         instant: commit.instant === undefined ? null : commit.instant.toISOString(),
         isFileAbsent: commit.isFileAbsent,
+        isRemoved: commit.removedByScript,
+        movedAwayTo: commit.movedAwayToFile === undefined ? null : commit.movedAwayToFile.toString(),
     };
 }
 
