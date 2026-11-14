@@ -284,7 +284,7 @@ function getOwnStateKind(event: FileEvent): ReverseStateKind {
 }
 
 // The text of the next older event that has one; an Edit without originalFile is applied to it.
-function findNextOlderEventBytes(events: FileEvent[], index: number): { isFound: boolean; bytes: string | undefined } {
+export function findNextOlderEventBytes(events: FileEvent[], index: number): { isFound: boolean; bytes: string | undefined } {
   for (const olderEvent of events.slice(index + 1)) {
     if (isBeaconEvent(olderEvent)) {
       return { isFound: true, bytes: getEventBytes(olderEvent) };

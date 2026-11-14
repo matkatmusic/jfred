@@ -313,6 +313,25 @@ test("test_get_text_just_before_instant_returns_undefined_when_no_state_is_older
     assert.equal(getTextJustBeforeInstant(states, makeInstant(2)), undefined);
 });
 
+test("test_partial_edit_with_no_known_newer_text_is_applied_forward_onto_the_older_beacon", () => {
+    // Scenario: a Write with no originalFile (no text to undo from), then a partial Edit, then a commit that holds the text before the Edit.
+    const events = [makeWriteEvent(3, TEXT_UNRELATED, false, undefined), makePartialEditEvent(2, "two", "TWO"), makeGitCommitEvent(1, TEXT_BEFORE_EDIT)];
+    const states = listKnownStatesForFile(events);
+    // The Edit states are confirmed by the commit.
+    assert.deepEqual(describeStates(states), ["WriteRow/at-event/proven", "EditRow/at-event/confirmed", "EditRow/before-event/confirmed", "GitCommit/at-event/proven"]);
+    // The at-event text is the Edit applied to the commit text; the before-event text is the commit text.
+    assert.equal(states[1]!.text, TEXT_AFTER_EDIT);
+    assert.equal(states[2]!.text, TEXT_BEFORE_EDIT);
+});
+
+test("test_partial_edit_with_no_known_newer_text_is_not_applied_forward_when_old_string_is_not_unique", () => {
+    // Scenario: same as the forward case, but the commit text holds the Edit's oldString twice.
+    const events = [makeWriteEvent(3, TEXT_UNRELATED, false, undefined), makePartialEditEvent(2, "two", "TWO"), makeGitCommitEvent(1, "two two")];
+    const states = listKnownStatesForFile(events);
+    // Both Edit states stay unknown.
+    assert.deepEqual(describeStates(states), ["WriteRow/at-event/proven", "EditRow/at-event/unknown", "EditRow/before-event/unknown", "GitCommit/at-event/proven"]);
+});
+
 test("test_event_type_row_bytes_unknown_throws_naming_the_type", () => {
     // Scenario: an event type the walk has no rule for.
     const events = [makeDiskNowEvent(TEXT_AFTER_EDIT), makeEvent(FileEventType.RowBytesUnknown, 1)];
