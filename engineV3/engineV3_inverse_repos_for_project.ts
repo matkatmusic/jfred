@@ -130,9 +130,11 @@ if (isCliRun) {
     const startMilliseconds = Date.now();
     const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
     const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
-    const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), (event) => {
-        console.log(`${event.current}/${event.total}  ${event.label}`);
-    });
+    const { createTerminalBarsSink } = await import("./engineV3_inverse_repos_terminal_bars.ts");
+    const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
+    // const reportProgress = (event) => { console.log(`${event.current}/${event.total}  ${event.label}`); };
+    const reportProgress = createTerminalBarsSink(process.stdout, fileNames);
+    const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), reportProgress);
     const commitTotal = results.reduce((sum, result) => sum + result.commitCount, 0);
     const seconds = ((Date.now() - startMilliseconds) / 1000).toFixed(1);
     console.log(`done: ${results.length} files, ${commitTotal} commits, ${seconds}s`);
