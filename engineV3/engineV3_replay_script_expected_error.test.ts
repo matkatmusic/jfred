@@ -109,7 +109,9 @@ test("test_executeScriptInState_prints_a_note_when_a_recorded_error_call_runs_a_
   // the printed lines are captured
   const logMock = t.mock.method(console, "log", () => {});
   // the call line runs the script with bun, exits 0, and its recorded result has isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "bun shot.ts", state.toString());
+  // The browser test skip drops a Chrome script call that writes no project file, so python3 (a part the skip rule cannot read) makes the call run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "bun shot.ts", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "python3 -c 'pass'; bun shot.ts", state.toString());
   // the run does not throw
   assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
   // the run prints one note that names the JSONL file and line
