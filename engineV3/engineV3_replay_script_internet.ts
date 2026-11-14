@@ -1,4 +1,5 @@
 // Rules for the recorded Bash calls that need the internet and change no file in the container: the replay skips them (user decision 8).
+// isReadOnlyCommand is now the whole skip rule: the replay skips every recorded call that changes no file.
 
 // One simple command between ; && || | & ( ) or a new line, with its quotes taken off.
 export type ShellSegment = { words: string[]; redirectTargets: string[] };
@@ -88,6 +89,17 @@ const CURL_FILE_FLAG_LETTERS = new Set(["o", "D", "c"]);
 const CURL_ALWAYS_WRITING_FLAGS = new Set(["-O", "--remote-name", "--remote-name-all", "--output-dir", "--create-dirs", "--trace", "--trace-ascii", "--stderr", "--libcurl", "--etag-save"]);
 const LONG_FLAG_START = "--";
 const CURL_REMOTE_NAME_LETTER = "O";
+// curl flags that send data, so a server on this machine can write files.
+const CURL_SENDING_FLAG_LETTERS = new Set(["d", "F", "T"]);
+const CURL_SENDING_LONG_FLAG_STARTS = ["--data", "--json", "--form", "--upload-file"];
+const CURL_METHOD_FLAG_LETTER = "X";
+const CURL_METHOD_LONG_FLAG = "--request";
+const CURL_READING_METHODS = new Set(["GET", "HEAD"]);
+// A curl URL may have no scheme, as in localhost:3000/x.
+const URL_SCHEME_START = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//;
+const URL_HOST_END = /[/?#]/;
+const IPV6_HOST_START = "[";
+const IPV6_HOST_END = "]";
 
 function isHiddenCommandStart(command: string, index: number): boolean {
   const character = command[index];
@@ -411,7 +423,95 @@ function isCurlReadOnly(programWords: string[]): boolean {
       return false;
     }
   }
+  // A local server can write files when it gets data, as the Attune demo server does.
+  if (isCurlToLocalServer(programWords)) {
+    return !isCurlSendingToServer(programWords);
+  }
   return true;
+}
+
+function getUrlHost(word: string): string {
+  const hostAndRest = word.replace(URL_SCHEME_START, "");
+  const hostAndPort = hostAndRest.split(URL_HOST_END)[0]!;
+  if (hostAndPort.startsWith(IPV6_HOST_START)) {
+    return hostAndPort.slice(0, hostAndPort.indexOf(IPV6_HOST_END) + 1);
+  }
+  return hostAndPort.split(":")[0]!;
+}
+
+function isCurlToLocalServer(programWords: string[]): boolean {
+  for (const word of programWords.slice(1)) {
+    if (word.startsWith("-")) {
+      continue;
+    }
+    if (LOCAL_HOSTS.has(getUrlHost(word))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A missing method word counts as a method that can write.
+function isCurlMethodReading(method: string | undefined): boolean {
+  if (method === undefined) {
+    return false;
+  }
+  return CURL_READING_METHODS.has(method.toUpperCase());
+}
+
+function getLongFlagValue(word: string, flagName: string, nextWord: string | undefined): string | undefined {
+  if (word === flagName) {
+    return nextWord;
+  }
+  return word.slice(flagName.length + 1);
+}
+
+function isCurlLongFlagSending(word: string, nextWord: string | undefined): boolean {
+  const flagName = word.split("=")[0]!;
+  if (flagName === CURL_METHOD_LONG_FLAG) {
+    return !isCurlMethodReading(getLongFlagValue(word, flagName, nextWord));
+  }
+  return CURL_SENDING_LONG_FLAG_STARTS.some((flagStart) => flagName.startsWith(flagStart));
+}
+
+// A short flag group such as -sX POST or -sd 'a=1'; the value of X, o, D or c is the rest of the word, or the next word.
+function isCurlShortFlagGroupSending(word: string, nextWord: string | undefined): boolean {
+  for (let letterIndex = 1; letterIndex < word.length; letterIndex += 1) {
+    const letter = word[letterIndex]!;
+    if (CURL_SENDING_FLAG_LETTERS.has(letter)) {
+      return true;
+    }
+    if (letter === CURL_METHOD_FLAG_LETTER) {
+      const joinedMethod = word.slice(letterIndex + 1);
+      const method = joinedMethod === "" ? nextWord : joinedMethod;
+      return !isCurlMethodReading(method);
+    }
+    if (CURL_FILE_FLAG_LETTERS.has(letter)) {
+      return false;
+    }
+  }
+  return false;
+}
+
+// A method other than GET or HEAD, or any data flag, can make the server write.
+function isCurlSendingToServer(programWords: string[]): boolean {
+  for (let wordIndex = 1; wordIndex < programWords.length; wordIndex += 1) {
+    const word = programWords[wordIndex]!;
+    const nextWord = programWords[wordIndex + 1];
+    if (!word.startsWith("-")) {
+      continue;
+    }
+    if (word.startsWith(LONG_FLAG_START)) {
+      if (isCurlLongFlagSending(word, nextWord)) {
+        return true;
+      }
+      continue;
+    }
+    if (isCurlShortFlagGroupSending(word, nextWord)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function isTmuxReadOnly(programWords: string[]): boolean {

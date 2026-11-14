@@ -209,11 +209,56 @@ test("test_executeScriptInState_runs_the_call_with_zsh_so_echo_triple_equals_fai
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the file has a Bash call whose recorded result is an error
-  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
+  // A read-only echo is skipped now, so the redirect makes the call run.
+  // const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes", state.toString());
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "echo === shapes > shapes.txt", state.toString());
   const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "" };
   const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
   // running the line does not throw, because the call exits non-zero as recorded
   assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));
+});
+
+const CHANGES_NO_FILE_NOTE = /^\S+ note: skipped, changes no file: session\.jsonl:1$/;
+
+function getPrintedLines(logMock: { mock: { calls: { arguments: unknown[] }[] } }): string[] {
+  return logMock.mock.calls.map((call) => String(call.arguments[0]));
+}
+
+test("test_executeScriptInState_skips_a_read_only_call_from_no_old_category", (t) => {
+  // Scenario: the user's rule: only calls that change a file matter, so a read-only rg call is skipped.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the call reads a file, and its recorded result is an error, so a real run that exits 0 would throw
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "rg -n foo demo/server.ts | head -5", state.toString());
+  const errorResult = { toolUseId: new Uuid(ALLOWED_TOOL_USE_ID), startMs: 0, endMs: 1, isError: true, resultText: "" };
+  const errorContext = { bashCallResults: new Map([[ALLOWED_TOOL_USE_ID, errorResult]]), writeEditResultLines: new Map(), sourceRepo: new Path("/nonexistent") };
+  // the call does not run, so nothing throws
+  assert.doesNotThrow(() => executeScriptInState(state, lines[0] as JSONLLine, errorContext));
+  // the run prints one skip note that names the JSONL file and line
+  assert.equal(getPrintedLines(logMock).filter((printed) => CHANGES_NO_FILE_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_skips_a_read_only_ctx_execute_shell_run", (t) => {
+  // Scenario: a shell ctx_execute run goes through the same skip as a Bash call.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the printed lines are captured
+  const logMock = t.mock.method(console, "log", () => {});
+  // the shell run only lists the folder
+  const line = loadLineWithBlocks(t, [makeCtxExecuteBlock("toolu_01CtxLs", "shell", "ls -la | head -3")], state.toString());
+  executeScriptInState(state, line, makeContext("toolu_01CtxLs"));
+  // the run prints one skip note
+  assert.equal(getPrintedLines(logMock).filter((printed) => CHANGES_NO_FILE_NOTE.test(printed)).length, 1);
+});
+
+test("test_executeScriptInState_runs_a_call_with_an_unknown_program", (t) => {
+  // Scenario: the judge cannot check an unknown program, so the call may change files and runs.
+  const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
+  // the call runs touch, which is not on the read-only list
+  const lines = loadBashLines(t, ALLOWED_TOOL_USE_ID, "touch ran.txt", state.toString());
+  executeScriptInState(state, lines[0] as JSONLLine, makeContext(ALLOWED_TOOL_USE_ID));
+  // ran.txt is in the state folder
+  assert.equal(existsSync(join(state.toString(), "ran.txt")), true);
 });
 
 test("test_getJSONLLineKind_is_Script_for_a_ctx_execute_shell_run", (t) => {

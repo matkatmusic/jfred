@@ -65,10 +65,13 @@ test("test_executeScriptInState_throws_when_a_recorded_error_exits_0", (t) => {
   // the state folder is the record's cwd
   const state = new Path(makeTempFolder(t, "engine-v3-script-state-"));
   // the call line has a command that exits 0 and a recorded result with isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
+  // A read-only `true` is skipped now, so the call writes a file to make it run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "true", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "touch ran.txt", state.toString());
   // the error names the command and says it was expected to fail
   assert.throws(() => executeScriptInState(state, line, makeContext(true)), (error: Error) => {
-    assert.match(error.message, /command: true/);
+    // assert.match(error.message, /command: true/);
+    assert.match(error.message, /command: touch ran\.txt/);
     assert.match(error.message, /expected to fail/);
     return true;
   });
@@ -87,7 +90,9 @@ test("test_executeScriptInState_prints_a_note_when_a_recorded_error_Chrome_call_
   // the printed lines are captured
   const logMock = t.mock.method(console, "log", () => {});
   // the call line names remote-debugging-port, exits 0, and its recorded result has isError true
-  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333", state.toString());
+  // A read-only echo is skipped now, so the redirect makes the call run.
+  // const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333", state.toString());
+  const line = loadBashCallLine(t, ERROR_TOOL_USE_ID, "echo --remote-debugging-port=9333 > chrome.txt", state.toString());
   // the run does not throw
   assert.doesNotThrow(() => executeScriptInState(state, line, makeContext(true)));
   // the run prints one note that names the JSONL file and line

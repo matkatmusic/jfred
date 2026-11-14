@@ -347,3 +347,50 @@ for (const command of NOT_SKIPPED_MAC_STATE_COMMANDS) {
     assert.equal(isReadOnlyMacStateCommand(command), false);
   });
 }
+
+// A request that sends data to a server on this machine can make that server write files.
+const LOCAL_SERVER_WRITING_CURL_COMMANDS = [
+  "curl -X POST localhost:3000/x -d '{}'",
+  "curl --json '{}' http://127.0.0.1:3000/x",
+  "curl -XPOST localhost:3000/x",
+  "curl -sX put http://localhost:3000/x",
+  "curl --request DELETE localhost:3000/x",
+  "curl --request=PATCH localhost:3000/x",
+  "curl -s -d@body.json localhost:3000/x",
+  "curl -sd 'a=1' localhost:3000/x",
+  "curl --data-raw '{}' localhost:3000/x",
+  "curl --data-binary @f localhost:3000/x",
+  "curl --data-urlencode a=1 localhost:3000/x",
+  "curl --data='{}' localhost:3000/x",
+  "curl -F file=@a.png http://0.0.0.0:3000/upload",
+  "curl --form file=@a.png localhost:3000/upload",
+  "curl -T a.txt 'http://[::1]:3000/up'",
+  "curl --upload-file a.txt localhost/up",
+  // Real Attune Bash call: agent-a66bd9dd3c48f52e5.jsonl:515.
+  "curl -s -w '\\n%{http_code}\\n' -X POST localhost:3000/api/inflection-base -H 'content-type: application/json' -d '{\"word\":\"x\"}'",
+];
+
+// A GET or HEAD to a local server, or a request with data to another machine, changes no file here.
+const LOCAL_SERVER_READING_CURL_COMMANDS = [
+  "curl -s localhost:3000/x | jq .",
+  "curl -s -X GET localhost:3000/x",
+  "curl -sI http://127.0.0.1:3000/x",
+  "curl -X head localhost:3000/x",
+  "curl -s -X POST https://example.com/x -d '{}'",
+];
+
+for (const command of LOCAL_SERVER_WRITING_CURL_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_false_for_a_curl_that_sends_data_to_a_local_server: ${command.slice(0, 60)}`, () => {
+    // Scenario: the local server can write files when it gets this request.
+    // the command may change files, so it runs
+    assert.equal(isReadOnlyCommand(command), false);
+  });
+}
+
+for (const command of LOCAL_SERVER_READING_CURL_COMMANDS) {
+  test(`test_isReadOnlyCommand_is_true_for_a_curl_that_only_reads: ${command.slice(0, 60)}`, () => {
+    // Scenario: the request only reads from the server, or the server is on another machine.
+    // the command changes no file, so it is skipped
+    assert.equal(isReadOnlyCommand(command), true);
+  });
+}

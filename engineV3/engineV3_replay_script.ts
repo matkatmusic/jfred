@@ -1,4 +1,5 @@
 // Runs every recorded Bash call for real inside the replay, except the calls that never ran or run only on the Mac.
+// A call that changes no file is skipped too.
 
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
@@ -15,7 +16,8 @@ import { assertHeadMatchesLogInOptionalRepo, fillMissingBunLockfileFromOptionalR
 // import { fillMacOnlyFiles, isMacOnlyCommand, isMacOnlyScriptCommand } from "./engineV3_replay_script_skip.ts";
 // import { fillMacOnlyFiles, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
 import { fillMacOnlyFiles, isChromeStartCommand, isMacOnlyCommand } from "./engineV3_replay_script_skip.ts";
-import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
+// import { isReadOnlyInternetCommand, isReadOnlyMacStateCommand } from "./engineV3_replay_script_internet.ts";
+import { isReadOnlyCommand } from "./engineV3_replay_script_internet.ts";
 import { fillOutsideGitFoldersAtTime, OUTSIDE_LIVE_ROOT } from "./engineV3_replay_outside_folders.ts";
 import { getRecordedUuidEnv } from "./engineV3_replay_new_uuids.ts";
 
@@ -157,10 +159,15 @@ function executeScriptRun(state: Path, run: ScriptRun, context: ScriptReplayCont
     return;
   }
   if (!isPythonCtxExecuteRun(run)) {
-    if (isReadOnlyInternetCommand(run.code)) {
-      return;
-    }
-    if (isReadOnlyMacStateCommand(run.code)) {
+    // if (isReadOnlyInternetCommand(run.code)) {
+    //   return;
+    // }
+    // if (isReadOnlyMacStateCommand(run.code)) {
+    //   return;
+    // }
+    // The user's rule: only calls that change a file matter.
+    if (isReadOnlyCommand(run.code)) {
+      console.log(`${new Date().toISOString()} note: skipped, changes no file: ${getRunSourceText(run)}`);
       return;
     }
     // The image has Chromium at the Chrome program path, so a call that runs a Chrome script file runs for real.
