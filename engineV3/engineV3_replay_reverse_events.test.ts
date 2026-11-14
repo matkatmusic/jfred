@@ -675,11 +675,15 @@ test("test_run_of_an_unwritten_script_stays_a_raw_run", (t) => {
 });
 
 test("test_old_walk_entry_does_not_resolve_script_indirection", (t) => {
-    // Scenario: the Write and run of the first indirection test.
+    // Scenario: the Write of move_files.py moves b.py, and a Bash call runs `python3 move_files.py b.py`, which names b.py itself.
     const scene = makeScene(t, "A");
     const scriptFile = join(scene.folder, "move_files.py");
-    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
-    // the old walk gives b.py no script event from that run
+    const command = "python3 move_files.py b.py";
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", command, 5, scene.folder)]);
+    // the old walk gives b.py one read-only script event that holds the raw command, not the script body
     const events = getAllEventsForFileFrom(scene.file, new Path(join(scene.folder, "b.py")), [scene.jsonlFolder], [scene.snapshotFolder]);
-    assert.deepEqual(events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly), []);
+    const scriptEvents = events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents.length, 1);
+    assert.equal(scriptEvents[0]!.type, FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents[0]!.scriptRun!.code, command);
 });
