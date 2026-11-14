@@ -16,7 +16,7 @@ import { decideFinalNewline, stripNewlineMarkerRows } from "./engineV3_replay_ne
 import { addWorktreeToState } from "./engineV3_replay_worktree.ts";
 import { executeScriptInState, type ScriptReplayContext } from "./engineV3_replay_script.ts";
 import { getReplayRoot } from "./engineV3_replay_root.ts";
-import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
+import { assertSnapshotBackupsMatchState, copyChainBytesBeforeScript, recordFileChange, recordProvenBytes, recordScriptFileChanges } from "./engineV3_replay_backups.ts";
 import { isAppliedWriteEditResult, listToolResultIds, listWriteEditCallIds } from "./engineV3_replay_tool_results.ts";
 import { listStopHookReformattedFiles, runRecordedPostToolHook, runRecordedStopHookReformat } from "./engineV3_replay_post_tool_hooks.ts";
 import { getAttachmentEntry } from "../src/structures/session-meta.ts";
@@ -140,11 +140,27 @@ function applyUserEditAndRecordIt(state: Path, line: JSONLLine): Path {
 //   recordFileChange(file, bytesBefore, readFileSync(file), false);
 //   return state;
 // }
+// A Write result, and an Edit result applied to its originalFile, give the file's full Mac text.
+function hasFullFileText(state: Path, line: JSONLLine): boolean {
+  const kind = getJSONLLineKind(line, state);
+  if (kind === JSONLLineKind.WriteCreate) {
+    return true;
+  }
+  if (kind === JSONLLineKind.WriteUpdate) {
+    return true;
+  }
+  return convertEditResult(line.toolUseResult).originalFile !== null;
+}
+
 // A recorded PostToolUse hook that rewrote the file runs right after the Edit/Write, so the recorded change holds its rewrite.
 function applyWriteEditAndRecordIt(state: Path, line: JSONLLine, applyLine: (state: Path, line: JSONLLine) => Path, context: ScriptReplayContext): Path {
   const file = findWrittenFile(state, line)!;
   const bytesBefore = existsSync(file) ? readFileSync(file) : undefined;
   applyLine(state, line);
+  // Before the hook rewrite: the rewrite is not a proven text.
+  if (hasFullFileText(state, line)) {
+    recordProvenBytes(file, readFileSync(file));
+  }
   for (const resultId of listToolResultIds(line)) {
     const rewrite = context.postToolHookRewrites?.get(resultId);
     if (rewrite !== undefined) {

@@ -2,8 +2,9 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
+import { copyHandEditFromPlateCapture, recordProvenBytes } from "./engineV3_replay_backups.ts";
 import { PlateEventName, getPlateCaptureTimeMs, readPlateCaptureFile, readPlateCaptureSessionId, type PlateRun } from "./engineV3_replay_plate.ts";
 import { writeCutTranscript } from "./engineV3_replay_plate_transcript.ts";
 
@@ -90,8 +91,30 @@ function assertTextInBothCaptures(filePath: string, macCapture: Path, macText: s
   }
   if (macText !== replayText) {
     const difference = formatLineDifference(macText ?? DELETED_FILE_TEXT, replayText ?? DELETED_FILE_TEXT);
-    throw new Error(`assertPlateCapturesEqual: ${filePath} differs (${createCaptureDescription(macCapture)})\n${difference}`);
+    // throw new Error(`assertPlateCapturesEqual: ${filePath} differs (${createCaptureDescription(macCapture)})\n${difference}`);
+    const mismatchMessage = `assertPlateCapturesEqual: ${filePath} differs (${createCaptureDescription(macCapture)})\n${difference}`;
+    if (macText === null) {
+      throw new Error(mismatchMessage);
+    }
+    copyHandEditFromPlateCapture(resolve(filePath), Buffer.from(macText, "utf8"), mismatchMessage);
+    console.log(`${new Date().toISOString()} note: hand edit copied from plate capture: ${filePath} ${basename(macCapture.toString())} ${createChangedLinesText(macText, replayText ?? DELETED_FILE_TEXT)}`);
+    return;
   }
+  if (replayText !== null) {
+    recordProvenBytes(resolve(filePath), Buffer.from(replayText, "utf8"));
+  }
+}
+
+function createChangedLinesText(macText: string, replayText: string): string {
+  const macLines = macText.split("\n");
+  const replayLines = replayText.split("\n");
+  const changedLineNumbers: number[] = [];
+  for (let index = 0; index < Math.max(macLines.length, replayLines.length); index++) {
+    if (macLines[index] !== replayLines[index]) {
+      changedLineNumbers.push(index + 1);
+    }
+  }
+  return `${changedLineNumbers.length} changed lines, first at line ${changedLineNumbers[0]}`;
 }
 
 // Every path in either file_changes map must be in the other with the same text.
@@ -102,6 +125,10 @@ export function assertPlateCapturesEqual(macCapture: Path, replayCapture: Path):
     assertTextInBothCaptures(filePath, macCapture, macChanges[filePath], replayChanges[filePath]);
   }
   for (const filePath of Object.keys(replayChanges)) {
+    // A path in both maps was checked above, and a second check would copy a hand edit twice.
+    if (macChanges[filePath] !== undefined) {
+      continue;
+    }
     assertTextInBothCaptures(filePath, macCapture, macChanges[filePath], replayChanges[filePath]);
   }
 }

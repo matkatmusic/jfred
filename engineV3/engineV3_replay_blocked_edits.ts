@@ -1,8 +1,9 @@
 // The user's block-parent-edits PreToolUse hook saves a blocked call's tool input as a temp JSON file and names it in the denial; recorded Bash calls read that file later.
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
+import { recordProvenBytes } from "./engineV3_replay_backups.ts";
 import type { ToolResultBlock } from "../src/structures/content-blocks.ts";
 import { BlockType } from "../src/structures/vocabulary.ts";
 import type { JSONLLine } from "./engineV3.ts";
@@ -54,6 +55,20 @@ function writeSavedFileOfResult(resultBlock: ToolResultBlock): void {
   }
   mkdirSync(dirname(savedPath.toString()), { recursive: true });
   writeFileSync(savedPath.toString(), JSON.stringify(hookToolInput, null, JSON_INDENT_SPACES));
+  recordBlockedWriteContent(hookToolInput);
+}
+
+// An edit-worker writes a blocked Write's content later, so that content is the file's next full text; a blocked Edit has no content.
+function recordBlockedWriteContent(toolInput: ToolInput): void {
+  const content = toolInput.content;
+  if (typeof content !== "string") {
+    return;
+  }
+  const filePath = toolInput.file_path;
+  if (typeof filePath !== "string") {
+    return;
+  }
+  recordProvenBytes(resolve(filePath), Buffer.from(content, "utf8"));
 }
 
 // The hook writes the file between the call and its result, so the replay writes it at the result line.

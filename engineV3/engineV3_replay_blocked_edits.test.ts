@@ -9,6 +9,8 @@ import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { applyJSONLLineToState } from "./engineV3_replay_apply.ts";
 import type { ScriptReplayContext } from "./engineV3_replay_script.ts";
+import { clearSeenBackups } from "./engineV3_replay_backups.ts";
+import { assertPlateCapturesEqual } from "./engineV3_replay_plate_run.ts";
 
 const SESSION_ID = "79872fd4-40ad-40af-875a-46b3527317a2";
 const CALL_UUID = "7d3a2d2c-df18-463b-8deb-28f3855e4064";
@@ -63,6 +65,31 @@ test("test_blocked_write_result_makes_the_saved_file_with_the_recorded_input", (
   assert.equal(readFileSync(savedPath, "utf8"), JSON.stringify(recordedInput, null, 2));
   // the blocked Write itself changed nothing in the project.
   assert.equal(existsSync(recordedInput.file_path), false);
+});
+
+test("test_blocked_write_content_applied_by_an_edit_worker_lets_a_differing_plate_capture_copy", (t) => {
+  // Scenario (the 633 shape): the parent's Write is blocked, an edit-worker writes its content, then the user hand-edits one line.
+  clearSeenBackups();
+  const stateFolder = makeTempFolder(t, "engine-v3-blocked-edits-state-");
+  const savedPath = join(makeTempFolder(t, "engine-v3-blocked-edits-temp-"), "claude-blocked-edits", `${SESSION_ID}-1791314205189.json`);
+  const callId = "toolu_01BiC6X63SfDkEFP9BWfXfcy";
+  const recordedInput = { file_path: join(stateFolder, "tutorialMockup.html"), content: "<!doctype html>\none line\n" };
+  const [callLine, resultLine] = loadLines(t, [makeCallLine(callId, "Write", recordedInput, recordedInput), makeBlockedResultLine(callId, "Write", savedPath)]);
+  const context = makeContext(callId, resultLine!);
+  applyJSONLLineToState(new Path(stateFolder), callLine!, [], context);
+  applyJSONLLineToState(new Path(stateFolder), resultLine!, [], context);
+  // the edit-worker's script writes the saved content into the file
+  writeFileSync(recordedInput.file_path, recordedInput.content);
+  // the Mac capture holds the hand-edited line; the replay capture holds the replayed text
+  const captureFolder = makeTempFolder(t, "engine-v3-blocked-edits-captures-");
+  const macCapture = join(captureFolder, "1791314687768644000_26684.json");
+  writeFileSync(macCapture, JSON.stringify({ session_id: SESSION_ID, transcript_path: "/t/p.jsonl", file_changes: { [recordedInput.file_path]: "<!doctype html>\none hand line\n" }, tool_calls: [] }));
+  const replayCapture = join(captureFolder, "2_2.json");
+  writeFileSync(replayCapture, JSON.stringify({ session_id: SESSION_ID, transcript_path: "/t/p.jsonl", file_changes: { [recordedInput.file_path]: recordedInput.content }, tool_calls: [] }));
+  t.mock.method(console, "log", () => {});
+  // the check copies the capture text into the state
+  assertPlateCapturesEqual(new Path(macCapture), new Path(replayCapture));
+  assert.equal(readFileSync(recordedInput.file_path, "utf8"), "<!doctype html>\none hand line\n");
 });
 
 test("test_blocked_edit_saved_file_keeps_wire_key_order_with_parsed_values", (t) => {

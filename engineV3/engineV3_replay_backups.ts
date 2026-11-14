@@ -43,9 +43,39 @@ export function recordContinuedFailure(runSourceText: string): void {
   lastContinuedFailureSource = runSourceText;
 }
 
+// Each file's latest proven full text: a matched backup, a Write input, an Edit result with originalFile, or an equal plate capture.
+const lastProvenBytes = new Map<string, Buffer>();
+const continuedFailureCountAtProven = new Map<string, number>();
+
+export function recordProvenBytes(replayedFile: string, bytes: Buffer): void {
+  lastProvenBytes.set(replayedFile, bytes);
+  continuedFailureCountAtProven.set(replayedFile, continuedFailureCount);
+}
+
 function recordMatchedBytes(replayedFile: string, bytes: Buffer): void {
   lastMatchedBytes.set(replayedFile, bytes);
   continuedFailureCountAtMatch.set(replayedFile, continuedFailureCount);
+  recordProvenBytes(replayedFile, bytes);
+}
+
+// Rule (c): the replayed bytes still equal the file's last proven text, so the replay did not write the lines the plate capture differs in.
+export function copyHandEditFromPlateCapture(replayedFile: string, captureBytes: Buffer, mismatchMessage: string): void {
+  const provenBytes = lastProvenBytes.get(replayedFile);
+  if (provenBytes === undefined) {
+    throw new Error(mismatchMessage);
+  }
+  if (!existsSync(replayedFile)) {
+    throw new Error(mismatchMessage);
+  }
+  if (!readFileSync(replayedFile).equals(provenBytes)) {
+    throw new Error(mismatchMessage);
+  }
+  const countAtProven = continuedFailureCountAtProven.get(replayedFile) as number;
+  if (continuedFailureCount > countAtProven) {
+    throw new Error(`${mismatchMessage}\nthe plate capture is not copied: ${replayedFile} may have changed on the Mac after the failed call ${lastContinuedFailureSource} went on`);
+  }
+  writeFileSync(replayedFile, captureBytes);
+  recordMatchedBytes(replayedFile, captureBytes);
 }
 
 // The backup copy rules must not take the Mac's bytes for a change that a continued failed call made on the Mac.
@@ -279,6 +309,8 @@ export function clearSeenBackups(): void {
   lastSeenBackupTexts.clear();
   snapshotFileBytes.clear();
   continuedFailureCountAtMatch.clear();
+  lastProvenBytes.clear();
+  continuedFailureCountAtProven.clear();
   continuedFailureCount = 0;
   lastContinuedFailureSource = "";
 }
