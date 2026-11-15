@@ -106,13 +106,34 @@ async function executeCountChecks(page: MouseHeadlessPage): Promise<void> {
     console.log(`open popups or dialogs seen: ${await page.evaluate<number>(OPEN_POPUP_COUNT)}`);
 }
 
+async function installLogFileLineRecorder(page: MouseHeadlessPage): Promise<void> {
+    await page.waitFor(`document.getElementById('barsLogFileLine') !== null`, 30_000);
+    await page.evaluate(`(window.__logFileNames = [], new MutationObserver(() => {
+        const text = document.getElementById('barsLogFileLine').textContent;
+        if (text !== '') window.__logFileNames.push({ text, at: performance.now() });
+    }).observe(document.getElementById('barsLogFileLine'), { childList: true }), true)`);
+}
+
+function median(sortedNumbers: number[]): number {
+    return sortedNumbers[Math.floor(sortedNumbers.length / 2)]!;
+}
+
+async function reportLogFileNameTimings(page: MouseHeadlessPage): Promise<void> {
+    const names = await page.evaluate<{ text: string; at: number }[]>("window.__logFileNames");
+    const gaps = names.slice(1).map((name, index) => name.at - names[index]!.at).sort((a, b) => a - b);
+    console.log(`log file names shown: ${names.length}; first ${names[0]?.text}`);
+    console.log(`gap ms between names: min ${gaps[0]}, median ${median(gaps)}, max ${gaps[gaps.length - 1]}`);
+}
+
 async function executePageChecks(url: string, shotsFolder: string, deadline: number): Promise<void> {
     const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
     try {
         const loadStartedAt = Date.now();
         await page.navigate(url);
+        await installLogFileLineRecorder(page);
         await page.evaluate(`(window.__barsErrors = [], addEventListener('unhandledrejection', (event) => window.__barsErrors.push(String(event.reason))), true)`);
         await executeLoadChecks(page, loadStartedAt, deadline);
+        await reportLogFileNameTimings(page);
         await executeCountChecks(page);
         await saveBarsScreenshot(page, shotsFolder, "real-after-load");
     }

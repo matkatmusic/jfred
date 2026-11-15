@@ -180,6 +180,38 @@ test("test_the_first_line_shows_the_reading_logs_status_and_the_read_bar", async
     await finishControlledLoad(stream, loading);
 });
 
+test("test_a_log_file_line_shows_the_file_name_under_the_status_line", async () => {
+    // Scenario: two log file lines arrive before the started line.
+    const stream = installControlledStream();
+    installSequencedFetch([stream.response]);
+    const loading = loadBarsHistory(state, SOURCE_PARAMS, waitImmediately);
+    stream.pushLine({ kind: "progress", label: "a.jsonl", logFile: "a.jsonl" });
+    stream.pushLine({ kind: "progress", label: "b.jsonl", logFile: "b.jsonl" });
+    await waitForAsyncWork();
+    // The log file line shows the newest name and is visible.
+    const logFileLine = document.getElementById("barsLogFileLine")!;
+    assert.equal(logFileLine.textContent, "b.jsonl");
+    assert.equal(logFileLine.hasAttribute("hidden"), false);
+    // The status line still reads the one-time log read text.
+    assert.equal(readLineText("barsStatusLine"), BARS_READING_LOGS_TEXT);
+    await finishControlledLoad(stream, loading);
+});
+
+test("test_the_started_line_hides_the_log_file_line", async () => {
+    // Scenario: a log file line arrives, then the started line.
+    const stream = installControlledStream();
+    installSequencedFetch([stream.response]);
+    const loading = loadBarsHistory(state, SOURCE_PARAMS, waitImmediately);
+    stream.pushLine({ kind: "progress", label: "a.jsonl", logFile: "a.jsonl" });
+    stream.pushLine(STARTED_LINE);
+    await waitForAsyncWork();
+    // The log file line is empty and hidden.
+    const logFileLine = document.getElementById("barsLogFileLine")!;
+    assert.equal(logFileLine.textContent, "");
+    assert.equal(logFileLine.hasAttribute("hidden"), true);
+    await finishControlledLoad(stream, loading);
+});
+
 test("test_the_first_line_names_the_file_count_in_the_header", async () => {
     // Scenario: the first progress line says 2 files.
     const stream = installControlledStream();

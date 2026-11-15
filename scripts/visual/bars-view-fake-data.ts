@@ -8,7 +8,9 @@ export const FAKE_MOVED_PATH = "src/moved.ts";
 export const FAKE_PLAIN_PATH = "src/plain.ts";
 export const FAKE_MOVED_DESTINATION = "/fixture/demo/worktree/src/moved-new.ts";
 export const FAKE_OTHER_STATUS_TEXT = "Rebuilding the file states";
-export const FAKE_ERROR_TEXT = "the fake inverse repos failed";
+export const FAKE_FIRST_LOG_FILE = "11111111-aaaa-4bbb-8ccc-000000000001.jsonl";
+export const FAKE_SECOND_LOG_FILE = "22222222-aaaa-4bbb-8ccc-000000000002.jsonl";
+export const FAKE_ERROR_TEXT ="the fake inverse repos failed";
 export const MINIMUM_RULER_ROW_COUNT = 8;
 
 type CommitSpec = { eventType: string; row: number | null; isFileAbsent: boolean; isRemoved: boolean; movedAwayTo: string | null };
@@ -126,6 +128,8 @@ export function countExpectedDots(files: readonly InverseRepoFileWire[]): number
 
 export function buildFakeStreamLines(files: readonly InverseRepoFileWire[]): string[] {
     const progressLines: InverseProgressLine[] = [
+        { kind: "progress", label: FAKE_FIRST_LOG_FILE, logFile: FAKE_FIRST_LOG_FILE },
+        { kind: "progress", label: FAKE_SECOND_LOG_FILE, logFile: FAKE_SECOND_LOG_FILE },
         { kind: "progress", label: "Reading session logs", current: 0, total: files.length },
         { kind: "progress", label: FAKE_OTHER_STATUS_TEXT },
     ];
