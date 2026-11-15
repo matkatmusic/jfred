@@ -157,6 +157,19 @@ test("test_reply_never_runs_a_script", (t) => {
     assert.equal(readJfredFile(fixture.repoDir, "a.txt"), "first text\n");
 });
 
+test("test_commit_message_gets_the_not_proven_section_for_a_file_behind_a_roadblock", (t) => {
+    // Scenario: a.txt is written at 17:00; a recorded script that was not replayed may write it at 18:00; disk holds a line that only the script can have added; the mark is 20:00.
+    const fixture = createMarkFixture(t, [[WRITE_AT, "first text\n"]], "first text\nz\n", SCRIPT_AT);
+    const reply = commitAtMark(fixture);
+    assert.equal(reply.outcome, JfredCommitOutcome.committed);
+    const message = execFileSync("git", ["log", "-1", "--format=%B", "jfred"], { cwd: fixture.repoDir, encoding: "utf8" });
+    const expectedSection = [
+        "Not proven: a recorded script was not replayed for these files. The bytes are the nearest older known bytes.",
+        `- a.txt (bytes from ${WRITE_AT}, script at ${SCRIPT_AT})`,
+    ].join("\n");
+    assert.equal(message.trimEnd(), `${JFRED_SUBJECT_PREFIX}${MARK_AT}\n\n${expectedSection}`);
+});
+
 const BACKUP_NAME = "bk@v1";
 const BACKUP_TEXT = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
 const BACKUP_MARK_AT = "2026-07-01T17:30:00.000Z";

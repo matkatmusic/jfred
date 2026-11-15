@@ -2,10 +2,15 @@
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { buildInverseCommit, buildInverseFile, ensureBarsMarkup } from "./layer1-bars-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
+const { BarsViewMode, setBarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+const { buildBarFileModels } = await import("../webapp/layer1-components/bars-view/layer1-bars-model.ts");
+const { listRealRulerRows } = await import("../webapp/layer1-components/bars-view/layer1-bars-ruler.ts");
+const { getBarsViewState } = await import("../webapp/layer1-components/bars-view/layer1-bars-state.ts");
 const { installCutMarkClick } = await import("../webapp/layer1-components/commits-column/layer1-cut-marks.ts");
 const { CUT_REFUSAL_TEXT, CutRefusal } = await import("../webapp/layer1-components/commits-column/layer1-cut-rules.ts");
 const { loadJfredBranch, readJfredBranch, setArmed, setBase } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
@@ -77,9 +82,24 @@ function addFileBox(nodes: { hour: number; nodeClass: string; label: string }[])
   document.getElementById("fileBubbleContainer")!.append(box);
 }
 
+// Call after the ticks exist: the models are built against the real ruler rows. File a.ts holds a git commit at hour 1 and an edit at hour 3.
+function putChangedHourThree(): void {
+  const state = getBarsViewState();
+  const commits = [
+    buildInverseCommit({ instant: buildInstant(3), eventType: "EditRow", treeHash: "t3" }),
+    buildInverseCommit({ instant: buildInstant(1), eventType: "GitCommit", treeHash: "t1" }),
+  ];
+  const rows = listRealRulerRows();
+  state.models = buildBarFileModels([buildInverseFile("a.ts", commits)], rows);
+  state.rulerRows = rows;
+}
+
 // Fresh armed page: hour 1 commit, hour 2 snapshot and hour 3 edit dot of one file.
 function buildPage(view: typeof EMPTY_VIEW): HTMLElement[] {
   initLayer1Dom();
+  ensureBarsMarkup();
+  setBarsViewMode(BarsViewMode.bubbles);
+  getBarsViewState().models = [];
   (document.getElementById("dir") as HTMLInputElement).value = PROJECT_DIR;
   loadJfredBranch(view);
   setArmed(true);
@@ -90,6 +110,7 @@ function buildPage(view: typeof EMPTY_VIEW): HTMLElement[] {
     { hour: 2, nodeClass: "node n-snap", label: "[s]" },
     { hour: 3, nodeClass: "node n-edit", label: "[e]" },
   ]);
+  putChangedHourThree();
   return ticks;
 }
 

@@ -1,7 +1,12 @@
 // Task 383: in Commit mode a ruler click sets the base or the pending mark.
 
 import { getRequiredElementById } from "../../app-dom.ts";
-import { countSkippedBeaconTicks, readTickBeaconFacts } from "./layer1-cut-beacons.ts";
+import { readBarsBaseCommitHash } from "../bars-view/layer1-bars-cut-facts.ts";
+import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
+import { findRealRulerTickRowIndex } from "../bars-view/layer1-bars-ruler.ts";
+import { selectBarsRow } from "../bars-view/layer1-bars-select.ts";
+import { getBarsViewState } from "../bars-view/layer1-bars-state.ts";
+import { collectCutSnapshot, countSkippedBeaconTicks, readTickBeaconFacts } from "./layer1-cut-beacons.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { CUT_REFUSAL_TEXT, findCutRefusal } from "./layer1-cut-rules.ts";
 import { openToast } from "../details-drawer/layer1-diff-pane-support.ts";
@@ -10,7 +15,8 @@ import { buildCommitMessage, listSnapLines } from "./layer1-jfred-message.ts";
 import { readJfredBranch, readTipMs, setBase, setPending } from "./layer1-jfred-state.ts";
 import { JFRED_SHORT_HASH_LENGTH } from "./layer1-wire-jfred.ts";
 import { saveJfredBaseHash } from "../../layer1-settings.ts";
-import { collectStageBubbles, type BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
+// import { collectStageBubbles, type BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
+import type { BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
 import { listAllEventsAtRow, rowsByTick } from "../ruler/layer1-tick-events.ts";
 
 // const SHORT_HASH_LENGTH = 8;
@@ -19,10 +25,14 @@ function readTickInstant(tick: HTMLElement): string {
   const row = rowsByTick.get(tick);
   if (row === undefined)
     throw new Error("ruler tick has no stored row");
-  return row.instants[0]!;
+  // return row.instants[0]!;
+  return row.instants[row.instants.length - 1]!;
 }
 
 function readCommitHash(tick: HTMLElement, snapshot: BubbleSnapshot[]): string {
+  if (isBarsViewOn()) {
+    return readBarsBaseCommitHash(tick);
+  }
   for (const event of listAllEventsAtRow(rowsByTick.get(tick)!.axisPxList, snapshot)) {
     const isCommitNode = event.element.classList.contains("n-commit");
     if (isCommitNode)
@@ -63,7 +73,8 @@ function readMarkableMsAtOrAfter(tick: HTMLElement, snapshot: BubbleSnapshot[], 
 }
 
 function findEarliestMarkableTick(instant: string): HTMLElement | undefined {
-  const snapshot = collectStageBubbles();
+  // const snapshot = collectStageBubbles();
+  const snapshot = collectCutSnapshot();
   const instantMs = Date.parse(instant);
   let bestTick: HTMLElement | undefined;
   let bestMs = Infinity;
@@ -94,8 +105,14 @@ function applyTickMark(tick: HTMLElement, snapshot: BubbleSnapshot[]): void {
   const { base } = readJfredBranch();
   if (base === undefined)
     applyBaseMark(tick, snapshot);
-  else
+  // else
+  //   setPendingMark(instant);
+  else {
     setPendingMark(instant);
+    if (isBarsViewOn()) {
+      selectBarsRow(getBarsViewState(), findRealRulerTickRowIndex(tick));
+    }
+  }
   renderJfredEntries();
   repaintCutMarks();
   const { pending } = readJfredBranch();
@@ -121,7 +138,8 @@ function applyCutClick(event: Event): void {
   if (tick === undefined)
     return;
   event.stopPropagation();
-  const snapshot = collectStageBubbles();
+  // const snapshot = collectStageBubbles();
+  const snapshot = collectCutSnapshot();
   const refusal = findCutRefusal({ ...readTickBeaconFacts(tick, snapshot), tipMs: readTipMs() });
   if (refusal === undefined)
     applyTickMark(tick, snapshot);
