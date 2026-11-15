@@ -10,7 +10,8 @@ function listRealRulerTicks(): HTMLElement[] {
     return ticksOldestFirst.reverse();
 }
 
-function getRealRulerTickAtRowIndex(rowIndex: number): HTMLElement {
+// The tick of the real ruler at rowIndex (newest first). No tick at the index throws. Commit strip scissors click it (tick.click()).
+export function findRealRulerTickAtRowIndex(rowIndex: number): HTMLElement {
     const tick = listRealRulerTicks()[rowIndex];
     if (tick === undefined) {
         throw new Error(`ruler has no tick at row index ${rowIndex}`);
@@ -65,6 +66,39 @@ export function findRulerRowIndexForInstant(rows: readonly RulerRow[], instant: 
     }
     return 0;
 }
+// Selection rule after a ruler redraw (Q9 = B): the row that holds time (instants[0] <= time <= newest instant); else the newest row whose newest instant is before time; else the oldest row. rows is newest first; an empty list throws.
+export function findRulerRowIndexForSelectedTime(rows: readonly RulerRow[], time: string): number {
+    if (rows.length === 0) {
+        throw new Error("ruler has no rows");
+    }
+    const selectedTime = Date.parse(time);
+    let newestOlderRowIndex = -1;
+    for (const [rowIndex, row] of rows.entries()) {
+        const oldestRowInstant = row.instants[0];
+        const newestRowInstant = row.instants[row.instants.length - 1];
+        if (oldestRowInstant === undefined) {
+            throw new Error(`ruler row ${rowIndex} has no instants`);
+        }
+        if (newestRowInstant === undefined) {
+            throw new Error(`ruler row ${rowIndex} has no instants`);
+        }
+        const newestRowTime = Date.parse(newestRowInstant);
+        if (selectedTime >= Date.parse(oldestRowInstant)) {
+            if (selectedTime <= newestRowTime) {
+                return rowIndex;
+            }
+        }
+        if (newestRowTime < selectedTime) {
+            if (newestOlderRowIndex === -1) {
+                newestOlderRowIndex = rowIndex;
+            }
+        }
+    }
+    if (newestOlderRowIndex === -1) {
+        return rows.length - 1;
+    }
+    return newestOlderRowIndex;
+}
 // rowIndex / (rowCount - 1) * 100. When rowCount is 1 it returns 0.
 export function computeBarPercent(rowIndex: number, rowCount: number): number {
     if (rowCount === 1) {
@@ -74,7 +108,7 @@ export function computeBarPercent(rowIndex: number, rowCount: number): number {
 }
 // Removes barsSelected from every real tick, then adds it to the tick at rowIndex (newest first). An index with no tick throws.
 export function markRealRulerRowSelected(rowIndex: number): void {
-    const tickToSelect = getRealRulerTickAtRowIndex(rowIndex);
+    const tickToSelect = findRealRulerTickAtRowIndex(rowIndex);
     for (const tick of listRealRulerTicks()) {
         tick.classList.remove(BARS_SELECTED_TICK_CLASS);
     }
@@ -82,7 +116,7 @@ export function markRealRulerRowSelected(rowIndex: number): void {
 }
 // scrollIntoView({ block: "center" }) on the real tick at rowIndex.
 export function scrollRealRulerRowIntoView(rowIndex: number): void {
-    getRealRulerTickAtRowIndex(rowIndex).scrollIntoView({ block: "center" });
+    findRealRulerTickAtRowIndex(rowIndex).scrollIntoView({ block: "center" });
 }
 // Adds BARS_RULER_LOADING_CLASS to #timelineRulerComponent when isLoading is true, removes it when false. The CSS (S10) makes the ticks ignore clicks only in Bars view.
 export function setRealRulerLoading(isLoading: boolean): void {

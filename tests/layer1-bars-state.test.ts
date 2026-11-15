@@ -21,4 +21,6 @@ test("test_a_new_state_selects_row_zero_with_the_fold_open_and_no_ruler_rows", (
     assert.equal(state.isEventsInBar, false);
     assert.equal(state.projectDir, "");
     assert.equal(state.selectedDotElement, undefined);
+    // No ruler refresh is waiting.
+    assert.equal(state.isRulerRefreshNeeded, false);
 });

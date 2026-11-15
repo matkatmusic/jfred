@@ -93,6 +93,46 @@ test("test_list_returns_root_commit_first_with_disk_now_and_position_zero", (t) 
     assert.equal(commits[0]!.position, 0);
 });
 
+test("test_listInverseCommits_gives_each_commit_the_tree_hash_of_git", (t) => {
+    // Scenario: every listed commit carries the tree hash that git reports for it.
+    // The repo has the disk-now commit and two older commits.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now text\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "older text\n"), makeOlderState(2, "oldest text\n")]);
+    // The list has three commits.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.equal(commits.length, 3);
+    // Each commit's tree hash equals the answer of git rev-parse for that commit.
+    for (const commit of commits) {
+        const expectedTreeHash = runGit(inverseFolder, ["rev-parse", `${commit.commitHash.toString()}^{tree}`]);
+        assert.equal(commit.treeHash.toString(), expectedTreeHash);
+    }
+});
+
+test("test_two_commits_of_one_file_with_the_same_bytes_have_the_same_tree_hash", (t) => {
+    // Scenario: the disk-now commit and an older commit hold the same bytes.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("same text\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "same text\n")]);
+    // The list has two commits.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.equal(commits.length, 2);
+    // Both commits have the same tree hash.
+    assert.equal(commits[0]!.treeHash.toString(), commits[1]!.treeHash.toString());
+});
+
+test("test_two_commits_with_different_bytes_have_different_tree_hashes", (t) => {
+    // Scenario: the disk-now commit and an older commit hold different bytes.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now text\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "older text\n")]);
+    // The list has two commits.
+    const commits = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.equal(commits.length, 2);
+    // The two tree hashes differ.
+    assert.notEqual(commits[0]!.treeHash.toString(), commits[1]!.treeHash.toString());
+});
+
 test("test_createInverseRepo_creates_a_missing_repo_folder", (t) => {
     // Scenario: the repo folder does not exist yet, two levels deep inside a temp folder.
     const missingFolder = new Path(join(makeTempFolder(t), "first-level", "second-level"));
