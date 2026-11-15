@@ -22,6 +22,7 @@ import { loadReverseWalk } from "./layer1-reverse-load.ts";
 import { clearReverseWalks, readReverseWalk } from "./layer1-reverse-store.ts";
 import { applyReplayResultsToView } from "./layer1-run-placement.ts";
 import { closeRulerExpansion, registerExpansionRelayout, readRulerExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
+import { loadBarsViewIfNeeded, markBarsViewLoadNeeded } from "./layer1-components/bars-view/layer1-bars-view.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 function listSharedPaths(folders: readonly string[], sessions: readonly string[]): string[] {
@@ -198,5 +199,7 @@ export function renderLayer1View(view: WireLayer1View): Promise<void> {
   const renderPaneAfterSessionsLoad = (): void => renderSessionPane(closeRowAndRenderStage);
   // Fetched after the stage is up rather than delaying it: the timeline is the page.
   void loadLayer1Sessions().then(renderPaneAfterSessionsLoad);
+  markBarsViewLoadNeeded();
+  void loadBarsViewIfNeeded();
   return stageDrawn;
 }

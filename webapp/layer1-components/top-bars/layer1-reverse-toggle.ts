@@ -20,6 +20,12 @@ export function resetReverseToggle(): void {
   getRequiredElementById("reverse-toggle").classList.remove("current");
 }
 
+export function turnReverseOff(): void {
+  reverseOn = false;
+  getRequiredElementById("reverse-toggle").classList.remove("current");
+  notifyReverseChange();
+}
+
 function flipReverseToggle(): void {
   reverseOn = !reverseOn;
   getRequiredElementById("reverse-toggle").classList.toggle("current", reverseOn);

@@ -129,7 +129,8 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
 
-const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+// One ruler tick, because the Bars load that follows every render needs a ruler row.
+const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [{ instant: "2026-06-01T09:00:00.000Z", axisPx: 10, eventCount: 1 }] };
 
 function readStepRowTexts(hostId: string): string[] {
     return listMatching(`#${hostId} .step-row`).map((row) => row.textContent ?? "");
@@ -180,4 +181,14 @@ test("test_the_header_clear_button_posts_to_clear_results_and_reloads_the_view",
     await waitForAsyncWork();
     assert.deepEqual(requestedPaths.slice(0, 1), ["/api/layer1-clear-results"]);
     assert.ok(requestedPaths.includes("/api/layer1-view"));
+});
+
+test("test_page_enables_commit_mode_when_the_bars_history_load_ends", async () => {
+    // Steps: load the page on a real view with a commit list; the stubbed history load ends with an empty result line.
+    await loadPageWithView({ ...EMPTY_VIEW, jfredCommits: { commits: [] } }, BOTH_ROOTS_SEARCH);
+    await waitForAsyncWork();
+    // The button was shown disabled by the render, and the callback of the Bars view then enabled it.
+    const commitModeButton = document.getElementById("commit-mode") as HTMLButtonElement;
+    assert.equal(commitModeButton.hidden, false);
+    assert.equal(commitModeButton.disabled, false);
 });

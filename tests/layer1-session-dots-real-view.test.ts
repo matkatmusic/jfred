@@ -8,7 +8,7 @@ import { buildLayer1View } from "../src/viewer_api_layer1.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 import { createFixtureDiskFolder, createFixtureRepo } from "./layer1-view-test-helpers.ts";
 import { SESSION_ONE, writeSessionTranscript } from "./layer1-snapshot-wire-test-helpers.ts";
-import { installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
+import { buildNdjsonResponse, installFetchRoutes } from "./webapp-fetch-test-helpers.ts";
 import { resetSessionDotsPage, SESSION_DOTS_PATHNAME, setPaneSize, setUpSessionDotsPage } from "./layer1-session-dots-test-helpers.ts";
 import { getInputById, getRequiredElementById } from "../webapp/app-dom.ts";
 import { SourceKind } from "../webapp/layer1-wire.ts";
@@ -93,6 +93,9 @@ test("test_a_real_view_draws_the_dots_of_its_chat_log_when_the_session_button_is
         // The dots route answers from the real server function, for the range the page asks.
         function answerFromTheRealServer(url: unknown): Promise<Response> {
             const { pathname, searchParams } = new URL(String(url), "http://localhost:7343");
+            if (pathname === "/api/layer1-inverse-repos") {
+                return Promise.resolve(buildNdjsonResponse([{ files: [] }]));
+            }
             const isDotsRoute = pathname === SESSION_DOTS_PATHNAME;
             const isInstantsRoute = pathname === SESSION_DOT_INSTANTS_PATHNAME;
             const isKnownRoute = isDotsRoute || isInstantsRoute;

@@ -9,7 +9,8 @@ import { installAnimationFrameStub, installRecordingFetch } from "./layer1-drawe
 import { buildBarFileModels, type BarFileModel } from "../webapp/layer1-components/bars-view/layer1-bars-model.ts";
 import { BarsViewMode } from "../webapp/layer1-components/bars-view/layer1-bars-mode.ts";
 import { BARS_SELECTED_TICK_CLASS, listRealRulerRows } from "../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
-import type { InverseCommitWire } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
+import { BARS_NO_RULER_ROWS_TEXT } from "../webapp/layer1-components/bars-view/layer1-bars-header.ts";
+import type { InverseCommitWire, InverseRepoFileWire } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import type { RulerRow } from "../webapp/layer1-components/ruler/layer1-ruler-rows.ts";
 
 // layer1-page.ts boots at MODULE SCOPE (through the strip), so absorb that first boot against a throwaway DOM.
@@ -69,20 +70,28 @@ function buildCommitAtHour(hour: number, overrides: Partial<InverseCommitWire> =
 }
 
 // Dots: 0 disk (row 0), 1 commit (row 1), 2 edit (row 2), 3 created (row 4).
-function buildChangedModel(): BarFileModel {
+function buildChangedFile(): InverseRepoFileWire {
     const commits = [
         buildDiskNowCommit(),
         buildCommitAtHour(11),
         buildCommitAtHour(10, { eventType: "EditRow" }),
         buildCommitAtHour(8, { eventType: "WriteRow", isFileAbsent: true }),
     ];
-    const model = buildBarFileModels([buildInverseFile(FILE_PATH, commits)], buildRulerRows(DEFAULT_HOURS_NEWEST_FIRST))[0];
+    return buildInverseFile(FILE_PATH, commits);
+}
+
+function buildUnchangedFile(): InverseRepoFileWire {
+    return buildInverseFile(UNCHANGED_FILE_PATH, [buildDiskNowCommit()]);
+}
+
+function buildChangedModel(): BarFileModel {
+    const model = buildBarFileModels([buildChangedFile()], buildRulerRows(DEFAULT_HOURS_NEWEST_FIRST))[0];
     assert.ok(model);
     return model;
 }
 
 function buildUnchangedModel(): BarFileModel {
-    const model = buildBarFileModels([buildInverseFile(UNCHANGED_FILE_PATH, [buildDiskNowCommit()])], buildRulerRows(DEFAULT_HOURS_NEWEST_FIRST))[0];
+    const model = buildBarFileModels([buildUnchangedFile()], buildRulerRows(DEFAULT_HOURS_NEWEST_FIRST))[0];
     assert.ok(model);
     return model;
 }
@@ -160,6 +169,7 @@ beforeEach(() => {
     state.isEventsInBar = false;
     state.projectDir = PROJECT_DIR;
     state.rulerRows = listRealRulerRows();
+    state.files = [buildChangedFile(), buildUnchangedFile()];
     state.models = [buildChangedModel(), buildUnchangedModel()];
     state.selectedRowIndex = SELECTED_ROW_INDEX_AT_SETUP;
     state.selectedDotElement = undefined;
@@ -381,13 +391,44 @@ test("test_a_ruler_redraw_that_removes_the_selected_row_selects_the_nearest_olde
 
 test("test_a_ruler_redraw_before_the_history_result_does_nothing", () => {
     // Scenario: no history result yet; the ruler is drawn again with six rows.
-    state.models = [];
+    state.files = [];
     buildRealRuler([13, ...DEFAULT_HOURS_NEWEST_FIRST]);
     // The ruler tells the page.
     notifyRulerRedrawn();
     // The state keeps its five old rows and asks for no refresh.
     assert.equal(state.rulerRows.length, 5);
     assert.equal(state.isRulerRefreshNeeded, false);
+});
+
+test("test_a_ruler_redraw_to_no_rows_draws_no_rows_and_writes_the_no_events_header", () => {
+    // Scenario: row 3 is selected; the ruler is drawn again with no rows.
+    buildRealRuler([]);
+    // The ruler tells the page.
+    notifyRulerRedrawn();
+    // No file row is drawn, the state holds no rows and no models, and row 0 is selected.
+    assert.equal(document.querySelectorAll(".barsFilePath").length, 0);
+    assert.deepEqual(state.rulerRows, []);
+    assert.deepEqual(state.models, []);
+    assert.equal(state.selectedRowIndex, 0);
+    // The header line says there are no events and no refresh is waiting.
+    assert.equal((document.getElementById("barsHeaderLine")!.textContent ?? "").slice("==> ".length), BARS_NO_RULER_ROWS_TEXT);
+    assert.equal(state.isRulerRefreshNeeded, false);
+});
+
+test("test_a_ruler_redraw_from_no_rows_to_rows_draws_the_file_rows", () => {
+    // Scenario: the ruler had no rows, so the state holds no rows and no models; the files are kept.
+    buildRealRuler([]);
+    notifyRulerRedrawn();
+    assert.equal(document.querySelectorAll(".barsFilePath").length, 0);
+    // The ruler is drawn again with five rows.
+    buildRealRuler(DEFAULT_HOURS_NEWEST_FIRST);
+    notifyRulerRedrawn();
+    // The state holds five rows and two models, row 0 is selected, and the changed file is drawn.
+    assert.equal(state.rulerRows.length, 5);
+    assert.equal(state.models.length, 2);
+    assert.equal(state.selectedRowIndex, 0);
+    assert.deepEqual(readSelectedTickInstants(), [buildInstantAtHour(12)]);
+    assert.equal(document.querySelectorAll(".barsFilePath").length > 0, true);
 });
 
 test("test_a_ruler_redraw_in_bubbles_view_waits_until_bars_view_is_on", () => {
