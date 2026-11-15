@@ -49,11 +49,15 @@ export type InverseProgressLine = {
     file?: string;
     fileStepsDone?: number;
     fileStepsTotal?: number;
+    logFile?: string;
 };
-export const InverseProgressLineKind = { started: "started", fileStep: "fileStep", fileDone: "fileDone", other: "other" } as const;
+export const InverseProgressLineKind = { logFile: "logFile", started: "started", fileStep: "fileStep", fileDone: "fileDone", other: "other" } as const;
 export type InverseProgressLineKind = (typeof InverseProgressLineKind)[keyof typeof InverseProgressLineKind];
 // file set and current missing: fileStep. file set and current set: fileDone. file missing and current === 0: started. Anything else: other.
 export function classifyInverseProgressLine(line: InverseProgressLine): InverseProgressLineKind {
+    if (line.logFile !== undefined) {
+        return InverseProgressLineKind.logFile;
+    }
     if (line.file !== undefined) {
         if (line.current === undefined) {
             return InverseProgressLineKind.fileStep;

@@ -55,6 +55,16 @@
     white-space: pre;
 }
 
+#barsLogFileLine {
+    padding-left: 4ch;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .barsReadBar {
     height: 10px;
     margin-top: 2px;
