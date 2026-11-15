@@ -12,9 +12,10 @@ import { getAllEventsForFileFrom, sortEventsNewestToOldest, FileEventType } from
 import { StateConfidence, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 import { buildInverseRepoByEventKind, listInverseCommits } from "./engineV3_inverse_repo.ts";
 import {
-    INVERSE_REPO_FORMAT_VERSION, buildInverseReposForFiles, getInverseRepoFolderForFile, readInverseReposSettingsFromArguments,
+    INVERSE_REPO_FORMAT_VERSION, buildInverseReposForFiles, getInverseRepoFolderForFile, listKnownStatesForProjectFiles, readInverseReposSettingsFromArguments,
     type FileInverseRepoResult, type ProjectFile,
 } from "./engineV3_inverse_repos_for_project.ts";
+import { REPLAY_GAPS_FILE_NAME, isReplayGapsSidecarPresent } from "./engineV3_script_replay_gaps.ts";
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
 
@@ -456,7 +457,7 @@ function makeWriteCreateRows(toolUseId: string, filePath: string, content: strin
     const toolUseResult = { type: "create", filePath, content, originalFile: null, structuredPatch: [], userModified: false };
     const resultContent = [{ type: "tool_result", tool_use_id: toolUseId, content: "ok" }];
     const resultRecord = { type: "user", uuid: `result-${toolUseId}`, timestamp: makeInstant(second).toISOString(), message: { role: "user", content: resultContent }, toolUseResult };
-    return [makeCallRecord("Write", toolUseId, { file_path: filePath }, second, cwd), resultRecord];
+    return [makeCallRecord("Write", toolUseId, { file_path: filePath, content }, second, cwd), resultRecord];
 }
 
 function makeCopyRows(toolUseId: string, sourceFile: Path, destinationFile: Path, second: number, cwd: string): object[] {
@@ -585,4 +586,64 @@ test("test_the_results_keep_the_order_of_the_project_files_when_a_born_file_is_l
     for (const [index, fileName] of fileNames.entries()) {
         assert.equal(results[index]!.file.toString(), join(scene.projectFolder.toString(), fileName));
     }
+});
+
+test("test_build_writes_a_gaps_sidecar_for_every_repo", (t) => {
+    // Scenario: every repo of a build holds the gaps sidecar file.
+    // A project has two files and no store yet.
+    const project = makeProject(t);
+    // The build runs for both files.
+    buildProject(project);
+    // The repo folder of each file holds the gaps sidecar.
+    for (const file of [project.fileA, project.fileB]) {
+        const repoFolder = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, file);
+        assert.equal(isReplayGapsSidecarPresent(repoFolder), true);
+    }
+});
+
+test("test_repo_without_a_sidecar_is_rebuilt", (t) => {
+    // Scenario: a repo whose stamp matches but whose sidecar is missing is built again.
+    // A project is built one time.
+    const project = makeProject(t);
+    buildProject(project);
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    // The sidecar of a.txt is removed; its stamp stays.
+    rmSync(join(repoFolderOfA.toString(), REPLAY_GAPS_FILE_NAME));
+    // The second call rebuilds a.txt and reuses b.txt.
+    const results = buildProject(project);
+    assert.deepEqual(results.map((result) => result.wasReused), [false, true]);
+    // The rebuilt repo of a.txt holds the sidecar again.
+    assert.equal(isReplayGapsSidecarPresent(repoFolderOfA), true);
+});
+
+test("test_known_states_lister_returns_the_states_the_build_used", (t) => {
+    // Scenario: a.py holds "A1", then `cp a.py b.py` runs; the project files are listed born file first.
+    const scene = makeCopyScene(t, { "a.py": "A1", "b.py": "B-now" }, makeCopyOfAIntoBRecords);
+    const projectFiles = ["b.py", "a.py"].map((fileName) => {
+        const file = new Path(join(scene.projectFolder.toString(), fileName));
+        return { file, transcriptFile: file };
+    });
+    // The build runs.
+    const results = buildInverseReposForFiles(scene.projectFolder, projectFiles, [scene.jsonlsFolder], [scene.snapshotFolder], scene.storeFolder, DISK_NOW_INSTANT, () => {});
+    // The lister gives one list of states per project file, in the order of the project files.
+    const statesByFile = listKnownStatesForProjectFiles(projectFiles, [scene.jsonlsFolder], [scene.snapshotFolder]);
+    assert.equal(statesByFile.length, 2);
+    // Each list has as many states as the build counted for that file.
+    assert.deepEqual(statesByFile.map((states) => states.length), results.map((result) => result.stateCount));
+    // The list of b.py holds the text of a.py before the copy, the move or copy rule of the build.
+    assert.ok(statesByFile[0]!.some((state) => state.text === "A1"));
+});
+
+test("test_script_run_line_that_does_not_name_the_file_reaches_the_events", (t) => {
+    // Scenario: a Write makes move_files.py, whose body moves core_beta.py to core_alpha.py; a Bash call runs `python3 move_files.py`.
+    const scriptBody = 'import shutil\nshutil.move("core_beta.py", "core_alpha.py")';
+    const scene = makeCopyScene(t, { "core_alpha.py": "ALPHA-now" }, (projectFolder) => [
+        makeCallRecord("Write", "w1", { file_path: join(projectFolder.toString(), "move_files.py"), content: scriptBody }, 3, projectFolder.toString()),
+        makeCallRecord("Bash", "b1", { command: "python3 move_files.py" }, 5, projectFolder.toString()),
+    ]);
+    // The build runs for core_alpha.py alone.
+    buildCopyScene(scene, ["core_alpha.py"]);
+    // The run line does not name core_alpha.py, yet its repo has a commit that says the file was absent.
+    const commitsOfAlpha = listCommitsOfCopySceneFile(scene, "core_alpha.py");
+    assert.ok(commitsOfAlpha.some((commit) => commit.isFileAbsent));
 });

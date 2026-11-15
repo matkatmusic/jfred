@@ -15,6 +15,8 @@ import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.ts";
 import { getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
+import { addLinesNamingWrittenScripts } from "./engineV3_jsonl_lines_naming_scripts.ts";
+import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSidecar } from "./engineV3_script_replay_gaps.ts";
 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
 
@@ -130,6 +132,34 @@ function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStam
     return false;
 }
 
+// Script indirection is on here: this is the per-file repo path only.
+function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): (fileIndex: number) => FileEvent[] {
+    let linesByFileKey: Map<string, JSONLLine[]> | undefined;
+    const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
+    return (fileIndex: number): FileEvent[] => {
+        const computedEvents = eventsByFile[fileIndex];
+        if (computedEvents !== undefined) {
+            return computedEvents;
+        }
+        if (linesByFileKey === undefined) {
+            const transcriptFiles = projectFiles.map((projectFile) => projectFile.transcriptFile);
+            linesByFileKey = loadJSONLLinesNamingFiles(transcriptFiles, jsonlsFolders);
+            addLinesNamingWrittenScripts(linesByFileKey, transcriptFiles, jsonlsFolders);
+        }
+        const { file, transcriptFile } = projectFiles[fileIndex]!;
+        const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders, true));
+        eventsByFile[fileIndex] = events;
+        return events;
+    };
+}
+
+export function listKnownStatesForProjectFiles(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): FileKnownState[][] {
+    const getEvents = createProjectEventsLoader(projectFiles, jsonlsFolders, snapshotFolders);
+    const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
+    const fileIndexesBeingComputed = new Set<number>();
+    return projectFiles.map((_projectFile, fileIndex) => listStatesOfProjectFile(fileIndex, projectFiles, getEvents, statesByFile, fileIndexesBeingComputed));
+}
+
 export function buildInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
     const repoFolders: Path[] = [];
     for (const { file } of projectFiles) {
@@ -141,21 +171,7 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
         repoFolders.push(repoFolder);
     }
     const logFilesHash = getLogFilesHash(jsonlsFolders);
-    let linesByFileKey: Map<string, JSONLLine[]> | undefined;
-    const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
-    const getEvents = (fileIndex: number): FileEvent[] => {
-        const computedEvents = eventsByFile[fileIndex];
-        if (computedEvents !== undefined) {
-            return computedEvents;
-        }
-        if (linesByFileKey === undefined) {
-            linesByFileKey = loadJSONLLinesNamingFiles(projectFiles.map((projectFile) => projectFile.transcriptFile), jsonlsFolders);
-        }
-        const { file, transcriptFile } = projectFiles[fileIndex]!;
-        const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders));
-        eventsByFile[fileIndex] = events;
-        return events;
-    };
+    const getEvents = createProjectEventsLoader(projectFiles, jsonlsFolders, snapshotFolders);
     const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
     const fileIndexesBeingComputed = new Set<number>();
     const results: FileInverseRepoResult[] = [];
@@ -168,7 +184,9 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
         let result: FileInverseRepoResult | undefined;
         if (existingStamp !== undefined) {
             if (isStampBuiltFromInputs(existingStamp, inputs)) {
-                result = { file, repoFolder, eventCount: existingStamp.eventCount, stateCount: existingStamp.stateCount, commitCount: existingStamp.commitCount, unknownStateCount: existingStamp.unknownStateCount, wasReused: true };
+                if (isReplayGapsSidecarPresent(repoFolder)) {
+                    result = { file, repoFolder, eventCount: existingStamp.eventCount, stateCount: existingStamp.stateCount, commitCount: existingStamp.commitCount, unknownStateCount: existingStamp.unknownStateCount, wasReused: true };
+                }
             }
         }
         if (result === undefined) {
@@ -185,6 +203,7 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
                 reportProgress({ kind: DocumentResponseKind.progress, label: relativeFile, file: projectRelativeFile, fileStepsDone, fileStepsTotal: commitCount });
             };
             buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant, reportStepDone);
+            writeReplayGapsSidecar(repoFolder, buildReplayGapsSidecar(states));
             result = { file, repoFolder, eventCount: events.length, stateCount: states.length, commitCount, unknownStateCount, wasReused: false };
             writeInverseRepoStamp(repoFolder, { inputs, eventCount: result.eventCount, stateCount: result.stateCount, commitCount: result.commitCount, unknownStateCount });
         }
