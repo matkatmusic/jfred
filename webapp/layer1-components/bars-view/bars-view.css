@@ -1,0 +1,117 @@
+@import url("bars-view-rows.css");
+/* Bars view styles: ported from the signed-off mockup reconstruction-bars.html, with page tokens. */
+.barsViewSlider {
+    display: inline;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.barsViewComponent {
+    display: none;
+}
+
+.appWindow.barsViewOn .barsViewComponent {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+.barsTimelineArea {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    background: var(--page);
+    color: var(--ink);
+    padding: 0 16px 16px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.barsArrow {
+    color: var(--c-snap);
+}
+
+.barsStickyHeader {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--page);
+}
+
+.barsToolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+#barsHeaderLine, #barsStatusLine {
+    white-space: pre;
+}
+
+.barsReadBar {
+    height: 10px;
+    margin-top: 2px;
+    border: 1px solid var(--muted);
+    background: var(--surface);
+}
+
+.barsReadBarFill {
+    height: 100%;
+    width: 0;
+    background: var(--c-snap);
+}
+
+.barsReadBarFill.barsIndeterminate {
+    width: 100%;
+    background: repeating-linear-gradient(135deg, var(--surface) 0, var(--surface) 6px, var(--c-snap) 6px, var(--c-snap) 12px);
+    background-size: 17px 100%;
+    animation: barsStripeMove 0.8s linear infinite;
+}
+
+@keyframes barsStripeMove {
+    to {
+        background-position: 17px 0;
+    }
+}
+
+.appWindow.barsViewOn .timelineRulerComponent.barsRulerLoading .tick {
+    pointer-events: none;
+}
+
+.appWindow.barsViewOn .timelineRulerComponent .tick.barsSelected {
+    color: var(--sel-edge);
+}
+
+.appWindow.barsViewOn .timelineRulerContainer {
+    overflow-y: auto;
+    height: 100%;
+}
+
+.appWindow.barsViewOn .timelineContainer {
+    overflow: hidden;
+    padding: 0;
+}
+
+.appWindow.barsViewOn .canvas {
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    gap: 0;
+    zoom: 1;
+}
+
+.appWindow.barsViewOn #leaders,
+.appWindow.barsViewOn #washes,
+.appWindow.barsViewOn #ranges,
+.appWindow.barsViewOn .minimapComponent,
+.appWindow.barsViewOn .zoombar,
+.appWindow.barsViewOn #reverse-toggle,
+.appWindow.barsViewOn #reverse-modifying-only,
+.appWindow.barsViewOn #session-toggle,
+.appWindow.barsViewOn .kind-jumps,
+.appWindow.barsViewOn #fileBubbleContainer > :not(#detailsPaneContainer) {
+    display: none !important;
+}

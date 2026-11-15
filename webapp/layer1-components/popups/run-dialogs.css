@@ -1,4 +1,13 @@
   /*
+    Docker problem banner at page load; a child of body, outside .appWindow, so the base.css colour variables are not set here.
+  */
+  .dockerNotice { padding: 8px 14px; background: #fff4d6; color: #5c3d00; font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .dockerNotice { background: #3d2e00; color: #ffd98a; }
+  }
+  :root[data-theme="dark"] .dockerNotice { background: #3d2e00; color: #ffd98a; }
+
+  /*
     Task 358 part D: popup sits beside the blocked dot; layer1-run-blocked-popup.ts sets left and top in canvas units.
   */
   .run-blocked-popup { position: absolute; z-index: 30; width: 360px;
