@@ -276,6 +276,15 @@ test("test_a_new_tip_moves_the_changed_rows", () => {
     assert.deepEqual(listChangedRowIndexesSinceTip(rows, buildHourMs(9)), [0]);
 });
 
+test("test_a_file_edited_on_disk_without_a_log_event_gives_a_scissors_on_its_mtime_row", () => {
+    // Step: rows h12 (row 0), h10 (row 1), h8 (row 2), h4 (row 3). The tip is h6.
+    const rows = buildRulerWithRows([[12], [10], [8], [4]]);
+    // Step: A has an at-event commit "a" at h4 and a DiskNow commit "disk" with no instant and a reader instant h8 (the mtime).
+    putFiles([["A", [buildDiskNowCommit({ treeHash: "disk", readerInstant: buildInstant(8) }), buildCommit(4, "a")]]]);
+    // Step: the scissors sit on the h8 row (index 2), not on row 0, and the newer rows h12 and h10 have none.
+    assert.deepEqual(listChangedRowIndexesSinceTip(rows, buildHourMs(6)), [2]);
+});
+
 test("test_tick_changed_since_tip_is_false_when_the_branch_has_no_tip", () => {
     // Step: a changed row but no base on the branch.
     buildRulerWithRows([[12], [4]]);

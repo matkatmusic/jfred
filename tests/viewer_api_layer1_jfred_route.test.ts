@@ -3,9 +3,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 // import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { chmodSync } from "node:fs";
+import { chmodSync, mkdtempSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 // import { tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { before, describe, test } from "node:test";
@@ -47,14 +48,16 @@ function createFixture(writes: [string, string?][]) {
     const { repoDir, commitHashes } = createJfredTempRepo();
     const baseShortHash = commitHashes[1]!.slice(0, 8);
     const tree = createSourceTree("-jfred-route");
+    // The project folder is outside the log folder, as for a real user.
+    const projectFolder = mkdtempSync(join(tmpdir(), "jfred-route-project-"));
     const records: object[] = [];
     for (const [index, [timestamp, content]] of writes.entries()) {
-        const envelope = { sessionId: SESSION_A, cwd: tree.treeRoot, timestamp, toolId: `toolu_w${index}`, parentUuid: null };
-        records.push(...buildWriteRecordPair(envelope, join(tree.treeRoot, "a.txt"), content ?? readGit(repoDir, "show", `${baseShortHash}:a.txt`)).records);
+        const envelope = { sessionId: SESSION_A, cwd: projectFolder, timestamp, toolId: `toolu_w${index}`, parentUuid: null };
+        records.push(...buildWriteRecordPair(envelope, join(projectFolder, "a.txt"), content ?? readGit(repoDir, "show", `${baseShortHash}:a.txt`)).records);
     }
     writeTranscriptFixture(tree.projectDir, "a.jsonl", records);
     clearBuiltDocumentCache();
-    return { repoDir, baseShortHash, projectDir: tree.treeRoot, transcriptFolder: tree.projectDir };
+    return { repoDir, baseShortHash, projectDir: projectFolder, transcriptFolder: tree.projectDir };
 }
 
 // const BACKUP_NAME = "bk@v1";
