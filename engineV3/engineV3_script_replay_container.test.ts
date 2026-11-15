@@ -160,7 +160,7 @@ test("test_docker_arguments_have_no_privilege_flags", () => {
 });
 
 function makeRequest(interpreter: ScriptInterpreter, source: string, overrides: Partial<ScriptReplayRequest> = {}): ScriptReplayRequest {
-    return { projectRoot: FAKE_PROJECT_ROOT, cwd: FAKE_PROJECT_ROOT, interpreter, source, inputs: [], timeoutSeconds: 30, ...overrides };
+    return { projectRoot: FAKE_PROJECT_ROOT, cwd: FAKE_PROJECT_ROOT, pythonImportFolder: FAKE_PROJECT_ROOT, interpreter, source, inputs: [], timeoutSeconds: 30, ...overrides };
 }
 
 function runScriptInContainer(request: ScriptReplayRequest, signal: AbortSignal = new AbortController().signal): Promise<ScriptReplayResponse> {
@@ -389,6 +389,16 @@ print(open(root + "/notes/hello.txt").read(), end="")
     // The output holds the store text and then the request text.
     assert.equal(response.exitCode, 0, response.stderr);
     assert.equal(response.stdout, `${STORE_BLOB_TEXT}hello text\n`);
+});
+
+test("test_python_script_imports_a_module_from_its_import_folder", { timeout: DOCKER_TEST_TIMEOUT_MS }, async () => {
+    // Give the container one module file, base.py, in the project root.
+    const inputs = [{ relativePath: "base.py", source: { kind: ScriptReplayInputKind.Text as const, text: "def inc(number):\n    return number + 1\n" } }];
+    // Run a Python script that imports the module and prints a result.
+    const response = await runScriptInContainer(makeRequest(ScriptInterpreter.Python, "from base import inc\nprint(inc(1))\n", { inputs }));
+    // The script exits 0 and prints the module's result.
+    assert.equal(response.exitCode, 0, response.stderr);
+    assert.equal(response.stdout, "2\n");
 });
 
 test("test_input_path_with_dot_dot_is_refused", async () => {
