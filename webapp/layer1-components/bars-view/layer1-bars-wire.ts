@@ -21,6 +21,7 @@ export type InverseConfidence = (typeof InverseConfidence)[keyof typeof InverseC
 
 export type InverseCommitWire = {
     commitHash: string;
+    treeHash: string;
     eventType: string;
     moment: string;
     confidence: string;

@@ -14,10 +14,11 @@ function readBarsMarkup(): string {
     return readBarsPartMarkup("bars-view-slider.html") + readBarsPartMarkup("bars-view.html");
 }
 
-// Defaults: commitHash "c0", eventType "GitCommit", moment "at-event", confidence "proven", position 0, instant TEST_INSTANT_NEWEST, isFileAbsent false, isRemoved false, movedAwayTo null.
+// Defaults: commitHash "c0", treeHash "t0", eventType "GitCommit", moment "at-event", confidence "proven", position 0, instant TEST_INSTANT_NEWEST, isFileAbsent false, isRemoved false, movedAwayTo null.
 export function buildInverseCommit(overrides: Partial<InverseCommitWire> = {}): InverseCommitWire {
     return {
         commitHash: "c0",
+        treeHash: "t0",
         eventType: "GitCommit",
         moment: "at-event",
         confidence: "proven",
