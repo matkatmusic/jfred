@@ -3,7 +3,7 @@
 import { basename, relative, sep } from "node:path";
 
 import { listInverseCommits, type InverseCommit } from "../engineV3/engineV3_inverse_repo.ts";
-import { listProjectFileStatesAtInstant } from "../engineV3/engineV3_inverse_repo_read.ts";
+import { listProjectFileStatesAtInstant, selectInverseCommitAtInstant } from "../engineV3/engineV3_inverse_repo_read.ts";
 import { getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { Path } from "./structures/domain.ts";
 
@@ -80,20 +80,46 @@ export function findNextChangingInstantInRepos(projectFolder: Path, storeFolder:
     const markText = markTexts.get(relativePath);
     const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, projectFile.file);
     // listInverseCommits returns the newest first, so the later commits are walked from the end.
-    const commits = listInverseCommits(repoFolder, basename(projectFile.file.toString())).reverse();
+    // const commits = listInverseCommits(repoFolder, basename(projectFile.file.toString())).reverse();
+    // for (const commit of commits) {
+    //   if (commit.instant !== undefined) {
+    //     if (commit.instant.getTime() > markInstant.getTime()) {
+    //       if (isLaterCommitAChange(commit, markState, markText)) {
+    //         if (nextChangingInstant === undefined) {
+    //           nextChangingInstant = commit.instant;
+    //         } else {
+    //           if (commit.instant.getTime() < nextChangingInstant.getTime()) {
+    //             nextChangingInstant = commit.instant;
+    //           }
+    //         }
+    //         break;
+    //       }
+    //     }
+    //   }
+    // }
+    const commits = listInverseCommits(repoFolder, basename(projectFile.file.toString()));
+    const laterInstantTimes = new Set<number>();
     for (const commit of commits) {
       if (commit.instant !== undefined) {
         if (commit.instant.getTime() > markInstant.getTime()) {
-          if (isLaterCommitAChange(commit, markState, markText)) {
-            if (nextChangingInstant === undefined) {
-              nextChangingInstant = commit.instant;
-            } else {
-              if (commit.instant.getTime() < nextChangingInstant.getTime()) {
-                nextChangingInstant = commit.instant;
-              }
+          laterInstantTimes.add(commit.instant.getTime());
+        }
+      }
+    }
+    const ascendingLaterInstantTimes = [...laterInstantTimes].sort((leftTime, rightTime) => leftTime - rightTime);
+    for (const laterInstantTime of ascendingLaterInstantTimes) {
+      const laterInstant = new Date(laterInstantTime);
+      const chosenCommit = selectInverseCommitAtInstant(commits, laterInstant);
+      if (chosenCommit !== undefined) {
+        if (isLaterCommitAChange(chosenCommit, markState, markText)) {
+          if (nextChangingInstant === undefined) {
+            nextChangingInstant = laterInstant;
+          } else {
+            if (laterInstantTime < nextChangingInstant.getTime()) {
+              nextChangingInstant = laterInstant;
             }
-            break;
           }
+          break;
         }
       }
     }

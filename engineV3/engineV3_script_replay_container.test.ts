@@ -311,6 +311,20 @@ print(json.dumps(results))
     assert.deepEqual(JSON.parse(response.stdout), { "/usr": "blocked", "/etc": "blocked", "/root": "blocked" });
 });
 
+test("test_script_cannot_write_to_a_world_writable_folder_of_the_image", { timeout: DOCKER_TEST_TIMEOUT_MS }, async () => {
+    // Run a Python script that tries to create a file in /var/tmp, /var/lib and /run/lock.
+    // /var/tmp and /run/lock are mode 1777 in the image, so only --read-only blocks them for user 1000.
+    const source = `${PYTHON_ATTEMPT_HELPER}
+for folder in ["/var/tmp", "/var/lib", "/run/lock"]:
+    attempt(folder, lambda: open(folder + "/jfred-probe", "w").write("x"))
+print(json.dumps(results))
+`;
+    const response = await runScriptInContainer(makeRequest(ScriptInterpreter.Python, source));
+    // All three attempts are blocked.
+    assert.equal(response.exitCode, 0, response.stderr);
+    assert.deepEqual(JSON.parse(response.stdout), { "/var/tmp": "blocked", "/var/lib": "blocked", "/run/lock": "blocked" });
+});
+
 test("test_symlink_in_project_root_cannot_write_into_the_store", { timeout: DOCKER_TEST_TIMEOUT_MS }, async () => {
     // Run a Python script that links to a store file and a store folder, then writes and removes through the links.
     const source = `${PYTHON_ATTEMPT_HELPER}
