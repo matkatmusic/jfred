@@ -494,7 +494,7 @@ export async function replayScriptTasksForProject(settings: ScriptReplaySettings
     if (Number.isNaN(toInstant.getTime())) {
         throw new Error("replayScriptTasksForProject: toInstant is not a valid date");
     }
-    const tasks = listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, toInstant);
+    const tasks = listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, toInstant, settings.jsonlsFolders);
     if (tasks.length === 0) {
         return [];
     }
@@ -623,7 +623,7 @@ export async function executeScriptReplayCommandLine(argumentList: string[], con
         containerNamePrefix,
     };
     if (command.kind === ScriptReplayCommandKind.ListOnly) {
-        for (const task of listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, command.toInstant)) {
+        for (const task of listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, command.toInstant, settings.jsonlsFolders)) {
             console.log(`${task.record.instant} ${task.record.taskId} ${task.waitingFiles.map((waitingFile) => waitingFile.relativePath).join(" ")}`);
         }
         return;
