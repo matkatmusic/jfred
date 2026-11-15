@@ -687,3 +687,24 @@ test("test_old_walk_entry_does_not_resolve_script_indirection", (t) => {
     assert.equal(scriptEvents[0]!.type, FileEventType.ScriptReadOnly);
     assert.equal(scriptEvents[0]!.scriptRun!.code, command);
 });
+
+function makeErroredResultRecord(toolUseId: string, text: string, second: number): object {
+    const content = [{ type: "tool_result", tool_use_id: toolUseId, content: text, is_error: true }];
+    return { type: "user", uuid: `result-${toolUseId}`, timestamp: makeInstant(second).toISOString(), message: { role: "user", content } };
+}
+
+test("test_blocked_call_whose_error_line_names_no_file_is_not_a_script_event", (t) => {
+    // Scenario: a Write makes mk.py, whose body names f.txt. A Bash call runs `python3 mk.py f.txt` and a hook blocks it with an error result that names no file.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "mk.py");
+    const command = "python3 mk.py f.txt";
+    const blockedRows = [...makeBashRows("b1", command, 5, scene.folder), makeErroredResultRecord("b1", "No compound commands", 5)];
+    // a later Bash call runs the same command and its result is normal
+    const laterRows = [...makeBashRows("b2", command, 8, scene.folder), makeResultRecord("b2", {}, 8)];
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, 'open("f.txt", "w")', 3), ...blockedRows, ...laterRows]);
+    // the walk of f.txt gives one script event, the later call, and none for the blocked call
+    const events = getAllEventsForFileFrom(scene.file, new Path(join(scene.folder, "f.txt")), [scene.jsonlFolder], [scene.snapshotFolder]);
+    const scriptEvents = events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents.length, 1);
+    assert.equal(scriptEvents[0]!.instant!.getTime(), makeInstant(8).getTime() - 1);
+});
