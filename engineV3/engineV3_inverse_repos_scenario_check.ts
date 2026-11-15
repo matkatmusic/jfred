@@ -13,19 +13,20 @@ import { isDirectory } from "../scripts/coverage_scenarios.ts";
 import { listStepFolders, readStepStateFiles } from "../scripts/step_state_files.ts";
 import { buildInverseReposForFiles, type ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 import { listInverseCommits } from "./engineV3_inverse_repo.ts";
+import { formatMissingExecutableLine, replayScriptTasksForProject, ScriptTaskOutcomeKind, type ScriptTaskOutcome } from "./engineV3_script_replay_run.ts";
 
 export type MissedStepText = { relativePath: string; stepName: string; isFileAbsentInStep: boolean };
 
-export type ScenarioCheckResult = { scenarioName: string; fileCount: number; stepTextCount: number; foundStepTextCount: number; missedStepTexts: MissedStepText[]; commitCount: number; unknownStateCount: number };
+export type ScenarioCheckResult = { scenarioName: string; fileCount: number; stepTextCount: number; foundStepTextCount: number; missedStepTexts: MissedStepText[]; commitCount: number; unknownStateCount: number; replayOutcomes: ScriptTaskOutcome[] };
 
-export type ScenarioCheckSettings = { scenariosFolder: Path; fileHistoryFolder: Path; onlyScenarioNames: string[] };
+export type ScenarioCheckSettings = { scenariosFolder: Path; fileHistoryFolder: Path; onlyScenarioNames: string[]; isReplayScriptsOn: boolean };
 
-const USAGE = "usage: node engineV3_inverse_repos_scenario_check.ts --scenarios <executed folder> --file-history <folder> [--only <scenario name>]...";
+const USAGE = "usage: node engineV3_inverse_repos_scenario_check.ts --scenarios <executed folder> --file-history <folder> [--only <scenario name>]... [--replay-scripts]";
 
 // The inverse repo orders its commits by position, so one fixed instant is enough; git rejects an author date before 1973 or after 2099.
 const FIXED_DISK_NOW_INSTANT = new Date(Date.UTC(2099, 0, 1));
 
-export function checkScenarioAgainstStepStates(scenarioFolder: Path, fileHistoryFolder: Path, workFolder: Path): ScenarioCheckResult {
+export async function checkScenarioAgainstStepStates(scenarioFolder: Path, fileHistoryFolder: Path, workFolder: Path, isReplayScriptsOn: boolean = false, replayScriptTasks: typeof replayScriptTasksForProject = replayScriptTasksForProject): Promise<ScenarioCheckResult> {
     const scenarioName = basename(scenarioFolder.toString());
     const stepStatesFolder = join(scenarioFolder.toString(), ".step_states");
     const stepNames = listStepFolders(stepStatesFolder);
@@ -76,7 +77,12 @@ export function checkScenarioAgainstStepStates(scenarioFolder: Path, fileHistory
         throw new Error(`checkScenarioAgainstStepStates: scenario ${scenarioName} has no transcript`);
     }
     const projectFiles: ProjectFile[] = relativePaths.map((relativePath) => ({ file: new Path(join(projectFolder, relativePath)), transcriptFile: new Path(join(recordedRoot.toString(), relativePath)) }));
-    const results = buildInverseReposForFiles(new Path(projectFolder), projectFiles, [scenarioFolder], [fileHistoryFolder], new Path(join(workFolder.toString(), "store")), FIXED_DISK_NOW_INSTANT, () => {});
+    const storeFolder = new Path(join(workFolder.toString(), "store"));
+    const results = buildInverseReposForFiles(new Path(projectFolder), projectFiles, [scenarioFolder], [fileHistoryFolder], storeFolder, FIXED_DISK_NOW_INSTANT, () => {});
+    let replayOutcomes: ScriptTaskOutcome[] = [];
+    if (isReplayScriptsOn) {
+        replayOutcomes = await replayScriptTasks({ projectFolder: new Path(projectFolder), recordedProjectFolder: recordedRoot, projectFiles, jsonlsFolders: [scenarioFolder], snapshotFolders: [fileHistoryFolder], storeFolder }, FIXED_DISK_NOW_INSTANT, () => {}, new AbortController().signal);
+    }
 
     const missedStepTexts: MissedStepText[] = [];
     let foundStepTextCount = 0;
@@ -104,7 +110,24 @@ export function checkScenarioAgainstStepStates(scenarioFolder: Path, fileHistory
     }
     const commitCount = results.reduce((sum, result) => sum + result.commitCount, 0);
     const unknownStateCount = results.reduce((sum, result) => sum + result.unknownStateCount, 0);
-    return { scenarioName, fileCount: relativePaths.length, stepTextCount: relativePaths.length * stepNames.length, foundStepTextCount, missedStepTexts, commitCount, unknownStateCount };
+    return { scenarioName, fileCount: relativePaths.length, stepTextCount: relativePaths.length * stepNames.length, foundStepTextCount, missedStepTexts, commitCount, unknownStateCount, replayOutcomes };
+}
+
+export function formatReplayCountLine(outcomes: ScriptTaskOutcome[]): string {
+    const replayedCount = outcomes.filter((outcome) => outcome.outcome === ScriptTaskOutcomeKind.Replayed).length;
+    const failedCount = outcomes.filter((outcome) => outcome.outcome === ScriptTaskOutcomeKind.Failed).length;
+    const refusedCount = outcomes.filter((outcome) => outcome.outcome === ScriptTaskOutcomeKind.Refused).length;
+    return `replayed tasks ${replayedCount}, failed ${failedCount}, refused ${refusedCount}`;
+}
+
+export function formatMissingExecutableLines(outcomes: ScriptTaskOutcome[]): string[] {
+    const missingNames = new Set<string>();
+    for (const outcome of outcomes) {
+        if (outcome.missingExecutable !== null) {
+            missingNames.add(outcome.missingExecutable);
+        }
+    }
+    return [...missingNames].map((missingName) => formatMissingExecutableLine(missingName));
 }
 
 function readRequiredFolderFlag(argumentList: string[], flag: string): { folder: Path; rest: string[] } {
@@ -116,7 +139,9 @@ function readRequiredFolderFlag(argumentList: string[], flag: string): { folder:
 }
 
 export function readScenarioCheckSettingsFromArguments(argumentList: string[]): ScenarioCheckSettings {
-    const scenariosFlag = readRequiredFolderFlag(argumentList, "--scenarios");
+    const argumentsWithoutReplayFlag = argumentList.filter((argument) => argument !== "--replay-scripts");
+    const isReplayScriptsOn = argumentsWithoutReplayFlag.length !== argumentList.length;
+    const scenariosFlag = readRequiredFolderFlag(argumentsWithoutReplayFlag, "--scenarios");
     const fileHistoryFlag = readRequiredFolderFlag(scenariosFlag.rest, "--file-history");
     const onlyScenarioNames: string[] = [];
     let rest = fileHistoryFlag.rest;
@@ -128,7 +153,7 @@ export function readScenarioCheckSettingsFromArguments(argumentList: string[]): 
         onlyScenarioNames.push(onlyFlag.value);
         rest = onlyFlag.rest;
     }
-    return { scenariosFolder: scenariosFlag.folder, fileHistoryFolder: fileHistoryFlag.folder, onlyScenarioNames };
+    return { scenariosFolder: scenariosFlag.folder, fileHistoryFolder: fileHistoryFlag.folder, onlyScenarioNames, isReplayScriptsOn };
 }
 
 const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
@@ -146,13 +171,18 @@ if (isCliRun) {
         }
     }
     const missLines: string[] = [];
+    const allReplayOutcomes: ScriptTaskOutcome[] = [];
     let foundTotal = 0;
     let allTotal = 0;
     for (const [index, name] of scenarioNames.entries()) {
         const workFolder = mkdtempSync(join(tmpdir(), "scenario-check-"));
-        const result = checkScenarioAgainstStepStates(new Path(join(settings.scenariosFolder.toString(), name)), settings.fileHistoryFolder, new Path(workFolder));
+        const result = await checkScenarioAgainstStepStates(new Path(join(settings.scenariosFolder.toString(), name)), settings.fileHistoryFolder, new Path(workFolder), settings.isReplayScriptsOn);
         rmSync(workFolder, { recursive: true, force: true });
         console.log(`${index + 1}/${scenarioNames.length}  ${name}  files ${result.fileCount}  step texts ${result.foundStepTextCount}/${result.stepTextCount}  commits ${result.commitCount}  unknown ${result.unknownStateCount}`);
+        if (settings.isReplayScriptsOn) {
+            console.log(formatReplayCountLine(result.replayOutcomes));
+            allReplayOutcomes.push(...result.replayOutcomes);
+        }
         foundTotal += result.foundStepTextCount;
         allTotal += result.stepTextCount;
         for (const miss of result.missedStepTexts) {
@@ -161,6 +191,9 @@ if (isCliRun) {
     }
     for (const missLine of missLines) {
         console.log(missLine);
+    }
+    for (const missingExecutableLine of formatMissingExecutableLines(allReplayOutcomes)) {
+        console.log(missingExecutableLine);
     }
     const seconds = ((Date.now() - startMilliseconds) / 1000).toFixed(1);
     console.log(`done: ${scenarioNames.length} scenarios, ${foundTotal}/${allTotal} step texts found, ${seconds}s`);
