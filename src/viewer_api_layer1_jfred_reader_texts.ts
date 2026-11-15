@@ -5,6 +5,7 @@ import { basename, relative, sep } from "node:path";
 import { listInverseCommits, type InverseCommit } from "../engineV3/engineV3_inverse_repo.ts";
 import { listProjectFileStatesAtInstant, selectInverseCommitAtInstant } from "../engineV3/engineV3_inverse_repo_read.ts";
 import { getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
+import { listUnfilledScriptGapsAtInstant } from "../engineV3/engineV3_script_replay_gaps.ts";
 import { Path } from "./structures/domain.ts";
 
 export type NotProvenFile = { relativePath: string; bytesFromInstant: Date | undefined; firstScriptInstant: Date };
@@ -26,7 +27,8 @@ function getRelativePathWithSlashes(projectFolder: Path, file: Path): string {
 export function readProjectFilesAtMark(projectFolder: Path, storeFolder: Path, projectFiles: ProjectFile[], markInstant: Date): ReaderFilesAtMark {
   const texts = new Map<string, string>();
   const absentPaths = new Set<string>();
-  const files = projectFiles.map((projectFile) => projectFile.file);
+  const notProven: NotProvenFile[] = [];
+  const files =projectFiles.map((projectFile) => projectFile.file);
   const fileStates = listProjectFileStatesAtInstant(storeFolder, projectFolder, files, markInstant);
   for (const { file, commit } of fileStates) {
     const relativePath = getRelativePathWithSlashes(projectFolder, file);
@@ -37,8 +39,14 @@ export function readProjectFilesAtMark(projectFolder: Path, storeFolder: Path, p
         texts.set(relativePath, commit.text!);
       }
     }
+    const repoFolder =getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+    const unfilledScriptGaps = listUnfilledScriptGapsAtInstant(repoFolder, basename(file.toString()), markInstant);
+    if (unfilledScriptGaps.length > 0) {
+      const firstScriptTime = Math.min(...unfilledScriptGaps.map((unfilledScriptGap) => unfilledScriptGap.firstScriptInstant.getTime()));
+      notProven.push({ relativePath, bytesFromInstant: commit?.instant, firstScriptInstant: new Date(firstScriptTime) });
+    }
   }
-  return { texts, absentPaths, notProven: [] };
+  return { texts, absentPaths, notProven };
 }
 
 export function formatNotProvenSection(notProven: NotProvenFile[]): string {
