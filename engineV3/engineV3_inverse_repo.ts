@@ -13,6 +13,7 @@ export type OrderedKnownState = { state: FileKnownState; position: number };
 
 export type InverseCommit = {
   commitHash: CommitHash;
+  treeHash: Uuid;
   position: number;
   eventType: FileEventType;
   moment: StateMoment;
@@ -286,7 +287,7 @@ export function listInverseCommits(repoFolder: Path, fileName: string): InverseC
     if (!parsed.isFileAbsent) {
       text = executeGit(repoFolder, ["cat-file", "blob", `${storedCommit.commitHash.toString()}:${fileName}`]).toString("utf8");
     }
-    inverseCommits.push({ commitHash: storedCommit.commitHash, ...parsed, text });
+    inverseCommits.push({ commitHash: storedCommit.commitHash, treeHash: storedCommit.treeHash, ...parsed, text });
   }
   return inverseCommits;
 }
