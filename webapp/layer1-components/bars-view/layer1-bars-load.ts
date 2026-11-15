@@ -1,7 +1,7 @@
 import { getRequiredElementById } from "../../app-dom.ts";
 import { repaintCutMarks } from "../commits-column/layer1-cut-paint.ts";
 import { refreshJfredStrip } from "../commits-column/layer1-jfred-strip.ts";
-import { BARS_READING_LOGS_TEXT, describeFilesDoneStatus, describeLoadingHeader, describeSelectedHeader, setBarsHeaderLine, setBarsStatusLine, showBarsReadBar } from "./layer1-bars-header.ts";
+import { BARS_NO_RULER_ROWS_TEXT, BARS_READING_LOGS_TEXT, describeFilesDoneStatus, describeLoadingHeader, describeSelectedHeader, setBarsHeaderLine, setBarsStatusLine, showBarsReadBar } from "./layer1-bars-header.ts";
 import { buildBarFileModels, describeStreamStep } from "./layer1-bars-model.ts";
 import { BarRowMark, buildStreamBarRow, revealBarsHistoryStage, setBarRowFillPercent, setBarRowMark, setBarRowRightText, type BarRowElements } from "./layer1-bars-row.ts";
 import { renderBarsRowList } from "./layer1-bars-rowlist.ts";
@@ -109,10 +109,16 @@ export async function loadBarsHistory(
         if (state.runId !== runId) {
             return;
         }
+        state.files = result.files;
         state.rulerRows = listRealRulerRows();
-        state.models = buildBarFileModels(result.files, state.rulerRows);
-        state.selectedRowIndex = 0;
-        markRealRulerRowSelected(0);
+        if (state.rulerRows.length === 0) {
+            state.models = [];
+            state.selectedRowIndex = 0;
+        } else {
+            state.models = buildBarFileModels(result.files, state.rulerRows);
+            state.selectedRowIndex = 0;
+            markRealRulerRowSelected(0);
+        }
         if (state.runId === runId) {
             if (historyLoadedCallback !== undefined) {
                 historyLoadedCallback(state.projectDir);
@@ -143,7 +149,8 @@ export async function loadBarsHistory(
     }
     const newestRulerRow = state.rulerRows[0];
     if (newestRulerRow === undefined) {
-        throw new Error("the real ruler has no rows");
+        setBarsHeaderLine(BARS_NO_RULER_ROWS_TEXT);
+        return;
     }
     setBarsHeaderLine(describeSelectedHeader(state.models.length, newestRulerRow.text));
 }
