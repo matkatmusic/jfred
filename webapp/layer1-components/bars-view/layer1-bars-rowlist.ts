@@ -1,4 +1,5 @@
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
+import { buildBarsArrowElement } from "./layer1-bars-header.ts";
 import { computeFillPercent, describeFinalState, describeFoldedState, isBarFileChangedSince } from "./layer1-bars-model.ts";
 import { buildModelBarRow, setBarRowFillPercent, type BarRowElements } from "./layer1-bars-row.ts";
 import type { BarsViewState } from "./layer1-bars-state.ts";
@@ -9,7 +10,7 @@ function setFoldShown(foldToggleElement: HTMLElement, foldedListElement: HTMLEle
 }
 
 function buildFoldLine(foldedFileCount: number, foldToggleElement: HTMLElement): HTMLElement {
-    const arrowElement = createElement("span", { class: "barsArrow", "data-component": "barsArrow", text: "==>" });
+    const arrowElement = buildBarsArrowElement();
     return createElement("div", { class: "barsFoldLine", "data-component": "barsFoldLine" }, [arrowElement, ` ${foldedFileCount} files with no change since this row `, foldToggleElement]);
 }
 

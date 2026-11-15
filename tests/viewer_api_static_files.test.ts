@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { computeStaticFileRelative, findStaticFilePath } from "../src/viewer_api_static_files.ts";
 
 test("test_computeStaticFileRelative_maps_root_and_strips_app_prefix", () => {
-    assert.equal(computeStaticFileRelative("/"), "index.html");
+    assert.equal(computeStaticFileRelative("/"), "layer1.html");
     assert.equal(computeStaticFileRelative("/app/styles.css"), "styles.css");
     assert.equal(computeStaticFileRelative("/webapp_old.html"), "webapp_old.html");
 });

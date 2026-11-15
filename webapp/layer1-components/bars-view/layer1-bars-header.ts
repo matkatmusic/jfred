@@ -19,9 +19,13 @@ export function describeSelectedHeader(fileCount: number, rowText: string): stri
     return `Change history of ${fileCount} files, back to ${rowText}`;
 }
 
+export function buildBarsArrowElement(): HTMLElement {
+    return createElement("span", { class: "barsArrow", "data-component": "barsArrow", text: "==>" });
+}
+
 function writeArrowLine(lineId: string, text: string): void {
     const line = getRequiredElementById(lineId);
-    const arrow = createElement("span", { class: "barsArrow", "data-component": "barsArrow", text: "==>" });
+    const arrow = buildBarsArrowElement();
     line.replaceChildren(arrow, ` ${text}`);
 }
 
