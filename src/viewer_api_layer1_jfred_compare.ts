@@ -45,3 +45,16 @@ export function listChangedFiles(repoDir: Path, parentHash: string, engineTexts:
   }
   return changedFiles;
 }
+
+// Read-only: returns the absent paths that the parent commit still holds.
+export function listDeletedPaths(repoDir: Path, parentHash: string, engineTexts: ReadonlyMap<string, string>, absentPaths: ReadonlySet<string>): string[] {
+  const parentModes = readParentModes(repoDir, parentHash);
+  const deletedPaths: string[] = [];
+  for (const relativePath of absentPaths) {
+    if (engineTexts.has(relativePath))
+      throw new Error(`the path is both a text and absent at the mark: ${relativePath}`);
+    if (parentModes.has(relativePath))
+      deletedPaths.push(relativePath);
+  }
+  return deletedPaths;
+}
