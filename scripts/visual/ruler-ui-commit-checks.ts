@@ -3,8 +3,11 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { STRIP_IDLE } from "./layer4-probes.ts";
 import { SCROLL_HOME, buildHideSettled, buildSetHideIgnored } from "./layer7-probes.ts";
+// import {
+//   COMMIT_MODE_CLICK, DELETE_CLICK, DRAWER_FACTS, TOGGLE_SETTLED, buildClickById, buildClickEntry, buildTimeToggle,
+// } from "./layer9-probes.ts";
 import {
-  COMMIT_MODE_CLICK, DELETE_CLICK, DRAWER_FACTS, TOGGLE_SETTLED, buildClickById, buildClickEntry, buildTimeToggle,
+  COMMIT_MODE_CLICK, DELETE_CLICK, DRAWER_FACTS, TIME_BUTTON_FACTS, buildClickById, buildClickEntry, type TimeButtonFacts,
 } from "./layer9-probes.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import {
@@ -87,11 +90,18 @@ async function validateCommitState(page: HeadlessPage, offStageLeft: number): Pr
   await validatePopups(page);
   await validateBoth(page, offStageLeft);
   await page.evaluate(DELETE_CLICK);
-  // The default time mode is committer, so one flip to author redraws the stage.
-  await page.evaluate(buildTimeToggle("author"));
-  await page.waitFor(`${TOGGLE_SETTLED} && ${STRIP_IDLE}`, WAIT_MS);
-  await reportFacts(page, STRIP_FACTS, "RULER commits: after Delete and a stage redraw the strip keeps its head and Delete button", isStripHeadRight);
+  // time flips are locked while Commit Mode is on (P5)
+  // // The default time mode is committer, so one flip to author redraws the stage.
+  // await page.evaluate(buildTimeToggle("author"));
+  // await page.waitFor(`${TOGGLE_SETTLED} && ${STRIP_IDLE}`, WAIT_MS);
+  // await reportFacts(page, STRIP_FACTS, "RULER commits: after Delete and a stage redraw the strip keeps its head and Delete button", isStripHeadRight);
+  await page.waitFor(STRIP_IDLE, WAIT_MS);
+  await reportFacts(page, STRIP_FACTS, "RULER commits: after Delete the strip keeps its head and Delete button", isStripHeadRight);
+  const locked = await page.evaluate<TimeButtonFacts>(TIME_BUTTON_FACTS);
+  reportCheck("RULER commits: with Commit mode on, the committer, author and reverse buttons are disabled", locked.isCommitterDisabled && locked.isAuthorDisabled && locked.isReverseDisabled, locked);
   await toggleCommitMode(page, false);
+  const unlocked = await page.evaluate<TimeButtonFacts>(TIME_BUTTON_FACTS);
+  reportCheck("RULER commits: with Commit mode off again, the committer, author and reverse buttons are enabled", !unlocked.isCommitterDisabled && !unlocked.isAuthorDisabled && !unlocked.isReverseDisabled, unlocked);
 }
 
 // Ends on a fresh page: Delete cannot be undone and the error hook is gone.
