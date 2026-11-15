@@ -514,7 +514,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | barsDotStrip | layer1-components/bars-view/layer1-bars-row.ts | Strip of event dots under the bar |
 | BarDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
 | barsHistoryBlock | layer1-components/bars-view/layer1-bars-row.ts | Coloured chunk of change history |
-| barsTargetSegment | layer1-components/bars-view/layer1-bars-row.ts | Vertical line at the selected ruler row |
+| barsTargetLine | layer1-components/bars-view/layer1-bars-rowlist.ts | One vertical line across all bars at the selected ruler row (#barsTargetLine) |
 | barsFoldLine | layer1-components/bars-view/layer1-bars-rowlist.ts | Line "N files with no change since this row" |
 | barsFoldToggle | layer1-components/bars-view/layer1-bars-rowlist.ts | The [hide] or [show] word on the fold line |
 | barsFoldedList | layer1-components/bars-view/layer1-bars-rowlist.ts | Rows folded under the fold line |

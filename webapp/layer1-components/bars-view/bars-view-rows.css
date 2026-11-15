@@ -1,7 +1,9 @@
 /* Bars view rows: file rows, bars, dots, chunks. One rule per line when it fits. */
 .barsRows { position: relative; }
-.barsTargetSegment { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--sel-edge); z-index: 3; pointer-events: none; }
-#barsTimelineArea.commitModeOn .barsTargetSegment { width: 2px; background: transparent; border-left: 2px dotted var(--c-jfred); }
+/* .barsTargetSegment { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--sel-edge); z-index: 3; pointer-events: none; } */
+/* #barsTimelineArea.commitModeOn .barsTargetSegment { width: 2px; background: transparent; border-left: 2px dotted var(--c-jfred); } */
+.barsTargetLine { position: absolute; left: calc(300px + (100% - 520px) * var(--bars-target-percent) / 100); width: 2px; margin-left: -1px; background: var(--sel-edge); z-index: 3; pointer-events: none; }
+#barsTimelineArea.commitModeOn .barsTargetLine { width: 2px; background: transparent; border-left: 2px dotted var(--c-jfred); }
 .barsFileRow { display: flex; align-items: center; padding: 2px 0; border-bottom: 1px solid var(--border); }
 .barsFileRow.barsFoldedRow { opacity: 0.6; }
 .barsColLeft { width: 300px; flex: none; display: flex; align-items: center; gap: 8px; height: 15px; min-width: 0; padding-right: 12px; }

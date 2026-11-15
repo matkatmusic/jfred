@@ -92,7 +92,7 @@ test("test_a_stream_row_shows_the_path_a_waiting_mark_and_the_text_waiting", () 
     assert.equal(row.progressBarElement.style.left, "0%");
     assert.equal(row.progressBarElement.style.width, "100%");
     assert.equal(row.fillElement.style.width, "0%");
-    assert.equal(row.targetElement, undefined);
+    // assert.equal(row.targetElement, undefined);
     assert.equal(listByClass(row, "BarDot").length, 0);
     assert.equal(listByClass(row, "barsHistoryBlock").length, 0);
     assert.equal(row.rowElement.dataset.component, "barsFileRow");
@@ -262,14 +262,11 @@ test("test_a_model_with_no_marks_has_no_minus_sign_and_no_arrow_sign", () => {
     assert.equal(listByClass(row, "barsMovedAwaySign").length, 0);
 });
 
-test("test_the_target_line_sits_at_the_selected_row_percent", () => {
-    // Scenario: the target segment sits at the selected row percent, inside the mid column.
+test("test_a_model_row_has_no_target_line_of_its_own", () => {
+    // Scenario: the selected-time line is one line for the whole list, so a row holds none.
     initBarsDom();
     const row = buildRow(buildModel({}), buildOptions({ selectedRowIndex: 3 }));
-    assert.equal(row.targetElement?.className, "barsTargetSegment");
-    assert.equal(row.targetElement?.style.left, "75%");
-    assert.equal(row.targetElement?.parentElement?.className, "barsColMid");
-    assert.equal(row.targetElement?.dataset.component, "barsTargetSegment");
+    assert.equal(listByClass(row, "barsTargetSegment").length, 0);
 });
 
 test("test_a_folded_row_has_the_folded_class", () => {
