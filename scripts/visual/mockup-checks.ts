@@ -1,6 +1,6 @@
 // Assertion groups for the Layer 2 mockup run; mockup.ts owns the server, page and order.
 
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type HeadlessPage } from "./cdp.ts";
@@ -33,6 +33,7 @@ export const RENDER_SIGNATURE =
         [...b.querySelectorAll('.nlabel')].map(n => n.textContent).join('/')).join('|')`;
 
 export async function saveScreenshot(page: HeadlessPage, name: string): Promise<void> {
+  mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(join(OUT_DIR, `mockup-${name}.png`), Buffer.from(await page.screenshot(), "base64"));
 }
 
