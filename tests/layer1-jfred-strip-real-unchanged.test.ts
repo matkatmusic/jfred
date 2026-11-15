@@ -21,7 +21,7 @@ const BASE_MS = Date.parse("2026-06-01T00:00:00Z");
 const HOUR_MS = 3600_000;
 const WIRE_TICKS = [1, 2, 3, 4, 5, 6, 7].map((hour) => ({ instant: buildInstant(hour), axisPx: hour * 50, eventCount: 1 }));
 const VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [], jfredCommits: { base: { instant: buildInstant(1), shortHash: "a1b2c3d4" }, commits: [] } };
-let sent = 0;
+let sentPathnames: string[] = [];
 let changedHours: number[] = [];
 
 function buildInstant(hour: number): string {
@@ -67,16 +67,29 @@ async function settle(): Promise<void> {
   await waitForAsyncWork();
 }
 
+// The needs route answers no tasks; every other route answers `reply`.
+function installRoutesAnsweringWith(reply: unknown): void {
+  Object.assign(globalThis, {
+    fetch: async (url: unknown): Promise<Response> => {
+      const { pathname } = new URL(String(url), "http://localhost:7343");
+      sentPathnames.push(pathname);
+      if (pathname === "/api/layer1-script-replay-needs")
+        return new Response(`${JSON.stringify({ tasks: [] })}\n`);
+      return new Response(`${JSON.stringify(reply)}\n`);
+    },
+  });
+}
+
 // Fresh page with a pending mark at hour 3; the server will answer `unchanged`.
 function prepareUnchangedReply(nextHour: number | undefined): void {
   initLayer1Dom();
+  sentPathnames = [];
   ensureBarsMarkup();
   setBarsViewMode(BarsViewMode.bubbles);
   getBarsViewState().models = [];
   changedHours = [];
-  sent = 0;
   const reply = { outcome: "unchanged", nextInstant: nextHour === undefined ? undefined : buildInstant(nextHour) };
-  Object.assign(globalThis, { fetch: async (): Promise<Response> => { sent++; return new Response(`${JSON.stringify(reply)}\n`); } });
+  installRoutesAnsweringWith(reply);
   setArmed(true);
   loadJfredBranch(VIEW);
   setPending({ instant: buildInstant(3), message: "draft message" });
@@ -100,7 +113,7 @@ test("test_an_unchanged_reply_asks_to_move_the_mark_and_changes_no_entry", async
   assert.match(document.querySelector("#yesno-row span")!.textContent!, new RegExp(`Move the end mark to ${buildInstant(5)}`));
   assert.equal(readJfredBranch().pending!.instant, buildInstant(3));
   assert.equal(readJfredBranch().commits.length, 0);
-  assert.equal(sent, 1);
+  assert.deepEqual(sentPathnames, ["/api/layer1-script-replay-needs", "/api/layer1-jfred-commit"]);
 });
 
 test("test_answering_yes_moves_the_pending_mark_to_the_first_markable_tick_at_or_after_the_next_instant", async () => {
@@ -121,7 +134,7 @@ test("test_answering_yes_moves_the_pending_mark_to_the_first_markable_tick_at_or
   assert.equal(document.getElementById("dpath")!.textContent, "jfred commit (pending)");
   assert.equal(document.querySelector("#dbody pre")!.textContent, readJfredBranch().pending!.message);
   assert.notEqual(document.getElementById("jfred-commit-button"), null);
-  assert.equal(sent, 1);
+  assert.deepEqual(sentPathnames, ["/api/layer1-script-replay-needs", "/api/layer1-jfred-commit"]);
 });
 
 test("test_answering_no_keeps_the_pending_mark_where_it_was", async () => {
@@ -147,7 +160,7 @@ test("test_unrebuilt_reply_asks_to_move_and_yes_moves_the_pending_mark", async (
   // Verify: the row names paths and time; Yes moves the mark to hour 6.
   prepareUnchangedReply(5);
   const reply = { outcome: "unrebuilt", paths: ["a.txt", "b.txt"], nextInstant: buildInstant(5) };
-  Object.assign(globalThis, { fetch: async (): Promise<Response> => { sent++; return new Response(`${JSON.stringify(reply)}\n`); } });
+  installRoutesAnsweringWith(reply);
   addTick(6, ["node n-snap"]);
   await clickCommit();
   const questionText = document.querySelector("#yesno-row span")!.textContent!;
