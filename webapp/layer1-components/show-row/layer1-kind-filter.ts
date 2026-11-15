@@ -1,6 +1,7 @@
 // Task 360: the show row's checkboxes hide node kinds by CSS attribute; no relayout, no refetch.
 
 import { getInputById, getRequiredElementById } from "../../app-dom.ts";
+import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { isBranchesLoaded, loadBranchesOnce } from "../bubbles/layer1-branches.ts";
 import { isEditsLoaded, loadEditsOnce } from "../../layer1-edits.ts";
 import { attachKindButtons } from "./layer1-kind-buttons.ts";
@@ -157,6 +158,10 @@ async function applyKindToggleAfterLoad(box: HTMLInputElement, kind: ShowRowKind
 
 export async function toggleKindBox(box: HTMLInputElement): Promise<void> {
   const kind = findBoxKind(box);
+  if (isBarsViewOn()) {
+    applyKindToggle(box, kind);
+    return;
+  }
   const needsEditLoad = isKindLoadNeeded(box, kind, ShowRowKind.edit, isEditsLoaded(drawnView!));
   if (needsEditLoad) {
     await renderEditsAfterLoad(box, kind);

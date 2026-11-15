@@ -8,7 +8,8 @@ import { readLayer1ViewStream, renderLoadbar } from "../webapp/layer1-components
 import { resetStepConsole, StepConsoleScope } from "../webapp/layer1-components/loading-bar/layer1-step-console.ts";
 
 // A complete but empty view — the terminal (kind-less) line of every stream below.
-const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+// One ruler tick, because the Bars load that follows every render needs a ruler row.
+const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [{ instant: "2026-06-01T09:00:00.000Z", axisPx: 10, eventCount: 1 }] };
 
 // The deep link the page needs before it will fetch at all: both roots named.
 const BOTH_ROOTS_SEARCH = "?dir=%2Fw%2Fproj&repo=%2Fw%2Fproj";

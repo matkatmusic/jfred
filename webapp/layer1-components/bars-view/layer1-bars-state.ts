@@ -1,6 +1,7 @@
 import type { BarFileModel } from "./layer1-bars-model.ts";
 import type { BarRowElements } from "./layer1-bars-row.ts";
 import type { RulerRow } from "../ruler/layer1-ruler-rows.ts";
+import type { InverseRepoFileWire } from "./layer1-bars-wire.ts";
 
 export type BarsViewState = {
     runId: number;
@@ -10,6 +11,7 @@ export type BarsViewState = {
     isEventsInBar: boolean;
     projectDir: string;
     rulerRows: RulerRow[];             // the rows of the real ruler, newest first, read at the result line by listRealRulerRows()
+    files: InverseRepoFileWire[];      // the files of the last result line; empty until a result line arrives
     models: BarFileModel[];
     rowElements: BarRowElements[];     // parallel to models; written by renderBarsRowList
     selectedRowIndex: number;          // index into rulerRows. The real ruler holds no selected row of its own, so the Bars view keeps this one.
@@ -26,6 +28,7 @@ export function createBarsViewState(): BarsViewState {
         isEventsInBar: false,
         projectDir: "",
         rulerRows: [],
+        files: [],
         models: [],
         rowElements: [],
         selectedRowIndex: 0,

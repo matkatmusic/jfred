@@ -3,6 +3,7 @@ import { readSourceParams } from "../top-bars/layer1-sources.ts";
 import { readJfredBranch } from "../commits-column/layer1-jfred-state.ts";
 import { registerRulerRedrawListener } from "../ruler/layer1-ruler-redraw.ts";
 import { openBarDotDetails, openBarFileDetails } from "./layer1-bars-details.ts";
+import { BARS_NO_RULER_ROWS_TEXT, describeSelectedHeader, setBarsHeaderLine } from "./layer1-bars-header.ts";
 import { loadBarsHistory } from "./layer1-bars-load.ts";
 import { buildBarFileModels, type BarFileModel } from "./layer1-bars-model.ts";
 import { isBarsViewOn } from "./layer1-bars-mode.ts";
@@ -11,7 +12,7 @@ import { renderBarsRowList, toggleBarsFold } from "./layer1-bars-rowlist.ts";
 import { findRealRulerTickRowIndex, findRulerRowIndexForSelectedTime, listRealRulerRows, markRealRulerRowSelected, scrollRealRulerRowIntoView } from "./layer1-bars-ruler.ts";
 import { selectBarsRow } from "./layer1-bars-select.ts";
 import { getBarsViewState, type BarsViewState } from "./layer1-bars-state.ts";
-import { BARS_LAST_STAGE_INDEX, type InverseRepoFileWire } from "./layer1-bars-wire.ts";
+import { BARS_LAST_STAGE_INDEX } from "./layer1-bars-wire.ts";
 
 const SELECTED_DOT_CLASS = "selectedDot";
 const EVENTS_IN_BAR_CLASS = "eventsInBar";
@@ -115,7 +116,7 @@ function toggleBarsEventsView(): void {
 
 function refreshBarsAfterRulerRedraw(): void {
     const state = getBarsViewState();
-    if (state.models.length === 0) {
+    if (state.files.length === 0) {
         return;
     }
     if (state.isHistoryLoading) {
@@ -125,21 +126,31 @@ function refreshBarsAfterRulerRedraw(): void {
         state.isRulerRefreshNeeded = true;
         return;
     }
-    const selectedRow = state.rulerRows[state.selectedRowIndex];
-    if (selectedRow === undefined) {
-        throw new Error(`no ruler row at index ${state.selectedRowIndex}`);
+    const newRows = listRealRulerRows();
+    if (newRows.length === 0) {
+        state.rulerRows = [];
+        state.models = [];
+        state.selectedRowIndex = 0;
+        renderBarsRowList(state, false);
+        setBarsHeaderLine(BARS_NO_RULER_ROWS_TEXT);
+        state.isRulerRefreshNeeded = false;
+        return;
     }
-    const selectedTime = selectedRow.instants[selectedRow.instants.length - 1];
-    if (selectedTime === undefined) {
-        throw new Error(`ruler row ${state.selectedRowIndex} has no instants`);
+    if (state.rulerRows.length === 0) {
+        state.selectedRowIndex = 0;
+    } else {
+        const selectedRow = state.rulerRows[state.selectedRowIndex];
+        if (selectedRow === undefined) {
+            throw new Error(`no ruler row at index ${state.selectedRowIndex}`);
+        }
+        const selectedTime = selectedRow.instants[selectedRow.instants.length - 1];
+        if (selectedTime === undefined) {
+            throw new Error(`ruler row ${state.selectedRowIndex} has no instants`);
+        }
+        state.selectedRowIndex = findRulerRowIndexForSelectedTime(newRows, selectedTime);
     }
-    const files: InverseRepoFileWire[] = [];
-    for (const model of state.models) {
-        files.push({ file: model.path, commits: model.commits });
-    }
-    state.rulerRows = listRealRulerRows();
-    state.models = buildBarFileModels(files, state.rulerRows);
-    state.selectedRowIndex = findRulerRowIndexForSelectedTime(state.rulerRows, selectedTime);
+    state.rulerRows = newRows;
+    state.models = buildBarFileModels(state.files, newRows);
     markRealRulerRowSelected(state.selectedRowIndex);
     renderBarsRowList(state, false);
     if (getRequiredElementById("barsRows").getAttribute("data-blocks") === "shown") {
@@ -148,6 +159,11 @@ function refreshBarsAfterRulerRedraw(): void {
             revealBarsHistoryStage(rowListElement, stageIndex);
         }
     }
+    const newSelectedRow = state.rulerRows[state.selectedRowIndex];
+    if (newSelectedRow === undefined) {
+        throw new Error(`no ruler row at index ${state.selectedRowIndex}`);
+    }
+    setBarsHeaderLine(describeSelectedHeader(state.models.length, newSelectedRow.text));
     state.isRulerRefreshNeeded = false;
 }
 
