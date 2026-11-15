@@ -62,6 +62,29 @@ test("test_isScriptCodeWriteCapable_flags_shell_output_redirects_to_files", () =
     assert.equal(isScriptCodeWriteCapable("python3 check.py >> logs/run.log"), true);
 });
 
+test("test_redirect_to_a_single_quoted_path_is_write_capable", () => {
+    // Step: a script redirects output into a path wrapped in single quotes.
+    const script = "echo x > '/p/f.txt'";
+    // Step: the gate must call it may-write, so the run gets a replay gap.
+    assert.equal(isScriptCodeWriteCapable(script), true);
+});
+
+test("test_redirect_to_a_double_quoted_path_with_a_space_is_write_capable", () => {
+    // Step: a script appends output into a double-quoted path that holds a space.
+    const script = 'echo x >> "/Users/x/claude code src/f.txt"';
+    // Step: the gate must call it may-write.
+    assert.equal(isScriptCodeWriteCapable(script), true);
+});
+
+test("test_redirect_to_a_quoted_dev_null_stays_read_only", () => {
+    // Step: scripts discard output into a quoted /dev/null, in both quote styles.
+    const doubleQuoted = 'pytest -q > "/dev/null"';
+    const singleQuoted = "pytest -q > '/dev/null'";
+    // Step: the gate must still call both read-only.
+    assert.equal(isScriptCodeWriteCapable(doubleQuoted), false);
+    assert.equal(isScriptCodeWriteCapable(singleQuoted), false);
+});
+
 test("test_isScriptCodeWriteCapable_accepts_read_only_shell_probes", () => {
     // Harness probes and fd-dup / /dev/null redirects must stay read-only or the item-68 skip breaks.
     assert.equal(isScriptCodeWriteCapable("ls -la"), false);

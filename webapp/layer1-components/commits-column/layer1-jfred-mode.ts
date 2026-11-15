@@ -2,6 +2,7 @@
 
 import { getInputById, getRequiredElementById } from "../../app-dom.ts";
 import { getJfredBaseHashForProject, saveJfredBaseHash } from "../../layer1-settings.ts";
+import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { openToast } from "../details-drawer/layer1-diff-pane-support.ts";
 import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
 import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
@@ -50,15 +51,25 @@ async function enableEveryKind(): Promise<boolean> {
 
 async function toggleCommitMode(): Promise<void> {
   const branchBeforeToggle = readJfredBranch();
+  // if (!branchBeforeToggle.isArmed) {
+  //   const areAllKindsOn = await enableEveryKind();
+  //   if (!areAllKindsOn) {
+  //     openToast(KINDS_NOT_LOADED_TEXT);
+  //     return;
+  //   }
+  // }
   if (!branchBeforeToggle.isArmed) {
-    const areAllKindsOn = await enableEveryKind();
-    if (!areAllKindsOn) {
-      openToast(KINDS_NOT_LOADED_TEXT);
-      return;
+    if (!isBarsViewOn()) {
+      const areAllKindsOn = await enableEveryKind();
+      if (!areAllKindsOn) {
+        openToast(KINDS_NOT_LOADED_TEXT);
+        return;
+      }
     }
   }
   setArmed(!readJfredBranch().isArmed);
   getRequiredElementById("commit-mode").classList.toggle("current", readJfredBranch().isArmed);
+  getRequiredElementById("barsTimelineArea").classList.toggle("commitModeOn", readJfredBranch().isArmed);
   repaintCutMarks();
   refreshJfredStrip();
   moveMiniMapToRulerEdge();
@@ -98,6 +109,7 @@ export function rememberJfredCommits(view: WireLayer1View): void {
   if (readJfredBranch().isArmed) {
     setArmed(false);
     getRequiredElementById("commit-mode").classList.remove("current");
+    getRequiredElementById("barsTimelineArea").classList.remove("commitModeOn");
     repaintCutMarks();
     refreshJfredStrip();
   }

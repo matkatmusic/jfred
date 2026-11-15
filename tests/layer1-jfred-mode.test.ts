@@ -212,8 +212,12 @@ test("test_a_second_render_keeps_the_fake_commits", async () => {
   // Verify: a later render with the same wire view must not reload the canned branch.
   initLayer1Dom();
   appendCommit({ instant: "2026-06-03T18:20:00.000Z", shortHash: "c0ffee03", parentShortHash: "c0ffee02", message: "three" });
-  setArmed(true);
+  installLoaderRoutes();
+  setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(readJfredBranch().commits.length, 3);
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 4);
 });
@@ -378,4 +382,19 @@ test("test_new_project_load_disarms_commit_mode", async () => {
   await renderLayer1View(CANNED_VIEW as never);
   assert.equal(readJfredBranch().isArmed, false);
   assert.equal(getButton().classList.contains("current"), false);
+});
+
+test("test_new_project_load_removes_the_commit_mode_on_class", async () => {
+  // Verify: the next render removes the class commitModeOn from the Bars timeline area.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
+  const timelineArea = document.getElementById("barsTimelineArea") as HTMLElement;
+  assert.equal(timelineArea.classList.contains("commitModeOn"), true);
+  await renderLayer1View(CANNED_VIEW as never);
+  assert.equal(timelineArea.classList.contains("commitModeOn"), false);
 });

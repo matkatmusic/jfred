@@ -2,6 +2,7 @@ import { createElement, getRequiredElementById } from "../../app-dom.ts";
 
 export const BARS_READING_LOGS_TEXT = "Reading all session logs (one time)";
 export const BARS_READ_FROM_REPOS_TEXT = "Read from the inverse repos";
+export const BARS_NO_RULER_ROWS_TEXT = "No events to show in the ruler";
 
 export function describeLoadingHeader(totalFiles: number | undefined): string {
     if (totalFiles === undefined) {
